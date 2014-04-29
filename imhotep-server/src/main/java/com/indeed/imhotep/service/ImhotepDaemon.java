@@ -192,7 +192,7 @@ public class ImhotepDaemon {
                             sendResponse(responseBuilder.build(), os);
                             break;
                         case REGROUP:
-                            numGroups = service.handleRegroup(protoRequest.getSessionId(), ImhotepDaemonMarshaller.marshal(protoRequest.getRemapRulesList()));
+                            numGroups = service.handleRegroup(protoRequest.getSessionId(), ImhotepDaemonMarshaller.marshalGroupRemapMessageList(protoRequest.getRemapRulesList()));
                             responseBuilder.setNumGroups(numGroups);
                             sendResponse(responseBuilder.build(), os);
                             break;
@@ -383,7 +383,7 @@ public class ImhotepDaemon {
                             service.handleConditionalUpdateDynamicMetric(
                                     protoRequest.getSessionId(),
                                     protoRequest.getDynamicMetricName(),
-                                    ImhotepDaemonMarshaller.marshal(protoRequest.getConditionsList()),
+                                    ImhotepDaemonMarshaller.marshalRegroupConditionMessageList(protoRequest.getConditionsList()),
                                     Ints.toArray(protoRequest.getDynamicMetricDeltasList())
                             );
                             sendResponse(responseBuilder.build(), os);
@@ -405,7 +405,7 @@ public class ImhotepDaemon {
                         case MULTISPLIT_REGROUP:
                             numGroups = service.handleMultisplitRegroup(
                                     protoRequest.getSessionId(),
-                                    ImhotepDaemonMarshaller.marshal(protoRequest.getMultisplitRemapRuleList()),
+                                    ImhotepDaemonMarshaller.marshalGroupMultiRemapMessageList(protoRequest.getMultisplitRemapRuleList()),
                                     protoRequest.getErrorOnCollisions()
                             );
                             sendResponse(responseBuilder.setNumGroups(numGroups).build(), os);
@@ -443,7 +443,7 @@ public class ImhotepDaemon {
                                     protoRequest.getIsIntField(),
                                     protoRequest.getK()
                             );
-                            sendResponse(responseBuilder.addAllTopTerms(ImhotepDaemonMarshaller.marshal(topTerms)).build(), os);
+                            sendResponse(responseBuilder.addAllTopTerms(ImhotepDaemonMarshaller.marshalTermCountList(topTerms)).build(), os);
                             break;
                         case SHUTDOWN:
                             if (protoRequest.hasSessionId() && "magicshutdownid".equals(protoRequest.getSessionId())) {

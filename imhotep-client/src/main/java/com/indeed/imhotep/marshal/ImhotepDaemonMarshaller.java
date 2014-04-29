@@ -67,7 +67,7 @@ public final class ImhotepDaemonMarshaller {
         );
     }
 
-    public static GroupRemapRule[] marshal(final List<GroupRemapMessage> protoRemapRules) {
+    public static GroupRemapRule[] marshalGroupRemapMessageList(final List<GroupRemapMessage> protoRemapRules) {
         final GroupRemapRule[] ret = new GroupRemapRule[protoRemapRules.size()];
         for (int i = 0; i < protoRemapRules.size(); ++i) {
             final GroupRemapMessage protoRule = protoRemapRules.get(i);
@@ -90,7 +90,7 @@ public final class ImhotepDaemonMarshaller {
                 condition.hasInequality() && condition.getInequality());
     }
 
-    public static RegroupCondition[] marshal(final List<RegroupConditionMessage> protoConditions) {
+    public static RegroupCondition[] marshalRegroupConditionMessageList(final List<RegroupConditionMessage> protoConditions) {
         final RegroupCondition[] ret = new RegroupCondition[protoConditions.size()];
         for (int i = 0; i < protoConditions.size(); i++) {
             final RegroupConditionMessage protoCondition = protoConditions.get(i);
@@ -110,7 +110,7 @@ public final class ImhotepDaemonMarshaller {
         return new GroupMultiRemapRule(protoRule.getTargetGroup(), protoRule.getNegativeGroup(), positiveGroups, conditions);
     }
 
-    public static GroupMultiRemapRule[] marshal(final List<GroupMultiRemapMessage> protoRemapRules) {
+    public static GroupMultiRemapRule[] marshalGroupMultiRemapMessageList(final List<GroupMultiRemapMessage> protoRemapRules) {
         final GroupMultiRemapRule[] ret = new GroupMultiRemapRule[protoRemapRules.size()];
         for (int i = 0; i < protoRemapRules.size(); ++i) {
             final GroupMultiRemapMessage protoRule = protoRemapRules.get(i);
@@ -119,7 +119,7 @@ public final class ImhotepDaemonMarshaller {
         return ret;
     }
 
-    public static List<TermCountMessage> marshal(final List<TermCount> termCountList) {
+    public static List<TermCountMessage> marshalTermCountList(final List<TermCount> termCountList) {
         final List<TermCountMessage> ret = Lists.newArrayListWithCapacity(termCountList.size());
         for (final TermCount termCount : termCountList) {
             ret.add(
