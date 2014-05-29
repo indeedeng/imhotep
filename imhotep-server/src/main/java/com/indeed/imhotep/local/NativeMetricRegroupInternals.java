@@ -1,0 +1,45 @@
+package com.indeed.imhotep.local;
+
+import com.indeed.util.core.nativelibs.NativeLibraryUtils;
+import com.indeed.util.mmap.DirectMemory;
+import org.apache.log4j.Logger;
+import sun.misc.Unsafe;
+
+import java.lang.reflect.Field;
+
+/**
+ * @author jplaisance
+ */
+public final class NativeMetricRegroupInternals {
+
+    private static final Logger log = Logger.getLogger(NativeMetricRegroupInternals.class);
+
+    private static final Unsafe UNSAFE;
+    private static final long INT_ARRAY_BASE_OFFSET;
+
+    static {
+        try {
+            NativeLibraryUtils.loadLibrary("metricregroup", "1.0.1");
+            final Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");
+            theUnsafe.setAccessible(true);
+            UNSAFE = (Unsafe)theUnsafe.get(null);
+            INT_ARRAY_BASE_OFFSET = UNSAFE.arrayBaseOffset(int[].class);
+        } catch (NoSuchFieldException e) {
+            throw new RuntimeException(e);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static void calculateGroups(final int min, final int max, final long magicNumber, final int numBuckets, final int n, int[] valBuf, int[] docGroupBuffer, DirectMemory nativeValBuf, DirectMemory nativeDocGroupBuffer) {
+        final long valBufAddress = nativeValBuf.getAddress();
+        UNSAFE.copyMemory(valBuf, INT_ARRAY_BASE_OFFSET, null, valBufAddress, 4*n);
+        final long docGroupBufferAddress = nativeDocGroupBuffer.getAddress();
+        calculateGroups(min, max, magicNumber, numBuckets, n, valBufAddress, docGroupBufferAddress);
+        UNSAFE.copyMemory(null, docGroupBufferAddress, docGroupBuffer, INT_ARRAY_BASE_OFFSET, 4*n);
+    }
+
+    public static native long getMagicNumber(int divisor);
+
+    public static native void calculateGroups(final int min, final int max, final long magicNumber, final int numBuckets, final int n, long nativeValBufAddress, long nativeDocGroupBufferAddress);
+}

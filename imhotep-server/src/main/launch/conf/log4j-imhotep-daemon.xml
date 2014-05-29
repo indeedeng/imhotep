@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE log4j:configuration SYSTEM "log4j.dtd">
+
+<log4j:configuration xmlns:log4j="http://jakarta.apache.org/log4j/">
+
+    <appender name="FILE" class="org.apache.log4j.DailyRollingFileAppender">
+        <param name="File"   value="/imhotep/02/log/imhotep.log" />
+        <param name="DatePattern" value="'.'yyyy-MM-dd" />
+        <param name="BufferedIO" value="false" />
+        <param name="Append" value="true" />
+        <param name="Encoding" value="UTF-8" />
+        <layout class="org.apache.log4j.PatternLayout">
+            <param name="ConversionPattern" value="%d %-5p [%c{1}] %m%n"/>
+        </layout>
+        <filter class="org.apache.log4j.varia.LevelRangeFilter">
+            <param name="LevelMin" value="INFO"/>
+            <param name="LevelMax" value="FATAL"/>
+        </filter>
+    </appender>
+
+    <appender name="ERRORLOG" class="org.apache.log4j.DailyRollingFileAppender">
+        <param name="File" value="/imhotep/02/log/imhotep-error.log" />
+        <param name="DatePattern" value="'.'yyyy-MM" />
+        <param name="BufferedIO" value="false" />
+        <param name="Append" value="true" />
+        <param name="Encoding" value="UTF-8" />
+        <layout class="org.apache.log4j.PatternLayout">
+            <param name="ConversionPattern" value="%d %-5p [%c{1}] %m%n"/>
+        </layout>
+        <filter class="org.apache.log4j.varia.LevelRangeFilter">
+            <param name="LevelMin" value="ERROR"/>
+            <param name="LevelMax" value="FATAL"/>
+        </filter>
+    </appender>
+
+    <appender name="EMAIL" class="org.apache.log4j.net.SMTPAppender">
+        <param name="BufferSize" value="512"/>
+        <param name="SMTPHost" value="smartmailhost.ausprod.indeed.net"/>
+        <param name="From" value="imhotepdaemon@indeed.com"/>
+        <param name="To" value="jsgroth@indeed.com"/>
+        <param name="Subject" value="imhotep daemon error"/>
+        <layout class="org.apache.log4j.PatternLayout">
+            <param name="ConversionPattern" value="[%d{ISO8601}]%n%n%-5p%n%n%c%n%n%m%n%n"/>
+        </layout>
+        <filter class="org.apache.log4j.varia.LevelRangeFilter">
+            <param name="LevelMin" value="ERROR"/>
+            <param name="LevelMax" value="FATAL"/>
+        </filter>
+    </appender>
+
+    <category name="com.indeed">
+        <priority value="DEBUG" />
+    </category>
+
+    <root>
+        <priority value ="INFO" />
+        <appender-ref ref="FILE" />
+        <appender-ref ref="ERRORLOG" />
+        <appender-ref ref="EMAIL" />
+    </root>
+</log4j:configuration>

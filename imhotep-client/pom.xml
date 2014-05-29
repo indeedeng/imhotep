@@ -1,0 +1,168 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                      http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.indeed</groupId>
+        <artifactId>imhotep</artifactId>
+        <version>0.7.0-SNAPSHOT</version>
+    </parent>
+
+	<groupId>com.indeed</groupId>
+	<artifactId>imhotep-client</artifactId>
+	<version>${project.parent.version}</version>
+	<packaging>jar</packaging>
+
+	<licenses>
+		<license>
+			<name>The Apache Software License, Version 2.0</name>
+			<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+
+	<name>Imhotep Client jar</name>
+	<url>http://wiki.indeed.net</url>
+
+	<pluginRepositories>
+		<pluginRepository>
+			<id>protoc-plugin</id>
+			<url>http://sergei-ivanov.github.com/maven-protoc-plugin/repo/releases/</url>
+		</pluginRepository>
+	</pluginRepositories>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>com.google.protobuf.tools</groupId>
+				<artifactId>maven-protoc-plugin</artifactId>
+				<version>0.3.2</version>
+				<configuration>
+					<protocExecutable>/usr/bin/protoc</protocExecutable>
+				</configuration>
+				<executions>
+					<execution>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>compile</goal>
+							<goal>testCompile</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+
+	<dependencies>
+		<dependency>
+			<groupId>com.indeed</groupId>
+			<artifactId>util-core</artifactId>
+			<version>${indeed-util.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>log4j</groupId>
+			<artifactId>log4j</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>com.google.protobuf</groupId>
+			<artifactId>protobuf-java</artifactId>
+			<version>${protobuf-java.version}</version>
+		</dependency>
+
+        <dependency>
+            <groupId>com.google.code.findbugs</groupId>
+            <artifactId>jsr305</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.indeed</groupId>
+            <artifactId>util-zookeeper</artifactId>
+            <version>${indeed-util.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.zookeeper</groupId>
+            <artifactId>zookeeper</artifactId>
+            <version>${zookeeper.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>joda-time</groupId>
+            <artifactId>joda-time</artifactId>
+            <version>${joda-time.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>it.unimi.dsi</groupId>
+            <artifactId>fastutil</artifactId>
+            <version>${fastutil.version}</version>
+        </dependency>
+
+<!--
+		<dependency>
+			<groupId>com.indeed</groupId>
+			<artifactId>lsmtree-core</artifactId>
+			<version>1.0.0-SNAPSHOT</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.indeed</groupId>
+			<artifactId>util-varexport</artifactId>
+			<version>${indeed-util.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.indeed</groupId>
+			<artifactId>util-io</artifactId>
+			<version>${indeed-util.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.indeed</groupId>
+			<artifactId>util-mmap</artifactId>
+			<version>${indeed-util.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.lucene</groupId>
+			<artifactId>lucene-core</artifactId>
+			<version>${lucene.version}</version>
+		</dependency>
+
+ -->
+
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit-dep</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+	</dependencies>
+
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<autoVersionSubmodules>true</autoVersionSubmodules>
+
+		<colt.version>1.2.0</colt.version>
+		<fastutil.version>6.5.15</fastutil.version>
+		<gnu-trove.version>3.0.3</gnu-trove.version>
+		<lucene.version>2.4.1</lucene.version>
+		<joda-time.version>2.0</joda-time.version>
+		<protobuf-java.version>2.4.1</protobuf-java.version>
+		<snakeyaml.version>1.13</snakeyaml.version>
+		<zookeeper.version>3.4.5</zookeeper.version>
+
+		<!-- releases of our own projects to use -->
+		<!-- these should only be SNAPSHOTs when no release is available -->
+		<indeed-util.version>[1.0.9-SNAPSHOT,)</indeed-util.version>
+	</properties>
+
+</project>

@@ -1,0 +1,100 @@
+package com.indeed.imhotep;
+
+import org.apache.commons.lang.StringEscapeUtils;
+
+import java.util.Arrays;
+
+public class GroupMultiRemapRule {
+    public final int targetGroup;
+    public final int negativeGroup;
+    public final int[] positiveGroups;
+    public final RegroupCondition[] conditions;
+
+    public GroupMultiRemapRule(int targetGroup, int negativeGroup, int[] positiveGroups, RegroupCondition[] conditions) {
+        if (conditions.length != positiveGroups.length) {
+            throw new IllegalArgumentException("positiveGroups.length must equal conditions.length");
+        }
+        for (RegroupCondition condition : conditions) {
+            if (condition == null) throw new IllegalArgumentException("cannot have null conditions");
+        }
+        this.targetGroup = targetGroup;
+        this.conditions = Arrays.copyOf(conditions, conditions.length);
+        this.positiveGroups = Arrays.copyOf(positiveGroups, positiveGroups.length);
+        this.negativeGroup = negativeGroup;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        GroupMultiRemapRule that = (GroupMultiRemapRule) o;
+
+        if (negativeGroup != that.negativeGroup) return false;
+        if (targetGroup != that.targetGroup) return false;
+        if (!Arrays.equals(conditions, that.conditions)) return false;
+        if (!Arrays.equals(positiveGroups, that.positiveGroups)) return false;
+
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = targetGroup;
+        result = 31 * result + negativeGroup;
+        result = 31 * result + (positiveGroups != null ? Arrays.hashCode(positiveGroups) : 0);
+        result = 31 * result + (conditions != null ? Arrays.hashCode(conditions) : 0);
+        return result;
+    }
+
+    @Override
+    public String toString() {
+        return "GroupMultiRemapRule{" +
+                "targetGroup=" + targetGroup +
+                ", negativeGroup=" + negativeGroup +
+                ", positiveGroups=" + Arrays.toString(positiveGroups) +
+                ", conditions=" + Arrays.toString(conditions) +
+                '}';
+    }
+
+    public String prettyPrint() {
+        int theOneTarget = negativeGroup;
+        boolean oneTarget = true;
+        for (final int group : positiveGroups) {
+            if (theOneTarget != group) {
+                oneTarget = false;
+            }
+        }
+
+        if (oneTarget) {
+            return "{" + targetGroup + " -> " + negativeGroup + "}";
+        }
+
+        final String field = conditions[0].field;
+        boolean oneField = true;
+        for (final RegroupCondition condition : conditions) {
+            if (!condition.field.equals(field)) {
+                oneField = false;
+            }
+        }
+        final StringBuilder result = new StringBuilder();
+        result.append("{")
+              .append(targetGroup)
+              .append(oneField ? " by " + field : "")
+              .append(" -> [");
+        for (int i = 0; i < conditions.length; i++) {
+            RegroupCondition condition = conditions[i];
+            result.append(oneField ? "" : condition.field)
+                  .append(condition.inequality ? "<=" : "")
+                  .append(condition.intType ? condition.intTerm : ("\"" + StringEscapeUtils.escapeJava(condition.stringTerm) + "\""))
+                  .append(" TO ")
+                  .append(positiveGroups[i])
+                  .append(", ");
+        }
+        result.append("DEFAULT TO ")
+              .append(negativeGroup)
+              .append("")
+              .append("]}");
+        return result.toString();
+    }
+}

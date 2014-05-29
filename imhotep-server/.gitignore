@@ -1,0 +1,13 @@
+/bin
+/gen-src
+build/
+.project
+.classpath
+.settings/
+*.iml
+.idea
+target/
+build-transient-src/
+web-build/
+dist/
+build.properties

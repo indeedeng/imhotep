@@ -1,0 +1,113 @@
+package com.indeed.imhotep.client;
+
+import com.google.common.base.Function;
+import com.google.common.collect.Lists;
+import com.google.common.primitives.Longs;
+import com.indeed.imhotep.ShardInfo;
+import org.joda.time.DateTime;
+
+import javax.annotation.Nullable;
+import java.util.List;
+
+/**
+ * @author jsgroth
+ */
+public final class ShardIdWithVersion implements Comparable<ShardIdWithVersion> {
+    public static final Function<ShardIdWithVersion, String> SHARD_ID_GETTER = new Function<ShardIdWithVersion, String>() {
+        @Override
+        public String apply(@Nullable ShardIdWithVersion input) {
+            assert input != null;
+            return input.getShardId();
+        }
+    };
+
+    public static final Function<ShardIdWithVersion, Long> VERSION_GETTER = new Function<ShardIdWithVersion, Long>() {
+        @Override
+        public Long apply(@Nullable ShardIdWithVersion input) {
+            assert input != null;
+            return input.getVersion();
+        }
+    };
+
+    private final String shardId;
+    private final long version;
+
+    private ShardInfo.DateTimeRange range;    // lazily computed
+
+    public ShardIdWithVersion(String shardId, long version) {
+        this.shardId = shardId;
+        this.version = version;
+    }
+
+    public String getShardId() {
+        return shardId;
+    }
+
+    public long getVersion() {
+        return version;
+    }
+
+    public DateTime getStart() {
+        if(range == null) { // this is not thread safe but the operation should be deterministic with no side effects
+            range = ShardInfo.parseDateTime(shardId);
+        }
+        return range.start;
+    }
+
+    public DateTime getEnd() {
+        if(range == null) {
+            range = ShardInfo.parseDateTime(shardId);
+        }
+        return range.end;
+    }
+
+    public ShardInfo.DateTimeRange getRange() {
+        if(range == null) {
+            range = ShardInfo.parseDateTime(shardId);
+        }
+        return range;
+    }
+
+    @Override
+    public int compareTo(ShardIdWithVersion o) {
+        final int c = shardId.compareTo(o.shardId);
+        if (c != 0) return c;
+        return Longs.compare(version, o.version);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        ShardIdWithVersion that = (ShardIdWithVersion) o;
+
+        if (version != that.version) return false;
+        if (shardId != null ? !shardId.equals(that.shardId) : that.shardId != null) return false;
+
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = shardId != null ? shardId.hashCode() : 0;
+        result = 31 * result + (int) (version ^ (version >>> 32));
+        return result;
+    }
+
+    @Override
+    public String toString() {
+        return "ShardIdWithVersion{" +
+                "shardId='" + shardId + '\'' +
+                ", version=" + version +
+                '}';
+    }
+
+    public static List<String> keepShardIds(List<ShardIdWithVersion> shards) {
+        final List<String> result = Lists.newArrayListWithCapacity(shards.size());
+        for(ShardIdWithVersion shard : shards) {
+            result.add(shard.getShardId());
+        }
+        return result;
+    }
+}

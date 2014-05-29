@@ -1,0 +1,293 @@
+package imhotep;
+
+option java_package = "com.indeed.imhotep.protobuf";
+option java_outer_classname = "ImhotepProtos";
+option java_multiple_files = true;
+
+message DatasetInfoMessage {
+  optional string dataset = 1;
+  repeated ShardInfoMessage shard_info = 2;
+  repeated string int_field = 3;
+  repeated string string_field = 4;
+  repeated string metric = 5;
+}
+
+message ShardInfoMessage {
+  required string dataset = 1;
+  required string shard_id = 2;
+  repeated string loaded_metric = 6;
+  required uint32 num_docs = 7;
+  optional uint64 version = 8;
+}
+
+message StatusDumpMessage {
+  required uint64 used_memory = 1;
+  required uint64 total_memory = 2;
+  repeated SessionDumpMessage open_session = 3;
+  repeated ShardDumpMessage loaded_shard = 4;
+}
+
+message SessionDumpMessage {
+  required string session_id = 1;
+  required string dataset = 2;
+  required string hostname = 3;
+  required string username = 4;
+  required string ip_address = 5;
+  repeated ShardDumpMessage open_shard = 6;
+  optional uint32 client_version = 7 [default = 0];
+}
+
+message ShardDumpMessage {
+  required string dataset = 1;
+  required string shard_id = 2;
+  required uint32 num_docs = 3;
+  repeated MetricDumpMessage loaded_metric = 4;
+}
+
+message MetricDumpMessage {
+  required string metric = 1;
+  required uint64 memory_used = 2;
+  optional uint32 ref_count = 3;
+}
+
+message RegroupConditionMessage {
+  required string field = 1;
+  required bool int_type = 2;
+
+  optional int64 int_term = 3; // required if int_type == true
+  optional string string_term = 4; // required if int_type == false
+  optional bool inequality = 5 [default = false];
+  optional double score = 6;
+}
+
+message GroupRemapMessage {
+  required uint32 target_group = 1;
+
+  optional RegroupConditionMessage condition = 2;
+  optional uint32 negative_group = 3 [default = 0];
+  optional uint32 positive_group = 4 [default = 0];
+}
+
+message GroupMultiRemapMessage {
+  required uint32 target_group = 1;
+  repeated RegroupConditionMessage condition = 2;
+  repeated uint32 positive_group = 3;
+  optional uint32 negative_group = 4 [default = 0];
+}
+
+message ImhotepRequest {
+  enum RequestType {
+    REGROUP = 1;
+    GET_FTGS_ITERATOR = 2;
+    PUSH_STAT = 3;
+    POP_STAT = 4;
+    GET_SHARD_LIST = 5;
+    OPEN_SESSION = 6;
+    CLOSE_SESSION = 7;
+    GET_TOTAL_DOC_FREQ = 8;
+    GET_STATUS_DUMP = 9;
+    GET_GROUP_STATS = 10;
+    OPEN_SESSION_FROM_SNAPSHOT = 11;
+    EXPORT_SNAPSHOT = 12;
+    RANDOM_REGROUP = 13;
+    INT_OR_REGROUP = 14;
+    STRING_OR_REGROUP = 15;
+    QUERY_REGROUP = 16;
+    METRIC_REGROUP = 17;
+    METRIC_REGROUP_2D = 18;
+    CREATE_DYNAMIC_METRIC = 19;
+    UPDATE_DYNAMIC_METRIC = 20;
+    RESET_GROUPS = 21;
+    GET_SHARD_INFO_LIST = 22;
+    RANDOM_MULTI_REGROUP = 23;
+    MULTISPLIT_REGROUP = 24;
+    APPROXIMATE_TOP_TERMS = 25;
+    CONDITIONAL_UPDATE_DYNAMIC_METRIC = 26;
+    EXPLODED_MULTISPLIT_REGROUP = 27;
+    METRIC_FILTER = 28;
+    GET_DOC_ITERATOR = 29;
+    EXPLODED_REGROUP = 30;
+    OPTIMIZE_SESSION = 31;
+    GET_FTGS_SPLIT = 32;
+    MERGE_FTGS_SPLIT = 33;
+    SHUTDOWN = 255;
+  }
+
+  required RequestType request_type = 1;
+
+  optional string username = 2;
+
+  // for getFTGSIterator() and getTotalDocFreq()
+  repeated string int_fields = 3;
+  repeated string string_fields = 4;
+
+  // for pushStat()
+  optional string metric = 5;
+
+  // for openSession()
+  optional string dataset = 6;
+  repeated string shard_request = 7;
+
+  // for getGroupStats()
+  optional uint32 stat = 8;
+
+  // for all except getShardList() and openSession()
+  optional string session_id = 9;
+
+  // for regroup()
+  repeated GroupRemapMessage remap_rules = 10;
+
+  // for randomRegroup()
+  optional string field = 11;
+  optional bool isIntField = 12;
+  optional string salt = 13;
+  optional double p = 14;
+  optional int32 targetGroup = 15;
+  optional int32 negativeGroup = 16;
+  optional int32 positiveGroup = 17;
+
+  // for int/stringOrRegroup()
+  repeated int64 int_term = 18;
+  repeated string string_term = 19;
+
+  // for queryRegroup()
+  optional QueryRemapMessage query_remap_rule = 20;
+
+  // for metricRegroup() and metricRegroup2D()
+  optional int32 x_stat = 21;
+  optional int64 x_min = 22;
+  optional int64 x_max = 23;
+  optional int64 x_interval_size = 24;
+
+  // for metricRegroup2D()
+  optional int32 y_stat = 25;
+  optional int64 y_min = 26;
+  optional int64 y_max = 27;
+  optional int64 y_interval_size = 28;
+  
+  // used in openSession()  
+  optional int32 merge_thread_limit = 29 [default = 0];
+  optional int32 session_priority = 30 [default = 0];
+
+  // dynamic messages
+  optional string dynamic_metric_name = 31;
+  repeated sint32 dynamic_metric_deltas = 32 [packed=true];
+
+  // for randomMultiRegroup()
+  repeated double percentages = 33;
+  repeated uint32 result_groups = 34;
+
+  // for regroup()
+  repeated GroupMultiRemapMessage multisplit_remap_rule = 35;
+
+  // used in openSession()
+  optional bool optimize_group_zero_lookups = 36 [default = false];
+
+  // for approximateTopTerms()
+  optional int32 k = 37;
+
+  // for conditionalUpdateDynamicMetric()
+  repeated RegroupConditionMessage conditions = 38;
+
+  // for exploded multisplit regroup
+  optional int32 length = 39;
+
+  // for metricFilter()
+  optional bool negate = 40;
+
+  // used in openSession()
+  optional uint32 client_version = 41 [default = 0];
+
+  optional bool error_on_collisions = 42;
+
+  //for getFtgsSplit and mergeFtgsSplit
+  optional int32 splitIndex = 43;
+  //for mergeFtgsSplit
+  repeated HostAndPort nodes = 44;
+  //for getFtgsSplit
+  optional int32 numSplits = 45;
+}
+
+message ImhotepResponse {
+  enum ResponseCode {
+    OK = 1;
+    OUT_OF_MEMORY = 2;
+    OTHER_ERROR = 3;
+  }
+
+  optional ResponseCode response_code = 1 [default = OK];
+
+  // for openSession()
+  optional string session_id = 2;
+
+  // for getShardList()
+  repeated ShardInfoMessage shard_info = 3 [deprecated = true];
+
+  // for pushStat()/popStat()
+  optional uint32 num_stats = 4;
+
+  // for getTotalDocFreq()
+  optional uint64 total_doc_freq = 5;
+
+  // for getStatusDump()
+  optional StatusDumpMessage status_dump = 6;
+
+  // for getGroupStats()
+  repeated sint64 group_stat = 7;
+
+  // for exportSnapshot()
+  repeated string shard_id = 8;
+
+  // for regroups
+  optional uint32 num_groups = 9;
+
+  // error stuff
+  optional string exception_type = 10;
+  optional string exception_message = 11;
+
+  // for new getShardList()
+  repeated DatasetInfoMessage dataset_info = 12;
+
+  // for approximateTopTerms()
+  repeated TermCountMessage top_terms = 13;
+}
+
+enum Operator {
+  AND = 1;
+  OR = 2;
+  NOT = 3;
+}
+
+message TermMessage {
+  optional bool is_int_field = 1;
+  optional string field_name = 2;
+  optional int64 term_int_val = 3;
+  optional string term_string_val = 4;
+}
+
+message TermCountMessage {
+  optional TermMessage term = 1;
+  optional int64 count = 2;
+}
+
+message QueryMessage {
+  optional Operator operator = 1;
+  repeated QueryMessage operand = 2;
+
+  optional TermMessage min_term = 3;
+
+  optional TermMessage max_term = 4;
+  optional bool is_max_inclusive = 5;
+}
+
+message QueryRemapMessage {
+  optional int32 target_group = 1;
+  optional QueryMessage query = 2;
+  optional int32 negative_group = 3;
+  optional int32 positive_group = 4;
+}
+
+message HostAndPort {
+  optional string host = 1;
+  optional int32 port = 2;
+}
