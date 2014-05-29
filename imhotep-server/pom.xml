@@ -3,11 +3,11 @@
                       http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-    <parent>
-        <groupId>com.indeed</groupId>
-        <artifactId>imhotep</artifactId>
-        <version>0.7.0-SNAPSHOT</version>
-    </parent>
+	<parent>
+		<groupId>com.indeed</groupId>
+		<artifactId>imhotep</artifactId>
+		<version>0.7.0-SNAPSHOT</version>
+	</parent>
 
 	<groupId>com.indeed</groupId>
 	<artifactId>imhotep-server</artifactId>
@@ -21,7 +21,7 @@
 		</license>
 	</licenses>
 
-	<name>Imhotep Bitches!</name>
+	<name>Imhotep Server</name>
 	<url>http://wiki.indeed.net</url>
 
 	<build>
