@@ -5,7 +5,7 @@ import com.google.common.base.Charsets;
 import com.google.common.io.Closer;
 import com.google.common.io.CountingOutputStream;
 import com.google.common.io.LittleEndianDataOutputStream;
-//import com.indeed.util.Closer;
+import com.indeed.util.core.Pair;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.flamdex.api.FlamdexReader;
@@ -14,8 +14,11 @@ import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringValueLookup;
 import com.indeed.flamdex.datastruct.MMapFastBitSet;
 import com.indeed.flamdex.utils.FlamdexUtils;
+import com.indeed.util.mmap.BufferResource;
 import com.indeed.util.mmap.IntArray;
 import com.indeed.util.mmap.MMapBuffer;
+import com.indeed.util.mmap.NativeBuffer;
+import com.indeed.util.mmap.ZeroCopyOutputStream;
 
 import org.apache.log4j.Logger;
 
@@ -269,42 +272,26 @@ public enum FieldCacher {
     }
 
     public static StringValueLookup newStringValueLookup(String field, FlamdexReader r, String directory) throws IOException {
-        final File offsetsFile = new File(directory, "fld-"+field+".stroffsets");
-        final File valuesFile = new File(directory, "fld-"+field+".strvalues");
-        MMapBuffer offsets;
-        MMapBuffer values;
-        final Closer closer = Closer.create();
-        try {
-            offsets = closer.register(new MMapBuffer(offsetsFile, FileChannel.MapMode.READ_ONLY, ByteOrder.LITTLE_ENDIAN));
-            values = closer.register(new MMapBuffer(valuesFile, FileChannel.MapMode.READ_ONLY, ByteOrder.LITTLE_ENDIAN));
-        } catch (FileNotFoundException e) {
-            Closeables2.closeQuietly(closer, log);
-            buildStringValueLookup(field, r, directory, offsetsFile, valuesFile);
-            //reopen read only
-            offsets = new MMapBuffer(offsetsFile, FileChannel.MapMode.READ_ONLY, ByteOrder.LITTLE_ENDIAN);
-            values = new MMapBuffer(valuesFile, FileChannel.MapMode.READ_ONLY, ByteOrder.LITTLE_ENDIAN);
-        } catch (Throwable t) {
-            Closeables2.closeQuietly(closer, log);
-            throw Throwables2.propagate(t, IOException.class);
-        }
-        return new MMapStringValueLookup(offsets, values);
+        final Pair<? extends BufferResource, ? extends BufferResource> pair = buildStringValueLookup(field, r, directory);
+        return new MMapStringValueLookup(pair.getFirst(), pair.getSecond());
     }
 
-    private static void buildStringValueLookup(final String field, final FlamdexReader r, final String directory, final File offsetsFile, final File valuesFile) throws IOException {
+    private static Pair<? extends BufferResource, ? extends BufferResource> buildStringValueLookup(final String field,
+                                                                                                   final FlamdexReader r,
+                                                                                                   final String directory) throws IOException {
         final Closer closer = Closer.create();
+        StringTermDocIterator stringTermDocIterator = null;
+        
         try {
-            final MMapBuffer offsets;
-            final File directoryFile = new File(directory);
+            final NativeBuffer offsets;
 
-            final File tmpOffsets = File.createTempFile(offsetsFile.getName(), ".tmp", directoryFile);
-            final File tmpValues = File.createTempFile(valuesFile.getName(), ".tmp", directoryFile);
-            offsets = closer.register(new MMapBuffer(tmpOffsets, 0, 4*r.getNumDocs(), FileChannel.MapMode.READ_WRITE, ByteOrder.LITTLE_ENDIAN));
+            offsets = closer.register(new NativeBuffer(4*r.getNumDocs(), ByteOrder.LITTLE_ENDIAN));
             final IntArray intArray = offsets.memory().intArray(0, r.getNumDocs());
-            final FileOutputStream valuesFileOut = new FileOutputStream(tmpValues);
+            final ZeroCopyOutputStream valuesFileOut = new ZeroCopyOutputStream();
             final CountingOutputStream counter = new CountingOutputStream(new BufferedOutputStream(valuesFileOut));
             final LittleEndianDataOutputStream valuesOut = closer.register(new LittleEndianDataOutputStream(counter));
             valuesOut.writeByte(0);
-            final StringTermDocIterator stringTermDocIterator = closer.register(r.getStringTermDocIterator(field));
+            stringTermDocIterator = closer.register(r.getStringTermDocIterator(field));
             final int[] docIdBuffer = new int[1024];
             while (stringTermDocIterator.nextTerm()) {
                 final int offset = (int) counter.getCount();
@@ -326,12 +313,13 @@ public enum FieldCacher {
                 }
             }
             valuesOut.flush();
-            valuesFileOut.getFD().sync();
-            offsets.sync(0, offsets.memory().length());
-            tmpValues.renameTo(valuesFile);
-            tmpOffsets.renameTo(offsetsFile);
-        } finally {
+            final NativeBuffer buffer = valuesFileOut.getBuffer().realloc(valuesFileOut.position());
+            return Pair.of(offsets, buffer);
+        } catch (Throwable t) {
             closer.close();
+            throw Throwables2.propagate(t, IOException.class);
+        } finally {
+            Closeables2.closeQuietly(stringTermDocIterator, log);
         }
     }
 
