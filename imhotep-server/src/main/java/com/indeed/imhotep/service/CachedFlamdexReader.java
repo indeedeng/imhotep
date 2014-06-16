@@ -48,7 +48,7 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
     private final Map<String, Long> intDocFreqCache = new ConcurrentHashMap<String, Long>();
     private final Map<String, Long> stringDocFreqCache = new ConcurrentHashMap<String, Long>();
 
-    public CachedFlamdexReader(final @Nullable MemoryReservationContext memory,
+    public CachedFlamdexReader(final MemoryReservationContext memory,
                                   final FlamdexReader wrapped,
                                   final @Nullable Closeable readLockRef,
                                   final @Nullable String indexName,
@@ -206,7 +206,11 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
     @Override
     public void close() {
         try {
-            Closeables2.closeAll(log, metricCache, wrapped, readLockRef);
+            if (readLockRef == null) {
+                Closeables2.closeAll(log, metricCache, wrapped);
+            } else {
+                Closeables2.closeAll(log, metricCache, wrapped, readLockRef);                
+            }
         } finally {
             if (memory == null) {
                 return;

@@ -3,14 +3,17 @@ package com.indeed.flamdex.simple;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.serialization.IntSerializer;
 import com.indeed.util.serialization.LongSerializer;
+import com.indeed.imhotep.io.caching.CachedFile;
 import com.indeed.lsmtree.core.Generation;
 import com.indeed.lsmtree.core.ImmutableBTreeIndex;
 import com.indeed.util.mmap.DirectMemory;
 import com.indeed.util.mmap.MMapBuffer;
+
 import org.apache.log4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.ExecutionException;
 
 /**
 * @author jsgroth
@@ -49,13 +52,13 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
         this.filename = filename;
         this.docsFilename = docsFilename;
 
-        final File intIndex = new File(indexFilename+".intindex");
-        final File intIndex64 = new File(indexFilename+".intindex64");
+        final CachedFile intIndex = CachedFile.create(indexFilename+".intindex");
+        final CachedFile intIndex64 = CachedFile.create(indexFilename+".intindex64");
         if (intIndex64.exists()) {
-            indexFile = intIndex64;
+            indexFile = intIndex64.loadFile();
             use64BitIndex = true;
         } else if (intIndex.exists()) {
-            indexFile = intIndex;
+                indexFile = intIndex.loadFile();
             use64BitIndex = false;
         } else {
             use64BitIndex = true;

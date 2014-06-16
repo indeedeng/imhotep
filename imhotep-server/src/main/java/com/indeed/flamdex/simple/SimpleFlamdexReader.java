@@ -14,6 +14,7 @@ import com.indeed.flamdex.api.RawStringTermDocIterator;
 import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIterator;
 import com.indeed.flamdex.reader.FlamdexMetadata;
 import com.indeed.flamdex.utils.FlamdexUtils;
+import com.indeed.imhotep.io.caching.CachedFile;
 
 import java.io.File;
 import java.io.FilenameFilter;
@@ -65,15 +66,14 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader implements RawFla
 
     protected static Collection<String> scan(final String directory, final String ending) throws IOException {
         final Set<String> fields = Sets.newTreeSet();
-        for (final File file : new File(directory).listFiles(new FilenameFilter() {
-            @Override
-            public boolean accept(File dir, String name) {
-                return name.startsWith("fld-") && name.endsWith(ending);
+        final CachedFile dir = CachedFile.create(directory);
+        
+        for (final String name : dir.list()) {
+            if (name.startsWith("fld-") && name.endsWith(ending)) {
+                fields.add(name.substring(4, name.length() - ending.length()));
             }
-        })) {
-            final String name = file.getName();
-            fields.add(name.substring(4, name.length() - ending.length()));
         }
+
         return fields;
     }
 
@@ -94,12 +94,12 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader implements RawFla
 
     @Override
     public SimpleIntTermIterator getIntTermIterator(String field) {
-        final String termsFilename = Files.buildPath(directory, SimpleIntFieldWriter.getTermsFilename(field));
-        final String docsFilename = Files.buildPath(directory, SimpleIntFieldWriter.getDocsFilename(field));
-        if (new File(termsFilename).length() == 0L) {
+        final String termsFilename = CachedFile.buildPath(directory, SimpleIntFieldWriter.getTermsFilename(field));
+        final String docsFilename = CachedFile.buildPath(directory, SimpleIntFieldWriter.getDocsFilename(field));
+        if (CachedFile.create(termsFilename).length() == 0L) {
             return new NullIntTermIterator(docsFilename);
         }
-        final String indexFilename = Files.buildPath(directory, "fld-"+field);
+        final String indexFilename = CachedFile.buildPath(directory, "fld-"+field);
         try {
             return new SimpleIntTermIteratorImpl(mapCache, termsFilename, docsFilename, indexFilename);
         } catch (IOException e) {
@@ -109,12 +109,12 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader implements RawFla
 
     @Override
     public SimpleStringTermIterator getStringTermIterator(String field) {
-        final String termsFilename = Files.buildPath(directory, SimpleStringFieldWriter.getTermsFilename(field));
-        final String docsFilename = Files.buildPath(directory, SimpleStringFieldWriter.getDocsFilename(field));
-        if (new File(termsFilename).length() == 0L) {
+        final String termsFilename = CachedFile.buildPath(directory, SimpleStringFieldWriter.getTermsFilename(field));
+        final String docsFilename = CachedFile.buildPath(directory, SimpleStringFieldWriter.getDocsFilename(field));
+        if (CachedFile.create(termsFilename).length() == 0L) {
             return new NullStringTermIterator(docsFilename);
         }
-        final String indexFilename = Files.buildPath(directory, "fld-"+field+".strindex");
+        final String indexFilename = CachedFile.buildPath(directory, "fld-"+field+".strindex");
         try {
             return new SimpleStringTermIteratorImpl(mapCache, termsFilename, docsFilename, indexFilename);
         } catch (IOException e) {
@@ -130,7 +130,7 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader implements RawFla
     @Override
     public IntTermDocIterator getIntTermDocIterator(final String field) {
         final SimpleIntTermIterator termIterator = getIntTermIterator(field);
-        if (useNativeDocIdStream && new File(termIterator.getFilename()).length() > 0) {
+        if (useNativeDocIdStream && CachedFile.create(termIterator.getFilename()).length() > 0) {
             try {
                 return new NativeIntTermDocIterator(termIterator, mapCache);
             } catch (IOException e) {
@@ -144,7 +144,7 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader implements RawFla
     @Override
     public RawStringTermDocIterator getStringTermDocIterator(final String field) {
         final SimpleStringTermIterator termIterator = getStringTermIterator(field);
-        if (useNativeDocIdStream && new File(termIterator.getFilename()).length() > 0) {
+        if (useNativeDocIdStream && CachedFile.create(termIterator.getFilename()).length() > 0) {
             try {
                 return new NativeStringTermDocIterator(termIterator, mapCache);
             } catch (IOException e) {

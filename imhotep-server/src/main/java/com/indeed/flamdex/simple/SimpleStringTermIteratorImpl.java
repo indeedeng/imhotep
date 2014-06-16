@@ -3,10 +3,12 @@ package com.indeed.flamdex.simple;
 import com.google.common.base.Charsets;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.serialization.StringSerializer;
+import com.indeed.imhotep.io.caching.CachedFile;
 import com.indeed.lsmtree.core.Generation;
 import com.indeed.lsmtree.core.ImmutableBTreeIndex;
 import com.indeed.util.mmap.DirectMemory;
 import com.indeed.util.mmap.MMapBuffer;
+
 import org.apache.log4j.Logger;
 
 import java.io.File;
@@ -53,9 +55,9 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
         buffer = new byte[BUFFER_SIZE];
 
         this.docsFilename = docsFilename;
-        final File f = new File(indexFilename);
-        if (f.exists()) {
-            indexFile = f;
+        final CachedFile cf = CachedFile.create(indexFilename);
+        if (cf.exists()) {
+            indexFile = cf.loadFile();
         } else {
             indexFile = null;
         }

@@ -49,11 +49,11 @@
 
 	<dependencies>
 
-        <dependency>
-            <groupId>com.indeed</groupId>
-            <artifactId>imhotep-client</artifactId>
-            <version>${project.version}</version>
-        </dependency>
+		<dependency>
+			<groupId>com.indeed</groupId>
+			<artifactId>imhotep-client</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 
 		<dependency>
 			<groupId>com.indeed</groupId>
@@ -112,11 +112,18 @@
 			<artifactId>jsr305</artifactId>
 		</dependency>
 
-        <dependency>
-            <groupId>org.apache.lucene</groupId>
-            <artifactId>lucene-core</artifactId>
-            <version>${lucene.version}</version>
-        </dependency>
+		<dependency>
+			<groupId>org.apache.lucene</groupId>
+			<artifactId>lucene-core</artifactId>
+			<version>${lucene.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.amazonaws</groupId>
+			<artifactId>aws-java-sdk</artifactId>
+			<version>1.7.11</version>
+		</dependency>
+    
 
 <!-- 
         <dependency>

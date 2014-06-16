@@ -10,7 +10,6 @@ import com.indeed.util.core.Pair;
 import com.indeed.util.core.shell.PosixFileOperations;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
-import com.indeed.util.io.Files;
 import com.indeed.util.core.reference.AtomicSharedReference;
 import com.indeed.util.core.reference.ReloadableSharedReference;
 import com.indeed.util.core.reference.SharedReference;
@@ -30,22 +29,16 @@ import com.indeed.imhotep.MetricKey;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.io.Shard;
+import com.indeed.imhotep.io.caching.CachedFile;
 import com.indeed.imhotep.local.ImhotepLocalSession;
 
 import org.apache.log4j.Logger;
 
-import javax.annotation.Nullable;
-
-import java.io.Closeable;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.nio.channels.FileChannel;
-import java.nio.channels.FileLockInterruptionException;
-import java.nio.channels.OverlappingFileLockException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -90,8 +83,6 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
     private volatile Map<String, Map<String, AtomicSharedReference<Shard>>> shards;
     private volatile List<ShardInfo> shardList;
     private volatile List<DatasetInfo> datasetList;
-
-    private final Map<File, RandomAccessFile> lockFileMap = Maps.newHashMap();
 
     private static final int DEFAULT_MERGE_THREAD_LIMIT = 8;
 
@@ -236,8 +227,8 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
     }
 
     private void updateShards() throws IOException {
-        final String canonicalShardsDirectory = Files.getCanonicalPath(shardsDirectory);
-        if (canonicalShardsDirectory == null) {
+        final CachedFile shardsDir = CachedFile.create(shardsDirectory);
+        if (shardsDir.exists()) {
             shards = Maps.newHashMap();
             shardList = Lists.newArrayList();
             datasetList = Lists.newArrayList();
@@ -250,19 +241,19 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
         }
 
         final Map<String, Map<String, AtomicSharedReference<Shard>>> newShards = Maps.newHashMap();
-        for (final File datasetDir : new File(canonicalShardsDirectory).listFiles()) {
+        for (final CachedFile datasetDir : shardsDir.listFiles()) {
             if (!datasetDir.isDirectory())
                 continue;
 
-            final String dataset = datasetDir.getName();
-            Map<String, AtomicSharedReference<Shard>> oldDatasetShards = oldShards.get(dataset);
+            final String datasetName = datasetDir.getName();
+            Map<String, AtomicSharedReference<Shard>> oldDatasetShards = oldShards.get(datasetName);
             if (oldDatasetShards == null) {
                 oldDatasetShards = Maps.newHashMap();
             }
 
             final Map<String, AtomicSharedReference<Shard>> newDatasetShards = Maps.newHashMap();
 
-            for (final File shardDir : datasetDir.listFiles()) {
+            for (final CachedFile shardDir : datasetDir.listFiles()) {
                 if (!shardDir.isDirectory())
                     continue;
 
@@ -279,65 +270,6 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
                     }
 
                     final String canonicalShardDir = shardDir.getCanonicalPath();
-                    final ReadLock readLock;
-                    try {
-                        readLock = ReadLock.lock(lockFileMap, new File(canonicalShardDir));
-                    } catch (ReadLock.AlreadyOpenException e) {
-                        // already loaded
-                        if (!newDatasetShards.containsKey(shardId)) {
-                            if (!oldDatasetShards.containsKey(shardId)) {
-                                log.error("shard " + shardId
-                                        + " claims to be open but isn't referenced");
-                            } else {
-                                newDatasetShards.put(shardId, oldDatasetShards.get(shardId));
-                            }
-                        }
-                        continue;
-                    } catch (ReadLock.ShardDeletedException e) {
-                        log.info("shard " + shardDir.getName() + " in dataset " + dataset
-                                + " was deleted before read lock could be acquired");
-                        continue;
-                    } catch (ReadLock.LockAquisitionException e) {
-                        log.error("could not lock directory " + canonicalShardDir, e);
-                        continue;
-                    }
-
-                    final SharedReference<ReadLock> readLockRef = SharedReference.create(readLock);
-                    final Shard newShard;
-
-                    try {
-                        final ReloadableSharedReference.Loader<CachedFlamdexReader, IOException> loader =
-                                new ReloadableSharedReference.Loader<CachedFlamdexReader, IOException>() {
-                                    @Override
-                                    public CachedFlamdexReader load() throws IOException {
-                                        final FlamdexReader flamdex =
-                                                flamdexReaderFactory.openReader(canonicalShardDir);
-                                        final SharedReference<ReadLock> copy = readLockRef.copy();
-                                        if (flamdex instanceof RawFlamdexReader) {
-                                            return new RawCachedFlamdexReader(
-                                                                              new MemoryReservationContext(
-                                                                                                           memory),
-                                                                              (RawFlamdexReader) flamdex,
-                                                                              copy, dataset,
-                                                                              shardDir.getName(),
-                                                                              freeCache);
-                                        } else {
-                                            return new CachedFlamdexReader(
-                                                                           new MemoryReservationContext(
-                                                                                                        memory),
-                                                                           flamdex, copy, dataset,
-                                                                           shardDir.getName(),
-                                                                           freeCache);
-                                        }
-                                    }
-                                };
-                        newShard =
-                                new Shard(ReloadableSharedReference.create(loader), readLockRef,
-                                          shardVersion, canonicalShardDir, dataset, shardId);
-                    } catch (Throwable t) {
-                        Closeables2.closeQuietly(readLockRef, log);
-                        throw Throwables2.propagate(t, IOException.class);
-                    }
 
                     try {
                         final AtomicSharedReference<Shard> shard;
@@ -348,10 +280,15 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
                                 if (current == null
                                         || shardVersion > current.get().getShardVersion()) {
                                     log.debug("loading shard " + shardId + " from "
-                                            + canonicalShardDir);
+                                            + shardDir);
+                                    final Shard newShard;
+                                    newShard =
+                                            createNewShard(datasetName,
+                                                           shardDir.getName(),
+                                                           shardVersion,
+                                                           shardId,
+                                                           canonicalShardDir);
                                     shard.set(newShard);
-                                } else {
-                                    Closeables2.closeQuietly(newShard, log);
                                 }
                             } finally {
                                 Closeables2.closeQuietly(current, log);
@@ -363,31 +300,42 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
                                 if (shouldReloadShard(oldShard, canonicalShardDir, shardVersion)) {
                                     log.debug("loading shard " + shardId + " from "
                                             + canonicalShardDir);
+                                    final Shard newShard;
+                                    newShard =
+                                            createNewShard(datasetName,
+                                                           shardDir.getName(),
+                                                           shardVersion,
+                                                           shardId,
+                                                           canonicalShardDir);
                                     shard.set(newShard);
-                                } else {
-                                    Closeables2.closeQuietly(newShard, log);
                                 }
                             } finally {
                                 Closeables2.closeQuietly(oldShard, log);
                             }
                         } else {
+                            final Shard newShard;
+                            newShard =
+                                    createNewShard(datasetName,
+                                                   shardDir.getName(),
+                                                   shardVersion,
+                                                   shardId,
+                                                   canonicalShardDir);
                             shard = AtomicSharedReference.create(newShard);
                             log.debug("loading shard " + shardId + " from " + canonicalShardDir);
                         }
                         if (shard != null)
                             newDatasetShards.put(shardId, shard);
                     } catch (Throwable t) {
-                        Closeables2.closeQuietly(newShard, log);
                         throw Throwables2.propagate(t, IOException.class);
                     }
 
                 } catch (IOException e) {
-                    log.error("error loading shard at " + shardDir.getAbsolutePath(), e);
+                    log.error("error loading shard at " + shardDir.getCanonicalPath(), e);
                 }
             }
 
             if (newDatasetShards.size() > 0) {
-                newShards.put(dataset, newDatasetShards);
+                newShards.put(datasetName, newDatasetShards);
             }
 
             for (final String shardId : oldDatasetShards.keySet()) {
@@ -414,6 +362,35 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
         if (oldDatasetList == null || !oldDatasetList.equals(datasetList)) {
             this.datasetList = datasetList;
         }
+    }
+    
+    private Shard createNewShard(final String datasetName, 
+                                 final String shardName, 
+                                 final long shardVersion, 
+                                 final String shardId,
+                                 final String canonicalShardDir) throws IOException {
+        final Shard newShard;
+        final ReloadableSharedReference.Loader<CachedFlamdexReader, IOException> loader;
+        
+        loader = new ReloadableSharedReference.Loader<CachedFlamdexReader, IOException>() {
+            @Override
+            public CachedFlamdexReader load() throws IOException {
+                final FlamdexReader flamdex = flamdexReaderFactory.openReader(canonicalShardDir);
+                if (flamdex instanceof RawFlamdexReader) {
+                    return new RawCachedFlamdexReader(new MemoryReservationContext(memory),
+                                                      (RawFlamdexReader) flamdex, null, datasetName,
+                                                      shardName, freeCache);
+                } else {
+                    return new CachedFlamdexReader(new MemoryReservationContext(memory), flamdex,
+                                                   null, datasetName, shardName, freeCache);
+                }
+            }
+        };
+        
+        newShard = new Shard(ReloadableSharedReference.create(loader), null, shardVersion,
+                             canonicalShardDir, datasetName, shardId);
+
+        return newShard;
     }
 
     private static boolean shouldReloadShard(SharedReference<Shard> ref,
@@ -696,182 +673,4 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
         return sb.toString();
     }
 
-    private static final class ReadLock implements Closeable {
-
-        public static ReadLock lock(Map<File, RandomAccessFile> lockFileMap, File indexDir) throws LockAquisitionException,
-                                                                                           IOException {
-            acquireReadLock(lockFileMap, indexDir);
-            return new ReadLock(lockFileMap, indexDir);
-        }
-
-        private final Map<File, RandomAccessFile> lockFileMap;
-
-        private final File indexDir;
-
-        public ReadLock(final Map<File, RandomAccessFile> lockFileMap, final File indexDir) {
-            this.lockFileMap = lockFileMap;
-            this.indexDir = indexDir;
-        }
-
-        @Override
-        public void close() throws IOException {
-            synchronized (lockFileMap) {
-                final RandomAccessFile randomAccessFile = lockFileMap.get(indexDir);
-                Closeables2.closeQuietly(randomAccessFile, log);
-                lockFileMap.remove(indexDir);
-            }
-        }
-
-        private static void acquireReadLock(Map<File, RandomAccessFile> lockFileMap, File indexDir) throws IOException,
-                                                                                                   LockAquisitionException {
-            final File writeLock = new File(indexDir, "delete.lock");
-            writeLock.createNewFile();
-            while (true) {
-                synchronized (lockFileMap) {
-                    RandomAccessFile raf = lockFileMap.get(indexDir);
-                    if (raf == null) {
-                        raf = new RandomAccessFile(writeLock, "r");
-                        lockFileMap.put(indexDir, raf);
-                    } else {
-                        throw new AlreadyOpenException();
-                    }
-
-                    final FileChannel channel = raf.getChannel();
-                    try {
-                        channel.lock(0, Long.MAX_VALUE, true);
-                        if (indexDir.exists()) {
-                            return;
-                        }
-                        lockFileMap.remove(indexDir);
-                        Closeables2.closeQuietly(raf, log);
-                        throw new ShardDeletedException();
-                    } catch (OverlappingFileLockException e) {
-                        lockFileMap.remove(indexDir);
-                        Closeables2.closeQuietly(raf, log);
-                        throw Throwables.propagate(e);
-                    } catch (FileLockInterruptionException e) {
-                        lockFileMap.remove(indexDir);
-                        Closeables2.closeQuietly(raf, log);
-                    }
-                }
-            }
-        }
-
-        private static class LockAquisitionException extends Exception {
-
-            public LockAquisitionException() {
-            }
-        }
-
-        private static final class ShardDeletedException extends LockAquisitionException {
-
-            private ShardDeletedException() {
-            }
-        }
-
-        private static final class AlreadyOpenException extends LockAquisitionException {
-
-            private AlreadyOpenException() {
-            }
-        }
-    }
-
-    private static final class Shard implements Closeable {
-        private final ReloadableSharedReference<CachedFlamdexReader, IOException> ref;
-        private final SharedReference<ReadLock> readLock;
-        private final ShardId shardId;
-        private final int numDocs;
-        private final Collection<String> intFields;
-        private final Collection<String> stringFields;
-        private final Collection<String> availableMetrics;
-        private boolean closed = false;
-
-        private Shard(final ReloadableSharedReference<CachedFlamdexReader, IOException> ref,
-                      final SharedReference<ReadLock> readLock,
-                      final long shardVersion,
-                      final String indexDir,
-                      final String dataset,
-                      final String shardId) throws IOException {
-            this.ref = ref;
-            this.readLock = readLock;
-            this.shardId = new ShardId(dataset, shardId, shardVersion, indexDir);
-            final SharedReference<CachedFlamdexReader> copy = ref.copy();
-            numDocs = copy.get().getNumDocs();
-            intFields = copy.get().getIntFields();
-            stringFields = copy.get().getStringFields();
-            availableMetrics = copy.get().getAvailableMetrics();
-            copy.close();
-        }
-
-        public synchronized @Nullable
-        SharedReference<CachedFlamdexReader> getRef() throws IOException {
-            if (closed)
-                return null;
-            return ref.copy();
-        }
-
-        public ShardId getShardId() {
-            return shardId;
-        }
-
-        public long getShardVersion() {
-            return shardId.getShardVersion();
-        }
-
-        public String getIndexDir() {
-            return shardId.getIndexDir();
-        }
-
-        public String getDataset() {
-            return shardId.getDataset();
-        }
-
-        public int getNumDocs() throws IOException {
-            return numDocs;
-        }
-
-        public Set<String> getLoadedMetrics() {
-            final SharedReference<CachedFlamdexReader> copy = ref.copyIfLoaded();
-            if (copy != null) {
-                try {
-                    return copy.get().getLoadedMetrics();
-                } finally {
-                    Closeables2.closeQuietly(copy, log);
-                }
-            }
-            return Collections.emptySet();
-        }
-
-        public Collection<String> getIntFields() throws IOException {
-            return intFields;
-        }
-
-        public Collection<String> getStringFields() throws IOException {
-            return stringFields;
-        }
-
-        public Collection<String> getAvailableMetrics() throws IOException {
-            return availableMetrics;
-        }
-
-        public List<ImhotepStatusDump.MetricDump> getMetricDump() {
-            final SharedReference<CachedFlamdexReader> copy = ref.copyIfLoaded();
-            if (copy != null) {
-                try {
-                    return copy.get().getMetricDump();
-                } finally {
-                    Closeables2.closeQuietly(copy, log);
-                }
-            }
-            return Collections.emptyList();
-        }
-
-        @Override
-        public synchronized void close() throws IOException {
-            if (!closed) {
-                closed = true;
-                readLock.close();
-            }
-        }
-    }
 }

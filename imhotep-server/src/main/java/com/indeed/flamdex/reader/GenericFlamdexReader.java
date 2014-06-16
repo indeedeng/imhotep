@@ -20,6 +20,7 @@ import com.indeed.flamdex.lucene.LuceneFlamdexReader;
 import com.indeed.flamdex.ramses.RamsesFlamdexWrapper;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.flamdex.utils.FlamdexUtils;
+import com.indeed.imhotep.io.caching.CachedFile;
 
 import org.apache.log4j.Logger;
 import org.apache.lucene.index.IndexReader;
@@ -69,18 +70,24 @@ public final class GenericFlamdexReader implements FlamdexReader {
     }
 
     private static FlamdexReader internalOpen(String directory) throws IOException {
-        if (!new File(directory).exists()) {
+        final CachedFile dir = CachedFile.create(directory);
+        final String metadataPath = CachedFile.buildPath(directory, "metadata.txt");
+        final CachedFile metadataFile = CachedFile.create(metadataPath);
+        
+        if (! dir.exists()) {
             throw new FileNotFoundException(directory + " does not exist");
         }
 
-        if (!new File(directory).isDirectory()) {
+        if (! dir.isDirectory()) {
             throw new FileNotFoundException(directory + " is not a directory");
         }
 
-        if (!new File(directory, "metadata.txt").exists()) {
+        if (! metadataFile.exists()) {
             final IndexReader luceneIndex;
-            if (IndexReader.indexExists(directory)) {
-                luceneIndex = IndexReader.open(directory);
+            final File indexDir = dir.loadDirectory();
+            
+            if (IndexReader.indexExists(indexDir)) {
+                luceneIndex = IndexReader.open(indexDir);
             } else {
                 throw new IOException("directory " + directory + " does not have a metadata.txt and is not a lucene index");
             }
@@ -89,7 +96,7 @@ public final class GenericFlamdexReader implements FlamdexReader {
             final ParallelReader pReader = new ParallelReader();
             pReader.add(luceneIndex);
             final int maxDoc = luceneIndex.maxDoc();
-            final File[] files = new File(directory).listFiles();
+            final File[] files = indexDir.listFiles();
             if (files != null) {
                 for (final File file : files) {
                     if (!file.isDirectory() || !IndexReader.indexExists(file)) {
@@ -117,7 +124,11 @@ public final class GenericFlamdexReader implements FlamdexReader {
         switch (metadata.getFormatVersion()) {
             case 0 : return SimpleFlamdexReader.open(directory);
             case 1 : throw new UnsupportedOperationException("pfordelta is no longer supported");
-            case 2 : return new LuceneFlamdexReader(IndexReader.open(directory), metadata.getIntFields(), metadata.getStringFields());
+            case 2 : 
+                final File indexDir = dir.loadDirectory();
+                return new LuceneFlamdexReader(IndexReader.open(indexDir), 
+                                               metadata.getIntFields(), 
+                                               metadata.getStringFields());
         }
         throw new IllegalArgumentException("index format version "+metadata.getFormatVersion()+" not supported");
     }

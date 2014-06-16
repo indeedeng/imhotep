@@ -1,7 +1,6 @@
 package com.indeed.flamdex.ramses;
 
 import com.google.common.base.Throwables;
-import com.indeed.util.io.Files;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
@@ -12,10 +11,14 @@ import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.StringValueLookup;
 import com.indeed.flamdex.fieldcache.FieldCacher;
+import com.indeed.imhotep.io.caching.CachedFile;
 import com.indeed.imhotep.metrics.Count;
 
+import java.io.BufferedInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.util.Collection;
 
 /**
@@ -34,15 +37,17 @@ public class RamsesFlamdexWrapper implements FlamdexReader {
 
     private final long memoryOverhead;
 
-    public RamsesFlamdexWrapper(FlamdexReader wrapped, String directory) {
+    public RamsesFlamdexWrapper(FlamdexReader wrapped, String directory) throws IOException {
         this.wrapped = wrapped;
         this.directory = directory;
 
-        memoryOverhead = new File(directory, TIME_UPPER_BITS_FILE).length() +
-                new File(directory, DOC_ID_BOUNDARIES_FILE).length() +
-                new File(directory, TIME_LOWER_BITS_FILE).length();
+        final CachedFile tubFile = CachedFile.create(CachedFile.buildPath(directory, TIME_UPPER_BITS_FILE));
+        final CachedFile docIdFile = CachedFile.create(CachedFile.buildPath(directory, DOC_ID_BOUNDARIES_FILE));
+        final CachedFile tlbFile = CachedFile.create(CachedFile.buildPath(directory, TIME_LOWER_BITS_FILE));
+        memoryOverhead = tubFile.length() + docIdFile.length() + tlbFile.length();
 
-        final Integer rawScaleFactor = Files.readObjectFromFile(Files.buildPath(directory, SCALE_FACTOR_FILE), Integer.class);
+        final File sfFile = CachedFile.create(CachedFile.buildPath(directory, SCALE_FACTOR_FILE)).loadFile();
+        final Integer rawScaleFactor = readObjectFromFile(sfFile, Integer.class);
         scaleFactor = rawScaleFactor != null ? rawScaleFactor : 1;
     }
 
@@ -124,15 +129,24 @@ public class RamsesFlamdexWrapper implements FlamdexReader {
     }
 
     private IntValueLookup newTimeLookup() {
-        final int[] timeUpperBits = Files.readObjectFromFile(Files.buildPath(directory, TIME_UPPER_BITS_FILE), int[].class);
-        final int[] docIdBoundaries = Files.readObjectFromFile(Files.buildPath(directory, DOC_ID_BOUNDARIES_FILE), int[].class);
-        final byte[] timeLowerBits = Files.readObjectFromFile(Files.buildPath(directory, TIME_LOWER_BITS_FILE), byte[].class);
+        
+        try {
+            final File tubFile = CachedFile.create(CachedFile.buildPath(directory, TIME_UPPER_BITS_FILE)).loadFile();
+            final int[] timeUpperBits = readObjectFromFile(tubFile, int[].class);
+            final File docIdFile = CachedFile.create(CachedFile.buildPath(directory, DOC_ID_BOUNDARIES_FILE)).loadFile();
+            final int[] docIdBoundaries = readObjectFromFile(docIdFile, int[].class);
+            final File tlbFile = CachedFile.create(CachedFile.buildPath(directory, TIME_LOWER_BITS_FILE)).loadFile();
+            final byte[] timeLowerBits = readObjectFromFile(tlbFile, byte[].class);
+    
+            if (timeUpperBits == null || docIdBoundaries == null || timeLowerBits == null) {
+                throw new RuntimeException("unable to load ramses time metric from directory " + directory + ", missing one or more required files");
+            }
+        
+            return new RamsesTimeIntValueLookup(timeUpperBits, docIdBoundaries, timeLowerBits, memoryOverhead);
 
-        if (timeUpperBits == null || docIdBoundaries == null || timeLowerBits == null) {
+        } catch(IOException e) {
             throw new RuntimeException("unable to load ramses time metric from directory " + directory + ", missing one or more required files");
         }
-
-        return new RamsesTimeIntValueLookup(timeUpperBits, docIdBoundaries, timeLowerBits, memoryOverhead);
     }
 
     @Override
@@ -151,9 +165,53 @@ public class RamsesFlamdexWrapper implements FlamdexReader {
     }
 
     public static boolean ramsesFilesExist(String dir) {
-        final File f = new File(dir);
-        return new File(f, TIME_UPPER_BITS_FILE).exists() &&
-                new File(f, DOC_ID_BOUNDARIES_FILE).exists() &&
-                new File(f, TIME_LOWER_BITS_FILE).exists();
+        return CachedFile.create(CachedFile.buildPath(dir, TIME_UPPER_BITS_FILE)).exists() &&
+                CachedFile.create(CachedFile.buildPath(dir, DOC_ID_BOUNDARIES_FILE)).exists() &&
+                CachedFile.create(CachedFile.buildPath(dir, TIME_LOWER_BITS_FILE)).exists();
     }
+    
+    /**
+     * Reads an object of type {@code T} from {@code file}.
+     *
+     * @param file file from which the object should be read
+     * @param clazz non-null Class object for {@code T}
+     * @param printException whether or not any stacktraces should be printed
+     * @param <T> the return type
+     * @return possibly null object of type {@code T}.
+     */
+    private static <T> T readObjectFromFile(File file, Class<T> clazz) {
+        final FileInputStream fileIn;
+        try {
+            fileIn = new FileInputStream(file);
+        } catch (Exception e) {
+            return null;
+        }
+
+        final BufferedInputStream bufferedIn = new BufferedInputStream(fileIn);
+        final ObjectInputStream objIn;
+        try {
+            objIn = new ObjectInputStream(bufferedIn);
+        } catch (Exception e) {
+            try {
+                fileIn.close();
+            } catch (IOException e1) { }
+            return null;
+        }
+
+        final Object ret;
+        try {
+            ret = objIn.readObject();
+        } catch (Exception e) {
+            try {
+                objIn.close();          // objIn.close() also closes fileIn
+            } catch (IOException e2) { }
+            return null;
+        }
+
+        try {
+            objIn.close();          // objIn.close() also closes fileIn
+        } catch (IOException e) { }
+        return clazz.cast(ret);
+    }
+    
 }
