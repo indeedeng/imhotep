@@ -5,7 +5,7 @@
 
 	<appender name="FILE" class="org.apache.log4j.DailyRollingFileAppender">
         <!-- suffix is _log4j since supervisord writes to name.log -->
-		<param name="File" value="/var/data/imhotep/logs/ImhotepDaemonMain_log4j.log" />
+		<param name="File" value="/var/data/imhotep/logs/ImhotepDaemon_log4j.log" />
 		<param name="DatePattern" value="'.'yyyy-MM-dd" />
 		<param name="BufferedIO" value="false" />
 		<param name="Append" value="true" />
@@ -17,8 +17,6 @@
 
 	<root>
 		<priority value="INFO" />
-		<appender-ref ref="SYSLOGNG_MGT1_LOCAL3" />
-		<appender-ref ref="SYSLOGNG_MGT2_LOCAL3" />
 		<appender-ref ref="FILE" />
 	</root>
 
