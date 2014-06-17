@@ -79,7 +79,7 @@ public abstract class AbstractFTGSMerger implements FTGSIterator {
                 fieldIterators[numFieldIterators++] = i;
             }
         }
-
+        numTermIterators = 0;
         return true;
     }
 
