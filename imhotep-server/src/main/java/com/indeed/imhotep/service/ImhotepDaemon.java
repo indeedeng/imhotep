@@ -561,7 +561,8 @@ public class ImhotepDaemon {
 
     public static void main(String[] args) throws IOException {
         if (args.length < 1) {
-            System.err.println("ARGS: shardDir tempDir [--port port] [--memory memory] [--zknodes zknodes]");
+            System.err.println("ARGS: shardDir tempDir [--port port] [--memory memory] "
+                    + "[--zknodes zknodes] [--zkport zkport]");
             System.exit(1);
         }
 
