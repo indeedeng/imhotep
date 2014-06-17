@@ -184,6 +184,10 @@ public abstract class AbstractFTGSMerger implements FTGSIterator {
         }
 
         public void reset() {
+            if (group >= 0) {
+                final int start = (group - baseGroup) * numStats;
+                Arrays.fill(metrics, start, start+numStats, 0);
+            }
             while (bitset1 != 0) {
                 final long lsb1 = bitset1 & -bitset1;
                 bitset1 ^= lsb1;
