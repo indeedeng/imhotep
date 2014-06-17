@@ -131,7 +131,7 @@ public final class RawFTGSMerger extends AbstractFTGSMerger implements RawFTGSIt
                 --i;
             }
         }
-
+        accumulatedVec.reset();
         return true;
     }
 

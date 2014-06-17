@@ -81,6 +81,7 @@ public final class FTGSMerger extends AbstractFTGSMerger {
                 --i;
             }
         }
+        accumulatedVec.reset();
         return true;
     }
 
