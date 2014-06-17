@@ -69,7 +69,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession {
                 public RawFTGSIterator apply(final Pair<Integer, ImhotepSession> indexSessionPair) throws Exception {
                     final ImhotepSession session = indexSessionPair.getSecond();
                     final int index = indexSessionPair.getFirst();
-                    return session.mergeFTGSSplit(intFields, stringFields, sessionId, nodes, index);
+                    return new BufferedFTGSIterator(executor, session.mergeFTGSSplit(intFields, stringFields, sessionId, nodes, index), numStats, true);
                 }
             });
         } catch (ExecutionException e) {

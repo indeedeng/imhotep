@@ -219,7 +219,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
                 closeSocket(socket, is, os);
                 throw e;
             }
-            return new ClosingInputStreamFTGSIterator(socket, is, os, numStats);
+            return new ClosingInputStreamFTGSIterator(socket, new ActiveBufferedInputStream(is, 8*1024*1024), os, numStats);
         } catch (IOException e) {
             throw new RuntimeException(e); // TODO
         }

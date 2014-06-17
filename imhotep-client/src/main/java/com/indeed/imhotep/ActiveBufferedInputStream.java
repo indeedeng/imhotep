@@ -37,6 +37,12 @@ public final class ActiveBufferedInputStream extends InputStream {
                     });
                 } catch (IOException e) {
                     throw Throwables.propagate(e);
+                } finally {
+                    try {
+                        in.end();
+                    } catch (IOException e) {
+                        throw Throwables.propagate(e);
+                    }
                 }
             }
         }).start();
