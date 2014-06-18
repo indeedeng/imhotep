@@ -370,10 +370,13 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
             FlamdexReader flamdex = AutoDeletingReader.open(w.getOutputDirectory());
             if (flamdex instanceof RawFlamdexReader) {
                 this.flamdexReader =
-                        new RawCachedFlamdexReader(null, (RawFlamdexReader) flamdex, null, null,
-                                                   null, null);
+                        new RawCachedFlamdexReader(new MemoryReservationContext(memory),
+                                                   (RawFlamdexReader) flamdex, null, null, null,
+                                                   null);
             } else {
-                this.flamdexReader = new CachedFlamdexReader(null, flamdex, null, null, null, null);
+                this.flamdexReader =
+                        new CachedFlamdexReader(new MemoryReservationContext(memory), flamdex,
+                                                null, null, null, null);
             }
             this.flamdexReaderRef = SharedReference.create(this.flamdexReader);
 
