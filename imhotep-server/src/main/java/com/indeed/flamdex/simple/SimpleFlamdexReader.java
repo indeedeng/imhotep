@@ -99,7 +99,7 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader implements RawFla
         if (new File(termsFilename).length() == 0L) {
             return new NullIntTermIterator(docsFilename);
         }
-        final String indexFilename = Files.buildPath(directory, "fld-"+field);
+        final String indexFilename = Files.buildPath(directory, "fld-"+field+".intindex64");
         try {
             return new SimpleIntTermIteratorImpl(mapCache, termsFilename, docsFilename, indexFilename);
         } catch (IOException e) {
@@ -177,10 +177,9 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader implements RawFla
 
     protected static void buildIntBTrees(final String directory, final List<String> intFields) throws IOException {
         for (final String intField : intFields) {
-            final File btreeDir = new File(Files.buildPath(directory, "fld-" + intField + ".intindex"));
-            final File btreeDir64 = new File(Files.buildPath(directory, "fld-" + intField + ".intindex64"));
-            if (!btreeDir.exists() && !btreeDir64.exists()) {
-                SimpleFlamdexWriter.writeIntBTree(directory, intField, btreeDir64);
+            final File btreeDir = new File(Files.buildPath(directory, "fld-" + intField + ".intindex64"));
+            if (!btreeDir.exists()) {
+                SimpleFlamdexWriter.writeIntBTree(directory, intField, btreeDir);
             }
         }
     }

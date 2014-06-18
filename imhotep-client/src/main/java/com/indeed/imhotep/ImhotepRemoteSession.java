@@ -1,8 +1,6 @@
 package com.indeed.imhotep;
 
-import com.google.common.base.Function;
 import com.google.common.base.Throwables;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
@@ -17,7 +15,6 @@ import com.indeed.imhotep.marshal.ImhotepClientMarshaller;
 import com.indeed.imhotep.protobuf.DatasetInfoMessage;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.GroupRemapMessage;
-import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
@@ -27,11 +24,9 @@ import com.indeed.imhotep.service.InputStreamDocIterator;
 
 import org.apache.log4j.Logger;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
@@ -111,18 +106,18 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
         return ImhotepStatusDump.fromProto(response.getStatusDump());
     }
 
-    public static ImhotepRemoteSession openSession(final String host, final int port, final String dataset, final List<String> shards, @Nullable String sessionId) throws ImhotepOutOfMemoryException, IOException {
-        return openSession(host, port, dataset, shards, DEFAULT_MERGE_THREAD_LIMIT, getUsername(), false, -1, sessionId);
+    public static ImhotepRemoteSession openSession(final String host, final int port, final String dataset, final List<String> shards) throws ImhotepOutOfMemoryException, IOException {
+        return openSession(host, port, dataset, shards, DEFAULT_MERGE_THREAD_LIMIT, getUsername(), false, -1);
     }
 
     public static ImhotepRemoteSession openSession(final String host, final int port, final String dataset, final List<String> shards,
-                                                   final int mergeThreadLimit, @Nullable String sessionId) throws ImhotepOutOfMemoryException, IOException {
-        return openSession(host, port, dataset, shards, mergeThreadLimit, getUsername(), false, -1, sessionId);
+                                                   final int mergeThreadLimit) throws ImhotepOutOfMemoryException, IOException {
+        return openSession(host, port, dataset, shards, mergeThreadLimit, getUsername(), false, -1);
     }
 
     public static ImhotepRemoteSession openSession(final String host, final int port, final String dataset, final List<String> shards,
                                                    final int mergeThreadLimit, final String username,
-                                                   final boolean optimizeGroupZeroLookups, final int socketTimeout, @Nullable String sessionId) throws ImhotepOutOfMemoryException, IOException {
+                                                   final boolean optimizeGroupZeroLookups, final int socketTimeout) throws ImhotepOutOfMemoryException, IOException {
         final Socket socket = newSocket(host, port, socketTimeout);
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
@@ -136,7 +131,6 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
                     .addAllShardRequest(shards)
                     .setOptimizeGroupZeroLookups(optimizeGroupZeroLookups)
                     .setClientVersion(CURRENT_CLIENT_VERSION)
-                    .setSessionId(sessionId == null ? "" : sessionId)
                     .build();
             try {
                 ImhotepProtobufShipping.sendProtobuf(openSessionRequest, os);
@@ -148,7 +142,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
                 } else if (response.getResponseCode() == ImhotepResponse.ResponseCode.OTHER_ERROR) {
                     throw buildExceptionFromResponse(response, host, port);
                 }
-                if (sessionId == null) sessionId = response.getSessionId();
+                final String sessionId = response.getSessionId();
     
                 log.trace("session created, id "+sessionId);
                 return new ImhotepRemoteSession(host, port, sessionId, socketTimeout);
@@ -254,60 +248,6 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
             return splitter.getFtgsIterators();
         } catch (IOException e) {
             throw Throwables.propagate(e);
-        }
-    }
-
-    public RawFTGSIterator getFTGSIteratorSplit(final String[] intFields, final String[] stringFields, final int splitIndex, final int numSplits) {
-        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_FTGS_SPLIT)
-                .setSessionId(sessionId)
-                .addAllIntFields(Arrays.asList(intFields))
-                .addAllStringFields(Arrays.asList(stringFields))
-                .setSplitIndex(splitIndex)
-                .setNumSplits(numSplits)
-                .build();
-
-        try {
-            final Socket socket = newSocket(host, port, socketTimeout);
-            final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
-            final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
-            try {
-                sendRequest(request, is, os, host, port);
-            } catch (IOException e) {
-                closeSocket(socket, is, os);
-                throw e;
-            }
-            return new ClosingInputStreamFTGSIterator(socket, new ActiveBufferedInputStream(is, 8*1024*1024), os, numStats);
-        } catch (IOException e) {
-            throw new RuntimeException(e); // TODO
-        }
-    }
-
-    public RawFTGSIterator mergeFTGSSplit(final String[] intFields, final String[] stringFields, final String sessionId, final InetSocketAddress[] nodes, final int splitIndex) {
-        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.MERGE_FTGS_SPLIT)
-                .setSessionId(sessionId)
-                .addAllIntFields(Arrays.asList(intFields))
-                .addAllStringFields(Arrays.asList(stringFields))
-                .setSplitIndex(splitIndex)
-                .addAllNodes(Iterables.transform(Arrays.asList(nodes), new Function<InetSocketAddress, HostAndPort>() {
-                    public HostAndPort apply(final InetSocketAddress input) {
-                        return HostAndPort.newBuilder().setHost(input.getHostName()).setPort(input.getPort()).build();
-                    }
-                }))
-                .build();
-
-        try {
-            final Socket socket = newSocket(host, port, socketTimeout);
-            final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
-            final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
-            try {
-                sendRequest(request, is, os, host, port);
-            } catch (IOException e) {
-                closeSocket(socket, is, os);
-                throw e;
-            }
-            return new ClosingInputStreamFTGSIterator(socket, new ActiveBufferedInputStream(is, 8*1024*1024), os, numStats);
-        } catch (IOException e) {
-            throw new RuntimeException(e); // TODO
         }
     }
 
@@ -792,13 +732,5 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
         socket.setSoTimeout(timeout >= 0 ? timeout : DEFAULT_SOCKET_TIMEOUT);
         socket.setTcpNoDelay(true);
         return socket;
-    }
-
-    public InetSocketAddress getInetSocketAddress() {
-        return new InetSocketAddress(host, port);
-    }
-
-    public void setNumStats(final int numStats) {
-        this.numStats = numStats;
     }
 }

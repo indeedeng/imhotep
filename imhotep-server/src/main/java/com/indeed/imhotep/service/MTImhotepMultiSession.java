@@ -5,6 +5,7 @@ import com.indeed.util.core.io.Closeables2;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.local.ImhotepLocalSession;
 
 import org.apache.log4j.Logger;
@@ -70,18 +71,18 @@ class MTImhotepMultiSession extends AbstractImhotepMultiSession {
     }
 
     @Override
-    protected <E, T> void execute(final T[] ret, E[] things, final ThrowingFunction<? super E, ? extends T> function) throws ExecutionException {
-        final List<Future<T>> futures = Lists.newArrayListWithCapacity(things.length);
-        for (final E thing : things) {
+    protected <T> void execute(final T[] ret, final ThrowingFunction<? super ImhotepSession, ? extends T> function) throws ExecutionException {
+        final List<Future<T>> futures = Lists.newArrayListWithCapacity(sessions.length);
+        for (final ImhotepSession session : sessions) {
             futures.add(executor.submit(new Callable<T>() {
                 @Override
                 public T call() throws Exception {
-                    return (T) function.apply(thing);
+                    return (T) function.apply(session);
                 }
             }));
         }
 
-        for (int i = 0; i < futures.size(); ++i) {
+        for (int i = 0; i < sessions.length; ++i) {
             try {
                 ret[i] = futures.get(i).get();
             } catch (ExecutionException e) {

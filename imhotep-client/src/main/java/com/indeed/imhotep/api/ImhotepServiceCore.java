@@ -11,7 +11,6 @@ import com.indeed.imhotep.TermCount;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.net.InetSocketAddress;
 import java.util.Iterator;
 import java.util.List;
 
@@ -36,8 +35,6 @@ public interface ImhotepServiceCore {
     int handlePushStat(String sessionId, String metric) throws ImhotepOutOfMemoryException;
     int handlePopStat(String sessionId);
     void handleGetFTGSIterator(String sessionId, String[] intFields, String[] stringFields, OutputStream os) throws IOException;
-    void handleGetFTGSIteratorSplit(String sessionId, String[] intFields, String[] stringFields, OutputStream os, int splitIndex, int numSplits) throws IOException;
-    void handleMergeFTGSIteratorSplit(String sessionId, String[] intFields, String[] stringFields, OutputStream os, InetSocketAddress[] nodes, int splitIndex) throws IOException;
     void handleGetDocIterator(String sessionId, String[] intFields, String[] stringFields, OutputStream os) throws ImhotepOutOfMemoryException, IOException;
     long handleGetTotalDocFreq(String sessionId, String[] intFields, String[] stringFields);
     long[] handleGetGroupStats(String sessionId, int stat);
@@ -51,7 +48,7 @@ public interface ImhotepServiceCore {
     void handleResetGroups(String sessionId) throws ImhotepOutOfMemoryException;
 
     // open session methods return session id
-    String handleOpenSession(String dataset, List<String> shardRequestList, String username, String ipAddress, int clientVersion, int mergeThreadLimit, boolean optimizeGroupZeroLookups, String sessionId) throws ImhotepOutOfMemoryException;
+    String handleOpenSession(String dataset, List<String> shardRequestList, String username, String ipAddress, int clientVersion, int mergeThreadLimit, boolean optimizeGroupZeroLookups) throws ImhotepOutOfMemoryException;
 
     // non-session-based methods
     @Deprecated List<ShardInfo> handleGetShardList();

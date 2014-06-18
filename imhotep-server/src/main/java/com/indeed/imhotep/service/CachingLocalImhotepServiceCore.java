@@ -544,13 +544,11 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
                                     final String ipAddress,
                                     final int clientVersion,
                                     final int mergeThreadLimit,
-                                    final boolean optimizeGroupZeroLookups,
-                                    String sessionId) throws ImhotepOutOfMemoryException {
+                                    final boolean optimizeGroupZeroLookups) throws ImhotepOutOfMemoryException {
         final Map<String, Map<String, AtomicSharedReference<Shard>>> localShards = this.shards;
         checkDatasetExists(localShards, dataset);
 
-        if (Strings.isNullOrEmpty(sessionId))
-            sessionId = generateSessionId();
+        final String sessionId = generateSessionId();
 
         final Map<String, AtomicSharedReference<Shard>> datasetShards = localShards.get(dataset);
         final Map<String, Pair<ShardId, CachedFlamdexReaderReference>> flamdexReaders =

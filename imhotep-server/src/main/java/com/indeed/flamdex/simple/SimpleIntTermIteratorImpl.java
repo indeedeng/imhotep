@@ -1,7 +1,6 @@
 package com.indeed.flamdex.simple;
 
 import com.indeed.util.core.reference.SharedReference;
-import com.indeed.util.serialization.IntSerializer;
 import com.indeed.util.serialization.LongSerializer;
 import com.indeed.lsmtree.core.Generation;
 import com.indeed.lsmtree.core.ImmutableBTreeIndex;
@@ -27,10 +26,8 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
 
     private final String filename;
     private final String docsFilename;
-    private ImmutableBTreeIndex.Reader<Integer, LongPair> index;
-    private ImmutableBTreeIndex.Reader<Long, LongPair> index64;
+    private ImmutableBTreeIndex.Reader<Long, LongPair> index;
     private final File indexFile;
-    private final boolean use64BitIndex;
 
     private final SharedReference<MMapBuffer> file;
     private final DirectMemory memory;
@@ -48,17 +45,10 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
 
         this.filename = filename;
         this.docsFilename = docsFilename;
-
-        final File intIndex = new File(indexFilename+".intindex");
-        final File intIndex64 = new File(indexFilename+".intindex64");
-        if (intIndex64.exists()) {
-            indexFile = intIndex64;
-            use64BitIndex = true;
-        } else if (intIndex.exists()) {
-            indexFile = intIndex;
-            use64BitIndex = false;
+        final File f = new File(indexFilename);
+        if (f.exists()) {
+            indexFile = f;
         } else {
-            use64BitIndex = true;
             indexFile = null;
         }
         //file = new MMapBuffer(new File(filename), FileChannel.MapMode.READ_ONLY, ByteOrder.LITTLE_ENDIAN);
@@ -86,39 +76,20 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
 
     public void internalReset(long term) throws IOException {
         if (indexFile != null) {
-            final LongPair p;
-            if (use64BitIndex) {
-                if (index64 == null) {
-                    index64 = new ImmutableBTreeIndex.Reader<Long,LongPair>(
-                            indexFile,
-                            new LongSerializer(),
-                            new LongPairSerializer(),
-                            false
-                    );
-                }
-                Generation.Entry<Long, LongPair> e = index64.floor(term);
-                if (e == null) {
-                    e = index64.first();
-                }
-                lastTerm = e.getKey();
-                p = e.getValue();
-            } else {
-                if (index == null) {
-                    index = new ImmutableBTreeIndex.Reader<Integer,LongPair>(
-                            indexFile,
-                            new IntSerializer(),
-                            new LongPairSerializer(),
-                            false
-                    );
-                }
-                Generation.Entry<Integer, LongPair> e = index.floor((int)term);
-                if (e == null) {
-                    e = index.first();
-                }
-                lastTerm = e.getKey();
-                p = e.getValue();
+            if (index == null) {
+                index = new ImmutableBTreeIndex.Reader<Long,LongPair>(
+                        indexFile,
+                        new LongSerializer(),
+                        new LongPairSerializer(),
+                        false
+                );
             }
-
+            Generation.Entry<Long, LongPair> e = index.floor(term);
+            if (e == null) {
+                e = index.first();
+            }
+            lastTerm = e.getKey();
+            final LongPair p = e.getValue();
             refillBuffer(p.getFirst());
             lastTermOffset = p.getSecond();
             lastTermDocFreq = (int)readVLong();
@@ -190,9 +161,6 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
     public void close() {
         if (!closed) {
             try {
-                if (index64 != null) {
-                    index64.close();
-                }
                 if (index != null) {
                     index.close();
                 }
