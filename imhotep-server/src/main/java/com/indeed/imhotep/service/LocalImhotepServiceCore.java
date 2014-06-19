@@ -1,6 +1,5 @@
 package com.indeed.imhotep.service;
 
-import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -541,23 +540,19 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
     }
 
     @Override
-    public String handleOpenSession(final String dataset,
-                                    final List<String> shardRequestList,
-                                    final String username,
-                                    final String ipAddress,
-                                    final int clientVersion,
-                                    final int mergeThreadLimit,
-                                    final boolean optimizeGroupZeroLookups,
-                                    String sessionId) throws ImhotepOutOfMemoryException {
-        final Map<String, Map<String, AtomicSharedReference<Shard>>> localShards = this.shards;
+    public String handleOpenSession(final String dataset, final List<String> shardRequestList,
+                                    final String username, final String ipAddress,
+                                    final int clientVersion, final int mergeThreadLimit,
+                                    final boolean optimizeGroupZeroLookups)
+            throws ImhotepOutOfMemoryException {
+        final Map<String, Map<String, AtomicSharedReference<Shard>>> 
+                localShards = this.shards;
         checkDatasetExists(localShards, dataset);
 
-        if (Strings.isNullOrEmpty(sessionId))
-            sessionId = generateSessionId();
+        final String sessionId = generateSessionId();
 
         final Map<String, AtomicSharedReference<Shard>> datasetShards = localShards.get(dataset);
-        final Map<String, Pair<ShardId, CachedFlamdexReaderReference>> flamdexReaders =
-                Maps.newHashMap();
+        final Map<String, Pair<ShardId, CachedFlamdexReaderReference>> flamdexReaders = Maps.newHashMap();
         for (final String shardName : shardRequestList) {
             if (!datasetShards.containsKey(shardName)) {
                 throw new IllegalArgumentException("this service does not have shard " + shardName

@@ -1,6 +1,5 @@
 package com.indeed.imhotep.service;
 
-import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.indeed.imhotep.DatasetInfo;
@@ -75,10 +74,9 @@ public final class RemoteImhotepServiceCore extends AbstractImhotepServiceCore {
             final String ipAddress,
             final int clientVersion,
             final int mergeThreadLimit,
-            final boolean optimizeGroupZeroLookups,
-            String sessionId
+            final boolean optimizeGroupZeroLookups
     ) throws ImhotepOutOfMemoryException {
-        if (Strings.isNullOrEmpty(sessionId)) sessionId = UUID.randomUUID().toString();
+        final String sessionId = UUID.randomUUID().toString();
         final
         ImhotepSession
                 session = imhotepClient.sessionBuilder(dataset, null, null)

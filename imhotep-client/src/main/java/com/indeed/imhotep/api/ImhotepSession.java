@@ -9,7 +9,7 @@ import com.indeed.imhotep.TermCount;
 import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.Closeable;
-import java.net.InetSocketAddress;
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 
@@ -42,27 +42,6 @@ public interface ImhotepSession extends Closeable {
     DocIterator getDocIterator(String[] intFields, String[] stringFields) throws ImhotepOutOfMemoryException;
 
     RawFTGSIterator[] getFTGSIteratorSplits(String[] intFields, String[] stringFields, int numSplits);
-
-    /**
-     * note: this call is weird.
-     * it is intended to be called numSplits times, once with each splitIndex from [0..n)
-     * if it is not called numSplits times the returned iterators will deadlock
-     * if it is called with different values for numSplits it will throw an error
-     * if it is called with the same value for splitIndex twice it will throw an error
-     * if you are a client of imhotep this is not the call you are looking for
-     *
-     * @param intFields list of int fields
-     * @param stringFields list of string fields
-     * @param splitIndex index of the split you want
-     * @param numSplits total number of splits
-     * @return iterator
-     */
-    RawFTGSIterator getFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits);
-
-    /**
-     * this is only really here to be called on ImhotepRemoteSession by RemoteImhotepMultiSession
-     */
-    RawFTGSIterator mergeFTGSSplit(String[] intFields, String[] stringFields, String sessionId, InetSocketAddress[] nodes, int splitIndex);
 
     /**
      * apply the list of remap rules to remap documents into a different group. Preconditions:

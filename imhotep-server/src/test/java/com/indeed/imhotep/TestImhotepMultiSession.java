@@ -1,6 +1,8 @@
 package com.indeed.imhotep;
 
+import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
+import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.reader.MockFlamdexReader;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
@@ -9,6 +11,7 @@ import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
+
 import static org.junit.Assert.*;
 
 /**
@@ -28,7 +31,7 @@ public class TestImhotepMultiSession {
         r1.addStringTerm("f", "baz", Arrays.asList(0));
 
         ImhotepLocalSession s1 = new ImhotepLocalSession(r1), s2 = new ImhotepLocalSession(r2);
-        ImhotepSession s = new RemoteImhotepMultiSession(new ImhotepSession[] { s1, s2 }, 8, null, null);
+        ImhotepSession s = new ImhotepMultiSession(new ImhotepSession[] { s1, s2 }, 8);
         s.pushStat("count()");
 
         // groups: s1=[1], s2=[1]
