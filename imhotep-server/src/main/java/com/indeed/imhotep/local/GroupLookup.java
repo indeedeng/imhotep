@@ -2,13 +2,14 @@ package com.indeed.imhotep.local;
 
 import com.indeed.util.core.threads.ThreadSafeBitSet;
 import com.indeed.flamdex.datastruct.FastBitSet;
+import com.indeed.imhotep.BitTree;
 import com.indeed.imhotep.GroupRemapRule;
 
 abstract class GroupLookup {
     protected int numGroups;
-    
+
     // returns new value for groupsSeenCount
-    abstract int nextGroupCallback(int n, long[] termGrpCounts, long[][] termGrpStats, int[] groupsSeen, int groupsSeenCount);
+    abstract void nextGroupCallback(int n, long[][] termGrpStats, BitTree groupsSeen);
     abstract void applyIntConditionsCallback(int n, ThreadSafeBitSet docRemapped, GroupRemapRule[] remapRules, String intField, long itrTerm);
     abstract void applyStringConditionsCallback(int n, ThreadSafeBitSet docRemapped, GroupRemapRule[] remapRules, String stringField, String itrTerm);
     abstract int get(int doc);

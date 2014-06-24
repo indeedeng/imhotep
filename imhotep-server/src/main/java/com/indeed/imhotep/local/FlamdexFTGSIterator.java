@@ -1,15 +1,12 @@
 package com.indeed.imhotep.local;
 
-import java.util.Arrays;
-
-import com.indeed.util.core.Pair;
-import com.indeed.util.core.io.Closeables2;
-import com.indeed.util.core.reference.SharedReference;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermDocIterator;
 import com.indeed.flamdex.api.StringTermDocIterator;
-import com.indeed.flamdex.datastruct.FastBitSet;
+import com.indeed.imhotep.BitTree;
 import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.util.core.io.Closeables2;
+import com.indeed.util.core.reference.SharedReference;
 
 class FlamdexFTGSIterator implements FTGSIterator {
     /**
@@ -27,17 +24,12 @@ class FlamdexFTGSIterator implements FTGSIterator {
     private IntTermDocIterator intTermDocIterator;
     protected StringTermDocIterator stringTermDocIterator;
 
-    private int groupPointer;
-    private int groupsSeenCount;
-    private final int[] groupsSeen;
+    private int group;
+    private final BitTree groupsSeen;
 
-    private final long[] termGrpCounts;
     private final long[][] termGrpStats;
 
     private boolean resetGroupStats = false;
-
-    private FastBitSet fieldZeroDocBitset;
-    private int termIndex;
 
     private SharedReference<FlamdexReader> flamdexReader;
 
@@ -52,8 +44,7 @@ class FlamdexFTGSIterator implements FTGSIterator {
         this.flamdexReader = flamdexReader;
         this.intFields = intFields;
         this.stringFields = stringFields;
-        this.groupsSeen = new int[session.docIdToGroup.getNumGroups()];
-        this.termGrpCounts = new long[session.docIdToGroup.getNumGroups()];
+        this.groupsSeen = new BitTree(session.docIdToGroup.getNumGroups());
         this.termGrpStats = new long[session.numStats][session.docIdToGroup.getNumGroups()];
     }
 
@@ -66,10 +57,6 @@ class FlamdexFTGSIterator implements FTGSIterator {
                 currentFieldIsIntType = true;
                 if (intTermDocIterator != null) Closeables2.closeQuietly(intTermDocIterator, ImhotepLocalSession.log);
                 intTermDocIterator = flamdexReader.get().getIntTermDocIterator(currentField);
-                if (session.fieldZeroDocBitsets != null) {
-                    fieldZeroDocBitset = session.fieldZeroDocBitsets.get(Pair.of(currentField, currentFieldIsIntType));
-                }
-                termIndex = 0;
                 return true;
             }
             if (stringFieldPtr < stringFields.length) {
@@ -77,10 +64,6 @@ class FlamdexFTGSIterator implements FTGSIterator {
                 currentFieldIsIntType = false;
                 if (stringTermDocIterator != null) Closeables2.closeQuietly(stringTermDocIterator, ImhotepLocalSession.log);
                 stringTermDocIterator = flamdexReader.get().getStringTermDocIterator(currentField);
-                if (session.fieldZeroDocBitsets != null) {
-                    fieldZeroDocBitset = session.fieldZeroDocBitsets.get(Pair.of(currentField, currentFieldIsIntType));
-                }
-                termIndex = 0;
                 return true;
             }
             currentField = null;
@@ -154,23 +137,31 @@ class FlamdexFTGSIterator implements FTGSIterator {
 
     @Override
     public final boolean nextGroup() {
+        return nextGroup(1);
+    }
+
+    private boolean nextGroup(int i) {
+        if (i != 0) return nextGroup(i-1);
+        for (final long[] x : termGrpStats) {
+            x[group] = 0;
+        }
         if (!resetGroupStats) {
-            if (groupPointer >= groupsSeenCount) return false;
-            groupPointer++;
-            return groupPointer < groupsSeenCount;
+            if (!groupsSeen.next()) return false;
+            group = groupsSeen.getValue();
+            return true;
         }
+        return calculateTermGroupStats();
+    }
 
+    private boolean calculateTermGroupStats() {
         // clear out ram from previous iterations if necessary
-        ImhotepLocalSession.clear(termGrpCounts, groupsSeen, groupsSeenCount);
-        for (final long[] x : termGrpStats) ImhotepLocalSession.clear(x, groupsSeen, groupsSeenCount);
-        groupsSeenCount = 0;
-
-        if (fieldZeroDocBitset != null) {
-            if (termIndex == fieldZeroDocBitset.size()) expandFieldNonZeroDocBitset();
-            final boolean skip = fieldZeroDocBitset.get(termIndex);
-            termIndex++;
-            if (skip) return false;
+        while (groupsSeen.next()) {
+            group = groupsSeen.getValue();
+            for (final long[] x : termGrpStats) {
+                x[group] = 0;
+            }
         }
+        groupsSeen.clear();
 
         // this is the critical loop of all of imhotep, making this loop faster is very good....
 
@@ -182,7 +173,7 @@ class FlamdexFTGSIterator implements FTGSIterator {
                     docsTime += System.nanoTime();
                     lookupsTime -= System.nanoTime();
                 }
-                groupsSeenCount = session.docIdToGroup.nextGroupCallback(n, termGrpCounts, termGrpStats, groupsSeen, groupsSeenCount);
+                session.docIdToGroup.nextGroupCallback(n, termGrpStats, groupsSeen);
                 if (ImhotepLocalSession.logTiming) {
                     lookupsTime += System.nanoTime();
                     timingErrorTime -= System.nanoTime();
@@ -192,38 +183,15 @@ class FlamdexFTGSIterator implements FTGSIterator {
             }
         }
 
-        Arrays.sort(groupsSeen, 0, groupsSeenCount);
-        if (fieldZeroDocBitset != null && groupsSeenCount == 0) {
-            fieldZeroDocBitset.set(termIndex - 1);
-        }
-
-        groupPointer = 0;
         resetGroupStats = false;
-        return groupsSeenCount > 0;
-    }
-
-    private void expandFieldNonZeroDocBitset() {
-        synchronized (session) {
-            if (fieldZeroDocBitset == null) return;
-            if(session.memory.claimMemory(FastBitSet.calculateMemoryUsage(fieldZeroDocBitset.size() * 2))) {
-                final FastBitSet tmpBitset = new FastBitSet(fieldZeroDocBitset.size() * 2);
-                tmpBitset.or(fieldZeroDocBitset);
-                final long oldSize = fieldZeroDocBitset.memoryUsage();
-                fieldZeroDocBitset = tmpBitset;
-                session.fieldZeroDocBitsets.put(Pair.of(currentField, currentFieldIsIntType), fieldZeroDocBitset);
-                session.memory.releaseMemory(oldSize);
-            } else {
-                ImhotepLocalSession.log.warn("Insufficient expansion memory, disabling ftgs zero group bitset optimization");
-                session.clearZeroDocBitsets();
-                fieldZeroDocBitset = null;
-                session.fieldZeroDocBitsets = null;
-            }
-        }
+        if (!groupsSeen.next()) return false;
+        group = groupsSeen.getValue();
+        return true;
     }
 
     @Override
     public final int group() {
-        return groupsSeen[groupPointer];
+        return group;
     }
 
     @Override

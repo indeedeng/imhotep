@@ -115,24 +115,28 @@ public abstract class AbstractFTGSMerger implements FTGSIterator {
             }
             if (termIteratorsRemaining == 0) return false;
 
-            int baseGroup = Integer.MAX_VALUE;
-            for (int i = 0; i < termIteratorsRemaining; ++i) {
-                final FTGSIterator itr = iterators[termIterators[i]];
-                final int group = itr.group()&0xFFFFF000;
-                if (group < baseGroup) {
-                    baseGroup = group;
-                }
-            }
+            calculateNextGroupBatch();
+        }
+    }
 
-            accumulatedVec.reset();
-            for (int i = 0; i < termIteratorsRemaining; ++i) {
-                final FTGSIterator itr = iterators[termIterators[i]];
-                if ((itr.group()&0xFFFFF000) == baseGroup) {
-                    if (!accumulatedVec.mergeFromFtgs(itr)) {
-                        swap(termIterators, i, --termIteratorsRemaining);
-                        swap(termIteratorIndexes, i, termIteratorsRemaining);
-                        --i;
-                    }
+    private void calculateNextGroupBatch() {
+        int baseGroup = Integer.MAX_VALUE;
+        for (int i = 0; i < termIteratorsRemaining; ++i) {
+            final FTGSIterator itr = iterators[termIterators[i]];
+            final int group = itr.group()&0xFFFFF000;
+            if (group < baseGroup) {
+                baseGroup = group;
+            }
+        }
+
+        accumulatedVec.reset();
+        for (int i = 0; i < termIteratorsRemaining; ++i) {
+            final FTGSIterator itr = iterators[termIterators[i]];
+            if ((itr.group()&0xFFFFF000) == baseGroup) {
+                if (!accumulatedVec.mergeFromFtgs(itr)) {
+                    swap(termIterators, i, --termIteratorsRemaining);
+                    swap(termIteratorIndexes, i, termIteratorsRemaining);
+                    --i;
                 }
             }
         }
