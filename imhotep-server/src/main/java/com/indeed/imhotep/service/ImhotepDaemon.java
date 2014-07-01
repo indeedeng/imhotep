@@ -20,9 +20,13 @@ import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.Streams;
+import com.indeed.imhotep.io.caching.CachedFile;
+
 import org.apache.log4j.Logger;
 import org.apache.log4j.NDC;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -31,6 +35,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -538,7 +543,7 @@ public class ImhotepDaemon {
     public static void main(String[] args) throws IOException {
         if (args.length < 1) {
             System.err.println("ARGS: shardDir tempDir [--port port] [--memory memory] "
-                    + "[--zknodes zknodes] [--zkport zkport]");
+                    + "[--zknodes zknodes] [--zkport zkport] [--lazyLoadProps <properties file>]");
             System.exit(1);
         }
 
@@ -547,6 +552,8 @@ public class ImhotepDaemon {
         int port = 9000;
         long memoryCapacityInMB = 1024;
         boolean useCache = false;
+        boolean lazyLoadFiles = false;
+        String cachingConfigFile = null;
         boolean shutdown = false;
         String zkNodes = null;
         String zkPath = null;
@@ -563,6 +570,10 @@ public class ImhotepDaemon {
                 zkPath = args[++i];
             } else if (args[i].equals("--cache")) {
                 useCache = true;
+            } else if (args[i].equals("--lazyLoadProps")) {
+                ++i;
+                cachingConfigFile = args[i];
+                lazyLoadFiles = true;
             } else {
                 throw new RuntimeException("unrecognized arg: "+args[i]);
             }
@@ -576,6 +587,8 @@ public class ImhotepDaemon {
                  port,
                  memoryCapacityInMB,
                  useCache,
+                 lazyLoadFiles,
+                 cachingConfigFile,
                  zkNodes,
                  zkPath);
         }
@@ -597,6 +610,8 @@ public class ImhotepDaemon {
                             int port,
                             long memoryCapacityInMB,
                             boolean useCache,
+                            boolean lazyLoadFiles,
+                            String cachingConfigFile,
                             String zkNodes,
                             String zkPath) throws IOException {
         ImhotepDaemon daemon = null;
@@ -606,6 +621,8 @@ public class ImhotepDaemon {
                                       port,
                                       memoryCapacityInMB,
                                       useCache,
+                                      lazyLoadFiles,
+                                      cachingConfigFile,
                                       zkNodes,
                                       zkPath);
             daemon.run();
@@ -621,13 +638,26 @@ public class ImhotepDaemon {
                                           int port,
                                           long memoryCapacityInMB,
                                           boolean useCache,
+                                          boolean lazyLoadFiles,
+                                          String cachingConfigFile,
                                           String zkNodes,
                                           String zkPath) throws IOException {
-        final ImhotepServiceCore localService =
-                new LocalImhotepServiceCore(shardsDirectory, shardTempDir,
-                                            memoryCapacityInMB * 1024 * 1024, useCache,
-                                            new GenericFlamdexReaderSource(),
-                                            new LocalImhotepServiceConfig());
+        final ImhotepServiceCore localService;
+
+        if (lazyLoadFiles) {
+            CachedFile.initWithFile(cachingConfigFile, shardsDirectory.trim());
+            localService =
+                    new CachingLocalImhotepServiceCore(shardsDirectory, shardTempDir,
+                                                       memoryCapacityInMB * 1024 * 1024, useCache,
+                                                       new GenericFlamdexReaderSource(),
+                                                       new LocalImhotepServiceConfig());
+        } else {
+            localService =
+                    new LocalImhotepServiceCore(shardsDirectory, shardTempDir,
+                                                memoryCapacityInMB * 1024 * 1024, useCache,
+                                                new GenericFlamdexReaderSource(),
+                                                new LocalImhotepServiceConfig());
+        }
         final ServerSocket ss = new ServerSocket(port);
         final String myHostname = InetAddress.getLocalHost().getCanonicalHostName();
         return new ImhotepDaemon(ss, localService, zkNodes, zkPath, myHostname, port);

@@ -11,3 +11,4 @@ build-transient-src/
 web-build/
 dist/
 build.properties
+testData/

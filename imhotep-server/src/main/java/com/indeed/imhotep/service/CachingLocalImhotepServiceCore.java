@@ -228,7 +228,7 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
 
     private void updateShards() throws IOException {
         final CachedFile shardsDir = CachedFile.create(shardsDirectory);
-        if (shardsDir.exists()) {
+        if (! shardsDir.exists()) {
             shards = Maps.newHashMap();
             shardList = Lists.newArrayList();
             datasetList = Lists.newArrayList();

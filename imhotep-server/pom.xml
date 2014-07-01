@@ -49,11 +49,17 @@
 
 	<dependencies>
 
-		<dependency>
-			<groupId>com.indeed</groupId>
-			<artifactId>imhotep-client</artifactId>
-			<version>${project.version}</version>
-		</dependency>
+        <dependency>
+            <groupId>com.indeed</groupId>
+            <artifactId>imhotep-client</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.indeed</groupId>
+            <artifactId>imhotep-archive</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
 		<dependency>
 			<groupId>com.indeed</groupId>
@@ -124,6 +130,12 @@
 			<version>1.7.11</version>
 		</dependency>
     
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+            <version>${snakeyaml.version}</version>
+        </dependency>
+
 
 <!-- 
         <dependency>
@@ -136,12 +148,6 @@
 			<groupId>joda-time</groupId>
 			<artifactId>joda-time</artifactId>
 			<version>${joda-time.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.yaml</groupId>
-			<artifactId>snakeyaml</artifactId>
-			<version>${snakeyaml.version}</version>
 		</dependency>
 
 		<dependency>

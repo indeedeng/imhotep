@@ -2,133 +2,162 @@ package com.indeed.imhotep.io.caching;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.Properties;
-import java.util.concurrent.ExecutionException;
+import java.util.List;
+import java.util.Map;
+
+import com.indeed.imhotep.io.caching.RemoteFileSystem.RemoteFileInfo;
 
 /**
  * Hello world!
  *
  */
-public abstract class CachedFile {
+public class CachedFile {
     public static final String DELIMITER = "/";
     public static final int CHAR_DELIMITER = '/';
-    private static final int TYPE_NOOP = 1;
-    private static final int TYPE_S3 = 2;
-    private static final int TYPE_HDFS = 3;
-    private static boolean initialized = false;
-    private static int cacheType;
-    private static RemoteFileCache cache;
+    private static RemoteFileSystemMounter mounter = null;
+    
+    protected String fullPath;
+    protected RemoteFileInfo info;
+    protected RemoteFileSystem cachedFS;
     
 
-    public static final CachedFile create(String path) {
-        if (! initialized) {
+    public static final synchronized CachedFile create(String path) {
+        CachedFile ret;
+        
+        if (mounter == null) {
             try {
-                CachedFile.init(null);
+                mounter = new RemoteFileSystemMounter(null, "/");
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
         }
         
-        switch (cacheType) {
-        case TYPE_NOOP:
-            return new NoOpCachedFile(cache, path);
-        case TYPE_S3:
-            return new S3CachedFile(cache, path);
-        case TYPE_HDFS:
-            return new HDFSCachedFile(cache, path);
-        default:
-            throw new RuntimeException("Unknow remote file cache type");
-        }
+        ret = new CachedFile();
+        ret.info = null;
+        ret.fullPath = path;
+        ret.cachedFS = mounter.getCache();
+        
+        return ret;
     }
     
-    public static final void init(Properties properties) throws IOException {
-
-        if (properties == null ) {
-            final InputStream in;
-
-            properties = new Properties();
-            in = ClassLoader.getSystemResourceAsStream("file-caching.properties");
-            if (in != null) {
-                try {
-                    properties.load(in);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    properties = noCachingProps();
-                } finally {
-                    try {
-                        in.close();
-                    } catch (IOException e) { }
-                }
-            } else {
-                properties = noCachingProps();
-            }
-        }
-        
-        final String type = properties.getProperty("file.caching.type","NOOP");
-        if (type.equals("NOOP")) {
-            cacheType = TYPE_NOOP;
-            cache = new NoOpRemoteFileCache(properties);
-        } else if (type.equals("S3")) {
-            cacheType = TYPE_S3;
-            cache = new S3RemoteFileCache(properties);
-        } else if (type.equals("HDFS")) {
-            cacheType = TYPE_HDFS;
-            cache = new HDFSRemoteFileCache(properties);
-        }
-        
-        initialized = true;
+    public static final synchronized void initWithFile(String filename, 
+                                                       String root) throws IOException {
+        mounter = new RemoteFileSystemMounter(filename, root);
     }
     
-    private static Properties noCachingProps() {
-        final Properties result = new Properties();
+    public static final synchronized void init(List<Map<String, String>> configData, 
+                                               String root) throws IOException {
+        mounter = new RemoteFileSystemMounter(configData, root, false);
+    }
+    
+    protected CachedFile() {
+        this.cachedFS = null;
+        this.info = null;
+    }
+    
+    protected CachedFile(RemoteFileInfo info, RemoteFileSystem fs) {
+        this.info = info;
+        this.cachedFS = fs;
+        this.fullPath = info.path;
+        this.fullPath = this.cachedFS.getMountPoint() + this.fullPath;
+    }
+
+    
+    public boolean exists() {
+        if (info != null) {
+            return true;
+        }
         
-        result.setProperty("cache.type", "NOOP");
+        info = cachedFS.stat(fullPath);
+        if (info == null) {
+            return false;
+        }
+        
+        return true;
+    }
+    
+    
+    public boolean isFile() {
+        if (this.exists() && info.type == RemoteFileInfo.TYPE_FILE) {
+            return true;
+        }
+        return false;
+    }
+    
+    public boolean isDirectory() {
+        if (this.exists() && info.type == RemoteFileInfo.TYPE_DIR) {
+            return true;
+        }
+        return false;
+    }
+    
+    public String getName() {
+        return fullPath.substring(fullPath.lastIndexOf(CHAR_DELIMITER) + 1);
+    }
+    
+    public String[] list() {
+        final List<RemoteFileInfo> infos;
+        final String[] result;
+        
+        infos = cachedFS.readDir(fullPath);
+        if (infos == null) {
+            return null;
+        }
+        
+        result = new String[infos.size()];
+        for (int i = 0; i< infos.size(); i++) {
+            result[i] = infos.get(i).path;
+        }
+        
+        return result;
+    }
+    
+    public CachedFile[] listFiles() {
+        final List<RemoteFileInfo> infos;
+        final CachedFile[] result;
+        
+        infos = cachedFS.readDir(fullPath);
+        if (infos == null) {
+            return null;
+        }
+        
+        result = new CachedFile[infos.size()];
+        for (int i = 0; i< infos.size(); i++) {
+            result[i] = new CachedFile(infos.get(i), cachedFS);
+        }
+        
         return result;
     }
 
-    /*
-     * Remove leading and trailing delimiters
-     */
-    protected static String cleanupPath(String path) {
-        if (path.startsWith(DELIMITER)) {
-            /* remove delimiter from the beginning */
-            path = path.substring(DELIMITER.length());
-        }
-        if (path.endsWith(DELIMITER)) {
-            /* remove delimiter from the end */
-            path = path.substring(0, path.length() - DELIMITER.length());
-        }
-        return path;
+    public File loadFile() throws IOException {
+        return cachedFS.loadFile(fullPath);
     }
     
-    public static String buildPath(String ... parts) {
-        if (parts.length == 0) return null;
-        if (parts.length == 1) return parts[0];
+    public File loadDirectory() throws IOException {
+        final Map<String,File> data;
         
-        String path = parts[0];
-        for (int i = 1; i < parts.length; i++) {
-            path += DELIMITER + parts[i];
-        }
-        
-        return path;
+        data = cachedFS.loadDirectory(fullPath, null);
+        return data.get(fullPath);
     }
 
-    
-    public abstract boolean exists();
-    public abstract boolean isFile();
-    public abstract boolean isDirectory();
-    public abstract String getName();
-    public abstract String[] list();
-    public abstract CachedFile[] listFiles();
-    public abstract File loadFile() throws IOException;
-    public abstract File loadDirectory() throws IOException;
+    public String getCanonicalPath() throws IOException {
+        return this.fullPath;
+    }
 
-    public abstract boolean isCached();
+    public long length() {
+        File f;
+        try {
+            f = cachedFS.loadFile(fullPath);
+        } catch (IOException e) {
+            return 0L;
+        }
+        return f.length();
+    }
 
-    public abstract String getCanonicalPath() throws IOException;
-
-    public abstract long length();
+    public static String buildPath(String directory, String filename) {
+        final String path = directory + DELIMITER + filename;
+        return path.replace("//", "/");
+    }
 
 
 }
