@@ -14,7 +14,7 @@ import org.apache.commons.io.FileUtils;
 
 public class NoOpRemoteFileSystem extends RemoteFileSystem {
 
-    public NoOpRemoteFileSystem(Map<String,String> settings, 
+    public NoOpRemoteFileSystem(Map<String,Object> settings, 
                                 RemoteFileSystem parent,
                                 RemoteFileSystemMounter mounter) {
         

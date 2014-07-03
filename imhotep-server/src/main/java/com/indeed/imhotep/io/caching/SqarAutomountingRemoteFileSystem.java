@@ -11,24 +11,24 @@ import java.util.Map;
 public class SqarAutomountingRemoteFileSystem extends RemoteFileSystem {
     private static final String SUFFIX = ".sqar";
     
-    private String mountPoint;
-    private RemoteFileSystem parentFS;
-    private RemoteFileSystemMounter mounter;
+    final private String mountPoint;
+    final private RemoteFileSystem parentFS;
+    final private RemoteFileSystemMounter mounter;
 
-    public SqarAutomountingRemoteFileSystem(Map<String,String> settings, 
+    public SqarAutomountingRemoteFileSystem(Map<String,Object> settings, 
                               RemoteFileSystem parent,
                               RemoteFileSystemMounter mounter) throws IOException {
         
         this.parentFS = parent;
         this.mounter = mounter;
         
-        mountPoint = settings.get("mountpoint").trim();
-        if (! mountPoint.endsWith(DELIMITER)) {
+        String mp = (String)settings.get("mountpoint");
+        if (! mp.endsWith(DELIMITER)) {
             /* add delimiter to the end */
-            mountPoint = mountPoint + DELIMITER;
+            mp = mp + DELIMITER;
         }
-        mountPoint = mounter.getRootMountPoint() + mountPoint;
-        mountPoint = mountPoint.replace("//", "/");
+        mp = mounter.getRootMountPoint() + mp;
+        mountPoint = mp.replace("//", "/");
     }
     
     private String scanPathForSqar(String fullPath) {
@@ -54,9 +54,9 @@ public class SqarAutomountingRemoteFileSystem extends RemoteFileSystem {
     
     private SqarRemoteFileSystem mountNewSqarFS(String path) {
         final SqarRemoteFileSystem fs;
-        final Map<String,String> settings;
+        final Map<String,Object> settings;
         
-        settings = new HashMap<String,String>();
+        settings = new HashMap<String,Object>();
         settings.put("mountpoint", path);
         fs = new SqarRemoteFileSystem(settings, parentFS, mounter);
         mounter.addFileSystem(path, fs);
@@ -105,6 +105,7 @@ public class SqarAutomountingRemoteFileSystem extends RemoteFileSystem {
 
     @Override
     public RemoteFileInfo stat(String fullPath) {
+        final String relativePath = mounter.getMountRelativePath(fullPath, mountPoint);
         final RemoteFileInfo current;
         final String sqarPath;
         final SqarRemoteFileSystem newFS;
@@ -119,6 +120,12 @@ public class SqarAutomountingRemoteFileSystem extends RemoteFileSystem {
             /* no sqar archives found */
             return null;
         }
+        
+        /* do not open the archive unless we need to */
+        if (sqarPath.equals(relativePath + DELIMITER)) {
+            return new RemoteFileInfo(fullPath, RemoteFileInfo.TYPE_DIR);
+        }
+        
         newFS = mountNewSqarFS(sqarPath);
         
         /* now rerun query with new fs */
@@ -154,9 +161,6 @@ public class SqarAutomountingRemoteFileSystem extends RemoteFileSystem {
             if (info.path.endsWith(SUFFIX)) {
                 final String path = info.path;
 
-                /* mount archive */
-                mountNewSqarFS(path);  // Maybe archives should only be mounted with used?
-                
                 /* remove suffix */
                 info.path = path.substring(0, path.length() - SUFFIX.length());
             }

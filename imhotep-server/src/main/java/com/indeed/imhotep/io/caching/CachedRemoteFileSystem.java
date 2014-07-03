@@ -26,14 +26,14 @@ public class CachedRemoteFileSystem extends RemoteFileSystem {
     private File localCacheDir;
     private LoadingCache<String, File> cache;
 
-    public CachedRemoteFileSystem(Map<String,String> settings, 
+    public CachedRemoteFileSystem(Map<String,Object> settings, 
                                   RemoteFileSystem parentFS,
                                   RemoteFileSystemMounter mounter) throws IOException {
         final int cacheSize;
         final String cacheDir;
         
         this.parentFS = parentFS;
-        mountPoint = settings.get("mountpoint").trim();
+        mountPoint = (String)settings.get("mountpoint");
         if (! mountPoint.endsWith(DELIMITER)) {
             /* add delimiter to the end */
             mountPoint = mountPoint + DELIMITER;
@@ -43,12 +43,12 @@ public class CachedRemoteFileSystem extends RemoteFileSystem {
         
         this.mounter = mounter;
 
-        cacheDir = settings.get("cache-dir").trim();
+        cacheDir = (String)settings.get("cache-dir");
         /* create directory if it does not already exist */
         localCacheDir = new File(cacheDir);
         localCacheDir.mkdir();
         
-        cacheSize = Integer.valueOf(settings.get("cacheSizeMB").trim());
+        cacheSize = (Integer)settings.get("cacheSizeMB");
 
         cache =
                 CacheBuilder.newBuilder()
@@ -107,8 +107,6 @@ public class CachedRemoteFileSystem extends RemoteFileSystem {
 
     @Override
     public File loadFile(String fullPath) throws IOException {
-        final String relativePath = mounter.getMountRelativePath(fullPath, mountPoint);
-        
         try {
             return cache.get(fullPath);
         } catch (ExecutionException e) {
@@ -123,22 +121,16 @@ public class CachedRemoteFileSystem extends RemoteFileSystem {
 
     @Override
     public RemoteFileInfo stat(String fullPath) {
-        final String relativePath = mounter.getMountRelativePath(fullPath, mountPoint);
-        
         return parentFS.stat(fullPath);
     }
 
     @Override
     public List<RemoteFileInfo> readDir(String fullPath) {
-        final String relativePath = mounter.getMountRelativePath(fullPath, mountPoint);
-        
         return parentFS.readDir(fullPath);
     }
 
     @Override
     public void copyFileInto(String fullPath, File localFile) throws IOException {
-        final String relativePath = mounter.getMountRelativePath(fullPath, mountPoint);
-        
         try {
             final File cachedFile;
 

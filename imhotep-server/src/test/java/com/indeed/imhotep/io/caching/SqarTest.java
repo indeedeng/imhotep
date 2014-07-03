@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -19,28 +20,35 @@ import org.junit.Test;
  * Unit test for S3CachedFileSystem
  */
 public class SqarTest {
-    private static List<Map<String,String>> testSettings;
+    private static List<Map<String,Object>> testSettings;
     
     @BeforeClass
     public static void init() throws IOException {
         
-        testSettings = new ArrayList<Map<String,String>>();
+        testSettings = new ArrayList<Map<String,Object>>();
         
-        Map<String,String> s3layer = new HashMap<String,String>();
+        Map<String,Object> s3layer = new HashMap<String,Object>();
         s3layer.put("type", "SQAR_AUTOMOUNTING");
-        s3layer.put("order", "2");
+        s3layer.put("order", 2);
         s3layer.put("mountpoint", "/");
         testSettings.add(s3layer);
         
-        Map<String,String> cachelayer = new HashMap<String,String>();
+        Map<String,Object> cachelayer = new HashMap<String,Object>();
         cachelayer.put("type", "CACHED");
-        cachelayer.put("order", "3");
+        cachelayer.put("order", 3);
         cachelayer.put("mountpoint", "/");
         cachelayer.put("cache-dir", "/tmp/sqar_test_temp_cache");
-        cachelayer.put("cacheSizeMB", "500");
+        cachelayer.put("cacheSizeMB", 500);
         testSettings.add(cachelayer);
         
-        CachedFile.init(testSettings, "testData/");
+        CachedFile.init(testSettings, "testData/", false);
+        
+    }
+
+    @AfterClass
+    public static void cleanup() throws IOException {
+        
+        CachedFile.init(null, "/", true);
         
     }
 
@@ -49,6 +57,22 @@ public class SqarTest {
     public void testSqarExists() throws IOException {
         boolean result;
         CachedFile target;
+        
+        target = CachedFile.create("testData/test-archive/");
+        result = target.exists();
+        assertTrue(result);
+        result = target.isDirectory();
+        assertTrue(result);
+        result = target.isFile();
+        assertFalse(result);
+        
+        target = CachedFile.create("testData/test-archive");
+        result = target.exists();
+        assertTrue(result);
+        result = target.isDirectory();
+        assertTrue(result);
+        result = target.isFile();
+        assertFalse(result);
         
         target = CachedFile.create("testData/test-archive/1/2/3");
         result = target.exists();
@@ -130,6 +154,76 @@ public class SqarTest {
         assertFalse(result);
         result = target.exists();
         assertFalse(result);
+    }
+
+    @Test
+    public void testSqarListDirectory() throws IOException {
+        String[] result;
+        CachedFile target;
+        String[] dir0 = {"1", "2", "3", "4", "5", "test-archive"};
+        String[] dir123 = {"4", "123.file"};
+        String[] dir1 = {"1", "2", "1.file"};
+        String[] dir11 = new String[2502];
+        
+        for (int i = 0; i < 2500; i++) {
+            dir11[i] = Integer.toString(i) + ".file";
+        }
+        dir11[2500] = "2";
+        dir11[2501] = "3";
+        
+        Arrays.sort(dir123);
+        Arrays.sort(dir1);
+        Arrays.sort(dir11);
+        
+        target = CachedFile.create("testData");
+        result = target.list();
+        Arrays.sort(result);
+        assertNotNull(result);
+        assertArrayEquals(dir0, result);
+
+        target = CachedFile.create("testData/test-archive/1/2/3");
+        result = target.list();
+        Arrays.sort(result);
+        assertNotNull(result);
+        assertArrayEquals(dir123, result);
+        target = CachedFile.create("testData/test-archive/1/2/3/");
+        result = target.list();
+        Arrays.sort(result);
+        assertNotNull(result);
+        assertArrayEquals(dir123, result);
+        target = CachedFile.create("testData/test-archive/1");
+        result = target.list();
+        assertNotNull(result);
+        Arrays.sort(result);
+        assertArrayEquals(dir1, result);
+        target = CachedFile.create("testData/test-archive/1/");
+        result = target.list();
+        assertNotNull(result);
+        Arrays.sort(result);
+        assertArrayEquals(dir1, result);
+
+        target = CachedFile.create("testData/test-archive/1/2/3/4/5/12345.file");
+        result = target.list();
+        assertNull(result);
+        target = CachedFile.create("testData/test-archive/1/2/3/4/1234.file");
+        result = target.list();
+        assertNull(result);
+        target = CachedFile.create("testData/test-archive/3/4/5/345.file");
+        result = target.list();
+        assertNull(result);
+        target = CachedFile.create("testData/test-archive/4/5/45.file");
+        result = target.list();
+        assertNull(result);
+        target = CachedFile.create("testData/test-archive/6");
+        result = target.list();
+        assertNull(result);
+
+        target = CachedFile.create("testData/test-archive/1/1/");
+        result = target.list();
+        assertNotNull(result);
+        Arrays.sort(result);
+        assertArrayEquals(dir11, result);
+        
     }
 
     @Test
@@ -288,69 +382,6 @@ public class SqarTest {
         assertFalse(sawException);
     }
     
-    @Test
-    public void testSqarListDirectory() throws IOException {
-        String[] result;
-        CachedFile target;
-        String[] dir123 = {"4", "123.file"};
-        String[] dir1 = {"1", "2", "1.file"};
-        String[] dir11 = new String[2502];
-        
-        for (int i = 0; i < 2500; i++) {
-            dir11[i] = Integer.toString(i) + ".file";
-        }
-        dir11[2500] = "2";
-        dir11[2501] = "3";
-        
-        Arrays.sort(dir123);
-        Arrays.sort(dir1);
-        Arrays.sort(dir11);
-        
-        target = CachedFile.create("testData/test-archive/1/2/3");
-        result = target.list();
-        Arrays.sort(result);
-        assertNotNull(result);
-        assertArrayEquals(dir123, result);
-        target = CachedFile.create("testData/test-archive/1/2/3/");
-        result = target.list();
-        Arrays.sort(result);
-        assertNotNull(result);
-        assertArrayEquals(dir123, result);
-        target = CachedFile.create("testData/test-archive/1");
-        result = target.list();
-        assertNotNull(result);
-        Arrays.sort(result);
-        assertArrayEquals(dir1, result);
-        target = CachedFile.create("testData/test-archive/1/");
-        result = target.list();
-        assertNotNull(result);
-        Arrays.sort(result);
-        assertArrayEquals(dir1, result);
-
-        target = CachedFile.create("testData/test-archive/1/2/3/4/5/12345.file");
-        result = target.list();
-        assertNull(result);
-        target = CachedFile.create("testData/test-archive/1/2/3/4/1234.file");
-        result = target.list();
-        assertNull(result);
-        target = CachedFile.create("testData/test-archive/3/4/5/345.file");
-        result = target.list();
-        assertNull(result);
-        target = CachedFile.create("testData/test-archive/4/5/45.file");
-        result = target.list();
-        assertNull(result);
-        target = CachedFile.create("testData/test-archive/6");
-        result = target.list();
-        assertNull(result);
-
-        target = CachedFile.create("testData/test-archive/1/1/");
-        result = target.list();
-        assertNotNull(result);
-        Arrays.sort(result);
-        assertArrayEquals(dir11, result);
-        
-    }
-
     @Test
     public void testExists() throws IOException {
         boolean result;
@@ -654,6 +685,96 @@ public class SqarTest {
         assertNotNull(result);
         Arrays.sort(result);
         assertArrayEquals(dir11, result);
+        
+    }
+
+    
+    @Test
+    public void testListFiles() throws IOException {
+        CachedFile[] result;
+        String[] fnames;
+        CachedFile target;
+        String[] dir123 = {"testData/1/2/3/4", "testData/1/2/3/123.file"};
+        String[] dir1 = {"testData/1/1", "testData/1/2", "testData/1/1.file"};
+        String[] dir11 = new String[2502];
+        
+        for (int i = 0; i < 2500; i++) {
+            dir11[i] = "testData/1/1/" + Integer.toString(i) + ".file";
+        }
+        dir11[2500] = "testData/1/1/2";
+        dir11[2501] = "testData/1/1/3";
+        
+        Arrays.sort(dir123);
+        Arrays.sort(dir1);
+        Arrays.sort(dir11);
+        
+        target = CachedFile.create("testData/1/2/3");
+        result = target.listFiles();
+        fnames = new String[result.length];
+        for (int i = 0; i < result.length; i++) {
+            CachedFile f = result[i];
+            fnames[i] = f.getCanonicalPath();
+        }
+        Arrays.sort(fnames);
+        assertNotNull(result);
+        assertArrayEquals(dir123, fnames);
+        target = CachedFile.create("testData/1/2/3/");
+        result = target.listFiles();
+        fnames = new String[result.length];
+        for (int i = 0; i < result.length; i++) {
+            CachedFile f = result[i];
+            fnames[i] = f.getCanonicalPath();
+        }
+        Arrays.sort(fnames);
+        assertNotNull(result);
+        assertArrayEquals(dir123, fnames);
+        target = CachedFile.create("testData/1");
+        result = target.listFiles();
+        assertNotNull(result);
+        fnames = new String[result.length];
+        for (int i = 0; i < result.length; i++) {
+            CachedFile f = result[i];
+            fnames[i] = f.getCanonicalPath();
+        }
+        Arrays.sort(fnames);
+        assertArrayEquals(dir1, fnames);
+        target = CachedFile.create("testData/1/");
+        result = target.listFiles();
+        assertNotNull(result);
+        fnames = new String[result.length];
+        for (int i = 0; i < result.length; i++) {
+            CachedFile f = result[i];
+            fnames[i] = f.getCanonicalPath();
+        }
+        Arrays.sort(fnames);
+        assertArrayEquals(dir1, fnames);
+
+        target = CachedFile.create("testData/1/2/3/4/5/12345.file");
+        result = target.listFiles();
+        assertNull(result);
+        target = CachedFile.create("testData/1/2/3/4/1234.file");
+        result = target.listFiles();
+        assertNull(result);
+        target = CachedFile.create("testData/3/4/5/345.file");
+        result = target.listFiles();
+        assertNull(result);
+        target = CachedFile.create("testData/4/5/45.file");
+        result = target.listFiles();
+        assertNull(result);
+        target = CachedFile.create("testData/6");
+        result = target.listFiles();
+        assertNull(result);
+
+        target = CachedFile.create("testData/1/1/");
+        result = target.listFiles();
+        assertNotNull(result);
+        fnames = new String[result.length];
+        for (int i = 0; i < result.length; i++) {
+            CachedFile f = result[i];
+            fnames[i] = f.getCanonicalPath();
+        }
+        Arrays.sort(fnames);
+        assertArrayEquals(dir11, fnames);
         
     }
 

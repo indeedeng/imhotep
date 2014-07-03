@@ -28,14 +28,14 @@ public class S3RemoteFileSystem extends RemoteFileSystem {
     private String s3prefix;
     private AmazonS3Client client;
 
-    public S3RemoteFileSystem(Map<String,String> settings, 
+    public S3RemoteFileSystem(Map<String,Object> settings, 
                               RemoteFileSystem parent,
                               RemoteFileSystemMounter mounter) {
         final String s3key;
         final String s3secret;
         final BasicAWSCredentials cred;
         
-        mountPoint = settings.get("mountpoint").trim();
+        mountPoint = (String)settings.get("mountpoint");
         if (! mountPoint.endsWith(DELIMITER)) {
             /* add delimiter to the end */
             mountPoint = mountPoint + DELIMITER;
@@ -45,13 +45,13 @@ public class S3RemoteFileSystem extends RemoteFileSystem {
         
         this.mounter = mounter;
         
-        s3bucket = settings.get("s3-bucket").trim();
-        s3prefix = settings.get("s3-prefix");
+        s3bucket = (String)settings.get("s3-bucket");
+        s3prefix = (String)settings.get("s3-prefix");
         if (s3prefix != null) {
             s3prefix = RemoteFileSystem.cleanupPath(s3prefix.trim());
         }
-        s3key = settings.get("s3-key").trim();
-        s3secret = settings.get("s3-secret").trim();
+        s3key = (String)settings.get("s3-key");
+        s3secret = (String)settings.get("s3-secret");
         cred = new BasicAWSCredentials(s3key, s3secret);
 
         client = new AmazonS3Client(cred);
@@ -323,11 +323,10 @@ public class S3RemoteFileSystem extends RemoteFileSystem {
                                              long startOffset,
                                              long maxReadLength) throws IOException {
         final String relativePath = mounter.getMountRelativePath(fullPath, mountPoint);
-        final String s3path = getS3path(relativePath) + DELIMITER;
+        final String s3path = getS3path(relativePath);
         final S3Object s3obj;
         final S3ObjectInputStream is;
         final GetObjectRequest request;
-        
         
         request = new GetObjectRequest(s3bucket, s3path);
         

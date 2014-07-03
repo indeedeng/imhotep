@@ -7,8 +7,11 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.google.common.base.Charsets;
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
 import com.indeed.imhotep.archive.ArchiveUtils;
 import com.indeed.imhotep.archive.FileMetadata;
 import com.indeed.imhotep.archive.compression.SquallArchiveCompressor;
@@ -17,45 +20,32 @@ public class SqarRemoteFileSystem extends RemoteFileSystem {
     private static final String SUFFIX = ".sqar";
     private static final String METADATA_FILE = "metadata.txt";
 
-    private String mountPoint;
-    private RemoteFileSystemMounter mounter;
-    private RemoteFileSystem parentFS;
-    private List<FileMetadata> filesInArchive;
-    private Comparator<FileMetadata> metadataComparator;
+    final private String mountPoint;
+    final private RemoteFileSystemMounter mounter;
+    final private RemoteFileSystem parentFS;
 
-    public SqarRemoteFileSystem(Map<String,String> settings, 
+    public SqarRemoteFileSystem(Map<String,Object> settings, 
                               RemoteFileSystem parent,
                               RemoteFileSystemMounter mounter) {
+        String mp;
+        
         this.parentFS = parent;
         
-        mountPoint = settings.get("mountpoint").trim();
-        if (! mountPoint.endsWith(DELIMITER)) {
+        mp = (String)settings.get("mountpoint");
+        if (! mp.endsWith(DELIMITER)) {
             /* add delimiter to the end */
-            mountPoint = mountPoint + DELIMITER;
+            mp = mp + DELIMITER;
         }
-        mountPoint = mounter.getRootMountPoint() + mountPoint;
-        mountPoint = mountPoint.replace("//", "/");
+        mp = mounter.getRootMountPoint() + mp;
+        mountPoint = mp.replace("//", "/");
         
         this.mounter = mounter;
-        
-        this.filesInArchive = new ArrayList<FileMetadata>(800);
-        this.metadataComparator = new Comparator<FileMetadata>() {
-            @Override
-            public int compare(FileMetadata fmd1, FileMetadata fmd2) {
-                return fmd1.getFilename().compareTo(fmd2.getFilename());
-            }
-        };
-        
-        try {
-            loadFileList();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
     }
 
 
     private static FileMetadata parseMetadata(String line) throws IOException {
         final String[] split = line.split("\t");
+        
         if (split.length < 5) {
             throw new IOException("malformed metadata line: " + line);
         }
@@ -70,8 +60,8 @@ public class SqarRemoteFileSystem extends RemoteFileSystem {
         return new FileMetadata(filename, size, timestamp, checksum, startOffset, compressor,
                                 archiveFilename);
    }
-
-    private void loadFileList() throws IOException {
+    
+    private FileMetadata scanMetadataForFile(String file) throws IOException {
         final InputStream metadataIS;
         final String sqarpath;
         final BufferedReader r;
@@ -82,36 +72,65 @@ public class SqarRemoteFileSystem extends RemoteFileSystem {
         
         /* parse file */
         r = new BufferedReader(new InputStreamReader(metadataIS, Charsets.UTF_8));
+
         try {
             for (String line = r.readLine(); line != null; line = r.readLine()) {
                 final FileMetadata metadata = parseMetadata(line);
-                filesInArchive.add(metadata);
+                if (file.equals(metadata.getFilename())) {
+                    return metadata;
+                }
             }
+            /* found nothing */
+            return null;
         } finally {
             r.close();
+            metadataIS.close();
         }
-        
-        /* sort metadata by file path */
-        Collections.sort(filesInArchive, metadataComparator);
     }
-    
+
+    private List<FileMetadata> scanMetadataForPrefix(String prefix, boolean stopAfterFirst) throws IOException {
+        final InputStream metadataIS;
+        final String sqarpath;
+        final BufferedReader r;
+        final List<FileMetadata> results = new ArrayList<FileMetadata>(500);
+        
+        /* download metadata file */
+        sqarpath = mountPoint.substring(0, mountPoint.length() - DELIMITER.length()) + SUFFIX;
+        metadataIS = parentFS.getInputStreamForFile(sqarpath + DELIMITER + METADATA_FILE, 0, -1);
+        
+        /* parse file */
+        r = new BufferedReader(new InputStreamReader(metadataIS, Charsets.UTF_8));
+
+        try {
+            for (String line = r.readLine(); line != null; line = r.readLine()) {
+                final FileMetadata metadata = parseMetadata(line);
+                if (metadata.getFilename().startsWith(prefix)) {
+                    results.add(metadata);
+                    if (stopAfterFirst) {
+                        break;
+                    }
+                }
+            }
+            return results;
+        } finally {
+            r.close();
+            metadataIS.close();
+        }
+    }
+
     
     @Override
     public void copyFileInto(String fullPath, File localFile) throws IOException {
         final String relativePath = mounter.getMountRelativePath(fullPath, mountPoint);
         final FileMetadata metadata;
-        final FileMetadata searchKey;
-        final int idx;
         final SquallArchiveCompressor compressor;
         final InputStream is;
         
         /* find the info about this compressed file */
-        searchKey = new FileMetadata(relativePath, 0, 0, null, 0, null, null);
-        idx = Collections.binarySearch(filesInArchive, searchKey, metadataComparator);
-        if (idx < 0) {
+        metadata = scanMetadataForFile(relativePath);
+        if (metadata == null) {
             throw new FileNotFoundException("Could not locate " + relativePath + " in archive.");
         }
-        metadata = filesInArchive.get(idx);
         
         /* download compressed file */
         final long startOffset = metadata.getStartOffset();
@@ -160,8 +179,7 @@ public class SqarRemoteFileSystem extends RemoteFileSystem {
         final String relativePath = mounter.getMountRelativePath(fullPath, mountPoint);
         final String relPathWithDelimiter;
         final FileMetadata metadata;
-        FileMetadata searchKey;
-        int idx;
+        final List<FileMetadata> listing;
 
         if (relativePath.isEmpty()) {
             /* root of a sqar file is a directory by definition */
@@ -170,85 +188,67 @@ public class SqarRemoteFileSystem extends RemoteFileSystem {
 
         relPathWithDelimiter = relativePath + DELIMITER;
         
-        /* find the info about this compressed file */
-        searchKey = new FileMetadata(relativePath, 0, 0, null, 0, null, null);
-        idx = Collections.binarySearch(filesInArchive, searchKey, metadataComparator);
-        if (idx >= 0) {
-            /* found a file */
-            return new RemoteFileInfo(fullPath, RemoteFileInfo.TYPE_FILE);
-        }
-        
-        /* look for a directory with this name */
-        searchKey = new FileMetadata(relPathWithDelimiter, 0, 0, null, 0, null, null);
-        idx = Collections.binarySearch(filesInArchive, searchKey, metadataComparator);
-        if (idx >= 0) {
-            /* uh, this should not be */
-            throw new RuntimeException("Bad filenam in archive.  file: " + relPathWithDelimiter);
-        }
-        idx = -idx - 1;
-        if (idx >= filesInArchive.size()) {
-            /* not found */
+        try {
+            /* find the info about this compressed file */
+            metadata = scanMetadataForFile(relativePath);
+            if (metadata != null) {
+                /* found a file */
+                return new RemoteFileInfo(fullPath, RemoteFileInfo.TYPE_FILE);
+            }
+            
+            /* look for a directory with this name */
+            listing = scanMetadataForPrefix(relPathWithDelimiter, true);
+            if (listing.size() == 0) {
+                /* not found */
+                return null;
+            }
+    
+            return new RemoteFileInfo(fullPath, RemoteFileInfo.TYPE_DIR);
+        } catch (IOException e) {
             return null;
         }
-
-        metadata = filesInArchive.get(idx);
-        if (metadata.getFilename().startsWith(relativePath)) {
-            return new RemoteFileInfo(fullPath, RemoteFileInfo.TYPE_DIR);
-        }
-        
-        /* not found */
-        return null;
     }
 
     @Override
     public List<RemoteFileInfo> readDir(String fullPath) {
         String relativePath = mounter.getMountRelativePath(fullPath, mountPoint);
-        final FileMetadata searchKey;
-        final FileMetadata metadata;
-        final List<RemoteFileInfo> listing;
-        int idx;
+        final List<RemoteFileInfo> infoListing;
+        final List<FileMetadata> mdListing;
 
         if (!relativePath.isEmpty()) {
             relativePath += DELIMITER;
         }
 
         /* find the info about this compressed file */
-        searchKey = new FileMetadata(relativePath, 0, 0, null, 0, null, null);
-        idx = Collections.binarySearch(filesInArchive, searchKey, metadataComparator);
-        if (idx >= 0) {
-            /* not a directory */
+        /* look for a directory with this name */
+        try {
+            mdListing = scanMetadataForPrefix(relativePath, false);
+            if (mdListing.size() == 0) {
+                /* not a directory */
+                return null;
+            }
+            if (mdListing.size() == 1 && mdListing.get(0).getFilename().equals(relativePath)) {
+                /* not a directory */
+                return null;
+            }
+            
+            infoListing = scanListForMatchingPaths(mdListing, relativePath);
+            return infoListing;
+        } catch (IOException e) {
             return null;
         }
-        
-        idx = -idx - 1;
-        if (idx >= filesInArchive.size()) {
-            /* not found */
-            return null;
-        }
-
-        metadata = filesInArchive.get(idx);
-        if (! metadata.getFilename().startsWith(relativePath)) {
-            /* not found */
-            return null;
-        }
-        
-        listing = scanListForMatchingPaths(filesInArchive, relativePath, idx);
-        return listing;
     }
     
     private List<RemoteFileInfo> scanListForMatchingPaths(List<FileMetadata> files, 
-                                                          String prefix,
-                                                          int startIdx) {
+                                                          String prefix) {
         final List<RemoteFileInfo> listing = new ArrayList<RemoteFileInfo>(100);
         String lastPathSegment = "";
 
-        for (int idx = startIdx; idx < filesInArchive.size(); idx++) {
+        for (FileMetadata metadata : files) {
             final int type;
-            final FileMetadata metadata;
             final String filename;
             final String pathSegment;
 
-            metadata = filesInArchive.get(idx);
             filename = metadata.getFilename();
             if (! filename.startsWith(prefix)) {
                 break;

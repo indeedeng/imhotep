@@ -6,13 +6,13 @@ import com.indeed.imhotep.archive.compression.SquallArchiveCompressor;
  * @author jsgroth
  */
 public class FileMetadata {
-    private final String filename;
+    private String filename;
     private final long size;
     private final long timestamp;
     private final String checksum;
     private final long startOffset;
     private final SquallArchiveCompressor compressor;
-    private final String archiveFilename;
+    private String archiveFilename;
 
     public FileMetadata(String filename,
                         long size,
@@ -100,5 +100,13 @@ public class FileMetadata {
                 ", startOffset=" + startOffset +
                 ", compressor=" + compressor +
                 '}';
+    }
+
+    public void setFilename(String str) {
+        this.filename = str;
+    }
+
+    public void setArchiveFilename(String str) {
+        this.archiveFilename = str;
     }
 }

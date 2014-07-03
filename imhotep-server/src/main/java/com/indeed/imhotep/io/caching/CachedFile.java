@@ -2,6 +2,7 @@ package com.indeed.imhotep.io.caching;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -18,7 +19,7 @@ public class CachedFile {
     
     protected String fullPath;
     protected RemoteFileInfo info;
-    protected RemoteFileSystem cachedFS;
+    protected RemoteFileSystem topFS;
     
 
     public static final synchronized CachedFile create(String path) {
@@ -26,7 +27,7 @@ public class CachedFile {
         
         if (mounter == null) {
             try {
-                mounter = new RemoteFileSystemMounter(null, "/");
+                mounter = new RemoteFileSystemMounter(null, "/", true);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -35,7 +36,7 @@ public class CachedFile {
         ret = new CachedFile();
         ret.info = null;
         ret.fullPath = path;
-        ret.cachedFS = mounter.getCache();
+        ret.topFS = mounter.getTopFileSystem();
         
         return ret;
     }
@@ -45,21 +46,21 @@ public class CachedFile {
         mounter = new RemoteFileSystemMounter(filename, root);
     }
     
-    public static final synchronized void init(List<Map<String, String>> configData, 
-                                               String root) throws IOException {
-        mounter = new RemoteFileSystemMounter(configData, root, false);
+    public static final synchronized void init(List<Map<String, Object>> configData, 
+                                               String root, 
+                                               boolean passthrough) throws IOException {
+        mounter = new RemoteFileSystemMounter(configData, root, passthrough);
     }
     
     protected CachedFile() {
-        this.cachedFS = null;
+        this.topFS = null;
         this.info = null;
     }
     
     protected CachedFile(RemoteFileInfo info, RemoteFileSystem fs) {
         this.info = info;
-        this.cachedFS = fs;
+        this.topFS = fs;
         this.fullPath = info.path;
-        this.fullPath = this.cachedFS.getMountPoint() + this.fullPath;
     }
 
     
@@ -68,7 +69,7 @@ public class CachedFile {
             return true;
         }
         
-        info = cachedFS.stat(fullPath);
+        info = topFS.stat(fullPath);
         if (info == null) {
             return false;
         }
@@ -99,7 +100,7 @@ public class CachedFile {
         final List<RemoteFileInfo> infos;
         final String[] result;
         
-        infos = cachedFS.readDir(fullPath);
+        infos = topFS.readDir(fullPath);
         if (infos == null) {
             return null;
         }
@@ -116,27 +117,30 @@ public class CachedFile {
         final List<RemoteFileInfo> infos;
         final CachedFile[] result;
         
-        infos = cachedFS.readDir(fullPath);
+        infos = topFS.readDir(fullPath);
         if (infos == null) {
             return null;
         }
         
         result = new CachedFile[infos.size()];
         for (int i = 0; i< infos.size(); i++) {
-            result[i] = new CachedFile(infos.get(i), cachedFS);
+            RemoteFileInfo info = infos.get(i);
+            String path = buildPath(fullPath, info.path);
+            info.path = path;
+            result[i] = new CachedFile(info, topFS);
         }
         
         return result;
     }
 
     public File loadFile() throws IOException {
-        return cachedFS.loadFile(fullPath);
+        return topFS.loadFile(fullPath);
     }
     
     public File loadDirectory() throws IOException {
         final Map<String,File> data;
         
-        data = cachedFS.loadDirectory(fullPath, null);
+        data = topFS.loadDirectory(fullPath, null);
         return data.get(fullPath);
     }
 
@@ -147,7 +151,7 @@ public class CachedFile {
     public long length() {
         File f;
         try {
-            f = cachedFS.loadFile(fullPath);
+            f = topFS.loadFile(fullPath);
         } catch (IOException e) {
             return 0L;
         }

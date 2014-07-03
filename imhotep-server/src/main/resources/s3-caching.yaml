@@ -1,0 +1,20 @@
+---
+- 
+    type: S3
+    order: 2
+    mountpoint: /
+    s3-prefix: /sqar-data
+    s3-bucket: <bucket>
+    s3-key: <key>
+    s3-secret: <secret>
+- 
+    type: SQAR_AUTOMOUNTING
+    order: 2
+    mountpoint: /
+- 
+    type: CACHED
+    order: 3
+    mountpoint: /
+    cache-dir: /tmp/s3_test_temp_cache
+    cacheSizeMB: 100
+

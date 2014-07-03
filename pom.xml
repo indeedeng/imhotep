@@ -42,6 +42,7 @@
     <modules>
         <module>imhotep-server</module>
         <module>imhotep-client</module>
+        <module>imhotep-archive</module>
     </modules>
 
     <properties>

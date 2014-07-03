@@ -1,6 +1,7 @@
 package com.indeed.imhotep.io.caching;
 
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collections;
@@ -17,11 +18,11 @@ public class RemoteFileSystemMounter {
     public final String DELIMITER = "/";
     private String rootMountPoint;
     private ArrayListMultimap<String,RemoteFileSystem> pathToFS = ArrayListMultimap.create();
-    private RemoteFileSystem cachedFS = null;
+    private RemoteFileSystem topFS = null;
 
     
-    public RemoteFileSystemMounter(String filename, String root) throws IOException {
-        final List<Map<String, String>> configData;
+    private static final List<Map<String,Object>> loadConfigData(String filename) throws FileNotFoundException {
+        final List<Map<String, Object>> configData;
         final Yaml yaml = new Yaml();
         
         if (filename == null ) {
@@ -29,19 +30,23 @@ public class RemoteFileSystemMounter {
 
             in = ClassLoader.getSystemResourceAsStream("file-caching.yaml");
             if (in != null) {
-                configData = (List<Map<String, String>>)yaml.load(in);
+                configData = (List<Map<String, Object>>)yaml.load(in);
             } else {
-                return;
+                return null;
             }
         } else {
-            configData = (List<Map<String, String>>)yaml.load(new FileInputStream(filename));
+            configData = (List<Map<String, Object>>)yaml.load(new FileInputStream(filename));
         }
         
-        new RemoteFileSystemMounter(configData, root, false);
+        return configData;
+    }
+    
+    public RemoteFileSystemMounter(String filename, String root) throws IOException {
+        this(loadConfigData(filename), root, false);
     }
         
-    public RemoteFileSystemMounter(List<Map<String, String>> configData, 
-                                   String root, boolean unused) throws IOException {
+    public RemoteFileSystemMounter(List<Map<String, Object>> configData, 
+                                   String root, boolean passthrough) throws IOException {
         final RemoteFileSystem rootFS;
         RemoteFileSystem mappingFS = null;
         
@@ -55,58 +60,63 @@ public class RemoteFileSystemMounter {
         rootFS = new NoOpRemoteFileSystem(null, null, this);
         addFileSystem("", rootFS);
         
+        if (passthrough || configData == null) {
+            this.topFS = rootFS;
+            return;
+        }
+        
         /* create remapping fs */
         mappingFS = new RemappingRemoteFileSystem(new HashMap<String,String>(), rootFS, this);
         
         /* create top level cached fs */
-        for (Map<String,String> fsConfig : configData) {
-            final String type = fsConfig.get("type");
+        for (Map<String,Object> fsConfig : configData) {
+            final String type = (String)fsConfig.get("type");
             if (type.equals("CACHED")) {
-                this.cachedFS = new CachedRemoteFileSystem(fsConfig, mappingFS, this);
+                this.topFS = new CachedRemoteFileSystem(fsConfig, mappingFS, this);
                 break;
             }
         }
-        if (this.cachedFS == null) {
+        if (this.topFS == null) {
             throw new RuntimeException("File system Cache configuration missing");
         }
 
         /* sort configured file systems by order */
-        Collections.sort(configData, new Comparator<Map<String, String>>() {
+        Collections.sort(configData, new Comparator<Map<String, Object>>() {
             @Override
-            public int compare(Map<String, String> o1, Map<String, String> o2) {
+            public int compare(Map<String, Object> o1, Map<String, Object> o2) {
                 int p1;
                 int p2;
                 
-                p1 = Integer.parseInt(o1.get("order"));
-                p2 = Integer.parseInt(o2.get("order"));
+                p1 = (Integer)o1.get("order");
+                p2 = (Integer)o2.get("order");
                 return p1 - p2;
             }
         });
         
         /* create file systems */
         RemoteFileSystem previous = rootFS;
-        for (Map<String,String> fsConfig : configData) {
+        for (Map<String,Object> fsConfig : configData) {
             final RemoteFileSystem fs;
-            final String type;
+            final Object type;
             String relativeMP;
             
             type = fsConfig.get("type");
-            if (type.trim().equals("NOOP")) {
+            if (type.equals("NOOP")) {
                 fs = new NoOpRemoteFileSystem(fsConfig, previous, this);
-            } else if (type.trim().equals("S3")) {
+            } else if (type.equals("S3")) {
                 fs = new S3RemoteFileSystem(fsConfig, previous, this);
-            } else if (type.trim().equals("CACHED")) {
+            } else if (type.equals("CACHED")) {
 //                fs = new CachedRemoteFileSystem(fsConfig, previous, this);
                 continue;
-            } else if (type.trim().equals("HDFS")) {
+            } else if (type.equals("HDFS")) {
                 fs = new HDFSRemoteFileSystem(fsConfig);
-            } else if (type.trim().equals("SQAR_AUTOMOUNTING")) {
+            } else if (type.equals("SQAR_AUTOMOUNTING")) {
                 fs = new SqarAutomountingRemoteFileSystem(fsConfig, previous, this);
             } else {
                 throw new RuntimeException("Unknown remote fs type: " + type);
             }
             
-            relativeMP = fsConfig.get("mountpoint").trim();
+            relativeMP = (String)fsConfig.get("mountpoint");
             if (relativeMP.equals("/")) {
                 relativeMP = "";
             } else {
@@ -234,7 +244,7 @@ public class RemoteFileSystemMounter {
         return this.rootMountPoint;
     }
 
-    public RemoteFileSystem getCache() {
-        return this.cachedFS;
+    public RemoteFileSystem getTopFileSystem() {
+        return this.topFS;
     }
 }

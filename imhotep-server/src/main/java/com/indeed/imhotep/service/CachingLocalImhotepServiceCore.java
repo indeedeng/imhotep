@@ -1,6 +1,5 @@
 package com.indeed.imhotep.service;
 
-import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -279,7 +278,7 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
                             try {
                                 if (current == null
                                         || shardVersion > current.get().getShardVersion()) {
-                                    log.debug("loading shard " + shardId + " from "
+                                    log.info("loading shard " + shardId + " from "
                                             + shardDir);
                                     final Shard newShard;
                                     newShard =
@@ -298,7 +297,7 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
                             final SharedReference<Shard> oldShard = shard.get();
                             try {
                                 if (shouldReloadShard(oldShard, canonicalShardDir, shardVersion)) {
-                                    log.debug("loading shard " + shardId + " from "
+                                    log.info("loading shard " + shardId + " from "
                                             + canonicalShardDir);
                                     final Shard newShard;
                                     newShard =
@@ -321,7 +320,7 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
                                                    shardId,
                                                    canonicalShardDir);
                             shard = AtomicSharedReference.create(newShard);
-                            log.debug("loading shard " + shardId + " from " + canonicalShardDir);
+                            log.info("loading shard " + shardId + " from " + canonicalShardDir);
                         }
                         if (shard != null)
                             newDatasetShards.put(shardId, shard);

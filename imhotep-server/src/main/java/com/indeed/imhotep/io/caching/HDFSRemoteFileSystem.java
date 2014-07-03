@@ -10,7 +10,7 @@ import java.util.concurrent.ExecutionException;
 
 public class HDFSRemoteFileSystem extends RemoteFileSystem {
 
-    public HDFSRemoteFileSystem(Map<String,String> settings) {
+    public HDFSRemoteFileSystem(Map<String,Object> settings) {
         // TODO Auto-generated constructor stub
     }
 
