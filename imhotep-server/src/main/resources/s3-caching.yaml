@@ -9,11 +9,11 @@
     s3-secret: <secret>
 - 
     type: SQAR_AUTOMOUNTING
-    order: 2
+    order: 4
     mountpoint: /
 - 
     type: CACHED
-    order: 3
+    order: 6
     mountpoint: /
     cache-dir: /tmp/s3_test_temp_cache
     cacheSizeMB: 100

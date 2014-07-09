@@ -141,6 +141,10 @@ public class CachedFile {
         final Map<String,File> data;
         
         data = topFS.loadDirectory(fullPath, null);
+        if (data == null) {
+            return null;
+        }
+        
         return data.get(fullPath);
     }
 
@@ -153,6 +157,7 @@ public class CachedFile {
         try {
             f = topFS.loadFile(fullPath);
         } catch (IOException e) {
+            e.printStackTrace();
             return 0L;
         }
         return f.length();

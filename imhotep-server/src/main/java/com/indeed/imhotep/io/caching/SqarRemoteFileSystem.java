@@ -144,7 +144,9 @@ public class SqarRemoteFileSystem extends RemoteFileSystem {
 
         sqarpath = mountPoint.substring(0, mountPoint.length() - DELIMITER.length()) + SUFFIX;
         archivePath = sqarpath + DELIMITER + archiveFile;
-        is = parentFS.getInputStreamForFile(archivePath, startOffset, originalSize);
+        is = parentFS.getInputStreamForFile(archivePath, 
+                                            startOffset, 
+                                            originalSize + 2048 /* for safety */);
         try {
             compressor = metadata.getCompressor();
             

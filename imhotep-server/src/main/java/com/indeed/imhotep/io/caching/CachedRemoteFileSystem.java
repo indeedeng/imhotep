@@ -15,6 +15,7 @@ import org.apache.commons.io.filefilter.TrueFileFilter;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.cache.RemovalCause;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 import com.google.common.cache.Weigher;
@@ -52,14 +53,25 @@ public class CachedRemoteFileSystem extends RemoteFileSystem {
 
         cache =
                 CacheBuilder.newBuilder()
+                            .initialCapacity(8192)
                             .maximumWeight(cacheSize * 1024)
                             .weigher(new Weigher<String, File>() {
                                 public int weigh(String path, File cachedFile) {
-                                    return (int)(cachedFile.length() / 1024);
+                                    int kb;
+                                    kb = (int)(cachedFile.length() / 1024);
+                                    /* don't return weights of 0 */
+                                    if (kb == 0) {
+                                        kb = 1;
+                                    }
+                                    return kb;
                                 }
                             })
                             .removalListener(new RemovalListener<String, File>() {
                                 public void onRemoval(RemovalNotification<String, File> rn) {
+                                    if (rn.getCause().equals(RemovalCause.REPLACED)) {
+                                        /* don't delete replaced files */
+                                        return;
+                                    }
                                     removeFile(rn.getValue());
                                 }
                             })
@@ -156,11 +168,15 @@ public class CachedRemoteFileSystem extends RemoteFileSystem {
         /* create all the directories on the path to the file */
         localDir.getParentFile().mkdirs();
         
-        files = parentFS.loadDirectory(relativePath, localDir);
+        files = parentFS.loadDirectory(fullPath, localDir);
+        if (files == null) {
+            return null;
+        }
+        
         for (Map.Entry<String, File> entry : files.entrySet()) {
             cache.put(entry.getKey(), entry.getValue());
         }
-        files.put(relativePath, localDir);
+        files.put(fullPath, localDir);
         return files;
     }
 
