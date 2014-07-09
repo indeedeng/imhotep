@@ -383,6 +383,19 @@ public class SqarTest {
     }
     
     @Test
+    public void testSqarLoadDirectory() throws IOException {
+        File result;
+        boolean bresult;
+        CachedFile target;
+        
+        target = CachedFile.create("testData/test-archive/1/2/3");
+        bresult = target.exists();
+        assertTrue(bresult);
+        result = target.loadDirectory();
+        assertNotNull(result);
+    }
+    
+    @Test
     public void testExists() throws IOException {
         boolean result;
         CachedFile target;
