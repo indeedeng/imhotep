@@ -5,6 +5,7 @@ import java.security.DigestInputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -287,12 +288,47 @@ public class SqarRemoteFileSystem extends RemoteFileSystem {
         return this.mountPoint;
     }
 
-    /*
-     * Unneeded for now
-     */
     @Override
     public Map<String, File> loadDirectory(String fullPath, File location) throws IOException {
-        throw new UnsupportedOperationException();
+        String relativePath = mounter.getMountRelativePath(fullPath, mountPoint);
+        final List<FileMetadata> mdListing;
+        final Map<String, File> results = new HashMap<String,File>();
+
+        if (!relativePath.isEmpty()) {
+            relativePath += DELIMITER;
+        }
+
+        /* find the info about this compressed file */
+        /* look for a directory with this name */
+        try {
+            mdListing = scanMetadataForPrefix(relativePath, false);
+            if (mdListing.size() == 0) {
+                /* not a directory */
+                return null;
+            }
+            if (mdListing.size() == 1 && mdListing.get(0).getFilename().equals(relativePath)) {
+                /* not a directory */
+                return null;
+            }
+            
+            /* download all the files */
+            for (FileMetadata md : mdListing) {
+                final String path = mountPoint + md.getFilename();
+                final String dirRelPath = md.getFilename().substring(relativePath.length());
+                final File f = new File(location, dirRelPath);
+                
+                /* create any parent dirs that do not already exist */
+                f.getParentFile().mkdirs();
+                
+                copyFileInto(path, f);
+                
+                results.put(path, f);
+            }
+            
+            return results;
+        } catch (IOException e) {
+            return null;
+        }
     }
 
 

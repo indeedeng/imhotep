@@ -55,10 +55,10 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
         final CachedFile intIndex = CachedFile.create(indexFilename+".intindex");
         final CachedFile intIndex64 = CachedFile.create(indexFilename+".intindex64");
         if (intIndex64.exists()) {
-            indexFile = intIndex64.loadFile();
+            indexFile = intIndex64.loadDirectory();
             use64BitIndex = true;
         } else if (intIndex.exists()) {
-                indexFile = intIndex.loadFile();
+                indexFile = intIndex.loadDirectory();
             use64BitIndex = false;
         } else {
             use64BitIndex = true;

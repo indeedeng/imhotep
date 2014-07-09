@@ -57,7 +57,7 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
         this.docsFilename = docsFilename;
         final CachedFile cf = CachedFile.create(indexFilename);
         if (cf.exists()) {
-            indexFile = cf.loadFile();
+            indexFile = cf.loadDirectory();
         } else {
             indexFile = null;
         }
