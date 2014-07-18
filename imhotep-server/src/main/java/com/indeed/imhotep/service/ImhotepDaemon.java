@@ -1,6 +1,8 @@
 package com.indeed.imhotep.service;
 
+import com.google.common.base.Function;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.UnmodifiableIterator;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
@@ -16,6 +18,7 @@ import com.indeed.imhotep.api.ImhotepServiceCore;
 import com.indeed.imhotep.marshal.ImhotepDaemonMarshaller;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.GroupRemapMessage;
+import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
@@ -31,6 +34,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
@@ -181,7 +185,8 @@ public class ImhotepDaemon {
                                     inetAddress.getHostAddress(),
                                     protoRequest.getClientVersion(),
                                     protoRequest.getMergeThreadLimit(),
-                                    protoRequest.getOptimizeGroupZeroLookups()
+                                    protoRequest.getOptimizeGroupZeroLookups(),
+                                    protoRequest.getSessionId()
                             );
                             NDC.push(sessionId);
                             responseBuilder.setSessionId(sessionId);
@@ -271,6 +276,25 @@ public class ImhotepDaemon {
                             }
                             sendResponse(responseBuilder.build(), os);
                             service.handleGetFTGSIterator(protoRequest.getSessionId(), getIntFields(protoRequest), getStringFields(protoRequest), os);
+                            break;
+                        case GET_FTGS_SPLIT:
+                            if (!service.sessionIsValid(protoRequest.getSessionId())) {
+                                throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
+                            }
+                            sendResponse(responseBuilder.build(), os);
+                            service.handleGetFTGSIteratorSplit(protoRequest.getSessionId(), getIntFields(protoRequest), getStringFields(protoRequest), os, protoRequest.getSplitIndex(), protoRequest.getNumSplits());
+                            break;
+                        case MERGE_FTGS_SPLIT:
+                            if (!service.sessionIsValid(protoRequest.getSessionId())) {
+                                throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
+                            }
+                            sendResponse(responseBuilder.build(), os);
+                            service.handleMergeFTGSIteratorSplit(protoRequest.getSessionId(), getIntFields(protoRequest), getStringFields(protoRequest), os,
+                                    Lists.transform(protoRequest.getNodesList(), new Function<HostAndPort, InetSocketAddress>() {
+                                        public InetSocketAddress apply(final HostAndPort input) {
+                                            return new InetSocketAddress(input.getHost(), input.getPort());
+                                        }
+                                    }).toArray(new InetSocketAddress[protoRequest.getNodesCount()]), protoRequest.getSplitIndex());
                             break;
                         case GET_DOC_ITERATOR:
                             if (!service.sessionIsValid(protoRequest.getSessionId())) {
@@ -371,8 +395,8 @@ public class ImhotepDaemon {
                             break;
                         case OPTIMIZE_SESSION:
                             service.handleRebuildAndFilterIndexes(
-                                    protoRequest.getSessionId(), 
-                                    getIntFields(protoRequest), 
+                                    protoRequest.getSessionId(),
+                                    getIntFields(protoRequest),
                                     getStringFields(protoRequest)
                             );
                             sendResponse(responseBuilder.build(), os);

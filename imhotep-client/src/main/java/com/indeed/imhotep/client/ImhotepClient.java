@@ -10,7 +10,7 @@ import com.google.common.collect.Sets;
 import com.google.common.primitives.Longs;
 import com.indeed.util.core.Pair;
 import com.indeed.imhotep.DatasetInfo;
-import com.indeed.imhotep.ImhotepMultiSession;
+import com.indeed.imhotep.RemoteImhotepMultiSession;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.ShardInfo;
@@ -19,8 +19,10 @@ import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
+import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -33,6 +35,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorCompletionService;
@@ -447,7 +450,8 @@ public class ImhotepClient implements Closeable {
         }
         int retries = 3;
         while (retries > 0) {
-            final ImhotepRemoteSession[] remoteSessions = internalGetSession(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout);
+            final String sessionId = UUID.randomUUID().toString();
+            final ImhotepRemoteSession[] remoteSessions = internalGetSession(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout, sessionId);
             if (remoteSessions == null) {
                 --retries;
                 if (retries > 0) {
@@ -455,7 +459,11 @@ public class ImhotepClient implements Closeable {
                 }
                 continue;
             }
-            return new ImhotepMultiSession(remoteSessions, DEFAULT_MERGE_THREAD_LIMIT);
+            final InetSocketAddress[] nodes = new InetSocketAddress[remoteSessions.length];
+            for (int i = 0; i < remoteSessions.length; i++) {
+                nodes[i] = remoteSessions[i].getInetSocketAddress();
+            }
+            return new RemoteImhotepMultiSession(remoteSessions, DEFAULT_MERGE_THREAD_LIMIT, sessionId, nodes);
         }
         throw new RuntimeException("unable to open session");
     }
@@ -527,7 +535,7 @@ public class ImhotepClient implements Closeable {
         final ExecutorService executor = Executors.newCachedThreadPool();
         final ExecutorCompletionService<Void> completionService = new ExecutorCompletionService<Void>(executor);
         final List<Callable<Void>> callables = Lists.newArrayList();
-
+        final String sessionId = UUID.randomUUID().toString();
         for (final Host host : hosts) {
             callables.add(new Callable<Void>() {
                 @Override
@@ -543,7 +551,7 @@ public class ImhotepClient implements Closeable {
                             log.info("Processing " + shards.size() + " for " + host);
 
                             ImhotepRemoteSession session = ImhotepRemoteSession.openSession(host.getHostname(),
-                                    host.getPort(), dataset, shards);
+                                    host.getPort(), dataset, shards, sessionId);
                             callback.handle(session);
                         }
                         return null;
@@ -586,7 +594,7 @@ public class ImhotepClient implements Closeable {
 
     // returns null on error
     private ImhotepRemoteSession[] internalGetSession(final String dataset, Collection<String> requestedShards, Collection<String> requestedMetrics, final int mergeThreadLimit,
-                                                      final String username, final boolean optimizeGroupZeroLookups, final int socketTimeout) {
+                                                      final String username, final boolean optimizeGroupZeroLookups, final int socketTimeout, @Nullable final String sessionId) {
 
         final Map<Host, List<String>> shardRequestMap = buildShardRequestMap(dataset, requestedShards, requestedMetrics);
 
@@ -605,7 +613,7 @@ public class ImhotepClient implements Closeable {
                 futures.add(executor.submit(new Callable<ImhotepRemoteSession>() {
                     @Override
                     public ImhotepRemoteSession call() throws Exception {
-                        return ImhotepRemoteSession.openSession(host.hostname, host.port, dataset, shardList, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout);
+                        return ImhotepRemoteSession.openSession(host.hostname, host.port, dataset, shardList, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout, sessionId);
                     }
                 }));
             }

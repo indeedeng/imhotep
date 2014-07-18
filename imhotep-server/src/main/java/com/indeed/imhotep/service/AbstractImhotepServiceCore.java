@@ -24,6 +24,7 @@ import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -75,6 +76,86 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
             public Void apply(final ImhotepSession session) throws IOException {
                 final int numStats = getSessionManager().getNumStats(sessionId);
                 final FTGSIterator merger = session.getFTGSIterator(intFields, stringFields);
+                final Future<?> future = ftgsExecutor.submit(new Callable<Void>() {
+                    @Override
+                    public Void call() throws Exception {
+                        try {
+                            FTGSOutputStreamWriter.write(merger, numStats, os);
+                        } catch (Exception e) {
+                            merger.close();
+                            throw e;
+                        }
+                        return null;
+                    }
+                });
+                try {
+                    // do a timed get so the task doesn't run infinitely
+                    future.get(30L, TimeUnit.MINUTES);
+                } catch (TimeoutException e) {
+                    future.cancel(true);
+                    throw new RuntimeException(e);
+                } catch (ExecutionException e) {
+                    final Throwable cause = e.getCause();
+                    if (cause instanceof RuntimeException) {
+                        throw (RuntimeException)cause;
+                    }
+                    if (cause instanceof IOException) {
+                        throw (IOException)cause;
+                    }
+                    throw new RuntimeException(cause);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                return null;
+            }
+        });
+    }
+
+    public void handleGetFTGSIteratorSplit(final String sessionId, final String[] intFields, final String[] stringFields, final OutputStream os, final int splitIndex, final int numSplits) throws IOException {
+        doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Void, IOException>() {
+            public Void apply(final ImhotepSession session) throws IOException {
+                final int numStats = getSessionManager().getNumStats(sessionId);
+                final FTGSIterator merger = session.getFTGSIteratorSplit(intFields, stringFields, splitIndex, numSplits);
+                final Future<?> future = ftgsExecutor.submit(new Callable<Void>() {
+                    @Override
+                    public Void call() throws Exception {
+                        try {
+                            FTGSOutputStreamWriter.write(merger, numStats, os);
+                        } catch (Exception e) {
+                            merger.close();
+                            throw e;
+                        }
+                        return null;
+                    }
+                });
+                try {
+                    // do a timed get so the task doesn't run infinitely
+                    future.get(30L, TimeUnit.MINUTES);
+                } catch (TimeoutException e) {
+                    future.cancel(true);
+                    throw new RuntimeException(e);
+                } catch (ExecutionException e) {
+                    final Throwable cause = e.getCause();
+                    if (cause instanceof RuntimeException) {
+                        throw (RuntimeException)cause;
+                    }
+                    if (cause instanceof IOException) {
+                        throw (IOException)cause;
+                    }
+                    throw new RuntimeException(cause);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                return null;
+            }
+        });
+    }
+
+    public void handleMergeFTGSIteratorSplit(final String sessionId, final String[] intFields, final String[] stringFields, final OutputStream os, final InetSocketAddress[] nodes, final int splitIndex) throws IOException {
+        doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Void, IOException>() {
+            public Void apply(final ImhotepSession session) throws IOException {
+                final int numStats = getSessionManager().getNumStats(sessionId);
+                final FTGSIterator merger = session.mergeFTGSSplit(intFields, stringFields, sessionId, nodes, splitIndex);
                 final Future<?> future = ftgsExecutor.submit(new Callable<Void>() {
                     @Override
                     public Void call() throws Exception {
@@ -376,7 +457,8 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
             String ipAddress,
             int clientVersion,
             int mergeThreadLimit,
-            boolean optimizeGroupZeroLookups
+            boolean optimizeGroupZeroLookups,
+            String sessionId
     ) throws ImhotepOutOfMemoryException;
 
     @Override

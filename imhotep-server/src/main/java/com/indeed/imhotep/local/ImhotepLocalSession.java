@@ -77,6 +77,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 
 import java.io.*;
+import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -137,8 +138,11 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
 
     private final File optimizationLog;
 
+    private FTGSSplitter ftgsIteratorSplits;
+
     public ImhotepLocalSession(final FlamdexReader flamdexReader) throws ImhotepOutOfMemoryException {
-        this(flamdexReader, null, new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), false);
+        this(flamdexReader, null,
+                new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), false);
     }
 
     public ImhotepLocalSession(FlamdexReader flamdexReader, boolean optimizeGroupZeroLookups) throws ImhotepOutOfMemoryException {
@@ -724,6 +728,30 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
         } catch (IOException e) {
             throw Throwables.propagate(e);
         }
+    }
+
+    public synchronized RawFTGSIterator getFTGSIteratorSplit(final String[] intFields,
+                                                             final String[] stringFields,
+                                                             final int splitIndex,
+                                                             final int numSplits) {
+        if (ftgsIteratorSplits == null || ftgsIteratorSplits.isClosed()) {
+            try {
+                ftgsIteratorSplits =
+                        new FTGSSplitter(getFTGSIterator(intFields, stringFields), numSplits,
+                                         numStats);
+            } catch (IOException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+        return ftgsIteratorSplits.getFtgsIterators()[splitIndex];
+    }
+
+    public RawFTGSIterator mergeFTGSSplit(final String[] intFields,
+                                          final String[] stringFields,
+                                          final String sessionId,
+                                          final InetSocketAddress[] nodes,
+                                          final int splitIndex) {
+        throw new UnsupportedOperationException();
     }
 
     @Override

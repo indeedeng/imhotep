@@ -183,4 +183,8 @@ public final class FTGSSplitter implements Runnable, Closeable {
             }
         }
     }
+
+    public boolean isClosed() {
+        return done.get();
+    }
 }

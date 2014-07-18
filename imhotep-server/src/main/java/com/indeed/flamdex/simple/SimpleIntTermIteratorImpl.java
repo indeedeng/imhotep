@@ -58,7 +58,7 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
             indexFile = intIndex64.loadDirectory();
             use64BitIndex = true;
         } else if (intIndex.exists()) {
-                indexFile = intIndex.loadDirectory();
+            indexFile = intIndex.loadDirectory();
             use64BitIndex = false;
         } else {
             use64BitIndex = true;

@@ -41,7 +41,7 @@ public class MakeFTGSFiles {
             throw new IOException("could not create "+outputDir);
         }
         for (String hostname : shardLists.keySet()) {
-            ImhotepSession session = ImhotepRemoteSession.openSession(hostname, 12345, "orgmodelsubset", shardLists.get(hostname));
+            ImhotepSession session = ImhotepRemoteSession.openSession(hostname, 12345, "orgmodelsubset", shardLists.get(hostname), null);
             try {
                 session.pushStat("impressions");
                 session.pushStat("clicks");
