@@ -609,14 +609,14 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
         }
     }
 
-    private static final class BufferedFTGSIterator implements RawFTGSIterator {
+    public static final class BufferedFTGSIterator implements RawFTGSIterator {
         private final InputStreamFTGSIterator iterator;
         private final FTGSOutputStreamWriter writer;
         private final CircularIOStream buffer;
 
         private final RawFTGSIterator rawIterator;
 
-        private BufferedFTGSIterator(ExecutorService threadPool, final RawFTGSIterator rawIterator, final int numStats, boolean writeEmptyTerms) throws IOException {
+        public BufferedFTGSIterator(ExecutorService threadPool, final RawFTGSIterator rawIterator, final int numStats, boolean writeEmptyTerms) throws IOException {
             this.rawIterator = rawIterator;
             buffer = new CircularIOStream(MERGE_BUFFER_SIZE);
             writer = new FTGSOutputStreamWriter(buffer.getOutputStream(), writeEmptyTerms);
