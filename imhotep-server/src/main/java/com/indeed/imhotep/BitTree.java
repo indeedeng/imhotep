@@ -11,7 +11,7 @@ public final class BitTree {
     final long[][] bitsets;
     boolean cleared = true;
 
-    final int[] indexStack;
+    int iteratorIndex;
     int depth;
     int current;
 
@@ -21,8 +21,7 @@ public final class BitTree {
             size = (size+63)/64;
             bitsets[i] = new long[size];
         }
-        indexStack = new int[bitsets.length];
-        depth = indexStack.length-1;
+        depth = bitsets.length-1;
     }
 
     private static int log2(final int size) {
@@ -57,50 +56,80 @@ public final class BitTree {
     public void clear() {
         cleared = true;
         while (true) {
-            while (bitsets[depth][indexStack[depth]] == 0) {
+            while (bitsets[depth][iteratorIndex] == 0) {
                 if (depth == bitsets.length-1) {
                     return;
                 }
                 depth++;
+                iteratorIndex >>>= 6;
             }
             while (depth != 0) {
-                final long lsb = bitsets[depth][indexStack[depth]] & -bitsets[depth][indexStack[depth]];
-                bitsets[depth][indexStack[depth]] ^= lsb;
-                final int index = indexStack[depth];
+                final long lsb = bitsets[depth][iteratorIndex] & -bitsets[depth][iteratorIndex];
+                bitsets[depth][iteratorIndex] ^= lsb;
                 depth--;
-                indexStack[depth] = (index<<6)+Long.bitCount(lsb-1);
+                iteratorIndex = (iteratorIndex <<6)+Long.bitCount(lsb-1);
             }
-            bitsets[0][indexStack[0]] = 0;
+            bitsets[0][iteratorIndex] = 0;
             depth = 1;
+            iteratorIndex >>>= 6;
         }
     }
 
     public boolean next() {
         cleared = false;
-        long bits = bitsets[depth][indexStack[depth]];
+        long bits = bitsets[depth][iteratorIndex];
         while (bits == 0) {
             if (depth == bitsets.length-1) {
                 return false;
             }
             depth++;
-            bits = bitsets[depth][indexStack[depth]];
+            iteratorIndex >>>= 6;
+            bits = bitsets[depth][iteratorIndex];
         }
         while (depth != 0) {
             final long lsb = bits & -bits;
-            bitsets[depth][indexStack[depth]] ^= lsb;
-            final int index = indexStack[depth];
+            bitsets[depth][iteratorIndex] ^= lsb;
             depth--;
-            indexStack[depth] = (index<<6)+Long.bitCount(lsb-1);
-            bits = bitsets[depth][indexStack[depth]];
+            iteratorIndex = (iteratorIndex <<6)+Long.bitCount(lsb-1);
+            bits = bitsets[depth][iteratorIndex];
         }
         final long lsb = bits & -bits;
-        final int index = indexStack[0];
-        bitsets[0][index] ^= lsb;
-        current = (index<<6)+Long.bitCount(lsb-1);
+        bitsets[0][iteratorIndex] ^= lsb;
+        current = (iteratorIndex <<6)+Long.bitCount(lsb-1);
         return true;
     }
 
     public int getValue() {
         return current;
+    }
+
+    public int dump(int[] buffer) {
+        int count = 0;
+        int depth = bitsets.length-1;
+        int index = 0;
+        cleared = true;
+        while (true) {
+            while (bitsets[depth][index] == 0) {
+                if (depth == bitsets.length-1) {
+                    return count;
+                }
+                depth++;
+                index >>>= 6;
+            }
+            while (depth != 0) {
+                final long lsb = bitsets[depth][index] & -bitsets[depth][index];
+                bitsets[depth][index] ^= lsb;
+                depth--;
+                index = (index<<6)+Long.bitCount(lsb-1);
+            }
+            while (bitsets[0][index] != 0) {
+                final long lsb = bitsets[0][index] & -bitsets[0][index];
+                bitsets[0][index] ^= lsb;
+                buffer[count++] = (index<<6)+Long.bitCount(lsb-1);
+            }
+            if (bitsets.length == 1) return count;
+            depth = 1;
+            index >>>= 6;
+        }
     }
 }

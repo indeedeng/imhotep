@@ -57,8 +57,6 @@ public class ImhotepClient implements Closeable {
     private final ScheduledExecutorService reloader;
     private final ImhotepClientShardListReloader shardListReloader;
 
-    private static final int DEFAULT_MERGE_THREAD_LIMIT = 24;
-
     /**
      * create an imhotep client that will periodically reload its list of hosts from a text file
      * @param hostsFile hosts file
@@ -463,7 +461,7 @@ public class ImhotepClient implements Closeable {
             for (int i = 0; i < remoteSessions.length; i++) {
                 nodes[i] = remoteSessions[i].getInetSocketAddress();
             }
-            return new RemoteImhotepMultiSession(remoteSessions, DEFAULT_MERGE_THREAD_LIMIT, sessionId, nodes);
+            return new RemoteImhotepMultiSession(remoteSessions, sessionId, nodes);
         }
         throw new RuntimeException("unable to open session");
     }

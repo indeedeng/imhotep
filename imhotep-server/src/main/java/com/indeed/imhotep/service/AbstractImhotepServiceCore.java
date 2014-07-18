@@ -43,12 +43,14 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
 
     private static final Logger log = Logger.getLogger(AbstractImhotepServiceCore.class);
 
-    private final ExecutorService ftgsExecutor;
+    private final ExecutorService getFtgsSplitExecutor;
+    private final ExecutorService mergeFtgsSplitExecutor;
 
     protected abstract SessionManager getSessionManager();
 
     protected AbstractImhotepServiceCore() {
-        ftgsExecutor = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setDaemon(true).setNameFormat("LocalImhotepServiceCore-FTGSWorker-%d").build());
+        getFtgsSplitExecutor = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setDaemon(true).setNameFormat("LocalImhotepServiceCore-FTGSWorker-get-%d").build());
+        mergeFtgsSplitExecutor = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setDaemon(true).setNameFormat("LocalImhotepServiceCore-FTGSWorker-merge-%d").build());
     }
 
     @Override
@@ -76,7 +78,7 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
             public Void apply(final ImhotepSession session) throws IOException {
                 final int numStats = getSessionManager().getNumStats(sessionId);
                 final FTGSIterator merger = session.getFTGSIterator(intFields, stringFields);
-                final Future<?> future = ftgsExecutor.submit(new Callable<Void>() {
+                final Future<?> future = getFtgsSplitExecutor.submit(new Callable<Void>() {
                     @Override
                     public Void call() throws Exception {
                         try {
@@ -116,7 +118,7 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
             public Void apply(final ImhotepSession session) throws IOException {
                 final int numStats = getSessionManager().getNumStats(sessionId);
                 final FTGSIterator merger = session.getFTGSIteratorSplit(intFields, stringFields, splitIndex, numSplits);
-                final Future<?> future = ftgsExecutor.submit(new Callable<Void>() {
+                final Future<?> future = getFtgsSplitExecutor.submit(new Callable<Void>() {
                     @Override
                     public Void call() throws Exception {
                         try {
@@ -156,7 +158,7 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
             public Void apply(final ImhotepSession session) throws IOException {
                 final int numStats = getSessionManager().getNumStats(sessionId);
                 final FTGSIterator merger = session.mergeFTGSSplit(intFields, stringFields, sessionId, nodes, splitIndex);
-                final Future<?> future = ftgsExecutor.submit(new Callable<Void>() {
+                final Future<?> future = mergeFtgsSplitExecutor.submit(new Callable<Void>() {
                     @Override
                     public Void call() throws Exception {
                         try {
@@ -197,7 +199,7 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
         final SharedReference<ImhotepSession> sessionRef = getSessionManager().getSession(sessionId);
         try {
             final DocIterator iterator = sessionRef.get().getDocIterator(intFields, stringFields);
-            final Future<?> future = ftgsExecutor.submit(new Callable<Void>() {
+            final Future<?> future = getFtgsSplitExecutor.submit(new Callable<Void>() {
                 @Override
                 public Void call() throws Exception {
                     try {
@@ -473,6 +475,7 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
 
     @Override
     public void close() {
-        ftgsExecutor.shutdownNow();
+        getFtgsSplitExecutor.shutdownNow();
+        mergeFtgsSplitExecutor.shutdownNow();
     }
 }

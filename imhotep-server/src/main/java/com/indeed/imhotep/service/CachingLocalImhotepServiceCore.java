@@ -1,5 +1,6 @@
 package com.indeed.imhotep.service;
 
+import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -594,7 +595,7 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
                     mergeThreadLimit > 0 ? mergeThreadLimit : DEFAULT_MERGE_THREAD_LIMIT;
             final ImhotepSession session =
                     new MTImhotepMultiSession(localSessions, new MemoryReservationContext(memory),
-                                              executor, maxSplits);
+                                              executor);
             getSessionManager().addSession(sessionId,
                                            session,
                                            flamdexes,

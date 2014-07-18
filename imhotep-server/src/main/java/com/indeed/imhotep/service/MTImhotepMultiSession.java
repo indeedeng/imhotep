@@ -34,13 +34,12 @@ class MTImhotepMultiSession extends AbstractImhotepMultiSession {
 
     MTImhotepMultiSession(final ImhotepLocalSession[] sessions,
                           final MemoryReservationContext memory,
-                          final ExecutorService executor,
-                          int numSplits) throws ImhotepOutOfMemoryException {
-        super(sessions, numSplits);
+                          final ExecutorService executor) throws ImhotepOutOfMemoryException {
+        super(sessions);
 
         this.memory = memory;
         this.executor = executor;
-        memoryClaimed = sessions.length*numSplits*SPLIT_BUFFER_SIZE+numSplits*MERGE_BUFFER_SIZE;
+        memoryClaimed = 0;
 
         if (!memory.claimMemory(memoryClaimed)) throw new ImhotepOutOfMemoryException();
     }

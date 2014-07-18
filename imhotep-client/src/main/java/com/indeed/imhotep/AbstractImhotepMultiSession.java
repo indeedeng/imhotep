@@ -3,9 +3,8 @@ package com.indeed.imhotep;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
+import com.google.common.primitives.Longs;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-//import com.indeed.util.functional.BlockingCopyableIterator;
-//import com.indeed.util.Closer;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.threads.LogOnUncaughtExceptionHandler;
@@ -16,7 +15,6 @@ import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.RawFTGSIterator;
-import com.indeed.imhotep.io.CircularIOStream;
 import com.indeed.imhotep.service.DocIteratorMerger;
 import com.indeed.imhotep.service.FTGSOutputStreamWriter;
 
@@ -28,7 +26,15 @@ import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 
 import org.apache.log4j.Logger;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.FilterInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.Collections;
@@ -44,10 +50,6 @@ import java.util.concurrent.Executors;
 public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession {
     private static final Logger log = Logger.getLogger(AbstractImhotepMultiSession.class);
 
-    public static final int MERGE_BUFFER_SIZE = 65536;
-
-    public static final int SPLIT_BUFFER_SIZE = 16384;
-
     protected final ImhotepSession[] sessions;
 
     private final Long[] totalDocFreqBuf;
@@ -62,11 +64,16 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
 
     private FTGSIterator lastIterator;
 
-    private final int numSplits;
-
-    private final ExecutorService bufferThreads = Executors.newCachedThreadPool(
+    private final ExecutorService getSplitBufferThreads = Executors.newCachedThreadPool(
             new ThreadFactoryBuilder().setDaemon(true)
-                    .setNameFormat("FTGS-Buffer-Thread-%d")
+                    .setNameFormat("FTGS-Buffer-Thread-getSplit-%d")
+                    .setUncaughtExceptionHandler(new LogOnUncaughtExceptionHandler(log))
+                    .build()
+    );
+
+    private final ExecutorService mergeSplitBufferThreads = Executors.newCachedThreadPool(
+            new ThreadFactoryBuilder().setDaemon(true)
+                    .setNameFormat("FTGS-Buffer-Thread-mergeSplit-%d")
                     .setUncaughtExceptionHandler(new LogOnUncaughtExceptionHandler(log))
                     .build()
     );
@@ -76,8 +83,7 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
     private int numGroups = 2;
 
     @SuppressWarnings({"unchecked"})
-    protected AbstractImhotepMultiSession(ImhotepSession[] sessions, int numSplits) {
-        this.numSplits = numSplits;
+    protected AbstractImhotepMultiSession(ImhotepSession[] sessions) {
         if (sessions == null || sessions.length == 0) {
             throw new IllegalArgumentException("at least one session is required");
         }
@@ -431,27 +437,14 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
 
     @Override
     public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields) {
-        if (lastIterator != null) {
-            Closeables2.closeQuietly(lastIterator, log);
-            lastIterator = null;
-        }
-        if (sessions.length == 1) {
-            lastIterator = sessions[0].getFTGSIterator(intFields, stringFields);
-            return lastIterator;
-        }
-        final Closer closer = Closer.create();
-        try {
-            final List<RawFTGSIterator> mergers = getIteratorSplits0(intFields, stringFields, numSplits, true);
-            for (RawFTGSIterator iter : mergers) {
-                closer.register(iter);
+        if (sessions.length == 1) return sessions[0].getFTGSIterator(intFields, stringFields);
+        final RawFTGSIterator[] iterators = new RawFTGSIterator[sessions.length];
+        executeRuntimeException(iterators, new ThrowingFunction<ImhotepSession, RawFTGSIterator>() {
+            public RawFTGSIterator apply(final ImhotepSession imhotepSession) throws Exception {
+                return persist(imhotepSession.getFTGSIterator(intFields, stringFields));
             }
-            final RawFTGSMerger finalMerger = new RawFTGSMerger(mergers, numStats, null);
-            lastIterator = new BufferedFTGSIterator(bufferThreads, finalMerger, numStats, false);
-            return lastIterator;
-        } catch (Throwable t) {
-            Closeables2.closeQuietly(closer, log);
-            throw Throwables.propagate(t);
-        }
+        });
+        return new RawFTGSMerger(Arrays.asList(iterators), numStats, null);
     }
 
     public final DocIterator getDocIterator(String[] intFields, String[] stringFields) throws ImhotepOutOfMemoryException {
@@ -465,34 +458,6 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
         } catch (Throwable t) {
             Closeables2.closeQuietly(closer, log);
             throw Throwables2.propagate(t, ImhotepOutOfMemoryException.class);
-        }
-    }
-
-    private List<RawFTGSIterator> getIteratorSplits0(final String[] intFields, final String[] stringFields, final int numSplits, boolean writeEmptyTerms) throws IOException {
-        if (sessions.length == 1) {
-            return getSplitsSingleSession(intFields, stringFields, numSplits);
-        }
-        final Closer closer = Closer.create();
-        try {
-            final RawFTGSIterator[][] iteratorSplits = new RawFTGSIterator[sessions.length][];
-            for (int i = 0; i < sessions.length; i++) {
-                final FTGSSplitter splitter = closer.register(new FTGSSplitter(sessions[i].getFTGSIterator(intFields, stringFields), numSplits, numStats));
-                iteratorSplits[i] = splitter.getFtgsIterators();
-            }
-            final List<RawFTGSIterator> mergers = Lists.newArrayList();
-            for (int j = 0; j < numSplits; j++) {
-                final List<RawFTGSIterator> iterators = Lists.newArrayList();
-                for (int i = 0; i < sessions.length; i++) {
-                    iterators.add(iteratorSplits[i][j]);
-                }
-
-                final RawFTGSMerger rawFTGSMerger = new RawFTGSMerger(iterators, numStats, null);
-                mergers.add(closer.register(new BufferedFTGSIterator(bufferThreads, rawFTGSMerger, numStats, writeEmptyTerms)));
-            }
-            return mergers;
-        } catch (Throwable t) {
-            Closeables2.closeQuietly(closer, log);
-            throw Throwables2.propagate(t, IOException.class);
         }
     }
 
@@ -522,49 +487,62 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
         final Closer closer = Closer.create();
         try {
             final RawFTGSIterator[][] iteratorSplits = new RawFTGSIterator[nodes.length][];
+            final int numSplits = Math.max(1, Runtime.getRuntime().availableProcessors()/2);
             for (int i = 0; i < nodes.length; i++) {
-                final FTGSSplitter splitter = closer.register(new FTGSSplitter(splits[i], 11, numStats));
+                final FTGSSplitter splitter = closer.register(new FTGSSplitter(splits[i], numSplits, numStats, "mergeFtgsSplit", 981044833));
                 iteratorSplits[i] = splitter.getFtgsIterators();
             }
-            final List<RawFTGSIterator> mergers = Lists.newArrayList();
-            for (int j = 0; j < 11; j++) {
+            final RawFTGSIterator[] mergers = new RawFTGSIterator[numSplits];
+            for (int j = 0; j < numSplits; j++) {
                 final List<RawFTGSIterator> iterators = Lists.newArrayList();
                 for (int i = 0; i < nodes.length; i++) {
                     iterators.add(iteratorSplits[i][j]);
                 }
-
-                final RawFTGSMerger rawFTGSMerger = new RawFTGSMerger(iterators, numStats, null);
-                mergers.add(closer.register(new BufferedFTGSIterator(bufferThreads, rawFTGSMerger, numStats, true)));
+                mergers[j] = closer.register(new RawFTGSMerger(iterators, numStats, null));
             }
-            return new RawFTGSMerger(mergers, numStats, null);
+            final RawFTGSIterator[] iterators = new RawFTGSIterator[numSplits];
+            execute(iterators, mergers, new ThrowingFunction<RawFTGSIterator, RawFTGSIterator>() {
+                public RawFTGSIterator apply(final RawFTGSIterator iterator) throws Exception {
+                    return persist(iterator);
+                }
+            });
+            return new FTGSInterleaver(iterators);
+//            return new RawFTGSMerger(Arrays.asList(splits), numStats, null);
         } catch (Throwable t) {
             Closeables2.closeQuietly(closer, log);
             throw Throwables.propagate(t);
         }
     }
 
-    private List<RawFTGSIterator> getSplitsSingleSession(final String[] intFields, final String[] stringFields, final int numSplits) {
-        final Closer closer = Closer.create();
+    private RawFTGSIterator persist(final FTGSIterator iterator) throws IOException {
+        final File tmp = File.createTempFile("ftgs", ".tmp");
+        OutputStream out = null;
         try {
-            final FTGSSplitter splitter = closer.register(new FTGSSplitter(sessions[0].getFTGSIterator(intFields, stringFields), numSplits, numStats));
-            final List<RawFTGSIterator> mergers = Lists.newArrayList();
-            for (RawFTGSIterator iterator : splitter.getFtgsIterators()) {
-                mergers.add(closer.register(new BufferedFTGSIterator(bufferThreads, iterator, numStats, false)));
-            }
-            return mergers;
+            final long start = System.currentTimeMillis();
+            out = new BufferedOutputStream(new FileOutputStream(tmp));
+            FTGSOutputStreamWriter.write(iterator, numStats, out);
+            log.info("time to merge splits to file: "+(System.currentTimeMillis()-start)+" ms, file length: "+tmp.length());
         } catch (Throwable t) {
-            Closeables2.closeQuietly(closer, log);
-            throw Throwables.propagate(t);
+            tmp.delete();
+            throw Throwables2.propagate(t, IOException.class);
+        } finally {
+            Closeables2.closeQuietly(iterator, log);
+            if (out != null) {
+                out.close();
+            }
         }
+        final BufferedInputStream bufferedInputStream = new BufferedInputStream(new FileInputStream(tmp));
+        tmp.delete();
+        final InputStream in = new FilterInputStream(bufferedInputStream) {
+            public void close() throws IOException {
+                bufferedInputStream.close();
+            }
+        };
+        return new InputStreamFTGSIterator(in, numStats);
     }
 
-    public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields, final int numSplits) {
-        try {
-            final List<RawFTGSIterator> mergers = getIteratorSplits0(intFields, stringFields, numSplits, false);
-            return mergers.toArray(new RawFTGSIterator[mergers.size()]);
-        } catch (IOException e) {
-            throw Throwables.propagate(e);
-        }
+    public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields) {
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -616,7 +594,8 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
                 lastIterator = null;
             }
         } finally {
-            bufferThreads.shutdown();
+            getSplitBufferThreads.shutdown();
+            mergeSplitBufferThreads.shutdown();
         }
     }
 
@@ -661,98 +640,191 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
         }
     }
 
-    public static final class BufferedFTGSIterator implements RawFTGSIterator {
-        private final InputStreamFTGSIterator iterator;
-        private final FTGSOutputStreamWriter writer;
-        private final CircularIOStream buffer;
+    protected static final class FTGSInterleaver implements RawFTGSIterator {
 
-        private final RawFTGSIterator rawIterator;
+        private final RawFTGSIterator[] iterators;
 
-        public BufferedFTGSIterator(ExecutorService threadPool, final RawFTGSIterator rawIterator, final int numStats, boolean writeEmptyTerms) throws IOException {
-            this.rawIterator = rawIterator;
-            buffer = new CircularIOStream(MERGE_BUFFER_SIZE);
-            writer = new FTGSOutputStreamWriter(buffer.getOutputStream(), writeEmptyTerms);
-            iterator = new InputStreamFTGSIterator(buffer.getInputStream(), numStats);
-            threadPool.submit(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        writer.write(rawIterator, numStats);
-                    } catch (IOException e) {
-                        throw Throwables.propagate(e);
-                    } catch (Throwable t) {
-                        log.error("error", t);
-                        throw Throwables.propagate(t);
-                    } finally {
-                        Closeables2.closeAll(log, buffer.getOutputStream(), rawIterator);
+        private int numFieldIterators;
+
+        private String fieldName;
+        private boolean fieldIsIntType;
+
+        private boolean done = false;
+
+        private boolean initialized = false;
+
+        protected FTGSInterleaver(final RawFTGSIterator[] iterators) {
+            this.iterators = iterators;
+        }
+
+        @Override
+        public final boolean nextField() {
+            if (done) return false;
+
+            numFieldIterators = 0;
+
+            final FTGSIterator first = iterators[0];
+            if (!first.nextField()) {
+                for (int i = 1; i < iterators.length; ++i) {
+                    if (iterators[i].nextField()) {
+                        throw new IllegalArgumentException("sub iterator fields do not match");
                     }
                 }
-            });
+                close();
+                return false;
+            }
+            fieldName = first.fieldName();
+            fieldIsIntType = first.fieldIsIntType();
+            numFieldIterators = iterators.length;
+
+            for (int i = 1; i < iterators.length; ++i) {
+                final FTGSIterator itr = iterators[i];
+                if (!itr.nextField() || !itr.fieldName().equals(fieldName) || itr.fieldIsIntType() != fieldIsIntType) {
+                    throw new IllegalArgumentException("sub iterator fields do not match");
+                }
+            }
+            initialized = false;
+            return true;
         }
 
         @Override
-        public boolean nextField() {
-            return iterator.nextField();
+        public final String fieldName() {
+            return fieldName;
         }
 
         @Override
-        public String fieldName() {
-            return iterator.fieldName();
-        }
-
-        @Override
-        public boolean fieldIsIntType() {
-            return iterator.fieldIsIntType();
+        public final boolean fieldIsIntType() {
+            return fieldIsIntType;
         }
 
         @Override
         public boolean nextTerm() {
-            return iterator.nextTerm();
+            if (!initialized) {
+                initialized = true;
+                for (int i = iterators.length-1; i >= 0; i--) {
+                    if (!iterators[i].nextTerm()) {
+                        numFieldIterators--;
+                        swap(i, numFieldIterators);
+                    }
+                }
+                for (int i = numFieldIterators-1; i >= 0; i--) {
+                    downHeap(i);
+                }
+                return numFieldIterators > 0;
+            }
+            if (numFieldIterators <= 0) return false;
+            if (!iterators[0].nextTerm()) {
+                numFieldIterators--;
+                if (numFieldIterators <= 0) return false;
+                swap(0, numFieldIterators);
+            }
+            downHeap(0);
+            return true;
         }
 
         @Override
         public long termDocFreq() {
-            return iterator.termDocFreq();
+            return iterators[0].termDocFreq();
         }
 
         @Override
         public long termIntVal() {
-            return iterator.termIntVal();
+            return iterators[0].termIntVal();
         }
 
         @Override
         public String termStringVal() {
-            return iterator.termStringVal();
+            return iterators[0].termStringVal();
         }
 
         @Override
         public byte[] termStringBytes() {
-            return iterator.termStringBytes();
+            return iterators[0].termStringBytes();
         }
 
         @Override
         public int termStringLength() {
-            return iterator.termStringLength();
+            return iterators[0].termStringLength();
         }
 
         @Override
         public boolean nextGroup() {
-            return iterator.nextGroup();
+            return iterators[0].nextGroup();
         }
 
         @Override
         public int group() {
-            return iterator.group();
+            return iterators[0].group();
         }
 
         @Override
         public void groupStats(final long[] stats) {
-            iterator.groupStats(stats);
+            iterators[0].groupStats(stats);
         }
 
         @Override
         public void close() {
-            Closeables2.closeAll(log, rawIterator, iterator, buffer.getOutputStream());
+            if (!done) {
+                done = true;
+                for (RawFTGSIterator iterator : iterators) {
+                    iterator.close();
+                }
+            }
+        }
+
+        private void downHeap(int index) {
+            while (true) {
+                final int leftIndex = index * 2 + 1;
+                final int rightIndex = leftIndex+1;
+                if (leftIndex < numFieldIterators) {
+                    if (fieldIsIntType) {
+                        final int lowerIndex = rightIndex >= numFieldIterators ?
+                                leftIndex :
+                                (compareIntTerms(leftIndex, rightIndex) <= 0 ?
+                                        leftIndex :
+                                        rightIndex);
+                        if (compareIntTerms(lowerIndex, index) < 0) {
+                            swap(index, lowerIndex);
+                            index = lowerIndex;
+                        } else {
+                            break;
+                        }
+                    } else {
+                        final int lowerIndex;
+                        if (rightIndex >= numFieldIterators) {
+                            lowerIndex = leftIndex;
+                        } else {
+                            lowerIndex = compareStringTerms(leftIndex, rightIndex) <= 0 ?
+                                    leftIndex :
+                                    rightIndex;
+                        }
+                        if (compareStringTerms(lowerIndex, index) < 0) {
+                            swap(index, lowerIndex);
+                            index = lowerIndex;
+                        } else {
+                            break;
+                        }
+                    }
+                } else {
+                    break;
+                }
+            }
+        }
+
+        private int compareIntTerms(int a, int b) {
+            return Longs.compare(iterators[a].termIntVal(), iterators[b].termIntVal());
+        }
+
+        private int compareStringTerms(int a, int b) {
+            final RawFTGSIterator itA = iterators[a];
+            final RawFTGSIterator itB = iterators[b];
+            return RawFTGSMerger.compareBytes(itA.termStringBytes(), itA.termStringLength(), itB.termStringBytes(), itB.termStringLength());
+        }
+
+        private void swap(int a, int b) {
+            final RawFTGSIterator tmp = iterators[a];
+            iterators[a] = iterators[b];
+            iterators[b] = tmp;
         }
     }
 }

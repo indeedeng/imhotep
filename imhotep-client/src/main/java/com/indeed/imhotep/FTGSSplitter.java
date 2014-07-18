@@ -1,19 +1,25 @@
 package com.indeed.imhotep;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Function;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Iterables;
 import com.indeed.util.core.hash.MurmurHash;
-import com.indeed.util.io.ByteBufferDataOutputStream;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.RawFTGSIterator;
-import com.indeed.imhotep.io.Octopus;
-import com.indeed.imhotep.service.FTGSPipeWriter;
-import com.indeed.imhotep.service.TGSBuffer;
+import com.indeed.imhotep.service.FTGSOutputStreamWriter;
+import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.Closeable;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
+import java.io.OutputStream;
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -27,42 +33,132 @@ public final class FTGSSplitter implements Runnable, Closeable {
 
     private final int numSplits;
 
-    private final FTGSPipeWriter[] outputs;
-    private final Octopus octopus;
+    private final FTGSOutputStreamWriter[] outputs;
+    private final File[] files;
+    private final OutputStream[] outputStreams;
     private final RawFTGSIterator[] ftgsIterators;
-    private final TGSBuffer[] tgsBuffers;
 
     private final AtomicBoolean done = new AtomicBoolean(false);
 
     private final Thread runThread;
 
-    public FTGSSplitter(FTGSIterator ftgsIterator, final int numSplits, final int numStats) throws IOException {
+    private final int numStats;
+    private final int largePrime;
+
+    public FTGSSplitter(FTGSIterator ftgsIterator, final int numSplits, final int numStats, final String threadNameSuffix, final int largePrime) throws IOException {
         this.iterator = ftgsIterator;
         this.numSplits = numSplits;
-        outputs = new FTGSPipeWriter[numSplits];
-        octopus = new Octopus(numSplits, 65536);
+        this.numStats = numStats;
+        this.largePrime = largePrime;
+        outputs = new FTGSOutputStreamWriter[numSplits];
+        files = new File[numSplits];
+        outputStreams = new OutputStream[numSplits];
         ftgsIterators = new RawFTGSIterator[numSplits];
-        tgsBuffers = new TGSBuffer[numSplits];
         final AtomicInteger doneCounter = new AtomicInteger();
         for (int i = 0; i < numSplits; i++) {
-            outputs[i] = new FTGSPipeWriter();
-            ftgsIterators[i] = new InputStreamFTGSIterator(octopus.getInputStream(i), numStats) {
-                boolean closed = false;
+            files[i] = File.createTempFile("ftgsSplitter", ".tmp");
+            outputStreams[i] = new BufferedOutputStream(new FileOutputStream(files[i]), 65536);
+            outputs[i] = new FTGSOutputStreamWriter(outputStreams[i], false);
+            final int splitIndex = i;
+            ftgsIterators[i] = new RawFTGSIterator() {
+
+                InputStreamFTGSIterator delegate = null;
+
+
+                @Override
+                public boolean nextField() {
+                    try {
+                        if (delegate == null) {
+                            try {
+                                runThread.join();
+                            } catch (InterruptedException e) {
+                                throw Throwables.propagate(e);
+                            }
+
+                            delegate = new InputStreamFTGSIterator(new BufferedInputStream(new FileInputStream(files[splitIndex]), 65536), numStats) {
+                                boolean closed = false;
+
+                                @Override
+                                public void close() {
+                                    if (!closed) {
+                                        closed = true;
+                                        super.close();
+                                        if (doneCounter.incrementAndGet() == numSplits) {
+                                            FTGSSplitter.this.close();
+                                        }
+                                    }
+                                }
+                            };
+                            files[splitIndex].delete();
+                        }
+                        return delegate.nextField();
+                    } catch (IOException e) {
+                        throw Throwables.propagate(e);
+                    }
+                }
+
+                @Override
+                public String fieldName() {
+                    return delegate.fieldName();
+                }
+
+                @Override
+                public boolean fieldIsIntType() {
+                    return delegate.fieldIsIntType();
+                }
+
+                @Override
+                public boolean nextTerm() {
+                    return delegate.nextTerm();
+                }
+
+                @Override
+                public long termDocFreq() {
+                    return delegate.termDocFreq();
+                }
+
+                @Override
+                public long termIntVal() {
+                    return delegate.termIntVal();
+                }
+
+                @Override
+                public String termStringVal() {
+                    return delegate.termStringVal();
+                }
+
+                @Override
+                public byte[] termStringBytes() {
+                    return delegate.termStringBytes();
+                }
+
+                @Override
+                public int termStringLength() {
+                    return delegate.termStringLength();
+                }
+
+                @Override
+                public boolean nextGroup() {
+                    return delegate.nextGroup();
+                }
+
+                @Override
+                public int group() {
+                    return delegate.group();
+                }
+
+                @Override
+                public void groupStats(final long[] stats) {
+                    delegate.groupStats(stats);
+                }
 
                 @Override
                 public void close() {
-                    if (!closed) {
-                        closed = true;
-                        super.close();
-                        if (doneCounter.incrementAndGet() == numSplits) {
-                            FTGSSplitter.this.close();
-                        }
-                    }
+                    delegate.close();
                 }
             };
-            tgsBuffers[i] = new TGSBuffer(ftgsIterator, numStats);
         }
-        runThread = new Thread(this, "FTGSSplitterThread");
+        runThread = new Thread(this, "FTGSSplitterThread-"+threadNameSuffix);
         runThread.setDaemon(true);
         runThread.start();
     }
@@ -71,9 +167,6 @@ public final class FTGSSplitter implements Runnable, Closeable {
         return ftgsIterators;
     }
 
-    /**
-     * here be dragons and cephalopods
-     */
     public void run() {
         try {
             final RawFTGSIterator rawIterator;
@@ -82,104 +175,79 @@ public final class FTGSSplitter implements Runnable, Closeable {
             } else {
                 rawIterator = null;
             }
-            final ByteBuffer[] byteBuffers = new ByteBuffer[numSplits];
-            final ByteBufferDataOutputStream out = new ByteBufferDataOutputStream(128, false);
+            final long[] statBuf = new long[numStats];
             while (iterator.nextField()) {
                 final boolean fieldIsIntType = iterator.fieldIsIntType();
-                for (int i = 0; i < outputs.length; i++) {
-                    final ByteBufferDataOutputStream tmp = new ByteBufferDataOutputStream(128, false);
-                    outputs[i].switchField(iterator.fieldName(), fieldIsIntType, tmp);
-                    byteBuffers[i] = tmp.getBufferUnsafe();
-                    byteBuffers[i].flip();
-                    tgsBuffers[i].resetField(fieldIsIntType);
+                for (final FTGSOutputStreamWriter output : outputs) {
+                    output.switchField(iterator.fieldName(), fieldIsIntType);
                 }
-                octopus.broadcast(byteBuffers);
 
                 while (iterator.nextTerm()) {
-                    final TGSBuffer tgsBuffer;
+                    final FTGSOutputStreamWriter output;
                     final int split;
                     if (fieldIsIntType) {
                         final long term = iterator.termIntVal();
-                        split = (int)((term & Long.MAX_VALUE) % numSplits);
-                        tgsBuffer = tgsBuffers[split];
+                        split = (int)((term*largePrime+12345 & Integer.MAX_VALUE) >> 16)  % numSplits;
+                        output = outputs[split];
+                        output.switchIntTerm(term, iterator.termDocFreq());
                     } else {
                         if (rawIterator != null) {
-                            split = hashStringTerm(rawIterator);
+                            split = hashStringTerm(rawIterator.termStringBytes(), rawIterator.termStringLength());
+                            output = outputs[split];
+                            output.switchBytesTerm(rawIterator.termStringBytes(), rawIterator.termStringLength(), rawIterator.termDocFreq());
                         } else {
-                            split = hashStringTerm(iterator);
+                            final byte[] termStringBytes = iterator.termStringVal().getBytes(Charsets.UTF_8);
+                            split = hashStringTerm(termStringBytes, termStringBytes.length);
+                            output = outputs[split];
+                            output.switchBytesTerm(termStringBytes, termStringBytes.length, iterator.termDocFreq());
                         }
-                        tgsBuffer = tgsBuffers[split];
                     }
-                    out.clear();
-                    tgsBuffer.resetBufferToCurrentTGS(out);
-                    final ByteBuffer primary = out.getBufferUnsafe();
-                    primary.flip();
-                    if (!octopus.write(primary, split)) {
-                        //would block, means we have to write empty term to all iterators
-                        for (int i = 0; i < outputs.length; i++) {
-                            if (i != split) {
-                                final ByteBufferDataOutputStream tmpBuffer = new ByteBufferDataOutputStream(128, false);
-                                tgsBuffers[i].resetBufferToCurrentTermOnly(tmpBuffer);
-                                byteBuffers[i] = tmpBuffer.getBufferUnsafe();
-                                byteBuffers[i].flip();
-                            } else {
-                                byteBuffers[i] = primary;
-                            }
+                    while (iterator.nextGroup()) {
+                        output.switchGroup(iterator.group());
+                        iterator.groupStats(statBuf);
+                        for (long stat : statBuf) {
+                            output.addStat(stat);
                         }
-                        octopus.broadcast(byteBuffers);
                     }
                 }
             }
-            for (int i = 0; i < outputs.length; i++) {
-                final ByteBufferDataOutputStream tmp = new ByteBufferDataOutputStream(128, false);
-                outputs[i].close(tmp);
-                byteBuffers[i] = tmp.getBufferUnsafe();
-                byteBuffers[i].flip();
+            for (final FTGSOutputStreamWriter output : outputs) {
+                output.close();
             }
-            octopus.broadcast(byteBuffers);
         } catch (IOException e) {
             throw Throwables.propagate(e);
-        } finally {
-            close();
         }
     }
 
-    private int hashStringTerm(final RawFTGSIterator rawIterator) {
-        return (MurmurHash.hash32(
-                rawIterator.termStringBytes(), 0, rawIterator.termStringLength()
-        ) & 0x7FFFFFFF) % numSplits;
-    }
-
-    private int hashStringTerm(final FTGSIterator iterator) {
-        final byte[] bytes = iterator.termStringVal().getBytes(Charsets.UTF_8);
-        return (MurmurHash.hash32(bytes) & 0x7FFFFFFF) % numSplits;
+    private int hashStringTerm(byte[] termStringBytes, int termStringLength) {
+        return ((MurmurHash.hash32(termStringBytes, 0, termStringLength)*largePrime+12345 & 0x7FFFFFFF) >> 16) % numSplits;
     }
 
     @Override
     public void close() {
         if (done.compareAndSet(false, true)) {
             try {
-                try {
-                    octopus.closeOutput();
-                } catch (IOException e) {
-                    throw Throwables.propagate(e);
-                }
-            } finally {
-                try {
-                    if (Thread.currentThread() != runThread) {
-                        while (true) {
-                            try {
-                                runThread.interrupt();
-                                runThread.join(10);
-                                if (!runThread.isAlive()) break;
-                            } catch (InterruptedException e) {
-                                //ignore
-                            }
+                if (Thread.currentThread() != runThread) {
+                    while (true) {
+                        try {
+                            runThread.interrupt();
+                            runThread.join(10);
+                            if (!runThread.isAlive()) break;
+                        } catch (InterruptedException e) {
+                            //ignore
                         }
                     }
-                } finally {
-                    iterator.close();
                 }
+            } finally {
+                Closeables2.closeAll(log, iterator, Closeables2.forIterable(log, Iterables.transform(Arrays.asList(files), new Function<File, Closeable>() {
+                    public Closeable apply(final File input) {
+                        return new Closeable() {
+                            public void close() throws IOException {
+                                input.delete();
+                            }
+                        };
+                    }
+                })), Closeables2.forArray(log, outputs), Closeables2.forArray(log, ftgsIterators), Closeables2.forArray(log, outputStreams));
             }
         }
     }

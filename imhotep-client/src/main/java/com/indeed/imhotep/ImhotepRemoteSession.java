@@ -4,6 +4,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
@@ -25,9 +26,16 @@ import com.indeed.imhotep.protobuf.RegroupConditionMessage;
 import com.indeed.imhotep.protobuf.ShardInfoMessage;
 import com.indeed.imhotep.service.InputStreamDocIterator;
 
+import com.indeed.util.core.Throwables2;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -219,7 +227,36 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
                 closeSocket(socket, is, os);
                 throw e;
             }
-            return new ClosingInputStreamFTGSIterator(socket, new ActiveBufferedInputStream(is, 8*1024*1024), os, numStats);
+            File tmp = null;
+            try {
+                tmp = File.createTempFile("ftgs", ".tmp");
+                OutputStream out = null;
+                try {
+                    final long start = System.currentTimeMillis();
+                    out = new BufferedOutputStream(new FileOutputStream(tmp));
+                    ByteStreams.copy(is, out);
+                    log.debug("time to copy split data to file: "+(System.currentTimeMillis()-start)+" ms, file length: "+tmp.length());
+                } catch (Throwable t) {
+                    tmp.delete();
+                    throw Throwables2.propagate(t, IOException.class);
+                } finally {
+                    if (out != null) {
+                        out.close();
+                    }
+                }
+                final BufferedInputStream bufferedInputStream = new BufferedInputStream(new FileInputStream(tmp));
+                final InputStream in = new FilterInputStream(bufferedInputStream) {
+                    public void close() throws IOException {
+                        bufferedInputStream.close();
+                    }
+                };
+                return new InputStreamFTGSIterator(in, numStats);
+            } finally {
+                if (tmp != null) {
+                    tmp.delete();
+                }
+                closeSocket(socket, is, os);
+            }
         } catch (IOException e) {
             throw new RuntimeException(e); // TODO
         }
@@ -247,14 +284,8 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
         }
     }
 
-    public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields, final int numSplits) {
-        final FTGSIterator ftgsIterator = getFTGSIterator(intFields, stringFields);
-        try {
-            final FTGSSplitter splitter = new FTGSSplitter(ftgsIterator, numSplits, numStats);
-            return splitter.getFtgsIterators();
-        } catch (IOException e) {
-            throw Throwables.propagate(e);
-        }
+    public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields) {
+        throw new UnsupportedOperationException();
     }
 
     public RawFTGSIterator getFTGSIteratorSplit(final String[] intFields, final String[] stringFields, final int splitIndex, final int numSplits) {
@@ -276,7 +307,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
                 closeSocket(socket, is, os);
                 throw e;
             }
-            return new ClosingInputStreamFTGSIterator(socket, new ActiveBufferedInputStream(is, 8*1024*1024), os, numStats);
+            return new ClosingInputStreamFTGSIterator(socket, is, os, numStats);
         } catch (IOException e) {
             throw new RuntimeException(e); // TODO
         }
@@ -305,7 +336,36 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
                 closeSocket(socket, is, os);
                 throw e;
             }
-            return new ClosingInputStreamFTGSIterator(socket, new ActiveBufferedInputStream(is, 8*1024*1024), os, numStats);
+            File tmp = null;
+            try {
+                tmp = File.createTempFile("ftgs", ".tmp");
+                OutputStream out = null;
+                try {
+                    final long start = System.currentTimeMillis();
+                    out = new BufferedOutputStream(new FileOutputStream(tmp));
+                    ByteStreams.copy(is, out);
+                    log.info("time to copy split data to file: "+(System.currentTimeMillis()-start)+" ms, file length: "+tmp.length());
+                } catch (Throwable t) {
+                    tmp.delete();
+                    throw Throwables2.propagate(t, IOException.class);
+                } finally {
+                    if (out != null) {
+                        out.close();
+                    }
+                }
+                final BufferedInputStream bufferedInputStream = new BufferedInputStream(new FileInputStream(tmp));
+                final InputStream in = new FilterInputStream(bufferedInputStream) {
+                    public void close() throws IOException {
+                        bufferedInputStream.close();
+                    }
+                };
+                return new InputStreamFTGSIterator(in, numStats);
+            } finally {
+                if (tmp != null) {
+                    tmp.delete();
+                }
+                closeSocket(socket, is, os);
+            }
         } catch (IOException e) {
             throw new RuntimeException(e); // TODO
         }

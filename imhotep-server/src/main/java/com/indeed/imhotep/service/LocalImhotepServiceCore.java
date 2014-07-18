@@ -32,23 +32,16 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.io.ReadLock;
 import com.indeed.imhotep.io.Shard;
-import com.indeed.imhotep.io.ReadLock.*;
 import com.indeed.imhotep.local.ImhotepLocalSession;
 
 import org.apache.log4j.Logger;
 
-import javax.annotation.Nullable;
 
-import java.io.Closeable;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.nio.channels.FileChannel;
-import java.nio.channels.FileLockInterruptionException;
-import java.nio.channels.OverlappingFileLockException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -95,8 +88,6 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
     private volatile List<DatasetInfo> datasetList;
 
     private final Map<File, RandomAccessFile> lockFileMap = Maps.newHashMap();
-
-    private static final int DEFAULT_MERGE_THREAD_LIMIT = 8;
 
     /**
      * @param shardsDirectory
@@ -254,8 +245,9 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
 
         final Map<String, Map<String, AtomicSharedReference<Shard>>> newShards = Maps.newHashMap();
         for (final File datasetDir : new File(canonicalShardsDirectory).listFiles()) {
-            if (!datasetDir.isDirectory())
+            if (!datasetDir.isDirectory()) {
                 continue;
+            }
 
             final String dataset = datasetDir.getName();
             Map<String, AtomicSharedReference<Shard>> oldDatasetShards = oldShards.get(dataset);
@@ -266,8 +258,9 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
             final Map<String, AtomicSharedReference<Shard>> newDatasetShards = Maps.newHashMap();
 
             for (final File shardDir : datasetDir.listFiles()) {
-                if (!shardDir.isDirectory())
+                if (!shardDir.isDirectory()) {
                     continue;
+                }
 
                 try {
                     final String shardId;
@@ -377,8 +370,9 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
                             shard = AtomicSharedReference.create(newShard);
                             log.debug("loading shard " + shardId + " from " + canonicalShardDir);
                         }
-                        if (shard != null)
+                        if (shard != null) {
                             newDatasetShards.put(shardId, shard);
+                        }
                     } catch (Throwable t) {
                         Closeables2.closeQuietly(newShard, log);
                         throw Throwables2.propagate(t, IOException.class);
@@ -422,8 +416,9 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
     private static boolean shouldReloadShard(SharedReference<Shard> ref,
                                              String canonicalShardDir,
                                              long shardVersion) {
-        if (ref == null)
+        if (ref == null) {
             return true;
+        }
         final Shard oldReader = ref.get();
         return shardVersion > oldReader.getShardVersion()
                 || (shardVersion == oldReader.getShardVersion() && (!canonicalShardDir.equals(oldReader.getIndexDir())));
@@ -451,8 +446,9 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
             @Override
             public int compare(ShardInfo o1, ShardInfo o2) {
                 final int c = o1.dataset.compareTo(o2.dataset);
-                if (c != 0)
+                if (c != 0) {
                     return c;
+                }
                 return o1.shardId.compareTo(o2.shardId);
             }
         });
@@ -552,8 +548,9 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
         final Map<String, Map<String, AtomicSharedReference<Shard>>> localShards = this.shards;
         checkDatasetExists(localShards, dataset);
 
-        if (Strings.isNullOrEmpty(sessionId))
+        if (Strings.isNullOrEmpty(sessionId)) {
             sessionId = generateSessionId();
+        }
 
         final Map<String, AtomicSharedReference<Shard>> datasetShards = localShards.get(dataset);
         final Map<String, Pair<ShardId, CachedFlamdexReaderReference>> flamdexReaders =
@@ -617,11 +614,8 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
                     throw e;
                 }
             }
-            final int maxSplits =
-                    mergeThreadLimit > 0 ? mergeThreadLimit : DEFAULT_MERGE_THREAD_LIMIT;
             final ImhotepSession session =
-                    new MTImhotepMultiSession(localSessions, new MemoryReservationContext(memory),
-                                              executor, maxSplits);
+                    new MTImhotepMultiSession(localSessions, new MemoryReservationContext(memory), executor);
             getSessionManager().addSession(sessionId,
                                            session,
                                            flamdexes,

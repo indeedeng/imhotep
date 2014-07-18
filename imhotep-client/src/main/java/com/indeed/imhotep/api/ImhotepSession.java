@@ -41,7 +41,7 @@ public interface ImhotepSession extends Closeable {
 
     DocIterator getDocIterator(String[] intFields, String[] stringFields) throws ImhotepOutOfMemoryException;
 
-    RawFTGSIterator[] getFTGSIteratorSplits(String[] intFields, String[] stringFields, int numSplits);
+    RawFTGSIterator[] getFTGSIteratorSplits(String[] intFields, String[] stringFields);
 
     /**
      * note: this call is weird.

@@ -54,12 +54,13 @@ public abstract class AbstractFTGSMerger implements FTGSIterator {
         numFieldIterators = 0;
 
         final FTGSIterator first = iterators[0];
-        if (!first.nextField()) {
-            for (int i = 1; i < numIterators; ++i) {
-                if (iterators[i].nextField()) {
-                    throw new IllegalArgumentException("sub iterator fields do not match");
-                }
+        final boolean firstHasNextField = first.nextField();
+        for (int i = 1; i < numIterators; ++i) {
+            if (iterators[i].nextField() != firstHasNextField) {
+                throw new IllegalArgumentException("sub iterator fields do not match");
             }
+        }
+        if (!firstHasNextField) {
             close();
             return false;
         }
@@ -72,7 +73,7 @@ public abstract class AbstractFTGSMerger implements FTGSIterator {
 
         for (int i = 1; i < numIterators; ++i) {
             final FTGSIterator itr = iterators[i];
-            if (!itr.nextField() || !itr.fieldName().equals(fieldName) || itr.fieldIsIntType() != fieldIsIntType) {
+            if (!itr.fieldName().equals(fieldName) || itr.fieldIsIntType() != fieldIsIntType) {
                 throw new IllegalArgumentException("sub iterator fields do not match");
             }
             if (itr.nextTerm()) {
