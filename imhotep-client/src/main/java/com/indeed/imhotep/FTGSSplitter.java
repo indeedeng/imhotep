@@ -58,7 +58,7 @@ public final class FTGSSplitter implements Runnable, Closeable {
         for (int i = 0; i < numSplits; i++) {
             files[i] = File.createTempFile("ftgsSplitter", ".tmp");
             outputStreams[i] = new BufferedOutputStream(new FileOutputStream(files[i]), 65536);
-            outputs[i] = new FTGSOutputStreamWriter(outputStreams[i], false);
+            outputs[i] = new FTGSOutputStreamWriter(outputStreams[i]);
             final int splitIndex = i;
             ftgsIterators[i] = new RawFTGSIterator() {
 

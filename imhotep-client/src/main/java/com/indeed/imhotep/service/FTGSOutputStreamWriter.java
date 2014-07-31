@@ -11,7 +11,6 @@ import java.io.OutputStream;
 
 public final class FTGSOutputStreamWriter implements Closeable {
     private final OutputStream out;
-    private final boolean writeEmptyTerms;
 
     private boolean fieldIsIntType;
 
@@ -30,12 +29,7 @@ public final class FTGSOutputStreamWriter implements Closeable {
     private int previousGroupId = -1;
 
     public FTGSOutputStreamWriter(final OutputStream out) {
-        this(out, false);
-    }
-
-    public FTGSOutputStreamWriter(final OutputStream out, boolean writeEmptyTerms) {
         this.out = out;
-        this.writeEmptyTerms = writeEmptyTerms;
     }
 
     public void switchField(String field, boolean isIntType) throws IOException {
@@ -52,18 +46,12 @@ public final class FTGSOutputStreamWriter implements Closeable {
         currentTermBytes = copyInto(termBytes, termLength, currentTermBytes);
         currentTermLength = termLength;
         currentTermDocFreq = termDocFreq;
-        if (writeEmptyTerms) {
-            writeTerm();
-        }
     }
 
     public void switchIntTerm(long term, long termDocFreq) throws IOException {
         endTerm();
         currentTermInt = term;
         currentTermDocFreq = termDocFreq;
-        if (writeEmptyTerms) {
-            writeTerm();
-        }
     }
 
     public void switchGroup(int groupId) throws IOException {
