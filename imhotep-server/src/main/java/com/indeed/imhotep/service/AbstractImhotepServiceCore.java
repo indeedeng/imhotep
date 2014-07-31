@@ -159,7 +159,7 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
     }
 
     @Override
-    public void handleMergeFTGSIteratorSplit(final String sessionId, final Map<String, long[]> intFields, final Map<String, String[]> stringFields, final OutputStream os, final InetSocketAddress[] nodes, final int splitIndex) throws IOException {
+    public void handleMergeSubsetFTGSIteratorSplit(final String sessionId, final Map<String, long[]> intFields, final Map<String, String[]> stringFields, final OutputStream os, final InetSocketAddress[] nodes, final int splitIndex) throws IOException {
         doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Void, IOException>() {
             public Void apply(final ImhotepSession session) throws IOException {
                 final int numStats = getSessionManager().getNumStats(sessionId);
