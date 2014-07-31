@@ -14,6 +14,7 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author jsgroth
@@ -36,8 +37,11 @@ public interface ImhotepServiceCore {
     int handlePushStat(String sessionId, String metric) throws ImhotepOutOfMemoryException;
     int handlePopStat(String sessionId);
     void handleGetFTGSIterator(String sessionId, String[] intFields, String[] stringFields, OutputStream os) throws IOException;
+    void handleGetSubsetFTGSIterator(String sessionId, Map<String, long[]> intFields, Map<String, String[]> stringFields, OutputStream os) throws IOException;
     void handleGetFTGSIteratorSplit(String sessionId, String[] intFields, String[] stringFields, OutputStream os, int splitIndex, int numSplits) throws IOException;
+    void handleGetSubsetFTGSIteratorSplit(String sessionId, Map<String, long[]> intFields, Map<String, String[]> stringFields, OutputStream os, int splitIndex, int numSplits) throws IOException;
     void handleMergeFTGSIteratorSplit(String sessionId, String[] intFields, String[] stringFields, OutputStream os, InetSocketAddress[] nodes, int splitIndex) throws IOException;
+    void handleMergeSubsetFTGSIteratorSplit(String sessionId, Map<String, long[]> intFields, Map<String, String[]> stringFields, OutputStream os, InetSocketAddress[] nodes, int splitIndex) throws IOException;
     void handleGetDocIterator(String sessionId, String[] intFields, String[] stringFields, OutputStream os) throws ImhotepOutOfMemoryException, IOException;
     long handleGetTotalDocFreq(String sessionId, String[] intFields, String[] stringFields);
     long[] handleGetGroupStats(String sessionId, int stat);
@@ -47,6 +51,7 @@ public interface ImhotepServiceCore {
     void handleCreateDynamicMetric(String sessionId, String dynamicMetricName) throws ImhotepOutOfMemoryException;
     void handleUpdateDynamicMetric(String sessionId, String dynamicMetricName, int[] deltas) throws ImhotepOutOfMemoryException;
     void handleConditionalUpdateDynamicMetric(String sessionId, String dynamicMetricName, RegroupCondition[] conditions, int[] deltas);
+    void handleGroupConditionalUpdateDynamicMetric(String sessionId, String dynamicMetricName, int[] groups, RegroupCondition[] conditions, int[] deltas);
     void handleRebuildAndFilterIndexes(String sessionId, String[] intFields, String[] stringFields) throws ImhotepOutOfMemoryException;
     void handleResetGroups(String sessionId) throws ImhotepOutOfMemoryException;
 

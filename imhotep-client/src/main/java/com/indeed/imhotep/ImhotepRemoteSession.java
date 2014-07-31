@@ -21,9 +21,11 @@ import com.indeed.imhotep.protobuf.GroupRemapMessage;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
+import com.indeed.imhotep.protobuf.IntFieldAndTerms;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
 import com.indeed.imhotep.protobuf.ShardInfoMessage;
+import com.indeed.imhotep.protobuf.StringFieldAndTerms;
 import com.indeed.imhotep.service.InputStreamDocIterator;
 
 import com.indeed.util.core.Throwables2;
@@ -46,6 +48,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -217,48 +220,31 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
                 .addAllStringFields(Arrays.asList(stringFields))
                 .build();
 
-        try {
-            final Socket socket = newSocket(host, port, socketTimeout);
-            final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
-            final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
-            try {
-                sendRequest(request, is, os, host, port);
-            } catch (IOException e) {
-                closeSocket(socket, is, os);
-                throw e;
+        return fileBufferedFTGSRequest(request);
+    }
+
+    @Override
+    public FTGSIterator getSubsetFTGSIterator(Map<String, long[]> intFields, Map<String, String[]> stringFields) {
+        final ImhotepRequest.Builder requestBuilder = getBuilderForType(ImhotepRequest.RequestType.GET_SUBSET_FTGS_ITERATOR)
+                .setSessionId(sessionId);
+        addSubsetFieldsAndTermsToBuilder(intFields, stringFields, requestBuilder);
+        return fileBufferedFTGSRequest(requestBuilder.build());
+    }
+
+    private void addSubsetFieldsAndTermsToBuilder(Map<String, long[]> intFields, Map<String, String[]> stringFields, ImhotepRequest.Builder requestBuilder) {
+        for (Map.Entry<String, long[]> entry : intFields.entrySet()) {
+            final IntFieldAndTerms.Builder builder = IntFieldAndTerms.newBuilder().setField(entry.getKey());
+            for (long term : entry.getValue()) {
+                builder.addTerms(term);
             }
-            File tmp = null;
-            try {
-                tmp = File.createTempFile("ftgs", ".tmp");
-                OutputStream out = null;
-                try {
-                    final long start = System.currentTimeMillis();
-                    out = new BufferedOutputStream(new FileOutputStream(tmp));
-                    ByteStreams.copy(is, out);
-                    log.debug("time to copy split data to file: "+(System.currentTimeMillis()-start)+" ms, file length: "+tmp.length());
-                } catch (Throwable t) {
-                    tmp.delete();
-                    throw Throwables2.propagate(t, IOException.class);
-                } finally {
-                    if (out != null) {
-                        out.close();
-                    }
-                }
-                final BufferedInputStream bufferedInputStream = new BufferedInputStream(new FileInputStream(tmp));
-                final InputStream in = new FilterInputStream(bufferedInputStream) {
-                    public void close() throws IOException {
-                        bufferedInputStream.close();
-                    }
-                };
-                return new InputStreamFTGSIterator(in, numStats);
-            } finally {
-                if (tmp != null) {
-                    tmp.delete();
-                }
-                closeSocket(socket, is, os);
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e); // TODO
+            requestBuilder.addIntFieldsToTerms(builder);
+        }
+        for (Map.Entry<String, String[]> entry : stringFields.entrySet()) {
+            requestBuilder.addStringFieldsToTerms(
+                    StringFieldAndTerms.newBuilder()
+                            .setField(entry.getKey())
+                            .addAllTerms(Arrays.asList(entry.getValue()))
+            );
         }
     }
 
@@ -297,6 +283,20 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
                 .setNumSplits(numSplits)
                 .build();
 
+        return sendGetFTGSIteratorSplit(request);
+    }
+
+    @Override
+    public RawFTGSIterator getSubsetFTGSIteratorSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, int splitIndex, int numSplits) {
+        final ImhotepRequest.Builder requestBuilder = getBuilderForType(ImhotepRequest.RequestType.GET_SUBSET_FTGS_SPLIT)
+                .setSessionId(sessionId)
+                .setSplitIndex(splitIndex)
+                .setNumSplits(numSplits);
+        addSubsetFieldsAndTermsToBuilder(intFields, stringFields, requestBuilder);
+        return sendGetFTGSIteratorSplit(requestBuilder.build());
+    }
+
+    private RawFTGSIterator sendGetFTGSIteratorSplit(ImhotepRequest request) {
         try {
             final Socket socket = newSocket(host, port, socketTimeout);
             final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
@@ -326,6 +326,24 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
                 }))
                 .build();
 
+        return fileBufferedFTGSRequest(request);
+    }
+
+    @Override
+    public RawFTGSIterator mergeSubsetFTGSSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, String sessionId, InetSocketAddress[] nodes, int splitIndex) {
+        final ImhotepRequest.Builder requestBuilder = getBuilderForType(ImhotepRequest.RequestType.MERGE_SUBSET_FTGS_SPLIT)
+                .setSessionId(sessionId)
+                .setSplitIndex(splitIndex)
+                .addAllNodes(Iterables.transform(Arrays.asList(nodes), new Function<InetSocketAddress, HostAndPort>() {
+                    public HostAndPort apply(final InetSocketAddress input) {
+                        return HostAndPort.newBuilder().setHost(input.getHostName()).setPort(input.getPort()).build();
+                    }
+                }));
+        addSubsetFieldsAndTermsToBuilder(intFields, stringFields, requestBuilder);
+        return fileBufferedFTGSRequest(requestBuilder.build());
+    }
+
+    private RawFTGSIterator fileBufferedFTGSRequest(ImhotepRequest request) {
         try {
             final Socket socket = newSocket(host, port, socketTimeout);
             final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
@@ -659,6 +677,24 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.CONDITIONAL_UPDATE_DYNAMIC_METRIC)
                 .setSessionId(sessionId)
                 .setDynamicMetricName(name)
+                .addAllConditions(conditionMessages)
+                .addAllDynamicMetricDeltas(Ints.asList(deltas))
+                .build();
+        try {
+            sendRequest(request, host, port, socketTimeout);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void groupConditionalUpdateDynamicMetric(String name, int[] groups, RegroupCondition[] conditions, int[] deltas) {
+        List<RegroupConditionMessage> conditionMessages = ImhotepClientMarshaller.marshal(conditions);
+
+        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GROUP_CONDITIONAL_UPDATE_DYNAMIC_METRIC)
+                .setSessionId(sessionId)
+                .setDynamicMetricName(name)
+                .addAllGroups(Ints.asList(groups))
                 .addAllConditions(conditionMessages)
                 .addAllDynamicMetricDeltas(Ints.asList(deltas))
                 .build();

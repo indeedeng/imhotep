@@ -3,57 +3,25 @@ package com.indeed.imhotep.local;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermDocIterator;
 import com.indeed.flamdex.api.StringTermDocIterator;
-import com.indeed.flamdex.datastruct.FastBitSet;
-import com.indeed.imhotep.BitTree;
-import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 
-class FlamdexFTGSIterator implements FTGSIterator {
-    /**
-     * 
-     */
-    private final ImhotepLocalSession session;
+class FlamdexFTGSIterator extends AbstractFlamdexFTGSIterator {
+
+    protected StringTermDocIterator stringTermDocIterator;
+    protected IntTermDocIterator intTermDocIterator;
+
     private final String[] intFields;
     private final String[] stringFields;
+
     private int intFieldPtr = 0;
     private int stringFieldPtr = 0;
 
-    private String currentField;
-    private boolean currentFieldIsIntType;
-
-    private IntTermDocIterator intTermDocIterator;
-    protected StringTermDocIterator stringTermDocIterator;
-
-    private int groupPointer;
-    private int groupsSeenCount;
-    private final int[] groupsSeen;
-    private final BitTree bitTree;
-
-    private final long[][] termGrpStats;
-
-    private boolean resetGroupStats = false;
-
-    private FastBitSet fieldZeroDocBitset;
-    private int termIndex;
-
-    private SharedReference<FlamdexReader> flamdexReader;
-
-    long intTermsTime = 0;
-    long stringTermsTime = 0;
-    long docsTime = 0;
-    long lookupsTime = 0;
-    long timingErrorTime = 0;
-
     public FlamdexFTGSIterator(ImhotepLocalSession imhotepLocalSession, SharedReference<FlamdexReader> flamdexReader, String[] intFields, String[] stringFields) {
-        this.session = imhotepLocalSession;
-        this.flamdexReader = flamdexReader;
+        super(imhotepLocalSession, flamdexReader);
         this.intFields = intFields;
         this.stringFields = stringFields;
-        this.groupsSeen = new int[session.docIdToGroup.getNumGroups()];
-        this.bitTree = new BitTree(session.docIdToGroup.getNumGroups());
-        this.termGrpStats = new long[session.numStats][session.docIdToGroup.getNumGroups()];
     }
 
     @Override
@@ -110,16 +78,6 @@ class FlamdexFTGSIterator implements FTGSIterator {
     }
 
     @Override
-    public final String fieldName() {
-        return currentField;
-    }
-
-    @Override
-    public final boolean fieldIsIntType() {
-        return currentFieldIsIntType;
-    }
-
-    @Override
     public final boolean nextTerm() {
         if (currentField == null) return false;
         resetGroupStats = true;
@@ -151,87 +109,7 @@ class FlamdexFTGSIterator implements FTGSIterator {
         return stringTermDocIterator.term();
     }
 
-    @Override
-    public final boolean nextGroup() {
-        if (!resetGroupStats) {
-            if (groupPointer >= groupsSeenCount) return false;
-            groupPointer++;
-            return groupPointer < groupsSeenCount;
-        }
-        return calculateTermGroupStats();
-    }
-
-    private boolean calculateTermGroupStats() {
-        // clear out ram from previous iterations if necessary
-        for (final long[] x : termGrpStats) ImhotepLocalSession.clear(x, groupsSeen, groupsSeenCount);
-        groupsSeenCount = 0;
-
-        if (fieldZeroDocBitset != null) {
-            if (termIndex == fieldZeroDocBitset.size()) expandFieldNonZeroDocBitset();
-            final boolean skip = fieldZeroDocBitset.get(termIndex);
-            termIndex++;
-            if (skip) return false;
-        }
-
-        // this is the critical loop of all of imhotep, making this loop faster is very good....
-
-        synchronized (session) {
-            while (true) {
-                if (ImhotepLocalSession.logTiming) docsTime -= System.nanoTime();
-                final int n = (currentFieldIsIntType?intTermDocIterator:stringTermDocIterator).fillDocIdBuffer(session.docIdBuf);
-                if (ImhotepLocalSession.logTiming) {
-                    docsTime += System.nanoTime();
-                    lookupsTime -= System.nanoTime();
-                }
-                session.docIdToGroup.nextGroupCallback(n, termGrpStats, bitTree);
-                if (ImhotepLocalSession.logTiming) {
-                    lookupsTime += System.nanoTime();
-                    timingErrorTime -= System.nanoTime();
-                    timingErrorTime += System.nanoTime();
-                }
-                if (n < ImhotepLocalSession.BUFFER_SIZE) break;
-            }
-        }
-        groupsSeenCount = bitTree.dump(groupsSeen);
-
-        if (fieldZeroDocBitset != null && groupsSeenCount == 0) {
-            fieldZeroDocBitset.set(termIndex - 1);
-        }
-
-        groupPointer = 0;
-        resetGroupStats = false;
-        return groupsSeenCount > 0;
-    }
-
-    private void expandFieldNonZeroDocBitset() {
-        synchronized (session) {
-            if (fieldZeroDocBitset == null) return;
-            if(session.memory.claimMemory(FastBitSet.calculateMemoryUsage(fieldZeroDocBitset.size() * 2))) {
-                final FastBitSet tmpBitset = new FastBitSet(fieldZeroDocBitset.size() * 2);
-                tmpBitset.or(fieldZeroDocBitset);
-                final long oldSize = fieldZeroDocBitset.memoryUsage();
-                fieldZeroDocBitset = tmpBitset;
-                session.fieldZeroDocBitsets.put(Pair.of(currentField, currentFieldIsIntType), fieldZeroDocBitset);
-                session.memory.releaseMemory(oldSize);
-            } else {
-                ImhotepLocalSession.log.warn("Insufficient expansion memory, disabling ftgs zero group bitset optimization");
-                session.clearZeroDocBitsets();
-                fieldZeroDocBitset = null;
-                session.fieldZeroDocBitsets = null;
-            }
-        }
-    }
-
-    @Override
-    public final int group() {
-        return groupsSeen[groupPointer];
-    }
-
-    @Override
-    public final void groupStats(long[] stats) {
-        final int group = group();
-        for (int i = 0; i < session.numStats; i++) {
-            stats[i] = termGrpStats[i][group];
-        }
+    protected int fillDocIdBuffer() {
+        return (currentFieldIsIntType?intTermDocIterator:stringTermDocIterator).fillDocIdBuffer(session.docIdBuf);
     }
 }

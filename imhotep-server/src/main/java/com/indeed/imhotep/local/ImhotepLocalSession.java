@@ -10,10 +10,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Multimaps;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
-import com.indeed.util.core.threads.ThreadSafeBitSet;
-import com.indeed.util.core.Pair;
-import com.indeed.util.core.io.Closeables2;
-import com.indeed.util.core.reference.SharedReference;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
@@ -23,6 +19,10 @@ import com.indeed.flamdex.api.RawFlamdexReader;
 import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.StringValueLookup;
+import com.indeed.util.core.threads.ThreadSafeBitSet;
+import com.indeed.util.core.Pair;
+import com.indeed.util.core.io.Closeables2;
+import com.indeed.util.core.reference.SharedReference;
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.flamdex.datastruct.FastBitSetPooler;
 import com.indeed.flamdex.fieldcache.ByteArrayIntValueLookup;
@@ -71,14 +71,35 @@ import com.indeed.imhotep.service.CachedFlamdexReader;
 import com.indeed.imhotep.service.RawCachedFlamdexReader;
 
 import it.unimi.dsi.fastutil.PriorityQueue;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 
-import java.io.*;
+import java.io.EOFException;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.OutputStream;
+import java.io.Serializable;
 import java.net.InetSocketAddress;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -591,6 +612,15 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
         return new FlamdexFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields);
     }
 
+    @Override
+    public FTGSIterator getSubsetFTGSIterator(Map<String, long[]> intFields, Map<String, String[]> stringFields) {
+        if (flamdexReader instanceof RawFlamdexReader) {
+            return new RawFlamdexSubsetFTGSIterator(this, flamdexReaderRef.copy(), intFields,
+                    stringFields);
+        }
+        return new FlamdexSubsetFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields);
+    }
+
     public DocIterator getDocIterator(final String[] intFields, final String[] stringFields) throws ImhotepOutOfMemoryException {
         boolean shardOnlyContainsGroupZero = true;
         for (int group = 1; group < groupDocCount.length; group++) {
@@ -744,11 +774,28 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
         return ftgsIteratorSplits.getFtgsIterators()[splitIndex];
     }
 
+    @Override
+    public RawFTGSIterator getSubsetFTGSIteratorSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, int splitIndex, int numSplits) {
+        if (ftgsIteratorSplits == null || ftgsIteratorSplits.isClosed()) {
+            try {
+                ftgsIteratorSplits = new FTGSSplitter(getSubsetFTGSIterator(intFields, stringFields), numSplits, numStats, "getIteratorSplitsLocalSession", 969168349);
+            } catch (IOException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+        return ftgsIteratorSplits.getFtgsIterators()[splitIndex];
+    }
+
     public RawFTGSIterator mergeFTGSSplit(final String[] intFields,
                                           final String[] stringFields,
                                           final String sessionId,
                                           final InetSocketAddress[] nodes,
                                           final int splitIndex) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public RawFTGSIterator mergeSubsetFTGSSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, String sessionId, InetSocketAddress[] nodes, int splitIndex) {
         throw new UnsupportedOperationException();
     }
 
@@ -1996,6 +2043,123 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
                 throw new IllegalArgumentException(
                                                    "inequality conditions not currently supported by conditionalUpdateDynamicMetric!");
             }
+        }
+    }
+
+    public void groupConditionalUpdateDynamicMetric(String name, int[] groups, RegroupCondition[] conditions, int[] deltas) {
+        if (groups.length != conditions.length) {
+            throw new IllegalArgumentException("groups and conditions must be the same length");
+        }
+        validateConditionalUpdateDynamicMetricInput(conditions, deltas);
+        final DynamicMetric metric = getDynamicMetrics().get(name);
+        if (metric == null) {
+            throw new RuntimeException("dynamic metric \"" + name + "\" does not exist");
+        }
+        final IntArrayList groupsSet = new IntArrayList();
+        final FastBitSet groupsWithCurrentTerm = new FastBitSet(docIdToGroup.getNumGroups());
+        final int[] groupToDelta = new int[docIdToGroup.getNumGroups()];
+        final Map<String, Long2ObjectMap<Pair<IntArrayList, IntArrayList>>> intFields = Maps.newHashMap();
+        final Map<String, Map<String, Pair<IntArrayList, IntArrayList>>> stringFields = Maps.newHashMap();
+        for (int i = 0; i < groups.length; i++) {
+            final RegroupCondition condition = conditions[i];
+            Pair<IntArrayList, IntArrayList> groupDeltas;
+            if (condition.intType) {
+                Long2ObjectMap<Pair<IntArrayList, IntArrayList>> termToGroupDeltas = intFields.get(condition.field);
+                if (termToGroupDeltas == null) {
+                    termToGroupDeltas = new Long2ObjectOpenHashMap<Pair<IntArrayList, IntArrayList>>();
+                    intFields.put(condition.field, termToGroupDeltas);
+                }
+                groupDeltas = termToGroupDeltas.get(condition.intTerm);
+                if (groupDeltas == null) {
+                    groupDeltas = Pair.of(new IntArrayList(), new IntArrayList());
+                    termToGroupDeltas.put(condition.intTerm, groupDeltas);
+                }
+            } else {
+                Map<String, Pair<IntArrayList, IntArrayList>> termToGroupDeltas = stringFields.get(condition.field);
+                if (termToGroupDeltas == null) {
+                    termToGroupDeltas = Maps.newHashMap();
+                    stringFields.put(condition.field, termToGroupDeltas);
+                }
+                groupDeltas = termToGroupDeltas.get(condition.stringTerm);
+                if (groupDeltas == null) {
+                    groupDeltas = Pair.of(new IntArrayList(), new IntArrayList());
+                    termToGroupDeltas.put(condition.stringTerm, groupDeltas);
+                }
+            }
+            groupDeltas.getFirst().add(groups[i]);
+            groupDeltas.getSecond().add(deltas[i]);
+        }
+        final DocIdStream docIdStream = flamdexReader.getDocIdStream();
+        IntTermIterator intTermIterator = null;
+        StringTermIterator stringTermIterator = null;
+        try {
+            for (Map.Entry<String, Long2ObjectMap<Pair<IntArrayList, IntArrayList>>> entry : intFields.entrySet()) {
+                final String field = entry.getKey();
+                final Long2ObjectMap<Pair<IntArrayList, IntArrayList>> termToGroupDeltas = entry.getValue();
+                intTermIterator = flamdexReader.getIntTermIterator(field);
+                for (Long2ObjectMap.Entry<Pair<IntArrayList, IntArrayList>> entry2 : termToGroupDeltas.long2ObjectEntrySet()) {
+                    for (int i = 0; i < groupsSet.size(); i++) {
+                        groupsWithCurrentTerm.clear(groupsSet.getInt(i));
+                    }
+                    groupsSet.clear();
+                    final long term = entry2.getLongKey();
+                    final Pair<IntArrayList, IntArrayList> groupDeltas = entry2.getValue();
+                    final IntArrayList termGroups = groupDeltas.getFirst();
+                    final IntArrayList termDeltas = groupDeltas.getSecond();
+                    for (int i = 0; i < termGroups.size(); i++) {
+                        final int group = termGroups.getInt(i);
+                        groupsWithCurrentTerm.set(group);
+                        groupToDelta[group] = termDeltas.getInt(i);
+                        groupsSet.add(group);
+                    }
+                    intTermIterator.reset(term);
+                    if (!intTermIterator.next()) continue;
+                    if (intTermIterator.term() != term) continue;
+                    docIdStream.reset(intTermIterator);
+                    updateDocsWithTermDynamicMetric(metric, groupsWithCurrentTerm, groupToDelta, docIdStream);
+                }
+            }
+            for (Map.Entry<String, Map<String, Pair<IntArrayList, IntArrayList>>> entry : stringFields.entrySet()) {
+                final String field = entry.getKey();
+                final Map<String, Pair<IntArrayList, IntArrayList>> termToGroupDeltas = entry.getValue();
+                stringTermIterator = flamdexReader.getStringTermIterator(field);
+                for (Map.Entry<String, Pair<IntArrayList, IntArrayList>> entry2 : termToGroupDeltas.entrySet()) {
+                    for (int i = 0; i < groupsSet.size(); i++) {
+                        groupsWithCurrentTerm.clear(groupsSet.getInt(i));
+                    }
+                    groupsSet.clear();
+                    final String term = entry2.getKey();
+                    final Pair<IntArrayList, IntArrayList> groupDeltas = entry2.getValue();
+                    final IntArrayList termGroups = groupDeltas.getFirst();
+                    final IntArrayList termDeltas = groupDeltas.getSecond();
+                    for (int i = 0; i < termGroups.size(); i++) {
+                        final int group = termGroups.getInt(i);
+                        groupsWithCurrentTerm.set(group);
+                        groupToDelta[group] = termDeltas.getInt(i);
+                        groupsSet.add(group);
+                    }
+                    stringTermIterator.reset(term);
+                    if (!stringTermIterator.next()) continue;
+                    if (!stringTermIterator.term().equals(term)) continue;
+                    docIdStream.reset(intTermIterator);
+                    updateDocsWithTermDynamicMetric(metric, groupsWithCurrentTerm, groupToDelta, docIdStream);
+                }
+            }
+        } finally {
+            Closeables2.closeAll(log, docIdStream, intTermIterator, stringTermIterator);
+        }
+    }
+
+    private void updateDocsWithTermDynamicMetric(DynamicMetric metric, FastBitSet groupsWithCurrentTerm, int[] groupToDelta, DocIdStream docIdStream) {
+        while (true) {
+            final int n = docIdStream.fillDocIdBuffer(docIdBuf);
+            docIdToGroup.fillDocGrpBuffer(docIdBuf, docGroupBuffer, n);
+            for (int i = 0; i < n; i++) {
+                if (groupsWithCurrentTerm.get(docGroupBuffer[i])) {
+                    metric.add(docIdBuf[i], groupToDelta[docGroupBuffer[i]]);
+                }
+            }
+            if (n < docIdBuf.length) break;
         }
     }
 

@@ -12,6 +12,7 @@ import java.io.Closeable;
 import java.net.InetSocketAddress;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 @NotThreadSafe
 public interface ImhotepSession extends Closeable {
@@ -39,6 +40,8 @@ public interface ImhotepSession extends Closeable {
      */
     FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields);
 
+    FTGSIterator getSubsetFTGSIterator(Map<String, long[]> intFields, Map<String, String[]> stringFields);
+
     DocIterator getDocIterator(String[] intFields, String[] stringFields) throws ImhotepOutOfMemoryException;
 
     RawFTGSIterator[] getFTGSIteratorSplits(String[] intFields, String[] stringFields);
@@ -59,10 +62,14 @@ public interface ImhotepSession extends Closeable {
      */
     RawFTGSIterator getFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits);
 
+    RawFTGSIterator getSubsetFTGSIteratorSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, int splitIndex, int numSplits);
+
     /**
      * this is only really here to be called on ImhotepRemoteSession by RemoteImhotepMultiSession
      */
     RawFTGSIterator mergeFTGSSplit(String[] intFields, String[] stringFields, String sessionId, InetSocketAddress[] nodes, int splitIndex);
+
+    RawFTGSIterator mergeSubsetFTGSSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, String sessionId, InetSocketAddress[] nodes, int splitIndex);
 
     /**
      * apply the list of remap rules to remap documents into a different group. Preconditions:
@@ -276,6 +283,8 @@ public interface ImhotepSession extends Closeable {
      * @param deltas deltas to adjust document by if the corresponding condition matches
      */
     void conditionalUpdateDynamicMetric(String name, RegroupCondition[] conditions, int[] deltas);
+
+    void groupConditionalUpdateDynamicMetric(String name, int[] groups, RegroupCondition[] conditions, int[] deltas);
 
     /**
      * close the session and free up any associated resources

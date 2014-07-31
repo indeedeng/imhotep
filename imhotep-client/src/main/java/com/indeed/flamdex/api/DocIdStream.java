@@ -1,6 +1,8 @@
 package com.indeed.flamdex.api;
 
-public interface DocIdStream {
+import java.io.Closeable;
+
+public interface DocIdStream extends Closeable {
     /**
      * Resets this DocIdStream to start streaming out docIds for the specified term
      * @param term The iterator pointing to the term of interest, iterator must be in a valid state 

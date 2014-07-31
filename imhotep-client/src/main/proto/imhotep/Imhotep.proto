@@ -110,6 +110,10 @@ message ImhotepRequest {
     OPTIMIZE_SESSION = 31;
     GET_FTGS_SPLIT = 32;
     MERGE_FTGS_SPLIT = 33;
+    GROUP_CONDITIONAL_UPDATE_DYNAMIC_METRIC = 34;
+    GET_SUBSET_FTGS_ITERATOR = 35;
+    GET_SUBSET_FTGS_SPLIT = 36;
+    MERGE_SUBSET_FTGS_SPLIT = 37;
     SHUTDOWN = 255;
   }
 
@@ -206,6 +210,12 @@ message ImhotepRequest {
   repeated HostAndPort nodes = 44;
   //for getFtgsSplit
   optional int32 numSplits = 45;
+  //for groupConditionalUpdateDynamicMetric
+  repeated uint32 groups = 46;
+
+  //for ftgs subset calls
+  repeated IntFieldAndTerms intFieldsToTerms = 47;
+  repeated StringFieldAndTerms stringFieldsToTerms = 48;
 }
 
 message ImhotepResponse {
@@ -290,4 +300,14 @@ message QueryRemapMessage {
 message HostAndPort {
   optional string host = 1;
   optional int32 port = 2;
+}
+
+message IntFieldAndTerms {
+  optional string field = 1;
+  repeated int64 terms = 2 [packed = true];
+}
+
+message StringFieldAndTerms {
+  optional string field = 1;
+  repeated string terms = 2;
 }

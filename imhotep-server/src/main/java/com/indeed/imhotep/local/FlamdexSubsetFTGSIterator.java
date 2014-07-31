@@ -1,0 +1,162 @@
+package com.indeed.imhotep.local;
+
+import com.indeed.flamdex.api.DocIdStream;
+import com.indeed.flamdex.api.FlamdexReader;
+import com.indeed.flamdex.api.IntTermIterator;
+import com.indeed.flamdex.api.StringTermIterator;
+import com.indeed.util.core.Pair;
+import com.indeed.util.core.io.Closeables2;
+import com.indeed.util.core.reference.SharedReference;
+
+import java.util.Iterator;
+import java.util.Map;
+
+class FlamdexSubsetFTGSIterator extends AbstractFlamdexFTGSIterator {
+
+    protected StringTermIterator stringTermIterator;
+    protected IntTermIterator intTermIterator;
+    private final DocIdStream docIdStream;
+
+    private final Iterator<Map.Entry<String, long[]>> intFieldToTermsIterator;
+    private final Iterator<Map.Entry<String, String[]>> stringFieldToTermsIterator;
+
+    private long[] currentIntFieldTerms;
+    private String[] currentStringFieldTerms;
+    private int currentFieldTermPtr = -1;
+
+    public FlamdexSubsetFTGSIterator(ImhotepLocalSession imhotepLocalSession, SharedReference<FlamdexReader> flamdexReader, Map<String, long[]> intFieldToTerms, Map<String, String[]> stringFieldToTerms) {
+        super(imhotepLocalSession, flamdexReader);
+        this.intFieldToTermsIterator = intFieldToTerms.entrySet().iterator();
+        this.stringFieldToTermsIterator = stringFieldToTerms.entrySet().iterator();
+        docIdStream = flamdexReader.get().getDocIdStream();
+    }
+
+    @Override
+    public final boolean nextField() {
+        // todo: reset/cleanup term iterators etc that are in progress
+        synchronized (session) {
+            if (intFieldToTermsIterator.hasNext()) {
+                final Map.Entry<String, long[]> entry = intFieldToTermsIterator.next();
+                currentField = entry.getKey();
+                currentIntFieldTerms = entry.getValue();
+                currentFieldTermPtr = -1;
+                currentFieldIsIntType = true;
+                if (intTermIterator != null) Closeables2.closeQuietly(intTermIterator, ImhotepLocalSession.log);
+                intTermIterator = flamdexReader.get().getIntTermIterator(currentField);
+                if (session.fieldZeroDocBitsets != null) {
+                    fieldZeroDocBitset = session.fieldZeroDocBitsets.get(Pair.of(currentField, currentFieldIsIntType));
+                }
+                termIndex = 0;
+                return true;
+            }
+            if (stringFieldToTermsIterator.hasNext()) {
+                final Map.Entry<String, String[]> entry = stringFieldToTermsIterator.next();
+                currentField = entry.getKey();
+                currentStringFieldTerms = entry.getValue();
+                currentFieldTermPtr = -1;
+                currentFieldIsIntType = false;
+                if (stringTermIterator != null) Closeables2.closeQuietly(stringTermIterator, ImhotepLocalSession.log);
+                stringTermIterator = flamdexReader.get().getStringTermIterator(currentField);
+                if (session.fieldZeroDocBitsets != null) {
+                    fieldZeroDocBitset = session.fieldZeroDocBitsets.get(Pair.of(currentField, currentFieldIsIntType));
+                }
+                termIndex = 0;
+                return true;
+            }
+            currentField = null;
+            close();
+            if (ImhotepLocalSession.logTiming) {
+                ImhotepLocalSession.log.info("intTermsTime: "+intTermsTime/1000000d+" ms, stringTermsTime: "+stringTermsTime/1000000d+" ms, docsTime: "+docsTime/1000000d+" ms, lookupsTime: "+lookupsTime/1000000d+" ms, timingErrorTime: "+timingErrorTime/1000000d+" ms");
+            }
+            return false;
+        }
+    }
+
+    @Override
+    public final void close() {
+        synchronized (session) {
+            if (docIdStream != null) {
+                Closeables2.closeQuietly(docIdStream, ImhotepLocalSession.log);
+            }
+            if (intTermIterator != null) {
+                Closeables2.closeQuietly(intTermIterator, ImhotepLocalSession.log);
+                intTermIterator = null;
+            }
+            if (stringTermIterator != null) {
+                Closeables2.closeQuietly(stringTermIterator, ImhotepLocalSession.log);
+                stringTermIterator = null;
+            }
+            if (flamdexReader != null) {
+                Closeables2.closeQuietly(flamdexReader, ImhotepLocalSession.log);
+                flamdexReader = null;
+            }
+        }
+    }
+
+    @Override
+    public final boolean nextTerm() {
+        if (currentField == null) return false;
+        resetGroupStats = true;
+        if (currentFieldIsIntType) {
+            if (ImhotepLocalSession.logTiming) intTermsTime -= System.nanoTime();
+            try {
+                while (true) {
+                    if (currentFieldTermPtr + 1 >= currentIntFieldTerms.length) {
+                        return false;
+                    }
+                    currentFieldTermPtr++;
+                    intTermIterator.reset(currentIntFieldTerms[currentFieldTermPtr]);
+                    if (!intTermIterator.next()) {
+                        return false;
+                    }
+                    if (intTermIterator.term() == currentIntFieldTerms[currentFieldTermPtr]) {
+                        docIdStream.reset(intTermIterator);
+                        return true;
+                    }
+                }
+            } finally {
+                if (ImhotepLocalSession.logTiming) intTermsTime += System.nanoTime();
+            }
+        } else {
+            if (ImhotepLocalSession.logTiming) stringTermsTime -= System.nanoTime();
+            try {
+                while (true) {
+                    if (currentFieldTermPtr + 1 >= currentStringFieldTerms.length) {
+                        return false;
+                    }
+                    currentFieldTermPtr++;
+                    stringTermIterator.reset(currentStringFieldTerms[currentFieldTermPtr]);
+                    if (!stringTermIterator.next()) {
+                        return false;
+                    }
+                    if (stringTermIterator.term().equals(currentStringFieldTerms[currentFieldTermPtr])) {
+                        docIdStream.reset(stringTermIterator);
+                        return true;
+                    }
+                }
+            } finally {
+                if (ImhotepLocalSession.logTiming) stringTermsTime += System.nanoTime();
+            }
+        }
+    }
+
+    @Override
+    public final long termDocFreq() {
+        return currentFieldIsIntType ? intTermIterator.docFreq() : stringTermIterator.docFreq();
+    }
+
+    @Override
+    public final long termIntVal() {
+        return intTermIterator.term();
+    }
+
+    @Override
+    public final String termStringVal() {
+        return stringTermIterator.term();
+    }
+
+    @Override
+    protected int fillDocIdBuffer() {
+        return docIdStream.fillDocIdBuffer(session.docIdBuf);
+    }
+}

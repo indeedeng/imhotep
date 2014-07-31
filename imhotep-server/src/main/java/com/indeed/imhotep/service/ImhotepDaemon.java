@@ -3,6 +3,7 @@ package com.indeed.imhotep.service;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.UnmodifiableIterator;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
@@ -25,11 +26,11 @@ import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.Streams;
 import com.indeed.imhotep.io.caching.CachedFile;
 
+import com.indeed.imhotep.protobuf.IntFieldAndTerms;
+import com.indeed.imhotep.protobuf.StringFieldAndTerms;
 import org.apache.log4j.Logger;
 import org.apache.log4j.NDC;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -38,8 +39,9 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Properties;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -277,6 +279,13 @@ public class ImhotepDaemon {
                             sendResponse(responseBuilder.build(), os);
                             service.handleGetFTGSIterator(protoRequest.getSessionId(), getIntFields(protoRequest), getStringFields(protoRequest), os);
                             break;
+                        case GET_SUBSET_FTGS_ITERATOR:
+                            if (!service.sessionIsValid(protoRequest.getSessionId())) {
+                                throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
+                            }
+                            sendResponse(responseBuilder.build(), os);
+                            service.handleGetSubsetFTGSIterator(protoRequest.getSessionId(), getIntFieldsToTerms(protoRequest), getStringFieldsToTerms(protoRequest), os);
+                            break;
                         case GET_FTGS_SPLIT:
                             if (!service.sessionIsValid(protoRequest.getSessionId())) {
                                 throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
@@ -284,12 +293,31 @@ public class ImhotepDaemon {
                             sendResponse(responseBuilder.build(), os);
                             service.handleGetFTGSIteratorSplit(protoRequest.getSessionId(), getIntFields(protoRequest), getStringFields(protoRequest), os, protoRequest.getSplitIndex(), protoRequest.getNumSplits());
                             break;
+                        case GET_SUBSET_FTGS_SPLIT:
+                            if (!service.sessionIsValid(protoRequest.getSessionId())) {
+                                throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
+                            }
+                            sendResponse(responseBuilder.build(), os);
+                            service.handleGetSubsetFTGSIteratorSplit(protoRequest.getSessionId(), getIntFieldsToTerms(protoRequest), getStringFieldsToTerms(protoRequest), os, protoRequest.getSplitIndex(), protoRequest.getNumSplits());
+                            break;
                         case MERGE_FTGS_SPLIT:
                             if (!service.sessionIsValid(protoRequest.getSessionId())) {
                                 throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
                             }
                             sendResponse(responseBuilder.build(), os);
                             service.handleMergeFTGSIteratorSplit(protoRequest.getSessionId(), getIntFields(protoRequest), getStringFields(protoRequest), os,
+                                    Lists.transform(protoRequest.getNodesList(), new Function<HostAndPort, InetSocketAddress>() {
+                                        public InetSocketAddress apply(final HostAndPort input) {
+                                            return new InetSocketAddress(input.getHost(), input.getPort());
+                                        }
+                                    }).toArray(new InetSocketAddress[protoRequest.getNodesCount()]), protoRequest.getSplitIndex());
+                            break;
+                        case MERGE_SUBSET_FTGS_SPLIT:
+                            if (!service.sessionIsValid(protoRequest.getSessionId())) {
+                                throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
+                            }
+                            sendResponse(responseBuilder.build(), os);
+                            service.handleMergeSubsetFTGSIteratorSplit(protoRequest.getSessionId(), getIntFieldsToTerms(protoRequest), getStringFieldsToTerms(protoRequest), os,
                                     Lists.transform(protoRequest.getNodesList(), new Function<HostAndPort, InetSocketAddress>() {
                                         public InetSocketAddress apply(final HostAndPort input) {
                                             return new InetSocketAddress(input.getHost(), input.getPort());
@@ -388,6 +416,16 @@ public class ImhotepDaemon {
                             service.handleConditionalUpdateDynamicMetric(
                                     protoRequest.getSessionId(),
                                     protoRequest.getDynamicMetricName(),
+                                    ImhotepDaemonMarshaller.marshalRegroupConditionMessageList(protoRequest.getConditionsList()),
+                                    Ints.toArray(protoRequest.getDynamicMetricDeltasList())
+                            );
+                            sendResponse(responseBuilder.build(), os);
+                            break;
+                        case GROUP_CONDITIONAL_UPDATE_DYNAMIC_METRIC:
+                            service.handleGroupConditionalUpdateDynamicMetric(
+                                    protoRequest.getSessionId(),
+                                    protoRequest.getDynamicMetricName(),
+                                    Ints.toArray(protoRequest.getGroupsList()),
                                     ImhotepDaemonMarshaller.marshalRegroupConditionMessageList(protoRequest.getConditionsList()),
                                     Ints.toArray(protoRequest.getDynamicMetricDeltasList())
                             );
@@ -531,6 +569,32 @@ public class ImhotepDaemon {
 
     private static String[] getIntFields(ImhotepRequest protoRequest) {
         return protoRequest.getIntFieldsList().toArray(new String[protoRequest.getIntFieldsCount()]);
+    }
+
+    private static Map<String, long[]> getIntFieldsToTerms(ImhotepRequest protoRequest) {
+        final LinkedHashMap<String, long[]> ret = Maps.newLinkedHashMap();
+        final List<IntFieldAndTerms> intFieldsToTermsList = protoRequest.getIntFieldsToTermsList();
+        for (IntFieldAndTerms intFieldAndTerms : intFieldsToTermsList) {
+            final long[] array = new long[intFieldAndTerms.getTermsCount()];
+            for (int i = 0; i < array.length; i++) {
+                array[i] = intFieldAndTerms.getTerms(i);
+            }
+            ret.put(intFieldAndTerms.getField(), array);
+        }
+        return ret;
+    }
+
+    private static Map<String, String[]> getStringFieldsToTerms(ImhotepRequest protoRequest) {
+        final LinkedHashMap<String, String[]> ret = Maps.newLinkedHashMap();
+        final List<StringFieldAndTerms> stringFieldsToTermsList = protoRequest.getStringFieldsToTermsList();
+        for (StringFieldAndTerms stringFieldAndTerms : stringFieldsToTermsList) {
+            final String[] array = new String[stringFieldAndTerms.getTermsCount()];
+            for (int i = 0; i < array.length; i++) {
+                array[i] = stringFieldAndTerms.getTerms(i);
+            }
+            ret.put(stringFieldAndTerms.getField(), array);
+        }
+        return ret;
     }
 
     private static void close(final Socket socket, final InputStream is, final OutputStream os) {

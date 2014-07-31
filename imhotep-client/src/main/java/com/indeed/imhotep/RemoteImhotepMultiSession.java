@@ -10,6 +10,7 @@ import org.apache.log4j.Logger;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -80,6 +81,30 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession {
             throw Throwables.propagate(e);
         }
         return mergers;
+    }
+
+    @Override
+    public FTGSIterator getSubsetFTGSIterator(final Map<String, long[]> intFields, final Map<String, String[]> stringFields) {
+        if (sessions.length == 1) {
+            return sessions[0].getSubsetFTGSIterator(intFields, stringFields);
+        }
+        final Pair<Integer, ImhotepSession>[] indexesAndSessions = new Pair[sessions.length];
+        for (int i = 0; i < sessions.length; i++) {
+            indexesAndSessions[i] = Pair.of(i, sessions[i]);
+        }
+        final RawFTGSIterator[] mergers = new RawFTGSIterator[sessions.length];
+        try {
+            execute(mergers, indexesAndSessions, new ThrowingFunction<Pair<Integer, ImhotepSession>, RawFTGSIterator>() {
+                public RawFTGSIterator apply(final Pair<Integer, ImhotepSession> indexSessionPair) throws Exception {
+                    final ImhotepSession session = indexSessionPair.getSecond();
+                    final int index = indexSessionPair.getFirst();
+                    return session.mergeSubsetFTGSSplit(intFields, stringFields, sessionId, nodes, index);
+                }
+            });
+        } catch (ExecutionException e) {
+            throw Throwables.propagate(e);
+        }
+        return new FTGSInterleaver(mergers);
     }
 
     @Override
