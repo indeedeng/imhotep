@@ -97,6 +97,7 @@ public class NoOpRemoteFileSystem extends RemoteFileSystem {
             final File f = iter.next();
             results.put(f.getAbsolutePath(), f);
         }
+        results.put(fullPath, dir);
         return results;
     }
 
