@@ -19,10 +19,6 @@ import com.indeed.flamdex.api.RawFlamdexReader;
 import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.StringValueLookup;
-import com.indeed.util.core.threads.ThreadSafeBitSet;
-import com.indeed.util.core.Pair;
-import com.indeed.util.core.io.Closeables2;
-import com.indeed.util.core.reference.SharedReference;
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.flamdex.datastruct.FastBitSetPooler;
 import com.indeed.flamdex.fieldcache.ByteArrayIntValueLookup;
@@ -34,6 +30,7 @@ import com.indeed.flamdex.search.FlamdexSearcher;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexWriter;
 import com.indeed.flamdex.utils.FlamdexUtils;
+import com.indeed.imhotep.AbstractImhotepSession;
 import com.indeed.imhotep.FTGSSplitter;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupRemapRule;
@@ -46,7 +43,6 @@ import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.api.DocIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
-import com.indeed.imhotep.AbstractImhotepSession;
 import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.imhotep.group.ImhotepChooser;
 import com.indeed.imhotep.metrics.AbsoluteValue;
@@ -69,16 +65,19 @@ import com.indeed.imhotep.metrics.ShiftLeftAndDivide;
 import com.indeed.imhotep.metrics.Subtraction;
 import com.indeed.imhotep.service.CachedFlamdexReader;
 import com.indeed.imhotep.service.RawCachedFlamdexReader;
-
+import com.indeed.util.core.Pair;
+import com.indeed.util.core.io.Closeables2;
+import com.indeed.util.core.reference.SharedReference;
+import com.indeed.util.core.threads.ThreadSafeBitSet;
 import it.unimi.dsi.fastutil.PriorityQueue;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nonnull;
 import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
@@ -102,8 +101,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import javax.annotation.Nonnull;
 
 /**
  * This class isn't even close to remotely thread safe, do not use it
@@ -757,7 +754,14 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields) {
-        throw new UnsupportedOperationException();
+        final int numSplits = 16;
+
+        final RawFTGSIterator[] ret = new RawFTGSIterator[numSplits];
+        for (int i = 0; i < numSplits; i++) {
+            ret[i] = getFTGSIteratorSplit(intFields, stringFields, i, numSplits);
+        }
+
+        return ret;
     }
 
     public synchronized RawFTGSIterator getFTGSIteratorSplit(final String[] intFields,
