@@ -22,56 +22,40 @@ public final class ImhotepProtobufShipping {
     private ImhotepProtobufShipping() {}
 
     public static void sendProtobuf(Message request, OutputStream os) throws IOException {
-        final byte[] payload = request.toByteArray();
-        final byte[] payloadLengthBytes = Bytes.intToBytes(payload.length);
-
-        os.write(payloadLengthBytes);
-        os.write(payload);
+        os.write(Bytes.intToBytes(request.getSerializedSize()));
+        request.writeTo(os);
         os.flush();
     }
 
     public static ImhotepRequest readRequest(InputStream is) throws IOException {
-        final byte[] requestBytes = readPayload(is);
-        return ImhotepRequest.parseFrom(requestBytes);
+        return ImhotepRequest.parseFrom(readPayloadStream(is));
     }
 
     public static GroupMultiRemapMessage readGroupMultiRemapMessage(InputStream is) throws IOException {
-        final byte[] requestBytes = readPayload(is);
-        return GroupMultiRemapMessage.parseFrom(requestBytes);
+        return GroupMultiRemapMessage.parseFrom(readPayloadStream(is));
     }
 
     public static GroupRemapMessage readGroupRemapMessage(InputStream is) throws IOException {
-        final byte[] request = readPayload(is);
-        return GroupRemapMessage.parseFrom(request);
+        return GroupRemapMessage.parseFrom(readPayloadStream(is));
     }
 
     public static ImhotepResponse readResponse(InputStream is) throws IOException {
-        final byte[] responseBytes = readPayload(is);
-        return ImhotepResponse.parseFrom(responseBytes);
+        return ImhotepResponse.parseFrom(readPayloadStream(is));
     }
 
     public static ImhotepFrontendRequest readFrontendRequest(InputStream is) throws IOException {
-        final byte[] requestBytes = readPayload(is);
-        return ImhotepFrontendRequest.parseFrom(requestBytes);
+        return ImhotepFrontendRequest.parseFrom(readPayloadStream(is));
     }
 
     public static ImhotepFrontendResponse readFrontendResponse(InputStream is) throws IOException {
-        final byte[] responseBytes = readPayload(is);
-        return ImhotepFrontendResponse.parseFrom(responseBytes);
+        return ImhotepFrontendResponse.parseFrom(readPayloadStream(is));
     }
 
-    private static byte[] readPayload(InputStream is) throws IOException {
+    private static InputStream readPayloadStream(InputStream is) throws IOException {
         final byte[] payloadLengthBytes = new byte[4];
         ByteStreams.readFully(is, payloadLengthBytes);
         final int payloadLength = Bytes.bytesToInt(payloadLengthBytes);
-        final byte[] ret = new byte[payloadLength];
-        int index = 0;
-        while (index < payloadLength) {
-            final int bytesRead = is.read(ret, index, payloadLength-index);
-            if (bytesRead <= 0) break;
-            index += bytesRead;
-        }
-        if (index != payloadLength) throw new IOException("invalid message, incorrect payloadLength: expected " + payloadLength + " bytes, got  " + index + " bytes");
-        return ret;
+
+        return ByteStreams.limit(is, payloadLength);
     }
 }
