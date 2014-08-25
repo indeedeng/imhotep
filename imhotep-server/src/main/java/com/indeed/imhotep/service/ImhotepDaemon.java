@@ -499,14 +499,14 @@ public class ImhotepDaemon {
                             throw new IllegalArgumentException("unsupported request type: "+protoRequest.getRequestType());
                     }
                 } catch (ImhotepOutOfMemoryException e) {
-                    expireSession(protoRequest);                    
+                    expireSession(protoRequest, e);
                     sendResponse(ImhotepResponse.newBuilder().setResponseCode(ImhotepResponse.ResponseCode.OUT_OF_MEMORY).build(), os);
                     log.warn("ImhotepOutOfMemoryException while servicing request", e);
                 } catch (IOException e) {
                     sendResponse(newErrorResponse(e), os);
                     throw e;
                 } catch (RuntimeException e) {
-                    expireSession(protoRequest);
+                    expireSession(protoRequest, e);
                     sendResponse(newErrorResponse(e), os);
                     throw e;
                 } finally {
@@ -514,7 +514,7 @@ public class ImhotepDaemon {
                     close(socket, is, os);
                 }
             } catch (IOException e) {
-                expireSession(protoRequest);
+                expireSession(protoRequest,e );
                 if (e instanceof SocketException) {
                     log.warn("IOException while servicing request", e);
                 } else {
@@ -532,7 +532,7 @@ public class ImhotepDaemon {
                     .build();
         }
 
-        private void expireSession(ImhotepRequest protoRequest) {
+        private void expireSession(ImhotepRequest protoRequest, Exception reason) {
             if (protoRequest != null && protoRequest.hasSessionId()) {
                 final String sessionId = protoRequest.getSessionId();
                 log.info("exception caught, closing session "+sessionId);

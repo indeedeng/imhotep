@@ -25,10 +25,12 @@ public interface SessionManager<E> {
     boolean sessionIsValid(String sessionId);
 
     void removeAndCloseIfExists(String sessionId);
+    void removeAndCloseIfExists(String sessionId, Exception e);
 
     void setNumStats(String sessionId, int newNumStats);
 
     int getNumStats(String sessionId);
 
     Map<String, Long> getLastActionTimes();
+
 }
