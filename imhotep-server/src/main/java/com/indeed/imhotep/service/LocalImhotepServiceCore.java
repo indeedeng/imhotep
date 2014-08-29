@@ -36,7 +36,6 @@ import com.indeed.imhotep.local.ImhotepLocalSession;
 
 import org.apache.log4j.Logger;
 
-
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -53,6 +52,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -196,7 +196,8 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
                 }
             }
             for (final String sessionId : sessionsToClose) {
-                getSessionManager().removeAndCloseIfExists(sessionId);
+                getSessionManager().removeAndCloseIfExists(sessionId, 
+                                                           new TimeoutException("Session timed out."));
             }
         }
     }

@@ -48,6 +48,7 @@ public interface ImhotepServiceCore {
     List<String> getShardIdsForSession(String sessionId);
     boolean sessionIsValid(String sessionId);
     void handleCloseSession(String sessionId);
+    void handleCloseSession(String sessionId, Exception e);
     void handleCreateDynamicMetric(String sessionId, String dynamicMetricName) throws ImhotepOutOfMemoryException;
     void handleUpdateDynamicMetric(String sessionId, String dynamicMetricName, int[] deltas) throws ImhotepOutOfMemoryException;
     void handleConditionalUpdateDynamicMetric(String sessionId, String dynamicMetricName, RegroupCondition[] conditions, int[] deltas);

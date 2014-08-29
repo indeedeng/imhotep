@@ -4,6 +4,8 @@ import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.varexport.Export;
 import com.indeed.imhotep.api.ImhotepSession;
+
+import org.apache.commons.collections.map.LRUMap;
 import org.apache.log4j.Logger;
 
 import java.util.HashMap;
@@ -17,6 +19,7 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
     private static final Logger log = Logger.getLogger(AbstractSessionManager.class);
 
     private final Map<String, Session<E>> sessionMap = new HashMap<String, Session<E>>();
+    private final Map failureCauseMap = new LRUMap(200);
 
     protected void addSession(String sessionId, Session<E> session) {
         synchronized (sessionMap) {
@@ -50,6 +53,20 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
             }
             imhotepSession = session.imhotepSession;
         }
+        Closeables2.closeQuietly(imhotepSession, log);
+    }
+
+    @Override
+    public void removeAndCloseIfExists(final String sessionId, Exception e) {
+        final SharedReference<ImhotepSession> imhotepSession;
+        synchronized (sessionMap) {
+            final Session<E> session = sessionMap.remove(sessionId);
+            if (session == null) {
+                return;
+            }
+            imhotepSession = session.imhotepSession;
+        }
+        failureCauseMap.put(sessionId, e);
         Closeables2.closeQuietly(imhotepSession, log);
     }
 
@@ -97,7 +114,8 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
     // do not call this method if you do not hold sessionMap's monitor
     private void checkSession(final String sessionId) {
         if (!sessionMap.containsKey(sessionId)) {
-            throw new IllegalArgumentException("there does not exist a session with id "+sessionId);
+            Exception e = (Exception)failureCauseMap.get(sessionId);
+            throw new IllegalArgumentException("there does not exist a session with id " + sessionId, e);
         }
     }
 

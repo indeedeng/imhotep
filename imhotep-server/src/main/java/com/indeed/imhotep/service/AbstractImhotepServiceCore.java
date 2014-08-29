@@ -148,7 +148,12 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
         });
     }
 
-    public void handleMergeFTGSIteratorSplit(final String sessionId, final String[] intFields, final String[] stringFields, final OutputStream os, final InetSocketAddress[] nodes, final int splitIndex) throws IOException {
+    public void handleMergeFTGSIteratorSplit(final String sessionId,
+                                             final String[] intFields,
+                                             final String[] stringFields,
+                                             final OutputStream os,
+                                             final InetSocketAddress[] nodes,
+                                             final int splitIndex) throws IOException {
         doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Void, IOException>() {
             public Void apply(final ImhotepSession session) throws IOException {
                 final int numStats = getSessionManager().getNumStats(sessionId);
@@ -457,6 +462,11 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
     @Override
     public void handleCloseSession(String sessionId) {
         getSessionManager().removeAndCloseIfExists(sessionId);
+    }
+
+    @Override
+    public void handleCloseSession(String sessionId, Exception e) {
+        getSessionManager().removeAndCloseIfExists(sessionId, e);
     }
 
     @Override
