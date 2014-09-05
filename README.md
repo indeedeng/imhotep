@@ -1,22 +1,8 @@
 # Imhotep
-Imhotep is a distributed system for building decision trees and machine learning. At Indeed, we built [a large scale analytics tool](http://engineering.indeed.com/talks/large-scale-interactive-analytics-with-imhotep/) using the same platform. 
+Imhotep is [a data analytics platform](http://engineering.indeed.com/talks/large-scale-interactive-analytics-with-imhotep/) we built at Indeed to do large scale analytics. 
 
 # Documentation
-http://indeed.github.io/proctor
-
 http://indeed.github.io/imhotep
-
-## Building documentation locally
-
-requires ruby 1.9.3+
-
-```bash
-$ git checkout gh-pages
-$ gem install bundler
-$ bundle install
-$ rake clean serve
-  => open http://localhost:4000/ in browser
-```
 
 # Modifying documentation
 - All documentation pages' permalink must end with a "/"
