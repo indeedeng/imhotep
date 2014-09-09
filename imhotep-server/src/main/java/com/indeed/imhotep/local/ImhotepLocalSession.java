@@ -2145,6 +2145,14 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
                     updateDocsWithTermDynamicMetric(metric, groupsWithCurrentTerm, groupToDelta, docIdStream);
                 }
             }
+            // pessimistically recompute all stats -- other metrics may indirectly
+            // refer to this one
+            for (int i = 0; i < numStats; i++) {
+                needToReCalcGroupStats[i] = true;
+                groupStats[i] = clearAndResize(groupStats[i], docIdToGroup.getNumGroups(), memory);
+            }
+        } catch (ImhotepOutOfMemoryException e) {
+            throw Throwables.propagate(e);
         } finally {
             Closeables2.closeAll(log, docIdStream, intTermIterator, stringTermIterator);
         }
