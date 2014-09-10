@@ -28,13 +28,4 @@ Use AWS CloudFormation to create a stack on AWS: point to the imhotep-aws-config
 | s3Secret | Key used with the s3Key for bucket access. |
 | SSHLocation | IP address range for SSH access to Imhotep EC2 instances. The range must be a valid IP CIDR range of the form x.x.x.x/x. |
 
-When the setup is successful, URLs are available for the TSV Uploader and IQL tools. TSV Uploader allows you to upload your data to Imhotep. IQL allows you to run Imhotep queries.
-
-
-
-
-## Imhotep Query Language
-
-
-
-
+When the setup is successful, URLs are available for the TSV Uploader and IQL tools.  [TSV Uploader]({{ site.baseurl }}/docs/data-upload) allows you to upload your data to Imhotep. IQL allows you to run Imhotep queries.
