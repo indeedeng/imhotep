@@ -1,7 +1,7 @@
 ---
 layout: default
-title: Specification
-permalink: /docs/specification/
+title: IQL Syntax
+permalink: /docs/iql-syntax/
 ---
 
 ## Overview
