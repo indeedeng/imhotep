@@ -2145,7 +2145,7 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
                     stringTermIterator.reset(term);
                     if (!stringTermIterator.next()) continue;
                     if (!stringTermIterator.term().equals(term)) continue;
-                    docIdStream.reset(intTermIterator);
+                    docIdStream.reset(stringTermIterator);
                     updateDocsWithTermDynamicMetric(metric, groupsWithCurrentTerm, groupToDelta, docIdStream);
                 }
             }
