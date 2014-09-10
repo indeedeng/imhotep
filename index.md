@@ -16,7 +16,7 @@ Imhotep is [a large-scale analytics platform](http://engineering.indeed.com/talk
 See the [quick start page]({{ site.baseurl }}/docs/quick-start) for instructions.
 
 # Example
-See the [demo page](https://github.com/indeedeng/proctor-demo) for a reference implementation of Imhotep. EXISTING LINK to proctor demo
+See the [demo page](https://github.com/indeedeng/proctor-demo) for a reference implementation of Imhotep. CHANGE THIS EXISTING LINK to proctor demo
 
 # Discussion
 Ask and answer questions in our Q&A forum for Imhotep: NEED LINK HERE

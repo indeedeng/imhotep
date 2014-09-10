@@ -7,8 +7,8 @@ Imhotep is [a large-scale analytics platform](http://engineering.indeed.com/talk
 - perform massive group-bys and aggregates for real-time analytics
 - allows for automation of data tools
 
-# Installation
-See the [quick start page]({{ site.baseurl }}/docs/quick-start) for instructions.
+# Getting Started
+See the [quick start page]({{ site.baseurl }}/docs/quick-start) for instructions on configuring your environment and 
 
 # Example
 See the [demo page](https://github.com/indeedeng/proctor-demo) for a reference implementation of Imhotep. FIX THIS EXISTING LINK to proctor demo
