@@ -1,30 +1,25 @@
 ---
 layout: default
-title: Proctor
+title: Imhotep
 exclude_toc: true
 ---
 
-Proctor is a A/B testing framework written in Java that enables [data-driven product design](http://engineering.indeed.com/blog/2013/05/indeedeng-data-driven-product-design-slides-video/) at Indeed. 
+Imhotep is [a large-scale analytics platform](http://engineering.indeed.com/talks/large-scale-interactive-analytics-with-imhotep/) built by Indeed.  
 
-Proctor consists of data-model, client specification, matrix builder, java code generator.
-
-Source: https://github.com/indeedeng/proctor
-
-# Features:
-- consistent tests across multiple applications, services and tools
-- group adjustments without code deploys
-- rule-based group assignment for segmenting users:
-  - logged-in users: 50% A, 50% B 
-  - logged-out users: 25% A, 25% B, 25% C, 25% D
-- human-readable test format
-- overriding test groups during internal testing
-- java code generation for A/B tests groups
+# Features
+- highly scalable analytics architecture
+- combine results from multiple datasets
+- perform massive group-bys and aggregates for real-time analytics
+- allows for automation of data tools
 
 # Getting Started
-See the [Quick Start]({{ site.baseurl }}/docs/quick-start) guide to start running A/B test using Proctor
+See the [quick start page]({{ site.baseurl }}/docs/quick-start) for instructions.
 
 # Example
-- https://github.com/indeedeng/proctor-demo
+See the [demo page](https://github.com/indeedeng/proctor-demo) for a reference implementation of Imhotep. EXISTING LINK to proctor demo
+
+# Discussion
+Ask and answer questions in our Q&A forum for Imhotep: NEED LINK HERE
 
 # License
 
