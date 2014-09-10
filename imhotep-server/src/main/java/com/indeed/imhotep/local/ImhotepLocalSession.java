@@ -2122,6 +2122,7 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
                     docIdStream.reset(intTermIterator);
                     updateDocsWithTermDynamicMetric(metric, groupsWithCurrentTerm, groupToDelta, docIdStream);
                 }
+                intTermIterator.close();
             }
             for (Map.Entry<String, Map<String, Pair<IntArrayList, IntArrayList>>> entry : stringFields.entrySet()) {
                 final String field = entry.getKey();
@@ -2148,6 +2149,7 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
                     docIdStream.reset(stringTermIterator);
                     updateDocsWithTermDynamicMetric(metric, groupsWithCurrentTerm, groupToDelta, docIdStream);
                 }
+                stringTermIterator.close();
             }
             // pessimistically recompute all stats -- other metrics may indirectly
             // refer to this one
