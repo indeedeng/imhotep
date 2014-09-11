@@ -48,13 +48,3 @@ an enumeration of the identifier to use when allocating test buckets
 ### test constants
 variables that can be referenced in an *eligibility rule* or *allocation rule*.
 
-### special-constants (test-definition)
--- NOTE: interaction between special-constants + rule containing "${}" braces. (convertToConsumableTestDefinition)
-
-### [builder]({{site.baseurl}}/docs/builder)
-a tool responsible for generating the test-matrix consumed by your applications. In practice, this tool validates and combines the test-definitions stored across multiple files into a single file.
-
-### user
-A client consuming your service. Your A/B tests should be designed to influence the behavior of an individual directly (eg. changing a UI element / funnel ) or indirectly (eg. changing the algorithm used to display search results). Your application should be recording and measuring the behavior of your users so that your A/B tests can be evaluated.
-
-For most web applications, a user maps directly to a human using your application. In some circumstances, a user could represent another application consuming your service (eg. another application consuming the application's API).
