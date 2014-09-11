@@ -1,7 +1,7 @@
 ---
 layout: default
-title: Loading Test Matrix
-permalink: /docs/loader/
+title: Sample Queries
+permalink: /docs/sample-queries/
 ---
 
 The _proctor loader_ is responsible for loading the `test matrix` for an application. It ensures each test-definition is compatible with the application's specification. A single instance of a _proctor loader_ should be created for a application and be used when constructing its _AbstractGroupsManager_ generated class.
