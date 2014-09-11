@@ -14,10 +14,12 @@ You must have an AWS account and four S3 buckets for data storage. For this conf
 ### Setup
 Use AWS CloudFormation to create a stack on AWS: point to the imhotep-aws-config script to define the parameters of your Imhotep configuration. 
 
+If you use gzip to compress your TSV file, you must use the `.tsv.gz` extension.
+
 | Parameter | Description |
 | ------------- | --------- |
 | InstanceType | Defines the memory, CPU, storage capacity, and hourly cost for the Imhotep instance. Valid values: m3.xlarge, m3.2xlarge, c3.2xlarge, c3.4xlarge, c3.8xlarge, r3.large, r3.xlarge, r3.2xlarge, r3.4xlarge, r3.8xlarge |
-| IPrange | IP address range for access to Imhotep. The range must be a valid IP CIDR range of the form x.x.x.x/x. |
+| IPrange | IP address range for access to Imhotep. The range must be a valid IP CIDR range of the form `x.x.x.x/x`. |
 | KeyName | Name of an existing EC2 key pair to enable SSH access to the Imhotep instances. |
 | NumImhotepInstances | By default, the setup script creates two Imhotep instances to handle failover. |
 | s3BuildBucket | Contains your data from TSV Uploader. |
@@ -26,9 +28,9 @@ Use AWS CloudFormation to create a stack on AWS: point to the imhotep-aws-config
 | s3imhotepBucket | Contains Imhotep jars. |
 | s3Key | Key for bucket access. |
 | s3Secret | Key used with the s3Key for bucket access. |
-| SSHLocation | IP address range for SSH access to Imhotep EC2 instances. The range must be a valid IP CIDR range of the form x.x.x.x/x. |
+| SSHLocation | IP address range for SSH access to Imhotep EC2 instances. The range must be a valid IP CIDR range of the form `x.x.x.x/x`. |
 
-When the setup is successful, URLs are available for the TSV Uploader and IQL tools.  TSV Uploader allows you to upload your data to Imhotep. IQL allows you to run Imhotep queries.
+When the setup is successful, URLs are available for the TSV Uploader and IQL tools.  TSV Uploader allows you to upload your data to Imhotep. [IQL allows you to run Imhotep queries.]({{ site.baseurl }}/docs/iql-syntax)
 
 ## TSV Uploader
 
@@ -46,6 +48,11 @@ The name of your new index appears in the list. When you first add the index, it
 2. In the search field near the top of the page, click **Upload TSV** and browse to the TSV file that contains your index data. 
 3. Repeat this step to upload additional data files to your index. 
 
-TSV Uploader indexes the file for use in Imhotep. When the process completes successfully, indexed shows as the status of the file. If the process fails, failed shows as the status. Errors are written to a .error.log file, which you can download to your computer and view. 
+TSV Uploader indexes the file for use in Imhotep. When the process completes successfully, **indexed** shows as the status of the file. If the process fails, **failed** shows as the status. Errors are written to a `.error.log` file, which you can download to your computer and view. 
 
 [Learn about data file requirements for TSV Uploader]({{ site.baseurl }}/docs/data-file-requirements).
+
+### Deleting Data Files and Indices
+To delete a data file, select *indexName* > *dataFileName* and click the trash can. 
+
+To delete an index, select *indexName* and click the trash can.
