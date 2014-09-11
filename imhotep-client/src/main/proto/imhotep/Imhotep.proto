@@ -254,6 +254,7 @@ message ImhotepResponse {
   // error stuff
   optional string exception_type = 10;
   optional string exception_message = 11;
+  optional string exception_stack_trace = 14;
 
   // for new getShardList()
   repeated DatasetInfoMessage dataset_info = 12;

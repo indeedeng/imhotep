@@ -106,10 +106,7 @@ class FlamdexSubsetFTGSIterator extends AbstractFlamdexFTGSIterator {
                     }
                     currentFieldTermPtr++;
                     intTermIterator.reset(currentIntFieldTerms[currentFieldTermPtr]);
-                    if (!intTermIterator.next()) {
-                        return false;
-                    }
-                    if (intTermIterator.term() == currentIntFieldTerms[currentFieldTermPtr]) {
+                    if (intTermIterator.next() && intTermIterator.term() == currentIntFieldTerms[currentFieldTermPtr]) {
                         docIdStream.reset(intTermIterator);
                         return true;
                     }
@@ -126,10 +123,7 @@ class FlamdexSubsetFTGSIterator extends AbstractFlamdexFTGSIterator {
                     }
                     currentFieldTermPtr++;
                     stringTermIterator.reset(currentStringFieldTerms[currentFieldTermPtr]);
-                    if (!stringTermIterator.next()) {
-                        return false;
-                    }
-                    if (stringTermIterator.term().equals(currentStringFieldTerms[currentFieldTermPtr])) {
+                    if (stringTermIterator.next() && stringTermIterator.term().equals(currentStringFieldTerms[currentFieldTermPtr])) {
                         docIdStream.reset(stringTermIterator);
                         return true;
                     }

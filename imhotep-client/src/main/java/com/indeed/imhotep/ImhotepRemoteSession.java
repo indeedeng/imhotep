@@ -844,7 +844,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
         final StringBuilder msg = new StringBuilder();
         msg.append("imhotep daemon ").append(host).append(":").append(port)
                 .append(" returned error: ").append(response.getExceptionType())
-                .append(": ").append(response.getExceptionMessage());
+                .append(": ").append(response.getExceptionMessage()).append('\n').append(response.getExceptionStackTrace());
         return new IOException(msg.toString());
     }
     

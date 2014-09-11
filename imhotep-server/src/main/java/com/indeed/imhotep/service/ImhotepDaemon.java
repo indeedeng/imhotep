@@ -529,6 +529,7 @@ public class ImhotepDaemon {
                     .setResponseCode(ImhotepResponse.ResponseCode.OTHER_ERROR)
                     .setExceptionType(e.getClass().getName())
                     .setExceptionMessage(e.getMessage() != null ? e.getMessage() : "")
+                    .setExceptionStackTrace(Throwables.getStackTraceAsString(e))
                     .build();
         }
 
