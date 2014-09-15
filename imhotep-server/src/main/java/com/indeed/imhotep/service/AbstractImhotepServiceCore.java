@@ -100,8 +100,9 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
                 try {
                     FTGSOutputStreamWriter.write(merger, numStats, os);
                 } catch (Exception e) {
-                    merger.close();
                     throw e;
+                } finally {
+                    Closeables2.closeQuietly(merger, log);
                 }
                 return null;
             }

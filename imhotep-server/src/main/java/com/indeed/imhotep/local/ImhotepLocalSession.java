@@ -779,7 +779,7 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     @Override
-    public RawFTGSIterator getSubsetFTGSIteratorSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, int splitIndex, int numSplits) {
+    public synchronized RawFTGSIterator getSubsetFTGSIteratorSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, int splitIndex, int numSplits) {
         if (ftgsIteratorSplits == null || ftgsIteratorSplits.isClosed()) {
             try {
                 ftgsIteratorSplits = new FTGSSplitter(getSubsetFTGSIterator(intFields, stringFields), numSplits, numStats, "getIteratorSplitsLocalSession", 969168349);

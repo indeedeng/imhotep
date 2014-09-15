@@ -216,6 +216,8 @@ public final class FTGSSplitter implements Runnable, Closeable {
             }
         } catch (IOException e) {
             throw Throwables.propagate(e);
+        } finally {
+            Closeables2.closeQuietly(iterator, log);
         }
     }
 
