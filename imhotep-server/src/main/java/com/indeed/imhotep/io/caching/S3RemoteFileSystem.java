@@ -9,6 +9,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.log4j.Logger;
+
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3Client;
@@ -22,6 +24,8 @@ import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 
 public class S3RemoteFileSystem extends RemoteFileSystem {
+    private static final Logger log = Logger.getLogger(S3RemoteFileSystem.class);
+    
     private String mountPoint;
     private RemoteFileSystemMounter mounter;
     private String s3bucket;
@@ -59,7 +63,7 @@ public class S3RemoteFileSystem extends RemoteFileSystem {
     
     private String getS3path(String path) {
         
-        if (s3prefix != null) {
+        if (s3prefix != null && !s3prefix.isEmpty()) {
             if (path.isEmpty()) {
                 return s3prefix;
             } else {
@@ -167,6 +171,8 @@ public class S3RemoteFileSystem extends RemoteFileSystem {
         
         if (key.equals(s3path)) {
             type = RemoteFileInfo.TYPE_FILE;
+        } else if (s3path.isEmpty()) {
+            type = RemoteFileInfo.TYPE_DIR;
         } else if (key.startsWith(s3path + DELIMITER)) {
             type = RemoteFileInfo.TYPE_DIR;
         } else {
@@ -185,7 +191,8 @@ public class S3RemoteFileSystem extends RemoteFileSystem {
             
             filename = key.substring(prefix.length());
             if (filename.length() == 0 || filename.contains(DELIMITER)) {
-                throw new RuntimeException("Error parsing S3 object Key.  Key: " + key);
+                log.error("Error parsing S3 object Key.  Key: " + key);
+                continue;
             }
             results.add(filename);
         }
@@ -203,8 +210,8 @@ public class S3RemoteFileSystem extends RemoteFileSystem {
             dirname = commonPrefix.substring(prefix.length(), 
                                              commonPrefix.length() - DELIMITER.length());
             if (dirname.length() == 0 || dirname.contains(DELIMITER)) {
-                throw new RuntimeException("Error parsing S3 object prefix.  Prefix: " + 
-                        commonPrefix);
+                log.error("Error parsing S3 object prefix.  Prefix: " + commonPrefix);
+                continue;
             }
             results.add(dirname);
         }
@@ -215,9 +222,13 @@ public class S3RemoteFileSystem extends RemoteFileSystem {
     @Override
     public List<RemoteFileInfo> readDir(String fullPath) {
         final String relativePath = mounter.getMountRelativePath(fullPath, mountPoint);
-        final String s3path = getS3path(relativePath) + DELIMITER;
+        String s3path = getS3path(relativePath);
         final List<RemoteFileInfo> results = new ArrayList<RemoteFileInfo>(100);
         ObjectListing listing;
+        
+        if (!s3path.isEmpty()) {
+            s3path += DELIMITER;
+        }
         
         /* grab first set of keys for the object we found */
         listing = getListing(s3path, -1, false);
@@ -253,9 +264,13 @@ public class S3RemoteFileSystem extends RemoteFileSystem {
     @Override
     public Map<String,File> loadDirectory(String fullPath, File location) throws IOException {
         final String relativePath = mounter.getMountRelativePath(fullPath, mountPoint);
-        final String s3path = getS3path(relativePath) + DELIMITER;
+        String s3path = getS3path(relativePath);
         ObjectListing listing;
         final Map<String,File> results;
+        
+        if (!s3path.isEmpty()) {
+            s3path += DELIMITER;
+        }
         
         results = new HashMap<String,File>(100);
         

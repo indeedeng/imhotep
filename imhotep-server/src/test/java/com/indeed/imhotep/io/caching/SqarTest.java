@@ -58,6 +58,22 @@ public class SqarTest {
         boolean result;
         CachedFile target;
         
+        target = CachedFile.create("testData/");
+        result = target.exists();
+        assertTrue(result);
+        result = target.isDirectory();
+        assertTrue(result);
+        result = target.isFile();
+        assertFalse(result);
+        
+        target = CachedFile.create("testData");
+        result = target.exists();
+        assertTrue(result);
+        result = target.isDirectory();
+        assertTrue(result);
+        result = target.isFile();
+        assertFalse(result);
+        
         target = CachedFile.create("testData/test-archive/");
         result = target.exists();
         assertTrue(result);
