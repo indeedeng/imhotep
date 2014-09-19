@@ -34,28 +34,39 @@ If the field name is time or unixtime, the builder parses that field’s values 
 
 #### Field names with the * suffix
 
-Adding the * suffix to the field name in the header also indexes that field in a tokenized version. For example, if a field name is q* with the value "project manager", the following values are indexed: query:"project manager", querytoken:"project", querytoken:"manager"
+Adding the `*` suffix to the field name in the header also indexes that field in a tokenized version. 
 
-| Field Name | Value | Indexed Values |
-| ------ | --------- | ---------- |
-| query* | "project manager" | query:"project manager"|
-| | | querytoken:"project" | 
-| | | querytoken:"manager" | 
 
+<table>
+  <tr>
+    <th>Field Name</th>
+    <th>Value</th>
+    <th>Indexed Values</th>
+  </tr>
+  <tr>
+    <td valign="top">query*</td>
+    <td valign="top">"project manager"</td>
+    <td valign="top">query:"project manager"<br>querytoken:"project"<br>querytoken:"manager"</td>
+  </tr>
+ 
+</table>
 
 #### Field names with the ** suffix
 
-Adding the ** suffix to the field name in the header also indexes that field in a bigram version. 
+Adding the `**` suffix to the field name in the header also indexes that field in a bigram version. 
+<table>
+  <tr>
+    <th>Field Name</th>
+    <th>Value</th>
+    <th>Indexed Values</th>
+  </tr>
+  <tr>
+    <td valign="top">query**</td>
+    <td valign="top">"senior project manager"</td>
+    <td valign="top">query:"senior project manager"<br>querytoken:"senior"<br>querytoken:"project"<br>querytoken:"manager"<br>querybigram:"senior project"<br>querybigram:"project manager"</td>
+  </tr> 
+</table>
 
-| Field Name | Value | Indexed Values |
-| ------ | --------- | ---------- |
-| query** | "senior project manager" | query:"senior project manager"|
-| | | querytoken:"senior" | 
-| | | querytoken:"project" | 
-| | | querytoken:"manager" | 
-| | | querybigram:"senior project" | 
-| | | querybigram:"project manager" | 
- 
 
 ## Field Values
 
@@ -71,11 +82,20 @@ Once a field is indexed as an integer, it is always an integer.
 #### Floating-point values become strings
 
 Floating-point values like 1.0 or 1.5 are not supported as integers and are treated as strings. To use floating-point values as metrics, consider the following methods:
-
-| Method | Example |
-| ------ | ---------- |
-| Round the values. | 1.0 => 1.5, 1.5 => 1 |
-| Multiply all values by a decimal constant. | 1.0 => 10, 1.5 => 15 |
+<table>
+  <tr>
+    <th>Method</th>
+    <th>Examples</th>
+  </tr>
+  <tr>
+    <td valign="top">Round the values.</td>
+    <td valign="top">`1.0 => 1.5`<br>`1.5 => 1`</td>
+   </tr> 
+  <tr>
+    <td valign="top">Multiply all values by a decimal constant.</td>
+    <td valign="top">`1.0 => 10`<br>`1.5 => 15`</td>
+   </tr> 
+</table>
 
 #### Empty values
 

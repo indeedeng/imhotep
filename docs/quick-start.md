@@ -21,20 +21,58 @@ Point to the `imhotep-aws-config` script at the following URL to define the para
 `http://imhotep-cloud-setup.s3.amazonaws.com/cloudFormation_cluster_launch.json`
 
 The script prompts you to define the following parameters:
-
-| Parameter | Description |
-| ------------- | --------- |
-| `InstanceType` | Defines the memory, CPU, storage capacity, and hourly cost for the Imhotep instance. Valid values: `m3.xlarge`, `m3.2xlarge`, `c3.2xlarge`, `c3.4xlarge`, `c3.8xlarge`, `r3.large`, `r3.xlarge`, `r3.2xlarge`, `r3.4xlarge`, `r3.8xlarge` |
-| `IPrange` | IP address range for access to Imhotep. The range must be a valid IP CIDR range of the form `x.x.x.x/x`. |
-| `KeyName` | Name of an existing EC2 key pair to enable SSH access to the Imhotep instances. |
-| `NumImhotepInstances` | By default, the setup script creates two Imhotep instances to handle failover. |
-| `s3BuildBucket` | Contains your data from TSV Uploader. |
-| `s3cacheBucket` | Contains your cached results from IQL queries. |
-| `s3dataBucket` | Contains your Imhotep indexes. |
-| `s3imhotepBucket` | Contains Imhotep jars. |
-| `s3Key` | Key for bucket access. |
-| `s3Secret` | Key used with the s3Key for bucket access. |
-| `SSHLocation` | IP address range for SSH access to Imhotep EC2 instances. The range must be a valid IP CIDR range of the form `x.x.x.x/x`. |
+<table>
+  <thead>
+    <th>Parameter</th>
+    <th>Description</th>
+  </thead>
+  <tbody>
+  <tr>
+    <td valign="top">`InstanceType`</td>
+    <td valign="top">Defines the memory, CPU, storage capacity, and hourly cost for the Imhotep instance. <br>Valid values:<br> `m3.xlarge`<br>`m3.2xlarge`<br>`c3.2xlarge`<br>`c3.4xlarge`<br>`c3.8xlarge`<br>`r3.large`<br>`r3.xlarge`<br>`r3.2xlarge`<br>`r3.4xlarge`<br>`r3.8xlarge`</td>
+  </tr>
+  <tr>
+    <td valign="top">`IPrange`</td>
+     <td valign="top">IP address range for access to Imhotep. The range must be a valid IP CIDR range of the form `x.x.x.x/x`</td>
+  </tr>
+  <tr>
+    <td valign="top">`KeyName`</td>
+    <td valign="top">Name of an existing EC2 key pair to enable SSH access to the Imhotep instances.</td>
+  </tr>
+  <tr>
+    <td valign="top">`NumImhotepInstances`</td>
+    <td valign="top">By default, the setup script creates two Imhotep instances to handle failover.</td>
+  </tr>
+  <tr>
+    <td valign="top">`s3BuildBucket`</td>
+    <td valign="top">Contains your data from TSV Uploader.</td>
+  </tr>
+  <tr>
+    <td valign="top">`s3cacheBucket`</td>
+    <td valign="top">Contains your cached results from IQL queries.</td>
+  </tr>
+  <tr>
+    <td valign="top">`s3dataBucket`</td>
+    <td valign="top">Contains your Imhotep indexes.</td>
+  </tr>
+  <tr>
+    <td valign="top">`s3imhotepBucket`</td>
+    <td valign="top">Contains Imhotep jars.</td>
+  </tr>
+  <tr>
+    <td valign="top">`s3Key`</td>
+    <td valign="top">Key for bucket access.</td>
+  </tr>
+  <tr>
+    <td valign="top">`s3Secret`</td>
+    <td valign="top">Key used with the s3Key for bucket access.</td>
+  </tr>
+  <tr>
+    <td valign="top">`SSHLocation`</td>
+    <td valign="top">IP address range for SSH access to Imhotep EC2 instances. The range must be a valid IP CIDR range of the form `x.x.x.x/x`</td>
+  </tr>
+  </tbody>
+</table>
 
 When the setup is successful, URLs are available for the Imhotep TSV Uploader and IQL tools.  Imhotep TSV Uploader allows you to upload your data to Imhotep. [IQL allows you to run Imhotep queries.]({{ site.baseurl }}/docs/overview)
 
@@ -55,12 +93,12 @@ The name of your new index appears in the list. When you first add the index, it
 
 NOTE: If you upload a TSV file to the wrong index, you must manually remove the shard with the index from Imhotep. [Learn how]({{ site.baseurl }}/docs/troubleshooting). 
 
-When the process completes successfully, **indexed** shows as the status of the file. If the process fails, **failed** shows as the status. Errors are written to a `.error.log` file, which you can download to your computer and view. 
+When the process completes successfully, `indexed` shows as the status of the file. If the process fails, `failed` shows as the status. Errors are written to a `.error.log` file, which you can download to your computer and view. 
 
 [Learn about data file requirements for TSV Uploader]({{ site.baseurl }}/docs/data-file-requirements).
 
 ### Deleting Files from TSV Uploader
-To delete a data file, select *indexName* > *dataFileName* and click the trash can. 
+To delete a data file, select *indexName* **>** *dataFileName* and click the trash can. 
 
 To delete an index, select *indexName* and click the trash can.
 
@@ -74,6 +112,6 @@ Use IQL to run queries on the data you uploaded to your indexes. To launch IQL, 
 3. Enter the query.
 4. Select how you want to group your data. Groups show as rows in tabular data.
 5. Choose one or multiple metrics for your data. Metrics show as a columns in tabular data.
-6. Click **Run**.
+6. Run your query.
 
 [Learn more about using IQL]({{ site.baseurl }}/docs/overview).
