@@ -38,13 +38,13 @@ IQL is a query language for retrieving your data that is stored in Imhotep. To l
 | `TSV` and `CSV` allow you to download the query results as a tab-separated or comma-separated file. |
 | `Bash script` downloads a file for you to use to download query results from the command line. |
 | `Syntax guide` links to this documentation. |
-| `Pivot` allows you to summarize your data and change views. [Read more][pivot]. |
-| `Graph` allows you to present your data in a graph format. |
+| `Pivot` allows you to summarize your query results and change views. [Read more][pivot]. |
+| `Graph` allows you to present your query results in a graph format. |
 
 ###Sharing a Query
 To share a query with others, copy the URL line.
 
-###Running Multiple Queries at the Same Time
+###Running Multiple Queries Simultaneously
 To create a second query, click **+** to the right of the query. This action copies the contents of all cells in the new, second query. To clone a cell from the top row to the rows that follow, click the blue down arrow.
 
 [timerange]: {{ site.baseurl }}/docs/timerange

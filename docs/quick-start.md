@@ -15,16 +15,18 @@ NOTE: If you build your own version of Imhotep, you will use the s3imhotepBucket
 
 ###Setup
 Use AWS CloudFormation to create a stack on AWS.
-
-Point to the `imhotep-aws-config` script at the following URL to define the parameters of your Imhotep configuration:
-
-`http://imhotep-cloud-setup.s3.amazonaws.com/cloudFormation_cluster_launch.json`
-
-The script prompts you to define the following parameters:
+<ol>
+  <li>Sign in to the AWS Management Console. </li>
+  <li>Select **CloudFormation** and **Create Stack**.</li>
+  <li>From the **Select Template** page, enter the name of your new stack.</li>
+  <li>From this same page, in **Template**, select **Specify an Amazon S3 template URL** and enter this URL: 
+  `http://imhotep-cloud-setup.s3.amazonaws.com/cloudFormation_cluster_launch.json`</li>
+  <li>Click **Next** to define the following parameters:
+ <br><br></li>
 <table>
   <thead>
-    <th>Parameter</th>
-    <th>Description</th>
+  <th>Parameter</th>
+  <th>Description</th>
   </thead>
   <tbody>
   <tr>
@@ -74,7 +76,14 @@ The script prompts you to define the following parameters:
   </tbody>
 </table>
 
-When the setup is successful, URLs are available for the Imhotep TSV Uploader and IQL tools.  Imhotep TSV Uploader allows you to upload your data to Imhotep. [IQL allows you to run Imhotep queries.]({{ site.baseurl }}/docs/overview)
+  <li>Click **Next** through the remaining options of the setup script until you you see a review page with the options you defined.</li>
+  <li>Click **Create**. </li>
+  </ol>
+  
+The process might take several minutes. When the setup is successful, URLs are available on the **Outputs** tab for Imhotep TSV Uploader and IQL.
+
+* TSV Uploader allows you to upload your data to Imhotep. 
+* [IQL allows you to run Imhotep queries.]({{ site.baseurl }}/docs/overview)
 
 ## Imhotep TSV Uploader
 
@@ -94,6 +103,8 @@ The name of your new index appears in the list. When you first add the index, it
 NOTE: If you upload a TSV file to the wrong index, you must manually remove the shard with the index from Imhotep. [Learn how]({{ site.baseurl }}/docs/troubleshooting). 
 
 When the process completes successfully, `indexed` shows as the status of the file. If the process fails, `failed` shows as the status. Errors are written to a `.error.log` file, which you can download to your computer and view. 
+
+To download a data file to your computer, select *indexName* **>** *dataFileName* and click the download button in **Operations**. 
 
 [Learn about data file requirements for TSV Uploader]({{ site.baseurl }}/docs/data-file-requirements).
 
