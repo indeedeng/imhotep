@@ -43,23 +43,23 @@ Use AWS CloudFormation to create a stack on AWS.
   </tr>
   <tr>
     <td valign="top">`NumImhotepInstances`</td>
-    <td valign="top">By default, the setup script creates two Imhotep instances to handle failover.</td>
+    <td valign="top">By default, the setup script creates two Imhotep instances for scalability.</td>
   </tr>
   <tr>
     <td valign="top">`s3BuildBucket`</td>
-    <td valign="top">Contains your data from TSV Uploader.</td>
+    <td valign="top">Name of the bucket you created that contains your data from TSV Uploader.</td>
   </tr>
   <tr>
     <td valign="top">`s3cacheBucket`</td>
-    <td valign="top">Contains your cached results from IQL queries.</td>
+    <td valign="top">Name of the bucket you created that contains your cached results from IQL queries.</td>
   </tr>
   <tr>
     <td valign="top">`s3dataBucket`</td>
-    <td valign="top">Contains your Imhotep indexes.</td>
+    <td valign="top">Name of the bucket you created that contains your Imhotep indexes.</td>
   </tr>
   <tr>
     <td valign="top">`s3imhotepBucket`</td>
-    <td valign="top">Contains Imhotep jars.</td>
+    <td valign="top">The predefined bucket that contains Imhotep jars. Do not rename this parameter.</td>
   </tr>
   <tr>
     <td valign="top">`s3Key`</td>
