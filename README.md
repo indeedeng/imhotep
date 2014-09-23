@@ -12,13 +12,13 @@ Imhotep is a highly scalable analytics architecture that lets you do the followi
 See the [quick start page]({{ site.baseurl }}/docs/quick-start) for instructions. 
 
 ## Example
-See the [demo page](https://github.com/indeedeng/proctor-demo) for a reference implementation of Imhotep. CHANGE THIS EXISTING PROCTOR LINK to Imhotep demo
+Content TBD
  
 ## Documentation
 http://indeed.github.io/imhotep
 
 ## Discussion
-Ask and answer questions in our Q&A forum for Imhotep: NEED LINK HERE
+Content TBD
 
 ## See Also
 - http://pig.apache.org/
