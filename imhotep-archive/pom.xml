@@ -55,37 +55,6 @@
             </exclusions>
         </dependency>
 
-<!-- 	
-        <dependency>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-common</artifactId>
-            <version>2.0.0-cdh4.4.0</version>
-            <exclusions>
-                <exclusion>
-                    <artifactId>servlet-api</artifactId>
-                    <groupId>javax.servlet</groupId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-core</artifactId>
-            <version>2.0.0-mr1-cdh4.4.0</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-native</artifactId>
-            <version>2.0.0-cdh4.4.0</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>gpl-compressionn</artifactId>
-            <version>0.2.56</version>
-        </dependency>
- -->
 		<dependency>
 			<groupId>com.indeed</groupId>
 			<artifactId>util-io</artifactId>
