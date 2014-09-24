@@ -2065,6 +2065,8 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
         final Map<String, Long2ObjectMap<Pair<IntArrayList, IntArrayList>>> intFields = Maps.newHashMap();
         final Map<String, Map<String, Pair<IntArrayList, IntArrayList>>> stringFields = Maps.newHashMap();
         for (int i = 0; i < groups.length; i++) {
+            //if the last group(s) exist on other shards but not this one docIdToGroup.getNumGroups() is wrong
+            if (groups[i] >= groupToDelta.length) continue;
             final RegroupCondition condition = conditions[i];
             Pair<IntArrayList, IntArrayList> groupDeltas;
             if (condition.intType) {
