@@ -24,9 +24,9 @@
     </licenses>
 
     <scm>
-        <url>https://github.com/indeedeng/imhotep</url>
-        <connection>scm:git:https://github.com/indeedeng/imhotep.git</connection>
-        <developerConnection>scm:git:git@github.com:indeedeng/imhotep.git</developerConnection>
+        <url>https://eng-git.ausoff.indeed.net/opensource/imhotep</url>
+        <connection>scm:git:git@eng-git.ausoff.indeed.net:opensource/imhotep.git</connection>
+        <developerConnection>scm:git:git@eng-git.ausoff.indeed.net:opensource/imhotep.git</developerConnection>
     </scm>
 
   <build>
