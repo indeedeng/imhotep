@@ -4,12 +4,12 @@
     <parent>
         <groupId>com.indeed</groupId>
         <artifactId>imhotep</artifactId>
-        <version>1.0.3-SNAPSHOT</version>
+        <version>1.0.5-SNAPSHOT</version>
     </parent>
 
 	<groupId>com.indeed</groupId>
 	<artifactId>imhotep-client</artifactId>
-	<version>1.0.3-SNAPSHOT</version>
+	<version>1.0.5-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
 	<licenses>
@@ -112,17 +112,17 @@
 		<autoVersionSubmodules>true</autoVersionSubmodules>
 
 		<colt.version>1.2.0</colt.version>
-		<fastutil.version>6.5.15</fastutil.version>
+		<fastutil.version>6.2.2</fastutil.version>
 		<gnu-trove.version>3.0.3</gnu-trove.version>
 		<lucene.version>2.4.1</lucene.version>
 		<joda-time.version>2.0</joda-time.version>
 		<protobuf-java.version>2.4.1</protobuf-java.version>
-		<snakeyaml.version>1.13</snakeyaml.version>
-		<zookeeper.version>3.4.5</zookeeper.version>
+		<snakeyaml.version>1.10</snakeyaml.version>
+		<zookeeper.version>3.4.5-cdh4.4.0</zookeeper.version>
 
 		<!-- releases of our own projects to use -->
 		<!-- these should only be SNAPSHOTs when no release is available -->
-		<indeed-util.version>[1.0.9-SNAPSHOT,)</indeed-util.version>
+		<indeed-util.version>1.0.12</indeed-util.version>
 	</properties>
 
 </project>

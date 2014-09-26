@@ -3,13 +3,13 @@
 
     <parent>
         <groupId>com.indeed</groupId>
-        <artifactId>oss-parent</artifactId>
-        <version>11-internal</version>
+        <artifactId>proprietary-parent</artifactId>
+        <version>7</version>
     </parent>
 
     <groupId>com.indeed</groupId>
     <artifactId>imhotep</artifactId>
-    <version>1.0.3-SNAPSHOT</version>
+    <version>1.0.5-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>Imhotep Metapackage</name>
