@@ -1767,7 +1767,7 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
         } else if (statName.startsWith("ref ")) {
             final int depth = Integer.valueOf(statName.substring(4).trim());
             statLookup[numStats] = new DelegatingMetric(statLookup[numStats - depth - 1]);
-        } else if (isNonNeg32BitInteger(statName)) {
+        } else if (is32BitInteger(statName)) {
             final int constant = Integer.parseInt(statName); // guaranteed not
                                                              // to fail
             statLookup[numStats] = new Constant(constant);
@@ -1962,10 +1962,10 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
         return numStats;
     }
 
-    private static boolean isNonNeg32BitInteger(String s) {
+    private static boolean is32BitInteger(String s) {
         try {
-            final int i = Integer.parseInt(s);
-            return i >= 0;
+            Integer.parseInt(s);
+            return true;
         } catch (NumberFormatException e) {
             return false;
         }
