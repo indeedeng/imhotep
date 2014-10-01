@@ -63,6 +63,7 @@ import com.indeed.imhotep.metrics.LessThan;
 import com.indeed.imhotep.metrics.LessThanOrEqual;
 import com.indeed.imhotep.metrics.Log;
 import com.indeed.imhotep.metrics.Log1pExp;
+import com.indeed.imhotep.metrics.Logistic;
 import com.indeed.imhotep.metrics.Max;
 import com.indeed.imhotep.metrics.Min;
 import com.indeed.imhotep.metrics.Modulus;
@@ -1819,6 +1820,22 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
             final int scale = Integer.valueOf(statName.substring(9).trim());
             final IntValueLookup operand = popLookup();
             statLookup[numStats] = new Log1pExp(operand, scale);
+        } else if (statName.startsWith("logistic ")) {
+            final String[] params = statName.substring(9).split(" ");
+            if (params.length != 2) {
+                throw new IllegalArgumentException("logistic requires 2 arguments: "+statName);
+            }
+            final double scaleDown;
+            final double scaleUp;
+            try {
+                scaleDown = Double.parseDouble(params[0]);
+                scaleUp = Double.parseDouble(params[1]);
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("invalid scale factor for metric: "
+                        + statName, e);
+            }
+            final IntValueLookup operand = popLookup();
+            statLookup[numStats] = new Logistic(operand, scaleDown, scaleUp);
         } else if (statName.startsWith("lucene ")) {
             final String queryBase64 = statName.substring(7);
             final byte[] queryBytes = Base64.decodeBase64(queryBase64.getBytes());
