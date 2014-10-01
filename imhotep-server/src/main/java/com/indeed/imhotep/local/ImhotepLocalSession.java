@@ -53,7 +53,12 @@ import com.indeed.imhotep.metrics.Constant;
 import com.indeed.imhotep.metrics.Count;
 import com.indeed.imhotep.metrics.DelegatingMetric;
 import com.indeed.imhotep.metrics.Division;
+import com.indeed.imhotep.metrics.Equal;
 import com.indeed.imhotep.metrics.Exponential;
+import com.indeed.imhotep.metrics.GreaterThan;
+import com.indeed.imhotep.metrics.GreaterThanOrEqual;
+import com.indeed.imhotep.metrics.LessThan;
+import com.indeed.imhotep.metrics.LessThanOrEqual;
 import com.indeed.imhotep.metrics.Log;
 import com.indeed.imhotep.metrics.Log1pExp;
 import com.indeed.imhotep.metrics.Max;
@@ -61,6 +66,7 @@ import com.indeed.imhotep.metrics.Min;
 import com.indeed.imhotep.metrics.Modulus;
 import com.indeed.imhotep.metrics.Multiplication;
 import com.indeed.imhotep.metrics.MultiplyAndShiftRight;
+import com.indeed.imhotep.metrics.NotEqual;
 import com.indeed.imhotep.metrics.ShiftLeftAndDivide;
 import com.indeed.imhotep.metrics.Subtraction;
 import com.indeed.imhotep.service.CachedFlamdexReader;
@@ -1862,6 +1868,36 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
                 a = popLookup();
                 statLookup[numStats] = new Max(a, b);
                 break;
+            case EQ:
+                b = popLookup();
+                a = popLookup();
+                statLookup[numStats] = new Equal(a, b);
+                break;
+            case NE:
+                b = popLookup();
+                a = popLookup();
+                statLookup[numStats] = new NotEqual(a, b);
+                break;
+            case LT:
+                b = popLookup();
+                a = popLookup();
+                statLookup[numStats] = new LessThan(a, b);
+                break;
+            case LTE:
+                b = popLookup();
+                a = popLookup();
+                statLookup[numStats] = new LessThanOrEqual(a, b);
+                break;
+            case GT:
+                b = popLookup();
+                a = popLookup();
+                statLookup[numStats] = new GreaterThan(a, b);
+                break;
+            case GTE:
+                b = popLookup();
+                a = popLookup();
+                statLookup[numStats] = new GreaterThanOrEqual(a, b);
+                break;
             default:
                 throw new RuntimeException("this is a bug");
             }
@@ -2640,8 +2676,22 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     private static enum Metric {
-        COUNT("count()"), CACHED("cached()"), ADD("+"), SUBTRACT("-"), MULTIPLY("*"), DIVIDE("/"), MODULUS(
-                "%"), ABSOLUTE_VALUE("abs()"), MIN("min()"), MAX("max()");
+        COUNT("count()"),
+        CACHED("cached()"),
+        ADD("+"),
+        SUBTRACT("-"),
+        MULTIPLY("*"),
+        DIVIDE("/"),
+        MODULUS("%"),
+        ABSOLUTE_VALUE("abs()"),
+        MIN("min()"),
+        MAX("max()"),
+        EQ("=="),
+        NE("!="),
+        LT("<"),
+        LTE("<="),
+        GT(">"),
+        GTE(">=");
 
         private final String key;
 
