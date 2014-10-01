@@ -232,7 +232,7 @@ public class ImhotepClient implements Closeable {
         });
 
         final List<ShardIdWithVersion> chosenShards = Lists.newArrayList();
-        DateTime processedUpTo = new DateTime(0L);
+        DateTime processedUpTo = new DateTime(-2000000,1,1,0,0);  // 2M BC
 
         for(ShardTruncatedStart shard : shardsForTimeTruncated) {
             if(!shard.start.isBefore(processedUpTo)) {
