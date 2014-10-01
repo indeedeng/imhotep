@@ -10,6 +10,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Multimaps;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
@@ -45,6 +46,7 @@ import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.imhotep.group.ImhotepChooser;
+import com.indeed.imhotep.marshal.ImhotepDaemonMarshaller;
 import com.indeed.imhotep.metrics.AbsoluteValue;
 import com.indeed.imhotep.metrics.Addition;
 import com.indeed.imhotep.metrics.CachedInterleavedMetrics;
@@ -69,9 +71,11 @@ import com.indeed.imhotep.metrics.MultiplyAndShiftRight;
 import com.indeed.imhotep.metrics.NotEqual;
 import com.indeed.imhotep.metrics.ShiftLeftAndDivide;
 import com.indeed.imhotep.metrics.Subtraction;
+import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.service.CachedFlamdexReader;
 import com.indeed.imhotep.service.RawCachedFlamdexReader;
 import com.indeed.util.core.Pair;
+import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.core.threads.ThreadSafeBitSet;
@@ -80,6 +84,7 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
+import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 
@@ -1814,6 +1819,30 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
             final int scale = Integer.valueOf(statName.substring(9).trim());
             final IntValueLookup operand = popLookup();
             statLookup[numStats] = new Log1pExp(operand, scale);
+        } else if (statName.startsWith("lucene ")) {
+            final String queryBase64 = statName.substring(7);
+            final byte[] queryBytes = Base64.decodeBase64(queryBase64.getBytes());
+            final QueryMessage queryMessage;
+            try {
+                queryMessage = QueryMessage.parseFrom(queryBytes);
+            } catch (InvalidProtocolBufferException e) {
+                throw Throwables.propagate(e);
+            }
+            final Query query = ImhotepDaemonMarshaller.marshal(queryMessage);
+
+            final int bitSetMemory = (flamdexReader.getNumDocs() + 64) / 64 * 8;
+            memory.claimMemory(bitSetMemory);
+            try {
+                final FastBitSet bitSet = new FastBitSet(flamdexReader.getNumDocs());
+                final FastBitSetPooler bitSetPooler = new ImhotepBitSetPooler(memory);
+                final FlamdexSearcher searcher = new FlamdexSearcher(flamdexReader);
+                searcher.search(query, bitSet, bitSetPooler);
+                statLookup[numStats] = new com.indeed.flamdex.fieldcache.BitSetIntValueLookup(bitSet);
+            } catch (Throwable t) {
+                memory.releaseMemory(bitSetMemory);
+                if (t instanceof FlamdexOutOfMemoryException) throw new ImhotepOutOfMemoryException(t);
+                throw Throwables2.propagate(t, ImhotepOutOfMemoryException.class);
+            }
         } else if (Metric.getMetric(statName) != null) {
             final IntValueLookup a;
             final IntValueLookup b;
