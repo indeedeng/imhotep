@@ -2732,7 +2732,7 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
         ABSOLUTE_VALUE("abs()"),
         MIN("min()"),
         MAX("max()"),
-        EQ("=="),
+        EQ("="),
         NE("!="),
         LT("<"),
         LTE("<="),
