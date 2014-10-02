@@ -8,6 +8,11 @@ This section highlights errors you might encounter when you construct a query. T
 
 ##File Upload Errors
 
+###Files fail to upload
+Upload failures in TSV Uploader are marked as failed.
+
+Ensure that the bucket names you defined when you created the stack match the S3 bucket names you created prior to setup. For example, if the error log shows that TSV Uploader couldn’t upload the converted files to the S3 bucket, you might have entered the incorrect name for the **s3DataBucket** parameter during stack creation. In this case, you must recreate the stack.
+
 ###A TSV file was uploaded to the wrong index
 
 If a TSV file is indexed in the wrong index, you must delete the shard that contains the new index data:

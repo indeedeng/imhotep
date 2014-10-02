@@ -22,7 +22,7 @@ The following filters are available:
   <tr>
     <td valign="top">Field/term pairs</td>
     <td valign="top">field=term<br>field="term"<br>field:term<br>field!=term</td>
-    <td valign="top"> `country=greatbritain`<br>`field="great britain"`<br>`country:japan`<br>`country!=us` </td>
+    <td valign="top"> `country=greatbritain`<br>`country="great britain"`<br>`country:japan`<br>`country!=us` </td>
   </tr>
   <tr>
     <td valign="top">Regular expressions</td>

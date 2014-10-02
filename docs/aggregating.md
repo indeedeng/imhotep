@@ -4,7 +4,7 @@ title: Aggregating Results
 permalink: /docs/aggregating/
 ---
 
-Use the optional **group by** filter to group documents and retrieve aggregated stats. Separate each filter from another with a comma. If you leave this control empty, IQL places all documents into a single group and returns one row.
+Use the optional **group by** filter to group documents and retrieve aggregated stats. Separate each filter from another with a comma. If you leave this control empty, the IQL web app places all documents into a single group and returns one row.
 
 The following filters are available:
 <table>

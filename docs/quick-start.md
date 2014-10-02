@@ -47,15 +47,15 @@ Use AWS CloudFormation to create a stack on AWS.
   </tr>
   <tr>
     <td valign="top">`s3BuildBucket`</td>
-    <td valign="top">Name of the bucket you created that contains your data from TSV Uploader.</td>
+    <td valign="top">Name of the bucket you created for your data from TSV Uploader. Ensure that the name you enter matches the name of the build bucket you created.</td>
   </tr>
   <tr>
     <td valign="top">`s3cacheBucket`</td>
-    <td valign="top">Name of the bucket you created that contains your cached results from IQL queries.</td>
+    <td valign="top">Name of the bucket you created for your cached results from IQL queries. Ensure that the name you enter matches the name of the cache bucket you created.</td>
   </tr>
   <tr>
     <td valign="top">`s3dataBucket`</td>
-    <td valign="top">Name of the bucket you created that contains your Imhotep indexes.</td>
+    <td valign="top">Name of the bucket you created for your Imhotep indexes. Ensure that the name you enter matches the name of the data bucket you created.</td>
   </tr>
   <tr>
     <td valign="top">`s3imhotepBucket`</td>
@@ -80,10 +80,10 @@ Use AWS CloudFormation to create a stack on AWS.
   <li>Click **Create**. </li>
   </ol>
   
-The process might take several minutes. When the setup is successful, URLs are available on the **Outputs** tab for Imhotep TSV Uploader and IQL.
+The process might take several minutes. When the setup is successful, URLs are available on the **Outputs** tab for Imhotep TSV Uploader and IQLWeb.
 
 * TSV Uploader allows you to upload your data to Imhotep. 
-* [IQL allows you to run Imhotep queries.]({{ site.baseurl }}/docs/overview)
+* [IQLWeb is an app that allows you to query the Imhotep backend cluster using IQL queries.]({{ site.baseurl }}/docs/overview)
 
 ## Imhotep TSV Uploader
 
@@ -115,14 +115,14 @@ To delete an index, select *indexName* and click the trash can.
 
 NOTE: Deleting a data file or index from TSV Uploader does not delete the index from Imhotep. TSV Uploader shows the list of data files for two weeks after a file's upload date.
 
-##Imhotep Query Language
-Use IQL to run queries on the data you uploaded to your indexes. To launch IQL, open a browser and navigate to the TSV Uploader URL provided from the AWS configuration. Constructing an IQL query follows these general steps:
+##IQLWeb
+Use IQLWeb to query the Imhotep backend cluster using Imhotep query language (IQL). To launch IQLWeb, open a browser and navigate to the IQL URL provided from the AWS configuration. Constructing an IQL query follows these general steps:
 
 1. Formulate your question.
 2. Select your index and the date range.
 3. Enter the query.
 4. Select how you want to group your data. Groups show as rows in tabular data.
-5. Choose one or multiple metrics for your data. Metrics show as a columns in tabular data.
+5. Choose one or multiple metrics for your data. Metrics show as columns in tabular data.
 6. Run your query.
 
-[Learn more about using IQL]({{ site.baseurl }}/docs/overview).
+[Learn more about using IQLWeb]({{ site.baseurl }}/docs/overview).
