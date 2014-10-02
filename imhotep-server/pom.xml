@@ -63,7 +63,7 @@
 		<dependency>
 			<groupId>com.indeed</groupId>
 			<artifactId>lsmtree-core</artifactId>
-			<version>1.0.3-internal-20140806175017</version>
+			<version>1.0.4</version>
 		</dependency>
 
 		<dependency>
