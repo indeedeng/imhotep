@@ -46,7 +46,7 @@ Adding the `*` suffix to the field name in the header also indexes that field in
   <tr>
     <td valign="top">query*</td>
     <td valign="top">"project manager"</td>
-    <td valign="top">query:"project manager"<br>querytoken:"project"<br>querytoken:"manager"</td>
+    <td valign="top">query:"project manager"<br>querytok:"project"<br>querytok:"manager"</td>
   </tr>
  
 </table>
@@ -63,7 +63,7 @@ Adding the `**` suffix to the field name in the header also indexes that field i
   <tr>
     <td valign="top">query**</td>
     <td valign="top">"senior project manager"</td>
-    <td valign="top">query:"senior project manager"<br>querytoken:"senior"<br>querytoken:"project"<br>querytoken:"manager"<br>querybigram:"senior project"<br>querybigram:"project manager"</td>
+    <td valign="top">query:"senior project manager"<br>querytok:"senior"<br>querytok:"project"<br>querytok:"manager"<br>querybigram:"senior project"<br>querybigram:"project manager"</td>
   </tr> 
 </table>
 
