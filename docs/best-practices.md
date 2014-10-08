@@ -11,19 +11,19 @@ Start small and then ramp up to the required range if performance is sufficient.
 
 | Use |  Do not use |
 | ------ | --------|
-| `timerange 1h today` | `timerange 180d today` |
+| `1h today` |  `180d today` |
 
 ####Determine the actual number of expected groups
 If you think your query will return a large number of groups, run a DISTINCT query to return the actual number of expected groups before grouping your data:
 
-`timerange 1h today select distinct(accountid)`
+`1h today select distinct(accountid)`
 
 If the number of expected groups is a value that your system can handle, run the **group by** query:
 
-`timerange 1h today group by accountid`
+`1h today group by accountid`
 
-####Make the largest grouping the last
-If ascending order on all columns from left to right is not necessary, try making the largest grouping the last grouping and make it non-exploded by adding square brackets to the field name. This allows the result to be streamed instead of stored in memory.
+####Make the largest group the last
+If ascending order on all columns from left to right is not necessary, try making the largest group the last grouping and make it non-exploded by adding square brackets to the field name. This allows the result to be streamed instead of stored in memory.
 <table>
   <tr>
     <th>Use</th>

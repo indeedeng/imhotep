@@ -34,7 +34,7 @@ The following filters are available:
   <tr>
     <td valign="top">distinct()</td>
     <td valign="top">distinct(field)</td>
-    <td valign="top">`distinct(country)` returns a count of distinct terms for the country in each grouping.</td>
+    <td valign="top">`distinct(country)` returns a count of distinct terms for the country field in each grouping.</td>
   </tr>
   <tr>
     <td valign="top">percentile()</td>

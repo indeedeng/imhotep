@@ -4,12 +4,12 @@ title: Aggregating Results
 permalink: /docs/aggregating/
 ---
 
-Use the optional **group by** filter to group documents and retrieve aggregated stats. Separate each filter from another with a comma. If you leave this control empty, the IQL web app places all documents into a single group and returns one row.
+Use the optional **group by** clause to group documents and retrieve aggregated stats. Separate each group definition from another with a comma. Unlike SQL, if you leave this control empty, the IQL web client places all documents into a single group and returns one row.
 
-The following filters are available:
+The following group definitions are available:
 <table>
   <tr>
-    <th>Filter</th>
+    <th>Group Definition</th>
     <th>Syntax</th>
     <th>Examples</th>
   </tr>
@@ -31,7 +31,7 @@ The following filters are available:
 <tr>
     <td valign="top">Group your data into buckets by ranges you define. <br><br>This construction automatically determines the size of the buckets and is useful for graphs. <br><br>The values for min, min2, max, max2, interval and interval2 are numbers. </td>
     <td valign="top">buckets(metric, min, max, interval</td>
-    <td valign="top">`buckets(accountbalance, 10, 100, 20)`</td>
+    <td valign="top">`buckets(accountbalance, 0, 100, 20)`</td>
   </tr>
 <tr>
     <td valign="top">For multiple group-bys with buckets, include all bucket definitions in one statement.</td>
@@ -49,7 +49,7 @@ The following filters are available:
     <td valign="top">`time(3b)` groups data into 3 buckets, each of which includes data from one-third of the given time range.</td>
   </tr>
 <tr>
-    <td valign="top">IN construction for including more than one term. Using the IN construction in the **group by** filter is the same as using the IN construction in the **where** filter and then grouping by field name.</td>
+    <td valign="top">IN construction for including more than one term. Using the IN construction in the **group by** clause is the same as using the IN construction in the **where** filter and then grouping by field name.</td>
     <td valign="top">field in (term,term)<br>field in ("term",term) <br>field not in (term,term) </td>
     <td valign="top">`country in (canada,us)` <br>`country in ("great britain",deutschland)` <br>`country not in (france,canada)` </td>
   </tr>

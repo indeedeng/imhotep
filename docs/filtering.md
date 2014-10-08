@@ -1,7 +1,7 @@
 ---
 layout: default
-title: Limiting the Query
-permalink: /docs/limiting/
+title: Filtering the Query
+permalink: /docs/filtering/
 ---
 
 Use the optional **where** filter to limit the query to only those documents that match the criteria you specify. Fields that are available are appropriate to the index you selected in **from**. 
@@ -32,7 +32,7 @@ The following filters are available:
   <tr>
     <td valign="top">Metric/integer pairs</td>
    <td valign="top">metric=integer<br>metric!=integer<br>metric<integer<br>metric<=integer<br>metric>integer<br>metric>=integer</td>
-    <td valign="top">`count=100`</td>
+    <td valign="top">`clicks+applies>5`</td>
   </tr>
   <tr>
     <td valign="top">IN construction for including more than one term. </td>

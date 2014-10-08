@@ -4,7 +4,9 @@ title: Data File Requirements
 permalink: /docs/data-file-requirements/
 ---
 
-Create tab-separated data files to upload to your index. Each data file must follow requirements for field and header names and for field values. If you use gzip to compress your TSV file, you must use the `.tsv.gz` extension.
+Create data files to upload to your index. Each data file must follow requirements for field and header names and for field values. If you use gzip to compress your TSV file, you must use the `.tsv.gz` extension.
+
+TSV Uploader supports parsing both TSV and CSV data files. If your files use the CSV file format, prepare the files to conform to the OpenCSV library’s default settings. OpenCSV uses \ (backslash) as the escape character.
 
 ## Filenames
 
@@ -25,7 +27,7 @@ If you include a prefix or suffix in the filename, do not use integers. For exam
 
 #### The first line of your file represents the header that defines fields in the resulting index 
 
-Use field names that match regex [A-Za-z_]+. 
+Use field names that match regex [A-Za-z_][A-Za-z0-9_]* 
 
 
 #### time or unixtime field names
@@ -74,10 +76,10 @@ Adding the `**` suffix to the field name in the header also indexes that field i
 
 Do not use quotations around field values. Ensure that you remove tabs and newlines from your values.
 
-####Imhotep has 2 data types: string and integer(long)
+####Imhotep has two data types: string and integer(long)
 For Imhotep to treat a field’s value as an integer, at least 90% of the values must be integers or blanks, and at least 20% of the total values must be valid integers.
 
-Once a field is indexed as an integer, it is always an integer.
+Once set, a field's type must remain consistent. That is, once a field is indexed as an integer, the field must remain an integer. Likewise, if a field is indexed as a string, the field must remain a string. If a field's type is not the same in every shard for that index, data for one or the other type will not be accessible through IQL.
 
 #### Floating-point values become strings
 

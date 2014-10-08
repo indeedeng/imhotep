@@ -4,14 +4,12 @@ title: Quick Start
 permalink: /docs/quick-start/
 ---
 
-This section guides you through the process of configuring an AWS stack and uploading your data to a web app that allows you to access your data in Imhotep using Imhotep Query Language (IQL).
+This section guides you through the process of configuring an Imhotep cluster on AWS, uploading your data, and accessing your data in Imhotep using Imhotep Query Language (IQL).
 
-##AWS Configuration
+##Creating a Cluster on AWS
 
 ###Prerequisites
 You must have an AWS account and three S3 buckets for data storage. For this configuration, you will use AWS CloudFormation, Amazon S3 and Amazon EC2.
-
-NOTE: If you build your own version of Imhotep, you will use the s3imhotepBucket for the Imhotep executables.
 
 ###Setup
 Use AWS CloudFormation to create a stack on AWS.
@@ -31,15 +29,15 @@ Use AWS CloudFormation to create a stack on AWS.
   <tbody>
   <tr>
     <td valign="top">`InstanceType`</td>
-    <td valign="top">Defines the memory, CPU, storage capacity, and hourly cost for the Imhotep instance. <br>Valid values:<br> `m3.xlarge`<br>`m3.2xlarge`<br>`c3.2xlarge`<br>`c3.4xlarge`<br>`c3.8xlarge`<br>`r3.large`<br>`r3.xlarge`<br>`r3.2xlarge`<br>`r3.4xlarge`<br>`r3.8xlarge`</td>
+    <td valign="top">Defines the memory, CPU, storage capacity, and hourly cost for the Imhotep instance. Valid values:<br> `m3.xlarge`<br>`m3.2xlarge`<br>`c3.2xlarge`<br>`c3.4xlarge`<br>`c3.8xlarge`<br>`r3.large`<br>`r3.xlarge`<br>`r3.2xlarge`<br>`r3.4xlarge`<br>`r3.8xlarge`</td>
   </tr>
   <tr>
     <td valign="top">`IPrange`</td>
-     <td valign="top">IP address range for access to Imhotep. The range must be a valid IP CIDR range of the form `x.x.x.x/x`</td>
+     <td valign="top">IP address range for web access to Imhotep. The range must be a valid IP CIDR range of the form `x.x.x.x/x`</td>
   </tr>
   <tr>
     <td valign="top">`KeyName`</td>
-    <td valign="top">Name of an existing EC2 key pair to enable SSH access to the Imhotep instances.</td>
+    <td valign="top">Name of an existing EC2 key pair to enable SSH access to the cluster.</td>
   </tr>
   <tr>
     <td valign="top">`NumImhotepInstances`</td>
@@ -59,19 +57,19 @@ Use AWS CloudFormation to create a stack on AWS.
   </tr>
   <tr>
     <td valign="top">`s3imhotepBucket`</td>
-    <td valign="top">The predefined bucket that contains Imhotep jars. Do not rename this parameter.</td>
+    <td valign="top">The predefined bucket that contains Imhotep jars. Do not rename this parameter (unless you are building your own Imhotep images).</td>
   </tr>
   <tr>
     <td valign="top">`s3Key`</td>
-    <td valign="top">Key for bucket access.</td>
+    <td valign="top">You key for bucket access.</td>
   </tr>
   <tr>
     <td valign="top">`s3Secret`</td>
-    <td valign="top">Key used with the s3Key for bucket access.</td>
+    <td valign="top">Your S3 secret to use with the s3Key for bucket access.</td>
   </tr>
   <tr>
     <td valign="top">`SSHLocation`</td>
-    <td valign="top">IP address range for SSH access to Imhotep EC2 instances. The range must be a valid IP CIDR range of the form `x.x.x.x/x`</td>
+    <td valign="top">IP address range for SSH access to the cluster. The range must be a valid IP CIDR range of the form `x.x.x.x/x`</td>
   </tr>
   </tbody>
 </table>
@@ -83,14 +81,16 @@ Use AWS CloudFormation to create a stack on AWS.
 The process might take several minutes. When the setup is successful, URLs are available on the **Outputs** tab for Imhotep TSV Uploader and IQLWeb.
 
 * TSV Uploader allows you to upload your data to Imhotep. 
-* [IQLWeb is an app that allows you to query the Imhotep backend cluster using IQL queries.]({{ site.baseurl }}/docs/overview)
+* IQLWeb allows you to query the Imhotep cluster using the Imhotep Query Language (IQL). [Learn about IQL.]({{ site.baseurl }}/docs/overview)
 
 ## Imhotep TSV Uploader
 
 Use TSV Uploader to make your data available in Imhotep. TSV Uploader converts the TSV files into indexes that Imhotep can use and moves the indexes to the correct location so that Imhotep can access them. 
 
+[Learn about data file requirements for TSV Uploader]({{ site.baseurl }}/docs/data-file-requirements).
+
 ### Creating an Index
-1. Open a browser and navigate to the Imhotep TSV Uploader URL provided from the AWS configuration. A list of indexes that are available in the system appears on the left side of the page. 
+1. Open a browser and navigate to the Imhotep TSV Uploader URL provided when you created the stack on AWS. A list of indexes that are available in the system appears on the left side of the page. 
 2. Scroll to the bottom of this list and enter a name for your new index in the text entry box. Use lowercase characters matching regex [a-z0-9]+ for your index name.
 3. Click **+** to create the index.
 
@@ -106,7 +106,6 @@ When the process completes successfully, `indexed` shows as the status of the fi
 
 To download a data file to your computer, select *indexName* **>** *dataFileName* and click the download button in **Operations**. 
 
-[Learn about data file requirements for TSV Uploader]({{ site.baseurl }}/docs/data-file-requirements).
 
 ### Deleting Files from TSV Uploader
 To delete a data file, select *indexName* **>** *dataFileName* and click the trash can. 
@@ -116,7 +115,7 @@ To delete an index, select *indexName* and click the trash can.
 NOTE: Deleting a data file or index from TSV Uploader does not delete the index from Imhotep. TSV Uploader shows the list of data files for two weeks after a file's upload date.
 
 ##IQLWeb
-Use IQLWeb to query the Imhotep backend cluster using Imhotep query language (IQL). To launch IQLWeb, open a browser and navigate to the IQL URL provided from the AWS configuration. Constructing an IQL query follows these general steps:
+Use IQLWeb to query the Imhotep cluster using Imhotep query language (IQL). To launch IQLWeb, open a browser and navigate to the IQL URL provided when you created the cluster on AWS. Constructing an IQL query follows these general steps:
 
 1. Formulate your question.
 2. Select your index and the date range.

@@ -6,7 +6,7 @@ permalink: /docs/overview/
 
 Data requests use IQL, a query language based on the SQL standard. You’ll use IQLWeb to specify data requests. The web app is a single page interface with a query editor at the top of the page. Each IQL query produces a results table below the editor.
 
-To launch IQLWeb, open a browser and navigate to the IQL URL provided from the AWS configuration. The query editor includes the following controls:
+To launch IQLWeb, open a browser and navigate to the IQL URL provided when you created the cluster on AWS. The query editor includes the following controls:
 <table>
   <tr>
     <th>Control</th>
@@ -20,7 +20,7 @@ To launch IQLWeb, open a browser and navigate to the IQL URL provided from the A
     <td valign="top">The required time range filter. [Read more][timerange]. </td>
   <tr>
     <td valign="top">`where`</td>
-    <td valign="top">Specifies which documents to include in the query. Fields that are available are appropriate to the index you selected in from. If you leave this control empty, IQL considers all documents. [Read more][limiting].  </td>
+    <td valign="top">Specifies which documents to include in the query. Fields that are available are appropriate to the index you selected in from. If you leave this control empty, IQL considers all documents. [Read more][filtering].  </td>
   <tr>
     <td valign="top">`group by`</td>
     <td valign="top">Specifies how to group the documents so that you can retrieve aggregated stats. If you leave this control empty, IQLWeb places all documents into a single group. [Read more][aggregating]. </td>
@@ -71,7 +71,7 @@ NOTE: Multiple queries should produce a result set that is consistent (has the s
 
 
 [timerange]: {{ site.baseurl }}/docs/timerange
-[limiting]: {{ site.baseurl }}/docs/limiting
+[filtering]: {{ site.baseurl }}/docs/filtering
 [aggregating]: {{ site.baseurl }}/docs/aggregating
 [metrics]: {{ site.baseurl }}/docs/metrics
 [pivot]: {{ site.baseurl }}/docs/pivot
