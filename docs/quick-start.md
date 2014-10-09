@@ -29,7 +29,7 @@ Use AWS CloudFormation to create a stack on AWS.
   <tbody>
   <tr>
     <td valign="top">`InstanceType`</td>
-    <td valign="top">Defines the memory, CPU, storage capacity, and hourly cost for the Imhotep instance. Valid values:<br> `m3.xlarge`<br>`m3.2xlarge`<br>`c3.2xlarge`<br>`c3.4xlarge`<br>`c3.8xlarge`<br>`r3.large`<br>`r3.xlarge`<br>`r3.2xlarge`<br>`r3.4xlarge`<br>`r3.8xlarge`</td>
+    <td valign="top">Defines the memory, CPU, storage capacity, and hourly cost for the Imhotep instance. Valid values include:<br> `m3.xlarge`<br>`m3.2xlarge`<br>`c3.2xlarge`<br>`c3.4xlarge`<br>`c3.8xlarge`<br>`r3.large`<br>`r3.xlarge`<br>`r3.2xlarge`<br>`r3.4xlarge`<br>`r3.8xlarge`</td>
   </tr>
   <tr>
     <td valign="top">`IPrange`</td>
@@ -61,7 +61,7 @@ Use AWS CloudFormation to create a stack on AWS.
   </tr>
   <tr>
     <td valign="top">`s3Key`</td>
-    <td valign="top">You key for bucket access.</td>
+    <td valign="top">Your key for bucket access.</td>
   </tr>
   <tr>
     <td valign="top">`s3Secret`</td>
@@ -74,18 +74,18 @@ Use AWS CloudFormation to create a stack on AWS.
   </tbody>
 </table>
 
-  <li>Click **Next** through the remaining options of the setup script until you you see a review page with the options you defined.</li>
+  <li>Click **Next** through the remaining options of the setup script until you see a review page with the options you defined.</li>
   <li>Click **Create**. </li>
   </ol>
   
-The process might take several minutes. When the setup is successful, URLs are available on the **Outputs** tab for Imhotep TSV Uploader and IQLWeb.
+The process might take several minutes. When the setup is successful, URLs are available on the **Outputs** tab for Imhotep TSV Uploader and the IQL web client.
 
 * TSV Uploader allows you to upload your data to Imhotep. 
-* IQLWeb allows you to query the Imhotep cluster using the Imhotep Query Language (IQL). [Learn about IQL.]({{ site.baseurl }}/docs/overview)
+* The IQL web client allows you to query the Imhotep cluster using IQL queries. [Learn about IQL.]({{ site.baseurl }}/docs/overview)
 
 ## Imhotep TSV Uploader
 
-Use TSV Uploader to make your data available in Imhotep. TSV Uploader converts the TSV files into indexes that Imhotep can use and moves the indexes to the correct location so that Imhotep can access them. 
+Use TSV Uploader to make your data available in Imhotep. TSV Uploader converts your data files into indexes that Imhotep can use and moves the indexes to the correct location so that Imhotep can access them. 
 
 [Learn about data file requirements for TSV Uploader]({{ site.baseurl }}/docs/data-file-requirements).
 
@@ -100,9 +100,9 @@ The name of your new index appears in the list. When you first add the index, it
 1. In Imhotep TSV Uploader, click the index name.
 2. In the search field near the top of the page, click **Upload TSV** and browse to the TSV file that contains your index data. Repeat this step to upload additional data files to your index. To upload multiple files at one time, with the index name selected, drag and drop the files to the TSV Uploader window.
 
-NOTE: If you upload a TSV file to the wrong index, you must manually remove the shard with the index from Imhotep. [Learn how]({{ site.baseurl }}/docs/troubleshooting). 
+NOTE: If you upload a TSV file to the wrong index, you must manually remove the shard that contains the index from Imhotep. [Learn how]({{ site.baseurl }}/docs/troubleshooting). 
 
-When the process completes successfully, `indexed` shows as the status of the file. If the process fails, `failed` shows as the status. Errors are written to a `.error.log` file, which you can download to your computer and view. 
+When the process completes successfully, `indexed` shows as the status of the file. If the process fails, `failed` shows as the status. Errors are written to a `.error.log` file, which you can download to your computer. 
 
 To download a data file to your computer, select *indexName* **>** *dataFileName* and click the download button in **Operations**. 
 
@@ -114,8 +114,8 @@ To delete an index, select *indexName* and click the trash can.
 
 NOTE: Deleting a data file or index from TSV Uploader does not delete the index from Imhotep. TSV Uploader shows the list of data files for two weeks after a file's upload date.
 
-##IQLWeb
-Use IQLWeb to query the Imhotep cluster using Imhotep query language (IQL). To launch IQLWeb, open a browser and navigate to the IQL URL provided when you created the cluster on AWS. Constructing an IQL query follows these general steps:
+##IQL Web Client
+Use the IQL web client to query the Imhotep cluster using Imhotep query language (IQL). To launch the client, open a browser and navigate to the IQL URL provided when you created the cluster on AWS. Constructing an IQL query follows these general steps:
 
 1. Formulate your question.
 2. Select your index and the date range.
@@ -124,4 +124,4 @@ Use IQLWeb to query the Imhotep cluster using Imhotep query language (IQL). To l
 5. Choose one or multiple metrics for your data. Metrics show as columns in tabular data.
 6. Run your query.
 
-[Learn more about using IQLWeb]({{ site.baseurl }}/docs/overview).
+[Learn more about using the IQL web client]({{ site.baseurl }}/docs/overview).

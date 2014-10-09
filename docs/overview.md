@@ -4,17 +4,13 @@ title: Overview
 permalink: /docs/overview/
 ---
 
-Data requests use IQL, a query language based on the SQL standard. You’ll use IQLWeb to specify data requests. The web app is a single page interface with a query editor at the top of the page. Each IQL query produces a results table below the editor.
+Data requests use IQL, a query language based on the SQL standard. You’ll use the IQL web client to specify data requests. The client is a single page interface with a query editor at the top of the page. Each IQL query produces a results table below the editor.
 
-To launch IQLWeb, open a browser and navigate to the IQL URL provided when you created the cluster on AWS. The query editor includes the following controls:
+To launch the IQL web client, open a browser and navigate to the IQL URL provided when you created the cluster on AWS. The query editor includes the following controls:
 <table>
-  <tr>
-    <th>Control</th>
-    <th>Description</th>
-  </tr>
-  <tr>
+   <tr>
     <td valign="top">`from`</td>
-    <td valign="top">The name of the index you created in Imhotep TSV Uploader. You cannot edit the list of indexes in IQLWeb. </td>
+    <td valign="top">The name of the index you created in Imhotep TSV Uploader. You cannot edit the list of indexes in the client. </td>
   <tr>
     <td valign="top">`timerange`</td>
     <td valign="top">The required time range filter. [Read more][timerange]. </td>
@@ -23,10 +19,10 @@ To launch IQLWeb, open a browser and navigate to the IQL URL provided when you c
     <td valign="top">Specifies which documents to include in the query. Fields that are available are appropriate to the index you selected in from. If you leave this control empty, IQL considers all documents. [Read more][filtering].  </td>
   <tr>
     <td valign="top">`group by`</td>
-    <td valign="top">Specifies how to group the documents so that you can retrieve aggregated stats. If you leave this control empty, IQLWeb places all documents into a single group. [Read more][aggregating]. </td>
+    <td valign="top">Specifies how to group the documents so that you can retrieve aggregated stats. If you leave this control empty, the client places all documents into a single group. [Read more][aggregating]. </td>
   <tr>
     <td valign="top">`select`</td>
-    <td valign="top">Specifies the metrics to compute for each aggregated group. If you leave this control empty, IQLWeb returns a count of all documents in each group. [Read more][metrics].</td>
+    <td valign="top">Specifies the metrics to compute for each aggregated group. If you leave this control empty, the client returns a count of all documents in each group. [Read more][metrics].</td>
   <tr>
     <td valign="top">`Settings > Row limit`</td>
     <td valign="top">Specifies the maximum number of rows to return. When you run any query, all rows are computed and cached, even if you specify a row limit. This means that specifying a row limit has no effect on the load the query places on the backend.</td>
@@ -47,26 +43,14 @@ To launch IQLWeb, open a browser and navigate to the IQL URL provided when you c
 To share a query with others, copy the URL line.
 
 ###Running Multiple Queries Simultaneously
-IQLWeb can implicitly join multiple result tables from multiple IQL queries. This feature allows you to see data from multiple indexes and time ranges or filtered in different ways at one time.
+The IQL web client can implicitly join multiple result tables from multiple IQL queries. This feature allows you to see data from multiple indexes and time ranges or filtered in different ways at one time.
 
-By default, IQLWeb shows a single row for a single IQL query. To specify an additional query in a new row, click **+** to the right of the query. This action copies the contents of all cells from the original query in the new query. 
+By default, the client shows a single row for a single IQL query. To specify an additional query in a new row, click **+** to the right of the query. This action copies the contents of all cells from the original query in the new query. 
 
 To clone a cell from the top row to the rows that follow, click the blue down arrow. Cloning a cell is useful if you want to keep some cell values in multiple queries synchronized: change the value of the top cell and click the arrow, instead of manually editing each query.
 
-NOTE: Multiple queries should produce a result set that is consistent (has the same columns) and can be joined meaningfully. To run an independent query, open a new IQLWeb window. To quickly clone a page, press Alt+D, Alt+Enter.
+NOTE: Multiple queries should produce a result set that is consistent (has the same columns) and can be joined meaningfully. To run an independent query, open a new client window. To quickly clone a page, press Alt+D, Alt+Enter. [Click for more shortcuts][shortcuts].
 
-###Keyboard Shortcuts
-| | |
-| ---- | ----- |
-| Enter | Executes the current query set when one of the query elements is in focus. |
-| Ctrl+Enter | Executes the current query set regardless of where the focus is. |
-| Left / Right / Ctrl+Left / Ctrl+Right  | Moves the cursor inside and between the query part text boxes as if it was a single long text box. |
-| Ctrl+Up / Ctrl+Down | Moves the cursor vertically between queries while staying in the same query part column. |
-| Ctrl+C / Ctrl+V  | With no text selected, allows you to copy or paste the complete query from/to all the text boxes in that query line. |
-| Ctrl+Shift+V | Allows you to paste a value that looks like a query (for example, starts with 'from' or 'select') but shouldn't be treated as one.  |
-| Escape | If open, hides the autocomplete list. |
-| Ctrl+Space | If closed, opens the autocomplete list. |
-| Alt+D, Alt+Enter | Clones the current page in a new browser tab. |
 
 
 
@@ -75,3 +59,4 @@ NOTE: Multiple queries should produce a result set that is consistent (has the s
 [aggregating]: {{ site.baseurl }}/docs/aggregating
 [metrics]: {{ site.baseurl }}/docs/metrics
 [pivot]: {{ site.baseurl }}/docs/pivot
+[shortcuts]: {{ site.baseurl }}/docs/shortcuts

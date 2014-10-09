@@ -4,9 +4,9 @@ title: Data File Requirements
 permalink: /docs/data-file-requirements/
 ---
 
-Create data files to upload to your index. Each data file must follow requirements for field and header names and for field values. If you use gzip to compress your TSV file, you must use the `.tsv.gz` extension.
+Each data file you create to upload to your index must follow requirements for field and header names and for field values. If you use gzip to compress your TSV file, you must use the `.tsv.gz` extension.
 
-TSV Uploader supports parsing both TSV and CSV data files. If your files use the CSV file format, prepare the files to conform to the OpenCSV library’s default settings. OpenCSV uses \ (backslash) as the escape character.
+TSV Uploader supports parsing files that use either the TSV or CSV file format. If your files use the CSV file format, prepare the files to conform to the default settings for the OpenCSV library. OpenCSV uses \ (backslash) as the escape character.
 
 ## Filenames
 
@@ -19,9 +19,9 @@ TSV Uploader supports parsing both TSV and CSV data files. If your files use the
 | yyyyMMdd.HH-yyyyMMdd.HH | `20131201.00-20131201.03.tsv` | The file contains data for the first 3 hours of the day.  |
 
 
-#### Do not use digits in an arbitrary prefix or suffix 
+#### Do not use digits in an optional and arbitrary prefix or suffix 
 
-If you include a prefix or suffix in the filename, do not use integers. For example, the builder ignores the prefix and suffix in the `QA_report_20131021_combined.tsv` filename. 
+For example, the `QA_report_20131021_combined.tsv` filename includes an optional prefix and suffix that the builder correctly ignores. 
 
 ## Field Headers
 

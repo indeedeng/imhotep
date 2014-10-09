@@ -18,18 +18,18 @@ The following filters are available:
   </tr>
   <tr>
     <td valign="top">Simple metric name</td>
-    <td valign="top">DESCRIBE indexName</td>
-    <td valign="top"></td>
+    <td valign="top">metric</td>
+    <td valign="top">`revenue`</td>
   </tr>
   <tr>
-    <td valign="top">Arithmetic expression of two metrics (+, -, *, %) executed on each document. The divide operation (/) is executed in aggregate after everything else is computed. If you require a per document divide, use a reverse slash (/). </td>
-    <td valign="top"></td>
-    <td valign="top"></td>
+    <td valign="top">Arithmetic expression of two metrics (+, -, *, %) executed on each document. <br>The divide operation (/) is executed in aggregate after everything else is computed. If you require a per document divide, use a reverse slash (\\). </td>
+    <td valign="top">metric+metric<br>metric\-metric<br>metric\*metric<br>metric/metric</td>
+    <td valign="top">`clicks/impressions`<br>`revenue-expenses`</td>
   </tr>
   <tr>
     <td valign="top">Function calls</td>
-    <td valign="top">count()<br>cached(metric...)<br>exp(...)<br>dynamic(metric…)<br>hasstr(field, term)<br>hasstr(“field:term”)<br>hasint(field, term)<br>hasint(“field:term”)<br></td>
-    <td valign="top"></td>
+    <td valign="top">count()<br>cached(metric...)<br>exp(...)<br>dynamic(metric…)<br>field="term"<br>floatscale(...)</td>
+    <td valign="top">`count()` returns the number of documents in the group. Each document has an implicit value of 1.</td>
   </tr>
   <tr>
     <td valign="top">distinct()</td>

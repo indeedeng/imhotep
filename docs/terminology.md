@@ -14,7 +14,7 @@ A collection of data related to one entity, such as a person or company. A docum
 A component of your index that contains a single attribute of the index. A field is similar to a column in a database table. In IQL, you select a field in **where**, **group by** and **select**.
 
 ###index
-A datastructure that improves data processing and retrieval times. An index is similar to a database table. In IQL, you select the index in **from**.
+A data structure that improves data processing and retrieval times. An index is similar to a database table. In IQL, you select the index in **from**.
 
 ###metric
 Data in a field that you can measure. 

@@ -4,7 +4,7 @@ title: Troubleshooting
 permalink: /docs/troubleshooting/
 ---
 
-This section highlights errors you might encounter when you construct a query. To avoid overloading the tool, read about [performance considerations and best practices][best-practices].
+This section highlights errors you might encounter when you construct a query. 
 
 ##File Upload Errors
 
@@ -34,3 +34,52 @@ You entered invalid text after a field name. Review the query syntax to ensure t
 One of the fields has a typo.
 
 [best-practices]: {{ site.baseurl }}/docs/best-practices
+
+##Slow Queries
+
+If your queries are extremely slow, you must have a lot of data. Here are some tips for handling queries on large datasets.
+
+####Add Imhotep machines to the cluster
+Recreate the stack to increase the value of `NumImhotepInstances`.
+
+####Test on a small time range
+Start small and then ramp up to the required range if performance is sufficient. 
+
+| Use |  Do not use |
+| ------ | --------|
+| `1h today` |  `180d today` |
+
+####Determine the actual number of expected groups
+If you think your query will return a large number of groups, run a DISTINCT query to return the actual number of expected groups before grouping your data:
+
+`1h today select distinct(accountid)`
+
+If the number of expected groups is a value that your system can handle, run the **group by** query:
+
+`1h today group by accountid`
+
+####Make the largest group the last
+If ascending order on all columns from left to right is not necessary, try making the largest group the last grouping and make it non-exploded by adding square brackets to the field name. This allows the result to be streamed instead of stored in memory.
+<table>
+  <tr>
+    <th>Use</th>
+    <th>Do not use</th>
+  </tr>
+  <tr>
+    <td valign="top">`group by country, q[]`</td>
+    <td valign="top"> `group by country, q`<br>
+`group by q, country[]` <br>
+`group by q[500000], country[50]` |</td>
+  </tr>
+</table>
+
+
+
+The `group by q[500000], country[50]` is especially problematic because IQL can’t verify in advance how many terms will be returned. If the requested number is too high, IQL uses too much memory and requires time to recover.
+
+####Avoid using DISTINCT for large queries
+Don’t use distinct() as a metric with a large amount of data if you are using the **group by** filter with a large amount of data. 
+
+#### RAM and performance
+The number of data IQL can handle depends to a large extent on the amount of RAM allocated to IQL.
+
