@@ -20,22 +20,22 @@ The following group definitions are available:
   </tr>
   <tr>
     <td valign="top">Limit the number of groups (top/bottom K).</td>
-    <td valign="top">field[number] <br> field[bottomNumber by metric]</td>
+    <td valign="top">field[number] <br> field[bottom number by metric]</td>
     <td valign="top">`country[5]` returns the top 5 countries by count.<br>`country[bottom 5 by clicks]` specifies the metric by which to order and uses the bottom countries instead of the top.</td>
   </tr>
   <tr>
     <td valign="top">Exclude results for fields in which the count() of documents in the group equals 0.</td>
     <td valign="top">field[]</td>
-    <td valign="top">`country[]` returns results for all countries with metrics that are not zero.<br> `country, group[]` returns results for groups that exist in each country.<br> `country, group` returns a full cross product of countries and groups, including groups for countries where the group is not present and all metrics are 0.</td>
+    <td valign="top"> `country, group[]` returns results for groups that exist in each country.<br> `country, group` returns a full cross product of countries and groups, including groups for countries where the group is not present and all metrics are 0.</td>
   </tr>
 <tr>
-    <td valign="top">Group your data into buckets by ranges you define. For multiple group-bys with buckets, include all bucket definitions in one statement. This construction automatically determines the size of the buckets. <br><br>The values for min, min2, max, max2, interval and interval2 are numbers.<br><br>You must define buckets() or time() as the first grouping. The time() call cannot be defined inside buckets().
+    <td valign="top">Group your data into buckets by ranges you define. For multiple group-bys with buckets, include all bucket definitions in one statement. This construction automatically determines the size of the buckets. <br><br>The values for min, min2, max, max2, interval and interval2 are numbers.<br><br>If you define multiple groups, buckets() or time() must be the first grouping. The time() call cannot be defined inside buckets().
  </td>
     <td valign="top">buckets(metric, min, max, interval)<br><br>buckets(metricX, min, max, interval metricY, min2, max2, interval2)</td>
     <td valign="top">`buckets(accountbalance, 0, 100, 20)`</td>
   </tr>
 <tr>
-    <td valign="top">Group your data into time buckets. The bucket size uses the same syntax as the relative values for the start and end values in the **timerange** filter. For example: Nd or Ndays. [Read more][timerange].</td>
+    <td valign="top">Group your data into time buckets. The bucket size uses the same syntax as the relative values for the start and end values in the **timerange** filter. For example: Nd or Ndays. [Read more about relative values][timerange].</td>
     <td valign="top">time(bucketSize)</td>
     <td valign="top">`time(1h)` groups data into buckets, each of which includes data from 1 hour.</td>
   </tr>

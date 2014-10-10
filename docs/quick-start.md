@@ -65,7 +65,7 @@ Use AWS CloudFormation to create a stack on AWS.
   </tr>
   <tr>
     <td valign="top">`s3Secret`</td>
-    <td valign="top">Your S3 secret to use with the s3Key for bucket access.</td>
+    <td valign="top">Your S3 secret to use with the S3 key for bucket access.</td>
   </tr>
   <tr>
     <td valign="top">`SSHLocation`</td>

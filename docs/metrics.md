@@ -23,13 +23,13 @@ The following filters are available:
   </tr>
   <tr>
     <td valign="top">Arithmetic expression of two metrics (+, -, *, %) executed on each document. <br>The divide operation (/) is executed in aggregate after everything else is computed. If you require a per document divide, use a reverse slash (\\). </td>
-    <td valign="top">metric+metric<br>metric\-metric<br>metric\*metric<br>metric/metric</td>
+    <td valign="top">metric+metric<br>metric\-metric<br>metric\*metric<br>metric%metric<br>metric/metric</td>
     <td valign="top">`clicks/impressions`<br>`revenue-expenses`</td>
   </tr>
   <tr>
     <td valign="top">Function calls</td>
-    <td valign="top">count()<br>cached(metric...)<br>exp(...)<br>dynamic(metric…)<br>field="term"<br>floatscale(...)</td>
-    <td valign="top">`count()` returns the number of documents in the group. Each document has an implicit value of 1.</td>
+    <td valign="top">count()<br>cached(metric...)<br>exp(...)<br>dynamic(metric…)<br>field="term"<br>field=integer<br>floatscale(...)</td>
+    <td valign="top">`count()` returns the number of documents in the group. Each document has an implicit value of 1.<br>`clicks=1`</td>
   </tr>
   <tr>
     <td valign="top">distinct()</td>
@@ -38,7 +38,7 @@ The following filters are available:
   </tr>
   <tr>
     <td valign="top">percentile()</td>
-    <td valign="top">percentile(field, N)</td>
+    <td valign="top">percentile(field,&nbsp;N)</td>
     <td valign="top">`percentile(totaltime, 50)` returns the median value of `totaltime`.</td>
   </tr>
 </table>
