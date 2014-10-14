@@ -40,7 +40,7 @@ One of the fields has a typo.
 If your queries are extremely slow, you must have a lot of data. Here are some tips for handling queries on large datasets.
 
 ####Add Imhotep machines to the cluster
-Recreate the stack to increase the value of `NumImhotepInstances`.
+Recreate the stack to increase the value of `NumImhotepInstances`. If you have already uploaded data into your S3 buckets, ensure that you point to the same S3 buckets when you recreate the stack. You don't need to upload your data again.
 
 ####Test on a small time range
 Start small and then ramp up to the required range if performance is sufficient. 
@@ -69,7 +69,7 @@ If ascending order on all columns from left to right is not necessary, try makin
     <td valign="top">`group by country, city[]`</td>
     <td valign="top"> `group by country, city`<br>
 `group by city, country[]` <br>
-`group by city[500000], country[50]` |</td>
+`group by city[500000], country[50]` </td>
   </tr>
 </table>
 

@@ -6,13 +6,13 @@ Imhotep is a highly scalable analytics architecture that lets you do the followi
 
 - Combine results from multiple datasets
 - Perform ad hoc queries and large group-bys and aggregates for real-time analytics
-- Automate your data tools
+- Build your own data tools - analytics and monitoring apps, dashboards and scripting shells - on top of the Imhotep platform and automate those tools
 
 ## Getting Started
 See the [quick start page]({{ site.baseurl }}/docs/quick-start) for instructions. 
 
 ## Example
-Content TBD
+Browse to our sample dataset loaded on an Imhotep cluster. 
  
 ## Documentation
 http://indeed.github.io/imhotep
