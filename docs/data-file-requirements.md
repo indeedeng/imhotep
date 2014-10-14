@@ -21,13 +21,13 @@ TSV Uploader supports parsing files that use either the TSV or CSV file format. 
 
 #### Do not use digits in an optional and arbitrary prefix or suffix 
 
-For example, the `QA_report_20131021_combined.tsv` filename includes an optional prefix and suffix that the builder correctly ignores. 
+For example, the `QA_report_20141013_parts1_2.tsv` filename is invalid because it includes digits in the suffix. In contrast, the builder correctly ignores the optional prefix and suffix in the  `QA_report_20141013_combined.tsv` filename.
 
 ## Field Headers
 
 #### The first line of your file represents the header that defines fields in the resulting index 
 
-Use field names that match regex [A-Za-z_][A-Za-z0-9_]* 
+Use field names that contain uppercase `A-Z`, lowercase `a-z`, digits, or `_` (underscore). A field name cannot start with a digit.
 
 
 #### time or unixtime field names
@@ -36,7 +36,7 @@ If the field name is time or unixtime, the builder parses that field’s values 
 
 #### Field names with the * suffix
 
-Adding the `*` suffix to the field name in the header also indexes that field in a tokenized version. 
+Adding the `*` suffix to the field name in the header also indexes a tokenized version of that field. 
 
 
 <table>
@@ -55,7 +55,7 @@ Adding the `*` suffix to the field name in the header also indexes that field in
 
 #### Field names with the ** suffix
 
-Adding the `**` suffix to the field name in the header also indexes that field in a bigram version. 
+Adding the `**` suffix to the field name in the header also indexes bigrams from the field value. 
 <table>
   <tr>
     <th>Field Name</th>
@@ -91,7 +91,7 @@ Floating-point values like 1.0 or 1.5 are not supported as integers and are trea
   </tr>
   <tr>
     <td valign="top">Round the values.</td>
-    <td valign="top">`1.0 => 1.5`<br>`1.5 => 1`</td>
+    <td valign="top">`1.0 => 1`<br>`1.5 => 2`</td>
    </tr> 
   <tr>
     <td valign="top">Multiply all values by a decimal constant.</td>

@@ -66,16 +66,16 @@ If ascending order on all columns from left to right is not necessary, try makin
     <th>Do not use</th>
   </tr>
   <tr>
-    <td valign="top">`group by country, q[]`</td>
-    <td valign="top"> `group by country, q`<br>
-`group by q, country[]` <br>
-`group by q[500000], country[50]` |</td>
+    <td valign="top">`group by country, city[]`</td>
+    <td valign="top"> `group by country, city`<br>
+`group by city, country[]` <br>
+`group by city[500000], country[50]` |</td>
   </tr>
 </table>
 
 
 
-The `group by q[500000], country[50]` is especially problematic because IQL can’t verify in advance how many terms will be returned. If the requested number is too high, IQL uses too much memory and requires time to recover.
+The `group by city[500000], country[50]` is especially problematic because IQL can’t verify in advance how many terms will be returned. If the requested number is too high, IQL uses too much memory and requires time to recover.
 
 ####Avoid using DISTINCT for large queries
 Don’t use distinct() as a metric with a large amount of data if you are using the **group by** filter with a large amount of data. 

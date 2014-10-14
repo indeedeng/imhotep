@@ -4,12 +4,18 @@ title: Quick Start
 permalink: /docs/quick-start/
 ---
 
-This section guides you through the process of configuring an Imhotep cluster on AWS, uploading your data, and accessing your data in Imhotep using Imhotep Query Language (IQL).
+This section guides you through the process of configuring an Imhotep cluster on AWS, uploading your data files, and exploring your data in Imhotep using Imhotep Query Language (IQL).
 
 ##Creating a Cluster on AWS
 
 ###Prerequisites
-You must have an AWS account and three S3 buckets for data storage. For this configuration, you will use AWS CloudFormation, Amazon S3 and Amazon EC2.
+You must have an AWS account. For this configuration, you will use AWS CloudFormation, Amazon S3 and Amazon EC2.
+
+Before you create an AWS CloudFormation stack, create three S3 buckets for data storage:
+
+- a build bucket to store your uploaded data
+- a cache bucket to cache results of Imhotep queries
+- a data bucket to store your Imhotep indexes
 
 ###Setup
 Use AWS CloudFormation to create a stack on AWS.
@@ -41,7 +47,7 @@ Use AWS CloudFormation to create a stack on AWS.
   </tr>
   <tr>
     <td valign="top">`NumImhotepInstances`</td>
-    <td valign="top">By default, the setup script creates two Imhotep instances for scalability.</td>
+    <td valign="top">Number of Imhotep instances in the cluster that service queries. The default value is 2. Increase this number for greater scalability.</td>
   </tr>
   <tr>
     <td valign="top">`s3BuildBucket`</td>
@@ -91,7 +97,7 @@ Use TSV Uploader to make your data available in Imhotep. TSV Uploader converts y
 
 ### Creating an Index
 1. Open a browser and navigate to the Imhotep TSV Uploader URL provided when you created the stack on AWS. A list of indexes that are available in the system appears on the left side of the page. 
-2. Scroll to the bottom of this list and enter a name for your new index in the text entry box. Use lowercase characters matching regex [a-z0-9]+ for your index name.
+2. Scroll to the bottom of this list and enter a name for your new index in the text entry box. The index name must be at least two characters long and can contain only lowercase `a-z` and digits.
 3. Click **+** to create the index.
 
 The name of your new index appears in the list. When you first add the index, it is empty until you upload a data file. An index is not created on Imhotep until you upload a data file and a shard is created.

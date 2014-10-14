@@ -18,7 +18,7 @@ Content TBD
 http://indeed.github.io/imhotep
 
 ## Discussion
-Content TBD
+Ask and answer questions in our Q&A forum for Imhotep: [indeedeng-imhotep-users](https://groups.google.com/forum/#!forum/indeedeng-imhotep-users)
 
 ## See Also
 - http://pig.apache.org/
