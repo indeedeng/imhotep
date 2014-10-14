@@ -36,4 +36,9 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
     public int regroup(final GroupMultiRemapRule[] rawRules) throws ImhotepOutOfMemoryException {
         return regroup(rawRules, false);
     }
+
+    @Override
+    public int metricRegroup(int stat, long min, long max, long intervalSize) throws ImhotepOutOfMemoryException {
+        return metricRegroup(stat, min, max, intervalSize, false);
+    }
 }

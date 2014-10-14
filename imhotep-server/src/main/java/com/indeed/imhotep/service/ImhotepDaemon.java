@@ -366,7 +366,8 @@ public class ImhotepDaemon {
                                     protoRequest.getXStat(),
                                     protoRequest.getXMin(),
                                     protoRequest.getXMax(),
-                                    protoRequest.getXIntervalSize()
+                                    protoRequest.getXIntervalSize(),
+                                    protoRequest.getNoGutters()
                             );
                             responseBuilder.setNumGroups(numGroups);
                             sendResponse(responseBuilder.build(), os);

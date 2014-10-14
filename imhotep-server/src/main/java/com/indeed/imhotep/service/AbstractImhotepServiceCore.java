@@ -325,10 +325,10 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
     }
 
     @Override
-    public int handleMetricRegroup(String sessionId, final int stat, final long min, final long max, final long intervalSize) throws ImhotepOutOfMemoryException {
+    public int handleMetricRegroup(String sessionId, final int stat, final long min, final long max, final long intervalSize, final boolean noGutters) throws ImhotepOutOfMemoryException {
         return doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Integer, ImhotepOutOfMemoryException>() {
             public Integer apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
-                return session.metricRegroup(stat, min, max, intervalSize);
+                return session.metricRegroup(stat, min, max, intervalSize, noGutters);
             }
         });
     }

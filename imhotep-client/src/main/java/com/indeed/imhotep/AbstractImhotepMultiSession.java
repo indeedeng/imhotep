@@ -252,11 +252,11 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
     }
 
     @Override
-    public int metricRegroup(final int stat, final long min, final long max, final long intervalSize) throws ImhotepOutOfMemoryException {
+    public int metricRegroup(final int stat, final long min, final long max, final long intervalSize, final boolean noGutters) throws ImhotepOutOfMemoryException {
         executeMemoryException(integerBuf, new ThrowingFunction<ImhotepSession, Integer>() {
             @Override
             public Integer apply(ImhotepSession session) throws Exception {
-                return session.metricRegroup(stat, min, max, intervalSize);
+                return session.metricRegroup(stat, min, max, intervalSize, noGutters);
             }
         });
 

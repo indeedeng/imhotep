@@ -1461,7 +1461,7 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     @Override
-    public synchronized int metricRegroup(int stat, long min, long max, long intervalSize) throws ImhotepOutOfMemoryException {
+    public synchronized int metricRegroup(int stat, long min, long max, long intervalSize, boolean noGutters) throws ImhotepOutOfMemoryException {
         clearZeroDocBitsets();
         if (stat < 0 || stat >= statLookup.length) {
             throw new IllegalArgumentException("invalid stat index: " + stat
@@ -1469,7 +1469,8 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
         }
 
         final int numBuckets = (int) (((max - 1) - min) / intervalSize + 1);
-        docIdToGroup = GroupLookupFactory.resize(docIdToGroup, numBuckets + 2, memory);
+        final int newMaxGroup = (docIdToGroup.getNumGroups()-1)*(noGutters ? numBuckets : numBuckets+2);
+        docIdToGroup = GroupLookupFactory.resize(docIdToGroup, newMaxGroup, memory);
 
         final IntValueLookup lookup = statLookup[stat];
 
@@ -1483,6 +1484,7 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
             int numNonZero = 0;
             for (int i = 0; i < n; ++i) {
                 if (docGroupBuffer[i] != 0) {
+                    docGroupBuffer[numNonZero] = docGroupBuffer[i];
                     docIdBuf[numNonZero++] = doc + i;
                 }
             }
@@ -1493,17 +1495,10 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
 
             lookup.lookup(docIdBuf, valBuf, numNonZero);
 
-            for (int i = 0; i < numNonZero; ++i) {
-                final int group;
-                final long val = valBuf[i];
-                if (val < min) {
-                    group = numBuckets + 1;
-                } else if (val >= max) {
-                    group = numBuckets + 2;
-                } else {
-                    group = (int) ((val - min) / intervalSize + 1);
-                }
-                docGroupBuffer[i] = group;
+            if (noGutters) {
+                internalMetricRegroupNoGutters(min, max, intervalSize, numBuckets, numNonZero);
+            } else {
+                internalMetricRegroupGutters(min, max, intervalSize, numBuckets, numNonZero);
             }
 
             docIdToGroup.batchSet(docIdBuf, docGroupBuffer, numNonZero);
@@ -1512,6 +1507,35 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
         finalizeRegroup();
 
         return docIdToGroup.getNumGroups();
+    }
+
+    private void internalMetricRegroupGutters(long min, long max, long intervalSize, int numBuckets, int numNonZero) {
+        for (int i = 0; i < numNonZero; ++i) {
+            final int group;
+            final long val = valBuf[i];
+            if (val < min) {
+                group = numBuckets + 1;
+            } else if (val >= max) {
+                group = numBuckets + 2;
+            } else {
+                group = (int) ((val - min) / intervalSize + 1);
+            }
+            docGroupBuffer[i] = (docGroupBuffer[i] - 1) * (numBuckets + 2) + group;
+        }
+    }
+
+    private void internalMetricRegroupNoGutters(long min, long max, long intervalSize, int numBuckets, int numNonZero) {
+        for (int i = 0; i < numNonZero; ++i) {
+            final long val = valBuf[i];
+            if (val < min) {
+                docGroupBuffer[i] = 0;
+            } else if (val >= max) {
+                docGroupBuffer[i] = 0;
+            } else {
+                final int group = (int) ((val - min) / intervalSize + 1);
+                docGroupBuffer[i] = (docGroupBuffer[i]-1)*numBuckets+group;
+            }
+        }
     }
 
     @Override

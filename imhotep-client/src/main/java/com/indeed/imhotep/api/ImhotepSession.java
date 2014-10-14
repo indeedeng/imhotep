@@ -211,6 +211,8 @@ public interface ImhotepSession extends Closeable {
 
     int metricRegroup(int stat, long min, long max, long intervalSize) throws ImhotepOutOfMemoryException;
 
+    int metricRegroup(int stat, long min, long max, long intervalSize, boolean noGutters) throws ImhotepOutOfMemoryException;
+
     int metricRegroup2D(int xStat, long xMin, long xMax, long xIntervalSize,
                         int yStat, long yMin, long yMax, long yIntervalSize) throws ImhotepOutOfMemoryException;
 

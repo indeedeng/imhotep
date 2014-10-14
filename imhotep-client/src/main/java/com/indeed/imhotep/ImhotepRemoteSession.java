@@ -521,13 +521,14 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
     }
 
     @Override
-    public int metricRegroup(int stat, long min, long max, long intervalSize) throws ImhotepOutOfMemoryException {
+    public int metricRegroup(int stat, long min, long max, long intervalSize, boolean noGutters) throws ImhotepOutOfMemoryException {
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.METRIC_REGROUP)
                 .setSessionId(sessionId)
                 .setXStat(stat)
                 .setXMin(min)
                 .setXMax(max)
                 .setXIntervalSize(intervalSize)
+                .setNoGutters(noGutters)
                 .build();
 
         try {

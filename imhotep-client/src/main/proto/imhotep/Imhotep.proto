@@ -216,6 +216,9 @@ message ImhotepRequest {
   //for ftgs subset calls
   repeated IntFieldAndTerms intFieldsToTerms = 47;
   repeated StringFieldAndTerms stringFieldsToTerms = 48;
+
+  //for metric regroup with no gutters
+  optional bool no_gutters = 49;
 }
 
 message ImhotepResponse {
