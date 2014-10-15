@@ -35,7 +35,7 @@ To launch the IQL web client, open a browser and navigate to the IQL URL provide
 | ---- | ----- |
 | `TSV` and `CSV` allow you to download the query results as a tab-separated or comma-separated file. |
 | `Bash script` downloads a file for you to use to download query results from the command line. |
-| `Syntax guide` links to this documentation. |
+| `Help` links to this documentation. |
 | `Pivot` allows you to summarize your query results and change views. [Read more][pivot]. |
 | `Graph` allows you to present your query results in a graph format. |
 
