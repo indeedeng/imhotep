@@ -245,7 +245,7 @@ class MultiRegroupInternals {
                     final int currentGroup = newLookup.get(docId);
                     if (placeHolderGroup > 0) {
                         if (currentGroup != placeHolderGroup) {
-                            throw new IllegalArgumentException("Hey!!! Don't do that!");
+                            throw new IllegalArgumentException("Regrouping on a multi-valued field doesn't work correctly so the operation is rejected.");
                         }
                     }
                     newLookup.set(docId, Math.min(currentGroup, remappings[oldGroup]));
