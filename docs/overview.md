@@ -49,7 +49,7 @@ By default, the client shows a single row for a single IQL query. To specify an 
 
 To clone a cell from the top row to the rows that follow, click the blue down arrow. Cloning a cell is useful if you want to keep some cell values in multiple queries synchronized: change the value of the top cell and click the arrow, instead of manually editing each query.
 
-NOTE: Multiple queries should produce a result set that is consistent (has the same columns) and can be joined meaningfully. To run an independent query, open a new client window. To quickly clone a page, press Alt+D, Alt+Enter. [Click for more shortcuts][shortcuts].
+NOTE: Multiple queries should produce a result set that is consistent (has the same columns) and can be joined meaningfully. To run an independent query, open a new client window. 
 
 
 

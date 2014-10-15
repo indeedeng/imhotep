@@ -80,6 +80,6 @@ The `group by city[500000], country[50]` is especially problematic because IQL c
 ####Avoid using DISTINCT for large queries
 Don’t use distinct() as a metric with a large amount of data if you are using the **group by** filter with a large amount of data. 
 
-#### RAM and performance
-The number of data IQL can handle depends to a large extent on the amount of RAM allocated to IQL.
+#### Heap memory size
+The number of rows IQL can return on non-streaming queries depends on the heap size allocated to IQL.
 
