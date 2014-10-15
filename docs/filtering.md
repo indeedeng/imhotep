@@ -22,7 +22,7 @@ The following filters are available:
   <tr>
     <td valign="top">Field/term pairs</td>
     <td valign="top">field=term<br>field="term"<br>field:term<br>field!=term</td>
-    <td valign="top"> `country=greatbritain`<br>`country="great britain"`<br>`country:japan`<br>`country!=us` </td>
+    <td valign="top"> `country=greatbritain`<br>`country="great britain"`<br>`country:japan`<br>`country!=us` <br><br>`location:""` returns the queries with an empty value for the string field `location`</td>
   </tr>
   <tr>
     <td valign="top">Regular expressions<br>IQL uses [Java 7 Pattern syntax](http://docs.oracle.com/javase/7/docs/api/java/util/regex/Pattern.html)</td>
