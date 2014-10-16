@@ -28,6 +28,7 @@ To launch the IQL web client, open a browser and navigate to the IQL URL provide
     <td valign="top">The maximum number of rows to return. When you run any query, all rows are computed and cached, even if you specify a row limit. This means that specifying a row limit has no effect on the load the query places on the backend.</td>
 </table>
 
+As you construct your query, an autocomplete list shows available fields.
 
 ###Additional options
 
