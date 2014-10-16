@@ -52,7 +52,7 @@ The following filters are available:
    <tr>
     <td valign="top">The sample() function allows you to retain a portion of the documents. The sampling denominator is 100 if you don't specify a value. <br><br>By default, rerunning the query retrieves a different set of documents. Provide a consistent value for the randomSeed parameter to retrieve the same documents when you rerun the query.</td>
     <td valign="top">sample(field, samplingRatioNumerator, [samplingRatioDenominator=100])<br><br>sample(field, samplingRatioNumerator, [samplingRatioDenominator=100], [randomSeed])</td>
-    <td valign="top">`sample(accountid, 1)` returns 1% of account IDs. `sample(accountid, 1, 1000)` returns .1% of account IDs.</td>
+    <td valign="top">`sample(accountid, 1)` returns 1% of account IDs.<br> `sample(accountid, 1, 1000)` returns .1% of account IDs.</td>
   </tr>
 </table>
 
