@@ -6,7 +6,9 @@ permalink: /docs/data-file-requirements/
 
 Each data file you create to upload to your index must follow requirements for field and header names and for field values. If you use gzip to compress your TSV file, you must use the `.tsv.gz` extension.
 
-TSV Uploader supports parsing files that use either the TSV or CSV file format. If your files use the CSV file format, prepare the files to conform to the default settings for the [OpenCSV library](http://opencsv.sourceforge.net/apidocs/constant-values.html#au.com.bytecode.opencsv.CSVParser.DEFAULT_STRICT_QUOTES). OpenCSV uses \ (backslash) as the escape character.
+TSV Uploader supports parsing files that use either the TSV or CSV file format. 
+
+*CSV Only:* If your files use the CSV file format, prepare the files to conform to the default settings for the [OpenCSV library](http://opencsv.sourceforge.net/apidocs/constant-values.html#au.com.bytecode.opencsv.CSVParser.DEFAULT_STRICT_QUOTES). OpenCSV uses \ (backslash) as the escape character.
 
 ## Filenames
 
@@ -74,7 +76,9 @@ Adding the `**` suffix to the field name in the header also indexes bigrams from
 
 #### Prepare the values in your data file
 
-Do not use quotations around field values. Ensure that you remove tabs and newlines from your values.
+Ensure that you remove tabs and newlines from your values.
+
+*CSV Only:* Do not use quotations around field values. 
 
 ####Imhotep has two data types: string and integer(long)
 For Imhotep to treat a field’s value as an integer, at least 90% of the values must be integers or blanks, and at least 20% of the total values must be valid integers.

@@ -8,6 +8,9 @@ This section highlights errors you might encounter when you construct a query.
 
 ##File Upload Errors
 
+###I don't see my index in the client
+Try clearing the cache if you don't see your new index in the IQL web client.
+
 ###Files fail to upload
 Upload failures in TSV Uploader are marked as failed.
 
