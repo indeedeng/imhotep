@@ -8,7 +8,10 @@ Use the optional **where** filter to limit the query to only those documents tha
 
 Use these rules when constructing the **where** statement:
 
-- Separate filters by a space or `and`. The **where** filter does not support `or`.
+- Join separate filters with the default and optional AND operator or a space. For example, the following two **where** statements are identical: <br><br>
+  * `country=us and language=en`
+  * `country=us language=en`
+- You cannot join separate filters with the OR operator.
 - To negate a filter, precede the definition with `-` (minus sign).
 - If you leave this control empty, IQL considers all documents. 
 
@@ -21,8 +24,8 @@ The following filters are available:
   </tr>
   <tr>
     <td valign="top">Field/term pairs</td>
-    <td valign="top">field=term<br>field="term"<br>field:term<br>field!=term</td>
-    <td valign="top"> `country=greatbritain`<br>`country="great britain"`<br>`country:japan`<br>`country!=us` <br><br>`location:""` returns the queries with an empty value for the string field `location`</td>
+    <td valign="top">field=term<br>field="term"<br>field:term<br>field!=term<br>field:""</td>
+    <td valign="top"> `country=greatbritain`<br>`country="great britain"`<br>`country:japan`<br>`country!=us` <br>`location:""` returns the queries with an empty value for the string field `location`.</td>
   </tr>
   <tr>
     <td valign="top">Regular expressions<br>IQL uses [Java 7 Pattern syntax](http://docs.oracle.com/javase/7/docs/api/java/util/regex/Pattern.html)</td>
@@ -35,7 +38,7 @@ The following filters are available:
     <td valign="top">`clicks+impressions>5`</td>
   </tr>
   <tr>
-    <td valign="top">IN construction for including more than one term.</td>
+    <td valign="top">IN construction for including more than one term</td>
     <td valign="top">field in (term,term)<br>field in ("term",term) <br>field not in (term,term)</td>
     <td valign="top">`country in (greatbritain,france)`<br>`country in ("great britain",france)`<br>`country not in (canada,us,germany)`</td>
   </tr>
