@@ -9,13 +9,18 @@ This section guides you through the process of configuring an Imhotep cluster on
 ##Creating a Cluster on AWS
 
 ###Prerequisites
-You must have an AWS account. For this configuration, you will use AWS CloudFormation, Amazon S3 and Amazon EC2.
+You will use AWS CloudFormation, Amazon S3 and Amazon EC2 to create your Imhotep cluster on AWS.
 
-Before you create an AWS CloudFormation stack, create three S3 buckets for data storage:
+<ol>
+  <li>If you don't already have an AWS account, create one. Allow time for your new account to be verified before you attempt to create the stack. Account verification might take several hours.</li>
+  <li>Create three S3 buckets for data storage:</li>
+<ul>
+<li>a build bucket to store your uploaded data</li>
+<li>a cache bucket to cache results of Imhotep queries</li>
+<li>a data bucket to store your Imhotep indexes</li>
+</ul>
+</ol>
 
-- a build bucket to store your uploaded data
-- a cache bucket to cache results of Imhotep queries
-- a data bucket to store your Imhotep indexes
 
 ###Setup
 Use AWS CloudFormation to create a stack on AWS.
