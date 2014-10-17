@@ -27,9 +27,17 @@ The following filters are available:
     <td valign="top">`clicks/impressions`<br>`revenue-expenses`</td>
   </tr>
   <tr>
-    <td valign="top">Function calls</td>
-    <td valign="top">count()<br>cached(metric...)<br>exp(...)<br>dynamic(metric…)<br>field="term"<br>field=integer<br>floatscale(...)</td>
-    <td valign="top">`count()` returns the number of documents in the group. Each document has an implicit value of 1.<br>`country="us"`<br>`clicks=1`</td>
+    <td valign="top">Function calls:
+    <ul>
+       <li>count() returns the number of documents in the group. Each document has an implicit value or 1.</li>
+       <li>exp(...) applies the Math.exp() function to the specified metric. The scalingFactor defaults to 1.  </li>
+       <li>field="term" and field=integer return the number of documents with the defined field value.</li>
+       <li>floatscale(...) converts floating point numbers stored in strings to scaled integers.</li>
+     </ul>
+       
+</td>
+    <td valign="top">count()<br>exp(metric,scalingFactor)<br>field="term"<br>field=integer<br>floatscale(field,scale,offset)</td>
+    <td valign="top">`count()` <br>`country="us"` returns the number of documents with a value of `us` for `country`. <br>`clicks=1` returns the number of documents with a value of `1` for `clicks`.<br>`floatscale(float,10,5)` multiplies each value in `float` by 10 and then adds 5 to each product.</td>
   </tr>
   <tr>
     <td valign="top">distinct()</td>
