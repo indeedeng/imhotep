@@ -12,11 +12,5 @@ Because IQL allows you to join multiple result tables from multiple IQL queries,
 
 NOTE: Multiple queries should produce a result set that is consistent (has the same columns) and can be joined meaningfully.
 
-This section walks you through sample queries using a public dataset.
-
-##Sample Dataset
-
-##Sample Queries	
-
-
+Check back for sample queries you can run on a public dataset.
 

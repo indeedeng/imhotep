@@ -29,7 +29,7 @@ The following filters are available:
   <tr>
     <td valign="top">Function calls</td>
     <td valign="top">count()<br>cached(metric...)<br>exp(...)<br>dynamic(metric…)<br>field="term"<br>field=integer<br>floatscale(...)</td>
-    <td valign="top">`count()` returns the number of documents in the group. Each document has an implicit value of 1.<br>`clicks=1`</td>
+    <td valign="top">`count()` returns the number of documents in the group. Each document has an implicit value of 1.<br>`country="us"`<br>`clicks=1`</td>
   </tr>
   <tr>
     <td valign="top">distinct()</td>
