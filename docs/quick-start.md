@@ -10,15 +10,15 @@ This section guides you through the process of configuring an Imhotep cluster on
 
 ###Prerequisites
 You will use AWS CloudFormation, Amazon S3 and Amazon EC2 to create your Imhotep cluster on AWS.
-
 <ol>
   <li>If you don't already have an AWS account, create one. Allow time for your new account to be verified before you attempt to create the stack. Account verification might take several hours.</li>
-  <li>Create three S3 buckets for data storage:</li>
+  <li>Sign in to the AWS Management Console and navigate to **S3 > Create Bucket** to create the following buckets:<br><br></li>
 <ul>
 <li>a build bucket to store your uploaded data</li>
-<li>a cache bucket to cache results of Imhotep queries</li>
-<li>a data bucket to store your Imhotep indexes</li>
+<li>an index bucket to store your Imhotep indexes</li>
 </ul>
+<li>From the AWS Management Console in **EC2 > Key Pairs > Create Key Pair**, create public and private keys.</li>
+
 </ol>
 
 
@@ -38,7 +38,19 @@ Use AWS CloudFormation to create a stack on AWS.
   <th>Description</th>
   </thead>
   <tbody>
+   <tr>
+    <td valign="top">`BuildBucket`</td>
+    <td valign="top">Name of the bucket you created to store your uploaded data. Ensure that the name you enter matches the name of the build bucket you created.</td>
+  </tr>
+    <tr>
+    <td valign="top">`DownloadBucket`</td>
+    <td valign="top">The predefined `indeed-imhotep-downloads` bucket that contains Imhotep jars. Do not rename this parameter (unless you are building your own Imhotep images).</td>
+  </tr>
   <tr>
+    <td valign="top">`IndexBucket`</td>
+    <td valign="top">Name of the bucket you created for your Imhotep indexes. Ensure that the name you enter matches the name of the index bucket you created.</td>
+  </tr>
+<tr>
     <td valign="top">`InstanceType`</td>
     <td valign="top">Defines the memory, CPU, storage capacity, and hourly cost for the Imhotep instance. Valid values include:<br> `m3.xlarge`<br>`m3.2xlarge`<br>`c3.2xlarge`<br>`c3.4xlarge`<br>`c3.8xlarge`<br>`r3.large`<br>`r3.xlarge`<br>`r3.2xlarge`<br>`r3.4xlarge`<br>`r3.8xlarge`</td>
   </tr>
@@ -55,37 +67,14 @@ Use AWS CloudFormation to create a stack on AWS.
     <td valign="top">Number of Imhotep instances in the cluster that service queries. The default value is 2. Increase this number for greater scalability.</td>
   </tr>
   <tr>
-    <td valign="top">`s3BuildBucket`</td>
-    <td valign="top">Name of the bucket you created for your data from TSV Uploader. Ensure that the name you enter matches the name of the build bucket you created.</td>
-  </tr>
-  <tr>
-    <td valign="top">`s3cacheBucket`</td>
-    <td valign="top">Name of the bucket you created for your cached results from IQL queries. Ensure that the name you enter matches the name of the cache bucket you created.</td>
-  </tr>
-  <tr>
-    <td valign="top">`s3dataBucket`</td>
-    <td valign="top">Name of the bucket you created for your Imhotep indexes. Ensure that the name you enter matches the name of the data bucket you created.</td>
-  </tr>
-  <tr>
-    <td valign="top">`s3imhotepBucket`</td>
-    <td valign="top">The predefined bucket that contains Imhotep jars. Do not rename this parameter (unless you are building your own Imhotep images).</td>
-  </tr>
-  <tr>
-    <td valign="top">`s3Key`</td>
-    <td valign="top">Your key for bucket access.</td>
-  </tr>
-  <tr>
-    <td valign="top">`s3Secret`</td>
-    <td valign="top">Your S3 secret to use with the S3 key for bucket access.</td>
-  </tr>
-  <tr>
     <td valign="top">`SSHLocation`</td>
     <td valign="top">IP address range for SSH access to the cluster. The range must be a valid IP CIDR range of the form `x.x.x.x/x`</td>
   </tr>
   </tbody>
 </table>
 
-  <li>Click **Next** through the remaining options of the setup script until you see a review page with the options you defined.</li>
+  <li>Click **Next** through the remaining options of the stack setup until you see a **Review** page with the options you defined.</li>
+  <li>Allow the template to create IAM resources: from the **Review** page, scroll down to the **Capabilities** section and select the acknowledgment.</li>
   <li>Click **Create**. </li>
   </ol>
   
