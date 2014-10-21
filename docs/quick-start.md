@@ -20,6 +20,8 @@ You will use AWS CloudFormation, Amazon S3 and Amazon EC2 to create your Imhotep
 <li>From the AWS Management Console in **EC2 > Key Pairs > Create Key Pair**, create public and private keys.</li>
 </ol>
 
+IMPORTANT: After you create a stack and upload data, delete the stack after each session to avoid excessive AWS charges. Deleting the stack does not delete data you have uploaded to your S3 buckets. When you are ready for a new session, recreate the stack and point to the existing S3 buckets.
+
 
 ###Setup
 Use AWS CloudFormation to create a stack on AWS.
@@ -81,8 +83,6 @@ The process might take several minutes. When the setup is successful, URLs are a
 
 * TSV Uploader allows you to upload your data to Imhotep. 
 * The IQL web client allows you to query the Imhotep cluster using IQL queries. [Learn about IQL.]({{ site.baseurl }}/docs/overview)
-
-NOTE: Consider deleting your stack after each session to avoid excessive AWS charges. Deleting the stack does not delete data in your S3 buckets.
 
 ## Imhotep TSV Uploader
 
