@@ -18,7 +18,6 @@ You will use AWS CloudFormation, Amazon S3 and Amazon EC2 to create your Imhotep
 <li>an index bucket to store your Imhotep indexes</li>
 </ul>
 <li>From the AWS Management Console in **EC2 > Key Pairs > Create Key Pair**, create public and private keys.</li>
-
 </ol>
 
 
@@ -82,6 +81,8 @@ The process might take several minutes. When the setup is successful, URLs are a
 
 * TSV Uploader allows you to upload your data to Imhotep. 
 * The IQL web client allows you to query the Imhotep cluster using IQL queries. [Learn about IQL.]({{ site.baseurl }}/docs/overview)
+
+NOTE: Consider deleting your stack after each session to avoid excessive AWS charges. Deleting the stack does not delete data in your S3 buckets.
 
 ## Imhotep TSV Uploader
 
