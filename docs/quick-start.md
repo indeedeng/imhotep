@@ -29,8 +29,8 @@ Use AWS CloudFormation to create a stack on AWS.
   <li>Sign in to the AWS Management Console. </li>
   <li>Select **CloudFormation** and **Create Stack**.</li>
   <li>From the **Select Template** page, enter the name of your new stack.</li>
-  <li>From this same page, in **Template**, select **Specify an Amazon S3 template URL** and enter this URL: 
-  `http://imhotep-cloud-setup.s3.amazonaws.com/cloudFormation_cluster_launch.json`</li>
+  <li>From this same page, in **Template**, select **Specify an Amazon S3 template URL** and enter this URL:
+  <pre>http://imhotep-cloud-setup.s3.amazonaws.com/cloudFormation_cluster_launch.json</pre></li>
   <li>Click **Next** to define the following parameters:
  <br><br></li>
 <table>
