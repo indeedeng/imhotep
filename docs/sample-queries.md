@@ -53,7 +53,7 @@ Lists the captains, along with their club, country, position, and number of Worl
 
 Returns data for the top 25 clubs: number of players, number of captains, average ranking, average age.
 
-![Average Ages](http://indeedeng.github.io/imhotep/images/team_clubs.jpeg?raw=true)
+![Average Ages](http://indeedeng.github.io/imhotep/images/clubs.jpeg?raw=true)
 
 ####Countries
 
@@ -61,7 +61,7 @@ Returns data for the top 25 clubs: number of players, number of captains, averag
 
 Returns data by country: average player age and average number of World Cup appearances.
 
-![Average Ages](http://indeedeng.github.io/imhotep/images/team_countries.jpeg?raw=true)
+![Average Ages](http://indeedeng.github.io/imhotep/images/countries.jpeg?raw=true)
 
 ####Age versus Experience
 
