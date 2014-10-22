@@ -84,6 +84,8 @@ The process might take several minutes. When the setup is successful, URLs are a
 * TSV Uploader allows you to upload your data to Imhotep. 
 * The IQL web client allows you to query the Imhotep cluster using IQL queries. [Learn about IQL.]({{ site.baseurl }}/docs/overview)
 
+NOTE: The two URLs will not work immediately. Allow several minutes for the services to become available.
+
 ## Imhotep TSV Uploader
 
 Use TSV Uploader to make your data available in Imhotep. TSV Uploader converts your data files into indexes that Imhotep can use and moves the indexes to the correct location so that Imhotep can access them. 
