@@ -34,7 +34,7 @@ Use field names that contain uppercase `A-Z`, lowercase `a-z`, digits, or `_` (u
 
 #### time or unixtime field names
 
-If the field name is time or unixtime, the builder parses that field’s values as Unix timestamps and uses them as the document’s timestamps in the dataset. A timestamp can be in seconds or milliseconds since Unix epoch time (UTC). If you use time, the 32-bit number represents the number of seconds since January 1, 1970. If you use unixtime, the 64-bit number represents the number of milliseconds since January 1, 1970.
+If the field name is time or unixtime, the builder parses that field’s values as Unix timestamps and uses them as the document’s timestamps in the dataset. A timestamp can be in seconds or milliseconds since Unix epoch time (UTC). 
 
 #### Field names with the * suffix
 
