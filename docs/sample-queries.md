@@ -26,7 +26,7 @@ The following sample queries are based on World Cup 2014 data from an example `w
 | Group | String | The player’s national team belongs to this World Cup group.
 | Jersey | Int | The player’s jersey number.
 | Position | String | The player’s position.
-| Rank | Int | The player’s ranking.
+| Rank | Int | The ranking of the country the player represents.
 | Selections | Int | The number of World Cup appearances for this player.
 
 ###Queries
