@@ -39,6 +39,8 @@ The following queries all use our example `worldcup2014` dataset and return data
 
 Returns the average age of captains and players of all other positions. The query also compares the number of appearances in the World Cup for the two groups of players.
 
+![Average Ages](http://indeedeng.github.io/imhotep/images/team_captains_1.jpeg?raw=true)
+
 `from worldcup2014 2014-07-01 2014-07-02 where Captain:1 group by Player, Country[], Club[], Position[] select Selections`
 
 Lists the captains, along with their club, country, position, and number of World Cup appearances.
