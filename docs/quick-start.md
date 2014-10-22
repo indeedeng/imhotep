@@ -15,7 +15,7 @@ You will use AWS CloudFormation, Amazon S3 and Amazon EC2 to create your Imhotep
   <li>Sign in to the AWS Management Console and navigate to **S3 > Create Bucket** to create the following buckets:<br><br></li>
 <ul>
 <li>a build bucket to store your uploaded data</li>
-<li>an index bucket to store your Imhotep indexes</li>
+<li>an index bucket to store your Imhotep datasets</li>
 </ul>
 <li>From the AWS Management Console in **EC2 > Key Pairs > Create Key Pair**, create public and private keys.</li>
 </ol>
@@ -29,7 +29,7 @@ Use AWS CloudFormation to create a stack on AWS.
   <li>Sign in to the AWS Management Console. </li>
   <li>Select **CloudFormation** and **Create Stack**.</li>
   <li>From the **Select Template** page, enter the name of your new stack.</li>
-  <li>From this same page, in **Template**, select **Specify an Amazon S3 template URL** and enter this URL:
+  <li>From this same page, in **Template**, select **Specify an Amazon S3 template URL** and enter this URL:<br><br>
   <pre>http://imhotep-cloud-setup.s3.amazonaws.com/cloudFormation_cluster_launch.json</pre></li>
   <li>Click **Next** to define the following parameters:
  <br><br></li>
@@ -49,7 +49,7 @@ Use AWS CloudFormation to create a stack on AWS.
   </tr>
   <tr>
     <td valign="top">`IndexBucket`</td>
-    <td valign="top">Name of the bucket you created for your Imhotep indexes. Ensure that the name you enter matches the name of the index bucket you created.</td>
+    <td valign="top">Name of the bucket you created for your Imhotep datasets. Ensure that the name you enter matches the name of the index bucket you created.</td>
   </tr>
 <tr>
     <td valign="top">`InstanceType`</td>
@@ -79,49 +79,47 @@ Use AWS CloudFormation to create a stack on AWS.
   <li>Click **Create**. </li>
   </ol>
   
-The process might take several minutes. When the setup is successful, URLs are available on the **Outputs** tab for Imhotep TSV Uploader and the IQL web client.
+The process might take several minutes. When the setup is successful, URLs are available on the **Outputs** tab for Imhotep TSV Uploader and the IQL web client. Allow several minutes for the services to become available.
 
 * TSV Uploader allows you to upload your data to Imhotep. 
 * The IQL web client allows you to query the Imhotep cluster using IQL queries. [Learn about IQL.]({{ site.baseurl }}/docs/overview)
 
-NOTE: The two URLs will not work immediately. Allow several minutes for the services to become available.
-
 ## Imhotep TSV Uploader
 
-Use TSV Uploader to make your data available in Imhotep. TSV Uploader converts your data files into indexes that Imhotep can use and moves the indexes to the correct location so that Imhotep can access them. 
+Use TSV Uploader to make your data available in Imhotep. TSV Uploader converts your data files into datasets that Imhotep can use and moves the datasets to the correct location so that Imhotep can access them. 
 
 [Learn about data file requirements for TSV Uploader]({{ site.baseurl }}/docs/data-file-requirements).
 
-### Creating an Index
-1. Open a browser and navigate to the Imhotep TSV Uploader URL provided when you created the stack on AWS. A list of indexes that are available in the system appears on the left side of the page. 
-2. Scroll to the bottom of this list and enter a name for your new index in the text entry box. The index name must be at least two characters long and can contain only lowercase `a-z` and digits.
-3. Click **+** to create the index.
+### Creating a Dataset
+1. Open a browser and navigate to the Imhotep TSV Uploader URL provided when you created the stack on AWS. A list of datasets that are available in the system appears on the left side of the page. 
+2. Scroll to the bottom of this list and enter a name for your new dataset in the text entry box. The dataset name must be at least two characters long and can contain only lowercase `a-z` and digits.
+3. Click **+** to create the dataset.
 
-The name of your new index appears in the list. When you first add the index, it is empty until you upload a data file. An index is not created on Imhotep until you upload a data file and a shard is created.
+The name of your new dataset appears in the list. When you first add the dataset, it is empty until you upload a data file. A dataset is not created on Imhotep until you upload a data file and a shard is created.
 
 ### Uploading a Data File
-1. In Imhotep TSV Uploader, click the index name.
-2. In the search field near the top of the page, click **Upload TSV** and browse to the TSV file that contains your index data. Repeat this step to upload additional data files to your index. To upload multiple files at one time, with the index name selected, drag and drop the files to the TSV Uploader window.
+1. In Imhotep TSV Uploader, click the dataset name.
+2. In the search field near the top of the page, click **Upload TSV** and browse to the TSV file that contains your data. Repeat this step to upload additional data files to your dataset. To upload multiple files at one time, with the dataset name selected, drag and drop the files to the TSV Uploader window.
 
-NOTE: If you upload a TSV file to the wrong index, you must manually remove the shard that contains the index from Imhotep. [Learn how]({{ site.baseurl }}/docs/troubleshooting). 
+NOTE: If you upload a TSV file to the wrong dataset, you must manually remove the shard that contains the dataset from Imhotep. [Learn how]({{ site.baseurl }}/docs/troubleshooting). 
 
 When the process completes successfully, `indexed` shows as the status of the file. If the process fails, `failed` shows as the status. Errors are written to a `.error.log` file, which you can download to your computer. 
 
-To download a data file to your computer, select *indexName* **>** *dataFileName* and click the download button in **Operations**. 
+To download a data file to your computer, select *datasetName* **>** *dataFileName* and click the download button in **Operations**. 
 
 
 ### Deleting Files from TSV Uploader
-To delete a data file, select *indexName* **>** *dataFileName* and click the trash can. 
+To delete a data file, select *datasetName* **>** *dataFileName* and click the trash can. 
 
-To delete an index, select *indexName* and click the trash can.
+To delete a dataset, select *datasetName* and click the trash can.
 
-NOTE: Deleting a data file or index from TSV Uploader does not delete the index from Imhotep. TSV Uploader shows the list of data files for two weeks after a file's upload date.
+NOTE: Deleting a data file or dataset from TSV Uploader does not delete the dataset from Imhotep. TSV Uploader shows the list of data files for two weeks after a file's upload date.
 
 ##IQL Web Client
-Use the IQL web client to query the Imhotep cluster using Imhotep query language (IQL). To launch the client, open a browser and navigate to the IQL URL provided when you created the cluster on AWS. Constructing an IQL query follows these general steps:
+Use the IQL web client to query the Imhotep cluster using IQL. To launch the client, open a browser and navigate to the IQL URL provided when you created the cluster on AWS. Constructing an IQL query follows these general steps:
 
 1. Formulate your question.
-2. Select your index and the date range.
+2. Select your dataset and the date range.
 3. Enter the query.
 4. Select how you want to group your data. Groups show as rows in tabular data.
 5. Choose one or multiple metrics for your data. Metrics show as columns in tabular data.

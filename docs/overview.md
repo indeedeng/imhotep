@@ -6,19 +6,19 @@ permalink: /docs/overview/
 
 To explore your Imhotep data, you can use IQL, a query language similar to SQL. You can use the IQL web client to send queries to your Imhotep cluster. The client is a single page interface with a query editor at the top of the page. Each IQL query produces a result table below the editor.
 
-To launch the IQL web client, open a browser and navigate to the IQL URL provided when you created the cluster on AWS. If you don't see a newly created index, clear your cache.
+To launch the IQL web client, open a browser and navigate to the IQL URL provided when you created the cluster on AWS. If you don't see a newly created dataset, clear your cache.
 
 The query editor includes the following controls:
 <table>
    <tr>
     <td valign="top">`from`</td>
-    <td valign="top">The name of the index you created in Imhotep TSV Uploader. You cannot edit the list of indexes in the client. </td>
+    <td valign="top">The name of the dataset you created in Imhotep TSV Uploader. You cannot edit the list of datasets in the client. </td>
   <tr>
     <td valign="top">`timerange`</td>
     <td valign="top">The required time range filter. [Read more][timerange]. </td>
   <tr>
     <td valign="top">`where`</td>
-    <td valign="top">A conditional expression that specifies which documents to include in the results. Available fields are specific to the index you selected in **from**. If you leave this control empty, IQL considers all documents in the time range given. [Read more][filtering].  </td>
+    <td valign="top">A conditional expression that specifies which documents to include in the results. Available fields are specific to the dataset you selected in **from**. If you leave this control empty, IQL considers all documents in the time range given. [Read more][filtering].  </td>
   <tr>
     <td valign="top">`group by`</td>
     <td valign="top">A list of expressions that specify how to group the documents for aggregated stats. If you leave this control empty, the client places all documents into a single group. [Read more][aggregating]. </td>
@@ -46,7 +46,7 @@ As you construct your query, an autocomplete list shows available fields.
 To share a query with others, copy the URL.
 
 ###Running Multiple Queries Simultaneously
-The IQL web client can implicitly join multiple result tables from multiple IQL queries. This feature allows you to see data from multiple indexes and time ranges or filtered in different ways at one time.
+The IQL web client can implicitly join multiple result tables from multiple IQL queries. This feature allows you to see data from multiple datasets and time ranges or filtered in different ways at one time.
 
 By default, the client shows a single row for a single IQL query. To specify an additional query in a new row, click **+** to the right of the query. This action copies the contents of all cells from the original query in the new query. 
 

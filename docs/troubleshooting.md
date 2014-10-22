@@ -8,21 +8,21 @@ This section highlights errors you might encounter when you construct a query.
 
 ##File Upload Errors
 
-###I don't see my index in the client
-Try clearing the cache if you don't see your new index in the IQL web client.
+###I don't see my dataset in the client
+Try clearing the cache if you don't see your new dataset in the IQL web client.
 
 ###Files fail to upload
 Upload failures in TSV Uploader are marked as failed.
 
-Ensure that the bucket names you defined when you created the stack match the S3 bucket names you created prior to setup. For example, if the error log shows that TSV Uploader couldn’t upload the converted files to the S3 bucket, you might have entered the incorrect name for the **s3DataBucket** parameter during stack creation. In this case, you must recreate the stack.
+Ensure that the bucket names you defined when you created the stack match the S3 bucket names you created prior to setup. For example, if the error log shows that TSV Uploader couldn’t upload the converted files to the S3 bucket, you might have entered the incorrect name for the **BuildBucket** parameter during stack creation. In this case, you must recreate the stack. Don't worry, you won't lose any data, but do ensure that you point to the same S3 buckets when you recreate the stack.
 
-###A TSV file was uploaded to the wrong index
+###A TSV file was uploaded to the wrong dataset
 
-If a TSV file is indexed in the wrong index, you must delete the shard that contains the new index data:
+If a TSV file is indexed in the wrong dataset, you must delete the shard that contains the new data:
 
 1. Determine the time range of the shard by running an IQL query for fields in the TSV file.
 2. Sign into AWS and navigate to your S3 data bucket. 
-3. Open the folder for the index that contains the new index data from the TSV file you uploaded.
+3. Open the folder for the dataset that contains the new data from the TSV file you uploaded.
 4. From the list of compressed shards, locate the shard with the timestamp from your IQL query.
 5. Delete the shard folder and corresponding document.
 
@@ -35,8 +35,6 @@ You entered invalid text after a field name. Review the query syntax to ensure t
 `INTEGER, string literal or IDENTIFIER expected, EOF encountered.`
 
 One of the fields has a typo.
-
-[best-practices]: {{ site.baseurl }}/docs/best-practices
 
 ##Slow Queries
 

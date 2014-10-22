@@ -29,7 +29,7 @@ The following filters are available:
   <tr>
     <td valign="top">Function calls:
     <ul>
-       <li>count() returns the number of documents in the group. Each document has an implicit value or 1.</li>
+       <li>count() returns the number of documents in the group. Each document has an implicit value of 1.</li>
        <li>exp(...) applies the Math.exp() function to the specified metric. The scalingFactor defaults to 1.  </li>
        <li>field="term" and field=integer return the number of documents with the defined field value.</li>
        <li>floatscale(...) converts floating point numbers stored in strings to scaled integers.</li>
@@ -42,7 +42,7 @@ The following filters are available:
   <tr>
     <td valign="top">distinct()</td>
     <td valign="top">distinct(field)</td>
-    <td valign="top">`distinct(country)` returns a count of distinct terms for the country field in each grouping.</td>
+    <td valign="top">`distinct(country)` returns a count of distinct terms for the `country` field in each grouping.</td>
   </tr>
   <tr>
     <td valign="top">percentile()</td>

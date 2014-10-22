@@ -24,7 +24,7 @@ The following group definitions are available:
     <td valign="top">`country[5]` returns the top 5 countries by count.<br>`country[bottom 5 by clicks]` specifies the metric by which to order and uses the bottom countries instead of the top.</td>
   </tr>
   <tr>
-    <td valign="top">Exclude results for fields in which the count() of documents in the group equals 0.<br><br>To exclude 0 results for a single grouping, [] is not required. That is, `country` is identical to `country[]`.</td>
+    <td valign="top">Exclude results for fields in which the count() of documents in the group equals 0.<br><br>To exclude results of 0 for a single grouping, [] is not required. That is, `country` is identical to `country[]`.</td>
     <td valign="top">field, field[]</td>
     <td valign="top"> `country, group[]` returns results only for groups that are present in each country.<br> `country, group` returns a full cross product of countries and groups, including groups for countries where the group is not present and all metrics are 0.</td>
   </tr>

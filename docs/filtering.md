@@ -4,7 +4,7 @@ title: Filtering the Query
 permalink: /docs/filtering/
 ---
 
-Use the optional **where** filter to limit the query to only those documents that match the criteria you specify. Available fields are specific to the index you selected in **from**. 
+Use the optional **where** filter to limit the query to only those documents that match the criteria you specify. Available fields are specific to the dataset you selected in **from**. 
 
 Use these rules when constructing the **where** statement:
 
@@ -47,7 +47,7 @@ The following filters are available:
     <ul><li>a logical OR of conditions on different fields</li>
         <li>filter by a range of strings like `field:[a TO b]`</li></ul></td>
         <td valign="top">lucene("luceneQueryStr")</td>
-        <td valign="top">`lucene("(-resultA:0) OR (-resultB:0)")` returns the number of documents in the index that result in at least one `resultA` or one `resultB`.</td>
+        <td valign="top">`lucene("(-resultA:0) OR (-resultB:0)")` returns the number of documents in the dataset that result in at least one `resultA` or one `resultB`.</td>
     </td>    
    <tr>
     <td valign="top">The sample() function allows you to retain a portion of the documents. The sampling denominator is 100 if you don't specify a value. <br><br>By default, rerunning the query retrieves a different set of documents. Provide a consistent value for the randomSeed parameter to retrieve the same documents when you rerun the query.</td>

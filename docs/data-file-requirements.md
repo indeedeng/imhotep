@@ -4,7 +4,7 @@ title: Data File Requirements
 permalink: /docs/data-file-requirements/
 ---
 
-Each data file you create to upload to your index must follow requirements for field and header names and for field values. If you use gzip to compress your TSV file, you must use the `.tsv.gz` extension.
+Each data file you create to upload to your dataset must follow requirements for field and header names and for field values. If you use gzip to compress your TSV file, you must use the `.tsv.gz` extension.
 
 TSV Uploader supports parsing files that use either the TSV or CSV file format. 
 
@@ -27,14 +27,14 @@ For example, the `QA_report_20141013_parts1_2.tsv` filename is invalid because i
 
 ## Field Headers
 
-#### The first line of your file represents the header that defines fields in the resulting index 
+#### The first line of your file represents the header that defines fields in the resulting dataset 
 
 Use field names that contain uppercase `A-Z`, lowercase `a-z`, digits, or `_` (underscore). A field name cannot start with a digit.
 
 
 #### time or unixtime field names
 
-If the field name is time or unixtime, the builder parses that field’s values as Unix timestamps and uses them as the document’s timestamps in the index. A timestamp can be in seconds or milliseconds since Unix epoch time (UTC). If you use time, the 32-bit number represents the number of seconds since January 1, 1970. If you use unixtime, the 64-bit number represents the number of milliseconds since January 1, 1970.
+If the field name is time or unixtime, the builder parses that field’s values as Unix timestamps and uses them as the document’s timestamps in the dataset. A timestamp can be in seconds or milliseconds since Unix epoch time (UTC). If you use time, the 32-bit number represents the number of seconds since January 1, 1970. If you use unixtime, the 64-bit number represents the number of milliseconds since January 1, 1970.
 
 #### Field names with the * suffix
 
@@ -83,7 +83,7 @@ Ensure that you remove tabs and newlines from your values.
 ####Imhotep has two data types: string and integer(long)
 For Imhotep to treat a field’s value as an integer, at least 90% of the values must be integers or blanks, and at least 20% of the total values must be valid integers.
 
-Once set, a field's type must remain consistent. That is, once a field is indexed as an integer, the field must remain an integer. Likewise, if a field is indexed as a string, the field must remain a string. If a field's type is not the same in every shard for that index, data for one or the other type will not be accessible through IQL.
+Once set, a field's type must remain consistent. That is, once a field is indexed as an integer, the field must remain an integer. Likewise, if a field is indexed as a string, the field must remain a string. If a field's type is not the same in every shard for that dataset, data for one or the other type will not be accessible through IQL.
 
 #### Floating-point values become strings
 
@@ -105,6 +105,6 @@ Floating-point values like 1.0 or 1.5 are not supported as integers and are trea
 
 #### Empty values
 
-An empty value for a string field is indexed as an empty string term and can be queried. For integer fields, all non-integer values including the empty value are not indexed and cannot be queried.
+An empty value for a string field is indexed as an empty string term and can be queried. For example, `location:""` returns the queries with an empty value for the string field `location`. For integer fields, all non-integer values including the empty value are not indexed and cannot be queried.
 
 

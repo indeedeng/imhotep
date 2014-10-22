@@ -8,7 +8,7 @@ The required **timerange** filter allows you to specify a time range with a cale
 <table>
   <tr>
     <th>Method</th>
-    <th>Format</th>
+    <th>Syntax</th>
     <th>Examples</th>
   </tr>
   <tr>
