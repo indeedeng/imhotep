@@ -31,7 +31,7 @@ The following sample queries are based on World Cup 2014 data from an example `w
 
 ###Queries
 
-The following queries all use our example `worldcup2014` dataset and return data for `2014-07-01` to `2014-07-02`.
+The following queries all use our example `worldcup2014` dataset and return data for `2014-07-01` to `2014-07-02`. Since this is not typical time-series Imhotep data, all documents are assigned the same timestamp: `2014-07-01 00:00:00`
 
 ####Team Captains
 
@@ -45,7 +45,7 @@ Lists the captains, along with their club, country, position, and number of Worl
 
 ####Clubs
 
-`from worldcup2014 2014-07-01 2014-07-02 group by topterms(Club, 25) select count(), Captain, Rank/count(), Age/count()`
+`from worldcup2014 2014-07-01 2014-07-02 group by Club[25] select count(), Captain, Rank/count(), Age/count()`
 
 Returns data for the top 25 clubs: number of players, number of captains, average ranking, average age.
 
@@ -67,9 +67,9 @@ Compares player age to the number of World Cup appearances.
 
 Returns the number of players grouped by their jersey number. The query also returns the number of captains for each jersey number.
 
-`from worldcup2014 2014-07-01 2014-07-02 group by Jersey, topterms(Position,1)`
+`from worldcup2014 2014-07-01 2014-07-02 group by Jersey, Position[1]`
 
-Lists the player positions by jersey number.
+Groups documents by the player's jersey number and then, for each jersey number group, returns the most common position for that jersey number.
 
 ####Positions
 
