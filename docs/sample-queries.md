@@ -45,11 +45,15 @@ Returns the average age of captains and players of all other positions. The quer
 
 Lists the captains, along with their club, country, position, and number of World Cup appearances.
 
+![Average Ages](http://indeedeng.github.io/imhotep/images/team_captains_2.jpeg?raw=true)
+
 ####Clubs
 
 `from worldcup2014 2014-07-01 2014-07-02 group by Club[25] select count(), Captain, Rank/count(), Age/count()`
 
 Returns data for the top 25 clubs: number of players, number of captains, average ranking, average age.
+
+![Average Ages](http://indeedeng.github.io/imhotep/images/team_clubs.jpeg?raw=true)
 
 ####Countries
 
@@ -57,11 +61,15 @@ Returns data for the top 25 clubs: number of players, number of captains, averag
 
 Returns data by country: average player age and average number of World Cup appearances.
 
+![Average Ages](http://indeedeng.github.io/imhotep/images/team_countries.jpeg?raw=true)
+
 ####Age versus Experience
 
 `from worldcup2014 2014-07-01 2014-07-02 group by Age select Selections/count()`
 
 Compares player age to the number of World Cup appearances.
+
+![Average Ages](http://indeedeng.github.io/imhotep/images/age_vs_experience.jpeg?raw=true)
 
 ####Jersey Number
 
@@ -69,9 +77,13 @@ Compares player age to the number of World Cup appearances.
 
 Returns the number of players grouped by their jersey number. The query also returns the number of captains for each jersey number.
 
+![Average Ages](http://indeedeng.github.io/imhotep/images/jersey_number_1.jpeg?raw=true)
+
 `from worldcup2014 2014-07-01 2014-07-02 group by Jersey, Position[1]`
 
 Groups documents by the player's jersey number and then, for each jersey number group, returns the most common position for that jersey number.
+
+![Average Ages](http://indeedeng.github.io/imhotep/images/jersey_number_2.jpeg?raw=true)
 
 ####Positions
 
@@ -79,8 +91,12 @@ Groups documents by the player's jersey number and then, for each jersey number 
 
 Returns the average player age and average number of World Cup appearances by their position.
 
+![Average Ages](http://indeedeng.github.io/imhotep/images/positions.jpeg?raw=true)
+
 ####Groups
 
 `from worldcup2014 2014-07-01 2014-07-02 group by Group select Selections/count(), Age/count(), Rank/count()`
 
 Returns data about the World Cup groups: average number of World Cup appearances, average age, and average player rank.
+
+![Average Ages](http://indeedeng.github.io/imhotep/images/groups.jpeg?raw=true)
