@@ -34,9 +34,20 @@ The data are distributed under the creative commons [Attribution-Share Alike 4.0
 
 ###Queries
 
-The following queries all use the sample `worldcup2014` dataset and return data for `2014-07-01` to `2014-07-02`. Since this is not typical time-series Imhotep data, all documents are assigned the same timestamp: `2014-07-01 00:00:00`
+The following queries all use the sample `worldcup2014` dataset and return data for `2014-07-01` to `2014-07-02`. 
 
-####Team Captains
+Queries are grouped as follows:<br>
+[Team Captains](#captains)<br>
+[Clubs](#clubs)<br>
+[Countries](#countries)<br>
+[Age v Experience](#age-experience)<br>
+[Jersey Number](#jersey)<br>
+[Positions](#positions)<br>
+[Groups](#groups)<br>
+
+Since this is not typical time-series Imhotep data, all documents are assigned the same timestamp: `2014-07-01 00:00:00`
+
+####<a name="captains"></a>Team Captains 
 
 The following query returns the average age of captains and players of all other positions. The query also compares the number of appearances in the World Cup for the two groups of players. Team captains are on average almost 5 years older than other players and have 3 times as many national team appearances.
 
@@ -50,7 +61,7 @@ The following query lists the captains, along with their club, country, position
 
 ![Average Ages](http://indeedeng.github.io/imhotep/images/team_captains_2.jpeg?raw=true)
 
-####Clubs
+####<a name="clubs"></a>Clubs
 
 The following query returns data for the top 25 clubs: number of players, number of captains, average ranking, average age. Barcelona has the most players in the World Cup (16), but Real Madrid/Man U have the most captains (2). Atletico Madrid has the highest average nationally ranked players. Manchester City the oldest players, Schalke 4 the youngest.
 
@@ -58,7 +69,7 @@ The following query returns data for the top 25 clubs: number of players, number
 
 ![Average Ages](http://indeedeng.github.io/imhotep/images/clubs.jpeg?raw=true)
 
-####Countries
+####<a name="countries"></a>Countries
 
 The following query returns data by country: average player age and average number of World Cup appearances. Argentina has the oldest team, Ghana the youngest. Spain is the most experienced, Australia the least.
 
@@ -66,7 +77,7 @@ The following query returns data by country: average player age and average numb
 
 ![Average Ages](http://indeedeng.github.io/imhotep/images/countries.jpeg?raw=true)
 
-####Age versus Experience
+####<a name="age-experience"></a>Age versus Experience
 
 The following query compares player age to the number of World Cup appearances. Not surprisingly, the older you are, the more appearances you've had, in general.
 
@@ -74,7 +85,7 @@ The following query compares player age to the number of World Cup appearances. 
 
 ![Average Ages](http://indeedeng.github.io/imhotep/images/age_vs_experience.jpeg?raw=true)
 
-####Jersey Number
+####<a name="jersey"></a>Jersey Number
 
 The following query returns the number of players grouped by their jersey number. The query also returns the number of captains for each jersey number. Teams number all players 1-23. However, captains gravitate towards wearing #1, #4, #3, and #10.
 
@@ -88,7 +99,7 @@ The following query groups documents by the player's jersey number and then, for
 
 ![Average Ages](http://indeedeng.github.io/imhotep/images/jersey_number_2.jpeg?raw=true)
 
-####Positions
+####<a name="positions"></a>Positions
 
 The following query returns the average player age and average number of World Cup appearances by their position. Goalies are older and more frequently the captain. Forwards typically have the most experience.
 
@@ -96,7 +107,7 @@ The following query returns the average player age and average number of World C
 
 ![Average Ages](http://indeedeng.github.io/imhotep/images/positions.jpeg?raw=true)
 
-####Groups
+####<a name="groups"></a>Groups
 
 The following query returns data about the World Cup groups: average number of World Cup appearances, average age, and average player rank. Group D and G were rough. Group F and H were easy. Group H was also the youngest and least experienced, while group C was the oldest and most experienced.
 
