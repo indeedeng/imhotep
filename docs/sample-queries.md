@@ -41,7 +41,7 @@ Queries are grouped as follows:<br>
 [Clubs](#clubs)<br>
 [Countries](#countries)<br>
 [Age v Experience](#age-experience)<br>
-[Jersey Number](#jersey)<br>
+[Jersey Numbers](#jersey)<br>
 [Positions](#positions)<br>
 [Groups](#groups)<br>
 
@@ -63,7 +63,7 @@ The following query lists the captains, along with their club, country, position
 
 ####<a name="clubs"></a>Clubs
 
-The following query returns data for the top 25 clubs: number of players, number of captains, average ranking, average age. Barcelona has the most players in the World Cup (16), but Real Madrid/Man U have the most captains (2). Atletico Madrid has the highest average nationally ranked players. Manchester City the oldest players, Schalke 4 the youngest.
+The following query returns data for the top 25 clubs: number of players, number of captains, average country ranking of the team’s players, average player age. Barcelona has the most players in the World Cup (16), but Real Madrid/Man U have the most captains (2). Atletico Madrid has the highest average country rank for its players. Manchester City the oldest players, Schalke 4 the youngest.
 
 <pre>from worldcup2014 2014-07-01 2014-07-02 group by Club[25] select count(), Captain, Rank/count(), Age/count()</pre>
 
@@ -85,7 +85,7 @@ The following query compares player age to the number of World Cup appearances. 
 
 ![Average Ages](http://indeedeng.github.io/imhotep/images/age_vs_experience.jpeg?raw=true)
 
-####<a name="jersey"></a>Jersey Number
+####<a name="jersey"></a>Jersey Numbers
 
 The following query returns the number of players grouped by their jersey number. The query also returns the number of captains for each jersey number. Teams number all players 1-23. However, captains gravitate towards wearing #1, #4, #3, and #10.
 
@@ -109,7 +109,7 @@ The following query returns the average player age and average number of World C
 
 ####<a name="groups"></a>Groups
 
-The following query returns data about the World Cup groups: average number of World Cup appearances, average age, and average player rank. Group D and G were rough. Group F and H were easy. Group H was also the youngest and least experienced, while group C was the oldest and most experienced.
+The following query returns data about the World Cup groups: average number of World Cup appearances, average age, and average country rank. Group D and G were rough. Group F and H were easy. Group H was also the youngest and least experienced, while group C was the oldest and most experienced.
 
 <pre>from worldcup2014 2014-07-01 2014-07-02 group by Group select Selections/count(), Age/count(), Rank/count()</pre>
 
