@@ -26,4 +26,4 @@ Ask and answer questions in our Q&A forum for Imhotep: [indeedeng-imhotep-users]
 
 ## License
 
-[Apache License Version 2.0](https://github.com/indeedeng/proctor/blob/master/LICENSE)
+[Apache License Version 2.0](https://github.com/indeedeng/imhotep/blob/master/LICENSE)
