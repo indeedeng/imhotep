@@ -13,7 +13,7 @@ Imhotep is a highly scalable analytics architecture that lets you do the followi
 See the [quick start page](http://indeedeng.github.io/imhotep/docs/quick-start/) for instructions. 
 
 ## Documentation
-http://indeed.github.io/imhotep
+http://indeedeng.github.io/imhotep
 
 ## Discussion
 Ask and answer questions in our Q&A forum for Imhotep: [indeedeng-imhotep-users](https://groups.google.com/forum/#!forum/indeedeng-imhotep-users)
