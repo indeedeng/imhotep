@@ -11,7 +11,7 @@ This section guides you through the process of configuring an Imhotep cluster on
 ###Prerequisites
 You will use AWS CloudFormation, Amazon S3 and Amazon EC2 to create your Imhotep cluster on AWS.
 <ol>
-  <li>If you don't already have an AWS account, create one. Allow time for your new account to be verified before you attempt to create the stack. Account verification might take several hours.</li>
+  <li>If you don't already have an [AWS account](http://aws.amazon.com/), create one. Allow time for your new account to be verified before you attempt to create the stack. Account verification might take several hours.</li>
   <li>Sign in to the AWS Management Console and navigate to **S3 > Create Bucket** to create the following buckets:<br><br></li>
 <ul>
 <li>a build bucket to store your uploaded data</li>
@@ -53,7 +53,7 @@ Use AWS CloudFormation to create a stack on AWS.
   </tr>
 <tr>
     <td valign="top">`InstanceType`</td>
-    <td valign="top">Defines the memory, CPU, storage capacity, and hourly cost for the Imhotep instance. Valid values include:<br> `m3.xlarge`<br>`m3.2xlarge`<br>`c3.2xlarge`<br>`c3.4xlarge`<br>`c3.8xlarge`<br>`r3.large`<br>`r3.xlarge`<br>`r3.2xlarge`<br>`r3.4xlarge`<br>`r3.8xlarge`</td>
+    <td valign="top">Defines the memory, CPU, storage capacity, and hourly cost for the Imhotep instance. Valid values include:<br> `m3.xlarge`<br>`m3.2xlarge`<br>`c3.2xlarge`<br>`c3.4xlarge`<br>`c3.8xlarge`<br>`r3.large`<br>`r3.xlarge`<br>`r3.2xlarge`<br>`r3.4xlarge`<br>`r3.8xlarge`<br>[Click here for information about instance costs](http://aws.amazon.com/ec2/pricing/).</td>
   </tr>
   <tr>
     <td valign="top">`IPrange`</td>
