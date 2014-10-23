@@ -10,7 +10,7 @@ Imhotep is a highly scalable analytics architecture that lets you do the followi
 - Build your own data tools for analysis, monitoring, reporting, and automated data processing on top of the Imhotep platform
 
 ## Getting Started
-See the [quick start page]({{ site.baseurl }}/docs/quick-start) for instructions. 
+See the [quick start page](http://indeedeng.github.io/imhotep/docs/quick-start/) for instructions. 
 
 ## Documentation
 http://indeed.github.io/imhotep
