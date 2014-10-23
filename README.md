@@ -22,6 +22,9 @@ Ask and answer questions in our Q&A forum for Imhotep: [indeedeng-imhotep-users]
 - http://druid.io/
 - http://druid.io/
 
+##Contributing
+http://indeedeng.github.io/imhotep/docs/contributing/
+
 ## License
 
 [Apache License Version 2.0](https://github.com/indeedeng/proctor/blob/master/LICENSE)
