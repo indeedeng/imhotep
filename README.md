@@ -28,11 +28,9 @@ Ask and answer questions in our Q&A forum for Imhotep: [indeedeng-imhotep-users]
 [Tool to convert TSV files into Flamdex indexes for Imhotep](https://github.com/indeedeng/imhotep-tsv-converter)
 
 ## See Also
-http://pig.apache.org/
-
-http://druid.io/
-
-http://druid.io/
+- [Apache Hadoop with Pig](http://pig.apache.org/)
+- [Druid](http://druid.io/)
+- [OpenDremel](https://code.google.com/p/dremel/)
 
 ##Contributing
 http://indeedeng.github.io/imhotep/docs/contributing/
