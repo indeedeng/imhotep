@@ -19,13 +19,13 @@ http://indeedeng.github.io/imhotep
 Ask and answer questions in our Q&A forum for Imhotep: [indeedeng-imhotep-users](https://groups.google.com/forum/#!forum/indeedeng-imhotep-users)
 
 ## Related Projects
-[Cloudformation scripts and other helper scripts for spinning up an Imhotep cluster in AWS](https://github.com/indeedeng/imhotep-cloudformation)
+[iql](https://github.com/indeedeng/iql): Web interface for making IQL queries against an Imhotep cluster
 
-[Web interface for making IQL queries against an Imhotep cluster](https://github.com/indeedeng/iql)
+[iupload](https://github.com/indeedeng/iupload): TSV uploader webapp for an Imhotep cluster
 
-[TSV uploader webapp for an Imhotep cluster](https://github.com/indeedeng/iupload)
+[imhotep-tsv-converter](https://github.com/indeedeng/imhotep-tsv-converter): Tool to convert TSV files into Flamdex indexes for Imhotep
 
-[Tool to convert TSV files into Flamdex indexes for Imhotep](https://github.com/indeedeng/imhotep-tsv-converter)
+[imhotep-cloudformation](https://github.com/indeedeng/imhotep-cloudformation): Cloudformation scripts and other helper scripts for spinning up an Imhotep cluster in AWS
 
 ## See Also
 - [Apache Hadoop with Pig](http://pig.apache.org/)
