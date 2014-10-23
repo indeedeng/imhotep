@@ -15,7 +15,7 @@ You will use AWS CloudFormation, Amazon S3 and Amazon EC2 to create your Imhotep
   <li>Sign in to the AWS Management Console and navigate to **S3 > Create Bucket** to create the following buckets:<br><br></li>
 <ul>
 <li>a build bucket to store your uploaded data</li>
-<li>an index bucket to store your Imhotep datasets</li>
+<li>a data bucket to store your Imhotep datasets</li>
 </ul>
 <li>From the AWS Management Console in **EC2 > Key Pairs > Create Key Pair**, create public and private keys.</li>
 </ol>
@@ -50,8 +50,8 @@ Use AWS CloudFormation to create a stack on AWS.
     <td valign="top">The predefined `indeed-imhotep-downloads` bucket that contains Imhotep jars. Do not rename this parameter (unless you are building your own Imhotep images).</td>
   </tr>
   <tr>
-    <td valign="top">`IndexBucket`</td>
-    <td valign="top">Name of the bucket you created for your Imhotep datasets. Ensure that the name you enter matches the name of the index bucket you created.</td>
+    <td valign="top">`DataBucket`</td>
+    <td valign="top">Name of the bucket you created for your Imhotep datasets. Ensure that the name you enter matches the name of the data bucket you created.</td>
   </tr>
 <tr>
     <td valign="top">`InstanceType`</td>
