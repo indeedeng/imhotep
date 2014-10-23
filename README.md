@@ -1,6 +1,5 @@
-imhotep
+Imhotep
 =======
-## Imhotep
 Imhotep is [a large-scale analytics platform](http://engineering.indeed.com/talks/large-scale-interactive-analytics-with-imhotep/) built by Indeed.  
 
 ## Features
