@@ -21,7 +21,13 @@
 	</licenses>
 
 	<name>Imhotep Client jar</name>
-	<url>http://wiki.indeed.net</url>
+	<url>http://indeedeng.github.io/imhotep/</url>
+
+    <scm> <!-- prevent Maven from trying to override with subproject suffix -->
+        <url>${project.parent.scm.url}</url>
+        <connection>${project.parent.scm.connection}</connection>
+        <developerConnection>${project.parent.scm.developerConnection}</developerConnection>
+    </scm>
 
 	<pluginRepositories>
 		<pluginRepository>
