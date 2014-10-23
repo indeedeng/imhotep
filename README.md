@@ -18,10 +18,21 @@ http://indeed.github.io/imhotep
 ## Discussion
 Ask and answer questions in our Q&A forum for Imhotep: [indeedeng-imhotep-users](https://groups.google.com/forum/#!forum/indeedeng-imhotep-users)
 
+## Related Projects
+[Cloudformation scripts and other helper scripts for spinning up an Imhotep cluster in AWS](https://github.com/indeedeng/imhotep-cloudformation)
+
+[Web interface for making IQL queries against an Imhotep cluster](https://github.com/indeedeng/iql)
+
+[TSV uploader webapp for an Imhotep cluster](https://github.com/indeedeng/iupload)
+
+[Tool to convert TSV files into Flamdex indexes for Imhotep](https://github.com/indeedeng/imhotep-tsv-converter)
+
 ## See Also
-- http://pig.apache.org/
-- http://druid.io/
-- http://druid.io/
+http://pig.apache.org/
+
+http://druid.io/
+
+http://druid.io/
 
 ##Contributing
 http://indeedeng.github.io/imhotep/docs/contributing/
