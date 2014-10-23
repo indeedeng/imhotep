@@ -102,9 +102,11 @@ The name of your new dataset appears in the list. When you first add the dataset
 2. In the search field near the top of the page, click **Upload TSV** and browse to the TSV file that contains your data. Repeat this step to upload additional data files to your dataset. To upload multiple files at one time, with the dataset name selected, drag and drop the files to the TSV Uploader window.
 3. Refresh the page to show the status of the upload.
 
-NOTE: If you upload a TSV file to the wrong dataset, you must manually remove the shard that contains the dataset from Imhotep. [Learn how]({{ site.baseurl }}/docs/troubleshooting). 
+When the process completes successfully, `indexed` shows as the status of the file. Allow a minute or two for your dataset to be available in the IQL web client. 
 
-When the process completes successfully, `indexed` shows as the status of the file. If the process fails, `failed` shows as the status. Errors are written to a `.error.log` file, which you can download to your computer. 
+If the process fails, `failed` shows as the status. Errors are written to a `.error.log` file, which you can download to your computer. 
+
+NOTE: If you upload a TSV file to the wrong dataset, you must manually remove the shard that contains the dataset from Imhotep. [Learn how]({{ site.baseurl }}/docs/troubleshooting). 
 
 To download a data file to your computer, select *datasetName* **>** *dataFileName* and click the download button in **Operations**. 
 
