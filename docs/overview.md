@@ -6,7 +6,7 @@ permalink: /docs/overview/
 
 To explore your Imhotep data, you can use IQL, a query language similar to SQL. You can use the IQL web client to send queries to your Imhotep cluster. The client is a single page interface with a query editor at the top of the page. Each IQL query produces a result table below the editor.
 
-To launch the IQL web client, open a browser and navigate to the IQL URL provided when you created the cluster on AWS. If you don't see a newly created dataset, clear your cache.
+To launch the IQL web client, open a browser and navigate to the IQL URL provided when you created the cluster on AWS. If you don't see a newly created dataset, clear your cache: select **Settings > Clear Cache**.
 
 The query editor includes the following controls:
 <table>

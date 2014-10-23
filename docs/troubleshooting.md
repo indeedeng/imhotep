@@ -9,7 +9,7 @@ This section highlights errors you might encounter when you construct a query.
 ##File Upload Errors
 
 ###I don't see my dataset in the client
-Try clearing the cache if you don't see your new dataset in the IQL web client.
+Try clearing the cache if you don't see your new dataset in the IQL web client: select **Settings > Clear Cache**.
 
 ###Files fail to upload
 Upload failures in TSV Uploader are marked as failed.
