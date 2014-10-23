@@ -20,9 +20,9 @@ See the [quick start page]({{ site.baseurl }}/docs/quick-start) for instructions
 Ask and answer questions in our Q&A forum for Imhotep: [indeedeng-imhotep-users](https://groups.google.com/forum/#!forum/indeedeng-imhotep-users)
 
 ## See Also
-- http://pig.apache.org/
-- http://druid.io/
-- http://druid.io/
+- [Apache Hadoop with Pig](http://pig.apache.org/)
+- [Druid](http://druid.io/)
+- [OpenDremel](https://code.google.com/p/dremel/)
 
 ## License
 
