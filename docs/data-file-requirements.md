@@ -13,14 +13,30 @@ TSV Uploader supports parsing files that use either the TSV or CSV file format.
 ## Filenames
 
 #### <a name="shard-timerange"></a>Include the shard time range in the filename
-
-| Supported formats | Example | Description |
-|------ | ------ | --------- |
-| yyyyMMdd | `20131201.tsv` | The file contains data for one day. |
-| yyyyMMdd.HH | `20131201.01.tsv` | The file contains data for 1-2 AM of the day. |
-| yyyyMMdd.HH-yyyyMMdd.HH | `20131201.00-20131201.03.tsv` | The file contains data for the first 3 hours of the day.  |
-
-
+Follow these guidelines:
+<table>
+  <tr>
+    <th>Supported formats</th>
+    <th>Example</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td valign="top">yyyyMMdd</td>
+    <td valign="top">`20131201.tsv`</td>
+    <td valign="top">The file contains data for one day. </td>
+  </tr>
+   <tr>
+    <td valign="top">yyyyMMdd.HH</td>
+    <td valign="top">`20131201.01.tsv`</td>
+    <td valign="top">The file contains data for 1-2 AM of the day.</td>
+  </tr>
+  <tr>
+    <td valign="top">yyyyMMdd.HH-yyyyMMdd.HH</td>
+    <td valign="top">`20131201.00-20131201.03.tsv`<br>`20140901.00-20140902.23.tsv`</td>
+    <td valign="top">The file contains data for the first 3 hours of one day.<br>The file contains data for two full days.</td>
+   </tr>
+  </table>
+  
 #### Do not use digits in an optional and arbitrary prefix or suffix 
 
 For example, the `QA_report_20141013_parts1_2.tsv` filename is invalid because it includes digits in the suffix. In contrast, the builder correctly ignores the optional prefix and suffix in the  `QA_report_20141013_combined.tsv` filename.
