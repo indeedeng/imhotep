@@ -11,7 +11,7 @@ TSV Uploader supports parsing files that use either the TSV or CSV file format.
 *CSV Only:* If your files use the CSV file format, prepare the files to conform to the default settings for the [OpenCSV library](http://opencsv.sourceforge.net/apidocs/constant-values.html#au.com.bytecode.opencsv.CSVParser.DEFAULT_STRICT_QUOTES). OpenCSV uses \ (backslash) as the escape character.
 
 ## Sample Data Files
-Use these sample data files as models for preparing your data for upload.
+Use these samples as a model for preparing your data for upload.
 
 ### NASA Apache Web Logs
 This [simple dataset](http://indeedeng.github.io/imhotep/files/19950801.tsv), from [public NASA Apache web logs from 1995](http://ita.ee.lbl.gov/html/contrib/NASA-HTTP.html), contains log data for one day and is in an Imhotep-friendly TSV format.
@@ -21,7 +21,7 @@ A modified Perl script was used to produce the following fields:
 | | |
 | ----- | ------- |
 | host | When possible, the hostname making the request. Uses the IP address if the hostname was unavailable. |
-| logname | Unused, always `-`. |
+| logname | Unused, always `-` |
 | time | In seconds, since 1970 |
 | method | GET, HEAD, or POST |
 | url | Requested path |
