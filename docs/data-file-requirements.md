@@ -12,10 +12,10 @@ TSV Uploader supports parsing files that use either the TSV or CSV file format.
 
 ## Filenames
 
-#### <a name="shard-timerange"></a>Include the shard time range in the filename
+#### <a name="shard-timerange"></a>Include the shard time range in the filename 
+Imhotep partitions your data into shards by time. When you [specify a time range in IQL][timerange], Imhotep searches for shards in that time range by the time range in the shard name, not the [timestamps in the documents themselves](#time).
+
 You can specify one full day, one full hour, or a range.
- 
-Imhotep partitions your data into shards by time. When you [specify a time range in IQL][timerange], Imhotep searches for shards in that time range by the time range in the shard name, not the timestamps in the documents themselves.
 <table>
   <tr>
     <th>Supported formats</th>
@@ -50,7 +50,7 @@ For example, the `QA_report_20141013_parts1_2.tsv` filename is invalid because i
 Use field names that contain uppercase `A-Z`, lowercase `a-z`, digits, or `_` (underscore). A field name cannot start with a digit.
 
 
-#### time or unixtime field names
+#### <a name="time"></a>time or unixtime field names
 
 If the field name is `time` or `unixtime`, the builder parses that field’s values as Unix timestamps and uses them as the document’s timestamps in the dataset. A timestamp can be in seconds or milliseconds since Unix epoch time (UTC). By default, all times are GMT-6. 
 
