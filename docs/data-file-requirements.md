@@ -12,7 +12,7 @@ TSV Uploader supports parsing files that use either the TSV or CSV file format.
 
 ## Filenames
 
-#### Include the shard time range in the filename
+#### <a name="shard-timerange"></a>Include the shard time range in the filename
 
 | Supported formats | Example | Description |
 |------ | ------ | --------- |
@@ -34,9 +34,11 @@ Use field names that contain uppercase `A-Z`, lowercase `a-z`, digits, or `_` (u
 
 #### time or unixtime field names
 
-If the field name is time or unixtime, the builder parses that field’s values as Unix timestamps and uses them as the document’s timestamps in the dataset. A timestamp can be in seconds or milliseconds since Unix epoch time (UTC). 
+If the field name is `time` or `unixtime`, the builder parses that field’s values as Unix timestamps and uses them as the document’s timestamps in the dataset. A timestamp can be in seconds or milliseconds since Unix epoch time (UTC). By default, all times are GMT-6. 
 
-NOTE: Because floating-point values are treated as strings, do not use floating-point values in a time or unixtime field. [Read more about floating-point values](#floating).
+NOTE: Do not use floating-point values in a `time` or `unixtime` field, because floating-point values are treated as strings. [Read more](#floating).
+
+If you don't include a `time` or `unixtime` field, the builder uses the start date of the [shard time range](#shard-timerange) as the timestamp for all of the documents in the file. 
 
 #### Field names with the * suffix
 
