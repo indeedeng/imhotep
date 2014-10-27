@@ -108,6 +108,8 @@ When the process completes successfully, `indexed` shows as the status of the fi
 
 If the process fails, `failed` shows as the status. Errors are written to a `.error.log` file, which you can download to your computer. 
 
+To upload files directly to your S3 build bucket, place the files in the **iupload/tsvtoindex/*datasetName*/** directory. As they are processed, they are moved to **iupload/indexedtsv/*datasetName*/**. You can also view the files in TSV Uploader.
+
 NOTE: If you upload a TSV file to the wrong dataset, you must manually remove the shard that contains the dataset from Imhotep. [Learn how]({{ site.baseurl }}/docs/troubleshooting). 
 
 To download a data file to your computer, select *datasetName* **>** *dataFileName* and click the download button in **Operations**. 
