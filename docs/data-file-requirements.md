@@ -40,7 +40,9 @@ $out = str2time($in);
 print "$out\n”;</pre>
 
 
-## Filenames
+## Requirements 
+
+### Filenames
 
 #### <a name="shard-timerange"></a>Include the shard time range in the filename 
 Imhotep partitions your data into shards by time. When you [specify a time range in IQL][timerange], Imhotep searches for shards in that time range by the time range in the shard name, not the [timestamps in the documents themselves](#time).
@@ -73,7 +75,7 @@ You can specify one full day, one full hour, or a range.
 
 For example, the `QA_report_20141013_parts1_2.tsv` filename is invalid because it includes digits in the suffix. In contrast, the builder correctly ignores the optional prefix and suffix in the  `QA_report_20141013_combined.tsv` filename.
 
-## Field Headers
+### Field Headers
 
 #### The first line of your file represents the header that defines fields in the resulting dataset 
 
@@ -124,7 +126,7 @@ Adding the `**` suffix to the field name in the header also indexes bigrams from
 </table>
 
 
-## Field Values
+### Field Values
 
 #### Prepare the values in your data file
 
