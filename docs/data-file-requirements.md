@@ -36,6 +36,8 @@ Use field names that contain uppercase `A-Z`, lowercase `a-z`, digits, or `_` (u
 
 If the field name is time or unixtime, the builder parses that field’s values as Unix timestamps and uses them as the document’s timestamps in the dataset. A timestamp can be in seconds or milliseconds since Unix epoch time (UTC). 
 
+NOTE: Because floating-point values are treated as strings, do not use floating-point values in a time or unixtime field. [Read more about floating-point values](#floating).
+
 #### Field names with the * suffix
 
 Adding the `*` suffix to the field name in the header also indexes a tokenized version of that field. 
@@ -85,7 +87,7 @@ For Imhotep to treat a field’s value as an integer, at least 90% of the values
 
 Once set, a field's type must remain consistent. That is, once a field is indexed as an integer, the field must remain an integer. Likewise, if a field is indexed as a string, the field must remain a string. If a field's type is not the same in every shard for that dataset, data for one or the other type will not be accessible through IQL.
 
-#### Floating-point values become strings
+#### <a name="floating"></a>Floating-point values become strings
 
 Floating-point values like 1.0 or 1.5 are not supported as integers and are treated as strings. To use floating-point values as metrics, consider the following methods:
 <table>
