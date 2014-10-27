@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Imhotep
-exclude_toc: false
+exclude_toc: true
 ---
 
 Imhotep is a large-scale analytics platform built by Indeed. For an introduction, check out the following tech talks:  
