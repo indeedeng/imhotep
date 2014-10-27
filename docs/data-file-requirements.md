@@ -13,7 +13,9 @@ TSV Uploader supports parsing files that use either the TSV or CSV file format.
 ## Filenames
 
 #### <a name="shard-timerange"></a>Include the shard time range in the filename
-Follow these guidelines:
+You can specify one full day, one full hour, or a range.
+ 
+Imhotep partitions your data into shards by time. When you [specify a time range in IQL][timerange], Imhotep searches for shards in that time range by the time range in the shard name, not the timestamps in the documents themselves.
 <table>
   <tr>
     <th>Supported formats</th>
@@ -27,8 +29,8 @@ Follow these guidelines:
   </tr>
    <tr>
     <td valign="top">yyyyMMdd.HH</td>
-    <td valign="top">`20131201.01.tsv`</td>
-    <td valign="top">The file contains data for 1-2 AM of the day.</td>
+    <td valign="top">`20131201.01.tsv`<br>`20131201.02.tsv`</td>
+    <td valign="top">The file contains data for one hour of the day: 1-2 AM.<br>The file contains data for one hour of the day: 2-3 AM.</td>
   </tr>
   <tr>
     <td valign="top">yyyyMMdd.HH-yyyyMMdd.HH</td>
@@ -127,4 +129,4 @@ Floating-point values like 1.0 or 1.5 are not supported as integers and are trea
 
 An empty value for a string field is indexed as an empty string term and can be queried. For example, `location:""` returns the queries with an empty value for the string field `location`. For integer fields, all non-integer values including the empty value are not indexed and cannot be queried.
 
-
+[timerange]: {{ site.baseurl }}/docs/timerange
