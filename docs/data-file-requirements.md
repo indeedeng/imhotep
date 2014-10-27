@@ -32,7 +32,7 @@ Follow these guidelines:
   </tr>
   <tr>
     <td valign="top">yyyyMMdd.HH-yyyyMMdd.HH</td>
-    <td valign="top">`20131201.00-20131201.03.tsv`<br>`20140901.00-20140902.23.tsv`</td>
+    <td valign="top">`20131201.00-20131201.03.tsv`<br>`20140901.00-20140903.00.tsv`</td>
     <td valign="top">The file contains data for the first 3 hours of one day.<br>The file contains data for two full days.</td>
    </tr>
   </table>
