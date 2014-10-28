@@ -23,7 +23,7 @@ A Perl script was used to convert the Apache web log into the TSV format, extrac
 | host | When possible, the hostname making the request. Uses the IP address if the hostname was unavailable. |
 | logname | Unused, always `-` |
 | time | In seconds, since 1970 |
-| method | GET, HEAD, or POST |
+| method | HTTP method: GET, HEAD, or POST |
 | url | Requested path |
 | response | HTTP response code |
 | bytes | Number of bytes in the reply |
