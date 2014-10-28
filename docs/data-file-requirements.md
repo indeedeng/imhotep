@@ -13,7 +13,8 @@ TSV Uploader supports parsing files that use either the TSV or CSV file format.
 ## Sample Data Files
 Use these sample data files as models for preparing your data for upload:<br>
 [NASA Apache web logs](../sample-data#nasa-apache-web-logs)<br>
-[Wikipedia web logs](../sample-data#wikipedia-web-logs)
+[Wikipedia web logs](../sample-data#wikipedia-web-logs)<br>
+[World Cup 2014 data](../sample-data#world-cup-2014-data)
 
 ## Filenames
 

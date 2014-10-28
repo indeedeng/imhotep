@@ -35,6 +35,24 @@ Data for two months are available in these compressed files:<br>
 [nasa_19950731.22-19950831.22.tsv.gz](http://indeedeng.github.io/imhotep/files/nasa_19950731.22-19950831.22.tsv.gz)
 
 ## Wikipedia Web Logs
+The time-series data in [wikipedia_e_20140913.11.tsv.gz](http://indeedeng.github.io/imhotep/files/wikipedia_e_20140913.11.tsv.gz) is one hour of data from 9/13/2014 for Wikipedia articles beginning with the letter E. 
+
+Each document corresponds to a Wikipedia article that was served in that hour:
+
+| | |
+| ----- | ------- |
+| title | Title of the article on Wikipedia
+| categories+ | List of categories in which the article is contained
+| titleWords+ | List of words in the title
+| linksOut+ | List of Wikipedia articles linked by the article
+| numRequests | Number of requests for the article in that hour
+| bytesServed | Number of bytes served for the article in that hour
+
+The most popular `E` entry in that hour was `English_alphabet`. The `categories` and `linksOut` fields are truncated in the example:
+
+<pre>English_alphabet All_Wikipedia_articles_needing_clarification All_articles_needing_additional_references All_articles_with_unsourced_statements Articles_containing_Old_English-language_text ... English alphabet A Adjective Aircraft Alphabet_song American_English American_braille ... 960 21124206</pre>
+
+Source: https://dumps.wikimedia.org/other/pagecounts-raw/ for page counts and https://dumps.wikimedia.org/backup-index.html for all other fields
 
 ## World Cup 2014 Data
 
