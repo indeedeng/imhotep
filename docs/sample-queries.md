@@ -12,32 +12,13 @@ Because IQL allows you to join multiple result tables from multiple IQL queries,
 
 NOTE: Multiple queries should produce a result set that is consistent (has the same columns) and can be joined meaningfully.
 
-##Example: World Cup 2014 Data
 
-The following sample queries are based on World Cup 2014 data from a sample `worldcup2014` dataset. Each document in the dataset includes information about a single player. Consider the following fields in the dataset:
-
-| | | |
-| ----- | ------ | ------- |
-| Player | String | Player’s name.
-| Age | Int | Player’s age.
-| Captain | Int | Value (1 or 0) indicates whether the player is a captain.
-| Club | String | The player’s club when not playing for the national team in the World Cup.
-| Country | String | The country the player represents in the World Cup.
-| Group | String | The player’s national team belongs to this World Cup group.
-| Jersey | Int | The player’s jersey number.
-| Position | String | The player’s position.
-| Rank | Int | The ranking of the country the player represents.
-| Selections | Int | The number of World Cup appearances for this player.
-
-Source: [Stack Exchange Network](http://opendata.stackexchange.com/questions/1791/any-open-data-sets-for-the-football-world-cup-in-brazil-2014) / Open Data<br>
-The data are distributed under the creative commons [Attribution-Share Alike 4.0 International](http://creativecommons.org/licenses/by-sa/4.0/) license. The creator of the data is http://opendata.stackexchange.com/users/3061/bryan. In compliance with this license, the data is hereby attributed to the users and owners of StackOverflow, but not in such a way as to suggest that they endorse Indeed or Indeed’s use of the data.
-
-###Queries
+##World Cup 2014 Player Data
 
 The following queries all use the sample `worldcup2014` dataset and return data for `2014-07-01` to `2014-07-02`. 
 
 Queries are grouped as follows:<br>
-[Team Captains](#captains)<br>
+[Team Captains](#team-captains)<br>
 [Clubs](#clubs)<br>
 [Countries](#countries)<br>
 [Age v Experience](#age-experience)<br>

@@ -1,0 +1,737 @@
+Group	Country	Rank	Jersey	Position	Age	Selections	Club	Player	Captain		
+A	Brazil	3	1	Goalie	31	9	Botafogo   	Jefferson	0		
+A	Brazil	3	12	Goalie	34	80	Toronto FC  	Julio Cesar	0		
+A	Brazil	3	22	Goalie	31	6	Atletico Mineiro  	Victor	0		
+A	Brazil	3	2	Defender	31	75	Barcelona   	Dani Alves	0		
+A	Brazil	3	13	Defender	30	12	Bayern Munich  	Dante	0		
+A	Brazil	3	4	Defender	27	36	Chelsea   	David Luiz	0		
+A	Brazil	3	15	Defender	27	5	Napoli   	Henrique	0		
+A	Brazil	3	23	Defender	32	72	Roma   	Maicon	0		
+A	Brazil	3	6	Defender	26	31	Real Madrid  	Marcelo	0		
+A	Brazil	3	14	Defender	32	9	Paris Saint-Germain  	Maxwell	0		
+A	Brazil	3	3	Defender	29	46	Paris Saint-Germain  	Thiago Silva 	1		
+A	Brazil	3	20	Midfielder	21	11	Shakhtar Donetsk  	Bernard	0		
+A	Brazil	3	5	Midfielder	29	7	Manchester City  	Fernandinho	0		
+A	Brazil	3	18	Midfielder	29	24	Internazionale   	Hernanes	0		
+A	Brazil	3	17	Midfielder	26	19	VfL Wolfsburg  	Luiz Gustavo	0		
+A	Brazil	3	11	Midfielder	22	31	Chelsea   	Oscar	0		
+A	Brazil	3	8	Midfielder	25	26	Tottenham Hotspur  	Paulinho	0		
+A	Brazil	3	16	Midfielder	27	42	Chelsea   	Ramires	0		
+A	Brazil	3	19	Midfielder	25	7	Chelsea   	Willian	0		
+A	Brazil	3	9	Forward	30	33	Fluminense   	Fred	0		
+A	Brazil	3	7	Forward	27	35	Zenit Saint Petersburg 	Hulk	0		
+A	Brazil	3	21	Forward	27	17	Atletico Mineiro  	Jô	0		
+A	Brazil	3	10	Forward	22	49	Barcelona   	Neymar	0		
+A	Cameroon	56	16	Goalie	31	9	Konyaspor   	Charles Itandje	0		
+A	Cameroon	56	1	Goalie	22	2	Coton Sport  	Loec Feudjou	0		
+A	Cameroon	56	23	Goalie	24	3	Fethiyespor   	Sammy N'Djock	0		
+A	Cameroon	56	22	Defender	26	10	Granada   	Allan Nyom	0		
+A	Cameroon	56	14	Defender	28	31	Galatasaray   	Aurelien Chedjou	0		
+A	Cameroon	56	2	Defender	30	22	Queens Park Rangers 	Benoît Assou-Ekotto	0		
+A	Cameroon	56	4	Defender	21	3	Coton Sport  	Cedric Djeugoue	0		
+A	Cameroon	56	5	Defender	28	16	Besiktas   	Dany Nounkeu	0		
+A	Cameroon	56	12	Defender	30	31	Lyon   	Henri Bedimo	0		
+A	Cameroon	56	3	Defender	24	48	Marseille   	Nicolas N'Koulou	0		
+A	Cameroon	56	6	Midfielder	26	47	Barcelona   	Alex Song	0		
+A	Cameroon	56	20	Midfielder	21	9	Lens   	Edgar Salli	0		
+A	Cameroon	56	18	Midfielder	28	38	Antalyaspor   	Eyong Enoh	0		
+A	Cameroon	56	11	Midfielder	31	66	Rennes   	Jean Makoun	0		
+A	Cameroon	56	21	Midfielder	22	23	Schalke 4  	Joel Matip	0		
+A	Cameroon	56	7	Midfielder	28	40	Bordeaux   	Landry N'Guemo	0		
+A	Cameroon	56	17	Midfielder	28	49	Sevilla   	Stephane Mbia	0		
+A	Cameroon	56	8	Forward	25	17	Nancy   	Benjamin Moukandjo	0		
+A	Cameroon	56	19	Forward	18	8	Zulte Waregem  	Fabrice Olinga	0		
+A	Cameroon	56	13	Forward	25	26	Mainz 5  	Maxim Choupo-Moting	0		
+A	Cameroon	56	15	Forward	32	56	Fenerbahce   	Pierre Webo	0		
+A	Cameroon	56	9	Forward	33	117	Chelsea   	Samuel Eto'o 	c		0
+A	Cameroon	56	10	Forward	22	24	Lorient   	Vincent Aboubakar	0		
+A	Croatia	18	23	Goalie	29	6	Monaco   	Danijel Subasic	0		
+A	Croatia	18	12	Goalie	21	0	Lokomotiva   	Oliver Zelenika	0		
+A	Croatia	18	1	Goalie	35	111	Rostov   	Stipe Pletikosa	0		
+A	Croatia	18	3	Defender	32	50	Panathinaikos   	Danijel Pranjic	0		
+A	Croatia	18	11	Defender	32	112	Shakhtar Donetsk  	Darijo Srna 	1		
+A	Croatia	18	6	Defender	24	25	Southampton   	Dejan Lovren	0		
+A	Croatia	18	21	Defender	25	23	Dynamo Kyiv  	Domagoj Vida	0		
+A	Croatia	18	13	Defender	29	21	Panathinaikos   	Gordon Schildenfeld	0		
+A	Croatia	18	2	Defender	22	7	Genoa   	Sime Vrsaljko	0		
+A	Croatia	18	5	Defender	28	72	Lokomotiv Moscow  	Vedran Corluka	0		
+A	Croatia	18	15	Midfielder	25	9	Hamburger SV  	Milan Badelj	0		
+A	Croatia	18	4	Midfielder	25	29	VfL Wolfsburg  	Ivan Perisic	0		
+A	Croatia	18	7	Midfielder	26	62	Sevilla   	Ivan Rakitic	0		
+A	Croatia	18	10	Midfielder	28	75	Real Madrid  	Luka Modric	0		
+A	Croatia	18	14	Midfielder	21	1	Dinamo Zagreb  	Marcelo Brozovic	0		
+A	Croatia	18	20	Midfielder	20	10	Internazionale   	Mateo Kovacic	0		
+A	Croatia	18	8	Midfielder	30	55	Dynamo Kyiv  	Ognjen Vukojevic	0		
+A	Croatia	18	19	Midfielder	27	6	Getafe   	Sammir	0		
+A	Croatia	18	16	Forward	20	5	Fiorentina   	Ante Rebic	0		
+A	Croatia	18	22	Forward	31	63	Shakhtar Donetsk  	Eduardo	0		
+A	Croatia	18	18	Forward	34	92	VfL Wolfsburg  	Ivica Olic	0		
+A	Croatia	18	17	Forward	28	50	Bayern Munich  	Mario Mandzukic	0		
+A	Croatia	18	9	Forward	28	33	Hull City  	Nikica Jelavic	0		
+A	Mexico	20	12	Goalie	31	14	Toluca   	Alfredo Talavera	0		
+A	Mexico	20	13	Goalie	28	59	Ajaccio   	Guillermo Ochoa	0		
+A	Mexico	20	1	Goalie	33	34	Cruz Azul  	Jose de Jesus Corona	0		
+A	Mexico	20	18	Defender	27	104	Bayer Leverkusen  	Andres Guardado	0		
+A	Mexico	20	3	Defender	34	122	UANL   	Carlos Salcido	0		
+A	Mexico	20	5	Defender	21	14	Porto   	Diego Reyes	0		
+A	Mexico	20	2	Defender	32	95	America   	Francisco Javier Rodriguez	0		
+A	Mexico	20	15	Defender	26	53	Espanyol   	Hector Moreno	0		
+A	Mexico	20	16	Defender	25	8	Toluca   	Miguel Angel Ponce	0		
+A	Mexico	20	7	Defender	25	15	America   	Miguel Layun	0		
+A	Mexico	20	22	Defender	28	30	America   	Paul Aguilar	0		
+A	Mexico	20	4	Defender	35	120	Leon   	Rafael Marquez 	1		
+A	Mexico	20	21	Midfielder	24	16	Leon   	Carlos Pena	0		
+A	Mexico	20	6	Midfielder	24	13	Porto   	Hector Herrera	0		
+A	Mexico	20	17	Midfielder	23	7	Toluca   	Isaac Brizuela	0		
+A	Mexico	20	20	Midfielder	24	22	Villarreal   	Javier Aquino	0		
+A	Mexico	20	23	Midfielder	26	5	Leon   	Jose Juan Vazquez	0		
+A	Mexico	20	8	Midfielder	24	15	Cruz Azul  	Marco Fabian	0		
+A	Mexico	20	11	Forward	23	6	UANL   	Alan Pulido	0		
+A	Mexico	20	10	Forward	25	76	Villarreal   	Giovani dos Santos	0		
+A	Mexico	20	14	Forward	26	62	Manchester United  	Javier Hernandez	0		
+A	Mexico	20	19	Forward	30	33	Santos Laguna  	Oribe Peralta	0		
+A	Mexico	20	9	Forward	23	25	America   	Raul Jimenez	0		
+B	Australia	62	18	Goalie	32	8	Adelaide United  	Eugene Galekovic	0		
+B	Australia	62	1	Goalie	22	7	Club Brugge  	Mathew Ryan	0		
+B	Australia	62	12	Goalie	25	3	Borussia Dortmund  	Mitchell Langerak	0		
+B	Australia	62	22	Defender	29	3	Jeonbuk Hyundai Motors 	Alex Wilkinson	0		
+B	Australia	62	8	Defender	21	0	Preston North End 	Bailey Wright	0		
+B	Australia	62	2	Defender	26	9	Brisbane Roar  	Ivan Franjic	0		
+B	Australia	62	3	Defender	22	7	Heracles Almelo  	Jason Davidson	0		
+B	Australia	62	6	Defender	25	18	Western Sydney Wanderers 	Matthew Spiranovic	0		
+B	Australia	62	19	Defender	24	9	Shandong Luneng Taishan 	Ryan McGowan	0		
+B	Australia	62	10	Midfielder	21	2	Fortuna Düsseldorf  	Ben Halloran	0		
+B	Australia	62	20	Midfielder	27	23	Sion   	Dario Vidosic	0		
+B	Australia	62	16	Midfielder	25	14	Autriche Wien  	James Holland	0		
+B	Australia	62	14	Midfielder	25	11	Atalanta   	James Troisi	0		
+B	Australia	62	23	Midfielder	34	74	Al-Gharafa   	Mark Bresciano	0		
+B	Australia	62	5	Midfielder	28	29	Melbourne Victory  	Mark Milligan	0		
+B	Australia	62	21	Midfielder	21	1	Swindon Town  	Massimo Luongo	0		
+B	Australia	62	17	Midfielder	31	47	Brisbane Roar  	Matt McKay	0		
+B	Australia	62	15	Midfielder	29	44	Crystal Palace  	Mile Jedinak 	1		
+B	Australia	62	13	Midfielder	25	3	Luzern   	Oliver Bozanic	0		
+B	Australia	62	11	Midfielder	22	15	Utrecht   	Tommy Oar	0		
+B	Australia	62	9	Forward	21	5	Newcastle Jets  	Adam Taggart	0		
+B	Australia	62	7	Forward	23	8	FSV Frankfurt  	Mathew Leckie	0		
+B	Australia	62	4	Forward	34	69	New York Red Bulls	Tim Cahill	0		
+B	Chile	14	1	Goalie	31	79	Real Sociedad  	Claudio Bravo 	1		
+B	Chile	14	12	Goalie	25	4	Universidad Catolica  	Cristopher Toselli	0		
+B	Chile	14	23	Goalie	33	8	Universidad de Chili 	Johnny Herrera	0		
+B	Chile	14	2	Defender	25	25	Santos   	Eugenio Mena	0		
+B	Chile	14	17	Defender	26	61	Cardiff City  	Gary Medel	0		
+B	Chile	14	18	Defender	28	65	Nottingham Forest  	Gonzalo Jara	0		
+B	Chile	14	13	Defender	31	19	Universidad de Chili 	Jose Rojas	0		
+B	Chile	14	3	Defender	23	2	Malmö FF  	Miiko Albornoz	0		
+B	Chile	14	8	Midfielder	27	54	Juventus   	Arturo Vidal	0		
+B	Chile	14	6	Midfielder	27	44	Atalanta   	Carlos Carmona	0		
+B	Chile	14	20	Midfielder	25	21	Internacional   	Charles Aranguiz	0		
+B	Chile	14	14	Midfielder	28	26	Celta Vigo  	Fabian Orellana	0		
+B	Chile	14	16	Midfielder	23	18	Twente   	Felipe Gutierrez	0		
+B	Chile	14	5	Midfielder	28	12	Osasuna   	Francisco Silva	0		
+B	Chile	14	15	Midfielder	30	59	Wigan Athletic  	Jean Beausejour	0		
+B	Chile	14	10	Midfielder	30	57	Palmeiras   	Jorge Valdivia	0		
+B	Chile	14	19	Midfielder	29	23	Colo-Colo   	Jose Pedro Fuenzalida	0		
+B	Chile	14	21	Midfielder	27	21	Basel   	Marcelo Diaz	0		
+B	Chile	14	4	Midfielder	25	47	Juventus   	Mauricio Isla	0		
+B	Chile	14	7	Forward	25	67	Barcelona   	Alexis Sanchez	0		
+B	Chile	14	11	Forward	24	30	Valencia   	Eduardo Vargas	0		
+B	Chile	14	22	Forward	33	35	Colo-Colo   	Esteban Paredes	0		
+B	Chile	14	9	Forward	30	27	Cagliari   	Mauricio Pinilla	0		
+B	Spain	1	12	Goalie	23	1	Manchester United  	David de Gea	0		
+B	Spain	1	1	Goalie	33	154	Real Madrid  	Iker Casillas 	1		
+B	Spain	1	23	Goalie	31	32	Napoli   	Pepe Reina	0		
+B	Spain	1	22	Defender	24	6	Chelsea   	Cesar Azpilicueta	0		
+B	Spain	1	3	Defender	27	60	Barcelona   	Gerard Pique	0		
+B	Spain	1	18	Defender	25	26	Barcelona   	Jordi Alba	0		
+B	Spain	1	5	Defender	29	8	Atletico Madrid  	Juanfran	0		
+B	Spain	1	2	Defender	28	46	Napoli   	Raul Albiol	0		
+B	Spain	1	15	Defender	28	117	Real Madrid  	Sergio Ramos	0		
+B	Spain	1	6	Midfielder	30	97	Barcelona   	Andres Iniesta	0		
+B	Spain	1	10	Midfielder	27	89	Barcelona   	Cesc Fabregas	0		
+B	Spain	1	21	Midfielder	28	80	Manchester City  	David Silva	0		
+B	Spain	1	4	Midfielder	25	17	Bayern Munich  	Javi Martinez	0		
+B	Spain	1	13	Midfielder	26	33	Manchester United  	Juan Mata	0		
+B	Spain	1	17	Midfielder	22	8	Atletico Madrid  	Koke	0		
+B	Spain	1	20	Midfielder	29	64	Arsenal   	Santi Cazorla	0		
+B	Spain	1	16	Midfielder	25	65	Barcelona   	Sergio Busquets	0		
+B	Spain	1	14	Midfielder	32	111	Real Madrid  	Xabi Alonso	0		
+B	Spain	1	8	Midfielder	34	132	Barcelona   	Xavi	0		
+B	Spain	1	7	Forward	32	96	Atletico Madrid  	David Villa	0		
+B	Spain	1	19	Forward	25	2	Atletico Madrid  	Diego Costa	0		
+B	Spain	1	9	Forward	30	107	Chelsea   	Fernando Torres	0		
+B	Spain	1	11	Forward	26	40	Barcelona   	Pedro	0		
+B	Netherlands	15	1	Goalie	25	8	Ajax   	Jasper Cillessen	0		
+B	Netherlands	15	22	Goalie	30	14	Swansea City  	Michel Vorm	0		
+B	Netherlands	15	23	Goalie	26	5	Newcastle United  	Tim Krul	0		
+B	Netherlands	15	4	Defender	22	16	Feyenoord   	Bruno Martins Indi	0		
+B	Netherlands	15	5	Defender	24	12	Ajax   	Daley Blind	0		
+B	Netherlands	15	7	Defender	24	16	Feyenoord   	Daryl Janmaat	0		
+B	Netherlands	15	13	Defender	22	2	Ajax   	Joel Veltman	0		
+B	Netherlands	15	12	Defender	30	2	Augsburg   	Paul Verhaegh	0		
+B	Netherlands	15	2	Defender	29	24	Aston Villa  	Ron Vlaar	0		
+B	Netherlands	15	3	Defender	22	12	Feyenoord   	Stefan de Vrij	0		
+B	Netherlands	15	14	Defender	20	1	Feyenoord   	Terence Kongolo	0		
+B	Netherlands	15	11	Midfielder	30	75	Bayern Munich  	Arjen Robben	0		
+B	Netherlands	15	20	Midfielder	23	5	PSV   	Georginio Wijnaldum	0		
+B	Netherlands	15	6	Midfielder	26	10	Swansea City  	Jonathan de Guzman	0		
+B	Netherlands	15	16	Midfielder	22	8	Feyenoord   	Jordy Clasie	0		
+B	Netherlands	15	18	Midfielder	24	6	Norwich City  	Leroy Fer	0		
+B	Netherlands	15	21	Midfielder	20	6	PSV   	Memphis Depay	0		
+B	Netherlands	15	8	Midfielder	29	71	Milan   	Nigel de Jong	0		
+B	Netherlands	15	10	Midfielder	29	99	Galatasaray   	Wesley Sneijder	0		
+B	Netherlands	15	15	Forward	33	98	Fenerbahce   	Dirk Kuyt	0		
+B	Netherlands	15	17	Forward	26	22	Dynamo Kyiv  	Jeremain Lens	0		
+B	Netherlands	15	19	Forward	30	62	Schalke 4  	Klaas-Jan Huntelaar	0		
+B	Netherlands	15	9	Forward	30	85	Manchester United  	Robin van Persie 	1		
+C	Colombia	8	12	Goalie	24	0	Santa Fe  	Camilo Vargas	0		
+C	Colombia	8	1	Goalie	25	44	Nice   	David Ospina	0		
+C	Colombia	8	22	Goalie	42	50	Deportivo Cali  	Faryd Mondragon	0		
+C	Colombia	8	23	Defender	29	14	San Lorenzo  	Carlos Valdes	0		
+C	Colombia	8	2	Defender	27	24	Milan   	Cristian Zapata	0		
+C	Colombia	8	16	Defender	21	3	River Plate  	Eder Alvarez Balanta	0		
+C	Colombia	8	18	Defender	28	50	Napoli   	Juan Camilo Zuniga	0		
+C	Colombia	8	3	Defender	38	98	Atalanta   	Mario Yepes 	1		
+C	Colombia	8	7	Defender	27	53	West Ham United 	Pablo Armero	0		
+C	Colombia	8	4	Defender	22	6	PSV   	Santiago Arias	0		
+C	Colombia	8	8	Midfielder	29	49	Toulouse   	Abel Aguilar	0		
+C	Colombia	8	5	Midfielder	23	1	River Plate  	Carlos Carbonero	0		
+C	Colombia	8	15	Midfielder	25	8	Atletico Nacional  	Alexander Mejia	0		
+C	Colombia	8	6	Midfielder	28	44	Elche   	Carlos Sanchez	0		
+C	Colombia	8	13	Midfielder	27	49	Internazionale   	Fredy Guarin	0		
+C	Colombia	8	10	Midfielder	22	22	Monaco   	James Rodriguez	0		
+C	Colombia	8	20	Midfielder	21	4	Porto   	Juan Fernando Quintero	0		
+C	Colombia	8	11	Midfielder	26	28	Fiorentina   	Juan Guillermo Cuadrado	0		
+C	Colombia	8	14	Midfielder	24	9	Cagliari   	Victor Ibarbo	0		
+C	Colombia	8	19	Forward	28	26	Hertha BSC  	Adrian Ramos	0		
+C	Colombia	8	17	Forward	27	11	Sevilla   	Carlos Bacca	0		
+C	Colombia	8	21	Forward	27	27	Porto   	Jackson Martinez	0		
+C	Colombia	8	9	Forward	29	30	River Plate  	Teofilo Gutierrez	0		
+C	Ivory Coast	23	1	Goalie	34	79	Lokeren   	Boubacar Barry	0		
+C	Ivory Coast	23	23	Goalie	21	1	Stabæk   	Sayouba Mande	0		
+C	Ivory Coast	23	16	Goalie	25	1	Sewe Sport  	Sylvain Gbohouo	0		
+C	Ivory Coast	23	3	Defender	31	79	VfB Stuttgart  	Arthur Boka	0		
+C	Ivory Coast	23	18	Defender	27	4	Eintracht Frankfurt  	Constant Djakpa	0		
+C	Ivory Coast	23	5	Defender	33	119	Trabzonspor   	Didier Zokora	0		
+C	Ivory Coast	23	7	Defender	21	1	Toulouse   	Jean-Daniel Akpa-Akpro	0		
+C	Ivory Coast	23	4	Defender	33	106	Liverpool   	Kolo Toure	0		
+C	Ivory Coast	23	2	Defender	27	3	caykur Rizespor  	Ousmane Viera	0		
+C	Ivory Coast	23	17	Defender	21	8	Toulouse   	Serge Aurier	0		
+C	Ivory Coast	23	22	Defender	29	43	Trabzonspor   	Sol Bamba	0		
+C	Ivory Coast	23	9	Midfielder	27	44	Newcastle United  	Cheick Tiote	0		
+C	Ivory Coast	23	13	Midfielder	30	25	Hannover 96  	Didier Ya Konan	0		
+C	Ivory Coast	23	14	Midfielder	21	1	Saint-etienne   	Ismael Diomande	0		
+C	Ivory Coast	23	20	Midfielder	29	6	Basel   	Serey Die	0		
+C	Ivory Coast	23	19	Midfielder	31	83	Manchester City  	Yaya Toure	0		
+C	Ivory Coast	23	11	Forward	36	100	Galatasaray   	Didier Drogba 	1		
+C	Ivory Coast	23	10	Forward	27	53	Roma   	Gervinho	0		
+C	Ivory Coast	23	21	Forward	25	7	Basel   	Giovanni Sio	0		
+C	Ivory Coast	23	6	Forward	23	3	Fortuna Düsseldorf  	Mathis Bolly	0		
+C	Ivory Coast	23	15	Forward	26	25	Saint-etienne   	Max Gradel	0		
+C	Ivory Coast	23	8	Forward	28	64	Lille   	Salomon Kalou	0		
+C	Ivory Coast	23	12	Forward	25	24	Swansea City  	Wilfried Bony	0		
+C	Greece	12	1	Goalie	28	19	Granada   	Orestis Karnezis	0		
+C	Greece	12	12	Goalie	28	2	PAOK   	Panagiotis Glykos	0		
+C	Greece	12	13	Goalie	20	2	Panathinaikos   	Stefanos Kapino	0		
+C	Greece	12	2	Midfielder	27	30	Olympiacos   	Giannis Maniatis	0		
+C	Greece	12	3	Defender	26	13	PAOK   	Giorgos Tzavellas	0		
+C	Greece	12	20	Defender	29	22	Olympiacos   	Jose Holebas	0		
+C	Greece	12	4	Defender	22	9	Olympiacos   	Kostas Manolas	0		
+C	Greece	12	11	Defender	33	50	Levante   	Loukas Vyntra	0		
+C	Greece	12	19	Defender	25	47	Borussia Dortmund  	Sokratis Papastathopoulos	0		
+C	Greece	12	5	Defender	32	19	Verona   	Vangelis Moras	0		
+C	Greece	12	15	Defender	28	66	Roma   	Vasilis Torosidis	0		
+C	Greece	12	6	Midfielder	29	49	Kayserispor   	Alexandros Tziolis	0		
+C	Greece	12	22	Midfielder	24	4	Olympiacos   	Andreas Samaris	0		
+C	Greece	12	18	Midfielder	23	19	Genoa   	Giannis Fetfatzidis	0		
+C	Greece	12	10	Midfielder	37	135	Fulham   	Giorgos Karagounis 	1		
+C	Greece	12	21	Midfielder	34	111	PAOK   	Kostas Katsouranis	0		
+C	Greece	12	16	Midfielder	27	19	Bologna   	Lazaros Christodoulopoulos	0		
+C	Greece	12	8	Midfielder	26	16	Bologna   	Panagiotis Kone	0		
+C	Greece	12	23	Midfielder	23	6	Torino   	Panagiotis Tachtsidis	0		
+C	Greece	12	14	Forward	32	76	PAOK   	Dimitris Salpingidis	0		
+C	Greece	12	7	Forward	29	74	Celtic   	Giorgos Samaras	0		
+C	Greece	12	9	Forward	26	32	Fulham   	Kostas Mitroglou	0		
+C	Greece	12	17	Forward	34	72	Konyaspor   	Theofanis Gekas	0		
+C	Japan	46	1	Goalie	31	56	Standard Liege  	Eiji Kawashima	0		
+C	Japan	46	23	Goalie	25	2	F.C. Tokyo  	Shūichi Gonda	0		
+C	Japan	46	12	Goalie	27	12	Urawa Red Diamonds 	Shusaku Nishikawa	0		
+C	Japan	46	2	Defender	26	67	Schalke 4  	Atsuto Uchida	0		
+C	Japan	46	3	Defender	23	12	VfB Stuttgart  	Gōtoku Sakai	0		
+C	Japan	46	21	Defender	24	17	Hannover 96  	Hiroki Sakai	0		
+C	Japan	46	19	Defender	30	21	Jubilo Iwata  	Masahiko Inoha	0		
+C	Japan	46	6	Defender	27	9	F.C. Tokyo  	Masato Morishige	0		
+C	Japan	46	22	Defender	25	40	Southampton   	Maya Yoshida	0		
+C	Japan	46	15	Defender	31	80	Gamba Osaka  	Yasuyuki Konno	0		
+C	Japan	46	5	Defender	27	69	Internazionale   	Yuto Nagatomo	0		
+C	Japan	46	8	Midfielder	24	25	1. FC Nürnberg 	Hiroshi Kiyotake	0		
+C	Japan	46	16	Midfielder	23	11	Cerezo Osaka  	Hotaru Yamaguchi	0		
+C	Japan	46	4	Midfielder	27	55	Milan   	Keisuke Honda	0		
+C	Japan	46	17	Midfielder	30	78	1. FC Nürnberg 	Makoto Hasebe 	1		
+C	Japan	46	10	Midfielder	25	56	Manchester United  	Shinji Kagawa	0		
+C	Japan	46	14	Midfielder	28	5	Sanfrecce Hiroshima  	Toshihiro Aoyama	0		
+C	Japan	46	7	Midfielder	34	143	Gamba Osaka  	Yasuhito Endō	0		
+C	Japan	46	20	Forward	24	4	Yokohama F. Marinos 	Manabu Saitō	0		
+C	Japan	46	9	Forward	28	75	Mainz 5  	Shinji Okazaki	0		
+C	Japan	46	11	Forward	24	11	Cerezo Osaka  	Yoichiro Kakitani	0		
+C	Japan	46	13	Forward	31	56	Kawasaki Frontale  	Yoshito Ōkubo	0		
+C	Japan	46	18	Forward	24	8	1860 München  	Yuya Osako	0		
+D	England	10	13	Goalie	31	6	West Bromwich Albion 	Ben Foster	0		
+D	England	10	22	Goalie	26	1	Celtic   	Fraser Forster	0		
+D	England	10	1	Goalie	27	40	Manchester City  	Joe Hart	0		
+D	England	10	12	Defender	24	11	Manchester United  	Chris Smalling	0		
+D	England	10	5	Defender	28	23	Chelsea   	Gary Cahill	0		
+D	England	10	2	Defender	29	51	Liverpool   	Glen Johnson	0		
+D	England	10	3	Defender	29	23	Everton   	Leighton Baines	0		
+D	England	10	23	Defender	18	1	Southampton   	Luke Shaw	0		
+D	England	10	6	Defender	31	25	Everton   	Phil Jagielka	0		
+D	England	10	16	Defender	22	9	Manchester United  	Phil Jones	0		
+D	England	10	20	Midfielder	26	4	Southampton   	Adam Lallana	0		
+D	England	10	15	Midfielder	20	14	Arsenal   	Alex Oxlade-Chamberlain	0		
+D	England	10	8	Midfielder	35	103	Chelsea   	Frank Lampard	0		
+D	England	10	7	Midfielder	22	16	Arsenal   	Jack Wilshere	0		
+D	England	10	17	Midfielder	28	46	Manchester City  	James Milner	0		
+D	England	10	14	Midfielder	23	9	Liverpool   	Jordan Henderson	0		
+D	England	10	19	Midfielder	19	3	Liverpool   	Raheem Sterling	0		
+D	England	10	21	Midfielder	20	4	Everton   	Ross Barkley	0		
+D	England	10	4	Midfielder	34	110	Liverpool   	Steven Gerrard 	1		
+D	England	10	9	Forward	24	11	Liverpool   	Daniel Sturridge	0		
+D	England	10	11	Forward	23	22	Manchester United  	Danny Welbeck	0		
+D	England	10	18	Forward	32	4	Southampton   	Rickie Lambert	0		
+D	England	10	10	Forward	28	90	Manchester United  	Wayne Rooney	0		
+D	Costa Rica	28	23	Goalie	28	2	Herediano   	Daniel Cambronero	0		
+D	Costa Rica	28	1	Goalie	27	53	Levante   	Keylor Navas	0		
+D	Costa Rica	28	18	Goalie	32	21	Alajuelense   	Patrick Pemberton	0		
+D	Costa Rica	28	16	Defender	24	24	Rosenborg   	Cristian Gamboa	0		
+D	Costa Rica	28	3	Defender	26	34	Columbus Crew  	Giancarlo Gonzalez	0		
+D	Costa Rica	28	8	Defender	29	22	Saprissa   	Heiner Mora	0		
+D	Costa Rica	28	2	Defender	30	27	Alajuelense   	Johnny Acosta	0		
+D	Costa Rica	28	15	Defender	30	58	Mainz 5  	Junior Diaz	0		
+D	Costa Rica	28	4	Defender	31	79	Saprissa   	Michael Umana	0		
+D	Costa Rica	28	6	Defender	25	11	Club Brugge  	Oscar Duarte	0		
+D	Costa Rica	28	19	Defender	29	47	New York Red Bulls	Roy Miller	0		
+D	Costa Rica	28	12	Defender	23	1	Columbus Crew  	Waylon Francis	0		
+D	Costa Rica	28	5	Midfielder	26	63	AIK   	Celso Borges	0		
+D	Costa Rica	28	7	Midfielder	30	55	Copenhagen   	Christian Bolanos	0		
+D	Costa Rica	28	20	Midfielder	23	10	Vålerenga   	Diego Calvo	0		
+D	Costa Rica	28	13	Midfielder	28	11	Herediano   	Esteban Granados	0		
+D	Costa Rica	28	22	Midfielder	27	36	Herediano   	Jose Miguel Cubero	0		
+D	Costa Rica	28	11	Midfielder	30	51	Aalesund   	Michael Barrantes	0		
+D	Costa Rica	28	17	Midfielder	22	22	Saprissa   	Yeltsin Tejeda	0		
+D	Costa Rica	28	10	Forward	28	62	PSV   	Bryan Ruiz 	1		
+D	Costa Rica	28	9	Forward	21	33	Olympiacos   	Joel Campbell	0		
+D	Costa Rica	28	21	Forward	24	25	Kuban Krasnodar  	Marco Urena	0		
+D	Costa Rica	28	14	Forward	30	37	Cartagines   	Randall Brenes	0		
+D	Italy	9	1	Goalie	36	139	Juventus   	Gianluigi Buffon 	1		
+D	Italy	9	13	Goalie	21	0	Genoa   	Mattia Perin	0		
+D	Italy	9	12	Goalie	27	8	Paris Saint-Germain  	Salvatore Sirigu	0		
+D	Italy	9	15	Defender	33	47	Juventus   	Andrea Barzagli	0		
+D	Italy	9	20	Defender	28	2	Parma   	Gabriel Paletta	0		
+D	Italy	9	3	Defender	29	67	Juventus   	Giorgio Chiellini	0		
+D	Italy	9	7	Defender	27	19	Milan   	Ignazio Abate	0		
+D	Italy	9	19	Defender	27	36	Juventus   	Leonardo Bonucci	0		
+D	Italy	9	4	Defender	24	1	Torino   	Matteo Darmian	0		
+D	Italy	9	2	Defender	21	10	Milan   	Mattia De Sciglio	0		
+D	Italy	9	14	Midfielder	29	34	Fiorentina   	Alberto Aquilani	0		
+D	Italy	9	21	Midfielder	35	108	Juventus   	Andrea Pirlo	0		
+D	Italy	9	6	Midfielder	27	19	Lazio   	Antonio Candreva	0		
+D	Italy	9	8	Midfielder	28	43	Juventus   	Claudio Marchisio	0		
+D	Italy	9	16	Midfielder	30	94	Roma   	Daniele De Rossi	0		
+D	Italy	9	18	Midfielder	29	3	Parma   	Marco Parolo	0		
+D	Italy	9	23	Midfielder	21	5	Paris Saint-Germain  	Marco Verratti	0		
+D	Italy	9	5	Midfielder	31	20	Paris Saint-Germain  	Thiago Motta	0		
+D	Italy	9	11	Forward	26	11	Torino   	Alessio Cerci	0		
+D	Italy	9	10	Forward	31	36	Parma   	Antonio Cassano	0		
+D	Italy	9	17	Forward	24	2	Torino   	Ciro Immobile	0		
+D	Italy	9	22	Forward	23	4	Napoli   	Lorenzo Insigne	0		
+D	Italy	9	9	Forward	23	29	Milan   	Mario Balotelli	0		
+D	Uruguay	7	1	Goalie	27	57	Galatasaray   	Fernando Muslera	0		
+D	Uruguay	7	23	Goalie	31	4	Vasco da Gama 	Martin Silva	0		
+D	Uruguay	7	12	Goalie	32	0	Libertad   	Rodrigo Munoz	0		
+D	Uruguay	7	3	Defender	28	76	Atletico Madrid  	Diego Godin	0		
+D	Uruguay	7	2	Defender	33	93	West Bromwich Albion 	Diego Lugano 	1		
+D	Uruguay	7	13	Defender	29	41	Porto   	Jorge Fucile	0		
+D	Uruguay	7	19	Defender	19	5	Atletico Madrid  	Jose Maria Gimenez	0		
+D	Uruguay	7	22	Defender	27	56	Juventus   	Martin Caceres	0		
+D	Uruguay	7	16	Defender	29	89	Benfica   	Maxi Pereira	0		
+D	Uruguay	7	4	Defender	23	14	Nacional   	Sebastian Coates	0		
+D	Uruguay	7	20	Midfielder	29	42	Lazio   	alvaro Gonzalez	0		
+D	Uruguay	7	6	Midfielder	28	56	São Paulo  	alvaro Pereira	0		
+D	Uruguay	7	7	Midfielder	28	72	Atletico Madrid  	Cristian Rodriguez	0		
+D	Uruguay	7	15	Midfielder	34	89	Bologna   	Diego Perez	0		
+D	Uruguay	7	17	Midfielder	32	54	Morelia   	Egidio Arevalo Rios	0		
+D	Uruguay	7	18	Midfielder	23	28	Southampton   	Gaston Ramirez	0		
+D	Uruguay	7	14	Midfielder	25	26	Botafogo   	Nicolas Lodeiro	0		
+D	Uruguay	7	5	Midfielder	29	62	Parma   	Walter Gargano	0		
+D	Uruguay	7	8	Forward	23	12	Palermo   	Abel Hernandez	0		
+D	Uruguay	7	11	Forward	27	9	Espanyol   	Christian Stuani	0		
+D	Uruguay	7	10	Forward	35	109	Cerezo Osaka  	Diego Forlan	0		
+D	Uruguay	7	21	Forward	27	61	Paris Saint-Germain  	Edinson Cavani	0		
+D	Uruguay	7	9	Forward	27	77	Liverpool   	Luis Suarez	0		
+E	Ecuador	26	12	Goalie	25	3	El Nacional  	Adrian Bone	0		
+E	Ecuador	26	22	Goalie	27	18	LDU Quito  	Alexander Dominguez	0		
+E	Ecuador	26	1	Goalie	28	24	Barcelona   	Maximo Banguera	0		
+E	Ecuador	26	3	Defender	26	36	Flamengo   	Frickson Erazo	0		
+E	Ecuador	26	21	Defender	29	22	Emelec   	Gabriel Achilier	0		
+E	Ecuador	26	2	Defender	32	58	Emelec   	Jorge Guagua	0		
+E	Ecuador	26	4	Defender	26	37	Barcelona   	Juan Carlos Paredes	0		
+E	Ecuador	26	18	Defender	31	21	Emelec   	oscar Bagüi	0		
+E	Ecuador	26	10	Defender	34	89	Pachuca   	Walter Ayovi	0		
+E	Ecuador	26	16	Midfielder	28	70	Manchester United  	Antonio Valencia 	1		
+E	Ecuador	26	23	Midfielder	19	2	VfB Stuttgart  	Carlos Gruezo	0		
+E	Ecuador	26	6	Midfielder	29	41	Dynamo Moscow  	Christian Noboa	0		
+E	Ecuador	26	8	Midfielder	35	109	Santa Fe  	Edison Mendez	0		
+E	Ecuador	26	20	Midfielder	24	8	Tijuana   	Fidel Martinez	0		
+E	Ecuador	26	7	Midfielder	24	39	Morelia   	Jefferson Montero	0		
+E	Ecuador	26	9	Midfielder	24	29	Cruz Azul  	Joao Rojas	0		
+E	Ecuador	26	19	Midfielder	30	48	Barcelona   	Luis Saritama	0		
+E	Ecuador	26	15	Midfielder	27	20	Atlante   	Michael Arroyo	0		
+E	Ecuador	26	5	Midfielder	23	17	Vitesse   	Renato Ibarra	0		
+E	Ecuador	26	14	Midfielder	32	81	Al-Hilal   	Segundo Castillo	0		
+E	Ecuador	26	13	Forward	25	9	Pachuca   	Enner Valencia	0		
+E	Ecuador	26	11	Forward	25	49	Al-Jazira   	Felipe Caicedo	0		
+E	Ecuador	26	17	Forward	26	30	Tijuana   	Jaime Ayovi	0		
+E	France	17	1	Goalie	27	56	Tottenham Hotspur  	Hugo Lloris 	1		
+E	France	17	23	Goalie	35	11	Bastia   	Mickael Landreau	0		
+E	France	17	16	Goalie	27	2	Saint-etienne   	Stephane Ruffier	0		
+E	France	17	15	Defender	31	40	Arsenal   	Bacary Sagna	0		
+E	France	17	13	Defender	23	3	Porto   	Eliaquim Mangala	0		
+E	France	17	21	Defender	28	17	Arsenal   	Laurent Koscielny	0		
+E	France	17	17	Defender	20	2	Paris Saint-Germain  	Lucas Digne	0		
+E	France	17	5	Defender	24	18	Liverpool   	Mamadou Sakho	0		
+E	France	17	2	Defender	28	20	Newcastle United  	Mathieu Debuchy	0		
+E	France	17	3	Defender	33	57	Manchester United  	Patrice Evra	0		
+E	France	17	4	Defender	21	5	Real Madrid  	Raphael Varane	0		
+E	France	17	11	Midfielder	23	3	Real Sociedad  	Antoine Griezmann	0		
+E	France	17	14	Midfielder	27	22	Paris Saint-Germain  	Blaise Matuidi	0		
+E	France	17	22	Midfielder	24	1	Southampton   	Morgan Schneiderlin	0		
+E	France	17	7	Midfielder	24	1	Montpellier	Remy Cabella	0		
+E	France	17	8	Midfielder	29	33	Marseille   	Mathieu Valbuena	0		
+E	France	17	18	Midfielder	24	16	Newcastle United  	Moussa Sissoko	0		
+E	France	17	19	Midfielder	21	10	Juventus   	Paul Pogba	0		
+E	France	17	12	Midfielder	30	11	Lille   	Rio Mavuba	0		
+E	France	17	6	Midfielder	28	29	Paris Saint-Germain  	Yohan Cabaye	0		
+E	France	17	10	Forward	26	65	Real Madrid  	Karim Benzema	0		
+E	France	17	20	Forward	27	24	Newcastle United  	Loec Remy	0		
+E	France	17	9	Forward	27	29	Arsenal   	Olivier Giroud	0		
+E	Honduras	33	22	Goalie	34	26	Olimpia   	Donis Escober	0		
+E	Honduras	33	1	Goalie	20	0	Real Espana  	Luis Lopez	0		
+E	Honduras	33	18	Goalie	37	121	Olimpia   	Noel Valladares 	1		
+E	Honduras	33	23	Defender	28	22	Olimpia   	Brayan Beckeles	0		
+E	Honduras	33	7	Defender	28	67	Celtic   	Emilio Izaguirre	0		
+E	Honduras	33	6	Defender	26	33	Wigan Athletic  	Juan Carlos Garcia	0		
+E	Honduras	33	4	Defender	28	11	Motagua   	Juan Pablo Montes	0		
+E	Honduras	33	3	Defender	31	104	Hull City  	Maynor Figueroa	0		
+E	Honduras	33	2	Defender	29	54	Qingdao Jonoon  	Osman Chavez	0		
+E	Honduras	33	5	Defender	32	77	San Jose Earthquakes 	Victor Bernardez	0		
+E	Honduras	33	21	Midfielder	21	16	Anderlecht   	Andy Najar	0		
+E	Honduras	33	12	Midfielder	27	25	Real Espana  	Edder Delgado	0		
+E	Honduras	33	20	Midfielder	28	48	Motagua   	Jorge Claros	0		
+E	Honduras	33	19	Midfielder	23	19	Olimpia   	Luis Garrido	0		
+E	Honduras	33	10	Midfielder	24	35	Real Espana  	Mario Martinez	0		
+E	Honduras	33	17	Midfielder	30	41	Chivas USA  	Marvin Chavez	0		
+E	Honduras	33	14	Midfielder	29	92	Houston Dynamo  	oscar Garcia	0		
+E	Honduras	33	15	Midfielder	27	41	Wigan Athletic  	Roger Espinoza	0		
+E	Honduras	33	8	Midfielder	29	94	Stoke City  	Wilson Palacios	0		
+E	Honduras	33	13	Forward	31	69	Real Espana  	Carlo Costly	0		
+E	Honduras	33	11	Forward	27	43	New Angleterre Revolution 	Jerry Bengtson	0		
+E	Honduras	33	9	Forward	32	23	Alajuelense   	Jerry Palacios	0		
+E	Honduras	33	16	Forward	25	12	Real Sociedad  	Rony Martinez	0		
+E	Switzerland	6	1	Goalie	30	56	VfL Wolfsburg  	Diego Benaglio	0		
+E	Switzerland	6	21	Goalie	23	0	Grasshopper   	Roman Bürki	0		
+E	Switzerland	6	12	Goalie	25	6	Basel   	Yann Sommer	0		
+E	Switzerland	6	22	Defender	22	5	Basel   	Fabian Schär	0		
+E	Switzerland	6	20	Defender	27	44	Hamburger SV  	Johan Djourou	0		
+E	Switzerland	6	6	Defender	23	5	Grasshopper   	Michael Lang	0		
+E	Switzerland	6	4	Defender	29	53	Valencia   	Philippe Senderos	0		
+E	Switzerland	6	3	Defender	28	35	Sassuolo   	Reto Ziegler	0		
+E	Switzerland	6	13	Defender	21	20	VfL Wolfsburg  	Ricardo Rodriguez	0		
+E	Switzerland	6	2	Defender	30	62	Juventus   	Stephan Lichtsteiner	0		
+E	Switzerland	6	5	Defender	30	40	Young Boys  	Steve von Bergen	0		
+E	Switzerland	6	15	Midfielder	28	33	Napoli   	Blerim Dzemaili	0		
+E	Switzerland	6	16	Midfielder	27	47	SC Freiburg  	Gelson Fernandes	0		
+E	Switzerland	6	8	Midfielder	29	71	Napoli   	Gökhan Inler 	1		
+E	Switzerland	6	10	Midfielder	21	25	Borussia Mönchengladbach  	Granit Xhaka	0		
+E	Switzerland	6	7	Midfielder	29	73	Eintracht Frankfurt  	Tranquillo Barnetta	0		
+E	Switzerland	6	14	Midfielder	25	23	Basel   	Valentin Stocker	0		
+E	Switzerland	6	11	Midfielder	29	47	Napoli   	Valon Behrami	0		
+E	Switzerland	6	23	Midfielder	22	32	Bayern Munich  	Xherdan Shaqiri	0		
+E	Switzerland	6	18	Forward	23	20	SC Freiburg  	Admir Mehmedi	0		
+E	Switzerland	6	9	Forward	22	10	Real Sociedad  	Haris Seferovic	0		
+E	Switzerland	6	19	Forward	21	6	1. FC Nürnberg 	Josip Drmic	0		
+E	Switzerland	6	17	Forward	24	10	Zürich   	Mario Gavranovic	0		
+F	Argentina	5	12	Goalie	32	3	Boca Juniors  	Agustin Orion	0		
+F	Argentina	5	21	Goalie	30	10	Catania   	Mariano Andujar	0		
+F	Argentina	5	1	Goalie	27	45	Monaco   	Sergio Romero	0		
+F	Argentina	5	2	Defender	27	18	Benfica   	Ezequiel Garay	0		
+F	Argentina	5	17	Defender	25	24	Napoli   	Federico Fernandez	0		
+F	Argentina	5	3	Defender	33	13	Internazionale   	Hugo Campagnaro	0		
+F	Argentina	5	23	Defender	30	8	Monterrey   	Jose Maria Basanta	0		
+F	Argentina	5	16	Defender	24	20	Sporting   	Marcos Rojo	0		
+F	Argentina	5	15	Defender	33	37	Manchester City  	Martin Demichelis	0		
+F	Argentina	5	4	Defender	29	36	Manchester City  	Pablo Zabaleta	0		
+F	Argentina	5	7	Midfielder	26	45	Real Madrid  	angel di Maria	0		
+F	Argentina	5	13	Midfielder	28	7	Celta Vigo  	Augusto Fernandez	0		
+F	Argentina	5	8	Midfielder	28	5	Benfica   	Enzo Perez	0		
+F	Argentina	5	5	Midfielder	28	47	Boca Juniors  	Fernando Gago	0		
+F	Argentina	5	14	Midfielder	29	96	Barcelona   	Javier Mascherano	0		
+F	Argentina	5	6	Midfielder	28	16	Lazio   	Lucas Biglia	0		
+F	Argentina	5	11	Midfielder	33	53	Newell's Old Boys 	Maxi Rodriguez	0		
+F	Argentina	5	19	Midfielder	26	5	Internazionale   	Ricardo alvarez	0		
+F	Argentina	5	22	Forward	29	29	Paris Saint-Germain  	Ezequiel Lavezzi	0		
+F	Argentina	5	9	Forward	26	36	Napoli   	Gonzalo Higuain	0		
+F	Argentina	5	10	Forward	26	84	Barcelona   	Lionel Messi 	1		
+F	Argentina	5	18	Forward	32	15	Internazionale   	Rodrigo Palacio	0		
+F	Argentina	5	20	Forward	26	50	Manchester City  	Sergio Agüero	0		
+F	Bosnia-Herzegovina	21	22	Goalie	33	3	and Herzegovina Borac Banja	Asmir Avdukic	0		
+F	Bosnia-Herzegovina	21	1	Goalie	26	30	Stoke City  	Asmir Begovic	0		
+F	Bosnia-Herzegovina	21	12	Goalie	28	0	VfR Aalen  	Jasmin Fejzic	0		
+F	Bosnia-Herzegovina	21	2	Defender	28	13	Hajduk Split  	Avdija Vrsajevic	0		
+F	Bosnia-Herzegovina	21	4	Defender	33	74	Bayer Leverkusen  	Emir Spahic 	1		
+F	Bosnia-Herzegovina	21	3	Defender	24	7	Eintracht Braunschweig  	Ermin Bicakcic	0		
+F	Bosnia-Herzegovina	21	13	Defender	30	24	SC Freiburg  	Mensur Mujdza	0		
+F	Bosnia-Herzegovina	21	7	Defender	21	9	Ferencvaros   	Muhamed Besic	0		
+F	Bosnia-Herzegovina	21	6	Defender	24	13	Elazığspor   	Ognjen Vranjes	0		
+F	Bosnia-Herzegovina	21	5	Defender	20	4	Schalke 4  	Sead Kolasinac	0		
+F	Bosnia-Herzegovina	21	15	Defender	25	7	Zorya Luhansk  	Toni sunjic	0		
+F	Bosnia-Herzegovina	21	20	Midfielder	24	2	Sturm Graz  	Anel Hadzic	0		
+F	Bosnia-Herzegovina	21	18	Midfielder	29	35	Gaziantepspor   	Haris Medunjanin	0		
+F	Bosnia-Herzegovina	21	14	Midfielder	22	7	Galatasaray   	Izet Hajrovic	0		
+F	Bosnia-Herzegovina	21	8	Midfielder	24	48	Roma   	Miralem Pjanic	0		
+F	Bosnia-Herzegovina	21	23	Midfielder	29	42	1899 Hoffenheim  	Sejad Salihovic	0		
+F	Bosnia-Herzegovina	21	16	Midfielder	28	33	Lazio   	Senad Lulic	0		
+F	Bosnia-Herzegovina	21	17	Midfielder	28	42	Kayseri Erciyesspor  	Senijad Ibricic	0		
+F	Bosnia-Herzegovina	21	21	Midfielder	22	2	Hajduk Split  	Tino-Sven Susic	0		
+F	Bosnia-Herzegovina	21	10	Midfielder	32	82	Guizhou Renhe  	Zvjezdan Misimovic	0		
+F	Bosnia-Herzegovina	21	11	Forward	28	62	Manchester City  	Edin Dzeko	0		
+F	Bosnia-Herzegovina	21	19	Forward	24	10	İstanbul BB  	Edin Visca	0		
+F	Bosnia-Herzegovina	21	9	Forward	29	55	VfB Stuttgart  	Vedad Ibisevic	0		
+F	Iran	43	12	Goalie	26	5	Sporting Covilhã  	Alireza Haghighi	0		
+F	Iran	43	22	Goalie	26	4	Eintracht Braunschweig  	Daniel Davari	0		
+F	Iran	43	1	Goalie	33	10	Sepahan   	Rahman Ahmadi	0		
+F	Iran	43	17	Defender	31	9	Naft Tehran  	Ahmad Alnameh	0		
+F	Iran	43	5	Defender	32	16	Esteghlal   	Amir Hossein Sadeghi	0		
+F	Iran	43	19	Defender	30	17	Esteghlal   	Hashem Beikzadeh	0		
+F	Iran	43	13	Defender	27	21	Persepolis   	Hossein Mahini	0		
+F	Iran	43	4	Defender	32	84	Persepolis   	Jalal Hosseini	0		
+F	Iran	43	23	Defender	27	19	Persepolis   	Mehrdad Pouladi	0		
+F	Iran	43	15	Defender	30	21	Umm Salal  	Pejman Montazeri	0		
+F	Iran	43	20	Defender	27	6	Vancouver Whitecaps  	Steven Beitashour	0		
+F	Iran	43	14	Midfielder	31	78	Esteghlal   	Andranik Teymourian	0		
+F	Iran	43	21	Midfielder	27	13	Fulham   	Ashkan Dejagah	0		
+F	Iran	43	18	Midfielder	22	4	Foolad   	Bakhtiar Rahmani	0		
+F	Iran	43	3	Midfielder	24	61	Sepahan   	Ehsan Hajsafi	0		
+F	Iran	43	11	Midfielder	30	16	Zob Ahan  	Ghasem Haddadifar	0		
+F	Iran	43	6	Midfielder	33	139	Al-Kuwait   	Javad Nekounam 	1		
+F	Iran	43	2	Midfielder	30	48	Esteghlal   	Khosro Heydari	0		
+F	Iran	43	7	Midfielder	29	49	Las Palmas  	Masoud Shojaei	0		
+F	Iran	43	8	Midfielder	25	7	Persepolis   	Reza Haghighi	0		
+F	Iran	43	9	Forward	20	6	NEC   	Alireza Jahanbakhsh	0		
+F	Iran	43	10	Forward	24	41	Tractor Sazi  	Karim Ansarifard	0		
+F	Iran	43	16	Forward	26	13	Charlton Athletic  	Reza Ghoochannejhad	0		
+F	Nigeria	44	16	Goalie	30	32	Hapoel Be'er Sheva 	Austin Ejide	0		
+F	Nigeria	44	21	Goalie	29	11	Gombe United  	Chigozie Agbim	0		
+F	Nigeria	44	1	Goalie	31	90	Lille   	Vincent Enyeama 	1		
+F	Nigeria	44	6	Defender	24	32	Warri Wolves  	Azubuike Egwuekwe	0		
+F	Nigeria	44	5	Defender	25	36	Celtic   	Efe Ambrose	0		
+F	Nigeria	44	14	Defender	23	35	caykur Rizespor  	GoDefenderrey Oboabona	0		
+F	Nigeria	44	2	Defender	33	96	Norwich City  	Joseph Yobo	0		
+F	Nigeria	44	13	Defender	23	10	Ashdod   	Juwon Oshaniwa	0		
+F	Nigeria	44	22	Defender	20	17	Middlesbrough   	Kenneth Omeruo	0		
+F	Nigeria	44	12	Defender	24	10	Sunshine Stars  	Kunle Odunlami	0		
+F	Nigeria	44	3	Defender	26	42	Monaco   	Uwa Elderson Echiejile	0		
+F	Nigeria	44	10	Midfielder	27	59	Chelsea   	John Obi Mikel	0		
+F	Nigeria	44	18	Midfielder	21	4	Volyn Lutsk  	Michael Babatunde	0		
+F	Nigeria	44	17	Midfielder	21	20	Lazio   	Ogenyi Onazi	0		
+F	Nigeria	44	15	Midfielder	21	1	Almeria   	Ramon Azeez	0		
+F	Nigeria	44	4	Midfielder	23	11	Waasland-Beveren   	Reuben Gabriel	0		
+F	Nigeria	44	11	Midfielder	23	20	Liverpool   	Victor Moses	0		
+F	Nigeria	44	7	Forward	21	35	CSKA Moscow  	Ahmed Musa	0		
+F	Nigeria	44	9	Forward	27	22	Fenerbahce   	Emmanuel Emenike	0		
+F	Nigeria	44	20	Forward	24	3	Cercle Brugge  	Michael Uchebo	0		
+F	Nigeria	44	8	Forward	32	60	Stoke City  	Peter Odemwingie	0		
+F	Nigeria	44	23	Forward	32	6	Newcastle United  	Shola Ameobi	0		
+F	Nigeria	44	19	Forward	22	6	Heerenveen   	Uche Nwofor	0		
+G	Germany	2	1	Goalie	28	45	Bayern Munich  	Manuel Neuer	0		
+G	Germany	2	22	Goalie	33	2	Borussia Dortmund  	Roman Weidenfeller	0		
+G	Germany	2	12	Goalie	25	3	Hannover 96  	Ron-Robert Zieler	0		
+G	Germany	2	4	Defender	26	20	Schalke 4  	Benedikt Höwedes	0		
+G	Germany	2	15	Defender	22	1	Borussia Dortmund  	Erik Durm	0		
+G	Germany	2	20	Defender	25	38	Bayern Munich  	Jerôme Boateng	0		
+G	Germany	2	2	Defender	25	4	Borussia Dortmund  	Kevin Großkreutz	0		
+G	Germany	2	5	Defender	25	29	Borussia Dortmund  	Mats Hummels	0		
+G	Germany	2	17	Defender	29	97	Arsenal   	Per Mertesacker	0		
+G	Germany	2	16	Defender	30	105	Bayern Munich  	Philipp Lahm 	1		
+G	Germany	2	9	Midfielder	23	32	Chelsea   	Andre Schürrle	0		
+G	Germany	2	7	Midfielder	29	101	Bayern Munich  	Bastian Schweinsteiger	0		
+G	Germany	2	23	Midfielder	23	2	Borussia Mönchengladbach  	Christoph Kramer	0		
+G	Germany	2	14	Midfielder	20	11	Schalke 4  	Julian Draxler	0		
+G	Germany	2	19	Midfielder	22	28	Bayern Munich  	Mario Götze	0		
+G	Germany	2	3	Midfielder	20	2	SC Freiburg  	Matthias Ginter	0		
+G	Germany	2	8	Midfielder	25	54	Arsenal   	Mesut Özil	0		
+G	Germany	2	6	Midfielder	27	45	Real Madrid  	Sami Khedira	0		
+G	Germany	2	13	Midfielder	24	48	Bayern Munich  	Thomas Müller	0		
+G	Germany	2	18	Midfielder	24	43	Bayern Munich  	Toni Kroos	0		
+G	Germany	2	10	Forward	29	113	Arsenal   	Lukas Podolski	0		
+G	Germany	2	11	Forward	35	131	Lazio   	Miroslav Klose	0		
+G	Germany	2	21	Défenseur	22	1	Sampdoria	Shkodran Mustafi	0		
+G	USA	13	12	Goalie	29	25	Aston Villa  	Brad Guzan	0		
+G	USA	13	22	Goalie	34	14	Real Salt Lake 	Nick Rimando	0		
+G	USA	13	1	Goalie	35	99	Everton   	Tim Howard	0		
+G	USA	13	7	Defender	32	115	Puebla   	DaMarcus Beasley	0		
+G	USA	13	2	Defender	20	4	Seattle Sounders FC 	DeAndre Yedlin	0		
+G	USA	13	23	Defender	26	21	1899 Hoffenheim  	Fabian Johnson	0		
+G	USA	13	20	Defender	28	26	Stoke City  	Geoff Cameron	0		
+G	USA	13	6	Defender	21	4	Hertha BSC  	John Brooks	0		
+G	USA	13	5	Defender	27	16	Sporting Kansas City 	Matt Besler	0		
+G	USA	13	3	Defender	25	19	Los Angeles Galaxy 	Omar Gonzalez	0		
+G	USA	13	21	Defender	24	12	1. FC Nürnberg 	Timothy Chandler	0		
+G	USA	13	11	Midfielder	27	27	Nantes   	Alejandro Bedoya	0		
+G	USA	13	14	Midfielder	32	16	Houston Dynamo  	Brad Davis	0		
+G	USA	13	19	Midfielder	27	22	Sporting Kansas City 	Graham Zusi	0		
+G	USA	13	13	Midfielder	32	41	Besiktas   	Jermaine Jones	0		
+G	USA	13	16	Midfielder	19	2	Bayern Munich  	Julian Green	0		
+G	USA	13	15	Midfielder	32	36	Real Salt Lake 	Kyle Beckerman	0		
+G	USA	13	4	Midfielder	26	85	Toronto FC  	Michael Bradley	0		
+G	USA	13	10	Midfielder	23	19	Rosenborg   	Mikkel Diskerud	0		
+G	USA	13	9	Forward	23	8	AZ   	Aron Johannsson	0		
+G	USA	13	18	Forward	31	20	San Jose Earthquakes 	Chris Wondolowski	0		
+G	USA	13	8	Forward	31	104	Seattle Sounders FC 	Clint Dempsey 	1		
+G	USA	13	17	Forward	24	69	Sunderland   	Jozy Altidore	0		
+G	Ghana	37	12	Goalie	26	21	Strømsgodset   	Adam Kwarasey	0		
+G	Ghana	37	16	Goalie	29	17	Orlando Pirates  	Fatau Dauda	0		
+G	Ghana	37	1	Goalie	24	7	Aduana Stars  	Steven Adams	0		
+G	Ghana	37	4	Defender	23	16	Standard Liege  	Daniel Opare	0		
+G	Ghana	37	23	Defender	27	40	Esperance   	Harrison Afful	0		
+G	Ghana	37	21	Defender	27	29	Rennes   	John Boye	0		
+G	Ghana	37	19	Defender	23	26	evian   	Jonathan Mensah	0		
+G	Ghana	37	15	Defender	21	6	Mamelodi Sundowns  	Rashid Sumaila	0		
+G	Ghana	37	2	Defender	25	46	Platanias   	Samuel Inkoom	0		
+G	Ghana	37	6	Midfielder	22	4	Parma   	Acquah Afriyie	0		
+G	Ghana	37	14	Midfielder	26	14	Middlesbrough   	Albert Adomah	0		
+G	Ghana	37	10	Midfielder	24	48	Marseille   	Andre Ayew	0		
+G	Ghana	37	7	Midfielder	22	22	Vitesse   	Christian Atsu	0		
+G	Ghana	37	8	Midfielder	23	48	Udinese   	Emmanuel Agyemang-Badu	0		
+G	Ghana	37	20	Midfielder	25	61	Juventus   	Kwadwo Asamoah	0		
+G	Ghana	37	5	Midfielder	31	57	Milan   	Michael Essien	0		
+G	Ghana	37	17	Midfielder	24	16	Kuban Krasnodar  	Mohammed Rabiu	0		
+G	Ghana	37	11	Midfielder	29	81	Milan   	Sulley Muntari	0		
+G	Ghana	37	22	Midfielder	23	16	Rubin Kazan  	Wakaso Mubarak	0		
+G	Ghana	37	3	Forward	28	78	Al-Ain   	Asamoah Gyan 	1		
+G	Ghana	37	13	Forward	22	12	Sochaux   	Jordan Ayew	0		
+G	Ghana	37	9	Forward	27	12	Schalke 4  	Kevin-Prince Boateng	0		
+G	Ghana	37	18	Forward	22	9	Valenciennes   	Majeed Waris	0		
+G	Portugal	4	22	Goalie	32	7	Sevilla   	Beto	0		
+G	Portugal	4	1	Goalie	31	33	Braga   	Eduardo	0		
+G	Portugal	4	12	Goalie	26	29	Sporting   	Rui Patricio	0		
+G	Portugal	4	19	Defender	23	3	Benfica   	Andre Almeida	0		
+G	Portugal	4	2	Defender	32	71	Fenerbahce   	Bruno Alves	0		
+G	Portugal	4	5	Defender	26	43	Real Madrid  	Fabio Coentrão	0		
+G	Portugal	4	21	Defender	30	35	Valencia   	João Pereira	0		
+G	Portugal	4	14	Defender	26	7	Zenit Saint Petersburg 	Luis Neto	0		
+G	Portugal	4	3	Defender	31	57	Real Madrid  	Pepe	0		
+G	Portugal	4	13	Defender	33	18	Valencia   	Ricardo Costa	0		
+G	Portugal	4	8	Midfielder	27	66	Monaco   	João Moutinho	0		
+G	Portugal	4	4	Midfielder	28	47	Dynamo Kyiv  	Miguel Veloso	0		
+G	Portugal	4	17	Midfielder	27	73	Manchester United  	Nani	0		
+G	Portugal	4	15	Midfielder	21	2	Braga   	Rafa Silva	0		
+G	Portugal	4	16	Midfielder	31	73	Fenerbahce   	Raul Meireles	0		
+G	Portugal	4	20	Midfielder	29	11	Benfica   	Ruben Amorim	0		
+G	Portugal	4	18	Midfielder	29	22	Porto   	Silvestre Varela	0		
+G	Portugal	4	10	Midfielder	28	7	VfL Wolfsburg  	Vieirinha	0		
+G	Portugal	4	6	Midfielder	22	3	Sporting   	William Carvalho	0		
+G	Portugal	4	7	Forward	29	110	Real Madrid  	Cristiano Ronaldo 	1		
+G	Portugal	4	11	Forward	26	7	Braga   	eder	0		
+G	Portugal	4	23	Forward	31	67	Lazio   	Helder Postiga	0		
+G	Portugal	4	9	Forward	30	54	Besiktas   	Hugo Almeida	0		
+H	Algeria	22	1	Goalie	29	1	CS Constantine  	Cedric Si Mohamed	0		
+H	Algeria	22	16	Goalie	29	7	USM Alger  	Mohamed Zemmamouche	0		
+H	Algeria	22	23	Goalie	28	27	CSKA Sofia  	Raes M'Bolhi	0		
+H	Algeria	22	20	Defender	22	2	Reims   	Aissa Mandi	0		
+H	Algeria	22	7	Defender	29	25	Valenciennes   	Carl Medjani	0		
+H	Algeria	22	6	Defender	29	26	Livorno   	Djamel Mesbah	0		
+H	Algeria	22	4	Defender	25	13	Watford   	Essaed Belkalem	0		
+H	Algeria	22	3	Defender	23	5	Napoli   	Faouzi Ghoulam	0		
+H	Algeria	22	17	Defender	26	6	Mallorca   	Liassine Cadamuro-Bentaeba	0		
+H	Algeria	22	2	Defender	31	61	Lekhwiya   	Madjid Bougherra 	1		
+H	Algeria	22	5	Defender	27	28	Academica   	Rafik Halliche	0		
+H	Algeria	22	18	Midfielder	27	76	Club Africain  	Abdelmoumene Djabou	0		
+H	Algeria	22	8	Midfielder	30	24	Udinese   	Hassan Yebda	0		
+H	Algeria	22	12	Midfielder	30	29	Getafe   	Medhi Lacen	0		
+H	Algeria	22	22	Midfielder	30	22	Ajaccio   	Mehdi Mostefa	0		
+H	Algeria	22	14	Midfielder	19	2	Tottenham Hotspur  	Nabil Bentaleb	0		
+H	Algeria	22	21	Midfielder	23	1	Leicester City  	Riyad Mahrez	0		
+H	Algeria	22	19	Midfielder	22	10	Internazionale   	Saphir Taeder	0		
+H	Algeria	22	10	Midfielder	24	18	Valencia   	Sofiane Feghouli	0		
+H	Algeria	22	11	Midfielder	24	5	Granada   	Yacine Brahimi	0		
+H	Algeria	22	15	Forward	26	21	Dinamo Zagreb  	El Arbi Hillel Soudani	0		
+H	Algeria	22	13	Forward	25	19	Sporting CP  	Islam Slimani	0		
+H	Algeria	22	9	Forward	24	5	Porto   	Nabil Ghilas	0		
+H	Belgium	11	13	Goalie	28	1	Zulte Waregem  	Sammy Bossut	0		
+H	Belgium	11	12	Goalie	25	14	Liverpool   	Simon Mignolet	0		
+H	Belgium	11	1	Goalie	22	16	Atletico Madrid  	Thibaut Courtois	0		
+H	Belgium	11	21	Defender	26	25	Anderlecht   	Anthony Vanden Borre	0		
+H	Belgium	11	15	Defender	36	79	Bayern Munich  	Daniel Van Buyten	0		
+H	Belgium	11	5	Defender	27	56	Tottenham Hotspur  	Jan Vertonghen	0		
+H	Belgium	11	23	Defender	28	8	Standard Liege  	Laurent Ciman	0		
+H	Belgium	11	18	Defender	29	26	Zenit Saint Petersburg 	Nicolas Lombaerts	0		
+H	Belgium	11	3	Defender	28	48	Arsenal   	Thomas Vermaelen	0		
+H	Belgium	11	2	Defender	25	34	Atletico Madrid  	Toby Alderweireld	0		
+H	Belgium	11	4	Defender	28	59	Manchester City  	Vincent Kompany 	1		
+H	Belgium	11	20	Midfielder	19	1	Manchester United  	Adnan Januzaj	0		
+H	Belgium	11	6	Midfielder	25	48	Zenit Saint Petersburg 	Axel Witsel	0		
+H	Belgium	11	10	Midfielder	23	45	Chelsea   	Eden Hazard	0		
+H	Belgium	11	7	Midfielder	22	22	VfL Wolfsburg  	Kevin De Bruyne	0		
+H	Belgium	11	11	Midfielder	26	44	Everton   	Kevin Mirallas	0		
+H	Belgium	11	8	Midfielder	26	50	Manchester United  	Marouane Fellaini	0		
+H	Belgium	11	19	Midfielder	26	55	Tottenham Hotspur  	Mousa Dembele	0		
+H	Belgium	11	22	Midfielder	24	20	Tottenham Hotspur  	Nacer Chadli	0		
+H	Belgium	11	16	Midfielder	26	43	Porto   	Steven Defour	0		
+H	Belgium	11	17	Forward	19	2	Lille   	Divock Origi	0		
+H	Belgium	11	14	Forward	27	24	Napoli   	Dries Mertens	0		
+H	Belgium	11	9	Forward	21	29	Everton   	Romelu Lukaku	0		
+H	South Korea	57	1	Goalie	29	60	Suwon Bluewings  	Jung Sung-Ryong	0		
+H	South Korea	57	21	Goalie	23	5	Ulsan Hyundai  	Kim Seung-Gyu	0		
+H	South Korea	57	23	Goalie	25	0	Busan I'Park  	Lee Bum-Young	0		
+H	South Korea	57	20	Defender	24	24	FC Augsburg  	Hong Jeong-Ho	0		
+H	South Korea	57	6	Defender	24	3	Sanfrecce Hiroshima  	Hwang Seok-Ho	0		
+H	South Korea	57	2	Defender	28	8	Kashiwa Reysol  	Kim Chang-Soo	0		
+H	South Korea	57	5	Defender	24	20	Guangzhou Evergrande  	Kim Young-Gwon	0		
+H	South Korea	57	4	Defender	32	34	Al-Hilal   	Kwak Tae-Hwi	0		
+H	South Korea	57	12	Defender	27	11	Ulsan Hyundai  	Lee Yong	0		
+H	South Korea	57	22	Defender	27	13	Mainz 5  	Park Joo-Ho	0		
+H	South Korea	57	3	Defender	24	3	Queens Park Rangers 	Yun Suk-Young	0		
+H	South Korea	57	8	Midfielder	29	13	Beijing Guoan  	Ha Dae-Sung	0		
+H	South Korea	57	14	Midfielder	24	9	Kashiwa Reysol  	Han Kook-Young	0		
+H	South Korea	57	16	Midfielder	25	58	Sunderland   	Ki Sung-Yueng	0		
+H	South Korea	57	7	Midfielder	24	27	Cardiff City  	Kim Bo-Kyung	0		
+H	South Korea	57	13	Midfielder	25	36	Mainz 5  	Koo Ja-Cheol 	1		
+H	South Korea	57	17	Midfielder	25	54	Bolton Wanderers  	Lee Chung-Yong	0		
+H	South Korea	57	15	Midfielder	25	10	Guangzhou R&F  	Park Jong-Woo	0		
+H	South Korea	57	19	Forward	23	27	FC Augsburg  	Ji Dong-Won	0		
+H	South Korea	57	18	Forward	26	26	Ulsan Hyundai  	Kim Shin-Wook	0		
+H	South Korea	57	11	Forward	29	63	Sangju Sangmu  	Lee Keun-Ho	0		
+H	South Korea	57	10	Forward	28	63	Watford   	Park Chu-Young	0		
+H	South Korea	57	9	Forward	21	24	Bayer Leverkusen  	Son Heung-Min	0		
+H	Russia	19	1	Goalie	28	67	CSKA Moscow  	Igor Akinfeev	0		
+H	Russia	19	16	Goalie	33	1	Rubin Kazan  	Sergey Ryzhikov	0		
+H	Russia	19	12	Goalie	24	2	Zenit Saint Petersburg 	Yuri Lodygin	0		
+H	Russia	19	2	Defender	27	10	Dynamo Moscow  	Aleksei Kozlov	0		
+H	Russia	19	6	Defender	25	1	Terek Grozny  	Andrei Semyonov	0		
+H	Russia	19	22	Defender	30	11	Anzhi Makhachkala  	Andrey Yeshchenko	0		
+H	Russia	19	23	Defender	27	21	Spartak Moscow  	Dmitri Kombarov	0		
+H	Russia	19	3	Defender	23	3	CSKA Moscow  	Georgi Shchennikov	0		
+H	Russia	19	4	Defender	34	95	CSKA Moscow  	Sergei Ignashevich	0		
+H	Russia	19	14	Defender	31	77	CSKA Moscow  	Vasili Berezutski	0		
+H	Russia	19	13	Defender	27	4	Dynamo Moscow  	Vladimir Granat	0		
+H	Russia	19	10	Midfielder	23	31	CSKA Moscow  	Alan Dzagoev	0		
+H	Russia	19	8	Midfielder	27	26	Spartak Moscow  	Denis Glushakov	0		
+H	Russia	19	7	Midfielder	30	42	Dynamo Moscow  	Igor Denisov	0		
+H	Russia	19	17	Midfielder	23	6	Zenit Saint Petersburg 	Oleg Shatov	0		
+H	Russia	19	15	Midfielder	21	1	Rubin Kazan  	Pavel Mogilevets	0		
+H	Russia	19	20	Midfielder	28	18	Zenit Saint Petersburg 	Viktor Fayzulin	0		
+H	Russia	19	11	Forward	31	79	Zenit Saint Petersburg 	Aleksandr Kerzhakov	0		
+H	Russia	19	9	Forward	23	20	Dynamo Moscow  	Aleksandr Kokorin	0		
+H	Russia	19	19	Forward	29	16	Lokomotiv Moscow  	Aleksandr Samedov	0		
+H	Russia	19	18	Forward	25	5	Dynamo Moscow  	Aleksei Ionov	0		
+H	Russia	19	21	Forward	22	2	Rubin Kazan  	Maksim Kanunnikov	0		
+H	Russia	19	5	Forward	30	59	Dynamo Moscow  	Yuri Zhirkov	0		
