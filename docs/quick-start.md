@@ -55,15 +55,15 @@ Use AWS CloudFormation to create a stack on AWS.
   </tr>
 <tr>
     <td valign="top">`InstanceType`</td>
-    <td valign="top">Defines the memory, CPU, storage capacity, and hourly cost for the Imhotep instance. Valid values include:<br> `m3.xlarge`<br>`m3.2xlarge`<br>`c3.2xlarge`<br>`c3.4xlarge`<br>`c3.8xlarge`<br>`r3.large`<br>`r3.xlarge`<br>`r3.2xlarge`<br>`r3.4xlarge`<br>`r3.8xlarge`<br>[Click here for information about instance costs](http://aws.amazon.com/ec2/pricing/).</td>
+    <td valign="top">Defines the memory, CPU, storage capacity, and hourly cost for the Imhotep instance. Valid values include:<br> `m3.xlarge`<br>`m3.2xlarge`<br>`c3.2xlarge`<br>`c3.4xlarge`<br>`c3.8xlarge`<br>`r3.large` (smallest and least expensive)<br>`r3.xlarge`<br>`r3.2xlarge`<br>`r3.4xlarge`<br>`r3.8xlarge`<br>[Click here for information about instance costs](http://aws.amazon.com/ec2/pricing/).</td>
   </tr>
   <tr>
     <td valign="top">`IPrange`</td>
-     <td valign="top">IP address range for web access to Imhotep. The range must be a valid IP CIDR range of the form `x.x.x.x/x`</td>
+     <td valign="top">IP address range for web access to Imhotep. The range must be a valid IP [Classless Inter-Domain Routing](http://searchnetworking.techtarget.com/definition/CIDR) (CIDR) range of the form `x.x.x.x/x`<br><br>Any traffic coming from outside of this range won't be able to access Imhotep. You can change the IP address range later by deleting and recreating your stack. If you know [your IP address](http://www.myipaddress.com/show-my-ip-address/), use `myIPAddress/0`</td>
   </tr>
   <tr>
     <td valign="top">`KeyName`</td>
-    <td valign="top">Name of an existing EC2 key pair to enable SSH access to the cluster.</td>
+    <td valign="top">Name of an existing EC2 key pair to enable SSH access to the cluster. Create your `KeyName` in the same region as the Key Pair you created as a prerequisite to this procedure. </td>
   </tr>
   <tr>
     <td valign="top">`NumImhotepInstances`</td>
@@ -71,7 +71,7 @@ Use AWS CloudFormation to create a stack on AWS.
   </tr>
   <tr>
     <td valign="top">`SSHLocation`</td>
-    <td valign="top">IP address range for SSH access to the cluster. The range must be a valid IP CIDR range of the form `x.x.x.x/x`</td>
+    <td valign="top">IP address range for SSH access to the cluster. The range must be a valid IP CIDR range of the form `x.x.x.x/x`<br><br>Any SSH traffic coming from outside of this range won't be able to access Imhotep. You can change the IP address range later by deleting and recreating your stack.</td>
   </tr>
   </tbody>
 </table>
@@ -107,6 +107,8 @@ The name of your new dataset appears in the list. When you first add the dataset
 When the process completes successfully, `indexed` shows as the status of the file. Allow a minute or two for your dataset to be available in the IQL web client. 
 
 If the process fails, `failed` shows as the status. Errors are written to a `.error.log` file, which you can download to your computer. 
+
+To upload files directly to your S3 build bucket, place the files in the **iupload/tsvtoindex/*datasetName*/** directory. As they are processed, they are moved to **iupload/indexedtsv/*datasetName*/**. You can also view the files in TSV Uploader.
 
 NOTE: If you upload a TSV file to the wrong dataset, you must manually remove the shard that contains the dataset from Imhotep. [Learn how]({{ site.baseurl }}/docs/troubleshooting). 
 
