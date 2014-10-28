@@ -14,14 +14,16 @@ TSV Uploader supports parsing files that use either the TSV or CSV file format.
 Use these sample data files as models for preparing your data for upload:<br>
 [NASA Apache web logs](../sample-data#nasa-apache-web-logs)<br>
 [Wikipedia web logs](../sample-data#wikipedia-web-logs)<br>
-[World Cup 2014 data](../sample-data#world-cup-2014-data)
+[World Cup 2014 player data](../sample-data#world-cup-2014-player-data)
 
 ## Filenames
 
 #### <a name="shard-timerange"></a>Include the shard time range in the filename 
-Imhotep partitions your data into shards by the time denoted in the filename. When you [specify a time range in IQL][timerange], Imhotep searches for shards in that range by the time range in the shard name, not the [timestamps in the documents themselves](#time).
+Imhotep partitions your data into shards by the time denoted in the filename. When you [specify a time range in IQL][timerange], Imhotep selects the shards to search based on the time period associated with each shard, not the [timestamps in the documents themselves](#time).
 
 You can specify one full day, one full hour, or a range. If you specify a range, the end time is exclusive to the range.
+
+The time denoted in the filename must be expressed in UTC-6. For example, for a file named `20140801.tsv`, the range of expected times in the file would be 2014-07-31 18:00:00 UTC (inclusive) to 2014-08-01 18:00:00 UTC (exclusive). Note that times in the file must be expressed as Unix timestamps (seconds or milliseconds since 1970).
 <table>
   <tr>
     <th>Supported formats</th>
@@ -59,17 +61,13 @@ Use field names that contain uppercase `A-Z`, lowercase `a-z`, digits, or `_` (u
 
 #### <a name="time"></a>A document's timestamp must be in the same range as the filename
 
-If the field name is `time` or `unixtime`, the builder parses that field’s values as Unix timestamps and uses them as the document’s timestamps in the dataset. A timestamp can be in seconds or milliseconds since Unix epoch time (UTC). If you don't include a `time` or `unixtime` field, the builder uses the start date of the [shard time range](#shard-timerange) as the timestamp for all of the documents in the file.
+If the field name is `time` or `unixtime`, the builder parses that field’s values as Unix timestamps and uses them as the document’s timestamps in the dataset. A timestamp can be in seconds or milliseconds since Unix epoch time (UTC). If you don't include a `time` or `unixtime` field, the builder uses the start of the [shard time range](#shard-timerange) as the timestamp for all of the documents in the file.
 
 NOTE: Do not use floating-point values in a `time` or `unixtime` field, because floating-point values are treated as strings. [Read more](#floating).
-
-By default, all times are GMT-6. 
 
 #### Field names with the * suffix
 
 Adding the `*` suffix to the field name in the header also indexes a tokenized version of that field. 
-
-
 <table>
   <tr>
     <th>Field Name</th>
@@ -100,6 +98,21 @@ Adding the `**` suffix to the field name in the header also indexes bigrams from
   </tr> 
 </table>
 
+#### Field names with the + suffix
+Adding the `+` suffix to the field name in the header indexes the tokens in the field instead of the entire field. 
+<table>
+  <tr>
+    <th>Field Name</th>
+    <th>Value</th>
+    <th>Indexed Values</th>
+  </tr>
+  <tr>
+    <td valign="top">query_words+</td>
+    <td valign="top">"project manager"</td>
+    <td valign="top">query_words:"project"<br>query_words:"manager"</td>
+  </tr>
+ 
+</table>
 
 
 ## Field Values
