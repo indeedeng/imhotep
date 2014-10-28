@@ -4,13 +4,13 @@ title: Imhotep
 exclude_toc: true
 ---
 
-Imhotep is a large-scale analytics platform built by Indeed. For an introduction, check out the following tech talks:  
+Imhotep is a large-scale analytics platform built by Indeed. For more details, check out the following tech talks:  
 
 [Machine Learning at Indeed: Scaling Decision Trees](http://engineering.indeed.com/talks/machine-learning-indeed-scaling-decision-trees/) explains how we developed Imhotep, a distributed system for building decision trees for machine learning.
 
-[Imhotep: Large-Scale Analytics and Machine Learning at Indeed](http://engineering.indeed.com/talks/imhotep-large-scale-analytics-machine-learning-indeed/) describes how we build large-scale interactive analytics tools using the same platform.
+[Imhotep: Large-Scale Analytics and Machine Learning at Indeed](http://engineering.indeed.com/talks/imhotep-large-scale-analytics-machine-learning-indeed/) describes Imhotep’s primitive operations that allow us to build decision trees, drill into data, build graphs, and even execute SQL-like queries in IQL (Imhotep Query Language). The talk also covered what makes Imhotep fast, highly available, and fault tolerant.
 
-[Large-Scale Interactive Analytics with Imhotep](http://engineering.indeed.com/talks/large-scale-interactive-analytics-with-imhotep/) shows how our engineering and product organizations use Imhotep to focus on key metrics at scale. Additionally, Imhotep gives our marketing organization timely and accurate insight into our data.
+[Large-Scale Interactive Analytics with Imhotep](http://engineering.indeed.com/talks/large-scale-interactive-analytics-with-imhotep/) shows how our engineering and product organizations use Imhotep to focus on key metrics at scale. 
 
 ## Features
 Imhotep is a highly scalable analytics architecture that lets you do the following:
