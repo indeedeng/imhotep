@@ -14,9 +14,9 @@ TSV Uploader supports parsing files that use either the TSV or CSV file format.
 Use these samples as a model for preparing your data for upload.
 
 ### NASA Apache Web Logs
-This [simple dataset](http://indeedeng.github.io/imhotep/files/19950801.tsv), from [public NASA Apache web logs from 1995](http://ita.ee.lbl.gov/html/contrib/NASA-HTTP.html), contains log data for one day and is in an Imhotep-friendly TSV format.
+The sample time-series data set in [nasa_19950801.tsv](http://indeedeng.github.io/imhotep/files/nasa_19950801.tsv) comes from [public 1995 NASA Apache web logs](http://ita.ee.lbl.gov/html/contrib/NASA-HTTP.html). The file contains data for a single day and is in an Imhotep-friendly TSV format.
 
-A modified Perl script was used to produce the following fields:
+A Perl script was used to convert the Apache web log into the TSV format, extracting the following fields:
 
 | | |
 | ----- | ------- |
@@ -28,7 +28,7 @@ A modified Perl script was used to produce the following fields:
 | response | HTTP response code |
 | bytes | Number of bytes in the reply |
 
-One line (or document) in the dataset is as follows:
+Here is an example line (or document) from the dataset:
 
 <pre>piweba3y.prodigy.com - 807301196 GET /shuttle/missions/missions.html 200 8677</pre>
 
@@ -37,7 +37,7 @@ The timestamp `807301196` is the conversion of `01/Aug/1995:13:19:56 -0500` usin
 <pre>use Date::Parse;
 $in = "01/Aug/1995:13:19:56 -0500";
 $out = str2time($in);
-print "$out\n”;</pre>
+print "$out\n";</pre>
 
 
 ## Requirements 
