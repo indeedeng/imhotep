@@ -4,9 +4,11 @@ title: Sample Queries
 permalink: /docs/sample-queries/
 ---
 
+## Wikipedia 
 
+[Wikipedia articles that start with the letter E](http://demo.imhotep.works/iql/#q[]=from+wikipedia+%222014-09-13+11%3A00%3A00%22+%222014-09-13+12%3A00%3A00%22+where+title%3D~%22E.*%22+group+by+title[10+by+numRequests]+select+numRequests&view=table&table_sort[0][]=2&table_sort[0][]=desc): this query returns the names of the most popular Wikipedia articles that start with `E` from one hour on 9/13/2014.
 
-##World Cup 2014 Player Data
+## World Cup 2014 Player Data
 
 The following queries use data from [worldcupplayerinfo_20140701.tsv](http://indeedeng.github.io/imhotep/files/worldcupplayerinfo_20140701.tsv) in the `worldcup2014` dataset and return data for `2014-07-01` to `2014-07-02`. 
 

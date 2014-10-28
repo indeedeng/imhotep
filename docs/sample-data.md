@@ -48,13 +48,20 @@ Each document corresponds to a Wikipedia article that was served in that hour:
 | numRequests | Number of requests for the article in that hour
 | bytesServed | Number of bytes served for the article in that hour
 
-The most popular `E` entry in that hour was `English_alphabet`. The `categories` and `linksOut` fields are truncated in the example:
+[The most popular E entry](http://demo.imhotep.works/iql/#q[]=from+wikipedia+%222014-09-13+11%3A00%3A00%22+%222014-09-13+12%3A00%3A00%22+where+title%3D~%22E.*%22+group+by+title[10+by+numRequests]+select+numRequests&view=table&table_sort[0][]=2&table_sort[0][]=desc) in that hour was `English_alphabet`. The `categories` and `linksOut` fields are truncated in the example:
 
-<pre>English_alphabet All_Wikipedia_articles_needing_clarification All_articles_needing_additional_references All_articles_with_unsourced_statements Articles_containing_Old_English-language_text ... English alphabet A Adjective Aircraft Alphabet_song American_English American_braille ... 960 21124206</pre>
+| | 
+| ----- | 
+| `English_alphabet` |
+| `All_Wikipedia_articles_needing_clarification` `All_articles_needing_additional_references` `All_articles_with_unsourced_statements` `Articles_containing_Old_English-language_text ...` |
+| `English alphabet` |
+| `A Adjective Aircraft Alphabet_song American_English American_braille ...` |
+| `960` |
+| `21124206` |
 
 Source: https://dumps.wikimedia.org/other/pagecounts-raw/ for page counts and https://dumps.wikimedia.org/backup-index.html for all other fields
 
-## World Cup 2014 Data
+## World Cup 2014 Player Data
 
 The dataset in [worldcupplayerinfo_20140701.tsv](http://indeedeng.github.io/imhotep/files/worldcupplayerinfo_20140701.tsv) includes information about players in the World Cup 2014. Since this is not typical time-series Imhotep data, all documents are assigned the same timestamp: `2014-07-01 00:00:00`
 
