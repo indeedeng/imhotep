@@ -15,7 +15,7 @@ NOTE: Multiple queries should produce a result set that is consistent (has the s
 
 ##World Cup 2014 Player Data
 
-The following queries all use the sample `worldcup2014` dataset and return data for `2014-07-01` to `2014-07-02`. 
+The following queries use data from [worldcupplayerinfo_20140701.tsv](http://indeedeng.github.io/imhotep/files/worldcupplayerinfo_20140701.tsv) in the `worldcup2014` dataset and return data for `2014-07-01` to `2014-07-02`. 
 
 Queries are grouped as follows:<br>
 [Team Captains](#team-captains)<br>

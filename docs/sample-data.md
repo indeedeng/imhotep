@@ -38,7 +38,9 @@ Data for two months are available in these compressed files:<br>
 
 ## World Cup 2014 Data
 
-The dataset in [worldcupplayerinfo_20140701.tsv](). Each document in the dataset includes information about a single player. Consider the following fields in the dataset:
+The dataset in [worldcupplayerinfo_20140701.tsv](http://indeedeng.github.io/imhotep/files/worldcupplayerinfo_20140701.tsv) includes information about players in the World Cup 2014. Since this is not typical time-series Imhotep data, all documents are assigned the same timestamp: `2014-07-01 00:00:00`
+
+Each document in the dataset includes information about a single player:
 
 | | | |
 | ----- | ------ | ------- |
