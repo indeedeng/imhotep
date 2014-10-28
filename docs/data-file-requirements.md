@@ -62,7 +62,7 @@ If the field name is `time` or `unixtime`, the builder parses that field’s val
 
 NOTE: Do not use floating-point values in a `time` or `unixtime` field, because floating-point values are treated as strings. [Read more](#floating).
 
-By default, all times are GMT-6. EXAMPLE HERE of adjusting mismatches.
+By default, all times are GMT-6. 
 
 #### Field names with the * suffix
 
