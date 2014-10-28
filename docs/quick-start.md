@@ -71,7 +71,7 @@ Use AWS CloudFormation to create a stack on AWS.
   </tr>
   <tr>
     <td valign="top">`SSHLocation`</td>
-    <td valign="top">IP address range for SSH access to the cluster. The range must be a valid IP CIDR range of the form `x.x.x.x/x`<br><br>Any SSH traffic coming from outside of this range won't be able to access Imhotep. You can change the IP address range later by deleting and recreating your stack.</td>
+    <td valign="top">IP address range for SSH access to the cluster. The range must be a valid IP [CIDR](http://searchnetworking.techtarget.com/definition/CIDR) range of the form `x.x.x.x/x`<br><br>Any SSH traffic coming from outside of this range won't be able to access Imhotep. You can change the IP address range later by deleting and recreating your stack.</td>
   </tr>
   </tbody>
 </table>
