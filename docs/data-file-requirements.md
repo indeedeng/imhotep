@@ -25,7 +25,7 @@ A modified Perl script was used to produce the following fields:
 | time | In seconds, since 1970 |
 | method | GET, HEAD, or POST |
 | url | Requested path |
-| response | Code |
+| response | HTTP response code |
 | bytes | Number of bytes in the reply |
 
 One line (or document) in the dataset is as follows:
