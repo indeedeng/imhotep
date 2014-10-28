@@ -19,7 +19,7 @@ Imhotep is a highly scalable analytics architecture that lets you do the followi
 - Combine results from multiple time-series datasets
 - Build your own data tools for analysis, monitoring, reporting, and automated data processing on top of the Imhotep platform
 
-At Indeed, we use Imhotep to answer these and many more questions about how people around the world are using our job search engine:
+At Indeed, we use Imhotep to answer the following and many more questions about how people around the world are using our job search engine:
 
 - How many unique job queries were performed on a specific day in a specific country?
 - What are the top 50 queries in a specific country? How many times did job seekers click on a search result for each of those queries?
