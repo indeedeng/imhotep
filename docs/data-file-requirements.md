@@ -11,43 +11,16 @@ TSV Uploader supports parsing files that use either the TSV or CSV file format.
 *CSV Only:* If your files use the CSV file format, prepare the files to conform to the default settings for the [OpenCSV library](http://opencsv.sourceforge.net/apidocs/constant-values.html#au.com.bytecode.opencsv.CSVParser.DEFAULT_STRICT_QUOTES). OpenCSV uses \ (backslash) as the escape character.
 
 ## Sample Data Files
-Use these samples as a model for preparing your data for upload.
+Use these samples as models for preparing your data for upload:<br>
+[NASA Apache web logs](../sample-data#nasa-apache-web-logs)<br>
+[Wikipedia web logs](../sample-data#wikipedia-web-logs)
 
-### NASA Apache Web Logs
-The sample time-series dataset in [nasa_19950801.tsv](http://indeedeng.github.io/imhotep/files/nasa_19950801.tsv) comes from [public 1995 NASA Apache web logs](http://ita.ee.lbl.gov/html/contrib/NASA-HTTP.html). The file contains data for a single day and is in an Imhotep-friendly TSV format.
-
-A Perl script was used to convert the Apache web log into the TSV format, extracting the following fields:
-
-| | |
-| ----- | ------- |
-| host | When possible, the hostname making the request. Uses the IP address if the hostname was unavailable. |
-| logname | Unused, always `-` |
-| time | In seconds, since 1970 |
-| method | HTTP method: GET, HEAD, or POST |
-| url | Requested path |
-| response | HTTP response code |
-| bytes | Number of bytes in the reply |
-
-Here is an example line (or document) from the dataset:
-
-<pre>piweba3y.prodigy.com - 807301196 GET /shuttle/missions/missions.html 200 8677</pre>
-
-The timestamp `807301196` is the conversion of `01/Aug/1995:13:19:56 -0500` using Perl:
-
-<pre>use Date::Parse;
-$in = "01/Aug/1995:13:19:56 -0500";
-$out = str2time($in);
-print "$out\n";</pre>
-
-
-## Requirements 
-
-### Filenames
+## Filenames
 
 #### <a name="shard-timerange"></a>Include the shard time range in the filename 
-Imhotep partitions your data into shards by time. When you [specify a time range in IQL][timerange], Imhotep searches for shards in that time range by the time range in the shard name, not the [timestamps in the documents themselves](#time).
+Imhotep partitions your data into shards by the time denoted in the filename. When you [specify a time range in IQL][timerange], Imhotep searches for shards in that  range by the time range in the shard name, not the [timestamps in the documents themselves](#time).
 
-You can specify one full day, one full hour, or a range.
+You can specify one full day, one full hour, or a range. If you specify a range, the end time is exclusive to the range.
 <table>
   <tr>
     <th>Supported formats</th>
@@ -71,24 +44,25 @@ You can specify one full day, one full hour, or a range.
    </tr>
   </table>
   
-#### Do not use digits in an optional and arbitrary prefix or suffix 
+#### Optional prefixes and suffixes in the filename must be strings
+You can  add a string prefix or suffix, or both, to your filename. The builder ignores prefixes and suffixes that are strings. For example, the builder correctly ignores `QA_report` and `_combined` in the  `QA_report_20141013_combined.tsv` filename.
 
-For example, the `QA_report_20141013_parts1_2.tsv` filename is invalid because it includes digits in the suffix. In contrast, the builder correctly ignores the optional prefix and suffix in the  `QA_report_20141013_combined.tsv` filename.
+Digits are not supported in a prefix or suffix. For example, the `QA_report_20141013_parts1_2.tsv` filename is invalid because it includes digits in the suffix.
 
-### Field Headers
+## Field Headers
 
 #### The first line of your file represents the header that defines fields in the resulting dataset 
 
 Use field names that contain uppercase `A-Z`, lowercase `a-z`, digits, or `_` (underscore). A field name cannot start with a digit.
 
 
-#### <a name="time"></a>time or unixtime field names
+#### <a name="time"></a>A document's timestamp must be in the same range as the filename
 
-If the field name is `time` or `unixtime`, the builder parses that field’s values as Unix timestamps and uses them as the document’s timestamps in the dataset. A timestamp can be in seconds or milliseconds since Unix epoch time (UTC). By default, all times are GMT-6. 
+If the field name is `time` or `unixtime`, the builder parses that field’s values as Unix timestamps and uses them as the document’s timestamps in the dataset. A timestamp can be in seconds or milliseconds since Unix epoch time (UTC). If you don't include a `time` or `unixtime` field, the builder uses the start date of the [shard time range](#shard-timerange) as the timestamp for all of the documents in the file.
 
 NOTE: Do not use floating-point values in a `time` or `unixtime` field, because floating-point values are treated as strings. [Read more](#floating).
 
-If you don't include a `time` or `unixtime` field, the builder uses the start date of the [shard time range](#shard-timerange) as the timestamp for all of the documents in the file. 
+By default, all times are GMT-6. EXAMPLE HERE of adjusting mismatches.
 
 #### Field names with the * suffix
 
@@ -126,7 +100,7 @@ Adding the `**` suffix to the field name in the header also indexes bigrams from
 </table>
 
 
-### Field Values
+## Field Values
 
 #### Prepare the values in your data file
 
@@ -162,3 +136,4 @@ Floating-point values like 1.0 or 1.5 are not supported as integers and are trea
 An empty value for a string field is indexed as an empty string term and can be queried. For example, `location:""` returns the queries with an empty value for the string field `location`. For integer fields, all non-integer values including the empty value are not indexed and cannot be queried.
 
 [timerange]: {{ site.baseurl }}/docs/timerange
+[sample-data]: {{ site.baseurl }}/docs/sample-data
