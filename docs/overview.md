@@ -46,13 +46,15 @@ As you construct your query, an autocomplete list shows available fields.
 To share a query with others, copy the URL.
 
 ###Running Multiple Queries Simultaneously
-The IQL web client can implicitly join multiple result tables from multiple IQL queries. This feature allows you to see data from multiple datasets and time ranges or filtered in different ways at one time.
+The IQL web client can implicitly join multiple result tables from multiple IQL queries. This feature allows you to see data from multiple datasets and time ranges or filtered in different ways at one time. 
 
 By default, the client shows a single row for a single IQL query. To specify an additional query in a new row, click **+** to the right of the query. This action copies the contents of all cells from the original query in the new query. 
 
 To clone a cell from the top row to the rows that follow, click the blue down arrow. Cloning a cell is useful if you want to keep some cell values in multiple queries synchronized: change the value of the top cell and click the arrow, instead of manually editing each query.
 
 NOTE: Multiple queries should produce a result set that is consistent (has the same columns) and can be joined meaningfully. To run an independent query, open a new client window. 
+
+
 
 
 
