@@ -14,7 +14,7 @@ TSV Uploader supports parsing files that use either the TSV or CSV file format.
 Use these samples as a model for preparing your data for upload.
 
 ### NASA Apache Web Logs
-The sample time-series data set in [nasa_19950801.tsv](http://indeedeng.github.io/imhotep/files/nasa_19950801.tsv) comes from [public 1995 NASA Apache web logs](http://ita.ee.lbl.gov/html/contrib/NASA-HTTP.html). The file contains data for a single day and is in an Imhotep-friendly TSV format.
+The sample time-series dataset in [nasa_19950801.tsv](http://indeedeng.github.io/imhotep/files/nasa_19950801.tsv) comes from [public 1995 NASA Apache web logs](http://ita.ee.lbl.gov/html/contrib/NASA-HTTP.html). The file contains data for a single day and is in an Imhotep-friendly TSV format.
 
 A Perl script was used to convert the Apache web log into the TSV format, extracting the following fields:
 
