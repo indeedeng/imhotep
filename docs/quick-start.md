@@ -20,7 +20,7 @@ You will use AWS CloudFormation, Amazon S3 and Amazon EC2 to create your Imhotep
 <li>From the AWS Management Console in **EC2 > Key Pairs > Create Key Pair**, create public and private keys.</li>
 </ol>
 
-IMPORTANT: Running Imhotep on AWS will incur costs to your AWS account. We recommend shutting down your Imhotep cluster by deleting the CloudFormation stack when it is not in use. At a minimum, for a small amount of data, you will be running two r3.large instances and one r3.xlarge instance. Additional costs will be incurred for data upload and instance provisioning. For larger data sizes, you might need to increase the AWS resources and therefore costs. [Click here for information about AWS costs](http://aws.amazon.com/ec2/pricing/).
+**IMPORTANT**: Running Imhotep on AWS will incur costs to your AWS account. We recommend shutting down your Imhotep cluster by deleting the CloudFormation stack when it is not in use. At a minimum, for a small amount of data, you will be running two r3.large instances and one r3.xlarge instance. Additional costs will be incurred for data upload and instance provisioning. For larger data sizes, you might need to increase the AWS resources and therefore costs. [Click here for information about AWS costs](http://aws.amazon.com/ec2/pricing/).
 
 Deleting the stack does not delete data you have uploaded to your S3 buckets. When you are ready for a new session, recreate the stack and point to the existing S3 buckets.
 
