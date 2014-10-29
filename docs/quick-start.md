@@ -65,6 +65,14 @@ Use AWS CloudFormation to create a stack on AWS.
     <td valign="top">`KeyName`</td>
     <td valign="top">Name of an existing EC2 key pair to enable SSH access to the cluster. Create your `KeyName` in the same region as the Key Pair you created as a prerequisite to this procedure. </td>
   </tr>
+    <tr>
+    <td valign="top">`LoginId`</td>
+    <td valign="top">Your user ID for logging into Imhotep. </td>
+  </tr>
+  <tr>
+    <td valign="top">`LoginPassword`</td>
+    <td valign="top">Your password for logging into Imhotep. </td>
+  </tr>
   <tr>
     <td valign="top">`NumImhotepInstances`</td>
     <td valign="top">Number of Imhotep instances in the cluster that service queries. The default value is 2. Increase this number for greater scalability.</td>
@@ -92,15 +100,20 @@ Use TSV Uploader to make your data available in Imhotep. TSV Uploader converts y
 
 [Learn about data file requirements for TSV Uploader]({{ site.baseurl }}/docs/data-file-requirements).
 
+### Logging into TSV Uploader
+1. Open a browser and navigate to the Imhotep TSV Uploader URL provided when you created the stack on AWS.
+2. Bypass the SSL warning to reach the login screen.
+3. Enter your login ID and password that you defined during setup.
+
 ### Creating a Dataset
-1. Open a browser and navigate to the Imhotep TSV Uploader URL provided when you created the stack on AWS. A list of datasets that are available in the system appears on the left side of the page. 
-2. Scroll to the bottom of this list and enter a name for your new dataset in the text entry box. The dataset name must be at least two characters long and can contain only lowercase `a-z` and digits.
-3. Click **+** to create the dataset.
+1. Log into TSV Uploader. 
+2. Scroll to the bottom of list of available datasets and enter a name for your new dataset in the text entry box. The dataset name must be at least two characters long and can contain only lowercase `a-z` and digits.
+2. Click **+** to create the dataset.
 
 The name of your new dataset appears in the list. When you first add the dataset, it is empty until you upload a data file. A dataset is not created on Imhotep until you upload a data file and a shard is created.
 
 ### Uploading a Data File
-1. In Imhotep TSV Uploader, click the dataset name.
+1. Log into TSV Uploader and click the dataset name.
 2. In the search field near the top of the page, click **Upload TSV** and browse to the TSV file that contains your data. Repeat this step to upload additional data files to your dataset. To upload multiple files at one time, with the dataset name selected, drag and drop the files to the TSV Uploader window.
 3. Refresh the page to show the status of the upload.
 
@@ -123,7 +136,15 @@ To delete a dataset, select *datasetName* and click the trash can.
 NOTE: Deleting a data file or dataset from TSV Uploader does not delete the dataset from Imhotep. TSV Uploader shows the list of data files for two weeks after a file's upload date.
 
 ##IQL Web Client
-Use the IQL web client to query the Imhotep cluster using IQL. To launch the client, open a browser and navigate to the IQL URL provided when you created the cluster on AWS. Constructing an IQL query follows these general steps:
+Use the IQL web client to query the Imhotep cluster using IQL. 
+
+Logging into the client:
+
+1. Open a browser and navigate to the IQL URL provided when you created the stack on AWS.
+2. Bypass the SSL warning to reach the login screen.
+3. Enter your login ID and password.
+
+Follow these general steps to construct an IQL query:
 
 1. Formulate your question.
 2. Select your dataset and the date range.
@@ -132,4 +153,4 @@ Use the IQL web client to query the Imhotep cluster using IQL. To launch the cli
 5. Choose one or multiple metrics for your data. Metrics show as columns in tabular data.
 6. Run your query.
 
-[Learn more about using the IQL web client]({{ site.baseurl }}/docs/overview).
+[Learn more about using IQL]({{ site.baseurl }}/docs/overview).
