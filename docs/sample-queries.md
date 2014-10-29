@@ -5,7 +5,7 @@ permalink: /docs/sample-queries/
 ---
 This page includes sample queries to run on our [demo cluster](http://demo.imhotep.works/iql/) preloaded with three sample datasets: `nasa`, `wikipedia` and `worldcup2014`. 
 
-[Click here for information about the sample data](../data-file-requirements#sample-data-files/).
+[Click here for information about the sample data](../sample-data/).
 
 ## NASA 
 
