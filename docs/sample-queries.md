@@ -24,14 +24,6 @@ From the graph, the following insights are available:
 
 The following queries use data from [worldcupplayerinfo_20140701.tsv](http://indeedeng.github.io/imhotep/files/worldcupplayerinfo_20140701.tsv) in the `worldcup2014` dataset and return data for `2014-07-01` to `2014-07-02`. 
 
-Queries are grouped as follows:<br>
-[Team Captains](#team-captains)<br>
-[Clubs](#clubs)<br>
-[Countries](#countries)<br>
-[Age v Experience](#age-experience)<br>
-[Jersey Numbers](#jersey)<br>
-[Positions](#positions)<br>
-[Groups](#groups)<br>
 
 Since this is not typical time-series Imhotep data, all documents are assigned the same timestamp: `2014-07-01 00:00:00`
 
@@ -41,13 +33,9 @@ The following query returns the [average age](http://demo.imhotep.works/iql/#q[]
 
 <pre>from worldcup2014 2014-07-01 2014-07-02 group by Captain select Age/count(), Selections/count()</pre>
 
-![Average Ages](http://indeedeng.github.io/imhotep/images/team_captains_1.jpeg?raw=true)
-
 The following query [lists the captains](http://demo.imhotep.works/iql/#q[]=from+worldcup2014+2014-07-01+2014-07-02+where+Captain%3A1+group+by+Player%2C+Country[]%2C+Club[]%2C+Position[]+select+Selections&view=table&table_sort[0][]=5&table_sort[0][]=desc), along with their club, country, position, and number of World Cup appearances.
 
 <pre>from worldcup2014 2014-07-01 2014-07-02 where Captain:1 group by Player, Country[], Club[], Position[] select Selections</pre>
-
-![Average Ages](http://indeedeng.github.io/imhotep/images/team_captains_2.jpeg?raw=true)
 
 ####<a name="clubs"></a>Clubs
 
@@ -55,15 +43,11 @@ The following query returns [data for the top 25 clubs](http://demo.imhotep.work
 
 <pre>from worldcup2014 2014-07-01 2014-07-02 group by Club[25] select count(), Captain, Rank/count(), Age/count()</pre>
 
-![Average Ages](http://indeedeng.github.io/imhotep/images/clubs.jpeg?raw=true)
-
 ####<a name="countries"></a>Countries
 
 The following query returns [data by country](http://demo.imhotep.works/iql/#q[]=from+worldcup2014+2014-07-01+2014-07-02+group+by+Country+select+Age%2Fcount()%2C+Selections%2Fcount()&view=table&table_sort[0][]=2&table_sort[0][]=desc): average player age and average number of World Cup appearances. Argentina has the oldest team, Ghana the youngest. Spain is the most experienced, Australia the least.
 
 <pre>from worldcup2014 2014-07-01 2014-07-02 group by Country select Age/count(), Selections/count()</pre>
-
-![Average Ages](http://indeedeng.github.io/imhotep/images/countries.jpeg?raw=true)
 
 ####<a name="age-experience"></a>Age versus Experience
 
@@ -71,21 +55,15 @@ The following query [compares player age to the number of World Cup appearances]
 
 <pre>from worldcup2014 2014-07-01 2014-07-02 group by Age select Selections/count()</pre>
 
-![Average Ages](http://indeedeng.github.io/imhotep/images/age_vs_experience.jpeg?raw=true)
-
 ####<a name="jersey"></a>Jersey Numbers
 
 The following query returns the [number of players grouped by their jersey number](http://demo.imhotep.works/iql/#q[]=from+worldcup2014+2014-07-01+2014-07-02+group+by+Jersey+select+count()%2C+Captain&view=table&table_sort[0][]=2&table_sort[0][]=desc). The query also returns the number of captains for each jersey number. Teams number all players 1-23. However, captains gravitate towards wearing #1, #4, #3, and #10.
 
 <pre>from worldcup2014 2014-07-01 2014-07-02 group by Jersey select count(), Captain</pre>
 
-![Average Ages](http://indeedeng.github.io/imhotep/images/jersey_number_1.jpeg?raw=true)
-
 The following query groups [documents by the player's jersey number](http://demo.imhotep.works/iql/#q[]=from+worldcup2014+2014-07-01+2014-07-02+group+by+Jersey%2C+Position[1]&view=table&table_sort[0][]=1&table_sort[0][]=asc) and then, for each jersey number group, returns the most common position for that jersey number. Some numbers are typically associated with a position: #1 is always the goalie, defenders are frequently #2 and #3, and #9 is usually a forward.
 
 <pre>from worldcup2014 2014-07-01 2014-07-02 group by Jersey, Position[1]</pre>
-
-![Average Ages](http://indeedeng.github.io/imhotep/images/jersey_number_2.jpeg?raw=true)
 
 ####<a name="positions"></a>Positions
 
@@ -93,12 +71,8 @@ The following query returns the [average player age and average number of World 
 
 <pre>from worldcup2014 2014-07-01 2014-07-02 group by Position select count(),100*Captain/count(), Age/count(), Selections/count()</pre>
 
-![Average Ages](http://indeedeng.github.io/imhotep/images/positions.jpeg?raw=true)
-
 ####<a name="groups"></a>Groups
 
 The following query returns data about the [World Cup groups](http://demo.imhotep.works/iql/#q[]=from+worldcup2014+2014-07-01+2014-07-02+group+by+Group+select+Selections%2Fcount()%2C+Age%2Fcount()%2C+Rank%2Fcount()&view=table&table_sort[0][]=3&table_sort[0][]=desc): average number of World Cup appearances, average age, and average country rank. Group D and G were rough. Group F and H were easy. Group H was also the youngest and least experienced, while group C was the oldest and most experienced.
 
 <pre>from worldcup2014 2014-07-01 2014-07-02 group by Group select Selections/count(), Age/count(), Rank/count()</pre>
-
-![Average Ages](http://indeedeng.github.io/imhotep/images/groups.jpeg?raw=true)
