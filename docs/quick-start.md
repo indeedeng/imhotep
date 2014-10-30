@@ -113,6 +113,8 @@ Use TSV Uploader to make your data available in Imhotep. TSV Uploader converts y
 The name of your new dataset appears in the list. When you first add the dataset, it is empty until you upload a data file. A dataset is not created on Imhotep until you upload a data file and a shard is created.
 
 ### Uploading a Data File
+To test your stack, consider uploading the sample time-series dataset in [nasa_19950801.tsv](http://indeedeng.github.io/imhotep/files/nasa_19950801.tsv). For more information about this dataset, [click here](../sample-data#nasa-apache-web-logs/).
+
 1. Log into TSV Uploader and click the dataset name.
 2. In the search field near the top of the page, click **Upload TSV** and browse to the TSV file that contains your data. Repeat this step to upload additional data files to your dataset. To upload multiple files at one time, with the dataset name selected, drag and drop the files to the TSV Uploader window.
 3. Refresh the page to show the status of the upload.
