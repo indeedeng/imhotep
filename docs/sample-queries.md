@@ -11,6 +11,8 @@ This page includes sample queries to run on our [demo cluster](http://demo.imhot
 
 [Hourly counts](http://demo.imhotep.works/iql/#q[]=from+nasa+%221995-06-30+22%3A00%3A00%22+%221995-09-02+00%3A00%3A00%22+group+by+time(1h)&view=graph) returns a graph of the full time range of the data set with the number of queries every hour. 
 
+<pre>221995-06-30+22%3A00%3A00%22+%221995-09-02+00%3A00%3A00%22+group+by+time(1h)&view=graph</pre>
+
 From the graph, the following insights are available:
 
 - The graph shows no activity during [Hurricane Erin](http://en.wikipedia.org/wiki/Hurricane_Erin_(1995)).
@@ -26,9 +28,9 @@ From the graph, the following insights are available:
 
 ####<a name="captains"></a>Team Captains 
 
-The following query returns the [average age](http://demo.imhotep.works/iql/#q[]=from+worldcup2014+2014-07-01+2014-07-02+group+by+Captain+select+Age%2Fcount()%2C+Selections%2Fcount()&view=table) of captains and players of all other positions. The query also compares the number of appearances in the World Cup for the two groups of players. Team captains are on average almost 5 years older than other players and have 3 times as many national team appearances.
+The following query returns the average age of captains and players of all other positions. The query also compares the number of appearances in the World Cup for the two groups of players. Team captains are on average almost 5 years older than other players and have 3 times as many national team appearances.
 
-<pre>from worldcup2014 2014-07-01 2014-07-02 group by Captain select Age/count(), Selections/count()</pre>
+[<pre>from worldcup2014 2014-07-01 2014-07-02 group by Captain select Age/count(), Selections/count()</pre>](http://demo.imhotep.works/iql/#q[]=from+worldcup2014+2014-07-01+2014-07-02+group+by+Captain+select+Age%2Fcount()%2C+Selections%2Fcount()&view=table)
 
 The following query [lists the captains](http://demo.imhotep.works/iql/#q[]=from+worldcup2014+2014-07-01+2014-07-02+where+Captain%3A1+group+by+Player%2C+Country[]%2C+Club[]%2C+Position[]+select+Selections&view=table&table_sort[0][]=5&table_sort[0][]=desc), along with their club, country, position, and number of World Cup appearances.
 
