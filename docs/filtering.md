@@ -34,7 +34,7 @@ The following filters are available:
   </tr>
   <tr>
     <td valign="top">Metric/integer pairs</td>
-   <td valign="top">metric=integer<br>metric!=integer<br>metric<integer<br>metric<=integer<br>metric>integer<br>metric>=integer</td>
+   <td valign="top">metric=integer<br>metric!=integer<br>metric\<integer<br>metric<=integer<br>metric>integer<br>metric>=integer</td>
     <td valign="top">`clicks+impressions>5`</td>
   </tr>
   <tr>
