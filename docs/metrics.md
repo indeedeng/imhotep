@@ -50,9 +50,9 @@ The following filters are available:
     <td valign="top">`percentile(totaltime, 50)` returns the median value of `totaltime`.</td>
   </tr>
     <tr>
-    <td valign="top">Inequalities</td>
-    <td valign="top">metric!=integer<br>metric\<integer<br>metric<=integer<br>metric>integer<br>metric>=integer</td>
-    <td valign="top">`revenue>500`</td>
+    <td valign="top">Using a filter as a metric returns a count of all of the documents that match the filter. Adding `/count()` returns the average. <br><br>[Read more about filters and filter syntax](../filtering/).</td>
+    <td valign="top">field=~regex<br>metric!=integer<br>metric\<integer<br>metric<=integer<br>metric>integer<br>metric>=integer<br>field in (term,term)<br>field not in (term,term)<br>lucene("luceneQueryStr")</td>
+    <td valign="top">`revenue>500`<br>`group="mobile"/count()`</td>
   </tr>
 
 </table>
