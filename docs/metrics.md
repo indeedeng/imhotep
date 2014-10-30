@@ -49,5 +49,11 @@ The following filters are available:
     <td valign="top">percentile(field,&nbsp;N)</td>
     <td valign="top">`percentile(totaltime, 50)` returns the median value of `totaltime`.</td>
   </tr>
+    <tr>
+    <td valign="top">Inequality</td>
+    <td valign="top">metric!=integer<br>metric\<integer<br>metric<=integer<br>metric>integer<br>metric>=integer</td>
+    <td valign="top">`revenue>500`</td>
+  </tr>
+
 </table>
 
