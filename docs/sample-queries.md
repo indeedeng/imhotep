@@ -9,16 +9,22 @@ This page includes sample queries to run on our [demo cluster](http://demo.imhot
 
 ## NASA 
 
-[Hourly counts](http://demo.imhotep.works/iql/#q[]=from+nasa+%221995-06-30+22%3A00%3A00%22+%221995-09-02+00%3A00%3A00%22+group+by+time(1h)&view=graph) returns a graph of the full time range of the data set with the number of queries every hour. 
+The following query on hourly counts returns a graph of the full time range of the dataset with the number of queries every hour:
 
-<pre>221995-06-30+22%3A00%3A00%22+%221995-09-02+00%3A00%3A00%22+group+by+time(1h)&view=graph</pre>
+[<pre>from nasa 1995-06-30 22:00:00 1995-09-02 00:00:00 group by time(1h)</pre>](http://demo.imhotep.works/iql/#q[]=from+nasa+%221995-06-30+22%3A00%3A00%22+%221995-09-02+00%3A00%3A00%22+group+by+time(1h)&view=graph)
 
 From the graph, the following insights are available:
 
 - The graph shows no activity during [Hurricane Erin](http://en.wikipedia.org/wiki/Hurricane_Erin_(1995)).
-- The peak hour of activity corresponds to the [Space Shuttle Discovery launch STS-70 on July 13](http://www.nasa.gov/mission_pages/shuttle/shuttlemissions/archives/sts-70.html). The [top 100 pages](http://demo.imhotep.works/iql/#q[]=from+nasa+%221995-07-13+07%3A00%3A00%22+%221995-07-13+08%3A00%3A00%22+group+by+url[100]&view=table) accessed during this peak hour were limited to the web covering shuttle liftoff.
+- The peak hour of activity corresponds to the [Space Shuttle Discovery launch STS-70 on July 13](http://www.nasa.gov/mission_pages/shuttle/shuttlemissions/archives/sts-70.html). 
 
-[Popular non-images](http://demo.imhotep.works/iql/#q[]=from+nasa+%221995-07-01+00%3A00%3A00%22+%221995-09-01+00%3A00%3A00%22+where+url+!%3D~+%22.*gif%22+group+by+time(1d)%2C+url[1+by+count()]&view=table) lists the most popular non-image URLs on each day in the dataset.
+The following query shows that the top 100 pages accessed during this peak hour were limited to shuttle liftoff coverage:
+
+[<pre>from nasa 1995-07-13 07:00:00 1995-07-13 08:00:00 group by url[100]</pre>](http://demo.imhotep.works/iql/#q[]=from+nasa+%221995-07-13+07%3A00%3A00%22+%221995-07-13+08%3A00%3A00%22+group+by+url[100]&view=table) 
+
+This query lists the most popular non-image URLs on each day in the dataset:
+
+[<pre>from nasa 1995-07-01 00:00:00 1995-09-01 00:00:00 where group by time(1d), url[1 by count()]</pre>](http://demo.imhotep.works/iql/#q[]=from+nasa+%221995-07-01+00%3A00%3A00%22+%221995-09-01+00%3A00%3A00%22+where+url+!%3D~+%22.*gif%22+group+by+time(1d)%2C+url[1+by+count()]&view=table)
 
 ## Wikipedia 
 
