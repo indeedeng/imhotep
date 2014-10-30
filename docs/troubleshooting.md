@@ -6,6 +6,11 @@ permalink: /docs/troubleshooting/
 
 This section highlights file upload and query errors and their workarounds.
 
+##AWS Stack Management
+
+###I can't delete my stack
+If you encounter an error when you try to delete your stack, delete the contents of the S3 cache bucket and then try to delete the stack again. The S3 cache bucket is created automatically as part of setup and is located in **S3** in the AWS Management Console.
+
 ##File Upload Errors
 
 ###I don't see my dataset in the client
