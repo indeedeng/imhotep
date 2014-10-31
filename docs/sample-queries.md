@@ -99,7 +99,7 @@ The following query returns the average player age and average number of World C
 
 [<pre>from worldcup2014 2014-07-01 2014-07-02
   group by Position 
-  select count(),100\*Captain/count(), Age/count(), Selections/count()</pre>](http://54.214.252.202/iql/#q[]=from+worldcup2014+2014-07-01+2014-07-02+group+by+Position[4]+select+count()%2C+100*Captain%2Fcount()%2C+Age%2Fcount()%2C+Selections%2Fcount()&view=table&table_sort[0][]=2&table_sort[0][]=asc)
+  select count(), 100\*Captain/count(), Age/count(), Selections/count()</pre>](http://54.214.252.202/iql/#q[]=from+worldcup2014+2014-07-01+2014-07-02+group+by+Position[4]+select+count()%2C+100*Captain%2Fcount()%2C+Age%2Fcount()%2C+Selections%2Fcount()&view=table&table_sort[0][]=2&table_sort[0][]=asc)
 
 ####<a name="groups"></a>Groups
 
