@@ -48,7 +48,7 @@ Each document corresponds to a Wikipedia article that was served in that hour:
 | numRequests | Number of requests for the article in that hour
 | bytesServed | Number of bytes served for the article in that hour
 
-[The most popular E entry](http://demo.imhotep.works/iql/#q[]=from+wikipedia+%222014-09-13+11%3A00%3A00%22+%222014-09-13+12%3A00%3A00%22+where+title%3D~%22E.*%22+group+by+title[10+by+numRequests]+select+numRequests&view=table&table_sort[0][]=2&table_sort[0][]=desc) in that hour was `English_alphabet`. The `categories` and `linksOut` fields are truncated in the example:
+[The most popular E entry](http://54.214.252.202/iql/#q[]=from+wikipedia+%222014-09-13+11%3A00%3A00%22+%222014-09-13+12%3A00%3A00%22+where+title%3D~%22E.*%22+group+by+title[10+by+numRequests]+select+numRequests&view=table&table_sort[0][]=2&table_sort[0][]=desc) in that hour was `English_alphabet`. The `categories` and `linksOut` fields are truncated in the example:
 
 | | 
 | ----- | 
