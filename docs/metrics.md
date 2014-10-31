@@ -49,8 +49,8 @@ The following metrics are available:
     <td valign="top">`percentile(totaltime, 50)` returns the median value of `totaltime`.</td>
   </tr>
     <tr>
-    <td valign="top">Filters: using a filter as a metric returns a count of all of the documents that match the filter. Adding `/count()` returns the average. <br><br>[Read more about filters and filter syntax](../filtering/).</td>
-    <td valign="top">field="term"<br>field=integer<br>field=~regex<br>metric!=integer<br>metric\<integer<br>metric<=integer<br>metric>integer<br>metric>=integer<br>field in (term,term)<br>field not in (term,term)<br>lucene("luceneQueryStr")</td>
+    <td valign="top">Return a count of all of the documents that match the expression. Adding `/count()` returns the average. </td>
+    <td valign="top">field="term"<br>field=integer<br>field=~regex<br>metric!=integer<br>metric\<integer<br>metric<=integer<br>metric>integer<br>metric>=integer<br>lucene("luceneQueryStr")</td>
     <td valign="top">`country="us"` returns the number of documents with a value of `us` for `country`.  You must include `""` around a string term.<br><br>`clicks=1` returns the number of documents with a value of `1` for `clicks`.<br><br>`revenue>500`<br>`group="mobile"/count()`</td>
   </tr>
 
