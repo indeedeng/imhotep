@@ -15,6 +15,10 @@ table code {
     white-space: nowrap;
 }
 
+td {
+    vertical-align: top;
+}
+
 .ui-allocation-bar{
     display:block;
     border:1px solid #BBB;
