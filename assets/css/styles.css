@@ -31,7 +31,7 @@ span.xscode code {
     white-space: normal;
 }
 
-span.smallcode,span.xscode a {
+span.smallcode,span.xscode a code {
     color: #39c;
 }
 
