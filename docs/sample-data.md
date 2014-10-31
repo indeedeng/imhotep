@@ -51,13 +51,9 @@ Each document corresponds to a Wikipedia article that was served in that hour:
 [The most popular E entry](http://demo.imhotep.works/iql/#q[]=from+wikipedia+%222014-09-13+11%3A00%3A00%22+%222014-09-13+12%3A00%3A00%22+where+title%3D~%22E.*%22+group+by+title[10+by+numRequests]+select+numRequests&view=table&table_sort[0][]=2&table_sort[0][]=desc) in that hour was `English_alphabet`. The `categories` and `linksOut` fields are truncated in the example:
 
 | | 
-| ----- | 
-| `English_alphabet` |
-| `All_Wikipedia_articles_needing_clarification` `All_articles_needing_additional_references` `All_articles_with_unsourced_statements` `Articles_containing_Old_English-language_text ...` |
-| `English alphabet` |
-| `A Adjective Aircraft Alphabet_song American_English American_braille ...` |
-| `960` |
-| `21124206` |
+| ----- |
+| title | categories+ | titleWords+ | linksOut+ | numRequests | bytesServed | 
+| `English_alphabet` | `All_Wikipedia_articles_needing_clarification` `All_articles_needing_additional_references` `All_articles_with_unsourced_statements` `Articles_containing_Old_English-language_text ...` | `English alphabet` | `A Adjective Aircraft Alphabet_song American_English American_braille ...` | `960` | `21124206` |
 
 Source: https://dumps.wikimedia.org/other/pagecounts-raw/ for page counts and https://dumps.wikimedia.org/backup-index.html for all other fields
 
