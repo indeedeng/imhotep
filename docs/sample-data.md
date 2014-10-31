@@ -34,6 +34,11 @@ Data for two months are available in these compressed files:<br>
 [nasa_19950630.22-19950728.12.tsv.gz](http://indeedeng.github.io/imhotep/files/nasa_19950630.22-19950728.12.tsv.gz)<br>
 [nasa_19950731.22-19950831.22.tsv.gz](http://indeedeng.github.io/imhotep/files/nasa_19950731.22-19950831.22.tsv.gz)
 
+| | |
+| TSV Data Size (raw uncompressed) | Imhotep Data Size |
+| ----- | ----- |
+| 256 MB | 19.4 MB |
+
 ## Wikipedia Web Logs
 The time-series data in [wikipedia_e_20140913.11.tsv.gz](http://indeedeng.github.io/imhotep/files/wikipedia_e_20140913.11.tsv.gz) is one hour of data from 9/13/2014 for Wikipedia articles beginning with the letter E. 
 
