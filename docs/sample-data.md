@@ -53,7 +53,7 @@ Each document corresponds to a Wikipedia article that was served in that hour:
 | | | | | | |
 | ----- | ----- | ----- | ----- | ----- | ----- | ----- |
 | title | categories+ | titleWords+ | linksOut+ | numRequests | bytesServed | 
-| <span style="font-family: monospace">English_alphabet</span> | <span style="font-family: monospace; font-size: 10pt;">All_Wikipedia_articles_needing_clarification All_articles_needing_additional_references All_articles_with_unsourced_statements Articles_containing_Old_English-language_text ...</span> | <span style="font-family: monospace">English alphabet</span> |  <span style="font-family: monospace; font-size: 10pt;">A Adjective Aircraft Alphabet_song American_English American_braille ...</span> | <span style="font-family: monospace">960</span> | <span style="font-family: monospace">21124206</span> |
+| <span style="font-family: monospace">English_alphabet</span> | <span style="font-family: monospace; font-size: 6pt;">All_Wikipedia_articles_needing_clarification All_articles_needing_additional_references All_articles_with_unsourced_statements Articles_containing_Old_English-language_text ...</span> | <span style="font-family: monospace">English alphabet</span> |  <span style="font-family: monospace; font-size: 6pt;">A Adjective Aircraft Alphabet_song American_English American_braille ...</span> | <span style="font-family: monospace">960</span> | <span style="font-family: monospace">21124206</span> |
 
 Source: https://dumps.wikimedia.org/other/pagecounts-raw/ for page counts and https://dumps.wikimedia.org/backup-index.html for all other fields
 
