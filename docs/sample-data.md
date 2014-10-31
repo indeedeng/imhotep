@@ -35,8 +35,9 @@ Data for two months are available in these compressed files:<br>
 [nasa_19950731.22-19950831.22.tsv.gz](http://indeedeng.github.io/imhotep/files/nasa_19950731.22-19950831.22.tsv.gz)
 
 | | |
+| ----- | ------- |
 | TSV Data Size (raw uncompressed) | Imhotep Data Size |
-| ----- | ----- |
+| ----- | ------- |
 | 256 MB | 19.4 MB |
 
 ## Wikipedia Web Logs
