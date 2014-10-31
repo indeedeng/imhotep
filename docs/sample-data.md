@@ -34,9 +34,8 @@ Data for two months are available in these compressed files:<br>
 [nasa_19950630.22-19950728.12.tsv.gz](http://indeedeng.github.io/imhotep/files/nasa_19950630.22-19950728.12.tsv.gz)<br>
 [nasa_19950731.22-19950831.22.tsv.gz](http://indeedeng.github.io/imhotep/files/nasa_19950731.22-19950831.22.tsv.gz)
 
-| | |
-| ----- | ------- |
 | TSV Data Size (raw uncompressed) | Imhotep Data Size |
+| ----- | ------- |
 | 256 MB | 19 MB |
 
 Source: [Internet Traffic Archive](http://ita.ee.lbl.gov/html/contrib/NASA-HTTP.html)
@@ -57,14 +56,13 @@ Each document corresponds to a Wikipedia article that was served in that hour:
 
 [The most popular E entry](http://54.214.252.202/iql/#q[]=from+wikipedia+%222014-09-13+11%3A00%3A00%22+%222014-09-13+12%3A00%3A00%22+where+title%3D~%22E.*%22+group+by+title[10+by+numRequests]+select+numRequests&view=table&table_sort[0][]=2&table_sort[0][]=desc) in that hour was `English_alphabet`.
 
-| | | | | | |
-| ----- | ----- | ----- | ----- | ----- | ----- | ----- |
 | title | categories+ | titleWords+ | linksOut+ | numRequests | bytesServed | 
+| ----- | ----- | ----- | ----- | ----- | ----- | ----- |
 | <span class="smallcode">`English_alphabet`</span> | <span class="xscode">`All_Wikipedia_articles_needing_clarification All_articles_needing_additional_references All_articles_with_unsourced_statements Articles_containing_Old_English-language_text Articles_needing_additional_references_from_June_2011 Articles_with_hAudio_microformats Articles_with_unsourced_statements_from_January_2011 Articles_with_unsourced_statements_from_July_2010 Articles_with_unsourced_statements_from_March_2014 English_spelling Latin_alphabets Wikipedia_articles_needing_clarification_from_August_2013`</span> | <span class="smallcode">`English alphabet`</span> |  <span class="xscode"><a href="http://demo.imhotep.works/iql/#q[]=from+wikipedia+%222014-09-13+11%3A00%3A00%22+%222014-09-13+12%3A00%3A00%22+where+title%3D%22English_alphabet%22+group+by+linksOut&view=table&table_sort[0][]=2&table_sort[0][]=desc">`A Adjective Aircraft Alphabet_song American_English American_braille American_manual_alphabet Ampersand Anglo-Saxon_futhorc Anglo-Saxons Ansuz_(rune) Apostrophe B Body_cavity British_English Byrhtfert ...`</a></span> | <span class="smallcode">`960`</span> | <span class="smallcode">`21124206`</span> |
 
-| | |
-| ----- | ------- |
+
 | TSV Data Size (raw uncompressed) | Imhotep Data Size |
+| ----- | ------- |
 | 2450 GB | 272 GB |
 
 Source: https://dumps.wikimedia.org/other/pagecounts-raw/ for page counts and https://dumps.wikimedia.org/backup-index.html for all other fields
@@ -88,9 +86,8 @@ Each document in the dataset includes information about a single player:
 | Rank | Int | The ranking of the country the player represents.
 | Selections | Int | The number of World Cup appearances for this player.
 
-| | |
-| ----- | ------- |
 | TSV Data Size (raw uncompressed) | Imhotep Data Size |
+| ----- | ------- |
 | 45 KB | 15 KB |
 
 Source: [Stack Exchange Network](http://opendata.stackexchange.com/questions/1791/any-open-data-sets-for-the-football-world-cup-in-brazil-2014) / Open Data<br>
