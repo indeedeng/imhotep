@@ -19,13 +19,13 @@ td {
     vertical-align: top;
 }
 
-td.smallcode code {
+span.smallcode code {
     font-family: 'Monaco, Bitstream Vera Sans Mono, Lucida Console, Terminal';
     font-size: 12px;
     white-space: normal;
 }
 
-td.xscode code {
+span.xscode code {
     font-family: 'Monaco, Bitstream Vera Sans Mono, Lucida Console, Terminal';
     font-size: 8px;
     white-space: normal;
