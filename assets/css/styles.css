@@ -19,6 +19,18 @@ td {
     vertical-align: top;
 }
 
+td.smallcode code {
+    font-family: 'Monaco, Bitstream Vera Sans Mono, Lucida Console, Terminal';
+    font-size: 12px;
+    white-space: normal;
+}
+
+td.xscode code {
+    font-family: 'Monaco, Bitstream Vera Sans Mono, Lucida Console, Terminal';
+    font-size: 8px;
+    white-space: normal;
+}
+
 .ui-allocation-bar{
     display:block;
     border:1px solid #BBB;
