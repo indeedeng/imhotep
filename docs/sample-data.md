@@ -37,7 +37,7 @@ Data for two months are available in these compressed files:<br>
 | | |
 | ----- | ------- |
 | TSV Data Size (raw uncompressed) | Imhotep Data Size |
-| 256 MB | 19.4 MB |
+| 256 MB | 19 MB |
 
 Source: [Internet Traffic Archive](http://ita.ee.lbl.gov/html/contrib/NASA-HTTP.html)
 
