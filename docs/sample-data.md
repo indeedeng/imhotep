@@ -62,6 +62,11 @@ Each document corresponds to a Wikipedia article that was served in that hour:
 | title | categories+ | titleWords+ | linksOut+ | numRequests | bytesServed | 
 | <span style="font-family: monospace">English_alphabet</span> | <span style="font-family: monospace; font-size: 6pt;">All_Wikipedia_articles_needing_clarification All_articles_needing_additional_references All_articles_with_unsourced_statements Articles_containing_Old_English-language_text Articles_needing_additional_references_from_June_2011 Articles_with_hAudio_microformats Articles_with_unsourced_statements_from_January_2011 Articles_with_unsourced_statements_from_July_2010 Articles_with_unsourced_statements_from_March_2014 English_spelling Latin_alphabets Wikipedia_articles_needing_clarification_from_August_2013</span> | <span style="font-family: monospace">English alphabet</span> |  <span style="font-family: monospace; font-size: 6pt;"><a href="http://demo.imhotep.works/iql/#q[]=from+wikipedia+%222014-09-13+11%3A00%3A00%22+%222014-09-13+12%3A00%3A00%22+where+title%3D%22English_alphabet%22+group+by+linksOut&view=table&table_sort[0][]=2&table_sort[0][]=desc">A Adjective Aircraft Alphabet_song American_English American_braille American_manual_alphabet Ampersand Anglo-Saxon_futhorc Anglo-Saxons Ansuz_(rune) Apostrophe B Body_cavity British_English Byrhtfert ...</a></span> | <span style="font-family: monospace">960</span> | <span style="font-family: monospace">21124206</span> |
 
+| | |
+| ----- | ------- |
+| TSV Data Size (raw uncompressed) | Imhotep Data Size |
+| 2450 GB | 272 GB |
+
 Source: https://dumps.wikimedia.org/other/pagecounts-raw/ for page counts and https://dumps.wikimedia.org/backup-index.html for all other fields
 
 ## World Cup 2014 Player Data
