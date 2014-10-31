@@ -27,8 +27,12 @@ span.smallcode code {
 
 span.xscode code {
     font-family: 'Monaco, Bitstream Vera Sans Mono, Lucida Console, Terminal';
-    font-size: 8px;
+    font-size: 10px;
     white-space: normal;
+}
+
+span code a {
+    color: #39c;
 }
 
 .ui-allocation-bar{
