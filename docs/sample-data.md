@@ -39,6 +39,8 @@ Data for two months are available in these compressed files:<br>
 | TSV Data Size (raw uncompressed) | Imhotep Data Size |
 | 256 MB | 19.4 MB |
 
+Source: [Internet Traffic Archive](http://ita.ee.lbl.gov/html/contrib/NASA-HTTP.html)
+
 ## Wikipedia Web Logs
 The time-series data in [wikipedia_e_20140913.11.tsv.gz](http://indeedeng.github.io/imhotep/files/wikipedia_e_20140913.11.tsv.gz) is one hour of data from 9/13/2014 for Wikipedia articles beginning with the letter E. 
 
