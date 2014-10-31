@@ -81,6 +81,11 @@ Each document in the dataset includes information about a single player:
 | Rank | Int | The ranking of the country the player represents.
 | Selections | Int | The number of World Cup appearances for this player.
 
+| | |
+| ----- | ------- |
+| TSV Data Size (raw uncompressed) | Imhotep Data Size |
+| 45 KB | 15 KB |
+
 Source: [Stack Exchange Network](http://opendata.stackexchange.com/questions/1791/any-open-data-sets-for-the-football-world-cup-in-brazil-2014) / Open Data<br>
 The data are distributed under the creative commons [Attribution-Share Alike 4.0 International](http://creativecommons.org/licenses/by-sa/4.0/) license. The creator of the data is http://opendata.stackexchange.com/users/3061/bryan. In compliance with this license, the data is hereby attributed to the users and owners of StackOverflow, but not in such a way as to suggest that they endorse Indeed or Indeed’s use of the data.
 
