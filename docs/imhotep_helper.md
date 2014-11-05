@@ -11,6 +11,8 @@ The Python script [imhotep_helper.py](/imhotep/files/imhotep_helper.py) is a com
 * Cleans up data in a number of ways to conform with TSV or CSV formats
 * Rewrites data into a file named properly for the time range of the data it contains, since the file name timestamp ranges determine the Imhotep shards  and must correspond properly to the contained data.
 
+For more information, see [Data File Requirements](../data-file-requirements).
+
 ## Usage
 
 ```
