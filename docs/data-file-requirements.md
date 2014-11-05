@@ -10,6 +10,8 @@ TSV Uploader supports parsing files that use either the TSV or CSV file format.
 
 *CSV Only:* If your files use the CSV file format, prepare the files to conform to the default settings for the [OpenCSV library](http://opencsv.sourceforge.net/apidocs/constant-values.html#au.com.bytecode.opencsv.CSVParser.DEFAULT_STRICT_QUOTES). OpenCSV uses \ (backslash) as the escape character.
 
+We recommend using the [Imhotep Upload Format Helper Script](../imhotep_helper), which is a combination linter/converter (written in Python) that will make sure that your TSV or CSV data is formatted properly for upload to Imhotep.
+
 ## Sample Data Files
 Use these sample data files as models for preparing your data for upload:<br>
 [NASA Apache web logs](../sample-data#nasa-apache-web-logs)<br>
