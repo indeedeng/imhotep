@@ -3,7 +3,7 @@ Imhotep
 Imhotep is [a large-scale analytics platform](http://engineering.indeed.com/talks/large-scale-interactive-analytics-with-imhotep/) built by Indeed.  
 
 ## Features
-Imhotep is a highly scalable analytics architecture that lets you do the following:
+Imhotep is a highly scalable analytics platform that lets you do the following:
 
 - Perform fast, interactive, ad hoc queries and aggregate results for large datasets 
 - Combine results from multiple time-series datasets
