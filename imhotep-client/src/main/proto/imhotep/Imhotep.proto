@@ -114,6 +114,7 @@ message ImhotepRequest {
     GET_SUBSET_FTGS_ITERATOR = 35;
     GET_SUBSET_FTGS_SPLIT = 36;
     MERGE_SUBSET_FTGS_SPLIT = 37;
+    GET_NUM_GROUPS = 38;
     SHUTDOWN = 255;
   }
 

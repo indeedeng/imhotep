@@ -407,6 +407,17 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
     }
 
     @Override
+    public int getNumGroups() {
+        executeRuntimeException(integerBuf, new ThrowingFunction<ImhotepSession, Integer>() {
+            @Override
+            public Integer apply(ImhotepSession imhotepSession) throws Exception {
+                return imhotepSession.getNumGroups();
+            }
+        });
+        return Collections.max(Arrays.asList(integerBuf));
+    }
+
+    @Override
     public void createDynamicMetric(final String name) throws ImhotepOutOfMemoryException {
         executeRuntimeException(nullBuf, new ThrowingFunction<ImhotepSession, Object>() {
             @Override

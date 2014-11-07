@@ -395,6 +395,16 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
     }
 
     @Override
+    public int handleGetNumGroups(String sessionId) {
+        return doWithSession(sessionId, new Function<ImhotepSession, Integer>() {
+            @Override
+            public Integer apply(ImhotepSession imhotepSession) {
+                return imhotepSession.getNumGroups();
+            }
+        });
+    }
+
+    @Override
     public void handleCreateDynamicMetric(String sessionId, final String dynamicMetricName) throws ImhotepOutOfMemoryException {
         doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Void, ImhotepOutOfMemoryException>() {
             public Void apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {

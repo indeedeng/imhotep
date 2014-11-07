@@ -68,6 +68,7 @@ public interface ImhotepServiceCore {
     void handleGroupConditionalUpdateDynamicMetric(String sessionId, String dynamicMetricName, int[] groups, RegroupCondition[] conditions, int[] deltas);
     void handleRebuildAndFilterIndexes(String sessionId, String[] intFields, String[] stringFields) throws ImhotepOutOfMemoryException;
     void handleResetGroups(String sessionId) throws ImhotepOutOfMemoryException;
+    int handleGetNumGroups(String sessionId);
 
     // open session methods return session id
     String handleOpenSession(String dataset, List<String> shardRequestList, String username, String ipAddress, int clientVersion, int mergeThreadLimit, boolean optimizeGroupZeroLookups, String sessionId) throws ImhotepOutOfMemoryException;

@@ -2057,6 +2057,11 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     @Override
+    public int getNumGroups() {
+        return docIdToGroup.getNumGroups();
+    }
+
+    @Override
     public synchronized void createDynamicMetric(String name) throws ImhotepOutOfMemoryException {
         if (getDynamicMetrics().containsKey(name)) {
             throw new RuntimeException("dynamic metric \"" + name + "\" already exists");

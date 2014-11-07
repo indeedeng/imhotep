@@ -654,6 +654,19 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
     }
 
     @Override
+    public int getNumGroups() {
+        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_NUM_GROUPS)
+                .setSessionId(sessionId)
+                .build();
+        try {
+            final ImhotepResponse response = sendRequest(request, host, port, socketTimeout);
+            return response.getNumGroups();
+        } catch (IOException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    @Override
     public void createDynamicMetric(String name) throws ImhotepOutOfMemoryException {
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.CREATE_DYNAMIC_METRIC)
                 .setSessionId(sessionId)

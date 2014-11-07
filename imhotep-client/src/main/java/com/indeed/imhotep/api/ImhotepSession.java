@@ -274,6 +274,11 @@ public interface ImhotepSession extends Closeable {
     int getNumStats();
 
     /**
+     * @return number of groups including zero group (maxGroup+1)
+     */
+    int getNumGroups();
+
+    /**
      * create a per-document dynamic metric
      * @param name the name of the metric to create
      * @throws ImhotepOutOfMemoryException in case there's not enough memory

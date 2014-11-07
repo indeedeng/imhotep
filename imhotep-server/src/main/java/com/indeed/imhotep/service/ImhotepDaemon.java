@@ -354,6 +354,11 @@ public class ImhotepDaemon {
                             responseBuilder.setNumStats(numStats);
                             sendResponse(responseBuilder.build(), os);
                             break;
+                        case GET_NUM_GROUPS:
+                            numGroups = service.handleGetNumGroups(protoRequest.getSessionId());
+                            responseBuilder.setNumGroups(numGroups);
+                            sendResponse(responseBuilder.build(), os);
+                            break;
                         case GET_SHARD_LIST:
                             shards = service.handleGetShardList();
                             for (final ShardInfo shard : shards) {
