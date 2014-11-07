@@ -8,20 +8,23 @@ This section highlights file upload and query errors and their workarounds.
 
 ##AWS Stack Management
 
-###I deleted my stack and still see an S3 bucket
+####My AWS user account is not authorized to create IAM resources
+The stack creation procedure requires you to create an Identity and Access Management (IAM) resource. If you are not signed into AWS as root (or a user with permission to create IAM resources), setup fails with `CREATE_FAILED` and `ROLLBACK_COMPLETE`.
+
+####I deleted my stack and still see an S3 bucket
 If you delete your stack, an S3 bucket might still exist. You can delete the bucket in **S3** in the AWS Management Console. Note that if files are still in the bucket, they will be deleted after a day.
 
 ##File Upload Errors
 
-###I don't see my dataset in the client
+####I don't see my dataset in the client
 Try clearing the cache if you don't see your new dataset in the IQL web client: select **Settings > Clear cache**.
 
-###Files fail to upload
+####Files fail to upload
 Upload failures in TSV Uploader are marked as failed.
 
 Ensure that the bucket names you defined when you created the stack match the S3 bucket names you created prior to setup. For example, if the error log shows that TSV Uploader couldn’t upload the converted files to the S3 bucket, you might have entered the incorrect name for the **BuildBucket** parameter during stack creation. In this case, you must recreate the stack. Don't worry, you won't lose any data, but do ensure that you point to the same S3 buckets when you recreate the stack.
 
-###A TSV file was uploaded to the wrong dataset
+####A TSV file was uploaded to the wrong dataset
 
 If a TSV file is indexed in the wrong dataset, you must delete the shard that contains the new data:
 
