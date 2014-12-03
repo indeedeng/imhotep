@@ -39,7 +39,7 @@
 	<dependencies>
         <dependency>
             <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-client</artifactId>
+            <artifactId>hadoop-common</artifactId>
             <version>2.0.0-cdh4.4.0</version>
             <exclusions>
                 <exclusion>
