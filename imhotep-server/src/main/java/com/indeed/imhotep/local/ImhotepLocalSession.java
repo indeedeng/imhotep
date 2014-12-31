@@ -93,6 +93,8 @@ import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.core.threads.ThreadSafeBitSet;
+import dk.brics.automaton.Automaton;
+import dk.brics.automaton.RegExp;
 import it.unimi.dsi.fastutil.PriorityQueue;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -1133,6 +1135,38 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
 
             if (termsIndex == terms.length) {
                 break;
+            }
+        }
+        docIdStream.close();
+        iter.close();
+
+        remapNegativeDocs(docRemapped, targetGroup, negativeGroup);
+
+        finalizeRegroup();
+    }
+
+    @Override
+    public void regexRegroup(String field, String regex, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException {
+        if (targetGroup == 0) {
+            clearZeroDocBitsets();
+        }
+        docIdToGroup =
+                GroupLookupFactory.resize(docIdToGroup,
+                        Math.max(negativeGroup, positiveGroup),
+                        memory);
+
+        final StringTermIterator iter = flamdexReader.getStringTermIterator(field);
+        final DocIdStream docIdStream = flamdexReader.getDocIdStream();
+        final ThreadSafeBitSet docRemapped = new ThreadSafeBitSet(numDocs);
+
+        final Automaton automaton = new RegExp(regex).toAutomaton();
+
+        while (iter.next()) {
+            final String term = iter.term();
+
+            if (automaton.run(term)) {
+                docIdStream.reset(iter);
+                remapPositiveDocs(docIdStream, docRemapped, targetGroup, positiveGroup);
             }
         }
         docIdStream.close();

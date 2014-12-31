@@ -115,6 +115,7 @@ message ImhotepRequest {
     GET_SUBSET_FTGS_SPLIT = 36;
     MERGE_SUBSET_FTGS_SPLIT = 37;
     GET_NUM_GROUPS = 38;
+    REGEX_REGROUP = 39;
     SHUTDOWN = 255;
   }
 
@@ -220,6 +221,9 @@ message ImhotepRequest {
 
   //for metric regroup with no gutters
   optional bool no_gutters = 49;
+
+  // for regex regroup
+  optional string regex = 50;
 }
 
 message ImhotepResponse {

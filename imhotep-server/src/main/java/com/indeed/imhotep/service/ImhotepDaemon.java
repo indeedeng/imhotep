@@ -269,6 +269,11 @@ public class ImhotepDaemon {
                                     Ints.toArray(protoRequest.getResultGroupsList()));
                             sendResponse(responseBuilder.build(), os);
                             break;
+                        case REGEX_REGROUP:
+                            service.handleRegexRegroup(protoRequest.getSessionId(), protoRequest.getField(), protoRequest.getRegex(),
+                                    protoRequest.getTargetGroup(), protoRequest.getNegativeGroup(), protoRequest.getPositiveGroup());
+                            sendResponse(responseBuilder.build(), os);
+                            break;
                         case GET_TOTAL_DOC_FREQ:
                             totalDocFreq = service.handleGetTotalDocFreq(
                                     protoRequest.getSessionId(),

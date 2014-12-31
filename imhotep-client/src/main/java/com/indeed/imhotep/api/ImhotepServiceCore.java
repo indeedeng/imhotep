@@ -43,6 +43,7 @@ public interface ImhotepServiceCore {
     void handleStringOrRegroup(String sessionId, String field, String[] terms, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
     void handleRandomRegroup(String sessionId, String field, boolean isIntField, String salt, double p, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
     void handleRandomMultiRegroup(String sessionId, String field, boolean isIntField, String salt, int targetGroup, double[] percentages, int[] resultGroups) throws ImhotepOutOfMemoryException;
+    void handleRegexRegroup(String sessionId, String field, String regex, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
     int handleMetricRegroup(String sessionId, int stat, long min, long max, long intervalSize, boolean noGutters) throws ImhotepOutOfMemoryException;
     int handleMetricRegroup2D(String sessionId, int xStat, long xMin, long xMax, long xIntervalSize, int yStat, long yMin, long yMax, long yIntervalSize) throws ImhotepOutOfMemoryException;
     int handleMetricFilter(String sessionId, int stat, long min, long max, boolean negate) throws ImhotepOutOfMemoryException;

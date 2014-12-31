@@ -241,6 +241,17 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
     }
 
     @Override
+    public void regexRegroup(final String field, final String regex, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
+        executeMemoryException(nullBuf, new ThrowingFunction<ImhotepSession, Object>() {
+            @Override
+            public Object apply(ImhotepSession session) throws Exception {
+                session.regexRegroup(field, regex, targetGroup, negativeGroup, positiveGroup);
+                return null;
+            }
+        });
+    }
+
+    @Override
     public void randomRegroup(final String field, final boolean isIntField, final String salt, final double p, final int targetGroup,
                               final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
         executeMemoryException(nullBuf, new ThrowingFunction<ImhotepSession, Object>() {
