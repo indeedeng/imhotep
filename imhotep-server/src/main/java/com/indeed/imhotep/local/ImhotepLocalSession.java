@@ -1069,9 +1069,9 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
                                           memory);
 
         final FastBitSetPooler bitSetPooler = new ImhotepBitSetPooler(memory);
-        final FastBitSet bitSet;
+        final FastBitSet docRemapped;
         try {
-            bitSet = bitSetPooler.create(numDocs);
+            docRemapped = bitSetPooler.create(numDocs);
         } catch (FlamdexOutOfMemoryException e) {
             throw new ImhotepOutOfMemoryException(e);
         }
@@ -1091,7 +1091,7 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
 
                     if (termsIndex < terms.length && term == terms[termsIndex]) {
                         docIdStream.reset(iter);
-                        remapPositiveDocs(docIdStream, bitSet, targetGroup, positiveGroup);
+                        remapPositiveDocs(docIdStream, docRemapped, targetGroup, positiveGroup);
                         ++termsIndex;
                     }
 
@@ -1100,9 +1100,9 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
                     }
                 }
             }
-            remapNegativeDocs(bitSet, targetGroup, negativeGroup);
+            remapNegativeDocs(docRemapped, targetGroup, negativeGroup);
         } finally {
-            bitSetPooler.release(bitSet.memoryUsage());
+            bitSetPooler.release(docRemapped.memoryUsage());
         }
 
         finalizeRegroup();
@@ -1123,9 +1123,9 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
                                           memory);
 
         final FastBitSetPooler bitSetPooler = new ImhotepBitSetPooler(memory);
-        final FastBitSet bitSet;
+        final FastBitSet docRemapped;
         try {
-            bitSet = bitSetPooler.create(numDocs);
+            docRemapped = bitSetPooler.create(numDocs);
         } catch (FlamdexOutOfMemoryException e) {
             throw new ImhotepOutOfMemoryException(e);
         }
@@ -1143,7 +1143,7 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
 
                     if (termsIndex < terms.length && terms[termsIndex].equals(term)) {
                         docIdStream.reset(iter);
-                        remapPositiveDocs(docIdStream, bitSet, targetGroup, positiveGroup);
+                        remapPositiveDocs(docIdStream, docRemapped, targetGroup, positiveGroup);
                         ++termsIndex;
                     }
 
@@ -1152,9 +1152,9 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
                     }
                 }
             }
-            remapNegativeDocs(bitSet, targetGroup, negativeGroup);
+            remapNegativeDocs(docRemapped, targetGroup, negativeGroup);
         } finally {
-            bitSetPooler.release(bitSet.memoryUsage());
+            bitSetPooler.release(docRemapped.memoryUsage());
         }
 
         finalizeRegroup();
@@ -1174,9 +1174,9 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
                         memory);
 
         final FastBitSetPooler bitSetPooler = new ImhotepBitSetPooler(memory);
-        final FastBitSet bitSet;
+        final FastBitSet docRemapped;
         try {
-            bitSet = bitSetPooler.create(numDocs);
+            docRemapped = bitSetPooler.create(numDocs);
         } catch (FlamdexOutOfMemoryException e) {
             throw new ImhotepOutOfMemoryException(e);
         }
@@ -1192,13 +1192,13 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
 
                     if (automaton.run(term)) {
                         docIdStream.reset(iter);
-                        remapPositiveDocs(docIdStream, bitSet, targetGroup, positiveGroup);
+                        remapPositiveDocs(docIdStream, docRemapped, targetGroup, positiveGroup);
                     }
                 }
             }
-            remapNegativeDocs(bitSet, targetGroup, negativeGroup);
+            remapNegativeDocs(docRemapped, targetGroup, negativeGroup);
         } finally {
-            bitSetPooler.release(bitSet.memoryUsage());
+            bitSetPooler.release(docRemapped.memoryUsage());
         }
 
         finalizeRegroup();
