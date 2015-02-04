@@ -220,6 +220,9 @@ message ImhotepRequest {
 
   //for metric regroup with no gutters
   optional bool no_gutters = 49;
+
+  // used in openSession()
+  optional int64 temp_file_size_limit = 51 [default = -1];
 }
 
 message ImhotepResponse {

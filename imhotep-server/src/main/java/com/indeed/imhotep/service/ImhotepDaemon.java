@@ -122,17 +122,17 @@ public class ImhotepDaemon {
         }
     }
 
+    static void sendResponse(ImhotepResponse response, OutputStream os) throws IOException {
+        log.info("sending response");
+        ImhotepProtobufShipping.sendProtobuf(response, os);
+        log.info("response sent");
+    }
+
     private class DaemonWorker implements Runnable {
         private final Socket socket;
 
         private DaemonWorker(Socket socket) {
             this.socket = socket;
-        }
-
-        private void sendResponse(ImhotepResponse response, OutputStream os) throws IOException {
-            log.info("sending response");
-            ImhotepProtobufShipping.sendProtobuf(response, os);
-            log.info("response sent");
         }
 
         @Override
@@ -193,6 +193,8 @@ public class ImhotepDaemon {
                     switch (protoRequest.getRequestType()) {
                         case OPEN_SESSION:
                             inetAddress = socket.getInetAddress();
+                            final AtomicLong tempFileSizeBytesLeft = protoRequest.getTempFileSizeLimit() > 0 ?
+                                    new AtomicLong(protoRequest.getTempFileSizeLimit()) : null;
                             sessionId = service.handleOpenSession(
                                     protoRequest.getDataset(),
                                     protoRequest.getShardRequestList(),
@@ -201,7 +203,8 @@ public class ImhotepDaemon {
                                     protoRequest.getClientVersion(),
                                     protoRequest.getMergeThreadLimit(),
                                     protoRequest.getOptimizeGroupZeroLookups(),
-                                    protoRequest.getSessionId()
+                                    protoRequest.getSessionId(),
+                                    tempFileSizeBytesLeft
                             );
                             NDC.push(sessionId);
                             responseBuilder.setSessionId(sessionId);
@@ -289,35 +292,30 @@ public class ImhotepDaemon {
                             if (!service.sessionIsValid(protoRequest.getSessionId())) {
                                 throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
                             }
-                            sendResponse(responseBuilder.build(), os);
                             service.handleGetFTGSIterator(protoRequest.getSessionId(), getIntFields(protoRequest), getStringFields(protoRequest), os);
                             break;
                         case GET_SUBSET_FTGS_ITERATOR:
                             if (!service.sessionIsValid(protoRequest.getSessionId())) {
                                 throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
                             }
-                            sendResponse(responseBuilder.build(), os);
                             service.handleGetSubsetFTGSIterator(protoRequest.getSessionId(), getIntFieldsToTerms(protoRequest), getStringFieldsToTerms(protoRequest), os);
                             break;
                         case GET_FTGS_SPLIT:
                             if (!service.sessionIsValid(protoRequest.getSessionId())) {
                                 throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
                             }
-                            sendResponse(responseBuilder.build(), os);
                             service.handleGetFTGSIteratorSplit(protoRequest.getSessionId(), getIntFields(protoRequest), getStringFields(protoRequest), os, protoRequest.getSplitIndex(), protoRequest.getNumSplits());
                             break;
                         case GET_SUBSET_FTGS_SPLIT:
                             if (!service.sessionIsValid(protoRequest.getSessionId())) {
                                 throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
                             }
-                            sendResponse(responseBuilder.build(), os);
                             service.handleGetSubsetFTGSIteratorSplit(protoRequest.getSessionId(), getIntFieldsToTerms(protoRequest), getStringFieldsToTerms(protoRequest), os, protoRequest.getSplitIndex(), protoRequest.getNumSplits());
                             break;
                         case MERGE_FTGS_SPLIT:
                             if (!service.sessionIsValid(protoRequest.getSessionId())) {
                                 throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
                             }
-                            sendResponse(responseBuilder.build(), os);
                             service.handleMergeFTGSIteratorSplit(protoRequest.getSessionId(), getIntFields(protoRequest), getStringFields(protoRequest), os,
                                     Lists.transform(protoRequest.getNodesList(), new Function<HostAndPort, InetSocketAddress>() {
                                         public InetSocketAddress apply(final HostAndPort input) {
@@ -329,7 +327,6 @@ public class ImhotepDaemon {
                             if (!service.sessionIsValid(protoRequest.getSessionId())) {
                                 throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
                             }
-                            sendResponse(responseBuilder.build(), os);
                             service.handleMergeSubsetFTGSIteratorSplit(protoRequest.getSessionId(), getIntFieldsToTerms(protoRequest), getStringFieldsToTerms(protoRequest), os,
                                     Lists.transform(protoRequest.getNodesList(), new Function<HostAndPort, InetSocketAddress>() {
                                         public InetSocketAddress apply(final HostAndPort input) {
@@ -341,7 +338,6 @@ public class ImhotepDaemon {
                             if (!service.sessionIsValid(protoRequest.getSessionId())) {
                                 throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
                             }
-                            sendResponse(responseBuilder.build(), os);
                             service.handleGetDocIterator(protoRequest.getSessionId(), getIntFields(protoRequest), getStringFields(protoRequest), os);
                             break;
                         case PUSH_STAT:

@@ -1594,7 +1594,7 @@ public class TestImhotepLocalSession {
                 new ImhotepLocalSession(r1,
                                         "/tmp/imhotep.test",
                                         new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
-                                        false);
+                                        false, null);
         session1.pushStat("count()");
         session1.createDynamicMetric("foo");
         session1.createDynamicMetric("bar");
@@ -1771,7 +1771,7 @@ public class TestImhotepLocalSession {
                 new ImhotepLocalSession(r1,
                                         "/tmp/imhotep.test",
                                         new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
-                                        false);
+                                        false, null);
         session1.pushStat("count()");
         session1.createDynamicMetric("foo");
         session1.createDynamicMetric("bar");

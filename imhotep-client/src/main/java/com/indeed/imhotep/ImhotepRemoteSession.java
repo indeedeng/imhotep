@@ -26,7 +26,10 @@ import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
+import com.indeed.imhotep.io.LimitedBufferedOutputStream;
 import com.indeed.imhotep.io.Streams;
+import com.indeed.imhotep.io.TempFileSizeLimitExceededException;
+import com.indeed.imhotep.io.WriteLimitExceededException;
 import com.indeed.imhotep.marshal.ImhotepClientMarshaller;
 import com.indeed.imhotep.protobuf.DatasetInfoMessage;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
@@ -46,7 +49,6 @@ import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
 import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -63,6 +65,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author jsgroth
@@ -82,18 +85,20 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
     private final int port;
     private final String sessionId;
     private final int socketTimeout;
+    private final AtomicLong tempFileSizeBytesLeft;
 
     private int numStats = 0;
 
-    public ImhotepRemoteSession(String host, int port, String sessionId) {
-        this(host, port, sessionId, DEFAULT_SOCKET_TIMEOUT);
+    public ImhotepRemoteSession(String host, int port, String sessionId, AtomicLong tempFileSizeBytesLeft) {
+        this(host, port, sessionId, tempFileSizeBytesLeft, DEFAULT_SOCKET_TIMEOUT);
     }
     
-    public ImhotepRemoteSession(String host, int port, String sessionId, int socketTimeout) {
+    public ImhotepRemoteSession(String host, int port, String sessionId, @Nullable AtomicLong tempFileSizeBytesLeft, int socketTimeout) {
         this.host = host;
         this.port = port;
         this.sessionId = sessionId;
         this.socketTimeout = socketTimeout;
+        this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
     }
 
     @Deprecated
@@ -136,17 +141,17 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
     }
 
     public static ImhotepRemoteSession openSession(final String host, final int port, final String dataset, final List<String> shards, @Nullable String sessionId) throws ImhotepOutOfMemoryException, IOException {
-        return openSession(host, port, dataset, shards, DEFAULT_MERGE_THREAD_LIMIT, getUsername(), false, -1, sessionId);
+        return openSession(host, port, dataset, shards, DEFAULT_MERGE_THREAD_LIMIT, getUsername(), false, -1, sessionId, -1, null);
     }
 
     public static ImhotepRemoteSession openSession(final String host, final int port, final String dataset, final List<String> shards,
                                                    final int mergeThreadLimit, @Nullable String sessionId) throws ImhotepOutOfMemoryException, IOException {
-        return openSession(host, port, dataset, shards, mergeThreadLimit, getUsername(), false, -1, sessionId);
+        return openSession(host, port, dataset, shards, mergeThreadLimit, getUsername(), false, -1, sessionId, -1, null);
     }
 
     public static ImhotepRemoteSession openSession(final String host, final int port, final String dataset, final List<String> shards,
                                                    final int mergeThreadLimit, final String username,
-                                                   final boolean optimizeGroupZeroLookups, final int socketTimeout, @Nullable String sessionId) throws ImhotepOutOfMemoryException, IOException {
+                                                   final boolean optimizeGroupZeroLookups, final int socketTimeout, @Nullable String sessionId, final long tempFileSizeLimit, @Nullable final AtomicLong tempFileSizeBytesLeft) throws ImhotepOutOfMemoryException, IOException {
         final Socket socket = newSocket(host, port, socketTimeout);
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
@@ -161,6 +166,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
                     .setOptimizeGroupZeroLookups(optimizeGroupZeroLookups)
                     .setClientVersion(CURRENT_CLIENT_VERSION)
                     .setSessionId(sessionId == null ? "" : sessionId)
+                    .setTempFileSizeLimit(tempFileSizeLimit)
                     .build();
             try {
                 ImhotepProtobufShipping.sendProtobuf(openSessionRequest, os);
@@ -175,7 +181,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
                 if (sessionId == null) sessionId = response.getSessionId();
     
                 log.trace("session created, id "+sessionId);
-                return new ImhotepRemoteSession(host, port, sessionId, socketTimeout);
+                return new ImhotepRemoteSession(host, port, sessionId, tempFileSizeBytesLeft, socketTimeout);
             } catch (SocketTimeoutException e) {
                 throw buildExceptionAfterSocketTimeout(e, host, port);
             }
@@ -373,11 +379,16 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
                 OutputStream out = null;
                 try {
                     final long start = System.currentTimeMillis();
-                    out = new BufferedOutputStream(new FileOutputStream(tmp));
+                    out = new LimitedBufferedOutputStream(new FileOutputStream(tmp), tempFileSizeBytesLeft);
                     ByteStreams.copy(is, out);
-                    log.info("time to copy split data to file: "+(System.currentTimeMillis()-start)+" ms, file length: "+tmp.length());
+                    if(log.isDebugEnabled()) {
+                        log.debug("time to copy split data to file: " + (System.currentTimeMillis() - start) + " ms, file length: " + tmp.length());
+                    }
                 } catch (Throwable t) {
                     tmp.delete();
+                    if(t instanceof WriteLimitExceededException) {
+                        throw new TempFileSizeLimitExceededException(t);
+                    }
                     throw Throwables2.propagate(t, IOException.class);
                 } finally {
                     if (out != null) {
@@ -870,8 +881,8 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
     private static IOException buildExceptionFromResponse(ImhotepResponse response, String host, int port) {
         final StringBuilder msg = new StringBuilder();
         msg.append("imhotep daemon ").append(host).append(":").append(port)
-                .append(" returned error: ").append(response.getExceptionType())
-                .append(": ").append(response.getExceptionMessage()).append('\n').append(response.getExceptionStackTrace());
+                .append(" returned error: ")
+                .append(response.getExceptionStackTrace()); // stack trace string includes the type and message
         return new IOException(msg.toString());
     }
     

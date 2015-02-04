@@ -28,6 +28,7 @@ import java.net.InetSocketAddress;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author jsgroth
@@ -71,7 +72,7 @@ public interface ImhotepServiceCore {
     int handleGetNumGroups(String sessionId);
 
     // open session methods return session id
-    String handleOpenSession(String dataset, List<String> shardRequestList, String username, String ipAddress, int clientVersion, int mergeThreadLimit, boolean optimizeGroupZeroLookups, String sessionId) throws ImhotepOutOfMemoryException;
+    String handleOpenSession(String dataset, List<String> shardRequestList, String username, String ipAddress, int clientVersion, int mergeThreadLimit, boolean optimizeGroupZeroLookups, String sessionId, AtomicLong tempFileSizeBytesLeft) throws ImhotepOutOfMemoryException;
 
     // non-session-based methods
     @Deprecated List<ShardInfo> handleGetShardList();

@@ -16,6 +16,7 @@
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
@@ -49,6 +50,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author jplaisance
@@ -90,9 +92,21 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
             public Void apply(final ImhotepSession session) throws IOException {
                 final int numStats = getSessionManager().getNumStats(sessionId);
                 final FTGSIterator merger = session.getFTGSIterator(intFields, stringFields);
+                sendSuccessResponse(os);
                 return writeFTGSIteratorToOutputStream(numStats, merger, os);
             }
         });
+    }
+
+    /**
+     * Writes a success imhotep response protobuf to the provided stream.
+     * Note: We can't send this until we know that the operation like GetFTGSIterator has succeeded
+     * so it has to be sent here and not from ImhotepDaemon.
+     * @param os output stream to write the successful response protobuf to.
+     */
+    private void sendSuccessResponse(OutputStream os) throws IOException {
+        final ImhotepResponse.Builder responseBuilder = ImhotepResponse.newBuilder();
+        ImhotepDaemon.sendResponse(responseBuilder.build(), os);
     }
 
     @Override
@@ -101,6 +115,7 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
             public Void apply(final ImhotepSession session) throws IOException {
                 final int numStats = getSessionManager().getNumStats(sessionId);
                 final FTGSIterator merger = session.getSubsetFTGSIterator(intFields, stringFields);
+                sendSuccessResponse(os);
                 return writeFTGSIteratorToOutputStream(numStats, merger, os);
             }
         });
@@ -146,6 +161,7 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
             public Void apply(final ImhotepSession session) throws IOException {
                 final int numStats = getSessionManager().getNumStats(sessionId);
                 final FTGSIterator merger = session.getFTGSIteratorSplit(intFields, stringFields, splitIndex, numSplits);
+                sendSuccessResponse(os);
                 return writeFTGSIteratorToOutputStream(numStats, merger, os);
             }
         });
@@ -157,6 +173,7 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
             public Void apply(final ImhotepSession session) throws IOException {
                 final int numStats = getSessionManager().getNumStats(sessionId);
                 final FTGSIterator merger = session.getSubsetFTGSIteratorSplit(intFields, stringFields, splitIndex, numSplits);
+                sendSuccessResponse(os);
                 return writeFTGSIteratorToOutputStream(numStats, merger, os);
             }
         });
@@ -172,6 +189,7 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
             public Void apply(final ImhotepSession session) throws IOException {
                 final int numStats = getSessionManager().getNumStats(sessionId);
                 final FTGSIterator merger = session.mergeFTGSSplit(intFields, stringFields, sessionId, nodes, splitIndex);
+                sendSuccessResponse(os);
                 return writeFTGSIteratorToOutputStream(numStats, merger, os);
             }
         });
@@ -183,6 +201,7 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
             public Void apply(final ImhotepSession session) throws IOException {
                 final int numStats = getSessionManager().getNumStats(sessionId);
                 final FTGSIterator merger = session.mergeSubsetFTGSSplit(intFields, stringFields, sessionId, nodes, splitIndex);
+                sendSuccessResponse(os);
                 return writeFTGSIteratorToOutputStream(numStats, merger, os);
             }
         });
@@ -194,6 +213,7 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
         final SharedReference<ImhotepSession> sessionRef = getSessionManager().getSession(sessionId);
         try {
             final DocIterator iterator = sessionRef.get().getDocIterator(intFields, stringFields);
+            sendSuccessResponse(os);
             final Future<?> future = ftgsExecutor.submit(new Callable<Void>() {
                 @Override
                 public Void call() throws Exception {
@@ -475,7 +495,8 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
             int clientVersion,
             int mergeThreadLimit,
             boolean optimizeGroupZeroLookups,
-            String sessionId
+            String sessionId,
+            AtomicLong tempFileSizeBytesLeft
     ) throws ImhotepOutOfMemoryException;
 
     @Override

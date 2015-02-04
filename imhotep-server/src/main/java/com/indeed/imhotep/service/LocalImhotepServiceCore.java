@@ -67,6 +67,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -558,7 +559,8 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
                                     final int clientVersion,
                                     final int mergeThreadLimit,
                                     final boolean optimizeGroupZeroLookups,
-                                    String sessionId) throws ImhotepOutOfMemoryException {
+                                    String sessionId,
+                                    AtomicLong tempFileSizeBytesLeft) throws ImhotepOutOfMemoryException {
         final Map<String, Map<String, AtomicSharedReference<Shard>>> localShards = this.shards;
         checkDatasetExists(localShards, dataset);
 
@@ -617,7 +619,8 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
                             new ImhotepLocalSession(cachedFlamdexReaderReference,
                                                     this.shardTempDirectory,
                                                     new MemoryReservationContext(memory),
-                                                    optimizeGroupZeroLookups);
+                                                    optimizeGroupZeroLookups,
+                                                    tempFileSizeBytesLeft);
                 } catch (RuntimeException e) {
                     Closeables2.closeQuietly(cachedFlamdexReaderReference, log);
                     localSessions[i] = null;
@@ -629,7 +632,7 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
                 }
             }
             final ImhotepSession session =
-                    new MTImhotepMultiSession(localSessions, new MemoryReservationContext(memory), executor);
+                    new MTImhotepMultiSession(localSessions, new MemoryReservationContext(memory), executor, tempFileSizeBytesLeft);
             getSessionManager().addSession(sessionId,
                                            session,
                                            flamdexes,
