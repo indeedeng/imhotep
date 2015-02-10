@@ -69,6 +69,8 @@ public final class FTGSSplitter implements Runnable, Closeable {
         outputStreams = new OutputStream[numSplits];
         ftgsIterators = new RawFTGSIterator[numSplits];
         final AtomicInteger doneCounter = new AtomicInteger();
+        runThread = new Thread(this, "FTGSSplitterThread-"+threadNameSuffix);
+        runThread.setDaemon(true);
         try {
             for (int i = 0; i < numSplits; i++) {
                 files[i] = File.createTempFile("ftgsSplitter", ".tmp");
@@ -78,7 +80,6 @@ public final class FTGSSplitter implements Runnable, Closeable {
                 ftgsIterators[i] = new RawFTGSIterator() {
 
                     InputStreamFTGSIterator delegate = null;
-
 
                     @Override
                     public boolean nextField() {
@@ -173,8 +174,6 @@ public final class FTGSSplitter implements Runnable, Closeable {
                     }
                 };
             }
-            runThread = new Thread(this, "FTGSSplitterThread-"+threadNameSuffix);
-            runThread.setDaemon(true);
         } catch (Throwable t) {
             try {
                 close();
