@@ -30,6 +30,7 @@ import java.io.BufferedOutputStream;
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -76,103 +77,7 @@ public final class FTGSSplitter implements Runnable, Closeable {
                 files[i] = File.createTempFile("ftgsSplitter", ".tmp");
                 outputStreams[i] = new BufferedOutputStream(new FileOutputStream(files[i]), 65536);
                 outputs[i] = new FTGSOutputStreamWriter(outputStreams[i]);
-                final int splitIndex = i;
-                ftgsIterators[i] = new RawFTGSIterator() {
-
-                    InputStreamFTGSIterator delegate = null;
-
-                    @Override
-                    public boolean nextField() {
-                        try {
-                            if (delegate == null) {
-                                try {
-                                    runThread.join();
-                                } catch (InterruptedException e) {
-                                    throw Throwables.propagate(e);
-                                }
-
-                                delegate = new InputStreamFTGSIterator(new BufferedInputStream(new FileInputStream(files[splitIndex]), 65536), numStats) {
-                                    boolean closed = false;
-
-                                    @Override
-                                    public void close() {
-                                        if (!closed) {
-                                            closed = true;
-                                            super.close();
-                                            if (doneCounter.incrementAndGet() == numSplits) {
-                                                FTGSSplitter.this.close();
-                                            }
-                                        }
-                                    }
-                                };
-                                files[splitIndex].delete();
-                            }
-                            return delegate.nextField();
-                        } catch (IOException e) {
-                            throw Throwables.propagate(e);
-                        }
-                    }
-
-                    @Override
-                    public String fieldName() {
-                        return delegate.fieldName();
-                    }
-
-                    @Override
-                    public boolean fieldIsIntType() {
-                        return delegate.fieldIsIntType();
-                    }
-
-                    @Override
-                    public boolean nextTerm() {
-                        return delegate.nextTerm();
-                    }
-
-                    @Override
-                    public long termDocFreq() {
-                        return delegate.termDocFreq();
-                    }
-
-                    @Override
-                    public long termIntVal() {
-                        return delegate.termIntVal();
-                    }
-
-                    @Override
-                    public String termStringVal() {
-                        return delegate.termStringVal();
-                    }
-
-                    @Override
-                    public byte[] termStringBytes() {
-                        return delegate.termStringBytes();
-                    }
-
-                    @Override
-                    public int termStringLength() {
-                        return delegate.termStringLength();
-                    }
-
-                    @Override
-                    public boolean nextGroup() {
-                        return delegate.nextGroup();
-                    }
-
-                    @Override
-                    public int group() {
-                        return delegate.group();
-                    }
-
-                    @Override
-                    public void groupStats(final long[] stats) {
-                        delegate.groupStats(stats);
-                    }
-
-                    @Override
-                    public void close() {
-                        delegate.close();
-                    }
-                };
+                ftgsIterators[i] = new SplitterRawFTGSIterator(i, numStats, doneCounter, numSplits);
             }
         } catch (Throwable t) {
             try {
@@ -278,5 +183,106 @@ public final class FTGSSplitter implements Runnable, Closeable {
 
     public boolean isClosed() {
         return done.get();
+    }
+
+    private class SplitterRawFTGSIterator implements RawFTGSIterator {
+
+        private final InputStreamFTGSIterator delegate;
+        private boolean initialized = false;
+
+        public SplitterRawFTGSIterator(int splitIndex, int numStats, final AtomicInteger doneCounter, final int numSplits) throws FileNotFoundException {
+            delegate = new InputStreamFTGSIterator(new BufferedInputStream(new FileInputStream(files[splitIndex]), 65536), numStats) {
+                boolean closed = false;
+
+                @Override
+                public void close() {
+                    if (!closed) {
+                        closed = true;
+                        super.close();
+                        if (doneCounter.incrementAndGet() == numSplits) {
+                            FTGSSplitter.this.close();
+                        }
+                    }
+                }
+            };
+            files[splitIndex].delete();
+        }
+
+        private InputStreamFTGSIterator getDelegate() {
+            if (!initialized) {
+                try {
+                    runThread.join();
+                } catch (InterruptedException e) {
+                    throw Throwables.propagate(e);
+                }
+                initialized = true;
+            }
+            return delegate;
+        }
+
+        @Override
+        public boolean nextField() {
+            return getDelegate().nextField();
+        }
+
+        @Override
+        public String fieldName() {
+            return getDelegate().fieldName();
+        }
+
+        @Override
+        public boolean fieldIsIntType() {
+            return getDelegate().fieldIsIntType();
+        }
+
+        @Override
+        public boolean nextTerm() {
+            return getDelegate().nextTerm();
+        }
+
+        @Override
+        public long termDocFreq() {
+            return getDelegate().termDocFreq();
+        }
+
+        @Override
+        public long termIntVal() {
+            return getDelegate().termIntVal();
+        }
+
+        @Override
+        public String termStringVal() {
+            return getDelegate().termStringVal();
+        }
+
+        @Override
+        public byte[] termStringBytes() {
+            return getDelegate().termStringBytes();
+        }
+
+        @Override
+        public int termStringLength() {
+            return getDelegate().termStringLength();
+        }
+
+        @Override
+        public boolean nextGroup() {
+            return getDelegate().nextGroup();
+        }
+
+        @Override
+        public int group() {
+            return getDelegate().group();
+        }
+
+        @Override
+        public void groupStats(final long[] stats) {
+            getDelegate().groupStats(stats);
+        }
+
+        @Override
+        public void close() {
+            delegate.close();
+        }
     }
 }
