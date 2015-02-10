@@ -3,8 +3,8 @@
 
     <parent>
         <groupId>com.indeed</groupId>
-        <artifactId>oss-parent</artifactId>
-        <version>12</version>
+        <artifactId>proprietary-parent</artifactId>
+        <version>7</version>
     </parent>
 
     <groupId>com.indeed</groupId>
@@ -25,8 +25,8 @@
 
     <scm>
         <url>https://github.com/indeedeng/imhotep</url>
-        <connection>scm:git:git@github.com:indeedeng/imhotep.git</connection>
-        <developerConnection>scm:git:git@github.com:indeedeng/imhotep.git</developerConnection>
+        <connection>scm:git:git@eng-git.ausoff.indeed.net:opensource/imhotep.git</connection>
+        <developerConnection>scm:git:git@eng-git.ausoff.indeed.net:opensource/imhotep.git</developerConnection>
     </scm>
 
   <build>
