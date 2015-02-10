@@ -17,6 +17,7 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
+import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.hash.MurmurHash;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.RawFTGSIterator;
@@ -68,111 +69,119 @@ public final class FTGSSplitter implements Runnable, Closeable {
         outputStreams = new OutputStream[numSplits];
         ftgsIterators = new RawFTGSIterator[numSplits];
         final AtomicInteger doneCounter = new AtomicInteger();
-        for (int i = 0; i < numSplits; i++) {
-            files[i] = File.createTempFile("ftgsSplitter", ".tmp");
-            outputStreams[i] = new BufferedOutputStream(new FileOutputStream(files[i]), 65536);
-            outputs[i] = new FTGSOutputStreamWriter(outputStreams[i]);
-            final int splitIndex = i;
-            ftgsIterators[i] = new RawFTGSIterator() {
+        try {
+            for (int i = 0; i < numSplits; i++) {
+                files[i] = File.createTempFile("ftgsSplitter", ".tmp");
+                outputStreams[i] = new BufferedOutputStream(new FileOutputStream(files[i]), 65536);
+                outputs[i] = new FTGSOutputStreamWriter(outputStreams[i]);
+                final int splitIndex = i;
+                ftgsIterators[i] = new RawFTGSIterator() {
 
-                InputStreamFTGSIterator delegate = null;
+                    InputStreamFTGSIterator delegate = null;
 
 
-                @Override
-                public boolean nextField() {
-                    try {
-                        if (delegate == null) {
-                            try {
-                                runThread.join();
-                            } catch (InterruptedException e) {
-                                throw Throwables.propagate(e);
-                            }
+                    @Override
+                    public boolean nextField() {
+                        try {
+                            if (delegate == null) {
+                                try {
+                                    runThread.join();
+                                } catch (InterruptedException e) {
+                                    throw Throwables.propagate(e);
+                                }
 
-                            delegate = new InputStreamFTGSIterator(new BufferedInputStream(new FileInputStream(files[splitIndex]), 65536), numStats) {
-                                boolean closed = false;
+                                delegate = new InputStreamFTGSIterator(new BufferedInputStream(new FileInputStream(files[splitIndex]), 65536), numStats) {
+                                    boolean closed = false;
 
-                                @Override
-                                public void close() {
-                                    if (!closed) {
-                                        closed = true;
-                                        super.close();
-                                        if (doneCounter.incrementAndGet() == numSplits) {
-                                            FTGSSplitter.this.close();
+                                    @Override
+                                    public void close() {
+                                        if (!closed) {
+                                            closed = true;
+                                            super.close();
+                                            if (doneCounter.incrementAndGet() == numSplits) {
+                                                FTGSSplitter.this.close();
+                                            }
                                         }
                                     }
-                                }
-                            };
-                            files[splitIndex].delete();
+                                };
+                                files[splitIndex].delete();
+                            }
+                            return delegate.nextField();
+                        } catch (IOException e) {
+                            throw Throwables.propagate(e);
                         }
-                        return delegate.nextField();
-                    } catch (IOException e) {
-                        throw Throwables.propagate(e);
                     }
-                }
 
-                @Override
-                public String fieldName() {
-                    return delegate.fieldName();
-                }
+                    @Override
+                    public String fieldName() {
+                        return delegate.fieldName();
+                    }
 
-                @Override
-                public boolean fieldIsIntType() {
-                    return delegate.fieldIsIntType();
-                }
+                    @Override
+                    public boolean fieldIsIntType() {
+                        return delegate.fieldIsIntType();
+                    }
 
-                @Override
-                public boolean nextTerm() {
-                    return delegate.nextTerm();
-                }
+                    @Override
+                    public boolean nextTerm() {
+                        return delegate.nextTerm();
+                    }
 
-                @Override
-                public long termDocFreq() {
-                    return delegate.termDocFreq();
-                }
+                    @Override
+                    public long termDocFreq() {
+                        return delegate.termDocFreq();
+                    }
 
-                @Override
-                public long termIntVal() {
-                    return delegate.termIntVal();
-                }
+                    @Override
+                    public long termIntVal() {
+                        return delegate.termIntVal();
+                    }
 
-                @Override
-                public String termStringVal() {
-                    return delegate.termStringVal();
-                }
+                    @Override
+                    public String termStringVal() {
+                        return delegate.termStringVal();
+                    }
 
-                @Override
-                public byte[] termStringBytes() {
-                    return delegate.termStringBytes();
-                }
+                    @Override
+                    public byte[] termStringBytes() {
+                        return delegate.termStringBytes();
+                    }
 
-                @Override
-                public int termStringLength() {
-                    return delegate.termStringLength();
-                }
+                    @Override
+                    public int termStringLength() {
+                        return delegate.termStringLength();
+                    }
 
-                @Override
-                public boolean nextGroup() {
-                    return delegate.nextGroup();
-                }
+                    @Override
+                    public boolean nextGroup() {
+                        return delegate.nextGroup();
+                    }
 
-                @Override
-                public int group() {
-                    return delegate.group();
-                }
+                    @Override
+                    public int group() {
+                        return delegate.group();
+                    }
 
-                @Override
-                public void groupStats(final long[] stats) {
-                    delegate.groupStats(stats);
-                }
+                    @Override
+                    public void groupStats(final long[] stats) {
+                        delegate.groupStats(stats);
+                    }
 
-                @Override
-                public void close() {
-                    delegate.close();
-                }
-            };
+                    @Override
+                    public void close() {
+                        delegate.close();
+                    }
+                };
+            }
+            runThread = new Thread(this, "FTGSSplitterThread-"+threadNameSuffix);
+            runThread.setDaemon(true);
+        } catch (Throwable t) {
+            try {
+                close();
+            } finally {
+                throw Throwables2.propagate(t, IOException.class);
+            }
         }
-        runThread = new Thread(this, "FTGSSplitterThread-"+threadNameSuffix);
-        runThread.setDaemon(true);
         runThread.start();
     }
 
@@ -227,8 +236,9 @@ public final class FTGSSplitter implements Runnable, Closeable {
             for (final FTGSOutputStreamWriter output : outputs) {
                 output.close();
             }
-        } catch (IOException e) {
-            throw Throwables.propagate(e);
+        } catch (Throwable t) {
+            close();
+            throw Throwables.propagate(t);
         } finally {
             Closeables2.closeQuietly(iterator, log);
         }
