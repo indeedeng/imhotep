@@ -58,6 +58,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author jsgroth
@@ -278,6 +279,8 @@ public class ImhotepClient implements Closeable {
         private String username;
         private boolean optimizeGroupZeroLookups = false;
         private int socketTimeout = -1;
+        private long localTempFileSizeLimit = -1;
+        private long daemonTempFileSizeLimit = -1;
 
         private List<ShardIdWithVersion> chosenShards = null;
         private List<String> shardsOverride = null;
@@ -311,6 +314,16 @@ public class ImhotepClient implements Closeable {
         }
         public SessionBuilder optimizeGroupZeroLookups(boolean optimizeGroupZeroLookups) {
             this.optimizeGroupZeroLookups = optimizeGroupZeroLookups;
+            return this;
+        }
+
+        public SessionBuilder localTempFileSizeLimit(long localTempFileSizeLimit) {
+            this.localTempFileSizeLimit = localTempFileSizeLimit;
+            return this;
+        }
+
+        public SessionBuilder daemonTempFileSizeLimit(long daemonTempFileSizeLimit) {
+            this.daemonTempFileSizeLimit = daemonTempFileSizeLimit;
             return this;
         }
 
@@ -367,7 +380,8 @@ public class ImhotepClient implements Closeable {
                 username = ImhotepRemoteSession.getUsername();
             }
             List<String> chosenShardIDs = shardsOverride != null ? shardsOverride : ShardIdWithVersion.keepShardIds(getChosenShards());
-            return getSessionForShards(dataset, chosenShardIDs, requestedMetrics, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout);
+            return getSessionForShards(dataset, chosenShardIDs, requestedMetrics, mergeThreadLimit, username,
+                    optimizeGroupZeroLookups, socketTimeout, localTempFileSizeLimit, daemonTempFileSizeLimit);
         }
 
     }
@@ -449,20 +463,22 @@ public class ImhotepClient implements Closeable {
                                      final int mergeThreadLimit, final int priority, final String username,
                                      final boolean optimizeGroupZeroLookups, final int socketTimeout) {
 
-        return getSessionForShards(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout);
+        return getSessionForShards(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout, -1, -1);
     }
 
     private ImhotepSession getSessionForShards(final String dataset, final Collection<String> requestedShards, final Collection<String> requestedMetrics,
-                                     final int mergeThreadLimit, final String username,
-                                     final boolean optimizeGroupZeroLookups, final int socketTimeout) {
+                                               final int mergeThreadLimit, final String username,
+                                               final boolean optimizeGroupZeroLookups, final int socketTimeout,
+                                               long localTempFileSizeLimit, long daemonTempFileSizeLimit) {
 
         if(requestedShards == null || requestedShards.size() == 0) {
             throw new IllegalArgumentException("No shards");
         }
         int retries = 3;
+        final AtomicLong localTempFileSizeBytesLeft = localTempFileSizeLimit > 0 ? new AtomicLong(localTempFileSizeLimit) : null;
         while (retries > 0) {
             final String sessionId = UUID.randomUUID().toString();
-            final ImhotepRemoteSession[] remoteSessions = internalGetSession(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout, sessionId);
+            final ImhotepRemoteSession[] remoteSessions = internalGetSession(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout, sessionId, daemonTempFileSizeLimit, localTempFileSizeBytesLeft);
             if (remoteSessions == null) {
                 --retries;
                 if (retries > 0) {
@@ -474,7 +490,7 @@ public class ImhotepClient implements Closeable {
             for (int i = 0; i < remoteSessions.length; i++) {
                 nodes[i] = remoteSessions[i].getInetSocketAddress();
             }
-            return new RemoteImhotepMultiSession(remoteSessions, sessionId, nodes);
+            return new RemoteImhotepMultiSession(remoteSessions, sessionId, nodes, localTempFileSizeBytesLeft);
         }
         throw new RuntimeException("unable to open session");
     }
@@ -605,7 +621,7 @@ public class ImhotepClient implements Closeable {
 
     // returns null on error
     private ImhotepRemoteSession[] internalGetSession(final String dataset, Collection<String> requestedShards, Collection<String> requestedMetrics, final int mergeThreadLimit,
-                                                      final String username, final boolean optimizeGroupZeroLookups, final int socketTimeout, @Nullable final String sessionId) {
+                                                      final String username, final boolean optimizeGroupZeroLookups, final int socketTimeout, @Nullable final String sessionId, final long tempFileSizeLimit, @Nullable final AtomicLong tempFileSizeBytesLeft) {
 
         final Map<Host, List<String>> shardRequestMap = buildShardRequestMap(dataset, requestedShards, requestedMetrics);
 
@@ -624,7 +640,7 @@ public class ImhotepClient implements Closeable {
                 futures.add(executor.submit(new Callable<ImhotepRemoteSession>() {
                     @Override
                     public ImhotepRemoteSession call() throws Exception {
-                        return ImhotepRemoteSession.openSession(host.hostname, host.port, dataset, shardList, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout, sessionId);
+                        return ImhotepRemoteSession.openSession(host.hostname, host.port, dataset, shardList, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout, sessionId, tempFileSizeLimit, tempFileSizeBytesLeft);
                     }
                 }));
             }

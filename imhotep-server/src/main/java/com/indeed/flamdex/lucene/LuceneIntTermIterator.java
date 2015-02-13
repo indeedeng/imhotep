@@ -31,10 +31,9 @@ class LuceneIntTermIterator implements IntTermIterator, LuceneTermIterator {
     static {
         final List<String> temp = new ArrayList<String>();
         temp.add("0");
-        //TODO jeffp: fix this for longs
-        final long maxVal = Integer.MAX_VALUE;
+        // TODO: support negative values
         for (int i = 1; i <= 9; i++) {
-            for (long m = 1; m*i <= maxVal; m *= 10) {
+            for (long m = 1; m*i > 0; m *= 10) {
                 temp.add(""+(m*i));
             }
         }
@@ -161,7 +160,7 @@ class LuceneIntTermIterator implements IntTermIterator, LuceneTermIterator {
     }
 
     private List<Prefix> determineAppropriatePrefixes() {
-        final String[][] firstTerm = new String[10][10];
+        final String[][] firstTerm = new String[19][10];
         try {
             final TermEnum termEnum = reader.terms(new Term(field, "0"));
             while (true) {

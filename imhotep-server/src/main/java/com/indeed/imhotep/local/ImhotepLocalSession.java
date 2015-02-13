@@ -93,6 +93,8 @@ import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.core.threads.ThreadSafeBitSet;
+import dk.brics.automaton.Automaton;
+import dk.brics.automaton.RegExp;
 import it.unimi.dsi.fastutil.PriorityQueue;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -124,6 +126,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -143,6 +146,7 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
 
     private static final int MAX_NUMBER_STATS = 64;
     static final int BUFFER_SIZE = 2048;
+    private final AtomicLong tempFileSizeBytesLeft;
 
     private int numDocs;
     // buffers that will be reused to avoid excessive allocations
@@ -185,19 +189,21 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
 
     public ImhotepLocalSession(final FlamdexReader flamdexReader) throws ImhotepOutOfMemoryException {
         this(flamdexReader, null,
-                new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), false);
+                new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), false, null);
     }
 
     public ImhotepLocalSession(FlamdexReader flamdexReader, boolean optimizeGroupZeroLookups) throws ImhotepOutOfMemoryException {
         this(flamdexReader, null,
                 new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
-                optimizeGroupZeroLookups);
+                optimizeGroupZeroLookups, null);
     }
 
     public ImhotepLocalSession(final FlamdexReader flamdexReader,
                                String optimizedIndexDirectory,
                                final MemoryReservationContext memory,
-                               boolean optimizeGroupZeroLookups) throws ImhotepOutOfMemoryException {
+                               boolean optimizeGroupZeroLookups,
+                               AtomicLong tempFileSizeBytesLeft) throws ImhotepOutOfMemoryException {
+        this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
         constructorStackTrace = new Exception();
         flamdexReaderRef = SharedReference.create(flamdexReader);
         this.flamdexReader = flamdexReader;
@@ -444,7 +450,7 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     /*
-     * Resets the Falmdex readers to the original un-optimized versions and
+     * Resets the Flamdex readers to the original un-optimized versions and
      * constructs the DynamicMetrics to match what they should be if no
      * optimization had taken place.
      * 
@@ -795,7 +801,7 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
                                                              final int numSplits) {
         if (ftgsIteratorSplits == null || ftgsIteratorSplits.isClosed()) {
             try {
-                ftgsIteratorSplits = new FTGSSplitter(getFTGSIterator(intFields, stringFields), numSplits, numStats, "getIteratorSplitsLocalSession", 969168349);
+                ftgsIteratorSplits = new FTGSSplitter(getFTGSIterator(intFields, stringFields), numSplits, numStats, "getIteratorSplitsLocalSession", 969168349, tempFileSizeBytesLeft);
             } catch (IOException e) {
                 throw Throwables.propagate(e);
             }
@@ -807,7 +813,7 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
     public synchronized RawFTGSIterator getSubsetFTGSIteratorSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, int splitIndex, int numSplits) {
         if (ftgsIteratorSplits == null || ftgsIteratorSplits.isClosed()) {
             try {
-                ftgsIteratorSplits = new FTGSSplitter(getSubsetFTGSIterator(intFields, stringFields), numSplits, numStats, "getIteratorSplitsLocalSession", 969168349);
+                ftgsIteratorSplits = new FTGSSplitter(getSubsetFTGSIterator(intFields, stringFields), numSplits, numStats, "getIteratorSplitsLocalSession", 969168349, tempFileSizeBytesLeft);
             } catch (IOException e) {
                 throw Throwables.propagate(e);
             }
@@ -1066,36 +1072,42 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
                                           Math.max(negativeGroup, positiveGroup),
                                           memory);
 
-        final IntTermIterator iter = flamdexReader.getIntTermIterator(field);
-        final DocIdStream docIdStream = flamdexReader.getDocIdStream();
-        final ThreadSafeBitSet docRemapped = new ThreadSafeBitSet(numDocs); // necessary
-                                                                            // in
-                                                                            // case
-                                                                            // targetGroup
-                                                                            // ==
-                                                                            // positiveGroup
-
-        int termsIndex = 0;
-        while (iter.next()) {
-            final long term = iter.term();
-            while (termsIndex < terms.length && terms[termsIndex] < term) {
-                ++termsIndex;
-            }
-
-            if (termsIndex < terms.length && term == terms[termsIndex]) {
-                docIdStream.reset(iter);
-                remapPositiveDocs(docIdStream, docRemapped, targetGroup, positiveGroup);
-                ++termsIndex;
-            }
-
-            if (termsIndex == terms.length) {
-                break;
-            }
+        final FastBitSetPooler bitSetPooler = new ImhotepBitSetPooler(memory);
+        final FastBitSet docRemapped;
+        try {
+            docRemapped = bitSetPooler.create(numDocs);
+        } catch (FlamdexOutOfMemoryException e) {
+            throw new ImhotepOutOfMemoryException(e);
         }
-        docIdStream.close();
-        iter.close();
 
-        remapNegativeDocs(docRemapped, targetGroup, negativeGroup);
+        try {
+            try (
+                final IntTermIterator iter = flamdexReader.getIntTermIterator(field);
+                final DocIdStream docIdStream = flamdexReader.getDocIdStream()
+            ) {
+
+                int termsIndex = 0;
+                while (iter.next()) {
+                    final long term = iter.term();
+                    while (termsIndex < terms.length && terms[termsIndex] < term) {
+                        ++termsIndex;
+                    }
+
+                    if (termsIndex < terms.length && term == terms[termsIndex]) {
+                        docIdStream.reset(iter);
+                        remapPositiveDocs(docIdStream, docRemapped, targetGroup, positiveGroup);
+                        ++termsIndex;
+                    }
+
+                    if (termsIndex == terms.length) {
+                        break;
+                    }
+                }
+            }
+            remapNegativeDocs(docRemapped, targetGroup, negativeGroup);
+        } finally {
+            bitSetPooler.release(docRemapped.memoryUsage());
+        }
 
         finalizeRegroup();
     }
@@ -1114,36 +1126,89 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
                                           Math.max(negativeGroup, positiveGroup),
                                           memory);
 
-        final StringTermIterator iter = flamdexReader.getStringTermIterator(field);
-        final DocIdStream docIdStream = flamdexReader.getDocIdStream();
-        final ThreadSafeBitSet docRemapped = new ThreadSafeBitSet(numDocs);
-
-        int termsIndex = 0;
-        while (iter.next()) {
-            final String term = iter.term();
-            while (termsIndex < terms.length && terms[termsIndex].compareTo(term) < 0) {
-                ++termsIndex;
-            }
-
-            if (termsIndex < terms.length && terms[termsIndex].equals(term)) {
-                docIdStream.reset(iter);
-                remapPositiveDocs(docIdStream, docRemapped, targetGroup, positiveGroup);
-                ++termsIndex;
-            }
-
-            if (termsIndex == terms.length) {
-                break;
-            }
+        final FastBitSetPooler bitSetPooler = new ImhotepBitSetPooler(memory);
+        final FastBitSet docRemapped;
+        try {
+            docRemapped = bitSetPooler.create(numDocs);
+        } catch (FlamdexOutOfMemoryException e) {
+            throw new ImhotepOutOfMemoryException(e);
         }
-        docIdStream.close();
-        iter.close();
+        try {
+            try (
+                final StringTermIterator iter = flamdexReader.getStringTermIterator(field);
+                final DocIdStream docIdStream = flamdexReader.getDocIdStream()
+            ) {
+                int termsIndex = 0;
+                while (iter.next()) {
+                    final String term = iter.term();
+                    while (termsIndex < terms.length && terms[termsIndex].compareTo(term) < 0) {
+                        ++termsIndex;
+                    }
 
-        remapNegativeDocs(docRemapped, targetGroup, negativeGroup);
+                    if (termsIndex < terms.length && terms[termsIndex].equals(term)) {
+                        docIdStream.reset(iter);
+                        remapPositiveDocs(docIdStream, docRemapped, targetGroup, positiveGroup);
+                        ++termsIndex;
+                    }
+
+                    if (termsIndex == terms.length) {
+                        break;
+                    }
+                }
+            }
+            remapNegativeDocs(docRemapped, targetGroup, negativeGroup);
+        } finally {
+            bitSetPooler.release(docRemapped.memoryUsage());
+        }
 
         finalizeRegroup();
     }
 
-    private void remapNegativeDocs(ThreadSafeBitSet docRemapped, int targetGroup, int negativeGroup) {
+    @Override
+    public void regexRegroup(String field, String regex, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException {
+        if (getNumGroups() > 2) {
+            throw new IllegalStateException("regexRegroup should be applied as a filter when you have only one group");
+        }
+        if (targetGroup == 0) {
+            clearZeroDocBitsets();
+        }
+        docIdToGroup =
+                GroupLookupFactory.resize(docIdToGroup,
+                        Math.max(negativeGroup, positiveGroup),
+                        memory);
+
+        final FastBitSetPooler bitSetPooler = new ImhotepBitSetPooler(memory);
+        final FastBitSet docRemapped;
+        try {
+            docRemapped = bitSetPooler.create(numDocs);
+        } catch (FlamdexOutOfMemoryException e) {
+            throw new ImhotepOutOfMemoryException(e);
+        }
+        try {
+            try (
+                final StringTermIterator iter = flamdexReader.getStringTermIterator(field);
+                final DocIdStream docIdStream = flamdexReader.getDocIdStream()
+            ) {
+                final Automaton automaton = new RegExp(regex).toAutomaton();
+
+                while (iter.next()) {
+                    final String term = iter.term();
+
+                    if (automaton.run(term)) {
+                        docIdStream.reset(iter);
+                        remapPositiveDocs(docIdStream, docRemapped, targetGroup, positiveGroup);
+                    }
+                }
+            }
+            remapNegativeDocs(docRemapped, targetGroup, negativeGroup);
+        } finally {
+            bitSetPooler.release(docRemapped.memoryUsage());
+        }
+
+        finalizeRegroup();
+    }
+
+    private void remapNegativeDocs(FastBitSet docRemapped, int targetGroup, int negativeGroup) {
         for (int doc = 0; doc < numDocs; ++doc) {
             if (!docRemapped.get(doc) && docIdToGroup.get(doc) == targetGroup) {
                 docIdToGroup.set(doc, negativeGroup);
@@ -1152,7 +1217,7 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     private void remapPositiveDocs(DocIdStream docIdStream,
-                                   ThreadSafeBitSet docRemapped,
+                                   FastBitSet docRemapped,
                                    int targetGroup,
                                    int positiveGroup) {
         while (true) {

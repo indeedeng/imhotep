@@ -27,6 +27,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author jsgroth
@@ -47,8 +48,9 @@ class MTImhotepMultiSession extends AbstractImhotepMultiSession {
 
     MTImhotepMultiSession(final ImhotepLocalSession[] sessions,
                           final MemoryReservationContext memory,
-                          final ExecutorService executor) throws ImhotepOutOfMemoryException {
-        super(sessions);
+                          final ExecutorService executor,
+                          final AtomicLong tempFileSizeBytesLeft) throws ImhotepOutOfMemoryException {
+        super(sessions, tempFileSizeBytesLeft);
 
         this.memory = memory;
         this.executor = executor;

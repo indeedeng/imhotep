@@ -41,7 +41,7 @@ public class TestImhotepMultiSession {
         r1.addStringTerm("f", "baz", Arrays.asList(0));
 
         ImhotepLocalSession s1 = new ImhotepLocalSession(r1), s2 = new ImhotepLocalSession(r2);
-        ImhotepSession s = new RemoteImhotepMultiSession(new ImhotepSession[] { s1, s2 }, null, null);
+        ImhotepSession s = new RemoteImhotepMultiSession(new ImhotepSession[] { s1, s2 }, null, null, null);
         s.pushStat("count()");
 
         // groups: s1=[1], s2=[1]

@@ -31,6 +31,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author jsgroth
@@ -45,7 +46,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession {
 
     private final boolean shutDownExecutorOnClose;
 
-    public RemoteImhotepMultiSession(ImhotepSession[] sessions, final String sessionId, final InetSocketAddress[] nodes) {
+    public RemoteImhotepMultiSession(ImhotepSession[] sessions, final String sessionId, final InetSocketAddress[] nodes, AtomicLong tempFileSizeBytesLeft) {
         this(sessions, Executors.newCachedThreadPool(new ThreadFactory() {
             int i = 0;
 
@@ -55,11 +56,11 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession {
                 t.setDaemon(true);
                 return t;
             }
-        }), sessionId, nodes, true);
+        }), sessionId, nodes, tempFileSizeBytesLeft, true);
     }
 
-    public RemoteImhotepMultiSession(ImhotepSession[] sessions, ExecutorService executor, final String sessionId, final InetSocketAddress[] nodes, boolean shutDownExecutorOnClose) {
-        super(sessions);
+    public RemoteImhotepMultiSession(ImhotepSession[] sessions, ExecutorService executor, final String sessionId, final InetSocketAddress[] nodes, AtomicLong tempFileSizeBytesLeft, boolean shutDownExecutorOnClose) {
+        super(sessions, tempFileSizeBytesLeft);
         
         this.executor = executor;
         this.sessionId = sessionId;

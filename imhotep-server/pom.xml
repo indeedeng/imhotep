@@ -142,6 +142,12 @@
         </dependency>
 
 		<dependency>
+            <groupId>dk.brics.automaton</groupId>
+            <artifactId>automaton</artifactId>
+            <version>${automaton.version}</version>
+        </dependency>
+
+		<dependency>
 			<groupId>colt</groupId>
 			<artifactId>colt</artifactId>
 			<version>${colt.version}</version>
@@ -175,6 +181,7 @@
 		<protobuf-java.version>2.4.1</protobuf-java.version>
 		<snakeyaml.version>1.10</snakeyaml.version>
 		<zookeeper.version>3.4.5-cdh4.4.0</zookeeper.version>
+		<automaton.version>1.11-8</automaton.version>
 
 		<!-- releases of our own projects to use -->
 		<!-- these should only be SNAPSHOTs when no release is available -->

@@ -184,6 +184,18 @@ public interface ImhotepSession extends Closeable {
     void stringOrRegroup(String field, String[] terms, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
 
     /**
+     * a regroup for doing regex filtering over string fields
+     * @param field the string field
+     * @param regex the regex to test the terms against
+     * @param targetGroup group to map from
+     * @param negativeGroup group into which to map docs that don't have any terms matching the regex
+     * @param positiveGroup group into witch to map docs that contain terms that match the regex
+     * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to run out of memory
+     */
+    void regexRegroup(String field, String regex, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
+
+
+    /**
      * perform a random regrouping of documents based on a specific field
      * this is done by applying the salt to each term, hashing, and mapping the hash to a value between 0 and 1
      * all terms with value < p go in negativeGroup, all terms with value >= p go in positiveGroup
