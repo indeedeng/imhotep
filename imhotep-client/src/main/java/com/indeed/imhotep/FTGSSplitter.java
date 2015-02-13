@@ -17,6 +17,9 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
+import com.indeed.imhotep.io.LimitedBufferedOutputStream;
+import com.indeed.imhotep.io.TempFileSizeLimitExceededException;
+import com.indeed.imhotep.io.WriteLimitExceededException;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.hash.MurmurHash;
 import com.indeed.imhotep.api.FTGSIterator;
@@ -26,7 +29,6 @@ import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
 import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileInputStream;
@@ -37,6 +39,7 @@ import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
 * @author jplaisance
@@ -60,7 +63,7 @@ public final class FTGSSplitter implements Runnable, Closeable {
     private final int numStats;
     private final int largePrime;
 
-    public FTGSSplitter(FTGSIterator ftgsIterator, final int numSplits, final int numStats, final String threadNameSuffix, final int largePrime) throws IOException {
+    public FTGSSplitter(FTGSIterator ftgsIterator, final int numSplits, final int numStats, final String threadNameSuffix, final int largePrime, final AtomicLong tempFileSizeBytesLeft) throws IOException {
         this.iterator = ftgsIterator;
         this.numSplits = numSplits;
         this.numStats = numStats;
@@ -75,7 +78,7 @@ public final class FTGSSplitter implements Runnable, Closeable {
         try {
             for (int i = 0; i < numSplits; i++) {
                 files[i] = File.createTempFile("ftgsSplitter", ".tmp");
-                outputStreams[i] = new BufferedOutputStream(new FileOutputStream(files[i]), 65536);
+                outputStreams[i] = new LimitedBufferedOutputStream(new FileOutputStream(files[i]), tempFileSizeBytesLeft, 65536);
                 outputs[i] = new FTGSOutputStreamWriter(outputStreams[i]);
                 ftgsIterators[i] = new SplitterRawFTGSIterator(i, numStats, doneCounter, numSplits);
             }
@@ -142,6 +145,9 @@ public final class FTGSSplitter implements Runnable, Closeable {
             }
         } catch (Throwable t) {
             close();
+            if(t instanceof WriteLimitExceededException) {
+                throw new TempFileSizeLimitExceededException(t);
+            }
             throw Throwables.propagate(t);
         } finally {
             Closeables2.closeQuietly(iterator, log);

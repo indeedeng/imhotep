@@ -18,6 +18,9 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.google.common.primitives.Longs;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.indeed.imhotep.io.LimitedBufferedOutputStream;
+import com.indeed.imhotep.io.TempFileSizeLimitExceededException;
+import com.indeed.imhotep.io.WriteLimitExceededException;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.threads.LogOnUncaughtExceptionHandler;
@@ -40,7 +43,6 @@ import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import org.apache.log4j.Logger;
 
 import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -57,6 +59,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author jsgroth
@@ -78,6 +81,8 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
 
     private FTGSIterator lastIterator;
 
+    private final AtomicLong tempFileSizeBytesLeft;
+
     private final ExecutorService getSplitBufferThreads = Executors.newCachedThreadPool(
             new ThreadFactoryBuilder().setDaemon(true)
                     .setNameFormat("FTGS-Buffer-Thread-getSplit-%d")
@@ -96,8 +101,13 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
 
     private int numGroups = 2;
 
-    @SuppressWarnings({"unchecked"})
     protected AbstractImhotepMultiSession(ImhotepSession[] sessions) {
+        this(sessions, null);
+    }
+
+    @SuppressWarnings({"unchecked"})
+    protected AbstractImhotepMultiSession(ImhotepSession[] sessions, AtomicLong tempFileSizeBytesLeft) {
+        this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
         if (sessions == null || sessions.length == 0) {
             throw new IllegalArgumentException("at least one session is required");
         }
@@ -546,7 +556,7 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
         try {
             execute(splits, nodes, new ThrowingFunction<InetSocketAddress, RawFTGSIterator>() {
                 public RawFTGSIterator apply(final InetSocketAddress node) throws Exception {
-                    final ImhotepRemoteSession remoteSession = new ImhotepRemoteSession(node.getHostName(), node.getPort(), sessionId);
+                    final ImhotepRemoteSession remoteSession = new ImhotepRemoteSession(node.getHostName(), node.getPort(), sessionId, tempFileSizeBytesLeft);
                     remoteSession.setNumStats(numStats);
                     return remoteSession.getFTGSIteratorSplit(intFields, stringFields, splitIndex, nodes.length);
                 }
@@ -563,7 +573,7 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
         try {
             execute(splits, nodes, new ThrowingFunction<InetSocketAddress, RawFTGSIterator>() {
                 public RawFTGSIterator apply(final InetSocketAddress node) throws Exception {
-                    final ImhotepRemoteSession remoteSession = new ImhotepRemoteSession(node.getHostName(), node.getPort(), sessionId);
+                    final ImhotepRemoteSession remoteSession = new ImhotepRemoteSession(node.getHostName(), node.getPort(), sessionId, tempFileSizeBytesLeft);
                     remoteSession.setNumStats(numStats);
                     return remoteSession.getSubsetFTGSIteratorSplit(intFields, stringFields, splitIndex, nodes.length);
                 }
@@ -580,7 +590,7 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
             final RawFTGSIterator[][] iteratorSplits = new RawFTGSIterator[splits.length][];
             final int numSplits = Math.max(1, Runtime.getRuntime().availableProcessors()/2);
             for (int i = 0; i < splits.length; i++) {
-                final FTGSSplitter splitter = closer.register(new FTGSSplitter(splits[i], numSplits, numStats, "mergeFtgsSplit", 981044833));
+                final FTGSSplitter splitter = closer.register(new FTGSSplitter(splits[i], numSplits, numStats, "mergeFtgsSplit", 981044833, tempFileSizeBytesLeft));
                 iteratorSplits[i] = splitter.getFtgsIterators();
             }
             final RawFTGSIterator[] mergers = new RawFTGSIterator[numSplits];
@@ -610,11 +620,16 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
         OutputStream out = null;
         try {
             final long start = System.currentTimeMillis();
-            out = new BufferedOutputStream(new FileOutputStream(tmp));
+            out = new LimitedBufferedOutputStream(new FileOutputStream(tmp), tempFileSizeBytesLeft);
             FTGSOutputStreamWriter.write(iterator, numStats, out);
-            log.info("time to merge splits to file: "+(System.currentTimeMillis()-start)+" ms, file length: "+tmp.length());
+            if(log.isDebugEnabled()) {
+                log.debug("time to merge splits to file: " + (System.currentTimeMillis() - start) + " ms, file length: " + tmp.length());
+            }
         } catch (Throwable t) {
             tmp.delete();
+            if(t instanceof WriteLimitExceededException) {
+                throw new TempFileSizeLimitExceededException(t);
+            }
             throw Throwables2.propagate(t, IOException.class);
         } finally {
             Closeables2.closeQuietly(iterator, log);
@@ -696,7 +711,7 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
         try {
             executeSessions(ret, function);
         } catch (ExecutionException e) {
-            throw new RuntimeException(e.getCause());
+            throw Throwables.propagate(e.getCause());
         }
     }
 

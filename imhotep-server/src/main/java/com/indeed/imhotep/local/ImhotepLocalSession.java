@@ -126,6 +126,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -145,6 +146,7 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
 
     private static final int MAX_NUMBER_STATS = 64;
     static final int BUFFER_SIZE = 2048;
+    private final AtomicLong tempFileSizeBytesLeft;
 
     private int numDocs;
     // buffers that will be reused to avoid excessive allocations
@@ -187,19 +189,21 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
 
     public ImhotepLocalSession(final FlamdexReader flamdexReader) throws ImhotepOutOfMemoryException {
         this(flamdexReader, null,
-                new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), false);
+                new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), false, null);
     }
 
     public ImhotepLocalSession(FlamdexReader flamdexReader, boolean optimizeGroupZeroLookups) throws ImhotepOutOfMemoryException {
         this(flamdexReader, null,
                 new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
-                optimizeGroupZeroLookups);
+                optimizeGroupZeroLookups, null);
     }
 
     public ImhotepLocalSession(final FlamdexReader flamdexReader,
                                String optimizedIndexDirectory,
                                final MemoryReservationContext memory,
-                               boolean optimizeGroupZeroLookups) throws ImhotepOutOfMemoryException {
+                               boolean optimizeGroupZeroLookups,
+                               AtomicLong tempFileSizeBytesLeft) throws ImhotepOutOfMemoryException {
+        this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
         constructorStackTrace = new Exception();
         flamdexReaderRef = SharedReference.create(flamdexReader);
         this.flamdexReader = flamdexReader;
@@ -797,7 +801,7 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
                                                              final int numSplits) {
         if (ftgsIteratorSplits == null || ftgsIteratorSplits.isClosed()) {
             try {
-                ftgsIteratorSplits = new FTGSSplitter(getFTGSIterator(intFields, stringFields), numSplits, numStats, "getIteratorSplitsLocalSession", 969168349);
+                ftgsIteratorSplits = new FTGSSplitter(getFTGSIterator(intFields, stringFields), numSplits, numStats, "getIteratorSplitsLocalSession", 969168349, tempFileSizeBytesLeft);
             } catch (IOException e) {
                 throw Throwables.propagate(e);
             }
@@ -809,7 +813,7 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
     public synchronized RawFTGSIterator getSubsetFTGSIteratorSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, int splitIndex, int numSplits) {
         if (ftgsIteratorSplits == null || ftgsIteratorSplits.isClosed()) {
             try {
-                ftgsIteratorSplits = new FTGSSplitter(getSubsetFTGSIterator(intFields, stringFields), numSplits, numStats, "getIteratorSplitsLocalSession", 969168349);
+                ftgsIteratorSplits = new FTGSSplitter(getSubsetFTGSIterator(intFields, stringFields), numSplits, numStats, "getIteratorSplitsLocalSession", 969168349, tempFileSizeBytesLeft);
             } catch (IOException e) {
                 throw Throwables.propagate(e);
             }

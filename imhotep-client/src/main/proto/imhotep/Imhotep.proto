@@ -224,6 +224,9 @@ message ImhotepRequest {
 
   // for regex regroup
   optional string regex = 50;
+
+  // used in openSession()
+  optional int64 temp_file_size_limit = 51 [default = -1];
 }
 
 message ImhotepResponse {
