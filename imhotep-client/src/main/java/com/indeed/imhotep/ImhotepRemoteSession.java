@@ -493,6 +493,24 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
     }
 
     @Override
+    public void regexRegroup(String field, String regex, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException {
+        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.REGEX_REGROUP)
+                .setSessionId(sessionId)
+                .setField(field)
+                .setRegex(regex)
+                .setTargetGroup(targetGroup)
+                .setNegativeGroup(negativeGroup)
+                .setPositiveGroup(positiveGroup)
+                .build();
+
+        try {
+            sendRequestWithMemoryException(request, host, port, socketTimeout);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
     public void randomRegroup(String field, boolean isIntField, String salt, double p, int targetGroup, int negativeGroup,
                               int positiveGroup) throws ImhotepOutOfMemoryException {
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.RANDOM_REGROUP)
