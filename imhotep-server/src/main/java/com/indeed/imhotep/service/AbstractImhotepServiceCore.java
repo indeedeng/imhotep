@@ -358,6 +358,16 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
     }
 
     @Override
+    public void handleRegexRegroup(String sessionId, final String field, final String regex, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
+        doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Void, ImhotepOutOfMemoryException>() {
+            public Void apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
+                session.regexRegroup(field, regex, targetGroup, negativeGroup, positiveGroup);
+                return null;
+            }
+        });
+    }
+
+    @Override
     public int handleMetricRegroup(String sessionId, final int stat, final long min, final long max, final long intervalSize, final boolean noGutters) throws ImhotepOutOfMemoryException {
         return doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Integer, ImhotepOutOfMemoryException>() {
             public Integer apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
