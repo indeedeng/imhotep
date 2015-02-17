@@ -125,7 +125,7 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
         this.shardsDirectory = shardsDirectory;
 
         /* check if the temp dir exists, try to create it if it does not */
-        File tempDir = new File(shardTempDir);
+        final File tempDir = new File(shardTempDir);
         if (tempDir.exists() && !tempDir.isDirectory()) {
             throw new FileNotFoundException(shardTempDir + " is not a directory.");
         }
@@ -222,7 +222,7 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
     }
 
     private void clearTempDir(String directory) throws IOException {
-        File tmpDir = new File(directory);
+        final File tmpDir = new File(directory);
 
         if (!tmpDir.exists()) {
             throw new IOException(directory + " does not exist.");
@@ -354,7 +354,7 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
                         final AtomicSharedReference<Shard> shard;
                         if (newDatasetShards.containsKey(shardId)) {
                             shard = newDatasetShards.get(shardId);
-                            final SharedReference<Shard> current = shard.get();
+                            final SharedReference<Shard> current = shard.getCopy();
                             try {
                                 if (current == null
                                         || shardVersion > current.get().getShardVersion()) {
@@ -369,7 +369,7 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
                             }
                         } else if (oldDatasetShards.containsKey(shardId)) {
                             shard = oldDatasetShards.get(shardId);
-                            final SharedReference<Shard> oldShard = shard.get();
+                            final SharedReference<Shard> oldShard = shard.getCopy();
                             try {
                                 if (shouldReloadShard(oldShard, canonicalShardDir, shardVersion)) {
                                     log.debug("loading shard " + shardId + " from "
@@ -444,7 +444,7 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
         final List<ShardInfo> ret = new ArrayList<ShardInfo>();
         for (final Map<String, AtomicSharedReference<Shard>> map : localShards.values()) {
             for (final String shardName : map.keySet()) {
-                final SharedReference<Shard> ref = map.get(shardName).get();
+                final SharedReference<Shard> ref = map.get(shardName).getCopy();
                 try {
                     if (ref != null) {
                         final Shard shard = ref.get();
@@ -481,7 +481,7 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
             final Set<String> stringFields = Sets.newHashSet();
             final Set<String> metrics = Sets.newHashSet();
             for (final String shardName : map.keySet()) {
-                final SharedReference<Shard> ref = map.get(shardName).get();
+                final SharedReference<Shard> ref = map.get(shardName).getCopy();
                 try {
                     if (ref != null) {
                         final Shard shard = ref.get();
@@ -525,7 +525,7 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
                 new ArrayList<ImhotepStatusDump.ShardDump>();
         for (final String dataset : localShards.keySet()) {
             for (final String shardId : localShards.get(dataset).keySet()) {
-                final SharedReference<Shard> ref = localShards.get(dataset).get(shardId).get();
+                final SharedReference<Shard> ref = localShards.get(dataset).get(shardId).getCopy();
                 try {
                     if (ref != null) {
                         final Shard shard = ref.get();
@@ -576,7 +576,7 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
                 throw new IllegalArgumentException("this service does not have shard " + shardName
                         + " in dataset " + dataset);
             }
-            final SharedReference<Shard> ref = datasetShards.get(shardName).get();
+            final SharedReference<Shard> ref = datasetShards.get(shardName).getCopy();
             try {
                 if (ref == null) {
                     throw new IllegalArgumentException("this service does not have shard "
