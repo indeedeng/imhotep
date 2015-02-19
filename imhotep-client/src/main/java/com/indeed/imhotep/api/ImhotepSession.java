@@ -55,6 +55,8 @@ public interface ImhotepSession extends Closeable {
 
     FTGSIterator getSubsetFTGSIterator(Map<String, long[]> intFields, Map<String, String[]> stringFields);
 
+    RawFTGSIterator[] getSubsetFTGSIteratorSplits(Map<String, long[]> intFields, Map<String, String[]> stringFields);
+
     DocIterator getDocIterator(String[] intFields, String[] stringFields) throws ImhotepOutOfMemoryException;
 
     RawFTGSIterator[] getFTGSIteratorSplits(String[] intFields, String[] stringFields);

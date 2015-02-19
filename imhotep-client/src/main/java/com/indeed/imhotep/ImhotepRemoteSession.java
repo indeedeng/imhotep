@@ -306,6 +306,11 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
     }
 
     @Override
+    public RawFTGSIterator[] getSubsetFTGSIteratorSplits(Map<String, long[]> intFields, Map<String, String[]> stringFields) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public RawFTGSIterator getSubsetFTGSIteratorSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, int splitIndex, int numSplits) {
         final ImhotepRequest.Builder requestBuilder = getBuilderForType(ImhotepRequest.RequestType.GET_SUBSET_FTGS_SPLIT)
                 .setSessionId(sessionId)

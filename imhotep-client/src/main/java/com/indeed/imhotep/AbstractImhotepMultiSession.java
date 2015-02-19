@@ -551,6 +551,11 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
         return new RawFTGSMerger(Arrays.asList(splits), numStats, null);
     }
 
+    @Override
+    public RawFTGSIterator[] getSubsetFTGSIteratorSplits(Map<String, long[]> intFields, Map<String, String[]> stringFields) {
+        throw new UnsupportedOperationException();
+    }
+
     public RawFTGSIterator mergeFTGSSplit(final String[] intFields, final String[] stringFields, final String sessionId, final InetSocketAddress[] nodes, final int splitIndex) {
         final RawFTGSIterator[] splits = new RawFTGSIterator[nodes.length];
         try {

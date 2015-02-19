@@ -102,6 +102,12 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession {
         if (sessions.length == 1) {
             return sessions[0].getSubsetFTGSIterator(intFields, stringFields);
         }
+        final RawFTGSIterator[] mergers = getSubsetFTGSIteratorSplits(intFields, stringFields);
+        return new FTGSInterleaver(mergers);
+    }
+
+    @Override
+    public RawFTGSIterator[] getSubsetFTGSIteratorSplits(final Map<String, long[]> intFields, final Map<String, String[]> stringFields) {
         final Pair<Integer, ImhotepSession>[] indexesAndSessions = new Pair[sessions.length];
         for (int i = 0; i < sessions.length; i++) {
             indexesAndSessions[i] = Pair.of(i, sessions[i]);
@@ -118,7 +124,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession {
         } catch (ExecutionException e) {
             throw Throwables.propagate(e);
         }
-        return new FTGSInterleaver(mergers);
+        return mergers;
     }
 
     @Override
