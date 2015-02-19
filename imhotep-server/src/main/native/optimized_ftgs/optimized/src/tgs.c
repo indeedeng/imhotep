@@ -11,8 +11,6 @@ struct bit_fields_and_group {
 	uint32_t grp :28;
 };
 
-static __m128i *grp_stats_buf = NULL;
-
 /* No need to share the group stats buffer, so just keep one per session*/
 /* Make sure the one we have is large enough */
 static __m128i *allocate_grp_stats(struct worker_desc *desc, 
@@ -116,39 +114,45 @@ static void accumulate_stats_for_term(	struct index_slice_info *slice,
 }
 
 
-int ftgs_init(struct ftgs_info *info)
+int tgs_init(struct tgs_desc *info)
 {
 	return 0;
 }
 
-int ftgs_execute_tgs_pass(	struct worker_desc *desc, 
-						struct session_desc *session, 
-						union term_union *term,
-						struct index_slice_info **trm_slice_infos,
-						int n_slices)
+int tgs_execute_pass(struct worker_desc *desc,
+                     struct session_desc *session,
+                     union term_union *term,
+                     struct index_slice_info **trm_slice_infos,
+                     int n_slices)
 {
 	int buffer[TGS_BUFFER_SIZE];
-	int count;
-	int err;
 	__m128i *group_stats;
 
 	group_stats = allocate_grp_stats(desc, session);
-	session->ftgs->current_tgs_pass->group_stats = group_stats;
+	session->current_tgs_pass->group_stats = group_stats;
 
-	count = 0;
 	for (int i = 0; i < n_slices; i++) {
 		struct index_slice_info *slice;
-		int remaining;
-		int copy_len;
+		int remaining;      /* num docs remaining */
+		int delta;          /* delta decode tracker */
+		uint8_t *read_addr;
 
 		slice = trm_slice_infos[i];
-		remaining = slice->n_docs_in_slice - count;
-		copy_len = (remaining > TGS_BUFFER_SIZE) ? TGS_BUFFER_SIZE : remaining;
-		err = slice_copy_range(slice, buffer, count, copy_len);
+		remaining = slice->n_docs_in_slice;
+		read_addr = slice->slice;
+		while (remaining > 0) {
+			int count;
+			int bytes_read;
 
-		accumulate_stats_for_term(slice, buffer, copy_len, group_stats, slice->shard);
+			count = (remaining > TGS_BUFFER_SIZE) ? TGS_BUFFER_SIZE : remaining;
+			bytes_read = slice_copy_range(read_addr, buffer, count, &delta);
+			read_addr += bytes_read;
+			remaining -= count;
+
+			accumulate_stats_for_term(slice, buffer, count, group_stats, slice->shard);
+		}
 	}
 	
-	compress_and_send_data(desc, session, group_stats);
+//	compress_and_send_data(desc, session, group_stats);
 	return 0;
 }

@@ -13,12 +13,6 @@ struct worker_desc {
 };
 
 
-struct ftgs_info {
-//    struct merge_queue_desc *merge_queue;
-    struct tgs_pass_info *current_tgs_pass;
-//    struct group_stats_accumulator_queue *gs_queue;
-};
-
 union term_union {
     uint64_t int_term;
     int string_term_len;
@@ -59,7 +53,7 @@ struct index_slice_info {
     packed_shard_t *shard;
 };
 
-struct tgs_pass_info {
+struct tgs_desc {
     int socket_fd;
     union term_union term;
     int n_slices;
@@ -71,17 +65,16 @@ struct session_desc {
     int num_groups;
     int num_stats;
     struct shard_data *shards;
-    struct ftgs_info *ftgs;
+    struct tgs_desc *current_tgs_pass;
 };
 
-int execute_tgs_pass(struct ftgs_info *ftgs, 
-                    union term_union *term,
-                    struct index_slice_info **trm_slice_infos, 
-                    int n_slices);
+int tgs_execute_pass(	struct worker_desc *desc,
+						struct session_desc *session,
+						union term_union *term,
+						struct index_slice_info **trm_slice_infos,
+						int n_slices);
 
-int slice_copy_range(struct index_slice_info *slice, int *destination, int start, int len);
-
-int ftgs_init(struct ftgs_info *info);
+int tgs_init(struct tgs_desc *info);
 
 void packed_shard_unpack_metrics_into_buffer(packed_shard_t *shard,
 									int doc_id,
@@ -109,4 +102,10 @@ void packed_shard_init(	packed_shard_t *shard,
 					int64_t *metric_mins,
 					int64_t *metric_maxes,
 					int n_metrics);
+
+/* return the number of bytes read*/
+int slice_copy_range(uint8_t* slice,
+                     int *destination,
+                     int count_to_read,
+                     int *delta_decode_in_out);
 
