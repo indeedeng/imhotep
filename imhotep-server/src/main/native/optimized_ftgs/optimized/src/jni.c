@@ -1,6 +1,6 @@
 #include <jni.h>
 #include "imhotep_native.h"
-
+#include "local_session.h"
 
 /*
  * Class:     com_indeed_imhotep_local_NativeFTGSWorker
@@ -12,12 +12,15 @@ JNIEXPORT jlong JNICALL Java_com_indeed_imhotep_local_NativeFTGSWorker_native_1i
    jintArray socket_fds, jint len)
 {
 	struct worker_desc *worker;
+	jint *fds;
+	jboolean madeCopy;
 
+	fds = GetPrimitiveArrayCritical(java_env, socket_fds, &madeCopy);
 	worker = calloc(sizeof(struct worker_desc), 1);
-	worker_init(worker,id, n_groups, n_metrics, socket_fds, len);
+	worker_init(worker,id, n_groups, n_metrics, fds, len);
+	ReleasePrimitiveArrayCritical(java_env, socket_fds, fds, JNI_ABORT);
 
-	return worker;
-
+	return (jlong)worker;
 }
 
 
@@ -35,5 +38,5 @@ JNIEXPORT jlong JNICALL Java_com_indeed_imhotep_local_NativeFTGSWorker_native_1s
 	session = calloc(sizeof(struct session_desc), 1);
 	session_init(session, n_groups, n_metrics, n_shards);
 
-	return session;
+	return (jlong)session;
 }

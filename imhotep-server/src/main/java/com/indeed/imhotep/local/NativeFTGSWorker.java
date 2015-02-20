@@ -19,6 +19,8 @@ public class NativeFTGSWorker {
         nativeWorkerStructPtr = native_init(id, numMetrics, numGroups, socketArr, socketArr.length);
         nativeSessionStructPtr = native_session_create(numGroups, numMetrics, numShards);
     }
+    
+//    public void runTGSIteration(int term, long[] 
 
     private static native long native_session_create(int numGroups, int numMetrics, int numShards);
 
