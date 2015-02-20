@@ -37,6 +37,16 @@ static __m128i *allocate_grp_stats(struct worker_desc *desc,
 	return desc->group_stats_buf;
 }
 
+static void accumulate_stats_for_group(struct circular_buffer_int* grp_buf, struct circular_buffer_vector* metric_buf,
+                                       __m128i* group_stats, int n_vecs_per_doc) {
+	uint32_t group_id;
+	group_id = circular_buffer_int_get(grp_buf);
+	for (int32_t j = 0; j < n_vecs_per_doc; j++) {
+		__m128i stats = circular_buffer_vector_get(metric_buf);
+		group_stats[group_id * n_vecs_per_doc + j] += stats;
+	}
+}
+
 /*
  * This should only be called when doc_ids_len is a multiple of PREFETCH_DISTANCE
  */
@@ -68,6 +78,16 @@ static void accumulate_stats_for_term(	struct index_slice_info *slice,
 
 	/* process the data */
 	for (int32_t i = 0; i < doc_ids_len; i++) {
+		
+		if (i+PREFETCH_DISTANCE < doc_ids_len) {
+			__v16qi *prefetch_address;
+			int32_t prefetch_doc_id;
+	
+			prefetch_doc_id = doc_ids[i+PREFETCH_DISTANCE];
+			prefetch_address = &grp_metrics[prefetch_doc_id * n_vecs_per_doc];
+			_mm_prefetch(prefetch_address, _MM_HINT_T0);
+		}
+		
 
 		uint32_t doc_id = doc_ids[i];
 		uint32_t start_idx = doc_id * n_vecs_per_doc;
@@ -97,16 +117,15 @@ static void accumulate_stats_for_term(	struct index_slice_info *slice,
 
 		/* unpack and save the metrics for this document */
 		packed_shard_unpack_metrics_into_buffer(shard, doc_id, metric_buf);
+		
+		if (i >= PREFETCH_DISTANCE) {
+			accumulate_stats_for_group(grp_buf, metric_buf,  group_stats, n_vecs_per_doc);
+		}
 	}    // doc id loop
 
 	/* sum the final buffered stats */
 	for (int32_t i = 0; i < PREFETCH_DISTANCE; i++) {
-		uint32_t group_id;
-		group_id = circular_buffer_int_get(grp_buf);
-		for (int32_t j = 0; j < n_vecs_per_doc; j++) {
-			__m128i stats = circular_buffer_vector_get(metric_buf);
-			group_stats[group_id * n_vecs_per_doc + j] += stats;
-		}
+		accumulate_stats_for_group(grp_buf, metric_buf,  group_stats, n_vecs_per_doc);
 	}
 
 	/* free the intermediate buffers */
