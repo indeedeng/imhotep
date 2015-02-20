@@ -99,17 +99,17 @@ static int write_svint64(struct socket_stuff* socket, int64_t i) {
     return write_vint64(socket, (i << 1) ^ (i >> 63));
 }
 
-int write_group_stats(struct socket_stuff* socket, uint32_t* groups, size_t groups_present,
+int write_group_stats(struct socket_stuff* socket, uint32_t* groups, size_t term_group_count,
              int64_t* group_stats, int num_stats, size_t stats_size) {
     int32_t previous_group = -1;
-    for (size_t i = 0; i < groups_present; i++) {
+    for (size_t i = 0; i < term_group_count; i++) {
         uint32_t group = groups[i];
         int stat_index = 0;
         TRY(write_vint64(socket, group-previous_group));
         previous_group = group;
         uint32_t prefetch_group;
         int64_t* prefetch_start;
-        int prefetch = i+PREFETCH_DISTANCE < groups_present;
+        int prefetch = i+PREFETCH_DISTANCE < term_group_count;
         if (prefetch) {
             prefetch_group = groups[i+PREFETCH_DISTANCE];
             prefetch_start = group_stats+prefetch_group*stats_size;
@@ -138,12 +138,13 @@ int write_group_stats(struct socket_stuff* socket, uint32_t* groups, size_t grou
             }
         }
         if (stat_index < num_stats) {
+            int64_t* prefetch_address = prefetch_start+stat_index;
             do {
                 int64_t stat = group_stats[group*stats_size+stat_index];
                 TRY(write_svint64(socket, stat));
                 stat_index++;
             } while (stat_index < num_stats);
-            _mm_prefetch(prefetch_start+stat_index, _MM_HINT_T0);
+            _mm_prefetch(prefetch_address, _MM_HINT_T0);
         }
     }
     TRY(write_byte(socket, 0));
