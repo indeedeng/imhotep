@@ -1,4 +1,5 @@
 #include <mmintrin.h>
+#include <string.h>
 #include <unistd.h>
 #include "remote_output.h"
 
@@ -11,18 +12,49 @@
     if (_err != 0) return _err; \
 }
 
+#define MIN(a, b) { \
+    typeof(a) _a = (a); \
+    typeof(b) _b = (b); \
+    if (_a < _b) return _a; \
+    return _b; \
+}
+
+#define MAX(a, b) { \
+    typeof(a) _a = (a); \
+    typeof(b) _b = (b); \
+    if (_a > _b) return _a; \
+    return _b; \
+}
+
+static int flush_buffer(struct buffered_socket* socket) {
+    size_t write_ptr = 0;
+    while (write_ptr < socket->buffer_ptr) {
+        ssize_t written = write(socket->socket_fd, socket->buffer, socket->buffer_len);
+        if (written == -1) return -1;
+        write_ptr += written;
+    }
+    socket->buffer_ptr = 0;
+}
+
 static int write_byte(struct buffered_socket* socket, uint8_t value) {
+    if (socket->buffer_ptr == socket->buffer_len) {
+        TRY(flush_buffer(socket));
+    }
     socket->buffer[socket->buffer_ptr] = value;
     socket->buffer_ptr++;
-    if (socket->buffer_ptr == socket->buffer_len) {
-        size_t write_ptr = 0;
-        while (write_ptr < socket->buffer_ptr) {
-            ssize_t written = write(socket->socket_fd, socket->buffer, socket->buffer_len);
-            if (written == -1) return -1;
-            write_ptr += written;
-        }
-    }
     return 0;
+}
+
+static int write(struct buffered_socket* socket, uint8_t* bytes, size_t len) {
+    size_t write_ptr = 0;
+    while (write_ptr < len) {
+        if (socket->buffer_ptr == socket->buffer_len) {
+            TRY(flush_buffer(socket));
+        }
+        size_t copy_len = MIN(len - write_ptr, socket->buffer_len - socket->buffer_ptr);
+        memcpy(socket->buffer + socket->buffer_ptr, bytes + write_ptr, copy_len);
+        write_ptr += copy_len;
+    }
 }
 
 static int write_vint64(struct buffered_socket* socket, uint64_t i) {
@@ -148,5 +180,33 @@ int write_group_stats(struct buffered_socket* socket, uint32_t* groups, size_t t
         }
     }
     TRY(write_byte(socket, 0));
+    return 0;
+}
+
+static size_t prefix_len(struct string_term_s* term, struct string_term_s* previous_term) {
+    size_t max = MAX(term->string_term_len, previous_term->string_term_len);
+    for (size_t i = 0; i < max; i++) {
+        if (term->string_term[i] != previous_term->string_term[i]) return i;
+    }
+    return max;
+}
+
+int write_term_group_stats(struct buffered_socket* socket, uint8_t term_type, struct term_union* term, struct term_union* previous_term, int64_t term_doc_freq, uint32_t* groups, size_t term_group_count,
+             int64_t* group_stats, int num_stats, size_t stats_size) {
+    if (term_type) {
+        if (previous_term->int_term == -1 && term->int_term == -1) {
+            TRY(write_byte(socket, 0x80));
+            TRY(write_byte(socket, 0));
+        } else {
+            TRY(write_vint64(socket, term->int_term-previous_term->int_term));
+        }
+    } else {
+        size_t p_len = prefix_len(&term->string_term, &previous_term->string_term);
+        TRY(write_vint64(socket, previous_term->string_term.string_term_len-p_len+1));
+        TRY(write_vint64(socket, term->string_term.string_term_len-p_len));
+        TRY(write(socket, term->string_term.string_term + p_len, term->string_term.string_term_len - p_len));
+    }
+    TRY(write_svint64(socket, term_doc_freq));
+    TRY(write_group_stats(socket, groups, term_group_count, group_stats, num_stats, stats_size));
     return 0;
 }
