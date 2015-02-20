@@ -43,6 +43,7 @@ static void accumulate_stats_for_group(struct circular_buffer_int* grp_buf,
                                        int n_vecs_per_doc)
 {
 	uint32_t group_id;
+
 	group_id = circular_buffer_int_get(grp_buf);
 	for (int32_t j = 0; j < n_vecs_per_doc; j++) {
 		__m128i stats = circular_buffer_vector_get(metric_buf);
@@ -56,6 +57,7 @@ static void accumulate_stats_for_group(struct circular_buffer_int* grp_buf,
 static void accumulate_stats_for_term(	struct index_slice_info *slice,
 								uint32_t *doc_ids,
 								int doc_ids_len,
+								struct bit_tree *non_zero_groups,
 								__m128i *group_stats,
 								packed_shard_t *shard)
 {
@@ -100,7 +102,9 @@ static void accumulate_stats_for_term(	struct index_slice_info *slice,
 		uint32_t bit_fields;
 		uint32_t group;
 
-		// TODO: fix me
+		/* flag group as modified */
+		bit_tree_set(non_zero_groups, group);
+
 		/* decode bit fields */
 		packed_bf_grp = *((struct bit_fields_and_group *)&grp_metrics[start_idx]);
 		bit_fields = packed_bf_grp.metrics;
@@ -201,7 +205,8 @@ int tgs_execute_pass(struct worker_desc *worker,
 			read_addr += bytes_read;
 			remaining -= count;
 
-			accumulate_stats_for_term(slice, buffer, count, group_stats, slice->shard);
+			accumulate_stats_for_term(slice, buffer, count, &desc->non_zero_groups,
+			                          group_stats, slice->shard);
 			last_value = buffer[count - 1];
 		}
 	}
