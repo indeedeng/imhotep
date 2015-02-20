@@ -41,7 +41,7 @@ static __m128i *allocate_grp_stats(struct worker_desc *desc,
  * This should only be called when doc_ids_len is a multiple of PREFETCH_DISTANCE
  */
 static void accumulate_stats_for_term(	struct index_slice_info *slice,
-								int *doc_ids,
+								uint32_t *doc_ids,
 								int doc_ids_len,
 								__m128i *group_stats,
 								packed_shard_t *shard)
@@ -115,21 +115,51 @@ static void accumulate_stats_for_term(	struct index_slice_info *slice,
 }
 
 
-int tgs_init(struct tgs_desc *info)
+int tgs_init(struct tgs_desc *desc,
+             union term_union *term,
+             long *addresses,
+             int *docs_per_shard,
+             int *shard_handles,
+             int num_shard,
+             int socket_fd,
+             struct session_desc *session)
 {
+	struct index_slice_info *infos;
+
+	desc->term = term;
+	desc->n_slices = num_shard;
+	desc->socket_fd = socket_fd;
+	infos = (struct index_slice_info *)
+			calloc(sizeof(struct index_slice_info), num_shard);
+	for (int i = 0; i < num_shard; i++) {
+		int handle = shard_handles[i];
+		infos[i].n_docs_in_slice = docs_per_shard[i];
+		infos[i].slice = (uint8_t *)addresses[i];
+		infos[i].shard = &(session->shards[handle]);
+	}
+	desc->trm_slice_infos = infos;
+
+	bit_tree_init(&(desc->non_zero_groups), session->num_groups);
+
 	return 0;
 }
 
-int tgs_execute_pass(struct worker_desc *desc,
+void tgs_destroy(struct tgs_desc *desc)
+{
+	bit_tree_destroy(&(desc->non_zero_groups));
+	free(desc->trm_slice_infos);
+}
+
+int tgs_execute_pass(struct worker_desc *worker,
                      struct session_desc *session,
-                     union term_union *term,
-                     struct index_slice_info **trm_slice_infos,
-                     int n_slices)
+                     struct tgs_desc *desc)
 {
 	uint32_t buffer[TGS_BUFFER_SIZE];
 	__m128i *group_stats;
+	int n_slices = desc->n_slices;
+	struct index_slice_info *infos = desc->trm_slice_infos;
 
-	group_stats = allocate_grp_stats(desc, session);
+	group_stats = allocate_grp_stats(worker, session);
 	session->current_tgs_pass->group_stats = group_stats;
 
 	for (int i = 0; i < n_slices; i++) {
@@ -138,7 +168,7 @@ int tgs_execute_pass(struct worker_desc *desc,
 		uint8_t *read_addr;
 		int last_value;     /* delta decode tracker */
 
-		slice = trm_slice_infos[i];
+		slice = &infos[i];
 		remaining = slice->n_docs_in_slice;
 		read_addr = slice->slice;
 		last_value = 0;

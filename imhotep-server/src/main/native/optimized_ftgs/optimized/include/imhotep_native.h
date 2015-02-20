@@ -48,16 +48,16 @@ typedef struct shard_data {
 
 struct index_slice_info {
     int n_docs_in_slice;
-    uint64_t slice_len;
     uint8_t *slice;
     packed_shard_t *shard;
 };
 
 struct tgs_desc {
     int socket_fd;
-    union term_union term;
     int n_slices;
-    struct index_slice_info **trm_slice_infos;
+    union term_union *term;
+    struct index_slice_info *trm_slice_infos;
+    struct bit_tree non_zero_groups;
     __m128i *group_stats;
 };
 
@@ -69,11 +69,9 @@ struct session_desc {
     struct tgs_desc *current_tgs_pass;
 };
 
-int tgs_execute_pass(	struct worker_desc *desc,
-						struct session_desc *session,
-						union term_union *term,
-						struct index_slice_info **trm_slice_infos,
-						int n_slices);
+int tgs_execute_pass(struct worker_desc *worker,
+                     struct session_desc *session,
+                     struct tgs_desc *desc);
 
 int tgs_init(struct tgs_desc *info);
 
