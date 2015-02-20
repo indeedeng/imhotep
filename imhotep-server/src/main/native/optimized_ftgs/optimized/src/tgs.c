@@ -1,5 +1,6 @@
 #include "imhotep_native.h"
 #include "circ_buf.h"
+#include "varintdecode.h"
 
 #define CIRC_BUFFER_SIZE						32
 #define TGS_BUFFER_SIZE						1024
@@ -125,7 +126,7 @@ int tgs_execute_pass(struct worker_desc *desc,
                      struct index_slice_info **trm_slice_infos,
                      int n_slices)
 {
-	int buffer[TGS_BUFFER_SIZE];
+	uint32_t buffer[TGS_BUFFER_SIZE];
 	__m128i *group_stats;
 
 	group_stats = allocate_grp_stats(desc, session);
@@ -134,22 +135,24 @@ int tgs_execute_pass(struct worker_desc *desc,
 	for (int i = 0; i < n_slices; i++) {
 		struct index_slice_info *slice;
 		int remaining;      /* num docs remaining */
-		int delta;          /* delta decode tracker */
 		uint8_t *read_addr;
+		int last_value;     /* delta decode tracker */
 
 		slice = trm_slice_infos[i];
 		remaining = slice->n_docs_in_slice;
 		read_addr = slice->slice;
+		last_value = 0;
 		while (remaining > 0) {
 			int count;
 			int bytes_read;
 
 			count = (remaining > TGS_BUFFER_SIZE) ? TGS_BUFFER_SIZE : remaining;
-			bytes_read = slice_copy_range(read_addr, buffer, count, &delta);
+			bytes_read = read_ints(last_value, read_addr, buffer, count);
 			read_addr += bytes_read;
 			remaining -= count;
 
 			accumulate_stats_for_term(slice, buffer, count, group_stats, slice->shard);
+			last_value = buffer[count - 1];
 		}
 	}
 	
