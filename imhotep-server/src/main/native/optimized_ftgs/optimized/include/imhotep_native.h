@@ -7,10 +7,18 @@
 
 struct circular_buffer_vector;
 
+struct socket_stuff {
+    int socket_fd;
+    uint8_t* buffer;
+    size_t buffer_ptr;
+    size_t buffer_len;
+};
+
 struct worker_desc {
     int id;
     int buffer_size;
     __m128i *group_stats_buf;
+    struct socket_stuff socket;
 };
 
 
