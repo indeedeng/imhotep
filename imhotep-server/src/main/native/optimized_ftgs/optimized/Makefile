@@ -1,5 +1,4 @@
 IDIR =include
-CC=clang
 CFLAGS=-g -I$(IDIR) -std=c11 -msse4.2 -fvisibility=hidden -fPIC
 LFLAGS=-shared
 
