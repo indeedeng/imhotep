@@ -10,7 +10,7 @@
 
 struct circular_buffer_vector;
 
-struct socket_stuff {
+struct buffered_socket {
     int socket_fd;
     uint8_t* buffer;
     size_t buffer_ptr;
@@ -20,8 +20,9 @@ struct socket_stuff {
 struct worker_desc {
     int id;
     int buffer_size;
+    int num_sockets;
     __m128i *group_stats_buf;
-    struct socket_stuff socket;
+    struct buffered_socket *sockets;
     struct bit_tree *bit_tree_buf;
     struct circular_buffer_int *grp_buf;
 	struct circular_buffer_vector *metric_buf;
@@ -73,7 +74,7 @@ struct index_slice_info {
 };
 
 struct tgs_desc {
-    int socket_fd;
+    struct buffered_socket *socket;
     int n_slices;
     uint8_t term_type;
     union term_union *term;
@@ -103,7 +104,7 @@ void tgs_init(struct worker_desc *worker,
               int *docs_per_shard,
               int *shard_handles,
               int num_shard,
-              int socket_fd,
+              struct buffered_socket *socket,
               struct session_desc *session);
 void tgs_destroy(struct tgs_desc *desc);
 
@@ -143,3 +144,5 @@ int slice_copy_range(uint8_t* slice,
                      int count_to_read,
                      int *delta_decode_in_out);
 
+void socket_init(struct buffered_socket *socket, uint32_t fd);
+void socket_destroy(struct buffered_socket *socket);

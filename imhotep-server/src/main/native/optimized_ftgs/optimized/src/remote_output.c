@@ -11,7 +11,7 @@
     if (_err != 0) return _err; \
 }
 
-static int write_byte(struct socket_stuff* socket, uint8_t value) {
+static int write_byte(struct buffered_socket* socket, uint8_t value) {
     socket->buffer[socket->buffer_ptr] = value;
     socket->buffer_ptr++;
     if (socket->buffer_ptr == socket->buffer_len) {
@@ -25,7 +25,7 @@ static int write_byte(struct socket_stuff* socket, uint8_t value) {
     return 0;
 }
 
-static int write_vint64(struct socket_stuff* socket, uint64_t i) {
+static int write_vint64(struct buffered_socket* socket, uint64_t i) {
     if (i < 1L << 7) {
         TRY(write_byte(socket, (uint8_t) i));
     } else if (i < 1L << 14) {
@@ -95,11 +95,11 @@ static int write_vint64(struct socket_stuff* socket, uint64_t i) {
     return 0;
 }
 
-static int write_svint64(struct socket_stuff* socket, int64_t i) {
+static int write_svint64(struct buffered_socket* socket, int64_t i) {
     return write_vint64(socket, (i << 1) ^ (i >> 63));
 }
 
-int write_group_stats(struct socket_stuff* socket, uint32_t* groups, size_t term_group_count,
+int write_group_stats(struct buffered_socket* socket, uint32_t* groups, size_t term_group_count,
              int64_t* group_stats, int num_stats, size_t stats_size) {
     int32_t previous_group = -1;
     for (size_t i = 0; i < term_group_count; i++) {

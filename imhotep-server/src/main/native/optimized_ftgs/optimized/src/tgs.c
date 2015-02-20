@@ -142,14 +142,14 @@ void tgs_init(struct worker_desc *worker,
               int *docs_per_shard,
               int *shard_handles,
               int num_shard,
-              int socket_fd,
+              struct buffered_socket *socket,
               struct session_desc *session)
 {
 	struct index_slice_info *infos;
 
 	desc->term = term;
 	desc->n_slices = num_shard;
-	desc->socket_fd = socket_fd;
+	desc->socket = socket;
 	infos = (struct index_slice_info *)
 			calloc(sizeof(struct index_slice_info), num_shard);
 	for (int i = 0; i < num_shard; i++) {

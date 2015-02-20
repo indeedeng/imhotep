@@ -15,13 +15,25 @@ int run_tgs_pass(struct worker_desc *worker,
 {
 	struct tgs_desc desc;
 	packed_shard_t *shard;
+	struct buffered_socket *socket;
 
 	if (num_shard > session->num_shards) {
 		/* error */
 		return -1;
 	}
 
-	tgs_init(worker, &desc, term, addresses, docs_per_shard, shard_handles, num_shard, socket_fd, session);
+	int i = 0;
+	do {
+		socket = &worker->sockets[i];
+		i++;
+	} while (socket->socket_fd != socket_fd && i < worker->num_sockets);
+	if (i >= worker->num_sockets) {
+		/* error */
+		return -1;
+	}
+
+	tgs_init(worker, &desc, term, addresses, docs_per_shard, 
+	         shard_handles, num_shard, socket, session);
 	session->current_tgs_pass = &desc;
 
 	int err;
@@ -90,7 +102,12 @@ void session_destroy(struct session_desc *session)
 
 #define DEFAULT_BUFFER_SIZE				8192
 
-void worker_init(struct worker_desc *worker, int id, int n_metrics, int num_groups)
+void worker_init(struct worker_desc *worker, 
+                 int id, 
+                 int n_metrics, 
+                 int num_groups, 
+                 uint32_t *socket_fds, 
+                 int num_sockets)
 {
 	worker->id = id;
 	worker->buffer_size = DEFAULT_BUFFER_SIZE;
@@ -101,6 +118,12 @@ void worker_init(struct worker_desc *worker, int id, int n_metrics, int num_grou
 	
 	worker->bit_tree_buf = calloc(sizeof(struct bit_tree), 1);
 	bit_tree_init(worker->bit_tree_buf, num_groups);
+	
+	worker->num_sockets = num_sockets;
+	worker->sockets = calloc(sizeof(struct buffered_socket), num_sockets);
+	for (int i = 0; i < num_sockets; i++) {
+		socket_init(&worker->sockets[i], socket_fds[i]);
+	}
 
 }
 
@@ -109,6 +132,10 @@ void worker_destroy(struct worker_desc *worker)
 	free(worker->group_stats_buf);
 	bit_tree_destroy(worker->bit_tree_buf);
 	free(worker->bit_tree_buf);
+	
+	for (int i = 0; i < worker->num_sockets; i++) {
+		socket_destroy(&worker->sockets[i]);
+	}
 	/* free the intermediate buffers */
 	circular_buffer_int_cleanup(worker->grp_buf);
 	circular_buffer_vector_cleanup(worker->metric_buf);
