@@ -134,14 +134,14 @@ static void accumulate_stats_for_term(	struct index_slice_info *slice,
 }
 
 
-int tgs_init(struct tgs_desc *desc,
-             union term_union *term,
-             long *addresses,
-             int *docs_per_shard,
-             int *shard_handles,
-             int num_shard,
-             int socket_fd,
-             struct session_desc *session)
+void tgs_init(struct tgs_desc *desc,
+              union term_union *term,
+              long *addresses,
+              int *docs_per_shard,
+              int *shard_handles,
+              int num_shard,
+              int socket_fd,
+              struct session_desc *session)
 {
 	struct index_slice_info *infos;
 
@@ -159,8 +159,6 @@ int tgs_init(struct tgs_desc *desc,
 	desc->trm_slice_infos = infos;
 
 	bit_tree_init(&(desc->non_zero_groups), session->num_groups);
-
-	return 0;
 }
 
 void tgs_destroy(struct tgs_desc *desc)

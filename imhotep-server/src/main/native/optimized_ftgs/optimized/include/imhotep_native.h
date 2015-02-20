@@ -3,6 +3,7 @@
 #include <tmmintrin.h>
 #include <pmmintrin.h>
 #include <stdint.h>
+#include "bit_tree.h"
 
 struct circular_buffer_vector;
 
@@ -73,7 +74,16 @@ int tgs_execute_pass(struct worker_desc *worker,
                      struct session_desc *session,
                      struct tgs_desc *desc);
 
-int tgs_init(struct tgs_desc *info);
+void tgs_init(struct tgs_desc *desc,
+              union term_union *term,
+              long *addresses,
+              int *docs_per_shard,
+              int *shard_handles,
+              int num_shard,
+              int socket_fd,
+              struct session_desc *session);
+void tgs_destroy(struct tgs_desc *desc);
+
 
 void packed_shard_unpack_metrics_into_buffer(packed_shard_t *shard,
 									int doc_id,

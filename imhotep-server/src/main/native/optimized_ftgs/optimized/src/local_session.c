@@ -19,7 +19,7 @@ int run_tgs_pass(struct worker_desc *worker,
 		return -1;
 	}
 
-	tgs_init(&desc, term, addresses, docs_per_shard, shard_handles, num_shard, socket_fd);
+	tgs_init(&desc, term, addresses, docs_per_shard, shard_handles, num_shard, socket_fd, session);
 	session->current_tgs_pass = &desc;
 
 	int err;
