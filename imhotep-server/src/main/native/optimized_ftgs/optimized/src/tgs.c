@@ -37,8 +37,11 @@ static __m128i *allocate_grp_stats(struct worker_desc *desc,
 	return desc->group_stats_buf;
 }
 
-static void accumulate_stats_for_group(struct circular_buffer_int* grp_buf, struct circular_buffer_vector* metric_buf,
-                                       __m128i* group_stats, int n_vecs_per_doc) {
+static void accumulate_stats_for_group(struct circular_buffer_int* grp_buf,
+                                       struct circular_buffer_vector* metric_buf,
+                                       __m128i* group_stats,
+                                       int n_vecs_per_doc)
+{
 	uint32_t group_id;
 	group_id = circular_buffer_int_get(grp_buf);
 	for (int32_t j = 0; j < n_vecs_per_doc; j++) {
