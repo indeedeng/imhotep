@@ -213,7 +213,7 @@ int write_term_group_stats(struct session_desc* session, struct tgs_desc* tgs, u
     }
     TRY(write_svint64(tgs->socket, term_doc_freq));
     int num_stats = session->num_stats;
-    size_t stats_size = num_stats <= 2 ? num_stats : (num_stats+3)/4*4;
+    size_t stats_size = num_stats <= 2 ? 2 : (num_stats+3)/4*4;
     TRY(write_group_stats(tgs->socket, groups, term_group_count, (int64_t*)tgs->group_stats, num_stats, stats_size));
     return 0;
 }

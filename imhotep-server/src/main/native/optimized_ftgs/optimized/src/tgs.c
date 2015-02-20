@@ -200,7 +200,7 @@ int tgs_execute_pass(struct worker_desc *worker,
 			int bytes_read;
 
 			count = (remaining > TGS_BUFFER_SIZE) ? TGS_BUFFER_SIZE : remaining;
-			bytes_read = read_ints(last_value, read_addr, buffer, count);
+			bytes_read = masked_vbyte_read_loop_delta(read_addr, buffer, count, last_value);
 			read_addr += bytes_read;
 			remaining -= count;
 

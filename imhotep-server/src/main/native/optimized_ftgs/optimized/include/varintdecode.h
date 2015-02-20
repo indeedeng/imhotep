@@ -9,9 +9,8 @@ extern "C" {
 
 void init(void);
 
-size_t read_ints(uint32_t, uint8_t*, uint32_t*, int);
-
-size_t read_ints_single(uint32_t, uint8_t*, uint32_t*, int);
+size_t masked_vbyte_read_loop_delta(const uint8_t* in, uint32_t* out,
+		uint64_t length, uint32_t prev);
 
 #ifdef __cplusplus
 }
