@@ -6,7 +6,9 @@
 
 int run_tgs_pass(struct worker_desc *worker,
                  struct session_desc *session,
-                 union term_union *term,
+                 uint8_t term_type,
+                 union term_union* term,
+                 union term_union* previous_term,
                  long *addresses,
                  int *docs_per_shard,
                  int *shard_handles,
@@ -32,7 +34,7 @@ int run_tgs_pass(struct worker_desc *worker,
 		return -1;
 	}
 
-	tgs_init(worker, &desc, term, addresses, docs_per_shard, 
+	tgs_init(worker, &desc, term_type, term, previous_term, addresses, docs_per_shard, 
 	         shard_handles, num_shard, socket, session);
 	session->current_tgs_pass = &desc;
 

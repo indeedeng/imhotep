@@ -137,7 +137,9 @@ static void accumulate_stats_for_term(struct index_slice_info *slice,
 
 void tgs_init(struct worker_desc *worker,
               struct tgs_desc *desc,
+              uint8_t term_type,
               union term_union *term,
+              union term_union *previous_term,
               long *addresses,
               int *docs_per_shard,
               int *shard_handles,
@@ -146,8 +148,9 @@ void tgs_init(struct worker_desc *worker,
               struct session_desc *session)
 {
 	struct index_slice_info *infos;
-
+	desc->term_type = term_type;
 	desc->term = term;
+	desc->previous_term = previous_term;
 	desc->n_slices = num_shard;
 	desc->socket = socket;
 	infos = (struct index_slice_info *)

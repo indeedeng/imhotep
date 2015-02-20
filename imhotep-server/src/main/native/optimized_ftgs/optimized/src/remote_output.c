@@ -4,6 +4,7 @@
 #include "remote_output.h"
 
 #define PREFETCH_DISTANCE 16
+#define _GNU_SOURCE
 
 // TODO: throw an exception with JNI
 
@@ -12,19 +13,17 @@
     if (_err != 0) return _err; \
 }
 
-#define MIN(a, b) { \
-    typeof(a) _a = (a); \
-    typeof(b) _b = (b); \
-    if (_a < _b) return _a; \
-    return _b; \
-}
+#define MIN(a, b) ({ \
+    __typeof__(a) _a = (a); \
+    __typeof__(b) _b = (b); \
+    _a < _b ? _a : _b; \
+})
 
-#define MAX(a, b) { \
-    typeof(a) _a = (a); \
-    typeof(b) _b = (b); \
-    if (_a > _b) return _a; \
-    return _b; \
-}
+#define MAX(a, b) ({ \
+    __typeof__(a) _a = (a); \
+    __typeof__(b) _b = (b); \
+    _a > _b ? _a : _b; \
+})
 
 static int flush_buffer(struct buffered_socket* socket) {
     size_t write_ptr = 0;
@@ -34,6 +33,7 @@ static int flush_buffer(struct buffered_socket* socket) {
         write_ptr += written;
     }
     socket->buffer_ptr = 0;
+    return 0;
 }
 
 static int write_byte(struct buffered_socket* socket, uint8_t value) {
@@ -45,7 +45,7 @@ static int write_byte(struct buffered_socket* socket, uint8_t value) {
     return 0;
 }
 
-static int write(struct buffered_socket* socket, uint8_t* bytes, size_t len) {
+static int write_bytes(struct buffered_socket* socket, uint8_t* bytes, size_t len) {
     size_t write_ptr = 0;
     while (write_ptr < len) {
         if (socket->buffer_ptr == socket->buffer_len) {
@@ -55,6 +55,7 @@ static int write(struct buffered_socket* socket, uint8_t* bytes, size_t len) {
         memcpy(socket->buffer + socket->buffer_ptr, bytes + write_ptr, copy_len);
         write_ptr += copy_len;
     }
+    return 0;
 }
 
 static int write_vint64(struct buffered_socket* socket, uint64_t i) {
@@ -191,22 +192,25 @@ static size_t prefix_len(struct string_term_s* term, struct string_term_s* previ
     return max;
 }
 
-int write_term_group_stats(struct buffered_socket* socket, uint8_t term_type, struct term_union* term, struct term_union* previous_term, int64_t term_doc_freq, uint32_t* groups, size_t term_group_count,
-             int64_t* group_stats, int num_stats, size_t stats_size) {
-    if (term_type) {
-        if (previous_term->int_term == -1 && term->int_term == -1) {
-            TRY(write_byte(socket, 0x80));
-            TRY(write_byte(socket, 0));
+int write_term_group_stats(struct session_desc* session, struct tgs_desc* tgs, uint32_t* groups, size_t term_group_count, int64_t term_doc_freq) {
+    if (tgs->term_type) {
+        if (tgs->previous_term->int_term == -1 && tgs->term->int_term == -1) {
+            TRY(write_byte(tgs->socket, 0x80));
+            TRY(write_byte(tgs->socket, 0));
         } else {
-            TRY(write_vint64(socket, term->int_term-previous_term->int_term));
+            TRY(write_vint64(tgs->socket, tgs->term->int_term - tgs->previous_term->int_term));
         }
     } else {
-        size_t p_len = prefix_len(&term->string_term, &previous_term->string_term);
-        TRY(write_vint64(socket, previous_term->string_term.string_term_len-p_len+1));
-        TRY(write_vint64(socket, term->string_term.string_term_len-p_len));
-        TRY(write(socket, term->string_term.string_term + p_len, term->string_term.string_term_len - p_len));
+        struct string_term_s* term = &tgs->term->string_term;
+        struct string_term_s* previous_term = &tgs->previous_term->string_term;
+        size_t p_len = prefix_len(term, previous_term);
+        TRY(write_vint64(tgs->socket, term->string_term_len - p_len + 1));
+        TRY(write_vint64(tgs->socket, term->string_term_len - p_len));
+        TRY(write_bytes(tgs->socket, (uint8_t*)(term->string_term + p_len), term->string_term_len - p_len));
     }
-    TRY(write_svint64(socket, term_doc_freq));
-    TRY(write_group_stats(socket, groups, term_group_count, group_stats, num_stats, stats_size));
+    TRY(write_svint64(tgs->socket, term_doc_freq));
+    int num_stats = session->num_stats;
+    size_t stats_size = num_stats <= 2 ? num_stats : (num_stats+3)/4*4;
+    TRY(write_group_stats(tgs->socket, groups, term_group_count, (int64_t*)tgs->group_stats, num_stats, stats_size));
     return 0;
 }
