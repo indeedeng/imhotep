@@ -191,7 +191,7 @@ static size_t prefix_len(struct string_term_s* term, struct string_term_s* previ
     return max;
 }
 
-int write_term_group_stats(struct session_desc* session, struct tgs_desc* tgs, uint32_t* groups, size_t term_group_count, int64_t term_doc_freq) {
+int write_term_group_stats(struct session_desc* session, struct tgs_desc* tgs, uint32_t* groups, size_t term_group_count) {
     if (tgs->term_type) {
         if (tgs->previous_term->int_term == -1 && tgs->term->int_term == -1) {
             TRY(write_byte(tgs->socket, 0x80));
@@ -206,6 +206,10 @@ int write_term_group_stats(struct session_desc* session, struct tgs_desc* tgs, u
         TRY(write_vint64(tgs->socket, term->string_term_len - p_len + 1));
         TRY(write_vint64(tgs->socket, term->string_term_len - p_len));
         TRY(write_bytes(tgs->socket, (uint8_t*)(term->string_term + p_len), term->string_term_len - p_len));
+    }
+    int64_t term_doc_freq = 0;
+    for (int i = 0; i < tgs->n_slices; i++) {
+        term_doc_freq += tgs->trm_slice_infos[i].n_docs_in_slice;
     }
     TRY(write_svint64(tgs->socket, term_doc_freq));
     int num_stats = session->num_stats;
