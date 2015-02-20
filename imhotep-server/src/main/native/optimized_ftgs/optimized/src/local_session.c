@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include "imhotep_native.h"
+#include "circ_buf.h"
 
 #define CIRC_BUFFER_SIZE						32
 
@@ -89,7 +90,7 @@ void session_destroy(struct session_desc *session)
 
 #define DEFAULT_BUFFER_SIZE				8192
 
-void worker_init(struct worker_desc *worker, int id, int n_metrics)
+void worker_init(struct worker_desc *worker, int id, int n_metrics, int num_groups)
 {
 	worker->id = id;
 	worker->buffer_size = DEFAULT_BUFFER_SIZE;
@@ -97,11 +98,17 @@ void worker_init(struct worker_desc *worker, int id, int n_metrics)
 		/* allocate and initalize buffers */
 	worker->grp_buf = circular_buffer_int_alloc(CIRC_BUFFER_SIZE);
 	worker->metric_buf = circular_buffer_vector_alloc((n_metrics+1)/2 * CIRC_BUFFER_SIZE);
+	
+	worker->bit_tree_buf = calloc(sizeof(struct bit_tree), 1);
+	bit_tree_init(worker->bit_tree_buf, num_groups);
+
 }
 
 void worker_destroy(struct worker_desc *worker)
 {
 	free(worker->group_stats_buf);
+	bit_tree_destroy(worker->bit_tree_buf);
+	free(worker->bit_tree_buf);
 	/* free the intermediate buffers */
 	circular_buffer_int_cleanup(worker->grp_buf);
 	circular_buffer_vector_cleanup(worker->metric_buf);

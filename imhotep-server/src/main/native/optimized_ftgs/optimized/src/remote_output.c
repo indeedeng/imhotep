@@ -4,6 +4,8 @@
 
 #define PREFETCH_DISTANCE 16
 
+// TODO: throw an exception with JNI
+
 #define TRY(a) { \
     int _err = (a); \
     if (_err != 0) return _err; \
@@ -98,7 +100,7 @@ static int write_svint64(struct socket_stuff* socket, int64_t i) {
 }
 
 int write_group_stats(struct socket_stuff* socket, uint32_t* groups, size_t groups_present,
-             int64_t* group_stats, size_t num_groups, int num_stats, size_t stats_size) {
+             int64_t* group_stats, int num_stats, size_t stats_size) {
     int32_t previous_group = -1;
     for (size_t i = 0; i < groups_present; i++) {
         uint32_t group = groups[i];

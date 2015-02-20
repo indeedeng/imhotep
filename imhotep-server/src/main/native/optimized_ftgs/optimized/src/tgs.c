@@ -159,12 +159,14 @@ void tgs_init(struct worker_desc *worker,
 		infos[i].shard = &(session->shards[handle]);
 	}
 	desc->trm_slice_infos = infos;
-	bit_tree_init(&(desc->non_zero_groups), session->num_groups);
+	desc->grp_buf = worker->grp_buf;
+	desc->metric_buf = worker->metric_buf;
+	desc->non_zero_groups = worker->bit_tree_buf;
 }
 
 void tgs_destroy(struct tgs_desc *desc)
 {
-	bit_tree_destroy(&(desc->non_zero_groups));
+	bit_tree_destroy(desc->non_zero_groups);
 	free(desc->trm_slice_infos);
 }
 
@@ -199,8 +201,8 @@ int tgs_execute_pass(struct worker_desc *worker,
 			read_addr += bytes_read;
 			remaining -= count;
 
-			accumulate_stats_for_term(slice, buffer, count, &desc->non_zero_groups,
-			                          group_stats, slice->shard);
+			accumulate_stats_for_term(slice, buffer, count, desc->non_zero_groups,
+			                          group_stats, slice->shard, desc->grp_buf, desc->metric_buf);
 			last_value = buffer[count - 1];
 		}
 	}

@@ -22,6 +22,7 @@ struct worker_desc {
     int buffer_size;
     __m128i *group_stats_buf;
     struct socket_stuff socket;
+    struct bit_tree *bit_tree_buf;
     struct circular_buffer_int *grp_buf;
 	struct circular_buffer_vector *metric_buf;
 };
@@ -77,7 +78,7 @@ struct tgs_desc {
     uint8_t term_type;
     union term_union *term;
     struct index_slice_info *trm_slice_infos;
-    struct bit_tree non_zero_groups;
+    struct bit_tree *non_zero_groups;
     __m128i *group_stats;
     struct circular_buffer_int *grp_buf;
 	struct circular_buffer_vector *metric_buf;
@@ -95,7 +96,8 @@ int tgs_execute_pass(struct worker_desc *worker,
                      struct session_desc *session,
                      struct tgs_desc *desc);
 
-void tgs_init(struct tgs_desc *desc,
+void tgs_init(struct worker_desc *worker,
+              struct tgs_desc *desc,
               union term_union *term,
               long *addresses,
               int *docs_per_shard,
