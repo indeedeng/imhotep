@@ -106,8 +106,8 @@ void session_destroy(struct session_desc *session)
 
 void worker_init(struct worker_desc *worker, 
                  int id, 
+                 int num_groups,
                  int n_metrics, 
-                 int num_groups, 
                  uint32_t *socket_fds, 
                  int num_sockets)
 {

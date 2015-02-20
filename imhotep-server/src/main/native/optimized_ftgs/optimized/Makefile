@@ -1,6 +1,8 @@
 IDIR =include
 CC=/usr/bin/clang
-CFLAGS=-g -I$(IDIR) -std=c11 -msse4.2 -fvisibility=hidden -fPIC
+JNI_HEADER_LOC=/usr/lib/jvm/default-java/include/
+JNI_HEADER_LOC2=/usr/lib/jvm/default-java/include/linux
+CFLAGS=-g -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=c11 -msse4.2 -fvisibility=hidden -fPIC
 LFLAGS=-shared
 
 ODIR=obj
