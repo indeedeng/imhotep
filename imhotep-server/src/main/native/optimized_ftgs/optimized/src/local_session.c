@@ -31,3 +31,73 @@ int run_tgs_pass(struct worker_desc *worker,
 
 	return err;
 }
+
+//This method assumes that the boolean metrics will come first
+int create_shard_multicache(struct session_desc *session,
+                            	int id,
+						uint32_t n_docs,
+						int64_t *metric_mins,
+						int64_t *metric_maxes,
+						int n_metrics)
+{
+	packed_shard_t *shard;
+
+	shard = &session->shards[id];
+	shard->num_docs = n_docs;
+	packed_shard_init(shard, n_docs, metric_mins, metric_maxes, n_metrics);
+
+	return id;
+}
+
+void session_init(struct session_desc *session,
+                  int n_groups,
+                  int n_stats,
+                  int n_shards)
+{
+	packed_shard_t *shards;
+
+	session->num_groups = n_groups;
+	session->num_stats = n_stats;
+	session->num_shards = n_shards;
+	session->current_tgs_pass = NULL;
+
+	shards = (packed_shard_t *)calloc(sizeof(packed_shard_t), n_shards);
+	for (int i = 0; i < n_shards; i++) {
+		shards[i].shard_id = i;
+		shards[i].num_docs = -1;
+		shards[i].grp_metrics_len = 0;
+		shards[i].groups_and_metrics = NULL;
+		shards[i].metrics_layout = NULL;
+	}
+	session->shards = shards;
+}
+
+void session_destroy(struct session_desc *session)
+{
+	packed_shard_t *shards;
+	int n_shards;
+
+	shards = session->shards;
+	n_shards = session->num_shards;
+	for (int i = 0; i < n_shards; i++) {
+		packed_shard_destroy(&shards[i]);
+	}
+
+	free(shards);
+}
+
+#define DEFAULT_BUFFER_SIZE				8192
+
+void worker_init(struct worker_desc *worker, int id)
+{
+	worker->id = id;
+	worker->buffer_size = DEFAULT_BUFFER_SIZE;
+	worker->group_stats_buf = (__m128i *)calloc(worker->buffer_size);
+}
+
+void worker_destroy(struct worker_desc *worker)
+{
+	free(worker->group_stats_buf);
+}
+
+

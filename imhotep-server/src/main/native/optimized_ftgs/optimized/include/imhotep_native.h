@@ -5,6 +5,9 @@
 #include <stdint.h>
 #include "bit_tree.h"
 
+#define TERM_TYPE_STRING						0
+#define TERM_TYPE_INT						1
+
 struct circular_buffer_vector;
 
 struct socket_stuff {
@@ -21,11 +24,14 @@ struct worker_desc {
     struct socket_stuff socket;
 };
 
+struct string_term_s {
+    int string_term_len;
+    char *string_term;
+};
 
 union term_union {
     uint64_t int_term;
-    int string_term_len;
-    char *string_term;
+    struct string_term_s string_term;
 };
 
 struct packed_metric_desc {
@@ -64,6 +70,7 @@ struct index_slice_info {
 struct tgs_desc {
     int socket_fd;
     int n_slices;
+    uint8_t term_type;
     union term_union *term;
     struct index_slice_info *trm_slice_infos;
     struct bit_tree non_zero_groups;
@@ -119,6 +126,7 @@ void packed_shard_init(	packed_shard_t *shard,
 					int64_t *metric_mins,
 					int64_t *metric_maxes,
 					int n_metrics);
+void packed_shard_destroy(packed_shard_t *shard);
 
 /* return the number of bytes read*/
 int slice_copy_range(uint8_t* slice,

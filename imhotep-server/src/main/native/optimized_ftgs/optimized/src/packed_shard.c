@@ -228,7 +228,6 @@ void packed_shard_init(	packed_shard_t *shard,
 	struct packed_metric_desc *desc;
 
 	shard->num_docs = n_docs;
-	shard->shard_id = 0;
 
 	desc = (struct packed_metric_desc *)calloc(sizeof(struct packed_metric_desc), 1);
 	shard->metrics_layout = desc;
@@ -256,6 +255,27 @@ void packed_shard_init(	packed_shard_t *shard,
 	                                                      	sizeof(__m128i ) * shard->grp_metrics_len);
 }
 
+
+void packed_shard_destroy(packed_shard_t *shard)
+{
+	struct packed_metric_desc *desc;
+
+	shard->num_docs = -1;
+	shard->shard_id = 0;
+
+	desc = shard->metrics_layout;
+	free(desc->index_metrics);
+	free(desc->metric_n_vector);
+	free(desc->metric_mins);
+	free(desc->shuffle_vecs_get1);
+	free(desc->shuffle_vecs_put);
+	free(desc->blend_vecs_put);
+	free(desc->shuffle_vecs_get2);
+	free(desc->n_metrics_per_vector);
+	free(desc);
+
+	free(shard->groups_and_metrics);
+}
 
 static void update_boolean_metric(	packed_shard_t *shard,
 								int * restrict doc_ids,
