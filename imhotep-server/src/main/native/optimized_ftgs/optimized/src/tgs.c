@@ -2,7 +2,6 @@
 #include "circ_buf.h"
 #include "varintdecode.h"
 
-#define CIRC_BUFFER_SIZE						32
 #define TGS_BUFFER_SIZE						1024
 #define MAX_BIT_FIELDS						4
 #define PREFETCH_DISTANCE					16
@@ -40,59 +39,59 @@ static __m128i *allocate_grp_stats(struct worker_desc *desc,
 static void accumulate_stats_for_group(struct circular_buffer_int* grp_buf,
                                        struct circular_buffer_vector* metric_buf,
                                        __m128i* group_stats,
-                                       int n_vecs_per_doc)
+                                       int n_stat_vecs_per_grp,
+                                       int grp_stat_size,
+                                       int prefetch_group_id)
 {
 	uint32_t group_id;
 
 	group_id = circular_buffer_int_get(grp_buf);
-	for (int32_t j = 0; j < n_vecs_per_doc; j++) {
+	int load_index;
+	for (load_index = 0; load_index <= n_stat_vecs_per_grp-4; load_index += 4) {
 		__m128i stats = circular_buffer_vector_get(metric_buf);
-		group_stats[group_id * n_vecs_per_doc + j] += stats;
+		group_stats[group_id * grp_stat_size + load_index + 0] += stats;
+		
+		stats = circular_buffer_vector_get(metric_buf);
+		group_stats[group_id * grp_stat_size + load_index + 1] += stats;
+		
+		stats = circular_buffer_vector_get(metric_buf);
+		group_stats[group_id * grp_stat_size + load_index + 2] += stats;
+		
+		stats = circular_buffer_vector_get(metric_buf);
+		group_stats[group_id * grp_stat_size + load_index + 3] += stats;
+		if (prefetch_group_id != 0) {
+			_mm_prefetch(group_stats+prefetch_group_id*grp_stat_size+load_index, _MM_HINT_T0);
+		}
+	}
+	
+	if (load_index < n_stat_vecs_per_grp) {
+		__m128i* prefetch_address = group_stats+prefetch_group_id*grp_stat_size+load_index;
+		do {
+			__m128i stats = circular_buffer_vector_get(metric_buf);
+			group_stats[group_id * grp_stat_size + load_index] += stats;
+			load_index++;
+		} while (load_index < n_stat_vecs_per_grp);
+		if (prefetch_group_id != 0) {
+			_mm_prefetch(prefetch_address, _MM_HINT_T0);
+		}
 	}
 }
 
-/*
- * This should only be called when doc_ids_len is a multiple of PREFETCH_DISTANCE
- */
-static void accumulate_stats_for_term(	struct index_slice_info *slice,
+static void accumulate_stats_for_term(struct index_slice_info *slice,
 								uint32_t *doc_ids,
 								int doc_ids_len,
 								struct bit_tree *non_zero_groups,
 								__m128i *group_stats,
-								packed_shard_t *shard)
+								packed_shard_t *shard,
+								struct circular_buffer_int *grp_buf,
+								struct circular_buffer_vector *metric_buf)
 {
 	__v16qi* grp_metrics = shard->groups_and_metrics;
 	struct packed_metric_desc *packing_desc = shard->metrics_layout;
-	struct circular_buffer_int *grp_buf;
-	struct circular_buffer_vector *metric_buf;
 	int n_vecs_per_doc = packing_desc->n_vectors_per_doc;
-
-	/* allocate and initalize buffers */
-	grp_buf = circular_buffer_int_alloc(CIRC_BUFFER_SIZE);
-	metric_buf = circular_buffer_vector_alloc(packing_desc->n_metrics * CIRC_BUFFER_SIZE);
-
-	/* prefech the first PREFETCH num grp metrics data */
-	for (int32_t i = 0; i < PREFETCH_DISTANCE; i++) {
-		__v16qi *prefetch_address;
-		int32_t prefetch_doc_id;
-
-		prefetch_doc_id = doc_ids[i];
-		prefetch_address = &grp_metrics[prefetch_doc_id * n_vecs_per_doc];
-		_mm_prefetch(prefetch_address, _MM_HINT_T0);
-	}
 
 	/* process the data */
 	for (int32_t i = 0; i < doc_ids_len; i++) {
-		
-		if (i+PREFETCH_DISTANCE < doc_ids_len) {
-			__v16qi *prefetch_address;
-			int32_t prefetch_doc_id;
-	
-			prefetch_doc_id = doc_ids[i+PREFETCH_DISTANCE];
-			prefetch_address = &grp_metrics[prefetch_doc_id * n_vecs_per_doc];
-			_mm_prefetch(prefetch_address, _MM_HINT_T0);
-		}
-		
 
 		uint32_t doc_id = doc_ids[i];
 		uint32_t start_idx = doc_id * n_vecs_per_doc;
@@ -114,34 +113,30 @@ static void accumulate_stats_for_term(	struct index_slice_info *slice,
 
 		/* save group into buffer */
 		circular_buffer_int_put(grp_buf, group);
-
-		{
-			/* Prefetch group_stats */
-			__m128i *prefetch_address;
-			prefetch_address = &group_stats[group * n_vecs_per_doc];
-			_mm_prefetch(prefetch_address, _MM_HINT_T0);
+		
+		int prefetch_doc_id = 0;
+		if (i+PREFETCH_DISTANCE < doc_ids_len) {
+			prefetch_doc_id = doc_ids[i+PREFETCH_DISTANCE];
 		}
-
 		/* unpack and save the metrics for this document */
-		packed_shard_unpack_metrics_into_buffer(shard, doc_id, metric_buf);
+		packed_shard_unpack_metrics_into_buffer(shard, doc_id, metric_buf, prefetch_doc_id);
 		
 		if (i >= PREFETCH_DISTANCE) {
-			accumulate_stats_for_group(grp_buf, metric_buf,  group_stats, n_vecs_per_doc);
+			accumulate_stats_for_group(grp_buf, metric_buf,  group_stats, shard->n_stat_vecs_per_grp,
+			                           shard->grp_stat_size, group);
 		}
 	}    // doc id loop
 
 	/* sum the final buffered stats */
 	for (int32_t i = 0; i < PREFETCH_DISTANCE; i++) {
-		accumulate_stats_for_group(grp_buf, metric_buf,  group_stats, n_vecs_per_doc);
+		accumulate_stats_for_group(grp_buf, metric_buf, group_stats, shard->n_stat_vecs_per_grp,
+		                           shard->grp_stat_size, 0);
 	}
-
-	/* free the intermediate buffers */
-	circular_buffer_int_cleanup(grp_buf);
-	circular_buffer_vector_cleanup(metric_buf);
 }
 
 
-void tgs_init(struct tgs_desc *desc,
+void tgs_init(struct worker_desc *worker,
+              struct tgs_desc *desc,
               union term_union *term,
               long *addresses,
               int *docs_per_shard,
@@ -164,7 +159,6 @@ void tgs_init(struct tgs_desc *desc,
 		infos[i].shard = &(session->shards[handle]);
 	}
 	desc->trm_slice_infos = infos;
-
 	bit_tree_init(&(desc->non_zero_groups), session->num_groups);
 }
 

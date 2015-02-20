@@ -446,114 +446,140 @@ static inline __m128i unpack_2_metrics(__m128i packed_data, __v16qi shuffle_vect
 	return unpacked;
 }
 
-static void load_less_than_a_cache_line_of_metrics(	struct packed_metric_desc *desc,
-											__v16qi *restrict grp_metrics,
-											uint8_t *restrict n_metrics_per_vector,
-											struct circular_buffer_vector *buffer)
+static void load_less_than_a_cache_line_of_metrics(struct packed_metric_desc *desc,
+										 __v16qi *restrict grp_metrics,
+										 int doc_id, uint8_t *restrict n_metrics_per_vector,
+										 struct circular_buffer_vector *buffer, int prefetch_doc_id)
 {
 	uint32_t shuffle_idx = 0;
+	int n_vecs_per_doc = desc->n_vectors_per_doc;
+	
 	__v2di *mins;
-
 	mins = (__v2di *)desc->metric_mins;
+	
+	__v16qi* doc_grp_metrics = grp_metrics+doc_id*n_vecs_per_doc;
 
 	for (int32_t vector_idx = 0; vector_idx < desc->n_vectors_per_doc; vector_idx++) {
-		__m128i packed_data = grp_metrics[vector_idx];
-		for (int32_t k = 0; k < n_metrics_per_vector[vector_idx]; k += 2, shuffle_idx += 1) {
+		__m128i packed_data = doc_grp_metrics[vector_idx];
+		for (int32_t k = 0; k < n_metrics_per_vector[vector_idx]; k += 2, shuffle_idx++) {
 			__m128i data;
 			__m128i decoded_data;
 
 			data = unpack_2_metrics(packed_data, desc->shuffle_vecs_get2[shuffle_idx]);
 			decoded_data = decode_zigzag(data);
 #ifndef ZIG_ZAG
-			data = _mm_add_epi64(decoded_data, mins[shuffle_idx]);
+			decoded_data = _mm_add_epi64(decoded_data, mins[shuffle_idx]);
 #endif
 
 			/* save data into buffer */
 			circular_buffer_vector_put(buffer, decoded_data);
 		}
 	}
+	if (prefetch_doc_id != 0) {
+        _mm_prefetch(grp_metrics+prefetch_doc_id*n_vecs_per_doc, _MM_HINT_T0);
+    }
 }
 
-// int32_t load_cache_line_full_of_metrics(struct session_desc *desc,
-// 									__v16qi *restrict grp_metrics,
-// 									char *restrict stat_per_vector,
-//                                     struct intermediate_buffers *buffers,
-//                                     uint32_t start_idx)
-// {
-//     uint32_t vector_index = 0;
-//     uint32_t cache_lines_per_doc = (desc->vecs_per_doc + 3) / 4;
-//
-//     //unrolled loop for processing whole 64 byte cache lines at a time (4x16 byte loads)
-//     for (int32_t load_index = 0; load_index <= cache_lines_per_doc-1; load_index+=4) {
-//         //load the next 16 bytes
-//         __m128i packed_data = grp_metrics[start_idx + load_index];
-//
-//         //for each vector, shuffle to get next 2 metrics, load current sum, add metrics to current sum, store result. zig zag decode if necessary.
-//         for (int32_t k = 0; k < stat_per_vector[load_index]; k += 2) {
-//             __m128i data;
-//             __m128i decoded_data;
-//
-//             data = unpack_2_metrics(packed_data, &shuffle_vecs[vector_index]);
-//             decoded_data = decode_zigzag(data);
-//
-//             /* save data into buffer */
-//             intermediate_metrics_buffer[head * NUM_STATS + vector_index * 2] = decoded_data;
-//
-//             vector_index++;
-//         }
-//
-//         packed_data = grp_metrics[start_idx + load_index + 1];
-//         for (int32_t k = 0; k < stat_per_vector[load_index + 1]; k += 2) {
-//             __m128i data;
-//             __m128i decoded_data;
-//
-//             data = unpack_2_metrics(packed_data, &shuffle_vecs[vector_index]);
-//             decoded_data = decode_zigzag(data);
-//
-//             /* save data into buffer */
-//             intermediate_metrics_buffer[head * NUM_STATS + vector_index * 2] = decoded_data;
-//
-//             vector_index++;
-//         }
-//
-//         packed_data = grp_metrics[start_idx + load_index + 2];
-//         for (int32_t k = 0; k < stat_per_vector[load_index + 2]; k += 2) {
-//             __m128i data;
-//             __m128i decoded_data;
-//
-//             data = unpack_2_metrics(packed_data, &shuffle_vecs[vector_index]);
-//             decoded_data = decode_zigzag(data);
-//
-//             /* save data into buffer */
-//             intermediate_metrics_buffer[head * NUM_STATS + vector_index * 2] = decoded_data;
-//
-//             vector_index++;
-//         }
-//
-//         packed_data = grp_metrics[start_idx + load_index + 3];
-//         for (int32_t k = 0; k < stat_per_vector[load_index + 3]; k += 2) {
-//             __m128i data;
-//             __m128i decoded_data;
-//
-//             data = unpack_2_metrics(packed_data, &shuffle_vecs[vector_index]);
-//             decoded_data = decode_zigzag(data);
-//
-//             /* save data into buffer */
-//             intermediate_metrics_buffer[head * NUM_STATS + vector_index * 2] = decoded_data;
-//
-//             vector_index++;
-//         }
-//     }
-//
-// }
+static void load_cache_line_full_of_metrics(struct packed_metric_desc *desc,
+								__v16qi *restrict grp_metrics,
+								int doc_id,
+								uint8_t* restrict n_metrics_per_vector,
+                                   	struct circular_buffer_vector *buffer,
+                                   	int prefetch_doc_id)
+{
+    uint32_t vector_index = 0;
+	int n_vecs_per_doc = desc->n_vectors_per_doc;
+	
+	__v2di *mins;
+	mins = (__v2di *)desc->metric_mins;
+	
+	__v16qi* doc_grp_metrics = grp_metrics+doc_id*n_vecs_per_doc;
+	__v16qi* shuffle_vecs = desc->shuffle_vecs_get2;
+	
+     //unrolled loop for processing whole 64 byte cache lines at a time (4x16 byte loads)
+     for (int32_t load_index = 0; load_index <= n_vecs_per_doc-4; load_index+=4) {
+		//load the next 16 bytes
+		__m128i packed_data = doc_grp_metrics[load_index];
+		
+		//for each vector, shuffle to get next 2 metrics, load current sum, add metrics to current sum, store result. zig zag decode if necessary.
+		for (int32_t k = 0; k < n_metrics_per_vector[load_index]; k += 2) {
+			__m128i data;
+			__m128i decoded_data;
+			
+			data = unpack_2_metrics(packed_data, shuffle_vecs[vector_index]);
+			decoded_data = decode_zigzag(data);
+#ifndef ZIG_ZAG
+			decoded_data = _mm_add_epi64(decoded_data, mins[vector_index]);
+#endif
+			/* save data into buffer */
+			circular_buffer_vector_put(buffer, decoded_data);
+		
+			vector_index++;
+		}
+
+          packed_data = doc_grp_metrics[load_index + 1];
+          for (int32_t k = 0; k < n_metrics_per_vector[load_index + 1]; k += 2) {
+              __m128i data;
+              __m128i decoded_data;
+
+              data = unpack_2_metrics(packed_data, shuffle_vecs[vector_index]);
+              decoded_data = decode_zigzag(data);
+#ifndef ZIG_ZAG
+		    decoded_data = _mm_add_epi64(decoded_data, mins[vector_index]);
+#endif
+              /* save data into buffer */
+              circular_buffer_vector_put(buffer, decoded_data);
+
+              vector_index++;
+          }
+
+          packed_data = doc_grp_metrics[load_index + 2];
+          for (int32_t k = 0; k < n_metrics_per_vector[load_index + 2]; k += 2) {
+              __m128i data;
+              __m128i decoded_data;
+
+              data = unpack_2_metrics(packed_data, shuffle_vecs[vector_index]);
+              decoded_data = decode_zigzag(data);
+#ifndef ZIG_ZAG
+		    decoded_data = _mm_add_epi64(decoded_data, mins[vector_index]);
+#endif
+              /* save data into buffer */
+              circular_buffer_vector_put(buffer, decoded_data);
+
+              vector_index++;
+          }
+
+          packed_data = doc_grp_metrics[load_index + 3];
+          for (int32_t k = 0; k < n_metrics_per_vector[load_index + 3]; k += 2) {
+              __m128i data;
+              __m128i decoded_data;
+
+              data = unpack_2_metrics(packed_data, shuffle_vecs[vector_index]);
+              decoded_data = decode_zigzag(data);
+#ifndef ZIG_ZAG
+		    decoded_data = _mm_add_epi64(decoded_data, mins[vector_index]);
+#endif
+              /* save data into buffer */
+              circular_buffer_vector_put(buffer, decoded_data);
+
+              vector_index++;
+          }
+          if (prefetch_doc_id != 0) {
+              _mm_prefetch(grp_metrics+prefetch_doc_id*n_vecs_per_doc+load_index, _MM_HINT_T0);
+          }
+        
+     }
+
+}
 
 void packed_shard_unpack_metrics_into_buffer(packed_shard_t *shard,
 									int doc_id,
-									struct circular_buffer_vector *buffer)
+									struct circular_buffer_vector *buffer,
+									int prefetch_doc_id)
 {
 	struct packed_metric_desc *desc = shard->metrics_layout;
 	uint32_t bit_fields;
-	int index = doc_id * desc->n_vectors_per_doc + 0;
+	int index = doc_id * desc->n_vectors_per_doc;
 
 	/* unpack and save the bit fields */
 	bit_fields = _mm_extract_epi32(shard->groups_and_metrics[index], 0);
@@ -562,12 +588,14 @@ void packed_shard_unpack_metrics_into_buffer(packed_shard_t *shard,
 
 	/* unpack and save the metrics */
 	if ((desc->n_vectors_per_doc + 3) / 4 < 1) {
+		
 		load_less_than_a_cache_line_of_metrics(	desc,
 										shard->groups_and_metrics,
+										doc_id,
 										desc->n_metrics_per_vector,
-										buffer);
-//        } else {
-//            load_cache_line_full_of_metrics(desc, grp_metrics, stat_per_vector,
-//                                            buffer, start_idx);
+										buffer, prefetch_doc_id);
+     } else {
+          load_cache_line_full_of_metrics(desc, shard->groups_and_metrics, doc_id, desc->n_metrics_per_vector,
+                                          buffer, prefetch_doc_id);
 	}
 }

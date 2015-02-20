@@ -22,6 +22,8 @@ struct worker_desc {
     int buffer_size;
     __m128i *group_stats_buf;
     struct socket_stuff socket;
+    struct circular_buffer_int *grp_buf;
+	struct circular_buffer_vector *metric_buf;
 };
 
 struct string_term_s {
@@ -58,6 +60,8 @@ typedef struct shard_data {
     int num_docs;
     int grp_metrics_len;           // How many __m128 elements do we have in our vector = n_doc_ids*n_vectors_per_doc
     __v16qi *groups_and_metrics;   /* group and metrics data packed into 128b vectors */
+    int n_stat_vecs_per_grp;       // (n_metrics+1)/2
+    int grp_stat_size;             // in units of 16 bytes. stat sums for a group are padded to align to cache lines, this must be 1 or even
     struct packed_metric_desc *metrics_layout;
 } packed_shard_t;
 
@@ -75,6 +79,8 @@ struct tgs_desc {
     struct index_slice_info *trm_slice_infos;
     struct bit_tree non_zero_groups;
     __m128i *group_stats;
+    struct circular_buffer_int *grp_buf;
+	struct circular_buffer_vector *metric_buf;
 };
 
 struct session_desc {
@@ -102,7 +108,8 @@ void tgs_destroy(struct tgs_desc *desc);
 
 void packed_shard_unpack_metrics_into_buffer(packed_shard_t *shard,
 									int doc_id,
-									struct circular_buffer_vector *buffer);
+									struct circular_buffer_vector *buffer,
+									int prefetch_doc_id);
 void packed_shard_lookup_groups(	packed_shard_t *shard,
 							int * restrict doc_ids,
 							int n_doc_ids,

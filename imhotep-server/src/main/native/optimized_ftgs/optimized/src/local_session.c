@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include "imhotep_native.h"
 
+#define CIRC_BUFFER_SIZE						32
 
 int run_tgs_pass(struct worker_desc *worker,
                  struct session_desc *session,
@@ -19,7 +20,7 @@ int run_tgs_pass(struct worker_desc *worker,
 		return -1;
 	}
 
-	tgs_init(&desc, term, addresses, docs_per_shard, shard_handles, num_shard, socket_fd, session);
+	tgs_init(worker, &desc, term, addresses, docs_per_shard, shard_handles, num_shard, socket_fd, session);
 	session->current_tgs_pass = &desc;
 
 	int err;
@@ -88,16 +89,22 @@ void session_destroy(struct session_desc *session)
 
 #define DEFAULT_BUFFER_SIZE				8192
 
-void worker_init(struct worker_desc *worker, int id)
+void worker_init(struct worker_desc *worker, int id, int n_metrics)
 {
 	worker->id = id;
 	worker->buffer_size = DEFAULT_BUFFER_SIZE;
 	worker->group_stats_buf = (__m128i *)calloc(sizeof(uint8_t), worker->buffer_size);
+		/* allocate and initalize buffers */
+	worker->grp_buf = circular_buffer_int_alloc(CIRC_BUFFER_SIZE);
+	worker->metric_buf = circular_buffer_vector_alloc((n_metrics+1)/2 * CIRC_BUFFER_SIZE);
 }
 
 void worker_destroy(struct worker_desc *worker)
 {
 	free(worker->group_stats_buf);
+	/* free the intermediate buffers */
+	circular_buffer_int_cleanup(worker->grp_buf);
+	circular_buffer_vector_cleanup(worker->metric_buf);
 }
 
 
