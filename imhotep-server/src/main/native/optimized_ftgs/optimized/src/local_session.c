@@ -92,7 +92,7 @@ void worker_init(struct worker_desc *worker, int id)
 {
 	worker->id = id;
 	worker->buffer_size = DEFAULT_BUFFER_SIZE;
-	worker->group_stats_buf = (__m128i *)calloc(worker->buffer_size);
+	worker->group_stats_buf = (__m128i *)calloc(sizeof(uint8_t), worker->buffer_size);
 }
 
 void worker_destroy(struct worker_desc *worker)

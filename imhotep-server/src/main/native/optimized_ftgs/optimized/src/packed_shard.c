@@ -235,7 +235,8 @@ void packed_shard_init(	packed_shard_t *shard,
 	desc->index_metrics = (uint8_t *) calloc(sizeof(uint8_t), n_metrics * 2);
 	desc->metric_n_vector = (uint8_t *) calloc(sizeof(uint8_t), n_metrics);
 	desc->n_metrics = n_metrics;
-	desc->metric_mins = (int64_t *) aligned_alloc(sizeof(int64_t) * n_metrics, 16);
+	/* ensure that this is >= to the smallest multiple if 16 the data can fit in */
+	desc->metric_mins = (int64_t *) aligned_alloc(16, sizeof(int64_t) * n_metrics + 1);
 	desc->n_metrics_aux_index = 0;
 	for (int i = 0; i < n_metrics; i++) {
 		desc->metric_mins[i] = metric_mins[i];
@@ -451,6 +452,9 @@ static void load_less_than_a_cache_line_of_metrics(	struct packed_metric_desc *d
 											struct circular_buffer_vector *buffer)
 {
 	uint32_t shuffle_idx = 0;
+	__v2di *mins;
+
+	mins = (__v2di *)desc->metric_mins;
 
 	for (int32_t vector_idx = 0; vector_idx < desc->n_vectors_per_doc; vector_idx++) {
 		__m128i packed_data = grp_metrics[vector_idx];
@@ -460,6 +464,9 @@ static void load_less_than_a_cache_line_of_metrics(	struct packed_metric_desc *d
 
 			data = unpack_2_metrics(packed_data, desc->shuffle_vecs_get2[shuffle_idx]);
 			decoded_data = decode_zigzag(data);
+#ifndef ZIG_ZAG
+			data = _mm_add_epi64(decoded_data, mins[shuffle_idx]);
+#endif
 
 			/* save data into buffer */
 			circular_buffer_vector_put(buffer, decoded_data);
