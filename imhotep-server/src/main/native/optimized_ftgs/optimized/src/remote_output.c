@@ -4,7 +4,6 @@
 #include "remote_output.h"
 
 #define PREFETCH_DISTANCE 16
-#define _GNU_SOURCE
 
 // TODO: throw an exception with JNI
 
