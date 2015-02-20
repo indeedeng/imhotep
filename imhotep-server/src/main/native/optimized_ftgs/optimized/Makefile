@@ -1,4 +1,5 @@
 IDIR =include
+CC=clang
 CFLAGS=-g -I$(IDIR) -std=c11 -msse4.2 -fvisibility=hidden -fPIC
 LFLAGS=-shared
 
@@ -21,7 +22,7 @@ OBJ_FILES := $(addprefix obj/,$(notdir $(C_FILES:.c=.o)))
 $(ODIR)/%.o: src/%.c $(H_FILES)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-objs: $(OBJ_FILES)
+native_lib: $(OBJ_FILES)
 	$(CC) $(LFLAGS) $(LIBS) -o $@ $^ 
 
 .PHONY: clean
