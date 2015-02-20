@@ -10,7 +10,6 @@ int const GROUP_MASK = 0xFFFFFFF;
 
 static int metric_size_bytes(struct packed_metric_desc *desc, int64_t max, int64_t min)
 {
-	//	int range = max - min;
 	int64_t range = max - min;
 	int bits = sizeof(range) * 8 - __builtin_clz(range); /* !@# fix for zero case */
 	if ((bits <= 1) && (desc->n_boolean_metrics == desc->n_metrics_aux_index)
@@ -231,7 +230,6 @@ void packed_shard_init(	packed_shard_t *shard,
 
 	shard->num_docs = n_docs;
 
-	//	desc = (struct packed_metric_desc *)calloc(sizeof(struct packed_metric_desc), 1);
 	desc = (struct packed_metric_desc *)calloc(1, sizeof(struct packed_metric_desc));
 	shard->metrics_layout = desc;
 
@@ -404,17 +402,13 @@ void packed_shard_update_groups(	packed_shard_t *shard,
 {
 	struct packed_metric_desc *desc = shard->metrics_layout;
 
-	fprintf(stderr, "&shard->groups_and_metrics[0] %p\n", &shard->groups_and_metrics[0]);
-
 	for (int i = 0; i < n_doc_ids; i++) {
 		__v16qi *packed_addr;
 		uint32_t *store_address;
 		int index = doc_ids[i] * desc->n_vectors_per_doc + 0;
 
 		packed_addr = &shard->groups_and_metrics[index];
-		fprintf(stderr, "&shard->groups_and_metrics[index] %p\n", &shard->groups_and_metrics[index]);
 		store_address = (uint32_t *)packed_addr;
-		fprintf(stderr, "store_address: %p\n", store_address);
 		*store_address |= groups[i] & GROUP_MASK;
 	}
 }
