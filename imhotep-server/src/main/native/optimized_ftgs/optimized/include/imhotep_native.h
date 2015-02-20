@@ -143,6 +143,8 @@ void packed_shard_init(	packed_shard_t *shard,
 					int n_metrics);
 void packed_shard_destroy(packed_shard_t *shard);
 
+void dump_shard(packed_shard_t *shard);
+
 /* return the number of bytes read*/
 int slice_copy_range(uint8_t* slice,
                      int *destination,

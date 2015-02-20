@@ -13,6 +13,7 @@ LIBS=-lm
 C_FILES := $(wildcard src/*.c)
 H_FILES := $(wildcard include/*.h)
 OBJ_FILES := $(addprefix obj/,$(notdir $(C_FILES:.c=.o)))
+TEST_OBJ_FILES=obj/bit_tree.o obj/circ_buf.o obj/packed_shard.o obj/test.o
 
 #_DEPS = hellomake.h
 #DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
@@ -29,7 +30,10 @@ native_lib: $(OBJ_FILES)
 
 .PHONY: clean
 
+test: $(TEST_OBJ_FILES)
+	$(CC) -g -o test $(TEST_OBJ_FILES) $(LIBS)
+
 clean:
 	rm -f $(ODIR)/*.o *~ core $(INCDIR)/*~
-	
+
 all: $(ODIR)/%.o

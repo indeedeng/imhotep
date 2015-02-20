@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>							/* !@# debug */
 #include "imhotep_native.h"
 #include "circ_buf.h"
 
@@ -9,8 +10,9 @@ int const GROUP_MASK = 0xFFFFFFF;
 
 static int metric_size_bytes(struct packed_metric_desc *desc, int64_t max, int64_t min)
 {
-	int range = max - min;
-	int bits = sizeof(range) * 8 - __builtin_clz(range);
+	//	int range = max - min;
+	int64_t range = max - min;
+	int bits = sizeof(range) * 8 - __builtin_clz(range); /* !@# fix for zero case */
 	if ((bits <= 1) && (desc->n_boolean_metrics == desc->n_metrics_aux_index)
 			&& (desc->n_boolean_metrics < MAX_BIT_FIELDS)) {
 		desc->n_boolean_metrics++;
@@ -229,7 +231,8 @@ void packed_shard_init(	packed_shard_t *shard,
 
 	shard->num_docs = n_docs;
 
-	desc = (struct packed_metric_desc *)calloc(sizeof(struct packed_metric_desc), 1);
+	//	desc = (struct packed_metric_desc *)calloc(sizeof(struct packed_metric_desc), 1);
+	desc = (struct packed_metric_desc *)calloc(1, sizeof(struct packed_metric_desc));
 	shard->metrics_layout = desc;
 
 	desc->index_metrics = (uint8_t *) calloc(sizeof(uint8_t), n_metrics * 2);
@@ -317,10 +320,10 @@ void packed_shard_update_metric(	packed_shard_t *shard,
 	packed_vector_index = (desc->metric_n_vector)[metric_index];
 	metric_index -= desc->n_boolean_metrics;
 	for (int i = 0; i < n_doc_ids; i++) {
-		int index = doc_ids[i] * desc->n_vectors_per_doc;
+		size_t index = doc_ids[i] * desc->n_vectors_per_doc;
 
 		/* this makes the assumption that the first doc id is doc_id[0] */
-		int vector_index = packed_vector_index + index;
+		size_t vector_index = packed_vector_index + index;
 
 		/* Converts the data to a vector and shuffles the bytes into the correct spot */
 		__m128i shuffled_metric = _mm_shuffle_epi8(	_mm_cvtsi64_si128(metric_vals[i] - min),
@@ -395,21 +398,25 @@ void packed_shard_lookup_groups(	packed_shard_t *shard,
 }
 
 void packed_shard_update_groups(	packed_shard_t *shard,
-							int * restrict doc_ids,
-							int n_doc_ids,
-							int64_t * restrict groups)
+																	int * restrict doc_ids,
+																	int n_doc_ids,
+																	int64_t * restrict groups)
 {
 	struct packed_metric_desc *desc = shard->metrics_layout;
 
-     for (int i = 0; i < n_doc_ids; i++) {
+	fprintf(stderr, "&shard->groups_and_metrics[0] %p\n", &shard->groups_and_metrics[0]);
+
+	for (int i = 0; i < n_doc_ids; i++) {
 		__v16qi *packed_addr;
 		uint32_t *store_address;
 		int index = doc_ids[i] * desc->n_vectors_per_doc + 0;
 
 		packed_addr = &shard->groups_and_metrics[index];
+		fprintf(stderr, "&shard->groups_and_metrics[index] %p\n", &shard->groups_and_metrics[index]);
 		store_address = (uint32_t *)packed_addr;
+		fprintf(stderr, "store_address: %p\n", store_address);
 		*store_address |= groups[i] & GROUP_MASK;
-     }
+	}
 }
 
 
@@ -597,5 +604,19 @@ void packed_shard_unpack_metrics_into_buffer(packed_shard_t *shard,
      } else {
           load_cache_line_full_of_metrics(desc, shard->groups_and_metrics, doc_id, desc->n_metrics_per_vector,
                                           buffer, prefetch_doc_id);
+	}
+}
+
+void dump_shard(packed_shard_t *shard)
+{
+	static char digits[16] = { '0', '1', '2', '3', '4', '5', '6', '7',
+														 '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+	const size_t size = sizeof(__m128i ) * shard->grp_metrics_len;
+	fprintf(stderr, "desc->n_vectors_per_doc: %d\n", shard->metrics_layout->n_vectors_per_doc);
+	for (size_t i = 0; i < size; ++i) {
+		uint8_t value = ((const uint8_t *) shard->groups_and_metrics)[i];
+		char hex[3] = { digits[value >> 4], digits[value & 0x0f], '\0' };
+		fprintf(stderr, "%s ", hex);
+		if (i % 16 == 15) fprintf(stderr, "\n");
 	}
 }
