@@ -38,7 +38,7 @@ struct packed_metric_desc {
     uint8_t n_metrics_aux_index;    // used to control for how many metrics we have already generated the index
 };
 
-typedef struct shard_desc {
+typedef struct shard_data {
     int shard_id;
     int num_docs;
     int grp_metrics_len;           // How many __m128 elements do we have in our vector = n_doc_ids*n_vectors_per_doc
@@ -57,14 +57,15 @@ struct tgs_desc {
     int socket_fd;
     union term_union term;
     int n_slices;
-    struct index_slice_info *trm_slice_infos;
+    struct index_slice_info **trm_slice_infos;
     __m128i *group_stats;
 };
 
 struct session_desc {
     int num_groups;
     int num_stats;
-    struct shard_data *shards;
+    int num_shards;
+    packed_shard_t *shards;
     struct tgs_desc *current_tgs_pass;
 };
 
