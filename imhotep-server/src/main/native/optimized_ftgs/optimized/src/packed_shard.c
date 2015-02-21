@@ -10,7 +10,7 @@ int const GROUP_MASK = 0xFFFFFFF;
 
 static int metric_size_bytes(struct packed_metric_desc *desc, int64_t max, int64_t min)
 {
-	int64_t range = max - min;
+	uint64_t range = max - min;
 	int bits = sizeof(range) * 8 - __builtin_clz(range); /* !@# fix for zero case */
 	if ((bits <= 1) && (desc->n_boolean_metrics == desc->n_metrics_aux_index)
 			&& (desc->n_boolean_metrics < MAX_BIT_FIELDS)) {
@@ -33,19 +33,18 @@ static void createMetricsIndexes(	struct packed_metric_desc *desc,
 {
 	int metric_offset = first_free_byte;    //Find the initial byte for the metrics.
 	int n_vectors = 1;
-
 	/* Pack the metrics and create indexes to find where they start and end */
 	for (int i = 0; i < n_metrics; i++) {
 		int metric_size;
-
+        
 		metric_size = metric_size_bytes(desc, metric_maxes[i], metric_mins[i]);
-		if (metric_offset % 16 + metric_size > 16) {
+		if (metric_offset + metric_size > n_vectors * 16) {
 			metric_offset = n_vectors * 16;
 			n_vectors++;
 		}
 		(desc->index_metrics)[2 * i] = metric_offset;
 		metric_offset += metric_size;
-		(desc->index_metrics)[2 * i + 1] = metric_offset - 1;
+		(desc->index_metrics)[2 * i + 1] = metric_offset;
 		(desc->metric_n_vector)[i] = n_vectors - 1;
 		desc->n_metrics_aux_index++;
 	}
@@ -90,7 +89,7 @@ static void createShuffleVecFromIndexes(struct packed_metric_desc *desc)
 		}
 		//creates the first part of the __m128i vector
 		k = 0;
-		for (int j = index_metrics[2 * i]; j <= index_metrics[2 * i + 1]; j++) {
+		for (int j = index_metrics[2 * i]; j < index_metrics[2 * i + 1]; j++) {
 			byte_vector[k++] = j % 16;
 		}
 		desc->shuffle_vecs_get1[index1++] = _mm_setr_epi8(byte_vector[0],
@@ -115,7 +114,7 @@ static void createShuffleVecFromIndexes(struct packed_metric_desc *desc)
 		k = 8;
 		i++;
 		if (i < n_metrics && (metric_n_vector[i] == metric_n_vector[i - 1])) {
-			for (int j = index_metrics[2 * i]; j <= index_metrics[2 * i + 1]; j++) {
+			for (int j = index_metrics[2 * i]; j < index_metrics[2 * i + 1]; j++) {
 				byte_vector[k++] = j % 16;
 			}
 			desc->shuffle_vecs_get1[index1++] = _mm_setr_epi8(byte_vector[8],
@@ -179,7 +178,7 @@ static void createShuffleBlendFromIndexes(struct packed_metric_desc * desc)
 			byte_vector_blend[j] = 0;
 		}
 		k = 0;
-		for (j = index_metrics[2 * i]; j <= index_metrics[2 * i + 1]; j++) {
+		for (j = index_metrics[2 * i]; j < index_metrics[2 * i + 1]; j++) {
 			byte_vector_shuffle[j % 16] = k++;
 			byte_vector_blend[j % 16] = -1;
 		}
@@ -286,6 +285,7 @@ static void update_boolean_metric(	packed_shard_t *shard,
 								int metric_index)
 {
 	struct packed_metric_desc *desc = shard->metrics_layout;
+	int64_t min = (desc->metric_mins)[metric_index];
 
 	for (int i = 0; i < n_doc_ids; i++) {
 		__v16qi *packed_addr;
@@ -295,7 +295,7 @@ static void update_boolean_metric(	packed_shard_t *shard,
 
 		packed_addr = &shard->groups_and_metrics[index];
 		store_address = (uint32_t *)packed_addr;
-		*store_address |= metric_vals[i] << (GROUP_SIZE + metric_index);
+		*store_address |= (metric_vals[i] - min) << (GROUP_SIZE + metric_index);
 	}
 }
 
@@ -306,16 +306,14 @@ void packed_shard_update_metric(	packed_shard_t *shard,
 							int metric_index)
 {
 	struct packed_metric_desc *desc = shard->metrics_layout;
-	int64_t min;
-	uint8_t packed_vector_index;
+	int64_t min = (desc->metric_mins)[metric_index];
+	uint8_t packed_vector_index = (desc->metric_n_vector)[metric_index];
 
 	if (metric_index < desc->n_boolean_metrics) {
 		update_boolean_metric(shard, doc_ids, n_doc_ids, metric_vals, metric_index);
 		return;
 	}
-
-	min = (desc->metric_mins)[metric_index];
-	packed_vector_index = (desc->metric_n_vector)[metric_index];
+	
 	metric_index -= desc->n_boolean_metrics;
 	for (int i = 0; i < n_doc_ids; i++) {
 		size_t index = doc_ids[i] * desc->n_vectors_per_doc;
@@ -345,6 +343,7 @@ void packed_shard_lookup_metric_values(	packed_shard_t *shard,
 	struct packed_metric_desc *desc = shard->metrics_layout;
 	uint8_t n_boolean_metrics = desc->n_boolean_metrics;
 	int n_vecs_per_doc = desc->n_vectors_per_doc;
+	int64_t min = (desc->metric_mins)[metric_index];
 
 	if (metric_index >= n_boolean_metrics) {
 		uint8_t metric_vector = (desc->metric_n_vector)[metric_index];
@@ -360,7 +359,7 @@ void packed_shard_lookup_metric_values(	packed_shard_t *shard,
 			shuffle_control_vec = (desc->shuffle_vecs_get1)[metric_index - n_boolean_metrics];
 			unpacked = _mm_shuffle_epi8(packed, shuffle_control_vec);
 			result = _mm_extract_epi64(unpacked, 0);
-			dest[i] = result + (desc->metric_mins)[metric_index];
+			dest[i] = result + min;
 		}
 	} else {
 		for (int i = 0; i < n_doc_ids; i++) {
@@ -372,7 +371,7 @@ void packed_shard_lookup_metric_values(	packed_shard_t *shard,
 			packed_addr = &shard->groups_and_metrics[index];
 			load_address = (uint32_t *)packed_addr;
 			bit = (*load_address) & (1 << (GROUP_SIZE + metric_index));
-			dest[i] = bit != 0;
+			dest[i] = (bit != 0) + min;
 		}
 	}
 }
