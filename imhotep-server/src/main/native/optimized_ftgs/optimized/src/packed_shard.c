@@ -50,7 +50,7 @@ static void createMetricsIndexes(	struct packed_metric_desc *desc,
 	}
 
 	/* Calculate how many metrics we have per vector */
-	desc->n_metrics_per_vector = (uint8_t *) malloc(sizeof(uint8_t) * n_vectors);
+	desc->n_metrics_per_vector = (uint8_t *) calloc(sizeof(uint8_t), n_vectors);
 
 	/* initialize and clear the vector */
 	for (int i = 0; i < n_vectors; i++) {
@@ -164,8 +164,8 @@ static void createShuffleBlendFromIndexes(struct packed_metric_desc * desc)
 	uint8_t n_metrics = desc->n_metrics;
 	uint8_t * index_metrics = desc->index_metrics;
 	int k, i, j;
-	desc->shuffle_vecs_put = malloc(sizeof(__v16qi ) * (n_metrics - n_boolean_metrics));
-	desc->blend_vecs_put = malloc(sizeof(__v16qi ) * (n_metrics - n_boolean_metrics));
+	desc->shuffle_vecs_put = calloc(sizeof(__v16qi ), (n_metrics - n_boolean_metrics));
+	desc->blend_vecs_put = calloc(sizeof(__v16qi ), (n_metrics - n_boolean_metrics));
 
 	//Creates the shuffle vectors to put each metric in the right place for blending
 	// And create the blend vectors. We will have a main vector that is gonna receive
