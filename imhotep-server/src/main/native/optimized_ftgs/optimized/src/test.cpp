@@ -5,6 +5,7 @@ extern "C" {
 
 #include <algorithm>
 #include <array>
+#include <functional>
 #include <iomanip>
 #include <iostream>
 
@@ -70,15 +71,12 @@ void test_packed_shards(array<int64_t, n_metrics>& mins,
 	}
 	packed_shard_destroy(&shard);
 
+  cerr << " mins: " << mins << endl;
+  cerr << "maxes: " << maxes << endl;
   cout << (passed ? "PASSED" : "FAILED")
        << " n_docs: "    << setw(10) << left << n_docs
        << " n_metrics: " << setw(10) << left << n_metrics << " "
        << endl;
-
-  if (!passed) {
-    cout << " mins: " << mins << endl;
-    cout << "maxes: " << maxes << endl;
-  }
 }
 
 template <size_t n_docs, size_t n_metrics, int64_t min_value, int64_t max_value>
@@ -86,6 +84,20 @@ void test_uniform()
 {
   array<int64_t, n_metrics> mins;  fill(mins.begin(),  mins.end(),  min_value);
   array<int64_t, n_metrics> maxes; fill(maxes.begin(), maxes.end(), max_value);
+  test_packed_shards<n_docs, n_metrics>(mins, maxes);
+}
+
+typedef function<int64_t(size_t, int64_t)> MapFunc;
+
+template <size_t n_docs, size_t n_metrics>
+void test_func(MapFunc min_func, MapFunc max_func)
+{
+  array<int64_t, n_metrics> mins;
+  array<int64_t, n_metrics> maxes;
+  for (size_t i(0); i < n_metrics; ++i) {
+    mins[i]  = min_func(n_docs, i);
+    maxes[i] = max_func(n_docs, i);
+  }
   test_packed_shards<n_docs, n_metrics>(mins, maxes);
 }
 
@@ -110,5 +122,19 @@ int main(int argc, char * argv[])
   test_uniform<99, 1,  0, 0x0f>();
   test_uniform<99, 2,  0, 0x0f>();
   test_uniform<99, 64, 0, 0x0f>();
+
+  MapFunc min_func([](size_t n_docs, size_t n_metric) { return n_metric; });
+  MapFunc max_func([](size_t n_docs, size_t n_metric) { return n_docs * n_docs * n_metric * n_metric; });
+  
+  test_func<1,    1>(min_func, max_func);
+  test_func<1,    2>(min_func, max_func);
+  test_func<1,   64>(min_func, max_func);
+  test_func<2,    1>(min_func, max_func);
+  test_func<2,    2>(min_func, max_func);
+  test_func<2,   64>(min_func, max_func);
+  test_func<99,   1>(min_func, max_func);
+  test_func<99,   2>(min_func, max_func);
+  // test_func<99,  64>(min_func, max_func);
+  // test_func<999, 64>(min_func, max_func);
 }
 
