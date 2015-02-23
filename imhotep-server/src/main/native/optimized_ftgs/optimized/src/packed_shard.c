@@ -427,17 +427,6 @@ static int unpack_bit_fields(struct circular_buffer_vector *buffer,
 	return i / 2;
 }
 
-static inline __m128i decode_zigzag(__m128i data)
-{
-#ifdef ZIG_ZAG
-	__m128i shifted_one_right = _mm_srli_epi64(data, 1);
-	__m128i low_bit = _mm_and_si128(data, _mm_set1_epi64x(1));
-	__m128i negated = _mm_sub_epi64(_mm_setzero_si128(), low_bit);
-	data = _mm_xor_si128(shifted_one_right, negated);
-#endif
-	return data;
-}
-
 static inline __m128i unpack_2_metrics(__m128i packed_data, __v16qi shuffle_vector)
 {
 	__m128i unpacked;
@@ -466,10 +455,8 @@ static void load_less_than_a_cache_line_of_metrics(struct packed_metric_desc *de
 			__m128i decoded_data;
 
 			data = unpack_2_metrics(packed_data, desc->shuffle_vecs_get2[shuffle_idx]);
-			decoded_data = decode_zigzag(data);
-#ifndef ZIG_ZAG
-			decoded_data = _mm_add_epi64(decoded_data, mins[shuffle_idx]);
-#endif
+			decoded_data = _mm_add_epi64(data, mins[shuffle_idx]);
+
 
 			/* save data into buffer */
 			circular_buffer_vector_put(buffer, decoded_data);
@@ -507,10 +494,8 @@ static void load_cache_line_full_of_metrics(struct packed_metric_desc *desc,
 			__m128i decoded_data;
 			
 			data = unpack_2_metrics(packed_data, shuffle_vecs[vector_index]);
-			decoded_data = decode_zigzag(data);
-#ifndef ZIG_ZAG
-			decoded_data = _mm_add_epi64(decoded_data, mins[vector_index]);
-#endif
+			decoded_data = _mm_add_epi64(data, mins[vector_index]);
+
 			/* save data into buffer */
 			circular_buffer_vector_put(buffer, decoded_data);
 		
@@ -523,10 +508,9 @@ static void load_cache_line_full_of_metrics(struct packed_metric_desc *desc,
               __m128i decoded_data;
 
               data = unpack_2_metrics(packed_data, shuffle_vecs[vector_index]);
-              decoded_data = decode_zigzag(data);
-#ifndef ZIG_ZAG
-		    decoded_data = _mm_add_epi64(decoded_data, mins[vector_index]);
-#endif
+
+		      decoded_data = _mm_add_epi64(data, mins[vector_index]);
+
               /* save data into buffer */
               circular_buffer_vector_put(buffer, decoded_data);
 
@@ -539,10 +523,8 @@ static void load_cache_line_full_of_metrics(struct packed_metric_desc *desc,
               __m128i decoded_data;
 
               data = unpack_2_metrics(packed_data, shuffle_vecs[vector_index]);
-              decoded_data = decode_zigzag(data);
-#ifndef ZIG_ZAG
-		    decoded_data = _mm_add_epi64(decoded_data, mins[vector_index]);
-#endif
+		      decoded_data = _mm_add_epi64(data, mins[vector_index]);
+
               /* save data into buffer */
               circular_buffer_vector_put(buffer, decoded_data);
 
@@ -555,10 +537,8 @@ static void load_cache_line_full_of_metrics(struct packed_metric_desc *desc,
               __m128i decoded_data;
 
               data = unpack_2_metrics(packed_data, shuffle_vecs[vector_index]);
-              decoded_data = decode_zigzag(data);
-#ifndef ZIG_ZAG
-		    decoded_data = _mm_add_epi64(decoded_data, mins[vector_index]);
-#endif
+		      decoded_data = _mm_add_epi64(data, mins[vector_index]);
+
               /* save data into buffer */
               circular_buffer_vector_put(buffer, decoded_data);
 
