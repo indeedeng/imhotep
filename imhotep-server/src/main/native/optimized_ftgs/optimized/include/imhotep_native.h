@@ -8,7 +8,7 @@
 #include "bit_tree.h"
 
 #define TERM_TYPE_STRING						0
-#define TERM_TYPE_INT						1
+#define TERM_TYPE_INT                           1
 
 struct circular_buffer_vector;
 
