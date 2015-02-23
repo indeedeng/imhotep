@@ -3,6 +3,7 @@ CC=/usr/bin/clang
 JNI_HEADER_LOC=$(JAVA_HOME)/include
 JNI_HEADER_LOC2=$(JNI_HEADER_LOC)/linux
 CFLAGS=-g -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=c11 -msse4.2 -fvisibility=hidden -fPIC
+CPPFLAGS=-g -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=c++0x -msse4.2 -fvisibility=hidden -fPIC
 LFLAGS=-shared
 
 ODIR=obj
@@ -15,15 +16,11 @@ H_FILES := $(wildcard include/*.h)
 OBJ_FILES := $(addprefix obj/,$(notdir $(C_FILES:.c=.o)))
 TEST_OBJ_FILES=obj/bit_tree.o obj/circ_buf.o obj/packed_shard.o obj/test.o
 
-#_DEPS = hellomake.h
-#DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
-
-#_OBJ = hellomake.o hellofunc.o 
-#OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
-
-
 $(ODIR)/%.o: src/%.c $(H_FILES)
 	$(CC) -c -o $@ $< $(CFLAGS)
+
+$(ODIR)/%.o: src/%.cpp $(H_FILES)
+	$(CC) -c -o $@ $< $(CPPFLAGS)
 
 native_lib: $(OBJ_FILES)
 	$(CC) $(LFLAGS) $(LIBS) -o $@ $^ 
@@ -31,7 +28,7 @@ native_lib: $(OBJ_FILES)
 .PHONY: clean
 
 test: $(TEST_OBJ_FILES)
-	$(CC) -g -o test $(TEST_OBJ_FILES) $(LIBS)
+	$(CC) $ -o test $(TEST_OBJ_FILES) $(LIBS) -lstdc++
 
 clean:
 	rm -f $(ODIR)/*.o *~ core $(INCDIR)/*~
