@@ -11,7 +11,7 @@ int const GROUP_MASK = 0xFFFFFFF;
 static int metric_size_bytes(struct packed_metric_desc *desc, int64_t max, int64_t min)
 {
 	uint64_t range = max - min;
-	int bits = sizeof(range) * 8 - __builtin_clz(range); /* !@# fix for zero case */
+	int bits = sizeof(range) * 8 - __builtin_clzl(range); /* !@# fix for zero case */
 	if ((bits <= 1) && (desc->n_boolean_metrics == desc->n_metrics_aux_index)
 			&& (desc->n_boolean_metrics < MAX_BIT_FIELDS)) {
 		desc->n_boolean_metrics++;
