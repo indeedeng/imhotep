@@ -9,11 +9,19 @@ extern "C" {
 #endif
 /*
  * Class:     com_indeed_imhotep_local_NativeFTGSWorker
+ * Method:    native_run_int_tgs_pass
+ * Signature: (JJI[J[I[III)I
+ */
+JNIEXPORT jint JNICALL Java_com_indeed_imhotep_local_NativeFTGSWorker_native_1run_1int_1tgs_1pass
+  (JNIEnv *, jclass, jlong, jlong, jint, jlongArray, jintArray, jintArray, jint, jint);
+
+/*
+ * Class:     com_indeed_imhotep_local_NativeFTGSWorker
  * Method:    native_session_create
- * Signature: (III)J
+ * Signature: (JIII)J
  */
 JNIEXPORT jlong JNICALL Java_com_indeed_imhotep_local_NativeFTGSWorker_native_1session_1create
-  (JNIEnv *, jclass, jint, jint, jint);
+  (JNIEnv *, jclass, jlong, jint, jint, jint);
 
 /*
  * Class:     com_indeed_imhotep_local_NativeFTGSWorker

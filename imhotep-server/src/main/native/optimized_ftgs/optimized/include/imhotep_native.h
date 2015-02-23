@@ -28,6 +28,7 @@ struct worker_desc {
     struct bit_tree *bit_tree_buf;
     struct circular_buffer_int *grp_buf;
 	struct circular_buffer_vector *metric_buf;
+	union term_union **prev_term_by_socket;
 };
 
 struct string_term_s {
