@@ -97,7 +97,6 @@ void circular_buffer_vector_cleanup(struct circular_buffer_vector *buff)
 void circular_buffer_int_put(struct circular_buffer_int *buff, uint32_t data)
 {
 	struct circular_buffer *circ_buf = (struct circular_buffer *)buff;
-	uint32_t *restrict buffer;
 
 	circ_buf->buffer[circ_buf->head & circ_buf->mask] = data;
 	circ_buf->head ++;

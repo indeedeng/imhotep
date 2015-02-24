@@ -101,15 +101,15 @@ static void accumulate_stats_for_term(struct index_slice_info *slice,
 		uint32_t bit_fields;
 		uint32_t group;
 
-		/* flag group as modified */
-		bit_tree_set(non_zero_groups, group);
-
 		/* decode bit fields */
 		packed_bf_grp = *((struct bit_fields_and_group *)&grp_metrics[start_idx]);
 		bit_fields = packed_bf_grp.metrics;
 
 		/* get group*/
 		group = packed_bf_grp.grp;
+
+		/* flag group as modified */
+		bit_tree_set(non_zero_groups, group);
 
 		/* save group into buffer */
 		circular_buffer_int_put(grp_buf, group);

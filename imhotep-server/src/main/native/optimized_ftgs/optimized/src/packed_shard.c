@@ -291,7 +291,6 @@ static void update_boolean_metric(	packed_shard_t *shard,
 		__v16qi *packed_addr;
 		uint32_t *store_address;
 		int index = doc_ids[i] * desc->n_vectors_per_doc + 0;
-		uint32_t bit;
 
 		packed_addr = &shard->groups_and_metrics[index];
 		store_address = (uint32_t *)packed_addr;
