@@ -27,6 +27,7 @@ ostream& operator<<(ostream& os, const array<T, N>& items)
   return os;
 }
 
+
 typedef function<int64_t(int64_t min, int64_t max)> MetricFunc;
 
 template <size_t n_metrics>
@@ -80,6 +81,7 @@ bool test_packed_shards(size_t n_docs,
   return result;
 }
 
+
 typedef function<int64_t(size_t n_metric, size_t metric_index)> RangeFunc;
 
 template <size_t n_metrics,
@@ -104,6 +106,7 @@ void test_func(size_t n_docs,
        << endl;
 }
 
+
 template <size_t n_metrics, int64_t min_value, int64_t max_value,
           bool should_succeed=true>
 void test_uniform(size_t n_docs, MetricFunc metric_func)
@@ -112,6 +115,7 @@ void test_uniform(size_t n_docs, MetricFunc metric_func)
   RangeFunc max_func([](size_t, size_t) { return max_value; });
   test_func<n_metrics, should_succeed>(n_docs, min_func, max_func, metric_func);
 }
+
 
 /* Make a max func for a given type that we can use to pack four
    booleans into the flags area and elements of a given size into the
@@ -122,6 +126,7 @@ RangeFunc make_flags_test_max_func() {
     return metric_index < 4 ? 1 : numeric_limits<T>::max();
   };
 }
+
 
 int main(int argc, char * argv[])
 {
