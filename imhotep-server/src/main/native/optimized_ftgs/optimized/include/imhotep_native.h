@@ -92,6 +92,7 @@ struct tgs_desc {
 struct session_desc {
     int num_groups;
     int num_stats;
+    uint8_t* stat_order;
     int num_shards;
     packed_shard_t *shards;
     struct tgs_desc *current_tgs_pass;

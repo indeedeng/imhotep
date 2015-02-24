@@ -31,12 +31,14 @@ JNIEXPORT jlong JNICALL Java_com_indeed_imhotep_local_NativeFTGSWorker_native_1i
  * Signature: (III)J
  */
 JNIEXPORT jlong JNICALL Java_com_indeed_imhotep_local_NativeFTGSWorker_native_1session_1create
-  (JNIEnv *java_env, jclass class, jlong worker_addr, jint n_groups, jint n_metrics, jint n_shards)
+  (JNIEnv *env, jclass class, jint n_groups, jint n_metrics, jbyteArray stat_order, jint n_shards)
 {
 	struct session_desc *session;
-
+	
 	session = calloc(sizeof(struct session_desc), 1);
-	session_init(session, n_groups, n_metrics, n_shards);
+	uint8_t* order = (*env)->GetPrimitiveArrayCritical(env, stat_order, 0);
+	session_init(session, n_groups, n_metrics, order, n_shards);
+	(*env)->ReleasePrimitiveArrayCritical(env, stat_order, order, 0);
 
 	return (jlong)session;
 }

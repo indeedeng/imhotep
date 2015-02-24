@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include "imhotep_native.h"
 #include "circ_buf.h"
 
@@ -105,14 +106,18 @@ int create_shard_multicache(struct session_desc *session,
 void session_init(struct session_desc *session,
                   int n_groups,
                   int n_stats,
+                  uint8_t* stat_order,
                   int n_shards)
 {
 	packed_shard_t *shards;
 
 	session->num_groups = n_groups;
 	session->num_stats = n_stats;
+	session->stat_order = calloc(sizeof(uint8_t), n_stats);
 	session->num_shards = n_shards;
 	session->current_tgs_pass = NULL;
+	
+	memcpy(session->stat_order, stat_order, n_stats);
 
 	shards = (packed_shard_t *)calloc(sizeof(packed_shard_t), n_shards);
 	for (int i = 0; i < n_shards; i++) {
@@ -135,7 +140,7 @@ void session_destroy(struct session_desc *session)
 	for (int i = 0; i < n_shards; i++) {
 		packed_shard_destroy(&shards[i]);
 	}
-
+	free(session->stat_order);
 	free(shards);
 }
 

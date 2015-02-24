@@ -20,6 +20,7 @@ int create_shard_multicache(struct session_desc *session,
 void session_init(struct session_desc *session,
                   int n_groups,
                   int n_stats,
+                  uint8_t* stat_order,
                   int n_shards);
 
 void session_destroy(struct session_desc *session);

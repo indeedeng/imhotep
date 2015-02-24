@@ -132,7 +132,7 @@ static int write_svint64(struct buffered_socket* socket, int64_t i) {
 }
 
 int write_group_stats(struct buffered_socket* socket, uint32_t* groups, size_t term_group_count,
-             int64_t* group_stats, int num_stats, size_t stats_size) {
+             int64_t* group_stats, int num_stats, size_t stats_size, uint8_t* stat_order) {
     int32_t previous_group = -1;
     for (size_t i = 0; i < term_group_count; i++) {
         uint32_t group = groups[i];
@@ -148,21 +148,22 @@ int write_group_stats(struct buffered_socket* socket, uint32_t* groups, size_t t
         }
         
         for (; stat_index <= num_stats-8; stat_index += 8) {
-            int64_t stat = group_stats[group*stats_size+stat_index];
+            int64_t stat;
+            stat = group_stats[group*stats_size+stat_order[stat_index]+0];
             TRY(write_svint64(socket, stat));
-            stat = group_stats[group*stats_size+stat_index+1];
+            stat = group_stats[group*stats_size+stat_order[stat_index]+1];
             TRY(write_svint64(socket, stat));
-            stat = group_stats[group*stats_size+stat_index+2];
+            stat = group_stats[group*stats_size+stat_order[stat_index]+2];
             TRY(write_svint64(socket, stat));
-            stat = group_stats[group*stats_size+stat_index+3];
+            stat = group_stats[group*stats_size+stat_order[stat_index]+3];
             TRY(write_svint64(socket, stat));
-            stat = group_stats[group*stats_size+stat_index+4];
+            stat = group_stats[group*stats_size+stat_order[stat_index]+4];
             TRY(write_svint64(socket, stat));
-            stat = group_stats[group*stats_size+stat_index+5];
+            stat = group_stats[group*stats_size+stat_order[stat_index]+5];
             TRY(write_svint64(socket, stat));
-            stat = group_stats[group*stats_size+stat_index+6];
+            stat = group_stats[group*stats_size+stat_order[stat_index]+6];
             TRY(write_svint64(socket, stat));
-            stat = group_stats[group*stats_size+stat_index+7];
+            stat = group_stats[group*stats_size+stat_order[stat_index]+7];
             TRY(write_svint64(socket, stat));
             
             if (prefetch) {
@@ -214,6 +215,6 @@ int write_term_group_stats(struct session_desc* session, struct tgs_desc* tgs, u
     TRY(write_svint64(tgs->socket, term_doc_freq));
     int num_stats = session->num_stats;
     size_t stats_size = num_stats <= 2 ? 2 : (num_stats+3)/4*4;
-    TRY(write_group_stats(tgs->socket, groups, term_group_count, (int64_t*)tgs->group_stats, num_stats, stats_size));
+    TRY(write_group_stats(tgs->socket, groups, term_group_count, (int64_t*)tgs->group_stats, num_stats, stats_size, session->stat_order));
     return 0;
 }
