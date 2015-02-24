@@ -27,8 +27,7 @@ ostream& operator<<(ostream& os, const array<T, N>& items)
   return os;
 }
 
-// (doc_id, metric_index, min, max) -> metric value
-typedef function<int64_t(int64_t, int64_t)> MetricFunc;
+typedef function<int64_t(int64_t min, int64_t max)> MetricFunc;
 
 template <size_t n_metrics>
 bool test_packed_shards(size_t n_docs,
@@ -81,25 +80,24 @@ bool test_packed_shards(size_t n_docs,
   return result;
 }
 
-// (n_docs, n_metrics) -> max/min value
-typedef function<int64_t(size_t, int64_t)> MapFunc;
+typedef function<int64_t(size_t n_metric, size_t metric_index)> RangeFunc;
 
 template <size_t n_metrics,
           bool should_succeed=true>
 void test_func(size_t n_docs,
-               MapFunc min_func,
-               MapFunc max_func,
+               RangeFunc min_func,
+               RangeFunc max_func,
                MetricFunc metric_func)
 {
   array<int64_t, n_metrics> mins;
   array<int64_t, n_metrics> maxes;
   for (size_t i(0); i < n_metrics; ++i) {
-    mins[i]  = min_func(n_docs, i);
-    maxes[i] = max_func(n_docs, i);
+    mins[i]  = min_func(n_metrics, i);
+    maxes[i] = max_func(n_metrics, i);
   }
   const bool result(test_packed_shards<n_metrics>(n_docs, mins, maxes, metric_func));
-  // cout << " mins: " << mins << endl;
-  // cout << "maxes: " << maxes << endl;
+   // cout << " mins: " << mins << endl;
+   // cout << "maxes: " << maxes << endl;
   cout << ((result == should_succeed) ? "PASSED" : "FAILED")
        << " n_docs: "    << setw(10) << left << n_docs
        << " n_metrics: " << setw(10) << left << n_metrics << " "
@@ -110,14 +108,25 @@ template <size_t n_metrics, int64_t min_value, int64_t max_value,
           bool should_succeed=true>
 void test_uniform(size_t n_docs, MetricFunc metric_func)
 {
-  MapFunc min_func([](size_t, size_t) { return min_value; });
-  MapFunc max_func([](size_t, size_t) { return max_value; });
+  RangeFunc min_func([](size_t, size_t) { return min_value; });
+  RangeFunc max_func([](size_t, size_t) { return max_value; });
   test_func<n_metrics, should_succeed>(n_docs, min_func, max_func, metric_func);
+}
+
+/* Make a max func for a given type that we can use to pack four
+   booleans into the flags area and elements of a given size into the
+   rest. */
+template <typename T>
+RangeFunc make_flags_test_max_func() {
+  return [](size_t, size_t metric_index) {
+    return metric_index < 4 ? 1 : numeric_limits<T>::max();
+  };
 }
 
 int main(int argc, char * argv[])
 {
-  for (size_t n_docs(1); n_docs < 2048; n_docs *= 2) {
+  const size_t max_n_docs(argc == 2 ? atoi(argv[1]) : 1);
+  for (size_t n_docs(1); n_docs <= max_n_docs; ++n_docs) {
 
     vector<MetricFunc> metric_funcs = {
         [](int64_t min_val, int64_t max_val) { return min_val; },
@@ -145,42 +154,12 @@ int main(int argc, char * argv[])
       test_uniform<63,  0, numeric_limits<int32_t>::max()>(n_docs, metric_func);
       test_uniform<31,  0, numeric_limits<int64_t>::max()>(n_docs, metric_func);
 
-      // /* Four booleans + full pack of each metric size. */
-      // max_func = [](size_t n_docs, size_t n_metric) {
-      //   return 
-      // };
-                   // !@# next test 4-bits plus tight packs of all
-                   // !other types
-
-     exit(0);
-                   
-
-      // test_uniform<99, 64, 0, 0x0f>(metric_func);
-
-      MapFunc min_func([](size_t n_docs, size_t n_metric) { return n_metric;                              });
-      MapFunc max_func([](size_t n_docs, size_t n_metric) { return n_docs * n_docs * n_metric * n_metric; });
-  
-      test_func<1>(n_docs, min_func, max_func, metric_func);
-      test_func<2>(n_docs, min_func, max_func, metric_func);
-      test_func<64>(n_docs, min_func, max_func, metric_func);
-
-      /* These are expected to fail because we exceed the max of 256 slices */
-      // test_func<64, false>(n_docs, min_func, max_func, metric_func);
-      // test_func<64, false>(n_docs, min_func, max_func, metric_func);
-
-      min_func = [] (size_t n_docs, size_t n_metric) { return n_docs;                   };
-      max_func = [] (size_t n_docs, size_t n_metric) { return n_docs + (1 << n_metric); };
-      test_func<1>(n_docs, min_func, max_func, metric_func);
-      test_func<7>(n_docs, min_func, max_func, metric_func);
-      test_func<15>(n_docs, min_func, max_func, metric_func);
-      test_func<31>(n_docs, min_func, max_func, metric_func);
-      test_func<63>(n_docs, min_func, max_func, metric_func);
-      /*
-        test_func<7>(n_docs, min_func, max_func, metric_func);
-        test_func<15>(n_docs, min_func, max_func, metric_func);
-        test_func<31>(n_docs, min_func, max_func, metric_func);
-        test_func<60>(n_docs, min_func, max_func, metric_func);
-      */
+      /* Four booleans + full pack of each metric size. */
+      RangeFunc min_func([](size_t, size_t) { return 0; });
+      test_func<251>(n_docs, min_func, make_flags_test_max_func<int8_t>(), metric_func);
+      test_func<126>(n_docs, min_func, make_flags_test_max_func<int16_t>(), metric_func);
+      test_func<63>(n_docs, min_func, make_flags_test_max_func<int32_t>(), metric_func);
+      test_func<31>(n_docs, min_func, make_flags_test_max_func<int64_t>(), metric_func);
     }
   }
 }
