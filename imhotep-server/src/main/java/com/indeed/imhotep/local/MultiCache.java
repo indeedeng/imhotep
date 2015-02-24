@@ -1,5 +1,6 @@
 package com.indeed.imhotep.local;
 
+import com.google.common.collect.Lists;
 import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.imhotep.BitTree;
@@ -9,6 +10,8 @@ import org.apache.log4j.Logger;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @author jplaisance
@@ -16,10 +19,25 @@ import java.io.IOException;
 public final class MultiCache implements Closeable {
     private static final Logger log = Logger.getLogger(MultiCache.class);
 
-    private final long address;
+    private final long flamdexDoclistAddress;
+    private long nativeShardDataPtr;
+    private int numDocsInShard;
+    private final int numStats;
+    private final List<MultiCacheIntValueLookup> nativeMetricLookups;
+    private final MultiCacheGroupLookup nativeGroupLookup;
 
-    public MultiCache(long address) {
-        this.address = address;
+    public MultiCache(long flamdexDoclistAddress,
+                      int numDocsInShard,
+                      List<IntValueLookup> metrics,
+                      NativeMetricsOrdering ordering) {
+        this.flamdexDoclistAddress = flamdexDoclistAddress;
+        this.numDocsInShard = numDocsInShard;
+        this.numStats = metrics.size();
+
+        this.nativeMetricLookups = new ArrayList<MultiCacheIntValueLookup>(this.numStats);
+        for (int i = 0; i < this.numStats; i++) {
+
+        }
     }
 
     public IntValueLookup getIntValueLookup(int statIndex) {
