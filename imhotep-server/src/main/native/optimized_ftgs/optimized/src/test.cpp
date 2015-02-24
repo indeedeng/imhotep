@@ -8,6 +8,8 @@ extern "C" {
 #include <functional>
 #include <iomanip>
 #include <iostream>
+#include <limits>
+#include <vector>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -98,8 +100,6 @@ void test_func(size_t n_docs,
   const bool result(test_packed_shards<n_metrics>(n_docs, mins, maxes, metric_func));
   // cout << " mins: " << mins << endl;
   // cout << "maxes: " << maxes << endl;
-  cout << "should succeed: " << (should_succeed ? "true" : "false") << endl;
-  cout << "result: " << result << endl;
   cout << ((result == should_succeed) ? "PASSED" : "FAILED")
        << " n_docs: "    << setw(10) << left << n_docs
        << " n_metrics: " << setw(10) << left << n_metrics << " "
@@ -117,24 +117,43 @@ void test_uniform(size_t n_docs, MetricFunc metric_func)
 
 int main(int argc, char * argv[])
 {
-  vector<MetricFunc> metric_funcs = {
-    [](int64_t min_val, int64_t max_val) { return min_val; },
-    [](int64_t min_val, int64_t max_val) { return max_val; },
-  };
+  for (size_t n_docs(1); n_docs < 2048; n_docs *= 2) {
 
-  for (size_t n_docs(1); n_docs < 2048; n_docs = n_docs << 1) {
+    vector<MetricFunc> metric_funcs = {
+        [](int64_t min_val, int64_t max_val) { return min_val; },
+        [](int64_t min_val, int64_t max_val) { return max_val; },
+        [](int64_t min_val, int64_t max_val) { return min_val + (max_val - min_val) / 2; },
+      };
+
     for (auto metric_func: metric_funcs) {
       /* We should be able to store 4 booleans in flags and another
          251 in single-byte entries. */
       test_uniform<1,   0, 1>(n_docs, metric_func);
-      test_uniform<2,   0, 1>(n_docs, metric_func);
-      test_uniform<64,  0, 1>(n_docs, metric_func);
+      test_uniform<4,   0, 1>(n_docs, metric_func);
+      test_uniform<5,   0, 1>(n_docs, metric_func);
       test_uniform<255, 0, 1>(n_docs, metric_func);
 
-      test_uniform<251, 0, 0x0f>(n_docs, metric_func);
-      test_uniform<126, 0, 0x0fff>(n_docs, metric_func);
-      test_uniform<63,  0, 0x0fffffff>(n_docs, metric_func);
-      test_uniform<31,  0, 0x0fffffffffffffff>(n_docs, metric_func);
+      /* Single entries for each metric size. */
+      test_uniform<1, 0, numeric_limits<int8_t>::max()>(n_docs, metric_func);
+      test_uniform<1, 0, numeric_limits<int16_t>::max()>(n_docs, metric_func);
+      test_uniform<1, 0, numeric_limits<int32_t>::max()>(n_docs, metric_func);
+      test_uniform<1, 0, numeric_limits<int64_t>::max()>(n_docs, metric_func);
+
+      /* Full pack of each metric size. */
+      test_uniform<251, 0, numeric_limits<int8_t>::max()>(n_docs, metric_func);
+      test_uniform<126, 0, numeric_limits<int16_t>::max()>(n_docs, metric_func);
+      test_uniform<63,  0, numeric_limits<int32_t>::max()>(n_docs, metric_func);
+      test_uniform<31,  0, numeric_limits<int64_t>::max()>(n_docs, metric_func);
+
+      // /* Four booleans + full pack of each metric size. */
+      // max_func = [](size_t n_docs, size_t n_metric) {
+      //   return 
+      // };
+                   // !@# next test 4-bits plus tight packs of all
+                   // !other types
+
+     exit(0);
+                   
 
       // test_uniform<99, 64, 0, 0x0f>(metric_func);
 
