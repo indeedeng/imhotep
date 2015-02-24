@@ -14,7 +14,7 @@ LIBS=-lm
 C_FILES := $(wildcard src/*.c)
 H_FILES := $(wildcard include/*.h)
 OBJ_FILES := $(addprefix obj/,$(notdir $(C_FILES:.c=.o)))
-TEST_OBJ_FILES=obj/bit_tree.o obj/circ_buf.o obj/packed_shard.o obj/test.o
+TEST_OBJ_FILES=obj/bit_tree.o obj/circ_buf.o obj/packed_shard.o obj/test_packed_shard.o
 
 $(ODIR)/%.o: src/%.c $(H_FILES)
 	$(CC) -c -o $@ $< $(CFLAGS)
@@ -28,9 +28,9 @@ native_lib: $(OBJ_FILES)
 .PHONY: clean
 
 test: $(TEST_OBJ_FILES)
-	$(CC) $ -o test $(TEST_OBJ_FILES) $(LIBS) -lstdc++
+	$(CC) $ -o test_packed_shard $(TEST_OBJ_FILES) $(LIBS) -lstdc++
 
 clean:
-	rm -f $(ODIR)/*.o *~ core $(INCDIR)/*~
+	rm -f $(ODIR)/*.o *~ core $(INCDIR)/*~ test_packed_shard
 
 all: $(ODIR)/%.o

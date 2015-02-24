@@ -89,7 +89,8 @@ template <size_t n_metrics,
 void test_func(size_t n_docs,
                RangeFunc min_func,
                RangeFunc max_func,
-               MetricFunc metric_func)
+               MetricFunc metric_func,
+               const string& description="")
 {
   array<int64_t, n_metrics> mins;
   array<int64_t, n_metrics> maxes;
@@ -98,22 +99,24 @@ void test_func(size_t n_docs,
     maxes[i] = max_func(n_metrics, i);
   }
   const bool result(test_packed_shards<n_metrics>(n_docs, mins, maxes, metric_func));
-   // cout << " mins: " << mins << endl;
-   // cout << "maxes: " << maxes << endl;
+  // cout << " mins: " << mins << endl;
+  // cout << "maxes: " << maxes << endl;
   cout << ((result == should_succeed) ? "PASSED" : "FAILED")
        << " n_docs: "    << setw(10) << left << n_docs
        << " n_metrics: " << setw(10) << left << n_metrics << " "
-       << endl;
+       << description << endl;
 }
 
 
 template <size_t n_metrics, int64_t min_value, int64_t max_value,
           bool should_succeed=true>
-void test_uniform(size_t n_docs, MetricFunc metric_func)
+void test_uniform(size_t n_docs, MetricFunc metric_func,
+                  const string& description="")
 {
   RangeFunc min_func([](size_t, size_t) { return min_value; });
   RangeFunc max_func([](size_t, size_t) { return max_value; });
-  test_func<n_metrics, should_succeed>(n_docs, min_func, max_func, metric_func);
+  test_func<n_metrics, should_succeed>(n_docs, min_func, max_func,
+                                       metric_func, description);
 }
 
 
@@ -142,29 +145,33 @@ int main(int argc, char * argv[])
     for (auto metric_func: metric_funcs) {
       /* We should be able to store 4 booleans in flags and another
          251 in single-byte entries. */
-      test_uniform<1,   0, 1>(n_docs, metric_func);
-      test_uniform<4,   0, 1>(n_docs, metric_func);
-      test_uniform<5,   0, 1>(n_docs, metric_func);
-      test_uniform<255, 0, 1>(n_docs, metric_func);
+      test_uniform<1,   0, 1>(n_docs, metric_func, "1 flag");
+      test_uniform<4,   0, 1>(n_docs, metric_func, "all flags");
+      test_uniform<5,   0, 1>(n_docs, metric_func, "all flags + 1 boolean value");
+      test_uniform<255, 0, 1>(n_docs, metric_func, "all flaggs + all boolean values");
 
       /* Single entries for each metric size. */
-      test_uniform<1, 0, numeric_limits<int8_t>::max()>(n_docs, metric_func);
-      test_uniform<1, 0, numeric_limits<int16_t>::max()>(n_docs, metric_func);
-      test_uniform<1, 0, numeric_limits<int32_t>::max()>(n_docs, metric_func);
-      test_uniform<1, 0, numeric_limits<int64_t>::max()>(n_docs, metric_func);
+      test_uniform<1, 0, numeric_limits<int8_t>::max()>(n_docs, metric_func, "single int8_t");
+      test_uniform<1, 0, numeric_limits<int16_t>::max()>(n_docs, metric_func, "single int16_t");
+      test_uniform<1, 0, numeric_limits<int32_t>::max()>(n_docs, metric_func, "single int32_t");
+      test_uniform<1, 0, numeric_limits<int64_t>::max()>(n_docs, metric_func, "single int64_t");
 
       /* Full pack of each metric size. */
-      test_uniform<251, 0, numeric_limits<int8_t>::max()>(n_docs, metric_func);
-      test_uniform<126, 0, numeric_limits<int16_t>::max()>(n_docs, metric_func);
-      test_uniform<63,  0, numeric_limits<int32_t>::max()>(n_docs, metric_func);
-      test_uniform<31,  0, numeric_limits<int64_t>::max()>(n_docs, metric_func);
+      test_uniform<251, 0, numeric_limits<int8_t>::max()>(n_docs, metric_func, "all int8_t");
+      test_uniform<126, 0, numeric_limits<int16_t>::max()>(n_docs, metric_func, "all int16_t");
+      test_uniform<63,  0, numeric_limits<int32_t>::max()>(n_docs, metric_func, "all int32_t");
+      test_uniform<31,  0, numeric_limits<int64_t>::max()>(n_docs, metric_func, "all int64_t");
 
       /* Four booleans + full pack of each metric size. */
       RangeFunc min_func([](size_t, size_t) { return 0; });
-      test_func<251>(n_docs, min_func, make_flags_test_max_func<int8_t>(), metric_func);
-      test_func<126>(n_docs, min_func, make_flags_test_max_func<int16_t>(), metric_func);
-      test_func<63>(n_docs, min_func, make_flags_test_max_func<int32_t>(), metric_func);
-      test_func<31>(n_docs, min_func, make_flags_test_max_func<int64_t>(), metric_func);
+      test_func<251>(n_docs, min_func, make_flags_test_max_func<int8_t>(), metric_func,
+                     "all flags + all int8_t");
+      test_func<126>(n_docs, min_func, make_flags_test_max_func<int16_t>(), metric_func,
+                     "all flags + all int16_t");
+      test_func<63>(n_docs, min_func, make_flags_test_max_func<int32_t>(), metric_func,
+                    "all flags + all int32_t");
+      test_func<31>(n_docs, min_func, make_flags_test_max_func<int64_t>(), metric_func,
+                    "all flags + all int64_t");
     }
   }
 }
