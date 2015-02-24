@@ -229,7 +229,7 @@ void packed_shard_init(	packed_shard_t *shard,
 
 	shard->num_docs = n_docs;
 
-	desc = (struct packed_metric_desc *)calloc(1, sizeof(struct packed_metric_desc));
+	desc = (struct packed_metric_desc *)calloc(sizeof(struct packed_metric_desc), 1);
 	shard->metrics_layout = desc;
 
 	desc->index_metrics = (uint8_t *) calloc(sizeof(uint8_t), n_metrics * 2);

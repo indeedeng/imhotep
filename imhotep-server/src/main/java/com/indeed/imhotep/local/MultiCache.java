@@ -18,6 +18,7 @@ import java.util.List;
  */
 public final class MultiCache implements Closeable {
     private static final Logger log = Logger.getLogger(MultiCache.class);
+    private static final int BLOCK_COPY_SIZE = 8192;
 
     private final long flamdexDoclistAddress;
     private long nativeShardDataPtr;
@@ -26,6 +27,11 @@ public final class MultiCache implements Closeable {
     private final List<MultiCacheIntValueLookup> nativeMetricLookups;
     private final MultiCacheGroupLookup nativeGroupLookup;
 
+    public static class StatsOrderingInfo {
+        List<IntValueLookup> reorderedMetrics;
+        int[] mins;
+        int[] maxes;
+    }
     public MultiCache(long flamdexDoclistAddress,
                       int numDocsInShard,
                       List<IntValueLookup> metrics,
@@ -35,8 +41,17 @@ public final class MultiCache implements Closeable {
         this.numStats = metrics.size();
 
         this.nativeMetricLookups = new ArrayList<MultiCacheIntValueLookup>(this.numStats);
-        for (int i = 0; i < this.numStats; i++) {
 
+        final StatsOrderingInfo orderInfo = ordering.getOrder(metrics);
+        this.nativeShardDataPtr = nativeBuildMultiCache(numDocsInShard,
+                                                        orderInfo.mins,
+                                                        orderInfo.maxes,
+                                                        this.numStats);
+
+        for (int i = 0; i < numStats; i++) {
+            nativeMetricLookups.add(new MultiCacheIntValueLookup(i, orderInfo.mins[i], orderInfo.maxes[i]));
+
+            /* copy data into muticache */
         }
     }
 

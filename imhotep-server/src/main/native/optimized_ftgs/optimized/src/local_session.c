@@ -87,20 +87,16 @@ int run_tgs_pass(struct worker_desc *worker,
 }
 
 //This method assumes that the boolean metrics will come first
-int create_shard_multicache(struct session_desc *session,
-                            	int id,
-						uint32_t n_docs,
-						int64_t *metric_mins,
-						int64_t *metric_maxes,
-						int n_metrics)
+void *create_shard_multicache(uint32_t n_docs,
+                              int64_t *metric_mins,
+                              int64_t *metric_maxes,
+                              int n_metrics)
 {
 	packed_shard_t *shard;
 
-	shard = &session->shards[id];
-	shard->num_docs = n_docs;
+    shard = calloc(sizeof(packed_shard_t), 1);
 	packed_shard_init(shard, n_docs, metric_mins, metric_maxes, n_metrics);
-
-	return id;
+	return shard;
 }
 
 void session_init(struct session_desc *session,
