@@ -2133,6 +2133,17 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
         return numStats;
     }
 
+
+    @Override
+    public long getLowerBound(int stat) {
+        return statLookup[stat].getMin();
+    }
+
+    @Override
+    public long getUpperBound(int stat) {
+        return statLookup[stat].getMax();
+    }
+
     @Override
     public int getNumGroups() {
         return docIdToGroup.getNumGroups();

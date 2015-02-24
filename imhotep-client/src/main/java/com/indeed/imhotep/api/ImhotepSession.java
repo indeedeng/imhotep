@@ -292,6 +292,20 @@ public interface ImhotepSession extends Closeable {
      */
     int getNumGroups();
 
+    /*
+     * get a lower bound for a stat
+     * @param stat index of stat
+     * @return lower bound for stat, can be less than min
+     */
+    long getLowerBound(int stat);
+
+    /**
+     * get an upper bound for a stat
+     * @param stat index of stat
+     * @return upper bound for stat, can be greater than max
+     */
+    long getUpperBound(int stat);
+
     /**
      * create a per-document dynamic metric
      * @param name the name of the metric to create

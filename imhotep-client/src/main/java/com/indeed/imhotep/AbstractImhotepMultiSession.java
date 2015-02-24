@@ -73,6 +73,8 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
 
     private final Integer[] integerBuf;
 
+    private final Long[] longBuf;
+
     private final Object[] nullBuf;
 
     private final long[][] groupStatsBuf;
@@ -116,6 +118,7 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
 
         totalDocFreqBuf = new Long[sessions.length];
         integerBuf = new Integer[sessions.length];
+        longBuf = new Long[sessions.length];
         nullBuf = new Object[sessions.length];
         groupStatsBuf = new long[sessions.length][];
         termCountListBuf = new List[sessions.length];
@@ -436,6 +439,27 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
             }
         });
         return Collections.max(Arrays.asList(integerBuf));
+    }
+
+    public long getLowerBound(final int stat) {
+        executeRuntimeException(longBuf, new ThrowingFunction<ImhotepSession, Long>() {
+            @Override
+            public Long apply(ImhotepSession session) throws Exception {
+                return session.getLowerBound(stat);
+            }
+        });
+        return Collections.min(Arrays.asList(longBuf));
+    }
+
+    @Override
+    public long getUpperBound(final int stat) {
+        executeRuntimeException(longBuf, new ThrowingFunction<ImhotepSession, Long>() {
+            @Override
+            public Long apply(ImhotepSession session) throws Exception {
+                return session.getUpperBound(stat);
+            }
+        });
+        return Collections.max(Arrays.asList(longBuf));
     }
 
     @Override
