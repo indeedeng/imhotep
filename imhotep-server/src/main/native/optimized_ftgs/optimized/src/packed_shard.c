@@ -380,16 +380,14 @@ void packed_shard_lookup_groups(packed_shard_t *shard,
                                 int n_doc_ids,
                                 int64_t * restrict groups)
 {
-	struct packed_metric_desc *desc = shard->metrics_layout;
+	const struct packed_metric_desc *desc = shard->metrics_layout;
 
 	for (int i = 0; i < n_doc_ids; i++) {
 		__v16qi *packed_addr;
-		uint32_t *load_address;
-		int index = doc_ids[i] * desc->n_vectors_per_doc + 0;
-
+		const int index = doc_ids[i] * desc->n_vectors_per_doc + 0;
 		packed_addr = &shard->groups_and_metrics[index];
-		load_address = (uint32_t *)packed_addr;
-		groups[i] = ((long) (*load_address)) & GROUP_MASK;
+		const struct bit_fields_and_group *packed_bf_grp = (struct bit_fields_and_group *)packed_addr;
+		groups[i] = packed_bf_grp->grp;
 	}
 }
 
@@ -398,16 +396,14 @@ void packed_shard_update_groups(packed_shard_t *shard,
                                 int n_doc_ids,
                                 int64_t * restrict groups)
 {
-	struct packed_metric_desc *desc = shard->metrics_layout;
+	const struct packed_metric_desc *desc = shard->metrics_layout;
 
 	for (int i = 0; i < n_doc_ids; i++) {
 		__v16qi *packed_addr;
-		struct bit_fields_and_group *packed_bf_grp;
-		int index = doc_ids[i] * desc->n_vectors_per_doc + 0;
-
+		const int index = doc_ids[i] * desc->n_vectors_per_doc + 0;
 		packed_addr = &shard->groups_and_metrics[index];
-		packed_bf_grp = (struct bit_fields_and_group *)packed_addr;
-		packed_bf_grp->grp = groups[i];
+		struct bit_fields_and_group *packed_bf_grp = (struct bit_fields_and_group *)packed_addr;
+		packed_bf_grp->grp = groups[i] & GROUP_MASK;
 	}
 }
 
