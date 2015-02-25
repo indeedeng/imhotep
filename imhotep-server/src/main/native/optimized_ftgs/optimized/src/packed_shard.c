@@ -28,7 +28,6 @@ static void createMetricsIndexes(	struct packed_metric_desc *desc,
 						int n_metrics,
 						int64_t * restrict metric_maxes,
 						int64_t * restrict metric_mins,
-						uint8_t initial_vector,
 						uint8_t first_free_byte)
 {
 	int metric_offset = first_free_byte;    //Find the initial byte for the metrics.
@@ -73,7 +72,7 @@ static void createShuffleVecFromIndexes(struct packed_metric_desc *desc)
 	int k;
 	uint8_t n_boolean_metrics = desc->n_boolean_metrics;
 	uint8_t n_metrics = desc->n_metrics;
-	uint8_t * index_metrics = desc->index_metrics;
+	uint16_t * index_metrics = desc->index_metrics;
 	uint8_t * metric_n_vector = desc->metric_n_vector;
 
 	desc->shuffle_vecs_get2 = calloc(sizeof(__v16qi), n_metrics - n_boolean_metrics);
@@ -162,7 +161,7 @@ static void createShuffleBlendFromIndexes(struct packed_metric_desc * desc)
 	uint8_t byte_vector_blend[16];
 	uint8_t n_boolean_metrics = desc->n_boolean_metrics;
 	uint8_t n_metrics = desc->n_metrics;
-	uint8_t * index_metrics = desc->index_metrics;
+	uint16_t * index_metrics = desc->index_metrics;
 	int k, i, j;
 	desc->shuffle_vecs_put = calloc(sizeof(__v16qi ), (n_metrics - n_boolean_metrics));
 	desc->blend_vecs_put = calloc(sizeof(__v16qi ), (n_metrics - n_boolean_metrics));
@@ -232,7 +231,7 @@ void packed_shard_init(	packed_shard_t *shard,
 	desc = (struct packed_metric_desc *)calloc(sizeof(struct packed_metric_desc), 1);
 	shard->metrics_layout = desc;
 
-	desc->index_metrics = (uint8_t *) calloc(sizeof(uint8_t), n_metrics * 2);
+	desc->index_metrics = (uint16_t *) calloc(sizeof(uint16_t), n_metrics * 2);
 	desc->metric_n_vector = (uint8_t *) calloc(sizeof(uint8_t), n_metrics);
 	desc->n_metrics = n_metrics;
 	/* ensure that this is >= to the smallest multiple if 16 the data can fit in */
@@ -246,7 +245,6 @@ void packed_shard_init(	packed_shard_t *shard,
 						n_metrics,
 						metric_maxes,
 						metric_mins,
-						0,
 						(GROUP_SIZE + MAX_BIT_FIELDS + 7) / 8);
 	createShuffleVecFromIndexes(desc);
 	createShuffleBlendFromIndexes(desc);
@@ -579,6 +577,7 @@ void dump_shard(packed_shard_t *shard)
 {
 	static char digits[16] = { '0', '1', '2', '3', '4', '5', '6', '7',
 														 '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+
 	const size_t size = sizeof(__m128i ) * shard->grp_metrics_len;
 	fprintf(stderr, "desc->n_vectors_per_doc: %d\n", shard->metrics_layout->n_vectors_per_doc);
 	for (size_t i = 0; i < size; ++i) {

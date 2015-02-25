@@ -49,8 +49,8 @@ union term_union {
 struct packed_metric_desc {
     uint8_t n_boolean_metrics;      // Number of boolean metrics
     int n_metrics;                  // Total number of metrics
-    uint8_t *index_metrics;         // Where in the vector is each metric, counting booleans
-    uint8_t *metric_n_vector;       // The vector in which the metric is on
+    uint16_t *index_metrics;        // Where in the vector is each metric, counting booleans
+    uint8_t *metric_n_vector;       // The vector in which the metric resides
     int64_t *metric_mins;           // The minimal value of each metric
 
     __v16qi *shuffle_vecs_get1;     // shuffle vectors to get metrics, 1 at a time, *NOT* counting booleans

@@ -186,21 +186,32 @@ int main(int argc, char * argv[])
     test_uniform<1, 0, numeric_limits<int64_t>::max()>(n_docs, metric_func, "single int64_t");
 
     /* Full pack of each metric size. */
-    test_uniform<251, 0, numeric_limits<int8_t>::max()>(n_docs, metric_func, "all int8_t");
-    test_uniform<125, 0, numeric_limits<int16_t>::max()>(n_docs, metric_func, "all int16_t");
-    test_uniform<62,  0, numeric_limits<int32_t>::max()>(n_docs, metric_func, "all int32_t");
-    test_uniform<30,  0, numeric_limits<int64_t>::max()>(n_docs, metric_func, "all int64_t");
+    test_uniform<255, 0, numeric_limits<int8_t>::max()>(n_docs, metric_func, "all int8_t");
+    test_uniform<255, 0, numeric_limits<int16_t>::max()>(n_docs, metric_func, "all int16_t");
+    test_uniform<255, 0, numeric_limits<int32_t>::max()>(n_docs, metric_func, "all int32_t");
+    test_uniform<255, 0, numeric_limits<int64_t>::max()>(n_docs, metric_func, "all int64_t");
 
     /* Four booleans + full pack of each metric size. */
     RangeFunc min_func([](size_t, size_t) { return 0; });
-    test_func<251>(n_docs, min_func, make_flags_test_max_func<int8_t>(), metric_func,
+    test_func<255>(n_docs, min_func, make_flags_test_max_func<int8_t>(), metric_func,
                    "all flags + all int8_t");
-    test_func<125>(n_docs, min_func, make_flags_test_max_func<int16_t>(), metric_func,
+    test_func<255>(n_docs, min_func, make_flags_test_max_func<int16_t>(), metric_func,
                    "all flags + all int16_t");
-    test_func<62>(n_docs, min_func, make_flags_test_max_func<int32_t>(), metric_func,
-                  "all flags + all int32_t");
-    test_func<30>(n_docs, min_func, make_flags_test_max_func<int64_t>(), metric_func,
-                  "all flags + all int64_t");
+    test_func<255>(n_docs, min_func, make_flags_test_max_func<int32_t>(), metric_func,
+                   "all flags + all int32_t");
+    test_func<255>(n_docs, min_func, make_flags_test_max_func<int64_t>(), metric_func,
+                   "all flags + all int64_t");
+
+    test_func<255>(n_docs, min_func,
+                   [](size_t, size_t metric_index) {
+                     return 1 << (metric_index % 63);
+                   },
+                   metric_func, "mix of sizes");
+    test_func<255>(n_docs, min_func,
+                   [](size_t, size_t metric_index) {
+                     return metric_index < 4 ? 1: 1 << (metric_index % 63);
+                   },
+                   metric_func, "four booleans + =mix of sizes");
   }
 }
 
