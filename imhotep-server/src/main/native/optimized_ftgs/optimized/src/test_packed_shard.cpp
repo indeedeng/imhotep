@@ -28,7 +28,22 @@ ostream& operator<<(ostream& os, const array<T, N>& items)
 }
 
 
+template <class T>
+ostream& operator<<(ostream& os, const vector<T>& items)
+{
+  for (typename vector<T>::const_iterator it(items.begin()); it != items.end(); ++it) {
+    if (it != items.begin()) os << " ";
+    os << *it;
+  }
+  return os;
+}
+
+
 typedef function<int64_t(int64_t min, int64_t max)> MetricFunc;
+
+/********************************************************************************
+  WIP multi-doc update and query...
+ ********************************************************************************/
 
 template <size_t n_metrics>
 bool test_packed_shards(size_t n_docs,
@@ -41,41 +56,54 @@ bool test_packed_shards(size_t n_docs,
 	packed_shard_t shard;
 	packed_shard_init(&shard, n_docs, mins.data(), maxes.data(), n_metrics);
 		
+  vector<int> doc_ids;
   for (int doc_id = 0; doc_id < n_docs; ++doc_id) {
-		int64_t group = doc_id;
-		packed_shard_update_groups(&shard, &doc_id, 1, &group);
+    doc_ids.push_back(doc_id);
   }
 
-	for (int doc_id = 0; doc_id < n_docs; ++doc_id) {
-		int64_t expected = doc_id;
-		int64_t actual(0);
-		packed_shard_lookup_groups(&shard, &doc_id, 1, &actual);
-		if (expected != actual) {
-      cerr << "group lookup failed -- expected: " << expected << " actual: " << actual << endl;
-      result = false;
-		}
+  vector<int64_t> gids;
+  for (auto doc_id: doc_ids) {
+    gids.push_back(doc_id);
+  }
+  packed_shard_update_groups(&shard, doc_ids.data(), doc_ids.size(), gids.data());
+
+  vector<int64_t> actual_gids(gids.size(), -1);
+  packed_shard_lookup_groups(&shard, doc_ids.data(), doc_ids.size(), actual_gids.data());
+
+  if (!equal(gids.begin(), gids.end(), actual_gids.begin())) {
+    cerr << "group lookup failed -- "    << endl
+         << " expected: " << gids        << endl
+         << "   actual: " << actual_gids << endl;
+  }
+
+  array<int64_t, n_metrics> metrics;
+	for (int metric_index = 0; metric_index < n_metrics; ++metric_index) {
+    metrics[metric_index] = metric_func(mins[metric_index], maxes[metric_index]);
+  }
+
+	for (int metric_index = 0; metric_index < n_metrics; ++metric_index) {
+    vector<int64_t> values(doc_ids.size(), metrics[metric_index]);
+    packed_shard_update_metric(&shard,
+                               doc_ids.data(), doc_ids.size(),
+                               values.data(), metric_index);
 	}
 
 	for (int metric_index = 0; metric_index < n_metrics; ++metric_index) {
-    array<int64_t, n_metrics> metrics;
-		for (int doc_id = 0; doc_id < n_docs; ++doc_id) {
-			metrics[metric_index] = metric_func(mins[metric_index], maxes[metric_index]);
-			packed_shard_update_metric(&shard, &doc_id, 1, &metrics[metric_index], metric_index);
-		}
-	}
-
-	for (int metric_index = 0; metric_index < n_metrics; ++metric_index) {
-    array<int64_t, n_metrics> metrics;
-		for (int doc_id = 0; doc_id < n_docs; ++doc_id) {
-			int64_t expected = metric_func(mins[metric_index], maxes[metric_index]);
-			packed_shard_lookup_metric_values(&shard, &doc_id, 1, &metrics[metric_index], metric_index);
-			if (metrics[metric_index] != expected) {
-        cerr << "metric mismatch -- doc_id: " << doc_id << " metric_index: " << metric_index
-             << " expected: " << expected << " actual: " << metrics[metric_index] << endl;
-        result = false;
-      }
-		}
-	}
+    vector<int64_t> expected_values(doc_ids.size(), metrics[metric_index]);
+    vector<int64_t> actual_values(doc_ids.size(), -1);
+    packed_shard_lookup_metric_values(&shard,
+                                      doc_ids.data(), doc_ids.size(),
+                                      actual_values.data(), metric_index);
+    if (!equal(expected_values.begin(), expected_values.end(), actual_values.begin())) {
+      cerr << "metric lookup failed -- "
+           << " metric_index: "   << metric_index
+           << " expected value: " << metrics[metric_index]
+           << endl
+           << " doc_ids: " << doc_ids << endl
+           << " actual values: " << actual_values
+           << endl;
+    }
+  }
 	packed_shard_destroy(&shard);
 
   return result;
@@ -133,46 +161,44 @@ RangeFunc make_flags_test_max_func() {
 
 int main(int argc, char * argv[])
 {
-  const size_t max_n_docs(argc == 2 ? atoi(argv[1]) : 1);
-  for (size_t n_docs(1); n_docs <= max_n_docs; ++n_docs) {
+  const size_t n_docs(argc == 2 ? atoi(argv[1]) : 1);
 
-    vector<MetricFunc> metric_funcs = {
-        [](int64_t min_val, int64_t max_val) { return min_val; },
-        [](int64_t min_val, int64_t max_val) { return max_val; },
-        [](int64_t min_val, int64_t max_val) { return min_val + (max_val - min_val) / 2; },
-      };
+  vector<MetricFunc> metric_funcs = {
+    [](int64_t min_val, int64_t max_val) { return min_val; },
+    [](int64_t min_val, int64_t max_val) { return max_val; },
+    [](int64_t min_val, int64_t max_val) { return min_val + (max_val - min_val) / 2; },
+  };
 
-    for (auto metric_func: metric_funcs) {
-      /* We should be able to store 4 booleans in flags and another
-         251 in single-byte entries. */
-      test_uniform<1,   0, 1>(n_docs, metric_func, "1 flag");
-      test_uniform<4,   0, 1>(n_docs, metric_func, "all flags");
-      test_uniform<5,   0, 1>(n_docs, metric_func, "all flags + 1 boolean value");
-      test_uniform<255, 0, 1>(n_docs, metric_func, "all flaggs + all boolean values");
+  for (auto metric_func: metric_funcs) {
+    /* We should be able to store 4 booleans in flags and another
+       251 in single-byte entries. */
+    test_uniform<1,   0, 1>(n_docs, metric_func, "1 flag");
+    test_uniform<4,   0, 1>(n_docs, metric_func, "all flags");
+    test_uniform<5,   0, 1>(n_docs, metric_func, "all flags + 1 boolean value");
+    test_uniform<255, 0, 1>(n_docs, metric_func, "all flaggs + all boolean values");
 
-      /* Single entries for each metric size. */
-      test_uniform<1, 0, numeric_limits<int8_t>::max()>(n_docs, metric_func, "single int8_t");
-      test_uniform<1, 0, numeric_limits<int16_t>::max()>(n_docs, metric_func, "single int16_t");
-      test_uniform<1, 0, numeric_limits<int32_t>::max()>(n_docs, metric_func, "single int32_t");
-      test_uniform<1, 0, numeric_limits<int64_t>::max()>(n_docs, metric_func, "single int64_t");
+    /* Single entries for each metric size. */
+    test_uniform<1, 0, numeric_limits<int8_t>::max()>(n_docs, metric_func, "single int8_t");
+    test_uniform<1, 0, numeric_limits<int16_t>::max()>(n_docs, metric_func, "single int16_t");
+    test_uniform<1, 0, numeric_limits<int32_t>::max()>(n_docs, metric_func, "single int32_t");
+    test_uniform<1, 0, numeric_limits<int64_t>::max()>(n_docs, metric_func, "single int64_t");
 
-      /* Full pack of each metric size. */
-      test_uniform<251, 0, numeric_limits<int8_t>::max()>(n_docs, metric_func, "all int8_t");
-      test_uniform<126, 0, numeric_limits<int16_t>::max()>(n_docs, metric_func, "all int16_t");
-      test_uniform<63,  0, numeric_limits<int32_t>::max()>(n_docs, metric_func, "all int32_t");
-      test_uniform<31,  0, numeric_limits<int64_t>::max()>(n_docs, metric_func, "all int64_t");
+    /* Full pack of each metric size. */
+    test_uniform<251, 0, numeric_limits<int8_t>::max()>(n_docs, metric_func, "all int8_t");
+    test_uniform<126, 0, numeric_limits<int16_t>::max()>(n_docs, metric_func, "all int16_t");
+    test_uniform<63,  0, numeric_limits<int32_t>::max()>(n_docs, metric_func, "all int32_t");
+    test_uniform<31,  0, numeric_limits<int64_t>::max()>(n_docs, metric_func, "all int64_t");
 
-      /* Four booleans + full pack of each metric size. */
-      RangeFunc min_func([](size_t, size_t) { return 0; });
-      test_func<251>(n_docs, min_func, make_flags_test_max_func<int8_t>(), metric_func,
-                     "all flags + all int8_t");
-      test_func<126>(n_docs, min_func, make_flags_test_max_func<int16_t>(), metric_func,
-                     "all flags + all int16_t");
-      test_func<63>(n_docs, min_func, make_flags_test_max_func<int32_t>(), metric_func,
-                    "all flags + all int32_t");
-      test_func<31>(n_docs, min_func, make_flags_test_max_func<int64_t>(), metric_func,
-                    "all flags + all int64_t");
-    }
+    /* Four booleans + full pack of each metric size. */
+    RangeFunc min_func([](size_t, size_t) { return 0; });
+    test_func<251>(n_docs, min_func, make_flags_test_max_func<int8_t>(), metric_func,
+                   "all flags + all int8_t");
+    test_func<126>(n_docs, min_func, make_flags_test_max_func<int16_t>(), metric_func,
+                   "all flags + all int16_t");
+    test_func<63>(n_docs, min_func, make_flags_test_max_func<int32_t>(), metric_func,
+                  "all flags + all int32_t");
+    test_func<31>(n_docs, min_func, make_flags_test_max_func<int64_t>(), metric_func,
+                  "all flags + all int64_t");
   }
 }
 
