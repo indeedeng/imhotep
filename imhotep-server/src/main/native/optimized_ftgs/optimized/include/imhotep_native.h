@@ -12,6 +12,11 @@
 
 struct circular_buffer_vector;
 
+struct bit_fields_and_group {
+	uint32_t metrics :4;
+	uint32_t grp :28;
+};
+
 struct buffered_socket {
     int socket_fd;
     uint8_t* buffer;

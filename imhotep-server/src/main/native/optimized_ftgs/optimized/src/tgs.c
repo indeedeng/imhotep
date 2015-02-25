@@ -6,10 +6,6 @@
 #define MAX_BIT_FIELDS						4
 #define PREFETCH_DISTANCE					16
 
-struct bit_fields_and_group {
-	uint32_t metrics :4;
-	uint32_t grp :28;
-};
 
 /* No need to share the group stats buffer, so just keep one per session*/
 /* Make sure the one we have is large enough */
