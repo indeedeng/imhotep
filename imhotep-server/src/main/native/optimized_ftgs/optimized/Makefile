@@ -18,6 +18,7 @@ OBJ_FILES := $(addprefix obj/,$(notdir $(C_FILES:.c=.o)))
 TEST_OBJS=obj/bit_tree.o obj/circ_buf.o obj/packed_shard.o obj/tgs.o obj/varintdecode.o
 TEST_PACKED_SHARD_OBJS=$(TEST_OBJS) obj/test_packed_shard.o
 TEST_TGS_OBJS=$(TEST_OBJS) obj/test_tgs.o
+TEST_VARINTDECODE_OBJS=$(TEST_OBJS) obj/test_varintdecode.o
 
 $(ODIR)/%.o: src/%.c $(H_FILES)
 	$(CC) -c -o $@ $< $(CFLAGS)
@@ -36,9 +37,13 @@ test_packed_shard: $(TEST_PACKED_SHARD_OBJS)
 test_tgs: $(TEST_TGS_OBJS)
 	$(CC) $ -o test_tgs $(TEST_TGS_OBJS) $(LIBS) -lstdc++
 
-tests: test_packed_shard test_tgs
+test_varintdecode: $(TEST_VARINTDECODE_OBJS)
+	$(CC) $ -o test_varintdecode $(TEST_VARINTDECODE_OBJS) $(LIBS) -lstdc++
+
+tests: test_packed_shard test_tgs test_varintdecode
 
 clean:
-	rm -f $(ODIR)/*.o *~ core $(INCDIR)/*~ test_packed_shard test_tgs
+	rm -f $(ODIR)/*.o *~ core $(INCDIR)/*~
+	rm -f test_packed_shard test_tgs test_varintdecode
 
 all: $(ODIR)/%.o

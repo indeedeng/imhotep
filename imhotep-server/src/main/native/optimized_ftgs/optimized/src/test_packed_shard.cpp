@@ -3,6 +3,8 @@ extern "C" {
 #include "imhotep_native.h"
 }
 
+#include "test_utils.h"
+
 #include <algorithm>
 #include <array>
 #include <functional>
@@ -16,28 +18,6 @@ extern "C" {
 #include <string.h>
 
 using namespace std;
-
-template <class T, size_t N>
-ostream& operator<<(ostream& os, const array<T, N>& items)
-{
-  for (typename array<T, N>::const_iterator it(items.begin()); it != items.end(); ++it) {
-    if (it != items.begin()) os << " ";
-    os << *it;
-  }
-  return os;
-}
-
-
-template <class T>
-ostream& operator<<(ostream& os, const vector<T>& items)
-{
-  for (typename vector<T>::const_iterator it(items.begin()); it != items.end(); ++it) {
-    if (it != items.begin()) os << " ";
-    os << *it;
-  }
-  return os;
-}
-
 
 typedef function<int64_t(int64_t min, int64_t max)> MetricFunc;
 
