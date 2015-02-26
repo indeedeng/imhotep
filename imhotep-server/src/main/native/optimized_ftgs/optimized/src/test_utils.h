@@ -24,6 +24,18 @@ void varint_encode(iterator begin, iterator end, buffer_t& out)
   }
 }
 
+template <typename iterator, typename buffer_t>
+void doc_ids_encode(iterator begin, iterator end, buffer_t& out)
+{
+  std::vector<uint32_t> deltas;
+  uint32_t value(0);
+  for (iterator current(begin); current != end; ++current) {
+    deltas.push_back(*current - value);
+    value = *current;
+  }
+  varint_encode(deltas.begin(), deltas.end(), out);
+}
+
 template <class T, size_t N>
 std::ostream& operator<<(std::ostream& os, const std::array<T, N>& items)
 {
