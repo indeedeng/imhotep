@@ -14,7 +14,10 @@ LIBS=-lm
 C_FILES := $(wildcard src/*.c)
 H_FILES := $(wildcard include/*.h)
 OBJ_FILES := $(addprefix obj/,$(notdir $(C_FILES:.c=.o)))
-TEST_OBJ_FILES=obj/bit_tree.o obj/circ_buf.o obj/packed_shard.o obj/test_packed_shard.o
+
+TEST_OBJS=obj/bit_tree.o obj/circ_buf.o obj/packed_shard.o obj/tgs.o obj/varintdecode.o
+TEST_PACKED_SHARD_OBJS=$(TEST_OBJS) obj/test_packed_shard.o
+TEST_TGS_OBJS=$(TEST_OBJS) obj/test_tgs.o
 
 $(ODIR)/%.o: src/%.c $(H_FILES)
 	$(CC) -c -o $@ $< $(CFLAGS)
@@ -27,10 +30,15 @@ native_lib: $(OBJ_FILES)
 
 .PHONY: clean
 
-test: $(TEST_OBJ_FILES)
-	$(CC) $ -o test_packed_shard $(TEST_OBJ_FILES) $(LIBS) -lstdc++
+test_packed_shard: $(TEST_PACKED_SHARD_OBJS)
+	$(CC) $ -o test_packed_shard $(TEST_PACKED_SHARD_OBJS) $(LIBS) -lstdc++
+
+test_tgs: $(TEST_TGS_OBJS)
+	$(CC) $ -o test_tgs $(TEST_TGS_OBJS) $(LIBS) -lstdc++
+
+tests: test_packed_shard test_tgs
 
 clean:
-	rm -f $(ODIR)/*.o *~ core $(INCDIR)/*~ test_packed_shard
+	rm -f $(ODIR)/*.o *~ core $(INCDIR)/*~ test_packed_shard test_tgs
 
 all: $(ODIR)/%.o
