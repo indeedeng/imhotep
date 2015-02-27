@@ -1,6 +1,6 @@
 static __m128i row_element_extract(__m128i* data_array, int row_size, int row_idx, int element_idx);
 static void process_arrayA_data(packed_shard_t* data_desc, __m128i data_element,
-                                __m128i* save_buffer_start, element_idx);
+                                __m128i* save_buffer_start, int element_idx);
 static __m128i* calc_save_addr(packed_shard_t* data_desc, int row_idx, int element_idx);
 static void process_arrayB_data(packed_shard_t* data_desc, __m128i data_element,
                                 __m128i* save_buffer_start, int element_idx);
@@ -109,7 +109,7 @@ static inline void arrayB_loop_core(packed_shard_t* data_desc,
 /*
  * Two array loop
  */
-static prefetch_and_process_2_arrays(DESC_TYPE data_desc,
+static void prefetch_and_process_2_arrays(DESC_TYPE data_desc,
                                      __m128i *data_array,
                                      __m128i* temp_bufer,
                                      int arrayA_row_size,
@@ -157,7 +157,8 @@ static prefetch_and_process_2_arrays(DESC_TYPE data_desc,
         int row_idx = LOAD_ROW_IDX(arrayA_row_counter);
 
         /* load value from A, save, prefetch B */
-        int arrayB_row_idx = LOAD_B_ROW_IDX(data_desc, data_array, arrayA_row_size, row_idx);
+        int arrayB_row_idx;
+        LOAD_B_ROW_IDX(data_desc, data_array, arrayA_row_size, row_idx, arrayB_row_idx);
 		/* save group into buffer */
 		circular_buffer_int_put(grp_buf, arrayB_row_idx);
         PREFETCH_ARRAYB(data_desc, arrayB_row_idx);
@@ -190,7 +191,8 @@ static prefetch_and_process_2_arrays(DESC_TYPE data_desc,
         int row_idx = LOAD_ROW_IDX(arrayA_row_counter);
 
         /* load value from A, save, prefetch B */
-        int arrayB_row_idx = LOAD_B_ROW_IDX(data_desc, data_array, arrayA_row_size, row_idx);
+        int arrayB_row_idx;
+        LOAD_B_ROW_IDX(data_desc, data_array, arrayA_row_size, row_idx, arrayB_row_idx);
 		/* save group into buffer */
 		circular_buffer_int_put(grp_buf, arrayB_row_idx);
         PREFETCH_ARRAYB(data_desc, arrayB_row_idx);

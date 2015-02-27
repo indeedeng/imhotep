@@ -61,17 +61,18 @@ struct packed_metric_desc {
 
     int n_vectors_per_doc;          // How many __m128 vectors does a single doc uses
     uint8_t *n_metrics_per_vector;  // The amount of metrics in each of the vectors, *NOT* counting booleans
-    
+    uint8_t *unpacked_offset;       // Offset in group stats row this packed vec will start unpacking into. In 16B vectors
+
     uint8_t n_metrics_aux_index;    // used to control for how many metrics we have already generated the index
 };
 
 typedef struct shard_data {
     int shard_id;
     int num_docs;
-    int grp_metrics_len;           // How many __m128 elements do we have in our vector = n_doc_ids*n_vectors_per_doc
-    __v16qi *groups_and_metrics;   /* group and metrics data packed into 128b vectors */
-    int n_stat_vecs_per_grp;       // (n_metrics+1)/2
-    int grp_stat_size;             // in units of 16 bytes. stat sums for a group are padded to align to cache lines, this must be 1 or even
+    int grp_metrics_len;             // How many __m128 elements do we have in our vector = n_doc_ids*n_vectors_per_doc
+    __v16qi *groups_and_metrics;     /* group and metrics data packed into 128b vectors */
+    int n_stat_vecs_per_grp;         // Num of vecs a packed row unpacks into. In units of 16 bytes.
+    int grp_stat_size;               // in units of 16 bytes. stat sums for a group are padded to align to cache lines, this must be 1 or even
     struct packed_metric_desc *metrics_layout;
 } packed_shard_t;
 

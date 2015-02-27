@@ -61,6 +61,26 @@ static void createMetricsIndexes(	struct packed_metric_desc *desc,
 		(desc->n_metrics_per_vector)[(desc->metric_n_vector)[i]]++;
 	}
 	desc->n_vectors_per_doc = n_vectors;
+
+	/* calculate the number of vectors in the grp_stats array */
+	int grp_stat_row_size = 0;
+	for (int i = 0; i < n_vectors; i++) {
+		int n_grp_stats_vecs_per_packed_metric = ((desc->n_metrics_per_vector)[i] + 1) / 2;
+		grp_stat_row_size += n_grp_stats_vecs_per_packed_metric;
+	}
+	desc->n_stat_vecs_per_grp = grp_stat_row_size;
+
+	/*
+	 * Group stats row size must be 1 or a multiple of 2 vectors
+	 * to make preloading work properly
+	 */
+	if (grp_stat_row_size == 1) {
+		desc->grp_stat_size = 1;
+	} else {
+		/* round up to the next multiple of 2 */
+		desc->grp_stat_size = (grp_stat_row_size + 1) & (~0x1);
+	}
+
 }
 
 //Create the array that after  can be used to get 2 metrics at a time from the main 
@@ -404,7 +424,7 @@ void packed_shard_update_groups(packed_shard_t *shard,
 		packed_bf_grp->grp = groups[i] & GROUP_MASK;
 	}
 }
-
+``
 
 static int unpack_bit_fields(struct circular_buffer_vector *buffer,
 						uint32_t bit_fields,
@@ -560,7 +580,7 @@ void packed_shard_unpack_metrics_into_buffer(packed_shard_t *shard,
 	unpack_bit_fields(buffer, bit_fields, desc->n_boolean_metrics);
 
 	/* unpack and save the metrics */
-	if ((desc->n_vectors_per_doc + 3) / 4 < 1) {
+	if ((desc->n_vectors_per_doc + 3) / 4 <= 1) {
 		
 		load_less_than_a_cache_line_of_metrics(	desc,
 										shard->groups_and_metrics,
