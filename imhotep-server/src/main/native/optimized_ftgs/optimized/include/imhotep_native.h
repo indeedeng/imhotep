@@ -32,8 +32,8 @@ struct worker_desc {
     struct buffered_socket *sockets;
     struct bit_tree *bit_tree_buf;
     struct circular_buffer_int *grp_buf;
-	struct circular_buffer_vector *metric_buf;
-	union term_union **prev_term_by_socket;
+    __m128i *metric_buf;
+    union term_union **prev_term_by_socket;
 };
 
 struct string_term_s {
@@ -92,7 +92,7 @@ struct tgs_desc {
     struct bit_tree *non_zero_groups;
     __m128i *group_stats;
     struct circular_buffer_int *grp_buf;
-	struct circular_buffer_vector *metric_buf;
+    __m128i *metric_buf;
 };
 
 struct session_desc {
@@ -122,10 +122,10 @@ void tgs_init(struct worker_desc *worker,
 void tgs_destroy(struct tgs_desc *desc);
 
 
-void packed_shard_unpack_metrics_into_buffer(packed_shard_t *shard,
-									int doc_id,
-									struct circular_buffer_vector *buffer,
-									int prefetch_doc_id);
+//void packed_shard_unpack_metrics_into_buffer(packed_shard_t *shard,
+//									int doc_id,
+//									struct circular_buffer_vector *buffer,
+//									int prefetch_doc_id);
 void packed_shard_lookup_groups(	packed_shard_t *shard,
 							int * restrict doc_ids,
 							int n_doc_ids,
@@ -161,3 +161,15 @@ int slice_copy_range(uint8_t* slice,
 
 void socket_init(struct buffered_socket *socket, uint32_t fd);
 void socket_destroy(struct buffered_socket *socket);
+
+void prefetch_and_process_2_arrays(
+                                   packed_shard_t* data_desc,
+                                   __v16qi *metrics,
+                                   __m128i *stats,
+                                   __m128i* temp_buffer,
+                                   uint32_t* doc_id_buffer,
+                                   int num_rows,
+                                   int grp_metrics_row_size,
+                                   int grp_stats_row_size,
+                                   struct bit_tree *non_zero_groups,
+                                   struct circular_buffer_int *grp_buf);

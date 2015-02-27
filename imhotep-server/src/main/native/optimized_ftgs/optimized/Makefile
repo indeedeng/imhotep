@@ -15,7 +15,7 @@ C_FILES := $(wildcard src/*.c)
 H_FILES := $(wildcard include/*.h)
 OBJ_FILES := $(addprefix obj/,$(notdir $(C_FILES:.c=.o)))
 
-TEST_OBJS=obj/bit_tree.o obj/circ_buf.o obj/packed_shard.o obj/tgs.o obj/varintdecode.o
+TEST_OBJS=obj/bit_tree.o obj/circ_buf.o obj/packed_shard.o obj/tgs.o obj/varintdecode.o obj/grp_stats_accumulate.o
 TEST_CIRC_BUF_OBJS=$(TEST_OBJS) obj/test_circ_buf.o
 TEST_PACKED_SHARD_OBJS=$(TEST_OBJS) obj/test_packed_shard.o
 TEST_TGS_OBJS=$(TEST_OBJS) obj/test_tgs.o

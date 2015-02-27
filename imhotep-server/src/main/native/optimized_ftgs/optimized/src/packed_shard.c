@@ -50,37 +50,23 @@ static void createMetricsIndexes(	struct packed_metric_desc *desc,
 
 	/* Calculate how many metrics we have per vector */
 	desc->n_metrics_per_vector = (uint8_t *) calloc(sizeof(uint8_t), n_vectors);
-
-	/* initialize and clear the vector */
-	for (int i = 0; i < n_vectors; i++) {
-		(desc->n_metrics_per_vector)[i] = 0;
-	}
+	desc->unpacked_offset = (uint8_t *) calloc(sizeof(uint8_t), n_vectors);
 
 	/* Count how many non-bitfield metrics in each packed vector */
 	for (int i = desc->n_boolean_metrics; i < n_metrics; i++) {
 		(desc->n_metrics_per_vector)[(desc->metric_n_vector)[i]]++;
 	}
-	desc->n_vectors_per_doc = n_vectors;
-
-	/* calculate the number of vectors in the grp_stats array */
-	int grp_stat_row_size = 0;
-	for (int i = 0; i < n_vectors; i++) {
-		int n_grp_stats_vecs_per_packed_metric = ((desc->n_metrics_per_vector)[i] + 1) / 2;
-		grp_stat_row_size += n_grp_stats_vecs_per_packed_metric;
-	}
-	desc->n_stat_vecs_per_grp = grp_stat_row_size;
 
 	/*
-	 * Group stats row size must be 1 or a multiple of 2 vectors
+	 * Group metrics row size must be 1 or a multiple of 2 vectors
 	 * to make preloading work properly
 	 */
-	if (grp_stat_row_size == 1) {
-		desc->grp_stat_size = 1;
+	if (n_vectors == 1) {
+		desc->n_vectors_per_doc = n_vectors;
 	} else {
 		/* round up to the next multiple of 2 */
-		desc->grp_stat_size = (grp_stat_row_size + 1) & (~0x1);
+		desc->n_vectors_per_doc = (n_vectors + 1) & (~0x1);
 	}
-
 }
 
 //Create the array that after  can be used to get 2 metrics at a time from the main 
@@ -269,6 +255,31 @@ void packed_shard_init(	packed_shard_t *shard,
 	createShuffleVecFromIndexes(desc);
 	createShuffleBlendFromIndexes(desc);
 
+	/* calculate the number of vectors in the grp_stats array */
+	int grp_stat_row_size = 0;
+	for (int i = 0; i < desc->n_vectors_per_doc; i++) {
+		desc->unpacked_offset[i] = grp_stat_row_size;
+
+		int n_grp_stats_vecs_per_packed_metric = ((desc->n_metrics_per_vector)[i] + 1) / 2;
+		/* add in the boolean metrics */
+		if (i == 0) {
+			n_grp_stats_vecs_per_packed_metric += (desc->n_boolean_metrics + 1) / 2;
+		}
+		grp_stat_row_size += n_grp_stats_vecs_per_packed_metric;
+	}
+	shard->n_stat_vecs_per_grp = grp_stat_row_size;
+
+	/*
+	 * Group stats row size must be 1 or a multiple of 2 vectors
+	 * to make preloading work properly
+	 */
+	if (grp_stat_row_size == 1) {
+		shard->grp_stat_size = 1;
+	} else {
+		/* round up to the next multiple of 2 */
+		shard->grp_stat_size = (grp_stat_row_size + 1) & (~0x1);
+	}
+
 	shard->grp_metrics_len = n_docs * desc->n_vectors_per_doc;
 	shard->groups_and_metrics = (__v16qi *) aligned_alloc(	64,
 	                                                      	sizeof(__m128i ) * shard->grp_metrics_len);
@@ -424,174 +435,153 @@ void packed_shard_update_groups(packed_shard_t *shard,
 		packed_bf_grp->grp = groups[i] & GROUP_MASK;
 	}
 }
-``
-
-static int unpack_bit_fields(struct circular_buffer_vector *buffer,
-						uint32_t bit_fields,
-						uint8_t n_bit_fields)
-{
-	static __m128i lookup_table[4] = { { 0L, 0L }, { 0L, 1L }, { 1L, 0L }, { 1L, 1L } };
-	int i;
-
-	for (i = 0; i < n_bit_fields; i += 2) {
-		circular_buffer_vector_put(buffer, lookup_table[bit_fields & 3]);
-		bit_fields >>= 2;
-	}
-	return i / 2;
-}
-
-static inline __m128i unpack_2_metrics(__m128i packed_data, __v16qi shuffle_vector)
-{
-	__m128i unpacked;
-
-	unpacked = _mm_shuffle_epi8(packed_data, shuffle_vector);
-	return unpacked;
-}
-
-static void load_less_than_a_cache_line_of_metrics(struct packed_metric_desc *desc,
-										 __v16qi *restrict grp_metrics,
-										 int doc_id, uint8_t *restrict n_metrics_per_vector,
-										 struct circular_buffer_vector *buffer, int prefetch_doc_id)
-{
-	uint32_t shuffle_idx = 0;
-	int n_vecs_per_doc = desc->n_vectors_per_doc;
-	
-	__v2di *mins;
-	mins = (__v2di *)desc->metric_mins;
-	
-	__v16qi* doc_grp_metrics = grp_metrics+doc_id*n_vecs_per_doc;
-
-	for (int32_t vector_idx = 0; vector_idx < desc->n_vectors_per_doc; vector_idx++) {
-		__m128i packed_data = doc_grp_metrics[vector_idx];
-		for (int32_t k = 0; k < n_metrics_per_vector[vector_idx]; k += 2, shuffle_idx++) {
-			__m128i data;
-			__m128i decoded_data;
-
-			data = unpack_2_metrics(packed_data, desc->shuffle_vecs_get2[shuffle_idx]);
-			decoded_data = _mm_add_epi64(data, mins[shuffle_idx]);
 
 
-			/* save data into buffer */
-			circular_buffer_vector_put(buffer, decoded_data);
-		}
-	}
-	if (prefetch_doc_id != 0) {
-        _mm_prefetch(grp_metrics+prefetch_doc_id*n_vecs_per_doc, _MM_HINT_T0);
-    }
-}
-
-static void load_cache_line_full_of_metrics(struct packed_metric_desc *desc,
-								__v16qi *restrict grp_metrics,
-								int doc_id,
-								uint8_t* restrict n_metrics_per_vector,
-                                   	struct circular_buffer_vector *buffer,
-                                   	int prefetch_doc_id)
-{
-    uint32_t vector_index = 0;
-	int n_vecs_per_doc = desc->n_vectors_per_doc;
-	
-	__v2di *mins;
-	mins = (__v2di *)desc->metric_mins;
-	
-	__v16qi* doc_grp_metrics = grp_metrics+doc_id*n_vecs_per_doc;
-	__v16qi* shuffle_vecs = desc->shuffle_vecs_get2;
-	
-     //unrolled loop for processing whole 64 byte cache lines at a time (4x16 byte loads)
-     for (int32_t load_index = 0; load_index <= n_vecs_per_doc-4; load_index+=4) {
-		//load the next 16 bytes
-		__m128i packed_data = doc_grp_metrics[load_index];
-		
-		//for each vector, shuffle to get next 2 metrics, load current sum, add metrics to current sum, store result. zig zag decode if necessary.
-		for (int32_t k = 0; k < n_metrics_per_vector[load_index]; k += 2) {
-			__m128i data;
-			__m128i decoded_data;
-			
-			data = unpack_2_metrics(packed_data, shuffle_vecs[vector_index]);
-			decoded_data = _mm_add_epi64(data, mins[vector_index]);
-
-			/* save data into buffer */
-			circular_buffer_vector_put(buffer, decoded_data);
-		
-			vector_index++;
-		}
-
-          packed_data = doc_grp_metrics[load_index + 1];
-          for (int32_t k = 0; k < n_metrics_per_vector[load_index + 1]; k += 2) {
-              __m128i data;
-              __m128i decoded_data;
-
-              data = unpack_2_metrics(packed_data, shuffle_vecs[vector_index]);
-
-		      decoded_data = _mm_add_epi64(data, mins[vector_index]);
-
-              /* save data into buffer */
-              circular_buffer_vector_put(buffer, decoded_data);
-
-              vector_index++;
-          }
-
-          packed_data = doc_grp_metrics[load_index + 2];
-          for (int32_t k = 0; k < n_metrics_per_vector[load_index + 2]; k += 2) {
-              __m128i data;
-              __m128i decoded_data;
-
-              data = unpack_2_metrics(packed_data, shuffle_vecs[vector_index]);
-		      decoded_data = _mm_add_epi64(data, mins[vector_index]);
-
-              /* save data into buffer */
-              circular_buffer_vector_put(buffer, decoded_data);
-
-              vector_index++;
-          }
-
-          packed_data = doc_grp_metrics[load_index + 3];
-          for (int32_t k = 0; k < n_metrics_per_vector[load_index + 3]; k += 2) {
-              __m128i data;
-              __m128i decoded_data;
-
-              data = unpack_2_metrics(packed_data, shuffle_vecs[vector_index]);
-		      decoded_data = _mm_add_epi64(data, mins[vector_index]);
-
-              /* save data into buffer */
-              circular_buffer_vector_put(buffer, decoded_data);
-
-              vector_index++;
-          }
-          if (prefetch_doc_id != 0) {
-              _mm_prefetch(grp_metrics+prefetch_doc_id*n_vecs_per_doc+load_index, _MM_HINT_T0);
-          }
-        
-     }
-
-}
-
-void packed_shard_unpack_metrics_into_buffer(packed_shard_t *shard,
-									int doc_id,
-									struct circular_buffer_vector *buffer,
-									int prefetch_doc_id)
-{
-	struct packed_metric_desc *desc = shard->metrics_layout;
-	uint32_t bit_fields;
-	int index = doc_id * desc->n_vectors_per_doc;
-
-	/* unpack and save the bit fields */
-	bit_fields = _mm_extract_epi32(shard->groups_and_metrics[index], 0);
-	bit_fields = bit_fields >> GROUP_SIZE;
-	unpack_bit_fields(buffer, bit_fields, desc->n_boolean_metrics);
-
-	/* unpack and save the metrics */
-	if ((desc->n_vectors_per_doc + 3) / 4 <= 1) {
-		
-		load_less_than_a_cache_line_of_metrics(	desc,
-										shard->groups_and_metrics,
-										doc_id,
-										desc->n_metrics_per_vector,
-										buffer, prefetch_doc_id);
-     } else {
-          load_cache_line_full_of_metrics(desc, shard->groups_and_metrics, doc_id, desc->n_metrics_per_vector,
-                                          buffer, prefetch_doc_id);
-	}
-}
+//
+//static void load_less_than_a_cache_line_of_metrics(struct packed_metric_desc *desc,
+//										 __v16qi *restrict grp_metrics,
+//										 int doc_id, uint8_t *restrict n_metrics_per_vector,
+//										 struct circular_buffer_vector *buffer, int prefetch_doc_id)
+//{
+//	uint32_t shuffle_idx = 0;
+//	int n_vecs_per_doc = desc->n_vectors_per_doc;
+//
+//	__v2di *mins;
+//	mins = (__v2di *)desc->metric_mins;
+//
+//	__v16qi* doc_grp_metrics = grp_metrics+doc_id*n_vecs_per_doc;
+//
+//	for (int32_t vector_idx = 0; vector_idx < desc->n_vectors_per_doc; vector_idx++) {
+//		__m128i packed_data = doc_grp_metrics[vector_idx];
+//		for (int32_t k = 0; k < n_metrics_per_vector[vector_idx]; k += 2, shuffle_idx++) {
+//			__m128i data;
+//			__m128i decoded_data;
+//
+//			data = unpack_2_metrics(packed_data, desc->shuffle_vecs_get2[shuffle_idx]);
+//			decoded_data = _mm_add_epi64(data, mins[shuffle_idx]);
+//
+//
+//			/* save data into buffer */
+//			circular_buffer_vector_put(buffer, decoded_data);
+//		}
+//	}
+//	if (prefetch_doc_id != 0) {
+//        _mm_prefetch(grp_metrics+prefetch_doc_id*n_vecs_per_doc, _MM_HINT_T0);
+//    }
+//}
+//
+//static void load_cache_line_full_of_metrics(struct packed_metric_desc *desc,
+//								__v16qi *restrict grp_metrics,
+//								int doc_id,
+//								uint8_t* restrict n_metrics_per_vector,
+//                                   	struct circular_buffer_vector *buffer,
+//                                   	int prefetch_doc_id)
+//{
+//    uint32_t vector_index = 0;
+//	int n_vecs_per_doc = desc->n_vectors_per_doc;
+//
+//	__v2di *mins;
+//	mins = (__v2di *)desc->metric_mins;
+//
+//	__v16qi* doc_grp_metrics = grp_metrics+doc_id*n_vecs_per_doc;
+//	__v16qi* shuffle_vecs = desc->shuffle_vecs_get2;
+//
+//     //unrolled loop for processing whole 64 byte cache lines at a time (4x16 byte loads)
+//     for (int32_t load_index = 0; load_index <= n_vecs_per_doc-4; load_index+=4) {
+//		//load the next 16 bytes
+//		__m128i packed_data = doc_grp_metrics[load_index];
+//
+//		//for each vector, shuffle to get next 2 metrics, load current sum, add metrics to current sum, store result. zig zag decode if necessary.
+//		for (int32_t k = 0; k < n_metrics_per_vector[load_index]; k += 2) {
+//			__m128i data;
+//			__m128i decoded_data;
+//
+//			data = unpack_2_metrics(packed_data, shuffle_vecs[vector_index]);
+//			decoded_data = _mm_add_epi64(data, mins[vector_index]);
+//
+//			/* save data into buffer */
+//			circular_buffer_vector_put(buffer, decoded_data);
+//
+//			vector_index++;
+//		}
+//
+//          packed_data = doc_grp_metrics[load_index + 1];
+//          for (int32_t k = 0; k < n_metrics_per_vector[load_index + 1]; k += 2) {
+//              __m128i data;
+//              __m128i decoded_data;
+//
+//              data = unpack_2_metrics(packed_data, shuffle_vecs[vector_index]);
+//
+//		      decoded_data = _mm_add_epi64(data, mins[vector_index]);
+//
+//              /* save data into buffer */
+//              circular_buffer_vector_put(buffer, decoded_data);
+//
+//              vector_index++;
+//          }
+//
+//          packed_data = doc_grp_metrics[load_index + 2];
+//          for (int32_t k = 0; k < n_metrics_per_vector[load_index + 2]; k += 2) {
+//              __m128i data;
+//              __m128i decoded_data;
+//
+//              data = unpack_2_metrics(packed_data, shuffle_vecs[vector_index]);
+//		      decoded_data = _mm_add_epi64(data, mins[vector_index]);
+//
+//              /* save data into buffer */
+//              circular_buffer_vector_put(buffer, decoded_data);
+//
+//              vector_index++;
+//          }
+//
+//          packed_data = doc_grp_metrics[load_index + 3];
+//          for (int32_t k = 0; k < n_metrics_per_vector[load_index + 3]; k += 2) {
+//              __m128i data;
+//              __m128i decoded_data;
+//
+//              data = unpack_2_metrics(packed_data, shuffle_vecs[vector_index]);
+//		      decoded_data = _mm_add_epi64(data, mins[vector_index]);
+//
+//              /* save data into buffer */
+//              circular_buffer_vector_put(buffer, decoded_data);
+//
+//              vector_index++;
+//          }
+//          if (prefetch_doc_id != 0) {
+//              _mm_prefetch(grp_metrics+prefetch_doc_id*n_vecs_per_doc+load_index, _MM_HINT_T0);
+//          }
+//
+//     }
+//
+//}
+//
+//void packed_shard_unpack_metrics_into_buffer(packed_shard_t *shard,
+//									int doc_id,
+//									struct circular_buffer_vector *buffer,
+//									int prefetch_doc_id)
+//{
+//	struct packed_metric_desc *desc = shard->metrics_layout;
+//	uint32_t bit_fields;
+//	int index = doc_id * desc->n_vectors_per_doc;
+//
+//	/* unpack and save the bit fields */
+//	bit_fields = _mm_extract_epi32(shard->groups_and_metrics[index], 0);
+//	bit_fields = bit_fields >> GROUP_SIZE;
+//	unpack_bit_fields(buffer, bit_fields, desc->n_boolean_metrics);
+//
+//	/* unpack and save the metrics */
+//	if ((desc->n_vectors_per_doc + 3) / 4 <= 1) {
+//
+//		load_less_than_a_cache_line_of_metrics(	desc,
+//										shard->groups_and_metrics,
+//										doc_id,
+//										desc->n_metrics_per_vector,
+//										buffer, prefetch_doc_id);
+//     } else {
+//          load_cache_line_full_of_metrics(desc, shard->groups_and_metrics, doc_id, desc->n_metrics_per_vector,
+//                                          buffer, prefetch_doc_id);
+//	}
+//}
 
 void dump_shard(packed_shard_t *shard)
 {

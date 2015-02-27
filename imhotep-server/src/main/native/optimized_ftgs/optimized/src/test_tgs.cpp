@@ -227,7 +227,8 @@ int main(int argc, char* argv[])
   fill(begin, end, 0);
   worker.bit_tree_buf = &bit_tree;
 	worker.grp_buf      = circular_buffer_int_alloc(circ_buf_size);
-	worker.metric_buf   = circular_buffer_vector_alloc((n_stats+1)/2 * circ_buf_size);
+//	worker.metric_buf   = circular_buffer_vector_alloc((n_stats+1)/2 * circ_buf_size);
+	worker.metric_buf = (__m128i *)aligned_alloc(64, sizeof(uint64_t) * 256 * 2);
 
   DocIds doc_ids(table.doc_ids());
   vector<uint8_t> slice;
@@ -260,7 +261,8 @@ int main(int argc, char* argv[])
     cout << row << endl;
   }
 
-  circular_buffer_vector_cleanup(worker.metric_buf);
+//  circular_buffer_vector_cleanup(worker.metric_buf);
+  free(worker.metric_buf);
   circular_buffer_int_cleanup(worker.grp_buf);
   bit_tree_destroy(&bit_tree);
 
