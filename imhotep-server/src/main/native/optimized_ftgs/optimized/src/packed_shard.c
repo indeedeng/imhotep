@@ -410,7 +410,7 @@ static int unpack_bit_fields(struct circular_buffer_vector *buffer,
 						uint32_t bit_fields,
 						uint8_t n_bit_fields)
 {
-	static __m128i lookup_table[4] = { { 0, 0 }, { 0, 1 }, { 1, 0 }, { 1, 1 } };
+	static __m128i lookup_table[4] = { { 0L, 0L }, { 0L, 1L }, { 1L, 0L }, { 1L, 1L } };
 	int i;
 
 	for (i = 0; i < n_bit_fields; i += 2) {

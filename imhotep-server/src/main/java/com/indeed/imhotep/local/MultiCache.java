@@ -27,7 +27,6 @@ public final class MultiCache implements Closeable {
     private final MultiCacheGroupLookup nativeGroupLookup;
 
     private final ImhotepLocalSession session;
-//    private final int[] docIdToGroup;
 
 
     public static class StatsOrderingInfo {
@@ -47,10 +46,12 @@ public final class MultiCache implements Closeable {
         this.numDocsInShard = numDocsInShard;
         this.numStats = metrics.size();
 
+        this.nativeGroupLookup = new MultiCacheGroupLookup();
         this.nativeMetricLookups = new ArrayList<MultiCacheIntValueLookup>(this.numStats);
 
         final StatsOrderingInfo orderInfo = ordering.getOrder(metrics);
-        this.nativeShardDataPtr = nativeBuildMultiCache(numDocsInShard,
+        this.nativeShardDataPtr = nativeBuildMultiCache(nativeShardDataPtr,
+                                                        numDocsInShard,
                                                         orderInfo.mins,
                                                         orderInfo.maxes,
                                                         this.numStats);
@@ -65,7 +66,6 @@ public final class MultiCache implements Closeable {
             copyValues(metric, numDocsInShard, i);
         }
     }
-
 
     private final void copyValues(IntValueLookup original, int numDocsInShard, int metricId) {
         final int[] idBuffer = new int[BLOCK_COPY_SIZE];
@@ -82,12 +82,6 @@ public final class MultiCache implements Closeable {
         }
     }
 
-    private static native void nativePackMetricDataInRange(long nativeShardDataPtr,
-                                                           int metricId,
-                                                           int start,
-                                                           int n,
-                                                           long[] valBuffer);
-
     public IntValueLookup getIntValueLookup(int statIndex) {
         return this.nativeMetricLookups.get(statIndex);
     }
@@ -101,8 +95,19 @@ public final class MultiCache implements Closeable {
 
     }
 
-    private final class MultiCacheIntValueLookup implements IntValueLookup {
+    private native long nativeBuildMultiCache(long nativeShardDataPtr,
+                                              int numDocsInShard,
+                                              int[] mins,
+                                              int[] maxes,
+                                              int numStats);
 
+    private static native void nativePackMetricDataInRange(long nativeShardDataPtr,
+                                                           int metricId,
+                                                           int start,
+                                                           int n,
+                                                           long[] valBuffer);
+
+    private final class MultiCacheIntValueLookup implements IntValueLookup {
         private final int index;
         private final long min;
         private final long max;
@@ -149,11 +154,12 @@ public final class MultiCache implements Closeable {
     private final class MultiCacheGroupLookup extends GroupLookup {
         /* should be as large as the buffer passed into nextGroupCallback() */
         private final int[] groups_buffer = new int[ImhotepLocalSession.BUFFER_SIZE];
+        private final int[] remap_buffer = new int[ImhotepLocalSession.BUFFER_SIZE];
 
         @Override
         void nextGroupCallback(int n, long[][] termGrpStats, BitTree groupsSeen) {
             /* collect group ids for docs */
-            nativeFillGroupsBuffer(this.groups_buffer, session.docIdBuf, n);
+            nativeFillGroupsBuffer(nativeShardDataPtr, this.groups_buffer, session.docIdBuf, n);
 
             int rewriteHead = 0;
             // remap groups and filter out useless docids (ones with group = 0), keep track of groups that were found
@@ -188,21 +194,28 @@ public final class MultiCache implements Closeable {
                                         GroupRemapRule[] remapRules,
                                         String intField,
                                         long itrTerm) {
+            /* collect group ids for docs */
+            nativeFillGroupsBuffer(nativeShardDataPtr, this.groups_buffer, session.docIdBuf, n);
+
             for (int i = 0; i < n; i++) {
                 final int docId = session.docIdBuf[i];
                 if (docRemapped.get(docId))
                     continue;
-                final int group = docIdToGroup[docId];
+
+                final int group = groups_buffer[i];
                 if (remapRules[group] == null)
                     continue;
+
                 if (ImhotepLocalSession.checkIntCondition(remapRules[group].condition,
                                                           intField,
                                                           itrTerm))
                     continue;
-                docIdToGroup[docId] = remapRules[group].positiveGroup;
+
+                remap_buffer[i] = remapRules[group].positiveGroup;
                 docRemapped.set(docId);
             }
-
+            /* write updated groups back to the native table/lookup */
+            nativeUpdateGroups(nativeShardDataPtr, this.remap_buffer, session.docIdBuf, n);
         }
 
         @Override
@@ -211,88 +224,143 @@ public final class MultiCache implements Closeable {
                                            GroupRemapRule[] remapRules,
                                            String stringField,
                                            String itrTerm) {
+            /* collect group ids for docs */
+            nativeFillGroupsBuffer(nativeShardDataPtr, this.groups_buffer, session.docIdBuf, n);
+
             for (int i = 0; i < n; i++) {
                 final int docId = session.docIdBuf[i];
                 if (docRemapped.get(docId))
                     continue;
-                final int group = docIdToGroup[docId];
+
+                final int group = groups_buffer[i];
                 if (remapRules[group] == null)
                     continue;
+
                 if (ImhotepLocalSession.checkStringCondition(remapRules[group].condition,
                                                              stringField,
-                                                             itrTerm))
+                                                             itrTerm)) {
                     continue;
-                docIdToGroup[docId] = remapRules[group].positiveGroup;
+                    remap_buffer[i] = remapRules[group].positiveGroup;
+                }
                 docRemapped.set(docId);
             }
+            /* write updated groups back to the native table/lookup */
+            nativeUpdateGroups(nativeShardDataPtr, this.remap_buffer, session.docIdBuf, n);
         }
 
         @Override
         int get(int doc) {
-            return 0;
+            return nativeGetGroup(nativeShardDataPtr, doc);
         }
 
         @Override
         void set(int doc, int group) {
-
+            nativeSetGroupForDoc(nativeShardDataPtr, doc, group);
         }
 
         @Override
         void batchSet(int[] docIdBuf, int[] docGrpBuffer, int n) {
-
+            nativeUpdateGroups(nativeShardDataPtr, docGrpBuffer, docIdBuf, n);
         }
 
         @Override
         void fill(int group) {
-
+            nativeSetAllGroups(nativeShardDataPtr, group);
         }
 
         @Override
         void copyInto(GroupLookup other) {
+            if (this.size() != other.size()) {
+                throw new IllegalArgumentException("size != other.size: size="
+                                                           + this.size()
+                                                           + ", other.size="
+                                                           + other.size());
+            }
 
+            int start = 0;
+            while (start < numDocsInShard) {
+                int count = Math.min(ImhotepLocalSession.BUFFER_SIZE, numDocsInShard - start);
+
+                /* load groups into a buffer */
+                nativeFillGroupsSequential(nativeShardDataPtr, start, count, this.groups_buffer);
+
+                /* copy into other */
+                for (int i = 0; i < count; ++i) {
+                    other.set(i + start, this.groups_buffer[i]);
+                }
+
+                start += count;
+            }
+            other.numGroups = this.numGroups;
         }
 
         @Override
         int size() {
-            return 0;
+            return MultiCache.this.numDocsInShard;
         }
 
         @Override
         int maxGroup() {
-            return 0;
+            return 0;  //TODO
         }
 
         @Override
         long memoryUsed() {
-            return 0;
+            return this.groups_buffer.length * 4L
+                    + this.remap_buffer.length * 4L;
         }
 
         @Override
         void fillDocGrpBuffer(int[] docIdBuf, int[] docGrpBuffer, int n) {
-
+            nativeFillGroupsBuffer(nativeShardDataPtr, docGrpBuffer, docIdBuf, n);
         }
 
         @Override
         void fillDocGrpBufferSequential(int start, int[] docGrpBuffer, int n) {
-
+            nativeFillGroupsSequential(nativeShardDataPtr, start, n, docGrpBuffer);
         }
 
         @Override
-        void bitSetRegroup(FastBitSet bitSet, int targetGroup, int negativeGroup, int positiveGroup) {
-
+        void bitSetRegroup(FastBitSet bitSet,
+                           int targetGroup,
+                           int negativeGroup,
+                           int positiveGroup) {
+            nativeBitSetRegroup(nativeShardDataPtr,
+                                bitSet.bits,
+                                targetGroup,
+                                negativeGroup,
+                                positiveGroup);
         }
 
         @Override
         ImhotepLocalSession getSession() {
-            return null;
+            return MultiCache.this.session;
         }
 
         @Override
         void recalculateNumGroups() {
-
+// TODO
         }
 
-        private native void nativeFillGroupsBuffer(int[] groups_buffer, int[] docIdBuf, int n);
+        private native void nativeFillGroupsBuffer(long nativeShardDataPtr,
+                                                   int[] groups_buffer,
+                                                   int[] docIdBuf,
+                                                   int n);
+
+        private native void nativeUpdateGroups(long nativeShardDataPtr,
+                                               int[] remap_buffer,
+                                               int[] docIdBuf,
+                                               int n);
+
+        private native void nativeFillGroupsSequential(long nativeShardDataPtr,
+                                                       int start,
+                                                       int count,
+                                                       int[] grpBuffer);
+
+        private native void nativeUpdateGroupsSequential(long nativeShardDataPtr,
+                                                         int[] newGroups,
+                                                         int start,
+                                                         int n);
 
     }
 }
