@@ -11,48 +11,139 @@ extern "C" {
 #include <cstdlib>
 #include <functional>
 #include <iostream>
+#include <map>
 #include <set>
 #include <vector>
 
 using namespace std;
 
-typedef function<int64_t(size_t doc_id)> GroupFunc;
-typedef function<int64_t(int64_t min, int64_t max)> MetricFunc;
+typedef int     DocId;
+typedef int64_t GroupId;
+typedef int64_t Metric;
 
 typedef vector<int>  DocIds;
 typedef set<int64_t> GroupIds;
 
 template <size_t n_metrics>
-struct Shard {
-  packed_shard_t _shard;
-  DocIds         _doc_ids;
-  GroupIds       _gids;
+struct Metrics : public array<Metric, n_metrics>
+{ };
 
-  typedef array<int64_t, n_metrics> Limits;
+template <size_t n_metrics>
+struct Entry {
+  typedef Metrics<n_metrics> Metrics;
+  DocId   doc_id;
+  Metrics metrics;
+  GroupId group_id;
 
-  Shard(int        n_docs,
-        Limits&    mins,
-        Limits&    maxes,
-        GroupFunc  group_func,
-        MetricFunc metric_func) {
+  Entry(DocId doc_id_, GroupId group_id_)
+    : doc_id(doc_id_)
+    , group_id(group_id_) {
+    fill(metrics.begin(), metrics.end(), 0);
+  }
+};
 
-    packed_shard_init(&_shard, n_docs, mins.data(), maxes.data(), n_metrics);
+typedef function<int64_t(size_t index)> DocIdFunc;
+typedef function<int64_t(size_t doc_id)> GroupIdFunc;
+typedef function<int64_t(int64_t min, int64_t max)> MetricFunc;
 
-    vector<int64_t> gids_vector;
-    for (int doc_id(0); doc_id < n_docs; ++doc_id) {
-      _doc_ids.push_back(doc_id);
-      const int64_t gid(group_func(doc_id));
-      _gids.insert(gid);
-      gids_vector.push_back(gid);
+template <size_t n_metrics>
+class Table : public vector<Entry<n_metrics>> {
+
+  typedef Metrics<n_metrics>       Metrics;
+  typedef Entry<n_metrics>         Entry;
+  typedef multimap<GroupId, Entry> EntriesByGroup;
+
+  const Metrics _mins;
+  const Metrics _maxes;
+
+ public:
+  Table(size_t             n_docs,
+        const Metrics&     mins,
+        const Metrics&     maxes,
+        const DocIdFunc&   doc_id_func,
+        const GroupIdFunc& group_id_func,
+        const MetricFunc&  metric_func) 
+    : _mins(mins)
+    , _maxes(maxes) {
+    for (size_t doc_index(0); doc_index < n_docs; ++doc_index) {
+      DocId   doc_id(doc_id_func(doc_index));
+      GroupId group_id(group_id_func(doc_id));
+      Entry   entry(doc_id, group_id);
+      for (size_t metric_index(0); metric_index < n_metrics; ++metric_index) {
+        entry.metrics[metric_index] = metric_func(mins[metric_index], maxes[metric_index]);
+      }
+      this->push_back(entry);
     }
+  }
 
-    packed_shard_update_groups(&_shard, _doc_ids.data(), _doc_ids.size(), gids_vector.data());
+  Metrics mins()  const { return _mins;  }
+  Metrics maxes() const { return _maxes; }
 
-    vector<int64_t> metrics(n_metrics, 0);
-    for (int metric_index(0); metric_index < n_metrics; ++metric_index) {
-      vector<int64_t> metrics(_doc_ids.size(), metric_func(mins[metric_index], maxes[metric_index]));
-      packed_shard_update_metric(&_shard,
-                                 _doc_ids.data(), _doc_ids.size(),
+  DocIds doc_ids() const {
+    DocIds result;
+    transform(this->begin(), this->end(), back_inserter(result),
+              [](const Entry& entry) { return entry.doc_id; });
+    return result;
+  }
+
+  vector<GroupId> flat_group_ids() const {
+    vector<GroupId> result;
+    transform(this->begin(), this->end(), back_inserter(result),
+              [](const Entry& entry) { return entry.group_id; });
+    return result;
+  }
+
+  GroupIds group_ids() const {
+    GroupIds result;
+    transform(this->begin(), this->end(), inserter(result, result.begin()),
+              [](const Entry& entry) { return entry.group_id; });
+    return result;
+  }
+
+  EntriesByGroup entries_by_group() const {
+    EntriesByGroup result;
+    for (auto entry: *this) {
+      result.insert(make_pair(entry.group_id, entry));
+    }
+    return result;
+  }
+
+  vector<Metric> metrics(size_t metric_index) const {
+    vector<Metric> result;
+    transform(this->begin(), this->end(), inserter(result, result.begin()),
+              [&](const Entry& entry) { return entry.metrics[metric_index]; });
+    return result;
+  }
+
+  typename Entry::Metrics sum(GroupId group_id) const {
+    typename Entry::Metrics result;
+    for (auto entry: *this) {
+      if (entry.group_id == group_id) {
+        for (size_t index(0); index < entry.metrics.size(); ++index) {
+          result[index] += entry.metrics[index];
+        }
+      }
+    }
+    return result;
+  }
+};
+
+template <size_t n_metrics>
+struct Shard {
+
+  packed_shard_t _shard;
+
+  Shard(const Table<n_metrics>& table) {
+
+    packed_shard_init(&_shard, table.size(), table.mins().data(), table.maxes().data(), n_metrics);
+
+    DocIds          doc_ids(table.doc_ids());
+    vector<GroupId> flat_group_ids(table.flat_group_ids());
+    packed_shard_update_groups(&_shard, doc_ids.data(), doc_ids.size(), flat_group_ids.data());
+
+    for (size_t metric_index(0); metric_index < n_metrics; ++metric_index) {
+      vector<Metric> metrics(table.metrics(metric_index));
+      packed_shard_update_metric(&_shard, doc_ids.data(), doc_ids.size(),
                                  metrics.data(), metric_index);
     }
   }
@@ -67,20 +158,25 @@ int main(int argc, char* argv[])
 {
   constexpr size_t circ_buf_size = 512; // !@#
   constexpr size_t n_docs  = 200;
-  constexpr size_t n_stats = 42;
+  //  constexpr size_t n_stats = 42;
+  constexpr size_t n_stats = 1;
   typedef Shard<n_stats> TestShard;
 
   int status(EXIT_SUCCESS);
 
-  TestShard::Limits mins, maxes;
+  Metrics<n_stats> mins, maxes;
   fill(mins.begin(), mins.end(), 0);
-  for (size_t i(0); i < maxes.size(); ++i) {
-    maxes[i] = 1 << (i % 63);
-  }
+  fill(maxes.begin(), maxes.end(), 2);
+  // for (size_t i(0); i < maxes.size(); ++i) {
+  //   maxes[i] = 1 << (i % 63);
+  // }
 
-  TestShard shard(n_docs, mins, maxes,
-                  [](size_t doc_id) { return doc_id % 10; },
-                  [](int64_t min, int64_t max) { return (min + max) / 2; });
+  Table<n_stats> table(n_docs, mins, maxes, 
+                       [](size_t index) { return index; },
+                       [](size_t doc_id) { return doc_id; }, // i.e. group_id == doc_id
+                       [](int64_t min, int64_t max) { return 1; });
+
+  TestShard shard(table);
 
   struct bit_tree bit_tree;
   bit_tree_init(&bit_tree, 1024); // !@# arbitrary size!
@@ -92,11 +188,12 @@ int main(int argc, char* argv[])
 	worker.grp_buf      = circular_buffer_int_alloc(circ_buf_size);
 	worker.metric_buf   = circular_buffer_vector_alloc((n_stats+1)/2 * circ_buf_size);
 
+  DocIds doc_ids(table.doc_ids());
   vector<uint8_t> slice;
-  doc_ids_encode(shard._doc_ids.begin(), shard._doc_ids.end(), slice);
+  doc_ids_encode(doc_ids.begin(), doc_ids.end(), slice);
 
   array<struct index_slice_info, 1> slice_infos({
-      { { static_cast<int>(shard._doc_ids.size()), slice.data(), shard() } }
+      { { static_cast<int>(doc_ids.size()), slice.data(), shard() } }
     });
   struct tgs_desc tgs_desc;
   tgs_desc.n_slices        = slice_infos.size();
@@ -105,12 +202,22 @@ int main(int argc, char* argv[])
 	tgs_desc.metric_buf      = worker.metric_buf;
   tgs_desc.non_zero_groups = worker.bit_tree_buf;
 
+  GroupIds gids(table.group_ids());
   struct session_desc session;
-  session.num_groups       = shard._gids.size();
+  session.num_groups       = gids.size();
   session.num_stats        = n_stats;
   session.current_tgs_pass = &tgs_desc;
 
   tgs_execute_pass(&worker, &session, &tgs_desc);
+
+  typedef array<uint64_t, n_stats> Row;
+  size_t row_index(0);
+  for (GroupIds::const_iterator it(gids.begin()); it != gids.end(); ++it, ++row_index) {
+    cout << "gid: " << *it << endl;
+    char* begin(reinterpret_cast<char*>(worker.group_stats_buf) + row_index * sizeof(Row));
+    Row& row(*reinterpret_cast<Row*>(begin));
+    cout << row << endl;
+  }
 
   circular_buffer_vector_cleanup(worker.metric_buf);
   circular_buffer_int_cleanup(worker.grp_buf);
