@@ -44,7 +44,9 @@ void multiRemapCore(struct shard_data *shard,
 					IllegalArgumentException("Regrouping on a multi-valued field doesn't work correctly so the operation is rejected.");
 				}
 			}
-			new_grp_ids[doc_id] = Math.min(currentGroup, remappings[old_group]);
+			new_grp_ids[doc_id] = (currentGroup < remappings[old_group])
+			                        ? currentGroup
+			                        : remappings[old_group];
 		}
 	}
 

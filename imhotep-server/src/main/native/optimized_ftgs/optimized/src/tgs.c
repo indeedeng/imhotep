@@ -130,12 +130,6 @@ static __m128i *allocate_grp_stats(struct worker_desc *desc,
 //	}
 //}
 
-static __m128i row_element_extract(__m128i* data_array, int row_size, int row_idx, int element_idx);
-static void process_arrayA_data(packed_shard_t* data_desc, __m128i data_element,
-                                __m128i* save_buffer_start, int element_idx);
-static __m128i* calc_save_addr(packed_shard_t* data_desc, int row_idx, int element_idx);
-static void process_arrayB_data(packed_shard_t* data_desc, __m128i data_element,
-                                __m128i* save_buffer_start, int element_idx);
 /*
  * process data function for unpacking data
  *
@@ -148,6 +142,7 @@ static inline __m128i row_element_extract( __m128i* data_array,
 	int idx = row_idx * row_size + element_idx;
 	return data_array[idx];
 }
+
 static inline void process_arrayA_data(packed_shard_t* data_desc,
                                        __m128i data_element,
                                        __m128i* save_buffer_start,
@@ -186,14 +181,8 @@ static inline void process_arrayB_data(packed_shard_t* data_desc, __m128i data_e
 }
 
 
+#define LOAD_ROW_IDX(arrayA_row_counter, doc_id_buffer)    doc_id_buffer[arrayA_row_counter]
 
-#define PREFETCH(data_array, row_size, row_idx, element_idx)                               \
-        _mm_prefetch(data_array + (row_idx*row_size + element_idx), _MM_HINT_T0);
-
-#define PREFETCH_ARRAYB(data_array, row_size, row_idx, element_idx)                        \
-        _mm_prefetch(data_array + (row_idx*row_size + element_idx), _MM_HINT_T0);
-
-#define LOAD_ROW_IDX(arrayA_row_counter)
 #define LOAD_B_ROW_IDX(data_desc, data_array, row_size, row_idx, save_idx)                 \
 {                                                                                          \
 	/* load group id and unpack metrics */                                                 \
@@ -260,7 +249,7 @@ int tgs_execute_pass(struct worker_desc *worker,
                      struct session_desc *session,
                      struct tgs_desc *desc)
 {
-	uint32_t buffer[TGS_BUFFER_SIZE];
+	uint32_t doc_id_buf[TGS_BUFFER_SIZE];
 	__m128i *group_stats;
 	int n_slices = desc->n_slices;
 	struct index_slice_info *infos = desc->trm_slice_infos;
@@ -283,14 +272,17 @@ int tgs_execute_pass(struct worker_desc *worker,
 			int bytes_read;
 
 			count = (remaining > TGS_BUFFER_SIZE) ? TGS_BUFFER_SIZE : remaining;
-			bytes_read = masked_vbyte_read_loop_delta(read_addr, buffer, count, last_value);
+			bytes_read = masked_vbyte_read_loop_delta(read_addr, doc_id_buf, count, last_value);
 			read_addr += bytes_read;
 			remaining -= count;
 
-//			accumulate_stats_for_term(slice, buffer, count, desc->non_zero_groups,
+//			accumulate_stats_for_term(slice, doc_id_buf, count, desc->non_zero_groups,
 //			                          group_stats, slice->shard, desc->grp_buf, desc->metric_buf);
-			prefetch_and_process_array(slice->shard, group_stats, slice->shard->grp_stat_size);
-			last_value = buffer[count - 1];
+            packed_shard_t* shard = slice->shard;
+			prefetch_and_process_array(shard, shard->groups_and_metrics, group_stats, temp_buffer,
+			                           doc_id_buf, count, shard->metrics_layout->n_vectors_per_doc,
+			                           shard->grp_stat_size);
+			last_value = doc_id_buf[count - 1];
 		}
 	}
 	
