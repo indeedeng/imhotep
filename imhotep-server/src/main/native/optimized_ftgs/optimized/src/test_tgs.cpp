@@ -10,6 +10,7 @@ extern "C" {
 #include <array>
 #include <cstdlib>
 #include <functional>
+#include <iomanip>
 #include <iostream>
 #include <map>
 #include <set>
@@ -26,7 +27,9 @@ typedef set<int64_t> GroupIds;
 
 template <size_t n_metrics>
 struct Metrics : public array<Metric, n_metrics>
-{ };
+{
+  Metrics() { fill(this->begin(), this->end(), 0); } // !@# redundant?
+};
 
 template <size_t n_metrics>
 struct Entry {
@@ -111,12 +114,19 @@ class Table : public vector<Entry<n_metrics>> {
   vector<Metric> metrics(size_t metric_index) const {
     vector<Metric> result;
     transform(this->begin(), this->end(), inserter(result, result.begin()),
-              [&](const Entry& entry) { return entry.metrics[metric_index]; });
+              [metric_index, &result](const Entry& entry) { return entry.metrics[metric_index]; });
     return result;
   }
 
-  typename Entry::Metrics sum(GroupId group_id) const {
-    typename Entry::Metrics result;
+  vector<Metrics> metrics() const {
+    vector<Metrics> result;
+    for_each(this->begin(), this->end(),
+             [&result](const Entry& entry) { result.push_back(entry.metrics); });
+    return result;
+  }
+
+  Metrics sum(GroupId group_id) const {
+    Metrics result;
     for (auto entry: *this) {
       if (entry.group_id == group_id) {
         for (size_t index(0); index < entry.metrics.size(); ++index) {
@@ -126,7 +136,36 @@ class Table : public vector<Entry<n_metrics>> {
     }
     return result;
   }
+
+  vector<Metrics> sum() const {
+    vector<Metrics> result;
+    const GroupIds       group_ids(this->group_ids());
+    const EntriesByGroup entries(entries_by_group());
+    for (auto group_id: group_ids) {
+      Metrics row;
+      auto range(entries.equal_range(group_id));
+      for_each(range.first, range.second,
+               [&row] (const typename EntriesByGroup::value_type& value) {
+                 for (size_t metric_index(0); metric_index < n_metrics; ++metric_index) {
+                   row[metric_index] += value.second.metrics[metric_index];
+                 }
+               });
+      result.push_back(row);
+    }
+    return result;
+  }
 };
+
+template <size_t n_metrics>
+ostream& operator<<(ostream& os, const vector<Metrics<n_metrics>>& rows) {
+  for (auto row: rows) {
+    for (auto element: row) {
+      os << setw(10) << element;
+    }
+    os << endl;
+  }
+  return os;
+}
 
 template <size_t n_metrics>
 struct Shard {
@@ -157,24 +196,26 @@ struct Shard {
 int main(int argc, char* argv[])
 {
   constexpr size_t circ_buf_size = 512; // !@#
-  constexpr size_t n_docs  = 200;
+  constexpr size_t n_docs  = 30;
   //  constexpr size_t n_stats = 42;
-  constexpr size_t n_stats = 1;
+  constexpr size_t n_stats = 13;
   typedef Shard<n_stats> TestShard;
 
   int status(EXIT_SUCCESS);
 
   Metrics<n_stats> mins, maxes;
   fill(mins.begin(), mins.end(), 0);
-  fill(maxes.begin(), maxes.end(), 2);
-  // for (size_t i(0); i < maxes.size(); ++i) {
-  //   maxes[i] = 1 << (i % 63);
-  // }
+  for (size_t i(0); i < maxes.size(); ++i) {
+    maxes[i] = 1 << ((i*2) % 63);
+  }
 
   Table<n_stats> table(n_docs, mins, maxes, 
                        [](size_t index) { return index; },
-                       [](size_t doc_id) { return doc_id; }, // i.e. group_id == doc_id
-                       [](int64_t min, int64_t max) { return 1; });
+                       [](size_t doc_id) { return doc_id % 4; }, // i.e. group_id == doc_id
+                       [](int64_t min, int64_t max) { return (max - min) / 2; });
+
+  cout << table.metrics() << endl << endl;
+  cout << table.sum() << endl;
 
   TestShard shard(table);
 
