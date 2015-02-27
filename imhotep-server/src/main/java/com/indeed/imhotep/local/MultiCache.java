@@ -29,13 +29,6 @@ public final class MultiCache implements Closeable {
     private final ImhotepLocalSession session;
 
 
-    public static class StatsOrderingInfo {
-        List<IntValueLookup> reorderedMetrics;
-        int[] mins;
-        int[] maxes;
-    }
-
-
     public MultiCache(ImhotepLocalSession session,
                       long flamdexDoclistAddress,
                       int numDocsInShard,
@@ -49,7 +42,7 @@ public final class MultiCache implements Closeable {
         this.nativeGroupLookup = new MultiCacheGroupLookup();
         this.nativeMetricLookups = new ArrayList<MultiCacheIntValueLookup>(this.numStats);
 
-        final StatsOrderingInfo orderInfo = ordering.getOrder(metrics);
+        final NativeMetricsOrdering.StatsOrderingInfo orderInfo = ordering.getOrder(metrics);
         this.nativeShardDataPtr = nativeBuildMultiCache(nativeShardDataPtr,
                                                         numDocsInShard,
                                                         orderInfo.mins,
@@ -326,7 +319,7 @@ public final class MultiCache implements Closeable {
                            int negativeGroup,
                            int positiveGroup) {
             nativeBitSetRegroup(nativeShardDataPtr,
-                                bitSet.bits,
+                                bitSet.getBackingArray(),
                                 targetGroup,
                                 negativeGroup,
                                 positiveGroup);
@@ -361,6 +354,18 @@ public final class MultiCache implements Closeable {
                                                          int[] newGroups,
                                                          int start,
                                                          int n);
+
+        private native int nativeGetGroup(long nativeShardDataPtr, int doc);
+
+        private native void nativeSetGroupForDoc(long nativeShardDataPtr, int doc, int group);
+
+        private native void nativeSetAllGroups(long nativeShardDataPtr, int group);
+
+        private native void nativeBitSetRegroup(long nativeShardDataPtr,
+                                                long[] backingArray,
+                                                int targetGroup,
+                                                int negativeGroup,
+                                                int positiveGroup);
 
     }
 }

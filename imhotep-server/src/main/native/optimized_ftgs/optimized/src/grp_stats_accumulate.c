@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "imhotep_native.h"
 #include "circ_buf.h"
 
@@ -144,14 +145,15 @@ static inline __v16qi row_element_extract( __v16qi* data_array,
 
 static inline void process_arrayA_data(packed_shard_t* data_desc,
                                        __v16qi data_element,
-                                       __m128i* save_buffer_start,
+                                       struct circular_buffer_vector* stats_buf,
                                        int element_idx)
 {
 	struct packed_metric_desc *desc = data_desc->metrics_layout;
     uint32_t vector_index = desc->unpacked_offset[element_idx];
+    fprintf(stderr,"vector idx: %u, element_idx: %d\n", vector_index, element_idx);
 
 	uint8_t * restrict n_metrics_per_vector = desc->n_metrics_per_vector;
-	__v2di *mins = (__v2di *)desc->metric_mins;
+	__v2di *mins = (__v2di *)(desc->metric_mins);
 	__v16qi *shuffle_vecs = desc->shuffle_vecs_get2;
 
     for (int32_t k = 0; k < n_metrics_per_vector[element_idx]; k += 2) {
@@ -160,21 +162,20 @@ static inline void process_arrayA_data(packed_shard_t* data_desc,
 
         data = unpack_2_metrics(data_element, shuffle_vecs[vector_index]);
         decoded_data = _mm_add_epi64(data, mins[vector_index]);
+        vector_index++;
 
         /* save data into buffer */
-        save_buffer_start[vector_index] = decoded_data;
-
-        vector_index++;
+        circular_buffer_vector_put(stats_buf, decoded_data);
     }
 }
 
 static inline __m128i* calc_save_addr(packed_shard_t* data_desc,
-                                        __m128i* data_array,
+                                        __m128i* store_array,
                                         int row_size,
                                         int row_idx,
                                         int element_idx)
 {
-	return &data_array[row_idx * row_size + element_idx];
+	return &store_array[row_idx * row_size + element_idx];
 }
 
 static inline void process_arrayB_data(packed_shard_t* data_desc,
@@ -184,6 +185,103 @@ static inline void process_arrayB_data(packed_shard_t* data_desc,
 {
 	*save_buffer_start += data_element;
 }
+
+
+static inline void arrayA_loop_core(packed_shard_t* data_desc,
+                                    __v16qi* data_array,
+                                    struct circular_buffer_vector* store_buf,
+                                    int row_size,
+                                    int row_idx,
+                                    int element_idx)
+{
+    __v16qi data_element;
+//    __m128i* save_buffer_start;
+
+    /* load data  */
+    data_element = row_element_extract(data_array, row_size, row_idx, element_idx);
+//    /* calculate where to write the data */
+//    int save_buf_offset = data_desc->metrics_layout->unpacked_offset[element_idx];
+//    save_buffer_start = &store_array[save_buf_offset];
+    /* process data */
+    process_arrayA_data(data_desc, data_element, store_buf, element_idx);
+}
+
+static inline void arrayB_loop_core(packed_shard_t* data_desc,
+                                    __m128i* stats_array,
+                                    struct circular_buffer_vector *stats_buf,
+                                    int row_size,
+                                    int row_idx,
+                                    int element_idx)
+{
+    __m128i data_element;
+    __m128i *save_buffer_start;
+
+    /* load data  */
+    data_element = circular_buffer_vector_get(stats_buf);
+    /* calculate where to write the data */
+    save_buffer_start = calc_save_addr(data_desc, stats_array, row_size, row_idx, element_idx);
+    /* process data */
+    process_arrayB_data(data_desc, data_element, save_buffer_start, element_idx);
+}
+
+static inline void arrayA_rlwp(DESC_TYPE data_desc,
+                               __v16qi *data_array,
+                               struct circular_buffer_vector* store_buffer,
+                               int row_size,
+                               int row_idx,
+                               int prefetch_idx)
+{
+    #undef LOOP_CORE
+    #define LOOP_CORE(data_desc, data_array, store_array, row_size, row_idx, element_idx)      \
+    {                                                                                          \
+        arrayA_loop_core(data_desc, data_array, store_array, row_size, row_idx, element_idx);  \
+    }
+    ROW_LOOP_WITH_PREFETCH(data_desc, data_array, store_buffer, row_size, row_idx, prefetch_idx);
+}
+
+static inline void arrayA_rlnp(DESC_TYPE data_desc,
+                               __v16qi *data_array,
+                               struct circular_buffer_vector* store_buffer,
+                               int row_size,
+                               int row_idx)
+{
+    #undef LOOP_CORE
+    #define LOOP_CORE(data_desc, data_array, store_array, row_size, row_idx, element_idx)      \
+    {                                                                                          \
+        arrayA_loop_core(data_desc, data_array, store_array, row_size, row_idx, element_idx);  \
+    }
+    ROW_LOOP_NO_PREFETCH(data_desc, data_array, store_buffer, row_size, row_idx);
+}
+
+static inline void arrayB_rlwp(DESC_TYPE data_desc,
+                               struct circular_buffer_vector* stats_buf,
+                               __m128i* stats_array,
+                               int row_size,
+                               int row_idx,
+                               int prefetch_idx)
+{
+    #undef LOOP_CORE
+    #define LOOP_CORE(data_desc, data_array, store_array, row_size, row_idx, element_idx)      \
+    {                                                                                          \
+        arrayB_loop_core(data_desc, data_array, store_array, row_size, row_idx, element_idx);  \
+    }
+    ROW_LOOP_WITH_PREFETCH(data_desc, stats_array, stats_buf, row_size, row_idx, prefetch_idx);
+}
+
+static inline void arrayB_rlnp(DESC_TYPE data_desc,
+                               struct circular_buffer_vector* stats_buf,
+                               __m128i* stats_array,
+                               int row_size,
+                               int row_idx)
+{
+    #undef LOOP_CORE
+    #define LOOP_CORE(data_desc, data_array, store_array, row_size, row_idx, element_idx)      \
+    {                                                                                          \
+        arrayB_loop_core(data_desc, data_array, store_array, row_size, row_idx, element_idx);               \
+    }
+    ROW_LOOP_NO_PREFETCH(data_desc, stats_array, stats_buf, row_size, row_idx);
+}
+
 
 
 #define LOAD_ROW_IDX(arrayA_row_counter, doc_id_buffer)    doc_id_buffer[arrayA_row_counter]
@@ -210,13 +308,13 @@ void prefetch_and_process_2_arrays(
                                    packed_shard_t* data_desc,
                                    __v16qi *metrics,
                                    __m128i *stats,
-                                   __m128i* temp_buffer,
                                    uint32_t* doc_id_buffer,
                                    int num_rows,
                                    int grp_metrics_row_size,
                                    int grp_stats_row_size,
                                    struct bit_tree *non_zero_groups,
-                                   struct circular_buffer_int *grp_buf)
+                                   struct circular_buffer_int *grp_buf,
+                                   struct circular_buffer_vector *stats_buf)
 {
     /*
      * calculate the number of rows to prefetch to keep the total number
@@ -227,9 +325,9 @@ void prefetch_and_process_2_arrays(
                                          / array_cache_lines_per_row;
 
     /* loop through A rows, prefetching */
-    for (int doc_id_idx = 0; doc_id_idx < prefetch_rows; doc_id_idx++) {
-        int doc_id = LOAD_ROW_IDX(doc_id_idx, doc_id_buffer);
-        int prefetch_idx = LOAD_ROW_IDX(doc_id_idx + prefetch_rows, doc_id_buffer);
+    for (int idx = 0; idx < prefetch_rows; idx++) {
+        int doc_id = LOAD_ROW_IDX(idx, doc_id_buffer);
+        int prefetch_idx = LOAD_ROW_IDX(idx + prefetch_rows, doc_id_buffer);
 
         /* load value from A, save, prefetch B */
         int prefetch_grp;
@@ -242,16 +340,14 @@ void prefetch_and_process_2_arrays(
         circular_buffer_int_put(grp_buf, prefetch_grp);
 
         /* loop through A row elements */
-        arrayA_rlwp(data_desc, metrics, temp_buffer, grp_metrics_row_size, doc_id, prefetch_idx);
+        arrayA_rlwp(data_desc, metrics, stats_buf, grp_metrics_row_size, doc_id, prefetch_idx);
     }
 
     /* loop through A rows, prefetching; loop through B rows */
     int arrayB_row_counter = 0;
-    for (int doc_id_idx = prefetch_rows;
-		    doc_id_idx < num_rows - prefetch_rows;
-		    doc_id_idx ++, arrayB_row_counter ++) {
-        int doc_id = LOAD_ROW_IDX(doc_id_idx, doc_id_buffer);
-        int prefetch_idx = LOAD_ROW_IDX(doc_id_idx + prefetch_rows, doc_id_buffer);
+    for (int idx = prefetch_rows; idx < num_rows - prefetch_rows; idx ++, arrayB_row_counter ++) {
+        int doc_id = LOAD_ROW_IDX(idx, doc_id_buffer);
+        int prefetch_idx = LOAD_ROW_IDX(idx + prefetch_rows, doc_id_buffer);
 
         /* load value from A, save, prefetch B */
         int prefetch_grp;
@@ -264,20 +360,18 @@ void prefetch_and_process_2_arrays(
         circular_buffer_int_put(grp_buf, prefetch_grp);
 
         /* loop through A row elements */
-        arrayA_rlwp(data_desc, metrics, temp_buffer, grp_metrics_row_size, doc_id, prefetch_idx);
+        arrayA_rlwp(data_desc, metrics, stats_buf, grp_metrics_row_size, doc_id, prefetch_idx);
 
         /* get load idx */
         int current_grp = circular_buffer_int_get(grp_buf);
 
         /* loop through B row elements */
-        arrayB_rlwp(data_desc, stats, NULL, grp_stats_row_size, current_grp, prefetch_grp);
+        arrayB_rlwp(data_desc, stats_buf, stats, grp_stats_row_size, current_grp, prefetch_grp);
     }
 
     /* loop through A rows; loop through B rows */
-    for (int doc_id_idx = num_rows - prefetch_rows;
-		    doc_id_idx < num_rows;
-		    doc_id_idx ++, arrayB_row_counter ++) {
-        int doc_id = LOAD_ROW_IDX(doc_id_idx, doc_id_buffer);
+    for (int idx = num_rows - prefetch_rows; idx < num_rows; idx ++, arrayB_row_counter ++) {
+        int doc_id = LOAD_ROW_IDX(idx, doc_id_buffer);
 
         /* load value from A, save, prefetch B */
         int prefetch_grp;
@@ -290,13 +384,13 @@ void prefetch_and_process_2_arrays(
         circular_buffer_int_put(grp_buf, prefetch_grp);
 
         /* loop through A row elements */
-        arrayA_rlnp(data_desc, metrics, temp_buffer, grp_metrics_row_size, doc_id);
+        arrayA_rlnp(data_desc, metrics, stats_buf, grp_metrics_row_size, doc_id);
 
         /* get load idx */
         int current_grp = circular_buffer_int_get(grp_buf);
 
         /* loop through B row elements */
-        arrayB_rlwp(data_desc, stats, NULL, grp_stats_row_size, current_grp, prefetch_grp);
+        arrayB_rlwp(data_desc, stats_buf, stats, grp_stats_row_size, current_grp, prefetch_grp);
     }
 
     /* loop through final B rows with no prefetch */
@@ -305,6 +399,6 @@ void prefetch_and_process_2_arrays(
         int current_grp = circular_buffer_int_get(grp_buf);
 
         /* loop through B row elements */
-        arrayB_rlnp(data_desc, stats, NULL, grp_stats_row_size, current_grp);
+        arrayB_rlnp(data_desc, stats_buf, stats, grp_stats_row_size, current_grp);
     }
 }

@@ -2,19 +2,6 @@
 #include <stdint.h>
 #include <emmintrin.h>
 
-//struct circular_buffer {
-//	uint64_t groups_head;
-//	uint64_t groups_tail;
-//	uint64_t metrics_head;
-//	uint64_t metrics_tail;
-//	uint64_t metrics_len;
-//	uint64_t metrics_mask;
-//	uint64_t groups_len;
-//	uint64_t groups_mask;
-//	__m128i *restrict metrics_buffer;
-//	uint32_t *restrict groups_buffer;
-//};
-
 struct circular_buffer {
 	uint64_t head;
 	uint64_t tail;

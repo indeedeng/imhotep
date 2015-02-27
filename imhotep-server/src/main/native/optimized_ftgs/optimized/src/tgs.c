@@ -105,13 +105,13 @@ int tgs_execute_pass(struct worker_desc *worker,
 			prefetch_and_process_2_arrays(shard,
 									shard->groups_and_metrics,
 									group_stats,
-									desc->metric_buf,
 									doc_id_buf,
 									count,
 									shard->metrics_layout->n_vectors_per_doc,
 									shard->grp_stat_size,
 									desc->non_zero_groups,
-									desc->grp_buf);
+									desc->grp_buf,
+									desc->metric_buf);
 			last_value = doc_id_buf[count - 1];
 		}
 	}

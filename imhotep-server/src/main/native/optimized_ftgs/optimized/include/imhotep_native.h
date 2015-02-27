@@ -32,7 +32,7 @@ struct worker_desc {
     struct buffered_socket *sockets;
     struct bit_tree *bit_tree_buf;
     struct circular_buffer_int *grp_buf;
-    __m128i *metric_buf;
+    struct circular_buffer_vector *metric_buf;
     union term_union **prev_term_by_socket;
 };
 
@@ -92,7 +92,7 @@ struct tgs_desc {
     struct bit_tree *non_zero_groups;
     __m128i *group_stats;
     struct circular_buffer_int *grp_buf;
-    __m128i *metric_buf;
+    struct circular_buffer_vector *metric_buf;
 };
 
 struct session_desc {
@@ -166,10 +166,10 @@ void prefetch_and_process_2_arrays(
                                    packed_shard_t* data_desc,
                                    __v16qi *metrics,
                                    __m128i *stats,
-                                   __m128i* temp_buffer,
                                    uint32_t* doc_id_buffer,
                                    int num_rows,
                                    int grp_metrics_row_size,
                                    int grp_stats_row_size,
                                    struct bit_tree *non_zero_groups,
-                                   struct circular_buffer_int *grp_buf);
+                                   struct circular_buffer_int *grp_buf,
+                                   struct circular_buffer_vector *stats_buf);

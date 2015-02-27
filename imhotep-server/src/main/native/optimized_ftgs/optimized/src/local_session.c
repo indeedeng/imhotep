@@ -154,8 +154,8 @@ void worker_init(struct worker_desc *worker,
 	worker->group_stats_buf = (__m128i *)calloc(sizeof(uint8_t), worker->buffer_size);
 		/* allocate and initalize buffers */
 	worker->grp_buf = circular_buffer_int_alloc(CIRC_BUFFER_SIZE);
-//	worker->metric_buf = circular_buffer_vector_alloc((n_metrics+1)/2 * CIRC_BUFFER_SIZE);
-    worker->metric_buf = aligned_alloc(64, sizeof(uint64_t) * n_metrics * 2);
+	worker->metric_buf = circular_buffer_vector_alloc((n_metrics+1)/2 * CIRC_BUFFER_SIZE);
+//    worker->metric_buf = aligned_alloc(64, sizeof(uint64_t) * n_metrics * 2);
 	
 	worker->bit_tree_buf = calloc(sizeof(struct bit_tree), 1);
 	bit_tree_init(worker->bit_tree_buf, num_groups);
@@ -191,8 +191,8 @@ void worker_destroy(struct worker_desc *worker)
 	
 	/* free the intermediate buffers */
 	circular_buffer_int_cleanup(worker->grp_buf);
-//	circular_buffer_vector_cleanup(worker->metric_buf);
-	free(worker->metric_buf);
+	circular_buffer_vector_cleanup(worker->metric_buf);
+//	free(worker->metric_buf);
 	
 	/* free previous term array */
 	free(worker->prev_term_by_socket);
