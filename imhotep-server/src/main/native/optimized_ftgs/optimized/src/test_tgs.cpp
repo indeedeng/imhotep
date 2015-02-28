@@ -195,25 +195,25 @@ struct Shard {
 
 int main(int argc, char* argv[])
 {
-  constexpr size_t circ_buf_size = 512; // !@#
+  constexpr size_t circ_buf_size = 32; // !@#
   constexpr size_t n_docs  = 32;
-  //  constexpr size_t n_stats = 42;
-  constexpr size_t n_stats = 13;
-  typedef Shard<n_stats> TestShard;
+  constexpr size_t n_metrics = 13;
+  typedef Shard<n_metrics> TestShard;
 
   int status(EXIT_SUCCESS);
 
-  Metrics<n_stats> mins, maxes;
+  Metrics<n_metrics> mins, maxes;
   fill(mins.begin(), mins.end(), 0);
-  for (size_t i(0); i < maxes.size(); ++i) {
-//    maxes[i] = 1 << ((i*2) % 63);
-      maxes[i] = 13;
-  }
+  fill(maxes.begin(), maxes.end(), 13);
+  maxes[0] = 1;
+  maxes[1] = 1;
+  maxes[2] = 1;
+  maxes[3] = 1;
 
-  Table<n_stats> table(n_docs, mins, maxes, 
-                       [](size_t index) { return index; },
-                       [](size_t doc_id) { return doc_id % 4; }, // i.e. group_id == doc_id
-                       [](int64_t min, int64_t max) { /*return (max - min) / 2;*/ return max; });
+  Table<n_metrics> table(n_docs, mins, maxes, 
+                         [](size_t index) { return index; },
+                         [](size_t doc_id) { return doc_id % 4; }, // i.e. group_id == doc_id
+                         [](int64_t min, int64_t max) { /*return (max - min) / 2;*/ return max; });
 
   cout << table.metrics() << endl << endl;
   cout << table.sum() << endl;
@@ -221,15 +221,16 @@ int main(int argc, char* argv[])
   TestShard shard(table);
 
   struct bit_tree bit_tree;
-  bit_tree_init(&bit_tree, 1024); // !@# arbitrary size!
+  //  bit_tree_init(&bit_tree, 1024); // !@# arbitrary size!
+  bit_tree_init(&bit_tree, 4096); // !@# arbitrary size!
 
   struct worker_desc worker;
   char *begin(reinterpret_cast<char *>(&worker)), *end(begin + sizeof(worker));
   fill(begin, end, 0);
   worker.bit_tree_buf = &bit_tree;
 	worker.grp_buf      = circular_buffer_int_alloc(circ_buf_size);
-	worker.metric_buf   = circular_buffer_vector_alloc((n_stats+1)/2 * circ_buf_size);
-//	worker.metric_buf = (__m128i *)aligned_alloc(64, sizeof(uint64_t) * 256 * 2);
+	worker.metric_buf   = circular_buffer_vector_alloc((n_metrics+1)/2 * circ_buf_size);
+//  worker.metric_buf   = reinterpret_cast<__m128i*>(aligned_alloc(64, sizeof(uint64_t) * n_metrics * 2));
 
   DocIds doc_ids(table.doc_ids());
   vector<uint8_t> slice;
@@ -248,12 +249,12 @@ int main(int argc, char* argv[])
   GroupIds gids(table.group_ids());
   struct session_desc session;
   session.num_groups       = gids.size();
-  session.num_stats        = n_stats;
+  session.num_stats        = n_metrics;
   session.current_tgs_pass = &tgs_desc;
 
   tgs_execute_pass(&worker, &session, &tgs_desc);
 
-  typedef array<uint64_t, n_stats> Row;
+  typedef array<uint64_t, n_metrics> Row;
   size_t row_index(0);
   for (GroupIds::const_iterator it(gids.begin()); it != gids.end(); ++it, ++row_index) {
     cout << "gid: " << *it << endl;
@@ -263,7 +264,6 @@ int main(int argc, char* argv[])
   }
 
   circular_buffer_vector_cleanup(worker.metric_buf);
-//  free(worker.metric_buf);
   circular_buffer_int_cleanup(worker.grp_buf);
   bit_tree_destroy(&bit_tree);
 
