@@ -15,6 +15,7 @@ extern "C" {
 #include <iostream>
 #include <map>
 #include <set>
+#include <sstream>
 #include <vector>
 
 using namespace std;
@@ -211,7 +212,8 @@ struct Shard
 
   ~Shard() { packed_shard_destroy(_shard); }
 
-  packed_shard_t * operator()() { return _shard; };
+  packed_shard_t* operator()() { return _shard; };
+  const packed_shard_t* operator()() const { return _shard; };
 
   GroupStats<n_metrics> sum(const __m128i* group_stats_buf) const {
     GroupStats<n_metrics> results;
@@ -289,6 +291,9 @@ public:
   const Table<n_metrics>& table() const { return _table; }
   const Shard&            shard() const { return _shard; }
 
+  const size_t n_groups() const { return table().group_ids().size(); }
+  const size_t n_docs()   const { return shard()()->num_docs;        }
+
   const __m128i* group_stats_buf() const { return _worker.group_stats_buf; }
 };
 
@@ -297,15 +302,19 @@ ostream& operator<<(ostream& os, const TGSTest<n_metrics>& test) {
   typedef TGSTest<n_metrics> Test;
   const typename Test::GroupStats thing1(test.table().sum());
   const typename Test::GroupStats thing2(test.shard().sum(test.group_stats_buf()));
+  stringstream description;
+  description << "n_metrics: " << n_metrics
+              << " n_docs: "   << test.n_docs()
+              << " n_groups: " << test.n_groups();
   if (thing1 != thing2) {
-    cout << "FAILED group stats do not match" << endl;
-    cout << "expected:" << endl << thing1 << endl;
-    cout << "actual:"   << endl << thing2 << endl;
+    cout << "FAILED " << description.str() << endl;
+    cerr << "expected:" << endl << thing1 << endl;
+    cerr << "actual:"   << endl << thing2 << endl;
     // cout << "_table:" << endl;
     // cout << _table.metrics() << endl << endl;
   }
   else {
-    cout << "PASSED" << endl;
+    cout << "PASSED " << description.str() << endl;
   }
   return os;
 }
@@ -315,14 +324,25 @@ int main(int argc, char* argv[])
 {
   int status(EXIT_SUCCESS);
 
+  size_t n_docs(1000);
+  size_t n_groups(100);
+
+  if (argc != 3) {
+    //    cerr << "usage: " << argv[0] << " <n_docs> <n_groups>" << endl;
+    cerr << "defaulting to n_docs: " << n_docs << " n_groups: " << n_groups << endl;
+  }
+  else {
+    n_docs   = atoi(argv[1]);
+    n_groups = atoi(argv[2]);
+  }
+
   const MinMaxFunc  min_func([](size_t index) { return 0; });
-  const MinMaxFunc  max_func([](size_t index) { return 1; });
+  const MinMaxFunc  max_func([](size_t index) { return 10; });
   const DocIdFunc   doc_id_func([](size_t index) { return index; });
-  const GroupIdFunc group_id_func([](size_t doc_id) { return doc_id % 127; }); // !@# might be a problem with larger sizes
+  const GroupIdFunc group_id_func([n_groups](size_t doc_id) { return doc_id % n_groups; });
   const MetricFunc  metric_func([](int64_t min, int64_t max) { return max; });
 
-  TGSTest<5> test(3200, 4000, min_func, max_func, doc_id_func, group_id_func, metric_func);
-
+  TGSTest<2> test(n_docs, n_groups, min_func, max_func, doc_id_func, group_id_func, metric_func);
   cout << test;
 
   return status;
