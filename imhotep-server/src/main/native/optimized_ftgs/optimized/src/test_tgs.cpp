@@ -23,6 +23,7 @@ typedef int     DocId;
 typedef int64_t GroupId;
 typedef int64_t Metric;
 
+typedef function<Metric(size_t index)>             MinMaxFunc;
 typedef function<DocId(size_t index)>              DocIdFunc;
 typedef function<GroupId(size_t doc_id)>           GroupIdFunc;
 typedef function<Metric(int64_t min, int64_t max)> MetricFunc;
@@ -85,24 +86,28 @@ class Table : public vector<Entry<n_metrics>>
   typedef Entry<n_metrics>         Entry;
   typedef multimap<GroupId, Entry> EntriesByGroup;
 
-  const Metrics _mins;
-  const Metrics _maxes;
+  Metrics _mins;
+  Metrics _maxes;
 
  public:
   Table(size_t             n_docs,
-        const Metrics&     mins,
-        const Metrics&     maxes,
+        const MinMaxFunc&  min_func,
+        const MinMaxFunc&  max_func,
         const DocIdFunc&   doc_id_func,
         const GroupIdFunc& group_id_func,
-        const MetricFunc&  metric_func) 
-    : _mins(mins)
-    , _maxes(maxes) {
+        const MetricFunc&  metric_func) {
+
+    for (size_t metric_index(0); metric_index < n_metrics; ++metric_index) {
+      _mins[metric_index]  = min_func(metric_index);
+      _maxes[metric_index] = max_func(metric_index);
+    }      
+
     for (size_t doc_index(0); doc_index < n_docs; ++doc_index) {
       DocId   doc_id(doc_id_func(doc_index));
       GroupId group_id(group_id_func(doc_id));
       Entry   entry(doc_id, group_id);
       for (size_t metric_index(0); metric_index < n_metrics; ++metric_index) {
-        entry.metrics[metric_index] = metric_func(mins[metric_index], maxes[metric_index]);
+        entry.metrics[metric_index] = metric_func(_mins[metric_index], _maxes[metric_index]);
       }
       this->push_back(entry);
     }
@@ -223,71 +228,102 @@ struct Shard
 };
 
 
+template <size_t n_metrics>
+class TGSTest
+{
+  const Table<n_metrics> _table;
+
+  Shard<n_metrics>    _shard;
+  struct worker_desc  _worker;
+  struct session_desc _session;
+
+public:
+  typedef Metrics<n_metrics>    Metrics;
+  typedef Shard<n_metrics>      Shard;
+  typedef GroupStats<n_metrics> GroupStats;
+
+  TGSTest(size_t             n_docs,
+          size_t             n_groups,
+          const MinMaxFunc&  min_func,
+          const MinMaxFunc&  max_func,
+          const DocIdFunc&   doc_id_func,
+          const GroupIdFunc& group_id_func,
+          const MetricFunc&  metric_func)
+    : _table(n_docs, min_func, max_func, doc_id_func, group_id_func, metric_func)
+    , _shard(_table) {
+
+    array <int, 1> socket_file_desc{{3}};
+    worker_init(&_worker, 1, n_groups, n_metrics, socket_file_desc.data(), 1);
+
+    uint8_t shard_order[] = {0};
+    session_init(&_session, n_groups, n_metrics, shard_order, 1);
+
+    array <int, 1> shard_handles;
+    shard_handles[0] = register_shard(&_session, _shard());
+
+    DocIds doc_ids(_table.doc_ids());
+    vector<uint8_t> slice;
+    doc_ids_encode(doc_ids.begin(), doc_ids.end(), slice);
+    array<long, 1> addresses{{reinterpret_cast<long>(slice.data())}};
+
+    array<int, 1> docs_in_term{{static_cast<int>(_table.doc_ids().size())}};
+
+    run_tgs_pass(&_worker,
+                 &_session,
+                 TERM_TYPE_INT,
+                 1,
+                 NULL,
+                 addresses.data(),
+                 docs_in_term.data(),
+                 shard_handles.data(),
+                 1,
+                 socket_file_desc[0]);
+
+  }
+
+  ~TGSTest() {
+    // session_destroy(&_session);
+    // worker_destroy(&_worker);
+  }
+
+  const Table<n_metrics>& table() const { return _table; }
+  const Shard&            shard() const { return _shard; }
+
+  const __m128i* group_stats_buf() const { return _worker.group_stats_buf; }
+};
+
+template <size_t n_metrics>
+ostream& operator<<(ostream& os, const TGSTest<n_metrics>& test) {
+  typedef TGSTest<n_metrics> Test;
+  const typename Test::GroupStats thing1(test.table().sum());
+  const typename Test::GroupStats thing2(test.shard().sum(test.group_stats_buf()));
+  if (thing1 != thing2) {
+    cout << "FAILED group stats do not match" << endl;
+    cout << "expected:" << endl << thing1 << endl;
+    cout << "actual:"   << endl << thing2 << endl;
+    // cout << "_table:" << endl;
+    // cout << _table.metrics() << endl << endl;
+  }
+  else {
+    cout << "PASSED" << endl;
+  }
+  return os;
+}
+
+
 int main(int argc, char* argv[])
 {
-  constexpr size_t n_docs    = 32;
-  constexpr size_t n_metrics = 9;
-  constexpr size_t n_groups  = 4;
-  typedef Shard<n_metrics> TestShard;
-
   int status(EXIT_SUCCESS);
 
-  Metrics<n_metrics> mins, maxes;
-  fill(mins.begin(), mins.end(), 0);
-  fill(maxes.begin(), maxes.end(), 10);
-  maxes[0] = 1;
-  maxes[1] = 1;
+  const MinMaxFunc  min_func([](size_t index) { return 0; });
+  const MinMaxFunc  max_func([](size_t index) { return 1; });
+  const DocIdFunc   doc_id_func([](size_t index) { return index; });
+  const GroupIdFunc group_id_func([](size_t doc_id) { return doc_id % 127; }); // !@# might be a problem with larger sizes
+  const MetricFunc  metric_func([](int64_t min, int64_t max) { return max; });
 
-  Table<n_metrics> table(n_docs, mins, maxes, 
-                         [](size_t index) { return index; },
-                         [](size_t doc_id) { return doc_id % 4; },
-                         [](int64_t min, int64_t max) { return max; });
+  TGSTest<5> test(3200, 4000, min_func, max_func, doc_id_func, group_id_func, metric_func);
 
-  cout << "table:" << endl;
-  cout << table.metrics() << endl << endl;
-
-  cout << "expected:" << endl << table.sum() << endl;
-
-  struct worker_desc worker;
-  array <int, 1> socket_file_desc{{3}};
-  worker_init(&worker, 1, n_groups, n_metrics, socket_file_desc.data(), 1);
-
-  struct session_desc session;
-  uint8_t shard_order[] = {0};
-  session_init(&session, n_groups, n_metrics, shard_order, 1);
-
-  array <int, 1> shard_handles;
-  TestShard shard(table);
-  shard_handles[0] = register_shard(&session, shard());
-
-  DocIds doc_ids(table.doc_ids());
-  vector<uint8_t> slice;
-  doc_ids_encode(doc_ids.begin(), doc_ids.end(), slice);
-  array<long, 1> addresses{{reinterpret_cast<long>(slice.data())}};
-
-  array<int, 1> docs_in_term{{static_cast<int>(table.doc_ids().size())}};
-
-  run_tgs_pass(&worker,
-               &session,
-               TERM_TYPE_INT,
-               1,
-               NULL,
-               addresses.data(),
-               docs_in_term.data(),
-               shard_handles.data(),
-               1,
-               socket_file_desc[0]);
-
-  cout << "actual:" << endl << shard.sum(worker.group_stats_buf) << endl;
-
-  const GroupStats<n_metrics> thing1(table.sum());
-  const GroupStats<n_metrics> thing2(shard.sum(worker.group_stats_buf));
-  if (thing1 != thing2) {
-    cout << "FAIL: group stats do not match" << endl;
-  }
-  
-  session_destroy(&session);
-  // worker_destroy(&worker);
+  cout << test;
 
   return status;
 }
