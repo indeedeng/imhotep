@@ -146,14 +146,23 @@ class Table : public vector<Entry<n_metrics>> {
       Metrics row;
       auto range(entries.equal_range(group_id));
       for_each(range.first, range.second,
-               [&row] (const typename EntriesByGroup::value_type& value) {
+               [&] (const typename EntriesByGroup::value_type& value) {
                  for (size_t metric_index(0); metric_index < n_metrics; ++metric_index) {
-                   row[metric_index] += value.second.metrics[metric_index];
+                   if (!is_boolean(metric_index)) {
+                     row[metric_index] += value.second.metrics[metric_index];
+                   } else {
+                     row[metric_index] = max(row[metric_index], value.second.metrics[metric_index]);
+                   }
                  }
                });
       result.push_back(row);
     }
     return result;
+  }
+
+ private:
+  bool is_boolean(size_t metric_index) const {
+    return _maxes[metric_index] - _mins[metric_index] == 1;
   }
 };
 
@@ -219,8 +228,8 @@ int main(int argc, char* argv[])
   Metrics<n_metrics> mins, maxes;
   fill(mins.begin(), mins.end(), 0);
   fill(maxes.begin(), maxes.end(), 10);
-  // maxes[0] = 1;
-  // maxes[1] = 1;
+  maxes[0] = 1;
+  maxes[1] = 1;
   // maxes[2] = 1;
   // maxes[3] = 1;
 
