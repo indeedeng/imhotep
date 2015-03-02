@@ -76,7 +76,9 @@ static inline __m128i* calc_save_addr(packed_shard_t* data_desc,
                                         int row_idx,
                                         int element_idx)
 {
-	return &store_array[row_idx * data_desc->grp_stat_size + element_idx];
+    int true_idx = element_idx + data_desc->metrics_layout->n_boolean_metrics;
+    int true_row_sz = data_desc->grp_stat_size;
+	return &store_array[row_idx * true_row_sz + true_idx];
 }
 
 static inline void process_arrayB_data(packed_shard_t* data_desc,

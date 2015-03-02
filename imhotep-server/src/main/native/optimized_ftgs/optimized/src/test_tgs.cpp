@@ -235,8 +235,8 @@ int main(int argc, char* argv[])
   Metrics<n_metrics> mins, maxes;
   fill(mins.begin(), mins.end(), 0);
   fill(maxes.begin(), maxes.end(), 10);
-  // maxes[0] = 1;
-  // maxes[1] = 1;
+  maxes[0] = 1;
+  maxes[1] = 1;
 
   Table<n_metrics> table(n_docs, mins, maxes, 
                          [](size_t index) { return index; },

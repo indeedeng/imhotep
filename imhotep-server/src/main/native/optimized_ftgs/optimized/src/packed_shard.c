@@ -260,15 +260,12 @@ void packed_shard_init(	packed_shard_t *shard,
 	createShuffleBlendFromIndexes(desc);
 
 	/* calculate the number of vectors in the grp_stats array */
+    /* add in the boolean metrics */
 	int grp_stat_row_size = (desc->n_boolean_metrics + 1) / 2;    /* num vecs for boolean stats */
 	for (int i = 0; i < desc->n_vectors_per_doc; i++) {
 		desc->unpacked_offset[i] = grp_stat_row_size;
 
 		int n_grp_stats_vecs_per_packed_metric = ((desc->n_metrics_per_vector)[i] + 1) / 2;
-		/* add in the boolean metrics */
-		if (i == 0) {
-			n_grp_stats_vecs_per_packed_metric += (desc->n_boolean_metrics + 1) / 2;
-		}
 		grp_stat_row_size += n_grp_stats_vecs_per_packed_metric;
 	}
 	shard->n_stat_vecs_per_grp = grp_stat_row_size;
