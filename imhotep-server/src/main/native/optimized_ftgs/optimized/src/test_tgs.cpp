@@ -23,36 +23,64 @@ typedef int     DocId;
 typedef int64_t GroupId;
 typedef int64_t Metric;
 
+typedef function<DocId(size_t index)>              DocIdFunc;
+typedef function<GroupId(size_t doc_id)>           GroupIdFunc;
+typedef function<Metric(int64_t min, int64_t max)> MetricFunc;
+
 typedef vector<int>  DocIds;
 typedef set<int64_t> GroupIds;
+
 
 template <size_t n_metrics>
 struct Metrics : public array<Metric, n_metrics>
 {
-  Metrics() { fill(this->begin(), this->end(), 0); } // !@# redundant?
+  Metrics() { fill(this->begin(), this->end(), 0); }
 };
 
 template <size_t n_metrics>
-struct Entry {
+ostream& operator<<(ostream& os, const Metrics<n_metrics>& row) {
+  for (auto element: row) os << element << " ";
+  return os;
+}
+
+template <size_t n_metrics>
+ostream& operator<<(ostream& os, const vector<Metrics<n_metrics>>& rows) {
+  for (auto row: rows) os << row << endl;
+  return os;
+}
+
+
+template <size_t n_metrics>
+struct GroupStats : public map<GroupId, Metrics<n_metrics>>
+{ };
+
+template <size_t n_metrics>
+ostream& operator<<(ostream& os, GroupStats<n_metrics> stats) {
+  for (auto row: stats)
+    os << "gid " << setw(3) << row.first << ": " << row.second << endl;
+  return os;
+}
+
+
+template <size_t n_metrics>
+class Entry
+{
+public:
   typedef Metrics<n_metrics> Metrics;
-  DocId   doc_id;
-  Metrics metrics;
-  GroupId group_id;
+  const DocId   doc_id;
+  const GroupId group_id;
+  Metrics       metrics;
 
   Entry(DocId doc_id_, GroupId group_id_)
     : doc_id(doc_id_)
-    , group_id(group_id_) {
-    fill(metrics.begin(), metrics.end(), 0);
-  }
+    , group_id(group_id_)
+  { }
 };
 
-typedef function<int64_t(size_t index)> DocIdFunc;
-typedef function<int64_t(size_t doc_id)> GroupIdFunc;
-typedef function<int64_t(int64_t min, int64_t max)> MetricFunc;
 
 template <size_t n_metrics>
-class Table : public vector<Entry<n_metrics>> {
-
+class Table : public vector<Entry<n_metrics>>
+{
   typedef Metrics<n_metrics>       Metrics;
   typedef Entry<n_metrics>         Entry;
   typedef multimap<GroupId, Entry> EntriesByGroup;
@@ -126,20 +154,8 @@ class Table : public vector<Entry<n_metrics>> {
     return result;
   }
 
-  Metrics sum(GroupId group_id) const {
-    Metrics result;
-    for (auto entry: *this) {
-      if (entry.group_id == group_id) {
-        for (size_t index(0); index < entry.metrics.size(); ++index) {
-          result[index] += entry.metrics[index];
-        }
-      }
-    }
-    return result;
-  }
-
-  vector<Metrics> sum() const {
-    vector<Metrics> result;
+  GroupStats<n_metrics> sum() const {
+    GroupStats<n_metrics> result;
     const GroupIds       group_ids(this->group_ids());
     const EntriesByGroup entries(entries_by_group());
     for (auto group_id: group_ids) {
@@ -155,7 +171,7 @@ class Table : public vector<Entry<n_metrics>> {
                    }
                  }
                });
-      result.push_back(row);
+      result.insert(make_pair(group_id, row));
     }
     return result;
   }
@@ -166,29 +182,16 @@ class Table : public vector<Entry<n_metrics>> {
   }
 };
 
-template <size_t n_metrics>
-ostream& operator<<(ostream& os, const Metrics<n_metrics>& row) {
-  for (auto element: row) {
-    os << element << " ";
-  }
-  return os;
-}
 
 template <size_t n_metrics>
-ostream& operator<<(ostream& os, const vector<Metrics<n_metrics>>& rows) {
-  for (auto row: rows) {
-    os << row << endl;
-  }
-  return os;
-}
-
-template <size_t n_metrics>
-struct Shard {
-
-  packed_shard_t *_shard;
+struct Shard
+{
+  const Table<n_metrics>&  _table;
+  packed_shard_t          *_shard;
 
   Shard(const Table<n_metrics>& table)
-    : _shard(create_shard_multicache(table.size(), table.mins().data(), table.maxes().data(), n_metrics)) {
+    : _table(table)
+    , _shard(create_shard_multicache(table.size(), table.mins().data(), table.maxes().data(), n_metrics)) {
 
     DocIds          doc_ids(table.doc_ids());
     vector<GroupId> flat_group_ids(table.flat_group_ids());
@@ -204,23 +207,27 @@ struct Shard {
   ~Shard() { packed_shard_destroy(_shard); }
 
   packed_shard_t * operator()() { return _shard; };
+
+  GroupStats<n_metrics> sum(const __m128i* group_stats_buf) const {
+    GroupStats<n_metrics> results;
+    GroupIds              gids(_table.group_ids());
+    size_t                row_index(0);
+    for (GroupIds::const_iterator it(gids.begin()); it != gids.end(); ++it, ++row_index) {
+      const size_t              offset(_shard->metrics_layout->unpacked_offset[row_index]);
+      const Metrics<n_metrics>& row(*reinterpret_cast<const Metrics<n_metrics>*>(&group_stats_buf[offset]));
+      results.insert(make_pair(*it, row));
+    }
+    return results;
+  }
+
 };
 
 
-template <typename int_t>
-void dump(ostream& os, int_t value) {
-  typedef array<uint8_t, sizeof(int_t)> byte_array;
-  const byte_array& bytes(*reinterpret_cast<byte_array*>(&value));
-  vector<uint8_t> byte_vec(bytes.begin(), bytes.end());
-  os << byte_vec;
-}
-
 int main(int argc, char* argv[])
 {
-  constexpr size_t n_docs  = 32;
-  // constexpr size_t n_metrics = 10;
+  constexpr size_t n_docs    = 32;
   constexpr size_t n_metrics = 9;
-  constexpr size_t n_groups = 4;
+  constexpr size_t n_groups  = 4;
   typedef Shard<n_metrics> TestShard;
 
   int status(EXIT_SUCCESS);
@@ -228,28 +235,18 @@ int main(int argc, char* argv[])
   Metrics<n_metrics> mins, maxes;
   fill(mins.begin(), mins.end(), 0);
   fill(maxes.begin(), maxes.end(), 10);
-  maxes[0] = 1;
-  maxes[1] = 1;
-  // maxes[2] = 1;
-  // maxes[3] = 1;
+  // maxes[0] = 1;
+  // maxes[1] = 1;
 
   Table<n_metrics> table(n_docs, mins, maxes, 
                          [](size_t index) { return index; },
-                         [](size_t doc_id) { return doc_id % 4; }, // i.e. group_id == doc_id
-                         [](int64_t min, int64_t max) { /*return (max - min) / 2;*/ return max; });
+                         [](size_t doc_id) { return doc_id % 4; },
+                         [](int64_t min, int64_t max) { return max; });
 
   cout << "table:" << endl;
   cout << table.metrics() << endl << endl;
 
-  cout << "expected:" << endl;
-  const vector<Metrics<n_metrics>> sum(table.sum());
-  size_t sum_index(0);
-  for (auto group_id: table.group_ids()) {
-    cout << "gid " << group_id << ": ";
-    cout << sum.at(sum_index) << endl;
-    ++sum_index;
-  }
-  cout << endl;
+  cout << "expected:" << endl << table.sum() << endl;
 
   struct worker_desc worker;
   array <int, 1> socket_file_desc{{3}};
@@ -281,17 +278,14 @@ int main(int argc, char* argv[])
                1,
                socket_file_desc[0]);
 
-  cout << "actual:" << endl;
-  GroupIds gids(table.group_ids());
-  typedef array<uint64_t, n_metrics> Row;
-  size_t row_index(0);
-  for (GroupIds::const_iterator it(gids.begin()); it != gids.end(); ++it, ++row_index) {
-    const size_t offset(shard._shard->metrics_layout->unpacked_offset[row_index]);
-    const Row&   row(*reinterpret_cast<Row*>(&worker.group_stats_buf[offset]));
-    cout << "gid " << *it << ": " << row << endl;
-    ++row_index;
-  }
+  cout << "actual:" << endl << shard.sum(worker.group_stats_buf) << endl;
 
+  const GroupStats<n_metrics> thing1(table.sum());
+  const GroupStats<n_metrics> thing2(shard.sum(worker.group_stats_buf));
+  if (thing1 != thing2) {
+    cout << "FAIL: group stats do not match" << endl;
+  }
+  
   session_destroy(&session);
   // worker_destroy(&worker);
 
