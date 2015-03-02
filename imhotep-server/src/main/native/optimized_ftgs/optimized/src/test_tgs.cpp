@@ -158,12 +158,17 @@ class Table : public vector<Entry<n_metrics>> {
 };
 
 template <size_t n_metrics>
+ostream& operator<<(ostream& os, const Metrics<n_metrics>& row) {
+  for (auto element: row) {
+    os << element << " ";
+  }
+  return os;
+}
+
+template <size_t n_metrics>
 ostream& operator<<(ostream& os, const vector<Metrics<n_metrics>>& rows) {
   for (auto row: rows) {
-    for (auto element: row) {
-      os << setw(10) << element;
-    }
-    os << endl;
+    os << row << endl;
   }
   return os;
 }
@@ -213,18 +218,28 @@ int main(int argc, char* argv[])
   Metrics<n_metrics> mins, maxes;
   fill(mins.begin(), mins.end(), 0);
   fill(maxes.begin(), maxes.end(), 13);
-  maxes[0] = 1;
-  maxes[1] = 1;
-  maxes[2] = 1;
-  maxes[3] = 1;
+  // maxes[0] = 1;
+  // maxes[1] = 1;
+  // maxes[2] = 1;
+  // maxes[3] = 1;
 
   Table<n_metrics> table(n_docs, mins, maxes, 
                          [](size_t index) { return index; },
                          [](size_t doc_id) { return doc_id % 4; }, // i.e. group_id == doc_id
                          [](int64_t min, int64_t max) { /*return (max - min) / 2;*/ return max; });
 
+  cout << "table:" << endl;
   cout << table.metrics() << endl << endl;
-  cout << table.sum() << endl;
+
+  cout << "expected:" << endl;
+  const vector<Metrics<n_metrics>> sum(table.sum());
+  size_t sum_index(0);
+  for (auto group_id: table.group_ids()) {
+    cout << "gid " << group_id << ": ";
+    cout << sum.at(sum_index) << endl;
+    ++sum_index;
+  }
+  cout << endl;
 
   struct worker_desc worker;
   array <int, 1> socket_file_desc{{3}};
@@ -256,20 +271,15 @@ int main(int argc, char* argv[])
                1,
                socket_file_desc[0]);
 
+  cout << "actual:" << endl;
   GroupIds gids(table.group_ids());
-
   typedef array<uint64_t, n_metrics> Row;
   size_t row_index(0);
   for (GroupIds::const_iterator it(gids.begin()); it != gids.end(); ++it, ++row_index) {
-    cout << "gid: " << *it << endl;
+    cout << "gid" << *it << ": ";
     const size_t vectors_per_row(n_metrics % 2 == 0 ? n_metrics / 2 : n_metrics / 2 + 1);
-    const __m128i *row(worker.group_stats_buf + vectors_per_row);
-    for (size_t vector_index(0); vector_index < vectors_per_row; ++vector_index) {
-      const __m128i stat_vec(row[vector_index]);
-      const array<int64_t, 2> stats{ { stat_vec[0], stat_vec[1] } };
-      cout << stats << " ";
-    }
-    cout << endl;
+    const Row& row(*reinterpret_cast<Row*>(worker.group_stats_buf + vectors_per_row));
+    cout << row << endl;
     ++row_index;
   }
 
