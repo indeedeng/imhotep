@@ -7,25 +7,27 @@
 /* No need to share the group stats buffer, so just keep one per session*/
 /* Make sure the one we have is large enough */
 static __m128i *allocate_grp_stats(struct worker_desc *desc, 
-							struct session_desc *session)
+                                   struct session_desc *session,
+                                   struct packed_metric_desc *metric_desc)
 {
-	int num_cells = session->num_groups * session->num_stats;
+	int row_size = metric_desc->n_vectors_per_doc;
+    int gs_size = row_size * session->num_groups;
 
 	if (desc->group_stats_buf == NULL) {
-		desc->buffer_size = sizeof(uint64_t) * num_cells;
-		desc->group_stats_buf = (__m128i *)calloc(sizeof(uint64_t), num_cells);
+		desc->buffer_size = gs_size;
+		desc->group_stats_buf = (__m128i *)calloc(sizeof(__m128i), gs_size);
 		return desc->group_stats_buf;
 	}
 	
-	if (desc->buffer_size >= (sizeof(uint64_t) * num_cells)) {
+	if (desc->buffer_size >= gs_size) {
 		// our buffer is large enough already;
 		return desc->group_stats_buf;
 	}
 	
 	free(desc->group_stats_buf);
 	// TODO: maybe resize smarter
-	desc->buffer_size = sizeof(uint64_t) * num_cells;
-	desc->group_stats_buf = (__m128i *)calloc(sizeof(uint64_t), num_cells);
+	desc->buffer_size = gs_size;
+	desc->group_stats_buf = (__m128i *)calloc(sizeof(__m128i), gs_size);
 	return desc->group_stats_buf;
 }
 
@@ -54,7 +56,7 @@ void tgs_init(struct worker_desc *worker,
 		int handle = shard_handles[i];
 		infos[i].n_docs_in_slice = docs_per_shard[i];
 		infos[i].slice = (uint8_t *)addresses[i];
-		infos[i].shard = &(session->shards[handle]);
+		infos[i].shard = session->shards[handle];
 	}
 	desc->trm_slice_infos = infos;
 	desc->grp_buf = worker->grp_buf;
@@ -76,8 +78,12 @@ int tgs_execute_pass(struct worker_desc *worker,
 	__m128i *group_stats;
 	int n_slices = desc->n_slices;
 	struct index_slice_info *infos = desc->trm_slice_infos;
+    
+    if (desc->n_slices <= 0) {
+        return -1;
+    }
 
-	group_stats = allocate_grp_stats(worker, session);
+	group_stats = allocate_grp_stats(worker, session, infos[0].shard->metrics_layout);
 	session->current_tgs_pass->group_stats = group_stats;
 
 	for (int i = 0; i < n_slices; i++) {

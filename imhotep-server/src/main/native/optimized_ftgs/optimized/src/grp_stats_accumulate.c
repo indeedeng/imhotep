@@ -10,104 +10,6 @@
 #define PREFETCH_CACHE_LINES				8
 
 
-//static void accumulate_stats_for_group(struct circular_buffer_int* grp_buf,
-//                                       struct circular_buffer_vector* metric_buf,
-//                                       __m128i* group_stats,
-//                                       int n_stat_vecs_per_grp,
-//                                       int grp_stat_size,
-//                                       int prefetch_group_id)
-//{
-//	uint32_t group_id;
-//
-//	group_id = circular_buffer_int_get(grp_buf);
-//	int load_index;
-//	for (load_index = 0; load_index <= n_stat_vecs_per_grp-4; load_index += 4) {
-//		__m128i stats = circular_buffer_vector_get(metric_buf);
-//		group_stats[group_id * grp_stat_size + load_index + 0] += stats;
-//
-//		stats = circular_buffer_vector_get(metric_buf);
-//		group_stats[group_id * grp_stat_size + load_index + 1] += stats;
-//
-//		stats = circular_buffer_vector_get(metric_buf);
-//		group_stats[group_id * grp_stat_size + load_index + 2] += stats;
-//
-//		stats = circular_buffer_vector_get(metric_buf);
-//		group_stats[group_id * grp_stat_size + load_index + 3] += stats;
-//		if (prefetch_group_id != 0) {
-//			_mm_prefetch(group_stats+prefetch_group_id*grp_stat_size+load_index, _MM_HINT_T0);
-//		}
-//	}
-//
-//	if (load_index < n_stat_vecs_per_grp) {
-//		__m128i* prefetch_address = group_stats+prefetch_group_id*grp_stat_size+load_index;
-//		do {
-//			__m128i stats = circular_buffer_vector_get(metric_buf);
-//			group_stats[group_id * grp_stat_size + load_index] += stats;
-//			load_index++;
-//		} while (load_index < n_stat_vecs_per_grp);
-//		if (prefetch_group_id != 0) {
-//			_mm_prefetch(prefetch_address, _MM_HINT_T0);
-//		}
-//	}
-//}
-//
-//static void accumulate_stats_for_term(struct index_slice_info *slice,
-//								uint32_t *doc_ids,
-//								int doc_ids_len,
-//								struct bit_tree *non_zero_groups,
-//								__m128i *group_stats,
-//								packed_shard_t *shard,
-//								struct circular_buffer_int *grp_buf,
-//								struct circular_buffer_vector *metric_buf)
-//{
-//	__v16qi* grp_metrics = shard->groups_and_metrics;
-//	struct packed_metric_desc *packing_desc = shard->metrics_layout;
-//	int n_vecs_per_doc = packing_desc->n_vectors_per_doc;
-//
-//	/* process the data */
-//	for (int32_t i = 0; i < doc_ids_len; i++) {
-//
-//		uint32_t doc_id = doc_ids[i];
-//		uint32_t start_idx = doc_id * n_vecs_per_doc;
-//
-//		/* load group id and unpack metrics */
-//		struct bit_fields_and_group packed_bf_grp;
-//		uint32_t bit_fields;
-//		uint32_t group;
-//
-//		/* decode bit fields */
-//		packed_bf_grp = *((struct bit_fields_and_group *)&grp_metrics[start_idx]);
-//		bit_fields = packed_bf_grp.metrics;
-//
-//		/* get group*/
-//		group = packed_bf_grp.grp;
-//
-//		/* flag group as modified */
-//		bit_tree_set(non_zero_groups, group);
-//
-//		/* save group into buffer */
-//		circular_buffer_int_put(grp_buf, group);
-//
-//		int prefetch_doc_id = 0;
-//		if (i+PREFETCH_DISTANCE < doc_ids_len) {
-//			prefetch_doc_id = doc_ids[i+PREFETCH_DISTANCE];
-//		}
-//		/* unpack and save the metrics for this document */
-//		packed_shard_unpack_metrics_into_buffer(shard, doc_id, metric_buf, prefetch_doc_id);
-//
-//		if (i >= PREFETCH_DISTANCE) {
-//			accumulate_stats_for_group(grp_buf, metric_buf,  group_stats, shard->n_stat_vecs_per_grp,
-//			                           shard->grp_stat_size, group);
-//		}
-//	}    // doc id loop
-//
-//	/* sum the final buffered stats */
-//	for (int32_t i = 0; i < PREFETCH_DISTANCE; i++) {
-//		accumulate_stats_for_group(grp_buf, metric_buf, group_stats, shard->n_stat_vecs_per_grp,
-//		                           shard->grp_stat_size, 0);
-//	}
-//}
-
 /*
  * process data function for unpacking data
  *
@@ -277,7 +179,7 @@ static inline void arrayB_rlnp(DESC_TYPE data_desc,
     #undef LOOP_CORE
     #define LOOP_CORE(data_desc, data_array, store_array, row_size, row_idx, element_idx)      \
     {                                                                                          \
-        arrayB_loop_core(data_desc, data_array, store_array, row_size, row_idx, element_idx);               \
+        arrayB_loop_core(data_desc, data_array, store_array, row_size, row_idx, element_idx);  \
     }
     ROW_LOOP_NO_PREFETCH(data_desc, stats_array, stats_buf, row_size, row_idx);
 }
@@ -286,18 +188,17 @@ static inline void arrayB_rlnp(DESC_TYPE data_desc,
 
 #define LOAD_ROW_IDX(arrayA_row_counter, doc_id_buffer)    doc_id_buffer[arrayA_row_counter]
 
-#define LOAD_B_ROW_IDX(data_desc, data_array, row_size, row_idx, save_idx)                 \
+#define LOAD_B_ROW_IDX(data_desc, data_array, row_size, row_idx, save_idx, bit_fields)     \
 {                                                                                           \
 	/* load group id and unpack metrics */                                                 \
 	struct bit_fields_and_group packed_bf_grp;                                             \
-	uint32_t group;                                                                        \
 	                                                                                       \
 	/* decode bit fields */                                                                \
 	packed_bf_grp = *((struct bit_fields_and_group *)&data_array[row_size * row_idx]);     \
 	                                                                                       \
-	/* get group*/                                                                         \
-	group = packed_bf_grp.grp;                                                             \
-	save_idx = group;                                                                      \
+	/* break out group and bit fields */                                                   \
+	save_idx = packed_bf_grp.grp;                                                          \
+	bit_fields = packed_bf_grp.metrics;                                                    \
 }
 
 
@@ -331,13 +232,17 @@ void prefetch_and_process_2_arrays(
 
         /* load value from A, save, prefetch B */
         int prefetch_grp;
-        LOAD_B_ROW_IDX(data_desc, metrics, grp_metrics_row_size, doc_id, prefetch_grp);
+        int bit_fields;
+        LOAD_B_ROW_IDX(data_desc, metrics, grp_metrics_row_size, doc_id, prefetch_grp, bit_fields);
 
         /* flag group as modified */
         bit_tree_set(non_zero_groups, prefetch_grp);
 
         /* save group into buffer */
         circular_buffer_int_put(grp_buf, prefetch_grp);
+
+        /* unpack and save the bit field metrics */
+        unpack_bit_fields(stats_buf, bit_fields, data_desc->metrics_layout->n_boolean_metrics);
 
         /* loop through A row elements */
         arrayA_rlwp(data_desc, metrics, stats_buf, grp_metrics_row_size, doc_id, prefetch_idx);
@@ -351,13 +256,17 @@ void prefetch_and_process_2_arrays(
 
         /* load value from A, save, prefetch B */
         int prefetch_grp;
-        LOAD_B_ROW_IDX(data_desc, metrics, grp_metrics_row_size, doc_id, prefetch_grp);
+        int bit_fields;
+        LOAD_B_ROW_IDX(data_desc, metrics, grp_metrics_row_size, doc_id, prefetch_grp, bit_fields);
 
         /* flag group as modified */
         bit_tree_set(non_zero_groups, prefetch_grp);
 
         /* save group into buffer */
         circular_buffer_int_put(grp_buf, prefetch_grp);
+
+        /* unpack and save the bit field metrics */
+        unpack_bit_fields(stats_buf, bit_fields, data_desc->metrics_layout->n_boolean_metrics);
 
         /* loop through A row elements */
         arrayA_rlwp(data_desc, metrics, stats_buf, grp_metrics_row_size, doc_id, prefetch_idx);
@@ -375,13 +284,17 @@ void prefetch_and_process_2_arrays(
 
         /* load value from A, save, prefetch B */
         int prefetch_grp;
-        LOAD_B_ROW_IDX(data_desc, metrics, grp_metrics_row_size, doc_id, prefetch_grp);
+        int bit_fields;
+        LOAD_B_ROW_IDX(data_desc, metrics, grp_metrics_row_size, doc_id, prefetch_grp, bit_fields);
 
         /* flag group as modified */
         bit_tree_set(non_zero_groups, prefetch_grp);
 
         /* save group into buffer */
         circular_buffer_int_put(grp_buf, prefetch_grp);
+
+        /* unpack and save the bit field metrics */
+        unpack_bit_fields(stats_buf, bit_fields, data_desc->metrics_layout->n_boolean_metrics);
 
         /* loop through A row elements */
         arrayA_rlnp(data_desc, metrics, stats_buf, grp_metrics_row_size, doc_id);

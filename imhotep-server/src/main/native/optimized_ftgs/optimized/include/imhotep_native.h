@@ -13,8 +13,8 @@
 struct circular_buffer_vector;
 
 struct bit_fields_and_group {
-	uint32_t metrics :4;
 	uint32_t grp :28;
+	uint32_t metrics :4;
 };
 
 struct buffered_socket {
@@ -100,7 +100,7 @@ struct session_desc {
     int num_stats;
     uint8_t* stat_order;
     int num_shards;
-    packed_shard_t *shards;
+    packed_shard_t **shards;
     struct tgs_desc *current_tgs_pass;
 };
 

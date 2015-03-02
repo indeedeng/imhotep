@@ -2,6 +2,7 @@
 extern "C" {
 #include "circ_buf.h" 
 #include "imhotep_native.h"
+#include "local_session.h"
 }
 
 #include "test_utils.h"
@@ -167,37 +168,62 @@ ostream& operator<<(ostream& os, const vector<Metrics<n_metrics>>& rows) {
   return os;
 }
 
+//template <size_t n_metrics>
+//struct Shard {
+//
+//  packed_shard_t _shard;
+//
+//  Shard(const Table<n_metrics>& table) {
+//
+//    packed_shard_init(&_shard, table.size(), table.mins().data(), table.maxes().data(), n_metrics);
+//
+//    DocIds          doc_ids(table.doc_ids());
+//    vector<GroupId> flat_group_ids(table.flat_group_ids());
+//    packed_shard_update_groups(&_shard, doc_ids.data(), doc_ids.size(), flat_group_ids.data());
+//
+//    for (size_t metric_index(0); metric_index < n_metrics; ++metric_index) {
+//      vector<Metric> metrics(table.metrics(metric_index));
+//      packed_shard_update_metric(&_shard, doc_ids.data(), doc_ids.size(),
+//                                 metrics.data(), metric_index);
+//    }
+//  }
+//
+//  ~Shard() { packed_shard_destroy(&_shard); }
+//
+//  packed_shard_t* operator()() { return &_shard; };
+//};
+
 template <size_t n_metrics>
 struct Shard {
 
-  packed_shard_t _shard;
+  packed_shard_t *_shard;
 
   Shard(const Table<n_metrics>& table) {
 
-    packed_shard_init(&_shard, table.size(), table.mins().data(), table.maxes().data(), n_metrics);
+    _shard = create_shard_multicache(table.size(), table.mins().data(), table.maxes().data(), n_metrics);
 
     DocIds          doc_ids(table.doc_ids());
     vector<GroupId> flat_group_ids(table.flat_group_ids());
-    packed_shard_update_groups(&_shard, doc_ids.data(), doc_ids.size(), flat_group_ids.data());
+    packed_shard_update_groups(_shard, doc_ids.data(), doc_ids.size(), flat_group_ids.data());
 
     for (size_t metric_index(0); metric_index < n_metrics; ++metric_index) {
       vector<Metric> metrics(table.metrics(metric_index));
-      packed_shard_update_metric(&_shard, doc_ids.data(), doc_ids.size(),
+      packed_shard_update_metric(_shard, doc_ids.data(), doc_ids.size(),
                                  metrics.data(), metric_index);
     }
   }
 
-  ~Shard() { packed_shard_destroy(&_shard); }
+  ~Shard() { packed_shard_destroy(_shard); }
 
-  packed_shard_t* operator()() { return &_shard; };
+  packed_shard_t * operator()() { return _shard; };
 };
-
 
 int main(int argc, char* argv[])
 {
-  constexpr size_t circ_buf_size = 32; // !@#
+//  constexpr size_t circ_buf_size = 1024; // !@#
   constexpr size_t n_docs  = 32;
-  constexpr size_t n_metrics = 13;
+  constexpr size_t n_metrics = 10;
+  constexpr size_t n_groups = 4;
   typedef Shard<n_metrics> TestShard;
 
   int status(EXIT_SUCCESS);
@@ -218,41 +244,74 @@ int main(int argc, char* argv[])
   cout << table.metrics() << endl << endl;
   cout << table.sum() << endl;
 
+//  TestShard shard(table);
+
+//  struct bit_tree bit_tree;
+//  //  bit_tree_init(&bit_tree, 1024); // !@# arbitrary size!
+//  bit_tree_init(&bit_tree, 4096); // !@# arbitrary size!
+//
+    struct worker_desc worker;
+//  char *begin(reinterpret_cast<char *>(&worker)), *end(begin + sizeof(worker));
+//  fill(begin, end, 0);
+    int socket_file_desc[] = {3};
+    worker_init(&worker, 1, n_groups, n_metrics, socket_file_desc, 1);
+//  worker.bit_tree_buf = &bit_tree;
+//	worker.grp_buf      = circular_buffer_int_alloc(circ_buf_size);
+//	worker.metric_buf   = circular_buffer_vector_alloc((n_metrics+1)/2 * circ_buf_size);
+////  worker.metric_buf   = reinterpret_cast<__m128i*>(aligned_alloc(64, sizeof(uint64_t) * n_metrics * 2));
+
+  struct session_desc session;
+  uint8_t shard_order[] = {0};
+  session_init(&session, n_groups, n_metrics, shard_order, 1);
+
+  int shard_handles[1];
   TestShard shard(table);
-
-  struct bit_tree bit_tree;
-  //  bit_tree_init(&bit_tree, 1024); // !@# arbitrary size!
-  bit_tree_init(&bit_tree, 4096); // !@# arbitrary size!
-
-  struct worker_desc worker;
-  char *begin(reinterpret_cast<char *>(&worker)), *end(begin + sizeof(worker));
-  fill(begin, end, 0);
-  worker.bit_tree_buf = &bit_tree;
-	worker.grp_buf      = circular_buffer_int_alloc(circ_buf_size);
-	worker.metric_buf   = circular_buffer_vector_alloc((n_metrics+1)/2 * circ_buf_size);
-//  worker.metric_buf   = reinterpret_cast<__m128i*>(aligned_alloc(64, sizeof(uint64_t) * n_metrics * 2));
+  shard_handles[0] = register_shard(&session, shard());
 
   DocIds doc_ids(table.doc_ids());
   vector<uint8_t> slice;
   doc_ids_encode(doc_ids.begin(), doc_ids.end(), slice);
 
-  array<struct index_slice_info, 1> slice_infos({
-      { { static_cast<int>(doc_ids.size()), slice.data(), shard() } }
-    });
-  struct tgs_desc tgs_desc;
-  tgs_desc.n_slices        = slice_infos.size();
-  tgs_desc.trm_slice_infos = slice_infos.data();
-	tgs_desc.grp_buf         = worker.grp_buf;
-	tgs_desc.metric_buf      = worker.metric_buf;
-  tgs_desc.non_zero_groups = worker.bit_tree_buf;
+//  int run_tgs_pass(struct worker_desc *worker,
+//                   struct session_desc *session,
+//                   uint8_t term_type,
+//                   int int_term,
+//                   char *string_term,
+//                   long *addresses,
+//                   int *docs_per_shard,
+//                   int *shard_handles,
+//                   int num_shard,
+//                   int socket_fd)
+  long addresses[] = {(long)(slice.data())};
+  int docs_in_term[] = {static_cast<int>(table.doc_ids().size())};
+  run_tgs_pass(&worker,
+               &session,
+               TERM_TYPE_INT,
+               1,
+               NULL,
+               addresses,
+               docs_in_term,
+               shard_handles,
+               1,
+               3);
 
+//  array<struct index_slice_info, 1> slice_infos({
+//      { { static_cast<int>(doc_ids.size()), slice.data(), shard() } }
+//    });
+//  struct tgs_desc tgs_desc;
+//  tgs_desc.n_slices        = slice_infos.size();
+//  tgs_desc.trm_slice_infos = slice_infos.data();
+//	tgs_desc.grp_buf         = worker.grp_buf;
+//	tgs_desc.metric_buf      = worker.metric_buf;
+//  tgs_desc.non_zero_groups = worker.bit_tree_buf;
+//
   GroupIds gids(table.group_ids());
-  struct session_desc session;
-  session.num_groups       = gids.size();
-  session.num_stats        = n_metrics;
-  session.current_tgs_pass = &tgs_desc;
+//  struct session_desc session;
+//  session.num_groups       = gids.size();
+//  session.num_stats        = n_metrics;
+//  session.current_tgs_pass = &tgs_desc;
 
-  tgs_execute_pass(&worker, &session, &tgs_desc);
+//  tgs_execute_pass(&worker, &session, &tgs_desc);
 
   typedef array<uint64_t, n_metrics> Row;
   size_t row_index(0);
@@ -263,9 +322,9 @@ int main(int argc, char* argv[])
     cout << row << endl;
   }
 
-  circular_buffer_vector_cleanup(worker.metric_buf);
-  circular_buffer_int_cleanup(worker.grp_buf);
-  bit_tree_destroy(&bit_tree);
+//  circular_buffer_vector_cleanup(worker.metric_buf);
+//  circular_buffer_int_cleanup(worker.grp_buf);
+//  bit_tree_destroy(&bit_tree);
 
   return status;
 }

@@ -2,6 +2,7 @@
 #include <string.h>
 #include "imhotep_native.h"
 #include "circ_buf.h"
+#include "socket.h"
 
 #define CIRC_BUFFER_SIZE						32
 
@@ -31,19 +32,22 @@ int run_tgs_pass(struct worker_desc *worker,
 	current_term = calloc(sizeof(union term_union), 1);
 	switch(term_type) {
 		case TERM_TYPE_STRING:
-		/* copy string into term */
-		break;
+		    /* copy string into term */
+		    break;
 		case TERM_TYPE_INT:
-		current_term->int_term = int_term;
-		break;
+		    current_term->int_term = int_term;
+		    break;
 	}
 
 	/* find the socket data struct by its file descriptor */
 	curr_socket_idx = 0;
 	do {
 		socket = &worker->sockets[curr_socket_idx];
+		if (socket->socket_fd == socket_fd) {
+		    break;
+		}
 		curr_socket_idx++;
-	} while (socket->socket_fd != socket_fd && curr_socket_idx < worker->num_sockets);
+	} while (curr_socket_idx < worker->num_sockets);
 	if (curr_socket_idx >= worker->num_sockets) {
 		/* error */
 		return -1;
@@ -87,10 +91,10 @@ int run_tgs_pass(struct worker_desc *worker,
 }
 
 //This method assumes that the boolean metrics will come first
-void *create_shard_multicache(uint32_t n_docs,
-                              int64_t *metric_mins,
-                              int64_t *metric_maxes,
-                              int n_metrics)
+packed_shard_t *create_shard_multicache(uint32_t n_docs,
+                                        int64_t *metric_mins,
+                                        int64_t *metric_maxes,
+                                        int n_metrics)
 {
 	packed_shard_t *shard;
 
@@ -99,13 +103,24 @@ void *create_shard_multicache(uint32_t n_docs,
 	return shard;
 }
 
+int register_shard(struct session_desc *session, packed_shard_t *shard)
+{
+    for (int i = 0; i < session->num_shards; i++) {
+        if (session->shards[i] == NULL) {
+            session->shards[i] = shard;
+            return i;
+        }
+    }
+    return -1;
+}
+
 void session_init(struct session_desc *session,
                   int n_groups,
                   int n_stats,
                   uint8_t* stat_order,
                   int n_shards)
 {
-	packed_shard_t *shards;
+	packed_shard_t **shards;
 
 	session->num_groups = n_groups;
 	session->num_stats = n_stats;
@@ -115,27 +130,17 @@ void session_init(struct session_desc *session,
 	
 	memcpy(session->stat_order, stat_order, n_stats);
 
-	shards = (packed_shard_t *)calloc(sizeof(packed_shard_t), n_shards);
-	for (int i = 0; i < n_shards; i++) {
-		shards[i].shard_id = i;
-		shards[i].num_docs = -1;
-		shards[i].grp_metrics_len = 0;
-		shards[i].groups_and_metrics = NULL;
-		shards[i].metrics_layout = NULL;
-	}
+	shards = (packed_shard_t **)calloc(sizeof(packed_shard_t *), n_shards);
 	session->shards = shards;
 }
 
 void session_destroy(struct session_desc *session)
 {
-	packed_shard_t *shards;
+	packed_shard_t **shards;
 	int n_shards;
 
 	shards = session->shards;
 	n_shards = session->num_shards;
-	for (int i = 0; i < n_shards; i++) {
-		packed_shard_destroy(&shards[i]);
-	}
 	free(session->stat_order);
 	free(shards);
 }
