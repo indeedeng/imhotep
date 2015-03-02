@@ -209,7 +209,8 @@ void dump(ostream& os, int_t value) {
 int main(int argc, char* argv[])
 {
   constexpr size_t n_docs  = 32;
-  constexpr size_t n_metrics = 10;
+  // constexpr size_t n_metrics = 10;
+  constexpr size_t n_metrics = 9;
   constexpr size_t n_groups = 4;
   typedef Shard<n_metrics> TestShard;
 
@@ -217,7 +218,7 @@ int main(int argc, char* argv[])
 
   Metrics<n_metrics> mins, maxes;
   fill(mins.begin(), mins.end(), 0);
-  fill(maxes.begin(), maxes.end(), 13);
+  fill(maxes.begin(), maxes.end(), 10);
   // maxes[0] = 1;
   // maxes[1] = 1;
   // maxes[2] = 1;
@@ -276,10 +277,9 @@ int main(int argc, char* argv[])
   typedef array<uint64_t, n_metrics> Row;
   size_t row_index(0);
   for (GroupIds::const_iterator it(gids.begin()); it != gids.end(); ++it, ++row_index) {
-    cout << "gid" << *it << ": ";
-    const size_t vectors_per_row(n_metrics % 2 == 0 ? n_metrics / 2 : n_metrics / 2 + 1);
-    const Row& row(*reinterpret_cast<Row*>(worker.group_stats_buf + vectors_per_row));
-    cout << row << endl;
+    const size_t offset(shard._shard->metrics_layout->unpacked_offset[row_index]);
+    const Row&   row(*reinterpret_cast<Row*>(&worker.group_stats_buf[offset]));
+    cout << "gid " << *it << ": " << row << endl;
     ++row_index;
   }
 
