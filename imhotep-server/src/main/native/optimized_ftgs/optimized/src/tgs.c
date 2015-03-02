@@ -114,7 +114,7 @@ int tgs_execute_pass(struct worker_desc *worker,
 									doc_id_buf,
 									count,
 									shard->metrics_layout->n_vectors_per_doc,
-									shard->grp_stat_size,
+									shard->n_stat_vecs_per_grp,
 									desc->non_zero_groups,
 									desc->grp_buf,
 									desc->metric_buf);

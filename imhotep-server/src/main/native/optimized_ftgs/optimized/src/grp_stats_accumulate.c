@@ -19,7 +19,7 @@ static inline int unpack_bit_fields(struct circular_buffer_vector *buffer,
 									uint8_t n_bit_fields)
 {
 	static __m128i lookup_table[4] = { { 0L, 0L }, { 0L, 1L }, { 1L, 0L }, { 1L, 1L } };
-	int i;
+	int i = 0;
 
 	for (i = 0; i < n_bit_fields; i += 2) {
 		circular_buffer_vector_put(buffer, lookup_table[bit_fields & 3]);
@@ -76,7 +76,7 @@ static inline __m128i* calc_save_addr(packed_shard_t* data_desc,
                                         int row_idx,
                                         int element_idx)
 {
-	return &store_array[row_idx * row_size + element_idx];
+	return &store_array[row_idx * data_desc->grp_stat_size + element_idx];
 }
 
 static inline void process_arrayB_data(packed_shard_t* data_desc,
@@ -210,8 +210,8 @@ void prefetch_and_process_2_arrays(
                                    __m128i *stats,
                                    uint32_t* doc_id_buffer,
                                    int num_rows,
-                                   int grp_metrics_row_size,
-                                   int grp_stats_row_size,
+                                   int gm_num_packed_vecs,
+                                   int gs_num_elements,
                                    struct bit_tree *non_zero_groups,
                                    struct circular_buffer_int *grp_buf,
                                    struct circular_buffer_vector *stats_buf)
@@ -220,7 +220,7 @@ void prefetch_and_process_2_arrays(
      * calculate the number of rows to prefetch to keep the total number
      * of prefetches to PREFETCH_CACHE_LINES
      */
-    const int array_cache_lines_per_row = (grp_metrics_row_size + 3) / 4;
+    const int array_cache_lines_per_row = (gm_num_packed_vecs + 3) / 4;
     const int prefetch_rows = (PREFETCH_CACHE_LINES + array_cache_lines_per_row - 1)
                                          / array_cache_lines_per_row;
 
@@ -232,7 +232,7 @@ void prefetch_and_process_2_arrays(
         /* load value from A, save, prefetch B */
         int prefetch_grp;
         int bit_fields;
-        LOAD_B_ROW_IDX(data_desc, metrics, grp_metrics_row_size, doc_id, prefetch_grp, bit_fields);
+        LOAD_B_ROW_IDX(data_desc, metrics, gm_num_packed_vecs, doc_id, prefetch_grp, bit_fields);
 
         /* flag group as modified */
         bit_tree_set(non_zero_groups, prefetch_grp);
@@ -244,7 +244,7 @@ void prefetch_and_process_2_arrays(
         unpack_bit_fields(stats_buf, bit_fields, data_desc->metrics_layout->n_boolean_metrics);
 
         /* loop through A row elements */
-        arrayA_rlwp(data_desc, metrics, stats_buf, grp_metrics_row_size, doc_id, prefetch_idx);
+        arrayA_rlwp(data_desc, metrics, stats_buf, gm_num_packed_vecs, doc_id, prefetch_idx);
     }
 
     /* loop through A rows, prefetching; loop through B rows */
@@ -256,7 +256,7 @@ void prefetch_and_process_2_arrays(
         /* load value from A, save, prefetch B */
         int prefetch_grp;
         int bit_fields;
-        LOAD_B_ROW_IDX(data_desc, metrics, grp_metrics_row_size, doc_id, prefetch_grp, bit_fields);
+        LOAD_B_ROW_IDX(data_desc, metrics, gm_num_packed_vecs, doc_id, prefetch_grp, bit_fields);
 
         /* flag group as modified */
         bit_tree_set(non_zero_groups, prefetch_grp);
@@ -268,13 +268,13 @@ void prefetch_and_process_2_arrays(
         unpack_bit_fields(stats_buf, bit_fields, data_desc->metrics_layout->n_boolean_metrics);
 
         /* loop through A row elements */
-        arrayA_rlwp(data_desc, metrics, stats_buf, grp_metrics_row_size, doc_id, prefetch_idx);
+        arrayA_rlwp(data_desc, metrics, stats_buf, gm_num_packed_vecs, doc_id, prefetch_idx);
 
         /* get load idx */
         int current_grp = circular_buffer_int_get(grp_buf);
 
         /* loop through B row elements */
-        arrayB_rlwp(data_desc, stats_buf, stats, grp_stats_row_size, current_grp, prefetch_grp);
+        arrayB_rlwp(data_desc, stats_buf, stats, gs_num_elements, current_grp, prefetch_grp);
     }
 
     /* loop through A rows; loop through B rows */
@@ -284,7 +284,7 @@ void prefetch_and_process_2_arrays(
         /* load value from A, save, prefetch B */
         int prefetch_grp;
         int bit_fields;
-        LOAD_B_ROW_IDX(data_desc, metrics, grp_metrics_row_size, doc_id, prefetch_grp, bit_fields);
+        LOAD_B_ROW_IDX(data_desc, metrics, gm_num_packed_vecs, doc_id, prefetch_grp, bit_fields);
 
         /* flag group as modified */
         bit_tree_set(non_zero_groups, prefetch_grp);
@@ -296,13 +296,13 @@ void prefetch_and_process_2_arrays(
         unpack_bit_fields(stats_buf, bit_fields, data_desc->metrics_layout->n_boolean_metrics);
 
         /* loop through A row elements */
-        arrayA_rlnp(data_desc, metrics, stats_buf, grp_metrics_row_size, doc_id);
+        arrayA_rlnp(data_desc, metrics, stats_buf, gm_num_packed_vecs, doc_id);
 
         /* get load idx */
         int current_grp = circular_buffer_int_get(grp_buf);
 
         /* loop through B row elements */
-        arrayB_rlwp(data_desc, stats_buf, stats, grp_stats_row_size, current_grp, prefetch_grp);
+        arrayB_rlwp(data_desc, stats_buf, stats, gs_num_elements, current_grp, prefetch_grp);
     }
 
     /* loop through final B rows with no prefetch */
@@ -311,6 +311,6 @@ void prefetch_and_process_2_arrays(
         int current_grp = circular_buffer_int_get(grp_buf);
 
         /* loop through B row elements */
-        arrayB_rlnp(data_desc, stats_buf, stats, grp_stats_row_size, current_grp);
+        arrayB_rlnp(data_desc, stats_buf, stats, gs_num_elements, current_grp);
     }
 }
