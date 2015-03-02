@@ -52,7 +52,6 @@ static inline void process_arrayA_data(packed_shard_t* data_desc,
 {
 	struct packed_metric_desc *desc = data_desc->metrics_layout;
     uint32_t vector_index = desc->unpacked_offset[element_idx];
-    fprintf(stderr,"vector idx: %u, element_idx: %d\n", vector_index, element_idx);
 
 	uint8_t * restrict n_metrics_per_vector = desc->n_metrics_per_vector;
 	__v2di *mins = (__v2di *)(desc->metric_mins);
