@@ -81,7 +81,7 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
 
     private FTGSIterator lastIterator;
 
-    private final AtomicLong tempFileSizeBytesLeft;
+    protected final AtomicLong tempFileSizeBytesLeft;
 
     private final ExecutorService getSplitBufferThreads = Executors.newCachedThreadPool(
             new ThreadFactoryBuilder().setDaemon(true)
