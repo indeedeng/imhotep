@@ -19,7 +19,8 @@ struct packed_table_desc {
     uint8_t n_boolean_cols;      /* Number of boolean cols */
 
     uint8_t n_cols_aux_index;    /* used to control for how many cols we have already generated the index */
-    int row_size;                /* How many __m128 vectors does a single row uses */
+    int row_size;                /* How many __m128 vectors a single row uses */
+    int unpadded_row_size;       /* How many __m128 vectors a single row uses, without the end padding */
 
     uint16_t *index_cols;        /* Where in the vector is each column, counting booleans */
     uint8_t *col_2_vector;       /* The vector in which the column resides */
@@ -127,6 +128,7 @@ static void createColumnIndexes(
 
         grp_stats_long_count ++;
     }
+    table->unpadded_row_size = n_vectors;
 
     /* Calculate how many cols we have per vector */
     table->n_cols_per_vector = (uint8_t *) calloc(sizeof(uint8_t), n_vectors);
@@ -633,55 +635,80 @@ void internal_set_col_0(
     packed_bf_grp->grp = value & GROUP_MASK;
 }
 
+static inline int core(packed_table_t* src_table,
+                       unpacked_table_t* dest_table,
+                       int col,
+                       int vector_num,
+                       __m128i *src_row,
+                       __v2di *dest_row)
+{
+    int offset_in_row = dest_table->col_offset[col];
+    assert((offset_in_row % 2) == 0);  /* offset in row should be even */
+
+    __m128i vector = src_row[vector_num];
+    unpack_vector(src_table, vector, vector_num, &(dest_row[offset_in_row / 2]));
+
+    return src_table->n_cols_per_vector[vector_num];
+}
+
 static inline void packed_table_unpack_row_to_table(
                                                     packed_table_t* src_table,
-                                                    int row,
-                                                    unpacked_table_t* dest_table)
+                                                    int src_row_id,
+                                                    unpacked_table_t* dest_table,
+                                                    int dest_row_id,
+                                                    int prefetch_row_id)
 {
     /* loop through row elements */
-    int element_idx;
-    for (element_idx = 0; element_idx < row_size - 4; element_idx += 4)
+    int vector_num;
+    int n_packed_vecs = src_table->unpadded_row_size;
+    int column_idx = src_table->n_boolean_cols;
+    __m128i *src_row = &src_table->data[src_row_id * src_table->row_size];
+    __v2di *dest_row = &dest_table->data[dest_row_id * dest_table->padded_row_len];
+    for (vector_num = 0; vector_num < n_packed_vecs - 4; vector_num += 4)
     {
-        LOOP_CORE(data_desc, data_array, store_array, row_size, row_idx, element_idx + 0);
-
-        LOOP_CORE(data_desc, data_array, store_array, row_size, row_idx, element_idx + 1);
-
-        LOOP_CORE(data_desc, data_array, store_array, row_size, row_idx, element_idx + 2);
-
-        LOOP_CORE(data_desc, data_array, store_array, row_size, row_idx, element_idx + 3);
+        column_idx += core(src_table, dest_table, column_idx, vector_num, src_row, dest_row);
+        column_idx += core(src_table, dest_table, column_idx, vector_num + 1, src_row, dest_row);
+        column_idx += core(src_table, dest_table, column_idx, vector_num + 2, src_row, dest_row);
+        column_idx += core(src_table, dest_table, column_idx, vector_num + 3, src_row, dest_row);
 
         /* prefetch once per cache line */
-        PREFETCH(data_array, row_size, prefetch_idx, element_idx);
+        {
+            __m128i prefetch_addr = &src_table->data[prefetch_row_id * src_table->row_size
+                                                     + vector_num];
+            PREFETCH(prefetch_addr);
+        }
     }
 
     /* prefetch the final cache line */
-    if (element_idx < row_size) {
-        PREFETCH(data_array, row_size, prefetch_idx, element_idx);
+    if (vector_num < n_packed_vecs) {
+        __m128i prefetch_addr = &src_table->data[prefetch_row_id * src_table->row_size
+                                                 + vector_num];
+        PREFETCH(prefetch_addr);
     }
+
     /* loop through the remaining row elements */
-    for (; element_idx < row_size; element_idx ++)
+    for (; vector_num < n_packed_vecs; vector_num ++)
     {
-        LOOP_CORE(data_desc, data_array, store_array, row_size, row_idx, element_idx);
+        column_idx += core(src_table, dest_table, column_idx, vector_num, src_row, dest_row);
     }
 }
 
-void unpackme()
+static inline void unpack_vector(packed_table_t* src_table,
+                                 __m128i vector_data,
+                                 int vector_num,
+                                 __v2di dest_buffer)
 {
-    int
-    uint8_t * restrict n_metrics_per_vector = desc->n_metrics_per_vector;
-    __v2di *mins = (__v2di *)(dest_table->metric_mins);
-    __v16qi *shuffle_vecs = desc->shuffle_vecs_get2;
+    int vector_index = 0;
+    int n_cols = src_table->n_cols_per_vector[vector_num];
+    __v16qi *shuffle_vecs = src_table->shuffle_vecs_get2;
 
-    for (int32_t k = 0; k < n_metrics_per_vector[element_idx]; k += 2) {
-        __m128i data;
-        __m128i decoded_data;
+    for (int k = 0; k < n_cols; k += 2) {
+        __v2di data;
 
-        data = unpack_2_metrics(data_element, shuffle_vecs[vector_index]);
-        decoded_data = _mm_add_epi64(data, mins[vector_index]);
-        vector_index++;
-
+        data = unpack_2_metrics(vector_data, shuffle_vecs[vector_index]);
         /* save data into buffer */
-        circular_buffer_vector_put(stats_buf, decoded_data);
+        dest_buffer[vector_index] = data;
+        vector_index++;
     }
 }
 
