@@ -76,6 +76,12 @@ typedef struct shard_data {
     struct packed_metric_desc *metrics_layout;
 } packed_shard_t;
 
+struct shard_info {
+    int shard_id;
+    int num_docs;
+    packed_table_t *packed_data;
+};
+
 struct index_slice_info {
     int n_docs_in_slice;
     uint8_t *slice;
