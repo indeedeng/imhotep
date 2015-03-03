@@ -44,9 +44,11 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession {
     private final String sessionId;
     private final InetSocketAddress[] nodes;
 
+    private final long localTempFileSizeLimit;
     private final boolean shutDownExecutorOnClose;
 
-    public RemoteImhotepMultiSession(ImhotepSession[] sessions, final String sessionId, final InetSocketAddress[] nodes, AtomicLong tempFileSizeBytesLeft) {
+    public RemoteImhotepMultiSession(ImhotepSession[] sessions, final String sessionId, final InetSocketAddress[] nodes,
+                                     long localTempFileSizeLimit, AtomicLong tempFileSizeBytesLeft) {
         this(sessions, Executors.newCachedThreadPool(new ThreadFactory() {
             int i = 0;
 
@@ -56,15 +58,17 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession {
                 t.setDaemon(true);
                 return t;
             }
-        }), sessionId, nodes, tempFileSizeBytesLeft, true);
+        }), sessionId, nodes, localTempFileSizeLimit, tempFileSizeBytesLeft, true);
     }
 
-    public RemoteImhotepMultiSession(ImhotepSession[] sessions, ExecutorService executor, final String sessionId, final InetSocketAddress[] nodes, AtomicLong tempFileSizeBytesLeft, boolean shutDownExecutorOnClose) {
+    public RemoteImhotepMultiSession(ImhotepSession[] sessions, ExecutorService executor, final String sessionId,
+                                     final InetSocketAddress[] nodes, long localTempFileSizeLimit, AtomicLong tempFileSizeBytesLeft, boolean shutDownExecutorOnClose) {
         super(sessions, tempFileSizeBytesLeft);
         
         this.executor = executor;
         this.sessionId = sessionId;
         this.nodes = nodes;
+        this.localTempFileSizeLimit = localTempFileSizeLimit;
         this.shutDownExecutorOnClose = shutDownExecutorOnClose;
     }
 
@@ -165,5 +169,16 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession {
             safeClose();
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * Returns the number of bytes written to the temp files for this session locally.
+     * Returns -1 if tempFileSizeBytesLeft was set to null.
+     */
+    public long getTempFilesBytesWritten() {
+        if(tempFileSizeBytesLeft == null || localTempFileSizeLimit <= 0) {
+            return -1;
+        }
+        return localTempFileSizeLimit - tempFileSizeBytesLeft.get();
     }
 }

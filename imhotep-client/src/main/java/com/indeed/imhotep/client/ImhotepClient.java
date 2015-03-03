@@ -490,7 +490,7 @@ public class ImhotepClient implements Closeable {
             for (int i = 0; i < remoteSessions.length; i++) {
                 nodes[i] = remoteSessions[i].getInetSocketAddress();
             }
-            return new RemoteImhotepMultiSession(remoteSessions, sessionId, nodes, localTempFileSizeBytesLeft);
+            return new RemoteImhotepMultiSession(remoteSessions, sessionId, nodes, localTempFileSizeLimit, localTempFileSizeBytesLeft);
         }
         throw new RuntimeException("unable to open session");
     }
