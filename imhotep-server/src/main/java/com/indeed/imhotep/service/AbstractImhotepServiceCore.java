@@ -39,6 +39,7 @@ import org.apache.log4j.Logger;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -163,6 +164,18 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
                 final FTGSIterator merger = session.getFTGSIteratorSplit(intFields, stringFields, splitIndex, numSplits);
                 sendSuccessResponse(os);
                 return writeFTGSIteratorToOutputStream(numStats, merger, os);
+            }
+        });
+    }
+
+    @Override
+    public void handleGetFTGSIteratorSplitNative(final String sessionId, final String[] intFields, final String[] stringFields, OutputStream os, final int splitIndex, final int numSplits, final Socket socket) throws IOException {
+        doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Void, IOException>() {
+            @Override
+            public Void apply(ImhotepSession imhotepSession) throws IOException {
+                //TODO: send information about stats!
+                imhotepSession.writeFTGSIteratorSplit(intFields, stringFields, splitIndex, numSplits, socket);
+                return null;//returns Void
             }
         });
     }
@@ -506,7 +519,8 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
             int mergeThreadLimit,
             boolean optimizeGroupZeroLookups,
             String sessionId,
-            AtomicLong tempFileSizeBytesLeft
+            AtomicLong tempFileSizeBytesLeft,
+            boolean useNativeFtgs
     ) throws ImhotepOutOfMemoryException;
 
     @Override

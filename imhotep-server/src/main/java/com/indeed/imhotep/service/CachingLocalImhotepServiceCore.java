@@ -19,6 +19,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.shell.PosixFileOperations;
 import com.indeed.util.core.Throwables2;
@@ -537,7 +538,8 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
                                     final int mergeThreadLimit,
                                     final boolean optimizeGroupZeroLookups,
                                     String sessionId,
-                                    AtomicLong tempFileSizeBytesLeft) throws ImhotepOutOfMemoryException {
+                                    AtomicLong tempFileSizeBytesLeft,
+                                    final boolean useNativeFtgs) throws ImhotepOutOfMemoryException {
         final Map<String, Map<String, AtomicSharedReference<Shard>>> localShards = this.shards;
         checkDatasetExists(localShards, dataset);
 
@@ -608,9 +610,12 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
             }
             final int maxSplits =
                     mergeThreadLimit > 0 ? mergeThreadLimit : DEFAULT_MERGE_THREAD_LIMIT;
-            final ImhotepSession session =
-                    new MTImhotepMultiSession(localSessions, new MemoryReservationContext(memory),
-                                              executor, tempFileSizeBytesLeft);
+            final ImhotepSession session = new MTImhotepLocalMultiSession(localSessions,
+                    new MemoryReservationContext(memory),
+                    executor,
+                    tempFileSizeBytesLeft,
+                    useNativeFtgs
+            );
             getSessionManager().addSession(sessionId,
                                            session,
                                            flamdexes,

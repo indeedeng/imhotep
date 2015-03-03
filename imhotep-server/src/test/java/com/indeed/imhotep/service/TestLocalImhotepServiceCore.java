@@ -95,7 +95,7 @@ public class TestLocalImhotepServiceCore {
                 }
             }, new LocalImhotepServiceConfig());
 
-            final String sessionId = service.handleOpenSession("dataset", Arrays.asList("shard"), "", "", 0, 0, false, "", null);
+            final String sessionId = service.handleOpenSession("dataset", Arrays.asList("shard"), "", "", 0, 0, false, "", null, false);
             service.handlePushStat(sessionId, "count()");
             final OutputStream os = new CloseableNullOutputStream();
             final Thread t = new Thread(new Runnable() {

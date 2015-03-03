@@ -204,7 +204,8 @@ public class ImhotepDaemon {
                                     protoRequest.getMergeThreadLimit(),
                                     protoRequest.getOptimizeGroupZeroLookups(),
                                     protoRequest.getSessionId(),
-                                    tempFileSizeBytesLeft
+                                    tempFileSizeBytesLeft,
+                                    protoRequest.getUseNativeFtgs()
                             );
                             NDC.push(sessionId);
                             responseBuilder.setSessionId(sessionId);
@@ -294,33 +295,27 @@ public class ImhotepDaemon {
                             sendResponse(responseBuilder.build(), os);
                             break;
                         case GET_FTGS_ITERATOR:
-                            if (!service.sessionIsValid(protoRequest.getSessionId())) {
-                                throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
-                            }
+                            checkSessionValidity(protoRequest);
                             service.handleGetFTGSIterator(protoRequest.getSessionId(), getIntFields(protoRequest), getStringFields(protoRequest), os);
                             break;
                         case GET_SUBSET_FTGS_ITERATOR:
-                            if (!service.sessionIsValid(protoRequest.getSessionId())) {
-                                throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
-                            }
+                            checkSessionValidity(protoRequest);
                             service.handleGetSubsetFTGSIterator(protoRequest.getSessionId(), getIntFieldsToTerms(protoRequest), getStringFieldsToTerms(protoRequest), os);
                             break;
                         case GET_FTGS_SPLIT:
-                            if (!service.sessionIsValid(protoRequest.getSessionId())) {
-                                throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
-                            }
+                            checkSessionValidity(protoRequest);
                             service.handleGetFTGSIteratorSplit(protoRequest.getSessionId(), getIntFields(protoRequest), getStringFields(protoRequest), os, protoRequest.getSplitIndex(), protoRequest.getNumSplits());
                             break;
+                        case GET_FTGS_SPLIT_NATIVE:
+                            checkSessionValidity(protoRequest);
+                            service.handleGetFTGSIteratorSplitNative(protoRequest.getSessionId(), getIntFields(protoRequest), getStringFields(protoRequest), os, protoRequest.getSplitIndex(), protoRequest.getNumSplits(), socket);
+                            break;
                         case GET_SUBSET_FTGS_SPLIT:
-                            if (!service.sessionIsValid(protoRequest.getSessionId())) {
-                                throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
-                            }
+                            checkSessionValidity(protoRequest);
                             service.handleGetSubsetFTGSIteratorSplit(protoRequest.getSessionId(), getIntFieldsToTerms(protoRequest), getStringFieldsToTerms(protoRequest), os, protoRequest.getSplitIndex(), protoRequest.getNumSplits());
                             break;
                         case MERGE_FTGS_SPLIT:
-                            if (!service.sessionIsValid(protoRequest.getSessionId())) {
-                                throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
-                            }
+                            checkSessionValidity(protoRequest);
                             service.handleMergeFTGSIteratorSplit(protoRequest.getSessionId(), getIntFields(protoRequest), getStringFields(protoRequest), os,
                                     Lists.transform(protoRequest.getNodesList(), new Function<HostAndPort, InetSocketAddress>() {
                                         public InetSocketAddress apply(final HostAndPort input) {
@@ -329,9 +324,7 @@ public class ImhotepDaemon {
                                     }).toArray(new InetSocketAddress[protoRequest.getNodesCount()]), protoRequest.getSplitIndex());
                             break;
                         case MERGE_SUBSET_FTGS_SPLIT:
-                            if (!service.sessionIsValid(protoRequest.getSessionId())) {
-                                throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
-                            }
+                            checkSessionValidity(protoRequest);
                             service.handleMergeSubsetFTGSIteratorSplit(protoRequest.getSessionId(), getIntFieldsToTerms(protoRequest), getStringFieldsToTerms(protoRequest), os,
                                     Lists.transform(protoRequest.getNodesList(), new Function<HostAndPort, InetSocketAddress>() {
                                         public InetSocketAddress apply(final HostAndPort input) {
@@ -340,9 +333,7 @@ public class ImhotepDaemon {
                                     }).toArray(new InetSocketAddress[protoRequest.getNodesCount()]), protoRequest.getSplitIndex());
                             break;
                         case GET_DOC_ITERATOR:
-                            if (!service.sessionIsValid(protoRequest.getSessionId())) {
-                                throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
-                            }
+                            checkSessionValidity(protoRequest);
                             service.handleGetDocIterator(protoRequest.getSessionId(), getIntFields(protoRequest), getStringFields(protoRequest), os);
                             break;
                         case PUSH_STAT:
@@ -541,6 +532,12 @@ public class ImhotepDaemon {
                     log.error("IOException while servicing request", e);
                 }
                 throw new RuntimeException(e);
+            }
+        }
+
+        private void checkSessionValidity(ImhotepRequest protoRequest) {
+            if (!service.sessionIsValid(protoRequest.getSessionId())) {
+                throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
             }
         }
 

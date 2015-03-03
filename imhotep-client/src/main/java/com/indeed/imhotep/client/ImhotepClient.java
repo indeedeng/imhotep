@@ -160,7 +160,7 @@ public class ImhotepClient implements Closeable {
                 }
             }
         }
-        return new ArrayList<String>(set);
+        return Lists.newArrayList(set);
     }
 
     public List<ShardIdWithVersion> getShardListWithVersion(final String dataset, final ShardFilter filterFunc) {
@@ -284,6 +284,7 @@ public class ImhotepClient implements Closeable {
 
         private List<ShardIdWithVersion> chosenShards = null;
         private List<String> shardsOverride = null;
+        private boolean useNativeFTGS;
 
         public SessionBuilder(final String dataset, final DateTime start, final DateTime end) {
             this.dataset = dataset;
@@ -329,6 +330,11 @@ public class ImhotepClient implements Closeable {
 
         public SessionBuilder shardsOverride(List<String> requiredShards) {
             this.shardsOverride = Lists.newArrayList(requiredShards);
+            return this;
+        }
+
+        public SessionBuilder useNativeFtgs() {
+            useNativeFTGS = true;
             return this;
         }
 
@@ -381,7 +387,7 @@ public class ImhotepClient implements Closeable {
             }
             List<String> chosenShardIDs = shardsOverride != null ? shardsOverride : ShardIdWithVersion.keepShardIds(getChosenShards());
             return getSessionForShards(dataset, chosenShardIDs, requestedMetrics, mergeThreadLimit, username,
-                    optimizeGroupZeroLookups, socketTimeout, localTempFileSizeLimit, daemonTempFileSizeLimit);
+                    optimizeGroupZeroLookups, socketTimeout, localTempFileSizeLimit, daemonTempFileSizeLimit, useNativeFTGS);
         }
 
     }
@@ -463,13 +469,14 @@ public class ImhotepClient implements Closeable {
                                      final int mergeThreadLimit, final int priority, final String username,
                                      final boolean optimizeGroupZeroLookups, final int socketTimeout) {
 
-        return getSessionForShards(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout, -1, -1);
+        return getSessionForShards(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout, -1, -1, false);
     }
 
     private ImhotepSession getSessionForShards(final String dataset, final Collection<String> requestedShards, final Collection<String> requestedMetrics,
                                                final int mergeThreadLimit, final String username,
                                                final boolean optimizeGroupZeroLookups, final int socketTimeout,
-                                               long localTempFileSizeLimit, long daemonTempFileSizeLimit) {
+                                               long localTempFileSizeLimit, long daemonTempFileSizeLimit,
+                                               final boolean useNativeFtgs) {
 
         if(requestedShards == null || requestedShards.size() == 0) {
             throw new IllegalArgumentException("No shards");
@@ -478,7 +485,7 @@ public class ImhotepClient implements Closeable {
         final AtomicLong localTempFileSizeBytesLeft = localTempFileSizeLimit > 0 ? new AtomicLong(localTempFileSizeLimit) : null;
         while (retries > 0) {
             final String sessionId = UUID.randomUUID().toString();
-            final ImhotepRemoteSession[] remoteSessions = internalGetSession(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout, sessionId, daemonTempFileSizeLimit, localTempFileSizeBytesLeft);
+            final ImhotepRemoteSession[] remoteSessions = internalGetSession(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout, sessionId, daemonTempFileSizeLimit, localTempFileSizeBytesLeft, useNativeFtgs);
             if (remoteSessions == null) {
                 --retries;
                 if (retries > 0) {
@@ -620,8 +627,12 @@ public class ImhotepClient implements Closeable {
     }
 
     // returns null on error
-    private ImhotepRemoteSession[] internalGetSession(final String dataset, Collection<String> requestedShards, Collection<String> requestedMetrics, final int mergeThreadLimit,
-                                                      final String username, final boolean optimizeGroupZeroLookups, final int socketTimeout, @Nullable final String sessionId, final long tempFileSizeLimit, @Nullable final AtomicLong tempFileSizeBytesLeft) {
+    private ImhotepRemoteSession[] internalGetSession(final String dataset, Collection<String> requestedShards,
+                                                      Collection<String> requestedMetrics, final int mergeThreadLimit,
+                                                      final String username, final boolean optimizeGroupZeroLookups,
+                                                      final int socketTimeout, @Nullable final String sessionId,
+                                                      final long tempFileSizeLimit, @Nullable final AtomicLong tempFileSizeBytesLeft,
+                                                      final boolean useNativeFtgs) {
 
         final Map<Host, List<String>> shardRequestMap = buildShardRequestMap(dataset, requestedShards, requestedMetrics);
 
@@ -640,7 +651,7 @@ public class ImhotepClient implements Closeable {
                 futures.add(executor.submit(new Callable<ImhotepRemoteSession>() {
                     @Override
                     public ImhotepRemoteSession call() throws Exception {
-                        return ImhotepRemoteSession.openSession(host.hostname, host.port, dataset, shardList, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout, sessionId, tempFileSizeLimit, tempFileSizeBytesLeft);
+                        return ImhotepRemoteSession.openSession(host.hostname, host.port, dataset, shardList, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout, sessionId, tempFileSizeLimit, tempFileSizeBytesLeft, useNativeFtgs);
                     }
                 }));
             }

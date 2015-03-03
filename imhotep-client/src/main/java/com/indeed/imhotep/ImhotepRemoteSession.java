@@ -67,6 +67,9 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static com.indeed.imhotep.protobuf.ImhotepRequest.RequestType.GET_FTGS_SPLIT;
+import static com.indeed.imhotep.protobuf.ImhotepRequest.RequestType.GET_FTGS_SPLIT_NATIVE;
+
 /**
  * @author jsgroth
  *
@@ -86,19 +89,21 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
     private final String sessionId;
     private final int socketTimeout;
     private final AtomicLong tempFileSizeBytesLeft;
+    private final boolean useNativeFtgs;
 
     private int numStats = 0;
 
-    public ImhotepRemoteSession(String host, int port, String sessionId, AtomicLong tempFileSizeBytesLeft) {
-        this(host, port, sessionId, tempFileSizeBytesLeft, DEFAULT_SOCKET_TIMEOUT);
+    public ImhotepRemoteSession(String host, int port, String sessionId, AtomicLong tempFileSizeBytesLeft, boolean useNativeFtgs) {
+        this(host, port, sessionId, tempFileSizeBytesLeft, DEFAULT_SOCKET_TIMEOUT, useNativeFtgs);
     }
     
-    public ImhotepRemoteSession(String host, int port, String sessionId, @Nullable AtomicLong tempFileSizeBytesLeft, int socketTimeout) {
+    public ImhotepRemoteSession(String host, int port, String sessionId, @Nullable AtomicLong tempFileSizeBytesLeft, int socketTimeout, boolean useNativeFtgs) {
         this.host = host;
         this.port = port;
         this.sessionId = sessionId;
         this.socketTimeout = socketTimeout;
         this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
+        this.useNativeFtgs = useNativeFtgs;
     }
 
     @Deprecated
@@ -141,17 +146,20 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
     }
 
     public static ImhotepRemoteSession openSession(final String host, final int port, final String dataset, final List<String> shards, @Nullable String sessionId) throws ImhotepOutOfMemoryException, IOException {
-        return openSession(host, port, dataset, shards, DEFAULT_MERGE_THREAD_LIMIT, getUsername(), false, -1, sessionId, -1, null);
+        return openSession(host, port, dataset, shards, DEFAULT_MERGE_THREAD_LIMIT, getUsername(), false, -1, sessionId, -1, null, false);
     }
 
     public static ImhotepRemoteSession openSession(final String host, final int port, final String dataset, final List<String> shards,
                                                    final int mergeThreadLimit, @Nullable String sessionId) throws ImhotepOutOfMemoryException, IOException {
-        return openSession(host, port, dataset, shards, mergeThreadLimit, getUsername(), false, -1, sessionId, -1, null);
+        return openSession(host, port, dataset, shards, mergeThreadLimit, getUsername(), false, -1, sessionId, -1, null, false);
     }
 
     public static ImhotepRemoteSession openSession(final String host, final int port, final String dataset, final List<String> shards,
                                                    final int mergeThreadLimit, final String username,
-                                                   final boolean optimizeGroupZeroLookups, final int socketTimeout, @Nullable String sessionId, final long tempFileSizeLimit, @Nullable final AtomicLong tempFileSizeBytesLeft) throws ImhotepOutOfMemoryException, IOException {
+                                                   final boolean optimizeGroupZeroLookups, final int socketTimeout,
+                                                   @Nullable String sessionId, final long tempFileSizeLimit,
+                                                   @Nullable final AtomicLong tempFileSizeBytesLeft,
+                                                   final boolean useNativeFtgs) throws ImhotepOutOfMemoryException, IOException {
         final Socket socket = newSocket(host, port, socketTimeout);
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
@@ -167,6 +175,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
                     .setClientVersion(CURRENT_CLIENT_VERSION)
                     .setSessionId(sessionId == null ? "" : sessionId)
                     .setTempFileSizeLimit(tempFileSizeLimit)
+                    .setUseNativeFtgs(useNativeFtgs)
                     .build();
             try {
                 ImhotepProtobufShipping.sendProtobuf(openSessionRequest, os);
@@ -181,7 +190,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
                 if (sessionId == null) sessionId = response.getSessionId();
     
                 log.trace("session created, id "+sessionId);
-                return new ImhotepRemoteSession(host, port, sessionId, tempFileSizeBytesLeft, socketTimeout);
+                return new ImhotepRemoteSession(host, port, sessionId, tempFileSizeBytesLeft, socketTimeout, useNativeFtgs);
             } catch (SocketTimeoutException e) {
                 throw buildExceptionAfterSocketTimeout(e, host, port);
             }
@@ -294,14 +303,14 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
     }
 
     public RawFTGSIterator getFTGSIteratorSplit(final String[] intFields, final String[] stringFields, final int splitIndex, final int numSplits) {
-        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_FTGS_SPLIT)
+        final ImhotepRequest.RequestType requestType = useNativeFtgs ? GET_FTGS_SPLIT_NATIVE : GET_FTGS_SPLIT;
+        final ImhotepRequest request = getBuilderForType(requestType)
                 .setSessionId(sessionId)
                 .addAllIntFields(Arrays.asList(intFields))
                 .addAllStringFields(Arrays.asList(stringFields))
                 .setSplitIndex(splitIndex)
                 .setNumSplits(numSplits)
                 .build();
-
         return sendGetFTGSIteratorSplit(request);
     }
 
@@ -966,5 +975,10 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
     public void setNumStats(final int numStats) {
         this.numStats = numStats;
+    }
+
+    @Override
+    public void writeFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, Socket socket) {
+        throw new UnsupportedOperationException("operation is unsupported!");
     }
 }

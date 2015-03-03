@@ -51,6 +51,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
@@ -64,10 +65,10 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * @author jsgroth
  */
-public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession {
+public abstract class AbstractImhotepMultiSession<T extends ImhotepSession> extends AbstractImhotepSession {
     private static final Logger log = Logger.getLogger(AbstractImhotepMultiSession.class);
 
-    protected final ImhotepSession[] sessions;
+    protected final T[] sessions;
 
     private final Long[] totalDocFreqBuf;
 
@@ -103,12 +104,13 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
 
     private int numGroups = 2;
 
-    protected AbstractImhotepMultiSession(ImhotepSession[] sessions) {
+
+    protected AbstractImhotepMultiSession(T[] sessions) {
         this(sessions, null);
     }
 
     @SuppressWarnings({"unchecked"})
-    protected AbstractImhotepMultiSession(ImhotepSession[] sessions, AtomicLong tempFileSizeBytesLeft) {
+    protected AbstractImhotepMultiSession(T[] sessions, AtomicLong tempFileSizeBytesLeft) {
         this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
         if (sessions == null || sessions.length == 0) {
             throw new IllegalArgumentException("at least one session is required");
@@ -595,7 +597,7 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
         try {
             execute(splits, nodes, new ThrowingFunction<InetSocketAddress, RawFTGSIterator>() {
                 public RawFTGSIterator apply(final InetSocketAddress node) throws Exception {
-                    final ImhotepRemoteSession remoteSession = new ImhotepRemoteSession(node.getHostName(), node.getPort(), sessionId, tempFileSizeBytesLeft);
+                    final ImhotepRemoteSession remoteSession = createImhotepRemoteSession(node, sessionId, tempFileSizeBytesLeft);
                     remoteSession.setNumStats(numStats);
                     return remoteSession.getFTGSIteratorSplit(intFields, stringFields, splitIndex, nodes.length);
                 }
@@ -613,7 +615,7 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
         try {
             execute(splits, nodes, new ThrowingFunction<InetSocketAddress, RawFTGSIterator>() {
                 public RawFTGSIterator apply(final InetSocketAddress node) throws Exception {
-                    final ImhotepRemoteSession remoteSession = new ImhotepRemoteSession(node.getHostName(), node.getPort(), sessionId, tempFileSizeBytesLeft);
+                    final ImhotepRemoteSession remoteSession = createImhotepRemoteSession(node, sessionId, tempFileSizeBytesLeft);
                     remoteSession.setNumStats(numStats);
                     return remoteSession.getSubsetFTGSIteratorSplit(intFields, stringFields, splitIndex, nodes.length);
                 }
@@ -624,6 +626,8 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
         }
         return mergeFTGSSplits(splits);
     }
+
+    protected abstract ImhotepRemoteSession createImhotepRemoteSession(InetSocketAddress address, String sessionId, AtomicLong tempFileSizeBytesLeft);
 
     private RawFTGSIterator mergeFTGSSplits(RawFTGSIterator[] splits) {
         final Closer closer = Closer.create();
@@ -772,6 +776,9 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
             }
         }
     }
+
+    @Override
+    public abstract void writeFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, Socket socket);
 
     protected abstract <E,T> void execute(final T[] ret, E[] things, final ThrowingFunction<? super E, ? extends T> function) throws ExecutionException;
 

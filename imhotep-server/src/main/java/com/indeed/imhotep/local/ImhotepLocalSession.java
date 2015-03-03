@@ -115,6 +115,7 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -807,6 +808,11 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
             }
         }
         return ftgsIteratorSplits.getFtgsIterators()[splitIndex];
+    }
+
+    @Override
+    public void writeFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, Socket socket) {
+        throw new UnsupportedOperationException();
     }
 
     @Override

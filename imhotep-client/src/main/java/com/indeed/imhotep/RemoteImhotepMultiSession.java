@@ -14,14 +14,14 @@
  package com.indeed.imhotep;
 
 import com.google.common.base.Throwables;
-import com.indeed.util.core.Pair;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.util.core.Throwables2;
+import com.indeed.util.core.Pair;
 import org.apache.log4j.Logger;
-
 import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +37,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * @author jsgroth
  */
-public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession {
+public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<ImhotepSession> {
     private static final Logger log = Logger.getLogger(RemoteImhotepMultiSession.class);
 
     private final ExecutorService executor;
@@ -183,5 +183,15 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession {
             return -1;
         }
         return localTempFileSizeLimit - tempFileSizeBytesLeft.get();
+    }
+
+    @Override
+    public void writeFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, final Socket socket) {
+        throw new UnsupportedOperationException("");
+    }
+
+    @Override
+    protected ImhotepRemoteSession createImhotepRemoteSession(InetSocketAddress address, String sessionId, AtomicLong tempFileSizeBytesLeft) {
+        throw new UnsupportedOperationException("RemoteImhotepMultiSession doesn't open any remote imhotep connections!");
     }
 }
