@@ -10,11 +10,11 @@ int run_tgs_pass(struct worker_desc *worker,
                  int num_shard,
                  int socket_fd);
 //This method assumes that the boolean metrics will come first
-packed_shard_t *create_shard_multicache(uint32_t n_docs,
+packed_table_t *create_shard_multicache(uint32_t n_docs,
                                         int64_t *metric_mins,
                                         int64_t *metric_maxes,
                                         int n_metrics);
-int register_shard(struct session_desc *session, packed_shard_t *shard);
+int register_shard(struct session_desc *session, packed_table_t *table);
 
 void session_init(struct session_desc *session,
                   int n_groups,

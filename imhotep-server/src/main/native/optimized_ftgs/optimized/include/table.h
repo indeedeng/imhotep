@@ -1,123 +1,62 @@
 #pragma once
 
+#include <stdint.h>
 #include <emmintrin.h>
 #include <smmintrin.h>
 #include <tmmintrin.h>
 #include <pmmintrin.h>
-#include <stdint.h>
 #include "bit_tree.h"
 
-#define TERM_TYPE_STRING						0
-#define TERM_TYPE_INT                           1
+#define GROUP_MASK                             0xFFFFFFF
+#define MAX_BIT_FIELDS                          4
+#define GROUP_SIZE                              28
+#define PREFETCH(address)                       _mm_prefetch(address, _MM_HINT_T0)
 
-struct circular_buffer_vector;
-
-struct packed_table_desc;
-typedef struct packed_table_desc packed_table_t;
-
-struct unpacked_table_desc;
-typedef struct unpacked_table_desc unpacked_table_t;
 
 struct bit_fields_and_group {
-	uint32_t grp :28;
-	uint32_t metrics :4;
+    uint32_t grp :28;
+    uint32_t cols :4;
 };
 
-struct buffered_socket {
-    int socket_fd;
-    uint8_t* buffer;
-    size_t buffer_ptr;
-    size_t buffer_len;
+struct packed_table_desc {
+    int n_cols;                  /* Total number of cols */
+    int n_rows;                  /* Total number of rows */
+    int size;                    /* Data size in 16B vectors */
+
+    uint8_t n_boolean_cols;      /* Number of boolean cols */
+
+    uint8_t n_cols_aux_index;    /* used to control for how many cols we have already generated the index */
+    int row_size;                /* How many __m128 vectors a single row uses */
+    int unpadded_row_size;       /* How many __m128 vectors a single row uses, without the end padding */
+
+    uint16_t *index_cols;        /* Where in the vector is each column, counting booleans */
+    uint8_t *col_2_vector;       /* The vector in which the column resides */
+    int64_t *col_mins;           /* The minimal value of each column */
+
+    __v16qi *shuffle_vecs_get1;  /* shuffle vectors to get cols, 1 at a time, *NOT* counting booleans */
+    __v16qi *shuffle_vecs_put;   /* shuffle vectors to put cols, 1 at a time, *NOT* counting booleans */
+    __v16qi *blend_vecs_put;     /* blend vectors to blend cols, 1 at a time, *NOT* counting booleans */
+
+    __v16qi *shuffle_vecs_get2;  /* shuffle vectors to get cols, 2 at a time, *NOT* counting booleans */
+
+    uint8_t *n_cols_per_vector;  /* Number of column in each of the vectors, *NOT* counting booleans */
+
+    __v16qi *data;               /* packed data */
 };
+typedef struct packed_table_desc packed_table_t;
 
-struct worker_desc {
-    int id;
-    int buffer_size;
-    int num_sockets;
-    unpacked_table_t *grp_stats;
-    struct circular_buffer_int *grp_buf;
-    union term_union **prev_term_by_socket;
-    struct buffered_socket *sockets;
+struct unpacked_table_desc {
+    int n_cols;             /* Total number of cols */
+    int n_rows;             /* Total number of rows */
+    int size;               /* Size in 16B vectors */
+    int unpadded_row_len;   /* Length of a row with vector padding only. In units of 16 bytes. */
+    int padded_row_len;     /* Length of a row padded out for vector and cache line alignment. in units of 16 bytes. */
+    struct bit_tree non_zero_rows;
+    __v2di *col_mins;       /* The minimal value of each column, padded to match a row */
+    uint8_t *col_offset;    /* Offset of each column in a row. In 8B longs */
+    __v2di *data;           /* group and cols data packed into 128b vectors */
 };
-
-struct string_term_s {
-    int string_term_len;
-    char *string_term;
-};
-
-union term_union {
-    uint64_t int_term;
-    struct string_term_s string_term;
-};
-
-struct index_slice_info {
-    int n_docs_in_slice;
-    uint8_t *doc_slice;
-    packed_table_t *packed_metrics;
-};
-
-struct tgs_desc {
-    uint8_t term_type;
-    union term_union *term;
-    union term_union *previous_term;
-
-    struct index_slice_info *slices;
-    int n_slices;
-
-    unpacked_table_t *group_stats;
-    unpacked_table_t *temp_table;
-    uint32_t temp_table_mask;
-
-    struct circular_buffer_int *grp_buf;
-    struct buffered_socket *socket;
-};
-
-struct session_desc {
-    int num_groups;
-    int num_stats;
-    uint8_t* stat_order;
-    int num_shards;
-    packed_table_t **shards;
-    unpacked_table_t *temp_buf;
-    uint32_t temp_buf_mask;
-    struct tgs_desc *current_tgs_pass;
-};
-
-int tgs_execute_pass(struct worker_desc *worker,
-                     struct session_desc *session,
-                     struct tgs_desc *desc);
-
-void tgs_init(struct worker_desc *worker,
-              struct tgs_desc *desc,
-              uint8_t term_type,
-              union term_union *term,
-              union term_union *previous_term,
-              long *addresses,
-              int *docs_per_shard,
-              int *shard_handles,
-              int num_shard,
-              struct buffered_socket *socket,
-              struct session_desc *session);
-void tgs_destroy(struct tgs_desc *desc);
-
-
-/* return the number of bytes read*/
-int slice_copy_range(uint8_t* slice,
-                     int *destination,
-                     int count_to_read,
-                     int *delta_decode_in_out);
-
-void socket_init(struct buffered_socket *socket, uint32_t fd);
-void socket_destroy(struct buffered_socket *socket);
-
-void lookup_and_accumulate_grp_stats(
-                                   packed_table_t *src_table,
-                                   unpacked_table_t *dest_table,
-                                   uint32_t* row_id_buffer,
-                                   int buffer_len,
-                                   struct circular_buffer_int *grp_buf,
-                                   unpacked_table_t *temp_buf,
-                                   uint32_t temp_buf_mask);
+typedef struct unpacked_table_desc unpacked_table_t;
 
 packed_table_t *packed_table_create(int n_rows,
                                     int64_t *column_mins,
@@ -171,4 +110,5 @@ void unpacked_table_add_rows(unpacked_table_t* src_table,
                                     unpacked_table_t* dest_table,
                                     int dest_row_id,
                                     int prefetch_row_id);
+
 

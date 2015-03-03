@@ -1,34 +1,41 @@
+#include <assert.h>
 #include "imhotep_native.h"
 #include "varintdecode.h"
 
 #define TGS_BUFFER_SIZE						1024
+#define N_ROWS_PREFETCH                    32
 
 
 /* No need to share the group stats buffer, so just keep one per session*/
 /* Make sure the one we have is large enough */
-static __m128i *allocate_grp_stats(struct worker_desc *desc, 
+static unpacked_table_t *allocate_grp_stats(struct worker_desc *desc,
                                    struct session_desc *session,
-                                   struct packed_metric_desc *metric_desc)
+                                   packed_table_t *metric_desc)
 {
-	int row_size = metric_desc->n_vectors_per_doc;
-    int gs_size = row_size * session->num_groups;
+    int gs_size = 2048;//row_size * session->num_groups;
 
-	if (desc->group_stats_buf == NULL) {
+    if (desc->grp_stats == NULL) {
 		desc->buffer_size = gs_size;
-		desc->group_stats_buf = (__m128i *)calloc(sizeof(__m128i), gs_size);
-		return desc->group_stats_buf;
+		desc->grp_stats = unpacked_table_create(metric_desc);
+		return desc->grp_stats;
 	}
+
+    assert(1 == 1);  /* we should never get here */
 	
 	if (desc->buffer_size >= gs_size) {
 		// our buffer is large enough already;
-		return desc->group_stats_buf;
+		return desc->grp_stats;
 	}
 	
-	free(desc->group_stats_buf);
+	unpacked_table_destroy(desc->grp_stats);
 	// TODO: maybe resize smarter
 	desc->buffer_size = gs_size;
-	desc->group_stats_buf = (__m128i *)calloc(sizeof(__m128i), gs_size);
-	return desc->group_stats_buf;
+	desc->grp_stats = unpacked_table_create(metric_desc);
+
+    session->temp_buf = unpacked_table_copy_layout(desc->grp_stats, N_ROWS_PREFETCH);
+    session->temp_buf_mask = N_ROWS_PREFETCH - 1;
+
+    return desc->grp_stats;
 }
 
 
@@ -55,19 +62,16 @@ void tgs_init(struct worker_desc *worker,
 	for (int i = 0; i < num_shard; i++) {
 		int handle = shard_handles[i];
 		infos[i].n_docs_in_slice = docs_per_shard[i];
-		infos[i].slice = (uint8_t *)addresses[i];
-		infos[i].shard = session->shards[handle];
+		infos[i].doc_slice = (uint8_t *)addresses[i];
+		infos[i].packed_metrics = session->shards[handle];
 	}
-	desc->trm_slice_infos = infos;
+	desc->slices = infos;
 	desc->grp_buf = worker->grp_buf;
-	desc->metric_buf = worker->metric_buf;
-	desc->non_zero_groups = worker->bit_tree_buf;
 }
 
 void tgs_destroy(struct tgs_desc *desc)
 {
-	bit_tree_destroy(desc->non_zero_groups);
-	free(desc->trm_slice_infos);
+	free(desc->slices);
 }
 
 int tgs_execute_pass(struct worker_desc *worker,
@@ -75,15 +79,15 @@ int tgs_execute_pass(struct worker_desc *worker,
                      struct tgs_desc *desc)
 {
 	uint32_t doc_id_buf[TGS_BUFFER_SIZE];
-	__m128i *group_stats;
+	unpacked_table_t *group_stats;
 	int n_slices = desc->n_slices;
-	struct index_slice_info *infos = desc->trm_slice_infos;
+	struct index_slice_info *infos = desc->slices;
     
     if (desc->n_slices <= 0) {
         return -1;
     }
 
-	group_stats = allocate_grp_stats(worker, session, infos[0].shard->metrics_layout);
+	group_stats = allocate_grp_stats(worker, session, infos[0].packed_metrics);
 	session->current_tgs_pass->group_stats = group_stats;
 
 	for (int i = 0; i < n_slices; i++) {
@@ -94,7 +98,7 @@ int tgs_execute_pass(struct worker_desc *worker,
 
 		slice = &infos[i];
 		remaining = slice->n_docs_in_slice;
-		read_addr = slice->slice;
+		read_addr = slice->doc_slice;
 		last_value = 0;
 		while (remaining > 0) {
 			int count;
@@ -105,19 +109,24 @@ int tgs_execute_pass(struct worker_desc *worker,
 			read_addr += bytes_read;
 			remaining -= count;
 
-//			accumulate_stats_for_term(slice, doc_id_buf, count, desc->non_zero_groups,
-//			                          group_stats, slice->shard, desc->grp_buf, desc->metric_buf);
-			packed_shard_t* shard = slice->shard;
-			prefetch_and_process_2_arrays(shard,
-									shard->groups_and_metrics,
-									group_stats,
-									doc_id_buf,
-									count,
-									shard->metrics_layout->n_vectors_per_doc,
-									shard->n_stat_vecs_per_grp,
-									desc->non_zero_groups,
-									desc->grp_buf,
-									desc->metric_buf);
+			packed_table_t* shard_data = slice->packed_metrics;
+			lookup_and_accumulate_grp_stats(shard_data,
+			                                     group_stats,
+			                                   doc_id_buf,
+			                                   count,
+			                                   desc->grp_buf,
+			                                   session->temp_buf,
+			                                   session->temp_buf_mask);
+//			prefetch_and_process_2_arrays(shard,
+//									shard->groups_and_metrics,
+//									group_stats,
+//									doc_id_buf,
+//									count,
+//									shard->metrics_layout->n_vectors_per_doc,
+//									shard->n_stat_vecs_per_grp,
+//									desc->non_zero_groups,
+//									desc->grp_buf,
+//									desc->metric_buf);
 			last_value = doc_id_buf[count - 1];
 		}
 	}

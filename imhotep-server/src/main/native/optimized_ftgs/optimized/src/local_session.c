@@ -91,23 +91,19 @@ int run_tgs_pass(struct worker_desc *worker,
 }
 
 //This method assumes that the boolean metrics will come first
-packed_shard_t *create_shard_multicache(uint32_t n_docs,
+packed_table_t *create_shard_multicache(uint32_t n_docs,
                                         int64_t *metric_mins,
                                         int64_t *metric_maxes,
                                         int n_metrics)
 {
-	packed_shard_t *shard;
-
-    shard = calloc(sizeof(packed_shard_t), 1);
-	packed_shard_init(shard, n_docs, metric_mins, metric_maxes, n_metrics);
-	return shard;
+	return packed_table_create(n_docs, metric_mins, metric_maxes, n_metrics);
 }
 
-int register_shard(struct session_desc *session, packed_shard_t *shard)
+int register_shard(struct session_desc *session, packed_table_t *table)
 {
     for (int i = 0; i < session->num_shards; i++) {
         if (session->shards[i] == NULL) {
-            session->shards[i] = shard;
+            session->shards[i] = table;
             return i;
         }
     }
@@ -120,23 +116,25 @@ void session_init(struct session_desc *session,
                   uint8_t* stat_order,
                   int n_shards)
 {
-	packed_shard_t **shards;
+    packed_table_t **shards;
 
 	session->num_groups = n_groups;
 	session->num_stats = n_stats;
 	session->stat_order = calloc(sizeof(uint8_t), n_stats);
+    memcpy(session->stat_order, stat_order, n_stats);
 	session->num_shards = n_shards;
 	session->current_tgs_pass = NULL;
 	
-	memcpy(session->stat_order, stat_order, n_stats);
+    session->temp_buf = NULL;
+    session->temp_buf_mask = 0;
 
-	shards = (packed_shard_t **)calloc(sizeof(packed_shard_t *), n_shards);
+	shards = (packed_table_t **)calloc(sizeof(packed_table_t *), n_shards);
 	session->shards = shards;
 }
 
 void session_destroy(struct session_desc *session)
 {
-	packed_shard_t **shards;
+    packed_table_t **shards;
 	int n_shards;
 
 	shards = session->shards;
@@ -156,14 +154,8 @@ void worker_init(struct worker_desc *worker,
 {
 	worker->id = id;
 	worker->buffer_size = DEFAULT_BUFFER_SIZE;
-	worker->group_stats_buf = (__m128i *)calloc(sizeof(uint8_t), worker->buffer_size);
-		/* allocate and initalize buffers */
+    worker->grp_stats = NULL;
 	worker->grp_buf = circular_buffer_int_alloc(CIRC_BUFFER_SIZE);
-	worker->metric_buf = circular_buffer_vector_alloc((n_metrics+1)/2 * CIRC_BUFFER_SIZE);
-//    worker->metric_buf = aligned_alloc(64, sizeof(uint64_t) * n_metrics * 2);
-	
-	worker->bit_tree_buf = calloc(sizeof(struct bit_tree), 1);
-	bit_tree_init(worker->bit_tree_buf, num_groups);
 	
 	worker->num_sockets = num_sockets;
 	worker->sockets = calloc(sizeof(struct buffered_socket), num_sockets);
@@ -176,9 +168,7 @@ void worker_init(struct worker_desc *worker,
 
 void worker_destroy(struct worker_desc *worker)
 {
-	free(worker->group_stats_buf);
-	bit_tree_destroy(worker->bit_tree_buf);
-	free(worker->bit_tree_buf);
+    unpacked_table_destroy(worker->grp_stats);
 	
 	/* free socket and term entries */
 	for (int i = 0; i < worker->num_sockets; i++) {
@@ -196,7 +186,6 @@ void worker_destroy(struct worker_desc *worker)
 	
 	/* free the intermediate buffers */
 	circular_buffer_int_cleanup(worker->grp_buf);
-	circular_buffer_vector_cleanup(worker->metric_buf);
 //	free(worker->metric_buf);
 	
 	/* free previous term array */

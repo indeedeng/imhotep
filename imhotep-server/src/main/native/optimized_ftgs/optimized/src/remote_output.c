@@ -210,7 +210,7 @@ int write_term_group_stats(struct session_desc* session, struct tgs_desc* tgs, u
     }
     int64_t term_doc_freq = 0;
     for (int i = 0; i < tgs->n_slices; i++) {
-        term_doc_freq += tgs->trm_slice_infos[i].n_docs_in_slice;
+        term_doc_freq += tgs->slices[i].n_docs_in_slice;
     }
     TRY(write_svint64(tgs->socket, term_doc_freq));
     int num_stats = session->num_stats;
