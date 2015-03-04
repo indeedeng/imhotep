@@ -54,7 +54,7 @@ static void createColumnIndexes(
     table->unpadded_row_size = n_vectors;
 
     /* Calculate how many cols we have per vector */
-    table->n_cols_per_vector = (uint8_t *) calloc(sizeof(uint8_t), n_vectors);
+    table->n_cols_per_vector = (uint8_t *) calloc(n_vectors, sizeof(uint8_t));
 
     /* Count how many non-bitfield cols in each packed vector */
     for (int i = table->n_boolean_cols; i < n_cols; i++) {
@@ -85,8 +85,8 @@ static void createShuffleVecFromIndexes(packed_table_t *table)
     uint16_t * index_cols = table->index_cols;
     uint8_t * col_n_vector = table->col_2_vector;
 
-    table->shuffle_vecs_get2 = calloc(sizeof(__v16qi), n_cols - n_boolean_cols);
-    table->shuffle_vecs_get1 = calloc(sizeof(__v16qi), n_cols - n_boolean_cols);
+    table->shuffle_vecs_get2 = calloc(n_cols - n_boolean_cols, sizeof(__v16qi));
+    table->shuffle_vecs_get1 = calloc(n_cols - n_boolean_cols, sizeof(__v16qi));
     int index2 = 0;
     int index1 = 0;
 
@@ -173,8 +173,8 @@ static void createShuffleBlendFromIndexes(packed_table_t *table)
     uint8_t n_cols = table->n_cols;
     uint16_t * index_cols = table->index_cols;
     int k, i, j;
-    table->shuffle_vecs_put = calloc(sizeof(__v16qi ), (n_cols - n_boolean_cols));
-    table->blend_vecs_put = calloc(sizeof(__v16qi ), (n_cols - n_boolean_cols));
+    table->shuffle_vecs_put = calloc((n_cols - n_boolean_cols), sizeof(__v16qi ));
+    table->blend_vecs_put = calloc((n_cols - n_boolean_cols), sizeof(__v16qi ));
 
     //Creates the shuffle vectors to put each col in the right place for blending
     // And create the blend vectors. We will have a main vector that is gonna receive
@@ -235,17 +235,17 @@ packed_table_t *packed_table_create(int n_rows,
 {
     packed_table_t *table;
 
-    table = (packed_table_t *)calloc(sizeof(packed_table_t), 1);
+    table = (packed_table_t *)calloc(1, sizeof(packed_table_t));
     table->n_rows = n_rows;
     table->n_cols = n_cols;
 
-    table->col_mins = (int64_t *) calloc(sizeof(int64_t), n_cols);
+    table->col_mins = (int64_t *) calloc(n_cols, sizeof(int64_t));
     /* copy in the mins */
     for (int i = 0; i < n_cols; i++) {
         table->col_mins[i] = column_mins[i];
     }
-    table->index_cols = (uint16_t *) calloc(sizeof(uint16_t), n_cols * 2);
-    table->col_2_vector = (uint8_t *) calloc(sizeof(uint8_t), n_cols);
+    table->index_cols = (uint16_t *) calloc(n_cols * 2, sizeof(uint16_t));
+    table->col_2_vector = (uint8_t *) calloc(n_cols, sizeof(uint8_t));
     table->n_cols_aux_index = 0;
     table->n_boolean_cols = 0;
     createColumnIndexes(   table,
