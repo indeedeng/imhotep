@@ -212,20 +212,17 @@ struct Shard
 
   ~Shard() { packed_table_destroy(_shard); }
 
-<<<<<<< HEAD
-  packed_shard_t* operator()() { return _shard; };
-  const packed_shard_t* operator()() const { return _shard; };
-=======
   packed_table_t * operator()() { return _shard; };
->>>>>>> made some progress on test_tgs changes
 
-  GroupStats<n_metrics> sum(const __m128i* group_stats_buf) const {
+  GroupStats<n_metrics> sum(unpacked_table_t* group_stats_buf) const {
     GroupStats<n_metrics> results;
     GroupIds              gids(_table.group_ids());
     size_t                row_index(0);
     for (GroupIds::const_iterator it(gids.begin()); it != gids.end(); ++it, ++row_index) {
-      const size_t              offset(_shard->unpacked_offset[row_index]);
-      const Metrics<n_metrics>& row(*reinterpret_cast<const Metrics<n_metrics>*>(&group_stats_buf[offset]));
+      Metrics<n_metrics> row;
+      for (int col_index(0); col_index < unpacked_table_get_cols(group_stats_buf); ++col_index) {
+        row[col_index] = unpacked_table_get_cell(group_stats_buf, row_index, col_index);
+      }
       results.insert(make_pair(*it, row));
     }
     return results;
@@ -292,17 +289,9 @@ public:
     // worker_destroy(&_worker);
   }
 
-  const Table<n_metrics>& table() const { return _table; }
-  const Shard&            shard() const { return _shard; }
-
-<<<<<<< HEAD
-  const size_t n_groups() const { return table().group_ids().size(); }
-  const size_t n_docs()   const { return shard()()->num_docs;        }
-
-  const __m128i* group_stats_buf() const { return _worker.group_stats_buf; }
-=======
+  const Table<n_metrics>&           table() const { return _table;            }
+  const Shard&                      shard() const { return _shard;            }
   const unpacked_table_t* group_stats_buf() const { return _worker.grp_stats; }
->>>>>>> made some progress on test_tgs changes
 };
 
 template <size_t n_metrics>
@@ -327,7 +316,6 @@ ostream& operator<<(ostream& os, const TGSTest<n_metrics>& test) {
   return os;
 }
 
-
 int main(int argc, char* argv[])
 {
   int status(EXIT_SUCCESS);
@@ -351,7 +339,7 @@ int main(int argc, char* argv[])
   const MetricFunc  metric_func([](int64_t min, int64_t max) { return max; });
 
   TGSTest<2> test(n_docs, n_groups, min_func, max_func, doc_id_func, group_id_func, metric_func);
-  cout << test;
+  // cout << test;
 
   return status;
 }
