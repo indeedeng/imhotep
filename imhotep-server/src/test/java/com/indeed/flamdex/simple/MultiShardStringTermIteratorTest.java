@@ -1,5 +1,6 @@
 package com.indeed.flamdex.simple;
 
+import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Lists;
@@ -78,7 +79,7 @@ public class MultiShardStringTermIteratorTest {
             final MultiShardFlamdexReader multiShardFlamdexReader = new MultiShardFlamdexReader(simpleFlamdexReaders.toArray(new SimpleFlamdexReader[simpleFlamdexReaders.size()]));
             final MultiShardStringTermIterator smsstoi =  multiShardFlamdexReader.stringTermOffsetIterator("foo");
             while (smsstoi.next()) {
-                if (smsstoi.term().equals("bar")) {
+                if (Arrays.equals("bar".getBytes(Charsets.UTF_8), Arrays.copyOf(smsstoi.termBytes(), smsstoi.termBytesLength()))) {
                     smsstoi.offsets(positionsBuffer);
                     final LongList expectedPositions = mergedResults.get("bar");
                     final long[] expectedPositionsArray = expectedPositions.toArray(new long[expectedPositions.size()]);

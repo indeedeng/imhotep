@@ -13,7 +13,6 @@
  */
  package com.indeed.imhotep.local;
 
-import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.indeed.flamdex.api.FlamdexReader;
@@ -110,13 +109,13 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             for (final String stringField : stringFields) {
                 try (final MultiShardStringTermIterator offsetIterator = multiShardFlamdexReader.stringTermOffsetIterator(stringField)) {
                     while (offsetIterator.next()) {
-                        final String term = offsetIterator.term();
-                        final byte[] bytes = term.getBytes(Charsets.UTF_8);
-                        final int splitIndex = hashStringTerm(bytes, bytes.length, numSplits);
+                        final byte[] bytes = offsetIterator.termBytes();
+                        final int splitIndex = hashStringTerm(bytes, offsetIterator.termBytesLength(), numSplits);
                         final int workerId = splitIndex % NUM_WORKERS;
                         final long[] offsets = new long[sessions.length];
                         offsetIterator.offsets(offsets);
-                        final FTGSIterateRequest ftgsIterateRequest = FTGSIterateRequest.create(stringField, term, offsets, ftgsOutputSockets[splitIndex]);
+                        //TODO: use a pool
+                        final FTGSIterateRequest ftgsIterateRequest = FTGSIterateRequest.create(stringField, Arrays.copyOf(bytes, offsetIterator.termBytesLength()), offsets, ftgsOutputSockets[splitIndex]);
                         ftgsIterateRequestQueues.get(workerId).offer(ftgsIterateRequest);
                     }
                 }

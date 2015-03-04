@@ -28,7 +28,7 @@ final class FTGSIteratorSplitDelegatingWorker implements Runnable {
             if (ftgsIterateRequest.isIntField) {
                 delegate.writeFTGSSplitForIntTerm(ftgsIterateRequest.field, ftgsIterateRequest.intTerm, ftgsIterateRequest.offsets, ftgsIterateRequest.outputSocket);
             } else {
-                delegate.writeFTGSSplitForStringTerm(ftgsIterateRequest.field, ftgsIterateRequest.stringTerm, ftgsIterateRequest.offsets, ftgsIterateRequest.outputSocket);
+                delegate.writeFTGSSplitForStringTerm(ftgsIterateRequest.field, ftgsIterateRequest.stringTerm, ftgsIterateRequest.stringTerm.length, ftgsIterateRequest.offsets, ftgsIterateRequest.outputSocket);
             }
         }
     }

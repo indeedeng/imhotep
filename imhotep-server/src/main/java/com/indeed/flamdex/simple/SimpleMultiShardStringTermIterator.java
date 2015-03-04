@@ -1,10 +1,13 @@
 package com.indeed.flamdex.simple;
 
+import com.indeed.imhotep.RawFTGSMerger;
+
 /**
  * @author arun.
  */
 class SimpleMultiShardStringTermIterator extends AbstractMultiShardTermIterator<SimpleStringTermIterator> implements MultiShardStringTermIterator {
-    private String term;
+    private byte[] term;
+    private int termLength;
 
     SimpleMultiShardStringTermIterator(final SimpleStringTermIterator[] stringTermIterators) {
         super(stringTermIterators);
@@ -12,16 +15,22 @@ class SimpleMultiShardStringTermIterator extends AbstractMultiShardTermIterator<
 
     @Override
     protected void recordTerm(SimpleStringTermIterator termIterator) {
-        term = termIterator.term();
+        term = termIterator.termStringBytes();
+        termLength = termIterator.termStringLength();
     }
 
     @Override
     protected int compare(SimpleStringTermIterator a, SimpleStringTermIterator b) {
-        return a.term().compareTo(b.term());
+        return RawFTGSMerger.compareBytes(a.termStringBytes(), a.termStringLength(), b.termStringBytes(), b.termStringLength());
     }
 
     @Override
-    public String term() {
+    public byte[] termBytes() {
         return term;
+    }
+
+    @Override
+    public int termBytesLength() {
+        return termLength;
     }
 }
