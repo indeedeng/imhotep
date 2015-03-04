@@ -532,22 +532,32 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
 
     public RawFTGSIterator getFTGSIteratorSplit(final String[] intFields, final String[] stringFields, final int splitIndex, final int numSplits) {
         final RawFTGSIterator[] splits = new RawFTGSIterator[sessions.length];
-        executeRuntimeException(splits, new ThrowingFunction<ImhotepSession, RawFTGSIterator>() {
-            public RawFTGSIterator apply(final ImhotepSession imhotepSession) throws Exception {
-                return imhotepSession.getFTGSIteratorSplit(intFields, stringFields, splitIndex, numSplits);
-            }
-        });
+        try {
+            executeSessions(splits, new ThrowingFunction<ImhotepSession, RawFTGSIterator>() {
+                public RawFTGSIterator apply(final ImhotepSession imhotepSession) throws Exception {
+                    return imhotepSession.getFTGSIteratorSplit(intFields, stringFields, splitIndex, numSplits);
+                }
+            });
+        } catch (Throwable t) {
+            Closeables2.closeAll(log, splits);
+            throw Throwables.propagate(t);
+        }
         return new RawFTGSMerger(Arrays.asList(splits), numStats, null);
     }
 
     @Override
     public RawFTGSIterator getSubsetFTGSIteratorSplit(final Map<String, long[]> intFields, final Map<String, String[]> stringFields, final int splitIndex, final int numSplits) {
         final RawFTGSIterator[] splits = new RawFTGSIterator[sessions.length];
-        executeRuntimeException(splits, new ThrowingFunction<ImhotepSession, RawFTGSIterator>() {
-            public RawFTGSIterator apply(final ImhotepSession imhotepSession) throws Exception {
-                return imhotepSession.getSubsetFTGSIteratorSplit(intFields, stringFields, splitIndex, numSplits);
-            }
-        });
+        try {
+            executeSessions(splits, new ThrowingFunction<ImhotepSession, RawFTGSIterator>() {
+                public RawFTGSIterator apply(final ImhotepSession imhotepSession) throws Exception {
+                    return imhotepSession.getSubsetFTGSIteratorSplit(intFields, stringFields, splitIndex, numSplits);
+                }
+            });
+        } catch (Throwable t) {
+            Closeables2.closeAll(log, splits);
+            throw Throwables.propagate(t);
+        }
         return new RawFTGSMerger(Arrays.asList(splits), numStats, null);
     }
 
@@ -566,8 +576,9 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
                     return remoteSession.getFTGSIteratorSplit(intFields, stringFields, splitIndex, nodes.length);
                 }
             });
-        } catch (ExecutionException e) {
-            throw Throwables.propagate(e);
+        } catch (Throwable t) {
+            Closeables2.closeAll(log, splits);
+            throw Throwables.propagate(t);
         }
         return mergeFTGSSplits(splits);
     }
@@ -583,8 +594,9 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
                     return remoteSession.getSubsetFTGSIteratorSplit(intFields, stringFields, splitIndex, nodes.length);
                 }
             });
-        } catch (ExecutionException e) {
-            throw Throwables.propagate(e);
+        } catch (Throwable t) {
+            Closeables2.closeAll(log, splits);
+            throw Throwables.propagate(t);
         }
         return mergeFTGSSplits(splits);
     }
@@ -642,8 +654,12 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
                 out.close();
             }
         }
-        final BufferedInputStream bufferedInputStream = new BufferedInputStream(new FileInputStream(tmp));
-        tmp.delete();
+        final BufferedInputStream bufferedInputStream;
+        try {
+            bufferedInputStream = new BufferedInputStream(new FileInputStream(tmp));
+        } finally {
+            tmp.delete();
+        }
         final InputStream in = new FilterInputStream(bufferedInputStream) {
             public void close() throws IOException {
                 bufferedInputStream.close();

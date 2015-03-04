@@ -18,6 +18,7 @@ import com.indeed.util.core.Pair;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.RawFTGSIterator;
+import com.indeed.util.core.Throwables2;
 import org.apache.log4j.Logger;
 
 import java.net.InetSocketAddress;
@@ -157,17 +158,19 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession {
             }));
         }
 
-        try {
-            for (int i = 0; i < futures.size(); ++i) {
+        Throwable t = null;
+
+        for (int i = 0; i < futures.size(); ++i) {
+            try {
                 final Future<T> future = futures.get(i);
                 ret[i] = future.get();
+            } catch (Throwable t2) {
+                t = t2;
             }
-        } catch (ExecutionException e) {
+        }
+        if (t != null) {
             safeClose();
-            throw e;
-        } catch (InterruptedException e) {
-            safeClose();
-            throw new RuntimeException(e);
+            throw Throwables2.propagate(t, ExecutionException.class);
         }
     }
 
