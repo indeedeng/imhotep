@@ -23,10 +23,14 @@ void lookup_and_accumulate_grp_stats(
         /* find next higher power of 2 */
         prefetch_rows = sizeof(prefetch_rows) * 8 - __builtin_clzl(prefetch_rows) + 1;
     }
+    int min = (buffer_len < prefetch_rows) ? buffer_len : prefetch_rows;
     uint32_t temp_buf_mask = prefetch_rows - 1;
+    int trailing_idx = 0;
+    int idx = 0;
+
 
     /* loop through A rows, prefetching */
-    for (int idx = 0; idx < prefetch_rows; idx++) {
+    for (; idx < min; idx++) {
         int row_id = row_id_buffer[idx];
         int prefetch_idx = row_id_buffer[idx + prefetch_rows];
 
@@ -45,8 +49,7 @@ void lookup_and_accumulate_grp_stats(
     }
 
     /* loop through A rows, prefetching; loop through B rows */
-    int trailing_idx = 0;
-    for (int idx = prefetch_rows; idx < buffer_len - prefetch_rows; idx ++, trailing_idx ++) {
+    for (; idx < buffer_len - prefetch_rows; idx ++, trailing_idx ++) {
         int row_id = row_id_buffer[idx];
         int prefetch_idx = row_id_buffer[idx + prefetch_rows];
 
@@ -75,7 +78,7 @@ void lookup_and_accumulate_grp_stats(
     }
 
     /* loop through A rows; loop through B rows */
-    for (int idx = buffer_len - prefetch_rows; idx < buffer_len; idx ++, trailing_idx ++) {
+    for (; idx < buffer_len; idx ++, trailing_idx ++) {
         int row_id = row_id_buffer[idx];
 
         /* load value from A, save, prefetch B */
