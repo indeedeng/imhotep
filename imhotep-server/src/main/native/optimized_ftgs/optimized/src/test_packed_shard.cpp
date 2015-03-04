@@ -26,15 +26,14 @@ typedef function<int64_t(int64_t min, int64_t max)> MetricFunc;
 ********************************************************************************/
 
 template <size_t n_metrics>
-bool test_packed_shards(size_t n_docs,
+bool test_packed_tables(size_t n_docs,
                         array<int64_t, n_metrics>& mins,
                         array<int64_t, n_metrics>& maxes,
                         MetricFunc metric_func)
 {
   bool result(true);
 
-	packed_shard_t shard;
-	packed_shard_init(&shard, n_docs, mins.data(), maxes.data(), n_metrics);
+	packed_table_t* shard(packed_table_create(n_docs, mins.data(), maxes.data(), n_metrics));;
 		
   vector<int> doc_ids;
   for (int doc_id = 0; doc_id < n_docs; ++doc_id) {
@@ -45,10 +44,10 @@ bool test_packed_shards(size_t n_docs,
   for (auto doc_id: doc_ids) {
     gids.push_back(doc_id);
   }
-  packed_shard_update_groups(&shard, doc_ids.data(), doc_ids.size(), gids.data());
+  packed_shard_batch_set_group(shard, doc_ids.data(), doc_ids.size(), gids.data());
 
   vector<int64_t> actual_gids(gids.size(), -1);
-  packed_shard_lookup_groups(&shard, doc_ids.data(), doc_ids.size(), actual_gids.data());
+  packed_shard_batch_group_lookup(shard, doc_ids.data(), doc_ids.size(), actual_gids.data());
 
   if (!equal(gids.begin(), gids.end(), actual_gids.begin())) {
     cerr << "group lookup failed -- "    << endl
@@ -64,17 +63,14 @@ bool test_packed_shards(size_t n_docs,
 
   for (int metric_index = 0; metric_index < n_metrics; ++metric_index) {
     vector<int64_t> values(doc_ids.size(), metrics[metric_index]);
-    packed_shard_update_metric(&shard,
-                               doc_ids.data(), doc_ids.size(),
-                               values.data(), metric_index);
+    packed_shard_batch_set_col(shard, doc_ids.data(), doc_ids.size(), values.data(), metric_index);
 	}
 
   for (int metric_index = 0; metric_index < n_metrics; ++metric_index) {
     vector<int64_t> expected_values(doc_ids.size(), metrics[metric_index]);
     vector<int64_t> actual_values(doc_ids.size(), -1);
-    packed_shard_lookup_metric_values(&shard,
-                                      doc_ids.data(), doc_ids.size(),
-                                      actual_values.data(), metric_index);
+    packed_shard_batch_col_lookup(shard, doc_ids.data(), doc_ids.size(),
+                                  actual_values.data(), metric_index);
     if (!equal(expected_values.begin(), expected_values.end(), actual_values.begin())) {
       cerr << "metric lookup failed -- "
            << " metric_index: "   << metric_index
@@ -86,7 +82,7 @@ bool test_packed_shards(size_t n_docs,
       result = false;
     }
   }
-	packed_shard_destroy(&shard);
+	packed_table_destroy(shard);
 
   return result;
 }
@@ -108,7 +104,7 @@ void test_func(size_t n_docs,
     mins[i]  = min_func(n_metrics, i);
     maxes[i] = max_func(n_metrics, i);
   }
-  const bool result(test_packed_shards<n_metrics>(n_docs, mins, maxes, metric_func));
+  const bool result(test_packed_tables<n_metrics>(n_docs, mins, maxes, metric_func));
   // cout << " mins: " << mins << endl;
   // cout << "maxes: " << maxes << endl;
   cout << ((result == should_succeed) ? "PASSED" : "FAILED")
