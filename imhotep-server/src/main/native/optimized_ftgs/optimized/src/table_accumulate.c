@@ -66,7 +66,11 @@ void lookup_and_accumulate_grp_stats(
         int current_grp = circular_buffer_int_get(grp_buf);
 
         /* loop through B row elements */
-        unpacked_table_add_rows(temp_buf, trailing_idx, dest_table, current_grp, prefetch_grp);
+        unpacked_table_add_rows(temp_buf,
+                                trailing_idx & temp_buf_mask,
+                                dest_table,
+                                current_grp,
+                                prefetch_grp);
     }
 
     /* loop through A rows; loop through B rows */

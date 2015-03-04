@@ -17,7 +17,11 @@ static unpacked_table_t *allocate_grp_stats(struct worker_desc *desc,
     if (desc->grp_stats == NULL) {
 		desc->buffer_size = gs_size;
 		desc->grp_stats = unpacked_table_create(metric_desc);
-		return desc->grp_stats;
+
+	    session->temp_buf = unpacked_table_copy_layout(desc->grp_stats, N_ROWS_PREFETCH);
+	    session->temp_buf_mask = N_ROWS_PREFETCH - 1;
+
+	    return desc->grp_stats;
 	}
 
     assert(1 == 1);  /* we should never get here */
