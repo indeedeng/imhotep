@@ -2,8 +2,6 @@
 #include "imhotep_native.h"
 #include "circ_buf.h"
 
-#define PREFETCH_CACHE_LINES                8
-
 /*
  * Two array loop
  */
@@ -13,16 +11,19 @@ void lookup_and_accumulate_grp_stats(
                                    uint32_t* row_id_buffer,
                                    int buffer_len,
                                    struct circular_buffer_int *grp_buf,
-                                   unpacked_table_t *temp_buf,
-                                   uint32_t temp_buf_mask)
+                                   unpacked_table_t *temp_buf)
 {
     /*
      * calculate the number of rows to prefetch to keep the total number
      * of prefetches to PREFETCH_CACHE_LINES
      */
-    const int array_cache_lines_per_row = (packed_table_get_row_size(src_table) + 3) / 4;
-    const int prefetch_rows = (PREFETCH_CACHE_LINES + array_cache_lines_per_row - 1)
-                                         / array_cache_lines_per_row;
+    const int cache_lines_per_row = (packed_table_get_row_size(src_table) + 3) / 4;
+    int prefetch_rows = (PREFETCH_DISTANCE + cache_lines_per_row - 1) / cache_lines_per_row;
+    if (prefetch_rows != PREFETCH_DISTANCE) {
+        /* find next higher power of 2 */
+        prefetch_rows = sizeof(prefetch_rows) * 8 - __builtin_clzl(prefetch_rows) + 1;
+    }
+    uint32_t temp_buf_mask = prefetch_rows - 1;
 
     /* loop through A rows, prefetching */
     for (int idx = 0; idx < prefetch_rows; idx++) {

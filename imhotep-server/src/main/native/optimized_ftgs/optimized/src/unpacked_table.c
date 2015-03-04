@@ -2,17 +2,16 @@
 #include <string.h>
 #include "table.h"
 
-unpacked_table_t *unpacked_table_create(packed_table_t *packed_table)
+unpacked_table_t *unpacked_table_create(packed_table_t *packed_table, int n_rows)
 {
     unpacked_table_t *table;
     int64_t *column_mins = packed_table->col_mins;
-    int n_rows = packed_table_get_rows(packed_table);
     int n_cols = packed_table_get_cols(packed_table);
 
     table = (unpacked_table_t *)calloc(sizeof(unpacked_table_t), 1);
-    table->col_offset = (uint8_t *) calloc(sizeof(uint8_t), n_cols);
-    table->n_cols = n_cols;
     table->n_rows = n_rows;
+    table->n_cols = n_cols;
+    table->col_offset = (uint8_t *) calloc(sizeof(uint8_t), n_cols);
 
     /* set for the boolean cols, padded to fit in 1 or 2 vectors */
     uint8_t offset = 0;

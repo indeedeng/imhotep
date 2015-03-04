@@ -95,7 +95,7 @@ void packed_table_unpack_row_to_table(
                                              int dest_row_id,
                                              int prefetch_row_id);
 
-unpacked_table_t *unpacked_table_create(packed_table_t *packed_table);
+unpacked_table_t *unpacked_table_create(packed_table_t *packed_table, int n_rows);
 void unpacked_table_destroy(unpacked_table_t *table);
 int unpacked_table_get_size(unpacked_table_t *table);
 int unpacked_table_get_rows(unpacked_table_t *table);

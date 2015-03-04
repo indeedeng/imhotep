@@ -1,5 +1,6 @@
 #include <emmintrin.h>
 #include <stdlib.h>
+#include <string.h>
 #include "bit_tree.h"
 
 
@@ -19,6 +20,7 @@ void bit_tree_init(struct bit_tree *tree, int32_t size)
         tree->len += 1 << top_bit(size);
     }
     tree->bitsets = aligned_alloc(64, sizeof(uint64_t) * tree->len);
+    memset(tree->bitsets, 0 , sizeof(uint64_t) * tree->len);
 }
 
 void bit_tree_destroy(struct bit_tree *tree)

@@ -126,7 +126,6 @@ void session_init(struct session_desc *session,
 	session->current_tgs_pass = NULL;
 	
     session->temp_buf = NULL;
-    session->temp_buf_mask = 0;
 
 	shards = (packed_table_t **)calloc(sizeof(packed_table_t *), n_shards);
 	session->shards = shards;

@@ -10,6 +10,9 @@
 #define TERM_TYPE_STRING						0
 #define TERM_TYPE_INT                           1
 
+#define PREFETCH_DISTANCE                       8
+
+
 struct circular_buffer_vector;
 
 struct packed_table_desc;
@@ -79,7 +82,6 @@ struct session_desc {
     int num_shards;
     packed_table_t **shards;
     unpacked_table_t *temp_buf;
-    uint32_t temp_buf_mask;
     struct tgs_desc *current_tgs_pass;
 };
 
@@ -116,8 +118,7 @@ void lookup_and_accumulate_grp_stats(
                                    uint32_t* row_id_buffer,
                                    int buffer_len,
                                    struct circular_buffer_int *grp_buf,
-                                   unpacked_table_t *temp_buf,
-                                   uint32_t temp_buf_mask);
+                                   unpacked_table_t *temp_buf);
 
 packed_table_t *packed_table_create(int n_rows,
                                     int64_t *column_mins,
@@ -158,7 +159,7 @@ void packed_table_unpack_row_to_table(
                                              int dest_row_id,
                                              int prefetch_row_id);
 
-unpacked_table_t *unpacked_table_create(packed_table_t *packed_table);
+unpacked_table_t *unpacked_table_create(packed_table_t *packed_table, int n_rows);
 void unpacked_table_destroy(unpacked_table_t *table);
 int unpacked_table_get_size(unpacked_table_t *table);
 int unpacked_table_get_rows(unpacked_table_t *table);

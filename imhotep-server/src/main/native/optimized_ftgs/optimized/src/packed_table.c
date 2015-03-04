@@ -528,10 +528,6 @@ void packed_shard_batch_set_group(   packed_table_t *table,
 
 /*
  *
- *
- * Foo
- *
- *
  */
 
 static inline void unpack_bit_fields(__v2di *dest_buffer,
@@ -604,7 +600,7 @@ inline void packed_table_unpack_row_to_table(
     unpack_bit_fields(dest_row, packed_bf_g.cols, src_table->n_boolean_cols);
 
     /* flag row as modified */
-    bit_tree_set(&dest_table->non_zero_rows, packed_bf_g.grp);
+    bit_tree_set(&dest_table->non_zero_rows, dest_row_id);
 
     /* loop through row elements */
     int vector_num;
