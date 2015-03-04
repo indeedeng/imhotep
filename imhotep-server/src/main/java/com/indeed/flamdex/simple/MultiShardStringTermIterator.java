@@ -1,4 +1,4 @@
-package com.indeed.imhotep.local;
+package com.indeed.flamdex.simple;
 
 /**
  * @author arun.

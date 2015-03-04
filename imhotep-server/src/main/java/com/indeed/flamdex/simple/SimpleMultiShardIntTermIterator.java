@@ -1,7 +1,6 @@
-package com.indeed.imhotep.local;
+package com.indeed.flamdex.simple;
 
 import com.google.common.primitives.Longs;
-import com.indeed.flamdex.simple.SimpleIntTermIterator;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
@@ -14,7 +13,7 @@ import java.util.PriorityQueue;
 /**
  * @author arun.
  */
-public class SimpleMultiShardIntTermIterator implements MultiShardIntTermIterator, Closeable {
+class SimpleMultiShardIntTermIterator implements MultiShardIntTermIterator, Closeable {
     private static final Logger log = Logger.getLogger(SimpleMultiShardIntTermIterator.class);
     private final SimpleIntTermIterator[] intTermIterators;
     private final PriorityQueue<Pair<SimpleIntTermIterator, Integer>> pq;

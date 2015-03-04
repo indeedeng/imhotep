@@ -5,6 +5,8 @@ import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.indeed.flamdex.MemoryFlamdex;
+import com.indeed.flamdex.simple.MultiShardFlamdexReader;
+import com.indeed.flamdex.simple.MultiShardStringTermIterator;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexWriter;
 import com.indeed.flamdex.simple.SimpleStringTermIterator;
