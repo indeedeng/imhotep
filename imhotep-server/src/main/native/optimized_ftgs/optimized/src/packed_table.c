@@ -608,7 +608,7 @@ inline void packed_table_unpack_row_to_table(
     int n_packed_vecs = src_table->unpadded_row_size;
     for (vector_num = 0; vector_num < n_packed_vecs - 4; vector_num += 4)
     {
-        column_idx += core(src_table, dest_table, column_idx, vector_num = 0, src_row, dest_row);
+        column_idx += core(src_table, dest_table, column_idx, vector_num + 0, src_row, dest_row);
         column_idx += core(src_table, dest_table, column_idx, vector_num + 1, src_row, dest_row);
         column_idx += core(src_table, dest_table, column_idx, vector_num + 2, src_row, dest_row);
         column_idx += core(src_table, dest_table, column_idx, vector_num + 3, src_row, dest_row);
