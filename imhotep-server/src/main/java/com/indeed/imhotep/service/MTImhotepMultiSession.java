@@ -13,7 +13,9 @@
  */
  package com.indeed.imhotep.service;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
+import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.MemoryReservationContext;
@@ -90,21 +92,23 @@ class MTImhotepMultiSession extends AbstractImhotepMultiSession {
             futures.add(executor.submit(new Callable<T>() {
                 @Override
                 public T call() throws Exception {
-                    return (T) function.apply(thing);
+                    return function.apply(thing);
                 }
             }));
         }
 
+        Throwable t = null;
+
         for (int i = 0; i < futures.size(); ++i) {
             try {
                 ret[i] = futures.get(i).get();
-            } catch (ExecutionException e) {
-                safeClose();
-                throw e;
-            } catch (InterruptedException e) {
-                safeClose();
-                throw new RuntimeException(e);
+            } catch (Throwable t2) {
+                t = t2;
             }
+        }
+        if (t != null) {
+            safeClose();
+            throw Throwables2.propagate(t, ExecutionException.class);
         }
     }
 }
