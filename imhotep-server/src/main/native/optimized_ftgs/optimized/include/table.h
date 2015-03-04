@@ -25,11 +25,9 @@ struct packed_table_desc {
 
     uint8_t n_boolean_cols;      /* Number of boolean cols */
 
-    uint8_t n_cols_aux_index;    /* used to control for how many cols we have already generated the index */
     int row_size;                /* How many __m128 vectors a single row uses */
     int unpadded_row_size;       /* How many __m128 vectors a single row uses, without the end padding */
 
-    uint16_t *index_cols;        /* Where in the vector is each column, counting booleans */
     uint8_t *col_2_vector;       /* The vector in which the column resides */
     int64_t *col_mins;           /* The minimal value of each column */
 
