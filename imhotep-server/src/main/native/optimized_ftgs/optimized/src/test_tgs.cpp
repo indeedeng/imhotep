@@ -341,21 +341,48 @@ int main(int argc, char* argv[])
     n_groups = atoi(argv[2]);
   }
 
-  const MinMaxFunc  min_func([](size_t index) { return 0; });
-  const MinMaxFunc  max_func([](size_t index) { return 10; });
-  const DocIdFunc   doc_id_func([](size_t index) { return index; });
-  const GroupIdFunc group_id_func([n_groups](size_t doc_id) { return doc_id % n_groups; });
-  const MetricFunc  metric_func([](int64_t min, int64_t max) { return max; });
+  vector<MetricFunc> metric_funcs = {
+    [](int64_t min_val, int64_t max_val) { return min_val; },
+    [](int64_t min_val, int64_t max_val) { return max_val; },
+    [](int64_t min_val, int64_t max_val) { return min_val + (max_val - min_val) / 2; },
+  };
 
-  TGSTest<1>   test1(n_docs, n_groups, min_func, max_func, doc_id_func, group_id_func, metric_func);
-  cout << test1;
-  TGSTest<2>   test2(n_docs, n_groups, min_func, max_func, doc_id_func, group_id_func, metric_func);
-  cout << test2;
-  TGSTest<5>   test5(n_docs, n_groups, min_func, max_func, doc_id_func, group_id_func, metric_func);
-  cout << test5;
-  TGSTest<255> test255(n_docs, n_groups, min_func, max_func, doc_id_func, group_id_func, metric_func);
-  cout << test255;
+  vector<pair<MinMaxFunc, MinMaxFunc>> min_max_funcs = {
+    make_pair([](size_t index) { return 0; },
+              [](size_t index) { return 0; }),
+    make_pair([](size_t index) { return 0; },
+              [](size_t index) { return 1; }),
+    make_pair([](size_t index) { return 0; },
+              [](size_t index) { return 32; }),
+    make_pair([](size_t index) { return 0; },
+              [](size_t index) { return 1 << 30; }),
+    make_pair([](size_t index) { return 1; },
+              [](size_t index) { return 1; }),
+    make_pair([](size_t index) { return 1; },
+              [](size_t index) { return 2; }),
+    make_pair([](size_t index) { return 1; },
+              [](size_t index) { return 32; }),
+    make_pair([](size_t index) { return 1; },
+              [](size_t index) { return 1 << 30; }),
+  };
 
+  for (auto metric_func: metric_funcs) {
+    for (auto min_max_func: min_max_funcs) {
+      const MinMaxFunc  min_func(min_max_func.first);
+      const MinMaxFunc  max_func(min_max_func.second);
+      const DocIdFunc   doc_id_func([](size_t index) { return index; });
+      const GroupIdFunc group_id_func([n_groups](size_t doc_id) { return doc_id % n_groups; });
+
+      TGSTest<1>   test1(n_docs, n_groups, min_func, max_func, doc_id_func, group_id_func, metric_func);
+      cout << test1;
+      TGSTest<2>   test2(n_docs, n_groups, min_func, max_func, doc_id_func, group_id_func, metric_func);
+      cout << test2;
+      TGSTest<5>   test5(n_docs, n_groups, min_func, max_func, doc_id_func, group_id_func, metric_func);
+      cout << test5;
+      TGSTest<64> test64(n_docs, n_groups, min_func, max_func, doc_id_func, group_id_func, metric_func);
+      cout << test64;
+    }
+  }
 
   return status;
 }
