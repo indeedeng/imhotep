@@ -1,15 +1,10 @@
-package com.indeed.imhotep.local;
+package com.indeed.flamdex.simple;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.indeed.flamdex.MemoryFlamdex;
-import com.indeed.flamdex.simple.MultiShardFlamdexReader;
-import com.indeed.flamdex.simple.MultiShardStringTermIterator;
-import com.indeed.flamdex.simple.SimpleFlamdexReader;
-import com.indeed.flamdex.simple.SimpleFlamdexWriter;
-import com.indeed.flamdex.simple.SimpleStringTermIterator;
 import com.indeed.flamdex.writer.FlamdexDocument;
 import com.indeed.util.core.io.Closeables2;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
@@ -32,13 +27,13 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeMap;
 
-public class MSStringTermOffsetIteratorTest {
-    private static final Logger log = Logger.getLogger(MSStringTermOffsetIteratorTest.class);
+public class MultiShardStringTermIteratorTest {
+    private static final Logger log = Logger.getLogger(MultiShardStringTermIteratorTest.class);
 
     @Rule
     public TemporaryFolder folder = new TemporaryFolder();
     @Test
-    public void testMultiShardStringTermOffsetIterator() throws IOException {
+    public void testMultiShardStringTermIterator() throws IOException {
         BasicConfigurator.configure();
         final List<File> shardDirectories = Lists.newArrayList();
         final TreeMap<String, Long> termToPosition1;
