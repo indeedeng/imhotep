@@ -212,7 +212,8 @@ struct Shard
 
   ~Shard() { packed_table_destroy(_shard); }
 
-  packed_table_t * operator()() { return _shard; };
+        packed_table_t * operator()()       { return _shard; };
+  const packed_table_t * operator()() const { return _shard; };
 
   GroupStats<n_metrics> sum(unpacked_table_t* group_stats_buf) const {
     GroupStats<n_metrics> results;
@@ -234,6 +235,9 @@ struct Shard
 template <size_t n_metrics>
 class TGSTest
 {
+  const size_t _n_docs;
+  const size_t _n_groups;
+
   const Table<n_metrics> _table;
 
   Shard<n_metrics>    _shard;
@@ -252,7 +256,9 @@ public:
           const DocIdFunc&   doc_id_func,
           const GroupIdFunc& group_id_func,
           const MetricFunc&  metric_func)
-    : _table(n_docs, min_func, max_func, doc_id_func, group_id_func, metric_func)
+    : _n_docs(n_docs)
+    , _n_groups(n_groups)
+    , _table(n_docs, min_func, max_func, doc_id_func, group_id_func, metric_func)
     , _shard(_table) {
 
     array <int, 1> socket_file_desc{{3}};
@@ -289,9 +295,12 @@ public:
     // worker_destroy(&_worker);
   }
 
-  const Table<n_metrics>&           table() const { return _table;            }
-  const Shard&                      shard() const { return _shard;            }
-  const unpacked_table_t* group_stats_buf() const { return _worker.grp_stats; }
+  const size_t   n_docs() const { return _n_docs;   }
+  const size_t n_groups() const { return _n_groups; }
+
+  const Table<n_metrics>&           table() const { return _table;              }
+  const Shard&                      shard() const { return _shard;              }
+  unpacked_table_t*       group_stats_buf() const { return _worker.grp_stats;   }
 };
 
 template <size_t n_metrics>
@@ -338,8 +347,15 @@ int main(int argc, char* argv[])
   const GroupIdFunc group_id_func([n_groups](size_t doc_id) { return doc_id % n_groups; });
   const MetricFunc  metric_func([](int64_t min, int64_t max) { return max; });
 
-  TGSTest<2> test(n_docs, n_groups, min_func, max_func, doc_id_func, group_id_func, metric_func);
-  // cout << test;
+  TGSTest<1>   test1(n_docs, n_groups, min_func, max_func, doc_id_func, group_id_func, metric_func);
+  cout << test1;
+  TGSTest<2>   test2(n_docs, n_groups, min_func, max_func, doc_id_func, group_id_func, metric_func);
+  cout << test2;
+  TGSTest<5>   test5(n_docs, n_groups, min_func, max_func, doc_id_func, group_id_func, metric_func);
+  cout << test5;
+  TGSTest<255> test255(n_docs, n_groups, min_func, max_func, doc_id_func, group_id_func, metric_func);
+  cout << test255;
+
 
   return status;
 }
