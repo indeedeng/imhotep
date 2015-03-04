@@ -15,6 +15,7 @@
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Files;
@@ -57,6 +58,7 @@ import java.nio.CharBuffer;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.CodingErrorAction;
+import java.nio.charset.MalformedInputException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -375,7 +377,17 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
                 final String term = e.getKey();
                 final IntList docList = e.getValue();
 
-                final ByteBuffer encoded = encoder.encode(CharBuffer.wrap(term));
+                final ByteBuffer encoded;
+                try {
+                    encoded = encoder.encode(CharBuffer.wrap(term));
+                } catch (MalformedInputException ex) {
+                    System.out.println("Term value illegal in UTF-8 for field " + stringField + ". Term bytes: ");
+                    for (char c : Lists.charactersOf(term)) {
+                        System.out.println(Integer.toHexString(c));
+                    }
+                    ex.printStackTrace();
+                    continue;
+                }
                 final byte[] termBytes = encoded.array();
                 final int termLength = encoded.limit();
                 final int prefixLen = getPrefixLen(lastTermBytes, termBytes, lastTermLength);
