@@ -602,6 +602,15 @@ inline void packed_table_unpack_row_to_table(
     /* flag row as modified */
     bit_tree_set(&dest_table->non_zero_rows, dest_row_id);
 
+    /* return if there are only bit field columns */
+    if (src_table->n_cols == src_table->n_boolean_cols) {
+        /* prefetch */
+        __v16qi *prefetch_addr = &src_table->data[prefetch_row_id * src_table->row_size];
+        PREFETCH(prefetch_addr);
+
+        return;
+    }
+
     /* loop through row elements */
     int vector_num;
     int column_idx = src_table->n_boolean_cols;

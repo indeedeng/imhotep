@@ -21,7 +21,7 @@ void lookup_and_accumulate_grp_stats(
     int prefetch_rows = (PREFETCH_DISTANCE + cache_lines_per_row - 1) / cache_lines_per_row;
     if (prefetch_rows != PREFETCH_DISTANCE) {
         /* find next higher power of 2 */
-        prefetch_rows = sizeof(prefetch_rows) * 8 - __builtin_clzl(prefetch_rows) + 1;
+        prefetch_rows = sizeof(prefetch_rows) * 8 - __builtin_clz(prefetch_rows) + 1;
     }
     int min = (buffer_len < prefetch_rows) ? buffer_len : prefetch_rows;
     uint32_t temp_buf_mask = prefetch_rows - 1;
