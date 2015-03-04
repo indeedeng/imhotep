@@ -27,7 +27,6 @@ static void createColumnIndexes(
 {
     int col_offset = first_free_byte;    //Find the initial byte for the cols.
     int n_vectors = 1;
-    int grp_stats_long_count = 0;
     int packed_stats_per_vec = 0;
 
     /* Pack the cols and create indexes to find where they start and end */
@@ -39,17 +38,12 @@ static void createColumnIndexes(
         if (col_offset + col_size > n_vectors * 16) {
             col_offset = n_vectors * 16;
             n_vectors++;
-            if ((packed_stats_per_vec & 0x1) == 1) {
-                grp_stats_long_count ++;
-            }
         }
         (table->index_cols)[2 * i] = col_offset;
         col_offset += col_size;
         (table->index_cols)[2 * i + 1] = col_offset;
         (table->col_2_vector)[i] = n_vectors - 1;
         table->n_cols_aux_index++;
-
-        grp_stats_long_count ++;
     }
     table->unpadded_row_size = n_vectors;
 
