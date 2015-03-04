@@ -11,10 +11,10 @@ unpacked_table_t *unpacked_table_create(packed_table_t *packed_table, int n_rows
     table = (unpacked_table_t *)calloc(sizeof(unpacked_table_t), 1);
     table->n_rows = n_rows;
     table->n_cols = n_cols;
-    table->col_offset = (uint8_t *) calloc(sizeof(uint8_t), n_cols);
+    table->col_offset = (int *) calloc(sizeof(int), n_cols);
 
     /* set for the boolean cols, padded to fit in 1 or 2 vectors */
-    uint8_t offset = 0;
+    int offset = 0;
     int col_num;
     for (col_num = 0; col_num < packed_table->n_boolean_cols; col_num++) {
         table->col_offset[col_num] = offset;
@@ -50,11 +50,11 @@ unpacked_table_t *unpacked_table_create(packed_table_t *packed_table, int n_rows
     }
 
     table->size = n_rows * table->padded_row_len;
-    table->data = aligned_alloc(64, sizeof(__v2di) * table->size);
+    table->data = ALIGNED_ALLOC(64, sizeof(__v2di) * table->size);
     memset(table->data, 0, sizeof(__v2di) * table->size);
 
     /* col mins should be the size of a row. With gaps in the same places */
-    table->col_mins = aligned_alloc(64, sizeof(__v2di) * table->padded_row_len);
+    table->col_mins = ALIGNED_ALLOC(64, sizeof(__v2di) * table->padded_row_len);
     memset(table->col_mins, 0, sizeof(__v2di) * table->padded_row_len);
     int64_t *table_mins = (int64_t *) table->col_mins;
     for (int i = 0; i < n_cols; i++) {
@@ -102,14 +102,14 @@ unpacked_table_t *unpacked_table_copy_layout(unpacked_table_t *src_table, int n_
     new_table->n_cols = src_table->n_cols;
     new_table->padded_row_len = src_table->padded_row_len;
     new_table->unpadded_row_len = src_table->unpadded_row_len;
-    new_table->col_offset = calloc(sizeof(uint8_t), new_table->n_cols);
-    memcpy(new_table->col_offset, src_table->col_offset, sizeof(uint8_t) * new_table->n_cols);
+    new_table->col_offset = calloc(sizeof(int), new_table->n_cols);
+    memcpy(new_table->col_offset, src_table->col_offset, sizeof(int) * new_table->n_cols);
 
-    new_table->col_mins = aligned_alloc(64, sizeof(__v2di) * new_table->padded_row_len);
+    new_table->col_mins = ALIGNED_ALLOC(64, sizeof(__v2di) * new_table->padded_row_len);
     memset(new_table->col_mins, 0, sizeof(__v2di) * new_table->padded_row_len);
 
     new_table->size = src_table->padded_row_len * n_rows;
-    new_table->data = aligned_alloc(64, sizeof(__v2di) * new_table->size);
+    new_table->data = ALIGNED_ALLOC(64, sizeof(__v2di) * new_table->size);
     memset(new_table->data, 0, sizeof(__v2di) * new_table->size);
 
     bit_tree_init(&new_table->non_zero_rows, n_rows);

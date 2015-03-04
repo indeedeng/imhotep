@@ -1,47 +1,38 @@
 //#include <stdlib.h>
 //#include "imhotep_native.h"
 //
-//void remapDocsInTargetGroups(struct shard_data *shard,
+//#define TGS_BUFFER_SIZE                         2048
+//
+//void remapDocsInTargetGroups(struct index_slice_info *shard,
 //						int *remappings,
 //						int placeHolderGroup)
 //{
 //	int n = 0;
-//	while (n < shard->num_docs) {
+//	while (n < shard->n_docs_in_slice) {
 //		int n = docIdStream.fillDocIdBuffer(docIdBuf);
 //
-//		multiRemapCore(shard, new_grp_ids, doc_ids, num_docs, remappings, placeHolderGroup);
+//		multiRemapCore(shard->packed_metrics, new_grp_ids, doc_ids, num_docs, remappings, placeHolderGroup);
 //	}
 //}
 //
-//void multiRemapCore(struct shard_data *shard,
+//int multiRemapCore(packed_table_t *table,
 //                    int *new_grp_ids,
 //                    int *doc_ids,
 //                    int num_docs,
 //                    int *remappings,
 //                    int placeHolderGroup)
 //{
-//	__v16qi* grp_metrics = shard->groups_and_metrics;
-//	struct packed_metric_desc *packing_desc = shard->metrics_layout;
-//	int n_vecs_per_doc = packing_desc->n_vectors_per_doc;
+//	int row_size = table->row_size;
 //
 //	for (int i = 0; i < num_docs; i++) {
 //		int doc_id = doc_ids[i];
-//		uint32_t start_idx = doc_id * n_vecs_per_doc;
-//
-//		/* load group id and unpack metrics */
-//		struct bit_fields_and_group packed_bf_grp;
-//		uint32_t old_group;
-//
-//		/* get group */
-//		packed_bf_grp = *((struct bit_fields_and_group *)&grp_metrics[start_idx]);
-//		old_group = packed_bf_grp.grp;
+//		int old_group = packed_table_get_group(table, doc_id);
 //
 //		if (old_group != 0) {
 //			int currentGroup = new_grp_ids[doc_id];
 //			if (placeHolderGroup > 0) {
 //				if (currentGroup != placeHolderGroup) {
-//					throw new
-//					IllegalArgumentException("Regrouping on a multi-valued field doesn't work correctly so the operation is rejected.");
+//					return -1;
 //				}
 //			}
 //			new_grp_ids[doc_id] = (currentGroup < remappings[old_group])
@@ -50,6 +41,7 @@
 //		}
 //	}
 //
+//	return 0;
 //}
 //
 //void multiRemap()
@@ -58,7 +50,7 @@
 //	int remaining;      /* num docs remaining */
 //	uint8_t *read_addr;
 //	int last_value;     /* delta decode tracker */
-//	struct index_slice_info *infos = desc->trm_slice_infos;
+//	struct index_slice_info *infos = desc->slices;
 //	struct index_slice_info *slice;
 //
 //	slice = &infos[i];

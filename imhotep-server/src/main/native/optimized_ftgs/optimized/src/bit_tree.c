@@ -3,6 +3,8 @@
 #include <string.h>
 #include "bit_tree.h"
 
+#define ALIGNED_ALLOC(alignment, size) ((alignment) < (size)) ? aligned_alloc(alignment,size) : aligned_alloc(alignment,alignment);
+
 
 static uint32_t top_bit(int64_t x)
 {
@@ -19,7 +21,7 @@ void bit_tree_init(struct bit_tree *tree, int32_t size)
         size = (size + 63) / 64;
         tree->len += 1 << top_bit(size);
     }
-    tree->bitsets = aligned_alloc(64, sizeof(uint64_t) * tree->len);
+    tree->bitsets = ALIGNED_ALLOC(64, sizeof(uint64_t) * tree->len);
     memset(tree->bitsets, 0 , sizeof(uint64_t) * tree->len);
 }
 

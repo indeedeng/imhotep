@@ -258,7 +258,7 @@ packed_table_t *packed_table_create(int n_rows,
     }
 
     table->size = n_rows * table->row_size;
-    table->data = (__v16qi *) aligned_alloc(64, sizeof(__v16qi) * table->size);
+    table->data = (__v16qi *) ALIGNED_ALLOC(64, sizeof(__v16qi) * table->size);
     memset(table->data, 0, sizeof(__v16qi) * table->size);
 
     return table;

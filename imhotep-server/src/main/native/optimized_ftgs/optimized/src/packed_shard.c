@@ -322,7 +322,7 @@ void packed_shard_init(	packed_shard_t *shard,
 	}
 
     /* metric mins should be the size of a grp_stats row.  With gaps in the same places */
-	desc->metric_mins = (int64_t *) aligned_alloc(16, sizeof(__m128i) * shard->grp_stat_size);
+	desc->metric_mins = (int64_t *) ALIGNED_ALLOC(16, sizeof(__m128i) * shard->grp_stat_size);
 	memset(desc->metric_mins, 0, sizeof(__m128i) * shard->grp_stat_size);
 
 	int vector_num = 0;
@@ -342,7 +342,7 @@ void packed_shard_init(	packed_shard_t *shard,
 	}
 
 	shard->grp_metrics_len = n_docs * desc->n_vectors_per_doc;
-	shard->groups_and_metrics = (__v16qi *) aligned_alloc(64, sizeof(__m128i ) * shard->grp_metrics_len);
+	shard->groups_and_metrics = (__v16qi *) ALIGNED_ALLOC(64, sizeof(__m128i ) * shard->grp_metrics_len);
 	memset(shard->groups_and_metrics, 0, sizeof(__m128i ) * shard->grp_metrics_len);
 }
 

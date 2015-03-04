@@ -12,6 +12,7 @@
 
 #define PREFETCH_DISTANCE                       8
 
+#define ALIGNED_ALLOC(alignment, size) ((alignment) < (size)) ? aligned_alloc(alignment,size) : aligned_alloc(alignment,alignment);
 
 struct circular_buffer_vector;
 
