@@ -308,7 +308,7 @@ public class ImhotepDaemon {
                             break;
                         case GET_FTGS_SPLIT_NATIVE:
                             checkSessionValidity(protoRequest);
-                            service.handleGetFTGSIteratorSplitNative(protoRequest.getSessionId(), getIntFields(protoRequest), getStringFields(protoRequest), os, protoRequest.getSplitIndex(), protoRequest.getNumSplits(), socket);
+                            service.handleGetFTGSIteratorSplitNative(protoRequest.getSessionId(), getIntFields(protoRequest), getStringFields(protoRequest), protoRequest.getSplitIndex(), protoRequest.getNumSplits(), socket);
                             break;
                         case GET_SUBSET_FTGS_SPLIT:
                             checkSessionValidity(protoRequest);

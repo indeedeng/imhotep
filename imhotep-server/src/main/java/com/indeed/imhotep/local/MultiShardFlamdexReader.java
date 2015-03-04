@@ -16,7 +16,7 @@ import java.util.List;
 /**
  * @author arun.
  */
-class MultiShardFlamdexReader {
+class MultiShardFlamdexReader implements Closeable {
     private static final Logger log = Logger.getLogger(MultiShardFlamdexReader.class);
     public final SimpleFlamdexReader[] simpleFlamdexReaders;
 
@@ -32,7 +32,7 @@ class MultiShardFlamdexReader {
                 iterators.set(i, flamdexReader.getIntTermIterator(intField));
             }
         } catch (final Exception e) {
-            close(iterators);
+            Closeables2.closeAll(iterators, log);
             throw Throwables.propagate(e);
         }
         return new SimpleMultiShardIntTermIterator(iterators.toArray(new SimpleIntTermIterator[iterators.size()]));
@@ -45,17 +45,14 @@ class MultiShardFlamdexReader {
                 iterators.add(flamdexReader.getStringTermIterator(stringField));
             }
         } catch (final Exception e) {
-            close(iterators);
+            Closeables2.closeAll(iterators, log);
             throw Throwables.propagate(e);
         }
         return new SimpleMultiShardStringTermIterator(iterators.toArray(new SimpleStringTermIterator[iterators.size()]));
     }
 
-    private void close(final List<? extends Closeable> closeables) {
-        for (final Closeable closeable : closeables) {
-            if (closeable != null) {
-                Closeables2.closeQuietly(closeable, log);
-            }
-        }
+    @Override
+    public void close() {
+        Closeables2.closeAll(Arrays.asList(simpleFlamdexReaders), log);
     }
 }

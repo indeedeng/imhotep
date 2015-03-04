@@ -29,6 +29,7 @@ import org.apache.log4j.Logger;
 
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -82,9 +83,6 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         @Override
         public Void call() throws Exception {
             final CountDownLatch latch = writeFTGSSplitReqLatch.get();
-            if (latch == null) {
-                throw new IllegalStateException("countdown latch is null!");
-            }
             latch.await();
             writeFTGSSplitReqLatch.set(null);
             final List<ConcurrentLinkedQueue<FTGSIterateRequest>> ftgsIterateRequestQueues = Lists.newArrayListWithCapacity(NUM_WORKERS);
@@ -152,20 +150,19 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         if (closed.compareAndSet(false, true)) {
             try {
                 super.preClose();
-                closeFTGSSockets();
             } finally {
+                closeFTGSSockets();
                 memory.releaseMemory(memoryClaimed);
                 // don't want to shut down the executor since it is re-used
             }
         }
     }
 
+    /**
+     * Closes the sockets silently. Guaranteed to not throw Exceptions
+     */
     private void closeFTGSSockets() {
-        for (final Socket socket : ftgsOutputSockets) {
-            if (socket != null && !socket.isClosed()) {
-                Closeables2.closeQuietly(socket, log);
-            }
-        }
+        Closeables2.closeAll(Arrays.asList(ftgsOutputSockets), log);
     }
 
     @Override
@@ -181,7 +178,12 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             }
         }
         ftgsOutputSockets[splitIndex] = socket;
-        //check if the session was closed, and if it was, try to close this socket and throw an exception
+        //There is a potential race condition between ftgsOutputSockets[i] being assigned and the sockets being closed
+        // when <code>close()</code> is called. If this method is called concurrently with close it's possible that
+        //ftgsOutputSockets[i] will be assigned after it has already been determined to be null in close. This will
+        //cause the socket to not be closed. By checking if the session is closed after the assignment we guarantee
+        //that either close() will close all sockets correctly (if closed is false here) or that we will close all the
+        //sockets if the session was closed simultaneously with this method being called (if closed is true here)
         if (closed.get()) {
             closeFTGSSockets();
             throw new IllegalStateException("the session was closed before getting all the splits!");

@@ -12,7 +12,7 @@ import java.util.PriorityQueue;
 /**
  * @author arun.
  */
-public class SimpleMultiShardStringTermIterator implements MultiShardStringTermIterator, AutoCloseable {
+public class SimpleMultiShardStringTermIterator implements MultiShardStringTermIterator {
     private static final Logger log = Logger.getLogger(SimpleMultiShardIntTermIterator.class);
     final SimpleStringTermIterator[] stringTermIterators;
     private final PriorityQueue<Pair<SimpleStringTermIterator, Integer>> pq;
