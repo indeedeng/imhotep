@@ -253,8 +253,12 @@ packed_table_t *packed_table_create(int n_rows,
                         column_mins,
                         column_maxes,
                         (GROUP_SIZE + MAX_BIT_FIELDS + 7) / 8);
-    createShuffleVecFromIndexes(table);
-    createShuffleBlendFromIndexes(table);
+    if (n_cols - table->n_boolean_cols != 0) {
+        createShuffleVecFromIndexes(table);
+        createShuffleBlendFromIndexes(table);
+    } else {
+
+    }
 
     table->size = n_rows * table->row_size;
     table->data = (__v16qi *) aligned_alloc(64, sizeof(__v16qi) * table->size);
@@ -332,13 +336,13 @@ static inline void internal_set_cell(
 }
 
 static inline void internal_set_boolean_cell(packed_table_t* table,
-                               int row,
-                               int col,
-                               long value)
+                                             int row,
+                                             int col,
+                                             long value)
 {
     __v16qi *packed_addr;
     uint32_t *store_address;
-    int index = col * table->row_size + 0;
+    int index = row * table->row_size + 0;
 
     packed_addr = &(table->data[index]);
     store_address = (uint32_t *)packed_addr;
