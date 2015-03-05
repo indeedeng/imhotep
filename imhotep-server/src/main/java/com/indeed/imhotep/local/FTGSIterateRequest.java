@@ -47,12 +47,4 @@ final class FTGSIterateRequest {
     public void setOffsets(final long[] offsets) {
         System.arraycopy(offsets, 0, this.offsets, 0, offsets.length);
     }
-
-    /**
-     * @param source a compatible FTGSIterateRequest object. This means that the
-     *               <code>source.offsets.length == offsets.length</code> should return <code>true</code>
-     */
-    public void copyFrom(final FTGSIterateRequest source) {
-
-    }
 }
