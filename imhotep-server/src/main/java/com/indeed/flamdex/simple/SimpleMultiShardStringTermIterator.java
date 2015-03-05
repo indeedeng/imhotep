@@ -11,7 +11,7 @@ import java.util.Arrays;
 /**
  * @author arun.
  */
-class SimpleMultiShardStringTermIterator implements MultiShardStringTermIterator {
+final class SimpleMultiShardStringTermIterator implements MultiShardStringTermIterator {
     private static final Logger log = Logger.getLogger(SimpleMultiShardStringTermIterator.class);
     private static final class IteratorIdPair {
         private final int shardId;
