@@ -27,7 +27,7 @@ typedef int64_t Metric;
 typedef function<Metric(size_t index)>             MinMaxFunc;
 typedef function<DocId(size_t index)>              DocIdFunc;
 typedef function<GroupId(size_t doc_id)>           GroupIdFunc;
-typedef function<Metric(int64_t min, int64_t max)> MetricFunc;
+typedef function<Metric(int64_t min, int64_t max, size_t metric_num, size_t row_num)> MetricFunc;
 
 typedef vector<int>  DocIds;
 typedef set<int64_t> GroupIds;
@@ -108,7 +108,7 @@ class Table : public vector<Entry<n_metrics>>
       GroupId group_id(group_id_func(doc_id));
       Entry   entry(doc_id, group_id);
       for (size_t metric_index(0); metric_index < n_metrics; ++metric_index) {
-        entry.metrics[metric_index] = metric_func(_mins[metric_index], _maxes[metric_index]);
+        entry.metrics[metric_index] = metric_func(_mins[metric_index], _maxes[metric_index], metric_index, doc_index);
       }
       this->push_back(entry);
     }
@@ -342,28 +342,33 @@ int main(int argc, char* argv[])
   }
 
   vector<MetricFunc> metric_funcs = {
-    [](int64_t min_val, int64_t max_val) { return min_val; },
-    [](int64_t min_val, int64_t max_val) { return max_val; },
-    [](int64_t min_val, int64_t max_val) { return min_val + (max_val - min_val) / 2; },
+//    [](int64_t min_val, int64_t max_val) { return min_val; },
+//    [](int64_t min_val, int64_t max_val) { return max_val; },
+//    [](int64_t min_val, int64_t max_val) { return min_val + (max_val - min_val) / 2; },
+    [](int64_t min_val, int64_t max_val, size_t metric_num, size_t row_num) { return metric_num * row_num; },
+    [](int64_t min_val, int64_t max_val, size_t metric_num, size_t row_num) { return (max_val == min_val)
+            ? max_val
+            : min_val + (rand() % (max_val - min_val)); },
+    [](int64_t min_val, int64_t max_val, size_t metric_num, size_t row_num) { return 1 << metric_num; },
   };
 
   vector<pair<MinMaxFunc, MinMaxFunc>> min_max_funcs = {
-    make_pair([](size_t index) { return 0; },
-              [](size_t index) { return 0; }),
-    make_pair([](size_t index) { return 0; },
-              [](size_t index) { return 1; }),
-    make_pair([](size_t index) { return 0; },
-              [](size_t index) { return 32; }),
+//    make_pair([](size_t index) { return 0; },
+//              [](size_t index) { return 0; }),
+//    make_pair([](size_t index) { return 0; },
+//              [](size_t index) { return 1; }),
+//    make_pair([](size_t index) { return 0; },
+//              [](size_t index) { return 32; }),
     make_pair([](size_t index) { return 0; },
               [](size_t index) { return 1 << 30; }),
-    make_pair([](size_t index) { return 1; },
-              [](size_t index) { return 1; }),
-    make_pair([](size_t index) { return 1; },
-              [](size_t index) { return 2; }),
-    make_pair([](size_t index) { return 1; },
-              [](size_t index) { return 32; }),
-    make_pair([](size_t index) { return 1; },
-              [](size_t index) { return 1 << 30; }),
+//    make_pair([](size_t index) { return 1; },
+//              [](size_t index) { return 1; }),
+//    make_pair([](size_t index) { return 1; },
+//              [](size_t index) { return 2; }),
+//    make_pair([](size_t index) { return 1; },
+//              [](size_t index) { return 32; }),
+//    make_pair([](size_t index) { return 1; },
+//              [](size_t index) { return 1 << 30; }),
   };
 
   for (auto metric_func: metric_funcs) {
@@ -379,8 +384,10 @@ int main(int argc, char* argv[])
       cout << test2;
       TGSTest<5>   test5(n_docs, n_groups, min_func, max_func, doc_id_func, group_id_func, metric_func);
       cout << test5;
-      TGSTest<64> test64(n_docs, n_groups, min_func, max_func, doc_id_func, group_id_func, metric_func);
-      cout << test64;
+      TGSTest<20> test20(n_docs, n_groups, min_func, max_func, doc_id_func, group_id_func, metric_func);
+      cout << test20;
+//      TGSTest<64> test64(n_docs, n_groups, min_func, max_func, doc_id_func, group_id_func, metric_func);
+//      cout << test64;
     }
   }
 
