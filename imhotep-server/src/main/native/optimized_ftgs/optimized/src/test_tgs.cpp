@@ -108,7 +108,10 @@ class Table : public vector<Entry<n_metrics>>
       GroupId group_id(group_id_func(doc_id));
       Entry   entry(doc_id, group_id);
       for (size_t metric_index(0); metric_index < n_metrics; ++metric_index) {
-        entry.metrics[metric_index] = metric_func(_mins[metric_index], _maxes[metric_index], metric_index, doc_index);
+        Metric value(metric_func(_mins[metric_index], _maxes[metric_index]));
+        value = min(_mins[metric_index], value);
+        value = max(_maxes[metric_index], value);
+        entry.metrics[metric_index] = value;
       }
       this->push_back(entry);
     }
