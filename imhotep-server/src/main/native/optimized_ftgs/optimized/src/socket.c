@@ -7,7 +7,7 @@
 void socket_init(struct buffered_socket *socket, uint32_t fd)
 {
     socket->socket_fd = fd;
-    socket->buffer = calloc(sizeof(uint8_t), DEFUALT_BUFFER_SIZE);
+    socket->buffer = calloc(DEFUALT_BUFFER_SIZE, sizeof(uint8_t));
     socket->buffer_len = DEFUALT_BUFFER_SIZE;
     socket->buffer_ptr = 0;
 }

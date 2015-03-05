@@ -8,10 +8,10 @@ unpacked_table_t *unpacked_table_create(packed_table_t *packed_table, int n_rows
     int64_t *column_mins = packed_table->col_mins;
     int n_cols = packed_table_get_cols(packed_table);
 
-    table = (unpacked_table_t *)calloc(sizeof(unpacked_table_t), 1);
+    table = (unpacked_table_t *)calloc(1, sizeof(unpacked_table_t));
     table->n_rows = n_rows;
     table->n_cols = n_cols;
-    table->col_offset = (int *) calloc(sizeof(int), n_cols);
+    table->col_offset = (int *) calloc(n_cols, sizeof(int));
 
     /* set for the boolean cols, padded to fit in 1 or 2 vectors */
     int offset = 0;
@@ -102,7 +102,7 @@ unpacked_table_t *unpacked_table_copy_layout(unpacked_table_t *src_table, int n_
     new_table->n_cols = src_table->n_cols;
     new_table->padded_row_len = src_table->padded_row_len;
     new_table->unpadded_row_len = src_table->unpadded_row_len;
-    new_table->col_offset = calloc(sizeof(int), new_table->n_cols);
+    new_table->col_offset = calloc(new_table->n_cols, sizeof(int));
     memcpy(new_table->col_offset, src_table->col_offset, sizeof(int) * new_table->n_cols);
 
     new_table->col_mins = ALIGNED_ALLOC(64, sizeof(__v2di) * new_table->padded_row_len);

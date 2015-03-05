@@ -29,7 +29,7 @@ int run_tgs_pass(struct worker_desc *worker,
 		return -1;
 	}
 
-	current_term = calloc(sizeof(union term_union), 1);
+	current_term = calloc(1, sizeof(union term_union));
 	switch(term_type) {
 		case TERM_TYPE_STRING:
 		    /* copy string into term */
@@ -127,7 +127,7 @@ void session_init(struct session_desc *session,
   
     session->temp_buf = NULL;
 
-    shards = (packed_table_t **)calloc(sizeof(packed_table_t *), n_shards);
+    shards = (packed_table_t **)calloc(n_shards, sizeof(packed_table_t *));
     session->shards = shards;
 }
 
@@ -158,12 +158,12 @@ void worker_init(struct worker_desc *worker,
 	worker->grp_buf = circular_buffer_int_alloc(CIRC_BUFFER_SIZE);
 	
 	worker->num_sockets = num_sockets;
-	worker->sockets = calloc(sizeof(struct buffered_socket), num_sockets);
+	worker->sockets = calloc(num_sockets, sizeof(struct buffered_socket));
 	for (int i = 0; i < num_sockets; i++) {
 		socket_init(&worker->sockets[i], socket_fds[i]);
 	}
 	
-	worker->prev_term_by_socket = calloc(sizeof(union term_union *), num_sockets);
+	worker->prev_term_by_socket = calloc(num_sockets, sizeof(union term_union *));
 }
 
 void worker_destroy(struct worker_desc *worker)

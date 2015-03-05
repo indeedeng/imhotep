@@ -16,7 +16,7 @@ JNIEXPORT jlong JNICALL Java_com_indeed_imhotep_local_NativeFTGSWorker_native_1i
 	jboolean madeCopy;
 
 	fds = (*java_env)->GetPrimitiveArrayCritical(java_env, socket_fds, &madeCopy);
-	worker = calloc(sizeof(struct worker_desc), 1);
+	worker = calloc(1, sizeof(struct worker_desc));
 	worker_init(worker,id, n_groups, n_metrics, fds, len);
 	(*java_env)->ReleasePrimitiveArrayCritical(java_env, socket_fds, fds, JNI_ABORT);
 
@@ -35,7 +35,7 @@ JNIEXPORT jlong JNICALL Java_com_indeed_imhotep_local_NativeFTGSWorker_native_1s
 {
 	struct session_desc *session;
 	
-	session = calloc(sizeof(struct session_desc), 1);
+	session = calloc(1, sizeof(struct session_desc));
 	uint8_t* order = (*env)->GetPrimitiveArrayCritical(env, stat_order, 0);
 	session_init(session, n_groups, n_metrics, order, n_shards);
 	(*env)->ReleasePrimitiveArrayCritical(env, stat_order, order, 0);

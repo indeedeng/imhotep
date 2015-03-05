@@ -18,7 +18,7 @@ static struct circular_buffer *alloc(int data_size, int count)
 {
 	struct circular_buffer *buff;
 
-	buff = (struct circular_buffer *)calloc(sizeof(struct circular_buffer), 1);
+	buff = (struct circular_buffer *)calloc(1, sizeof(struct circular_buffer));
 	buff->head = 0;
 	buff->tail = 0;
 

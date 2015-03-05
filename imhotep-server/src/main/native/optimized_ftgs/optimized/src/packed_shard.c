@@ -98,8 +98,8 @@ static void createMetricsIndexes(	struct packed_metric_desc *desc,
     }
 
 	/* Calculate how many metrics we have per vector */
-	desc->n_metrics_per_vector = (uint8_t *) calloc(sizeof(uint8_t), n_vectors);
-	desc->unpacked_offset = (uint8_t *) calloc(sizeof(uint8_t), n_vectors);
+	desc->n_metrics_per_vector = (uint8_t *) calloc(n_vectors, sizeof(uint8_t));
+	desc->unpacked_offset = (uint8_t *) calloc(n_vectors, sizeof(uint8_t));
 
 	/* Count how many non-bitfield metrics in each packed vector */
 	for (int i = desc->n_boolean_metrics; i < n_metrics; i++) {
@@ -130,8 +130,8 @@ static void createShuffleVecFromIndexes(struct packed_metric_desc *desc)
 	uint16_t * index_metrics = desc->index_metrics;
 	uint8_t * metric_n_vector = desc->metric_n_vector;
 
-	desc->shuffle_vecs_get2 = calloc(sizeof(__v16qi), n_metrics - n_boolean_metrics);
-	desc->shuffle_vecs_get1 = calloc(sizeof(__v16qi), n_metrics - n_boolean_metrics);
+	desc->shuffle_vecs_get2 = calloc(n_metrics - n_boolean_metrics, sizeof(__v16qi));
+	desc->shuffle_vecs_get1 = calloc(n_metrics - n_boolean_metrics, sizeof(__v16qi));
 	int index2 = 0;
 	int index1 = 0;
 
@@ -218,8 +218,8 @@ static void createShuffleBlendFromIndexes(struct packed_metric_desc * desc)
 	uint8_t n_metrics = desc->n_metrics;
 	uint16_t * index_metrics = desc->index_metrics;
 	int k, i, j;
-	desc->shuffle_vecs_put = calloc(sizeof(__v16qi ), (n_metrics - n_boolean_metrics));
-	desc->blend_vecs_put = calloc(sizeof(__v16qi ), (n_metrics - n_boolean_metrics));
+	desc->shuffle_vecs_put = calloc(n_metrics - n_boolean_metrics, sizeof(__v16qi ));
+	desc->blend_vecs_put = calloc(n_metrics - n_boolean_metrics, sizeof(__v16qi ));
 
 	//Creates the shuffle vectors to put each metric in the right place for blending
 	// And create the blend vectors. We will have a main vector that is gonna receive
@@ -283,11 +283,11 @@ void packed_shard_init(	packed_shard_t *shard,
 
 	shard->num_docs = n_docs;
 
-	desc = (struct packed_metric_desc *)calloc(sizeof(struct packed_metric_desc), 1);
+	desc = (struct packed_metric_desc *)calloc(1, sizeof(struct packed_metric_desc));
 	shard->metrics_layout = desc;
 
-	desc->index_metrics = (uint16_t *) calloc(sizeof(uint16_t), n_metrics * 2);
-	desc->metric_n_vector = (uint8_t *) calloc(sizeof(uint8_t), n_metrics);
+	desc->index_metrics = (uint16_t *) calloc(n_metrics * 2, sizeof(uint16_t));
+	desc->metric_n_vector = (uint8_t *) calloc(n_metrics, sizeof(uint8_t));
 	desc->n_metrics = n_metrics;
 	desc->n_metrics_aux_index = 0;
 	desc->n_boolean_metrics = 0;

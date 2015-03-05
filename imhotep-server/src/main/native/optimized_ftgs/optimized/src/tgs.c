@@ -55,22 +55,22 @@ void tgs_init(struct worker_desc *worker,
               struct buffered_socket *socket,
               struct session_desc *session)
 {
-	struct index_slice_info *infos;
-	desc->term_type = term_type;
-	desc->term = term;
-	desc->previous_term = previous_term;
-	desc->n_slices = num_shard;
-	desc->socket = socket;
-	infos = (struct index_slice_info *)
-			calloc(sizeof(struct index_slice_info), num_shard);
-	for (int i = 0; i < num_shard; i++) {
-		int handle = shard_handles[i];
-		infos[i].n_docs_in_slice = docs_per_shard[i];
-		infos[i].doc_slice = (uint8_t *)addresses[i];
-		infos[i].packed_metrics = session->shards[handle];
-	}
-	desc->slices = infos;
-	desc->grp_buf = worker->grp_buf;
+    struct index_slice_info *infos;
+    desc->term_type = term_type;
+    desc->term = term;
+    desc->previous_term = previous_term;
+    desc->n_slices = num_shard;
+    desc->socket = socket;
+    infos = (struct index_slice_info *)
+				calloc(num_shard, sizeof(struct index_slice_info));
+    for (int i = 0; i < num_shard; i++) {
+        int handle = shard_handles[i];
+        infos[i].n_docs_in_slice = docs_per_shard[i];
+        infos[i].doc_slice = (uint8_t *)addresses[i];
+        infos[i].packed_metrics = session->shards[handle];
+    }
+    desc->slices = infos;
+    desc->grp_buf = worker->grp_buf;
 }
 
 void tgs_destroy(struct tgs_desc *desc)
