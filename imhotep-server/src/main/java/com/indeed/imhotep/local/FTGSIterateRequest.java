@@ -6,29 +6,53 @@ import java.net.Socket;
 * @author arun.
 */
 final class FTGSIterateRequest {
-    static final FTGSIterateRequest END = new FTGSIterateRequest("", new byte[]{}, -1, true, new long[]{}, new Socket());
-    final String field;
-    final byte[] stringTerm;
-    final long intTerm;
-    final boolean isIntField;
-    final long[] offsets;
-    final Socket outputSocket;
 
-    private FTGSIterateRequest(String field, byte[] stringTerm, long intTerm, boolean isIntField, long[] offsets, Socket outputSocket) {
+    static final FTGSIterateRequest END = new FTGSIterateRequest(0);
+    String field;
+    byte[] stringTerm = new byte[100];
+    int stringTermLength;
+    long intTerm;
+    boolean isIntField;
+    final long[] offsets;
+    Socket outputSocket;
+
+    FTGSIterateRequest(int numShards) {
+        offsets = new long[numShards];
+    }
+
+    public void setField(String field) {
         this.field = field;
-        this.stringTerm = stringTerm;
+    }
+
+    public void setStringTerm(byte[] stringTerm, int stringTermLength) {
+        if (stringTerm.length > this.stringTerm.length) {
+            this.stringTerm = new byte[stringTerm.length * 2];
+        }
+        System.arraycopy(stringTerm, 0, this.stringTerm, 0, stringTermLength);
+        this.stringTermLength = stringTermLength;
+    }
+
+    public void setIntTerm(long intTerm) {
         this.intTerm = intTerm;
+    }
+
+    public void setIntField(boolean isIntField) {
         this.isIntField = isIntField;
-        //noinspection AssignmentToCollectionOrArrayFieldFromParameter
-        this.offsets = offsets;
+    }
+
+    public void setOutputSocket(Socket outputSocket) {
         this.outputSocket = outputSocket;
     }
 
-    static FTGSIterateRequest create(final String field, final byte[] term, final long[] offsets, final Socket socket) {
-        return new FTGSIterateRequest(field, term, -1, false, offsets, socket);
+    public void setOffsets(final long[] offsets) {
+        System.arraycopy(offsets, 0, this.offsets, 0, offsets.length);
     }
 
-    static FTGSIterateRequest create(final String field, final long term, final long[] offsets, final Socket socket) {
-        return new FTGSIterateRequest(field, new byte[]{}, term, true, offsets, socket);
+    /**
+     * @param source a compatible FTGSIterateRequest object. This means that the
+     *               <code>source.offsets.length == offsets.length</code> should return <code>true</code>
+     */
+    public void copyFrom(final FTGSIterateRequest source) {
+
     }
 }

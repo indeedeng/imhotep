@@ -34,7 +34,6 @@ import java.net.Socket;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -49,6 +48,8 @@ import java.util.concurrent.atomic.AtomicReference;
 public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<ImhotepLocalSession> {
     private static final Logger log = Logger.getLogger(MTImhotepLocalMultiSession.class);
     private static final int NUM_WORKERS = 8;
+    private static final int CHANNEL_CAPACITY = 1000;
+
     private final AtomicReference<CountDownLatch> writeFTGSSplitReqLatch = new AtomicReference<>();
     private Socket[] ftgsOutputSockets;
 
@@ -87,10 +88,11 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             final CountDownLatch latch = writeFTGSSplitReqLatch.get();
             latch.await();
             writeFTGSSplitReqLatch.set(null);
-            final List<ConcurrentLinkedQueue<FTGSIterateRequest>> ftgsIterateRequestQueues = Lists.newArrayListWithCapacity(NUM_WORKERS);
+            final List<FTGSIterateRequestChannel> ftgsIterateRequestChannels = Lists.newArrayListWithCapacity(NUM_WORKERS);
             for (int i = 0; i < NUM_WORKERS; i++) {
-                ftgsIterateRequestQueues.set(i, new ConcurrentLinkedQueue<FTGSIterateRequest>());
-                final FTGSIteratorSplitDelegatingWorker worker = new FTGSIteratorSplitDelegatingWorker(null, ftgsIterateRequestQueues.get(i));//TODO: supply an actual implementation
+                ftgsIterateRequestChannels.set(i, new FTGSIterateRequestChannel(sessions.length, CHANNEL_CAPACITY));
+                //TODO: supply an actual implementation
+                final FTGSIteratorSplitDelegatingWorker worker = new FTGSIteratorSplitDelegatingWorker(null, ftgsIterateRequestChannels.get(i));
                 ftgsExecutorService.submit(worker);
             }
             for (final String intField : intFields) {
@@ -101,8 +103,14 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                         final int workerId = splitIndex % NUM_WORKERS;
                         final long[] offsets = new long[sessions.length];//there is a local session per shard
                         offsetIterator.offsets(offsets);
-                        final FTGSIterateRequest ftgsIterateRequest = FTGSIterateRequest.create(intField, term, offsets, ftgsOutputSockets[splitIndex]);
-                        ftgsIterateRequestQueues.get(workerId).offer(ftgsIterateRequest);
+                        final FTGSIterateRequestChannel ftgsIterateRequestChannel = ftgsIterateRequestChannels.get(workerId);
+                        final FTGSIterateRequest ftgsIterateRequest = ftgsIterateRequestChannel.getRecycledFtgsReq();
+                        ftgsIterateRequest.setField(intField);
+                        ftgsIterateRequest.setIntField(true);
+                        ftgsIterateRequest.setIntTerm(term);
+                        ftgsIterateRequest.setOffsets(offsets);
+                        ftgsIterateRequest.setOutputSocket(ftgsOutputSockets[splitIndex]);
+                        ftgsIterateRequestChannel.submitRequest(ftgsIterateRequest);
                     }
                 }
             }
@@ -114,14 +122,19 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                         final int workerId = splitIndex % NUM_WORKERS;
                         final long[] offsets = new long[sessions.length];
                         offsetIterator.offsets(offsets);
-                        //TODO: use a pool
-                        final FTGSIterateRequest ftgsIterateRequest = FTGSIterateRequest.create(stringField, Arrays.copyOf(bytes, offsetIterator.termBytesLength()), offsets, ftgsOutputSockets[splitIndex]);
-                        ftgsIterateRequestQueues.get(workerId).offer(ftgsIterateRequest);
+                        final FTGSIterateRequestChannel ftgsIterateRequestChannel = ftgsIterateRequestChannels.get(workerId);
+                        final FTGSIterateRequest ftgsIterateRequest = ftgsIterateRequestChannel.getRecycledFtgsReq();
+                        ftgsIterateRequest.setField(stringField);
+                        ftgsIterateRequest.setIntField(false);
+                        ftgsIterateRequest.setStringTerm(bytes, offsetIterator.termBytesLength());
+                        ftgsIterateRequest.setOffsets(offsets);
+                        ftgsIterateRequest.setOutputSocket(ftgsOutputSockets[splitIndex]);
+                        ftgsIterateRequestChannel.submitRequest(ftgsIterateRequest);
                     }
                 }
             }
             for (int i = 0; i < NUM_WORKERS; i++) {
-                ftgsIterateRequestQueues.get(i).offer(FTGSIterateRequest.END);
+                ftgsIterateRequestChannels.get(i).submitRequest(FTGSIterateRequest.END);
             }
             return null;
         }
