@@ -52,7 +52,7 @@ struct unpacked_table_desc {
     int padded_row_len;     /* Length of a row padded out for vector and cache line alignment. in units of 16 bytes. */
     struct bit_tree non_zero_rows;
     __v2di *col_mins;       /* The minimal value of each column, padded to match a row */
-    int *col_offset;    /* Offset of each column in a row. In 8B longs */
+    int *col_offset;        /* Offset of each column in a row. In 8B longs */
     __v2di *data;           /* group and cols data packed into 128b vectors */
 };
 typedef struct unpacked_table_desc unpacked_table_t;

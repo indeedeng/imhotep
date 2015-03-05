@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <assert.h>
 #include "imhotep_native.h"
 #include "circ_buf.h"
 
@@ -23,6 +24,9 @@ void lookup_and_accumulate_grp_stats(
         /* find next higher power of 2 */
         prefetch_rows = sizeof(prefetch_rows) * 8 - __builtin_clz(prefetch_rows) + 1;
     }
+    assert(prefetch_rows > 0);
+    assert(prefetch_rows <= PREFETCH_DISTANCE);
+
     int min = (buffer_len < prefetch_rows) ? buffer_len : prefetch_rows;
     uint32_t temp_buf_mask = prefetch_rows - 1;
     int trailing_idx = 0;

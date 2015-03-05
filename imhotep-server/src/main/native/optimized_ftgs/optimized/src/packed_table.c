@@ -534,7 +534,7 @@ static inline void unpack_bit_fields(__v2di *dest_buffer,
                                     uint32_t bit_fields,
                                     uint8_t n_bit_fields)
 {
-    static __v2di lookup_table[4] = { { 0L, 0L }, { 0L, 1L }, { 1L, 0L }, { 1L, 1L } };
+    static __v2di lookup_table[4] = { { 0L, 0L }, { 1L, 0L }, { 0L, 1L }, { 1L, 1L } };
 
     for (int i = 0; i < n_bit_fields; i += 2) {
         dest_buffer[i / 2] = lookup_table[bit_fields & 3];
@@ -553,16 +553,20 @@ static inline __m128i unpack_2_metrics(__v16qi packed_data, __v16qi shuffle_vect
 static inline void unpack_vector(packed_table_t* src_table,
                                  __v16qi vector_data,
                                  int vector_num,
+                                 int from_col,
                                  __v2di *dest_buffer)
 {
     int vector_index = 0;
     int n_cols = src_table->n_cols_per_vector[vector_num];
     __v16qi *shuffle_vecs = src_table->shuffle_vecs_get2;
 
+    /* shuffle vecs do not count boolean metrics */
+    from_col -= src_table->n_boolean_cols;
+
     for (int k = 0; k < n_cols; k += 2) {
         __v2di data;
 
-        data = unpack_2_metrics(vector_data, shuffle_vecs[vector_index]);
+        data = unpack_2_metrics(vector_data, shuffle_vecs[(from_col + k)/ 2]);
         /* save data into buffer */
         dest_buffer[vector_index] = data;
         vector_index++;
@@ -571,16 +575,16 @@ static inline void unpack_vector(packed_table_t* src_table,
 
 static inline int core(packed_table_t* src_table,
                        unpacked_table_t* dest_table,
-                       int col,
+                       int from_col,
                        int vector_num,
                        __v16qi *src_row,
                        __v2di *dest_row)
 {
-    int offset_in_row = dest_table->col_offset[col];
+    int offset_in_row = dest_table->col_offset[from_col];
     assert((offset_in_row % 2) == 0);  /* offset in row should be even */
 
     __v16qi vector = src_row[vector_num];
-    unpack_vector(src_table, vector, vector_num, &(dest_row[offset_in_row / 2]));
+    unpack_vector(src_table, vector, vector_num, from_col, &(dest_row[offset_in_row / 2]));
 
     return src_table->n_cols_per_vector[vector_num];
 }

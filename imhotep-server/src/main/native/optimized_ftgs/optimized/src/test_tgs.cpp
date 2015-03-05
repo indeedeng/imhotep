@@ -170,11 +170,11 @@ class Table : public vector<Entry<n_metrics>>
       for_each(range.first, range.second,
                [&] (const typename EntriesByGroup::value_type& value) {
                  for (size_t metric_index(0); metric_index < n_metrics; ++metric_index) {
-                   if (!is_boolean(metric_index)) {
+//                   if (!is_boolean(metric_index)) {
                      row[metric_index] += value.second.metrics[metric_index];
-                   } else {
-                     row[metric_index] = max(row[metric_index], value.second.metrics[metric_index]);
-                   }
+//                   } else {
+//                     row[metric_index] = max(row[metric_index], value.second.metrics[metric_index]);
+//                   }
                  }
                });
       result.insert(make_pair(group_id, row));
