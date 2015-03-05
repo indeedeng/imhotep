@@ -118,28 +118,29 @@ void session_init(struct session_desc *session,
 {
     packed_table_t **shards;
 
-	session->num_groups = n_groups;
-	session->num_stats = n_stats;
-	session->stat_order = calloc(sizeof(uint8_t), n_stats);
+    session->num_groups = n_groups;
+    session->num_stats = n_stats;
+    session->stat_order = calloc(n_stats, sizeof(uint8_t));
     memcpy(session->stat_order, stat_order, n_stats);
-	session->num_shards = n_shards;
-	session->current_tgs_pass = NULL;
-	
+    session->num_shards = n_shards;
+    session->current_tgs_pass = NULL;
+  
     session->temp_buf = NULL;
 
-	shards = (packed_table_t **)calloc(sizeof(packed_table_t *), n_shards);
-	session->shards = shards;
+    shards = (packed_table_t **)calloc(sizeof(packed_table_t *), n_shards);
+    session->shards = shards;
 }
 
 void session_destroy(struct session_desc *session)
 {
     packed_table_t **shards;
-	int n_shards;
+    int n_shards;
 
-	shards = session->shards;
-	n_shards = session->num_shards;
-	free(session->stat_order);
-	free(shards);
+    shards = session->shards;
+    n_shards = session->num_shards;
+		if (session->temp_buf) unpacked_table_destroy(session->temp_buf);
+    free(session->stat_order);
+    free(shards);
 }
 
 #define DEFAULT_BUFFER_SIZE				8192

@@ -291,8 +291,8 @@ public:
   }
 
   ~TGSTest() {
-    // session_destroy(&_session);
-    // worker_destroy(&_worker);
+    session_destroy(&_session);
+    worker_destroy(&_worker);
   }
 
   const size_t   n_docs() const { return _n_docs;   }

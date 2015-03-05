@@ -97,7 +97,7 @@ unpacked_table_t *unpacked_table_copy_layout(unpacked_table_t *src_table, int n_
 {
     unpacked_table_t *new_table;
 
-    new_table = calloc(sizeof(unpacked_table_t), 1);
+    new_table = calloc(1, sizeof(unpacked_table_t));
     new_table->n_rows = n_rows;
     new_table->n_cols = src_table->n_cols;
     new_table->padded_row_len = src_table->padded_row_len;

@@ -9,35 +9,37 @@
 /* No need to share the group stats buffer, so just keep one per session*/
 /* Make sure the one we have is large enough */
 static unpacked_table_t *allocate_grp_stats(struct worker_desc *desc,
-                                   struct session_desc *session,
-                                   packed_table_t *metric_desc)
+																						struct session_desc *session,
+																						packed_table_t *metric_desc)
 {
-    int gs_size = 2048;//row_size * session->num_groups;
+		int gs_size = 2048;//row_size * session->num_groups;
 
-    if (desc->grp_stats == NULL) {
+		if (desc->grp_stats == NULL) {
+				desc->buffer_size = gs_size;
+				desc->grp_stats = unpacked_table_create(metric_desc, session->num_groups);
+
+				if (session->temp_buf) unpacked_table_destroy(session->temp_buf);
+				session->temp_buf = unpacked_table_copy_layout(desc->grp_stats, PREFETCH_BUFFER_SIZE);
+
+				return desc->grp_stats;
+		}
+
+		assert(1 == 1);  /* we should never get here */
+	
+		if (desc->buffer_size >= gs_size) {
+				// our buffer is large enough already;
+				return desc->grp_stats;
+		}
+	
+		unpacked_table_destroy(desc->grp_stats);
+		// TODO: maybe resize smarter
 		desc->buffer_size = gs_size;
 		desc->grp_stats = unpacked_table_create(metric_desc, session->num_groups);
 
-	    session->temp_buf = unpacked_table_copy_layout(desc->grp_stats, PREFETCH_BUFFER_SIZE);
+		if (session->temp_buf) unpacked_table_destroy(session->temp_buf);
+		session->temp_buf = unpacked_table_copy_layout(desc->grp_stats, PREFETCH_BUFFER_SIZE);
 
-	    return desc->grp_stats;
-	}
-
-    assert(1 == 1);  /* we should never get here */
-	
-	if (desc->buffer_size >= gs_size) {
-		// our buffer is large enough already;
 		return desc->grp_stats;
-	}
-	
-	unpacked_table_destroy(desc->grp_stats);
-	// TODO: maybe resize smarter
-	desc->buffer_size = gs_size;
-	desc->grp_stats = unpacked_table_create(metric_desc, session->num_groups);
-
-    session->temp_buf = unpacked_table_copy_layout(desc->grp_stats, PREFETCH_BUFFER_SIZE);
-
-    return desc->grp_stats;
 }
 
 
