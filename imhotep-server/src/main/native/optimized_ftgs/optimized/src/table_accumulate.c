@@ -60,6 +60,16 @@ void lookup_and_accumulate_grp_stats(
         /* load value from A, save, prefetch B */
         int prefetch_grp = packed_table_get_group(src_table, row_id);
 
+        /* get load idx */
+        int current_grp = circular_buffer_int_get(grp_buf);
+
+        /* loop through B row elements */
+        unpacked_table_add_rows(temp_buf,
+                                trailing_idx & temp_buf_mask,
+                                dest_table,
+                                current_grp,
+                                prefetch_grp);
+
         /* save group into buffer */
         circular_buffer_int_put(grp_buf, prefetch_grp);
 
@@ -69,16 +79,6 @@ void lookup_and_accumulate_grp_stats(
                                          temp_buf,
                                          idx & temp_buf_mask,
                                          prefetch_idx);
-
-        /* get load idx */
-        int current_grp = circular_buffer_int_get(grp_buf);
-
-        /* loop through B row elements */
-        unpacked_table_add_rows(temp_buf,
-                                trailing_idx & temp_buf_mask,
-                                dest_table,
-                                current_grp,
-                                prefetch_grp);
     }
 
     /* loop through A rows; loop through B rows */
@@ -88,12 +88,6 @@ void lookup_and_accumulate_grp_stats(
         /* load value from A, save, prefetch B */
         int prefetch_grp = packed_table_get_group(src_table, row_id);
 
-        /* save group into buffer */
-        circular_buffer_int_put(grp_buf, prefetch_grp);
-
-        /* loop through A row elements */
-        packed_table_unpack_row_to_table(src_table, row_id, temp_buf, idx & temp_buf_mask, row_id);
-
         /* get load idx */
         int current_grp = circular_buffer_int_get(grp_buf);
 
@@ -103,6 +97,12 @@ void lookup_and_accumulate_grp_stats(
                                 dest_table,
                                 current_grp,
                                 prefetch_grp);
+
+        /* save group into buffer */
+        circular_buffer_int_put(grp_buf, prefetch_grp);
+
+        /* loop through A row elements */
+        packed_table_unpack_row_to_table(src_table, row_id, temp_buf, idx & temp_buf_mask, row_id);
     }
 
     /* loop through final B rows with no prefetch */
