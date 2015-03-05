@@ -345,33 +345,42 @@ int main(int argc, char* argv[])
   }
 
   vector<MetricFunc> metric_funcs = {
-//    [](int64_t min_val, int64_t max_val) { return min_val; },
-//    [](int64_t min_val, int64_t max_val) { return max_val; },
-//    [](int64_t min_val, int64_t max_val) { return min_val + (max_val - min_val) / 2; },
-    [](int64_t min_val, int64_t max_val, size_t metric_num, size_t row_num) { return metric_num * row_num; },
+    [](int64_t min_val, int64_t max_val, size_t metric_num, size_t row_num) { return min_val; },
+    [](int64_t min_val, int64_t max_val, size_t metric_num, size_t row_num) { return max_val; },
+    [](int64_t min_val, int64_t max_val, size_t metric_num, size_t row_num) { return min_val + (max_val - min_val) / 2; },
+    [](int64_t min_val, int64_t max_val, size_t metric_num, size_t row_num) {
+        auto val = metric_num * row_num;
+        if (val > max_val)
+            return max_val;
+        if (val < min_val)
+            return min_val;
+        return (long)val;
+    },
     [](int64_t min_val, int64_t max_val, size_t metric_num, size_t row_num) { return (max_val == min_val)
             ? max_val
             : min_val + (rand() % (max_val - min_val)); },
-    [](int64_t min_val, int64_t max_val, size_t metric_num, size_t row_num) { return 1 << metric_num; },
+//    [](int64_t min_val, int64_t max_val, size_t metric_num, size_t row_num) { return 1 << metric_num; },
   };
 
   vector<pair<MinMaxFunc, MinMaxFunc>> min_max_funcs = {
-//    make_pair([](size_t index) { return 0; },
-//              [](size_t index) { return 0; }),
-//    make_pair([](size_t index) { return 0; },
-//              [](size_t index) { return 1; }),
-//    make_pair([](size_t index) { return 0; },
-//              [](size_t index) { return 32; }),
+    make_pair([](size_t index) { return 0; },
+              [](size_t index) { return 0; }),
+    make_pair([](size_t index) { return 0; },
+              [](size_t index) { return 1; }),
+    make_pair([](size_t index) { return 0; },
+              [](size_t index) { return 32; }),
     make_pair([](size_t index) { return 0; },
               [](size_t index) { return 1 << 30; }),
-//    make_pair([](size_t index) { return 1; },
-//              [](size_t index) { return 1; }),
-//    make_pair([](size_t index) { return 1; },
-//              [](size_t index) { return 2; }),
-//    make_pair([](size_t index) { return 1; },
-//              [](size_t index) { return 32; }),
-//    make_pair([](size_t index) { return 1; },
-//              [](size_t index) { return 1 << 30; }),
+    make_pair([](size_t index) { return 1; },
+              [](size_t index) { return 1; }),
+    make_pair([](size_t index) { return 1; },
+              [](size_t index) { return 2; }),
+    make_pair([](size_t index) { return 1; },
+              [](size_t index) { return 32; }),
+    make_pair([](size_t index) { return 1; },
+              [](size_t index) { return 1 << 30; }),
+    make_pair([](size_t index) { return -(1 << 30); },
+            [](size_t index) { return 1 << 30; }),
   };
 
   for (auto metric_func: metric_funcs) {
