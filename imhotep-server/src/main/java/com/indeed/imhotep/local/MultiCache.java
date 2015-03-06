@@ -192,17 +192,20 @@ public final class MultiCache implements Closeable {
 
             for (int i = 0; i < n; i++) {
                 final int docId = session.docIdBuf[i];
-                if (docRemapped.get(docId))
+                if (docRemapped.get(docId)) {
                     continue;
+                }
 
                 final int group = groups_buffer[i];
-                if (remapRules[group] == null)
+                if (remapRules[group] == null) {
                     continue;
+                }
 
                 if (ImhotepLocalSession.checkIntCondition(remapRules[group].condition,
                                                           intField,
-                                                          itrTerm))
+                                                          itrTerm)) {
                     continue;
+                }
 
                 remap_buffer[i] = remapRules[group].positiveGroup;
                 docRemapped.set(docId);
@@ -222,19 +225,21 @@ public final class MultiCache implements Closeable {
 
             for (int i = 0; i < n; i++) {
                 final int docId = session.docIdBuf[i];
-                if (docRemapped.get(docId))
+                if (docRemapped.get(docId)) {
                     continue;
+                }
 
                 final int group = groups_buffer[i];
-                if (remapRules[group] == null)
+                if (remapRules[group] == null) {
                     continue;
+                }
 
                 if (ImhotepLocalSession.checkStringCondition(remapRules[group].condition,
                                                              stringField,
                                                              itrTerm)) {
                     continue;
-                    remap_buffer[i] = remapRules[group].positiveGroup;
                 }
+                remap_buffer[i] = remapRules[group].positiveGroup;
                 docRemapped.set(docId);
             }
             /* write updated groups back to the native table/lookup */
