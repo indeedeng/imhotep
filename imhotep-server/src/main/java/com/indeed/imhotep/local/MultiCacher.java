@@ -1,7 +1,6 @@
 package com.indeed.imhotep.local;
 
 import com.google.common.base.Throwables;
-import com.google.common.collect.Collections2;
 import com.google.common.primitives.Ints;
 import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.util.core.sort.Quicksortable;
@@ -10,9 +9,8 @@ import it.unimi.dsi.fastutil.ints.IntArrayFIFOQueue;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import org.apache.log4j.Logger;
 
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
@@ -22,7 +20,6 @@ import java.util.concurrent.CyclicBarrier;
 public final class MultiCacher {
     private static final Logger log = Logger.getLogger(MultiCacher.class);
     private final CyclicBarrier barrier;
-    private byte[] statOrder;
     private IntValueLookup[][] sessionStats;
     private int numStats;
     private long[] mins;
@@ -56,38 +53,50 @@ public final class MultiCacher {
         } catch (BrokenBarrierException e) {
             throw Throwables.propagate(e);
         }
+        //todo call native methods to create metric cache and set stats
         return null;
     }
 
     private void calculateMetricOrder() {
         final IntArrayList booleanMetrics = new IntArrayList();
-        final IntArrayList metrics = new IntArrayList();
-        mins = new long[numStats];
-        maxes = new long[numStats];
+        final IntArrayList longMetrics = new IntArrayList();
+        final long[] localMins = new long[numStats];
+        final long[] localMaxes = new long[numStats];
         final int[] bits = new int[numStats];
-        Arrays.fill(mins, Long.MAX_VALUE);
-        Arrays.fill(maxes, Long.MIN_VALUE);
-        for (int i = 0; i < sessionStats.length; i++) {
+        Arrays.fill(localMins, Long.MAX_VALUE);
+        Arrays.fill(localMaxes, Long.MIN_VALUE);
+        for (IntValueLookup[] stats : sessionStats) {
             for (int j = 0; j < numStats; j++) {
-                mins[j] = Math.min(mins[j], sessionStats[i][j].getMin());
-                maxes[j] = Math.max(maxes[j], sessionStats[i][j].getMax());
+                localMins[j] = Math.min(localMins[j], stats[j].getMin());
+                localMaxes[j] = Math.max(localMaxes[j], stats[j].getMax());
             }
         }
         for (int i = 0; i < numStats; i++) {
-            final long range = maxes[i] - mins[i];
+            final long range = localMaxes[i] - localMins[i];
             bits[i] = range == 0 ? 1 : 64-Long.numberOfLeadingZeros(range);
             if (bits[i] == 1 && booleanMetrics.size() < 4) {
                 booleanMetrics.add(i);
             } else {
-                metrics.add(i);
+                longMetrics.add(i);
             }
         }
-
-        if (metrics.size() <= 10) {
-            final Permutation bestPermutation = permutations(metrics.toIntArray(), new ReduceFunction<int[], Permutation>() {
+        mins = new long[numStats];
+        maxes = new long[numStats];
+        metrics = new int[numStats];
+        for (int i = 0; i < booleanMetrics.size(); i++) {
+            final int metric = booleanMetrics.getInt(i);
+            mins[i] = localMins[metric];
+            maxes[i] = localMaxes[metric];
+            metrics[i] = metric;
+        }
+        // do exhaustive search for up to 10 metrics
+        // optimizes first for least number of vectors then least space used for group stats
+        // this is impractical beyond 10 due to being O(N!)
+        if (longMetrics.size() <= 10) {
+            final Permutation bestPermutation = permutations(longMetrics.toIntArray(), new ReduceFunction<int[], Permutation>() {
                 @Override
                 public Permutation apply(int[] ints, Permutation best) {
-                    final Permutation permutation = getPermutation(ints, bits, false);
+                    final Permutation permutation = getPermutation(ints, bits);
                     if (best == null) {
                         permutation.order = Arrays.copyOf(ints, ints.length);
                         return permutation;
@@ -101,33 +110,60 @@ public final class MultiCacher {
                     return best;
                 }
             }, null);
-            System.out.println("bestPermutation.vectorsUsed = " + bestPermutation.vectorsUsed);
-            System.out.println("bestPermutation.statsSpace = " + bestPermutation.statsSpace);
-            System.out.println("bestPermutation.order = " + Arrays.toString(bestPermutation.order));
-            getPermutation(bestPermutation.order, bits, true);
-            this.metrics = new int[numStats];
-            int metricIndex = 0;
-            for (int i = 0; i < booleanMetrics.size(); i++) {
-                this.metrics[metricIndex++] = booleanMetrics.getInt(i);
-            }
-            for (int i = 0; i < bestPermutation.order.length; i++) {
-                this.metrics[metricIndex++] = bestPermutation.order[i];
+            for (int i = 0, metricIndex = booleanMetrics.size(); i < bestPermutation.order.length; i++, metricIndex++) {
+                metrics[metricIndex] = bestPermutation.order[i];
             }
         } else {
+            // use sorted best fit approximation for > 10 metrics optimizing for least number of vectors
             Quicksortables.sort(new Quicksortable() {
                 @Override
                 public void swap(int i, int j) {
-                    final int tmp = metrics.getInt(i);
-                    metrics.set(i, metrics.getInt(j));
-                    metrics.set(j, tmp);
+                    final int tmp = longMetrics.getInt(i);
+                    longMetrics.set(i, longMetrics.getInt(j));
+                    longMetrics.set(j, tmp);
                 }
 
                 @Override
                 public int compare(int i, int j) {
-                    return -Ints.compare(bits[metrics.getInt(i)], bits[metrics.getInt(j)]);
+                    return -Ints.compare(bits[longMetrics.getInt(i)], bits[longMetrics.getInt(j)]);
                 }
-            }, metrics.size());
-            // todo sorted best fit
+            }, longMetrics.size());
+            final IntArrayList spaceRemaining = new IntArrayList();
+            final ArrayList<IntArrayList> vectorMetrics = new ArrayList<IntArrayList>();
+            spaceRemaining.add(12);
+            vectorMetrics.add(new IntArrayList());
+            for (int i = 0; i < longMetrics.size(); i++) {
+                int bestIndex = -1;
+                int bestRemaining = 16;
+                final int metric = longMetrics.getInt(i);
+                final int size = (bits[metric]+7)/8;
+                for (int j = 0; j < spaceRemaining.size(); j++) {
+                    final int remaining = spaceRemaining.getInt(j);
+                    if (size <= remaining && remaining < bestRemaining) {
+                        bestIndex = j;
+                        bestRemaining = remaining;
+                    }
+                }
+                if (bestIndex == -1) {
+                    spaceRemaining.add(16-size);
+                    final IntArrayList list = new IntArrayList();
+                    list.add(metric);
+                    vectorMetrics.add(list);
+                } else {
+                    spaceRemaining.set(bestIndex, bestRemaining-size);
+                    vectorMetrics.get(bestIndex).add(metric);
+                }
+            }
+            int metricIndex = booleanMetrics.size();
+            for (final IntArrayList list : vectorMetrics) {
+                for (int j = 0; j < list.size(); j++) {
+                    metrics[metricIndex++] = list.getInt(j);
+                }
+            }
+        }
+        for (int i = booleanMetrics.size(); i < metrics.length; i++) {
+            mins[i] = localMins[metrics[i]];
+            maxes[i] = localMaxes[metrics[i]];
         }
     }
 
@@ -169,16 +205,12 @@ public final class MultiCacher {
         }, null);
         time += System.nanoTime();
         System.out.println(time / 1000000d);
-        time = -System.nanoTime();
-        final Collection<List<Integer>> permutations = Collections2.permutations(new IntArrayList(ints));
-        for (List<Integer> list : permutations);
-        time += System.nanoTime();
-        System.out.println(time / 1000000d);
-
 
         final MultiCacher multiCacher = new MultiCacher(1);
-        multiCacher.createMultiCache(0, null, new IntValueLookup[]{new DummyIntValueLookup(0, 1), new DummyIntValueLookup(0, 255), new DummyIntValueLookup(0, 1), new DummyIntValueLookup(0, 65535), new DummyIntValueLookup(0, 1), new DummyIntValueLookup(0, Long.MAX_VALUE), new DummyIntValueLookup(0, 1), new DummyIntValueLookup(0, 1000000), new DummyIntValueLookup(0, 1), new DummyIntValueLookup(0, Long.MAX_VALUE), new DummyIntValueLookup(0, Long.MAX_VALUE), new DummyIntValueLookup(0, Integer.MAX_VALUE*65536L)}, 12);
+        multiCacher.createMultiCache(0, null, new IntValueLookup[]{new DummyIntValueLookup(0, 1), new DummyIntValueLookup(0, 255), new DummyIntValueLookup(0, 1), new DummyIntValueLookup(0, 65535), new DummyIntValueLookup(0, 1), new DummyIntValueLookup(0, Long.MAX_VALUE), new DummyIntValueLookup(0, 1), new DummyIntValueLookup(0, 1000000), new DummyIntValueLookup(0, 1), new DummyIntValueLookup(0, Long.MAX_VALUE), new DummyIntValueLookup(0, Long.MAX_VALUE), new DummyIntValueLookup(0, Integer.MAX_VALUE*65536L), new DummyIntValueLookup(0, Integer.MAX_VALUE*65536L), new DummyIntValueLookup(0, Integer.MAX_VALUE*65536L), new DummyIntValueLookup(0, Integer.MAX_VALUE*65536L), new DummyIntValueLookup(0, Integer.MAX_VALUE*65536L), new DummyIntValueLookup(0, Integer.MAX_VALUE*65536L), new DummyIntValueLookup(0, Integer.MAX_VALUE*65536L)}, 18);
         System.out.println(Arrays.toString(multiCacher.metrics));
+        System.out.println(Arrays.toString(multiCacher.mins));
+        System.out.println(Arrays.toString(multiCacher.maxes));
     }
 
     private static final class Permutation {
@@ -192,27 +224,23 @@ public final class MultiCacher {
         }
     }
 
-    private Permutation getPermutation(int[] permutation, int[] bits, boolean print) {
-        String str = "";
+    private Permutation getPermutation(int[] permutation, int[] bits) {
         int vectors = 1;
         int currentVectorStats = 0;
         int index = 4;
         int outputStats = 0;
-        for (int i = 0; i < permutation.length; i++) {
-            final int metricSize = (bits[permutation[i]]+7)/8;
-            if (index+metricSize > 16*vectors) {
-                outputStats += (currentVectorStats+1)/2*2;
+        for (int metric : permutation) {
+            final int metricSize = (bits[metric] + 7) / 8;
+            if (index + metricSize > 16 * vectors) {
+                outputStats += (currentVectorStats + 1) / 2 * 2;
                 currentVectorStats = 0;
-                if (16*vectors-index > 0 && print) str += "pad "+(16*vectors-index)+", ";
-                index = 16*vectors;
+                index = 16 * vectors;
                 vectors++;
             }
             index += metricSize;
-            if (print) str += metricSize+", ";
             currentVectorStats++;
         }
         outputStats += (currentVectorStats+1)/2*2;
-        if (print) System.out.println(str.substring(0, str.length()-2));
         return new Permutation(vectors, outputStats);
     }
 
