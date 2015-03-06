@@ -3,8 +3,8 @@
 #include <unistd.h>
 #include "remote_output.h"
 
-#define PREFETCH_DISTANCE 16
-
+//#define PREFETCH_DISTANCE 16
+//
 // TODO: throw an exception with JNI
 
 #define TRY(a) { \

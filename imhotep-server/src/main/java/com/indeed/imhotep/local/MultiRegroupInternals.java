@@ -248,7 +248,12 @@ class MultiRegroupInternals {
         }
     }
 
-    private static void remapDocsInTargetGroups(GroupLookup docIdToGroup, GroupLookup newLookup, int[] docIdBuf, DocIdStream docIdStream, int[] remappings, int placeHolderGroup) {
+    private static void remapDocsInTargetGroups(GroupLookup docIdToGroup,
+                                                GroupLookup newLookup,
+                                                int[] docIdBuf,
+                                                DocIdStream docIdStream,
+                                                int[] remappings,
+                                                int placeHolderGroup) {
         while (true) {
             final int n = docIdStream.fillDocIdBuffer(docIdBuf);
             for (int i = 0; i < n; i++) {

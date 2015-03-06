@@ -448,13 +448,22 @@ long packed_table_get_group(packed_table_t *table, int row)
     return internal_get_group(table, row, row_size);
 }
 
-void packed_table_set_group(packed_table_t *table, int row, long value)
+void packed_table_set_group(packed_table_t *table, int row, int value)
 {
     internal_set_group(table, row, value);
 }
 
+void packed_table_set_all_groups(packed_table_t *table, int value)
+{
+    int n_rows = table->n_rows;
 
-void packed_shard_batch_col_lookup( packed_table_t *table,
+    for (int row = 0; row < n_rows; row++) {
+        internal_set_group(table, row, value);
+    }
+}
+
+
+void packed_table_batch_col_lookup( packed_table_t *table,
                                 int * restrict row_ids,
                                 int n_row_ids,
                                 int64_t * restrict dest,
@@ -480,7 +489,7 @@ void packed_shard_batch_col_lookup( packed_table_t *table,
     }
 }
 
-void packed_shard_batch_set_col(   packed_table_t *table,
+void packed_table_batch_set_col(   packed_table_t *table,
                             int * restrict row_ids,
                             int n_row_ids,
                             int64_t * restrict col_vals,
@@ -502,10 +511,32 @@ void packed_shard_batch_set_col(   packed_table_t *table,
     }
 }
 
-void packed_shard_batch_group_lookup( packed_table_t *table,
+void packed_table_set_col_range(packed_table_t *table,
+                                const int start_row,
+                                const int64_t * restrict col_vals,
+                                const int count,
+                                int col)
+{
+    int64_t min = (table->col_mins)[col];
+    uint8_t packed_vector_index = (table->col_2_vector)[col];
+
+    if (col < table->n_boolean_cols) {
+        for (int i = start_row; i < count; i++) {
+            internal_set_boolean_cell(table, i, col, col_vals[i] - min);
+        }
+        return;
+    }
+
+    col -= table->n_boolean_cols;
+    for (int i = start_row; i < count; i++) {
+        internal_set_cell(table, i, col, col_vals[i] - min, packed_vector_index);
+    }
+}
+
+void packed_table_batch_group_lookup( packed_table_t *table,
                                 int * restrict row_ids,
                                 int n_row_ids,
-                                int64_t * restrict dest)
+                                int32_t * restrict dest)
 {
     int row_size = table->row_size;
 
@@ -515,10 +546,10 @@ void packed_shard_batch_group_lookup( packed_table_t *table,
     }
 }
 
-void packed_shard_batch_set_group(   packed_table_t *table,
+void packed_table_batch_set_group(   packed_table_t *table,
                             int * restrict row_ids,
                             int n_row_ids,
-                            int64_t * restrict group_vals)
+                            int32_t * restrict group_vals)
 {
     for (int i = 0; i < n_row_ids; i++) {
         int row = row_ids[i];
@@ -526,11 +557,50 @@ void packed_shard_batch_set_group(   packed_table_t *table,
     }
 }
 
+void packed_table_set_group_range(packed_table_t *table,
+                                  const int start,
+                                  const int count,
+                                  const int32_t * restrict group_vals)
+{
+    for (int row = start; row < count; row++) {
+        internal_set_group(table, row, group_vals[row]);
+    }
+}
+
+static inline int get_bit(const long* restrict bits_arr, const int idx)
+{
+    long bits = bits_arr[idx >> 6];
+    int word_idx = idx & (64 - 1);
+    return bits & (0x1L << word_idx);
+}
+
+void packed_table_bit_set_regroup(packed_table_t *table,
+                                  const long* restrict bits,
+                                  const int target_group,
+                                  const int negative_group,
+                                  const int positive_group)
+{
+    int n_rows = table->n_rows;
+    int row_size = table->row_size;
+
+    for (int row = 0; row < n_rows; ++row) {
+        struct bit_fields_and_group *packed_bf_grp;
+        const int index = row * row_size;
+
+        packed_bf_grp = (struct bit_fields_and_group *)  &table->data[index];
+        const int group = packed_bf_grp->grp;
+
+        if (group == target_group) {
+            packed_bf_grp->grp = get_bit(bits, row) ? positive_group : negative_group;
+        }
+    }
+}
+
 /*
- *
+ *  FTGS below:
  */
 
-static inline void unpack_bit_fields(__v2di *dest_buffer,
+static inline void unpack_bit_fields(__v2di* restrict dest_buffer,
                                     uint32_t bit_fields,
                                     uint8_t n_bit_fields)
 {
@@ -554,11 +624,11 @@ static inline void unpack_vector(const packed_table_t* src_table,
                                  const __v16qi vector_data,
                                  const int vector_num,
                                  const int dest_vec_num,
-                                 __v2di *dest_buffer)
+                                 __v2di* restrict dest_buffer)
 {
     int vector_index = 0;
     int n_cols = src_table->n_cols_per_vector[vector_num];
-    __v16qi *shuffle_vecs = src_table->shuffle_vecs_get2;
+    __v16qi* restrict shuffle_vecs = src_table->shuffle_vecs_get2;
     int n_boolean_vecs = (src_table->n_boolean_cols + 1) / 2;
 
     for (int k = 0; k < n_cols; k += 2) {
@@ -577,8 +647,8 @@ static inline int core(packed_table_t* src_table,
                        unpacked_table_t* dest_table,
                        int from_col,
                        int vector_num,
-                       __v16qi *src_row,
-                       __v2di *dest_row)
+                       __v16qi* restrict src_row,
+                       __v2di* restrict dest_row)
 {
     int offset_in_row = dest_table->col_offset[from_col];
     assert((offset_in_row % 2) == 0);  /* offset in row should be even */
@@ -597,8 +667,8 @@ inline void packed_table_unpack_row_to_table(
                                              int dest_row_id,
                                              int prefetch_row_id)
 {
-    __v16qi *src_row = &src_table->data[src_row_id * src_table->row_size];
-    __v2di *dest_row = &dest_table->data[dest_row_id * dest_table->padded_row_len];
+    __v16qi* restrict src_row = &src_table->data[src_row_id * src_table->row_size];
+    __v2di* restrict dest_row = &dest_table->data[dest_row_id * dest_table->padded_row_len];
 
     /* unpack and save the bit field metrics */
     struct bit_fields_and_group packed_bf_g = *((struct bit_fields_and_group *)src_row);

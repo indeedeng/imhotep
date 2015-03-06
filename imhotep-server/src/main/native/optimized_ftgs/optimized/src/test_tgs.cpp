@@ -21,7 +21,7 @@ extern "C" {
 using namespace std;
 
 typedef int     DocId;
-typedef int64_t GroupId;
+typedef int32_t GroupId;
 typedef int64_t Metric;
 
 typedef function<Metric(size_t index)>             MinMaxFunc;
@@ -204,11 +204,11 @@ struct Shard
 
     DocIds          doc_ids(table.doc_ids());
     vector<GroupId> flat_group_ids(table.flat_group_ids());
-    packed_shard_batch_set_group(_shard, doc_ids.data(), doc_ids.size(), flat_group_ids.data());
+    packed_table_batch_set_group(_shard, doc_ids.data(), doc_ids.size(), flat_group_ids.data());
 
     for (size_t metric_index(0); metric_index < n_metrics; ++metric_index) {
       vector<Metric> metrics(table.metrics(metric_index));
-      packed_shard_batch_set_col(_shard, doc_ids.data(), doc_ids.size(),
+      packed_table_batch_set_col(_shard, doc_ids.data(), doc_ids.size(),
                                  metrics.data(), metric_index);
     }
   }

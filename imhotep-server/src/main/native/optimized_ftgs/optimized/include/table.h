@@ -70,25 +70,38 @@ int packed_table_get_cols(packed_table_t *table);
 long packed_table_get_cell(packed_table_t *table, int row, int column);
 void packed_table_set_cell(packed_table_t *table, int row, int col, long value);
 long packed_table_get_group(packed_table_t *table, int row);
-void packed_table_set_group(packed_table_t *table, int row, long value);
-void packed_shard_batch_col_lookup( packed_table_t *table,
+void packed_table_set_group(packed_table_t *table, int row, int value);
+void packed_table_set_all_groups(packed_table_t *table, int value);
+
+void packed_table_batch_col_lookup( packed_table_t *table,
                                 int * restrict row_ids,
                                 int n_row_ids,
                                 int64_t * restrict dest,
                                 int column);
-void packed_shard_batch_set_col(   packed_table_t *table,
+void packed_table_batch_set_col(   packed_table_t *table,
                             int * restrict row_ids,
                             int n_row_ids,
                             int64_t * restrict col_vals,
                             int col);
-void packed_shard_batch_group_lookup( packed_table_t *table,
+void packed_table_set_col_range(packed_table_t *table,
+                                const int start_row,
+                                const int64_t * restrict col_vals,
+                                const int count,
+                                const int col);
+
+void packed_table_batch_group_lookup( packed_table_t *table,
                                 int * restrict row_ids,
                                 int n_row_ids,
-                                int64_t * restrict dest);
-void packed_shard_batch_set_group(   packed_table_t *table,
+                                int32_t * restrict dest);
+void packed_table_batch_set_group(   packed_table_t *table,
                             int * restrict row_ids,
                             int n_row_ids,
-                            int64_t * restrict group_vals);
+                            int32_t * restrict group_vals);
+void packed_table_set_group_range(packed_table_t *table,
+                                  const int start,
+                                  const int count,
+                                  const int32_t * restrict group_vals);
+
 void packed_table_unpack_row_to_table(
                                              packed_table_t* src_table,
                                              int src_row_id,

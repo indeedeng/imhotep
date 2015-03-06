@@ -40,14 +40,14 @@ bool test_packed_tables(size_t n_docs,
     doc_ids.push_back(doc_id);
   }
 
-  vector<int64_t> gids;
+  vector<int32_t> gids;
   for (auto doc_id: doc_ids) {
     gids.push_back(doc_id);
   }
-  packed_shard_batch_set_group(shard, doc_ids.data(), doc_ids.size(), gids.data());
+  packed_table_batch_set_group(shard, doc_ids.data(), doc_ids.size(), gids.data());
 
-  vector<int64_t> actual_gids(gids.size(), -1);
-  packed_shard_batch_group_lookup(shard, doc_ids.data(), doc_ids.size(), actual_gids.data());
+  vector<int32_t> actual_gids(gids.size(), -1);
+  packed_table_batch_group_lookup(shard, doc_ids.data(), doc_ids.size(), actual_gids.data());
 
   if (!equal(gids.begin(), gids.end(), actual_gids.begin())) {
     cerr << "group lookup failed -- "    << endl
@@ -63,13 +63,13 @@ bool test_packed_tables(size_t n_docs,
 
   for (int metric_index = 0; metric_index < n_metrics; ++metric_index) {
     vector<int64_t> values(doc_ids.size(), metrics[metric_index]);
-    packed_shard_batch_set_col(shard, doc_ids.data(), doc_ids.size(), values.data(), metric_index);
+    packed_table_batch_set_col(shard, doc_ids.data(), doc_ids.size(), values.data(), metric_index);
 	}
 
   for (int metric_index = 0; metric_index < n_metrics; ++metric_index) {
     vector<int64_t> expected_values(doc_ids.size(), metrics[metric_index]);
     vector<int64_t> actual_values(doc_ids.size(), -1);
-    packed_shard_batch_col_lookup(shard, doc_ids.data(), doc_ids.size(),
+    packed_table_batch_col_lookup(shard, doc_ids.data(), doc_ids.size(),
                                   actual_values.data(), metric_index);
     if (!equal(expected_values.begin(), expected_values.end(), actual_values.begin())) {
       cerr << "metric lookup failed -- "

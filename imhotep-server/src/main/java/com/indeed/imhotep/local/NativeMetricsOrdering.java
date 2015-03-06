@@ -12,8 +12,8 @@ public class NativeMetricsOrdering {
 
     public static class StatsOrderingInfo {
         List<IntValueLookup> reorderedMetrics;
-        int[] mins;
-        int[] maxes;
+        long[] mins;
+        long[] maxes;
     }
 
 

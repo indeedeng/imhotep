@@ -51,7 +51,8 @@ public final class MetricCacheImpl implements MetricCache {
 
     private boolean closed = false;
 
-    public MetricCacheImpl(final Function<String, Either<FlamdexOutOfMemoryException, IntValueLookup>> loadMetric, final ReloadableSharedReference.Closer<Map.Entry<String, IntValueLookup>> closeMetric) {
+    public MetricCacheImpl(final Function<String, Either<FlamdexOutOfMemoryException, IntValueLookup>> loadMetric,
+                           final ReloadableSharedReference.Closer<Map.Entry<String, IntValueLookup>> closeMetric) {
         this.closeMetric = closeMetric;
         loadedMetrics = Maps.newHashMap();
         this.reloaders = CacheBuilder.newBuilder().build(
