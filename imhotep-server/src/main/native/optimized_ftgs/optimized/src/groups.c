@@ -1,73 +1,66 @@
-//#include <stdlib.h>
-//#include "imhotep_native.h"
-//
-//#define TGS_BUFFER_SIZE                         2048
-//
-//void remapDocsInTargetGroups(struct index_slice_info *shard,
-//						int *remappings,
-//						int placeHolderGroup)
-//{
-//	int n = 0;
-//	while (n < shard->n_docs_in_slice) {
-//		int n = docIdStream.fillDocIdBuffer(docIdBuf);
-//
-//		multiRemapCore(shard->packed_metrics, new_grp_ids, doc_ids, num_docs, remappings, placeHolderGroup);
-//	}
-//}
-//
-//int multiRemapCore(packed_table_t *table,
-//                    int *new_grp_ids,
-//                    int *doc_ids,
-//                    int num_docs,
-//                    int *remappings,
-//                    int placeHolderGroup)
-//{
-//	int row_size = table->row_size;
-//
-//	for (int i = 0; i < num_docs; i++) {
-//		int doc_id = doc_ids[i];
-//		int old_group = packed_table_get_group(table, doc_id);
-//
-//		if (old_group != 0) {
-//			int currentGroup = new_grp_ids[doc_id];
-//			if (placeHolderGroup > 0) {
-//				if (currentGroup != placeHolderGroup) {
-//					return -1;
-//				}
-//			}
-//			new_grp_ids[doc_id] = (currentGroup < remappings[old_group])
-//			                        ? currentGroup
-//			                        : remappings[old_group];
-//		}
-//	}
-//
-//	return 0;
-//}
-//
-//void multiRemap()
-//{
-//	uint32_t buffer[TGS_BUFFER_SIZE];
-//	int remaining;      /* num docs remaining */
-//	uint8_t *read_addr;
-//	int last_value;     /* delta decode tracker */
-//	struct index_slice_info *infos = desc->slices;
-//	struct index_slice_info *slice;
-//
-//	slice = &infos[i];
-//	remaining = slice->n_docs_in_slice;
-//	read_addr = slice->slice;
-//	last_value = 0;
-//	while (remaining > 0) {
-//		int count;
-//		int bytes_read;
-//
-//		count = (remaining > TGS_BUFFER_SIZE) ? TGS_BUFFER_SIZE : remaining;
-//		bytes_read = read_ints(last_value, read_addr, buffer, count);
-//		read_addr += bytes_read;
-//		remaining -= count;
-//
-//		multiRemapCore(shard, new_grp_ids, buffer, count, remappings, placeHolderGroup);
-//		last_value = buffer[count - 1];
-//	}
-//
-//}
+#include <stdlib.h>
+#include "imhotep_native.h"
+#include "varintdecode.h"
+
+/* JNI implementation of:
+   MultiRegroupInternals.remapDocsInTargetGroups()
+
+   GroupLookup will be a MultiCacheIntValueLookup
+*/
+
+#define likely(x)   __builtin_expect((x),1)
+#define unlikely(x) __builtin_expect((x),0)
+
+#define TGS_BUFFER_SIZE 2048
+
+static int multi_remap_core(packed_table_t* doc_id_group,
+                            packed_table_t* new_lookup,
+                            uint32_t*       doc_ids,
+                            int             n_docs,
+                            int*            remappings,
+                            long            placeholder_group)
+{
+  for (int count = 0; count < n_docs; ++count) {
+    const int  doc_id    = doc_ids[count];
+    const long old_group = packed_table_get_group(doc_id_group, doc_id);
+    if (likely(old_group != 0)) {
+      const long current_group = packed_table_get_group(new_lookup, doc_id);
+      if (unlikely(placeholder_group > 0 && current_group != placeholder_group)) {
+        return -1;
+      }
+      if (likely(current_group < remappings[old_group])) {
+        packed_table_set_group(new_lookup, doc_id, current_group);
+      }
+      else {
+        packed_table_set_group(new_lookup, doc_id, remappings[old_group]);
+      }
+    }
+  }
+  return 0;
+}
+
+// !@# should return int status code?
+int remap_docs_in_target_groups(packed_table_t* doc_id_group,
+                                packed_table_t* new_lookup,
+                                uint8_t*        doc_id_stream,  /* delta compressed */
+                                int*            remappings,
+                                long            placeholder_group)
+{
+  uint32_t doc_id_buf[TGS_BUFFER_SIZE];
+  int      n_docs_remaining = 0;
+  int      last_value       = 0;
+  uint8_t* read_addr        = doc_id_stream;
+
+  while (n_docs_remaining > 0) {
+    const int n_docs     = n_docs_remaining > TGS_BUFFER_SIZE ? TGS_BUFFER_SIZE : n_docs_remaining;
+    const int bytes_read = masked_vbyte_read_loop_delta(read_addr, doc_id_buf, n_docs, last_value);
+    read_addr += bytes_read;
+    n_docs_remaining -= n_docs;
+    if (multi_remap_core(doc_id_group, new_lookup, doc_id_buf, n_docs, remappings, placeholder_group) != 0) {
+      return -1;
+    }
+    last_value = doc_id_buf[n_docs - 1];
+  }
+  return 0;
+}
+

@@ -79,3 +79,41 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_local_NativeFTGSWorker_native_1ru
 
 	return (jint)err;
 }
+
+static jlong getNativeShardDataPtr(JNIEnv *java_env, jobject instance)
+{
+  jclass   clazz    = (*java_env)->GetObjectClass(java_env, instance);
+  jfieldID field_id = (*java_env)->GetFieldID(java_env, clazz, "MultiCache.this.nativeShardDataPtr", "L");
+  return (*java_env)->GetLongField(java_env, instance, field_id);
+}
+
+/*
+ * Class:     com_indeed_imhotep_local_MultiRegroupInternals
+ * Method:    nativeRemapDocsInTargetGroups
+ * Signature: (Lcom/indeed/imhotep/local/GroupLookup;Lcom/indeed/imhotep/local/GroupLookup;[ILcom/indeed/flamdex/api/DocIdStream;[II)V
+ */
+JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiRegroupInternals_nativeRemapDocsInTargetGroups
+  (JNIEnv *java_env, jclass class, jobject doc_id_group, jobject new_lookup,
+   jlong doc_list_address, jintArray remappings, jint placeholder_group)
+{
+  jlong doc_id_group_addr = getNativeShardDataPtr(java_env, doc_id_group);
+  jlong new_lookup_addr   = getNativeShardDataPtr(java_env, new_lookup);
+
+  jboolean made_copy        = 0;
+	jint*    remappings_array = (*java_env)->GetPrimitiveArrayCritical(java_env, remappings, &made_copy);
+
+  int status = remap_docs_in_target_groups((packed_table_t*) doc_id_group_addr,
+                                           (packed_table_t*) new_lookup_addr,
+                                           (uint8_t*) doc_list_address,
+                                           remappings_array,
+                                           placeholder_group);
+
+	(*java_env)->ReleasePrimitiveArrayCritical(java_env, remappings, remappings_array, JNI_ABORT);
+
+  if (status != 0) {
+    jclass exClass = (*java_env)->FindClass(java_env, "java/lang/IllegalArgumentException");
+    (*java_env)->ThrowNew(java_env, exClass,
+                          "Regrouping on a multi-valued field doesn't work correctly so the "
+                          "operation is rejected.");
+  }
+}
