@@ -194,7 +194,7 @@ void unpacked_table_add_rows(unpacked_table_t* src_table,
                                     int prefetch_row_id);
 
 int remap_docs_in_target_groups(packed_table_t* doc_id_group,
-                                packed_table_t* new_lookup,
+                                int*            results,
                                 uint8_t*        doc_id_stream,
                                 int*            remappings,
                                 long            placeholder_group);

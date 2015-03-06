@@ -248,8 +248,8 @@ class MultiRegroupInternals {
         }
     }
 
-    private native static void nativeRemapDocsInTargetGroups(GroupLookup docIdToGroup,
-                                                             GroupLookup newLookup,
+    private native static void nativeRemapDocsInTargetGroups(long docIdToGroupPtr,
+                                                             int[] results,
                                                              long docListAddress,
                                                              int[] remappings,
                                                              int placeHolderGroup);
