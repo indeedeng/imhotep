@@ -69,7 +69,7 @@ int packed_table_get_cols(packed_table_t *table);
 
 long packed_table_get_cell(packed_table_t *table, int row, int column);
 void packed_table_set_cell(packed_table_t *table, int row, int col, long value);
-long packed_table_get_group(packed_table_t *table, int row);
+int packed_table_get_group(packed_table_t *table, int row);
 void packed_table_set_group(packed_table_t *table, int row, int value);
 void packed_table_set_all_groups(packed_table_t *table, int value);
 
