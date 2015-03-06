@@ -39,17 +39,16 @@ static int multi_remap_core(packed_table_t* doc_id_group,
   return 0;
 }
 
-// !@# should return int status code?
 int remap_docs_in_target_groups(packed_table_t* doc_id_group,
                                 packed_table_t* new_lookup,
-                                uint8_t*        doc_id_stream,  /* delta compressed */
+                                uint8_t*        delta_compressed_doc_ids,
                                 int*            remappings,
                                 long            placeholder_group)
 {
   uint32_t doc_id_buf[TGS_BUFFER_SIZE];
   int      n_docs_remaining = 0;
   int      last_value       = 0;
-  uint8_t* read_addr        = doc_id_stream;
+  uint8_t* read_addr        = delta_compressed_doc_ids;
 
   while (n_docs_remaining > 0) {
     const int n_docs     = n_docs_remaining > TGS_BUFFER_SIZE ? TGS_BUFFER_SIZE : n_docs_remaining;
