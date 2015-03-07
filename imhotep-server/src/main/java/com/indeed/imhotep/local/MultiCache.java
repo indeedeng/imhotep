@@ -31,31 +31,55 @@ public final class MultiCache implements Closeable {
     public MultiCache(ImhotepLocalSession session,
                       long flamdexDoclistAddress,
                       int numDocsInShard,
-                      List<IntValueLookup> metrics,
-                      NativeMetricsOrdering ordering) {
+                      MultiCacheConfig.StatsOrderingInfo[] ordering,
+                      GroupLookup groupLookup) {
         this.session = session;
         this.flamdexDoclistAddress = flamdexDoclistAddress;
         this.numDocsInShard = numDocsInShard;
-        this.numStats = metrics.size();
+        this.numStats = ordering.length;
 
+        this.nativeShardDataPtr = buildCache(ordering, this.numStats);
+
+        /* create the group lookup and populate the groups */
         this.nativeGroupLookup = new MultiCacheGroupLookup();
+        copyGroups(groupLookup, numDocsInShard);
+
+        /* create the metric IntValueLookups, and populate the metrics in the multicache */
         this.nativeMetricLookups = new ArrayList<MultiCacheIntValueLookup>(this.numStats);
+        for (int i = 0; i < ordering.length; i++) {
+            final MultiCacheConfig.StatsOrderingInfo orderInfo = ordering[i];
+            final MultiCacheIntValueLookup metricLookup;
+            metricLookup = new MultiCacheIntValueLookup(i, orderInfo.min, orderInfo.max);
 
-        final NativeMetricsOrdering.StatsOrderingInfo orderInfo = ordering.getOrder(metrics);
-        this.nativeShardDataPtr =
-                nativeBuildMultiCache(numDocsInShard,
-                                      orderInfo.mins,
-                                      orderInfo.maxes,
-                                      this.numStats);
-
-        for (int i = 0; i < this.numStats; i++) {
-            this.nativeMetricLookups.add(new MultiCacheIntValueLookup(i, orderInfo.mins[i],
-                                                                 orderInfo.maxes[i]));
+            this.nativeMetricLookups.add(metricLookup);
 
             /* copy data into multicache */
-            final IntValueLookup metric = orderInfo.reorderedMetrics.get(i);
-            copyValues(metric, numDocsInShard, i);
+            copyValues(orderInfo.lookup, numDocsInShard, i);
         }
+    }
+
+    private long buildCache(MultiCacheConfig.StatsOrderingInfo[] ordering, int count) {
+        final long[] mins = new long[count];
+        final long[] maxes = new long[count];
+        final int[] sizesInBytes = new int[count];
+        final int[] vectorNums = new int[count];
+        final int[] offsetsInVectors = new int[count];
+
+        for (int i = 0; i < ordering.length; i++) {
+            final MultiCacheConfig.StatsOrderingInfo orderInfo = ordering[i];
+            mins[i] = orderInfo.min;
+            maxes[i] = orderInfo.max;
+            sizesInBytes[i] = orderInfo.sizeInBytes;
+            vectorNums[i] = orderInfo.vectorNum;
+            offsetsInVectors[i] = orderInfo.offsetInVector;
+        }
+        return nativeBuildMultiCache(numDocsInShard,
+                                     mins,
+                                     maxes,
+                                     sizesInBytes,
+                                     vectorNums,
+                                     offsetsInVectors,
+                                     this.numStats);
     }
 
     private final void copyValues(IntValueLookup original, int numDocsInShard, int metricId) {
@@ -70,6 +94,17 @@ public final class MultiCache implements Closeable {
             }
             original.lookup(idBuffer, valBuffer, n);
             nativePackMetricDataInRange(this.nativeShardDataPtr, metricId, start, n, valBuffer);
+        }
+    }
+
+    private final void copyGroups(GroupLookup original, int numDocsInShard) {
+        final int[] groupBuffer = new int[BLOCK_COPY_SIZE];
+
+        for (int start = 0; start < numDocsInShard; start += BLOCK_COPY_SIZE) {
+            final int end = Math.min(numDocsInShard, start + BLOCK_COPY_SIZE);
+            final int n = end - start;
+            original.fillDocGrpBufferSequential(start, groupBuffer, n);
+            nativeSetGroupsInRange(this.nativeShardDataPtr, start, n, groupBuffer);
         }
     }
 
@@ -89,6 +124,9 @@ public final class MultiCache implements Closeable {
     private native long nativeBuildMultiCache(int numDocsInShard,
                                               long[] mins,
                                               long[] maxes,
+                                              int[] sizesInBytes,
+                                              int[] vectorNums,
+                                              int[] offsetsInVectors,
                                               int numStats);
 
     private static native void nativePackMetricDataInRange(long nativeShardDataPtr,
@@ -96,6 +134,11 @@ public final class MultiCache implements Closeable {
                                                            int start,
                                                            int n,
                                                            long[] valBuffer);
+
+    private native void nativeSetGroupsInRange(long nativeShardDataPtr,
+                                               int start,
+                                               int count,
+                                               int[] groupsBuffer);
 
     private final class MultiCacheIntValueLookup implements IntValueLookup {
         private final int index;

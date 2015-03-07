@@ -17,35 +17,42 @@ import java.util.concurrent.CyclicBarrier;
 /**
  * @author jplaisance
  */
-public final class MultiCacher {
-    private static final Logger log = Logger.getLogger(MultiCacher.class);
-    private final CyclicBarrier barrier;
-    private IntValueLookup[][] sessionStats;
-    private int numStats;
-    private long[] mins;
-    private long[] maxes;
-    private int[] metrics;
+public final class MultiCacheConfig {
+    private static final Logger log = Logger.getLogger(MultiCacheConfig.class);
 
-    public MultiCacher(int numSessions) {
-        this.barrier = new CyclicBarrier(numSessions);
-        sessionStats = new IntValueLookup[numSessions][];
+    private final CyclicBarrier barrier;
+    private final IntValueLookup[][] sessionStats;
+    private int numStats;
+    private StatsOrderingInfo[] ordering;
+
+    public static class StatsOrderingInfo {
+        public IntValueLookup lookup;
+        public long min;
+        public long max;
+        public int sizeInBytes;
+        public int vectorNum;
+        public int offsetInVector;
     }
 
-    public MultiCache createMultiCache(int sessionIndex, GroupLookup groupLookup, IntValueLookup[] stats, int numStats) {
-        final IntValueLookup[] statsCopy = Arrays.copyOf(stats, numStats);
-        sessionStats[sessionIndex] = statsCopy;
+    public MultiCacheConfig(int numSessions) {
+        this.sessionStats = new IntValueLookup[numSessions][];
+
+        this.barrier = new CyclicBarrier(numSessions, new Runnable() {
+            @Override
+            public void run() {
+                ordering = calculateMetricOrder(sessionStats, numStats);
+            }
+        });
+    }
+
+    public MultiCache buildMultiCache(ImhotepLocalSession session,
+                                      int sessionIndex,
+                                      GroupLookup groupLookup,
+                                      IntValueLookup[] stats,
+                                      int numStats) {
+        this.sessionStats[sessionIndex] = Arrays.copyOf(stats, numStats);
         this.numStats = numStats;
-        final int index;
-        try {
-            index = barrier.await();
-        } catch (InterruptedException e) {
-            throw Throwables.propagate(e);
-        } catch (BrokenBarrierException e) {
-            throw Throwables.propagate(e);
-        }
-        if (index == 0) {
-            calculateMetricOrder();
-        }
+
         try {
             barrier.await();
         } catch (InterruptedException e) {
@@ -53,18 +60,30 @@ public final class MultiCacher {
         } catch (BrokenBarrierException e) {
             throw Throwables.propagate(e);
         }
-        //todo call native methods to create metric cache and set stats
-        return null;
+
+        return new MultiCache(session,
+                              flamdexDoclistAddress,
+                              session.getNumDocs(),
+                              stats,
+                              ordering,
+                              groupLookup);
     }
 
-    private void calculateMetricOrder() {
+    private static StatsOrderingInfo[] calculateMetricOrder(IntValueLookup[][] sessionStats,
+                                                            int numStats) {
         final IntArrayList booleanMetrics = new IntArrayList();
         final IntArrayList longMetrics = new IntArrayList();
         final long[] localMins = new long[numStats];
         final long[] localMaxes = new long[numStats];
+        long[] mins = new long[numStats];
+        long[] maxes = new long[numStats];
+        int[] metrics = new int[numStats];
         final int[] bits = new int[numStats];
+
+        /* initialize arrays */
         Arrays.fill(localMins, Long.MAX_VALUE);
         Arrays.fill(localMaxes, Long.MIN_VALUE);
+
         for (IntValueLookup[] stats : sessionStats) {
             for (int j = 0; j < numStats; j++) {
                 localMins[j] = Math.min(localMins[j], stats[j].getMin());
@@ -80,20 +99,20 @@ public final class MultiCacher {
                 longMetrics.add(i);
             }
         }
-        mins = new long[numStats];
-        maxes = new long[numStats];
-        metrics = new int[numStats];
         for (int i = 0; i < booleanMetrics.size(); i++) {
             final int metric = booleanMetrics.getInt(i);
             mins[i] = localMins[metric];
             maxes[i] = localMaxes[metric];
             metrics[i] = metric;
         }
+
         // do exhaustive search for up to 10 metrics
         // optimizes first for least number of vectors then least space used for group stats
         // this is impractical beyond 10 due to being O(N!)
         if (longMetrics.size() <= 10) {
-            final Permutation bestPermutation = permutations(longMetrics.toIntArray(), new ReduceFunction<int[], Permutation>() {
+            final Permutation bestPermutation;
+            bestPermutation = permutations(longMetrics.toIntArray(),
+                                           new ReduceFunction<int[], Permutation>() {
                 @Override
                 public Permutation apply(int[] ints, Permutation best) {
                     final Permutation permutation = getPermutation(ints, bits);
@@ -101,8 +120,10 @@ public final class MultiCacher {
                         permutation.order = Arrays.copyOf(ints, ints.length);
                         return permutation;
                     }
-                    if (permutation.vectorsUsed < best.vectorsUsed ||
-                            (permutation.vectorsUsed == best.vectorsUsed && permutation.statsSpace < best.statsSpace)) {
+                    if (permutation.vectorsUsed < best.vectorsUsed
+                            || (permutation.vectorsUsed == best.vectorsUsed
+                                    && permutation.statsSpace < best.statsSpace)
+                            ) {
                         // kinda strange for this to be mutable but only copy if better
                         permutation.order = Arrays.copyOf(ints, ints.length);
                         return permutation;
@@ -165,6 +186,8 @@ public final class MultiCacher {
             mins[i] = localMins[metrics[i]];
             maxes[i] = localMaxes[metrics[i]];
         }
+
+        return metrics;
     }
 
     private static <B> B permutations(int[] ints, ReduceFunction<int[],B> f, B initial) {
@@ -206,11 +229,31 @@ public final class MultiCacher {
         time += System.nanoTime();
         System.out.println(time / 1000000d);
 
-        final MultiCacher multiCacher = new MultiCacher(1);
-        multiCacher.createMultiCache(0, null, new IntValueLookup[]{new DummyIntValueLookup(0, 1), new DummyIntValueLookup(0, 255), new DummyIntValueLookup(0, 1), new DummyIntValueLookup(0, 65535), new DummyIntValueLookup(0, 1), new DummyIntValueLookup(0, Long.MAX_VALUE), new DummyIntValueLookup(0, 1), new DummyIntValueLookup(0, 1000000), new DummyIntValueLookup(0, 1), new DummyIntValueLookup(0, Long.MAX_VALUE), new DummyIntValueLookup(0, Long.MAX_VALUE), new DummyIntValueLookup(0, Integer.MAX_VALUE*65536L), new DummyIntValueLookup(0, Integer.MAX_VALUE*65536L), new DummyIntValueLookup(0, Integer.MAX_VALUE*65536L), new DummyIntValueLookup(0, Integer.MAX_VALUE*65536L), new DummyIntValueLookup(0, Integer.MAX_VALUE*65536L), new DummyIntValueLookup(0, Integer.MAX_VALUE*65536L), new DummyIntValueLookup(0, Integer.MAX_VALUE*65536L)}, 18);
-        System.out.println(Arrays.toString(multiCacher.metrics));
-        System.out.println(Arrays.toString(multiCacher.mins));
-        System.out.println(Arrays.toString(multiCacher.maxes));
+        final MultiCacheConfig multiCacher = new MultiCacheConfig(1);
+        multiCacher.buildMultiCache(0,
+                                    null,
+                                    new IntValueLookup[]{new DummyIntValueLookup(0, 1),
+                                            new DummyIntValueLookup(0, 255),
+                                            new DummyIntValueLookup(0, 1),
+                                            new DummyIntValueLookup(0, 65535),
+                                            new DummyIntValueLookup(0, 1),
+                                            new DummyIntValueLookup(0, Long.MAX_VALUE),
+                                            new DummyIntValueLookup(0, 1),
+                                            new DummyIntValueLookup(0, 1000000),
+                                            new DummyIntValueLookup(0, 1),
+                                            new DummyIntValueLookup(0, Long.MAX_VALUE),
+                                            new DummyIntValueLookup(0, Long.MAX_VALUE),
+                                            new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L),
+                                            new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L),
+                                            new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L),
+                                            new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L),
+                                            new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L),
+                                            new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L),
+                                            new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L)},
+                                    18);
+//        System.out.println(Arrays.toString(multiCacher.metrics));
+//        System.out.println(Arrays.toString(multiCacher.mins));
+//        System.out.println(Arrays.toString(multiCacher.maxes));
     }
 
     private static final class Permutation {
@@ -224,7 +267,7 @@ public final class MultiCacher {
         }
     }
 
-    private Permutation getPermutation(int[] permutation, int[] bits) {
+    private static Permutation getPermutation(int[] permutation, int[] bits) {
         int vectors = 1;
         int currentVectorStats = 0;
         int index = 4;
