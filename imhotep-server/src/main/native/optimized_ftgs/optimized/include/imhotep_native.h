@@ -196,5 +196,6 @@ void unpacked_table_add_rows(unpacked_table_t* src_table,
 int remap_docs_in_target_groups(packed_table_t* doc_id_group,
                                 int*            results,
                                 uint8_t*        doc_id_stream,
+                                size_t          n_doc_ids,
                                 int*            remappings,
                                 long            placeholder_group);

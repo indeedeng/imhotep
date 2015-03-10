@@ -15,12 +15,24 @@ C_FILES := $(wildcard src/*.c)
 H_FILES := $(wildcard include/*.h)
 OBJ_FILES := $(addprefix obj/,$(notdir $(C_FILES:.c=.o)))
 
-TEST_OBJS=obj/bit_tree.o obj/circ_buf.o obj/packed_table.o obj/unpacked_table.o obj/tgs.o obj/varintdecode.o obj/table_accumulate.o obj/local_session.o obj/socket.o
+TEST_OBJS=obj/bit_tree.o         \
+	        obj/circ_buf.o         \
+	        obj/groups.o           \
+          obj/local_session.o    \
+          obj/packed_table.o     \
+          obj/socket.o           \
+          obj/table_accumulate.o \
+          obj/tgs.o              \
+          obj/unpacked_table.o   \
+          obj/varintdecode.o
+
+
 TEST_CIRC_BUF_OBJS=$(TEST_OBJS) obj/test_circ_buf.o
+TEST_GROUPS_OBJS=$(TEST_OBJS) obj/test_groups.o
 TEST_PACKED_SHARD_OBJS=$(TEST_OBJS) obj/test_packed_shard.o
 TEST_TGS_OBJS=$(TEST_OBJS) obj/test_tgs.o
 TEST_VARINTDECODE_OBJS=$(TEST_OBJS) obj/test_varintdecode.o
-TESTS := test_circ_buf test_packed_shard test_tgs #test_varintdecode
+TESTS := test_circ_buf test_groups test_packed_shard test_tgs test_varintdecode
 
 
 $(ODIR)/%.o: src/%.c $(H_FILES)
@@ -30,12 +42,15 @@ $(ODIR)/%.o: src/%.cpp $(H_FILES)
 	$(CC) -c -o $@ $< $(CPPFLAGS)
 
 native_lib: $(OBJ_FILES)
-	$(CC) $(LFLAGS) $(LIBS) -o $@ $^ 
+	$(CC) $(LFLAGS) $(LIBS) -o $@ $^
 
 .PHONY: clean
 
 test_circ_buf: $(TEST_CIRC_BUF_OBJS)
 	$(CC) $ -o test_circ_buf $(TEST_CIRC_BUF_OBJS) $(LIBS) -lstdc++
+
+test_groups: $(TEST_GROUPS_OBJS)
+	$(CC) $ -o test_groups $(TEST_GROUPS_OBJS) $(LIBS) -lstdc++
 
 test_packed_shard: $(TEST_PACKED_SHARD_OBJS)
 	$(CC) $ -o test_packed_shard $(TEST_PACKED_SHARD_OBJS) $(LIBS) -lstdc++

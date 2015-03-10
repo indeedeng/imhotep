@@ -2,11 +2,7 @@
 #include "imhotep_native.h"
 #include "varintdecode.h"
 
-/* JNI implementation of:
-   MultiRegroupInternals.remapDocsInTargetGroups()
-
-   GroupLookup will be a MultiCacheIntValueLookup
-*/
+#include <stdio.h>
 
 #define likely(x)   __builtin_expect((x),1)
 #define unlikely(x) __builtin_expect((x),0)
@@ -21,6 +17,14 @@ static int multi_remap_core(packed_table_t* doc_id_group,
                             long            placeholder_group)
 {
   for (int count = 0; count < n_docs; ++count) {
+
+    if (likely(n_docs - count > PREFETCH_DISTANCE)) {
+      const int prefetch_doc_id = doc_ids[count + PREFETCH_DISTANCE];
+      __v16qi * prefetch_addr   = packed_table_get_row_addr(doc_id_group, prefetch_doc_id);
+      _mm_prefetch(prefetch_addr, _MM_HINT_T0);
+      _mm_prefetch(&results[prefetch_doc_id], _MM_HINT_T0);
+    }
+
     const int  doc_id    = doc_ids[count];
     const long old_group = packed_table_get_group(doc_id_group, doc_id);
     if (likely(old_group != 0)) {
@@ -42,11 +46,12 @@ static int multi_remap_core(packed_table_t* doc_id_group,
 int remap_docs_in_target_groups(packed_table_t* doc_id_group,
                                 int*            results,
                                 uint8_t*        delta_compressed_doc_ids,
+                                size_t          n_doc_ids,
                                 int*            remappings,
                                 long            placeholder_group)
 {
   uint32_t doc_id_buf[TGS_BUFFER_SIZE];
-  int      n_docs_remaining = 0;
+  int      n_docs_remaining = n_doc_ids;
   int      last_value       = 0;
   uint8_t* read_addr        = delta_compressed_doc_ids;
 
@@ -62,4 +67,5 @@ int remap_docs_in_target_groups(packed_table_t* doc_id_group,
   }
   return 0;
 }
+
 

@@ -1,5 +1,5 @@
 /** @file test_varintdecode.cpp
-    
+
     Rudimentary sanity check of varintdecode functionality.
  */
 #include "test_utils.h"
@@ -17,12 +17,14 @@ int main(int argc, char* argv[])
   int status(EXIT_SUCCESS);
   constexpr size_t count = 100;
 
-  array<uint8_t, count> deltas;
-  fill(deltas.begin(), deltas.end(), 1);
+  size_t increment(argc == 2 ? atoi(argv[1]) : 1);
+
+  array<uint16_t, count> deltas;
+  fill(deltas.begin(), deltas.end(), increment);
   deltas[0] = 0;
 
   array<uint32_t, count> expected;
-  for (size_t i(0); i < count; ++i) { expected[i] = i; }
+  for (size_t i(0), next(0); i < count; ++i, next += increment) { expected[i] = next; }
 
   vector<uint8_t> buffer;
   varint_encode(deltas.begin(), deltas.end(), buffer);
@@ -39,7 +41,9 @@ int main(int argc, char* argv[])
 
   if (expected != results) {
     cout << "FAIL: roundtrip coding failed"
+         << endl
          << " expected: " << expected
+         << endl
          << "  results: " << results
          << endl;
     status = EXIT_FAILURE;

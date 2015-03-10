@@ -7,22 +7,16 @@ extern "C" {
 
 #include "test_utils.h"
 
-#include <algorithm>
-#include <array>
 #include <cstdlib>
 #include <functional>
 #include <iomanip>
-#include <iostream>
 #include <map>
+#include <memory>
 #include <set>
 #include <sstream>
 #include <vector>
 
 using namespace std;
-
-typedef int     DocId;
-typedef int32_t GroupId;
-typedef int64_t Metric;
 
 typedef function<Metric(size_t index)>             MinMaxFunc;
 typedef function<DocId(size_t index)>              DocIdFunc;
@@ -32,25 +26,11 @@ typedef function<Metric(int64_t min, int64_t max, size_t metric_num, size_t row_
 typedef vector<int>  DocIds;
 typedef set<int64_t> GroupIds;
 
-
-template <size_t n_metrics>
-struct Metrics : public array<Metric, n_metrics>
-{
-  Metrics() { fill(this->begin(), this->end(), 0); }
-};
-
-template <size_t n_metrics>
-ostream& operator<<(ostream& os, const Metrics<n_metrics>& row) {
-  for (auto element: row) os << element << " ";
-  return os;
-}
-
 template <size_t n_metrics>
 ostream& operator<<(ostream& os, const vector<Metrics<n_metrics>>& rows) {
   for (auto row: rows) os << row << endl;
   return os;
 }
-
 
 template <size_t n_metrics>
 struct GroupStats : public map<GroupId, Metrics<n_metrics>>
@@ -79,13 +59,37 @@ public:
   { }
 };
 
+template <size_t n_metrics>
+class StorageFactory
+{
+  typedef Entry<n_metrics> Entry;
+  typedef vector<Entry>    Storage;
+  typedef map<size_t, shared_ptr<Storage>> Cache;
+  Cache _cache;
+ public:
+  Storage& get(size_t n_docs) {
+    typename Cache::iterator it(_cache.find(n_docs));
+    if (it == _cache.end()) {
+      shared_ptr<Storage> storage(new Storage());
+      storage->reserve(n_docs);
+      it = _cache.insert(make_pair(n_docs, storage)).first;
+    }
+    it->second->clear();
+    return *(it->second);
+  }
+};
 
 template <size_t n_metrics>
-class Table : public vector<Entry<n_metrics>>
+class Table
 {
+  typedef vector<Entry<n_metrics>> Storage;
   typedef Metrics<n_metrics>       Metrics;
   typedef Entry<n_metrics>         Entry;
   typedef multimap<GroupId, Entry> EntriesByGroup;
+
+  static StorageFactory<n_metrics> _storage_factory;
+
+  Storage& _storage;
 
   Metrics _mins;
   Metrics _maxes;
@@ -96,12 +100,13 @@ class Table : public vector<Entry<n_metrics>>
         const MinMaxFunc&  max_func,
         const DocIdFunc&   doc_id_func,
         const GroupIdFunc& group_id_func,
-        const MetricFunc&  metric_func) {
+        const MetricFunc&  metric_func)
+    : _storage(_storage_factory.get(n_docs)) {
 
     for (size_t metric_index(0); metric_index < n_metrics; ++metric_index) {
       _mins[metric_index]  = min_func(metric_index);
       _maxes[metric_index] = max_func(metric_index);
-    }      
+    }
 
     for (size_t doc_index(0); doc_index < n_docs; ++doc_index) {
       DocId   doc_id(doc_id_func(doc_index));
@@ -113,37 +118,39 @@ class Table : public vector<Entry<n_metrics>>
         value = max(_maxes[metric_index], value);
         entry.metrics[metric_index] = value;
       }
-      this->push_back(entry);
+      _storage.push_back(entry);
     }
   }
+
+  size_t size() const { return _storage.size(); }
 
   Metrics mins()  const { return _mins;  }
   Metrics maxes() const { return _maxes; }
 
   DocIds doc_ids() const {
     DocIds result;
-    transform(this->begin(), this->end(), back_inserter(result),
+    transform(_storage.begin(), _storage.end(), back_inserter(result),
               [](const Entry& entry) { return entry.doc_id; });
     return result;
   }
 
   vector<GroupId> flat_group_ids() const {
     vector<GroupId> result;
-    transform(this->begin(), this->end(), back_inserter(result),
+    transform(_storage.begin(), _storage.end(), back_inserter(result),
               [](const Entry& entry) { return entry.group_id; });
     return result;
   }
 
   GroupIds group_ids() const {
     GroupIds result;
-    transform(this->begin(), this->end(), inserter(result, result.begin()),
+    transform(_storage.begin(), _storage.end(), inserter(result, result.begin()),
               [](const Entry& entry) { return entry.group_id; });
     return result;
   }
 
   EntriesByGroup entries_by_group() const {
     EntriesByGroup result;
-    for (auto entry: *this) {
+    for (auto entry: _storage) {
       result.insert(make_pair(entry.group_id, entry));
     }
     return result;
@@ -151,14 +158,14 @@ class Table : public vector<Entry<n_metrics>>
 
   vector<Metric> metrics(size_t metric_index) const {
     vector<Metric> result;
-    transform(this->begin(), this->end(), inserter(result, result.begin()),
+    transform(_storage.begin(), _storage.end(), inserter(result, result.begin()),
               [metric_index, &result](const Entry& entry) { return entry.metrics[metric_index]; });
     return result;
   }
 
   vector<Metrics> metrics() const {
     vector<Metrics> result;
-    for_each(this->begin(), this->end(),
+    for_each(_storage.begin(), _storage.end(),
              [&result](const Entry& entry) { result.push_back(entry.metrics); });
     return result;
   }
@@ -173,11 +180,7 @@ class Table : public vector<Entry<n_metrics>>
       for_each(range.first, range.second,
                [&] (const typename EntriesByGroup::value_type& value) {
                  for (size_t metric_index(0); metric_index < n_metrics; ++metric_index) {
-//                   if (!is_boolean(metric_index)) {
                      row[metric_index] += value.second.metrics[metric_index];
-//                   } else {
-//                     row[metric_index] = max(row[metric_index], value.second.metrics[metric_index]);
-//                   }
                  }
                });
       result.insert(make_pair(group_id, row));
@@ -191,6 +194,7 @@ class Table : public vector<Entry<n_metrics>>
   }
 };
 
+template <size_t n_metrics> StorageFactory<n_metrics> Table<n_metrics>::_storage_factory;
 
 template <size_t n_metrics>
 struct Shard
