@@ -130,6 +130,7 @@ int packed_table_get_size(packed_table_t *table);
 int packed_table_get_row_size(packed_table_t *table);
 int packed_table_get_rows(packed_table_t *table);
 int packed_table_get_cols(packed_table_t *table);
+__v16qi * packed_table_get_row_addr(packed_table_t *table, int row);
 
 long packed_table_get_cell(packed_table_t *table, int row, int column);
 void packed_table_set_cell(packed_table_t *table, int row, int col, long value);

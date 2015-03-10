@@ -304,6 +304,10 @@ int packed_table_get_cols(packed_table_t *table)
     return table->n_cols;
 }
 
+__v16qi * packed_table_get_row_addr(packed_table_t *table, int row)
+{
+    return &table->data[row * table->row_size];
+}
 
 /*
  * Shared cell accessors and setters
