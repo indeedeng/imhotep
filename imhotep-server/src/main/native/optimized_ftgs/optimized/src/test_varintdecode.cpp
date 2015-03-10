@@ -17,9 +17,11 @@ int main(int argc, char* argv[])
   int status(EXIT_SUCCESS);
   constexpr size_t count = 100;
 
+  simdvbyteinit();
+
   size_t increment(argc == 2 ? atoi(argv[1]) : 1);
 
-  array<uint16_t, count> deltas;
+  array<uint32_t, count> deltas;
   fill(deltas.begin(), deltas.end(), increment);
   deltas[0] = 0;
 

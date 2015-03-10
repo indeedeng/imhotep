@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-void init(void);
+void simdvbyteinit(void);
 
 size_t masked_vbyte_read_loop_delta(const uint8_t* in, uint32_t* out,
 		uint64_t length, uint32_t prev);

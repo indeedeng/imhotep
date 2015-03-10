@@ -34,50 +34,39 @@ void varint_encode(iterator begin, iterator end, buffer_t& out)
   while (current != end) {
     int_t value(*current);
 
-      if (value < 0) {
+    if (value < 0) {
       *result++ = ((value&0x7F) | 0x80);
       *result++ =(((value>>7)&0x7F) | 0x80);
       *result++ =(((value>>14)&0x7F) | 0x80);
       *result++ =(((value>>21)&0x7F) | 0x80);
       *result++ =(((value>>28)&0x7F) | 0x80);
-      }
-      else if (value < 1 << 7) {
+    }
+    else if (value < 1 << 7) {
       *result++ = value;
-      }
-      else if (value < 1 << 14) {
+    }
+    else if (value < 1 << 14) {
       *result++ =((value&0x7F) | 0x80);
       *result++ =(value>>7);
-      }
-      else if (value < 1 << 21) {
+    }
+    else if (value < 1 << 21) {
       *result++ =((value&0x7F) | 0x80);
       *result++ =(((value>>7)&0x7F) | 0x80);
       *result++ =(value>>14);
-      }
-      else if (value < 1 << 28) {
+    }
+    else if (value < 1 << 28) {
       *result++ =((value&0x7F) | 0x80);
       *result++ =(((value>>7)&0x7F) | 0x80);
       *result++ =(((value>>14)&0x7F) | 0x80);
       *result++ =(value>>21);
-      }
-      else {
+    }
+    else {
       *result++ =((value&0x7F) | 0x80);
       *result++ =(((value>>7)&0x7F) | 0x80);
       *result++ =(((value>>14)&0x7F) | 0x80);
       *result++ =(((value>>21)&0x7F) | 0x80);
       *result++ =(value>>28);
-      }
-      ++current;
-
-      /*
-    while (value > 127) {
-      *result = static_cast<uint8_t>(value & 127) | 128;
-      ++result;
-      value >>= 7;
     }
-    *result = static_cast<uint8_t>(value & 127);
-    ++result;
     ++current;
-      */
   }
 }
 
