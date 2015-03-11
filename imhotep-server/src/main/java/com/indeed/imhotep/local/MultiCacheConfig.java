@@ -30,12 +30,19 @@ public final class MultiCacheConfig {
     private StatsOrderingInfo[] ordering;
 
     public static class StatsOrderingInfo {
-        public IntValueLookup lookup;
-        public long min;
-        public long max;
-        public int sizeInBytes;
-        public int vectorNum;
-        public int offsetInVector;
+        public final long min;
+        public final long max;
+        public final int sizeInBytes;
+        public final int vectorNum;
+        public final int offsetInVector;
+
+        public StatsOrderingInfo(long min, long max, int sizeInBytes, int vectorNum, int offsetInVector) {
+            this.min = min;
+            this.max = max;
+            this.sizeInBytes = sizeInBytes;
+            this.vectorNum = vectorNum;
+            this.offsetInVector = offsetInVector;
+        }
     }
 
     private List<IntList> vectorMetrics;
@@ -66,13 +73,13 @@ public final class MultiCacheConfig {
         } catch (BrokenBarrierException e) {
             throw Throwables.propagate(e);
         }
-
-        return new MultiCache(session,
-                              flamdexDoclistAddress,
-                              session.getNumDocs(),
-                              stats,
-                              ordering,
-                              groupLookup);
+        return null; //todo
+//        return new MultiCache(session,
+//                              0, //todo flamdexDoclistAddress,
+//                              session.getNumDocs(),
+//                              stats,
+//                              ordering,
+//                              groupLookup);
     }
 
     private static StatsOrderingInfo[] calculateMetricOrder(IntValueLookup[][] sessionStats,
@@ -111,6 +118,8 @@ public final class MultiCacheConfig {
             maxes[i] = localMaxes[metric];
             metrics[i] = metric;
         }
+
+        final List<IntList> vectorMetrics = new ArrayList<IntList>();
 
         // do exhaustive search for up to 10 metrics
         // optimizes first for least number of vectors then least space used for group stats
@@ -213,15 +222,20 @@ public final class MultiCacheConfig {
             }
         }
         final List<IntList> sizes = new ArrayList<IntList>();
-        for (IntList list : vectorMetrics) {
-            final IntList sizeList = new IntArrayList();
-            for (int metric : list) {
-                sizeList.add((bits[metric]+7)/8);
-            }
-            sizes.add(sizeList);
+        System.out.println(sizes);
+        final StatsOrderingInfo[] ret = new StatsOrderingInfo[numStats];
+        for (int i = 0; i < booleanMetrics.size(); i++) {
+            final int metric = booleanMetrics.getInt(i);
+            ret[metric] = new StatsOrderingInfo(mins[metric], maxes[metric], 0, -1, -1);
         }
-
-        return metrics;
+        for (int i = 0; i < vectorMetrics.size(); i++) {
+            final IntList list = vectorMetrics.get(i);
+            for (int j = 0; j < list.size(); j++) {
+                final int metric = list.get(j);
+                ret[metric] = new StatsOrderingInfo(mins[metric], maxes[metric], bits[metric], i, j);
+            }
+        }
+        return ret;
     }
 
     private static <B> B permutations(int[] ints, ReduceFunction<int[],B> f, B initial) {
@@ -264,7 +278,8 @@ public final class MultiCacheConfig {
         System.out.println(time / 1000000d);
 
         final MultiCacheConfig multiCacher = new MultiCacheConfig(1);
-        multiCacher.buildMultiCache(0,
+        multiCacher.buildMultiCache(null,
+                                    0,
                                     null,
                                     new IntValueLookup[]{new DummyIntValueLookup(0, 1),
                                             new DummyIntValueLookup(0, 255),
@@ -285,9 +300,6 @@ public final class MultiCacheConfig {
                                             new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L),
                                             new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L)},
                                     18);
-//        System.out.println(Arrays.toString(multiCacher.metrics));
-//        System.out.println(Arrays.toString(multiCacher.mins));
-//        System.out.println(Arrays.toString(multiCacher.maxes));
     }
 
     private static final class Permutation {

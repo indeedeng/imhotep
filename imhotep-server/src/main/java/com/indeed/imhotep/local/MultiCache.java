@@ -32,6 +32,7 @@ public final class MultiCache implements Closeable {
                       long flamdexDoclistAddress,
                       int numDocsInShard,
                       MultiCacheConfig.StatsOrderingInfo[] ordering,
+                      IntValueLookup[] stats,
                       GroupLookup groupLookup) {
         this.session = session;
         this.flamdexDoclistAddress = flamdexDoclistAddress;
@@ -54,7 +55,7 @@ public final class MultiCache implements Closeable {
             this.nativeMetricLookups.add(metricLookup);
 
             /* copy data into multicache */
-            copyValues(orderInfo.lookup, numDocsInShard, i);
+            copyValues(stats[i], numDocsInShard, i);
         }
     }
 
@@ -82,7 +83,7 @@ public final class MultiCache implements Closeable {
                                      this.numStats);
     }
 
-    private final void copyValues(IntValueLookup original, int numDocsInShard, int metricId) {
+    private void copyValues(IntValueLookup original, int numDocsInShard, int metricId) {
         final int[] idBuffer = new int[BLOCK_COPY_SIZE];
         final long[] valBuffer = new long[BLOCK_COPY_SIZE];
 
@@ -97,7 +98,7 @@ public final class MultiCache implements Closeable {
         }
     }
 
-    private final void copyGroups(GroupLookup original, int numDocsInShard) {
+    private void copyGroups(GroupLookup original, int numDocsInShard) {
         final int[] groupBuffer = new int[BLOCK_COPY_SIZE];
 
         for (int start = 0; start < numDocsInShard; start += BLOCK_COPY_SIZE) {
