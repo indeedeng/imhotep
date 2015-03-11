@@ -1,3 +1,4 @@
+#pragma once
 
 int run_tgs_pass(struct worker_desc *worker,
                  struct session_desc *session,
@@ -8,7 +9,9 @@ int run_tgs_pass(struct worker_desc *worker,
                  int *docs_per_shard,
                  int *shard_handles,
                  int num_shard,
-                 int socket_fd);
+                 int socket_fd,
+                 struct runtime_err *error);
+
 //This method assumes that the boolean metrics will come first
 packed_table_t *create_shard_multicache(uint32_t n_docs,
                                         int64_t *metric_mins,

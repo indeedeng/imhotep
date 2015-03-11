@@ -284,6 +284,8 @@ public:
 
     array<int, 1> docs_in_term{{static_cast<int>(_table.doc_ids().size())}};
 
+    struct runtime_err error;
+
     run_tgs_pass(&_worker,
                  &_session,
                  TERM_TYPE_INT,
@@ -293,8 +295,8 @@ public:
                  docs_in_term.data(),
                  shard_handles.data(),
                  1,
-                 socket_file_desc[0]);
-
+                 socket_file_desc[0],
+                 &error);
   }
 
   ~TGSTest() {

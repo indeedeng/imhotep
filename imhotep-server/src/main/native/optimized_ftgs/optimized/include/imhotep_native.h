@@ -4,13 +4,17 @@
 #include <smmintrin.h>
 #include <tmmintrin.h>
 #include <pmmintrin.h>
+#include <malloc.h>
+#include <stdlib.h>
 #include <stdint.h>
 #include "bit_tree.h"
 
-#define TERM_TYPE_STRING						0
-#define TERM_TYPE_INT                           1
+#define TERM_TYPE_STRING 0
+#define TERM_TYPE_INT    1
 
-#define PREFETCH_DISTANCE                       8
+#define PREFETCH_DISTANCE 8
+
+#define SIZE_OF_ERRSTR 256
 
 #define ALIGNED_ALLOC(alignment, size) ((alignment) < (size)) ? aligned_alloc(alignment,size) : aligned_alloc(alignment,alignment);
 
@@ -27,11 +31,17 @@ struct bit_fields_and_group {
 	uint32_t metrics :4;
 };
 
+struct runtime_err {
+    int  code;
+    char str[SIZE_OF_ERRSTR];
+};
+
 struct buffered_socket {
     int socket_fd;
     uint8_t* buffer;
     size_t buffer_ptr;
     size_t buffer_len;
+    struct runtime_err* err;   // NULL unless a syscall error occurred
 };
 
 struct worker_desc {
@@ -112,6 +122,7 @@ int slice_copy_range(uint8_t* slice,
 
 void socket_init(struct buffered_socket *socket, uint32_t fd);
 void socket_destroy(struct buffered_socket *socket);
+void socket_capture_error(struct buffered_socket *socket, int code);
 
 void lookup_and_accumulate_grp_stats(
                                    packed_table_t *src_table,

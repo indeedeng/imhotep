@@ -15,7 +15,8 @@ int run_tgs_pass(struct worker_desc *worker,
                  int *docs_per_shard,
                  int *shard_handles,
                  int num_shard,
-                 int socket_fd)
+                 int socket_fd,
+                 struct runtime_err *error)
 {
 	struct tgs_desc desc;
 	struct buffered_socket *socket;
@@ -57,28 +58,33 @@ int run_tgs_pass(struct worker_desc *worker,
 	previous_term = worker->prev_term_by_socket[curr_socket_idx];
 
 	/* init the tsg struct */
-	tgs_init(worker, 
-	         &desc, 
-	         term_type, 
-	         current_term, 
-	         previous_term, 
-	         addresses, 
-	         docs_per_shard, 
-	         shard_handles, 
-	         num_shard, 
-	         socket, 
+	tgs_init(worker,
+	         &desc,
+	         term_type,
+	         current_term,
+	         previous_term,
+	         addresses,
+	         docs_per_shard,
+	         shard_handles,
+	         num_shard,
+	         socket,
 	         session);
-	         
+
 	/* save just in case ... something? */
 	session->current_tgs_pass = &desc;
 
 	/* do the Term Group Stats accumulation pass */
 	int err;
 	err = tgs_execute_pass(worker, session, &desc);
+  if (err != 0) {
+    if (desc.socket->err && error) {
+      memcpy(error, desc.socket->err, sizeof(struct runtime_err));
+    }
+  }
 
 	/* clean up the tgs structure */
 	tgs_destroy(&desc);
-	
+
 	/* save the current term as previous, free previous term */
 	worker->prev_term_by_socket[curr_socket_idx] = current_term;
 	if (previous_term != NULL) {
@@ -124,7 +130,7 @@ void session_init(struct session_desc *session,
     memcpy(session->stat_order, stat_order, n_stats);
     session->num_shards = n_shards;
     session->current_tgs_pass = NULL;
-  
+
     session->temp_buf = NULL;
 
     shards = (packed_table_t **)calloc(n_shards, sizeof(packed_table_t *));
@@ -134,10 +140,8 @@ void session_init(struct session_desc *session,
 void session_destroy(struct session_desc *session)
 {
     packed_table_t **shards;
-    int n_shards;
 
     shards = session->shards;
-    n_shards = session->num_shards;
 		if (session->temp_buf) unpacked_table_destroy(session->temp_buf);
     free(session->stat_order);
     free(shards);
@@ -145,51 +149,49 @@ void session_destroy(struct session_desc *session)
 
 #define DEFAULT_BUFFER_SIZE				8192
 
-void worker_init(struct worker_desc *worker, 
-                 int id, 
+void worker_init(struct worker_desc *worker,
+                 int id,
                  int num_groups,
-                 int n_metrics, 
-                 int *socket_fds, 
+                 int n_metrics,
+                 int *socket_fds,
                  int num_sockets)
 {
 	worker->id = id;
 	worker->buffer_size = DEFAULT_BUFFER_SIZE;
     worker->grp_stats = NULL;
 	worker->grp_buf = circular_buffer_int_alloc(CIRC_BUFFER_SIZE);
-	
+
 	worker->num_sockets = num_sockets;
 	worker->sockets = calloc(num_sockets, sizeof(struct buffered_socket));
 	for (int i = 0; i < num_sockets; i++) {
 		socket_init(&worker->sockets[i], socket_fds[i]);
 	}
-	
+
 	worker->prev_term_by_socket = calloc(num_sockets, sizeof(union term_union *));
 }
 
 void worker_destroy(struct worker_desc *worker)
 {
     unpacked_table_destroy(worker->grp_stats);
-	
+
 	/* free socket and term entries */
 	for (int i = 0; i < worker->num_sockets; i++) {
 		socket_destroy(&worker->sockets[i]);
-		
+
 		/* free previous term tracking entries */
 		union term_union *t = worker->prev_term_by_socket[i];
 		if (t != NULL) {
 			free(t);
 		}
 	}
-	
+
 	/* free socket array */
 	free(worker->sockets);
-	
+
 	/* free the intermediate buffers */
 	circular_buffer_int_cleanup(worker->grp_buf);
 //	free(worker->metric_buf);
-	
+
 	/* free previous term array */
 	free(worker->prev_term_by_socket);
 }
-
-

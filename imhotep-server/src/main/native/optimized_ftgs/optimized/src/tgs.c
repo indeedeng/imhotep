@@ -25,12 +25,12 @@ static unpacked_table_t *allocate_grp_stats(struct worker_desc *desc,
 		}
 
 		assert(1 == 1);  /* we should never get here */
-	
+
 		if (desc->buffer_size >= gs_size) {
 				// our buffer is large enough already;
 				return desc->grp_stats;
 		}
-	
+
 		unpacked_table_destroy(desc->grp_stats);
 		// TODO: maybe resize smarter
 		desc->buffer_size = gs_size;
@@ -86,7 +86,7 @@ int tgs_execute_pass(struct worker_desc *worker,
 	unpacked_table_t *group_stats;
 	int n_slices = desc->n_slices;
 	struct index_slice_info *infos = desc->slices;
-    
+
     if (desc->n_slices <= 0) {
         return -1;
     }
@@ -123,7 +123,7 @@ int tgs_execute_pass(struct worker_desc *worker,
 			last_value = doc_id_buf[count - 1];
 		}
 	}
-	
+
 //	compress_and_send_data(desc, session, group_stats);
 	return 0;
 }

@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <mmintrin.h>
 #include <string.h>
 #include <unistd.h>
@@ -28,7 +29,10 @@ static int flush_buffer(struct buffered_socket* socket) {
     size_t write_ptr = 0;
     while (write_ptr < socket->buffer_ptr) {
         ssize_t written = write(socket->socket_fd, socket->buffer, socket->buffer_len);
-        if (written == -1) return -1;
+        if (written == -1) {
+          socket_capture_error(socket, errno);
+          return -1;
+        }
         write_ptr += written;
     }
     socket->buffer_ptr = 0;
@@ -146,7 +150,7 @@ int write_group_stats(struct buffered_socket* socket, uint32_t* groups, size_t t
             prefetch_group = groups[i+PREFETCH_DISTANCE];
             prefetch_start = group_stats+prefetch_group*stats_size;
         }
-        
+
         for (; stat_index <= num_stats-8; stat_index += 8) {
             int64_t stat;
             stat = group_stats[group*stats_size+stat_order[stat_index]+0];
@@ -165,7 +169,7 @@ int write_group_stats(struct buffered_socket* socket, uint32_t* groups, size_t t
             TRY(write_svint64(socket, stat));
             stat = group_stats[group*stats_size+stat_order[stat_index]+7];
             TRY(write_svint64(socket, stat));
-            
+
             if (prefetch) {
                 _mm_prefetch(prefetch_start+stat_index, _MM_HINT_T0);
             }
