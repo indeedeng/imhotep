@@ -64,11 +64,11 @@ int main(int argc, char* argv[])
 
   simdvbyteinit();
 
-  static constexpr size_t n_metrics = 5;
+  static constexpr size_t n_metrics = 32;
 
   Metrics<n_metrics> mins, maxes;
   fill(mins.begin(),  mins.end(),  0);
-  fill(maxes.begin(), maxes.end(), 0xefff);
+  fill(maxes.begin(), maxes.end(), 0xefffff);
 
   vector<DocId> doc_ids(n_docs);
   DocId current(0);
@@ -93,7 +93,7 @@ int main(int argc, char* argv[])
   while (batch_begin != doc_ids.end()) {
     buffer.clear();
 
-    const size_t            batch_size(min(long(1024), distance(batch_begin, doc_ids.end())));
+    const size_t            batch_size(min(long(2048), distance(batch_begin, doc_ids.end())));
     vector<DocId>::iterator batch_end(batch_begin + batch_size);
 
     vector<DocId> batch(batch_begin, batch_end);
