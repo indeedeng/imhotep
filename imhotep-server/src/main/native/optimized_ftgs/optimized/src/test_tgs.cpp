@@ -4,8 +4,8 @@ extern "C" {
 #include "imhotep_native.h"
 #include "local_session.h"
 }
-
 #include "test_utils.h"
+#include "varintdecode.h"
 
 #include <cstdlib>
 #include <functional>
@@ -347,6 +347,8 @@ int main(int argc, char* argv[])
     n_docs   = atoi(argv[1]);
     n_groups = atoi(argv[2]);
   }
+
+  simdvbyteinit();
 
   vector<MetricFunc> metric_funcs = {
     [](int64_t min_val, int64_t max_val, size_t metric_num, size_t row_num) { return min_val; },

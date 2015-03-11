@@ -3,8 +3,8 @@ extern "C" {
 #include "imhotep_native.h"
 #include "local_session.h"
 }
-
 #include "test_utils.h"
+#include "varintdecode.h"
 
 #include <algorithm>
 #include <array>
@@ -53,7 +53,6 @@ int main(int argc, char* argv[])
   size_t n_groups(100);
 
   if (argc != 3) {
-    //    cerr << "usage: " << argv[0] << " <n_docs> <n_groups>" << endl;
     cerr << "defaulting to n_docs: " << n_docs
          << " n_groups: "            << n_groups
          << endl;
@@ -62,6 +61,8 @@ int main(int argc, char* argv[])
     n_docs       = atoi(argv[1]);
     n_groups     = atoi(argv[2]);
   }
+
+  simdvbyteinit();
 
   static constexpr size_t n_metrics = 5;
 
@@ -79,37 +80,32 @@ int main(int argc, char* argv[])
   vector<GroupId> results(shard._group_ids);
   vector<GroupId> remappings(n_groups);
   for (size_t index(0); index < remappings.size(); ++ index) {
-    //    remappings[index] = index % 3;
-    remappings[index] = 0;
+    remappings[index] = index % 3;
   }
 
   vector<GroupId> before(results);
-  // cout << "before: " << before << endl;
 
   vector<uint8_t> buffer;
-  vector<DocId> test_ids;
-  for (vector<DocId>::const_iterator it(doc_ids.begin()); it < doc_ids.end(); it += 127) {
-    test_ids.push_back(*it);
-  }
-  // doc_ids_encode(doc_ids.begin(), doc_ids.end(), buffer);
-  // remap_docs_in_target_groups(shard(), results.data(), buffer.data(), doc_ids.size(), remappings.data(), -1);
-  doc_ids_encode(test_ids.begin(), test_ids.end(), buffer);
-  remap_docs_in_target_groups(shard(), results.data(), buffer.data(), test_ids.size(), remappings.data(), -1);
 
-  /*
+  random_shuffle(doc_ids.begin(), doc_ids.end());
+
   vector<DocId>::iterator batch_begin(doc_ids.begin());
   while (batch_begin != doc_ids.end()) {
+    buffer.clear();
+
     const size_t            batch_size(min(long(1024), distance(batch_begin, doc_ids.end())));
     vector<DocId>::iterator batch_end(batch_begin + batch_size);
-    vector<uint8_t>         buffer;
-    doc_ids_encode(batch_begin, batch_end, buffer);
+
+    vector<DocId> batch(batch_begin, batch_end);
+    sort(batch.begin(), batch.end());
+    doc_ids_encode(batch.begin(), batch.end(), buffer);
     remap_docs_in_target_groups(shard(), results.data(), buffer.data(), batch_size, remappings.data(), -1);
+
     batch_begin = batch_end;
   }
-  */
+
 
   vector<GroupId> after(results);
-  // cout << "after: " << after << endl;
   cout << (equal(before.begin(), before.end(), after.begin()) ? "FAIL" : "PASS") << endl;
 
   return status;
