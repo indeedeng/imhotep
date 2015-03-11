@@ -74,11 +74,21 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_local_NativeFTGSWorker_native_1ru
                          num_shards,
                          socket_fd,
                          &error);
-  // TODO(johnf): propagate error through an exception if necessary...
 
   (*java_env)->ReleasePrimitiveArrayCritical(java_env, shard_ids_arr, shard_ids, JNI_ABORT);
   (*java_env)->ReleasePrimitiveArrayCritical(java_env, docs_per_slice_arr, docs_per_slice, JNI_ABORT);
   (*java_env)->ReleasePrimitiveArrayCritical(java_env, slice_offsets_arr, slice_offsets, JNI_ABORT);
+
+  if (err != 0) {
+      /* Note: ThrowNew() copies the message handed to it, as one
+         would expect. I could not find mention of this behavior in
+         the JNI spec, but I verified this empirically. Therefore,
+         it's okay to hand it the stack-allocated string below. */
+      jclass exClass = (*java_env)->FindClass(java_env, "java/lang/RuntimeException");
+      char message[SIZE_OF_ERRSTR];
+      snprintf(message, sizeof(message), "%s (%d) %s", __FUNCTION__, error.code, error.str);
+      (*java_env)->ThrowNew(java_env, exClass, message);
+  }
 
   return (jint)err;
 }
@@ -89,29 +99,29 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_local_NativeFTGSWorker_native_1ru
  * Signature: (J[IJI[II)V
  */
 JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiRegroupInternals_nativeRemapDocsInTargetGroups
-  (JNIEnv *java_env, jclass clazz,
-   long doc_id_group, jintArray results,
-   jlong doc_list_address, jint n_docs,
-   jintArray remappings,
-   jint placeholder_group)
+(JNIEnv *java_env, jclass clazz,
+ long doc_id_group, jintArray results,
+ jlong doc_list_address, jint n_docs,
+ jintArray remappings,
+ jint placeholder_group)
 {
-  jboolean unused           = 0;
-  jint*    results_array    = (*java_env)->GetPrimitiveArrayCritical(java_env, results, &unused);
-  jint*    remappings_array = (*java_env)->GetPrimitiveArrayCritical(java_env, remappings, &unused);
+    jboolean unused           = 0;
+    jint*    results_array    = (*java_env)->GetPrimitiveArrayCritical(java_env, results, &unused);
+    jint*    remappings_array = (*java_env)->GetPrimitiveArrayCritical(java_env, remappings, &unused);
 
-  int status = remap_docs_in_target_groups((packed_table_t*) doc_id_group,
-                                           results_array,
-                                           (uint8_t*) doc_list_address, n_docs,
-                                           remappings_array,
-                                           placeholder_group);
+    int status = remap_docs_in_target_groups((packed_table_t*) doc_id_group,
+                                             results_array,
+                                             (uint8_t*) doc_list_address, n_docs,
+                                             remappings_array,
+                                             placeholder_group);
 
-  (*java_env)->ReleasePrimitiveArrayCritical(java_env, remappings, remappings_array, JNI_ABORT);
-  (*java_env)->ReleasePrimitiveArrayCritical(java_env, results,    results_array,    0);
+    (*java_env)->ReleasePrimitiveArrayCritical(java_env, remappings, remappings_array, JNI_ABORT);
+    (*java_env)->ReleasePrimitiveArrayCritical(java_env, results,    results_array,    0);
 
-  if (status != 0) {
-    jclass exClass = (*java_env)->FindClass(java_env, "java/lang/IllegalArgumentException");
-    (*java_env)->ThrowNew(java_env, exClass,
-                          "Regrouping on a multi-valued field doesn't work correctly so the "
-                          "operation is rejected.");
-  }
+    if (status != 0) {
+        jclass exClass = (*java_env)->FindClass(java_env, "java/lang/IllegalArgumentException");
+        (*java_env)->ThrowNew(java_env, exClass,
+                              "Regrouping on a multi-valued field doesn't work correctly so the "
+                              "operation is rejected.");
+    }
 }
