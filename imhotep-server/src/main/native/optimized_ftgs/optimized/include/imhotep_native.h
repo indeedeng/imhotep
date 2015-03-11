@@ -27,8 +27,8 @@ struct unpacked_table_desc;
 typedef struct unpacked_table_desc unpacked_table_t;
 
 struct bit_fields_and_group {
-	uint32_t grp :28;
-	uint32_t metrics :4;
+    uint32_t grp :28;
+    uint32_t metrics :4;
 };
 
 struct runtime_err {
