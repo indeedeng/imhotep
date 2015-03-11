@@ -30,13 +30,15 @@ public final class MultiCacheConfig {
     private StatsOrderingInfo[] ordering;
 
     public static class StatsOrderingInfo {
+        public final int metricIndex;
         public final long min;
         public final long max;
         public final int sizeInBytes;
         public final int vectorNum;
         public final int offsetInVector;
 
-        public StatsOrderingInfo(long min, long max, int sizeInBytes, int vectorNum, int offsetInVector) {
+        public StatsOrderingInfo(int metricIndex, long min, long max, int sizeInBytes, int vectorNum, int offsetInVector) {
+            this.metricIndex = metricIndex;
             this.min = min;
             this.max = max;
             this.sizeInBytes = sizeInBytes;
@@ -224,15 +226,21 @@ public final class MultiCacheConfig {
         final List<IntList> sizes = new ArrayList<IntList>();
         System.out.println(sizes);
         final StatsOrderingInfo[] ret = new StatsOrderingInfo[numStats];
+        int metricIndex = 0;
         for (int i = 0; i < booleanMetrics.size(); i++) {
             final int metric = booleanMetrics.getInt(i);
-            ret[metric] = new StatsOrderingInfo(mins[metric], maxes[metric], 0, -1, -1);
+            ret[metric] = new StatsOrderingInfo(metricIndex, mins[metric], maxes[metric], 0, -1, -1);
+            metricIndex++;
         }
         for (int i = 0; i < vectorMetrics.size(); i++) {
             final IntList list = vectorMetrics.get(i);
+            int index = 0;
             for (int j = 0; j < list.size(); j++) {
                 final int metric = list.get(j);
-                ret[metric] = new StatsOrderingInfo(mins[metric], maxes[metric], bits[metric], i, j);
+                final int size = (bits[metric] + 7) / 8;
+                ret[metric] = new StatsOrderingInfo(metricIndex, mins[metric], maxes[metric], size, i, index);
+                index += size;
+                metricIndex++;
             }
         }
         return ret;
