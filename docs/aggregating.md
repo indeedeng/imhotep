@@ -23,11 +23,6 @@ The following group definitions are available:
     <td valign="top">field[number] <br> field[bottom number by metric]</td>
     <td valign="top">`country[5]` returns the top 5 countries by count.<br>`country[bottom 5 by clicks]` specifies the metric by which to order and uses the bottom countries instead of the top.</td>
   </tr>
-  <tr>
-    <td valign="top">Exclude results for fields in which the count() of documents in the group equals 0.<br><br>To exclude results of 0 for a single grouping, [] is not required. That is, `country` is identical to `country[]`.</td>
-    <td valign="top">field, field[]</td>
-    <td valign="top"> `country, group[]` returns results only for groups that are present in each country.<br> `country, group` returns a full cross product of countries and groups, including groups for countries where the group is not present and all metrics are 0.</td>
-  </tr>
 <tr>
     <td valign="top">Group your data into buckets by ranges you define. The values for min, min2, max, max2, interval and interval2 are numbers.<br><br>Multiple bucket statements are allowed. <br><br>If you include all bucket definitions in one statement, the size of the buckets is automatically determined. <br><br>Group your data into time buckets. The bucket size uses the same syntax as the relative values for the start and end values in the **timerange** filter. For example: Nd or Ndays. [Read more about relative values][timerange].<br><br>You can also specify the number of buckets as an absolute value.<br><br>The time() call cannot be defined inside buckets().
  </td>
