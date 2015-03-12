@@ -20,7 +20,7 @@ public final class MultiCache implements Closeable {
     private static final int MAX_GROUP_NUM = 1 << 28;
     private static final int BLOCK_COPY_SIZE = 8192;
 
-    private final long nativeShardDataPtr;
+    private long nativeShardDataPtr;
     private final int numDocsInShard;
     private final int numStats;
     private final List<MultiCacheIntValueLookup> nativeMetricLookups;
@@ -126,7 +126,22 @@ public final class MultiCache implements Closeable {
 
     @Override
     public void close() {
+        if (this.session.docIdToGroup == this.nativeGroupLookup) {
+            /*
+             * session is still using the group lookup
+             * free the native memory in the finalizer
+             */
+            return;
+        }
         nativeDestroyMultiCache(this.nativeShardDataPtr);
+        this.nativeShardDataPtr = 0;
+    }
+
+    @Override
+    protected void finalize() {
+        if (this.nativeShardDataPtr != 0) {
+            nativeDestroyMultiCache(this.nativeShardDataPtr);
+        }
     }
 
     private native void nativeDestroyMultiCache(long nativeShardDataPtr);

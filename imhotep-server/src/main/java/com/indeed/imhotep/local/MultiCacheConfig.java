@@ -233,7 +233,7 @@ public final class MultiCacheConfig {
         }
         for (int i = 0; i < vectorMetrics.size(); i++) {
             final IntList list = vectorMetrics.get(i);
-            int index = 0;
+            int index = (i == 0) ? 4 : 0;
             for (int j = 0; j < list.size(); j++) {
                 final int metric = list.get(j);
                 final int size = (bits[metric] + 7) / 8;
@@ -299,14 +299,19 @@ public final class MultiCacheConfig {
                                             new DummyIntValueLookup(0, 1),
                                             new DummyIntValueLookup(0, Long.MAX_VALUE),
                                             new DummyIntValueLookup(0, Long.MAX_VALUE),
+//                                            new DummyIntValueLookup(0, Integer.MAX_VALUE),
+//                                            new DummyIntValueLookup(0, Integer.MAX_VALUE),
+//                                            new DummyIntValueLookup(0, Integer.MAX_VALUE),
                                             new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L),
                                             new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L),
                                             new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L),
                                             new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L),
                                             new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L),
                                             new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L),
-                                            new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L)},
+                                            new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L)
+                                    },
                                     18);
+        System.out.println("Done!");
     }
 
     private static final class Permutation {
