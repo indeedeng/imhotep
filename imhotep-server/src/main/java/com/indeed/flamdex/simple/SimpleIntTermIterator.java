@@ -18,4 +18,7 @@ import com.indeed.flamdex.api.IntTermIterator;
 /**
  * @author jplaisance
  */
-public interface SimpleIntTermIterator extends IntTermIterator, SimpleTermIterator {}
+public interface SimpleIntTermIterator extends IntTermIterator, SimpleTermIterator {
+    @Deprecated
+    public long getDocListAddress();
+}

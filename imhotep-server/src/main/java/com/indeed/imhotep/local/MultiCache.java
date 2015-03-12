@@ -17,9 +17,9 @@ import java.util.List;
  */
 public final class MultiCache implements Closeable {
     private static final Logger log = Logger.getLogger(MultiCache.class);
+    private static final int MAX_GROUP_NUM = 1 << 28;
     private static final int BLOCK_COPY_SIZE = 8192;
 
-    private final long flamdexDoclistAddress;
     private final long nativeShardDataPtr;
     private final int numDocsInShard;
     private final int numStats;
@@ -27,15 +27,14 @@ public final class MultiCache implements Closeable {
     private final MultiCacheGroupLookup nativeGroupLookup;
 
     private final ImhotepLocalSession session;
+    private int closedLookupCount = 0;
 
     public MultiCache(ImhotepLocalSession session,
-                      long flamdexDoclistAddress,
                       int numDocsInShard,
                       MultiCacheConfig.StatsOrderingInfo[] ordering,
                       IntValueLookup[] stats,
                       GroupLookup groupLookup) {
         this.session = session;
-        this.flamdexDoclistAddress = flamdexDoclistAddress;
         this.numDocsInShard = numDocsInShard;
         this.numStats = ordering.length;
 
@@ -55,7 +54,7 @@ public final class MultiCache implements Closeable {
             this.nativeMetricLookups.add(metricLookup);
 
             /* copy data into multicache */
-            copyValues(stats[i], numDocsInShard, i);
+            copyValues(stats[orderInfo.originalIndex], numDocsInShard, i);
         }
     }
 
@@ -117,10 +116,20 @@ public final class MultiCache implements Closeable {
         return this.nativeGroupLookup;
     }
 
-    @Override
-    public void close() throws IOException {
 
+    private void childLookupClosed() {
+        closedLookupCount++;
+        if (closedLookupCount == this.numStats) {
+            this.close();
+        }
     }
+
+    @Override
+    public void close() {
+        nativeDestroyMultiCache(this.nativeShardDataPtr);
+    }
+
+    private native void nativeDestroyMultiCache(long nativeShardDataPtr);
 
     private native long nativeBuildMultiCache(int numDocsInShard,
                                               long[] mins,
@@ -145,6 +154,7 @@ public final class MultiCache implements Closeable {
         private final int index;
         private final long min;
         private final long max;
+        private boolean closed = false;
 
         private MultiCacheIntValueLookup(int index, long min, long max) {
             this.index = index;
@@ -174,7 +184,12 @@ public final class MultiCache implements Closeable {
 
         @Override
         public void close() {
-
+            if (closed) {
+                log.error("MultiCacheIntValueLookup closed twice");
+                return;
+            }
+            closed = true;
+            MultiCache.this.childLookupClosed();
         }
 
         private native void nativeMetricLookup(long nativeShardDataPtr,
@@ -333,7 +348,7 @@ public final class MultiCache implements Closeable {
             int start = 0;
             while (start < MultiCache.this.numDocsInShard) {
                 final int count =
-                        Math.min(ImhotepLocalSession.BUFFER_SIZE, 
+                        Math.min(ImhotepLocalSession.BUFFER_SIZE,
                                  MultiCache.this.numDocsInShard - start);
 
                 /* load groups into a buffer */
@@ -359,7 +374,7 @@ public final class MultiCache implements Closeable {
 
         @Override
         int maxGroup() {
-            return 0; // TODO
+            return MAX_GROUP_NUM;
         }
 
         @Override

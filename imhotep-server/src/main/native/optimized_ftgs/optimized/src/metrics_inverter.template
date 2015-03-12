@@ -1,0 +1,58 @@
+#undef PASTER
+#undef EVALUATOR
+#undef NAME
+
+#define PASTER(x,y,z) x ## _ ## y  ## _ ## z
+#define EVALUATOR(x,y,z)  PASTER(x,y,z)
+#define NAME(prefix,suffix) EVALUATOR(prefix, TYPE_NAME, suffix)
+
+static inline void NAME(invert,terms)(DATA_TYPE * restrict data_buf,
+									 const DATA_TYPE term,
+									 const uint32_t* restrict doc_id_buf,
+									 const int count)
+{
+	for (int i = 0; i < count - PREFETCH_DISTANCE; i++) {
+		const uint32_t doc_id = doc_id_buf[i + 0];
+		const uint32_t prefetch_doc_id = doc_id_buf[i + 0 + PREFETCH_DISTANCE];
+		data_buf[doc_id] = term;
+
+		__builtin_prefetch(&data_buf[prefetch_doc_id], 1, 3);
+	}
+	for (int i = PREFETCH_DISTANCE; i < count; i++) {
+		const uint32_t doc_id = doc_id_buf[i];
+		data_buf[doc_id] = term;
+	}
+}
+
+int NAME(invert,metric)(DATA_TYPE * restrict data_buf,
+						int buffer_offset,
+						const DATA_TYPE * restrict terms,
+						const int32_t* restrict n_docs,
+						const uint8_t* restrict doc_list_address,
+						const int64_t* restrict offsets,
+						int n_terms)
+{
+	uint32_t doc_id_buf[BUFFER_SIZE];
+
+	for (int i = 0; i < n_terms; i++) {
+		int remaining = n_docs[i];     /* num docs remaining */
+		const uint8_t* restrict read_addr = doc_list_address + offsets[i];
+		int last_value;     /* delta decode tracker */
+
+		last_value = 0;
+		while (remaining > 0) {
+			int count;
+			int bytes_read;
+
+			count = (remaining > BUFFER_SIZE) ? BUFFER_SIZE : remaining;
+			bytes_read = masked_vbyte_read_loop_delta(read_addr, doc_id_buf, count, last_value);
+			read_addr += bytes_read;
+			remaining -= count;
+
+			NAME(invert,terms)(data_buf, terms[i], doc_id_buf, count);
+			last_value = doc_id_buf[count - 1];
+		}
+	}
+
+	return 0;
+}

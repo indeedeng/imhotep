@@ -2,51 +2,29 @@
 #include <assert.h>
 #include "table.h"
 
-static int col_size_bytes(packed_table_t *table, int64_t max, int64_t min, int n_cols_aux_index)
-{
-    uint64_t range = max - min;
-    int bits = sizeof(range) * 8 - __builtin_clzl(range); /* !@# fix for zero case */
-    if ((bits <= 1) && (table->n_boolean_cols == n_cols_aux_index)
-            && (table->n_boolean_cols < MAX_BIT_FIELDS)) {
-        table->n_boolean_cols++;
-        return 0;
-    }
-    int size = ((bits - 1) / 8) + 1;
-    return size;
-}
-
 /* Creates the starting and end indexes of the cols, where col/16 indicates
  * in which vector the col is.
  */
 static void createColumnIndexes(
                                 packed_table_t *table,
                                 int n_cols,
-                                int64_t * restrict col_mins,
-                                int64_t * restrict col_maxes,
-                                uint8_t first_free_byte,
+                                int32_t * restrict sizes,
+                                int32_t * restrict vec_nums,
+                                int32_t * restrict offsets_in_vecs,
                                 uint16_t *index_cols)
 {
-    int col_offset = first_free_byte;    //Find the initial byte for the cols.
-    int n_vectors = 1;
-    int packed_stats_per_vec = 0;
-    /* used to control for how many cols we have already generated the index */
-    int n_cols_aux_index = 0;
+    int n_vectors = vec_nums[n_cols - 1] + 1;
 
     /* Pack the cols and create indexes to find where they start and end */
     for (int i = 0; i < n_cols; i++) {
-        int col_size;
+        const int col_size  = sizes[i];
 
-        col_size = col_size_bytes(table, col_maxes[i], col_mins[i], n_cols_aux_index);
-        packed_stats_per_vec ++;
-        if (col_offset + col_size > n_vectors * 16) {
-            col_offset = n_vectors * 16;
-            n_vectors++;
+        if (col_size == 0) {
+            table->n_boolean_cols ++;
         }
-        index_cols[2 * i] = col_offset;
-        col_offset += col_size;
-        index_cols[2 * i + 1] = col_offset;
-        (table->col_2_vector)[i] = n_vectors - 1;
-        n_cols_aux_index++;
+        index_cols[2 * i] = offsets_in_vecs[i];
+        index_cols[2 * i + 1] = offsets_in_vecs[i] + col_size;
+        (table->col_2_vector)[i] = vec_nums[i];
     }
     table->unpadded_row_size = n_vectors;
 
@@ -95,7 +73,7 @@ static void createShuffleVecFromIndexes(packed_table_t *table, uint16_t *index_c
         //creates the first part of the __m128i vector
         k = 0;
         for (int j = index_cols[2 * i]; j < index_cols[2 * i + 1]; j++) {
-            byte_vector[k++] = j % 16;
+            byte_vector[k++] = j;
         }
         table->shuffle_vecs_get1[index1++] = _mm_setr_epi8(byte_vector[0],
                                                 byte_vector[1],
@@ -120,7 +98,7 @@ static void createShuffleVecFromIndexes(packed_table_t *table, uint16_t *index_c
         i++;
         if (i < n_cols && (col_n_vector[i] == col_n_vector[i - 1])) {
             for (int j = index_cols[2 * i]; j < index_cols[2 * i + 1]; j++) {
-                byte_vector[k++] = j % 16;
+                byte_vector[k++] = j;
             }
             table->shuffle_vecs_get1[index1++] = _mm_setr_epi8(byte_vector[8],
                                                     byte_vector[9],
@@ -183,8 +161,8 @@ static void createShuffleBlendFromIndexes(packed_table_t *table, uint16_t *index
         }
         k = 0;
         for (j = index_cols[2 * i]; j < index_cols[2 * i + 1]; j++) {
-            byte_vector_shuffle[j % 16] = k++;
-            byte_vector_blend[j % 16] = -1;
+            byte_vector_shuffle[j] = k++;
+            byte_vector_blend[j] = -1;
         }
         table->shuffle_vecs_put[index] = _mm_setr_epi8(  byte_vector_shuffle[0],
                                                 byte_vector_shuffle[1],
@@ -226,6 +204,9 @@ static void createShuffleBlendFromIndexes(packed_table_t *table, uint16_t *index
 packed_table_t *packed_table_create(int n_rows,
                                     int64_t *column_mins,
                                     int64_t *column_maxes,
+                                    int32_t *sizes,
+                                    int32_t *vec_nums,
+                                    int32_t *offsets_in_vecs,
                                     int n_cols)
 {
     packed_table_t *table;
@@ -246,9 +227,9 @@ packed_table_t *packed_table_create(int n_rows,
     table->n_boolean_cols = 0;
     createColumnIndexes(table,
                         n_cols,
-                        column_mins,
-                        column_maxes,
-                        (GROUP_SIZE + MAX_BIT_FIELDS + 7) / 8,
+                        sizes,
+                        vec_nums,
+                        offsets_in_vecs,
                         index_cols);
     if (n_cols - table->n_boolean_cols != 0) {
         createShuffleVecFromIndexes(table, index_cols);

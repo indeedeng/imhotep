@@ -37,6 +37,7 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
     private static final int BUFFER_SIZE = 8192;
 
     private final byte[] buffer;
+    private final long docsAddress;
     private int bufferLen;
     private long bufferOffset;
     private int bufferPtr;
@@ -79,6 +80,7 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
         }
         //file = new MMapBuffer(new File(filename), FileChannel.MapMode.READ_ONLY, ByteOrder.LITTLE_ENDIAN);
         file = mapCache.copyOrOpen(filename);
+        this.docsAddress = mapCache.copyOrOpen(docsFilename).get().memory().getAddress();
         memory = file.get().memory();
         done = false;
         bufferLen = 0;
@@ -232,6 +234,11 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
     @Override
     public long getOffset() {
         return lastTermOffset;
+    }
+
+    @Override
+    public long getDocListAddress() {
+        return this.docsAddress;
     }
 
     private int read() throws IOException {

@@ -15,7 +15,13 @@
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
+import com.indeed.flamdex.api.IntValueLookup;
+import com.indeed.flamdex.fieldcache.FieldCacher;
+import com.indeed.flamdex.fieldcache.FieldCacherUtil;
+import com.indeed.flamdex.fieldcache.NativeFlamdexFieldCacher;
 import com.indeed.util.io.Files;
 import com.indeed.flamdex.AbstractFlamdexReader;
 import com.indeed.flamdex.api.DocIdStream;
@@ -30,10 +36,10 @@ import com.indeed.flamdex.utils.FlamdexUtils;
 import com.indeed.imhotep.io.caching.CachedFile;
 
 import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -51,6 +57,8 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader implements RawFla
         useNativeDocIdStream = "true".equalsIgnoreCase(useNative);
     }
 
+    private final Map<String, NativeFlamdexFieldCacher> intFieldCachers;
+
     protected SimpleFlamdexReader(String directory,
                                   int numDocs,
                                   Collection<String> intFields,
@@ -60,6 +68,7 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader implements RawFla
 
         this.intFields = intFields;
         this.stringFields = stringFields;
+        this.intFieldCachers = Maps.newHashMap();
     }
 
     public static SimpleFlamdexReader open(String directory) throws IOException {
@@ -181,6 +190,49 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader implements RawFla
     @Override
     public Collection<String> getAvailableMetrics() {
         return intFields;
+    }
+
+    @Override
+    public final IntValueLookup getMetric(String metric) throws FlamdexOutOfMemoryException {
+        final NativeFlamdexFieldCacher fieldCacher = getMetricCacher(metric);
+        final SimpleIntTermIterator iterator = getIntTermIterator(metric);
+        try {
+            return cacheField(iterator, metric, fieldCacher);
+        } finally {
+            iterator.close();
+        }
+    }
+
+    private IntValueLookup cacheField(SimpleIntTermIterator iterator,
+                                      String metric,
+                                      NativeFlamdexFieldCacher fieldCacher) {
+        if (useMMapMetrics) {
+            try {
+                return fieldCacher.newMMapFieldCache(iterator, numDocs, metric, directory);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return fieldCacher.newFieldCache(iterator, numDocs);
+    }
+
+    @Override
+    public final long memoryRequired(String metric) {
+        if (useMMapMetrics)
+            return 0;
+
+        final NativeFlamdexFieldCacher fieldCacher = getMetricCacher(metric);
+        return fieldCacher.memoryRequired(numDocs);
+    }
+
+    private NativeFlamdexFieldCacher getMetricCacher(String metric) {
+        synchronized (intFieldCachers) {
+            if (!intFieldCachers.containsKey(metric)) {
+                final NativeFlamdexFieldCacher cacher = FieldCacherUtil.getNativeCacherForField(metric, this);
+                intFieldCachers.put(metric, cacher);
+            }
+            return intFieldCachers.get(metric);
+        }
     }
 
     @Override

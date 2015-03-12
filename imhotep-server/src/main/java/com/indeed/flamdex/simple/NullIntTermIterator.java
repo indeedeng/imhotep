@@ -55,4 +55,9 @@ final class NullIntTermIterator implements SimpleIntTermIterator {
     @Override
     public void close() {
     }
+
+    @Override
+    public long getDocListAddress() {
+        return 0;
+    }
 }

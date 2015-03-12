@@ -17,6 +17,8 @@ packed_table_t *create_shard_multicache(uint32_t n_docs,
                                         int64_t *metric_mins,
                                         int64_t *metric_maxes,
                                         int n_metrics);
+void destroy_shard_multicache(packed_table_t *table);
+
 int register_shard(struct session_desc *session, packed_table_t *table);
 
 void session_init(struct session_desc *session,

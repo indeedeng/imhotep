@@ -15,21 +15,42 @@ JNIEXPORT jlong JNICALL Java_com_indeed_imhotep_local_MultiCache_nativeBuildMult
                                        jint n_docs,
                                        jlongArray mins_jarray,
                                        jlongArray maxes_jarray,
+                                       jintArray sizes_bytes_array,
+                                       jintArray vector_nums_array,
+                                       jintArray offsets_in_vecs_array,
                                        jint n_stats)
 {
     packed_table_t *table;
-    jboolean madeCopy_mins;
-    jboolean madeCopy_maxes;
+    jboolean unused;
     jlong *mins;
     jlong *maxes;
+    jint *sizes;
+    jint *vec_nums;
+    jint *offests_in_vecs;
 
-    mins = (*env)->GetPrimitiveArrayCritical(env, mins_jarray, &madeCopy_mins);
-    maxes = (*env)->GetPrimitiveArrayCritical(env, maxes_jarray, &madeCopy_maxes);
-    table = create_shard_multicache(n_docs, mins, maxes, n_stats);
+    mins = (*env)->GetPrimitiveArrayCritical(env, mins_jarray, &unused);
+    maxes = (*env)->GetPrimitiveArrayCritical(env, maxes_jarray, &unused);
+    sizes = (*env)->GetPrimitiveArrayCritical(env, sizes_bytes_array, &unused);
+    vec_nums = (*env)->GetPrimitiveArrayCritical(env, vector_nums_array, &unused);
+    offests_in_vecs = (*env)->GetPrimitiveArrayCritical(env, offsets_in_vecs_array, &unused);
+    table = create_shard_multicache(n_docs, mins, maxes, sizes, vec_nums, offests_in_vecs, n_stats);
+    (*env)->ReleasePrimitiveArrayCritical(env, offsets_in_vecs_array, offests_in_vecs, JNI_ABORT);
+    (*env)->ReleasePrimitiveArrayCritical(env, vector_nums_array, vec_nums, JNI_ABORT);
+    (*env)->ReleasePrimitiveArrayCritical(env, sizes_bytes_array, sizes, JNI_ABORT);
     (*env)->ReleasePrimitiveArrayCritical(env, maxes_jarray, maxes, JNI_ABORT);
     (*env)->ReleasePrimitiveArrayCritical(env, mins_jarray, mins, JNI_ABORT);
 
     return (jlong) table;
+}
+
+JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_nativeDestroyMultiCache
+                                      (JNIEnv *env,
+                                       jobject java_multicache,
+                                       jlong table_pointer)
+{
+    packed_table_t *table = (packed_table_t *)table_pointer;
+
+    destroy_shard_multicache(table);
 }
 
 /*
@@ -47,10 +68,10 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_nativePackMetric
                                        jlongArray values_jarray)
 {
     packed_table_t *table = (packed_table_t *)table_pointer;
-    jboolean madeCopy;
+    jboolean unused;
     jlong *values;
 
-    values = (*env)->GetPrimitiveArrayCritical(env, values_jarray, &madeCopy);
+    values = (*env)->GetPrimitiveArrayCritical(env, values_jarray, &unused);
     packed_table_set_col_range(table, start, values, count, metric_id);
     (*env)->ReleasePrimitiveArrayCritical(env, values_jarray, values, JNI_ABORT);
 }
@@ -70,13 +91,13 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_00024MultiCacheI
                                       jint count)
 {
     packed_table_t *table = (packed_table_t *)table_pointer;
-    jboolean madeCopy_docIds;
-    jboolean madeCopy_values;
+    jboolean unused_docIds;
+    jboolean unused_values;
     jint *rows_ids;
     jlong *results;
 
-    rows_ids = (*env)->GetPrimitiveArrayCritical(env, docIds_jarray, &madeCopy_docIds);
-    results = (*env)->GetPrimitiveArrayCritical(env, results_jarray, &madeCopy_values);
+    rows_ids = (*env)->GetPrimitiveArrayCritical(env, docIds_jarray, &unused_docIds);
+    results = (*env)->GetPrimitiveArrayCritical(env, results_jarray, &unused_values);
     packed_table_batch_col_lookup(table, rows_ids, count, results, idx);
     (*env)->ReleasePrimitiveArrayCritical(env, results_jarray, results, 0);
     (*env)->ReleasePrimitiveArrayCritical(env, docIds_jarray, rows_ids, JNI_ABORT);
@@ -96,13 +117,13 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_00024MultiCacheG
                                       jint count)
 {
     packed_table_t *table = (packed_table_t *)table_pointer;
-    jboolean madeCopy_docIds;
-    jboolean madeCopy_results;
+    jboolean unused_docIds;
+    jboolean unused_results;
     jint *rows_ids;
     jint *results;
 
-    rows_ids = (*env)->GetPrimitiveArrayCritical(env, docIds_jarray, &madeCopy_docIds);
-    results = (*env)->GetPrimitiveArrayCritical(env, groups_jarray, &madeCopy_results);
+    rows_ids = (*env)->GetPrimitiveArrayCritical(env, docIds_jarray, &unused_docIds);
+    results = (*env)->GetPrimitiveArrayCritical(env, groups_jarray, &unused_results);
     packed_table_batch_group_lookup(table, rows_ids, count, results);
     (*env)->ReleasePrimitiveArrayCritical(env, groups_jarray, results, 0);
     (*env)->ReleasePrimitiveArrayCritical(env, docIds_jarray, rows_ids, JNI_ABORT);
@@ -122,13 +143,13 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_00024MultiCacheG
                                       jint count)
 {
     packed_table_t *table = (packed_table_t *)table_pointer;
-    jboolean madeCopy_docIds;
-    jboolean madeCopy_groups;
+    jboolean unused_docIds;
+    jboolean unused_groups;
     jint *rows_ids;
     jint *groups;
 
-    rows_ids = (*env)->GetPrimitiveArrayCritical(env, docIds_jarray, &madeCopy_docIds);
-    groups = (*env)->GetPrimitiveArrayCritical(env, groups_jarray, &madeCopy_groups);
+    rows_ids = (*env)->GetPrimitiveArrayCritical(env, docIds_jarray, &unused_docIds);
+    groups = (*env)->GetPrimitiveArrayCritical(env, groups_jarray, &unused_groups);
     packed_table_batch_set_group(table, rows_ids, count, groups);
     (*env)->ReleasePrimitiveArrayCritical(env, groups_jarray, groups, JNI_ABORT);
     (*env)->ReleasePrimitiveArrayCritical(env, docIds_jarray, rows_ids, JNI_ABORT);
@@ -148,10 +169,10 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_00024MultiCacheG
                                          jintArray values_jarray)
 {
     packed_table_t *table = (packed_table_t *)table_pointer;
-    jboolean madeCopy;
+    jboolean unused;
     jint *values;
 
-    values = (*env)->GetPrimitiveArrayCritical(env, values_jarray, &madeCopy);
+    values = (*env)->GetPrimitiveArrayCritical(env, values_jarray, &unused);
     packed_table_set_group_range(table, start, count, values);
     (*env)->ReleasePrimitiveArrayCritical(env, values_jarray, values, JNI_ABORT);
 }
@@ -220,10 +241,10 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_00024MultiCacheG
                                          jint positiveGroup)
 {
     packed_table_t *table = (packed_table_t *)table_pointer;
-    jboolean madeCopy;
+    jboolean unused;
     jlong *bits;
 
-    bits = (*env)->GetPrimitiveArrayCritical(env, bitset_jarray, &madeCopy);
+    bits = (*env)->GetPrimitiveArrayCritical(env, bitset_jarray, &unused);
     packed_table_bit_set_regroup(table, bits, target_group, negativeGroup, positiveGroup);
     (*env)->ReleasePrimitiveArrayCritical(env, bitset_jarray, bits, JNI_ABORT);
 }

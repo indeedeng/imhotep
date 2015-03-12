@@ -24,6 +24,7 @@ import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringValueLookup;
 import com.indeed.flamdex.fieldcache.FieldCacher;
+import com.indeed.flamdex.fieldcache.FieldCacherUtil;
 import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIterator;
 import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIteratorImpl;
 
@@ -40,7 +41,7 @@ import java.util.Map;
 public abstract class AbstractFlamdexReader implements FlamdexReader {
     protected final String directory;
     protected final int numDocs;
-    private final boolean useMMapMetrics;
+    protected final boolean useMMapMetrics;
 
     private final Map<String, FieldCacher> intFieldCachers;
 
@@ -63,7 +64,7 @@ public abstract class AbstractFlamdexReader implements FlamdexReader {
     }
 
     @Override
-    public final IntValueLookup getMetric(String metric) throws FlamdexOutOfMemoryException {
+    public IntValueLookup getMetric(String metric) throws FlamdexOutOfMemoryException {
         final FieldCacher fieldCacher = getMetricCacher(metric);
         final UnsortedIntTermDocIterator iterator = createUnsortedIntTermDocIterator(metric);
         try {
@@ -75,7 +76,7 @@ public abstract class AbstractFlamdexReader implements FlamdexReader {
 
     public StringValueLookup getStringLookup(final String field) throws FlamdexOutOfMemoryException {
         try {
-            return FieldCacher.newStringValueLookup(field, this, directory);
+            return FieldCacherUtil.newStringValueLookup(field, this, directory);
         } catch (IOException e) {
             throw Throwables.propagate(e);
         }
@@ -93,7 +94,7 @@ public abstract class AbstractFlamdexReader implements FlamdexReader {
     }
 
     @Override
-    public final long memoryRequired(String metric) {
+    public long memoryRequired(String metric) {
         if (useMMapMetrics) return 0;
 
         final FieldCacher fieldCacher = getMetricCacher(metric);
@@ -103,7 +104,7 @@ public abstract class AbstractFlamdexReader implements FlamdexReader {
     private FieldCacher getMetricCacher(String metric) {
         synchronized (intFieldCachers) {
             if (!intFieldCachers.containsKey(metric)) {
-                final FieldCacher cacher = FieldCacher.getCacherForField(metric, this);
+                final FieldCacher cacher = FieldCacherUtil.getCacherForField(metric, this);
                 intFieldCachers.put(metric, cacher);
             }
             return intFieldCachers.get(metric);

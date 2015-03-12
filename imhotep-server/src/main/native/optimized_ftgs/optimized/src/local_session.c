@@ -95,13 +95,26 @@ int run_tgs_pass(struct worker_desc *worker,
     return err;
 }
 
-//This method assumes that the boolean metrics will come first
 packed_table_t *create_shard_multicache(uint32_t n_docs,
                                         int64_t *metric_mins,
                                         int64_t *metric_maxes,
+                                        int32_t *sizes,
+                                        int32_t *vec_nums,
+                                        int32_t *offsets_in_vecs,
                                         int n_metrics)
 {
-    return packed_table_create(n_docs, metric_mins, metric_maxes, n_metrics);
+    return packed_table_create(n_docs,
+                               metric_mins,
+                               metric_maxes,
+                               sizes,
+                               vec_nums,
+                               offsets_in_vecs,
+                               n_metrics);
+}
+
+void destroy_shard_multicache(packed_table_t *table)
+{
+    packed_table_destroy(table);
 }
 
 int register_shard(struct session_desc *session, packed_table_t *table)

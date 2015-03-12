@@ -83,7 +83,7 @@ public class TestFieldCacher {
                 }
             }
 
-            FieldCacher fieldCacher = FieldCacher.getCacherForField("f", r);
+            FieldCacher fieldCacher = FieldCacherUtil.getCacherForField("f", r);
             assertEquals(expectedType, fieldCacher);
             assertEquals(expectedMemory, fieldCacher.memoryRequired(r.getNumDocs()));
             IntValueLookup ivl = fieldCacher.newFieldCache("f", r);

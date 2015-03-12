@@ -30,15 +30,15 @@ public final class MultiCacheConfig {
     private StatsOrderingInfo[] ordering;
 
     public static class StatsOrderingInfo {
-        public final int metricIndex;
+        public final int originalIndex;
         public final long min;
         public final long max;
         public final int sizeInBytes;
         public final int vectorNum;
         public final int offsetInVector;
 
-        public StatsOrderingInfo(int metricIndex, long min, long max, int sizeInBytes, int vectorNum, int offsetInVector) {
-            this.metricIndex = metricIndex;
+        public StatsOrderingInfo(int originalIndex, long min, long max, int sizeInBytes, int vectorNum, int offsetInVector) {
+            this.originalIndex = originalIndex;
             this.min = min;
             this.max = max;
             this.sizeInBytes = sizeInBytes;
@@ -75,13 +75,12 @@ public final class MultiCacheConfig {
         } catch (BrokenBarrierException e) {
             throw Throwables.propagate(e);
         }
-        return null; //todo
-//        return new MultiCache(session,
-//                              0, //todo flamdexDoclistAddress,
-//                              session.getNumDocs(),
-//                              stats,
-//                              ordering,
-//                              groupLookup);
+
+        return new MultiCache(session,
+                              session.getNumDocs(),
+                              ordering,
+                              stats,
+                              groupLookup);
     }
 
     private static StatsOrderingInfo[] calculateMetricOrder(IntValueLookup[][] sessionStats,
@@ -229,7 +228,7 @@ public final class MultiCacheConfig {
         int metricIndex = 0;
         for (int i = 0; i < booleanMetrics.size(); i++) {
             final int metric = booleanMetrics.getInt(i);
-            ret[metric] = new StatsOrderingInfo(metricIndex, mins[metric], maxes[metric], 0, -1, -1);
+            ret[metricIndex] = new StatsOrderingInfo(metric, mins[metric], maxes[metric], 0, -1, -1);
             metricIndex++;
         }
         for (int i = 0; i < vectorMetrics.size(); i++) {
@@ -238,7 +237,7 @@ public final class MultiCacheConfig {
             for (int j = 0; j < list.size(); j++) {
                 final int metric = list.get(j);
                 final int size = (bits[metric] + 7) / 8;
-                ret[metric] = new StatsOrderingInfo(metricIndex, mins[metric], maxes[metric], size, i, index);
+                ret[metricIndex] = new StatsOrderingInfo(metric, mins[metric], maxes[metric], size, i, index);
                 index += size;
                 metricIndex++;
             }
