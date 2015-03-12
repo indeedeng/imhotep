@@ -135,6 +135,9 @@ void lookup_and_accumulate_grp_stats(
 packed_table_t *packed_table_create(int n_rows,
                                     int64_t *column_mins,
                                     int64_t *column_maxes,
+                                    int32_t *sizes,
+                                    int32_t *vec_nums,
+                                    int32_t *offsets_in_vecs,
                                     int n_cols);
 void packed_table_destroy(packed_table_t *table);
 int packed_table_get_size(packed_table_t *table);

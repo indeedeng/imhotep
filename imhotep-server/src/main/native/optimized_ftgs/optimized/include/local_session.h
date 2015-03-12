@@ -12,10 +12,12 @@ int run_tgs_pass(struct worker_desc *worker,
                  int socket_fd,
                  struct runtime_err *error);
 
-//This method assumes that the boolean metrics will come first
 packed_table_t *create_shard_multicache(uint32_t n_docs,
                                         int64_t *metric_mins,
                                         int64_t *metric_maxes,
+                                        int32_t *sizes,
+                                        int32_t *vec_nums,
+                                        int32_t *offsets_in_vecs,
                                         int n_metrics);
 void destroy_shard_multicache(packed_table_t *table);
 

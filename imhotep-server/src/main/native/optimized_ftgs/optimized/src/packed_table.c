@@ -200,7 +200,6 @@ static void createShuffleBlendFromIndexes(packed_table_t *table, uint16_t *index
     }
 }
 
-//This method assumes that the boolean cols will come first
 packed_table_t *packed_table_create(int n_rows,
                                     int64_t *column_mins,
                                     int64_t *column_maxes,
