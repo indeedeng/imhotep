@@ -208,7 +208,7 @@ void unpacked_table_add_rows(unpacked_table_t* src_table,
                                     int dest_row_id,
                                     int prefetch_row_id);
 
-int remap_docs_in_target_groups(packed_table_t* doc_id_group,
+int remap_docs_in_target_groups(packed_table_t* packed_table,
                                 int*            results,
                                 uint8_t*        doc_id_stream,
                                 size_t          n_doc_ids,

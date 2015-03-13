@@ -100,7 +100,7 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_local_NativeFTGSWorker_native_1ru
  */
 JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiRegroupInternals_nativeRemapDocsInTargetGroups
 (JNIEnv *java_env, jclass clazz,
- long doc_id_group, jintArray results,
+ long native_shard_data_ptr, jintArray results,
  jlong doc_list_address, jint n_docs,
  jintArray remappings,
  jint placeholder_group)
@@ -109,7 +109,7 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiRegroupInternals_nativ
     jint*    results_array    = (*java_env)->GetPrimitiveArrayCritical(java_env, results, &unused);
     jint*    remappings_array = (*java_env)->GetPrimitiveArrayCritical(java_env, remappings, &unused);
 
-    int status = remap_docs_in_target_groups((packed_table_t*) doc_id_group,
+    int status = remap_docs_in_target_groups((packed_table_t*) native_shard_data_ptr,
                                              results_array,
                                              (uint8_t*) doc_list_address, n_docs,
                                              remappings_array,

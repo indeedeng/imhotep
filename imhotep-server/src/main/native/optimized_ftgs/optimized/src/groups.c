@@ -7,7 +7,7 @@
 
 #define TGS_BUFFER_SIZE 2048
 
-static int multi_remap_core(packed_table_t* doc_id_group,
+static int multi_remap_core(packed_table_t* table,
                             int*            results,
                             uint32_t*       doc_ids,
                             int             n_docs,
@@ -18,13 +18,13 @@ static int multi_remap_core(packed_table_t* doc_id_group,
 
     if (likely(n_docs - count > PREFETCH_DISTANCE)) {
       const int prefetch_doc_id = doc_ids[count + PREFETCH_DISTANCE];
-      __v16qi * prefetch_addr   = packed_table_get_row_addr(doc_id_group, prefetch_doc_id);
+      __v16qi * prefetch_addr   = packed_table_get_row_addr(table, prefetch_doc_id);
       _mm_prefetch(prefetch_addr, _MM_HINT_T0);
       _mm_prefetch(&results[prefetch_doc_id], _MM_HINT_T0);
     }
 
     const int  doc_id    = doc_ids[count];
-    const long old_group = packed_table_get_group(doc_id_group, doc_id);
+    const long old_group = packed_table_get_group(table, doc_id);
     if (likely(old_group != 0)) {
       const long current_group = results[doc_id];
       if (unlikely(placeholder_group > 0 && current_group != placeholder_group)) {
@@ -41,7 +41,7 @@ static int multi_remap_core(packed_table_t* doc_id_group,
   return 0;
 }
 
-int remap_docs_in_target_groups(packed_table_t* doc_id_group,
+int remap_docs_in_target_groups(packed_table_t* table,
                                 int*            results,
                                 uint8_t*        delta_compressed_doc_ids,
                                 size_t          n_doc_ids,
@@ -58,7 +58,7 @@ int remap_docs_in_target_groups(packed_table_t* doc_id_group,
     const int bytes_read = masked_vbyte_read_loop_delta(read_addr, doc_id_buf, n_docs, last_value);
     read_addr += bytes_read;
     n_docs_remaining -= n_docs;
-    if (multi_remap_core(doc_id_group, results, doc_id_buf, n_docs, remappings, placeholder_group) != 0) {
+    if (multi_remap_core(table, results, doc_id_buf, n_docs, remappings, placeholder_group) != 0) {
       return -1;
     }
     last_value = doc_id_buf[n_docs - 1];

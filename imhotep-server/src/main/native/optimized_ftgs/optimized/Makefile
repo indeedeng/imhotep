@@ -2,8 +2,8 @@ IDIR =include
 CC=/usr/bin/clang
 JNI_HEADER_LOC=$(JAVA_HOME)/include
 JNI_HEADER_LOC2=$(JNI_HEADER_LOC)/linux
-CFLAGS=-g -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fvisibility=hidden -fPIC
-CPPFLAGS=-g -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=c++0x -msse4.2 -fvisibility=hidden -fPIC
+CFLAGS=-O3 -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fvisibility=hidden -fPIC
+CPPFLAGS=-O3 -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=c++0x -msse4.2 -fvisibility=hidden -fPIC
 LFLAGS=-shared
 
 ODIR=obj
@@ -16,8 +16,8 @@ H_FILES := $(wildcard include/*.h)
 OBJ_FILES := $(addprefix obj/,$(notdir $(C_FILES:.c=.o)))
 
 TEST_OBJS=obj/bit_tree.o         \
-	        obj/circ_buf.o         \
-	        obj/groups.o           \
+          obj/circ_buf.o         \
+          obj/groups.o           \
           obj/local_session.o    \
           obj/packed_table.o     \
           obj/socket.o           \
@@ -25,7 +25,6 @@ TEST_OBJS=obj/bit_tree.o         \
           obj/tgs.o              \
           obj/unpacked_table.o   \
           obj/varintdecode.o
-
 
 TEST_CIRC_BUF_OBJS=$(TEST_OBJS) obj/test_circ_buf.o
 TEST_GROUPS_OBJS=$(TEST_OBJS) obj/test_groups.o
@@ -45,6 +44,9 @@ native_lib: $(OBJ_FILES)
 	$(CC) $(LFLAGS) $(LIBS) -o $@ $^
 
 .PHONY: clean
+
+dump_term: obj/dump_term.o
+	$(CC) $(CFLAGS) $ -o dump_term obj/dump_term.o -lstdc++
 
 test_circ_buf: $(TEST_CIRC_BUF_OBJS)
 	$(CC) $ -o test_circ_buf $(TEST_CIRC_BUF_OBJS) $(LIBS) -lstdc++
