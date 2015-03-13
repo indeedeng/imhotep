@@ -31,7 +31,7 @@ JNIEXPORT jlong JNICALL Java_com_indeed_imhotep_local_NativeFTGSWorker_native_1i
  * Signature: (III)J
  */
 JNIEXPORT jlong JNICALL Java_com_indeed_imhotep_local_NativeFTGSWorker_native_1session_1create
-  (JNIEnv *env, jclass class, jint n_groups, jint n_metrics, jbyteArray stat_order, jint n_shards)
+  (JNIEnv *env, jclass class, jlong worker_addr, jint n_groups, jint n_metrics, jbyteArray stat_order, jint n_shards)
 {
   struct session_desc *session;
 

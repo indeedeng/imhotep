@@ -47,8 +47,6 @@ public final class MultiCacheConfig {
         }
     }
 
-    private List<IntList> vectorMetrics;
-
     public MultiCacheConfig(int numSessions) {
         this.sessionStats = new IntValueLookup[numSessions][];
 
@@ -87,17 +85,11 @@ public final class MultiCacheConfig {
                                                             int numStats) {
         final IntArrayList booleanMetrics = new IntArrayList();
         final IntArrayList longMetrics = new IntArrayList();
-        final long[] localMins = new long[numStats];
-        final long[] localMaxes = new long[numStats];
-        long[] mins = new long[numStats];
-        long[] maxes = new long[numStats];
-        int[] metrics = new int[numStats];
+        final long[] mins = new long[numStats];
+        final long[] maxes = new long[numStats];
         final int[] bits = new int[numStats];
-
-        /* initialize arrays */
-        Arrays.fill(localMins, Long.MAX_VALUE);
-        Arrays.fill(localMaxes, Long.MIN_VALUE);
-
+        Arrays.fill(mins, Long.MAX_VALUE);
+        Arrays.fill(maxes, Long.MIN_VALUE);
         for (IntValueLookup[] stats : sessionStats) {
             for (int j = 0; j < numStats; j++) {
                 mins[j] = Math.min(mins[j], stats[j].getMin());
@@ -113,39 +105,26 @@ public final class MultiCacheConfig {
                 longMetrics.add(i);
             }
         }
-        for (int i = 0; i < booleanMetrics.size(); i++) {
-            final int metric = booleanMetrics.getInt(i);
-            mins[i] = localMins[metric];
-            maxes[i] = localMaxes[metric];
-            metrics[i] = metric;
-        }
-
-        final List<IntList> vectorMetrics = new ArrayList<IntList>();
-
+        final List<IntList> vectorMetrics;
         // do exhaustive search for up to 10 metrics
         // optimizes first for least number of vectors then least space used for group stats
         // this is impractical beyond 10 due to being O(N!)
         if (longMetrics.size() <= 10) {
-            final Permutation bestPermutation;
-            bestPermutation = permutations(longMetrics.toIntArray(),
-                                           new ReduceFunction<int[], Permutation>() {
+            final Permutation bestPermutation = permutations(longMetrics.toIntArray(), new ReduceFunction<int[], Permutation>() {
                 @Override
                 public Permutation apply(int[] ints, Permutation best) {
                     final Permutation permutation = getPermutation(ints, bits, 4);
                     if (best == null) {
                         return permutation;
                     }
-                    if (permutation.vectorsUsed < best.vectorsUsed
-                            || (permutation.vectorsUsed == best.vectorsUsed
-                                    && permutation.statsSpace < best.statsSpace)
-                            ) {
-                        // kinda strange for this to be mutable but only copy if better
-                        permutation.order = Arrays.copyOf(ints, ints.length);
+                    if (permutation.vectorsUsed < best.vectorsUsed ||
+                            (permutation.vectorsUsed == best.vectorsUsed && permutation.statsSpace < best.statsSpace)) {
                         return permutation;
                     }
                     return best;
                 }
             }, null);
+            vectorMetrics = bestPermutation.vectorMetrics;
         } else {
             // use sorted best fit approximation for > 10 metrics optimizing for least number of vectors
             Quicksortables.sort(new Quicksortable() {
@@ -191,6 +170,7 @@ public final class MultiCacheConfig {
 
             boolean first = true;
 
+            vectorMetrics = new ArrayList<IntList>();
             outer: while (!vectorMetrics2.isEmpty()) {
                 final IntArrayList list = vectorMetrics2.removeFirst();
                 final ListIterator<IntArrayList> iterator = vectorMetrics2.listIterator();
@@ -213,16 +193,25 @@ public final class MultiCacheConfig {
                             }
                         }, initialPermutation);
                         if (bestPermutation.statsSpace < initialPermutation.statsSpace) {
+                            vectorMetrics.addAll(bestPermutation.vectorMetrics);
                             iterator.remove();
                             first = false;
                             continue outer;
                         }
                     }
                 }
+                vectorMetrics.add(list);
                 first = false;
             }
         }
         final List<IntList> sizes = new ArrayList<IntList>();
+        for (IntList list : vectorMetrics) {
+            final IntList sizeList = new IntArrayList();
+            for (int metric : list) {
+                sizeList.add((bits[metric]+7)/8);
+            }
+            sizes.add(sizeList);
+        }
         System.out.println(sizes);
         final StatsOrderingInfo[] ret = new StatsOrderingInfo[numStats];
         int metricIndex = 0;
