@@ -3,9 +3,7 @@ package com.indeed.imhotep.multicache;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntValueLookup;
-import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.imhotep.AbstractImhotepSession;
 import com.indeed.imhotep.GroupMultiRemapRule;
@@ -19,21 +17,17 @@ import com.indeed.imhotep.api.DocIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.RawFTGSIterator;
-import com.indeed.imhotep.local.ConstantGroupLookup;
 import com.indeed.imhotep.local.DynamicMetric;
-import com.indeed.imhotep.local.ImhotepLocalSession;
+import com.indeed.imhotep.local.GroupLookup;
 import com.indeed.util.core.reference.SharedReference;
 import org.apache.log4j.Logger;
 
-import java.io.File;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Created by darren on 3/12/15.
@@ -49,8 +43,10 @@ public class MultiShardSession extends AbstractImhotepSession {
     final MemoryReservationContext memory;
 
     int[] groupDocCount;
+    GroupLookup groupLookup;
 
-    int numStats;
+    int numStats = 0;
+    int numDocs = 0;
     final IntValueLookup[] statLookup = new IntValueLookup[MAX_NUMBER_STATS];
     private final List<String> statCommands;
 
@@ -69,17 +65,74 @@ public class MultiShardSession extends AbstractImhotepSession {
         this.flamdexReaders = flamdexReaders;
         for (SimpleFlamdexReader reader : flamdexReaders) {
             this.flamdexReaderRefs.add(SharedReference.create(reader));
+            this.numDocs += reader.getNumDocs();
         }
         this.memory = memory;
 
-        groupDocCount = clearAndResize((int[]) null, docIdToGroup.getNumGroups(), memory);
+        groupDocCount = clearAndResize((int[]) null, groupLookup.getNumGroups(), memory);
         groupDocCount[1] = numDocs;
         this.statCommands = new ArrayList<String>();
     }
 
+    /**
+     * export the current docId -> group lookup into an array
+     *
+     * @param array
+     *            the array to export docIdToGroup into
+     */
+    @VisibleForTesting
+    private synchronized void exportDocIdToGroupId(int[] array) {
+        if (array.length != groupLookup.size()) {
+            throw new IllegalArgumentException("array length is invalid");
+        }
+        for (int i = array.length - 1; i >= 0; --i) {
+            array[i] = groupLookup.get(i);
+        }
+    }
+
     @Override
-    public long getTotalDocFreq(String[] intFields, String[] stringFields) {
-        return 0;
+    public long getTotalDocFreq(final String[] intFields, final String[] stringFields) {
+        ProcessingService<SimpleFlamdexReader, Long> service = new ProcessingService<>();
+
+        for (int i = 0; i < Runtime.getRuntime().availableProcessors(); i++) {
+            service.addTask(new ProcessingTask<SimpleFlamdexReader, Long>() {
+                @Override
+                protected Long processData(SimpleFlamdexReader simpleFlamdexReader) {
+                    long ret = 0L;
+
+                    for (final String intField : intFields) {
+                        ret += simpleFlamdexReader.getIntTotalDocFreq(intField);
+                    }
+
+                    for (final String stringField : stringFields) {
+                        ret += simpleFlamdexReader.getStringTotalDocFreq(stringField);
+                    }
+
+                    return ret;
+                }
+            });
+        }
+
+        ResultProcessor<Long> accumulator = new ResultProcessor<Long>() {
+            private long count = 0;
+
+            @Override
+            protected void processResult(Long aLong) {
+                this.count += aLong;
+            }
+
+            public long getFinalCount() {
+                return this.count;
+            }
+        };
+
+        try {
+            service.processData(flamdexReaders.iterator(), accumulator);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        return accumulator.getFinalCount();
     }
 
     @Override
@@ -329,7 +382,7 @@ public class MultiShardSession extends AbstractImhotepSession {
     @Override
     public void rebuildAndFilterIndexes(List<String> intFields,
                                         List<String> stringFields) throws ImhotepOutOfMemoryException {
-
+        // does nothing right now
     }
 
 

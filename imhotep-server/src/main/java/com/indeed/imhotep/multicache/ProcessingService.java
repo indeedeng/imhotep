@@ -38,7 +38,7 @@ public class ProcessingService<Data,Result> {
     }
 
     public void processData(Iterator<Data> iterator,
-                            ProcessingTask<Data, Result> resultProcessor) throws InterruptedException {
+                            ResultProcessor<Result> resultProcessor) throws InterruptedException {
         if (resultProcessor != null) {
             this.resultProcessorThread = new Thread(resultProcessor);
             resultProcessor.setQueue(this.queues);

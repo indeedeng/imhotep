@@ -18,28 +18,28 @@ import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.imhotep.BitTree;
 import com.indeed.imhotep.GroupRemapRule;
 
-abstract class GroupLookup {
+public abstract class GroupLookup {
     protected int numGroups;
 
     // returns new value for groupsSeenCount
-    abstract void nextGroupCallback(int n, long[][] termGrpStats, BitTree groupsSeen);
-    abstract void applyIntConditionsCallback(int n, ThreadSafeBitSet docRemapped, GroupRemapRule[] remapRules, String intField, long itrTerm);
-    abstract void applyStringConditionsCallback(int n, ThreadSafeBitSet docRemapped, GroupRemapRule[] remapRules, String stringField, String itrTerm);
-    abstract int get(int doc);
-    abstract void set(int doc, int group);
-    abstract void batchSet(int[] docIdBuf, int[] docGrpBuffer, int n);
-    abstract void fill(int group);
-    abstract void copyInto(GroupLookup other);
-    abstract int size();
-    abstract int maxGroup();
-    abstract long memoryUsed();
-    abstract void fillDocGrpBuffer(int[] docIdBuf, int[] docGrpBuffer, int n);
-    abstract void fillDocGrpBufferSequential(int start, int[] docGrpBuffer, int n);
-    abstract void bitSetRegroup(FastBitSet bitSet, int targetGroup, int negativeGroup, int positiveGroup);
-    abstract ImhotepLocalSession getSession();
-    abstract void recalculateNumGroups();
+    public abstract void nextGroupCallback(int n, long[][] termGrpStats, BitTree groupsSeen);
+    public abstract void applyIntConditionsCallback(int n, ThreadSafeBitSet docRemapped, GroupRemapRule[] remapRules, String intField, long itrTerm);
+    public abstract void applyStringConditionsCallback(int n, ThreadSafeBitSet docRemapped, GroupRemapRule[] remapRules, String stringField, String itrTerm);
+    public abstract int get(int doc);
+    public abstract void set(int doc, int group);
+    public abstract void batchSet(int[] docIdBuf, int[] docGrpBuffer, int n);
+    public abstract void fill(int group);
+    public abstract void copyInto(GroupLookup other);
+    public abstract int size();
+    public abstract int maxGroup();
+    public abstract long memoryUsed();
+    public abstract void fillDocGrpBuffer(int[] docIdBuf, int[] docGrpBuffer, int n);
+    public abstract void fillDocGrpBufferSequential(int start, int[] docGrpBuffer, int n);
+    public abstract void bitSetRegroup(FastBitSet bitSet, int targetGroup, int negativeGroup, int positiveGroup);
+    public abstract ImhotepLocalSession getSession();
+    public abstract void recalculateNumGroups();
 
-    final int getNumGroups() {
+    public final int getNumGroups() {
         return numGroups;
     }
 }

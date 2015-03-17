@@ -14,6 +14,7 @@ final class FTGSIterateRequest {
     long intTerm;
     boolean isIntField;
     final long[] offsets;
+    long docsAddress;
     Socket outputSocket;
 
     FTGSIterateRequest(int numShards) {

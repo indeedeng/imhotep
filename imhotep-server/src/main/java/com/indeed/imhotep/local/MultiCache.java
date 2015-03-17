@@ -8,7 +8,6 @@ import com.indeed.util.core.threads.ThreadSafeBitSet;
 import org.apache.log4j.Logger;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -220,7 +219,7 @@ public final class MultiCache implements Closeable {
         private final int[] remap_buffer = new int[ImhotepLocalSession.BUFFER_SIZE];
 
         @Override
-        void nextGroupCallback(int n, long[][] termGrpStats, BitTree groupsSeen) {
+        public void nextGroupCallback(int n, long[][] termGrpStats, BitTree groupsSeen) {
             /* collect group ids for docs */
             nativeFillGroupsBuffer(MultiCache.this.nativeShardDataPtr,
                                    MultiCache.this.session.docIdBuf,

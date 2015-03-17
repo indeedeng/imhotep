@@ -3,9 +3,8 @@ package com.indeed.imhotep.multicache;
 /**
  * Created by darren on 2/8/15.
  */
-public abstract class ProcessingTask<Data,Result> implements Runnable {
+public abstract class ResultProcessor<Result> implements Runnable {
     protected ProcessingService.ProcessingQueuesHolder queue;
-    private boolean discardResults = false;
 
     public ProcessingService.ProcessingQueuesHolder getQueue() {
         return queue;
@@ -15,26 +14,18 @@ public abstract class ProcessingTask<Data,Result> implements Runnable {
         this.queue = queue;
     }
 
-    public void setDiscardResults(boolean discardResults) {
-        this.discardResults = discardResults;
-    }
-
     public final void run() {
-        Data d;
-        Result r = null;
+        Result r;
 
         try {
             init();
             do {
                 try {
-                    d = (Data) queue.retrieveData();
-                    if (d == ProcessingService.ProcessingQueuesHolder.TERMINATOR) {
+                    r = (Result) queue.retrieveResult();
+                    if (r == ProcessingService.ProcessingQueuesHolder.TERMINATOR) {
                         break;
                     }
-                    r = processData(d);
-                    if (!discardResults) {
-                        queue.submitResult(r);
-                    }
+                    processResult(r);
                 } catch (Throwable e) {
                     handleError(e);
                 }
@@ -50,7 +41,7 @@ public abstract class ProcessingTask<Data,Result> implements Runnable {
 
     }
 
-    protected abstract Result processData(Data data);
+    protected abstract void processResult(Result result);
 
     protected void handleError(Throwable e) throws Throwable {
         throw e;
