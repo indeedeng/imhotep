@@ -33,17 +33,18 @@ TEST_TGS_OBJS=$(TEST_OBJS) obj/test_tgs.o
 TEST_VARINTDECODE_OBJS=$(TEST_OBJS) obj/test_varintdecode.o
 TESTS := test_circ_buf test_groups test_packed_shard test_tgs test_varintdecode
 
-
 $(ODIR)/%.o: src/%.c $(H_FILES)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 $(ODIR)/%.o: src/%.cpp $(H_FILES)
 	$(CC) -c -o $@ $< $(CPPFLAGS)
 
+.PHONY: clean
+
+all: native_lib tests
+
 native_lib: $(OBJ_FILES)
 	$(CC) $(LFLAGS) $(LIBS) -o $@ $^
-
-.PHONY: clean
 
 dump_term: obj/dump_term.o
 	$(CC) $(CFLAGS) $ -o dump_term obj/dump_term.o -lstdc++
@@ -68,5 +69,5 @@ tests: $(TESTS)
 clean:
 	rm -f $(ODIR)/*.o *~ core $(INCDIR)/*~
 	rm -f $(TESTS)
+	rm -f dump_term
 
-all: $(ODIR)/%.o
