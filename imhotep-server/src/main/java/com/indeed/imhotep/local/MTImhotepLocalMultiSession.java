@@ -181,12 +181,22 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     }
 
     @Override
-    public void writeFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, final int numSplits, final Socket socket) {
+    public void writeFTGSIteratorSplit(String[] intFields,
+                                       String[] stringFields,
+                                       int splitIndex,
+                                       final int numSplits,
+                                       final Socket socket) {
         CountDownLatch latch = writeFTGSSplitReqLatch.get();
         if (latch == null) {
             if (writeFTGSSplitReqLatch.compareAndSet(null, new CountDownLatch(numSplits))) {
                 ftgsOutputSockets = new Socket[numSplits];
-                ftgsExecutorService.submit(new FTGSSplitsScheduler(new MultiShardFlamdexReader(getFlamdexReaders()), intFields, stringFields, numSplits));
+                ftgsExecutorService.submit(
+                        new FTGSSplitsScheduler(
+                                new MultiShardFlamdexReader(getFlamdexReaders()),
+                                intFields,
+                                stringFields,
+                                numSplits)
+                );
                 latch = writeFTGSSplitReqLatch.get();
             } else {
                 latch = writeFTGSSplitReqLatch.get();
