@@ -46,8 +46,8 @@ all: native_lib tests
 native_lib: $(OBJ_FILES)
 	$(CC) $(LFLAGS) $(LIBS) -o $@ $^
 
-dump_term: obj/dump_term.o
-	$(CC) $(CFLAGS) $ -o dump_term obj/dump_term.o -lstdc++
+dump_term: $(OBJ_FILES) obj/dump_term.o
+	$(CC) $(CFLAGS) $ -o dump_term obj/dump_term.o $(OBJ_FILES) -lstdc++
 
 test_circ_buf: $(TEST_CIRC_BUF_OBJS)
 	$(CC) $ -o test_circ_buf $(TEST_CIRC_BUF_OBJS) $(LIBS) -lstdc++
