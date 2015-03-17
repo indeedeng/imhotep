@@ -2063,6 +2063,13 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
             }
         } else {
             try {
+                // Temporary hack to allow transition from Lucene to Flamdex shards where the time metric has a different name
+                if(statName.equals("time") && flamdexReader.getIntFields().contains("unixtime")) {
+                    statName = "unixtime";
+                } else if(statName.equals("unixtime") && !flamdexReader.getIntFields().contains("unixtime")) {
+                    statName = "time";
+                }
+
                 statLookup[numStats] = flamdexReader.getMetric(statName);
             } catch (FlamdexOutOfMemoryException e) {
                 throw new ImhotepOutOfMemoryException(e);
