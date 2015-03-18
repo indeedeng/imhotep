@@ -12,5 +12,10 @@ public interface MultiShardTermIterator extends Closeable {
      * fills the buffer with the current term's offset in each shard. The length of <code>buffer</code> must
      * be equal to the number of shards
      */
-    void offsets(long[] buffer);
+    int offsets(long[] buffer);
+
+    int shardIds(int[] buffer);
+
+    int docCounts(int[] buffer);
+
 }

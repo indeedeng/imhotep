@@ -1,4 +1,4 @@
-package com.indeed.imhotep.local;
+package com.indeed.imhotep.multicache.ftgs;
 
 import java.net.Socket;
 
@@ -14,6 +14,7 @@ final class FTGSIterateRequest {
     long intTerm;
     boolean isIntField;
     final long[] offsets;
+    long docsAddress;
     Socket outputSocket;
 
     FTGSIterateRequest(int numShards) {

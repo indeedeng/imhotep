@@ -8,7 +8,6 @@ import com.indeed.util.core.threads.ThreadSafeBitSet;
 import org.apache.log4j.Logger;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -220,7 +219,7 @@ public final class MultiCache implements Closeable {
         private final int[] remap_buffer = new int[ImhotepLocalSession.BUFFER_SIZE];
 
         @Override
-        void nextGroupCallback(int n, long[][] termGrpStats, BitTree groupsSeen) {
+        public void nextGroupCallback(int n, long[][] termGrpStats, BitTree groupsSeen) {
             /* collect group ids for docs */
             nativeFillGroupsBuffer(MultiCache.this.nativeShardDataPtr,
                                    MultiCache.this.session.docIdBuf,
@@ -257,7 +256,7 @@ public final class MultiCache implements Closeable {
         }
 
         @Override
-        void applyIntConditionsCallback(int n,
+        public void applyIntConditionsCallback(int n,
                                         ThreadSafeBitSet docRemapped,
                                         GroupRemapRule[] remapRules,
                                         String intField,
@@ -296,7 +295,7 @@ public final class MultiCache implements Closeable {
         }
 
         @Override
-        void applyStringConditionsCallback(int n,
+        public void applyStringConditionsCallback(int n,
                                            ThreadSafeBitSet docRemapped,
                                            GroupRemapRule[] remapRules,
                                            String stringField,
@@ -334,27 +333,27 @@ public final class MultiCache implements Closeable {
         }
 
         @Override
-        int get(int doc) {
+        public int get(int doc) {
             return nativeGetGroup(MultiCache.this.nativeShardDataPtr, doc);
         }
 
         @Override
-        void set(int doc, int group) {
+        public void set(int doc, int group) {
             nativeSetGroupForDoc(MultiCache.this.nativeShardDataPtr, doc, group);
         }
 
         @Override
-        void batchSet(int[] docIdBuf, int[] docGrpBuffer, int n) {
+        public void batchSet(int[] docIdBuf, int[] docGrpBuffer, int n) {
             nativeUpdateGroups(MultiCache.this.nativeShardDataPtr, docIdBuf, docGrpBuffer, n);
         }
 
         @Override
-        void fill(int group) {
+        public void fill(int group) {
             nativeSetAllGroups(MultiCache.this.nativeShardDataPtr, group);
         }
 
         @Override
-        void copyInto(GroupLookup other) {
+        public void copyInto(GroupLookup other) {
             if (this.size() != other.size()) {
                 throw new IllegalArgumentException("size != other.size: size=" + this.size()
                         + ", other.size=" + other.size());
@@ -383,32 +382,32 @@ public final class MultiCache implements Closeable {
         }
 
         @Override
-        int size() {
+        public int size() {
             return MultiCache.this.numDocsInShard;
         }
 
         @Override
-        int maxGroup() {
+        public int maxGroup() {
             return MAX_GROUP_NUM;
         }
 
         @Override
-        long memoryUsed() {
+        public long memoryUsed() {
             return this.groups_buffer.length * 4L + this.remap_buffer.length * 4L;
         }
 
         @Override
-        void fillDocGrpBuffer(int[] docIdBuf, int[] docGrpBuffer, int n) {
+        public void fillDocGrpBuffer(int[] docIdBuf, int[] docGrpBuffer, int n) {
             nativeFillGroupsBuffer(MultiCache.this.nativeShardDataPtr, docIdBuf, docGrpBuffer, n);
         }
 
         @Override
-        void fillDocGrpBufferSequential(int start, int[] docGrpBuffer, int n) {
+        public void fillDocGrpBufferSequential(int start, int[] docGrpBuffer, int n) {
             nativeUpdateGroupsSequential(MultiCache.this.nativeShardDataPtr, start, n, docGrpBuffer);
         }
 
         @Override
-        void bitSetRegroup(FastBitSet bitSet, int targetGroup, int negativeGroup, int positiveGroup) {
+        public void bitSetRegroup(FastBitSet bitSet, int targetGroup, int negativeGroup, int positiveGroup) {
             nativeBitSetRegroup(MultiCache.this.nativeShardDataPtr,
                                 bitSet.getBackingArray(),
                                 targetGroup,
@@ -417,12 +416,12 @@ public final class MultiCache implements Closeable {
         }
 
         @Override
-        ImhotepLocalSession getSession() {
+        public ImhotepLocalSession getSession() {
             return MultiCache.this.session;
         }
 
         @Override
-        void recalculateNumGroups() {
+        public void recalculateNumGroups() {
             // TODO
         }
 
