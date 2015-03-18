@@ -13,6 +13,8 @@
  */
  package com.indeed.imhotep.local;
 
+import com.google.common.base.Function;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.indeed.flamdex.api.FlamdexReader;
@@ -24,18 +26,17 @@ import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
-import com.indeed.imhotep.multicache.ftgs.FTGSIterateRequest;
-import com.indeed.imhotep.multicache.ftgs.FTGSIterateRequestChannel;
-import com.indeed.imhotep.multicache.ftgs.FTGSIteratorSplitDelegatingWorker;
-import com.indeed.imhotep.multicache.ftgs.FTGSSplitterConstants;
+import com.indeed.imhotep.multicache.ftgs.*;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.hash.MurmurHash;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nullable;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -115,9 +116,9 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     }
 
     @Override
-    public void writeFTGSIteratorSplit(String[] intFields,
-                                       String[] stringFields,
-                                       int splitIndex,
+    public void writeFTGSIteratorSplit(final String[] intFields,
+                                       final String[] stringFields,
+                                       final int splitIndex,
                                        final int numSplits,
                                        final Socket socket) {
         // save socket
@@ -127,6 +128,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             @Override
             public void run() {
                 // run service
+                NativeFtgsRunner.run(intFields, stringFields, numSplits, ftgsOutputSockets);
             }
         });
 
@@ -160,6 +162,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         // now reset the barrier value (yes, every thread will do it)
         writeFTGSSplitBarrier.set(null);
     }
+
 
     private SimpleFlamdexReader[] getFlamdexReaders() {
         final SimpleFlamdexReader[] ret = new SimpleFlamdexReader[sessions.length];

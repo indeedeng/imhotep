@@ -1,14 +1,14 @@
 package com.indeed.flamdex.simple;
 
 import com.google.common.base.Throwables;
-import com.google.common.collect.Lists;
+import com.indeed.imhotep.multicache.ftgs.TermDesc;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.List;
+import java.util.Iterator;
 
 /**
  * @author arun.
@@ -16,36 +16,39 @@ import java.util.List;
 public class MultiShardFlamdexReader implements Closeable {
     private static final Logger log = Logger.getLogger(MultiShardFlamdexReader.class);
     public final SimpleFlamdexReader[] simpleFlamdexReaders;
+    private final int[] ids;
 
-    public MultiShardFlamdexReader(SimpleFlamdexReader[] simpleFlamdexReaders) {
+    public MultiShardFlamdexReader(SimpleFlamdexReader[] simpleFlamdexReaders, int[] ids) {
         this.simpleFlamdexReaders = Arrays.copyOf(simpleFlamdexReaders, simpleFlamdexReaders.length);
+        this.ids = ids;
     }
 
-    public MultiShardIntTermIterator intTermOffsetIterator(final String intField) throws IOException {
-        final List<SimpleIntTermIterator> iterators = Lists.newArrayListWithCapacity(simpleFlamdexReaders.length);
+    public Iterator<TermDesc> intTermOffsetIterator(final String intField) throws IOException {
+        final SimpleIntTermIterator[] iterators = new SimpleIntTermIterator[ids.length];
         try {
             for (int i = 0; i < simpleFlamdexReaders.length; i++) {
                 final SimpleFlamdexReader flamdexReader = simpleFlamdexReaders[i];
-                iterators.set(i, flamdexReader.getIntTermIterator(intField));
+                iterators[i] = flamdexReader.getIntTermIterator(intField);
             }
         } catch (final Exception e) {
-            Closeables2.closeAll(iterators, log);
+            Closeables2.closeAll(Arrays.asList(iterators), log);
             throw Throwables.propagate(e);
         }
-        return new SimpleMultiShardIntTermIterator(iterators.toArray(new SimpleIntTermIterator[iterators.size()]));
+        return new SimpleMultiShardIntTermIterator(intField, iterators, ids);
     }
 
-    public MultiShardStringTermIterator stringTermOffsetIterator(final String stringField) throws  IOException {
-        final List<SimpleStringTermIterator> iterators = Lists.newArrayListWithCapacity(simpleFlamdexReaders.length);
+    public Iterator<TermDesc> stringTermOffsetIterator(final String stringField) throws  IOException {
+        final SimpleStringTermIterator[] iterators = new SimpleStringTermIterator[ids.length];
         try {
-            for (final SimpleFlamdexReader flamdexReader : simpleFlamdexReaders) {
-                iterators.add(flamdexReader.getStringTermIterator(stringField));
+            for (int i = 0; i < iterators.length; i++) {
+                final SimpleFlamdexReader flamdexReader = simpleFlamdexReaders[i];
+                iterators[i] = flamdexReader.getStringTermIterator(stringField);
             }
         } catch (final Exception e) {
-            Closeables2.closeAll(iterators, log);
+            Closeables2.closeAll(Arrays.asList(iterators), log);
             throw Throwables.propagate(e);
         }
-        return new SimpleMultiShardStringTermIterator(iterators.toArray(new SimpleStringTermIterator[iterators.size()]));
+        return new SimpleMultiShardStringTermIterator(stringField, iterators, ids);
     }
 
     @Override

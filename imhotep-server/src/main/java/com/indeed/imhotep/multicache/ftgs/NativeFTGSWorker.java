@@ -5,7 +5,7 @@ import java.net.Socket;
 import com.indeed.imhotep.io.SocketUtils;
 import com.indeed.imhotep.multicache.ProcessingTask;
 
-public class NativeFTGSWorker extends ProcessingTask<TermGroupStatOpDesc,Void> {
+public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSinfo,Void> {
     private long nativeWorkerStructPtr;
     private long nativeSessionStructPtr;
     private final int numGroups;
@@ -38,27 +38,27 @@ public class NativeFTGSWorker extends ProcessingTask<TermGroupStatOpDesc,Void> {
     }
 
     @Override
-    public Void processData(TermGroupStatOpDesc termDescs) {
+    public Void processData(NativeFtgsRunner.NativeTGSinfo info) {
         int err;
-        if (termDescs.isIntTerm) {
+        if (info.termDesc.isIntTerm) {
             err = native_run_int_tgs_pass(this.nativeWorkerStructPtr,
                                           this.nativeSessionStructPtr,
-                                          termDescs.intTerm,
-                                          termDescs.offsets,
-                                          termDescs.numDocsInTerm,
-                                          termDescs.shardIds,
-                                          termDescs.size(),
-                                          SocketUtils.getOutputDescriptor(termDescs.socket));
+                                          info.termDesc.intTerm,
+                                          info.termDesc.offsets,
+                                          info.termDesc.numDocsInTerm,
+                                          info.termDesc.shardIds,
+                                          info.termDesc.size(),
+                                          SocketUtils.getOutputDescriptor(info.socket));
         } else {
             err = native_run_string_tgs_pass(this.nativeWorkerStructPtr,
                                              this.nativeSessionStructPtr,
-                                             termDescs.stringTerm,
-                                             termDescs.stringTermLen,
-                                             termDescs.offsets,
-                                             termDescs.numDocsInTerm,
-                                             termDescs.shardIds,
-                                             termDescs.size(),
-                                             SocketUtils.getOutputDescriptor(termDescs.socket));
+                                             info.termDesc.stringTerm,
+                                             info.termDesc.stringTermLen,
+                                             info.termDesc.offsets,
+                                             info.termDesc.numDocsInTerm,
+                                             info.termDesc.shardIds,
+                                             info.termDesc.size(),
+                                             SocketUtils.getOutputDescriptor(info.socket));
         }
 
         return null;
@@ -82,7 +82,7 @@ public class NativeFTGSWorker extends ProcessingTask<TermGroupStatOpDesc,Void> {
 
     private static native int native_run_int_tgs_pass(long nativeWorkerStructPtr,
                                                       long nativeSessionStructPtr,
-                                                      int term,
+                                                      long term,
                                                       long[] offsets,
                                                       int[] numDocsPerShard,
                                                       int[] shardIds,

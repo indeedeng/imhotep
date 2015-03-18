@@ -50,7 +50,7 @@ public class AdvProcessingService<Data, Result> extends ProcessingService<Data, 
         this.awaitCompletion();
     }
 
-    public abstract class TaskCoordinator {
+    public static abstract class TaskCoordinator<Data> {
         public abstract int route(Data d);
     }
 }

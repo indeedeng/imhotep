@@ -1,18 +1,104 @@
 package com.indeed.flamdex.simple;
 
 import com.indeed.imhotep.RawFTGSMerger;
+import com.indeed.imhotep.multicache.ftgs.TermDesc;
 import com.indeed.util.core.datastruct.IteratorMultiHeap;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Iterator;
 
 /**
  * @author arun.
  */
-final class SimpleMultiShardStringTermIterator implements MultiShardStringTermIterator {
+final class SimpleMultiShardStringTermIterator implements Iterator<TermDesc>, Closeable {
     private static final Logger log = Logger.getLogger(SimpleMultiShardStringTermIterator.class);
+    private final SimpleStringTermIterator[] shardStringTerms;//one int term iterator per shard
+    private final IteratorMultiHeap<IteratorIdPair> termStreamMerger;
+    private TermDesc nextTerm;
+    private boolean hasMore;
+    private final String fieldName;
+
+    SimpleMultiShardStringTermIterator(final String field,
+                                       final SimpleStringTermIterator[] iterators,
+                                       final int[] ids) {
+        this.fieldName = field;
+        this.shardStringTerms = Arrays.copyOf(iterators, iterators.length);
+        this.termStreamMerger = new IteratorMultiHeap<IteratorIdPair>(iterators.length,
+                                                                      IteratorIdPair.class) {
+            @Override
+            protected boolean next(IteratorIdPair iteratorIdPair) {
+                return iteratorIdPair.stringTermIterator.next();
+            }
+
+            @Override
+            protected int compare(IteratorIdPair a, IteratorIdPair b) {
+                return RawFTGSMerger.compareBytes(a.stringTermIterator.termStringBytes(),
+                                                  a.stringTermIterator.termStringLength(),
+                                                  b.stringTermIterator.termStringBytes(),
+                                                  b.stringTermIterator.termStringLength());
+            }
+        };
+
+
+        for (int i = 0; i < iterators.length; i++) {
+            termStreamMerger.add(new IteratorIdPair(iterators[i], ids[i]));
+        }
+
+        this.nextTerm = nextTermDesc();
+    }
+
+    @Override
+    public boolean hasNext() {
+        return hasMore;
+    }
+
+    @Override
+    public TermDesc next() {
+        final TermDesc currentTerm = this.nextTerm;
+        this.nextTerm = nextTermDesc();
+        return currentTerm;
+    }
+
+    private TermDesc nextTermDesc() {
+        if (!termStreamMerger.next()) {
+            this.hasMore = false;
+            return null;
+        }
+        this.hasMore = true;
+
+        //the iterators of all the objects in minIteratorIdPairs point to the same term and
+        // every term in termStreamMerger now is greater than the term the iterators point to.
+        final IteratorIdPair[] iteratorIdPairs = termStreamMerger.getMin();
+        final int shardCount = termStreamMerger.getMinLength();
+        final TermDesc result = new TermDesc(shardCount);
+
+        for (int i = 0; i < shardCount; i++) {
+            final SimpleStringTermIterator stringTermIterator = iteratorIdPairs[i].stringTermIterator;
+            result.offsets[i] = stringTermIterator.getOffset();
+            result.shardIds[i] = iteratorIdPairs[i].shardId;
+            result.numDocsInTerm[i] = stringTermIterator.docFreq();
+        }
+        result.stringTerm = iteratorIdPairs[0].stringTermIterator.termStringBytes();
+        result.stringTermLen = iteratorIdPairs[0].stringTermIterator.termStringLength();
+        result.isIntTerm = false;
+        result.field = this.fieldName;
+        return result;
+    }
+
+    @Override
+    public void remove() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void close() throws IOException {
+        Closeables2.closeAll(Arrays.asList(shardStringTerms), log);
+    }
+
     private static final class IteratorIdPair {
         private final int shardId;
         private final SimpleStringTermIterator stringTermIterator;
@@ -23,90 +109,4 @@ final class SimpleMultiShardStringTermIterator implements MultiShardStringTermIt
         }
     }
 
-    private final SimpleStringTermIterator[] shardStringTerms;//one int term iterator per shard
-    private final IteratorMultiHeap<IteratorIdPair> termStreamMerger;
-    private final long[] offsets;
-    private final int[] shardIds;
-    private final int[] docFreqs;
-    private int shardCount;
-    private byte[] rawStringTerm;
-    private int rawStringTermLength;
-
-    SimpleMultiShardStringTermIterator(final SimpleStringTermIterator[] iterators, final int[] ids) {
-        this.shardStringTerms = Arrays.copyOf(iterators, iterators.length);
-        this.termStreamMerger = new IteratorMultiHeap<IteratorIdPair>(iterators.length, IteratorIdPair.class) {
-            @Override
-            protected boolean next(IteratorIdPair iteratorIdPair) {
-                return iteratorIdPair.stringTermIterator.next();
-            }
-
-            @Override
-            protected int compare(IteratorIdPair a, IteratorIdPair b) {
-                return RawFTGSMerger.compareBytes(a.stringTermIterator.termStringBytes(),
-                        a.stringTermIterator.termStringLength(),
-                        b.stringTermIterator.termStringBytes(),
-                        b.stringTermIterator.termStringLength()
-                );
-            }
-        };
-
-
-        for (int i = 0; i < iterators.length; i++) {
-            termStreamMerger.add(new IteratorIdPair(iterators[i], ids[i]));
-        }
-
-        offsets = new long[shardStringTerms.length];
-        shardIds = new int[shardStringTerms.length];
-        docFreqs = new int[shardStringTerms.length];
-    }
-
-    @Override
-    public boolean next() {
-        final boolean next = termStreamMerger.next();
-        if (next) {
-            final IteratorIdPair[] iteratorIdPairs = termStreamMerger.getMin();
-            rawStringTerm = iteratorIdPairs[0].stringTermIterator.termStringBytes();
-            rawStringTermLength = iteratorIdPairs[0].stringTermIterator.termStringLength();
-            this.shardCount = termStreamMerger.getMinLength();
-            for (int i = 0; i < shardCount; i++) {
-                offsets[i] = iteratorIdPairs[i].stringTermIterator.getOffset();
-                shardIds[i] = iteratorIdPairs[i].shardId;
-                docFreqs[i] = iteratorIdPairs[i].stringTermIterator.docFreq();
-            }
-        }
-        return next;
-    }
-
-    @Override
-    public int offsets(long[] buffer) {
-        System.arraycopy(offsets, 0, buffer, 0, shardCount);
-        return shardCount;
-    }
-
-    @Override
-    public int shardIds(int[] buffer) {
-        System.arraycopy(shardIds, 0, buffer, 0, shardCount);
-        return shardCount;
-    }
-
-    @Override
-    public int docCounts(int[] buffer) {
-        System.arraycopy(docFreqs, 0, buffer, 0, shardCount);
-        return shardCount;
-    }
-
-    @Override
-    public void close() throws IOException {
-        Closeables2.closeAll(Arrays.asList(shardStringTerms), log);
-    }
-
-    @Override
-    public byte[] termBytes() {
-        return rawStringTerm;
-    }
-
-    @Override
-    public int termBytesLength() {
-        return rawStringTermLength;
-    }
 }
