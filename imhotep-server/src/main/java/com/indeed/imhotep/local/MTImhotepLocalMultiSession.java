@@ -24,6 +24,10 @@ import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.multicache.ftgs.FTGSIterateRequest;
+import com.indeed.imhotep.multicache.ftgs.FTGSIterateRequestChannel;
+import com.indeed.imhotep.multicache.ftgs.FTGSIteratorSplitDelegatingWorker;
+import com.indeed.imhotep.multicache.ftgs.FTGSSplitterConstants;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.hash.MurmurHash;
 import com.indeed.util.core.io.Closeables2;
@@ -35,6 +39,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -48,10 +53,9 @@ import java.util.concurrent.atomic.AtomicReference;
 public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<ImhotepLocalSession> {
     private static final Logger log = Logger.getLogger(MTImhotepLocalMultiSession.class);
     private static final int NUM_WORKERS = 8;
-    private static final int CHANNEL_CAPACITY = 1000;
 
-    private final AtomicReference<CountDownLatch> writeFTGSSplitReqLatch = new AtomicReference<>();
-    private Socket[] ftgsOutputSockets;
+    private final AtomicReference<CyclicBarrier> writeFTGSSplitBarrier = new AtomicReference<>();
+    private Socket[] ftgsOutputSockets = new Socket[256];
 
     private final ExecutorService ftgsExecutorService = Executors.newFixedThreadPool(NUM_WORKERS, new ThreadFactoryBuilder()
                     .setDaemon(true)
@@ -69,76 +73,6 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     private final long memoryClaimed;
 
     private final boolean useNativeFtgs;
-
-    private final class FTGSSplitsScheduler implements Callable<Void> {
-        private final MultiShardFlamdexReader multiShardFlamdexReader;
-        private final String[] intFields;
-        private final String[] stringFields;
-        private final int numSplits;
-
-        private FTGSSplitsScheduler(MultiShardFlamdexReader multiShardFlamdexReader, String[] intFields, String[] stringFields, int numSplits) {
-            this.multiShardFlamdexReader = multiShardFlamdexReader;
-            this.intFields = intFields;
-            this.stringFields = stringFields;
-            this.numSplits = numSplits;
-        }
-
-        @Override
-        public Void call() throws Exception {
-            final CountDownLatch latch = writeFTGSSplitReqLatch.get();
-            latch.await();
-            writeFTGSSplitReqLatch.set(null);
-            final List<FTGSIterateRequestChannel> ftgsIterateRequestChannels = Lists.newArrayListWithCapacity(NUM_WORKERS);
-            for (int i = 0; i < NUM_WORKERS; i++) {
-                ftgsIterateRequestChannels.set(i, new FTGSIterateRequestChannel(sessions.length, CHANNEL_CAPACITY));
-                //TODO: supply an actual implementation
-                final FTGSIteratorSplitDelegatingWorker worker = new FTGSIteratorSplitDelegatingWorker(null, ftgsIterateRequestChannels.get(i));
-                ftgsExecutorService.submit(worker);
-            }
-            for (final String intField : intFields) {
-                try (final MultiShardIntTermIterator offsetIterator = multiShardFlamdexReader.intTermOffsetIterator(intField)) {
-                    while (offsetIterator.next()) {
-                        final long term = offsetIterator.term();
-                        final int splitIndex = (int) ((term * FTGSSplitterConstants.LARGE_PRIME_FOR_CLUSTER_SPLIT + 12345 & Integer.MAX_VALUE) >> 16) % numSplits;
-                        final int workerId = splitIndex % NUM_WORKERS;
-                        final long[] offsets = new long[sessions.length];//there is a local session per shard
-                        offsetIterator.offsets(offsets);
-                        final FTGSIterateRequestChannel ftgsIterateRequestChannel = ftgsIterateRequestChannels.get(workerId);
-                        final FTGSIterateRequest ftgsIterateRequest = ftgsIterateRequestChannel.getRecycledFtgsReq();
-                        ftgsIterateRequest.setField(intField);
-                        ftgsIterateRequest.setIntField(true);
-                        ftgsIterateRequest.setIntTerm(term);
-                        ftgsIterateRequest.setOffsets(offsets);
-                        ftgsIterateRequest.setOutputSocket(ftgsOutputSockets[splitIndex]);
-                        ftgsIterateRequestChannel.submitRequest(ftgsIterateRequest);
-                    }
-                }
-            }
-            for (final String stringField : stringFields) {
-                try (final MultiShardStringTermIterator offsetIterator = multiShardFlamdexReader.stringTermOffsetIterator(stringField)) {
-                    while (offsetIterator.next()) {
-                        final byte[] bytes = offsetIterator.termBytes();
-                        final int splitIndex = hashStringTerm(bytes, offsetIterator.termBytesLength(), numSplits);
-                        final int workerId = splitIndex % NUM_WORKERS;
-                        final long[] offsets = new long[sessions.length];
-                        offsetIterator.offsets(offsets);
-                        final FTGSIterateRequestChannel ftgsIterateRequestChannel = ftgsIterateRequestChannels.get(workerId);
-                        final FTGSIterateRequest ftgsIterateRequest = ftgsIterateRequestChannel.getRecycledFtgsReq();
-                        ftgsIterateRequest.setField(stringField);
-                        ftgsIterateRequest.setIntField(false);
-                        ftgsIterateRequest.setStringTerm(bytes, offsetIterator.termBytesLength());
-                        ftgsIterateRequest.setOffsets(offsets);
-                        ftgsIterateRequest.setOutputSocket(ftgsOutputSockets[splitIndex]);
-                        ftgsIterateRequestChannel.submitRequest(ftgsIterateRequest);
-                    }
-                }
-            }
-            for (int i = 0; i < NUM_WORKERS; i++) {
-                ftgsIterateRequestChannels.get(i).submitRequest(FTGSIterateRequest.END);
-            }
-            return null;
-        }
-    }
 
     private int hashStringTerm(final byte[] termStringBytes, final int termStringLength, final int numSplits) {
         return ((MurmurHash.hash32(termStringBytes, 0, termStringLength)*FTGSSplitterConstants.LARGE_PRIME_FOR_CLUSTER_SPLIT+12345 & 0x7FFFFFFF) >> 16) % numSplits;
@@ -186,23 +120,26 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                                        int splitIndex,
                                        final int numSplits,
                                        final Socket socket) {
-        CountDownLatch latch = writeFTGSSplitReqLatch.get();
-        if (latch == null) {
-            if (writeFTGSSplitReqLatch.compareAndSet(null, new CountDownLatch(numSplits))) {
-                ftgsOutputSockets = new Socket[numSplits];
-                ftgsExecutorService.submit(
-                        new FTGSSplitsScheduler(
-                                new MultiShardFlamdexReader(getFlamdexReaders()),
-                                intFields,
-                                stringFields,
-                                numSplits)
-                );
-                latch = writeFTGSSplitReqLatch.get();
+        // save socket
+        ftgsOutputSockets[splitIndex] = socket;
+
+        final CyclicBarrier newBarrier = new CyclicBarrier(numSplits, new Runnable() {
+            @Override
+            public void run() {
+                // run service
+            }
+        });
+
+        // agree on a single barrier
+        CyclicBarrier barrier = writeFTGSSplitBarrier.get();
+        if (barrier == null) {
+            if (writeFTGSSplitBarrier.compareAndSet(null, newBarrier)) {
+                barrier = writeFTGSSplitBarrier.get();
             } else {
-                latch = writeFTGSSplitReqLatch.get();
+                barrier = writeFTGSSplitBarrier.get();
             }
         }
-        ftgsOutputSockets[splitIndex] = socket;
+
         //There is a potential race condition between ftgsOutputSockets[i] being assigned and the sockets being closed
         // when <code>close()</code> is called. If this method is called concurrently with close it's possible that
         //ftgsOutputSockets[i] will be assigned after it has already been determined to be null in close. This will
@@ -213,10 +150,15 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             closeFTGSSockets();
             throw new IllegalStateException("the session was closed before getting all the splits!");
         }
-        if (latch.getCount() == 0) {
-            throw new IllegalStateException("Latch was already set to zero!");
-        }
-        latch.countDown();
+//        if (latch.getCount() == 0) {
+//            throw new IllegalStateException("Latch was already set to zero!");
+//        }
+
+        // now run the ftgs on the final thread
+        barrier.await();
+
+        // now reset the barrier value (yes, every thread will do it)
+        writeFTGSSplitBarrier.set(null);
     }
 
     private SimpleFlamdexReader[] getFlamdexReaders() {

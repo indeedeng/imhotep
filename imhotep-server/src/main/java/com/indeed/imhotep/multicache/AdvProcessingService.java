@@ -28,7 +28,7 @@ public class AdvProcessingService<Data, Result> extends ProcessingService<Data, 
 
     @Override
     public void processData(Iterator<Data> iterator,
-                            ProcessingTask<Data, Result> resultProcessor) throws InterruptedException {
+                            ResultProcessor<Result> resultProcessor) throws InterruptedException {
         if (resultProcessor != null) {
             this.resultProcessorThread = new Thread(resultProcessor);
             resultProcessor.setQueue(this.queues);
@@ -50,7 +50,7 @@ public class AdvProcessingService<Data, Result> extends ProcessingService<Data, 
         this.awaitCompletion();
     }
 
-    private abstract class TaskCoordinator {
+    public abstract class TaskCoordinator {
         public abstract int route(Data d);
     }
 }

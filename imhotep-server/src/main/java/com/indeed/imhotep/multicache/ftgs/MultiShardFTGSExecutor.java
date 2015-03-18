@@ -1,4 +1,4 @@
-package com.indeed.imhotep.local;
+package com.indeed.imhotep.multicache.ftgs;
 
 import java.net.Socket;
 

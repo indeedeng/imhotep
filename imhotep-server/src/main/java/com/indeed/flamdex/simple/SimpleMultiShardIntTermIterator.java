@@ -25,9 +25,11 @@ final class SimpleMultiShardIntTermIterator implements MultiShardIntTermIterator
     private final SimpleIntTermIterator[] shardIntTerms;//one int term iterator per shard
     private final IteratorMultiHeap<IteratorIdPair> termStreamMerger;
     private final long[] offsets;
+    private final int[] shardIds;
+    private int shardCount;
     private long intTerm;
 
-    SimpleMultiShardIntTermIterator(SimpleIntTermIterator[] iterators) {
+    SimpleMultiShardIntTermIterator(SimpleIntTermIterator[] iterators, int[] ids) {
         shardIntTerms = Arrays.copyOf(iterators, iterators.length);
         termStreamMerger = new IteratorMultiHeap<IteratorIdPair>(iterators.length, IteratorIdPair.class) {
             @Override
@@ -40,7 +42,13 @@ final class SimpleMultiShardIntTermIterator implements MultiShardIntTermIterator
                 return Long.compare(a.intTermIterator.term(), b.intTermIterator.term());
             }
         };
+
+        for (int i = 0; i < iterators.length; i++) {
+            termStreamMerger.add(new IteratorIdPair(iterators[i], ids[i]));
+        }
+
         offsets = new long[iterators.length];
+        shardIds = new int[iterators.length];
     }
 
     @Override
@@ -50,11 +58,11 @@ final class SimpleMultiShardIntTermIterator implements MultiShardIntTermIterator
             //the iterators of all the objects in minIteratorIdPairs point to the same term and every term in termStreamMerger
             //now is greater than the term the iterators point to.
             final IteratorIdPair[] minIteratorIdPairs = termStreamMerger.getMin();
-            Arrays.fill(offsets, -1);
-            for (int i = 0; i < termStreamMerger.getMinLength(); i++) {
-                final int shardId = minIteratorIdPairs[i].shardId;
+            this.shardCount = termStreamMerger.getMinLength();
+            for (int i = 0; i < shardCount; i++) {
                 final SimpleIntTermIterator intTermIterator = minIteratorIdPairs[i].intTermIterator;
-                offsets[shardId] = intTermIterator.getOffset();
+                offsets[i] = intTermIterator.getOffset();
+                shardIds[i] = minIteratorIdPairs[i].shardId;
             }
             intTerm = minIteratorIdPairs[0].intTermIterator.term();
         }
@@ -62,8 +70,15 @@ final class SimpleMultiShardIntTermIterator implements MultiShardIntTermIterator
     }
 
     @Override
-    public void offsets(long[] buffer) {
-        System.arraycopy(offsets, 0, buffer, 0, offsets.length);
+    public int offsets(long[] buffer) {
+        System.arraycopy(offsets, 0, buffer, 0, shardCount);
+        return shardCount;
+    }
+
+    @Override
+    public int shardIds(int[] buffer) {
+        System.arraycopy(shardIds, 0, buffer, 0, shardCount);
+        return shardCount;
     }
 
     @Override

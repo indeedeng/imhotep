@@ -17,7 +17,7 @@ final class SimpleMultiShardStringTermIterator implements MultiShardStringTermIt
         private final int shardId;
         private final SimpleStringTermIterator stringTermIterator;
 
-        IteratorIdPair(final int shardId, final SimpleStringTermIterator stringTermIterator) {
+        IteratorIdPair(final SimpleStringTermIterator stringTermIterator, final int shardId) {
             this.shardId = shardId;
             this.stringTermIterator = stringTermIterator;
         }
@@ -26,12 +26,15 @@ final class SimpleMultiShardStringTermIterator implements MultiShardStringTermIt
     private final SimpleStringTermIterator[] shardStringTerms;//one int term iterator per shard
     private final IteratorMultiHeap<IteratorIdPair> termStreamMerger;
     private final long[] offsets;
+    private final int[] shardIds;
+    private final int[] docFreqs;
+    private int shardCount;
     private byte[] rawStringTerm;
     private int rawStringTermLength;
 
-    SimpleMultiShardStringTermIterator(final SimpleStringTermIterator[] stringTermIterators) {
-        this.shardStringTerms = Arrays.copyOf(stringTermIterators, stringTermIterators.length);
-        this.termStreamMerger = new IteratorMultiHeap<IteratorIdPair>(stringTermIterators.length, IteratorIdPair.class) {
+    SimpleMultiShardStringTermIterator(final SimpleStringTermIterator[] iterators, final int[] ids) {
+        this.shardStringTerms = Arrays.copyOf(iterators, iterators.length);
+        this.termStreamMerger = new IteratorMultiHeap<IteratorIdPair>(iterators.length, IteratorIdPair.class) {
             @Override
             protected boolean next(IteratorIdPair iteratorIdPair) {
                 return iteratorIdPair.stringTermIterator.next();
@@ -46,27 +49,50 @@ final class SimpleMultiShardStringTermIterator implements MultiShardStringTermIt
                 );
             }
         };
+
+
+        for (int i = 0; i < iterators.length; i++) {
+            termStreamMerger.add(new IteratorIdPair(iterators[i], ids[i]));
+        }
+
         offsets = new long[shardStringTerms.length];
+        shardIds = new int[shardStringTerms.length];
+        docFreqs = new int[shardStringTerms.length];
     }
 
     @Override
     public boolean next() {
         final boolean next = termStreamMerger.next();
         if (next) {
-            Arrays.fill(offsets, -1);
             final IteratorIdPair[] iteratorIdPairs = termStreamMerger.getMin();
             rawStringTerm = iteratorIdPairs[0].stringTermIterator.termStringBytes();
             rawStringTermLength = iteratorIdPairs[0].stringTermIterator.termStringLength();
-            for (int i = 0; i < termStreamMerger.getMinLength(); i++) {
-                offsets[iteratorIdPairs[i].shardId] = iteratorIdPairs[i].stringTermIterator.getOffset();
+            this.shardCount = termStreamMerger.getMinLength();
+            for (int i = 0; i < shardCount; i++) {
+                offsets[i] = iteratorIdPairs[i].stringTermIterator.getOffset();
+                shardIds[i] = iteratorIdPairs[i].shardId;
+                docFreqs[i] = iteratorIdPairs[i].stringTermIterator.docFreq();
             }
         }
         return next;
     }
 
     @Override
-    public void offsets(long[] buffer) {
-        System.arraycopy(offsets, 0, buffer, 0, offsets.length);
+    public int offsets(long[] buffer) {
+        System.arraycopy(offsets, 0, buffer, 0, shardCount);
+        return shardCount;
+    }
+
+    @Override
+    public int shardIds(int[] buffer) {
+        System.arraycopy(shardIds, 0, buffer, 0, shardCount);
+        return shardCount;
+    }
+
+    @Override
+    public int docCounts(int[] buffer) {
+        System.arraycopy(docFreqs, 0, buffer, 0, shardCount);
+        return shardCount;
     }
 
     @Override
