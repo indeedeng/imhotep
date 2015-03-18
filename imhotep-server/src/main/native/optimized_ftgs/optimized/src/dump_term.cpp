@@ -1,5 +1,3 @@
-#define restrict __restrict__
-
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -23,8 +21,8 @@
 extern "C" {
 #include "imhotep_native.h"
 #include "local_session.h"
+#include "test_patch.h"
 }
-
 #include "varintdecode.h"
 
 using namespace std;
@@ -106,6 +104,8 @@ public:
 };
 
 class IntFieldView {
+    string _name;
+
     Buffer _terms;
     Buffer _docs;
 
@@ -120,6 +120,24 @@ class IntFieldView {
     size_t _n_terms = 0;
 
 public:
+    class DocIdIterator {
+        View   _view;
+        size_t _remaining = 0;
+        long   _doc_id    = 0;
+    public:
+        DocIdIterator(const View& view, uint64_t remaining)
+            : _view(view)
+            , _remaining(remaining)
+        { }
+        bool has_next() { return _remaining > 0; }
+        long next() {
+            assert(!_view.empty());
+            _doc_id += _view.read_varint<long>(_view.read());
+            --_remaining;
+            return _doc_id;
+        }
+    };
+
     class TermIterator {
         View _view;
         long _term   = 0;
@@ -142,7 +160,8 @@ public:
     };
 
     IntFieldView(const string& shard_dir, const string& name)
-        : _terms(shard_dir + "/fld-" + name + ".intterms")
+        : _name(name)
+        , _terms(shard_dir + "/fld-" + name + ".intterms")
         , _docs(shard_dir + "/fld-" + name + ".intdocs") {
         TermIterator it(term_iterator());
         while (it.has_next()) {
@@ -159,6 +178,8 @@ public:
             ++_n_terms;
         }
     }
+
+    const string& name() const { return _name; }
 
     long min() const { return _min; }
     long max() const { return _max; }
@@ -179,7 +200,7 @@ public:
 
     const char* doc_id_stream(long offset) const { return _docs.begin() + offset; };
 
-    void pack(packed_table_t* table, int col, bool group_by_me=false) const {
+    void pack(packed_table_t* table, int col, bool group_by_me=false) {
         TermIterator it(term_iterator());
         while (it.has_next()) {
             const TermIterator::Tuple next(it.next());
@@ -193,43 +214,22 @@ public:
 
 private:
     void scrape_doc_ids(const View& view, long term_doc_freq) {
-        View                  window(view.begin(), view.end());
-        array<uint32_t, 4099> buffer;
-        uint32_t              prev(0);
-        uint64_t              remaining(term_doc_freq);
-        while (remaining > 0) {
-            const uint64_t length(std::min(remaining, buffer.size()));
-            const size_t   bytes(masked_vbyte_read_loop_delta((uint8_t*) window.begin(), buffer.data(), length, prev));
-            remaining -= length;
-            window = View(window.begin() + bytes, window.end());
-            prev = buffer[length - 1];
-            for (size_t i_doc_id(0); i_doc_id < length; ++i_doc_id) {
-                const long doc_id(buffer[i_doc_id]);
-                _min_doc_id = std::min(_min_doc_id, doc_id);
-                _max_doc_id = std::max(_max_doc_id, doc_id);
-            }
+        DocIdIterator it(view, term_doc_freq);
+        while (it.has_next()) {
+            const long doc_id(it.next());
+            _min_doc_id = std::min(_min_doc_id, doc_id);
+            _max_doc_id = std::max(_max_doc_id, doc_id);
         }
     }
 
     void pack(const View& view, long term_doc_freq, packed_table_t* table,
-              int64_t term, int col, bool group_by_me) const {
-        View                window(view.begin(), view.end());
-        array<uint32_t, 16> row_ids;
-        uint32_t            prev(0);
-        uint64_t            remaining(term_doc_freq);
-        array<int64_t, 16>  col_vals;
-        array<int32_t, 16>  group_vals;
-        fill(col_vals.begin(), col_vals.end(), term);
-        if (group_by_me) fill(group_vals.begin(), group_vals.end(), term);
-        while (remaining > 0) {
-            const uint64_t length(std::min(remaining, row_ids.size()));
-            const size_t   bytes(masked_vbyte_read_loop_delta((uint8_t*) window.begin(), row_ids.data(), length, prev));
-            remaining -= length;
-            window = View(window.begin() + bytes, window.end());
-            prev = row_ids[length - 1];
-            packed_table_batch_set_col(table, (int*) row_ids.data(), length, col_vals.data(), col);
+              long term, int col, bool group_by_me) {
+        DocIdIterator it(view, term_doc_freq);
+        while (it.has_next()) {
+            const long doc_id(it.next());
+            packed_table_set_cell(table, doc_id, col, term);
             if (group_by_me) {
-                packed_table_batch_set_group(table, (int*) row_ids.data(), length, group_vals.data());
+                packed_table_set_group(table, doc_id, term);
             }
         }
     }
@@ -237,14 +237,64 @@ private:
 
 ostream&
 operator<<(ostream& os, const IntFieldView& view) {
-    os << "min: "                << setw(10) << view.min()
-       << " max: "               << setw(10) << view.max()
-       << " min_doc_id: "        << setw(10) << view.min_doc_id()
-       << " max_doc_id: "        << setw(10) << view.max_doc_id()
-       << " n_terms: "           << setw(10) << view.n_terms()
-       << " max_term_doc_freq: " << setw(10) << view.max_term_doc_freq();
+    os << setw(20) << view.name()
+       << setw(12)  << view.min()
+       << setw(12) << view.max()
+       << setw(12) << view.min_doc_id()
+       << setw(12) << view.max_doc_id()
+       << setw(12) << view.n_terms()
+       << setw(18) << view.max_term_doc_freq();
     return os;
 }
+
+ostream&
+operator<<(ostream& os, const vector<shared_ptr<IntFieldView>>& views) {
+    os << setw(20) << "name"
+       << setw(12)  << "min"
+       << setw(12) << "max"
+       << setw(12) << "min_doc_id"
+       << setw(12) << "max_doc_id"
+       << setw(12) << "n_terms"
+       << setw(18) << "max_term_doc_freq"
+       << endl;
+    for (auto view: views) os << *view << endl;
+    return os;
+}
+
+struct TableMetadata {
+    int32_t* sizes           = 0;
+    int32_t* vec_nums        = 0;
+    int32_t* offsets_in_vecs = 0;
+
+    TableMetadata(int n_cols,
+                  const int64_t * restrict mins,
+                  const int64_t * restrict maxes)
+        : sizes(get_sizes(n_cols, mins, maxes))
+        , vec_nums(get_vec_nums(n_cols, mins, maxes, sizes))
+        , offsets_in_vecs(get_offsets_in_vecs(n_cols, mins, maxes, sizes))
+    { }
+
+    ~TableMetadata() {
+        free(sizes);
+        free(vec_nums);
+        free(offsets_in_vecs);
+    }
+
+    TableMetadata(const TableMetadata& rhs) = delete;
+};
+
+
+ostream&
+operator<<(ostream& os, unpacked_table_t* stats) {
+    for (int row(0); row < unpacked_table_get_rows(stats); ++row) {
+        for (int col(0); col < unpacked_table_get_cols(stats); ++col) {
+            os << setw(20) << unpacked_table_get_cell(stats, row, col);
+        }
+        os << endl;
+    }
+    return os;
+}
+
 
 int main(int argc, char* argv[])
 {
@@ -261,31 +311,28 @@ int main(int argc, char* argv[])
     vector<shared_ptr<IntFieldView>> field_views;
     for (auto field: fields) {
         field_views.push_back(make_shared<IntFieldView>(shard_dir, field));
-        cout << setw(10) << field << " " << **field_views.rbegin() << endl;
     }
 
-    int n_rows(0);
     size_t n_cols(fields.size());
+    int n_rows(0);
     vector<int64_t> col_mins(n_cols), col_maxes(n_cols);
-    vector<int32_t> sizes(n_cols), vec_nums(n_cols), offsets(n_cols);
     for (size_t col(0); col < n_cols; ++col) {
-        /* naively assign fields to slices */
         IntFieldView& field_view(*field_views[col]);
-        n_rows         = std::max(n_rows, field_view.n_rows());
         col_mins[col]  = field_view.min();
         col_maxes[col] = field_view.max();
-        sizes[col]     = 8;
-        vec_nums[col]  = 1 + col / 2;
-        offsets[col]   = col % 2;
+        n_rows         = std::max(n_rows, field_view.n_rows());
     }
 
+    TableMetadata metadata(n_cols, col_mins.data(), col_maxes.data());
     packed_table_t* table(packed_table_create(n_rows,
                                               col_mins.data(), col_maxes.data(),
-                                              sizes.data(), vec_nums.data(), offsets.data(),
+                                              metadata.sizes, metadata.vec_nums, metadata.offsets_in_vecs,
                                               n_cols));
     for (size_t col(0); col < n_cols; ++col) {
         field_views[col]->pack(table, col, col == 0);
     }
+
+    cout << field_views;
 
     array <int, 1> socket_file_desc{{3}};
     struct worker_desc  worker;
@@ -293,7 +340,8 @@ int main(int argc, char* argv[])
 
     uint8_t shard_order[] = {0};
     struct session_desc session;
-    session_init(&session, n_rows, n_cols, shard_order, 1);
+    //    session_init(&session, (*field_views.begin())->n_terms() + 1, n_cols, shard_order, 1);
+    session_init(&session, (*field_views.begin())->max() + 1, n_cols, shard_order, 1);
 
     array <int, 1> shard_handles;
     shard_handles[0] = register_shard(&session, table);
@@ -323,6 +371,8 @@ int main(int argc, char* argv[])
 
         assert(error.code == 0);
     }
+
+    // cout << endl << worker.grp_stats << endl;
 
     packed_table_destroy(table);
 }

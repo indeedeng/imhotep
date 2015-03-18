@@ -2,8 +2,8 @@ IDIR =include
 CC=/usr/bin/clang
 JNI_HEADER_LOC=$(JAVA_HOME)/include
 JNI_HEADER_LOC2=$(JNI_HEADER_LOC)/linux
-CFLAGS=-O3 -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fvisibility=hidden -fPIC
-CPPFLAGS=-O3 -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=c++0x -msse4.2 -fvisibility=hidden -fPIC
+CFLAGS=-O3  -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fvisibility=hidden -fPIC
+CPPFLAGS=-O3  -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=c++0x -msse4.2 -fvisibility=hidden -fPIC
 LFLAGS=-shared
 
 ODIR=obj
