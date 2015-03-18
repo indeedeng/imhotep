@@ -13,14 +13,9 @@
  */
  package com.indeed.imhotep.local;
 
-import com.google.common.base.Function;
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.indeed.flamdex.api.FlamdexReader;
-import com.indeed.flamdex.simple.MultiShardFlamdexReader;
-import com.indeed.flamdex.simple.MultiShardIntTermIterator;
-import com.indeed.flamdex.simple.MultiShardStringTermIterator;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.ImhotepRemoteSession;
@@ -32,14 +27,11 @@ import com.indeed.util.core.hash.MurmurHash;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
-import javax.annotation.Nullable;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -128,7 +120,8 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             @Override
             public void run() {
                 // run service
-                NativeFtgsRunner.run(intFields, stringFields, numSplits, ftgsOutputSockets);
+                final NativeFtgsRunner runner = new NativeFtgsRunner(readers, shardIds, getNumGroups(), numStats);
+                runner.run(intFields, stringFields, numSplits, ftgsOutputSockets);
             }
         });
 

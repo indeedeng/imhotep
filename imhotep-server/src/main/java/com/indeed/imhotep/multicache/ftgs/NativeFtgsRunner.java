@@ -23,7 +23,11 @@ public class NativeFtgsRunner {
     private static final int LARGE_PRIME_FOR_CLUSTER_SPLIT = 969168349;
 
     private final MultiShardFlamdexReader multiShardFlamdexReader;
-    private List<Closeable> iterators;
+    private final List<Closeable> iterators = new ArrayList<>(32);
+    private final int[] shardIds;
+    private final int numGroups;
+    private final int numMetrics;
+    private final int numShards;
 
     static class NativeTGSinfo {
         public TermDesc termDesc;
@@ -31,8 +35,15 @@ public class NativeFtgsRunner {
         public Socket socket;
     }
 
-    private NativeFtgsRunner(List<FlamdexReader> multiShardFlamdexReader) {
-        this.multiShardFlamdexReader = new MultiShardFlamdexReader();
+    private NativeFtgsRunner(FlamdexReader[] flamdexReaders,
+                             int[] shardIds,
+                             int numGroups,
+                             int numMetrics) {
+        this.shardIds = shardIds;
+        this.numGroups = numGroups;
+        this.numMetrics = numMetrics;
+        this.multiShardFlamdexReader = new MultiShardFlamdexReader(flamdexReaders, shardIds);
+        this.numShards = flamdexReaders.length;
     }
 
     private static final int minHashInt(long term, int numSplits) {
@@ -80,11 +91,8 @@ public class NativeFtgsRunner {
                     socketList.add(sockets[j]);
                 }
             }
-            service.addTask(new NativeFTGSWorker(numGroups,
-                                                 numMetrics,
-                                                 numShards,
-                                                 socketList.toArray(new Socket[socketList.size()]),
-                                                 i));
+            final Socket[] mySockets = socketList.toArray(new Socket[socketList.size()]);
+            service.addTask(new NativeFTGSWorker(numGroups, numMetrics, numShards, mySockets, i));
         }
 
         service.processData(iter, null);
@@ -95,7 +103,6 @@ public class NativeFtgsRunner {
                                                   final int numSplits,
                                                   final Socket[] sockets) {
         final Iterator<NativeTGSinfo> results;
-        iterators = Lists.newArrayListWithCapacity(intFields.length + stringFields.length);
 
         final Function<String, Iterator<TermDesc>> intIterBuilder;
         final Function<String, Iterator<TermDesc>> stringIterBuilder;

@@ -12,14 +12,14 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Created by darren on 2/7/15.
  */
 public class ProcessingService<Data,Result> {
-    protected final ProcessingQueuesHolder queues;
+    protected final ProcessingQueuesHolder<Data, Result> queues;
     protected final List<ProcessingTask<Data, Result>> tasks;
     protected int numTasks;
     protected List<Thread> threads;
     protected Thread resultProcessorThread;
 
     public ProcessingService() {
-        this.queues = new ProcessingQueuesHolder();
+        this.queues = new ProcessingQueuesHolder<>();
         this.tasks = Lists.newArrayListWithCapacity(32);
         this.threads = Lists.newArrayListWithCapacity(32);
         this.numTasks = 0;
@@ -52,44 +52,36 @@ public class ProcessingService<Data,Result> {
             t.start();
         }
         while (iterator.hasNext()) {
-            this.submit(iterator.next());
+            this.queues.submitData(iterator.next());
         }
         this.awaitCompletion();
-    }
-
-    public void submit(Data d) throws InterruptedException {
-        this.queues.submitData(d);
-    }
-
-    public Result retrieveResult() throws InterruptedException {
-        return (Result) queues.retrieveResult();
     }
 
     public synchronized void awaitCompletion() throws InterruptedException {
         this.queues.waitUntilQueueIsEmpty();
     }
 
-    static class ProcessingQueuesHolder {
+    public static class ProcessingQueuesHolder<D,R> {
         public static final Object TERMINATOR = new Object();
 
         private AtomicInteger numDataElementsQueued = new AtomicInteger(0);
         private volatile boolean waiting = false;
 
-        protected BlockingQueue dataQueue;
-        protected BlockingQueue resultsQueue;
+        protected BlockingQueue<D> dataQueue;
+        protected BlockingQueue<R> resultsQueue;
 
         public ProcessingQueuesHolder() {
-            this.dataQueue = new ArrayBlockingQueue(64);
-            this.resultsQueue = new ArrayBlockingQueue(64);
+            this.dataQueue = new ArrayBlockingQueue<D>(64);
+            this.resultsQueue = new ArrayBlockingQueue<R>(64);
         }
 
-        public void submitData(Object d) throws InterruptedException {
+        public void submitData(D d) throws InterruptedException {
             numDataElementsQueued.incrementAndGet();
             dataQueue.put(d);
         }
 
-        public Object retrieveData() throws InterruptedException {
-            Object d;
+        public D retrieveData() throws InterruptedException {
+            D d;
             int count;
 
             d = dataQueue.take();
@@ -97,14 +89,14 @@ public class ProcessingService<Data,Result> {
             if (count == 0) {
                 signalQueueEmpty();
             }
-            return dataQueue.take();
+            return d;
         }
 
-        public void submitResult(Object r) throws InterruptedException {
+        public void submitResult(R r) throws InterruptedException {
             resultsQueue.put(r);
         }
 
-        public Object retrieveResult() throws InterruptedException {
+        public R retrieveResult() throws InterruptedException {
             return resultsQueue.take();
         }
 

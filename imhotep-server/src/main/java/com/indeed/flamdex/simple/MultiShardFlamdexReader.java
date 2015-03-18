@@ -1,6 +1,9 @@
 package com.indeed.flamdex.simple;
 
 import com.google.common.base.Throwables;
+import com.indeed.flamdex.api.FlamdexReader;
+import com.indeed.flamdex.api.IntTermIterator;
+import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.imhotep.multicache.ftgs.TermDesc;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
@@ -15,19 +18,19 @@ import java.util.Iterator;
  */
 public class MultiShardFlamdexReader implements Closeable {
     private static final Logger log = Logger.getLogger(MultiShardFlamdexReader.class);
-    public final SimpleFlamdexReader[] simpleFlamdexReaders;
+    public final FlamdexReader[] flamdexReaders;
     private final int[] ids;
 
-    public MultiShardFlamdexReader(SimpleFlamdexReader[] simpleFlamdexReaders, int[] ids) {
-        this.simpleFlamdexReaders = Arrays.copyOf(simpleFlamdexReaders, simpleFlamdexReaders.length);
+    public MultiShardFlamdexReader(FlamdexReader[] flamdexReaders, int[] ids) {
+        this.flamdexReaders = Arrays.copyOf(flamdexReaders, flamdexReaders.length);
         this.ids = ids;
     }
 
     public Iterator<TermDesc> intTermOffsetIterator(final String intField) throws IOException {
-        final SimpleIntTermIterator[] iterators = new SimpleIntTermIterator[ids.length];
+        final IntTermIterator[] iterators = new IntTermIterator[ids.length];
         try {
-            for (int i = 0; i < simpleFlamdexReaders.length; i++) {
-                final SimpleFlamdexReader flamdexReader = simpleFlamdexReaders[i];
+            for (int i = 0; i < flamdexReaders.length; i++) {
+                final FlamdexReader flamdexReader = flamdexReaders[i];
                 iterators[i] = flamdexReader.getIntTermIterator(intField);
             }
         } catch (final Exception e) {
@@ -38,10 +41,10 @@ public class MultiShardFlamdexReader implements Closeable {
     }
 
     public Iterator<TermDesc> stringTermOffsetIterator(final String stringField) throws  IOException {
-        final SimpleStringTermIterator[] iterators = new SimpleStringTermIterator[ids.length];
+        final StringTermIterator[] iterators = new StringTermIterator[ids.length];
         try {
             for (int i = 0; i < iterators.length; i++) {
-                final SimpleFlamdexReader flamdexReader = simpleFlamdexReaders[i];
+                final FlamdexReader flamdexReader = flamdexReaders[i];
                 iterators[i] = flamdexReader.getStringTermIterator(stringField);
             }
         } catch (final Exception e) {
@@ -53,6 +56,6 @@ public class MultiShardFlamdexReader implements Closeable {
 
     @Override
     public void close() {
-        Closeables2.closeAll(Arrays.asList(simpleFlamdexReaders), log);
+        Closeables2.closeAll(Arrays.asList(flamdexReaders), log);
     }
 }

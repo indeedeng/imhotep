@@ -1,5 +1,6 @@
 package com.indeed.flamdex.simple;
 
+import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.imhotep.multicache.ftgs.TermDesc;
 import com.indeed.util.core.datastruct.IteratorMultiHeap;
 import com.indeed.util.core.io.Closeables2;
@@ -15,13 +16,13 @@ import java.util.Iterator;
  */
 final class SimpleMultiShardIntTermIterator implements Iterator<TermDesc>, Closeable {
     private static final Logger log = Logger.getLogger(SimpleMultiShardIntTermIterator.class);
-    private final SimpleIntTermIterator[] shardIntTerms;//one int term iterator per shard
+    private final IntTermIterator[] shardIntTerms;//one int term iterator per shard
     private final IteratorMultiHeap<IteratorIdPair> termStreamMerger;
     private TermDesc nextTerm;
     private boolean hasMore;
     private final String fieldName;
 
-    SimpleMultiShardIntTermIterator(String field, SimpleIntTermIterator[] iterators, int[] ids) {
+    SimpleMultiShardIntTermIterator(String field, IntTermIterator[] iterators, int[] ids) {
         this.fieldName = field;
         this.shardIntTerms = Arrays.copyOf(iterators, iterators.length);
         this.termStreamMerger = new IteratorMultiHeap<IteratorIdPair>(iterators.length,
@@ -38,7 +39,13 @@ final class SimpleMultiShardIntTermIterator implements Iterator<TermDesc>, Close
         };
 
         for (int i = 0; i < iterators.length; i++) {
-            termStreamMerger.add(new IteratorIdPair(iterators[i], ids[i]));
+            final IntTermIterator iter = iterators[i];
+            final SimpleIntTermIterator simpleIter;
+            if (!(iter instanceof SimpleTermIterator)) {
+                throw new IllegalArgumentException("invalid term iterator");
+            }
+            simpleIter = (SimpleIntTermIterator)iter;
+            termStreamMerger.add(new IteratorIdPair(simpleIter, ids[i]));
         }
 
         this.nextTerm = nextTermDesc();

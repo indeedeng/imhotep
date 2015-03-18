@@ -1,5 +1,6 @@
 package com.indeed.flamdex.simple;
 
+import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.imhotep.RawFTGSMerger;
 import com.indeed.imhotep.multicache.ftgs.TermDesc;
 import com.indeed.util.core.datastruct.IteratorMultiHeap;
@@ -16,17 +17,17 @@ import java.util.Iterator;
  */
 final class SimpleMultiShardStringTermIterator implements Iterator<TermDesc>, Closeable {
     private static final Logger log = Logger.getLogger(SimpleMultiShardStringTermIterator.class);
-    private final SimpleStringTermIterator[] shardStringTerms;//one int term iterator per shard
+    private final StringTermIterator[] shardStringIters;//one int term iterator per shard
     private final IteratorMultiHeap<IteratorIdPair> termStreamMerger;
     private TermDesc nextTerm;
     private boolean hasMore;
     private final String fieldName;
 
     SimpleMultiShardStringTermIterator(final String field,
-                                       final SimpleStringTermIterator[] iterators,
+                                       final StringTermIterator[] iterators,
                                        final int[] ids) {
         this.fieldName = field;
-        this.shardStringTerms = Arrays.copyOf(iterators, iterators.length);
+        this.shardStringIters = Arrays.copyOf(iterators, iterators.length);
         this.termStreamMerger = new IteratorMultiHeap<IteratorIdPair>(iterators.length,
                                                                       IteratorIdPair.class) {
             @Override
@@ -45,7 +46,13 @@ final class SimpleMultiShardStringTermIterator implements Iterator<TermDesc>, Cl
 
 
         for (int i = 0; i < iterators.length; i++) {
-            termStreamMerger.add(new IteratorIdPair(iterators[i], ids[i]));
+            final StringTermIterator iter = iterators[i];
+            final SimpleStringTermIterator simpleIter;
+            if (!(iter instanceof SimpleTermIterator)) {
+                throw new IllegalArgumentException("invalid term iterator");
+            }
+            simpleIter = (SimpleStringTermIterator) iter;
+            termStreamMerger.add(new IteratorIdPair(simpleIter, ids[i]));
         }
 
         this.nextTerm = nextTermDesc();
@@ -96,7 +103,7 @@ final class SimpleMultiShardStringTermIterator implements Iterator<TermDesc>, Cl
 
     @Override
     public void close() throws IOException {
-        Closeables2.closeAll(Arrays.asList(shardStringTerms), log);
+        Closeables2.closeAll(Arrays.asList(shardStringIters), log);
     }
 
     private static final class IteratorIdPair {

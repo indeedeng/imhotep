@@ -4,14 +4,14 @@ package com.indeed.imhotep.multicache;
  * Created by darren on 2/8/15.
  */
 public abstract class ProcessingTask<Data,Result> implements Runnable {
-    protected ProcessingService.ProcessingQueuesHolder queue;
+    protected ProcessingService.ProcessingQueuesHolder<Data,Result> queue;
     private boolean discardResults = false;
 
-    public ProcessingService.ProcessingQueuesHolder getQueue() {
+    public ProcessingService.ProcessingQueuesHolder<Data, Result> getQueue() {
         return queue;
     }
 
-    public void setQueue(ProcessingService.ProcessingQueuesHolder queue) {
+    public void setQueue(ProcessingService.ProcessingQueuesHolder<Data, Result> queue) {
         this.queue = queue;
     }
 
@@ -21,13 +21,13 @@ public abstract class ProcessingTask<Data,Result> implements Runnable {
 
     public final void run() {
         Data d;
-        Result r = null;
+        Result r;
 
         try {
             init();
             do {
                 try {
-                    d = (Data) queue.retrieveData();
+                    d = queue.retrieveData();
                     if (d == ProcessingService.ProcessingQueuesHolder.TERMINATOR) {
                         break;
                     }

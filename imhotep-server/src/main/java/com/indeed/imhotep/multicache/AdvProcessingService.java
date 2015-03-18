@@ -9,10 +9,10 @@ import java.util.List;
  * Created by darren on 3/16/15.
  */
 public class AdvProcessingService<Data, Result> extends ProcessingService<Data, Result> {
-    private final List<ProcessingQueuesHolder> queuesList;
-    private TaskCoordinator coordinator;
+    private final List<ProcessingQueuesHolder<Data, Result>> queuesList;
+    private TaskCoordinator<Data> coordinator;
 
-    public AdvProcessingService(TaskCoordinator coordinator) {
+    public AdvProcessingService(TaskCoordinator<Data> coordinator) {
         super();
         this.coordinator = coordinator;
         this.queuesList = Lists.newArrayListWithCapacity(32);
@@ -22,7 +22,7 @@ public class AdvProcessingService<Data, Result> extends ProcessingService<Data, 
     public int addTask(ProcessingTask<Data, Result> task) {
         final int handle = super.addTask(task);
 
-        this.queuesList.add(new ProcessingQueuesHolder());
+        this.queuesList.add(new ProcessingQueuesHolder<Data, Result>());
         return handle;
     }
 

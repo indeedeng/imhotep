@@ -1,17 +1,19 @@
 package com.indeed.imhotep.multicache;
 
+import com.google.common.collect.Lists;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+
 /**
  * Created by darren on 2/8/15.
  */
 public abstract class ResultProcessor<Result> implements Runnable {
-    protected ProcessingService.ProcessingQueuesHolder queue;
+    protected List<ProcessingService.ProcessingQueuesHolder<?,Result>> queues;
 
-    public ProcessingService.ProcessingQueuesHolder getQueue() {
-        return queue;
-    }
-
-    public void setQueue(ProcessingService.ProcessingQueuesHolder queue) {
-        this.queue = queue;
+    public void setQueues(List<ProcessingService.ProcessingQueuesHolder<?, Result>> queues) {
+        this.queues = new ArrayList<>(queues);
     }
 
     public final void run() {
@@ -19,13 +21,23 @@ public abstract class ResultProcessor<Result> implements Runnable {
 
         try {
             init();
-            do {
+            outer: do {
                 try {
-                    r = (Result) queue.retrieveResult();
-                    if (r == ProcessingService.ProcessingQueuesHolder.TERMINATOR) {
-                        break;
+                    final Iterator<ProcessingService.ProcessingQueuesHolder<?, Result>> iter;
+                    iter = this.queues.iterator();
+                    while (iter.hasNext()) {
+                        final ProcessingService.ProcessingQueuesHolder<?, Result> q;
+                        q = iter.next();
+                        r = q.retrieveResult();
+                        if (r == ProcessingService.ProcessingQueuesHolder.TERMINATOR) {
+                            iter.remove();
+                            continue;
+                        }
+                        processResult(r);
+                        continue outer;
                     }
-                    processResult(r);
+                    // should only get here is all the queues are
+                    break;
                 } catch (Throwable e) {
                     handleError(e);
                 }
