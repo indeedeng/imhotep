@@ -19,7 +19,7 @@ public class StringToIntTermIterator implements SimpleIntTermIterator  {
     @Override
     public long term() {
         try {
-            return Long.valueOf(stringTermIterator.term());
+            return Long.parseLong(stringTermIterator.term());
         } catch(NumberFormatException ignored) {
             return 0;
         }
