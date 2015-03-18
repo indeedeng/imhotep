@@ -16,7 +16,7 @@ static int col_size_bytes(int64_t max, int64_t min, int n_cols_aux_index)
 }
 
 
-int32_t *get_sizes(int n_cols, int64_t * restrict col_mins, int64_t * restrict col_maxes)
+int32_t *get_sizes(int n_cols, const int64_t * restrict col_mins, const int64_t * restrict col_maxes)
 {
     int32_t *sizes = calloc(n_cols, sizeof(int32_t));
 
@@ -32,9 +32,9 @@ int32_t *get_sizes(int n_cols, int64_t * restrict col_mins, int64_t * restrict c
 
 int32_t *get_vec_nums(
                       int n_cols,
-                      int64_t * restrict col_mins,
-                      int64_t * restrict col_maxes,
-                      int64_t * restrict sizes)
+                      const int64_t * restrict col_mins,
+                      const int64_t * restrict col_maxes,
+                      const int32_t * restrict sizes)
 {
     int32_t *vec_nums = calloc(n_cols, sizeof(int32_t));
     int col_offset = 4;
@@ -57,11 +57,11 @@ int32_t *get_vec_nums(
     return vec_nums;
 }
 
-int32_t *get_offsets_in_vec(
-                            int n_cols,
-                            int64_t * restrict col_mins,
-                            int64_t * restrict col_maxes,
-                            int64_t * restrict sizes)
+int32_t *get_offsets_in_vecs(
+                             int n_cols,
+                             const int64_t * restrict col_mins,
+                             const int64_t * restrict col_maxes,
+                             const int32_t * restrict sizes)
 {
     int32_t *offsets = calloc(n_cols, sizeof(int32_t));
     int col_offset = 4;

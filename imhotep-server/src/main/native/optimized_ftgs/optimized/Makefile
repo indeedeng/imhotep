@@ -22,6 +22,7 @@ TEST_OBJS=obj/bit_tree.o         \
           obj/packed_table.o     \
           obj/socket.o           \
           obj/table_accumulate.o \
+          obj/test_patch.o       \
           obj/tgs.o              \
           obj/unpacked_table.o   \
           obj/varintdecode.o

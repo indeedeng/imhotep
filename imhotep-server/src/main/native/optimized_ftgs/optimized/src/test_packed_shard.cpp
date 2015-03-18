@@ -26,15 +26,18 @@ typedef function<int64_t(int64_t min, int64_t max)> MetricFunc;
 ********************************************************************************/
 
 template <size_t n_metrics>
-bool test_packed_tables(size_t n_docs,
-                        array<int64_t, n_metrics>& mins,
-                        array<int64_t, n_metrics>& maxes,
-                        MetricFunc metric_func)
+bool test_packed_tables(size_t              n_docs,
+                        Metrics<n_metrics>& mins,
+                        Metrics<n_metrics>& maxes,
+                        MetricFunc          metric_func)
 {
   bool result(true);
 
-	packed_table_t* shard(packed_table_create(n_docs, mins.data(), maxes.data(), n_metrics));;
-		
+  ShardAttrs<n_metrics> attrs(mins, maxes);
+  packed_table_t* shard(packed_table_create(n_docs, mins.data(), maxes.data(),
+                                            attrs.sizes, attrs.vec_nums, attrs.offsets_in_vecs,
+                                            n_metrics));;
+
   vector<int> doc_ids;
   for (int doc_id = 0; doc_id < n_docs; ++doc_id) {
     doc_ids.push_back(doc_id);
@@ -98,8 +101,8 @@ void test_func(size_t n_docs,
                MetricFunc metric_func,
                const string& description="")
 {
-  array<int64_t, n_metrics> mins;
-  array<int64_t, n_metrics> maxes;
+  Metrics<n_metrics> mins;
+  Metrics<n_metrics> maxes;
   for (size_t i(0); i < n_metrics; ++i) {
     mins[i]  = min_func(n_metrics, i);
     maxes[i] = max_func(n_metrics, i);

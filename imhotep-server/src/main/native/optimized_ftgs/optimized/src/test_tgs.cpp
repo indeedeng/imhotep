@@ -1,6 +1,6 @@
 #define restrict __restrict__
 extern "C" {
-#include "circ_buf.h" 
+#include "circ_buf.h"
 #include "imhotep_native.h"
 #include "local_session.h"
 }
@@ -124,8 +124,11 @@ class Table
 
   size_t size() const { return _storage.size(); }
 
-  Metrics mins()  const { return _mins;  }
-  Metrics maxes() const { return _maxes; }
+  const Metrics& mins()  const { return _mins;  }
+  const Metrics& maxes() const { return _maxes; }
+
+  Metrics& mins()  { return _mins;  }
+  Metrics& maxes() { return _maxes; }
 
   DocIds doc_ids() const {
     DocIds result;
@@ -199,12 +202,18 @@ template <size_t n_metrics> StorageFactory<n_metrics> Table<n_metrics>::_storage
 template <size_t n_metrics>
 struct Shard
 {
-  const Table<n_metrics>&  _table;
-  packed_table_t          *_shard;
+  const Table<n_metrics>& _table;
+  ShardAttrs<n_metrics>   _attrs;
+  packed_table_t*         _shard;
 
   Shard(const Table<n_metrics>& table)
     : _table(table)
-    , _shard(create_shard_multicache(table.size(), table.mins().data(), table.maxes().data(), n_metrics)) {
+    , _attrs(_table.mins(), _table.maxes())
+    , _shard(create_shard_multicache(table.size(),
+                                     const_cast<int64_t*>(table.mins().data()),
+                                     const_cast<int64_t*>(table.maxes().data()),
+                                     _attrs.sizes, _attrs.vec_nums, _attrs.offsets_in_vecs,
+                                     n_metrics)) {
 
     DocIds          doc_ids(table.doc_ids());
     vector<GroupId> flat_group_ids(table.flat_group_ids());
