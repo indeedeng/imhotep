@@ -130,5 +130,6 @@ int tgs_execute_pass(struct worker_desc *worker,
     uint32_t*        groups           = calloc(n_rows, sizeof(uint32_t));
     const int32_t    term_group_count = bit_tree_dump(non_zero_rows, groups, n_rows);
     int result = write_term_group_stats(session, desc, groups, term_group_count);
+    free(groups);
     return result;
 }
