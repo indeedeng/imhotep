@@ -182,3 +182,8 @@ inline void unpacked_table_add_rows(unpacked_table_t* src_table,
         core(src_row, dest_row, mins, vector_num);
     }
 }
+
+struct bit_tree* unpacked_table_get_non_zero_rows(unpacked_table_t* table)
+{
+    return &(table->non_zero_rows);
+}

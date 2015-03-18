@@ -20,6 +20,7 @@ TEST_OBJS=obj/bit_tree.o         \
           obj/groups.o           \
           obj/local_session.o    \
           obj/packed_table.o     \
+          obj/remote_output.o    \
           obj/socket.o           \
           obj/table_accumulate.o \
           obj/test_patch.o       \

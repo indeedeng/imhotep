@@ -277,7 +277,7 @@ public:
     , _table(n_docs, min_func, max_func, doc_id_func, group_id_func, metric_func)
     , _shard(_table) {
 
-    array <int, 1> socket_file_desc{{3}};
+    array <int, 1> socket_file_desc{{-1}};
     worker_init(&_worker, 1, n_groups, n_metrics, socket_file_desc.data(), 1);
 
     uint8_t shard_order[] = {0};

@@ -1,5 +1,6 @@
 #include <assert.h>
 #include "imhotep_native.h"
+#include "remote_output.h"
 #include "varintdecode.h"
 
 #define TGS_BUFFER_SIZE	     1024
@@ -124,6 +125,10 @@ int tgs_execute_pass(struct worker_desc *worker,
         }
     }
 
-    //	compress_and_send_data(desc, session, group_stats);
-    return 0;
+    struct bit_tree* non_zero_rows    = unpacked_table_get_non_zero_rows(group_stats);;
+    const size_t     n_rows           = unpacked_table_get_rows(group_stats);
+    uint32_t*        groups           = calloc(n_rows, sizeof(uint32_t));
+    const int32_t    term_group_count = bit_tree_dump(non_zero_rows, groups, n_rows);
+    int result = write_term_group_stats(session, desc, groups, term_group_count);
+    return result;
 }

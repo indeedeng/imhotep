@@ -196,7 +196,13 @@ static size_t prefix_len(struct string_term_s* term, struct string_term_s* previ
     return max;
 }
 
-int write_term_group_stats(struct session_desc* session, struct tgs_desc* tgs, uint32_t* groups, size_t term_group_count) {
+int write_term_group_stats(struct session_desc* session, struct tgs_desc* tgs,
+                           uint32_t* groups, size_t term_group_count) {
+    /* Short-circuit for invalid socket fds so that we can
+       deliberately skip this code path in testing contexts e.g
+       test_tgs. */
+    if (tgs->socket->socket_fd < 0) return 0;
+
     if (tgs->term_type) {
         if (tgs->previous_term->int_term == -1 && tgs->term->int_term == -1) {
             TRY(write_byte(tgs->socket, 0x80));
@@ -219,6 +225,7 @@ int write_term_group_stats(struct session_desc* session, struct tgs_desc* tgs, u
     TRY(write_svint64(tgs->socket, term_doc_freq));
     int num_stats = session->num_stats;
     size_t stats_size = num_stats <= 2 ? 2 : (num_stats+3)/4*4;
-    TRY(write_group_stats(tgs->socket, groups, term_group_count, (int64_t*)tgs->group_stats, num_stats, stats_size, session->stat_order));
+    TRY(write_group_stats(tgs->socket, groups, term_group_count,
+                          (int64_t*)tgs->group_stats, num_stats, stats_size, session->stat_order));
     return 0;
 }

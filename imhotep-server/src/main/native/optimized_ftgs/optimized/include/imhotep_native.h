@@ -207,6 +207,7 @@ void unpacked_table_add_rows(unpacked_table_t* src_table,
                                     unpacked_table_t* dest_table,
                                     int dest_row_id,
                                     int prefetch_row_id);
+struct bit_tree* unpacked_table_get_non_zero_rows(unpacked_table_t* table);
 
 int remap_docs_in_target_groups(packed_table_t* packed_table,
                                 int*            results,
