@@ -36,14 +36,16 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
 
     private static final int BUFFER_SIZE = 8192;
 
+    private final MapCache mapCache;
+
     private final byte[] buffer;
-    private final long docsAddress;
+    private long docListAddress = 0L;
     private int bufferLen;
     private long bufferOffset;
     private int bufferPtr;
 
     private final String filename;
-    private final String docsFilename;
+    private final String docListFilename;
     private ImmutableBTreeIndex.Reader<Integer, LongPair> index;
     private ImmutableBTreeIndex.Reader<Long, LongPair> index64;
     private final File indexFile;
@@ -51,6 +53,8 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
 
     private final SharedReference<MMapBuffer> file;
     private final DirectMemory memory;
+
+    private SharedReference<MMapBuffer> docListFile = null;
 
     private long lastTerm = 0;
     private long lastTermOffset = 0L;
@@ -60,11 +64,15 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
     private boolean bufferNext = false;
     private boolean closed = false;
 
-    SimpleIntTermIteratorImpl(MapCache mapCache, String filename, String docsFilename, String indexFilename) throws IOException {
+    SimpleIntTermIteratorImpl(MapCache mapCache, String filename, String docListFilename, String indexFilename)
+        throws IOException {
+
+        this.mapCache = mapCache;
+
         buffer = new byte[BUFFER_SIZE];
 
         this.filename = filename;
-        this.docsFilename = docsFilename;
+        this.docListFilename = docListFilename;
 
         final CachedFile intIndex = CachedFile.create(indexFilename+".intindex");
         final CachedFile intIndex64 = CachedFile.create(indexFilename+".intindex64");
@@ -78,10 +86,10 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
             use64BitIndex = true;
             indexFile = null;
         }
-        //file = new MMapBuffer(new File(filename), FileChannel.MapMode.READ_ONLY, ByteOrder.LITTLE_ENDIAN);
+
         file = mapCache.copyOrOpen(filename);
-        this.docsAddress = mapCache.copyOrOpen(docsFilename).get().memory().getAddress();
         memory = file.get().memory();
+
         done = false;
         bufferLen = 0;
         bufferOffset = 0L;
@@ -222,13 +230,18 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
             } catch (IOException e) {
                 log.error("error closing file", e);
             }
+            try {
+                docListFile.close();
+            } catch (IOException e) {
+                log.error("error closing docListFile", e);
+            }
             closed = true;
         }
     }
 
     @Override
     public String getFilename() {
-        return docsFilename;
+        return docListFilename;
     }
 
     @Override
@@ -237,8 +250,13 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
     }
 
     @Override
-    public long getDocListAddress() {
-        return this.docsAddress;
+    public long getDocListAddress()
+        throws IOException {
+        if (docListFile == null) {
+            docListFile = mapCache.copyOrOpen(docListFilename);
+            docListAddress = docListFile.get().memory().getAddress();
+        }
+        return this.docListAddress;
     }
 
     private int read() throws IOException {

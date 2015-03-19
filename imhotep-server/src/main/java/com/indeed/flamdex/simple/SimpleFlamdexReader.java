@@ -206,14 +206,13 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader implements RawFla
     private IntValueLookup cacheField(SimpleIntTermIterator iterator,
                                       String metric,
                                       NativeFlamdexFieldCacher fieldCacher) {
-        if (useMMapMetrics) {
-            try {
-                return fieldCacher.newMMapFieldCache(iterator, numDocs, metric, directory);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
+        try {
+            return useMMapMetrics ?
+                fieldCacher.newMMapFieldCache(iterator, numDocs, metric, directory) :
+                fieldCacher.newFieldCache(iterator, numDocs);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
-        return fieldCacher.newFieldCache(iterator, numDocs);
     }
 
     @Override

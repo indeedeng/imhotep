@@ -43,7 +43,8 @@ public enum NativeFlamdexFieldCacher {
         }
 
         @Override
-        protected IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter, int numDocs) {
+        protected IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter,
+                                                       int numDocs) throws IOException {
             long[] backingArray = new long[numDocs];
 
             long[] terms = new long[BUFFER_SIZE];
@@ -149,7 +150,8 @@ public enum NativeFlamdexFieldCacher {
         }
 
         @Override
-        protected IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter, int numDocs) {
+        protected IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter,
+                                                       int numDocs) throws IOException {
             int[] backingArray = new int[numDocs];
 
             int[] terms = new int[BUFFER_SIZE];
@@ -254,7 +256,8 @@ public enum NativeFlamdexFieldCacher {
         }
 
         @Override
-        protected IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter, int numDocs) {
+        protected IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter,
+                                                       int numDocs) throws IOException {
             short[] backingArray = new short[numDocs];
 
             short[] terms = new short[BUFFER_SIZE];
@@ -359,7 +362,8 @@ public enum NativeFlamdexFieldCacher {
         }
 
         @Override
-        protected IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter, int numDocs) {
+        protected IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter,
+                                                       int numDocs) throws IOException  {
             char[] backingArray = new char[numDocs];
 
             char[] terms = new char[BUFFER_SIZE];
@@ -464,7 +468,8 @@ public enum NativeFlamdexFieldCacher {
         }
 
         @Override
-        protected IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter, int numDocs) {
+        protected IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter,
+                                                       int numDocs) throws IOException {
             byte[] backingArray = new byte[numDocs];
 
             byte[] terms = new byte[BUFFER_SIZE];
@@ -569,7 +574,8 @@ public enum NativeFlamdexFieldCacher {
         }
 
         @Override
-        protected IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter, int numDocs) {
+        protected IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter,
+                                                       int numDocs) throws IOException  {
             byte[] backingArray = new byte[numDocs];
 
             byte[] terms = new byte[BUFFER_SIZE];
@@ -674,7 +680,8 @@ public enum NativeFlamdexFieldCacher {
         }
 
         @Override
-        protected IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter, int numDocs) {
+        protected IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter,
+                                                       int numDocs) throws IOException  {
             FastBitSet bitset = new FastBitSet(numDocs);
 
             int n_docs;
@@ -755,14 +762,16 @@ public enum NativeFlamdexFieldCacher {
 
     public abstract long memoryRequired(int numDocs);
 
-    protected abstract IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter, int numDocs);
+    protected abstract IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter,
+                                                            int numDocs) throws IOException;
 
     protected abstract IntValueLookup newMMapFieldCacheInternal(SimpleIntTermIterator iter,
                                                                 int numDocs,
                                                                 String field,
                                                                 String directory) throws IOException;
 
-    public IntValueLookup newFieldCache(IntTermIterator iterator, int numDocs) {
+    public IntValueLookup newFieldCache(IntTermIterator iterator,
+                                        int numDocs) throws IOException {
         if (!(iterator instanceof SimpleIntTermIterator)) {
             throw new UnsupportedOperationException(
                     "NativeFlamdexFieldCacher only supports SimpleIntTermIterators.  "
@@ -788,7 +797,7 @@ public enum NativeFlamdexFieldCacher {
     }
 
     @VisibleForTesting
-    private final IntValueLookup newFieldCache(String field, FlamdexReader r) {
+    private final IntValueLookup newFieldCache(String field, FlamdexReader r) throws IOException {
         final IntTermIterator iterator = r.getIntTermIterator(field);
         try {
             return newFieldCache(iterator, r.getNumDocs());
