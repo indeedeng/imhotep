@@ -571,8 +571,8 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
         }
 
         final Map<String, AtomicSharedReference<Shard>> datasetShards = localShards.get(dataset);
-        final Map<String, Pair<ShardId, CachedFlamdexReaderReference>> flamdexReaders =
-                Maps.newHashMap();
+        final Map<String, Pair<ShardId, CachedFlamdexReaderReference>> flamdexReaders = Maps.newHashMap();
+        boolean allFlamdexReaders = true;
         for (final String shardName : shardRequestList) {
             if (!datasetShards.containsKey(shardName)) {
                 throw new IllegalArgumentException("this service does not have shard " + shardName
@@ -595,6 +595,7 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
                                 new RawCachedFlamdexReaderReference(
                                                                     (SharedReference<RawCachedFlamdexReader>) (SharedReference) reference);
                     } else {
+                        allFlamdexReaders = false;
                         cachedFlamdexReaderReference = new CachedFlamdexReaderReference(reference);
                     }
                 } catch (IOException e) {
@@ -633,8 +634,11 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
                     throw e;
                 }
             }
-            final ImhotepSession session =
-                    new MTImhotepLocalMultiSession(localSessions, new MemoryReservationContext(memory), executor, tempFileSizeBytesLeft, useNativeFtgs);
+            final ImhotepSession session = new MTImhotepLocalMultiSession(localSessions,
+                                                                          new MemoryReservationContext(memory),
+                                                                          executor,
+                                                                          tempFileSizeBytesLeft,
+                                                                          useNativeFtgs && allFlamdexReaders);
             getSessionManager().addSession(sessionId,
                                            session,
                                            flamdexes,

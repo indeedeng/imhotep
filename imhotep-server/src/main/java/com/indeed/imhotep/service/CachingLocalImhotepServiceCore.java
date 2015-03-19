@@ -547,8 +547,8 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
             sessionId = generateSessionId();
 
         final Map<String, AtomicSharedReference<Shard>> datasetShards = localShards.get(dataset);
-        final Map<String, Pair<ShardId, CachedFlamdexReaderReference>> flamdexReaders =
-                Maps.newHashMap();
+        final Map<String, Pair<ShardId, CachedFlamdexReaderReference>> flamdexReaders = Maps.newHashMap();
+        boolean allRawFlamdexReaders = true;
         for (final String shardName : shardRequestList) {
             if (!datasetShards.containsKey(shardName)) {
                 throw new IllegalArgumentException("this service does not have shard " + shardName
@@ -571,6 +571,7 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
                                 new RawCachedFlamdexReaderReference(
                                                                     (SharedReference<RawCachedFlamdexReader>) (SharedReference) reference);
                     } else {
+                        allRawFlamdexReaders = false;
                         cachedFlamdexReaderReference = new CachedFlamdexReaderReference(reference);
                     }
                 } catch (IOException e) {
@@ -614,7 +615,7 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
                     new MemoryReservationContext(memory),
                     executor,
                     tempFileSizeBytesLeft,
-                    useNativeFtgs
+                    useNativeFtgs && allRawFlamdexReaders
             );
             getSessionManager().addSession(sessionId,
                                            session,
