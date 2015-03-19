@@ -231,7 +231,9 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
                 log.error("error closing file", e);
             }
             try {
-                docListFile.close();
+                if (docListFile != null) {
+                    docListFile.close();
+                }
             } catch (IOException e) {
                 log.error("error closing docListFile", e);
             }
