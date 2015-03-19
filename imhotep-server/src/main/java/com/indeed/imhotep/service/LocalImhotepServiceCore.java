@@ -618,12 +618,11 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
                 final CachedFlamdexReaderReference cachedFlamdexReaderReference = pair.getSecond();
                 try {
                     flamdexes.put(pair.getFirst(), cachedFlamdexReaderReference);
-                    localSessions[i] =
-                            new ImhotepLocalSession(cachedFlamdexReaderReference,
-                                                    this.shardTempDirectory,
-                                                    new MemoryReservationContext(memory),
-                                                    optimizeGroupZeroLookups,
-                                                    tempFileSizeBytesLeft);
+                    localSessions[i] = new ImhotepLocalSession(cachedFlamdexReaderReference,
+                                                               this.shardTempDirectory,
+                                                               new MemoryReservationContext(memory),
+                                                               optimizeGroupZeroLookups,
+                                                               tempFileSizeBytesLeft);
                 } catch (RuntimeException e) {
                     Closeables2.closeQuietly(cachedFlamdexReaderReference, log);
                     localSessions[i] = null;
