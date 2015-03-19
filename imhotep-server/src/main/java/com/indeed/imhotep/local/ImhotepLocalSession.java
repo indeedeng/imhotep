@@ -927,6 +927,8 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
                                                            placeholderGroup,
                                                            maxIntermediateGroup,
                                                            errorOnCollisions);
+            } catch (IOException ex) {
+                throw new RuntimeException(ex);
             } finally {
                 memory.releaseMemory(totalInternalRegroupBytes);
             }

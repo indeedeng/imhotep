@@ -21,10 +21,13 @@ import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.datastruct.FastBitSet;
+import com.indeed.flamdex.simple.SimpleIntTermIterator;
+import com.indeed.flamdex.simple.SimpleStringTermIterator;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 
+import java.io.IOException;
 import java.util.Arrays;
 
 /**
@@ -248,7 +251,7 @@ class MultiRegroupInternals {
         }
     }
 
-    private native static void nativeRemapDocsInTargetGroups(long docIdToGroupPtr,
+    private native static void nativeRemapDocsInTargetGroups(long nativeShardDataPtr,
                                                              int[] results,
                                                              long docListAddress,
                                                              int nDocs,
@@ -280,23 +283,51 @@ class MultiRegroupInternals {
         }
     }
 
-    static void performStringMultiEqualityRegroup(GroupLookup docIdToGroup, GroupLookup newLookup, int[] docIdBuf, DocIdStream docIdStream, StringTermIterator termIterator, int[] remappings, String term, int placeHolderGroup) {
+    static void performStringMultiEqualityRegroup(GroupLookup docIdToGroup, GroupLookup newLookup, int[] docIdBuf, DocIdStream docIdStream, StringTermIterator termIterator, int[] remappings, String term, int placeHolderGroup) throws IOException {
         termIterator.reset(term);
         if (termIterator.next() && termIterator.term().equals(term)) {
-            docIdStream.reset(termIterator);
-            remapDocsInTargetGroups(docIdToGroup, newLookup, docIdBuf, docIdStream, remappings, placeHolderGroup);
+            if (docIdToGroup instanceof MultiCache.MultiCacheGroupLookup &&
+                newLookup instanceof IntGroupLookup &&
+                termIterator instanceof SimpleStringTermIterator) {
+                final IntGroupLookup mcNewLookup = (IntGroupLookup) newLookup;
+                final SimpleStringTermIterator ssTermIterator = (SimpleStringTermIterator) termIterator;
+                int[] results = new int[newLookup.size()];
+                nativeRemapDocsInTargetGroups(((MultiCache.MultiCacheGroupLookup) docIdToGroup).nativeShardDataPtr(),
+                                              results,
+                                              ssTermIterator.getDocListAddress() + ssTermIterator.getOffset(),
+                                              ssTermIterator.docFreq(),
+                                              remappings, placeHolderGroup);
+                new IntGroupLookup(newLookup.getSession(), results).copyInto(mcNewLookup);
+            } else {
+                docIdStream.reset(termIterator);
+                remapDocsInTargetGroups(docIdToGroup, newLookup, docIdBuf, docIdStream, remappings, placeHolderGroup);
+            }
         }
     }
 
-    static void performIntMultiEqualityRegroup(GroupLookup docIdToGroup, GroupLookup newLookup, int[] docIdBuf, DocIdStream docIdStream, IntTermIterator termIterator, int[] remappings, long term, int placeHolderGroup) {
+    static void performIntMultiEqualityRegroup(GroupLookup docIdToGroup, GroupLookup newLookup, int[] docIdBuf, DocIdStream docIdStream, IntTermIterator termIterator, int[] remappings, long term, int placeHolderGroup) throws IOException {
         termIterator.reset(term);
         if (termIterator.next() && termIterator.term() == term) {
-            docIdStream.reset(termIterator);
-            remapDocsInTargetGroups(docIdToGroup, newLookup, docIdBuf, docIdStream, remappings, placeHolderGroup);
+            if (docIdToGroup instanceof MultiCache.MultiCacheGroupLookup &&
+                newLookup instanceof IntGroupLookup &&
+                termIterator instanceof SimpleIntTermIterator) {
+                final IntGroupLookup mcNewLookup = (IntGroupLookup) newLookup;
+                final SimpleIntTermIterator ssTermIterator = (SimpleIntTermIterator) termIterator;
+                int[] results = new int[newLookup.size()];
+                nativeRemapDocsInTargetGroups(((MultiCache.MultiCacheGroupLookup) docIdToGroup).nativeShardDataPtr(),
+                                              results,
+                                              ssTermIterator.getDocListAddress() + ssTermIterator.getOffset(),
+                                              ssTermIterator.docFreq(),
+                                              remappings, placeHolderGroup);
+                new IntGroupLookup(newLookup.getSession(), results).copyInto(mcNewLookup);
+            } else {
+                docIdStream.reset(termIterator);
+                remapDocsInTargetGroups(docIdToGroup, newLookup, docIdBuf, docIdStream, remappings, placeHolderGroup);
+            }
         }
     }
 
-    static void internalMultiRegroup(GroupLookup docIdToGroup, GroupLookup newDocIdToGroup, int[] docIdBuf, FlamdexReader flamdexReader, GroupMultiRemapRule[] rules, int highestTarget, int numConditions, int placeholderGroup, int maxGroup, boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
+    static void internalMultiRegroup(GroupLookup docIdToGroup, GroupLookup newDocIdToGroup, int[] docIdBuf, FlamdexReader flamdexReader, GroupMultiRemapRule[] rules, int highestTarget, int numConditions, int placeholderGroup, int maxGroup, boolean errorOnCollisions) throws IOException, ImhotepOutOfMemoryException {
         // Make a bunch of parallel arrays so we can sort. Memory claimed in parallelArrayBytes.
         final RegroupCondition[] sortedConditions = new RegroupCondition[numConditions];
         final int[] sortedPositiveGroups = new int[numConditions];

@@ -32,6 +32,11 @@ final class IntGroupLookup extends GroupLookup {
         docIdToGroup = new int[size];
     }
 
+    IntGroupLookup(ImhotepLocalSession imhotepLocalSession, final int[] content) {
+        session = imhotepLocalSession;
+        docIdToGroup = content;
+    }
+
     @Override
     public void nextGroupCallback(int n, long[][] termGrpStats, BitTree groupsSeen) {
         int rewriteHead = 0;

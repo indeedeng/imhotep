@@ -180,6 +180,8 @@ public final class MultiCache implements Closeable {
             this.max = max;
         }
 
+        public long nativeShardDataPtr() { return MultiCache.this.nativeShardDataPtr; }
+
         @Override
         public long getMin() {
             return this.min;
@@ -217,7 +219,7 @@ public final class MultiCache implements Closeable {
                                                int n);
     }
 
-    private final class MultiCacheGroupLookup extends GroupLookup {
+    public final class MultiCacheGroupLookup extends GroupLookup {
         /* should be as large as the buffer passed into nextGroupCallback() */
         private final int[] groups_buffer = new int[ImhotepLocalSession.BUFFER_SIZE];
         private final int[] remap_buffer = new int[ImhotepLocalSession.BUFFER_SIZE];
@@ -258,6 +260,8 @@ public final class MultiCache implements Closeable {
                 }
             }
         }
+
+        public long nativeShardDataPtr() { return MultiCache.this.nativeShardDataPtr; }
 
         @Override
         public void applyIntConditionsCallback(int n,
