@@ -1,7 +1,5 @@
 package com.indeed.imhotep.multicache;
 
-import com.google.common.collect.Lists;
-
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -12,7 +10,7 @@ import java.util.List;
 public abstract class ResultProcessor<Result> implements Runnable {
     protected List<ProcessingService.ProcessingQueuesHolder<?,Result>> queues;
 
-    public void setQueues(List<ProcessingService.ProcessingQueuesHolder<?, Result>> queues) {
+    public void setQueues(List<? extends ProcessingService.ProcessingQueuesHolder<?, Result>> queues) {
         this.queues = new ArrayList<>(queues);
     }
 

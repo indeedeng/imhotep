@@ -19,15 +19,13 @@ import java.util.Iterator;
 public class MultiShardFlamdexReader implements Closeable {
     private static final Logger log = Logger.getLogger(MultiShardFlamdexReader.class);
     public final FlamdexReader[] flamdexReaders;
-    private final int[] ids;
 
-    public MultiShardFlamdexReader(FlamdexReader[] flamdexReaders, int[] ids) {
+    public MultiShardFlamdexReader(FlamdexReader[] flamdexReaders) {
         this.flamdexReaders = Arrays.copyOf(flamdexReaders, flamdexReaders.length);
-        this.ids = ids;
     }
 
     public Iterator<TermDesc> intTermOffsetIterator(final String intField) throws IOException {
-        final IntTermIterator[] iterators = new IntTermIterator[ids.length];
+        final IntTermIterator[] iterators = new IntTermIterator[flamdexReaders.length];
         try {
             for (int i = 0; i < flamdexReaders.length; i++) {
                 final FlamdexReader flamdexReader = flamdexReaders[i];
@@ -37,11 +35,11 @@ public class MultiShardFlamdexReader implements Closeable {
             Closeables2.closeAll(Arrays.asList(iterators), log);
             throw Throwables.propagate(e);
         }
-        return new SimpleMultiShardIntTermIterator(intField, iterators, ids);
+        return new SimpleMultiShardIntTermIterator(intField, iterators);
     }
 
     public Iterator<TermDesc> stringTermOffsetIterator(final String stringField) throws  IOException {
-        final StringTermIterator[] iterators = new StringTermIterator[ids.length];
+        final StringTermIterator[] iterators = new StringTermIterator[flamdexReaders.length];
         try {
             for (int i = 0; i < iterators.length; i++) {
                 final FlamdexReader flamdexReader = flamdexReaders[i];
@@ -51,7 +49,7 @@ public class MultiShardFlamdexReader implements Closeable {
             Closeables2.closeAll(Arrays.asList(iterators), log);
             throw Throwables.propagate(e);
         }
-        return new SimpleMultiShardStringTermIterator(stringField, iterators, ids);
+        return new SimpleMultiShardStringTermIterator(stringField, iterators);
     }
 
     @Override

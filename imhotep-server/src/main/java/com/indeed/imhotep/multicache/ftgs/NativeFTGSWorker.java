@@ -12,13 +12,20 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSi
     private final int numMetrics;
     private final int numShards;
     private final int id;
+    private long[] nativeMulticachePtrs;
     private final int[] socketArr;
 
-    public NativeFTGSWorker(int numGroups, int numMetrics, int numShards, Socket[] sockets, int id) {
+    public NativeFTGSWorker(int numGroups,
+                            int numMetrics,
+                            int numShards,
+                            Socket[] sockets,
+                            int id,
+                            long[] nativeMulticachePtrs) {
         this.numGroups = numGroups;
         this.numMetrics = numMetrics;
         this.numShards = numShards;
         this.id = id;
+        this.nativeMulticachePtrs = nativeMulticachePtrs;
         this.socketArr = new int[sockets.length];
 
         for (int i = 0; i < sockets.length; i++) {
@@ -32,9 +39,10 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSi
     protected void init() {
         nativeWorkerStructPtr = native_init(id, numMetrics, numGroups, socketArr, socketArr.length);
         nativeSessionStructPtr = native_session_create(this.nativeWorkerStructPtr,
+                                                       this.nativeMulticachePtrs,
+                                                       numShards,
                                                        numGroups,
-                                                       numMetrics,
-                                                       numShards);
+                                                       numMetrics);
     }
 
     @Override
@@ -46,9 +54,8 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSi
                                           info.termDesc.intTerm,
                                           info.termDesc.offsets,
                                           info.termDesc.numDocsInTerm,
-                                          info.termDesc.shardIds,
                                           info.termDesc.size(),
-                                          SocketUtils.getOutputDescriptor(info.socket));
+                                          info.splitIndex);
         } else {
             err = native_run_string_tgs_pass(this.nativeWorkerStructPtr,
                                              this.nativeSessionStructPtr,
@@ -56,9 +63,8 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSi
                                              info.termDesc.stringTermLen,
                                              info.termDesc.offsets,
                                              info.termDesc.numDocsInTerm,
-                                             info.termDesc.shardIds,
                                              info.termDesc.size(),
-                                             SocketUtils.getOutputDescriptor(info.socket));
+                                             info.splitIndex);
         }
 
         return null;
@@ -76,23 +82,22 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSi
                                                          int stringTermLen,
                                                          long[] offsets,
                                                          int[] numDocsInTerm,
-                                                         int[] shardIds,
                                                          int numShards,
-                                                         int socketFileDescriptor);
+                                                         int splitIndex);
 
     private static native int native_run_int_tgs_pass(long nativeWorkerStructPtr,
                                                       long nativeSessionStructPtr,
                                                       long term,
                                                       long[] offsets,
                                                       int[] numDocsPerShard,
-                                                      int[] shardIds,
                                                       int numShards,
-                                                      int socketFileDescriptor);
+                                                      int splitIndex);
 
     private static native long native_session_create(long nativeWorkerStructPtr,
+                                                     long[] nativeMulticachePtrs,
+                                                     int numShards,
                                                      int numGroups,
-                                                     int numMetrics,
-                                                     int numShards);
+                                                     int numMetrics);
 
     private static native void native_session_destroy(long nativeWorkerStructPtr,
                                                       long nativeSessionStructPtr);

@@ -5,7 +5,6 @@ package com.indeed.imhotep.multicache.ftgs;
 */
 public final class TermDesc {
     public String field;
-    public int shardIds[];
     public long offsets[];
     public int numDocsInTerm[];
     public int size;
@@ -15,7 +14,6 @@ public final class TermDesc {
     public int stringTermLen;
 
     public TermDesc(int capacity) {
-        this.shardIds = new int[capacity];
         this.offsets = new long[capacity];
         this.numDocsInTerm = new int[capacity];
         this.size = 0;

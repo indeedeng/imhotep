@@ -31,7 +31,7 @@ public class AdvProcessingService<Data, Result> extends ProcessingService<Data, 
                             ResultProcessor<Result> resultProcessor) throws InterruptedException {
         if (resultProcessor != null) {
             this.resultProcessorThread = new Thread(resultProcessor);
-            resultProcessor.setQueue(this.queues);
+            resultProcessor.setQueues(this.queuesList);
             this.resultProcessorThread.start();
         } else {
             for (ProcessingTask<Data, Result> task : this.tasks) {

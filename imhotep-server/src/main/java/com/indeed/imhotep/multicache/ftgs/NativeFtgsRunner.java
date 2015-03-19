@@ -2,14 +2,17 @@ package com.indeed.imhotep.multicache.ftgs;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.simple.MultiShardFlamdexReader;
+import com.indeed.imhotep.local.MultiCache;
 import com.indeed.imhotep.multicache.AdvProcessingService;
 import com.indeed.util.core.hash.MurmurHash;
+import com.indeed.util.core.io.Closeables2;
+import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
 import java.io.Closeable;
+import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -18,13 +21,14 @@ import java.util.List;
 /**
  * Created by darren on 3/18/15.
  */
-public class NativeFtgsRunner {
+public class NativeFtgsRunner implements Closeable {
+    private static final Logger log = Logger.getLogger(NativeFtgsRunner.class);
     private static final int NUM_WORKERS = 8;
     private static final int LARGE_PRIME_FOR_CLUSTER_SPLIT = 969168349;
 
     private final MultiShardFlamdexReader multiShardFlamdexReader;
     private final List<Closeable> iterators = new ArrayList<>(32);
-    private final int[] shardIds;
+    private final long[] multicacheAddrs;
     private final int numGroups;
     private final int numMetrics;
     private final int numShards;
@@ -32,18 +36,20 @@ public class NativeFtgsRunner {
     static class NativeTGSinfo {
         public TermDesc termDesc;
         public int splitIndex;
-        public Socket socket;
     }
 
-    private NativeFtgsRunner(FlamdexReader[] flamdexReaders,
-                             int[] shardIds,
-                             int numGroups,
-                             int numMetrics) {
-        this.shardIds = shardIds;
+    public NativeFtgsRunner(FlamdexReader[] flamdexReaders,
+                            MultiCache[] multiCaches,
+                            int numGroups,
+                            int numMetrics) {
         this.numGroups = numGroups;
         this.numMetrics = numMetrics;
-        this.multiShardFlamdexReader = new MultiShardFlamdexReader(flamdexReaders, shardIds);
+        this.multiShardFlamdexReader = new MultiShardFlamdexReader(flamdexReaders);
         this.numShards = flamdexReaders.length;
+        this.multicacheAddrs = new long[multiCaches.length];
+        for (int i = 0; i < multiCaches.length; i++) {
+            this.multicacheAddrs[i] = multiCaches[i].getNativeAddress();
+        }
     }
 
     private static final int minHashInt(long term, int numSplits) {
@@ -70,7 +76,7 @@ public class NativeFtgsRunner {
     public void run(final String[] intFields,
                     final String[] stringFields,
                     final int numSplits,
-                    final Socket[] sockets) {
+                    final Socket[] sockets) throws InterruptedException {
         final Iterator<NativeTGSinfo> iter = createIterator(intFields,
                                                             stringFields,
                                                             numSplits,
@@ -92,7 +98,12 @@ public class NativeFtgsRunner {
                 }
             }
             final Socket[] mySockets = socketList.toArray(new Socket[socketList.size()]);
-            service.addTask(new NativeFTGSWorker(numGroups, numMetrics, numShards, mySockets, i));
+            service.addTask(new NativeFTGSWorker(numGroups,
+                                                 numMetrics,
+                                                 numShards,
+                                                 mySockets,
+                                                 i,
+                                                 multicacheAddrs));
         }
 
         service.processData(iter, null);
@@ -111,7 +122,11 @@ public class NativeFtgsRunner {
             @Override
             public Iterator<TermDesc> apply(String intField) {
                 final Iterator<TermDesc> iter;
-                iter = multiShardFlamdexReader.intTermOffsetIterator(intField);
+                try {
+                    iter = multiShardFlamdexReader.intTermOffsetIterator(intField);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
                 iterators.add((Closeable)iter);
                 return iter;
             }
@@ -121,7 +136,11 @@ public class NativeFtgsRunner {
             @Override
             public Iterator<TermDesc> apply(String stringField) {
                 final Iterator<TermDesc> iter;
-                iter = multiShardFlamdexReader.stringTermOffsetIterator(stringField);
+                try {
+                    iter = multiShardFlamdexReader.stringTermOffsetIterator(stringField);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
                 iterators.add((Closeable)iter);
                 return iter;
             }
@@ -147,10 +166,15 @@ public class NativeFtgsRunner {
                 } else {
                     info.splitIndex = minHashString(desc.stringTerm, desc.stringTermLen, numSplits);
                 }
-                info.socket = sockets[info.splitIndex];
                 return info;
             }
         });
         return results;
+    }
+
+
+    @Override
+    public void close() throws IOException {
+        Closeables2.closeAll(iterators, log);
     }
 }

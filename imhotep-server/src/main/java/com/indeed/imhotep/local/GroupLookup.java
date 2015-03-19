@@ -37,7 +37,7 @@ public abstract class GroupLookup {
     public abstract void fillDocGrpBufferSequential(int start, int[] docGrpBuffer, int n);
     public abstract void bitSetRegroup(FastBitSet bitSet, int targetGroup, int negativeGroup, int positiveGroup);
     public abstract ImhotepLocalSession getSession();
-    public abstract void recalculateNumGroups();
+    protected abstract void recalculateNumGroups();
 
     public final int getNumGroups() {
         return numGroups;

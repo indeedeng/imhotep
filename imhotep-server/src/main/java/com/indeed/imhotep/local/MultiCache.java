@@ -164,6 +164,10 @@ public final class MultiCache implements Closeable {
                                                int count,
                                                int[] groupsBuffer);
 
+    public long getNativeAddress() {
+        return this.nativeShardDataPtr;
+    }
+
     private final class MultiCacheIntValueLookup implements IntValueLookup {
         private final int index;
         private final long min;
@@ -421,7 +425,7 @@ public final class MultiCache implements Closeable {
         }
 
         @Override
-        public void recalculateNumGroups() {
+        protected void recalculateNumGroups() {
             // TODO
         }
 

@@ -2,6 +2,8 @@ package com.indeed.imhotep.multicache;
 
 import com.google.common.collect.Lists;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -41,7 +43,9 @@ public class ProcessingService<Data,Result> {
                             ResultProcessor<Result> resultProcessor) throws InterruptedException {
         if (resultProcessor != null) {
             this.resultProcessorThread = new Thread(resultProcessor);
-            resultProcessor.setQueue(this.queues);
+            List<ProcessingQueuesHolder<?, Result>> singltonList = new ArrayList<>(1);
+            singltonList.add(this.queues);
+            resultProcessor.setQueues(singltonList);
             this.resultProcessorThread.start();
         } else {
             for (ProcessingTask<Data,Result> task : this.tasks) {

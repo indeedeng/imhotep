@@ -22,11 +22,12 @@ final class SimpleMultiShardStringTermIterator implements Iterator<TermDesc>, Cl
     private TermDesc nextTerm;
     private boolean hasMore;
     private final String fieldName;
+    private final int numShards;
 
     SimpleMultiShardStringTermIterator(final String field,
-                                       final StringTermIterator[] iterators,
-                                       final int[] ids) {
+                                       final StringTermIterator[] iterators) {
         this.fieldName = field;
+        this.numShards = iterators.length;
         this.shardStringIters = Arrays.copyOf(iterators, iterators.length);
         this.termStreamMerger = new IteratorMultiHeap<IteratorIdPair>(iterators.length,
                                                                       IteratorIdPair.class) {
@@ -52,7 +53,7 @@ final class SimpleMultiShardStringTermIterator implements Iterator<TermDesc>, Cl
                 throw new IllegalArgumentException("invalid term iterator");
             }
             simpleIter = (SimpleStringTermIterator) iter;
-            termStreamMerger.add(new IteratorIdPair(simpleIter, ids[i]));
+            termStreamMerger.add(new IteratorIdPair(simpleIter, i));
         }
 
         this.nextTerm = nextTermDesc();
@@ -81,16 +82,18 @@ final class SimpleMultiShardStringTermIterator implements Iterator<TermDesc>, Cl
         // every term in termStreamMerger now is greater than the term the iterators point to.
         final IteratorIdPair[] iteratorIdPairs = termStreamMerger.getMin();
         final int shardCount = termStreamMerger.getMinLength();
-        final TermDesc result = new TermDesc(shardCount);
+        final TermDesc result = new TermDesc(numShards);
 
         for (int i = 0; i < shardCount; i++) {
             final SimpleStringTermIterator stringTermIterator = iteratorIdPairs[i].stringTermIterator;
-            result.offsets[i] = stringTermIterator.getOffset();
-            result.shardIds[i] = iteratorIdPairs[i].shardId;
-            result.numDocsInTerm[i] = stringTermIterator.docFreq();
+            final int iterNum = iteratorIdPairs[i].iterNum;
+            result.offsets[iterNum] = stringTermIterator.getOffset();
+            result.numDocsInTerm[iterNum] = stringTermIterator.docFreq();
         }
-        result.stringTerm = iteratorIdPairs[0].stringTermIterator.termStringBytes();
-        result.stringTermLen = iteratorIdPairs[0].stringTermIterator.termStringLength();
+        final int len = iteratorIdPairs[0].stringTermIterator.termStringLength();
+        result.stringTerm = Arrays.copyOf(iteratorIdPairs[0].stringTermIterator.termStringBytes(),
+                                          len);
+        result.stringTermLen = len;
         result.isIntTerm = false;
         result.field = this.fieldName;
         return result;
@@ -107,11 +110,11 @@ final class SimpleMultiShardStringTermIterator implements Iterator<TermDesc>, Cl
     }
 
     private static final class IteratorIdPair {
-        private final int shardId;
+        private final int iterNum;
         private final SimpleStringTermIterator stringTermIterator;
 
-        IteratorIdPair(final SimpleStringTermIterator stringTermIterator, final int shardId) {
-            this.shardId = shardId;
+        IteratorIdPair(final SimpleStringTermIterator stringTermIterator, final int iterNum) {
+            this.iterNum = iterNum;
             this.stringTermIterator = stringTermIterator;
         }
     }

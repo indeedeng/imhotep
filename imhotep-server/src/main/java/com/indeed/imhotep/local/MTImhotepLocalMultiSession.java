@@ -14,16 +14,13 @@
  package com.indeed.imhotep.local;
 
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.indeed.flamdex.api.FlamdexReader;
-import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.multicache.ftgs.*;
 import com.indeed.util.core.Throwables2;
-import com.indeed.util.core.hash.MurmurHash;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
@@ -31,11 +28,11 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -45,17 +42,9 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<ImhotepLocalSession> {
     private static final Logger log = Logger.getLogger(MTImhotepLocalMultiSession.class);
-    private static final int NUM_WORKERS = 8;
 
     private final AtomicReference<CyclicBarrier> writeFTGSSplitBarrier = new AtomicReference<>();
     private Socket[] ftgsOutputSockets = new Socket[256];
-
-    private final ExecutorService ftgsExecutorService = Executors.newFixedThreadPool(NUM_WORKERS, new ThreadFactoryBuilder()
-                    .setDaemon(true)
-                    .setNameFormat("FTGSDelegator-%d")
-                    .build()
-    );
-
 
     private final MemoryReservationContext memory;
 
@@ -66,10 +55,6 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     private final long memoryClaimed;
 
     private final boolean useNativeFtgs;
-
-    private int hashStringTerm(final byte[] termStringBytes, final int termStringLength, final int numSplits) {
-        return ((MurmurHash.hash32(termStringBytes, 0, termStringLength)*FTGSSplitterConstants.LARGE_PRIME_FOR_CLUSTER_SPLIT+12345 & 0x7FFFFFFF) >> 16) % numSplits;
-    }
 
     public MTImhotepLocalMultiSession(final ImhotepLocalSession[] sessions,
                                       final MemoryReservationContext memory,
@@ -120,8 +105,23 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             @Override
             public void run() {
                 // run service
-                final NativeFtgsRunner runner = new NativeFtgsRunner(readers, shardIds, getNumGroups(), numStats);
-                runner.run(intFields, stringFields, numSplits, ftgsOutputSockets);
+                final FlamdexReader[] readers = new FlamdexReader[sessions.length];
+                final MultiCache[] nativeCaches = new MultiCache[sessions.length];
+                final MultiCacheConfig config = new MultiCacheConfig(sessions.length);
+                for (int i = 0; i < sessions.length; i++) {
+                    readers[i] = sessions[i].getReader();
+                    nativeCaches[i] = sessions[i].buildMulticache(config, i);
+                }
+
+                final NativeFtgsRunner runner = new NativeFtgsRunner(readers,
+                                                                     nativeCaches,
+                                                                     getNumGroups(),
+                                                                     numStats);
+                try {
+                    runner.run(intFields, stringFields, numSplits, ftgsOutputSockets);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
             }
         });
 
@@ -150,24 +150,16 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 //        }
 
         // now run the ftgs on the final thread
-        barrier.await();
+        try {
+            barrier.await();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        } catch (BrokenBarrierException e) {
+            throw new RuntimeException(e);
+        }
 
         // now reset the barrier value (yes, every thread will do it)
         writeFTGSSplitBarrier.set(null);
-    }
-
-
-    private SimpleFlamdexReader[] getFlamdexReaders() {
-        final SimpleFlamdexReader[] ret = new SimpleFlamdexReader[sessions.length];
-        for (int i = 0; i < sessions.length; i++) {
-            final FlamdexReader flamdexReader = sessions[i].getReader();
-            if (flamdexReader instanceof SimpleFlamdexReader) {
-                ret[i] = (SimpleFlamdexReader) flamdexReader;
-            } else {
-                throw new RuntimeException("FlamdexReader is not of type "+SimpleFlamdexReader.class.getCanonicalName());
-            }
-        }
-        return ret;
     }
 
     @Override

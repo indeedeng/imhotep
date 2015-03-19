@@ -7,6 +7,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.indeed.flamdex.MemoryFlamdex;
 import com.indeed.flamdex.writer.FlamdexDocument;
+import com.indeed.imhotep.multicache.ftgs.TermDesc;
 import com.indeed.util.core.io.Closeables2;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongList;
@@ -24,6 +25,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeMap;
@@ -77,10 +79,11 @@ public class MultiShardStringTermIteratorTest {
             }
             final long[] positionsBuffer = new long[3];
             final MultiShardFlamdexReader multiShardFlamdexReader = new MultiShardFlamdexReader(simpleFlamdexReaders.toArray(new SimpleFlamdexReader[simpleFlamdexReaders.size()]));
-            final MultiShardStringTermIterator smsstoi =  multiShardFlamdexReader.stringTermOffsetIterator("foo");
-            while (smsstoi.next()) {
-                if (Arrays.equals("bar".getBytes(Charsets.UTF_8), Arrays.copyOf(smsstoi.termBytes(), smsstoi.termBytesLength()))) {
-                    smsstoi.offsets(positionsBuffer);
+            final Iterator<TermDesc> smsstoi =  multiShardFlamdexReader.stringTermOffsetIterator("foo");
+            while (smsstoi.hasNext()) {
+                TermDesc desc = smsstoi.next();
+                if (Arrays.equals("bar".getBytes(Charsets.UTF_8), Arrays.copyOf(desc.stringTerm, desc.stringTermLen))) {
+                    System.arraycopy(desc.offsets, 0, positionsBuffer, 0, desc.offsets.length);
                     final LongList expectedPositions = mergedResults.get("bar");
                     final long[] expectedPositionsArray = expectedPositions.toArray(new long[expectedPositions.size()]);
                     if (log.isDebugEnabled()) {
@@ -148,7 +151,7 @@ public class MultiShardStringTermIteratorTest {
                 if (termToPosition.containsKey(term)) {
                     position = termToPosition.get(term);
                 } else {
-                    position = -1;
+                    position = 0;
                 }
                 shardToPosition.add(position);
             }

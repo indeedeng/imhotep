@@ -187,6 +187,8 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
     private final File optimizationLog;
 
     private FTGSSplitter ftgsIteratorSplits;
+    private MultiCache multiCache;
+    private boolean rebuildMultiCache = true;
 
     public ImhotepLocalSession(final FlamdexReader flamdexReader) throws ImhotepOutOfMemoryException {
         this(flamdexReader, null,
@@ -235,6 +237,19 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
 
     FlamdexReader getReader() {
         return this.flamdexReader;
+    }
+
+
+    public MultiCache buildMulticache(final MultiCacheConfig config, final int id) {
+        if (this.rebuildMultiCache) {
+            this.multiCache = config.buildMultiCache(this,
+                                                     id,
+                                                     this.docIdToGroup,
+                                                     this.statLookup,
+                                                     this.numStats);
+            this.rebuildMultiCache = false;
+        }
+        return this.multiCache;
     }
 
     public Map<String, DynamicMetric> getDynamicMetrics() {
