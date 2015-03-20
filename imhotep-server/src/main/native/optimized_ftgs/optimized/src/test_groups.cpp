@@ -24,16 +24,17 @@ using namespace std;
 template <size_t n_metrics>
 struct Shard
 {
-    typedef Metrics<n_metrics> Metrics;
+    typedef Metrics<n_metrics> metrics_t;
 
     ShardAttrs<n_metrics> _attrs;
     packed_table_t*       _shard;
     vector<GroupId>       _group_ids;
 
-    Shard(const vector<DocId>& doc_ids, size_t n_groups, Metrics& mins, Metrics& maxes)
+    Shard(const vector<DocId>& doc_ids, size_t n_groups, metrics_t& mins, metrics_t& maxes)
         : _attrs(mins, maxes)
         , _shard(create_shard_multicache(doc_ids.size(), mins.data(), maxes.data(),
                                          _attrs.sizes, _attrs.vec_nums, _attrs.offsets_in_vecs,
+                                         vector<int8_t>(n_metrics, 0).data(), // !@# currently unused
                                          n_metrics))
         , _group_ids(doc_ids.size()) {
 

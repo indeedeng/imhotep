@@ -25,20 +25,22 @@ typedef function<int64_t(int64_t min, int64_t max)> MetricFunc;
   WIP multi-doc update and query...
 ********************************************************************************/
 
-template <size_t n_metrics>
-bool test_packed_tables(size_t              n_docs,
+template <int64_t n_metrics>
+bool test_packed_tables(int                 n_docs,
                         Metrics<n_metrics>& mins,
                         Metrics<n_metrics>& maxes,
                         MetricFunc          metric_func)
 {
   bool result(true);
 
+  array<int8_t, n_metrics> unused_original_idx; // !@# define when packed_table actually uses this
+  fill(unused_original_idx.begin(), unused_original_idx.end(), 0);
   ShardAttrs<n_metrics> attrs(mins, maxes);
   packed_table_t* shard(packed_table_create(n_docs, mins.data(), maxes.data(),
                                             attrs.sizes, attrs.vec_nums, attrs.offsets_in_vecs,
-                                            n_metrics));;
+                                            unused_original_idx.data(), n_metrics));;
 
-  vector<int> doc_ids;
+  vector<int> doc_ids(n_docs);
   for (int doc_id = 0; doc_id < n_docs; ++doc_id) {
     doc_ids.push_back(doc_id);
   }
@@ -60,14 +62,14 @@ bool test_packed_tables(size_t              n_docs,
   }
 
   array<int64_t, n_metrics> metrics;
-	for (int metric_index = 0; metric_index < n_metrics; ++metric_index) {
+  for (int metric_index = 0; metric_index < n_metrics; ++metric_index) {
     metrics[metric_index] = metric_func(mins[metric_index], maxes[metric_index]);
   }
 
   for (int metric_index = 0; metric_index < n_metrics; ++metric_index) {
     vector<int64_t> values(doc_ids.size(), metrics[metric_index]);
     packed_table_batch_set_col(shard, doc_ids.data(), doc_ids.size(), values.data(), metric_index);
-	}
+  }
 
   for (int metric_index = 0; metric_index < n_metrics; ++metric_index) {
     vector<int64_t> expected_values(doc_ids.size(), metrics[metric_index]);
@@ -85,21 +87,21 @@ bool test_packed_tables(size_t              n_docs,
       result = false;
     }
   }
-	packed_table_destroy(shard);
+  packed_table_destroy(shard);
 
   return result;
 }
 
 
-typedef function<int64_t(size_t n_metric, size_t metric_index)> RangeFunc;
+typedef function<int64_t(int64_t n_metric, size_t metric_index)> RangeFunc;
 
-template <size_t n_metrics,
+template <int64_t n_metrics,
           bool should_succeed=true>
-void test_func(size_t n_docs,
-               RangeFunc min_func,
-               RangeFunc max_func,
+void test_func(int        n_docs,
+               RangeFunc  min_func,
+               RangeFunc  max_func,
                MetricFunc metric_func,
-               const string& description="")
+               const string& description = "")
 {
   Metrics<n_metrics> mins;
   Metrics<n_metrics> maxes;
@@ -117,7 +119,7 @@ void test_func(size_t n_docs,
 }
 
 
-template <size_t n_metrics, int64_t min_value, int64_t max_value,
+template <int64_t n_metrics, int64_t min_value, int64_t max_value,
           bool should_succeed=true>
 void test_uniform(size_t n_docs, MetricFunc metric_func,
                   const string& description="")

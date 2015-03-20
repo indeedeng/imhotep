@@ -35,13 +35,13 @@ std::ostream& operator<<(std::ostream& os, const Metrics<n_metrics>& row) {
 
 template <size_t n_metrics>
 struct ShardAttrs {
-    typedef Metrics<n_metrics> Metrics;
+    typedef Metrics<n_metrics> metrics_t;
 
     int32_t* sizes           = 0;
     int32_t* vec_nums        = 0;
     int32_t* offsets_in_vecs = 0;
 
-    ShardAttrs(const Metrics& mins, const Metrics& maxes)
+    ShardAttrs(const metrics_t& mins, const metrics_t& maxes)
         : sizes(get_sizes(n_metrics, mins.data(), maxes.data()))
         , vec_nums(get_vec_nums(n_metrics, mins.data(), maxes.data(), sizes))
         , offsets_in_vecs(get_offsets_in_vecs(n_metrics, mins.data(), maxes.data(), sizes))

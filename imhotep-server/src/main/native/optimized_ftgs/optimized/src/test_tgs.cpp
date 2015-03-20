@@ -1,3 +1,16 @@
+#include <cstdlib>
+#include <cstddef>
+#include <functional>
+#include <iomanip>
+#include <map>
+#include <memory>
+#include <set>
+#include <sstream>
+#include <thread>
+#include <vector>
+
+// #include <boost/asio.hpp>
+
 #define restrict __restrict__
 extern "C" {
 #include "circ_buf.h"
@@ -7,15 +20,7 @@ extern "C" {
 #include "test_utils.h"
 #include "varintdecode.h"
 
-#include <cstdlib>
-#include <functional>
-#include <iomanip>
-#include <map>
-#include <memory>
-#include <set>
-#include <sstream>
-#include <vector>
-
+// using boost::asio::ip::tcp;
 using namespace std;
 
 typedef function<Metric(size_t index)>             MinMaxFunc;
@@ -48,10 +53,10 @@ template <size_t n_metrics>
 class Entry
 {
 public:
-  typedef Metrics<n_metrics> Metrics;
-  const DocId   doc_id;
-  const GroupId group_id;
-  Metrics       metrics;
+  typedef Metrics<n_metrics> metrics_t;
+  const DocId                doc_id;
+  const GroupId              group_id;
+  metrics_t                  metrics;
 
   Entry(DocId doc_id_, GroupId group_id_)
     : doc_id(doc_id_)
@@ -62,8 +67,8 @@ public:
 template <size_t n_metrics>
 class StorageFactory
 {
-  typedef Entry<n_metrics> Entry;
-  typedef vector<Entry>    Storage;
+  typedef Entry<n_metrics> entry_t;
+  typedef vector<entry_t>    Storage;
   typedef map<size_t, shared_ptr<Storage>> Cache;
   Cache _cache;
  public:
@@ -82,17 +87,17 @@ class StorageFactory
 template <size_t n_metrics>
 class Table
 {
-  typedef vector<Entry<n_metrics>> Storage;
-  typedef Metrics<n_metrics>       Metrics;
-  typedef Entry<n_metrics>         Entry;
-  typedef multimap<GroupId, Entry> EntriesByGroup;
+  typedef vector<Entry<n_metrics>>   Storage;
+  typedef Metrics<n_metrics>         metrics_t;
+  typedef Entry<n_metrics>           entry_t;
+  typedef multimap<GroupId, entry_t> EntriesByGroup;
 
   static StorageFactory<n_metrics> _storage_factory;
 
   Storage& _storage;
 
-  Metrics _mins;
-  Metrics _maxes;
+  metrics_t _mins;
+  metrics_t _maxes;
 
  public:
   Table(size_t             n_docs,
@@ -111,7 +116,7 @@ class Table
     for (size_t doc_index(0); doc_index < n_docs; ++doc_index) {
       DocId   doc_id(doc_id_func(doc_index));
       GroupId group_id(group_id_func(doc_id));
-      Entry   entry(doc_id, group_id);
+      entry_t   entry(doc_id, group_id);
       for (size_t metric_index(0); metric_index < n_metrics; ++metric_index) {
         Metric value(metric_func(_mins[metric_index], _maxes[metric_index], metric_index, doc_index));
         value = min(_mins[metric_index], value);
@@ -124,30 +129,30 @@ class Table
 
   size_t size() const { return _storage.size(); }
 
-  const Metrics& mins()  const { return _mins;  }
-  const Metrics& maxes() const { return _maxes; }
+  const metrics_t& mins()  const { return _mins;  }
+  const metrics_t& maxes() const { return _maxes; }
 
-  Metrics& mins()  { return _mins;  }
-  Metrics& maxes() { return _maxes; }
+  metrics_t& mins()  { return _mins;  }
+  metrics_t& maxes() { return _maxes; }
 
   DocIds doc_ids() const {
     DocIds result;
     transform(_storage.begin(), _storage.end(), back_inserter(result),
-              [](const Entry& entry) { return entry.doc_id; });
+              [](const entry_t& entry) { return entry.doc_id; });
     return result;
   }
 
   vector<GroupId> flat_group_ids() const {
     vector<GroupId> result;
     transform(_storage.begin(), _storage.end(), back_inserter(result),
-              [](const Entry& entry) { return entry.group_id; });
+              [](const entry_t& entry) { return entry.group_id; });
     return result;
   }
 
   GroupIds group_ids() const {
     GroupIds result;
     transform(_storage.begin(), _storage.end(), inserter(result, result.begin()),
-              [](const Entry& entry) { return entry.group_id; });
+              [](const entry_t& entry) { return entry.group_id; });
     return result;
   }
 
@@ -162,14 +167,14 @@ class Table
   vector<Metric> metrics(size_t metric_index) const {
     vector<Metric> result;
     transform(_storage.begin(), _storage.end(), inserter(result, result.begin()),
-              [metric_index, &result](const Entry& entry) { return entry.metrics[metric_index]; });
+              [metric_index, &result](const entry_t& entry) { return entry.metrics[metric_index]; });
     return result;
   }
 
-  vector<Metrics> metrics() const {
-    vector<Metrics> result;
+  vector<metrics_t> metrics() const {
+    vector<metrics_t> result;
     for_each(_storage.begin(), _storage.end(),
-             [&result](const Entry& entry) { result.push_back(entry.metrics); });
+             [&result](const entry_t& entry) { result.push_back(entry.metrics); });
     return result;
   }
 
@@ -178,7 +183,7 @@ class Table
     const GroupIds       group_ids(this->group_ids());
     const EntriesByGroup entries(entries_by_group());
     for (auto group_id: group_ids) {
-      Metrics row;
+      metrics_t row;
       auto range(entries.equal_range(group_id));
       for_each(range.first, range.second,
                [&] (const typename EntriesByGroup::value_type& value) {
@@ -213,6 +218,7 @@ struct Shard
                                      const_cast<int64_t*>(table.mins().data()),
                                      const_cast<int64_t*>(table.maxes().data()),
                                      _attrs.sizes, _attrs.vec_nums, _attrs.offsets_in_vecs,
+                                     vector<int8_t>(n_metrics, 0).data(), // !@# currently unused
                                      n_metrics)) {
 
     DocIds          doc_ids(table.doc_ids());
@@ -247,6 +253,40 @@ struct Shard
 
 };
 
+/*
+class StatSink
+{
+  boost::asio::io_service _io_service;
+  tcp::acceptor           _acceptor;
+  thread                  _thread;
+
+  static void session(tcp::socket sock) {
+    char data[4096];
+    boost::system::error_code error;
+    while (true) {
+      size_t length(sock.read_some(boost::asio::buffer(data), error));
+      if (error == boost::asio::error::eof) {
+        break;
+      }
+      else if (error) {
+        throw boost::system::system_error(error);
+      }
+      cerr << "read: " << length << endl;
+    }
+  }
+
+public:
+  StatSink(unsigned short port)
+    : _acceptor(_io_service, tcp::endpoint(tcp::v4(), port)) {
+    tcp::socket sock(_io_service);
+    _acceptor.accept(sock);
+    _thread = thread(session, std::move(sock));
+    _thread.detach();
+  }
+
+  void join() { _thread.join(); }
+};
+*/
 
 template <size_t n_metrics>
 class TGSTest
@@ -260,10 +300,11 @@ class TGSTest
   struct worker_desc  _worker;
   struct session_desc _session;
 
+  // StatSink _sink;
+
 public:
-  typedef Metrics<n_metrics>    Metrics;
-  typedef Shard<n_metrics>      Shard;
-  typedef GroupStats<n_metrics> GroupStats;
+  typedef Shard<n_metrics>      shard_t;
+  typedef GroupStats<n_metrics> group_stats_t;
 
   TGSTest(size_t             n_docs,
           size_t             n_groups,
@@ -275,12 +316,22 @@ public:
     : _n_docs(n_docs)
     , _n_groups(n_groups)
     , _table(n_docs, min_func, max_func, doc_id_func, group_id_func, metric_func)
-    , _shard(_table) {
+    , _shard(_table)
+    {
+    // , _sink(12345) {
 
-    array <int, 1> socket_file_desc{{-1}};
+      /*
+    boost::asio::io_service io_service;
+    tcp::socket             sock(io_service);
+    tcp::resolver           resolver(io_service);
+    boost::asio::connect(sock, resolver.resolve({"localhost", "12345"}));
+      */
+
+      array <int, 1> socket_file_desc{{-1}};
+    // array <int, 1> socket_file_desc{{sock.native_handle()}};
     worker_init(&_worker, 1, n_groups, n_metrics, socket_file_desc.data(), 1);
 
-    uint8_t shard_order[] = {0};
+    packed_table_t* shard_order[] = { _shard() };
     session_init(&_session, n_groups, n_metrics, shard_order, 1);
 
     array <int, 1> shard_handles;
@@ -297,18 +348,19 @@ public:
 
     run_tgs_pass(&_worker,
                  &_session,
-                 TERM_TYPE_INT,
-                 1,
-                 NULL,
+                 TERM_TYPE_INT, 1,
+                 NULL, 0,
                  addresses.data(),
                  docs_in_term.data(),
-                 shard_handles.data(),
+                 //                 shard_handles.data(),
                  1,
-                 socket_file_desc[0],
+                 //                 socket_file_desc[0],
+                 0,
                  &error);
   }
 
   ~TGSTest() {
+    // _sink.join();
     session_destroy(&_session);
     worker_destroy(&_worker);
   }
@@ -317,15 +369,15 @@ public:
   const size_t n_groups() const { return _n_groups; }
 
   const Table<n_metrics>&           table() const { return _table;              }
-  const Shard&                      shard() const { return _shard;              }
+  const shard_t&                    shard() const { return _shard;              }
   unpacked_table_t*       group_stats_buf() const { return _worker.grp_stats;   }
 };
 
 template <size_t n_metrics>
 ostream& operator<<(ostream& os, const TGSTest<n_metrics>& test) {
   typedef TGSTest<n_metrics> Test;
-  const typename Test::GroupStats thing1(test.table().sum());
-  const typename Test::GroupStats thing2(test.shard().sum(test.group_stats_buf()));
+  const typename Test::group_stats_t thing1(test.table().sum());
+  const typename Test::group_stats_t thing2(test.shard().sum(test.group_stats_buf()));
   stringstream description;
   description << "n_metrics: " << n_metrics
               << " n_docs: "   << test.n_docs()
@@ -366,7 +418,7 @@ int main(int argc, char* argv[])
     [](int64_t min_val, int64_t max_val, size_t metric_num, size_t row_num) { return max_val; },
     [](int64_t min_val, int64_t max_val, size_t metric_num, size_t row_num) { return min_val + (max_val - min_val) / 2; },
     [](int64_t min_val, int64_t max_val, size_t metric_num, size_t row_num) {
-        auto val = metric_num * row_num;
+        int64_t val = metric_num * row_num; // !@# check for overflow
         if (val > max_val)
             return max_val;
         if (val < min_val)
