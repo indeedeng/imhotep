@@ -129,6 +129,8 @@ int slice_copy_range(uint8_t* slice,
 void stream_init(struct ftgs_outstream *stream, uint32_t fd);
 void stream_destroy(struct ftgs_outstream *stream);
 void socket_capture_error(struct buffered_socket *socket, int code);
+void term_update_int(union term_union *term, union term_union *new_term);
+void term_update_string(union term_union *term, union term_union *new_term);
 
 void lookup_and_accumulate_grp_stats(
                                    packed_table_t *src_table,
