@@ -80,7 +80,7 @@ int32_t bit_tree_dump(struct bit_tree *tree, uint32_t *restrict idx_arr, int32_t
         depth += depth_inc;
 
         uint32_t index_up = index >> 6;
-        uint32_t index_down = (index << 6) + top_bit(lsb - 1);
+        uint32_t index_down = (index << 6) + top_bit(lsb);
         updated_index = (empty_mask & index_up) + ((~empty_mask) & index_down);
         index = (depth_not_zero_mask & updated_index) + ((~depth_not_zero_mask) & index);
         idx_arr[count] = index_down;  /* keeps overwriting the same loc until depth == 0 */
