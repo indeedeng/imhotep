@@ -31,6 +31,11 @@ struct bit_fields_and_group {
     uint32_t metrics :4;
 };
 
+struct string_term_s {
+    int len;
+    char *term;
+};
+
 struct runtime_err {
     int  code;
     char str[SIZE_OF_ERRSTR];
@@ -44,24 +49,24 @@ struct buffered_socket {
     struct runtime_err* err;   // NULL unless a syscall error occurred
 };
 
-struct worker_desc {
-    int id;
-    int buffer_size;
-    int num_sockets;
-    unpacked_table_t *grp_stats;
-    struct circular_buffer_int *grp_buf;
-    union term_union **prev_term_by_socket;
-    struct buffered_socket *sockets;
-};
-
-struct string_term_s {
-    int string_term_len;
-    char *string_term;
-};
-
 union term_union {
     uint64_t int_term;
     struct string_term_s string_term;
+};
+
+struct ftgs_outstream {
+	struct buffered_socket socket;
+	int term_type;
+	union term_union prev_term;
+};
+
+struct worker_desc {
+    int id;
+    int buffer_size;
+    int num_streams;
+    unpacked_table_t *grp_stats;
+    struct circular_buffer_int *grp_buf;
+    struct ftgs_outstream *out_streams;
 };
 
 struct index_slice_info {
@@ -73,7 +78,6 @@ struct index_slice_info {
 struct tgs_desc {
     uint8_t term_type;
     union term_union *term;
-    union term_union *previous_term;
 
     struct index_slice_info *slices;
     int n_slices;
@@ -83,19 +87,23 @@ struct tgs_desc {
     uint32_t temp_table_mask;
 
     struct circular_buffer_int *grp_buf;
-    struct buffered_socket *socket;
+    struct ftgs_outstream *stream;
 };
 
 struct session_desc {
     int num_groups;
     int num_stats;
-    uint8_t* stat_order;
     int num_shards;
     packed_table_t **shards;
     unpacked_table_t *temp_buf;
     struct tgs_desc *current_tgs_pass;
 };
 
+union term_union *term_create(uint8_t term_type,
+                              int int_term,
+                              char *string_term,
+                              int string_term_len);
+void term_destroy(uint8_t term_type, union term_union *term);
 int tgs_execute_pass(struct worker_desc *worker,
                      struct session_desc *session,
                      struct tgs_desc *desc);
@@ -104,12 +112,10 @@ void tgs_init(struct worker_desc *worker,
               struct tgs_desc *desc,
               uint8_t term_type,
               union term_union *term,
-              union term_union *previous_term,
               long *addresses,
               int *docs_per_shard,
-              int *shard_handles,
               int num_shard,
-              struct buffered_socket *socket,
+              struct ftgs_outstream *stream,
               struct session_desc *session);
 void tgs_destroy(struct tgs_desc *desc);
 
@@ -120,8 +126,8 @@ int slice_copy_range(uint8_t* slice,
                      int count_to_read,
                      int *delta_decode_in_out);
 
-void socket_init(struct buffered_socket *socket, uint32_t fd);
-void socket_destroy(struct buffered_socket *socket);
+void stream_init(struct ftgs_outstream *stream, uint32_t fd);
+void stream_destroy(struct ftgs_outstream *stream);
 void socket_capture_error(struct buffered_socket *socket, int code);
 
 void lookup_and_accumulate_grp_stats(
@@ -138,6 +144,7 @@ packed_table_t *packed_table_create(int n_rows,
                                     int32_t *sizes,
                                     int32_t *vec_nums,
                                     int32_t *offsets_in_vecs,
+                                    int8_t *original_idx,
                                     int n_cols);
 void packed_table_destroy(packed_table_t *table);
 int packed_table_get_size(packed_table_t *table);
@@ -208,6 +215,8 @@ void unpacked_table_add_rows(unpacked_table_t* src_table,
                                     int dest_row_id,
                                     int prefetch_row_id);
 struct bit_tree* unpacked_table_get_non_zero_rows(unpacked_table_t* table);
+void *unpacked_table_get_rows_addr(unpacked_table_t *table, int row);
+int64_t unpacked_table_get_remapped_cell(unpacked_table_t *table, int row, int orig_idx);
 
 int remap_docs_in_target_groups(packed_table_t* packed_table,
                                 int*            results,

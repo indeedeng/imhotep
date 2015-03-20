@@ -29,6 +29,8 @@ struct packed_table_desc {
     int row_size;                /* How many __m128 vectors a single row uses */
     int unpadded_row_size;       /* How many __m128 vectors a single row uses, without the end padding */
 
+    uint8_t* col_remapping;     /* Order stats were pushed. They are reordered to pack better */
+
     uint8_t *col_2_vector;       /* The vector in which the column resides */
     int64_t *col_mins;           /* The minimal value of each column */
 
@@ -51,6 +53,7 @@ struct unpacked_table_desc {
     int unpadded_row_len;   /* Length of a row with vector padding only. In units of 16 bytes. */
     int padded_row_len;     /* Length of a row padded out for vector and cache line alignment. in units of 16 bytes. */
     struct bit_tree non_zero_rows;
+    uint8_t *col_remapping; /* mapping of columns from original order to packed order */
     __v2di *col_mins;       /* The minimal value of each column, padded to match a row */
     int *col_offset;        /* Offset of each column in a row. In 8B longs */
     __v2di *data;           /* group and cols data packed into 128b vectors */
@@ -63,15 +66,16 @@ packed_table_t *packed_table_create(int n_rows,
                                     int32_t *sizes,
                                     int32_t *vec_nums,
                                     int32_t *offsets_in_vecs,
+                                    int8_t *original_idx,
                                     int n_cols);
 void packed_table_destroy(packed_table_t *table);
-int packed_table_get_size(packed_table_t *table);
+//int packed_table_get_size(packed_table_t *table);
 int packed_table_get_row_size(packed_table_t *table);
-int packed_table_get_rows(packed_table_t *table);
+//int packed_table_get_rows(packed_table_t *table);
 int packed_table_get_cols(packed_table_t *table);
 
-long packed_table_get_cell(packed_table_t *table, int row, int column);
-void packed_table_set_cell(packed_table_t *table, int row, int col, long value);
+//long packed_table_get_cell(packed_table_t *table, int row, int column);
+//void packed_table_set_cell(packed_table_t *table, int row, int col, long value);
 int packed_table_get_group(packed_table_t *table, int row);
 void packed_table_set_group(packed_table_t *table, int row, int value);
 void packed_table_set_all_groups(packed_table_t *table, int value);
@@ -114,12 +118,12 @@ void packed_table_unpack_row_to_table(
 
 unpacked_table_t *unpacked_table_create(packed_table_t *packed_table, int n_rows);
 void unpacked_table_destroy(unpacked_table_t *table);
-int unpacked_table_get_size(unpacked_table_t *table);
+//int unpacked_table_get_size(unpacked_table_t *table);
 int unpacked_table_get_rows(unpacked_table_t *table);
-int unpacked_table_get_cols(unpacked_table_t *table);
+//int unpacked_table_get_cols(unpacked_table_t *table);
 unpacked_table_t *unpacked_table_copy_layout(unpacked_table_t *src_table, int num_rows);
-long unpacked_table_get_cell(unpacked_table_t *table, int row, int column);
-void unpacked_table_set_cell(unpacked_table_t *table, int row, int column, long value);
+//long unpacked_table_get_cell(unpacked_table_t *table, int row, int column);
+//void unpacked_table_set_cell(unpacked_table_t *table, int row, int column, long value);
 void unpacked_table_add_rows(unpacked_table_t* src_table,
                                     int src_row_id,
                                     unpacked_table_t* dest_table,

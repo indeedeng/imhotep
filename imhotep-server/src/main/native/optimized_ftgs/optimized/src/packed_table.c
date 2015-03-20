@@ -206,6 +206,7 @@ packed_table_t *packed_table_create(int n_rows,
                                     int32_t *sizes,
                                     int32_t *vec_nums,
                                     int32_t *offsets_in_vecs,
+                                    int8_t *original_idx,
                                     int n_cols)
 {
     packed_table_t *table;
@@ -216,6 +217,8 @@ packed_table_t *packed_table_create(int n_rows,
     table = (packed_table_t *)calloc(1, sizeof(packed_table_t));
     table->n_rows = n_rows;
     table->n_cols = n_cols;
+    table->col_remapping = calloc(n_cols, sizeof(uint8_t));
+    memcpy(table->col_remapping, original_idx, n_cols * sizeof(uint8_t));
 
     table->col_mins = (int64_t *) calloc(n_cols, sizeof(int64_t));
     /* copy in the mins */
@@ -250,6 +253,7 @@ void packed_table_destroy(packed_table_t *table)
     table->n_cols = -1;
     table->size = -1;
 
+    free(table->col_remapping);
     free(table->col_2_vector);
     free(table->col_mins);
     free(table->shuffle_vecs_put);

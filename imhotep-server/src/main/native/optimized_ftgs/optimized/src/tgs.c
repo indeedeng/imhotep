@@ -43,32 +43,26 @@ static unpacked_table_t *allocate_grp_stats(struct worker_desc *desc,
     return desc->grp_stats;
 }
 
-
 void tgs_init(struct worker_desc *worker,
               struct tgs_desc *desc,
               uint8_t term_type,
               union term_union *term,
-              union term_union *previous_term,
               long *addresses,
               int *docs_per_shard,
-              int *shard_handles,
               int num_shard,
-              struct buffered_socket *socket,
+              struct ftgs_outstream *stream,
               struct session_desc *session)
 {
     struct index_slice_info *infos;
     desc->term_type = term_type;
     desc->term = term;
-    desc->previous_term = previous_term;
     desc->n_slices = num_shard;
-    desc->socket = socket;
-    infos = (struct index_slice_info *)
-        calloc(num_shard, sizeof(struct index_slice_info));
+    desc->stream = stream;
+    infos = (struct index_slice_info *)calloc(num_shard, sizeof(struct index_slice_info));
     for (int i = 0; i < num_shard; i++) {
-        int handle = shard_handles[i];
         infos[i].n_docs_in_slice = docs_per_shard[i];
         infos[i].doc_slice = (uint8_t *)addresses[i];
-        infos[i].packed_metrics = session->shards[handle];
+        infos[i].packed_metrics = session->shards[i];
     }
     desc->slices = infos;
     desc->grp_buf = worker->grp_buf;

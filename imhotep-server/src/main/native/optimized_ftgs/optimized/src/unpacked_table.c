@@ -11,6 +11,8 @@ unpacked_table_t *unpacked_table_create(packed_table_t *packed_table, int n_rows
     table = (unpacked_table_t *)calloc(1, sizeof(unpacked_table_t));
     table->n_rows = n_rows;
     table->n_cols = n_cols;
+    table->col_remapping = calloc(n_cols, sizeof(uint8_t));
+    memcpy(packed_table->col_remapping, table->col_remapping, n_cols * sizeof(uint8_t));
     table->col_offset = (int *) calloc(n_cols, sizeof(int));
 
     /* set for the boolean cols, padded to fit in 1 or 2 vectors */
@@ -131,6 +133,18 @@ void unpacked_table_set_cell(unpacked_table_t *table, int row, int column, long 
 
     row_data = (int64_t *) &table->data[table->padded_row_len * row];
     row_data[table->col_offset[column]] = value;
+}
+
+void *unpacked_table_get_rows_addr(unpacked_table_t *table, int row)
+{
+    const int index = row * table->padded_row_len;
+
+    return &table->data[index];
+}
+
+int64_t unpacked_table_get_remapped_cell(unpacked_table_t *table, int row, int orig_idx)
+{
+	return unpacked_table_get_cell(table, row, table->col_remapping[orig_idx]);
 }
 
 

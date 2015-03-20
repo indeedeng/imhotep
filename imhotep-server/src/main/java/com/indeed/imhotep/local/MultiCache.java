@@ -63,6 +63,7 @@ public final class MultiCache implements Closeable {
         final int[] sizesInBytes = new int[count];
         final int[] vectorNums = new int[count];
         final int[] offsetsInVectors = new int[count];
+        final byte[] originalOrder = new byte[count];
 
         for (int i = 0; i < ordering.length; i++) {
             final MultiCacheConfig.StatsOrderingInfo orderInfo = ordering[i];
@@ -71,6 +72,7 @@ public final class MultiCache implements Closeable {
             sizesInBytes[i] = orderInfo.sizeInBytes;
             vectorNums[i] = orderInfo.vectorNum;
             offsetsInVectors[i] = orderInfo.offsetInVector;
+            originalOrder[i] = (byte)orderInfo.originalIndex;
         }
         return nativeBuildMultiCache(numDocsInShard,
                                      mins,
@@ -78,6 +80,7 @@ public final class MultiCache implements Closeable {
                                      sizesInBytes,
                                      vectorNums,
                                      offsetsInVectors,
+                                     originalOrder,
                                      this.numStats);
     }
 
@@ -151,6 +154,7 @@ public final class MultiCache implements Closeable {
                                               int[] sizesInBytes,
                                               int[] vectorNums,
                                               int[] offsetsInVectors,
+                                              byte[] originalOrder,
                                               int numStats);
 
     private static native void nativePackMetricDataInRange(long nativeShardDataPtr,

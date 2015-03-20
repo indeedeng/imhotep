@@ -4,10 +4,6 @@
 #include <unistd.h>
 #include "remote_output.h"
 
-//#define PREFETCH_DISTANCE 16
-//
-// TODO: throw an exception with JNI
-
 #define TRY(a) { \
     int _err = (a); \
     if (_err != 0) return _err; \
@@ -135,39 +131,56 @@ static int write_svint64(struct buffered_socket* socket, int64_t i) {
     return write_vint64(socket, (i << 1) ^ (i >> 63));
 }
 
+int write_field(struct ftgs_outstream* stream,
+                unpacked_table_t *table,
+                char *field_name,
+                int len,
+                int term_type)
+{
+	// TODO:
+    // check if this is the first thing we have written
+    // if not, write field terminator
+
+    // write new field
+
+    // reset prev_term (-1 for int, "" for string)
+    // set prev_term type to new field type
+    return 0;
+}
+
 int write_group_stats(struct buffered_socket* socket, uint32_t* groups, size_t term_group_count,
-             int64_t* group_stats, int num_stats, size_t stats_size, uint8_t* stat_order) {
+                      unpacked_table_t *group_stats, int num_stats, size_t stats_size) {
     int32_t previous_group = -1;
     for (size_t i = 0; i < term_group_count; i++) {
         uint32_t group = groups[i];
         int stat_index = 0;
-        TRY(write_vint64(socket, group-previous_group));
+        TRY(write_vint64(socket, group - previous_group));
         previous_group = group;
         uint32_t prefetch_group;
         int64_t* prefetch_start;
         int prefetch = i+PREFETCH_DISTANCE < term_group_count;
         if (prefetch) {
             prefetch_group = groups[i+PREFETCH_DISTANCE];
-            prefetch_start = group_stats+prefetch_group*stats_size;
+            prefetch_start = unpacked_table_get_rows_addr(group_stats, prefetch_group);
         }
 
         for (; stat_index <= num_stats-8; stat_index += 8) {
             int64_t stat;
-            stat = group_stats[group*stats_size+stat_order[stat_index]+0];
+            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+0);
             TRY(write_svint64(socket, stat));
-            stat = group_stats[group*stats_size+stat_order[stat_index]+1];
+            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+1);
             TRY(write_svint64(socket, stat));
-            stat = group_stats[group*stats_size+stat_order[stat_index]+2];
+            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+2);
             TRY(write_svint64(socket, stat));
-            stat = group_stats[group*stats_size+stat_order[stat_index]+3];
+            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+3);
             TRY(write_svint64(socket, stat));
-            stat = group_stats[group*stats_size+stat_order[stat_index]+4];
+            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+4);
             TRY(write_svint64(socket, stat));
-            stat = group_stats[group*stats_size+stat_order[stat_index]+5];
+            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+5);
             TRY(write_svint64(socket, stat));
-            stat = group_stats[group*stats_size+stat_order[stat_index]+6];
+            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+6);
             TRY(write_svint64(socket, stat));
-            stat = group_stats[group*stats_size+stat_order[stat_index]+7];
+            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+7);
             TRY(write_svint64(socket, stat));
 
             if (prefetch) {
@@ -177,7 +190,7 @@ int write_group_stats(struct buffered_socket* socket, uint32_t* groups, size_t t
         if (stat_index < num_stats) {
             int64_t* prefetch_address = prefetch_start+stat_index;
             do {
-                int64_t stat = group_stats[group*stats_size+stat_index];
+                int64_t stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index);
                 TRY(write_svint64(socket, stat));
                 stat_index++;
             } while (stat_index < num_stats);
@@ -189,43 +202,49 @@ int write_group_stats(struct buffered_socket* socket, uint32_t* groups, size_t t
 }
 
 static size_t prefix_len(struct string_term_s* term, struct string_term_s* previous_term) {
-    size_t max = MAX(term->string_term_len, previous_term->string_term_len);
+    size_t max = MAX(term->len, previous_term->len);
     for (size_t i = 0; i < max; i++) {
-        if (term->string_term[i] != previous_term->string_term[i]) return i;
+        if (term->term[i] != previous_term->term[i]) return i;
     }
     return max;
 }
 
 int write_term_group_stats(struct session_desc* session, struct tgs_desc* tgs,
-                           uint32_t* groups, size_t term_group_count) {
+                           uint32_t* groups, size_t term_group_count)
+{
+	struct buffered_socket *socket = &tgs->stream->socket;
+	union term_union *prev_term = &tgs->stream->prev_term;
+
     /* Short-circuit for invalid socket fds so that we can
        deliberately skip this code path in testing contexts e.g
        test_tgs. */
-    if (tgs->socket->socket_fd < 0) return 0;
+    if (socket->socket_fd < 0) return 0;
 
-    if (tgs->term_type) {
-        if (tgs->previous_term->int_term == -1 && tgs->term->int_term == -1) {
-            TRY(write_byte(tgs->socket, 0x80));
-            TRY(write_byte(tgs->socket, 0));
+    if (tgs->term_type == TERM_TYPE_INT) {
+        if (prev_term->int_term == -1 && tgs->term->int_term == -1) {
+            TRY(write_byte(socket, 0x80));
+            TRY(write_byte(socket, 0));
         } else {
-            TRY(write_vint64(tgs->socket, tgs->term->int_term - tgs->previous_term->int_term));
+            TRY(write_vint64(socket, tgs->term->int_term - prev_term->int_term));
         }
+        term_update_int(prev_term, tgs->term);
     } else {
         struct string_term_s* term = &tgs->term->string_term;
-        struct string_term_s* previous_term = &tgs->previous_term->string_term;
+        struct string_term_s* previous_term = &prev_term->string_term;
         size_t p_len = prefix_len(term, previous_term);
-        TRY(write_vint64(tgs->socket, term->string_term_len - p_len + 1));
-        TRY(write_vint64(tgs->socket, term->string_term_len - p_len));
-        TRY(write_bytes(tgs->socket, (uint8_t*)(term->string_term + p_len), term->string_term_len - p_len));
+        TRY(write_vint64(socket, term->len - p_len + 1));
+        TRY(write_vint64(socket, term->len - p_len));
+        TRY(write_bytes(socket, (uint8_t*)(term->term + p_len), term->len - p_len));
+        term_update_string(prev_term, tgs->term);
     }
     int64_t term_doc_freq = 0;
     for (int i = 0; i < tgs->n_slices; i++) {
         term_doc_freq += tgs->slices[i].n_docs_in_slice;
     }
-    TRY(write_svint64(tgs->socket, term_doc_freq));
+    TRY(write_svint64(socket, term_doc_freq));
     int num_stats = session->num_stats;
     size_t stats_size = num_stats <= 2 ? 2 : (num_stats+3)/4*4;
-    TRY(write_group_stats(tgs->socket, groups, term_group_count,
-                          (int64_t*)tgs->group_stats, num_stats, stats_size, session->stat_order));
+    TRY(write_group_stats(socket, groups, term_group_count, tgs->group_stats,
+                          num_stats, stats_size));
     return 0;
 }
