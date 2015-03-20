@@ -159,5 +159,4 @@ void worker_destroy(struct worker_desc *worker)
 
     /* free the intermediate buffers */
     circular_buffer_int_cleanup(worker->grp_buf);
-    //  free(worker->metric_buf);
 }
