@@ -131,7 +131,7 @@ static int write_svint64(struct buffered_socket* socket, int64_t i) {
     return write_vint64(socket, (i << 1) ^ (i >> 63));
 }
 
-int write_field(struct ftgs_outstream* stream,
+int write_field_start(struct ftgs_outstream* stream,
                 unpacked_table_t *table,
                 char *field_name,
                 int len,
@@ -139,12 +139,27 @@ int write_field(struct ftgs_outstream* stream,
 {
 	// TODO:
     // check if this is the first thing we have written
-    // if not, write field terminator
+    // if not, write_field_end()
 
-    // write new field
+    // write 1 for int field, 2 for string field
+
+    // write new field len (varint encoded)
+    // write new field name
 
     // reset prev_term (-1 for int, "" for string)
     // set prev_term type to new field type
+    return 0;
+}
+
+int write_field_end(struct ftgs_outstream* stream,
+                unpacked_table_t *table,
+                char *field_name,
+                int len,
+                int term_type)
+{
+    // write 0
+    // if field was a string field, write another 0
+
     return 0;
 }
 

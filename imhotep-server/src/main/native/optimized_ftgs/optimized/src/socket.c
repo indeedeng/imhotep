@@ -69,3 +69,25 @@ void term_destroy(uint8_t term_type, union term_union *term)
         break;
     }
 }
+
+void term_update_int(union term_union *term, union term_union *new_term)
+{
+    term->int_term = new_term->int_term;
+}
+
+void term_update_string(union term_union *term, union term_union *new_term)
+{
+    term->string_term.len = new_term->string_term.len;
+    memcpy(term->string_term.term, new_term->string_term.term, term->string_term.len);
+    // todo: possibly check size and resize if need be
+}
+
+void term_reset_int(union term_union *term)
+{
+    term->int_term = -1;
+}
+
+void term_reset_string(union term_union *term)
+{
+    term->string_term.len = 0;
+}
