@@ -1,9 +1,10 @@
 IDIR =include
 CC=/usr/bin/clang
+CPP=/usr/bin/g++
 JNI_HEADER_LOC=$(JAVA_HOME)/include
 JNI_HEADER_LOC2=$(JNI_HEADER_LOC)/linux
-CFLAGS=-O3  -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fvisibility=hidden -fPIC
-CPPFLAGS=-O3  -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=c++0x -msse4.2 -fvisibility=hidden -fPIC
+CFLAGS=-g  -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fvisibility=hidden -fPIC
+CPPFLAGS=-g  -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -I/usr/include/boost -std=c++0x -msse4.2 -fvisibility=hidden -fPIC
 LFLAGS=-shared
 
 ODIR=obj
@@ -39,7 +40,7 @@ $(ODIR)/%.o: src/%.c $(H_FILES)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 $(ODIR)/%.o: src/%.cpp $(H_FILES)
-	$(CC) -c -o $@ $< $(CPPFLAGS)
+	$(CPP) -c -o $@ $< $(CPPFLAGS)
 
 .PHONY: clean
 
@@ -49,22 +50,22 @@ native_lib: $(OBJ_FILES)
 	$(CC) $(LFLAGS) $(LIBS) -o $@ $^
 
 dump_term: $(OBJ_FILES) obj/dump_term.o
-	$(CC) $(CFLAGS) $ -o dump_term obj/dump_term.o $(OBJ_FILES) -lstdc++
+	$(CPP) $(CFLAGS) $ -o dump_term obj/dump_term.o $(OBJ_FILES) -lstdc++
 
 test_circ_buf: $(TEST_CIRC_BUF_OBJS)
-	$(CC) $ -o test_circ_buf $(TEST_CIRC_BUF_OBJS) $(LIBS) -lstdc++
+	$(CPP) $ -o test_circ_buf $(TEST_CIRC_BUF_OBJS) $(LIBS) -lstdc++
 
 test_groups: $(TEST_GROUPS_OBJS)
-	$(CC) $ -o test_groups $(TEST_GROUPS_OBJS) $(LIBS) -lstdc++
+	$(CPP) $ -o test_groups $(TEST_GROUPS_OBJS) $(LIBS) -lstdc++
 
 test_packed_shard: $(TEST_PACKED_SHARD_OBJS)
-	$(CC) $ -o test_packed_shard $(TEST_PACKED_SHARD_OBJS) $(LIBS) -lstdc++
+	$(CPP) $ -o test_packed_shard $(TEST_PACKED_SHARD_OBJS) $(LIBS) -lstdc++
 
 test_tgs: $(TEST_TGS_OBJS)
-	$(CC) $ -o test_tgs $(TEST_TGS_OBJS) $(LIBS) -lstdc++
+	$(CPP) $ -o test_tgs $(TEST_TGS_OBJS) $(LIBS) -lstdc++
 
 test_varintdecode: $(TEST_VARINTDECODE_OBJS)
-	$(CC) $ -o test_varintdecode $(TEST_VARINTDECODE_OBJS) $(LIBS) -lstdc++
+	$(CPP) $ -o test_varintdecode $(TEST_VARINTDECODE_OBJS) $(LIBS) -lstdc++
 
 tests: $(TESTS)
 
