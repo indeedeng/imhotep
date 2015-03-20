@@ -36,6 +36,7 @@ static int flush_buffer(struct buffered_socket* socket) {
 }
 
 static int write_byte(struct buffered_socket* socket, uint8_t value) {
+    fprintf(stderr, "%s: value: %d\n", __FUNCTION__, value);
     if (socket->buffer_ptr == socket->buffer_len) {
         TRY(flush_buffer(socket));
     }
@@ -45,6 +46,7 @@ static int write_byte(struct buffered_socket* socket, uint8_t value) {
 }
 
 static int write_bytes(struct buffered_socket* socket, uint8_t* bytes, size_t len) {
+    fprintf(stderr, "%s: len: %lu\n", __FUNCTION__, len);
     size_t write_ptr = 0;
     while (write_ptr < len) {
         if (socket->buffer_ptr == socket->buffer_len) {
@@ -261,5 +263,8 @@ int write_term_group_stats(struct session_desc* session, struct tgs_desc* tgs,
     size_t stats_size = num_stats <= 2 ? 2 : (num_stats+3)/4*4;
     TRY(write_group_stats(socket, groups, term_group_count, tgs->group_stats,
                           num_stats, stats_size));
+
+        TRY(flush_buffer(socket));
+
     return 0;
 }

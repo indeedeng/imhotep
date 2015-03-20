@@ -62,7 +62,7 @@ test_packed_shard: $(TEST_PACKED_SHARD_OBJS)
 	$(CPP) $ -o test_packed_shard $(TEST_PACKED_SHARD_OBJS) $(LIBS) -lstdc++
 
 test_tgs: $(TEST_TGS_OBJS)
-	$(CPP) $ -o test_tgs $(TEST_TGS_OBJS) $(LIBS) -lstdc++
+	$(CPP) $ -o test_tgs $(TEST_TGS_OBJS) $(LIBS) -L/usr/lib/x86_64-linux-gnu -lboost_system -lpthread -lstdc++
 
 test_varintdecode: $(TEST_VARINTDECODE_OBJS)
 	$(CPP) $ -o test_varintdecode $(TEST_VARINTDECODE_OBJS) $(LIBS) -lstdc++
