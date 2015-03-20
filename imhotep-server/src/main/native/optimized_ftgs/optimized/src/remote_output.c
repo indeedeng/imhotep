@@ -21,7 +21,8 @@
     _a > _b ? _a : _b; \
 })
 
-static int flush_buffer(struct buffered_socket* socket) {
+int flush_buffer(struct buffered_socket* socket)
+{
     size_t write_ptr = 0;
     while (write_ptr < socket->buffer_ptr) {
         ssize_t written = write(socket->socket_fd, socket->buffer, socket->buffer_len);
@@ -35,8 +36,7 @@ static int flush_buffer(struct buffered_socket* socket) {
     return 0;
 }
 
-static int write_byte(struct buffered_socket* socket, uint8_t value) {
-    fprintf(stderr, "%s: value: %d\n", __FUNCTION__, value);
+static inline int write_byte(struct buffered_socket* socket, uint8_t value) {
     if (socket->buffer_ptr == socket->buffer_len) {
         TRY(flush_buffer(socket));
     }
@@ -45,8 +45,7 @@ static int write_byte(struct buffered_socket* socket, uint8_t value) {
     return 0;
 }
 
-static int write_bytes(struct buffered_socket* socket, uint8_t* bytes, size_t len) {
-    fprintf(stderr, "%s: len: %lu\n", __FUNCTION__, len);
+static inline int write_bytes(struct buffered_socket* socket, uint8_t* bytes, size_t len) {
     size_t write_ptr = 0;
     while (write_ptr < len) {
         if (socket->buffer_ptr == socket->buffer_len) {
@@ -129,43 +128,62 @@ static int write_vint64(struct buffered_socket* socket, uint64_t i) {
     return 0;
 }
 
-static int write_svint64(struct buffered_socket* socket, int64_t i) {
+static inline int write_svint64(struct buffered_socket* socket, int64_t i) {
     return write_vint64(socket, (i << 1) ^ (i >> 63));
 }
 
 int write_field_start(struct ftgs_outstream* stream,
-                unpacked_table_t *table,
                 char *field_name,
                 int len,
                 int term_type)
 {
-	// TODO:
-    // check if this is the first thing we have written
-    // if not, write_field_end()
+	struct buffered_socket* socket = &stream->socket;
 
-    // write 1 for int field, 2 for string field
+    /* write 1 for int field, 2 for string field */
+    switch (term_type) {
+		case TERM_TYPE_INT:
+			TRY(write_byte(socket, 1));
+			break;
+		case TERM_TYPE_STRING:
+			TRY(write_byte(socket, 2));
+			break;
+    }
 
-    // write new field len (varint encoded)
+    /* write new field len (varint encoded) */
+    TRY(write_vint64(socket, len));
     // write new field name
+    TRY(write_bytes(socket, (uint8_t *)field_name, len));
 
-    // reset prev_term (-1 for int, "" for string)
-    // set prev_term type to new field type
+    /* reset prev_term (-1 for int, "" for string) */
+    switch (term_type) {
+		case TERM_TYPE_INT:
+			term_reset_int(&stream->prev_term);
+			break;
+		case TERM_TYPE_STRING:
+			term_reset_string(&stream->prev_term);
+			break;
+    }
+    /* set prev_term type to new field type */
+    stream->term_type = term_type;
+
     return 0;
 }
 
-int write_field_end(struct ftgs_outstream* stream,
-                unpacked_table_t *table,
-                char *field_name,
-                int len,
-                int term_type)
+int write_field_end(struct ftgs_outstream* stream)
 {
-    // write 0
-    // if field was a string field, write another 0
+	struct buffered_socket* socket = &stream->socket;
 
+    /* write 0 */
+    TRY(write_byte(socket, 0));
+
+    /* if field was a string field, write another 0 */
+    if (stream->term_type == TERM_TYPE_STRING) {
+        TRY(write_byte(socket, 0));
+    }
     return 0;
 }
 
-int write_group_stats(struct buffered_socket* socket, uint32_t* groups, size_t term_group_count,
+static int write_group_stats(struct buffered_socket* socket, uint32_t* groups, size_t term_group_count,
                       unpacked_table_t *group_stats, int num_stats, size_t stats_size) {
     int32_t previous_group = -1;
     for (size_t i = 0; i < term_group_count; i++) {
@@ -218,7 +236,7 @@ int write_group_stats(struct buffered_socket* socket, uint32_t* groups, size_t t
     return 0;
 }
 
-static size_t prefix_len(struct string_term_s* term, struct string_term_s* previous_term) {
+static inline size_t prefix_len(struct string_term_s* term, struct string_term_s* previous_term) {
     size_t max = MAX(term->len, previous_term->len);
     for (size_t i = 0; i < max; i++) {
         if (term->term[i] != previous_term->term[i]) return i;
@@ -264,7 +282,7 @@ int write_term_group_stats(struct session_desc* session, struct tgs_desc* tgs,
     TRY(write_group_stats(socket, groups, term_group_count, tgs->group_stats,
                           num_stats, stats_size));
 
-        TRY(flush_buffer(socket));
+    TRY(flush_buffer(socket));
 
     return 0;
 }
