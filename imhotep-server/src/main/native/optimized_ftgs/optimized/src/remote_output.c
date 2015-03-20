@@ -25,7 +25,7 @@ int flush_buffer(struct buffered_socket* socket)
 {
     size_t write_ptr = 0;
     while (write_ptr < socket->buffer_ptr) {
-        ssize_t written = write(socket->socket_fd, socket->buffer, socket->buffer_len);
+        ssize_t written = write(socket->socket_fd, socket->buffer, socket->buffer_ptr);
         if (written == -1) {
           socket_capture_error(socket, errno);
           return -1;
