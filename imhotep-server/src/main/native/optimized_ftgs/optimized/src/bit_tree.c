@@ -8,18 +8,19 @@
 
 static uint32_t top_bit(int64_t x)
 {
-    return sizeof(x) * 8 - __builtin_clzl(x);
+    return (sizeof(x) * 8 - 1) - __builtin_clzl(x);
 }
 
 
 void bit_tree_init(struct bit_tree *tree, int32_t size)
 {
     tree->size = size;
-    tree->depth = top_bit(size - 1) / 6 + 1;  /* log base 64 of size, rounded up */
+    long base_len = top_bit(size - 1) / 6 + 1;  /* log base 64 of size, rounded up */
+    tree->depth = base_len - 1;
     tree->len = 0;
-    for (int i = 0; i < tree->depth; i++) {
+    for (int i = 0; i < tree->depth + 1; i++) {
         size = (size + 63) / 64;
-        tree->len += 1 << top_bit(size);
+        tree->len += size;
     }
     tree->bitsets = ALIGNED_ALLOC(64, sizeof(uint64_t) * tree->len);
     memset(tree->bitsets, 0 , sizeof(uint64_t) * tree->len);
@@ -33,7 +34,7 @@ void bit_tree_destroy(struct bit_tree *tree)
 void bit_tree_set(struct bit_tree *tree, int32_t idx)
 {
     int offset = 0;
-    for (int32_t i = 0; i < tree->depth; i++) {
+    for (int32_t i = 0; i < tree->depth + 1; i++) {
         int32_t nextIndex = idx >> 6;
         tree->bitsets[offset + nextIndex] |= 1L << (idx & 0x3F);
         offset += 1 << (6 * (tree->depth - 2 - i));
@@ -51,7 +52,7 @@ int32_t bit_tree_dump(struct bit_tree *tree, uint32_t *restrict idx_arr, int32_t
 {
     uint32_t index = 0;
     int32_t count = 0;
-    int32_t depth = tree->depth - 1;
+    int32_t depth = tree->depth;
     uint32_t root = tree->len - 1;
     uint32_t offset = root;
 

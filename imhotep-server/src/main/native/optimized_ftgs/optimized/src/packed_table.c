@@ -662,9 +662,6 @@ inline void packed_table_unpack_row_to_table(
     struct bit_fields_and_group packed_bf_g = *((struct bit_fields_and_group *)src_row);
     unpack_bit_fields(dest_row, packed_bf_g.cols, src_table->n_boolean_cols);
 
-    /* flag row as modified */
-    bit_tree_set(&dest_table->non_zero_rows, dest_row_id);
-
     /* return if there are only bit field columns */
     if (src_table->n_cols == src_table->n_boolean_cols) {
         /* prefetch */

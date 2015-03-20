@@ -162,6 +162,9 @@ inline void unpacked_table_add_rows(unpacked_table_t* src_table,
                                     int dest_row_id,
                                     int prefetch_row_id)
 {
+    /* flag row as modified */
+    bit_tree_set(&dest_table->non_zero_rows, dest_row_id);
+
     /* loop through row elements */
     int vector_num;
     int n_vecs = src_table->unpadded_row_len;
