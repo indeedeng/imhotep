@@ -42,11 +42,11 @@ struct runtime_err {
 };
 
 struct buffered_socket {
-    int socket_fd;
     uint8_t* buffer;
     size_t buffer_ptr;
     size_t buffer_len;
     struct runtime_err* err;   // NULL unless a syscall error occurred
+    int socket_fd;
 };
 
 union term_union {
@@ -129,8 +129,15 @@ int slice_copy_range(uint8_t* slice,
 void stream_init(struct ftgs_outstream *stream, uint32_t fd);
 void stream_destroy(struct ftgs_outstream *stream);
 void socket_capture_error(struct buffered_socket *socket, int code);
+union term_union *term_create(uint8_t term_type,
+                              int int_term,
+                              char *string_term,
+                              int string_term_len);
+void term_destroy(uint8_t term_type, union term_union *term);
 void term_update_int(union term_union *term, union term_union *new_term);
 void term_update_string(union term_union *term, union term_union *new_term);
+void term_reset_int(union term_union *term);
+void term_reset_string(union term_union *term);
 
 void lookup_and_accumulate_grp_stats(
                                    packed_table_t *src_table,

@@ -18,6 +18,7 @@ JNIEXPORT jlong JNICALL Java_com_indeed_imhotep_local_MultiCache_nativeBuildMult
                                        jintArray sizes_bytes_array,
                                        jintArray vector_nums_array,
                                        jintArray offsets_in_vecs_array,
+                                       jbyteArray original_order_arr,
                                        jint n_stats)
 {
     packed_table_t *table;
@@ -27,13 +28,17 @@ JNIEXPORT jlong JNICALL Java_com_indeed_imhotep_local_MultiCache_nativeBuildMult
     jint *sizes;
     jint *vec_nums;
     jint *offests_in_vecs;
+    jbyte *original_order;
 
     mins = (*env)->GetPrimitiveArrayCritical(env, mins_jarray, &unused);
     maxes = (*env)->GetPrimitiveArrayCritical(env, maxes_jarray, &unused);
     sizes = (*env)->GetPrimitiveArrayCritical(env, sizes_bytes_array, &unused);
     vec_nums = (*env)->GetPrimitiveArrayCritical(env, vector_nums_array, &unused);
     offests_in_vecs = (*env)->GetPrimitiveArrayCritical(env, offsets_in_vecs_array, &unused);
-    table = create_shard_multicache(n_docs, mins, maxes, sizes, vec_nums, offests_in_vecs, n_stats);
+    original_order = (*env)->GetPrimitiveArrayCritical(env, original_order_arr, &unused);
+    table = create_shard_multicache(n_docs, mins, maxes, sizes, vec_nums, offests_in_vecs,
+                                    original_order, n_stats);
+    (*env)->ReleasePrimitiveArrayCritical(env, original_order_arr, original_order, JNI_ABORT);
     (*env)->ReleasePrimitiveArrayCritical(env, offsets_in_vecs_array, offests_in_vecs, JNI_ABORT);
     (*env)->ReleasePrimitiveArrayCritical(env, vector_nums_array, vec_nums, JNI_ABORT);
     (*env)->ReleasePrimitiveArrayCritical(env, sizes_bytes_array, sizes, JNI_ABORT);
