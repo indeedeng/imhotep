@@ -18,6 +18,9 @@ void stream_init(struct ftgs_outstream *stream, uint32_t fd)
 
 void stream_destroy(struct ftgs_outstream *stream)
 {
+	/* flush whatever is left in the socket buffer */
+    flush_buffer(&stream->socket);
+
     stream->socket.socket_fd = -1;
     free(stream->socket.buffer);
     stream->socket.buffer_len = 0;
@@ -36,14 +39,14 @@ void socket_capture_error(struct buffered_socket *socket, int code)
 }
 
 
-union term_union *term_create(uint8_t term_type,
+struct term_s *term_create(uint8_t term_type,
                               int int_term,
                               char *string_term,
                               int string_term_len)
 {
-    union term_union *term;
+    struct term_s *term;
 
-    term = calloc(1, sizeof(union term_union));
+    term = calloc(1, sizeof(struct term_s));
     switch(term_type) {
     case TERM_TYPE_STRING:
         term->string_term.term = calloc(string_term_len, sizeof(char));
@@ -57,7 +60,7 @@ union term_union *term_create(uint8_t term_type,
     return term;
 }
 
-void term_destroy(uint8_t term_type, union term_union *term)
+void term_destroy(uint8_t term_type, struct term_s *term)
 {
     switch(term_type) {
     case TERM_TYPE_STRING:
@@ -70,24 +73,31 @@ void term_destroy(uint8_t term_type, union term_union *term)
     }
 }
 
-void term_update_int(union term_union *term, union term_union *new_term)
+void term_update_int(struct term_s *term, struct term_s *new_term)
 {
     term->int_term = new_term->int_term;
 }
 
-void term_update_string(union term_union *term, union term_union *new_term)
+void term_update_string(struct term_s *term, struct term_s *new_term)
 {
-    term->string_term.len = new_term->string_term.len;
-    memcpy(term->string_term.term, new_term->string_term.term, term->string_term.len);
-    // todo: possibly check size and resize if need be
+	int new_len = new_term->string_term.len;
+	int current_len = term->string_term.len;
+
+	if (new_len > current_len) {
+        /* reallocate the string buffer */
+        uint8_t *new_buf;
+        new_buf = malloc(new_len * sizeof(char));
+    	memcpy(new_buf, new_term->string_term.term, new_len);
+    	free(term->string_term.term);
+        term->string_term.term = new_buf;
+	}
+    term->string_term.len = new_len;
+    memcpy(term->string_term.term, new_term->string_term.term, new_len);
 }
 
-void term_reset_int(union term_union *term)
+void term_reset(struct term_s *term)
 {
     term->int_term = -1;
-}
-
-void term_reset_string(union term_union *term)
-{
     term->string_term.len = 0;
+    free(term->string_term.term);
 }

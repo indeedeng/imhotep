@@ -155,14 +155,8 @@ int write_field_start(struct ftgs_outstream* stream,
     TRY(write_bytes(socket, (uint8_t *)field_name, len));
 
     /* reset prev_term (-1 for int, "" for string) */
-    switch (term_type) {
-		case TERM_TYPE_INT:
-			term_reset_int(&stream->prev_term);
-			break;
-		case TERM_TYPE_STRING:
-			term_reset_string(&stream->prev_term);
-			break;
-    }
+    term_reset(&stream->prev_term);
+
     /* set prev_term type to new field type */
     stream->term_type = term_type;
 
@@ -248,7 +242,7 @@ int write_term_group_stats(struct session_desc* session, struct tgs_desc* tgs,
                            uint32_t* groups, size_t term_group_count)
 {
 	struct buffered_socket *socket = &tgs->stream->socket;
-	union term_union *prev_term = &tgs->stream->prev_term;
+	struct term_s *prev_term = &tgs->stream->prev_term;
 
     /* Short-circuit for invalid socket fds so that we can
        deliberately skip this code path in testing contexts e.g

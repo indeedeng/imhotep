@@ -32,8 +32,8 @@ struct bit_fields_and_group {
 };
 
 struct string_term_s {
-    int len;
     char *term;
+    int len;
 };
 
 struct runtime_err {
@@ -49,7 +49,7 @@ struct buffered_socket {
     int socket_fd;
 };
 
-union term_union {
+struct term_s {
     uint64_t int_term;
     struct string_term_s string_term;
 };
@@ -57,7 +57,7 @@ union term_union {
 struct ftgs_outstream {
 	struct buffered_socket socket;
 	int term_type;
-	union term_union prev_term;
+	struct term_s prev_term;
 };
 
 struct worker_desc {
@@ -77,7 +77,7 @@ struct index_slice_info {
 
 struct tgs_desc {
     uint8_t term_type;
-    union term_union *term;
+    struct term_s *term;
 
     struct index_slice_info *slices;
     int n_slices;
@@ -99,11 +99,7 @@ struct session_desc {
     struct tgs_desc *current_tgs_pass;
 };
 
-union term_union *term_create(uint8_t term_type,
-                              int int_term,
-                              char *string_term,
-                              int string_term_len);
-void term_destroy(uint8_t term_type, union term_union *term);
+void term_destroy(uint8_t term_type, struct term_s *term);
 int tgs_execute_pass(struct worker_desc *worker,
                      struct session_desc *session,
                      struct tgs_desc *desc);
@@ -111,7 +107,7 @@ int tgs_execute_pass(struct worker_desc *worker,
 void tgs_init(struct worker_desc *worker,
               struct tgs_desc *desc,
               uint8_t term_type,
-              union term_union *term,
+              struct term_s *term,
               long *addresses,
               int *docs_per_shard,
               int num_shard,
@@ -129,15 +125,14 @@ int slice_copy_range(uint8_t* slice,
 void stream_init(struct ftgs_outstream *stream, uint32_t fd);
 void stream_destroy(struct ftgs_outstream *stream);
 void socket_capture_error(struct buffered_socket *socket, int code);
-union term_union *term_create(uint8_t term_type,
+struct term_s *term_create(uint8_t term_type,
                               int int_term,
                               char *string_term,
                               int string_term_len);
-void term_destroy(uint8_t term_type, union term_union *term);
-void term_update_int(union term_union *term, union term_union *new_term);
-void term_update_string(union term_union *term, union term_union *new_term);
-void term_reset_int(union term_union *term);
-void term_reset_string(union term_union *term);
+void term_destroy(uint8_t term_type, struct term_s *term);
+void term_update_int(struct term_s *term, struct term_s *new_term);
+void term_update_string(struct term_s *term, struct term_s *new_term);
+void term_reset(struct term_s *term);
 
 void lookup_and_accumulate_grp_stats(
                                    packed_table_t *src_table,

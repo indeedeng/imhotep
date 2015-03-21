@@ -1,11 +1,14 @@
 package com.indeed.imhotep.multicache.ftgs;
 
 import java.net.Socket;
+import java.nio.charset.Charset;
 
 import com.indeed.imhotep.io.SocketUtils;
 import com.indeed.imhotep.multicache.ProcessingTask;
 
 public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSinfo,Void> {
+    private static final Charset UTF_8 = Charset.forName("UTF-8");
+
     private long nativeWorkerStructPtr;
     private long nativeSessionStructPtr;
     private final int numGroups;
@@ -14,6 +17,7 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSi
     private final int id;
     private long[] nativeMulticachePtrs;
     private final int[] socketArr;
+    private String previousField = null;
 
     public NativeFTGSWorker(int numGroups,
                             int numMetrics,
@@ -48,6 +52,20 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSi
     @Override
     public Void processData(NativeFtgsRunner.NativeTGSinfo info) {
         int err;
+
+        /* Field strigns should never be copied. So comparison by ref should be fine. */
+        if (info.termDesc.field != this.previousField) {
+            if (this.previousField != null) {
+                /* don't end the field if this is the first field */
+                err = native_end_field(this.nativeWorkerStructPtr, this.nativeSessionStructPtr);
+            }
+            err = native_start_field(this.nativeWorkerStructPtr,
+                                     this.nativeSessionStructPtr,
+                                     info.termDesc.field.getBytes(UTF_8),
+                                     info.termDesc.field.length(),
+                                     info.termDesc.isIntTerm);
+        }
+
         if (info.termDesc.isIntTerm) {
             err = native_run_int_tgs_pass(this.nativeWorkerStructPtr,
                                           this.nativeSessionStructPtr,
@@ -75,6 +93,15 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSi
         native_session_destroy(this.nativeWorkerStructPtr, this.nativeSessionStructPtr);
         native_worker_destroy(this.nativeWorkerStructPtr);
     }
+
+    private static native int native_start_field(long nativeWorkerStructPtr,
+                                                 long nativeSessionStructPtr,
+                                                 byte[] field_bytes,
+                                                 int length,
+                                                 boolean isIntTerm);
+
+    private static native int native_end_field(long nativeWorkerStructPtr,
+                                               long nativeSessionStructPtr);
 
     private static native int native_run_string_tgs_pass(long nativeWorkerStructPtr,
                                                          long nativeSessionStructPtr,

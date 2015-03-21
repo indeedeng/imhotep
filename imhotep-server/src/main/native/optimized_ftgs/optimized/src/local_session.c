@@ -19,7 +19,7 @@ int run_tgs_pass(struct worker_desc *worker,
 {
     struct tgs_desc desc;
     struct ftgs_outstream *stream;
-    union term_union* current_term;
+    struct term_s* current_term;
 
     /* just in case. Kinda unnecessary to check this here */
     if (num_shard > session->num_shards) {
@@ -110,7 +110,6 @@ void session_init(struct session_desc *session,
     session->current_tgs_pass = NULL;
 
     session->temp_buf = NULL;
-
     session->shards = (packed_table_t **)calloc(n_shards, sizeof(packed_table_t *));
     memcpy(session->shards, shards, n_shards * sizeof(packed_table_t *));
 }
