@@ -174,6 +174,10 @@ int write_field_end(struct ftgs_outstream* stream)
     if (stream->term_type == TERM_TYPE_STRING) {
         TRY(write_byte(socket, 0));
     }
+
+	/* flush whatever is left in the socket buffer */
+    TRY(flush_buffer(&stream->socket));
+
     return 0;
 }
 
@@ -275,8 +279,6 @@ int write_term_group_stats(struct session_desc* session, struct tgs_desc* tgs,
     size_t stats_size = num_stats <= 2 ? 2 : (num_stats+3)/4*4;
     TRY(write_group_stats(socket, groups, term_group_count, tgs->group_stats,
                           num_stats, stats_size));
-
-    TRY(flush_buffer(socket));
 
     return 0;
 }

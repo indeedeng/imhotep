@@ -1,5 +1,5 @@
 IDIR =include
-CC=/usr/bin/clang
+CC=/usr/bin/clang-3.5
 CPP=/usr/bin/g++
 JNI_HEADER_LOC=$(JAVA_HOME)/include
 JNI_HEADER_LOC2=$(JNI_HEADER_LOC)/linux

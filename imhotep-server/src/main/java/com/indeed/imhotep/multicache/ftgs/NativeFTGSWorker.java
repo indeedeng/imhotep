@@ -70,7 +70,7 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSi
                                           info.termDesc.offsets,
                                           info.termDesc.numDocsInTerm,
                                           info.termDesc.size(),
-                                          info.splitIndex);
+                                          info.socketNum);
         } else {
             err = native_run_string_tgs_pass(this.nativeWorkerStructPtr,
                                              this.nativeSessionStructPtr,
@@ -79,7 +79,7 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSi
                                              info.termDesc.offsets,
                                              info.termDesc.numDocsInTerm,
                                              info.termDesc.size(),
-                                             info.splitIndex);
+                                             info.socketNum);
         }
 
         return null;
@@ -108,7 +108,7 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSi
                                                          long[] offsets,
                                                          int[] numDocsInTerm,
                                                          int numShards,
-                                                         int splitIndex);
+                                                         int socketNum);
 
     private static native int native_run_int_tgs_pass(long nativeWorkerStructPtr,
                                                       long nativeSessionStructPtr,
@@ -116,7 +116,7 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSi
                                                       long[] offsets,
                                                       int[] numDocsPerShard,
                                                       int numShards,
-                                                      int splitIndex);
+                                                      int socketNum);
 
     private static native long native_session_create(long nativeWorkerStructPtr,
                                                      long[] nativeMulticachePtrs,

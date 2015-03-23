@@ -14,6 +14,7 @@ public abstract class ResultProcessor<Result> implements Runnable {
         this.queues = new ArrayList<>(queues);
     }
 
+    // TODO: fixme
     public final void run() {
         Result r;
 

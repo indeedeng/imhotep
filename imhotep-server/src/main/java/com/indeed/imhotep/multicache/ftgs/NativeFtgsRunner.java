@@ -7,7 +7,6 @@ import com.indeed.flamdex.simple.MultiShardFlamdexReader;
 import com.indeed.imhotep.local.MultiCache;
 import com.indeed.imhotep.multicache.AdvProcessingService;
 import com.indeed.util.core.hash.MurmurHash;
-import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
@@ -35,6 +34,7 @@ public class NativeFtgsRunner {
     static class NativeTGSinfo {
         public TermDesc termDesc;
         public int splitIndex;
+        public int socketNum;
     }
 
     public NativeFtgsRunner(FlamdexReader[] flamdexReaders,
@@ -140,6 +140,7 @@ public class NativeFtgsRunner {
                     final NativeTGSinfo info = new NativeTGSinfo();
                     info.termDesc = desc;
                     info.splitIndex = minHashInt(desc.intTerm, numSplits);
+                    info.socketNum = info.splitIndex / NUM_WORKERS;
                     return info;
                 }
             });
@@ -161,6 +162,7 @@ public class NativeFtgsRunner {
                     final NativeTGSinfo info = new NativeTGSinfo();
                     info.termDesc = desc;
                     info.splitIndex = minHashString(desc.stringTerm, desc.stringTermLen, numSplits);
+                    info.socketNum = info.splitIndex / NUM_WORKERS;
                     return info;
                 }
             });

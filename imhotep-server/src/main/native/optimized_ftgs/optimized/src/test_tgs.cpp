@@ -335,16 +335,13 @@ public:
 
     array<int, 1> docs_in_term{{static_cast<int>(_table.doc_ids().size())}};
 
-    struct runtime_err error;
-
     run_tgs_pass(&_worker,
                  &_session,
                  TERM_TYPE_INT, 1,
                  NULL, 0,
                  addresses.data(),
                  docs_in_term.data(),
-                 1, 0,
-                 &error);
+                 1, 0);
 
     this_thread::sleep_for(chrono::seconds(3));
   }

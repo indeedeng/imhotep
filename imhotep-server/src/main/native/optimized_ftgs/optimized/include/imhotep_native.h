@@ -67,6 +67,7 @@ struct worker_desc {
     unpacked_table_t *grp_stats;
     struct circular_buffer_int *grp_buf;
     struct ftgs_outstream *out_streams;
+    struct runtime_err error;
 };
 
 struct index_slice_info {

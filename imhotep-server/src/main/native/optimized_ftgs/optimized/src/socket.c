@@ -18,9 +18,6 @@ void stream_init(struct ftgs_outstream *stream, uint32_t fd)
 
 void stream_destroy(struct ftgs_outstream *stream)
 {
-	/* flush whatever is left in the socket buffer */
-    flush_buffer(&stream->socket);
-
     stream->socket.socket_fd = -1;
     free(stream->socket.buffer);
     stream->socket.buffer_len = 0;
@@ -85,7 +82,7 @@ void term_update_string(struct term_s *term, struct term_s *new_term)
 
 	if (new_len > current_len) {
         /* reallocate the string buffer */
-        uint8_t *new_buf;
+        char *new_buf;
         new_buf = malloc(new_len * sizeof(char));
     	memcpy(new_buf, new_term->string_term.term, new_len);
     	free(term->string_term.term);
