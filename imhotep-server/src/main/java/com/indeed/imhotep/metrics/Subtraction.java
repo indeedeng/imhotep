@@ -24,6 +24,16 @@ public class Subtraction extends AbstractBinaryOperator {
     }
 
     @Override
+    public long getMin() {
+        return Math.min(a.getMin() - b.getMin(), a.getMin() - b.getMax());
+    }
+
+    @Override
+    public long getMax() {
+        return Math.max(a.getMax() - b.getMin(), a.getMax() - b.getMax());
+    }
+
+    @Override
     protected void combine(long[] values, long[] buffer, int n) {
         for (int i = 0; i < n; ++i) {
             values[i] -= buffer[i];

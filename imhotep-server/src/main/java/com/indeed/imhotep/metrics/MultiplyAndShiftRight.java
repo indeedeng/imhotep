@@ -30,8 +30,13 @@ public final class MultiplyAndShiftRight extends AbstractBinaryOperator {
 
     protected void combine(final long[] values, final long[] buffer, final int n) {
         for (int i = 0; i < n; i++) {
-            final long result = values[i] * buffer[i];
-            values[i] = result >> shift;
+            values[i] = eval(values[i], buffer[i]);
         }
     }
+
+    private long eval(long a, long b) {
+        final long result = a * b;
+        return result >> shift;
+    }
+
 }

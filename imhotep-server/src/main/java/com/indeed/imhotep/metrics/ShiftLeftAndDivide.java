@@ -30,12 +30,13 @@ public final class ShiftLeftAndDivide extends AbstractBinaryOperator {
 
     protected void combine(final long[] values, final long[] buffer, final int n) {
         for (int i = 0; i < n; i++) {
-            if (buffer[i] == 0) {
-                values[i] = 0;
-            } else {
-                final long result = values[i] << shift;
-                values[i] = result / buffer[i];
-            }
+            values[i] = eval(values[i], buffer[i]);
         }
+    }
+
+    private long eval(long a, long b) {
+        if (b == 0) return 0;
+        final long result = a << shift;
+        return result / b;
     }
 }
