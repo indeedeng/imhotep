@@ -52,7 +52,7 @@ public class AdvProcessingService<Data, Result> extends ProcessingService<Data, 
                 this.queuesList.get(handle).submitData(d);
             }
             for (ProcessingQueuesHolder<Data, Result> q : this.queuesList) {
-                q.submitData(ProcessingQueuesHolder<Data,Result>.TERMINATOR);
+                q.terminateQueue();
             }
             this.awaitCompletion();
         } catch (Throwable t) {

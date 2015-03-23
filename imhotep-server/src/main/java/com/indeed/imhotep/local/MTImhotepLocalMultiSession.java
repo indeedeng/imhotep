@@ -24,6 +24,7 @@ import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.Arrays;
@@ -120,6 +121,8 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                 try {
                     runner.run(intFields, stringFields, numSplits, ftgsOutputSockets);
                 } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
             }
