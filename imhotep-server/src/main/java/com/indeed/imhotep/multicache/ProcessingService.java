@@ -7,7 +7,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -71,7 +70,7 @@ public class ProcessingService<Data,Result> {
                 }
                 this.queues.submitData(iterator.next());
             }
-            this.queues.submitData(ProcessingQueuesHolder.TERMINATOR);
+            this.queues.terminateQueue();
             this.awaitCompletion();
         } catch (Throwable t) {
             this.errorTracker.setError();
@@ -99,17 +98,17 @@ public class ProcessingService<Data,Result> {
     }
 
     public static class ProcessingQueuesHolder<D,R> {
-        public static final Object TERMINATOR = new Object();
+        private static final Object TERMINATOR = new Object();
 
         private AtomicInteger numDataElementsQueued = new AtomicInteger(0);
         private volatile boolean waiting = false;
 
-        protected BlockingQueue<D> dataQueue;
-        protected BlockingQueue<R> resultsQueue;
+        protected BlockingQueue<Object> dataQueue;
+        protected BlockingQueue<Object> resultsQueue;
 
         public ProcessingQueuesHolder() {
-            this.dataQueue = new ArrayBlockingQueue<D>(64);
-            this.resultsQueue = new ArrayBlockingQueue<R>(64);
+            this.dataQueue = new ArrayBlockingQueue<>(64);
+            this.resultsQueue = new ArrayBlockingQueue<>(64);
         }
 
         public void submitData(D d) throws InterruptedException {
@@ -118,15 +117,18 @@ public class ProcessingService<Data,Result> {
         }
 
         public D retrieveData() throws InterruptedException {
-            D d;
-            int count;
+            final Object data;
+            final int count;
 
-            d = dataQueue.take();
+            data = dataQueue.take();
             count = numDataElementsQueued.decrementAndGet();
             if (count == 0) {
                 signalQueueEmpty();
             }
-            return d;
+            if (data == TERMINATOR) {
+                return null;
+            }
+            return (D)data;
         }
 
         public void submitResult(R r) throws InterruptedException {
@@ -134,7 +136,7 @@ public class ProcessingService<Data,Result> {
         }
 
         public R retrieveResult() throws InterruptedException {
-            return resultsQueue.take();
+            return (R)resultsQueue.take();
         }
 
         public synchronized void waitUntilQueueIsEmpty() throws InterruptedException {
@@ -149,6 +151,10 @@ public class ProcessingService<Data,Result> {
                 waiting = false;
                 this.notifyAll();
             }
+        }
+
+        public void terminateQueue() {
+            this.dataQueue.add(TERMINATOR);
         }
     }
 

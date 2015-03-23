@@ -27,7 +27,7 @@ public abstract class ResultProcessor<Result> implements Runnable {
                         final ProcessingService.ProcessingQueuesHolder<?, Result> q;
                         q = iter.next();
                         r = q.retrieveResult();
-                        if (r == ProcessingService.ProcessingQueuesHolder.TERMINATOR) {
+                        if (r == null) {
                             iter.remove();
                             continue;
                         }

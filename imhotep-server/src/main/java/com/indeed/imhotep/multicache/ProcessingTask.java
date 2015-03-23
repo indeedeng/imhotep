@@ -33,7 +33,7 @@ public abstract class ProcessingTask<Data,Result> implements Runnable {
                         return;
                     }
                     d = queue.retrieveData();
-                    if (d == ProcessingService.ProcessingQueuesHolder.TERMINATOR) {
+                    if (d == null) {
                         break;
                     }
                     r = processData(d);

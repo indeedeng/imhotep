@@ -2452,6 +2452,9 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
                 memory.releaseMemory(memFreed);
             }
 
+            this.multiCache.close();
+            // TODO: free memory?
+
             long dynamicMetricUsage = 0;
             for (DynamicMetric metric : getDynamicMetrics().values()) {
                 dynamicMetricUsage += metric.memoryUsed();

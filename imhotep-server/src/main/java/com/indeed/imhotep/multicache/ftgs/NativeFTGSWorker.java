@@ -17,14 +17,19 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSi
     private final int id;
     private long[] nativeMulticachePtrs;
     private final int[] socketArr;
-    private String previousField = null;
+    private final String field;
+    private final boolean isIntField;
 
-    public NativeFTGSWorker(int numGroups,
+    public NativeFTGSWorker(String field,
+                            boolean isIntField,
+                            int numGroups,
                             int numMetrics,
                             int numShards,
                             Socket[] sockets,
                             int id,
                             long[] nativeMulticachePtrs) {
+        this.field = field;
+        this.isIntField = isIntField;
         this.numGroups = numGroups;
         this.numMetrics = numMetrics;
         this.numShards = numShards;
@@ -47,24 +52,16 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSi
                                                        numShards,
                                                        numGroups,
                                                        numMetrics);
+        native_start_field(nativeWorkerStructPtr,
+                           nativeSessionStructPtr,
+                           this.field.getBytes(UTF_8),
+                           this.field.length(),
+                           this.isIntField);
     }
 
     @Override
     public Void processData(NativeFtgsRunner.NativeTGSinfo info) {
         int err;
-
-        /* Field strigns should never be copied. So comparison by ref should be fine. */
-        if (info.termDesc.field != this.previousField) {
-            if (this.previousField != null) {
-                /* don't end the field if this is the first field */
-                err = native_end_field(this.nativeWorkerStructPtr, this.nativeSessionStructPtr);
-            }
-            err = native_start_field(this.nativeWorkerStructPtr,
-                                     this.nativeSessionStructPtr,
-                                     info.termDesc.field.getBytes(UTF_8),
-                                     info.termDesc.field.length(),
-                                     info.termDesc.isIntTerm);
-        }
 
         if (info.termDesc.isIntTerm) {
             err = native_run_int_tgs_pass(this.nativeWorkerStructPtr,
@@ -90,6 +87,7 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSi
 
     @Override
     protected void cleanup() {
+        native_end_field(this.nativeWorkerStructPtr, this.nativeSessionStructPtr);
         native_session_destroy(this.nativeWorkerStructPtr, this.nativeSessionStructPtr);
         native_worker_destroy(this.nativeWorkerStructPtr);
     }

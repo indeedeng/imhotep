@@ -21,13 +21,12 @@ import java.util.List;
 /**
  * Created by darren on 3/18/15.
  */
-public class NativeFtgsRunner implements Closeable {
+public class NativeFtgsRunner {
     private static final Logger log = Logger.getLogger(NativeFtgsRunner.class);
     private static final int NUM_WORKERS = 8;
     private static final int LARGE_PRIME_FOR_CLUSTER_SPLIT = 969168349;
 
     private final MultiShardFlamdexReader multiShardFlamdexReader;
-    private final List<Closeable> iterators = new ArrayList<>(32);
     private final long[] multicacheAddrs;
     private final int numGroups;
     private final int numMetrics;
@@ -76,13 +75,31 @@ public class NativeFtgsRunner implements Closeable {
     public void run(final String[] intFields,
                     final String[] stringFields,
                     final int numSplits,
-                    final Socket[] sockets) throws InterruptedException {
-        final Iterator<NativeTGSinfo> iter = createIterator(intFields,
-                                                            stringFields,
-                                                            numSplits,
-                                                            sockets);
-        AdvProcessingService<NativeTGSinfo, Void> service;
-        AdvProcessingService.TaskCoordinator<NativeTGSinfo> router;
+                    final Socket[] sockets) throws InterruptedException, IOException {
+        for (String field : intFields) {
+            final Iterator<NativeTGSinfo> iter = createIntIterator(field, numSplits);
+            try {
+                internalRun(field, true, iter, sockets);
+            } finally {
+                ((Closeable)iter).close();
+            }
+        }
+        for (String field : stringFields) {
+            final Iterator<NativeTGSinfo> iter = createStringIterator(field, numSplits);
+            try {
+                internalRun(field, false, iter, sockets);
+            } finally {
+                ((Closeable)iter).close();
+            }
+        }
+    }
+
+    private void internalRun(String field,
+                             boolean isIntField,
+                             final Iterator<NativeTGSinfo> iter,
+                             final Socket[] sockets) throws InterruptedException {
+        final AdvProcessingService<NativeTGSinfo, Void> service;
+        final AdvProcessingService.TaskCoordinator<NativeTGSinfo> router;
         router = new AdvProcessingService.TaskCoordinator<NativeTGSinfo>() {
             @Override
             public int route(NativeTGSinfo info) {
@@ -98,7 +115,9 @@ public class NativeFtgsRunner implements Closeable {
                 }
             }
             final Socket[] mySockets = socketList.toArray(new Socket[socketList.size()]);
-            service.addTask(new NativeFTGSWorker(numGroups,
+            service.addTask(new NativeFTGSWorker(field,
+                                                 isIntField,
+                                                 numGroups,
                                                  numMetrics,
                                                  numShards,
                                                  mySockets,
@@ -109,72 +128,44 @@ public class NativeFtgsRunner implements Closeable {
         service.processData(iter, null);
     }
 
-    public Iterator<NativeTGSinfo> createIterator(final String[] intFields,
-                                                  final String[] stringFields,
-                                                  final int numSplits,
-                                                  final Socket[] sockets) {
-        final Iterator<NativeTGSinfo> results;
+    private Iterator<NativeTGSinfo> createIntIterator(final String intField, final int numSplits) {
+        try {
+            final Iterator<TermDesc> iter;
+            iter = multiShardFlamdexReader.intTermOffsetIterator(intField);
 
-        final Function<String, Iterator<TermDesc>> intIterBuilder;
-        final Function<String, Iterator<TermDesc>> stringIterBuilder;
-        intIterBuilder = new Function<String, Iterator<TermDesc>>() {
-            @Nullable
-            @Override
-            public Iterator<TermDesc> apply(String intField) {
-                final Iterator<TermDesc> iter;
-                try {
-                    iter = multiShardFlamdexReader.intTermOffsetIterator(intField);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-                iterators.add((Closeable)iter);
-                return iter;
-            }
-        };
-        stringIterBuilder = new Function<String, Iterator<TermDesc>>() {
-            @Nullable
-            @Override
-            public Iterator<TermDesc> apply(String stringField) {
-                final Iterator<TermDesc> iter;
-                try {
-                    iter = multiShardFlamdexReader.stringTermOffsetIterator(stringField);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-                iterators.add((Closeable)iter);
-                return iter;
-            }
-        };
-
-        final Iterator<Iterator<TermDesc>> intIterIter;
-        final Iterator<Iterator<TermDesc>> stringIterIter;
-        intIterIter = Iterators.transform(Iterators.forArray(intFields), intIterBuilder);
-        stringIterIter = Iterators.transform(Iterators.forArray(stringFields), stringIterBuilder);
-
-        final Iterator<Iterator<TermDesc>> allTermsIterIter;
-        allTermsIterIter = Iterators.concat(intIterIter, stringIterIter);
-
-        final Iterator<TermDesc> allTermsIter = Iterators.concat(allTermsIterIter);
-        results = Iterators.transform(allTermsIter, new Function<TermDesc, NativeTGSinfo>() {
-            @Nullable
-            @Override
-            public NativeTGSinfo apply(@Nullable TermDesc desc) {
-                NativeTGSinfo info = new NativeTGSinfo();
-                info.termDesc = desc;
-                if (desc.isIntTerm) {
+            return Iterators.transform(iter, new Function<TermDesc, NativeTGSinfo>() {
+                @Nullable
+                @Override
+                public NativeTGSinfo apply(@Nullable TermDesc desc) {
+                    final NativeTGSinfo info = new NativeTGSinfo();
+                    info.termDesc = desc;
                     info.splitIndex = minHashInt(desc.intTerm, numSplits);
-                } else {
-                    info.splitIndex = minHashString(desc.stringTerm, desc.stringTermLen, numSplits);
+                    return info;
                 }
-                return info;
-            }
-        });
-        return results;
+            });
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
+    private Iterator<NativeTGSinfo> createStringIterator(final String stringField,
+                                                         final int numSplits) {
+        try {
+            final Iterator<TermDesc> iter;
+            iter = multiShardFlamdexReader.stringTermOffsetIterator(stringField);
 
-    @Override
-    public void close() throws IOException {
-        Closeables2.closeAll(iterators, log);
+            return Iterators.transform(iter, new Function<TermDesc, NativeTGSinfo>() {
+                @Nullable
+                @Override
+                public NativeTGSinfo apply(@Nullable TermDesc desc) {
+                    final NativeTGSinfo info = new NativeTGSinfo();
+                    info.termDesc = desc;
+                    info.splitIndex = minHashString(desc.stringTerm, desc.stringTermLen, numSplits);
+                    return info;
+                }
+            });
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
