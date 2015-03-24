@@ -10,7 +10,7 @@ LFLAGS=-flto -O3 -shared
 ODIR=obj
 LDIR =../lib
 
-LIBS=-lm -o libftgs.so.1.0.1
+LIBS=-lm
 
 C_FILES := $(wildcard src/*.c)
 H_FILES := $(wildcard include/*.h)
@@ -48,7 +48,7 @@ $(ODIR)/%.o: src/%.cpp $(H_FILES)
 all: native_lib tests
 
 native_lib: $(OBJ_FILES)
-	$(CC) $(LFLAGS) $(LIBS) $^
+	$(CC) $(LFLAGS) $(LIBS) -o libftgs.so.1.0.1 $^
 
 dump_term: $(OBJ_FILES) obj/dump_term.o
 	$(CPP) $(CFLAGS) $ -o dump_term obj/dump_term.o $(OBJ_FILES) -lstdc++
