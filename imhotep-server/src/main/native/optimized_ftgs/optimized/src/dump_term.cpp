@@ -23,6 +23,7 @@ extern "C" {
 #include "local_session.h"
 #include "test_patch.h"
 }
+#include "test_utils.h"
 #include "varintdecode.h"
 
 using namespace std;
@@ -35,43 +36,7 @@ size_t file_size(int fd)
     return buf.st_size;
 }
 
-class View
-{
-protected:
-    const char* _begin  = 0;
-    const char* _end    = 0;
-
-public:
-    View(const char* begin=0, const char* end=0)
-        : _begin(begin) , _end(end)
-    { }
-
-    const char* begin() const { return _begin; }
-    const char* end()   const { return _end;   }
-
-    bool empty() const { return _begin >= _end; }
-
-    uint8_t read() {
-        assert(!empty());
-        const char result(empty() ? -1 : *_begin);
-        ++_begin;
-        return result;
-    }
-
-    template <typename int_t>
-    int_t read_varint(uint8_t b=0) {
-        int_t result(0);
-        int   shift(0);
-        do {
-            result |= ((b & 0x7FL) << shift);
-            if (b < 0x80) return result;
-            shift += 7;
-            b = read();
-        } while (true);
-    }
-};
-
-class Buffer : public View
+class Buffer : public VarIntView
 {
     int         _fd     = 0;
     size_t      _length = 0;
@@ -121,11 +86,11 @@ class IntFieldView {
 
 public:
     class DocIdIterator {
-        View   _view;
+        VarIntView   _view;
         size_t _remaining = 0;
         long   _doc_id    = 0;
     public:
-        DocIdIterator(const View& view, uint64_t remaining)
+        DocIdIterator(const VarIntView& view, uint64_t remaining)
             : _view(view)
             , _remaining(remaining)
         { }
@@ -139,13 +104,13 @@ public:
     };
 
     class TermIterator {
-        View _view;
+        VarIntView _view;
         long _term   = 0;
         long _offset = 0;
     public:
         typedef tuple<long, long, long> Tuple; // term, offset, doc frequency
 
-        TermIterator(const View& view) : _view(view) { }
+        TermIterator(const VarIntView& view) : _view(view) { }
         bool has_next() { return !_view.empty(); }
 
         Tuple next() {
@@ -173,7 +138,7 @@ public:
             _max = std::max(term, _max);
             _max_term_doc_freq = std::max(doc_freq, _max_term_doc_freq);
 
-            View doc_ids_view(_docs.begin() + offset, _docs.end());
+            VarIntView doc_ids_view(_docs.begin() + offset, _docs.end());
             scrape_doc_ids(doc_ids_view, doc_freq);
             ++_n_terms;
         }
@@ -196,7 +161,7 @@ public:
 
     size_t n_terms() const { return _n_terms; }
 
-    TermIterator term_iterator() const { return TermIterator(View(_terms.begin(), _terms.end())); }
+    TermIterator term_iterator() const { return TermIterator(VarIntView(_terms.begin(), _terms.end())); }
 
     const char* doc_id_stream(long offset) const { return _docs.begin() + offset; };
 
@@ -207,13 +172,13 @@ public:
             const long term(get<0>(next));
             const long offset(get<1>(next));
             const long doc_freq(get<2>(next));
-            View doc_ids_view(_docs.begin() + offset, _docs.end());
+            VarIntView doc_ids_view(_docs.begin() + offset, _docs.end());
             pack(doc_ids_view, doc_freq, table, term, col, group_by_me);
         }
     }
 
 private:
-    void scrape_doc_ids(const View& view, long term_doc_freq) {
+    void scrape_doc_ids(const VarIntView& view, long term_doc_freq) {
         DocIdIterator it(view, term_doc_freq);
         while (it.has_next()) {
             const long doc_id(it.next());
@@ -222,7 +187,7 @@ private:
         }
     }
 
-    void pack(const View& view, long term_doc_freq, packed_table_t* table,
+    void pack(const VarIntView& view, long term_doc_freq, packed_table_t* table,
               long term, int col, bool group_by_me) {
         DocIdIterator it(view, term_doc_freq);
         while (it.has_next()) {
@@ -306,7 +271,7 @@ int main(int argc, char* argv[])
     }
     string shard_dir(argv[1]);
     vector<string> fields;
-    for (size_t i_argv(2); i_argv < argc; ++i_argv) { fields.push_back(argv[i_argv]); }
+    for (int i_argv(2); i_argv < argc; ++i_argv) { fields.push_back(argv[i_argv]); }
 
     vector<shared_ptr<IntFieldView>> field_views;
     for (auto field: fields) {
@@ -327,21 +292,20 @@ int main(int argc, char* argv[])
     packed_table_t* table(packed_table_create(n_rows,
                                               col_mins.data(), col_maxes.data(),
                                               metadata.sizes, metadata.vec_nums, metadata.offsets_in_vecs,
-                                              n_cols));
+                                              vector<int8_t>(n_cols, 0).data(), n_cols));
     for (size_t col(0); col < n_cols; ++col) {
         field_views[col]->pack(table, col, col == 0);
     }
 
     cout << field_views;
 
-    array <int, 1> socket_file_desc{{3}};
+    array <int, 1> socket_file_desc{{-1}};
     struct worker_desc  worker;
     worker_init(&worker, 1, n_rows, n_cols, socket_file_desc.data(), 1);
 
-    uint8_t shard_order[] = {0};
+    packed_table_t* shards[] = { table };
     struct session_desc session;
-    //    session_init(&session, (*field_views.begin())->n_terms() + 1, n_cols, shard_order, 1);
-    session_init(&session, (*field_views.begin())->max() + 1, n_cols, shard_order, 1);
+    session_init(&session, (*field_views.begin())->max() + 1, n_cols, shards, 1);
 
     array <int, 1> shard_handles;
     shard_handles[0] = register_shard(&session, table);
@@ -359,14 +323,11 @@ int main(int argc, char* argv[])
 
         run_tgs_pass(&worker,
                      &session,
-                     TERM_TYPE_INT,
-                     1,
-                     NULL,
+                     TERM_TYPE_INT, 1,
+                     NULL, 0,
                      addresses.data(),
                      docs_in_term.data(),
-                     shard_handles.data(),
-                     1,
-                     socket_file_desc[0],
+                     1, 0,
                      &error);
 
         assert(error.code == 0);

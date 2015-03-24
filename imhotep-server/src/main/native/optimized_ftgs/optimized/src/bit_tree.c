@@ -1,90 +1,73 @@
 #include <emmintrin.h>
+#include <popcntintrin.h>
 #include <stdlib.h>
 #include <string.h>
 #include "bit_tree.h"
 
 #define ALIGNED_ALLOC(alignment, size) ((alignment) < (size)) ? aligned_alloc(alignment,size) : aligned_alloc(alignment,alignment);
 
-
-static uint32_t top_bit(int64_t x)
-{
-    return (sizeof(x) * 8 - 1) - __builtin_clzl(x);
+static int32_t log2_of_size(int32_t size) {
+    return 31 - __builtin_clz(size); /* !@# */
 }
 
 
 void bit_tree_init(struct bit_tree *tree, int32_t size)
 {
-    tree->size = size;
-    long base_len = top_bit(size - 1) / 6 + 1;  /* log base 64 of size, rounded up */
-    tree->depth = base_len - 1;
-    tree->len = 0;
-    for (int i = 0; i < tree->depth + 1; i++) {
-        size = (size + 63) / 64;
-        tree->len += size;
+    const size_t length = log2_of_size(size - 1) / 6 + 1;
+    tree->bitsets = calloc(length, sizeof(int64_t*));
+    for (size_t i = 0; i < length; ++i) {
+        size = (size+63)/64;
+        tree->bitsets[i] = calloc(size, sizeof(int64_t));
     }
-    tree->bitsets = ALIGNED_ALLOC(64, sizeof(uint64_t) * tree->len);
-    memset(tree->bitsets, 0 , sizeof(uint64_t) * tree->len);
+    tree->depth = length - 1;
 }
 
 void bit_tree_destroy(struct bit_tree *tree)
 {
+    const size_t length = tree->depth + 1;
+    for (size_t i = 0; i < length; ++i) {
+        free(tree->bitsets[i]);
+    }
     free(tree->bitsets);
 }
 
-void bit_tree_set(struct bit_tree *tree, int32_t idx)
+void bit_tree_set(struct bit_tree *tree, int32_t index)
 {
-    int offset = 0;
-    for (int32_t i = 0; i < tree->depth + 1; i++) {
-        int32_t nextIndex = idx >> 6;
-        tree->bitsets[offset + nextIndex] |= 1L << (idx & 0x3F);
-        offset += 1 << (6 * (tree->depth - 2 - i));
-        idx = nextIndex;
+    const size_t length = tree->depth + 1;
+    for (size_t i = 0; i < length; ++i) {
+        const int32_t next_index = index >> 6;
+        tree->bitsets[i][next_index] |= 1L << (index & 0x3f);
+        index = next_index;
     }
 }
 
-void bit_tree_iterate(struct bit_tree *tree, uint32_t *idx_arr, int32_t len)
+void bit_tree_iterate(struct bit_tree *tree, uint32_t *index_arr, int32_t len)
+{ }
+
+int32_t bit_tree_dump(struct bit_tree *tree, uint32_t *restrict index_arr, int32_t len)
 {
-
-    
-}
-
-int32_t bit_tree_dump(struct bit_tree *tree, uint32_t *restrict idx_arr, int32_t len)
-{
-    uint32_t index = 0;
-    int32_t count = 0;
-    int32_t depth = tree->depth;
-    uint32_t root = tree->len - 1;
-    uint32_t offset = root;
-
+    int count = 0;
+    int index = 0;
+    int depth = tree->depth;
     while (1) {
-        uint64_t updated_index = 0;
-        uint64_t empty = (tree->bitsets[offset + index] == 0);
-        uint64_t empty_mask = -empty;
-        uint64_t depth_not_zero = (offset != 0);
-        uint64_t depth_not_zero_mask = -depth_not_zero;
-    
-        if (empty_mask && (offset == root)) {
-            return count;
+        while (tree->bitsets[depth][index] == 0) {
+            if (depth == tree->depth) return count;
+            ++depth;
+            index = index >> 6;
         }
-    
-        uint64_t lsb = tree->bitsets[offset + index] & -tree->bitsets[offset + index];
-        tree->bitsets[offset + index] ^= lsb;
-        
-        int depth_inc = ((empty_mask) ? 1 : -1) & depth_not_zero_mask;   /* gcc knows this trick better than you */
-        // if (empty) {
-        //     offset += 1 << (6 * (tree->depth - 1 - depth));
-        // } else {
-        //     offset -= 1 << (6 * (tree->depth - 1 - depth - 1));
-        // }
-        offset += (1 << (6 * (tree->depth - 2 - depth - !empty))) * depth_inc;
-        depth += depth_inc;
-
-        uint32_t index_up = index >> 6;
-        uint32_t index_down = (index << 6) + top_bit(lsb);
-        updated_index = (empty_mask & index_up) + ((~empty_mask) & index_down);
-        index = (depth_not_zero_mask & updated_index) + ((~depth_not_zero_mask) & index);
-        idx_arr[count] = index_down;  /* keeps overwriting the same loc until depth == 0 */
-
-        count += !depth_not_zero;
+        while (depth != 0) {
+            const int64_t lsb = tree->bitsets[depth][index] & -tree->bitsets[depth][index];
+            tree->bitsets[depth][index] ^= lsb;
+            --depth;
+            index = (index << 6) + _mm_popcnt_u64(lsb - 1);
+        }
+        while (tree->bitsets[0][index] != 0) {
+            const int64_t lsb = tree->bitsets[0][index] & -tree->bitsets[0][index];
+            tree->bitsets[0][index] ^= lsb;
+            index_arr[count++] = (index << 6) + _mm_popcnt_u64(lsb - 1);
+        }
+        if (tree->depth == 0) return count;
+        depth = 1;
+        index = index >> 6;
     }
 }

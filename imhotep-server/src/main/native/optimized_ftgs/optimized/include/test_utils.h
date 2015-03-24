@@ -11,6 +11,7 @@ extern "C" {
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <iostream>
 #include <iterator>
 #include <vector>
@@ -115,6 +116,42 @@ void doc_ids_encode(iterator begin, iterator end, buffer_t& out)
 
   varint_encode(deltas.begin(), deltas.end(), out);
 }
+
+class VarIntView
+{
+protected:
+    const char* _begin  = 0;
+    const char* _end    = 0;
+
+public:
+    VarIntView(const char* begin=0, const char* end=0)
+        : _begin(begin) , _end(end)
+    { }
+
+    const char* begin() const { return _begin; }
+    const char* end()   const { return _end;   }
+
+    bool empty() const { return _begin >= _end; }
+
+    uint8_t read() {
+        assert(!empty());
+        const char result(empty() ? -1 : *_begin);
+        ++_begin;
+        return result;
+    }
+
+    template <typename int_t>
+    int_t read_varint(uint8_t b=0) {
+        int_t result(0);
+        int   shift(0);
+        do {
+            result |= ((b & 0x7FL) << shift);
+            if (b < 0x80) return result;
+            shift += 7;
+            b = read();
+        } while (true);
+    }
+};
 
 template <class T, size_t N>
 std::ostream& operator<<(std::ostream& os, const std::array<T, N>& items)

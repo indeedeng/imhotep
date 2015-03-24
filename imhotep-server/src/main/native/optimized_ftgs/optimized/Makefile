@@ -3,8 +3,8 @@ CC=/usr/bin/clang
 CPP=/usr/bin/g++
 JNI_HEADER_LOC=$(JAVA_HOME)/include
 JNI_HEADER_LOC2=$(JNI_HEADER_LOC)/linux
-CFLAGS=-g  -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fvisibility=hidden -fPIC
-CPPFLAGS=-g  -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -I/usr/include/boost -std=c++0x -msse4.2 -fvisibility=hidden -fPIC
+CFLAGS=-O3  -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fvisibility=hidden -fPIC
+CPPFLAGS=-O3  -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -I/usr/include/boost -std=c++0x -msse4.2 -fvisibility=hidden -fPIC
 LFLAGS=-shared
 
 ODIR=obj
@@ -29,12 +29,13 @@ TEST_OBJS=obj/bit_tree.o         \
           obj/unpacked_table.o   \
           obj/varintdecode.o
 
+TEST_BIT_TREE_OBJS=$(TEST_OBJS) obj/test_bit_tree.o
 TEST_CIRC_BUF_OBJS=$(TEST_OBJS) obj/test_circ_buf.o
 TEST_GROUPS_OBJS=$(TEST_OBJS) obj/test_groups.o
 TEST_PACKED_SHARD_OBJS=$(TEST_OBJS) obj/test_packed_shard.o
 TEST_TGS_OBJS=$(TEST_OBJS) obj/test_tgs.o
 TEST_VARINTDECODE_OBJS=$(TEST_OBJS) obj/test_varintdecode.o
-TESTS := test_circ_buf test_groups test_packed_shard test_tgs test_varintdecode
+TESTS := test_bit_tree test_circ_buf test_groups test_packed_shard test_tgs test_varintdecode
 
 $(ODIR)/%.o: src/%.c $(H_FILES)
 	$(CC) -c -o $@ $< $(CFLAGS)
@@ -51,6 +52,9 @@ native_lib: $(OBJ_FILES)
 
 dump_term: $(OBJ_FILES) obj/dump_term.o
 	$(CPP) $(CFLAGS) $ -o dump_term obj/dump_term.o $(OBJ_FILES) -lstdc++
+
+test_bit_tree: $(TEST_BIT_TREE_OBJS)
+	$(CPP) $ -o test_bit_tree $(TEST_BIT_TREE_OBJS) $(LIBS) -lstdc++
 
 test_circ_buf: $(TEST_CIRC_BUF_OBJS)
 	$(CPP) $ -o test_circ_buf $(TEST_CIRC_BUF_OBJS) $(LIBS) -lstdc++
