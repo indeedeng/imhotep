@@ -28,9 +28,11 @@ void stream_destroy(struct ftgs_outstream *stream)
     }
 }
 
-void socket_capture_error(struct buffered_socket *socket, int code)
+void socket_capture_error(struct buffered_socket *socket, const int code)
 {
-    if (!socket->err) calloc(1, sizeof(struct runtime_err));
+    if (!socket->err) {
+        socket->err = calloc(1, sizeof(struct runtime_err));
+    }
     socket->err->code = code;
     strerror_r(code, socket->err->str, SIZE_OF_ERRSTR);
 }

@@ -1,4 +1,10 @@
 #include <jni.h>
+
+#undef  JNIEXPORT
+#define JNIEXPORT               __attribute__((visibility("default")))
+
+#include "com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker.h"
+#include "com_indeed_imhotep_local_MultiRegroupInternals.h"
 #include "imhotep_native.h"
 #include "local_session.h"
 #include "remote_output.h"
@@ -18,14 +24,12 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_
 						jboolean is_int_field_jboolean)
 {
 	struct worker_desc *worker;
-	struct session_desc *session;
 	jbyte *field_name;
 	uint32_t is_int_field;
 	jboolean madeCopy;
 	int err;
 
 	worker = (struct worker_desc *)worker_addr;
-	session = (struct session_desc *)session_addr;
 	is_int_field = is_int_field_jboolean;
 
 	field_name = (*java_env)->GetPrimitiveArrayCritical(java_env, field_name_bytes_arr, &madeCopy);
@@ -59,12 +63,8 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_
 						jlong worker_addr,
 						jlong session_addr)
 {
-	struct worker_desc *worker;
-	struct session_desc *session;
+	struct worker_desc *worker = (struct worker_desc *)worker_addr;
 	int err;
-
-	worker = (struct worker_desc *)worker_addr;
-	session = (struct session_desc *)session_addr;
 
     err = worker_end_field(worker);
 
@@ -260,11 +260,8 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_
 						jlong worker_addr,
 						jlong session_addr)
 {
-	struct worker_desc *worker;
-	struct session_desc *session;
+	struct session_desc *session = (struct session_desc *)session_addr;
 
-	worker = (struct worker_desc *)worker_addr;
-	session = (struct session_desc *)session_addr;
 	session_destroy(session);
 }
 

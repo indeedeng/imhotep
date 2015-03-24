@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include "bit_tree.h"
 
+
 #define TERM_TYPE_STRING 0
 #define TERM_TYPE_INT    1
 
@@ -45,7 +46,7 @@ struct buffered_socket {
     uint8_t* buffer;
     size_t buffer_ptr;
     size_t buffer_len;
-    struct runtime_err* err;   // NULL unless a syscall error occurred
+    struct runtime_err* err;
     int socket_fd;
 };
 
@@ -125,7 +126,7 @@ int slice_copy_range(uint8_t* slice,
 
 void stream_init(struct ftgs_outstream *stream, uint32_t fd);
 void stream_destroy(struct ftgs_outstream *stream);
-void socket_capture_error(struct buffered_socket *socket, int code);
+void socket_capture_error(struct buffered_socket *socket, const int code);
 struct term_s *term_create(uint8_t term_type,
                               int int_term,
                               char *string_term,
@@ -212,16 +213,7 @@ int unpacked_table_get_size(unpacked_table_t *table);
 int unpacked_table_get_rows(unpacked_table_t *table);
 int unpacked_table_get_cols(unpacked_table_t *table);
 unpacked_table_t *unpacked_table_copy_layout(unpacked_table_t *src_table, int num_rows);
-long unpacked_table_get_cell(unpacked_table_t *table, int row, int column);
-void unpacked_table_set_cell(unpacked_table_t *table, int row, int column, long value);
-void unpacked_table_add_rows(unpacked_table_t* src_table,
-                                    int src_row_id,
-                                    unpacked_table_t* dest_table,
-                                    int dest_row_id,
-                                    int prefetch_row_id);
 struct bit_tree* unpacked_table_get_non_zero_rows(unpacked_table_t* table);
-void *unpacked_table_get_rows_addr(unpacked_table_t *table, int row);
-int64_t unpacked_table_get_remapped_cell(unpacked_table_t *table, int row, int orig_idx);
 
 int remap_docs_in_target_groups(packed_table_t* packed_table,
                                 int*            results,
@@ -229,3 +221,20 @@ int remap_docs_in_target_groups(packed_table_t* packed_table,
                                 size_t          n_doc_ids,
                                 int*            remappings,
                                 long            placeholder_group);
+
+long unpacked_table_get_cell(const unpacked_table_t * restrict table,
+                             const int row,
+                             const int column);
+void unpacked_table_set_cell(const unpacked_table_t * restrict table,
+                             const int row,
+                             const int column,
+                             const long value);
+void *unpacked_table_get_rows_addr(const unpacked_table_t * restrict table, const int row);
+int64_t unpacked_table_get_remapped_cell(const unpacked_table_t *table,
+                                         const int row,
+                                         const int orig_idx);
+void unpacked_table_add_rows(const unpacked_table_t* restrict src_table,
+                                    const int src_row_id,
+                                    const unpacked_table_t* restrict dest_table,
+                                    const int dest_row_id,
+                                    const int prefetch_row_id);

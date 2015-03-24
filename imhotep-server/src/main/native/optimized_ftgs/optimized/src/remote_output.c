@@ -36,7 +36,7 @@ int flush_buffer(struct buffered_socket* socket)
     return 0;
 }
 
-static inline int write_byte(struct buffered_socket* socket, uint8_t value) {
+static inline int write_byte(struct buffered_socket* socket, const uint8_t value) {
     if (socket->buffer_ptr == socket->buffer_len) {
         TRY(flush_buffer(socket));
     }
@@ -45,7 +45,9 @@ static inline int write_byte(struct buffered_socket* socket, uint8_t value) {
     return 0;
 }
 
-static inline int write_bytes(struct buffered_socket* socket, uint8_t* bytes, size_t len) {
+static inline int write_bytes(struct buffered_socket* socket,
+                              const uint8_t* restrict bytes,
+                              const size_t len) {
     size_t write_ptr = 0;
     while (write_ptr < len) {
         if (socket->buffer_ptr == socket->buffer_len) {
@@ -58,7 +60,7 @@ static inline int write_bytes(struct buffered_socket* socket, uint8_t* bytes, si
     return 0;
 }
 
-static int write_vint64(struct buffered_socket* socket, uint64_t i) {
+static int write_vint64(struct buffered_socket* socket, const uint64_t i) {
     if (i < 1L << 7) {
         TRY(write_byte(socket, (uint8_t) i));
     } else if (i < 1L << 14) {
@@ -128,7 +130,7 @@ static int write_vint64(struct buffered_socket* socket, uint64_t i) {
     return 0;
 }
 
-static inline int write_svint64(struct buffered_socket* socket, int64_t i) {
+static inline int write_svint64(struct buffered_socket* socket, const int64_t i) {
     return write_vint64(socket, (i << 1) ^ (i >> 63));
 }
 
@@ -181,21 +183,20 @@ int write_field_end(struct ftgs_outstream* stream)
     return 0;
 }
 
-static int write_group_stats(struct buffered_socket* socket, uint32_t* groups, size_t term_group_count,
-                      unpacked_table_t *group_stats, int num_stats, size_t stats_size) {
+static int write_group_stats(struct buffered_socket* socket,
+                             const uint32_t* restrict non_zero_groups,
+                             const size_t nz_group_count,
+                             const unpacked_table_t* restrict group_stats,
+                             const int num_stats,
+                             size_t stats_size) {
     int32_t previous_group = -1;
-    for (size_t i = 0; i < term_group_count; i++) {
-        uint32_t group = groups[i];
+    for (size_t i = 0; i < nz_group_count - PREFETCH_DISTANCE; i++) {
+        const uint32_t group = non_zero_groups[i];
         int stat_index = 0;
         TRY(write_vint64(socket, group - previous_group));
         previous_group = group;
-        uint32_t prefetch_group;
-        int64_t* prefetch_start;
-        int prefetch = i+PREFETCH_DISTANCE < term_group_count;
-        if (prefetch) {
-            prefetch_group = groups[i+PREFETCH_DISTANCE];
-            prefetch_start = unpacked_table_get_rows_addr(group_stats, prefetch_group);
-        }
+        const uint32_t prefetch_group = non_zero_groups[i+PREFETCH_DISTANCE];
+        const int64_t* prefetch_start = unpacked_table_get_rows_addr(group_stats, prefetch_group);
 
         for (; stat_index <= num_stats-8; stat_index += 8) {
             int64_t stat;
@@ -216,25 +217,60 @@ static int write_group_stats(struct buffered_socket* socket, uint32_t* groups, s
             stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+7);
             TRY(write_svint64(socket, stat));
 
-            if (prefetch) {
-                _mm_prefetch(prefetch_start+stat_index, _MM_HINT_T0);
-            }
+            _mm_prefetch(prefetch_start+stat_index, _MM_HINT_T0);
         }
         if (stat_index < num_stats) {
-            int64_t* prefetch_address = prefetch_start+stat_index;
             do {
                 int64_t stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index);
                 TRY(write_svint64(socket, stat));
                 stat_index++;
             } while (stat_index < num_stats);
+
+            const int64_t* prefetch_address = prefetch_start + stat_index;
             _mm_prefetch(prefetch_address, _MM_HINT_T0);
+        }
+    }
+
+    /* final Prefetch_distance value */
+    for (size_t i = PREFETCH_DISTANCE; i < nz_group_count; i++) {
+        const uint32_t group = non_zero_groups[i];
+        int stat_index = 0;
+        TRY(write_vint64(socket, group - previous_group));
+        previous_group = group;
+
+        for (; stat_index <= num_stats-8; stat_index += 8) {
+            int64_t stat;
+            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+0);
+            TRY(write_svint64(socket, stat));
+            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+1);
+            TRY(write_svint64(socket, stat));
+            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+2);
+            TRY(write_svint64(socket, stat));
+            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+3);
+            TRY(write_svint64(socket, stat));
+            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+4);
+            TRY(write_svint64(socket, stat));
+            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+5);
+            TRY(write_svint64(socket, stat));
+            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+6);
+            TRY(write_svint64(socket, stat));
+            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+7);
+            TRY(write_svint64(socket, stat));
+        }
+        if (stat_index < num_stats) {
+            do {
+                int64_t stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index);
+                TRY(write_svint64(socket, stat));
+                stat_index++;
+            } while (stat_index < num_stats);
         }
     }
     TRY(write_byte(socket, 0));
     return 0;
 }
 
-static inline size_t prefix_len(struct string_term_s* term, struct string_term_s* previous_term) {
+static inline size_t prefix_len(const struct string_term_s* restrict term,
+                                const struct string_term_s* restrict previous_term) {
     size_t max = MAX(term->len, previous_term->len);
     for (size_t i = 0; i < max; i++) {
         if (term->term[i] != previous_term->term[i]) return i;
@@ -242,8 +278,8 @@ static inline size_t prefix_len(struct string_term_s* term, struct string_term_s
     return max;
 }
 
-int write_term_group_stats(struct session_desc* session, struct tgs_desc* tgs,
-                           uint32_t* groups, size_t term_group_count)
+int write_term_group_stats(const struct session_desc* session, const struct tgs_desc* tgs,
+                           const uint32_t* restrict groups, const size_t term_group_count)
 {
 	struct buffered_socket *socket = &tgs->stream->socket;
 	struct term_s *prev_term = &tgs->stream->prev_term;

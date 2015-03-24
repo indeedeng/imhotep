@@ -1,16 +1,16 @@
 IDIR =include
-CC=/usr/bin/clang-3.5
+CC=/usr/bin/gcc
 CPP=/usr/bin/g++
 JNI_HEADER_LOC=$(JAVA_HOME)/include
 JNI_HEADER_LOC2=$(JNI_HEADER_LOC)/linux
-CFLAGS=-g  -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fvisibility=hidden -fPIC
+CFLAGS=-flto -O3 -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fvisibility=hidden -fPIC -flax-vector-conversions
 CPPFLAGS=-g  -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -I/usr/include/boost -std=c++0x -msse4.2 -fvisibility=hidden -fPIC
-LFLAGS=-shared
+LFLAGS=-flto -O3 -shared
 
 ODIR=obj
 LDIR =../lib
 
-LIBS=-lm
+LIBS=-lm -o libftgs.so.1.0.1
 
 C_FILES := $(wildcard src/*.c)
 H_FILES := $(wildcard include/*.h)
@@ -47,7 +47,7 @@ $(ODIR)/%.o: src/%.cpp $(H_FILES)
 all: native_lib tests
 
 native_lib: $(OBJ_FILES)
-	$(CC) $(LFLAGS) $(LIBS) -o $@ $^
+	$(CC) $(LFLAGS) $(LIBS) $^
 
 dump_term: $(OBJ_FILES) obj/dump_term.o
 	$(CPP) $(CFLAGS) $ -o dump_term obj/dump_term.o $(OBJ_FILES) -lstdc++
