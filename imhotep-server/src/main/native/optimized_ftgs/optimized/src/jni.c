@@ -5,9 +5,11 @@
 
 #include "com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker.h"
 #include "com_indeed_imhotep_local_MultiRegroupInternals.h"
+#include "com_indeed_imhotep_local_MTImhotepLocalMultiSession.h"
 #include "imhotep_native.h"
 #include "local_session.h"
 #include "remote_output.h"
+#include "varintdecode.h"
 
 /*
  * Class:     com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker
@@ -314,4 +316,15 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiRegroupInternals_nativ
                               "Regrouping on a multi-valued field doesn't work correctly so the "
                               "operation is rejected.");
     }
+}
+
+/*
+ * Class:     com_indeed_imhotep_local_MTImhotepLocalMultiSession
+ * Method:    nativeInit
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MTImhotepLocalMultiSession_nativeInit
+                                (JNIEnv *java_env, jclass mt_local_session_class)
+{
+    simdvbyteinit();
 }

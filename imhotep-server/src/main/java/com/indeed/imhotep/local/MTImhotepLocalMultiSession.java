@@ -53,7 +53,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     static {
         loadNativeLibrary();
         nativeInit();
-        log.info("libvarint loaded");
+        log.info("libftgs loaded");
         log.info("Using SSSE3! (if the processor in this computer doesn't support SSSE3 "
                          + "this process will fail with SIGILL)");
     }
