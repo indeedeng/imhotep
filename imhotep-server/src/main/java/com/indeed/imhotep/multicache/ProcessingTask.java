@@ -6,6 +6,7 @@ package com.indeed.imhotep.multicache;
 public abstract class ProcessingTask<Data,Result> implements Runnable {
     protected ProcessingService.ProcessingQueuesHolder<Data,Result> queue;
     private boolean discardResults = false;
+    private ProcessingService.ErrorTracker errorTracker;
 
     public ProcessingService.ProcessingQueuesHolder<Data, Result> getQueue() {
         return queue;
@@ -27,20 +28,22 @@ public abstract class ProcessingTask<Data,Result> implements Runnable {
             init();
             do {
                 try {
+                    if (errorTracker.inError()) {
+                        /* some other thread has thrown an error */
+                        return;
+                    }
                     d = queue.retrieveData();
-                    if (d == ProcessingService.ProcessingQueuesHolder.TERMINATOR) {
+                    if (d == null) {
                         break;
                     }
                     r = processData(d);
                     if (!discardResults) {
                         queue.submitResult(r);
                     }
-                } catch (Throwable e) {
+                } catch (Exception e) {
                     handleError(e);
                 }
             } while (true);
-        } catch (Throwable throwable) {
-            throwable.printStackTrace();
         } finally {
             cleanup();
         }
@@ -52,13 +55,16 @@ public abstract class ProcessingTask<Data,Result> implements Runnable {
 
     protected abstract Result processData(Data data);
 
-    protected void handleError(Throwable e) throws Throwable {
-        throw e;
+    protected void handleError(Exception e) {
+        throw new RuntimeException(e);
     }
 
     protected void cleanup() {
 
     }
 
+    public void setErrorTracker(ProcessingService.ErrorTracker errorTracker) {
+        this.errorTracker = errorTracker;
+    }
 }
 

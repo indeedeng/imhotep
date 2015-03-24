@@ -7,9 +7,8 @@
 #define ALIGNED_ALLOC(alignment, size) ((alignment) < (size)) ? aligned_alloc(alignment,size) : aligned_alloc(alignment,alignment);
 
 static int32_t log2_of_size(int32_t size) {
-    return 31 - __builtin_clz(size); /* !@# */
+    return 31 - __builtin_clz(size);
 }
-
 
 void bit_tree_init(struct bit_tree *tree, int32_t size)
 {
@@ -70,4 +69,5 @@ int32_t bit_tree_dump(struct bit_tree *tree, uint32_t *restrict index_arr, int32
         depth = 1;
         index = index >> 6;
     }
+    return count;
 }

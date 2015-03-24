@@ -14,6 +14,7 @@
  package com.indeed.imhotep.local;
 
 import com.google.common.collect.Lists;
+import com.google.common.io.ByteStreams;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.ImhotepRemoteSession;
@@ -24,6 +25,12 @@ import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.Arrays;
@@ -42,6 +49,39 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<ImhotepLocalSession> {
     private static final Logger log = Logger.getLogger(MTImhotepLocalMultiSession.class);
+
+    static {
+        loadNativeLibrary();
+        nativeInit();
+        log.info("libftgs loaded");
+        log.info("Using SSSE3! (if the processor in this computer doesn't support SSSE3 "
+                         + "this process will fail with SIGILL)");
+    }
+
+    private static void loadNativeLibrary() {
+        try {
+            final String osName = System.getProperty("os.name");
+            final String arch = System.getProperty("os.arch");
+            final String resourcePath = "/native/" + osName + "-" + arch + "/libftgs.so.1.0.1";
+            final InputStream is = MTImhotepLocalMultiSession.class.getResourceAsStream(resourcePath);
+            if (is == null) {
+                throw new FileNotFoundException(
+                        "unable to find libftgs.so.1.0.1 at resource path " + resourcePath);
+            }
+            final File tempFile = File.createTempFile("libftgs", ".so");
+            final OutputStream os = new FileOutputStream(tempFile);
+            ByteStreams.copy(is, os);
+            os.close();
+            is.close();
+            System.load(tempFile.getAbsolutePath());
+            // noinspection ResultOfMethodCallIgnored
+            tempFile.delete();
+        } catch (Throwable e) {
+            log.warn("unable to load libftgs using class loader, looking in java.library.path", e);
+            System.loadLibrary("ftgs"); // if this fails it throws UnsatisfiedLinkError
+        }
+    }
+    private native static void nativeInit();
 
     private final AtomicReference<CyclicBarrier> writeFTGSSplitBarrier = new AtomicReference<>();
     private Socket[] ftgsOutputSockets = new Socket[256];
@@ -120,6 +160,8 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                 try {
                     runner.run(intFields, stringFields, numSplits, ftgsOutputSockets);
                 } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
             }

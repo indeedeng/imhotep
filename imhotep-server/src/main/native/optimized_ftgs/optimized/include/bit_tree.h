@@ -2,14 +2,10 @@
 
 #include <stdint.h>
 
-
 struct bit_tree {
-    // uint32_t depth;
-    // uint64_t **restrict bitsets;
     int32_t depth;
     int64_t **restrict bitsets;
 };
-
 
 void bit_tree_init(struct bit_tree *tree, int32_t size);
 void bit_tree_destroy(struct bit_tree *tree);

@@ -2,6 +2,7 @@
 #include <string.h>
 #include "imhotep_native.h"
 #include "circ_buf.h"
+#include "remote_output.h"
 
 #define CIRC_BUFFER_SIZE 32
 
@@ -14,12 +15,11 @@ int run_tgs_pass(struct worker_desc *worker,
                  long *addresses,
                  int *docs_per_shard,
                  int num_shard,
-                 int split_idx,
-                 struct runtime_err *error)
+                 int socket_num)
 {
     struct tgs_desc desc;
     struct ftgs_outstream *stream;
-    union term_union* current_term;
+    struct term_s* current_term;
 
     /* just in case. Kinda unnecessary to check this here */
     if (num_shard > session->num_shards) {
@@ -30,7 +30,7 @@ int run_tgs_pass(struct worker_desc *worker,
     current_term = term_create(term_type, int_term, string_term, string_term_len);
 
     /* find the stream data struct by index */
-    stream = &worker->out_streams[split_idx];
+    stream = &worker->out_streams[socket_num];
 
     /* init the tsg struct */
     tgs_init(worker,
@@ -50,8 +50,8 @@ int run_tgs_pass(struct worker_desc *worker,
     int err;
     err = tgs_execute_pass(worker, session, &desc);
     if (err != 0) {
-        if (desc.stream->socket.err && error) {
-            memcpy(error, desc.stream->socket.err, sizeof(struct runtime_err));
+        if (desc.stream->socket.err) {
+            memcpy(&worker->error, desc.stream->socket.err, sizeof(struct runtime_err));
         }
     }
 
@@ -110,7 +110,6 @@ void session_init(struct session_desc *session,
     session->current_tgs_pass = NULL;
 
     session->temp_buf = NULL;
-
     session->shards = (packed_table_t **)calloc(n_shards, sizeof(packed_table_t *));
     memcpy(session->shards, shards, n_shards * sizeof(packed_table_t *));
 }
@@ -125,6 +124,40 @@ void session_destroy(struct session_desc *session)
 }
 
 #define DEFAULT_BUFFER_SIZE 8192
+
+int worker_start_field(struct worker_desc *worker,
+                       char *field_name,
+                       int len,
+                       int term_type)
+{
+    int err;
+
+    for (int i = 0; i < worker->num_streams; i++) {
+        err = write_field_start(&worker->out_streams[i], field_name, len, term_type);
+        if (err != 0) {
+			worker->error = *worker->out_streams[i].socket.err;
+			free(worker->out_streams[i].socket.err);
+			return err;
+        }
+    }
+    return 0;
+}
+
+int worker_end_field(struct worker_desc *worker)
+{
+    int err;
+
+    for (int i = 0; i < worker->num_streams; i++) {
+        err = write_field_end(&worker->out_streams[i]);
+        if (err == -1) {
+			worker->error = *worker->out_streams[i].socket.err;
+			free(worker->out_streams[i].socket.err);
+			return -1;
+        }
+    }
+    return 0;
+}
+
 
 void worker_init(struct worker_desc *worker,
                  int id,

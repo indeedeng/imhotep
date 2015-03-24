@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include "bit_tree.h"
 
+
 #define TERM_TYPE_STRING 0
 #define TERM_TYPE_INT    1
 
@@ -32,8 +33,8 @@ struct bit_fields_and_group {
 };
 
 struct string_term_s {
-    int len;
     char *term;
+    int len;
 };
 
 struct runtime_err {
@@ -45,11 +46,11 @@ struct buffered_socket {
     uint8_t* buffer;
     size_t buffer_ptr;
     size_t buffer_len;
-    struct runtime_err* err;   // NULL unless a syscall error occurred
+    struct runtime_err* err;
     int socket_fd;
 };
 
-union term_union {
+struct term_s {
     uint64_t int_term;
     struct string_term_s string_term;
 };
@@ -57,7 +58,7 @@ union term_union {
 struct ftgs_outstream {
 	struct buffered_socket socket;
 	int term_type;
-	union term_union prev_term;
+	struct term_s prev_term;
 };
 
 struct worker_desc {
@@ -67,6 +68,7 @@ struct worker_desc {
     unpacked_table_t *grp_stats;
     struct circular_buffer_int *grp_buf;
     struct ftgs_outstream *out_streams;
+    struct runtime_err error;
 };
 
 struct index_slice_info {
@@ -77,7 +79,7 @@ struct index_slice_info {
 
 struct tgs_desc {
     uint8_t term_type;
-    union term_union *term;
+    struct term_s *term;
 
     struct index_slice_info *slices;
     int n_slices;
@@ -99,11 +101,7 @@ struct session_desc {
     struct tgs_desc *current_tgs_pass;
 };
 
-union term_union *term_create(uint8_t term_type,
-                              int int_term,
-                              char *string_term,
-                              int string_term_len);
-void term_destroy(uint8_t term_type, union term_union *term);
+void term_destroy(uint8_t term_type, struct term_s *term);
 int tgs_execute_pass(struct worker_desc *worker,
                      struct session_desc *session,
                      struct tgs_desc *desc);
@@ -111,7 +109,7 @@ int tgs_execute_pass(struct worker_desc *worker,
 void tgs_init(struct worker_desc *worker,
               struct tgs_desc *desc,
               uint8_t term_type,
-              union term_union *term,
+              struct term_s *term,
               long *addresses,
               int *docs_per_shard,
               int num_shard,
@@ -128,16 +126,15 @@ int slice_copy_range(uint8_t* slice,
 
 void stream_init(struct ftgs_outstream *stream, uint32_t fd);
 void stream_destroy(struct ftgs_outstream *stream);
-void socket_capture_error(struct buffered_socket *socket, int code);
-union term_union *term_create(uint8_t term_type,
+void socket_capture_error(struct buffered_socket *socket, const int code);
+struct term_s *term_create(uint8_t term_type,
                               int int_term,
                               char *string_term,
                               int string_term_len);
-void term_destroy(uint8_t term_type, union term_union *term);
-void term_update_int(union term_union *term, union term_union *new_term);
-void term_update_string(union term_union *term, union term_union *new_term);
-void term_reset_int(union term_union *term);
-void term_reset_string(union term_union *term);
+void term_destroy(uint8_t term_type, struct term_s *term);
+void term_update_int(struct term_s *term, struct term_s *new_term);
+void term_update_string(struct term_s *term, struct term_s *new_term);
+void term_reset(struct term_s *term);
 
 void lookup_and_accumulate_grp_stats(
                                    packed_table_t *src_table,
@@ -216,16 +213,7 @@ int unpacked_table_get_size(unpacked_table_t *table);
 int unpacked_table_get_rows(unpacked_table_t *table);
 int unpacked_table_get_cols(unpacked_table_t *table);
 unpacked_table_t *unpacked_table_copy_layout(unpacked_table_t *src_table, int num_rows);
-long unpacked_table_get_cell(unpacked_table_t *table, int row, int column);
-void unpacked_table_set_cell(unpacked_table_t *table, int row, int column, long value);
-void unpacked_table_add_rows(unpacked_table_t* src_table,
-                                    int src_row_id,
-                                    unpacked_table_t* dest_table,
-                                    int dest_row_id,
-                                    int prefetch_row_id);
 struct bit_tree* unpacked_table_get_non_zero_rows(unpacked_table_t* table);
-void *unpacked_table_get_rows_addr(unpacked_table_t *table, int row);
-int64_t unpacked_table_get_remapped_cell(unpacked_table_t *table, int row, int orig_idx);
 
 int remap_docs_in_target_groups(packed_table_t* packed_table,
                                 int*            results,
@@ -233,3 +221,20 @@ int remap_docs_in_target_groups(packed_table_t* packed_table,
                                 size_t          n_doc_ids,
                                 int*            remappings,
                                 long            placeholder_group);
+
+long unpacked_table_get_cell(const unpacked_table_t * restrict table,
+                             const int row,
+                             const int column);
+void unpacked_table_set_cell(const unpacked_table_t * restrict table,
+                             const int row,
+                             const int column,
+                             const long value);
+void *unpacked_table_get_rows_addr(const unpacked_table_t * restrict table, const int row);
+int64_t unpacked_table_get_remapped_cell(const unpacked_table_t *table,
+                                         const int row,
+                                         const int orig_idx);
+void unpacked_table_add_rows(const unpacked_table_t* restrict src_table,
+                             const int src_row_id,
+                             unpacked_table_t* restrict dest_table,
+                             const int dest_row_id,
+                             const int prefetch_row_id);

@@ -9,8 +9,7 @@ int run_tgs_pass(struct worker_desc *worker,
                  long *addresses,
                  int *docs_per_shard,
                  int num_shard,
-                 int split_idx,
-                 struct runtime_err *error);
+                 int split_idx);
 
 packed_table_t *create_shard_multicache(uint32_t n_docs,
                                         int64_t *metric_mins,
@@ -31,6 +30,12 @@ void session_init(struct session_desc *session,
                   int n_shards);
 
 void session_destroy(struct session_desc *session);
+
+int worker_start_field(struct worker_desc *worker,
+                       char *field_name,
+                       int len,
+                       int term_type);
+int worker_end_field(struct worker_desc *worker);
 
 void worker_init(struct worker_desc *worker,
                  int id,

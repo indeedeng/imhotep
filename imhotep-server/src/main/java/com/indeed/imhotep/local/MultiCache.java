@@ -128,23 +128,23 @@ public final class MultiCache implements Closeable {
 
     @Override
     public void close() {
-        if (this.session.docIdToGroup == this.nativeGroupLookup) {
-            /*
-             * session is still using the group lookup
-             * free the native memory in the finalizer
-             */
-            return;
-        }
+//        if (this.session.docIdToGroup == this.nativeGroupLookup) {
+//            /*
+//             * session is still using the group lookup
+//             * free the native memory in the finalizer
+//             */
+//            return;
+//        }
         nativeDestroyMultiCache(this.nativeShardDataPtr);
         this.nativeShardDataPtr = 0;
     }
 
-    @Override
-    protected void finalize() {
-        if (this.nativeShardDataPtr != 0) {
-            nativeDestroyMultiCache(this.nativeShardDataPtr);
-        }
-    }
+//    @Override
+//    protected void finalize() {
+//        if (this.nativeShardDataPtr != 0) {
+//            nativeDestroyMultiCache(this.nativeShardDataPtr);
+//        }
+//    }
 
     private native void nativeDestroyMultiCache(long nativeShardDataPtr);
 

@@ -119,7 +119,9 @@ unpacked_table_t *unpacked_table_copy_layout(unpacked_table_t *src_table, int n_
     return new_table;
 }
 
-long unpacked_table_get_cell(unpacked_table_t *table, int row, int column)
+long unpacked_table_get_cell(const unpacked_table_t * restrict table,
+                             const int row,
+                             const int column)
 {
     int64_t *row_data;
 
@@ -127,7 +129,10 @@ long unpacked_table_get_cell(unpacked_table_t *table, int row, int column)
     return row_data[table->col_offset[column]];
 }
 
-void unpacked_table_set_cell(unpacked_table_t *table, int row, int column, long value)
+void unpacked_table_set_cell(const unpacked_table_t * restrict table,
+                             const int row,
+                             const int column,
+                             const long value)
 {
     int64_t *row_data;
 
@@ -135,42 +140,44 @@ void unpacked_table_set_cell(unpacked_table_t *table, int row, int column, long 
     row_data[table->col_offset[column]] = value;
 }
 
-void *unpacked_table_get_rows_addr(unpacked_table_t *table, int row)
+void *unpacked_table_get_rows_addr(const unpacked_table_t * restrict table, const int row)
 {
     const int index = row * table->padded_row_len;
 
     return &table->data[index];
 }
 
-int64_t unpacked_table_get_remapped_cell(unpacked_table_t *table, int row, int orig_idx)
+int64_t unpacked_table_get_remapped_cell(const unpacked_table_t *table,
+                                         const int row,
+                                         const int orig_idx)
 {
 	return unpacked_table_get_cell(table, row, table->col_remapping[orig_idx]);
 }
 
 
-static inline void core(__v2di *src_row,
-                        __v2di *dest_row,
-                        __v2di *mins,
+static inline void core(__v2di * restrict src_row,
+                        __v2di * restrict dest_row,
+                        __v2di * restrict mins,
                         int vector_num)
 {
     dest_row[vector_num] += src_row[vector_num] + mins[vector_num];
 }
 
-inline void unpacked_table_add_rows(unpacked_table_t* src_table,
-                                    int src_row_id,
-                                    unpacked_table_t* dest_table,
-                                    int dest_row_id,
-                                    int prefetch_row_id)
+void unpacked_table_add_rows(const unpacked_table_t* restrict src_table,
+                             const int src_row_id,
+                             unpacked_table_t* restrict dest_table,
+                             const int dest_row_id,
+                             const int prefetch_row_id)
 {
     /* flag row as modified */
     bit_tree_set(&dest_table->non_zero_rows, dest_row_id);
 
     /* loop through row elements */
     int vector_num;
-    int n_vecs = src_table->unpadded_row_len;
-    __v2di *src_row = &src_table->data[src_row_id * src_table->padded_row_len];
-    __v2di *dest_row = &dest_table->data[dest_row_id * dest_table->padded_row_len];
-    __v2di *mins = dest_table->col_mins;
+    const int n_vecs = src_table->unpadded_row_len;
+    __v2di * restrict src_row = &src_table->data[src_row_id * src_table->padded_row_len];
+    __v2di * restrict dest_row = &dest_table->data[dest_row_id * dest_table->padded_row_len];
+    __v2di * restrict mins = dest_table->col_mins;
     for (vector_num = 0; vector_num < n_vecs - 4; vector_num += 4)
     {
         core(src_row, dest_row, mins, vector_num + 0);

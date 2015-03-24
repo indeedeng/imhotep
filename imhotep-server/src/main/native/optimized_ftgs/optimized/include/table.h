@@ -118,16 +118,22 @@ void packed_table_unpack_row_to_table(
 
 unpacked_table_t *unpacked_table_create(packed_table_t *packed_table, int n_rows);
 void unpacked_table_destroy(unpacked_table_t *table);
-//int unpacked_table_get_size(unpacked_table_t *table);
 int unpacked_table_get_rows(unpacked_table_t *table);
-//int unpacked_table_get_cols(unpacked_table_t *table);
 unpacked_table_t *unpacked_table_copy_layout(unpacked_table_t *src_table, int num_rows);
-//long unpacked_table_get_cell(unpacked_table_t *table, int row, int column);
-//void unpacked_table_set_cell(unpacked_table_t *table, int row, int column, long value);
-void unpacked_table_add_rows(unpacked_table_t* src_table,
-                                    int src_row_id,
-                                    unpacked_table_t* dest_table,
-                                    int dest_row_id,
-                                    int prefetch_row_id);
 
-
+long unpacked_table_get_cell(const unpacked_table_t * restrict table,
+                             const int row,
+                             const int column);
+void unpacked_table_set_cell(const unpacked_table_t * restrict table,
+                             const int row,
+                             const int column,
+                             const long value);
+void *unpacked_table_get_rows_addr(const unpacked_table_t * restrict table, const int row);
+int64_t unpacked_table_get_remapped_cell(const unpacked_table_t *table,
+                                         const int row,
+                                         const int orig_idx);
+void unpacked_table_add_rows(const unpacked_table_t* restrict src_table,
+                             const int src_row_id,
+                             unpacked_table_t* restrict dest_table,
+                             const int dest_row_id,
+                             const int prefetch_row_id);

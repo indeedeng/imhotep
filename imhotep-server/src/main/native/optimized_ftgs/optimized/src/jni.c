@@ -1,10 +1,98 @@
 #include <jni.h>
+
+#undef  JNIEXPORT
+#define JNIEXPORT               __attribute__((visibility("default")))
+
+#include "com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker.h"
+#include "com_indeed_imhotep_local_MultiRegroupInternals.h"
+#include "com_indeed_imhotep_local_MTImhotepLocalMultiSession.h"
 #include "imhotep_native.h"
 #include "local_session.h"
+#include "remote_output.h"
+#include "varintdecode.h"
+
+/*
+ * Class:     com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker
+ * Method:    native_start_field
+ * Signature: (JJ[BIZ)I
+ */
+JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_native_1start_1field
+						(JNIEnv *java_env,
+						jclass class,
+						jlong worker_addr,
+						jlong session_addr,
+						jbyteArray field_name_bytes_arr,
+						jint field_name_len,
+						jboolean is_int_field_jboolean)
+{
+	struct worker_desc *worker;
+	jbyte *field_name;
+	uint32_t is_int_field;
+	jboolean madeCopy;
+	int err;
+
+	worker = (struct worker_desc *)worker_addr;
+	is_int_field = is_int_field_jboolean;
+
+	field_name = (*java_env)->GetPrimitiveArrayCritical(java_env, field_name_bytes_arr, &madeCopy);
+    err = worker_start_field(worker, (char *)field_name, field_name_len,
+                             (is_int_field) ? TERM_TYPE_INT : TERM_TYPE_STRING);
+	(*java_env)->ReleasePrimitiveArrayCritical(java_env, field_name_bytes_arr, field_name, JNI_ABORT);
+
+	if (err != 0) {
+		/* Note: ThrowNew() copies the message handed to it, as one
+		 would expect. I could not find mention of this behavior in
+		 the JNI spec, but I verified this empirically. Therefore,
+		 it's okay to hand it the stack-allocated string below. */
+		jclass exClass = (*java_env)->FindClass(java_env, "java/lang/RuntimeException");
+		char message[SIZE_OF_ERRSTR];
+		snprintf(message, sizeof(message), "%s (%d) %s", __FUNCTION__,
+		         worker->error.code, worker->error.str);
+		(*java_env)->ThrowNew(java_env, exClass, message);
+	}
+
+	return (jint)err;
+}
+
+/*
+ * Class:     com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker
+ * Method:    native_end_field
+ * Signature: (JJ)I
+ */
+JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_native_1end_1field
+						(JNIEnv *java_env,
+						jclass class,
+						jlong worker_addr,
+						jlong session_addr)
+{
+	struct worker_desc *worker = (struct worker_desc *)worker_addr;
+	int err;
+
+    err = worker_end_field(worker);
+
+	if (err != 0) {
+		/* Note: ThrowNew() copies the message handed to it, as one
+		 would expect. I could not find mention of this behavior in
+		 the JNI spec, but I verified this empirically. Therefore,
+		 it's okay to hand it the stack-allocated string below. */
+		jclass exClass = (*java_env)->FindClass(java_env, "java/lang/RuntimeException");
+		char message[SIZE_OF_ERRSTR];
+		snprintf(message, sizeof(message), "%s (%d) %s", __FUNCTION__,
+		         worker->error.code, worker->error.str);
+		(*java_env)->ThrowNew(java_env, exClass, message);
+	}
+
+	return (jint)err;
+}
 
 JNIEXPORT jlong JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_native_1init
-  (JNIEnv *java_env, jclass class, jint id, jint n_groups, jint n_metrics,
-   jintArray socket_fds, jint len)
+  						(JNIEnv *java_env,
+  						jclass class,
+  						jint id,
+  						jint n_groups,
+  						jint n_metrics,
+  						jintArray socket_fds,
+  						jint len)
 {
   struct worker_desc *worker;
   jint *fds;
@@ -58,14 +146,13 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_
 						jlongArray slice_offsets_arr,
 						jintArray docs_per_slice_arr,
 						jint num_shards,
-						jint split_idx)
+						jint socket_num)
 {
 	struct worker_desc *worker;
 	struct session_desc *session;
 	jlong *slice_offsets;
 	jint *docs_per_slice;
 	jboolean madeCopy;
-	struct runtime_err error;
 
 	worker = (struct worker_desc *)worker_addr;
 	session = (struct session_desc *)session_addr;
@@ -82,8 +169,7 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_
 							slice_offsets,
 							docs_per_slice,
 							num_shards,
-							split_idx,
-							&error);
+							socket_num);
 
 	(*java_env)->ReleasePrimitiveArrayCritical(java_env, docs_per_slice_arr, docs_per_slice, JNI_ABORT);
 	(*java_env)->ReleasePrimitiveArrayCritical(java_env, slice_offsets_arr, slice_offsets, JNI_ABORT);
@@ -95,7 +181,8 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_
 		 it's okay to hand it the stack-allocated string below. */
 		jclass exClass = (*java_env)->FindClass(java_env, "java/lang/RuntimeException");
 		char message[SIZE_OF_ERRSTR];
-		snprintf(message, sizeof(message), "%s (%d) %s", __FUNCTION__, error.code, error.str);
+		snprintf(message, sizeof(message), "%s (%d) %s", __FUNCTION__,
+		         worker->error.code, worker->error.str);
 		(*java_env)->ThrowNew(java_env, exClass, message);
 	}
 
@@ -117,7 +204,7 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_
 						jlongArray slice_offsets_arr,
 						jintArray docs_per_slice_arr,
 						jint num_shards,
-						jint split_idx)
+						jint socket_num)
 {
 	struct worker_desc *worker;
 	struct session_desc *session;
@@ -125,7 +212,6 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_
 	jint *docs_per_slice;
 	jbyte *string_term;
 	jboolean madeCopy;
-	struct runtime_err error;
 
 	worker = (struct worker_desc *)worker_addr;
 	session = (struct session_desc *)session_addr;
@@ -143,8 +229,7 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_
 							slice_offsets,
 							docs_per_slice,
 							num_shards,
-							split_idx,
-							&error);
+							socket_num);
 
 	(*java_env)->ReleasePrimitiveArrayCritical(java_env, string_term_bytes_arr, string_term, JNI_ABORT);
 	(*java_env)->ReleasePrimitiveArrayCritical(java_env, docs_per_slice_arr, docs_per_slice, JNI_ABORT);
@@ -157,7 +242,8 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_
 		 it's okay to hand it the stack-allocated string below. */
 		jclass exClass = (*java_env)->FindClass(java_env, "java/lang/RuntimeException");
 		char message[SIZE_OF_ERRSTR];
-		snprintf(message, sizeof(message), "%s (%d) %s", __FUNCTION__, error.code, error.str);
+		snprintf(message, sizeof(message), "%s (%d) %s", __FUNCTION__,
+		         worker->error.code, worker->error.str);
 		(*java_env)->ThrowNew(java_env, exClass, message);
 	}
 
@@ -176,11 +262,8 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_
 						jlong worker_addr,
 						jlong session_addr)
 {
-	struct worker_desc *worker;
-	struct session_desc *session;
+	struct session_desc *session = (struct session_desc *)session_addr;
 
-	worker = (struct worker_desc *)worker_addr;
-	session = (struct session_desc *)session_addr;
 	session_destroy(session);
 }
 
@@ -233,4 +316,15 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiRegroupInternals_nativ
                               "Regrouping on a multi-valued field doesn't work correctly so the "
                               "operation is rejected.");
     }
+}
+
+/*
+ * Class:     com_indeed_imhotep_local_MTImhotepLocalMultiSession
+ * Method:    nativeInit
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MTImhotepLocalMultiSession_nativeInit
+                                (JNIEnv *java_env, jclass mt_local_session_class)
+{
+    simdvbyteinit();
 }

@@ -1,11 +1,14 @@
 package com.indeed.imhotep.multicache.ftgs;
 
 import java.net.Socket;
+import java.nio.charset.Charset;
 
 import com.indeed.imhotep.io.SocketUtils;
 import com.indeed.imhotep.multicache.ProcessingTask;
 
 public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSinfo,Void> {
+    private static final Charset UTF_8 = Charset.forName("UTF-8");
+
     private long nativeWorkerStructPtr;
     private long nativeSessionStructPtr;
     private final int numGroups;
@@ -14,13 +17,19 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSi
     private final int id;
     private long[] nativeMulticachePtrs;
     private final int[] socketArr;
+    private final String field;
+    private final boolean isIntField;
 
-    public NativeFTGSWorker(int numGroups,
+    public NativeFTGSWorker(String field,
+                            boolean isIntField,
+                            int numGroups,
                             int numMetrics,
                             int numShards,
                             Socket[] sockets,
                             int id,
                             long[] nativeMulticachePtrs) {
+        this.field = field;
+        this.isIntField = isIntField;
         this.numGroups = numGroups;
         this.numMetrics = numMetrics;
         this.numShards = numShards;
@@ -43,11 +52,17 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSi
                                                        numShards,
                                                        numGroups,
                                                        numMetrics);
+        native_start_field(nativeWorkerStructPtr,
+                           nativeSessionStructPtr,
+                           this.field.getBytes(UTF_8),
+                           this.field.length(),
+                           this.isIntField);
     }
 
     @Override
     public Void processData(NativeFtgsRunner.NativeTGSinfo info) {
         int err;
+
         if (info.termDesc.isIntTerm) {
             err = native_run_int_tgs_pass(this.nativeWorkerStructPtr,
                                           this.nativeSessionStructPtr,
@@ -55,7 +70,7 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSi
                                           info.termDesc.offsets,
                                           info.termDesc.numDocsInTerm,
                                           info.termDesc.size(),
-                                          info.splitIndex);
+                                          info.socketNum);
         } else {
             err = native_run_string_tgs_pass(this.nativeWorkerStructPtr,
                                              this.nativeSessionStructPtr,
@@ -64,7 +79,7 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSi
                                              info.termDesc.offsets,
                                              info.termDesc.numDocsInTerm,
                                              info.termDesc.size(),
-                                             info.splitIndex);
+                                             info.socketNum);
         }
 
         return null;
@@ -72,9 +87,19 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSi
 
     @Override
     protected void cleanup() {
+        native_end_field(this.nativeWorkerStructPtr, this.nativeSessionStructPtr);
         native_session_destroy(this.nativeWorkerStructPtr, this.nativeSessionStructPtr);
         native_worker_destroy(this.nativeWorkerStructPtr);
     }
+
+    private static native int native_start_field(long nativeWorkerStructPtr,
+                                                 long nativeSessionStructPtr,
+                                                 byte[] field_bytes,
+                                                 int length,
+                                                 boolean isIntTerm);
+
+    private static native int native_end_field(long nativeWorkerStructPtr,
+                                               long nativeSessionStructPtr);
 
     private static native int native_run_string_tgs_pass(long nativeWorkerStructPtr,
                                                          long nativeSessionStructPtr,
@@ -83,7 +108,7 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSi
                                                          long[] offsets,
                                                          int[] numDocsInTerm,
                                                          int numShards,
-                                                         int splitIndex);
+                                                         int socketNum);
 
     private static native int native_run_int_tgs_pass(long nativeWorkerStructPtr,
                                                       long nativeSessionStructPtr,
@@ -91,7 +116,7 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSi
                                                       long[] offsets,
                                                       int[] numDocsPerShard,
                                                       int numShards,
-                                                      int splitIndex);
+                                                      int socketNum);
 
     private static native long native_session_create(long nativeWorkerStructPtr,
                                                      long[] nativeMulticachePtrs,
