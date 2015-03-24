@@ -17,26 +17,43 @@ import com.indeed.flamdex.api.IntValueLookup;
 import org.apache.log4j.Logger;
 
 /**
- * @author jplaisance
+ * @author johnf
  */
-public final class MultiplyAndShiftRight extends AbstractBinaryOperator {
-    private static final Logger log = Logger.getLogger(MultiplyAndShiftRight.class);
+public final class ShiftLeft implements IntValueLookup {
+    private static final Logger log = Logger.getLogger(ShiftLeft.class);
+    private final IntValueLookup operand;
     private final int shift;
 
-    public MultiplyAndShiftRight(final IntValueLookup a, final IntValueLookup b, int shift) {
-        super(a, b);
+    public ShiftLeft(final IntValueLookup operand, int shift) {
+        this.operand = operand;
         this.shift = shift;
     }
 
-    protected void combine(final long[] values, final long[] buffer, final int n) {
+    @Override
+    public long getMin() {
+        return this.operand.getMin() << this.shift;
+    }
+
+    @Override
+    public long getMax() {
+        return this.operand.getMax() << this.shift;
+    }
+
+    @Override
+    public void lookup(int[] docIds, long[] values, int n) {
+        operand.lookup(docIds, values, n);
         for (int i = 0; i < n; i++) {
-            values[i] = eval(values[i], buffer[i]);
+            values[i] <<= this.shift;
         }
     }
 
-    private long eval(long a, long b) {
-        final long result = a * b;
-        return result >> shift;
+    @Override
+    public long memoryUsed() {
+        return operand.memoryUsed();
     }
 
+    @Override
+    public void close() {
+        operand.close();
+    }
 }

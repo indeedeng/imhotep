@@ -81,9 +81,9 @@ import com.indeed.imhotep.metrics.Max;
 import com.indeed.imhotep.metrics.Min;
 import com.indeed.imhotep.metrics.Modulus;
 import com.indeed.imhotep.metrics.Multiplication;
-import com.indeed.imhotep.metrics.MultiplyAndShiftRight;
 import com.indeed.imhotep.metrics.NotEqual;
-import com.indeed.imhotep.metrics.ShiftLeftAndDivide;
+import com.indeed.imhotep.metrics.ShiftLeft;
+import com.indeed.imhotep.metrics.ShiftRight;
 import com.indeed.imhotep.metrics.Subtraction;
 import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.service.CachedFlamdexReader;
@@ -1943,7 +1943,7 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
             }
             final IntValueLookup b = popLookup();
             final IntValueLookup a = popLookup();
-            statLookup[numStats] = new MultiplyAndShiftRight(a, b, shift);
+            statLookup[numStats] = new ShiftRight(new Multiplication(a, b), shift);
         } else if (statName.startsWith("shldiv ")) {
             final int shift = Integer.valueOf(statName.substring(7).trim());
             if (shift < 0 || shift > 31) {
@@ -1952,7 +1952,7 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
             }
             final IntValueLookup b = popLookup();
             final IntValueLookup a = popLookup();
-            statLookup[numStats] = new ShiftLeftAndDivide(a, b, shift);
+            statLookup[numStats] = new Division(new ShiftLeft(a, shift), b);
         } else if (statName.startsWith("log1pexp ")) {
             final int scale = Integer.valueOf(statName.substring(9).trim());
             final IntValueLookup operand = popLookup();
