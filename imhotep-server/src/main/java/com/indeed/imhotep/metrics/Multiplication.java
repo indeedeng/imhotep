@@ -26,14 +26,15 @@ public class Multiplication extends AbstractBinaryOperator {
     @Override
     public long getMin() {
         return
-            a.getMin() >= 0 && b.getMin() >= 0 ? a.getMin() * b.getMin() :
-            a.getMax() <  0 && b.getMax() <  0 ? a.getMax() * b.getMax() :
-            Math.min(a.getMax() * b.getMin(), a.getMin() * b.getMax());
+            Math.min(Math.min(a.getMin() * b.getMin(), a.getMin() * b.getMax()),
+                     Math.min(a.getMax() * b.getMin(), a.getMax() * b.getMax()));
     }
 
     @Override
     public long getMax() {
-        return Math.max(a.getMin() * b.getMin(), a.getMax() * b.getMax());
+        return
+            Math.max(Math.max(a.getMin() * b.getMin(), a.getMin() * b.getMax()),
+                     Math.max(a.getMax() * b.getMin(), a.getMax() * b.getMax()));
      }
 
     @Override
