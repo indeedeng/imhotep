@@ -254,6 +254,16 @@ struct Shard
 
 };
 
+template <size_t n_metrics, class handler_t>
+class StatsDecoder
+{
+public:
+    enum State     { Done = 0, ReadingFields = 1, ReadingTerms = 2, ReadingGroups = 3 };
+    enum FieldType { String = 0, Int = 1, EOS = 0xff };
+
+  void operator()(const vector<char>& buffer) {
+  }
+};
 
 void echo_stats(unsigned short port)
 {
@@ -262,20 +272,18 @@ void echo_stats(unsigned short port)
   tcp::socket             sock(ios);
   acc.accept(sock);
 
-  char stats[4096];
+  vector<uint8_t> out;
+  char buf[4096];
   boost::system::error_code error;
   while (true) {
-    size_t length(sock.read_some(boost::asio::buffer(stats), error));
+    size_t length(sock.read_some(boost::asio::buffer(buf), error));
     if (error == boost::asio::error::eof) {
       break;
     }
     else if (error) {
       throw boost::system::system_error(error);
     }
-    cerr << "read: " << length << endl;
-    vector<uint8_t> out;
-    copy_n(stats, length, back_inserter(out));
-    cerr << out << endl;
+    copy_n(buf, length, back_inserter(out));
   }
 }
 
@@ -310,9 +318,7 @@ public:
     , _n_groups(n_groups)
     , _table(n_docs, min_func, max_func, doc_id_func, group_id_func, metric_func)
     , _shard(_table)
-    , _echo_thread(echo_stats, ++test_port) {
-
-    this_thread::sleep_for(chrono::seconds(3));
+    , _echo_thread(echo_stats, ++test_port) { // !@# race condition...
 
     boost::asio::io_service io_service;
     tcp::socket             sock(io_service);
@@ -322,8 +328,8 @@ public:
     array <int, 1> socket_file_desc{{sock.native_handle()}};
     worker_init(&_worker, 1, n_groups, n_metrics, socket_file_desc.data(), 1);
 
-    packed_table_t* shard_order[] = { _shard() };
-    session_init(&_session, n_groups, n_metrics, shard_order, 1);
+    packed_table_t* shards[] = { _shard() };
+    session_init(&_session, n_groups, n_metrics, shards, 1);
 
     array <int, 1> shard_handles;
     shard_handles[0] = register_shard(&_session, _shard());
@@ -342,8 +348,6 @@ public:
                  addresses.data(),
                  docs_in_term.data(),
                  1, 0);
-
-    this_thread::sleep_for(chrono::seconds(3));
   }
 
   ~TGSTest() {
@@ -372,9 +376,9 @@ template <size_t n_metrics>
 ostream& operator<<(ostream& os, const TGSTest<n_metrics>& test) {
   typedef TGSTest<n_metrics> Test;
   const typename Test::group_stats_t thing1(test.table().sum());
-  cout << "thing1: " << thing1 << endl;
+  // cout << "thing1: " << thing1 << endl;
   const typename Test::group_stats_t thing2(test.shard().sum(test.group_stats_buf()));
-  cout << "thing2: " << thing2 << endl;
+  // cout << "thing2: " << thing2 << endl;
   stringstream description;
   description << "n_metrics: " << n_metrics
               << " n_docs: "   << test.n_docs()
@@ -411,7 +415,6 @@ int main(int argc, char* argv[])
   simdvbyteinit();
 
   vector<MetricFunc> metric_funcs = {
-    /*
     [](int64_t min_val, int64_t max_val, size_t metric_num, size_t row_num) { return min_val; },
     [](int64_t min_val, int64_t max_val, size_t metric_num, size_t row_num) { return max_val; },
     [](int64_t min_val, int64_t max_val, size_t metric_num, size_t row_num) { return min_val + (max_val - min_val) / 2; },
@@ -423,17 +426,13 @@ int main(int argc, char* argv[])
             return min_val;
         return (long)val;
     },
-    */
     [](int64_t min_val, int64_t max_val, size_t metric_num, size_t row_num) { return (max_val == min_val)
             ? max_val
             : min_val + (rand() % (max_val - min_val)); },
-    /*
     [](int64_t min_val, int64_t max_val, size_t metric_num, size_t row_num) { return 1 << metric_num; },
-    */
   };
 
   vector<pair<MinMaxFunc, MinMaxFunc>> min_max_funcs = {
-    /*
     make_pair([](size_t index) { return 0; },
               [](size_t index) { return 0; }),
     make_pair([](size_t index) { return 0; },
@@ -448,13 +447,10 @@ int main(int argc, char* argv[])
               [](size_t index) { return 2; }),
     make_pair([](size_t index) { return 1; },
               [](size_t index) { return 32; }),
-    */
     make_pair([](size_t index) { return 1; },
               [](size_t index) { return 1 << 30; }),
-    /*
     make_pair([](size_t index) { return -(1 << 30); },
             [](size_t index) { return 1 << 30; }),
-    */
   };
 
   for (auto metric_func: metric_funcs) {
@@ -464,7 +460,6 @@ int main(int argc, char* argv[])
       const DocIdFunc   doc_id_func([](size_t index) { return index; });
       const GroupIdFunc group_id_func([n_groups](size_t doc_id) { return doc_id % n_groups; });
 
-      /*
       TGSTest<1>   test1(n_docs, n_groups, min_func, max_func, doc_id_func, group_id_func, metric_func);
       cout << test1;
       TGSTest<2>   test2(n_docs, n_groups, min_func, max_func, doc_id_func, group_id_func, metric_func);
@@ -473,11 +468,8 @@ int main(int argc, char* argv[])
       cout << test5;
       TGSTest<20> test20(n_docs, n_groups, min_func, max_func, doc_id_func, group_id_func, metric_func);
       cout << test20;
-      */
-      for (size_t count(0); count < 10; ++count) {
-        TGSTest<64> test64(n_docs, n_groups, min_func, max_func, doc_id_func, group_id_func, metric_func);
-        cout << test64;
-      }
+      TGSTest<64> test64(n_docs, n_groups, min_func, max_func, doc_id_func, group_id_func, metric_func);
+      cout << test64;
     }
   }
 
