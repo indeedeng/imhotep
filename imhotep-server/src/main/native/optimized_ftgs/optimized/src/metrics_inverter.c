@@ -35,7 +35,7 @@
 /*
  *  Bit fields code:
  */
-static inline uint64_t set_bit(int64_t value, int32_t offset)
+static inline uint64_t set_bit(int64_t value, uint32_t offset)
 {
 	return value | (1 << offset);
 }
@@ -46,7 +46,8 @@ static inline void invert_bitfield_terms(int64_t * restrict data_buf,
 {
 	const uint32_t mask = 64 - 1;
 
-	for (int i = 0; i < count - PREFETCH_DISTANCE; i++) {
+	int i = 0;
+	for (; i < count - PREFETCH_DISTANCE; i++) {
 		const uint32_t doc_id = doc_id_buf[i + 0];
 		const uint32_t prefetch_doc_id = doc_id_buf[i + 0 + PREFETCH_DISTANCE];
 		const uint32_t offset = doc_id >> 6;
@@ -56,7 +57,7 @@ static inline void invert_bitfield_terms(int64_t * restrict data_buf,
 
 		__builtin_prefetch(&data_buf[prefetch_offset], 1, 3);
 	}
-	for (int i = PREFETCH_DISTANCE; i < count; i++) {
+	for (; i < count; i++) {
 		const uint32_t doc_id = doc_id_buf[i];
 		const uint32_t offset = doc_id >> 6;
 

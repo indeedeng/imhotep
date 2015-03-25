@@ -3,9 +3,12 @@ CC=/usr/bin/gcc
 CPP=/usr/bin/g++
 JNI_HEADER_LOC=$(JAVA_HOME)/include
 JNI_HEADER_LOC2=$(JNI_HEADER_LOC)/linux
-CFLAGS=-flto -O3 -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fvisibility=hidden -fPIC -flax-vector-conversions
+CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fvisibility=hidden -fPIC -flax-vector-conversions
 CPPFLAGS=-g  -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -I/usr/include/boost -std=c++0x -msse4.2 -fvisibility=hidden -fPIC
 LFLAGS=-flto -O3 -shared
+
+OPT_CFLAGS= -flto -O3 $(CFLAGS)
+DBG_CFLAGS= -g $(CFLAGS)
 
 ODIR=obj
 LDIR =../lib
@@ -35,10 +38,11 @@ TEST_GROUPS_OBJS=$(TEST_OBJS) obj/test_groups.o
 TEST_PACKED_SHARD_OBJS=$(TEST_OBJS) obj/test_packed_shard.o
 TEST_TGS_OBJS=$(TEST_OBJS) obj/test_tgs.o
 TEST_VARINTDECODE_OBJS=$(TEST_OBJS) obj/test_varintdecode.o
-TESTS := test_bit_tree test_circ_buf test_groups test_packed_shard test_tgs test_varintdecode
+TEST_INVERT_METRICS_OBJS=obj/test_invert_metrics.o obj/metrics_inverter.o obj/varintdecode.o
+TESTS := test_bit_tree test_circ_buf test_groups test_packed_shard test_tgs test_varintdecode test_invert_metrics
 
 $(ODIR)/%.o: src/%.c $(H_FILES)
-	$(CC) -c -o $@ $< $(CFLAGS)
+	$(CC) -c -o $@ $< $(DBG_CFLAGS)
 
 $(ODIR)/%.o: src/%.cpp $(H_FILES)
 	$(CPP) -c -o $@ $< $(CPPFLAGS)
@@ -70,6 +74,9 @@ test_tgs: $(TEST_TGS_OBJS)
 
 test_varintdecode: $(TEST_VARINTDECODE_OBJS)
 	$(CPP) $ -o test_varintdecode $(TEST_VARINTDECODE_OBJS) $(LIBS) -lstdc++
+
+test_invert_metrics: $(TEST_INVERT_METRICS_OBJS)
+	$(CC) $(DBG_CFLAGS) $ -o test_invert_metrics $(TEST_INVERT_METRICS_OBJS) $(LIBS) 
 
 tests: $(TESTS)
 

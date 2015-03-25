@@ -190,7 +190,8 @@ static int write_group_stats(struct buffered_socket* socket,
                              const int num_stats,
                              size_t stats_size) {
     int32_t previous_group = -1;
-    for (size_t i = 0; i < nz_group_count - PREFETCH_DISTANCE; i++) {
+    size_t i = 0;
+    for (; i < nz_group_count - PREFETCH_DISTANCE; i++) {
         const uint32_t group = non_zero_groups[i];
         int stat_index = 0;
         TRY(write_vint64(socket, group - previous_group));
@@ -232,7 +233,7 @@ static int write_group_stats(struct buffered_socket* socket,
     }
 
     /* final Prefetch_distance value */
-    for (size_t i = PREFETCH_DISTANCE; i < nz_group_count; i++) {
+    for (; i < nz_group_count; i++) {
         const uint32_t group = non_zero_groups[i];
         int stat_index = 0;
         TRY(write_vint64(socket, group - previous_group));

@@ -15,6 +15,7 @@
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Longs;
 import com.indeed.util.io.Files;
 import com.indeed.flamdex.api.DocIdStream;
@@ -25,20 +26,96 @@ import com.indeed.flamdex.api.RawStringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.writer.IntFieldWriter;
 import com.indeed.flamdex.writer.StringFieldWriter;
+import com.indeed.imhotep.ImhotepMemoryPool;
+import com.indeed.imhotep.MemoryReservationContext;
+import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.local.ImhotepLocalSession;
+import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
+
 import junit.framework.TestCase;
+
+import org.apache.log4j.Logger;
+import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Vector;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * @author jsgroth
  */
 public class SimpleFlamdexTest extends TestCase {
-    private final Random rand = new Random();
+    private static final Logger log = Logger.getLogger(SimpleFlamdexTest.class);
+    
+    private static final java.lang.reflect.Field LIBRARIES;
+    static {
+        try {
+            LIBRARIES = ClassLoader.class.getDeclaredField("loadedLibraryNames");
+            LIBRARIES.setAccessible(true);
+        } catch (NoSuchFieldException | SecurityException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
+
+        final String[] libraries = getLoadedLibraries(ClassLoader.getSystemClassLoader());
+        if (Collections.frequency(Arrays.asList(libraries), "libftgs.so") == 0) {
+            loadNativeLibrary();
+            log.info("libftgs loaded");
+            log.info("Using SSSE3! (if the processor in this computer doesn't support SSSE3 "
+                             + "this process will fail with SIGILL)");
+            
+        }
+    }
+
+    public static String[] getLoadedLibraries(final ClassLoader loader) {
+        Vector<String> libraries;
+        try {
+            libraries = (Vector<String>) LIBRARIES.get(loader);
+            return libraries.toArray(new String[] {});
+        } catch (IllegalArgumentException | IllegalAccessException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
+    }
+    private static void loadNativeLibrary() {
+        try {
+            final String osName = System.getProperty("os.name");
+            final String arch = System.getProperty("os.arch");
+            final String resourcePath = "/native/" + osName + "-" + arch + "/libftgs.so.1.0.1";
+            final InputStream is = MTImhotepLocalMultiSession.class.getResourceAsStream(resourcePath);
+            if (is == null) {
+                throw new FileNotFoundException(
+                        "unable to find libftgs.so.1.0.1 at resource path " + resourcePath);
+            }
+            final File tempFile = File.createTempFile("libftgs", ".so");
+            final OutputStream os = new FileOutputStream(tempFile);
+            ByteStreams.copy(is, os);
+            os.close();
+            is.close();
+            System.load(tempFile.getAbsolutePath());
+            // noinspection ResultOfMethodCallIgnored
+            tempFile.delete();
+        } catch (Throwable e) {
+            log.warn("unable to load libftgs using class loader, looking in java.library.path", e);
+            System.loadLibrary("ftgs"); // if this fails it throws UnsatisfiedLinkError
+        }
+    }
 
     @Test
     public void testEmptyFields() throws IOException {
@@ -61,6 +138,7 @@ public class SimpleFlamdexTest extends TestCase {
             Files.delete(dir);
         }
     }
+    private final Random rand = new Random();
 
     @Test
     public void testIt() throws IOException {
@@ -73,7 +151,7 @@ public class SimpleFlamdexTest extends TestCase {
     }
 
     @Test
-    public void testGetMetric() throws IOException, FlamdexOutOfMemoryException {
+    public void testGetMetric() throws IOException, FlamdexOutOfMemoryException, ImhotepOutOfMemoryException {
         final String dir = Files.getTempDirectory("flamdex-test", "foo");
         try {
             internalTestGetMetric(dir);
@@ -90,7 +168,7 @@ public class SimpleFlamdexTest extends TestCase {
     }
 
     private void getMetricCase(String dir, int maxTermVal) throws IOException, FlamdexOutOfMemoryException {
-        for (int i = 0; i < 10; ++i) {
+        for (int i = 0; i < 20; ++i) {
             long[] cache = writeGetMetricIndex(dir, maxTermVal);
             SimpleFlamdexReader r = SimpleFlamdexReader.open(dir);
             // do it multiple times because these methods update internal state, make sure nothing unexpectedly weird happens
@@ -108,10 +186,13 @@ public class SimpleFlamdexTest extends TestCase {
     }
 
     private long[] writeGetMetricIndex(String dir, int maxTermVal) throws IOException {
-        SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, 10L, true);
+        SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, 20000L, true);
         IntFieldWriter ifw = w.getIntFieldWriter("if1");
-        List<Integer> docs = Lists.newArrayList(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
-        long[] cache = new long[10];
+        List<Integer> docs = Lists.newArrayListWithCapacity(20000);
+        for (int i = 0; i < 20000; i++) {
+            docs.add(i);
+        }
+        long[] cache = new long[20000];
         if (maxTermVal < docs.size()) {
             int term = rand.nextInt(maxTermVal);
             ifw.nextTerm(term);

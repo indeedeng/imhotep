@@ -267,7 +267,7 @@ public enum NativeFlamdexFieldCacher {
             while (true) {
                 int j;
                 boolean hasNext = iter.next();
-                for (j = 0; j < BUFFER_SIZE && iter.next(); j++) {
+                for (j = 0; j < BUFFER_SIZE && hasNext; j++) {
                     terms[j] = (short) iter.term();
                     n_docs[j] = iter.docFreq();
                     offsets[j] = iter.getOffset();
@@ -373,7 +373,7 @@ public enum NativeFlamdexFieldCacher {
             while (true) {
                 int j;
                 boolean hasNext = iter.next();
-                for (j = 0; j < BUFFER_SIZE && iter.next(); j++) {
+                for (j = 0; j < BUFFER_SIZE && hasNext; j++) {
                     terms[j] = (char) iter.term();
                     n_docs[j] = iter.docFreq();
                     offsets[j] = iter.getOffset();
@@ -479,7 +479,7 @@ public enum NativeFlamdexFieldCacher {
             while (true) {
                 int j;
                 boolean hasNext = iter.next();
-                for (j = 0; j < BUFFER_SIZE && iter.next(); j++) {
+                for (j = 0; j < BUFFER_SIZE && hasNext; j++) {
                     terms[j] = (byte) iter.term();
                     n_docs[j] = iter.docFreq();
                     offsets[j] = iter.getOffset();
@@ -546,7 +546,7 @@ public enum NativeFlamdexFieldCacher {
                 while (true) {
                     int j;
                     boolean hasNext = iter.next();
-                    for (j = 0; j < BUFFER_SIZE && iter.next(); j++) {
+                    for (j = 0; j < BUFFER_SIZE && hasNext; j++) {
                         terms[j] = (byte) iter.term();
                         n_docs[j] = iter.docFreq();
                         offsets[j] = iter.getOffset();
@@ -585,7 +585,7 @@ public enum NativeFlamdexFieldCacher {
             while (true) {
                 int j;
                 boolean hasNext = iter.next();
-                for (j = 0; j < BUFFER_SIZE && iter.next(); j++) {
+                for (j = 0; j < BUFFER_SIZE && hasNext; j++) {
                     terms[j] = (byte) iter.term();
                     n_docs[j] = iter.docFreq();
                     offsets[j] = iter.getOffset();
@@ -652,7 +652,7 @@ public enum NativeFlamdexFieldCacher {
                 while (true) {
                     int j;
                     boolean hasNext = iter.next();
-                    for (j = 0; j < BUFFER_SIZE && iter.next(); j++) {
+                    for (j = 0; j < BUFFER_SIZE && hasNext; j++) {
                         terms[j] = (byte) iter.term();
                         n_docs[j] = iter.docFreq();
                         offsets[j] = iter.getOffset();
@@ -684,12 +684,21 @@ public enum NativeFlamdexFieldCacher {
                                                        int numDocs) throws IOException  {
             FastBitSet bitset = new FastBitSet(numDocs);
 
+            if (numDocs == 0) {
+                return new BitSetIntValueLookup(bitset);
+            }
+            
             int n_docs;
             long offset;
             long address = iter.getDocListAddress();
-            iter.next();
+            if (! iter.next()) {
+                return new BitSetIntValueLookup(bitset);
+            }
             if (iter.term() != 1) {
-                iter.next();
+                if (! iter.next()) {
+                    /* field must be all 0s */
+                    return new BitSetIntValueLookup(bitset);
+                }
                 if (iter.term() != 1) {
                     throw new UnsupportedOperationException(
                             "BitSet fields should only have term  " + "values of 1 and 0.");
@@ -735,12 +744,21 @@ public enum NativeFlamdexFieldCacher {
                 final MMapFastBitSet bitset =
                         new MMapFastBitSet(f, numDocs, FileChannel.MapMode.READ_WRITE);
 
+                if (numDocs == 0) {
+                    return bitset;
+                }
+                
                 int n_docs;
                 long offset;
                 long address = iter.getDocListAddress();
-                iter.next();
+                if (! iter.next()) {
+                    return bitset;
+                }
                 if (iter.term() != 1) {
-                    iter.next();
+                    if (! iter.next()) {
+                        /* field must be all 0s */
+                        return bitset;
+                    }
                     if (iter.term() != 1) {
                         throw new UnsupportedOperationException(
                                 "BitSet fields should only have term  " + "values of 1 and 0.");
