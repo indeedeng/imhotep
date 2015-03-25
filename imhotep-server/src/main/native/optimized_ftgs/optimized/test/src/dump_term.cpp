@@ -318,19 +318,13 @@ int main(int argc, char* argv[])
         array<long, 1> addresses{{(long) field_views[0]->doc_id_stream(offset)}};
         array<int, 1> docs_in_term{{(int) doc_freq}};
 
-        struct runtime_err error;
-        memset(&error, 0, sizeof(error));
-
         run_tgs_pass(&worker,
                      &session,
                      TERM_TYPE_INT, 1,
                      NULL, 0,
                      addresses.data(),
                      docs_in_term.data(),
-                     1, 0,
-                     &error);
-
-        assert(error.code == 0);
+                     1, 0);
     }
 
     // cout << endl << worker.grp_stats << endl;

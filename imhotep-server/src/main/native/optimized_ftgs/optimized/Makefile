@@ -3,7 +3,7 @@ CC=/usr/bin/gcc
 CPP=/usr/bin/g++
 JNI_HEADER_LOC=$(JAVA_HOME)/include
 JNI_HEADER_LOC2=$(JNI_HEADER_LOC)/linux
-CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions
+CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fPIC -fvisibility=hidden -flax-vector-conversions
 CPPFLAGS=-O3 -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -I/usr/include/boost -std=c++0x -msse4.2 -fPIC
 #LFLAGS=-flto -O3 -shared
 LFLAGS= -g -shared
@@ -29,7 +29,7 @@ TEST_OBJS=obj/bit_tree.o         \
           obj/remote_output.o    \
           obj/socket.o           \
           obj/table_accumulate.o \
-          test/obj/test_patch.o       \
+          test/obj/test_patch.o  \
           obj/tgs.o              \
           obj/unpacked_table.o   \
           obj/varintdecode.o
@@ -61,8 +61,8 @@ all: native_lib tests
 native_lib: $(filter-out $(ODIR)/test_invert_metrics.o,$(OBJ_FILES))
 	$(CC) $(LFLAGS) -Wl,-export-dynamic -Wl,-init,simdvbyteinit $(LIBS) -Wl,-soname,libftgs.so.1 -o libftgs.so.1.0.1 $^
 
-dump_term: $(filter-out $(ODIR)/test_invert_metrics.o,$(OBJ_FILES)) obj/dump_term.o
-	$(CPP) $(CFLAGS) $ -o dump_term obj/dump_term.o $(filter-out $(ODIR)/test_invert_metrics.o,$(OBJ_FILES)) -lstdc++
+dump_term: $(filter-out $(ODIR)/test_invert_metrics.o,$(OBJ_FILES)) test/obj/dump_term.o
+	$(CPP) $(CFLAGS) $ -o dump_term test/obj/dump_term.o test/obj/test_patch.o $(filter-out $(ODIR)/test_invert_metrics.o,$(OBJ_FILES)) -lstdc++
 
 test_bit_tree: $(TEST_BIT_TREE_OBJS)
 	$(CPP) $ -o test_bit_tree $(TEST_BIT_TREE_OBJS) $(LIBS) -lstdc++
