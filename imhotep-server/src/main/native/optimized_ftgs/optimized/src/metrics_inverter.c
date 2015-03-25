@@ -1,8 +1,9 @@
 #include <stdint.h>
 #include "imhotep_native.h"
 #include "varintdecode.h"
+#include "metrics_inverter.h"
 
-#define BUFFER_SIZE								8192
+#define BUFFER_SIZE								4096
 
 
 #define DATA_TYPE								int64_t

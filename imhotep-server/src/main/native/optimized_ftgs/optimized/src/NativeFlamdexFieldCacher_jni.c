@@ -46,7 +46,7 @@ JNIEXPORT void JNICALL Java_com_indeed_flamdex_fieldcache_NativeFlamdexFieldCach
 
     metrics = (*env)->GetPrimitiveArrayCritical(env, save_array, &unused);
     invert_bitfield_metric(metrics, n_docs, delta_compressed_doc_ids, offset);
-    (*env)->ReleasePrimitiveArrayCritical(env, save_array, metrics, JNI_ABORT);
+    (*env)->ReleasePrimitiveArrayCritical(env, save_array, metrics, 0);
 }
 
 /*
@@ -110,7 +110,7 @@ JNIEXPORT void JNICALL Java_com_indeed_flamdex_fieldcache_NativeFlamdexFieldCach
     (*env)->ReleasePrimitiveArrayCritical(env, offsets_array, offsets, JNI_ABORT);
     (*env)->ReleasePrimitiveArrayCritical(env, n_docs_array, n_docs, JNI_ABORT);
     (*env)->ReleasePrimitiveArrayCritical(env, terms_array, terms, JNI_ABORT);
-    (*env)->ReleasePrimitiveArrayCritical(env, save_array, metrics, JNI_ABORT);
+    (*env)->ReleasePrimitiveArrayCritical(env, save_array, metrics, 0);
 }
 
 /*
@@ -129,7 +129,7 @@ JNIEXPORT void JNICALL Java_com_indeed_flamdex_fieldcache_NativeFlamdexFieldCach
                                      jint terms_len)
 {
     uint8_t* delta_compressed_doc_ids = (uint8_t*)doc_list_addr;
-    uint8_t* metrics = (uint8_t*)save_buffer;
+    int8_t* metrics = (int8_t*)save_buffer;
     jbyte* terms;
     jint* n_docs;
     jlong* offsets;
@@ -160,7 +160,7 @@ JNIEXPORT void JNICALL Java_com_indeed_flamdex_fieldcache_NativeFlamdexFieldCach
                                     jint terms_len)
 {
      uint8_t* delta_compressed_doc_ids = (uint8_t*)doc_list_addr;
-     uint8_t* metrics;
+     int8_t* metrics;
      jbyte* terms;
      jint* n_docs;
      jlong* offsets;
@@ -174,7 +174,7 @@ JNIEXPORT void JNICALL Java_com_indeed_flamdex_fieldcache_NativeFlamdexFieldCach
      (*env)->ReleasePrimitiveArrayCritical(env, offsets_array, offsets, JNI_ABORT);
      (*env)->ReleasePrimitiveArrayCritical(env, n_docs_array, n_docs, JNI_ABORT);
      (*env)->ReleasePrimitiveArrayCritical(env, terms_array, terms, JNI_ABORT);
-     (*env)->ReleasePrimitiveArrayCritical(env, save_array, metrics, JNI_ABORT);
+     (*env)->ReleasePrimitiveArrayCritical(env, save_array, metrics, 0);
 }
 
 /*
@@ -238,7 +238,7 @@ JNIEXPORT void JNICALL Java_com_indeed_flamdex_fieldcache_NativeFlamdexFieldCach
     (*env)->ReleasePrimitiveArrayCritical(env, offsets_array, offsets, JNI_ABORT);
     (*env)->ReleasePrimitiveArrayCritical(env, n_docs_array, n_docs, JNI_ABORT);
     (*env)->ReleasePrimitiveArrayCritical(env, terms_array, terms, JNI_ABORT);
-    (*env)->ReleasePrimitiveArrayCritical(env, save_array, metrics, JNI_ABORT);
+    (*env)->ReleasePrimitiveArrayCritical(env, save_array, metrics, 0);
 }
 
 /*
@@ -302,7 +302,7 @@ JNIEXPORT void JNICALL Java_com_indeed_flamdex_fieldcache_NativeFlamdexFieldCach
     (*env)->ReleasePrimitiveArrayCritical(env, offsets_array, offsets, JNI_ABORT);
     (*env)->ReleasePrimitiveArrayCritical(env, n_docs_array, n_docs, JNI_ABORT);
     (*env)->ReleasePrimitiveArrayCritical(env, terms_array, terms, JNI_ABORT);
-    (*env)->ReleasePrimitiveArrayCritical(env, save_array, metrics, JNI_ABORT);
+    (*env)->ReleasePrimitiveArrayCritical(env, save_array, metrics, 0);
 }
 
 /*
@@ -366,6 +366,6 @@ JNIEXPORT void JNICALL Java_com_indeed_flamdex_fieldcache_NativeFlamdexFieldCach
     (*env)->ReleasePrimitiveArrayCritical(env, offsets_array, offsets, JNI_ABORT);
     (*env)->ReleasePrimitiveArrayCritical(env, n_docs_array, n_docs, JNI_ABORT);
     (*env)->ReleasePrimitiveArrayCritical(env, terms_array, terms, JNI_ABORT);
-    (*env)->ReleasePrimitiveArrayCritical(env, save_array, metrics, JNI_ABORT);
+    (*env)->ReleasePrimitiveArrayCritical(env, save_array, metrics, 0);
 }
 

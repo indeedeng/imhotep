@@ -11,7 +11,9 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.indeed.flamdex.simple;
+package com.indeed.flamdex.simple;
+
+import static org.junit.Assert.*;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -20,10 +22,12 @@ import com.google.common.primitives.Longs;
 import com.indeed.util.io.Files;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
+import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.api.RawStringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
+import com.indeed.flamdex.lucene.LuceneFlamdexReader;
 import com.indeed.flamdex.writer.IntFieldWriter;
 import com.indeed.flamdex.writer.StringFieldWriter;
 import com.indeed.imhotep.ImhotepMemoryPool;
@@ -36,6 +40,12 @@ import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
 import junit.framework.TestCase;
 
 import org.apache.log4j.Logger;
+import org.apache.lucene.analysis.WhitespaceAnalyzer;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
+import org.apache.lucene.index.CorruptIndexException;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.IndexWriter;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -54,69 +64,62 @@ import java.util.Random;
 import java.util.Vector;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * @author jsgroth
  */
-public class SimpleFlamdexTest extends TestCase {
+public class SimpleFlamdexTest {
     private static final Logger log = Logger.getLogger(SimpleFlamdexTest.class);
     
-    private static final java.lang.reflect.Field LIBRARIES;
-    static {
+    /*
+     * Need this to force the native library to be loaded - which happens in MTImhotepLocalMultiSession
+     */
+    @BeforeClass
+    public static void loadLibrary() throws ImhotepOutOfMemoryException, CorruptIndexException, IOException {
+        String tempDir = Files.getTempDirectory("asdf", "");
         try {
-            LIBRARIES = ClassLoader.class.getDeclaredField("loadedLibraryNames");
-            LIBRARIES.setAccessible(true);
-        } catch (NoSuchFieldException | SecurityException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-            throw new RuntimeException(e);
-        }
+            IndexWriter w = new IndexWriter(tempDir, new WhitespaceAnalyzer(), true, IndexWriter.MaxFieldLength.LIMITED);
 
-        final String[] libraries = getLoadedLibraries(ClassLoader.getSystemClassLoader());
-        if (Collections.frequency(Arrays.asList(libraries), "libftgs.so") == 0) {
-            loadNativeLibrary();
-            log.info("libftgs loaded");
-            log.info("Using SSSE3! (if the processor in this computer doesn't support SSSE3 "
-                             + "this process will fail with SIGILL)");
-            
-        }
-    }
-
-    public static String[] getLoadedLibraries(final ClassLoader loader) {
-        Vector<String> libraries;
-        try {
-            libraries = (Vector<String>) LIBRARIES.get(loader);
-            return libraries.toArray(new String[] {});
-        } catch (IllegalArgumentException | IllegalAccessException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-            throw new RuntimeException(e);
-        }
-    }
-    private static void loadNativeLibrary() {
-        try {
-            final String osName = System.getProperty("os.name");
-            final String arch = System.getProperty("os.arch");
-            final String resourcePath = "/native/" + osName + "-" + arch + "/libftgs.so.1.0.1";
-            final InputStream is = MTImhotepLocalMultiSession.class.getResourceAsStream(resourcePath);
-            if (is == null) {
-                throw new FileNotFoundException(
-                        "unable to find libftgs.so.1.0.1 at resource path " + resourcePath);
+            Random rand = new Random();
+            for (int i = 0; i < 10; ++i) {
+                int numTerms = rand.nextInt(5) + 5;
+                Document doc = new Document();
+                for (int t = 0; t < numTerms; ++t) {
+                    doc.add(new Field("sf1", Integer.toString(rand.nextInt(10)), Field.Store.NO, Field.Index.NOT_ANALYZED_NO_NORMS));
+                }
+                w.addDocument(doc);
             }
-            final File tempFile = File.createTempFile("libftgs", ".so");
-            final OutputStream os = new FileOutputStream(tempFile);
-            ByteStreams.copy(is, os);
-            os.close();
-            is.close();
-            System.load(tempFile.getAbsolutePath());
-            // noinspection ResultOfMethodCallIgnored
-            tempFile.delete();
-        } catch (Throwable e) {
-            log.warn("unable to load libftgs using class loader, looking in java.library.path", e);
-            System.loadLibrary("ftgs"); // if this fails it throws UnsatisfiedLinkError
+
+            w.close();
+
+            final AtomicBoolean closed = new AtomicBoolean(false);
+            FlamdexReader r = new LuceneFlamdexReader(IndexReader.open(tempDir)) {
+                @Override
+                public void close() throws IOException {
+                    super.close();
+                    closed.set(true);
+                }
+            };
+            final ExecutorService executor = Executors.newCachedThreadPool();
+            try {
+                final ImhotepSession session = new MTImhotepLocalMultiSession(new ImhotepLocalSession[] { new ImhotepLocalSession(r) },
+                        new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
+                        executor,
+                        null,
+                        false
+                );
+
+                session.close();
+                assertTrue(closed.get());
+            } finally {
+                executor.shutdown();
+            }
+        } finally {
+            Files.delete(tempDir);
         }
     }
-
+    
     @Test
     public void testEmptyFields() throws IOException {
         final String dir = Files.getTempDirectory("flamdex-test", "foo");

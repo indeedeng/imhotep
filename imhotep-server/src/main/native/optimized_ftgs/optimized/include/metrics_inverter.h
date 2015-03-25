@@ -27,7 +27,7 @@ int invert_short_metric(int16_t* restrict buffer,
                         const uint8_t* restrict doc_list_address,
                         const int64_t* restrict offsets,
                         int n_terms);
-int invert_byte_metric(uint8_t* restrict buffer,
+int invert_byte_metric(int8_t* restrict buffer,
                         const int8_t * restrict terms,
                         const int32_t* restrict n_docs,
                         const uint8_t* restrict doc_list_address,

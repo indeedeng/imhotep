@@ -5,12 +5,14 @@ JNI_HEADER_LOC=$(JAVA_HOME)/include
 JNI_HEADER_LOC2=$(JNI_HEADER_LOC)/linux
 CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fvisibility=hidden -fPIC -flax-vector-conversions
 CPPFLAGS=-g  -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -I/usr/include/boost -std=c++0x -msse4.2 -fvisibility=hidden -fPIC
-LFLAGS=-flto -O3 -shared
+#LFLAGS=-flto -O3 -shared
+LFLAGS= -g -shared
 
 OPT_CFLAGS= -flto -O3 $(CFLAGS)
 DBG_CFLAGS= -g $(CFLAGS)
 
 ODIR=obj
+TEST_ODIR=test/obj
 LDIR =../lib
 
 LIBS=-lm
@@ -27,19 +29,24 @@ TEST_OBJS=obj/bit_tree.o         \
           obj/remote_output.o    \
           obj/socket.o           \
           obj/table_accumulate.o \
-          obj/test_patch.o       \
+          test/obj/test_patch.o       \
           obj/tgs.o              \
           obj/unpacked_table.o   \
           obj/varintdecode.o
 
-TEST_BIT_TREE_OBJS=$(TEST_OBJS) obj/test_bit_tree.o
-TEST_CIRC_BUF_OBJS=$(TEST_OBJS) obj/test_circ_buf.o
-TEST_GROUPS_OBJS=$(TEST_OBJS) obj/test_groups.o
-TEST_PACKED_SHARD_OBJS=$(TEST_OBJS) obj/test_packed_shard.o
-TEST_TGS_OBJS=$(TEST_OBJS) obj/test_tgs.o
-TEST_VARINTDECODE_OBJS=$(TEST_OBJS) obj/test_varintdecode.o
-TEST_INVERT_METRICS_OBJS=obj/test_invert_metrics.o obj/metrics_inverter.o obj/varintdecode.o
-TESTS := test_bit_tree test_circ_buf test_groups test_packed_shard test_tgs test_varintdecode test_invert_metrics
+TEST_BIT_TREE_OBJS=$(TEST_OBJS) test/obj/test_bit_tree.o
+TEST_CIRC_BUF_OBJS=$(TEST_OBJS) test/obj/test_circ_buf.o
+TEST_GROUPS_OBJS=$(TEST_OBJS) test/obj/test_groups.o
+TEST_PACKED_SHARD_OBJS=$(TEST_OBJS) test/obj/test_packed_shard.o
+TEST_TGS_OBJS=$(TEST_OBJS) test/obj/test_tgs.o
+TEST_VARINTDECODE_OBJS=$(TEST_OBJS) test/obj/test_varintdecode.o
+TESTS := test_bit_tree test_circ_buf test_groups test_packed_shard test_tgs test_varintdecode
+
+$(TEST_ODIR)/%.o: test/src/%.c $(H_FILES)
+	$(CC) -c -o $@ $< $(DBG_CFLAGS)
+
+$(TEST_ODIR)/%.o: test/src/%.cpp $(H_FILES)
+	$(CPP) -c -o $@ $< $(CPPFLAGS)
 
 $(ODIR)/%.o: src/%.c $(H_FILES)
 	$(CC) -c -o $@ $< $(DBG_CFLAGS)
@@ -54,7 +61,7 @@ all: native_lib tests
 native_lib: $(OBJ_FILES)
 	$(CC) $(LFLAGS) $(LIBS) -o libftgs.so.1.0.1 $^
 
-dump_term: $(OBJ_FILES) obj/dump_term.o
+dump_term: $(OBJ_FILES) test/obj/dump_term.o
 	$(CPP) $(CFLAGS) $ -o dump_term obj/dump_term.o $(OBJ_FILES) -lstdc++
 
 test_bit_tree: $(TEST_BIT_TREE_OBJS)
@@ -75,12 +82,10 @@ test_tgs: $(TEST_TGS_OBJS)
 test_varintdecode: $(TEST_VARINTDECODE_OBJS)
 	$(CPP) $ -o test_varintdecode $(TEST_VARINTDECODE_OBJS) $(LIBS) -lstdc++
 
-test_invert_metrics: $(TEST_INVERT_METRICS_OBJS)
-	$(CC) $(DBG_CFLAGS) $ -o test_invert_metrics $(TEST_INVERT_METRICS_OBJS) $(LIBS) 
-
 tests: $(TESTS)
 
 clean:
+	rm -f $(TEST_ODIR)/*.o *~ core $(INCDIR)/*~
 	rm -f $(ODIR)/*.o *~ core $(INCDIR)/*~
 	rm -f $(TESTS)
 	rm -f dump_term

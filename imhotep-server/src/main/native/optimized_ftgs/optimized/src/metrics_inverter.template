@@ -14,10 +14,10 @@ static inline void NAME(invert,terms)(DATA_TYPE * restrict data_buf,
     int i = 0;
 	for (; i < count - PREFETCH_DISTANCE; i++) {
 		const uint32_t doc_id = doc_id_buf[i + 0];
-//		const uint32_t prefetch_doc_id = doc_id_buf[i + 0 + PREFETCH_DISTANCE];
+		const uint32_t prefetch_doc_id = doc_id_buf[i + 0 + PREFETCH_DISTANCE];
 		data_buf[doc_id] = term;
 
-//		__builtin_prefetch(&data_buf[prefetch_doc_id], 1, 3);
+		__builtin_prefetch(&data_buf[prefetch_doc_id], 1, 3);
 	}
 	for (; i < count; i++) {
 		const uint32_t doc_id = doc_id_buf[i];
