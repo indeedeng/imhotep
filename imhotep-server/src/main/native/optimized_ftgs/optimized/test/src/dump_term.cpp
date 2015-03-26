@@ -20,6 +20,7 @@
 #define restrict __restrict__
 extern "C" {
 #include "imhotep_native.h"
+#include "metrics_inverter.h"
 #include "local_session.h"
 #include "test_patch.h"
 }
@@ -36,16 +37,16 @@ size_t file_size(int fd)
     return buf.st_size;
 }
 
-class Buffer : public VarIntView
+class MMappedVarIntView : public VarIntView
 {
     int         _fd     = 0;
     size_t      _length = 0;
     void*       _mapped = 0;
 
 public:
-    Buffer(const Buffer& rhs) = delete;
+    MMappedVarIntView(const MMappedVarIntView& rhs) = delete;
 
-    Buffer(const string& filename)
+    MMappedVarIntView(const string& filename)
         : _fd(open(filename.c_str(), O_RDONLY)) {
         if (_fd <= 0) {
             throw std::runtime_error("cannot open file: " + filename);
@@ -61,18 +62,21 @@ public:
         _end   = _begin + _length;
     }
 
-    ~Buffer() {
+    ~MMappedVarIntView() {
         munmap(_mapped, _length);
         close(_fd);
     }
 
+    void * mapped() { return _mapped; }
 };
 
 class IntFieldView {
+    static constexpr size_t _n_groups = 3;
+
     string _name;
 
-    Buffer _terms;
-    Buffer _docs;
+    MMappedVarIntView _terms;
+    MMappedVarIntView _docs;
 
     long _min = numeric_limits<long>::max();
     long _max = numeric_limits<long>::min();
@@ -128,6 +132,7 @@ public:
         : _name(name)
         , _terms(shard_dir + "/fld-" + name + ".intterms")
         , _docs(shard_dir + "/fld-" + name + ".intdocs") {
+
         TermIterator it(term_iterator());
         while (it.has_next()) {
             const TermIterator::Tuple next(it.next());
@@ -146,6 +151,8 @@ public:
 
     const string& name() const { return _name; }
 
+    size_t n_groups() const { return _n_groups; }
+
     long min() const { return _min; }
     long max() const { return _max; }
 
@@ -155,8 +162,7 @@ public:
     long max_term_doc_freq() const { return _max_term_doc_freq; }
 
     int n_rows() const {
-        assert(max_doc_id() > min_doc_id());
-        return max_doc_id() - min_doc_id() + 1;
+        return max_doc_id() + 1;
     }
 
     size_t n_terms() const { return _n_terms; }
@@ -194,7 +200,7 @@ private:
             const long doc_id(it.next());
             packed_table_set_cell(table, doc_id, col, term);
             if (group_by_me) {
-                packed_table_set_group(table, doc_id, term);
+                packed_table_set_group(table, doc_id, abs(term) % n_groups());
             }
         }
     }
@@ -203,8 +209,8 @@ private:
 ostream&
 operator<<(ostream& os, const IntFieldView& view) {
     os << setw(20) << view.name()
-       << setw(12)  << view.min()
-       << setw(12) << view.max()
+       << setw(24) << view.min()
+       << setw(24) << view.max()
        << setw(12) << view.min_doc_id()
        << setw(12) << view.max_doc_id()
        << setw(12) << view.n_terms()
@@ -215,8 +221,8 @@ operator<<(ostream& os, const IntFieldView& view) {
 ostream&
 operator<<(ostream& os, const vector<shared_ptr<IntFieldView>>& views) {
     os << setw(20) << "name"
-       << setw(12)  << "min"
-       << setw(12) << "max"
+       << setw(24) << "min"
+       << setw(24) << "max"
        << setw(12) << "min_doc_id"
        << setw(12) << "max_doc_id"
        << setw(12) << "n_terms"
@@ -305,7 +311,7 @@ int main(int argc, char* argv[])
 
     packed_table_t* shards[] = { table };
     struct session_desc session;
-    session_init(&session, (*field_views.begin())->max() + 1, n_cols, shards, 1);
+    session_init(&session, (*field_views.begin())->n_groups(), n_cols, shards, 1);
 
     array <int, 1> shard_handles;
     shard_handles[0] = register_shard(&session, table);
