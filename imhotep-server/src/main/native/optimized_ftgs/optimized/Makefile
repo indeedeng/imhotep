@@ -8,7 +8,7 @@ CPPFLAGS=-O3 -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -I
 #LFLAGS=-flto -O3 -shared
 LFLAGS= -g -shared
 
-OPT_CFLAGS= -flto -O3 $(CFLAGS)
+OPT_CFLAGS= -O3 $(CFLAGS)
 DBG_CFLAGS= -g $(CFLAGS)
 
 ODIR=obj
@@ -49,7 +49,7 @@ $(TEST_ODIR)/%.o: test/src/%.cpp $(H_FILES)
 	$(CPP) -c -o $@ $< $(CPPFLAGS)
 
 $(ODIR)/%.o: src/%.c $(H_FILES)
-	$(CC) -c -o $@ $< $(DBG_CFLAGS)
+	$(CC) -c -o $@ $< $(OPT_CFLAGS)
 
 $(ODIR)/%.o: src/%.cpp $(H_FILES)
 	$(CPP) -c -o $@ $< $(CPPFLAGS)
@@ -85,7 +85,7 @@ test_varintdecode: $(TEST_VARINTDECODE_OBJS)
 tests: $(TESTS)
 
 clean:
-	rm -f $(TEST_ODIR)/*.o *~ core $(INCDIR)/*~
+	rm -f $(TEST_ODIR)/*.o $(ODIR)/*.o *~ core $(INCDIR)/*~
 	rm -f libftgs.so.1.0.1
 	rm -f $(TESTS)
 	rm -f dump_term

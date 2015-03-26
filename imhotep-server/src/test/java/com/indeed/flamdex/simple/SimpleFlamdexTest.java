@@ -17,7 +17,6 @@ import static org.junit.Assert.*;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Longs;
 import com.indeed.util.io.Files;
 import com.indeed.flamdex.api.DocIdStream;
@@ -37,8 +36,6 @@ import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.local.ImhotepLocalSession;
 import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
 
-import junit.framework.TestCase;
-
 import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.WhitespaceAnalyzer;
 import org.apache.lucene.document.Document;
@@ -46,22 +43,14 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.Vector;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -93,14 +82,7 @@ public class SimpleFlamdexTest {
 
             w.close();
 
-            final AtomicBoolean closed = new AtomicBoolean(false);
-            FlamdexReader r = new LuceneFlamdexReader(IndexReader.open(tempDir)) {
-                @Override
-                public void close() throws IOException {
-                    super.close();
-                    closed.set(true);
-                }
-            };
+            FlamdexReader r = new LuceneFlamdexReader(IndexReader.open(tempDir));
             final ExecutorService executor = Executors.newCachedThreadPool();
             try {
                 final ImhotepSession session = new MTImhotepLocalMultiSession(new ImhotepLocalSession[] { new ImhotepLocalSession(r) },
@@ -111,7 +93,6 @@ public class SimpleFlamdexTest {
                 );
 
                 session.close();
-                assertTrue(closed.get());
             } finally {
                 executor.shutdown();
             }
