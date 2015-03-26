@@ -13,6 +13,8 @@
  */
  package com.indeed.imhotep.local;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.indeed.flamdex.reader.MockFlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexWriter;
@@ -35,9 +37,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
@@ -97,6 +97,80 @@ public class TestNativeFlamdexFTGSIterator {
     public interface RunnableFactory {
         public Runnable newRunnable(Socket socket, int i);
     }
+
+    public class WriteFTGSRunner implements RunnableFactory {
+        private final MTImhotepLocalMultiSession session;
+        private final String[] intFields;
+        private final String[] stringFields;
+        private final int numSplits;
+
+        public WriteFTGSRunner(MTImhotepLocalMultiSession session,
+                               String[] intFields,
+                               String[] stringFields,
+                               int numSplits) {
+            this.session = session;
+            this.intFields = intFields;
+            this.stringFields = stringFields;
+            this.numSplits = numSplits;
+        }
+
+        @Override
+        public Runnable newRunnable(final Socket socket, final int i) {
+            return new Runnable() {
+                @Override
+                public void run() {
+                    session.writeFTGSIteratorSplit(intFields, stringFields, i, numSplits, socket);
+                }
+            };
+        }
+    }
+
+    private final Random rand = new Random();
+
+    private void createFlamdexIntField(final String dir,
+                                       final String intFieldName,
+                                       final int maxTermVal,
+                                       final int size) throws IOException {
+        SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, size, true);
+        IntFieldWriter ifw = w.getIntFieldWriter(intFieldName);
+        List<Integer> docs = Lists.newArrayListWithCapacity(size);
+        for (int i = 0; i < size; i++) {
+            docs.add(i);
+        }
+        long[] cache = new long[size];
+        if (maxTermVal < docs.size()) {
+            int term = rand.nextInt(maxTermVal);
+            ifw.nextTerm(term);
+            for (int doc : docs) {
+                ifw.nextDoc(doc);
+                cache[doc] = term;
+            }
+        } else {
+            Map<Integer, List<Integer>> map = Maps.newTreeMap();
+            while (!docs.isEmpty()) {
+                int term = rand.nextInt(maxTermVal);
+                if (map.containsKey(term)) continue;
+                int numDocs = docs.size() > 1 ? rand.nextInt(docs.size() - 1) + 1 : 1;
+                List<Integer> selectedDocs = Lists.newArrayList();
+                for (int i = 0; i < numDocs; ++i) {
+                    selectedDocs.add(docs.remove(rand.nextInt(docs.size())));
+                }
+                Collections.sort(selectedDocs);
+                map.put(term, selectedDocs);
+            }
+            for (int term : map.keySet()) {
+                ifw.nextTerm(term);
+                List<Integer> selectedDocs = map.get(term);
+                for (int doc : selectedDocs) {
+                    ifw.nextDoc(doc);
+                    cache[doc] = term;
+                }
+            }
+        }
+        ifw.close();
+        w.close();
+    }
+
 
     @Test
     public void testSimpleIteration() throws ImhotepOutOfMemoryException, IOException {
