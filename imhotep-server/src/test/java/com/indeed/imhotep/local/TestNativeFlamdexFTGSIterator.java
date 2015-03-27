@@ -13,6 +13,7 @@
  */
  package com.indeed.imhotep.local;
 
+import com.amazonaws.services.simpleworkflow.model.Run;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.indeed.flamdex.reader.MockFlamdexReader;
@@ -48,6 +49,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -149,6 +151,7 @@ public class TestNativeFlamdexFTGSIterator {
                                        final String intFieldName,
                                        final long maxTermVal,
                                        final int size) throws IOException {
+        final int maxTermDocs = (size < 2000) ? size : size / 1000;
         SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, size, true);
         IntFieldWriter ifw = w.getIntFieldWriter(intFieldName);
         List<Integer> docs = Lists.newArrayListWithCapacity(size);
@@ -166,7 +169,7 @@ public class TestNativeFlamdexFTGSIterator {
                 selectedDocs = Lists.newArrayList();
             }
 
-            final int maxDocsPerTerm = Math.min(docs.size(), size / 1000);
+            final int maxDocsPerTerm = Math.min(docs.size(), maxTermDocs);
             int numDocs = docs.size() > 1 ? rand.nextInt(maxDocsPerTerm - 1) + 1 : 1;
 
             for (int i = 0; i < numDocs; ++i) {
@@ -189,6 +192,7 @@ public class TestNativeFlamdexFTGSIterator {
     private void createFlamdexStringField(final String dir,
                                        final String stringFieldName,
                                        final int size) throws IOException {
+        final int maxTermDocs = (size < 2000) ? size : size / 1000;
         SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, size, true);
         StringFieldWriter sfw = w.getStringFieldWriter(stringFieldName);
         List<Integer> docs = Lists.newArrayListWithCapacity(size);
@@ -201,7 +205,7 @@ public class TestNativeFlamdexFTGSIterator {
             String term = RandomStringUtils.random(rand.nextInt(MAX_STRING_TERM_LEN));
             if (map.containsKey(term))
                 continue;
-            final int maxDocsPerTerm = Math.min(docs.size(), size / 1000);
+            final int maxDocsPerTerm = Math.min(docs.size(), maxTermDocs);
             int numDocs = docs.size() > 1 ? rand.nextInt(maxDocsPerTerm - 1) + 1 : 1;
             List<Integer> selectedDocs = Lists.newArrayList();
             for (int i = 0; i < numDocs; ++i) {
@@ -395,10 +399,13 @@ public class TestNativeFlamdexFTGSIterator {
         simulator.simulateServer(factory);
         RawFTGSIterator ftgsIterator = simulator.getIterator();
 
-        compareIterators(ftgsIterator, verificationIter);
+        compareIterators(ftgsIterator, verificationIter, nMetrics);
     }
 
-    private void compareIterators(FTGSIterator test, FTGSIterator valid) {
+    private void compareIterators(FTGSIterator test, FTGSIterator valid, int numStats) {
+        final long[] validStats = new long[numStats];
+        final long[] testStats = new long[numStats];
+
         while (valid.nextField()) {
             assertTrue(test.nextField());
             assertEquals(valid.fieldName(), test.fieldName());
@@ -414,10 +421,15 @@ public class TestNativeFlamdexFTGSIterator {
                     assertTrue(test.nextGroup());
                     assertEquals(valid.group(), test.group());
 
-                    valid.groupStats();
+                    valid.groupStats(validStats);
+                    test.groupStats(testStats);
+                    assertArrayEquals(validStats,testStats);
                 }
+                assertFalse(test.nextGroup());
             }
+            assertFalse(test.nextTerm());
         }
+        assertFalse(test.nextField());
     }
 
     private FTGSIterator getVerificationIterator(List<String> shardDirs,

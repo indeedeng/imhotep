@@ -15,6 +15,7 @@
 
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Longs;
+import com.indeed.flamdex.AbstractFlamdexReader;
 import com.indeed.util.io.Files;
 import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.reader.MockFlamdexReader;
@@ -83,10 +84,12 @@ public class TestFieldCacher {
                 }
             }
 
-            FieldCacher fieldCacher = FieldCacherUtil.getCacherForField("f", r);
+            AbstractFlamdexReader.MinMax minMax = new AbstractFlamdexReader.MinMax();
+            FieldCacher fieldCacher = FieldCacherUtil.getCacherForField("f", r, minMax);
             assertEquals(expectedType, fieldCacher);
             assertEquals(expectedMemory, fieldCacher.memoryRequired(r.getNumDocs()));
-            IntValueLookup ivl = fieldCacher.newFieldCache("f", r);
+            assertEquals(maxTerm, minMax.max);
+            IntValueLookup ivl = fieldCacher.newFieldCache("f", r, minMax.min, minMax.max);
             verifyCache(cache, ivl);
 
             String tempDir = Files.getTempDirectory("asdf", "");
@@ -96,7 +99,8 @@ public class TestFieldCacher {
                 } else {
                     assertFalse(new File(tempDir, fieldCacher.getMMapFileName("f")).exists());
                 }
-                IntValueLookup mmivl = fieldCacher.newMMapFieldCache("f", r, tempDir);
+                IntValueLookup mmivl = fieldCacher.newMMapFieldCache("f", r, tempDir, minMax.min,
+                                                                     minMax.max);
                 verifyCache(cache, mmivl);
                 assertTrue(new File(tempDir, fieldCacher.getMMapFileName("f")).exists());
                 mmivl.close();

@@ -44,7 +44,7 @@ public enum NativeFlamdexFieldCacher {
 
         @Override
         protected IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter,
-                                                       int numDocs) throws IOException {
+                                                       int numDocs, long min, long max) throws IOException {
             long[] backingArray = new long[numDocs];
 
             long[] terms = new long[BUFFER_SIZE];
@@ -71,14 +71,14 @@ public enum NativeFlamdexFieldCacher {
                 }
             }
 
-            return new LongArrayIntValueLookup(backingArray);
+            return new LongArrayIntValueLookup(backingArray, min, max);
         }
 
         @Override
         protected IntValueLookup newMMapFieldCacheInternal(SimpleIntTermIterator iter,
                                                            int numDocs,
                                                            String field,
-                                                           String directory) throws IOException {
+                                                           String directory, long min, long max) throws IOException {
             final File cacheFile = new File(directory, getMMapFileName(field));
             MMapBuffer buffer;
             try {
@@ -93,7 +93,7 @@ public enum NativeFlamdexFieldCacher {
                                                cacheFile,
                                                new MMapLongFieldCacherOp());
             }
-            return new MMapLongArrayIntValueLookup(buffer, numDocs);
+            return new MMapLongArrayIntValueLookup(buffer, numDocs, min, max);
         }
 
         @Override
@@ -151,7 +151,7 @@ public enum NativeFlamdexFieldCacher {
 
         @Override
         protected IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter,
-                                                       int numDocs) throws IOException {
+                                                       int numDocs, long min, long max) throws IOException {
             int[] backingArray = new int[numDocs];
 
             int[] terms = new int[BUFFER_SIZE];
@@ -178,14 +178,14 @@ public enum NativeFlamdexFieldCacher {
                 }
             }
 
-            return new IntArrayIntValueLookup(backingArray);
+            return new IntArrayIntValueLookup(backingArray, min, max);
         }
 
         @Override
         protected IntValueLookup newMMapFieldCacheInternal(SimpleIntTermIterator iter,
                                                            int numDocs,
                                                            String field,
-                                                           String directory) throws IOException {
+                                                           String directory, long min, long max) throws IOException {
             final File cacheFile = new File(directory, getMMapFileName(field));
             MMapBuffer buffer;
             try {
@@ -200,7 +200,7 @@ public enum NativeFlamdexFieldCacher {
                                                cacheFile,
                                                new MMapIntFieldCacherOp());
             }
-            return new MMapIntArrayIntValueLookup(buffer, numDocs);
+            return new MMapIntArrayIntValueLookup(buffer, numDocs, min, max);
         }
 
         @Override
@@ -257,7 +257,7 @@ public enum NativeFlamdexFieldCacher {
 
         @Override
         protected IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter,
-                                                       int numDocs) throws IOException {
+                                                       int numDocs, long min, long max) throws IOException {
             short[] backingArray = new short[numDocs];
 
             short[] terms = new short[BUFFER_SIZE];
@@ -284,14 +284,14 @@ public enum NativeFlamdexFieldCacher {
                 }
             }
 
-            return new ShortArrayIntValueLookup(backingArray);
+            return new ShortArrayIntValueLookup(backingArray, min, max);
         }
 
         @Override
         protected IntValueLookup newMMapFieldCacheInternal(SimpleIntTermIterator iter,
                                                            int numDocs,
                                                            String field,
-                                                           String directory) throws IOException {
+                                                           String directory, long min, long max) throws IOException {
             final File cacheFile = new File(directory, getMMapFileName(field));
             MMapBuffer buffer;
             try {
@@ -306,7 +306,7 @@ public enum NativeFlamdexFieldCacher {
                                                cacheFile,
                                                new MMapShortFieldCacherOp());
             }
-            return new MMapShortArrayIntValueLookup(buffer, numDocs);
+            return new MMapShortArrayIntValueLookup(buffer, numDocs, min, max);
         }
 
         @Override
@@ -363,7 +363,7 @@ public enum NativeFlamdexFieldCacher {
 
         @Override
         protected IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter,
-                                                       int numDocs) throws IOException  {
+                                                       int numDocs, long min, long max) throws IOException  {
             char[] backingArray = new char[numDocs];
 
             char[] terms = new char[BUFFER_SIZE];
@@ -390,14 +390,14 @@ public enum NativeFlamdexFieldCacher {
                 }
             }
 
-            return new CharArrayIntValueLookup(backingArray);
+            return new CharArrayIntValueLookup(backingArray, min, max);
         }
 
         @Override
         protected IntValueLookup newMMapFieldCacheInternal(SimpleIntTermIterator iter,
                                                            int numDocs,
                                                            String field,
-                                                           String directory) throws IOException {
+                                                           String directory, long min, long max) throws IOException {
             final File cacheFile = new File(directory, getMMapFileName(field));
             MMapBuffer buffer;
             try {
@@ -412,7 +412,7 @@ public enum NativeFlamdexFieldCacher {
                                                cacheFile,
                                                new MMapCharFieldCacherOp());
             }
-            return new MMapCharArrayIntValueLookup(buffer, numDocs);
+            return new MMapCharArrayIntValueLookup(buffer, numDocs, min, max);
         }
 
         @Override
@@ -469,7 +469,7 @@ public enum NativeFlamdexFieldCacher {
 
         @Override
         protected IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter,
-                                                       int numDocs) throws IOException {
+                                                       int numDocs, long min, long max) throws IOException {
             byte[] backingArray = new byte[numDocs];
 
             byte[] terms = new byte[BUFFER_SIZE];
@@ -496,14 +496,14 @@ public enum NativeFlamdexFieldCacher {
                 }
             }
 
-            return new SignedByteArrayIntValueLookup(backingArray);
+            return new SignedByteArrayIntValueLookup(backingArray, min, max);
         }
 
         @Override
         protected IntValueLookup newMMapFieldCacheInternal(SimpleIntTermIterator iter,
                                                            int numDocs,
                                                            String field,
-                                                           String directory) throws IOException {
+                                                           String directory, long min, long max) throws IOException {
             final File cacheFile = new File(directory, getMMapFileName(field));
             MMapBuffer buffer;
             try {
@@ -518,7 +518,7 @@ public enum NativeFlamdexFieldCacher {
                                                cacheFile,
                                                new MMapByteFieldCacherOp());
             }
-            return new MMapSignedByteArrayIntValueLookup(buffer, numDocs);
+            return new MMapSignedByteArrayIntValueLookup(buffer, numDocs, min, max);
         }
 
         @Override
@@ -575,7 +575,7 @@ public enum NativeFlamdexFieldCacher {
 
         @Override
         protected IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter,
-                                                       int numDocs) throws IOException  {
+                                                       int numDocs, long min, long max) throws IOException  {
             byte[] backingArray = new byte[numDocs];
 
             byte[] terms = new byte[BUFFER_SIZE];
@@ -602,14 +602,14 @@ public enum NativeFlamdexFieldCacher {
                 }
             }
 
-            return new ByteArrayIntValueLookup(backingArray);
+            return new ByteArrayIntValueLookup(backingArray, min, max);
         }
 
         @Override
         protected IntValueLookup newMMapFieldCacheInternal(SimpleIntTermIterator iter,
                                                            int numDocs,
                                                            String field,
-                                                           String directory) throws IOException {
+                                                           String directory, long min, long max) throws IOException {
             final File cacheFile = new File(directory, getMMapFileName(field));
             MMapBuffer buffer;
             try {
@@ -624,7 +624,7 @@ public enum NativeFlamdexFieldCacher {
                                                cacheFile,
                                                new MMapByteFieldCacherOp());
             }
-            return new MMapByteArrayIntValueLookup(buffer, numDocs);
+            return new MMapByteArrayIntValueLookup(buffer, numDocs, min, max);
         }
 
         @Override
@@ -681,7 +681,7 @@ public enum NativeFlamdexFieldCacher {
 
         @Override
         protected IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter,
-                                                       int numDocs) throws IOException  {
+                                                       int numDocs, long min, long max) throws IOException  {
             FastBitSet bitset = new FastBitSet(numDocs);
 
             if (numDocs == 0) {
@@ -714,7 +714,7 @@ public enum NativeFlamdexFieldCacher {
         protected IntValueLookup newMMapFieldCacheInternal(SimpleIntTermIterator iter,
                                                            int numDocs,
                                                            String field,
-                                                           String directory) throws IOException {
+                                                           String directory, long min, long max) throws IOException {
             final File cacheFile = new File(directory, getMMapFileName(field));
             try {
                 return new MMapBitSetIntValueLookup(cacheFile, numDocs);
@@ -781,15 +781,16 @@ public enum NativeFlamdexFieldCacher {
     public abstract long memoryRequired(int numDocs);
 
     protected abstract IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter,
-                                                            int numDocs) throws IOException;
+                                                            int numDocs, long min, long max) throws IOException;
 
     protected abstract IntValueLookup newMMapFieldCacheInternal(SimpleIntTermIterator iter,
                                                                 int numDocs,
                                                                 String field,
-                                                                String directory) throws IOException;
+                                                                String directory,
+                                                                long min,
+                                                                long max) throws IOException;
 
-    public IntValueLookup newFieldCache(IntTermIterator iterator,
-                                        int numDocs) throws IOException {
+    public IntValueLookup newFieldCache(IntTermIterator iterator, int numDocs, long min, long max) throws IOException {
         if (!(iterator instanceof SimpleIntTermIterator)) {
             throw new UnsupportedOperationException(
                     "NativeFlamdexFieldCacher only supports SimpleIntTermIterators.  "
@@ -797,13 +798,15 @@ public enum NativeFlamdexFieldCacher {
         }
 
         SimpleIntTermIterator iter = (SimpleIntTermIterator) iterator;
-        return newFieldCacheInternal(iter, numDocs);
+        return newFieldCacheInternal(iter, numDocs, min, max);
     }
 
     public IntValueLookup newMMapFieldCache(IntTermIterator iterator,
                                             int numDocs,
                                             String field,
-                                            String directory) throws IOException {
+                                            String directory,
+                                            long min,
+                                            long max) throws IOException {
         if (!(iterator instanceof SimpleIntTermIterator)) {
             throw new UnsupportedOperationException(
                     "NativeFlamdexFieldCacher only supports SimpleIntTermIterators.  "
@@ -811,24 +814,31 @@ public enum NativeFlamdexFieldCacher {
         }
 
         SimpleIntTermIterator iter = (SimpleIntTermIterator) iterator;
-        return newMMapFieldCacheInternal(iter, numDocs, field, directory);
+        return newMMapFieldCacheInternal(iter, numDocs, field, directory, min, max);
     }
 
     @VisibleForTesting
-    private final IntValueLookup newFieldCache(String field, FlamdexReader r) throws IOException {
+    private final IntValueLookup newFieldCache(String field,
+                                               FlamdexReader r,
+                                               long min,
+                                               long max) throws IOException {
         final IntTermIterator iterator = r.getIntTermIterator(field);
         try {
-            return newFieldCache(iterator, r.getNumDocs());
+            return newFieldCache(iterator, r.getNumDocs(), min, max);
         } finally {
             iterator.close();
         }
     }
 
     @VisibleForTesting
-    private final IntValueLookup newMMapFieldCache(String field, FlamdexReader r, String directory) throws IOException {
+    private final IntValueLookup newMMapFieldCache(String field,
+                                                   FlamdexReader r,
+                                                   String directory,
+                                                   long min,
+                                                   long max) throws IOException {
         final IntTermIterator iterator = r.getIntTermIterator(field);
         try {
-            return newMMapFieldCache(iterator, r.getNumDocs(), field, directory);
+            return newMMapFieldCache(iterator, r.getNumDocs(), field, directory, min, max);
         } finally {
             iterator.close();
         }

@@ -27,20 +27,24 @@ public final class MMapIntArrayIntValueLookup implements IntValueLookup {
 
     private final MMapBuffer buffer;
     private final IntArray intArray;
+    private final long min;
+    private final long max;
 
-    public MMapIntArrayIntValueLookup(MMapBuffer buffer, int length) {
+    public MMapIntArrayIntValueLookup(MMapBuffer buffer, int length, long min, long max) {
         this.buffer = buffer;
+        this.min = min;
+        this.max = max;
         this.intArray = buffer.memory().intArray(0, length);
     }
 
     @Override
     public long getMin() {
-        return Integer.MIN_VALUE;
+        return min;
     }
 
     @Override
     public long getMax() {
-        return Integer.MAX_VALUE;
+        return max;
     }
 
     @Override
