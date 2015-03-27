@@ -17,6 +17,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.indeed.flamdex.AbstractFlamdexReader.MinMax;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.fieldcache.FieldCacher;
@@ -206,10 +207,11 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader implements RawFla
     private IntValueLookup cacheField(SimpleIntTermIterator iterator,
                                       String metric,
                                       NativeFlamdexFieldCacher fieldCacher) {
+        final MinMax minMax = metricMinMaxes.get(metric);
         try {
             return useMMapMetrics ?
-                fieldCacher.newMMapFieldCache(iterator, numDocs, metric, directory) :
-                fieldCacher.newFieldCache(iterator, numDocs);
+                fieldCacher.newMMapFieldCache(iterator, numDocs, metric, directory, minMax.min, minMax.max) :
+                fieldCacher.newFieldCache(iterator, numDocs, minMax.min, minMax.max);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -227,8 +229,11 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader implements RawFla
     private NativeFlamdexFieldCacher getMetricCacher(String metric) {
         synchronized (intFieldCachers) {
             if (!intFieldCachers.containsKey(metric)) {
-                final NativeFlamdexFieldCacher cacher = FieldCacherUtil.getNativeCacherForField(metric, this);
+                final MinMax minMax = new MinMax();
+                final NativeFlamdexFieldCacher cacher =
+                        FieldCacherUtil.getNativeCacherForField(metric, this, minMax);
                 intFieldCachers.put(metric, cacher);
+                metricMinMaxes.put(metric, minMax);
             }
             return intFieldCachers.get(metric);
         }

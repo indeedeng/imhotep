@@ -4,6 +4,7 @@ import com.google.common.base.Charsets;
 import com.google.common.io.Closer;
 import com.google.common.io.CountingOutputStream;
 import com.google.common.io.LittleEndianDataOutputStream;
+import com.indeed.flamdex.AbstractFlamdexReader.MinMax;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringValueLookup;
@@ -16,6 +17,7 @@ import com.indeed.util.mmap.BufferResource;
 import com.indeed.util.mmap.IntArray;
 import com.indeed.util.mmap.NativeBuffer;
 import com.indeed.util.mmap.ZeroCopyOutputStream;
+
 import org.apache.log4j.Logger;
 
 import java.io.BufferedOutputStream;
@@ -83,10 +85,12 @@ public class FieldCacherUtil {
         }
     }
 
-    public static FieldCacher getCacherForField(String field, FlamdexReader r) {
+    public static FieldCacher getCacherForField(String field, FlamdexReader r, MinMax minMax) {
         final long[] minMaxTerm = FlamdexUtils.getMinMaxTerm(field, r);
         final long minTermVal = minMaxTerm[0];
         final long maxTermVal = minMaxTerm[1];
+        minMax.min = minTermVal;
+        minMax.max = maxTermVal;
 
         if (minTermVal >= 0 && maxTermVal <= 1) {
             return FieldCacher.BITSET;
@@ -106,10 +110,13 @@ public class FieldCacherUtil {
     }
 
     public static NativeFlamdexFieldCacher getNativeCacherForField(String field,
-                                                                   SimpleFlamdexReader r) {
+                                                                   SimpleFlamdexReader r, 
+                                                                   MinMax minMax) {
         final long[] minMaxTerm = FlamdexUtils.getMinMaxTerm(field, r);
         final long minTermVal = minMaxTerm[0];
         final long maxTermVal = minMaxTerm[1];
+        minMax.min = minTermVal;
+        minMax.max = maxTermVal;
 
         if (minTermVal >= 0 && maxTermVal <= 1) {
             return NativeFlamdexFieldCacher.BITSET;

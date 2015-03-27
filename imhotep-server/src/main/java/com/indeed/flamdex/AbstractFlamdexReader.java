@@ -43,7 +43,13 @@ public abstract class AbstractFlamdexReader implements FlamdexReader {
     protected final int numDocs;
     protected final boolean useMMapMetrics;
 
+    public static final class MinMax {
+        public long min;
+        public long max;
+    }
+    
     private final Map<String, FieldCacher> intFieldCachers;
+    protected final Map<String, MinMax> metricMinMaxes;
 
     protected AbstractFlamdexReader(String directory, int numDocs) {
         this(directory, numDocs, System.getProperty("flamdex.mmap.fieldcache") != null);
@@ -55,6 +61,7 @@ public abstract class AbstractFlamdexReader implements FlamdexReader {
         this.useMMapMetrics = useMMapMetrics;
 
         this.intFieldCachers = Maps.newHashMap();
+        this.metricMinMaxes = Maps.newHashMap();
     }
 
     // this implementation will be correct for any FlamdexReader, but
@@ -83,14 +90,15 @@ public abstract class AbstractFlamdexReader implements FlamdexReader {
     }
 
     private IntValueLookup cacheField(UnsortedIntTermDocIterator iterator, String metric, FieldCacher fieldCacher) {
+        final MinMax minMax = metricMinMaxes.get(metric);
         if (useMMapMetrics) {
             try {
-                return fieldCacher.newMMapFieldCache(iterator, numDocs, metric, directory);
+                return fieldCacher.newMMapFieldCache(iterator, numDocs, metric, directory, minMax.min, minMax.max);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
         }
-        return fieldCacher.newFieldCache(iterator, numDocs);
+        return fieldCacher.newFieldCache(iterator, numDocs, minMax.min, minMax.max);
     }
 
     @Override
@@ -104,8 +112,10 @@ public abstract class AbstractFlamdexReader implements FlamdexReader {
     private FieldCacher getMetricCacher(String metric) {
         synchronized (intFieldCachers) {
             if (!intFieldCachers.containsKey(metric)) {
-                final FieldCacher cacher = FieldCacherUtil.getCacherForField(metric, this);
+                final MinMax minMax = new MinMax();
+                final FieldCacher cacher = FieldCacherUtil.getCacherForField(metric, this, minMax);
                 intFieldCachers.put(metric, cacher);
+                metricMinMaxes.put(metric, minMax);
             }
             return intFieldCachers.get(metric);
         }
