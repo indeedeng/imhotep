@@ -89,6 +89,28 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_nativePackMetric
 }
 
 /*
+ * Class:     com_indeed_imhotep_local_MultiCache
+ * Method:    nativeSetGroupsInRange
+ * Signature: (JII[I)V
+ */
+JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_nativeSetGroupsInRange
+                                    (JNIEnv *env,
+                                     jobject java_multicache_obj,
+                                     jlong table_pointer,
+                                     jint start,
+                                     jint count,
+                                     jintArray values_jarray)
+{
+    packed_table_t *table = (packed_table_t *)table_pointer;
+    jboolean unused;
+    jint *values;
+
+    values = (*env)->GetPrimitiveArrayCritical(env, values_jarray, &unused);
+    packed_table_set_group_range(table, start, count, values);
+    (*env)->ReleasePrimitiveArrayCritical(env, values_jarray, values, JNI_ABORT);
+}
+
+/*
  * Class:     com_indeed_imhotep_local_MultiCache_MultiCacheIntValueLookup
  * Method:    nativeMetricLookup
  * Signature: (JI[I[JI)V

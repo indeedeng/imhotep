@@ -104,7 +104,8 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         this.useNativeFtgs = useNativeFtgs;
         this.memory = memory;
         this.executor = executor;
-        memoryClaimed = 0;
+        this.memoryClaimed = 0;
+        this.closed.set(false);
 
         if (!memory.claimMemory(memoryClaimed)) {
             //noinspection NewExceptionWithoutArguments

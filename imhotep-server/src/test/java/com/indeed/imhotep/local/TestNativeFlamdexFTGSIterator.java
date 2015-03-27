@@ -13,10 +13,8 @@
  */
  package com.indeed.imhotep.local;
 
-import com.amazonaws.services.simpleworkflow.model.Run;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.indeed.flamdex.reader.MockFlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexWriter;
 import com.indeed.flamdex.writer.IntFieldWriter;
@@ -30,11 +28,9 @@ import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.RawFTGSIterator;
-import com.indeed.util.core.Pair;
 import com.indeed.util.io.Files;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.RandomStringUtils;
-import org.apache.lucene.index.IndexWriter;
 import org.junit.Test;
 
 import java.io.File;
@@ -91,12 +87,21 @@ public class TestNativeFlamdexFTGSIterator {
             return merger;
         }
 
-        public void simulateServer(RunnableFactory factory) throws IOException {
-            for (int i = 0; i < nSplits; i++) {
-                Socket sock = serverSocket.accept();
-                Thread t = new Thread(factory.newRunnable(sock, i));
-                t.start();
-            }
+        public void simulateServer(final RunnableFactory factory) throws IOException {
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        for (int i = 0; i < nSplits; i++) {
+                            Socket sock = serverSocket.accept();
+                            Thread t = new Thread(factory.newRunnable(sock, i));
+                            t.start();
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }).start();
         }
 
     }
@@ -141,7 +146,7 @@ public class TestNativeFlamdexFTGSIterator {
         public String name;
         public boolean isIntfield;
         public int numDocs;
-        public long maxTermVal;
+        public long termVal;
     }
 
     private final Random rand = new Random();
@@ -149,7 +154,7 @@ public class TestNativeFlamdexFTGSIterator {
 
     private void createFlamdexIntField(final String dir,
                                        final String intFieldName,
-                                       final long maxTermVal,
+                                       final long term,
                                        final int size) throws IOException {
         final int maxTermDocs = (size < 2000) ? size : size / 1000;
         SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, size, true);
@@ -161,7 +166,6 @@ public class TestNativeFlamdexFTGSIterator {
 
         Map<Long, List<Integer>> map = Maps.newTreeMap();
         while (!docs.isEmpty()) {
-            long term = rand.nextLong() % maxTermVal;
             final List<Integer> selectedDocs;
             if (map.containsKey(term)) {
                 selectedDocs = map.get(term);
@@ -178,9 +182,9 @@ public class TestNativeFlamdexFTGSIterator {
             Collections.sort(selectedDocs);
             map.put(term, selectedDocs);
         }
-        for (long term : map.keySet()) {
-            ifw.nextTerm(term);
-            List<Integer> selectedDocs = map.get(term);
+        for (long t : map.keySet()) {
+            ifw.nextTerm(t);
+            List<Integer> selectedDocs = map.get(t);
             for (int doc : selectedDocs) {
                 ifw.nextDoc(doc);
             }
@@ -202,7 +206,7 @@ public class TestNativeFlamdexFTGSIterator {
 
         Map<String, List<Integer>> map = Maps.newTreeMap();
         while (!docs.isEmpty()) {
-            String term = RandomStringUtils.random(rand.nextInt(MAX_STRING_TERM_LEN));
+            String term = RandomStringUtils.randomAlphabetic(rand.nextInt(MAX_STRING_TERM_LEN));
             if (map.containsKey(term))
                 continue;
             final int maxDocsPerTerm = Math.min(docs.size(), maxTermDocs);
@@ -230,7 +234,7 @@ public class TestNativeFlamdexFTGSIterator {
 
         for (FieldDesc fd : fieldDescs) {
             if (fd.isIntfield) {
-                createFlamdexIntField(dir, fd.name, fd.maxTermVal, fd.numDocs);
+                createFlamdexIntField(dir, fd.name, fd.termVal, fd.numDocs);
             } else {
                 createFlamdexStringField(dir, fd.name, fd.numDocs);
             }
@@ -356,7 +360,7 @@ public class TestNativeFlamdexFTGSIterator {
         {
             final FieldDesc fd = new FieldDesc();
             fd.isIntfield = false;
-            fd.name = RandomStringUtils.random(MAX_FIELD_NAME_LEN);
+            fd.name = RandomStringUtils.randomAlphabetic(MAX_FIELD_NAME_LEN);
             fieldName = fd.name;
             fd.numDocs = rand.nextInt(64 * 2 ^ 20);  // 64MB
             fieldDescs.add(fd);
@@ -366,8 +370,8 @@ public class TestNativeFlamdexFTGSIterator {
         for (int i = 0; i < nMetrics; i++) {
             final FieldDesc fd = new FieldDesc();
             fd.isIntfield = true;
-            fd.name = RandomStringUtils.random(MAX_FIELD_NAME_LEN);
-            fd.maxTermVal = MetricMaxSizes.getRandomSize().randVal();
+            fd.name = RandomStringUtils.randomAlphabetic(MAX_FIELD_NAME_LEN);
+            fd.termVal = MetricMaxSizes.getRandomSize().randVal();
             fd.numDocs = rand.nextInt(64 * 2^20);  // 64MB
             fieldDescs.add(fd);
         }

@@ -77,19 +77,19 @@ public class NativeFtgsRunner {
                     final int numSplits,
                     final Socket[] sockets) throws InterruptedException, IOException {
         for (String field : intFields) {
-            final Iterator<NativeTGSinfo> iter = createIntIterator(field, numSplits);
+            final CloseableIter iter = createIntIterator(field, numSplits);
             try {
                 internalRun(field, true, iter, sockets);
             } finally {
-                ((Closeable)iter).close();
+                iter.close();
             }
         }
         for (String field : stringFields) {
-            final Iterator<NativeTGSinfo> iter = createStringIterator(field, numSplits);
+            final CloseableIter iter = createStringIterator(field, numSplits);
             try {
                 internalRun(field, false, iter, sockets);
             } finally {
-                ((Closeable)iter).close();
+                iter.close();
             }
         }
     }
@@ -128,12 +128,12 @@ public class NativeFtgsRunner {
         service.processData(iter, null);
     }
 
-    private Iterator<NativeTGSinfo> createIntIterator(final String intField, final int numSplits) {
+    private CloseableIter createIntIterator(final String intField, final int numSplits) {
         try {
             final Iterator<TermDesc> iter;
             iter = multiShardFlamdexReader.intTermOffsetIterator(intField);
-
-            return Iterators.transform(iter, new Function<TermDesc, NativeTGSinfo>() {
+            final Iterator<NativeTGSinfo> modifiedIter;
+            modifiedIter = Iterators.transform(iter, new Function<TermDesc, NativeTGSinfo>() {
                 @Nullable
                 @Override
                 public NativeTGSinfo apply(@Nullable TermDesc desc) {
@@ -144,18 +144,20 @@ public class NativeFtgsRunner {
                     return info;
                 }
             });
+
+            return new CloseableIter(iter, modifiedIter);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private Iterator<NativeTGSinfo> createStringIterator(final String stringField,
+    private CloseableIter createStringIterator(final String stringField,
                                                          final int numSplits) {
         try {
             final Iterator<TermDesc> iter;
             iter = multiShardFlamdexReader.stringTermOffsetIterator(stringField);
-
-            return Iterators.transform(iter, new Function<TermDesc, NativeTGSinfo>() {
+            final Iterator<NativeTGSinfo> modifiedIter;
+            modifiedIter = Iterators.transform(iter, new Function<TermDesc, NativeTGSinfo>() {
                 @Nullable
                 @Override
                 public NativeTGSinfo apply(@Nullable TermDesc desc) {
@@ -166,8 +168,40 @@ public class NativeFtgsRunner {
                     return info;
                 }
             });
+
+            return new CloseableIter(iter, modifiedIter);
         } catch (IOException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    private static final class CloseableIter implements Closeable, Iterator<NativeTGSinfo> {
+        private Iterator<TermDesc> closeable;
+        private final Iterator<NativeTGSinfo> iter;
+
+        private CloseableIter(Iterator<TermDesc> closeable, Iterator<NativeTGSinfo> iter) {
+            this.closeable = closeable;
+            this.iter = iter;
+        }
+
+        @Override
+        public void close() throws IOException {
+            ((Closeable)closeable).close();
+        }
+
+        @Override
+        public boolean hasNext() {
+            return iter.hasNext();
+        }
+
+        @Override
+        public NativeTGSinfo next() {
+            return iter.next();
+        }
+
+        @Override
+        public void remove() {
+            iter.remove();
         }
     }
 }
