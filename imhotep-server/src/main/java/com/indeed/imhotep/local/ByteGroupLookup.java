@@ -20,7 +20,7 @@ import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.imhotep.BitTree;
 import com.indeed.imhotep.GroupRemapRule;
 
-final class ByteGroupLookup extends GroupLookup {
+final class ByteGroupLookup extends GroupLookup implements ArrayBasedGroupLookup {
     /**
      *
      */
@@ -31,6 +31,8 @@ final class ByteGroupLookup extends GroupLookup {
         session = imhotepLocalSession;
         docIdToGroup = new byte[size];
     }
+
+    byte[] getDocIdToGroup() { return docIdToGroup; }
 
     @Override
     public void nextGroupCallback(int n, long[][] termGrpStats, BitTree groupsSeen) {

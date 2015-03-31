@@ -104,7 +104,7 @@ int main(int argc, char* argv[])
         vector<DocId> batch(batch_begin, batch_end);
         sort(batch.begin(), batch.end());
         doc_ids_encode(batch.begin(), batch.end(), buffer);
-        remap_docs_in_target_groups(shard(), results.data(), buffer.data(), batch_size, remappings.data(), -1);
+        remap_docs_in_target_groups_int32_t(shard(), results.data(), buffer.data(), batch_size, remappings.data(), -1);
 
         batch_begin = batch_end;
     }

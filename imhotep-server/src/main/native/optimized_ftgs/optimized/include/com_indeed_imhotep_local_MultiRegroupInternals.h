@@ -10,9 +10,25 @@ extern "C" {
 /*
  * Class:     com_indeed_imhotep_local_MultiRegroupInternals
  * Method:    nativeRemapDocsInTargetGroups
+ * Signature: (J[BJI[II)V
+ */
+JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiRegroupInternals_nativeRemapDocsInTargetGroups__J_3BJI_3II
+  (JNIEnv *, jclass, jlong, jbyteArray, jlong, jint, jintArray, jint);
+
+/*
+ * Class:     com_indeed_imhotep_local_MultiRegroupInternals
+ * Method:    nativeRemapDocsInTargetGroups
+ * Signature: (J[CJI[II)V
+ */
+JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiRegroupInternals_nativeRemapDocsInTargetGroups__J_3CJI_3II
+  (JNIEnv *, jclass, jlong, jcharArray, jlong, jint, jintArray, jint);
+
+/*
+ * Class:     com_indeed_imhotep_local_MultiRegroupInternals
+ * Method:    nativeRemapDocsInTargetGroups
  * Signature: (J[IJI[II)V
  */
-JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiRegroupInternals_nativeRemapDocsInTargetGroups
+JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiRegroupInternals_nativeRemapDocsInTargetGroups__J_3IJI_3II
   (JNIEnv *, jclass, jlong, jintArray, jlong, jint, jintArray, jint);
 
 #ifdef __cplusplus

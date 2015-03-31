@@ -11,7 +11,7 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.indeed.imhotep.local;
+package com.indeed.imhotep.local;
 
 import java.util.Arrays;
 
@@ -20,7 +20,7 @@ import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.imhotep.BitTree;
 import com.indeed.imhotep.GroupRemapRule;
 
-final class IntGroupLookup extends GroupLookup {
+final class IntGroupLookup extends GroupLookup implements ArrayBasedGroupLookup {
     /**
      *
      */
@@ -37,7 +37,8 @@ final class IntGroupLookup extends GroupLookup {
         docIdToGroup = content;
     }
 
-    public int[] gibbyBits() { return docIdToGroup; }
+
+    int[] getDocIdToGroup() { return docIdToGroup; }
 
     @Override
     public void nextGroupCallback(int n, long[][] termGrpStats, BitTree groupsSeen) {
