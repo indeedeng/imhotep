@@ -37,6 +37,8 @@ final class IntGroupLookup extends GroupLookup {
         docIdToGroup = content;
     }
 
+    public int[] gibbyBits() { return docIdToGroup; }
+
     @Override
     public void nextGroupCallback(int n, long[][] termGrpStats, BitTree groupsSeen) {
         int rewriteHead = 0;

@@ -609,14 +609,6 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
         }
     }
 
-    synchronized int[] exportDocIdToGroupId() {
-        int[] result = new int[docIdToGroup.size()];
-        for (int i = result.length - 1; i >= 0; --i) {
-            result[i] = docIdToGroup.get(i);
-        }
-        return result;
-    }
-
     @Override
     public synchronized long getTotalDocFreq(String[] intFields, String[] stringFields) {
         long ret = 0L;
@@ -1048,7 +1040,7 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
         docIdToGroup.recalculateNumGroups();
         newNumGroups = docIdToGroup.getNumGroups();
         accountForFlamdexFTGSIteratorMemChange(oldNumGroups, newNumGroups);
-        docIdToGroup = GroupLookupFactory.resize(docIdToGroup, 0, memory);
+        if (multiCache == null) docIdToGroup = GroupLookupFactory.resize(docIdToGroup, 0, memory);
         recalcGroupCounts(newNumGroups);
         recalcGroupStats(newNumGroups);
     }

@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.*;
 
 import junit.framework.TestCase;
 import org.junit.Test;
+import static org.junit.Assert.assertArrayEquals;
 
 /**
  * @author jfinley
@@ -109,9 +110,12 @@ public class TestMultiRegroup extends TestCase {
         throws IOException, ImhotepOutOfMemoryException {
         try (final SimpleFlamdexReader reader = SimpleFlamdexReader.open(shardDir.toString());
              final ImhotepLocalSession session = new ImhotepLocalSession(reader)) {
+                int[] result = new int[N_DOCS];
                 final FlamdexReader[]  readers = new FlamdexReader[] { reader };
                 session.regroup(regroupRule);
-                return session.exportDocIdToGroupId();
+                //                return session.exportDocIdToGroupId();
+                session.exportDocIdToGroupId(result);
+                return result;
             }
     }
 
@@ -119,6 +123,7 @@ public class TestMultiRegroup extends TestCase {
         throws IOException, ImhotepOutOfMemoryException {
         try (final SimpleFlamdexReader reader = SimpleFlamdexReader.open(shardDir.toString());
              final ImhotepLocalSession session = new ImhotepLocalSession(reader)) {
+                int[] result = new int[N_DOCS];
                 final FlamdexReader[]  readers = new FlamdexReader[] { reader };
                 final MultiCacheConfig  config = new MultiCacheConfig(1);
                 final MultiCache[]      caches = new MultiCache[] { session.buildMulticache(config, 0) };
@@ -131,7 +136,9 @@ public class TestMultiRegroup extends TestCase {
                                                    new MemoryReservationContext(memoryPool),
                                                    executor, theAtomicPunk, true);
                 mtSession.regroup(regroupRule);
-                return session.exportDocIdToGroupId();
+                // return session.exportDocIdToGroupId();
+                session.exportDocIdToGroupId(result);
+                return result;
             }
     }
 
@@ -147,8 +154,15 @@ public class TestMultiRegroup extends TestCase {
             new GroupMultiRemapRule[] {
             new GroupMultiRemapRule(1, 0, positiveGroups, conditions)
         };
-        int[] nativeRegroup = nativeRegroup(regroupRule);
         int[] normalRegroup = normalRegroup(regroupRule);
-        assertEquals("native regroup should match normal one", normalRegroup, nativeRegroup);
+        int[] nativeRegroup = nativeRegroup(regroupRule);
+        for (int x = 0; x < nativeRegroup.length; ++x) {
+            if (nativeRegroup[x] != normalRegroup[x]) {
+                System.err.println("x: " + x +
+                                   " native: " + nativeRegroup[x] +
+                                   " normal: " + normalRegroup[x]);
+            }
+        }
+        assertArrayEquals(normalRegroup, nativeRegroup);
     }
 }
