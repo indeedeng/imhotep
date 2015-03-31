@@ -161,6 +161,7 @@ __v16qi * packed_table_get_row_addr(packed_table_t *table, int row);
 
 long packed_table_get_cell(packed_table_t *table, int row, int column);
 void packed_table_set_cell(packed_table_t *table, int row, int col, long value);
+int packed_table_get_num_groups(packed_table_t *table);
 int packed_table_get_group(packed_table_t *table, int row);
 void packed_table_set_group(packed_table_t *table, int row, int value);
 void packed_table_set_all_groups(packed_table_t *table, int value);

@@ -2,6 +2,12 @@
 #include <assert.h>
 #include "table.h"
 
+#define MAX(a, b) ({ \
+    __typeof__(a) _a = (a); \
+    __typeof__(b) _b = (b); \
+    _a > _b ? _a : _b; \
+})
+
 /* Creates the starting and end indexes of the cols, where col/16 indicates
  * in which vector the col is.
  */
@@ -427,6 +433,17 @@ void packed_table_set_cell(packed_table_t *table, int row, int col, long value)
     }
 
     internal_set_cell(table, row, col, value, packed_vector_index);
+}
+
+int packed_table_get_num_groups(packed_table_t *table)
+{
+    int result = 0;
+    const int rows = packed_table_get_rows(table);
+    for (int row = 0; row < rows; ++row) {
+        const int group = packed_table_get_group(table, row);
+        result = MAX(result, group + 1);
+    }
+    return result;
 }
 
 int packed_table_get_group(packed_table_t *table, int row)

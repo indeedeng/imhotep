@@ -282,3 +282,18 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_00024MultiCacheG
     packed_table_bit_set_regroup(table, bits, target_group, negativeGroup, positiveGroup);
     (*env)->ReleasePrimitiveArrayCritical(env, bitset_jarray, bits, JNI_ABORT);
 }
+
+/*
+ * Class:     com_indeed_imhotep_local_MultiCache_MultiCacheGroupLookup
+ * Method:    nativeRecalculateNumGroups
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_indeed_imhotep_local_MultiCache_00024MultiCacheGroupLookup_nativeRecalculateNumGroups
+  (JNIEnv *env,
+   jobject java_group_lookup_obj,
+   jlong table_pointer)
+{
+    packed_table_t *table = (packed_table_t *)table_pointer;
+    jint result = packed_table_get_num_groups(table);
+    return result;
+}

@@ -434,12 +434,7 @@ public final class MultiCache implements Closeable {
 
         @Override
         protected void recalculateNumGroups() {
-            // TODO
-            int max = 0;
-            for (int i = 0; i < size(); ++i) {
-                max = Math.max(max, get(i) + 1);
-            }
-            this.numGroups = max;
+            this.numGroups = nativeRecalculateNumGroups(MultiCache.this.nativeShardDataPtr);
             return;
         }
 
@@ -470,5 +465,6 @@ public final class MultiCache implements Closeable {
                                                 int negativeGroup,
                                                 int positiveGroup);
 
+        private native int nativeRecalculateNumGroups(long nativeShardDataPtr);
     }
 }

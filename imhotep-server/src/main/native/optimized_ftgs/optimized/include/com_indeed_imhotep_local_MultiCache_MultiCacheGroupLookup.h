@@ -63,6 +63,14 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_00024MultiCacheG
 JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_00024MultiCacheGroupLookup_nativeBitSetRegroup
   (JNIEnv *, jobject, jlong, jlongArray, jint, jint, jint);
 
+/*
+ * Class:     com_indeed_imhotep_local_MultiCache_MultiCacheGroupLookup
+ * Method:    nativeRecalculateNumGroups
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_indeed_imhotep_local_MultiCache_00024MultiCacheGroupLookup_nativeRecalculateNumGroups
+  (JNIEnv *, jobject, jlong);
+
 #ifdef __cplusplus
 }
 #endif
