@@ -239,7 +239,6 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
         return this.flamdexReader;
     }
 
-
     public MultiCache buildMulticache(final MultiCacheConfig config, final int id) {
         if (this.rebuildMultiCache) {
             this.multiCache = config.buildMultiCache(this,
@@ -610,6 +609,14 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
         }
     }
 
+    synchronized int[] exportDocIdToGroupId() {
+        int[] result = new int[docIdToGroup.size()];
+        for (int i = result.length - 1; i >= 0; --i) {
+            result[i] = docIdToGroup.get(i);
+        }
+        return result;
+    }
+
     @Override
     public synchronized long getTotalDocFreq(String[] intFields, String[] stringFields) {
         long ret = 0L;
@@ -890,10 +897,12 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
 
         final int maxIntermediateGroup = Math.max(docIdToGroup.getNumGroups(), highestTarget);
         final int maxNewGroup = MultiRegroupInternals.findMaxGroup(rules);
-        docIdToGroup =
-                GroupLookupFactory.resize(docIdToGroup,
-                                          Math.max(maxIntermediateGroup, maxNewGroup),
-                                          memory);
+        docIdToGroup = multiCache != null ?
+            multiCache.getGroupLookup() :
+            GroupLookupFactory.resize(docIdToGroup,
+                                      Math.max(maxIntermediateGroup, maxNewGroup),
+                                      memory);
+
         MultiRegroupInternals.moveUntargeted(docIdToGroup, maxIntermediateGroup, rules);
 
         final int maxConditionIndex = MultiRegroupInternals.findMaxIntermediateGroup(rules);
@@ -1157,9 +1166,9 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
             clearZeroDocBitsets();
         }
         docIdToGroup =
-                GroupLookupFactory.resize(docIdToGroup,
-                                          Math.max(negativeGroup, positiveGroup),
-                                          memory);
+            GroupLookupFactory.resize(docIdToGroup,
+                                      Math.max(negativeGroup, positiveGroup),
+                                      memory);
 
         final FastBitSetPooler bitSetPooler = new ImhotepBitSetPooler(memory);
         final FastBitSet docRemapped;
@@ -1208,9 +1217,9 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
             clearZeroDocBitsets();
         }
         docIdToGroup =
-                GroupLookupFactory.resize(docIdToGroup,
-                        Math.max(negativeGroup, positiveGroup),
-                        memory);
+            GroupLookupFactory.resize(docIdToGroup,
+                                      Math.max(negativeGroup, positiveGroup),
+                                      memory);
 
         final FastBitSetPooler bitSetPooler = new ImhotepBitSetPooler(memory);
         final FastBitSet docRemapped;
@@ -1282,9 +1291,9 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
             clearZeroDocBitsets();
         }
         docIdToGroup =
-                GroupLookupFactory.resize(docIdToGroup,
-                                          Math.max(negativeGroup, positiveGroup),
-                                          memory);
+            GroupLookupFactory.resize(docIdToGroup,
+                                      Math.max(negativeGroup, positiveGroup),
+                                      memory);
 
         final ImhotepChooser chooser = new ImhotepChooser(salt, p);
         final DocIdStream docIdStream = flamdexReader.getDocIdStream();
@@ -2443,7 +2452,7 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
             while (numStats > 0) {
                 popStat();
             }
-            if (docIdToGroup != null) {
+            if (docIdToGroup != null && (multiCache == null)) {
                 final long memFreed =
                         docIdToGroup.memoryUsed() + groupDocCount.length * 4L + BUFFER_SIZE
                                 * (4 + 4 + 4) + 12L * docIdToGroup.getNumGroups();

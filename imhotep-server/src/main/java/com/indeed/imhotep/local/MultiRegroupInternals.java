@@ -284,12 +284,11 @@ class MultiRegroupInternals {
     }
 
     static void performStringMultiEqualityRegroup(GroupLookup docIdToGroup, GroupLookup newLookup, int[] docIdBuf, DocIdStream docIdStream, StringTermIterator termIterator, int[] remappings, String term, int placeHolderGroup) throws IOException {
+
         termIterator.reset(term);
         if (termIterator.next() && termIterator.term().equals(term)) {
             if (docIdToGroup instanceof MultiCache.MultiCacheGroupLookup &&
-                newLookup instanceof IntGroupLookup &&
                 termIterator instanceof SimpleStringTermIterator) {
-                final IntGroupLookup mcNewLookup = (IntGroupLookup) newLookup;
                 final SimpleStringTermIterator ssTermIterator = (SimpleStringTermIterator) termIterator;
                 int[] results = new int[newLookup.size()];
                 nativeRemapDocsInTargetGroups(((MultiCache.MultiCacheGroupLookup) docIdToGroup).nativeShardDataPtr(),
@@ -297,7 +296,7 @@ class MultiRegroupInternals {
                                               ssTermIterator.getDocListAddress() + ssTermIterator.getOffset(),
                                               ssTermIterator.docFreq(),
                                               remappings, placeHolderGroup);
-                new IntGroupLookup(newLookup.getSession(), results).copyInto(mcNewLookup);
+                new IntGroupLookup(newLookup.getSession(), results).copyInto(newLookup);
             } else {
                 docIdStream.reset(termIterator);
                 remapDocsInTargetGroups(docIdToGroup, newLookup, docIdBuf, docIdStream, remappings, placeHolderGroup);
@@ -306,12 +305,11 @@ class MultiRegroupInternals {
     }
 
     static void performIntMultiEqualityRegroup(GroupLookup docIdToGroup, GroupLookup newLookup, int[] docIdBuf, DocIdStream docIdStream, IntTermIterator termIterator, int[] remappings, long term, int placeHolderGroup) throws IOException {
+
         termIterator.reset(term);
         if (termIterator.next() && termIterator.term() == term) {
             if (docIdToGroup instanceof MultiCache.MultiCacheGroupLookup &&
-                newLookup instanceof IntGroupLookup &&
                 termIterator instanceof SimpleIntTermIterator) {
-                final IntGroupLookup mcNewLookup = (IntGroupLookup) newLookup;
                 final SimpleIntTermIterator ssTermIterator = (SimpleIntTermIterator) termIterator;
                 int[] results = new int[newLookup.size()];
                 nativeRemapDocsInTargetGroups(((MultiCache.MultiCacheGroupLookup) docIdToGroup).nativeShardDataPtr(),
@@ -319,7 +317,7 @@ class MultiRegroupInternals {
                                               ssTermIterator.getDocListAddress() + ssTermIterator.getOffset(),
                                               ssTermIterator.docFreq(),
                                               remappings, placeHolderGroup);
-                new IntGroupLookup(newLookup.getSession(), results).copyInto(mcNewLookup);
+                new IntGroupLookup(newLookup.getSession(), results).copyInto(newLookup);
             } else {
                 docIdStream.reset(termIterator);
                 remapDocsInTargetGroups(docIdToGroup, newLookup, docIdBuf, docIdStream, remappings, placeHolderGroup);
