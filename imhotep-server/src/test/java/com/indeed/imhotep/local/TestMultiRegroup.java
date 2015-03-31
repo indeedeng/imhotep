@@ -25,6 +25,8 @@ import com.indeed.util.io.Files;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
 
 import junit.framework.TestCase;
 import org.junit.Test;
@@ -54,7 +56,6 @@ public class TestMultiRegroup extends TestCase {
         super.setUp();
 
         MTImhotepLocalMultiSession.loadNativeLibrary();
-        //  System.load("/home/johnf/work/imhotep/imhotep-server/src/main/native/optimized_ftgs/optimized/libftgs.so.1.0.1");
 
         random = new Random(42);
 
@@ -98,71 +99,56 @@ public class TestMultiRegroup extends TestCase {
     private long[] generateTerms(final int count) {
         long[] result = new long[count];
         for (int nTerm = 0; nTerm < result.length; ++nTerm) {
-            result[nTerm] = random.nextLong();
+            result[nTerm] = nTerm + 1;
         }
         Arrays.sort(result);
         return result;
     }
 
-    @Test
-    public void testRandomMultiIntRegroup()
+    private int[] normalRegroup(GroupMultiRemapRule[] regroupRule)
         throws IOException, ImhotepOutOfMemoryException {
         try (final SimpleFlamdexReader reader = SimpleFlamdexReader.open(shardDir.toString());
              final ImhotepLocalSession session = new ImhotepLocalSession(reader)) {
-                final double[] percentages = new double[] { 0.10, 0.50 };
-                final int[] resultGroups = new int[] { 5, 6, 7 };
-                session.randomMultiRegroup(fields.get(0), true, "salt", 1,
-                                           percentages, resultGroups);
+                final FlamdexReader[]  readers = new FlamdexReader[] { reader };
+                session.regroup(regroupRule);
+                return session.exportDocIdToGroupId();
             }
     }
 
-
-    @Test
-    public void testMultiCacheIntRegroup()
+    private int[] nativeRegroup(GroupMultiRemapRule[] regroupRule)
         throws IOException, ImhotepOutOfMemoryException {
         try (final SimpleFlamdexReader reader = SimpleFlamdexReader.open(shardDir.toString());
              final ImhotepLocalSession session = new ImhotepLocalSession(reader)) {
                 final FlamdexReader[]  readers = new FlamdexReader[] { reader };
                 final MultiCacheConfig  config = new MultiCacheConfig(1);
                 final MultiCache[]      caches = new MultiCache[] { session.buildMulticache(config, 0) };
-
-                final RegroupCondition[] conditions = new RegroupCondition[10];
-                final int[] positiveGroups = new int[10];
-                for (int i = 1; i <= 10; i++) {
-                    conditions[i - 1] = new RegroupCondition("if1", true, i, null, false);
-                    positiveGroups[i - 1] = i;
-                }
-                GroupMultiRemapRule[] gmrr = new GroupMultiRemapRule[] {
-                    new GroupMultiRemapRule(1, 0, positiveGroups, conditions)
-                };
-                session.regroup(gmrr);
+                final ExecutorService executor = Executors.newCachedThreadPool();
+                AtomicLong theAtomicPunk = new AtomicLong(100000);
+                ImhotepLocalSession[] localSessions = new ImhotepLocalSession[] { session };
+                ImhotepMemoryPool memoryPool = new ImhotepMemoryPool(Long.MAX_VALUE);
+                final MTImhotepLocalMultiSession mtSession =
+                    new MTImhotepLocalMultiSession(localSessions,
+                                                   new MemoryReservationContext(memoryPool),
+                                                   executor, theAtomicPunk, true);
+                mtSession.regroup(regroupRule);
+                return session.exportDocIdToGroupId();
             }
     }
 
-    @Test
-    public void testSingleMultisplitIntRegroup()
+    public void testMultiCacheIntRegroup()
         throws IOException, ImhotepOutOfMemoryException {
-        try (final SimpleFlamdexReader reader = SimpleFlamdexReader.open(shardDir.toString());
-             final ImhotepLocalSession session = new ImhotepLocalSession(reader)) {
-
-                final RegroupCondition[] conditions = new RegroupCondition[10];
-                final int[] positiveGroups = new int[10];
-                for (int i = 1; i <= 10; i++) {
-                    conditions[i - 1] = new RegroupCondition("if1", true, i, null, false);
-                    positiveGroups[i - 1] = i;
-                }
-                session.regroup(new GroupMultiRemapRule[] { new GroupMultiRemapRule(1, 0, positiveGroups,
-                                                                                    conditions) });
-                /*
-                int[] docIdToGroup = new int[11];
-                session.exportDocIdToGroupId(docIdToGroup);
-                for (int docId = 0; docId < 10; docId++) {
-                    final int actualGroup = docIdToGroup[docId];
-                    final int expectedGroup = docId + 1;
-                    assertEquals("doc id #" + docId + " was misgrouped;", expectedGroup, actualGroup);
-                }
-                assertEquals("doc id #10 should be in no group", 0, docIdToGroup[10]);
-                */
-            }
+        final RegroupCondition[] conditions = new RegroupCondition[10];
+        final int[] positiveGroups = new int[10];
+        for (int i = 1; i <= 10; i++) {
+            conditions[i - 1] = new RegroupCondition("if1", true, i, null, false);
+            positiveGroups[i - 1] = i;
+        }
+        GroupMultiRemapRule[] regroupRule =
+            new GroupMultiRemapRule[] {
+            new GroupMultiRemapRule(1, 0, positiveGroups, conditions)
+        };
+        int[] nativeRegroup = nativeRegroup(regroupRule);
+        int[] normalRegroup = normalRegroup(regroupRule);
+        assertEquals("native regroup should match normal one", normalRegroup, nativeRegroup);
     }
 }
