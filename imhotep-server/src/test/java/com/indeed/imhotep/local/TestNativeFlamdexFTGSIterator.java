@@ -29,6 +29,7 @@ import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.util.io.Files;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.RandomStringUtils;
 import org.junit.Test;
@@ -52,9 +53,6 @@ import static org.junit.Assert.assertTrue;
  * @author jwolfe
  */
 public class TestNativeFlamdexFTGSIterator {
-    private static final String INT_ITERATION_FIELD = "iterationField";
-    private static final String STRING_ITERATION_FIELD = "stringIterationField";
-    private static final String METRIC_FIELD = "metricField";
     // this field is silly and exists for regrouping purposes.
     private static final String DOCID_FIELD = "docIdField";
 
@@ -87,21 +85,35 @@ public class TestNativeFlamdexFTGSIterator {
             return merger;
         }
 
-        public void simulateServer(final RunnableFactory factory) throws IOException {
-            new Thread(new Runnable() {
+        public Thread simulateServer(final RunnableFactory factory) throws IOException {
+            final Thread result = new Thread(new Runnable() {
                 @Override
                 public void run() {
                     try {
+                        Thread[] threads = new Thread[nSplits];
                         for (int i = 0; i < nSplits; i++) {
                             Socket sock = serverSocket.accept();
                             Thread t = new Thread(factory.newRunnable(sock, i));
                             t.start();
+                            threads[i] = t;
+                        }
+                        
+                        for (Thread t : threads) {
+                            t.join();
                         }
                     } catch (IOException e) {
                         e.printStackTrace();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
                     }
                 }
-            }).start();
+            });
+            result.start();
+            return result;
+        }
+        
+        public void close() throws IOException {
+            this.serverSocket.close();
         }
 
     }
@@ -131,10 +143,12 @@ public class TestNativeFlamdexFTGSIterator {
             return new Runnable() {
                 @Override
                 public void run() {
-                    session.writeFTGSIteratorSplit(intFields, stringFields, i, numSplits, socket);
                     try {
+                        session.writeFTGSIteratorSplit(intFields, stringFields, i, numSplits, socket);
                         socket.close();
                     } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    } catch (ImhotepOutOfMemoryException e) {
                         throw new RuntimeException(e);
                     }
                 }
@@ -146,7 +160,7 @@ public class TestNativeFlamdexFTGSIterator {
         public String name;
         public boolean isIntfield;
         public int numDocs;
-        public long termVal;
+        public MetricMaxSizes termGenerator;
     }
 
     private final Random rand = new Random();
@@ -154,10 +168,10 @@ public class TestNativeFlamdexFTGSIterator {
 
     private void createFlamdexIntField(final String dir,
                                        final String intFieldName,
-                                       final long term,
-                                       final int size) throws IOException {
+                                       final MetricMaxSizes termGenerator,
+                                       final int size,
+                                       SimpleFlamdexWriter w) throws IOException {
         final int maxTermDocs = (size < 2000) ? size : size / 1000;
-        SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, size, true);
         IntFieldWriter ifw = w.getIntFieldWriter(intFieldName);
         List<Integer> docs = Lists.newArrayListWithCapacity(size);
         for (int i = 0; i < size; i++) {
@@ -167,6 +181,7 @@ public class TestNativeFlamdexFTGSIterator {
         Map<Long, List<Integer>> map = Maps.newTreeMap();
         while (!docs.isEmpty()) {
             final List<Integer> selectedDocs;
+            final long term = termGenerator.randVal();
             if (map.containsKey(term)) {
                 selectedDocs = map.get(term);
             } else {
@@ -190,14 +205,13 @@ public class TestNativeFlamdexFTGSIterator {
             }
         }
         ifw.close();
-        w.close();
     }
 
     private void createFlamdexStringField(final String dir,
                                        final String stringFieldName,
-                                       final int size) throws IOException {
+                                       final int size,
+                                       SimpleFlamdexWriter w) throws IOException {
         final int maxTermDocs = (size < 2000) ? size : size / 1000;
-        SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, size, true);
         StringFieldWriter sfw = w.getStringFieldWriter(stringFieldName);
         List<Integer> docs = Lists.newArrayListWithCapacity(size);
         for (int i = 0; i < size; i++) {
@@ -226,20 +240,28 @@ public class TestNativeFlamdexFTGSIterator {
             }
         }
         sfw.close();
-        w.close();
     }
 
     private String generateShard(List<FieldDesc> fieldDescs) throws IOException {
         final String dir = Files.getTempDirectory("native-ftgs-test", "fubar");
+        
+        // find max # of docs
+        long nDocs = 0;
+        for (FieldDesc fd : fieldDescs) {
+            nDocs = (fd.numDocs > nDocs) ? fd.numDocs : nDocs;
+        }
+        
+        final SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, nDocs, true);
 
         for (FieldDesc fd : fieldDescs) {
             if (fd.isIntfield) {
-                createFlamdexIntField(dir, fd.name, fd.termVal, fd.numDocs);
+                createFlamdexIntField(dir, fd.name, fd.termGenerator, fd.numDocs, w);
             } else {
-                createFlamdexStringField(dir, fd.name, fd.numDocs);
+                createFlamdexStringField(dir, fd.name, fd.numDocs, w);
             }
         }
 
+        w.close();
         return dir;
     }
 
@@ -314,7 +336,7 @@ public class TestNativeFlamdexFTGSIterator {
 
 
     private MTImhotepLocalMultiSession makeTestSession(List<String> shardDirs,
-                                                       List<FieldDesc> metricFieldDescs,
+                                                       String[] metricNames,
                                                        BitsetOptimizationLevel level) throws ImhotepOutOfMemoryException, IOException {
         ImhotepLocalSession[] localSessions = new ImhotepLocalSession[shardDirs.size()];
         for (int i = 0; i < shardDirs.size(); i++) {
@@ -343,25 +365,110 @@ public class TestNativeFlamdexFTGSIterator {
                                                                                        true),
                                                                   2,
                                                                   1)});
-        for (FieldDesc fd : metricFieldDescs) {
-            mtSession.pushStat(fd.name);
+        for (String metric : metricNames) {
+            mtSession.pushStat(metric);
         }
         return mtSession;
     }
 
     @Test
-    public void testSingleShard() throws IOException, ImhotepOutOfMemoryException {
+    public void testSingleShard() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
         // need at least one
         final int nMetrics = rand.nextInt(MAX_N_METRICS - 1) + 1;
+        String fieldName = RandomStringUtils.randomAlphabetic(MAX_FIELD_NAME_LEN);
+        String[] metricNames = new String[nMetrics];
+        for (int i = 0; i < nMetrics; i++) {
+            metricNames[i] = RandomStringUtils.randomAlphabetic(MAX_FIELD_NAME_LEN);
+        }
+
+        String shardname = createNewShard(nMetrics, fieldName, metricNames);
+        String shardCopy = copyShard(shardname);
+
+        final String[] stringFields = new String[]{fieldName};
+        final String[] intFields = new String[0];
+
+        FTGSIterator verificationIter = getVerificationIterator(Arrays.asList(shardCopy),
+                                                                metricNames,
+                                                                BitsetOptimizationLevel.OPTIMIZE,
+                                                                stringFields,
+                                                                intFields);
+
+        final MTImhotepLocalMultiSession session;
+        session = makeTestSession(Arrays.asList(shardname),
+                                  metricNames,
+                                  BitsetOptimizationLevel.OPTIMIZE);
+
+        RunnableFactory factory = new WriteFTGSRunner(session, intFields, stringFields, 8);
+        ClusterSimulator simulator = new ClusterSimulator(8, nMetrics);
+
+        Thread t = simulator.simulateServer(factory);
+        RawFTGSIterator ftgsIterator = simulator.getIterator();
+
+        compareIterators(ftgsIterator, verificationIter, nMetrics);
+
+        t.join();
+        
+        simulator.close();
+        verificationIter.close();
+    }
+
+    @Test
+    public void test30Shards() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
+        // need at least one
+        final int nMetrics = rand.nextInt(MAX_N_METRICS - 1) + 1;
+        String fieldName = RandomStringUtils.randomAlphabetic(MAX_FIELD_NAME_LEN);
+        String[] metricNames = new String[nMetrics];
+        for (int i = 0; i < nMetrics; i++) {
+            metricNames[i] = RandomStringUtils.randomAlphabetic(MAX_FIELD_NAME_LEN);
+        }
+
+
+        List<String> shardNames = new ArrayList<>();
+        List<String> shardCopies = new ArrayList<>();
+        for (int i = 0; i < 30; i++) {
+            final String shard = createNewShard(nMetrics, fieldName, metricNames);
+            shardNames.add(shard);
+            shardCopies.add(copyShard(shard));
+        }
+
+        final String[] stringFields = new String[]{fieldName};
+        final String[] intFields = new String[0];
+
+        FTGSIterator verificationIter = getVerificationIterator(shardCopies,
+                                                                metricNames,
+                                                                BitsetOptimizationLevel.OPTIMIZE,
+                                                                stringFields,
+                                                                intFields);
+
+        final MTImhotepLocalMultiSession session;
+        session = makeTestSession(shardNames,
+                                  metricNames,
+                                  BitsetOptimizationLevel.OPTIMIZE);
+
+        RunnableFactory factory = new WriteFTGSRunner(session, intFields, stringFields, 8);
+        ClusterSimulator simulator = new ClusterSimulator(8, nMetrics);
+
+        Thread t = simulator.simulateServer(factory);
+        RawFTGSIterator ftgsIterator = simulator.getIterator();
+
+        compareIterators(ftgsIterator, verificationIter, nMetrics);
+        
+        t.join();
+
+        simulator.close();
+        verificationIter.close();
+    }
+
+    private String createNewShard(int nMetrics,
+                                  String fieldName,
+                                  String[] metricNames) throws IOException {
         final List<FieldDesc> fieldDescs = new ArrayList<>(nMetrics);
-        String fieldName;
 
         // create field
         {
             final FieldDesc fd = new FieldDesc();
             fd.isIntfield = false;
-            fd.name = RandomStringUtils.randomAlphabetic(MAX_FIELD_NAME_LEN);
-            fieldName = fd.name;
+            fd.name = fieldName;
             fd.numDocs = rand.nextInt(64 * 2 ^ 20);  // 64MB
             fieldDescs.add(fd);
         }
@@ -370,40 +477,13 @@ public class TestNativeFlamdexFTGSIterator {
         for (int i = 0; i < nMetrics; i++) {
             final FieldDesc fd = new FieldDesc();
             fd.isIntfield = true;
-            fd.name = RandomStringUtils.randomAlphabetic(MAX_FIELD_NAME_LEN);
-            fd.termVal = MetricMaxSizes.getRandomSize().randVal();
+            fd.name = metricNames[i];
+            fd.termGenerator = MetricMaxSizes.getRandomSize();
             fd.numDocs = rand.nextInt(64 * 2^20);  // 64MB
             fieldDescs.add(fd);
         }
 
-        String shardname = generateShard(fieldDescs);
-        String shardCopy = copyShard(shardname);
-
-        // remove string field, leaving metric fields
-        fieldDescs.remove(0);
-
-        final String[] stringFields = new String[]{fieldName};
-        final String[] intFields = new String[0];
-
-        FTGSIterator verificationIter = getVerificationIterator(Arrays.asList(shardCopy),
-                                                                fieldDescs,
-                                                                BitsetOptimizationLevel.OPTIMIZE,
-                                                                stringFields,
-                                                                intFields);
-
-        final MTImhotepLocalMultiSession session;
-        session = makeTestSession(Arrays.asList(shardname),
-                                  fieldDescs,
-                                  BitsetOptimizationLevel.OPTIMIZE);
-
-        RunnableFactory factory =
-                new WriteFTGSRunner(session, stringFields, intFields, 8);
-        ClusterSimulator simulator = new ClusterSimulator(8, fieldDescs.size());
-
-        simulator.simulateServer(factory);
-        RawFTGSIterator ftgsIterator = simulator.getIterator();
-
-        compareIterators(ftgsIterator, verificationIter, nMetrics);
+        return generateShard(fieldDescs);
     }
 
     private void compareIterators(FTGSIterator test, FTGSIterator valid, int numStats) {
@@ -437,7 +517,7 @@ public class TestNativeFlamdexFTGSIterator {
     }
 
     private FTGSIterator getVerificationIterator(List<String> shardDirs,
-                                                 List<FieldDesc> metricFieldDescs,
+                                                 String[] metricNames,
                                                  BitsetOptimizationLevel level,
                                                  String[] stringFields,
                                                  String[] intFields) throws ImhotepOutOfMemoryException, IOException {
@@ -468,8 +548,8 @@ public class TestNativeFlamdexFTGSIterator {
                                                                                        true),
                                                                   2,
                                                                   1)});
-        for (FieldDesc fd : metricFieldDescs) {
-            mtSession.pushStat(fd.name);
+        for (String metric : metricNames) {
+            mtSession.pushStat(metric);
         }
 
         return mtSession.getFTGSIterator(stringFields, intFields);

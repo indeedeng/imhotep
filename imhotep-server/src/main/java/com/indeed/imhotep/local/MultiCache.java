@@ -30,9 +30,10 @@ public final class MultiCache implements Closeable {
 
     public MultiCache(ImhotepLocalSession session,
                       int numDocsInShard,
-                      MultiCacheConfig.StatsOrderingInfo[] ordering,
+                      MultiCacheConfig config,
                       IntValueLookup[] stats,
                       GroupLookup groupLookup) {
+        MultiCacheConfig.StatsOrderingInfo[] ordering = config.getOrdering();
         this.session = session;
         this.numDocsInShard = numDocsInShard;
         this.numStats = ordering.length;

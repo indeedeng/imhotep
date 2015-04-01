@@ -778,7 +778,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession> exte
     }
 
     @Override
-    public abstract void writeFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, Socket socket);
+    public abstract void writeFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, Socket socket) throws ImhotepOutOfMemoryException;
 
     protected abstract <E,T> void execute(final T[] ret, E[] things, final ThrowingFunction<? super E, ? extends T> function) throws ExecutionException;
 

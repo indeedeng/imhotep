@@ -239,13 +239,19 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
         return this.flamdexReader;
     }
 
-    public MultiCache buildMulticache(final MultiCacheConfig config, final int id) {
+    public MultiCache buildMulticache(final MultiCacheConfig config) {
         if (this.rebuildMultiCache) {
-            this.multiCache = config.buildMultiCache(this,
-                                                     id,
-                                                     this.docIdToGroup,
-                                                     this.statLookup,
-                                                     this.numStats);
+//            this.multiCache = config.buildMultiCache(this,
+//                                                     id,
+//                                                     this.docIdToGroup,
+//                                                     this.statLookup,
+//                                                     this.numStats);
+            if (this.multiCache != null) {
+                this.multiCache.close();
+            }
+            this.multiCache = new MultiCache(this, this.numDocs, config, this.statLookup, this.docIdToGroup);
+            this.docIdToGroup = this.multiCache.getGroupLookup();
+
             this.rebuildMultiCache = false;
         }
         return this.multiCache;

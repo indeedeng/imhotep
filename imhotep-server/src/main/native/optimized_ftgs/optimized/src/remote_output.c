@@ -56,6 +56,7 @@ static inline int write_bytes(struct buffered_socket* socket,
         size_t copy_len = MIN(len - write_ptr, socket->buffer_len - socket->buffer_ptr);
         memcpy(socket->buffer + socket->buffer_ptr, bytes + write_ptr, copy_len);
         write_ptr += copy_len;
+        socket->buffer_ptr += copy_len;
     }
     return 0;
 }

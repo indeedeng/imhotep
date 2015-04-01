@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <string.h>
 #include "imhotep_native.h"
 #include "remote_output.h"
 #include "varintdecode.h"
@@ -83,6 +84,9 @@ int tgs_execute_pass(struct worker_desc *worker,
     struct index_slice_info *infos = desc->slices;
 
     if (desc->n_slices <= 0) {
+        /* error */
+        worker->error.code = -1;
+        strcpy(worker->error.str, "tgs_execute_pass: No shards.");
         return -1;
     }
 

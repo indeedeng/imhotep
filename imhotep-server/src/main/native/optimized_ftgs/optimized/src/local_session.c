@@ -24,6 +24,8 @@ int run_tgs_pass(struct worker_desc *worker,
     /* just in case. Kinda unnecessary to check this here */
     if (num_shard > session->num_shards) {
         /* error */
+        worker->error.code = -1;
+        strcpy(worker->error.str, "Too many shards.");
         return -1;
     }
 
@@ -158,7 +160,6 @@ int worker_end_field(struct worker_desc *worker)
     return 0;
 }
 
-
 void worker_init(struct worker_desc *worker,
                  int id,
                  int num_groups,
@@ -180,11 +181,13 @@ void worker_init(struct worker_desc *worker,
 
 void worker_destroy(struct worker_desc *worker)
 {
-    unpacked_table_destroy(worker->grp_stats);
+    if (worker->grp_stats != NULL) {
+        unpacked_table_destroy(worker->grp_stats);
+    }
 
     /* free socket and term entries */
     for (int i = 0; i < worker->num_streams; i++) {
-        stream_destroy(&worker->out_streams[i]);
+        stream_destroy( &worker->out_streams[i]);
     }
 
     /* free socket array */

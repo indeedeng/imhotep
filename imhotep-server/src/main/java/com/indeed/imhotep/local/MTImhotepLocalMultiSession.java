@@ -16,10 +16,12 @@
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteStreams;
 import com.indeed.flamdex.api.FlamdexReader;
+import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.multicache.ftgs.*;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
@@ -75,7 +77,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             is.close();
             System.load(tempFile.getAbsolutePath());
             // noinspection ResultOfMethodCallIgnored
-            tempFile.delete();
+//            tempFile.delete();
         } catch (Throwable e) {
             log.warn("unable to load libftgs using class loader, looking in java.library.path", e);
             System.loadLibrary("ftgs"); // if this fails it throws UnsatisfiedLinkError
@@ -132,28 +134,45 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     private void closeFTGSSockets() {
         Closeables2.closeAll(Arrays.asList(ftgsOutputSockets), log);
     }
+    
+    private MultiCache[] updateMulticaches() throws ImhotepOutOfMemoryException {
+        final MultiCache[] multiCaches = new MultiCache[sessions.length];
+        final MultiCacheConfig config = new MultiCacheConfig();
+        final IntValueLookup[][] sessionsStats = new IntValueLookup[sessions.length][];
+
+        for (int i = 0; i < sessions.length; i++) {
+            sessionsStats[i] = sessions[i].statLookup;
+        }
+        config.calcOrdering(sessionsStats, sessions[0].numStats);
+
+        executeMemoryException(multiCaches, new ThrowingFunction<ImhotepSession, MultiCache>() {
+            @Override
+            public MultiCache apply(ImhotepSession session) throws Exception {
+                return ((ImhotepLocalSession)session).buildMulticache(config);
+            }
+        });
+
+        return multiCaches;
+    }
 
     @Override
     public void writeFTGSIteratorSplit(final String[] intFields,
                                        final String[] stringFields,
                                        final int splitIndex,
                                        final int numSplits,
-                                       final Socket socket) {
+                                       final Socket socket) throws ImhotepOutOfMemoryException {
         // save socket
         ftgsOutputSockets[splitIndex] = socket;
+        final MultiCache[] nativeCaches = updateMulticaches();
+        final FlamdexReader[] readers = new FlamdexReader[sessions.length];
+        for (int i = 0; i < sessions.length; i++) {
+            readers[i] = sessions[i].getReader();
+        }
 
         final CyclicBarrier newBarrier = new CyclicBarrier(numSplits, new Runnable() {
             @Override
             public void run() {
                 // run service
-                final FlamdexReader[] readers = new FlamdexReader[sessions.length];
-                final MultiCache[] nativeCaches = new MultiCache[sessions.length];
-                final MultiCacheConfig config = new MultiCacheConfig(sessions.length);
-                for (int i = 0; i < sessions.length; i++) {
-                    readers[i] = sessions[i].getReader();
-                    nativeCaches[i] = sessions[i].buildMulticache(config, i);
-                }
-
                 final NativeFtgsRunner runner = new NativeFtgsRunner(readers,
                                                                      nativeCaches,
                                                                      getNumGroups(),

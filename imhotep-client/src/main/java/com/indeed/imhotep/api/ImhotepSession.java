@@ -83,7 +83,7 @@ public interface ImhotepSession extends Closeable {
      * @param numSplits total number of splits
      * @param socket the socket to which split <code>splitIndex</code> will be written to
      */
-    void writeFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, Socket socket);
+    void writeFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, Socket socket) throws ImhotepOutOfMemoryException;
 
     RawFTGSIterator getSubsetFTGSIteratorSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, int splitIndex, int numSplits);
 

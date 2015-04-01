@@ -7,11 +7,14 @@ import com.indeed.flamdex.simple.MultiShardFlamdexReader;
 import com.indeed.imhotep.local.MultiCache;
 import com.indeed.imhotep.multicache.AdvProcessingService;
 import com.indeed.util.core.hash.MurmurHash;
+
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
+
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -55,7 +58,8 @@ public class NativeFtgsRunner {
         int v;
 
         v = (int) (term * LARGE_PRIME_FOR_CLUSTER_SPLIT);
-        v += 12345 & Integer.MAX_VALUE;
+        v += 12345;
+        v &= Integer.MAX_VALUE;
         v = v >> 16;
         return v % numSplits;
     }
@@ -67,7 +71,8 @@ public class NativeFtgsRunner {
 
         v = MurmurHash.hash32(termStringBytes, 0, termStringLength);
         v *= LARGE_PRIME_FOR_CLUSTER_SPLIT;
-        v += 12345 & 0x7FFFFFFF;
+        v += 12345;
+        v &=  0x7FFFFFFF;
         v = v >> 16;
         return v % numSplits;
     }
@@ -79,7 +84,7 @@ public class NativeFtgsRunner {
         for (String field : intFields) {
             final CloseableIter iter = createIntIterator(field, numSplits);
             try {
-                internalRun(field, true, iter, sockets);
+                internalRun(field, true, iter, sockets, numSplits);
             } finally {
                 iter.close();
             }
@@ -87,17 +92,25 @@ public class NativeFtgsRunner {
         for (String field : stringFields) {
             final CloseableIter iter = createStringIterator(field, numSplits);
             try {
-                internalRun(field, false, iter, sockets);
+                internalRun(field, false, iter, sockets, numSplits);
             } finally {
                 iter.close();
             }
+        }
+        
+        /* Write "no more fields" terminator to the sockets */
+        for (int i = 0; i < numSplits; i++) {
+            final Socket s = sockets[i];
+            final OutputStream out = s.getOutputStream();
+            out.write(0);
         }
     }
 
     private void internalRun(String field,
                              boolean isIntField,
                              final Iterator<NativeTGSinfo> iter,
-                             final Socket[] sockets) throws InterruptedException {
+                             final Socket[] sockets,
+                             final int nSockets) throws InterruptedException {
         final AdvProcessingService<NativeTGSinfo, Void> service;
         final AdvProcessingService.TaskCoordinator<NativeTGSinfo> router;
         router = new AdvProcessingService.TaskCoordinator<NativeTGSinfo>() {
@@ -109,7 +122,7 @@ public class NativeFtgsRunner {
         service = new AdvProcessingService<>(router);
         for (int i = 0; i < NUM_WORKERS; i++) {
             final List<Socket> socketList = new ArrayList<>();
-            for (int j = 0; j < sockets.length; j++) {
+            for (int j = 0; j < nSockets; j++) {
                 if (j % NUM_WORKERS == i) {
                     socketList.add(sockets[j]);
                 }
@@ -151,8 +164,7 @@ public class NativeFtgsRunner {
         }
     }
 
-    private CloseableIter createStringIterator(final String stringField,
-                                                         final int numSplits) {
+    private CloseableIter createStringIterator(final String stringField, final int numSplits) {
         try {
             final Iterator<TermDesc> iter;
             iter = multiShardFlamdexReader.stringTermOffsetIterator(stringField);

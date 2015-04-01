@@ -52,10 +52,12 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSi
                                                        numShards,
                                                        numGroups,
                                                        numMetrics);
+        
+        final byte[] fieldNameBytes = this.field.getBytes(UTF_8);
         native_start_field(nativeWorkerStructPtr,
                            nativeSessionStructPtr,
-                           this.field.getBytes(UTF_8),
-                           this.field.length(),
+                           fieldNameBytes,
+                           fieldNameBytes.length,
                            this.isIntField);
     }
 

@@ -90,6 +90,7 @@ final class SimpleMultiShardStringTermIterator implements Iterator<TermDesc>, Cl
             result.offsets[iterNum] = stringTermIterator.getOffset();
             result.numDocsInTerm[iterNum] = stringTermIterator.docFreq();
         }
+        result.size = shardCount;
         final int len = iteratorIdPairs[0].stringTermIterator.termStringLength();
         result.stringTerm = Arrays.copyOf(iteratorIdPairs[0].stringTermIterator.termStringBytes(),
                                           len);

@@ -125,8 +125,10 @@ public class TestMultiRegroup extends TestCase {
              final ImhotepLocalSession session = new ImhotepLocalSession(reader)) {
                 int[] result = new int[N_DOCS];
                 final FlamdexReader[]  readers = new FlamdexReader[] { reader };
-                final MultiCacheConfig  config = new MultiCacheConfig(1);
-                final MultiCache[]      caches = new MultiCache[] { session.buildMulticache(config, 0) };
+                final MultiCacheConfig  config = new MultiCacheConfig();
+                config.calcOrdering(new IntValueLookup[][] {session.statLookup}, session.numStats);
+                final MultiCache[]      caches = new MultiCache[] { session.buildMulticache(config) };
+                
                 final ExecutorService executor = Executors.newCachedThreadPool();
                 AtomicLong theAtomicPunk = new AtomicLong(100000);
                 ImhotepLocalSession[] localSessions = new ImhotepLocalSession[] { session };

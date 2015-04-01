@@ -3,8 +3,9 @@ CC=/usr/bin/gcc
 CPP=/usr/bin/g++
 JNI_HEADER_LOC=$(JAVA_HOME)/include
 JNI_HEADER_LOC2=$(JNI_HEADER_LOC)/linux
-CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fPIC -fvisibility=hidden -flax-vector-conversions
-CPPFLAGS=-O3 -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -I/usr/include/boost -std=c++0x -msse4.2 -fPIC
+#CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fPIC -fvisibility=hidden -flax-vector-conversions
+CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions
+CPPFLAGS= -g -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -I/usr/include/boost -std=c++0x -msse4.2 -fPIC
 #LFLAGS=-flto -O3 -shared
 LFLAGS= -g -shared
 
@@ -49,7 +50,7 @@ $(TEST_ODIR)/%.o: test/src/%.cpp $(H_FILES)
 	$(CPP) -c -o $@ $< $(CPPFLAGS)
 
 $(ODIR)/%.o: src/%.c $(H_FILES)
-	$(CC) -c -o $@ $< $(OPT_CFLAGS)
+	$(CC) -c -o $@ $< $(DBG_CFLAGS)
 
 $(ODIR)/%.o: src/%.cpp $(H_FILES)
 	$(CPP) -c -o $@ $< $(CPPFLAGS)

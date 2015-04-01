@@ -7,6 +7,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -17,6 +18,7 @@ public class ProcessingService<Data,Result> {
     protected final ErrorTracker errorTracker;
     protected final ErrorCatcher errorCatcher;
     protected final List<ProcessingTask<Data, Result>> tasks;
+    protected final AdjustableLatch latch;
     protected int numTasks;
     protected List<Thread> threads;
     protected Thread resultProcessorThread;
@@ -28,6 +30,7 @@ public class ProcessingService<Data,Result> {
         this.tasks = Lists.newArrayListWithCapacity(32);
         this.threads = Lists.newArrayListWithCapacity(32);
         this.numTasks = 0;
+        this.latch = new AdjustableLatch();
     }
 
     public int addTask(ProcessingTask<Data, Result> task) {
@@ -35,7 +38,10 @@ public class ProcessingService<Data,Result> {
         final Thread t;
 
         this.tasks.add(task);
+        this.latch.incrementCount();
+        
         task.setQueue(this.queues);
+        task.setLatch(this.latch);
         task.setErrorTracker(this.errorTracker);
 
         t = new Thread(task);
@@ -93,15 +99,45 @@ public class ProcessingService<Data,Result> {
         }
     }
 
-    public synchronized void awaitCompletion() throws InterruptedException {
-        this.queues.waitUntilQueueIsEmpty();
+    public void awaitCompletion() throws InterruptedException {
+        this.latch.await();
+    }
+    
+    public static class AdjustableLatch {
+        private AtomicInteger numDataElementsQueued = new AtomicInteger(0);
+        private volatile boolean waiting = false;
+
+        public void incrementCount() {
+            numDataElementsQueued.incrementAndGet();
+        }
+        
+        public void countDown() {
+            final int count;
+            
+            count = numDataElementsQueued.decrementAndGet();
+            if (count == 0) {
+                signalQueueEmpty();
+            }
+        }
+        
+        public synchronized void await() throws InterruptedException {
+            while (numDataElementsQueued.get() > 0) {
+                waiting = true;
+                this.wait();
+            }
+            
+        }
+
+        private synchronized void signalQueueEmpty() {
+            if (waiting && numDataElementsQueued.get() == 0) {
+                waiting = false;
+                this.notifyAll();
+            }
+        }
     }
 
     public static class ProcessingQueuesHolder<D,R> {
         private static final Object TERMINATOR = new Object();
-
-        private AtomicInteger numDataElementsQueued = new AtomicInteger(0);
-        private volatile boolean waiting = false;
 
         protected BlockingQueue<Object> dataQueue;
         protected BlockingQueue<Object> resultsQueue;
@@ -112,7 +148,6 @@ public class ProcessingService<Data,Result> {
         }
 
         public void submitData(D d) throws InterruptedException {
-            numDataElementsQueued.incrementAndGet();
             dataQueue.put(d);
         }
 
@@ -121,10 +156,6 @@ public class ProcessingService<Data,Result> {
             final int count;
 
             data = dataQueue.take();
-            count = numDataElementsQueued.decrementAndGet();
-            if (count == 0) {
-                signalQueueEmpty();
-            }
             if (data == TERMINATOR) {
                 return null;
             }
@@ -137,20 +168,6 @@ public class ProcessingService<Data,Result> {
 
         public R retrieveResult() throws InterruptedException {
             return (R)resultsQueue.take();
-        }
-
-        public synchronized void waitUntilQueueIsEmpty() throws InterruptedException {
-            while (numDataElementsQueued.get() > 0) {
-                waiting = true;
-                this.wait();
-            }
-        }
-
-        private synchronized void signalQueueEmpty() {
-            if (waiting && numDataElementsQueued.get() == 0) {
-                waiting = false;
-                this.notifyAll();
-            }
         }
 
         public void terminateQueue() {
