@@ -83,7 +83,7 @@ public class MultiShardStringTermIteratorTest {
             while (smsstoi.hasNext()) {
                 TermDesc desc = smsstoi.next();
                 if (Arrays.equals("bar".getBytes(Charsets.UTF_8), Arrays.copyOf(desc.stringTerm, desc.stringTermLen))) {
-                    System.arraycopy(desc.offsets, 0, positionsBuffer, 0, desc.offsets.length);
+                    System.arraycopy(desc.nativeDocAddresses, 0, positionsBuffer, 0, desc.nativeDocAddresses.length);
                     final LongList expectedPositions = mergedResults.get("bar");
                     final long[] expectedPositionsArray = expectedPositions.toArray(new long[expectedPositions.size()]);
                     if (log.isDebugEnabled()) {

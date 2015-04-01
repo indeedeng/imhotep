@@ -69,7 +69,7 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSi
             err = native_run_int_tgs_pass(this.nativeWorkerStructPtr,
                                           this.nativeSessionStructPtr,
                                           info.termDesc.intTerm,
-                                          info.termDesc.offsets,
+                                          info.termDesc.nativeDocAddresses,
                                           info.termDesc.numDocsInTerm,
                                           info.termDesc.size(),
                                           info.socketNum);
@@ -78,7 +78,7 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSi
                                              this.nativeSessionStructPtr,
                                              info.termDesc.stringTerm,
                                              info.termDesc.stringTermLen,
-                                             info.termDesc.offsets,
+                                             info.termDesc.nativeDocAddresses,
                                              info.termDesc.numDocsInTerm,
                                              info.termDesc.size(),
                                              info.socketNum);

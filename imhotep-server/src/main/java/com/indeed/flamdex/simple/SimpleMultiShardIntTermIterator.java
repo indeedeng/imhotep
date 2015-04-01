@@ -23,7 +23,7 @@ final class SimpleMultiShardIntTermIterator implements Iterator<TermDesc>, Close
     private final String fieldName;
     private final int numShards;
 
-    SimpleMultiShardIntTermIterator(String field, IntTermIterator[] iterators) {
+    SimpleMultiShardIntTermIterator(String field, IntTermIterator[] iterators) throws IOException {
         this.fieldName = field;
         this.numShards = iterators.length;
         this.shardIntTerms = Arrays.copyOf(iterators, iterators.length);
@@ -61,11 +61,16 @@ final class SimpleMultiShardIntTermIterator implements Iterator<TermDesc>, Close
     @Override
     public TermDesc next() {
         final TermDesc currentTerm = this.nextTerm;
-        this.nextTerm = nextTermDesc();
+        try {
+            this.nextTerm = nextTermDesc();
+        } catch (IOException e) {
+            // Should never happen here - in the constructor maybe
+            throw new RuntimeException(e);
+        }
         return currentTerm;
     }
 
-    private TermDesc nextTermDesc() {
+    private TermDesc nextTermDesc() throws IOException {
         if (!termStreamMerger.next()) {
             this.hasMore = false;
             return null;
@@ -81,7 +86,7 @@ final class SimpleMultiShardIntTermIterator implements Iterator<TermDesc>, Close
         for (int i = 0; i < shardCount; i++) {
             final SimpleIntTermIterator intTermIterator = minIteratorIdPairs[i].intTermIterator;
             final int id = minIteratorIdPairs[i].iterNum;
-            result.offsets[id] = intTermIterator.getOffset();
+            result.nativeDocAddresses[id] = intTermIterator.getOffset() + intTermIterator.getDocListAddress();
             result.numDocsInTerm[id] = intTermIterator.docFreq();
         }
         result.size = shardCount;
