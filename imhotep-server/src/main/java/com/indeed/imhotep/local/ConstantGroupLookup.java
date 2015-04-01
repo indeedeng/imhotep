@@ -48,7 +48,7 @@ final class ConstantGroupLookup extends GroupLookup {
 
         if (rewriteHead > 0) {
             for (int statIndex = 0; statIndex < session.numStats; statIndex++) {
-                ImhotepLocalSession.updateGroupStatsDocIdBuf(session.statLookup[statIndex], termGrpStats[statIndex], session.docGroupBuffer, session.docIdBuf, session.valBuf, rewriteHead);
+                ImhotepLocalSession.updateGroupStatsDocIdBuf(session.statLookup.get(statIndex), termGrpStats[statIndex], session.docGroupBuffer, session.docIdBuf, session.valBuf, rewriteHead);
             }
         }
     }

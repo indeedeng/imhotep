@@ -31,7 +31,7 @@ public final class MultiCache implements Closeable {
     public MultiCache(ImhotepLocalSession session,
                       int numDocsInShard,
                       MultiCacheConfig config,
-                      IntValueLookup[] stats,
+                      StatLookup stats,
                       GroupLookup groupLookup) {
         MultiCacheConfig.StatsOrderingInfo[] ordering = config.getOrdering();
         this.session = session;
@@ -54,7 +54,7 @@ public final class MultiCache implements Closeable {
             this.nativeMetricLookups.add(metricLookup);
 
             /* copy data into multicache */
-            copyValues(stats[orderInfo.originalIndex], numDocsInShard, i);
+            copyValues(stats.get(orderInfo.originalIndex), numDocsInShard, i);
         }
     }
 
@@ -256,7 +256,7 @@ public final class MultiCache implements Closeable {
 
             if (rewriteHead > 0) {
                 for (int statIndex = 0; statIndex < MultiCache.this.session.numStats; statIndex++) {
-                    ImhotepLocalSession.updateGroupStatsDocIdBuf(MultiCache.this.session.statLookup[statIndex],
+                    ImhotepLocalSession.updateGroupStatsDocIdBuf(MultiCache.this.session.statLookup.get(statIndex),
                                                                  termGrpStats[statIndex],
                                                                  MultiCache.this.session.docGroupBuffer,
                                                                  MultiCache.this.session.docIdBuf,

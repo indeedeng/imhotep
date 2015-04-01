@@ -85,11 +85,11 @@ public final class MultiCacheConfig {
         return this.ordering;
     }
 
-    public void calcOrdering(final IntValueLookup[][] statLookups, final int numStats) {
+    public void calcOrdering(final StatLookup[] statLookups, final int numStats) {
         this.ordering = calculateMetricOrder(statLookups, numStats);
     }
 
-    private static StatsOrderingInfo[] calculateMetricOrder(final IntValueLookup[][] sessionStats,
+    private static StatsOrderingInfo[] calculateMetricOrder(final StatLookup[] sessionStats,
                                                             int numStats) {
         final IntArrayList booleanMetrics = new IntArrayList();
         final IntArrayList longMetrics = new IntArrayList();
@@ -98,10 +98,10 @@ public final class MultiCacheConfig {
         final int[] bits = new int[numStats];
         Arrays.fill(mins, Long.MAX_VALUE);
         Arrays.fill(maxes, Long.MIN_VALUE);
-        for (IntValueLookup[] stats : sessionStats) {
+        for (StatLookup stats : sessionStats) {
             for (int j = 0; j < numStats; j++) {
-                mins[j] = Math.min(mins[j], stats[j].getMin());
-                maxes[j] = Math.max(maxes[j], stats[j].getMax());
+                mins[j] = Math.min(mins[j], stats.get(j).getMin());
+                maxes[j] = Math.max(maxes[j], stats.get(j).getMax());
             }
         }
         for (int i = 0; i < numStats; i++) {

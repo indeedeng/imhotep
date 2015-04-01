@@ -138,7 +138,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     private MultiCache[] updateMulticaches() throws ImhotepOutOfMemoryException {
         final MultiCache[] multiCaches = new MultiCache[sessions.length];
         final MultiCacheConfig config = new MultiCacheConfig();
-        final IntValueLookup[][] sessionsStats = new IntValueLookup[sessions.length][];
+        final StatLookup[] sessionsStats = new StatLookup[sessions.length];
 
         for (int i = 0; i < sessions.length; i++) {
             sessionsStats[i] = sessions[i].statLookup;
@@ -148,7 +148,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         executeMemoryException(multiCaches, new ThrowingFunction<ImhotepSession, MultiCache>() {
             @Override
             public MultiCache apply(ImhotepSession session) throws Exception {
-                return ((ImhotepLocalSession)session).buildMulticache(config);
+                return ((ImhotepLocalSession)session).buildMultiCache(config);
             }
         });
 
