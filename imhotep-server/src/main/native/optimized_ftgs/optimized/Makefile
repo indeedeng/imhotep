@@ -1,13 +1,14 @@
 IDIR =include
 CC=/usr/bin/gcc
+#CC=/usr/bin/clang-3.5
 CPP=/usr/bin/g++
 JNI_HEADER_LOC=$(JAVA_HOME)/include
 JNI_HEADER_LOC2=$(JNI_HEADER_LOC)/linux
 #CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fPIC -fvisibility=hidden -flax-vector-conversions
-CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions
+CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions -fsanitize=address -fno-omit-frame-pointer
 CPPFLAGS= -g -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -I/usr/include/boost -std=c++0x -msse4.2 -fPIC
 #LFLAGS=-flto -O3 -shared
-LFLAGS= -g -shared
+LFLAGS= -g -shared -fsanitize=address 
 
 OPT_CFLAGS= -O3 $(CFLAGS)
 DBG_CFLAGS= -g $(CFLAGS)
