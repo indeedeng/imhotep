@@ -11,7 +11,8 @@
 #define MAX_BIT_FIELDS                          4
 #define GROUP_SIZE                              28
 #define PREFETCH(address)                       _mm_prefetch(address, _MM_HINT_T0)
-#define ALIGNED_ALLOC(alignment, size) (((alignment) < (size)) ? aligned_alloc(alignment, size) : aligned_alloc(alignment,alignment));
+//#define ALIGNED_ALLOC(alignment, size) (((alignment) < (size)) ? aligned_alloc(alignment, size) : aligned_alloc(alignment,alignment));
+#define ALIGNED_ALLOC(alignment, size) malloc(size);
 
 
 struct bit_fields_and_group {

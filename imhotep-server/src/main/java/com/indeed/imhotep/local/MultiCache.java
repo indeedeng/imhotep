@@ -109,6 +109,7 @@ public final class MultiCache implements Closeable {
             original.fillDocGrpBufferSequential(start, groupBuffer, n);
             nativeSetGroupsInRange(this.nativeShardDataPtr, start, n, groupBuffer);
         }
+        this.nativeGroupLookup.numGroups = original.getNumGroups();
     }
 
     public IntValueLookup getIntValueLookup(int statIndex) {

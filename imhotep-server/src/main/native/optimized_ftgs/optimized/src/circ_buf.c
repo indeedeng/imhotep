@@ -2,7 +2,8 @@
 #include <stdint.h>
 #include <emmintrin.h>
 
-#define ALIGNED_ALLOC(alignment, size) (((alignment) < (size)) ? aligned_alloc(alignment,size) : aligned_alloc(alignment,alignment));
+//#define ALIGNED_ALLOC(alignment, size) (((alignment) < (size)) ? aligned_alloc(alignment,size) : aligned_alloc(alignment,alignment));
+#define ALIGNED_ALLOC(alignment, size) malloc(size);
 
 
 struct circular_buffer {

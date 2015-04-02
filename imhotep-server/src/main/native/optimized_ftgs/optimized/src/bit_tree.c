@@ -4,7 +4,8 @@
 #include <string.h>
 #include "bit_tree.h"
 
-#define ALIGNED_ALLOC(alignment, size) ((alignment) < (size)) ? aligned_alloc(alignment,size) : aligned_alloc(alignment,alignment);
+//#define ALIGNED_ALLOC(alignment, size) ((alignment) < (size)) ? aligned_alloc(alignment,size) : aligned_alloc(alignment,alignment);
+#define ALIGNED_ALLOC(alignment, size) malloc(size);
 
 static int32_t log2_of_size(int32_t size) {
     return 31 - __builtin_clz(size);

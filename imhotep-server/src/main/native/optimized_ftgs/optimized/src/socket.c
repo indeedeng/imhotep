@@ -13,7 +13,9 @@ void stream_init(struct ftgs_outstream *stream, uint32_t fd)
     stream->socket.buffer_ptr = 0;
     stream->socket.err = NULL;
     stream->term_type = TERM_TYPE_INT;
-    stream->prev_term.int_term = 0;
+    stream->prev_term.int_term = -1;
+    stream->prev_term.string_term.len = 0;
+    stream->prev_term.string_term.term = NULL;
 }
 
 void stream_destroy(struct ftgs_outstream *stream)

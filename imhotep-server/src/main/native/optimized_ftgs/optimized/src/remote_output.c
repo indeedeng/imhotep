@@ -186,12 +186,12 @@ int write_field_end(struct ftgs_outstream* stream)
 
 static int write_group_stats(struct buffered_socket* socket,
                              const uint32_t* restrict non_zero_groups,
-                             const size_t nz_group_count,
+                             const int nz_group_count,
                              const unpacked_table_t* restrict group_stats,
                              const int num_stats,
                              size_t stats_size) {
     int32_t previous_group = -1;
-    size_t i = 0;
+    int i = 0;
     for (; i < nz_group_count - PREFETCH_DISTANCE; i++) {
         const uint32_t group = non_zero_groups[i];
         int stat_index = 0;
@@ -273,15 +273,17 @@ static int write_group_stats(struct buffered_socket* socket,
 
 static inline size_t prefix_len(const struct string_term_s* restrict term,
                                 const struct string_term_s* restrict previous_term) {
-    size_t max = MAX(term->len, previous_term->len);
-    for (size_t i = 0; i < max; i++) {
-        if (term->term[i] != previous_term->term[i]) return i;
+    size_t min = MIN(term->len, previous_term->len);
+    for (size_t i = 0; i < min; i++) {
+        if (term->term[i] != previous_term->term[i]) {
+        	return i;
+        }
     }
-    return max;
+    return min;
 }
 
 int write_term_group_stats(const struct session_desc* session, const struct tgs_desc* tgs,
-                           const uint32_t* restrict groups, const size_t term_group_count)
+                           const uint32_t* restrict groups, const int term_group_count)
 {
 	struct buffered_socket *socket = &tgs->stream->socket;
 	struct term_s *prev_term = &tgs->stream->prev_term;

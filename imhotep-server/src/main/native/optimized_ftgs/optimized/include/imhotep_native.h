@@ -17,7 +17,8 @@
 
 #define SIZE_OF_ERRSTR 256
 
-#define ALIGNED_ALLOC(alignment, size) ((alignment) < (size)) ? aligned_alloc(alignment,size) : aligned_alloc(alignment,alignment);
+//#define ALIGNED_ALLOC(alignment, size) ((alignment) < (size)) ? aligned_alloc(alignment,size) : aligned_alloc(alignment,alignment);
+#define ALIGNED_ALLOC(alignment, size) malloc(size);
 
 struct circular_buffer_vector;
 
