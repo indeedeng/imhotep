@@ -113,7 +113,6 @@ public class TestMultiRegroup extends TestCase {
                 int[] result = new int[N_DOCS];
                 final FlamdexReader[]  readers = new FlamdexReader[] { reader };
                 session.regroup(regroupRule);
-                //                return session.exportDocIdToGroupId();
                 session.exportDocIdToGroupId(result);
                 return result;
             }
@@ -123,12 +122,12 @@ public class TestMultiRegroup extends TestCase {
         throws IOException, ImhotepOutOfMemoryException {
         try (final SimpleFlamdexReader reader = SimpleFlamdexReader.open(shardDir.toString());
              final ImhotepLocalSession session = new ImhotepLocalSession(reader)) {
-                int[] result = new int[N_DOCS];
+                int[] result                   = new int[N_DOCS];
                 final FlamdexReader[]  readers = new FlamdexReader[] { reader };
-                final MultiCacheConfig  config = new MultiCacheConfig();
-                config.calcOrdering(new IntValueLookup[][] {session.statLookup}, session.numStats);
-                final MultiCache[]      caches = new MultiCache[] { session.buildMulticache(config) };
-                
+                final MultiCacheConfig config  = new MultiCacheConfig();
+                config.calcOrdering(new StatLookup[] {session.statLookup}, session.numStats);
+                session.buildMultiCache(config);
+
                 final ExecutorService executor = Executors.newCachedThreadPool();
                 AtomicLong theAtomicPunk = new AtomicLong(100000);
                 ImhotepLocalSession[] localSessions = new ImhotepLocalSession[] { session };
@@ -138,7 +137,6 @@ public class TestMultiRegroup extends TestCase {
                                                    new MemoryReservationContext(memoryPool),
                                                    executor, theAtomicPunk, true);
                 mtSession.regroup(regroupRule);
-                // return session.exportDocIdToGroupId();
                 session.exportDocIdToGroupId(result);
                 return result;
             }
