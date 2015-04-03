@@ -493,6 +493,7 @@ public class TestNativeFlamdexFTGSIterator {
 
         while (valid.nextField()) {
             assertTrue(test.nextField());
+            assertEquals(valid.fieldIsIntType(), test.fieldIsIntType());
             assertEquals(valid.fieldName(), test.fieldName());
             while (valid.nextTerm()) {
                 assertTrue(test.nextTerm());
@@ -553,7 +554,7 @@ public class TestNativeFlamdexFTGSIterator {
             mtSession.pushStat(metric);
         }
 
-        return mtSession.getFTGSIterator(stringFields, intFields);
+        return mtSession.getFTGSIterator(intFields, stringFields);
     }
 
 //    @Test

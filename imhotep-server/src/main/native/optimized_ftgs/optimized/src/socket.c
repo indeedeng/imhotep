@@ -88,7 +88,6 @@ void term_update_string(struct term_s *term, struct term_s *new_term)
         /* reallocate the string buffer */
         char *new_buf;
         new_buf = malloc(new_len * sizeof(char));
-    	memcpy(new_buf, new_term->string_term.term, new_len);
     	free(term->string_term.term);
         term->string_term.term = new_buf;
 	}
@@ -99,6 +98,7 @@ void term_update_string(struct term_s *term, struct term_s *new_term)
 void term_reset(struct term_s *term)
 {
     term->int_term = -1;
-    term->string_term.len = 0;
     free(term->string_term.term);
+    term->string_term.len = 0;
+    term->string_term.term = NULL;
 }

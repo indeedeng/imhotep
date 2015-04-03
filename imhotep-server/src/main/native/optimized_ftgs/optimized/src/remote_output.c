@@ -305,7 +305,7 @@ int write_term_group_stats(const struct session_desc* session, const struct tgs_
         struct string_term_s* term = &tgs->term->string_term;
         struct string_term_s* previous_term = &prev_term->string_term;
         size_t p_len = prefix_len(term, previous_term);
-        TRY(write_vint64(socket, term->len - p_len + 1));
+        TRY(write_vint64(socket, previous_term->len - p_len + 1));
         TRY(write_vint64(socket, term->len - p_len));
         TRY(write_bytes(socket, (uint8_t*)(term->term + p_len), term->len - p_len));
         term_update_string(prev_term, tgs->term);
