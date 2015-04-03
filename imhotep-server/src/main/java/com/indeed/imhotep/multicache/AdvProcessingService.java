@@ -9,7 +9,7 @@ import java.util.List;
  * Created by darren on 3/16/15.
  */
 public class AdvProcessingService<Data, Result> extends ProcessingService<Data, Result> {
-    private final List<ProcessingQueuesHolder<Data, Result>> queuesList;
+    private final List<ProcessingQueuesHolder> queuesList;
     private TaskCoordinator<Data> coordinator;
 
     public AdvProcessingService(TaskCoordinator<Data> coordinator) {
@@ -21,11 +21,9 @@ public class AdvProcessingService<Data, Result> extends ProcessingService<Data, 
     @Override
     public int addTask(ProcessingTask<Data, Result> task) {
         final int handle = super.addTask(task);
-        ProcessingQueuesHolder<Data, Result> q = new ProcessingQueuesHolder<>();
-
-        /* replace with separate queue for each task */
-        task.setQueue(q);
-        this.queuesList.add(q);
+        ProcessingQueuesHolder queue = new ProcessingQueuesHolder();
+        task.configure(queue, Thread.currentThread());
+        this.queuesList.add(queue);
         return handle;
     }
 
@@ -35,29 +33,41 @@ public class AdvProcessingService<Data, Result> extends ProcessingService<Data, 
         try {
             if (resultProcessor != null) {
                 this.resultProcessorThread = new Thread(resultProcessor);
-                resultProcessor.setQueues(this.queuesList);
-                this.resultProcessorThread.start();
-            } else {
+                resultProcessor.configure(this.queuesList, Thread.currentThread(), numTasks);
+                resultProcessorThread.setUncaughtExceptionHandler(errorCatcher);
+                threads.add(resultProcessorThread);
+            }
+            else {
                 for (ProcessingTask<Data, Result> task : this.tasks) {
                     task.setDiscardResults(true);
                 }
             }
-            for (Thread t : this.threads) {
-                t.start();
-            }
-            while (iterator.hasNext()) {
-                final Data d = iterator.next();
 
-                final int handle = this.coordinator.route(d);
-                this.queuesList.get(handle).submitData(d);
+            for (Thread t : this.threads)  t.start();
+
+            try {
+                while (iterator.hasNext()) {
+                    final Data data   = iterator.next();
+                    final int  handle = coordinator.route(data);
+                    queuesList.get(handle).submitData(data);
+                }
+                for (ProcessingQueuesHolder queue: queuesList) {
+                    queue.submitData(queue.COMPLETE_DATA_SENTINEL);
+                }
             }
-            for (ProcessingQueuesHolder<Data, Result> q : this.queuesList) {
-                q.terminateQueue();
+            catch (InterruptedException ex) {
+                for (Thread thread: threads) thread.interrupt();
             }
-            this.awaitCompletion();
-        } catch (Throwable t) {
-            this.errorTracker.setError();
+            finally {
+                for (Thread thread: threads) thread.join();
+            }
+        }
+        catch (Throwable t) {
+            this.errorTracker.set(true);
             this.errorCatcher.uncaughtException(Thread.currentThread(), t);
+        }
+        finally {
+            handleErrors();
         }
     }
 

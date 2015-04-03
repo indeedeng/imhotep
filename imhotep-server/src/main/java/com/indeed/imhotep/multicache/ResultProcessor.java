@@ -8,59 +8,54 @@ import java.util.List;
  * Created by darren on 2/8/15.
  */
 public abstract class ResultProcessor<Result> implements Runnable {
-    protected List<ProcessingService.ProcessingQueuesHolder<?,Result>> queues;
+    protected List<ProcessingService<?, Result>.ProcessingQueuesHolder> queues;
 
-    public void setQueues(List<? extends ProcessingService.ProcessingQueuesHolder<?, Result>> queues) {
-        this.queues = new ArrayList<>(queues);
+    private Thread owner = null;
+    private int numTasks = 0;
+
+    public void configure(List<? extends ProcessingService<?, Result>.ProcessingQueuesHolder> queues,
+                          Thread owner,
+                          int numTasks) {
+        this.queues   = new ArrayList<>(queues);
+        this.owner    = owner;
+        this.numTasks = numTasks;
     }
 
-    // TODO: fixme
     public final void run() {
-        Result r;
-
         try {
             init();
-            outer: do {
-                try {
-                    final Iterator<ProcessingService.ProcessingQueuesHolder<?, Result>> iter;
-                    iter = this.queues.iterator();
+            try {
+                while (!queues.isEmpty() && numTasks > 0) {
+                    final Iterator<ProcessingService<?, Result>.ProcessingQueuesHolder> iter = queues.iterator();
                     while (iter.hasNext()) {
-                        final ProcessingService.ProcessingQueuesHolder<?, Result> q;
-                        q = iter.next();
-                        r = q.retrieveResult();
-                        if (r == null) {
-                            iter.remove();
-                            continue;
+                        final ProcessingService<?, Result>.ProcessingQueuesHolder queue = iter.next();
+                        final Result result = queue.retrieveResult();
+                        if (result == queue.COMPLETE_RESULT_SENTINEL) {
+                            --numTasks;
                         }
-                        processResult(r);
-                        continue outer;
+                        else if (result != null) {
+                            processResult(result);
+                        }
                     }
-                    // should only get here is all the queues are
-                    break;
-                } catch (Throwable e) {
-                    handleError(e);
                 }
-            } while (true);
-        } catch (Throwable throwable) {
-            throwable.printStackTrace();
-        } finally {
-            cleanup();
+            }
+            finally {
+                cleanup();
+            }
+        }
+        catch (InterruptedException ex) {
+            // we've been signaled to go away
+        }
+        catch (Throwable throwable) {
+            for (ProcessingService<?, Result>.ProcessingQueuesHolder queue: queues) { // !@#
+                queue.catchError(throwable);
+            }
+            owner.interrupt();
         }
     }
 
-    protected void init() {
-
-    }
-
+    protected void init() { }
     protected abstract void processResult(Result result);
-
-    protected void handleError(Throwable e) throws Throwable {
-        throw e;
-    }
-
-    protected void cleanup() {
-
-    }
-
+    protected void cleanup() { }
 }
 

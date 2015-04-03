@@ -63,25 +63,25 @@ native_lib: $(filter-out $(ODIR)/test_invert_metrics.o,$(OBJ_FILES))
 	$(CC) $(LFLAGS) -Wl,-export-dynamic -Wl,-init,simdvbyteinit $(LIBS) -Wl,-soname,libftgs.so.1 -o libftgs.so.1.0.1 $^
 
 dump_term: $(filter-out $(ODIR)/test_invert_metrics.o,$(OBJ_FILES)) test/obj/dump_term.o
-	$(CPP) $(CFLAGS) $ -o dump_term test/obj/dump_term.o test/obj/test_patch.o $(filter-out $(ODIR)/test_invert_metrics.o,$(OBJ_FILES)) -lstdc++
+	$(CPP) $(CFLAGS) $ -o dump_term test/obj/dump_term.o test/obj/test_patch.o $(filter-out $(ODIR)/test_invert_metrics.o,$(OBJ_FILES)) -lstdc++  -fsanitize=address
 
 test_bit_tree: $(TEST_BIT_TREE_OBJS)
-	$(CPP) $ -o test_bit_tree $(TEST_BIT_TREE_OBJS) $(LIBS) -lstdc++
+	$(CPP) $ -o test_bit_tree $(TEST_BIT_TREE_OBJS) $(LIBS) -lstdc++  -fsanitize=address
 
 test_circ_buf: $(TEST_CIRC_BUF_OBJS)
-	$(CPP) $ -o test_circ_buf $(TEST_CIRC_BUF_OBJS) $(LIBS) -lstdc++
+	$(CPP) $ -o test_circ_buf $(TEST_CIRC_BUF_OBJS) $(LIBS) -lstdc++   -fsanitize=address
 
 test_groups: $(TEST_GROUPS_OBJS)
-	$(CPP) $ -o test_groups $(TEST_GROUPS_OBJS) $(LIBS) -lstdc++
+	$(CPP) $ -o test_groups $(TEST_GROUPS_OBJS) $(LIBS) -lstdc++   -fsanitize=address
 
 test_packed_shard: $(TEST_PACKED_SHARD_OBJS)
-	$(CPP) $ -o test_packed_shard $(TEST_PACKED_SHARD_OBJS) $(LIBS) -lstdc++
+	$(CPP) $ -o test_packed_shard $(TEST_PACKED_SHARD_OBJS) $(LIBS) -lstdc++   -fsanitize=address
 
 test_tgs: $(TEST_TGS_OBJS)
-	$(CPP) $ -o test_tgs $(TEST_TGS_OBJS) $(LIBS) -L/usr/lib/x86_64-linux-gnu -lboost_system -lpthread -lstdc++
+	$(CPP) $ -o test_tgs $(TEST_TGS_OBJS) $(LIBS) -L/usr/lib/x86_64-linux-gnu -lboost_system -lpthread -lstdc++   -fsanitize=address
 
 test_varintdecode: $(TEST_VARINTDECODE_OBJS)
-	$(CPP) $ -o test_varintdecode $(TEST_VARINTDECODE_OBJS) $(LIBS) -lstdc++
+	$(CPP) $ -o test_varintdecode $(TEST_VARINTDECODE_OBJS) $(LIBS) -lstdc++   -fsanitize=address
 
 tests: $(TESTS)
 
