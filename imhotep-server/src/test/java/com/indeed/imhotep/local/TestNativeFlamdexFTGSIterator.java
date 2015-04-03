@@ -164,7 +164,7 @@ public class TestNativeFlamdexFTGSIterator {
     }
 
     private final Random rand = new Random();
-    private final int MAX_STRING_TERM_LEN = 2048;
+    private final int MAX_STRING_TERM_LEN = 128;
 
     private void createFlamdexIntField(final String dir,
                                        final String intFieldName,
@@ -220,7 +220,7 @@ public class TestNativeFlamdexFTGSIterator {
 
         Map<String, List<Integer>> map = Maps.newTreeMap();
         while (!docs.isEmpty()) {
-            String term = RandomStringUtils.randomAlphabetic(rand.nextInt(MAX_STRING_TERM_LEN));
+            String term = RandomStringUtils.randomAlphabetic(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
             if (map.containsKey(term))
                 continue;
             final int maxDocsPerTerm = Math.min(docs.size(), maxTermDocs);
@@ -306,7 +306,8 @@ public class TestNativeFlamdexFTGSIterator {
         }
 
         public long randVal() {
-            return (this.foo.nextLong() % (this.maxVal - this.minVal)) + this.minVal;
+            long val = (this.foo.nextLong() % (this.maxVal - this.minVal)) + this.minVal;
+            return (val == 0) ? 1 : val;
         }
 
         public static MetricMaxSizes getRandomSize() {
@@ -375,10 +376,10 @@ public class TestNativeFlamdexFTGSIterator {
     public void testSingleShard() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
         // need at least one
         final int nMetrics = rand.nextInt(MAX_N_METRICS - 1) + 1;
-        String fieldName = RandomStringUtils.randomAlphabetic(MAX_FIELD_NAME_LEN);
+        String fieldName = RandomStringUtils.randomAlphabetic(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
         String[] metricNames = new String[nMetrics];
         for (int i = 0; i < nMetrics; i++) {
-            metricNames[i] = RandomStringUtils.randomAlphabetic(MAX_FIELD_NAME_LEN);
+            metricNames[i] = RandomStringUtils.randomAlphabetic(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
         }
 
         String shardname = createNewShard(nMetrics, fieldName, metricNames);
@@ -416,10 +417,10 @@ public class TestNativeFlamdexFTGSIterator {
     public void test30Shards() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
         // need at least one
         final int nMetrics = rand.nextInt(MAX_N_METRICS - 1) + 1;
-        String fieldName = RandomStringUtils.randomAlphabetic(MAX_FIELD_NAME_LEN);
+        String fieldName = RandomStringUtils.randomAlphabetic(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
         String[] metricNames = new String[nMetrics];
         for (int i = 0; i < nMetrics; i++) {
-            metricNames[i] = RandomStringUtils.randomAlphabetic(MAX_FIELD_NAME_LEN);
+            metricNames[i] = RandomStringUtils.randomAlphabetic(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
         }
 
 
@@ -469,7 +470,7 @@ public class TestNativeFlamdexFTGSIterator {
             final FieldDesc fd = new FieldDesc();
             fd.isIntfield = false;
             fd.name = fieldName;
-            fd.numDocs = rand.nextInt(64 * 2 ^ 20);  // 64MB
+            fd.numDocs = rand.nextInt(64 * 2 ^ 20) + 1;  // 64MB
             fieldDescs.add(fd);
         }
 
@@ -479,7 +480,7 @@ public class TestNativeFlamdexFTGSIterator {
             fd.isIntfield = true;
             fd.name = metricNames[i];
             fd.termGenerator = MetricMaxSizes.getRandomSize();
-            fd.numDocs = rand.nextInt(64 * 2^20);  // 64MB
+            fd.numDocs = rand.nextInt(64 * 2^20) + 1;  // 64MB
             fieldDescs.add(fd);
         }
 
