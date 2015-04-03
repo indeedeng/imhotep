@@ -5,9 +5,11 @@ import com.google.common.primitives.Ints;
 import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.util.core.sort.Quicksortable;
 import com.indeed.util.core.sort.Quicksortables;
+
 import it.unimi.dsi.fastutil.ints.IntArrayFIFOQueue;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
+
 import org.apache.log4j.Logger;
 
 import java.util.ArrayList;
@@ -30,15 +32,15 @@ public final class MultiCacheConfig {
     private StatsOrderingInfo[] ordering;
 
     public static class StatsOrderingInfo {
-        public final int originalIndex;
+        public final int metricIndex;
         public final long min;
         public final long max;
         public final int sizeInBytes;
         public final int vectorNum;
         public final int offsetInVector;
 
-        public StatsOrderingInfo(int originalIndex, long min, long max, int sizeInBytes, int vectorNum, int offsetInVector) {
-            this.originalIndex = originalIndex;
+        public StatsOrderingInfo(int metricIndex, long min, long max, int sizeInBytes, int vectorNum, int offsetInVector) {
+            this.metricIndex = metricIndex;
             this.min = min;
             this.max = max;
             this.sizeInBytes = sizeInBytes;
@@ -225,7 +227,7 @@ public final class MultiCacheConfig {
         int metricIndex = 0;
         for (int i = 0; i < booleanMetrics.size(); i++) {
             final int metric = booleanMetrics.getInt(i);
-            ret[metricIndex] = new StatsOrderingInfo(metric, mins[metric], maxes[metric], 0, -1, -1);
+            ret[metric] = new StatsOrderingInfo(metricIndex, mins[metric], maxes[metric], 0, -1, -1);
             metricIndex++;
         }
         for (int i = 0; i < vectorMetrics.size(); i++) {
@@ -234,7 +236,7 @@ public final class MultiCacheConfig {
             for (int j = 0; j < list.size(); j++) {
                 final int metric = list.get(j);
                 final int size = (bits[metric] + 7) / 8;
-                ret[metricIndex] = new StatsOrderingInfo(metric, mins[metric], maxes[metric], size, i, index);
+                ret[metric] = new StatsOrderingInfo(metricIndex, mins[metric], maxes[metric], size, i, index);
                 index += size;
                 metricIndex++;
             }
@@ -267,49 +269,73 @@ public final class MultiCacheConfig {
     private static interface ReduceFunction<A,B> {
         B apply(A a, B b);
     }
-//
-//    public static void main(String[] args) {
-//        final int[] ints = new int[]{1,2,3,4,5,6,7,8,9,10};
-//        long time = -System.nanoTime();
-//        permutations(Arrays.copyOf(ints, ints.length), new ReduceFunction<int[], Object>() {
-//            @Override
-//            public Object apply(int[] ints, Object o) {
-////                System.out.println(Arrays.toString(ints));
-//                return o;
-//            }
-//        }, null);
-//        time += System.nanoTime();
-//        System.out.println(time / 1000000d);
-//
-//        final MultiCacheConfig multiCacher = new MultiCacheConfig(1);
-//        multiCacher.buildMultiCache(null,
-//                                    0,
-//                                    null,
-//                                    new IntValueLookup[]{new DummyIntValueLookup(0, 1),
-//                                            new DummyIntValueLookup(0, 255),
-//                                            new DummyIntValueLookup(0, 1),
-//                                            new DummyIntValueLookup(0, 65535),
-//                                            new DummyIntValueLookup(0, 1),
-//                                            new DummyIntValueLookup(0, Long.MAX_VALUE),
-//                                            new DummyIntValueLookup(0, 1),
-//                                            new DummyIntValueLookup(0, 1000000),
-//                                            new DummyIntValueLookup(0, 1),
-//                                            new DummyIntValueLookup(0, Long.MAX_VALUE),
-//                                            new DummyIntValueLookup(0, Long.MAX_VALUE),
-////                                            new DummyIntValueLookup(0, Integer.MAX_VALUE),
-////                                            new DummyIntValueLookup(0, Integer.MAX_VALUE),
-////                                            new DummyIntValueLookup(0, Integer.MAX_VALUE),
-//                                            new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L),
-//                                            new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L),
-//                                            new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L),
-//                                            new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L),
-//                                            new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L),
-//                                            new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L),
-//                                            new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L)
-//                                    },
-//                                    18);
-//        System.out.println("Done!");
-//    }
+
+    public static void main(String[] args) {
+        final int[] ints = new int[]{1,2,3,4,5,6,7,8,9,10};
+        long time = -System.nanoTime();
+        permutations(Arrays.copyOf(ints, ints.length), new ReduceFunction<int[], Object>() {
+            @Override
+            public Object apply(int[] ints, Object o) {
+//                System.out.println(Arrays.toString(ints));
+                return o;
+            }
+        }, null);
+        time += System.nanoTime();
+        System.out.println(time / 1000000d);
+
+        final MultiCacheConfig multiCacher = new MultiCacheConfig();
+        IntValueLookup[] iv = new IntValueLookup[]{
+                                                   new DummyIntValueLookup(0, 1),
+                                                      new DummyIntValueLookup(0, 255),
+                                                      new DummyIntValueLookup(0, 1),
+                                                      new DummyIntValueLookup(0, 65535),
+                                                      new DummyIntValueLookup(0, 1),
+                                                      new DummyIntValueLookup(0, Long.MAX_VALUE),
+                                                      new DummyIntValueLookup(0, 1),
+                                                      new DummyIntValueLookup(0, 1000000),
+                                                      new DummyIntValueLookup(0, 1),
+                                                      new DummyIntValueLookup(0, Long.MAX_VALUE),
+                                                      new DummyIntValueLookup(0, Long.MAX_VALUE),
+//                                                    new DummyIntValueLookup(0, Integer.MAX_VALUE),
+//                                                    new DummyIntValueLookup(0, Integer.MAX_VALUE),
+//                                                    new DummyIntValueLookup(0, Integer.MAX_VALUE),
+                                                      new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L),
+                                                      new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L),
+                                                      new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L),
+                                                      new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L),
+                                                      new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L),
+                                                      new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L),
+                                                      new DummyIntValueLookup(0, Integer.MAX_VALUE * 65536L)
+        };
+        StatLookup sl = new StatLookup(iv.length);
+        for (int i = 0; i < iv.length; i++) {
+            sl.set(i, iv[i]);
+        }
+        multiCacher.calcOrdering(new StatLookup[] {sl}, iv.length);
+        
+        StatsOrderingInfo[] ordering = multiCacher.ordering;
+        int count = ordering.length;
+        
+        final long[] mins = new long[count];
+        final long[] maxes = new long[count];
+        final int[] sizesInBytes = new int[count];
+        final int[] vectorNums = new int[count];
+        final int[] offsetsInVectors = new int[count];
+        final byte[] metricIndex = new byte[count];
+
+        for (int i = 0; i < ordering.length; i++) {
+            final MultiCacheConfig.StatsOrderingInfo orderInfo = ordering[i];
+            mins[i] = orderInfo.min;
+            maxes[i] = orderInfo.max;
+            sizesInBytes[i] = orderInfo.sizeInBytes;
+            vectorNums[i] = orderInfo.vectorNum;
+            offsetsInVectors[i] = orderInfo.offsetInVector;
+            metricIndex[i] = (byte)orderInfo.metricIndex;
+        }
+
+
+        System.out.println("Done!");
+    }
 
     private static final class Permutation {
         final List<IntList> vectorMetrics;

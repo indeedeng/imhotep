@@ -503,6 +503,7 @@ public class TestNativeFlamdexFTGSIterator {
                 } else {
                     assertEquals(valid.termStringVal(), test.termStringVal());
                 }
+                assertEquals(valid.termDocFreq(), test.termDocFreq());
                 while (valid.nextGroup()) {
                     assertTrue(test.nextGroup());
                     assertEquals(valid.group(), test.group());

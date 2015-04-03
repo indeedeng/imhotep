@@ -12,7 +12,7 @@ unpacked_table_t *unpacked_table_create(packed_table_t *packed_table, int n_rows
     table->n_rows = n_rows;
     table->n_cols = n_cols;
     table->col_remapping = calloc(n_cols, sizeof(uint8_t));
-    memcpy(packed_table->col_remapping, table->col_remapping, n_cols * sizeof(uint8_t));
+    memcpy(table->col_remapping, packed_table->col_remapping, n_cols * sizeof(uint8_t));
     table->col_offset = (int *) calloc(n_cols, sizeof(int));
 
     /* set for the boolean cols, padded to fit in 1 or 2 vectors */
