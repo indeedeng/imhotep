@@ -54,7 +54,7 @@ public final class MultiCache implements Closeable {
             this.nativeMetricLookups.add(metricLookup);
 
             /* copy data into multicache */
-            copyValues(stats.get(i), numDocsInShard, orderInfo.metricIndex);
+            copyValues(stats.get(orderInfo.originalOrder), numDocsInShard, i);
         }
     }
 
@@ -64,7 +64,7 @@ public final class MultiCache implements Closeable {
         final int[] sizesInBytes = new int[count];
         final int[] vectorNums = new int[count];
         final int[] offsetsInVectors = new int[count];
-        final byte[] metricIndexes = new byte[count];
+        final byte[] originalOrder = new byte[count];
 
         for (int i = 0; i < ordering.length; i++) {
             final MultiCacheConfig.StatsOrderingInfo orderInfo = ordering[i];
@@ -73,7 +73,7 @@ public final class MultiCache implements Closeable {
             sizesInBytes[i] = orderInfo.sizeInBytes;
             vectorNums[i] = orderInfo.vectorNum;
             offsetsInVectors[i] = orderInfo.offsetInVector;
-            metricIndexes[i] = (byte)orderInfo.metricIndex;
+            originalOrder[orderInfo.originalOrder] = (byte)i;
         }
         return nativeBuildMultiCache(numDocsInShard,
                                      mins,
@@ -81,7 +81,7 @@ public final class MultiCache implements Closeable {
                                      sizesInBytes,
                                      vectorNums,
                                      offsetsInVectors,
-                                     metricIndexes,
+                                     originalOrder,
                                      this.numStats);
     }
 

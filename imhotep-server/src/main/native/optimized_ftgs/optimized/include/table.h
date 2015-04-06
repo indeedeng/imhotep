@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdlib.h>
 #include <stdint.h>
 #include <emmintrin.h>
 #include <smmintrin.h>
@@ -11,8 +12,12 @@
 #define MAX_BIT_FIELDS                          4
 #define GROUP_SIZE                              28
 #define PREFETCH(address)                       _mm_prefetch(address, _MM_HINT_T0)
-//#define ALIGNED_ALLOC(alignment, size) (((alignment) < (size)) ? aligned_alloc(alignment, size) : aligned_alloc(alignment,alignment));
+
+#ifdef _SANITIZE_
 #define ALIGNED_ALLOC(alignment, size) malloc(size);
+#else
+#define ALIGNED_ALLOC(alignment, size) (((alignment) < (size)) ? aligned_alloc(alignment,size) : aligned_alloc(alignment,alignment));
+#endif
 
 
 struct bit_fields_and_group {

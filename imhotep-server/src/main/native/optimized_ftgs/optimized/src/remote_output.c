@@ -188,8 +188,7 @@ static int write_group_stats(struct buffered_socket* socket,
                              const uint32_t* restrict non_zero_groups,
                              const int nz_group_count,
                              const unpacked_table_t* restrict group_stats,
-                             const int num_stats,
-                             size_t stats_size) {
+                             const int num_stats) {
     int32_t previous_group = -1;
     int i = 0;
     for (; i < nz_group_count - PREFETCH_DISTANCE; i++) {
@@ -316,9 +315,7 @@ int write_term_group_stats(const struct session_desc* session, const struct tgs_
     }
     TRY(write_svint64(socket, term_doc_freq));
     int num_stats = session->num_stats;
-    size_t stats_size = num_stats <= 2 ? 2 : (num_stats+3)/4*4;
-    TRY(write_group_stats(socket, groups, term_group_count, tgs->group_stats,
-                          num_stats, stats_size));
+    TRY(write_group_stats(socket, groups, term_group_count, tgs->group_stats, num_stats));
 
     return 0;
 }

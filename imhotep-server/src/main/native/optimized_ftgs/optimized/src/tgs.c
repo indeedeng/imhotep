@@ -92,6 +92,8 @@ int tgs_execute_pass(struct worker_desc *worker,
 
     group_stats = allocate_grp_stats(worker, session, infos[0].packed_metrics);
     session->current_tgs_pass->group_stats = group_stats;
+    desc->group_stats = group_stats;
+    desc->temp_table = session->temp_buf;
 
     for (int i = 0; i < n_slices; i++) {
         struct index_slice_info *slice;
