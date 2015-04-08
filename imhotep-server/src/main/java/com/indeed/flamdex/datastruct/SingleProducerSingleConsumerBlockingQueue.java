@@ -342,11 +342,9 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         if (writerWaiting.value) {
             lock.lock();
             try {
-                if (writerWaiting.value) {
-                    if (head.value != ((tail.value+1)&moduloMask)) {
-                        notFull.signal();
-                        writerWaiting.value = false;
-                    }
+                if (head.value != ((tail.value+1)&moduloMask)) {
+                    notFull.signal();
+                    writerWaiting.value = false;
                 }
             } finally {
                 lock.unlock();
