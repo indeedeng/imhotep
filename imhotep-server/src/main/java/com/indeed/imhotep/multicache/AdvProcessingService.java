@@ -1,3 +1,16 @@
+/*
+ * Copyright (C) 2015 Indeed Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the
+ * License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.indeed.imhotep.multicache;
 
 import com.google.common.collect.Lists;
@@ -10,40 +23,40 @@ import java.util.List;
  */
 public class AdvProcessingService<Data, Result> extends ProcessingService<Data, Result> {
     private final List<ProcessingQueuesHolder> queuesList;
-    private TaskCoordinator<Data> coordinator;
+    private final TaskCoordinator<Data> coordinator;
 
-    public AdvProcessingService(TaskCoordinator<Data> coordinator) {
+    public AdvProcessingService(final TaskCoordinator<Data> coordinator) {
         super();
         this.coordinator = coordinator;
         this.queuesList = Lists.newArrayListWithCapacity(32);
     }
 
     @Override
-    public int addTask(ProcessingTask<Data, Result> task) {
+    public int addTask(final ProcessingTask<Data, Result> task) {
         final int handle = super.addTask(task);
-        ProcessingQueuesHolder queue = new ProcessingQueuesHolder();
+        final ProcessingQueuesHolder queue = new ProcessingQueuesHolder();
         task.configure(queue, Thread.currentThread());
-        this.queuesList.add(queue);
+        queuesList.add(queue);
         return handle;
     }
 
     @Override
-    public void processData(Iterator<Data> iterator,
-                            ResultProcessor<Result> resultProcessor) {
+    public void processData(final Iterator<Data> iterator,
+                            final ResultProcessor<Result> resultProcessor) {
         try {
             if (resultProcessor != null) {
-                this.resultProcessorThread = new Thread(resultProcessor);
-                resultProcessor.configure(this.queuesList, Thread.currentThread(), numTasks);
+                resultProcessorThread = new Thread(resultProcessor);
+                resultProcessor.configure(queuesList, Thread.currentThread(), numTasks);
                 resultProcessorThread.setUncaughtExceptionHandler(errorCatcher);
                 threads.add(resultProcessorThread);
             }
             else {
-                for (ProcessingTask<Data, Result> task : this.tasks) {
+                for (final ProcessingTask<Data, Result> task : tasks) {
                     task.setDiscardResults(true);
                 }
             }
 
-            for (Thread t : this.threads)  t.start();
+            for (final Thread thread : threads)  thread.start();
 
             try {
                 while (iterator.hasNext()) {
@@ -51,27 +64,27 @@ public class AdvProcessingService<Data, Result> extends ProcessingService<Data, 
                     final int  handle = coordinator.route(data);
                     queuesList.get(handle).submitData(data);
                 }
-                for (ProcessingQueuesHolder queue: queuesList) {
+                for (final ProcessingQueuesHolder queue: queuesList) {
                     queue.submitData(queue.COMPLETE_DATA_SENTINEL);
                 }
             }
-            catch (InterruptedException ex) {
-                for (Thread thread: threads) thread.interrupt();
+            catch (final InterruptedException ex) {
+                for (final Thread thread: threads) thread.interrupt();
             }
             finally {
-                for (Thread thread: threads) thread.join();
+                for (final Thread thread: threads) thread.join();
             }
         }
-        catch (Throwable t) {
-            this.errorTracker.set(true);
-            this.errorCatcher.uncaughtException(Thread.currentThread(), t);
+        catch (final Throwable throwable) {
+            errorTracker.set(true);
+            errorCatcher.uncaughtException(Thread.currentThread(), throwable);
         }
         finally {
             handleErrors();
         }
     }
 
-    public static abstract class TaskCoordinator<Data> {
-        public abstract int route(Data d);
+    public abstract static class TaskCoordinator<Data> {
+        public abstract int route(Data data);
     }
 }

@@ -1,3 +1,16 @@
+/*
+ * Copyright (C) 2015 Indeed Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the
+ * License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.indeed.imhotep.multicache;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -11,16 +24,16 @@ public abstract class ProcessingTask<Data, Result> implements Runnable {
     private Thread  owner          = null;
     private boolean discardResults = false;
 
-    public void configure(ProcessingService<Data, Result>.ProcessingQueuesHolder queue, Thread owner) {
+    public void configure(final ProcessingService<Data, Result>.ProcessingQueuesHolder queue, final Thread owner) {
         this.queue = queue;
         this.owner = owner;
     }
 
-    public void setDiscardResults(boolean discardResults) {
+    public void setDiscardResults(final boolean discardResults) {
         this.discardResults = discardResults;
     }
 
-    private final void normalLoop() throws InterruptedException {
+    private void normalLoop() throws InterruptedException {
         boolean alive = true;
         Data data = queue.retrieveData();
         while (data != queue.COMPLETE_DATA_SENTINEL && alive) {
@@ -29,10 +42,10 @@ public abstract class ProcessingTask<Data, Result> implements Runnable {
                 queue.submitResult(result);
                 data = queue.retrieveData();
             }
-            catch (InterruptedException ex) {
+            catch (final InterruptedException ex) {
                 alive = false;
             }
-            catch (Throwable thr) {
+            catch (final Throwable thr) {
                 alive = false;
                 queue.catchError(thr);
                 owner.interrupt();
@@ -41,7 +54,7 @@ public abstract class ProcessingTask<Data, Result> implements Runnable {
         if (alive) queue.submitResult(queue.COMPLETE_RESULT_SENTINEL);
     }
 
-    private final void discardLoop() throws InterruptedException {
+    private void discardLoop() throws InterruptedException {
         boolean alive = true;
         Data data = queue.retrieveData();
         while (data != queue.COMPLETE_DATA_SENTINEL && alive) {
@@ -49,10 +62,10 @@ public abstract class ProcessingTask<Data, Result> implements Runnable {
                 processData(data);
                 data = queue.retrieveData();
             }
-            catch (InterruptedException ex) {
+            catch (final InterruptedException ex) {
                 alive = false;
             }
-            catch (Throwable thr) {
+            catch (final Throwable thr) {
                 alive = false;
                 queue.catchError(thr);
                 owner.interrupt();
@@ -73,10 +86,10 @@ public abstract class ProcessingTask<Data, Result> implements Runnable {
                 cleanup();
             }
         }
-        catch (InterruptedException ex) {
+        catch (final InterruptedException ex) {
             // we've been signaled to go away
         }
-        catch (Throwable throwable) {
+        catch (final Throwable throwable) {
             queue.catchError(throwable);
             owner.interrupt();
         }

@@ -1,3 +1,16 @@
+/*
+ * Copyright (C) 2015 Indeed Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the
+ * License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.indeed.imhotep.multicache;
 
 import com.google.common.collect.Lists;
@@ -13,10 +26,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * Created by darren on 2/7/15.
  */
-public class ProcessingService<Data,Result> {
+public class ProcessingService<Data, Result> {
 
     public static class ProcessingServiceException extends RuntimeException {
-        public ProcessingServiceException(Throwable wrapped) {
+        public ProcessingServiceException(final Throwable wrapped) {
             super(wrapped);
         }
     }
@@ -29,40 +42,37 @@ public class ProcessingService<Data,Result> {
     protected Thread resultProcessorThread = null;
     protected int numTasks  = 0;
 
-    public int addTask(ProcessingTask<Data, Result> task) {
-        final int taskNum;
-        final Thread t;
-
-        this.tasks.add(task);
-
+    public int addTask(final ProcessingTask<Data, Result> task) {
+        tasks.add(task);
         task.configure(queues, Thread.currentThread());
 
-        t = new Thread(task);
-        t.setUncaughtExceptionHandler(this.errorCatcher);
-        this.threads.add(t);
+        final Thread thread = new Thread(task);
+        thread.setUncaughtExceptionHandler(errorCatcher);
+        threads.add(thread);
 
-        taskNum = this.numTasks;
-        ++this.numTasks;
+        final int taskNum = numTasks;
+        ++numTasks;
         return taskNum;
     }
 
-    public void processData(Iterator<Data> iterator,
-                            ResultProcessor<Result> resultProcessor) {
+    public void processData(final Iterator<Data> iterator,
+                            final ResultProcessor<Result> resultProcessor) {
         try {
             if (resultProcessor != null) {
                 resultProcessorThread = new Thread(resultProcessor);
-                List<ProcessingQueuesHolder> singltonList = new ArrayList<>(1);
+                final List<ProcessingQueuesHolder> singltonList = new ArrayList<>(1);
                 singltonList.add(queues);
                 resultProcessor.configure(singltonList, Thread.currentThread(), numTasks);
                 resultProcessorThread.setUncaughtExceptionHandler(errorCatcher);
                 threads.add(resultProcessorThread);
-            } else {
-                for (ProcessingTask<Data, Result> task : tasks) {
+            }
+            else {
+                for (final ProcessingTask<Data, Result> task : tasks) {
                     task.setDiscardResults(true);
                 }
             }
 
-            for (Thread thread : threads) thread.start();
+            for (final Thread thread : threads) thread.start();
 
             try {
                 while (iterator.hasNext()) {
@@ -72,15 +82,17 @@ public class ProcessingService<Data,Result> {
                     queues.submitData(queues.COMPLETE_DATA_SENTINEL);
                 }
             }
-            catch (InterruptedException ex) {
-                for (Thread thread: threads) thread.interrupt();
+            catch (final InterruptedException ex) {
+                for (final Thread thread: threads) thread.interrupt();
             }
             finally {
-                for (Thread thread: threads) thread.join();
+                for (final Thread thread: threads) thread.join();
             }
-        } catch (Throwable throwable) {
+        }
+        catch (final Throwable throwable) {
             errorCatcher.uncaughtException(Thread.currentThread(), throwable);
-        } finally {
+        }
+        finally {
             handleErrors();
         }
     }
@@ -108,7 +120,7 @@ public class ProcessingService<Data,Result> {
         protected BlockingQueue<Data>   dataQueue    = new ArrayBlockingQueue<Data>(64);
         protected BlockingQueue<Result> resultsQueue = new ArrayBlockingQueue<Result>(64);
 
-        public void submitData(Data data) throws InterruptedException {
+        public void submitData(final Data data) throws InterruptedException {
             dataQueue.put(data);
         }
 
@@ -116,7 +128,7 @@ public class ProcessingService<Data,Result> {
             return dataQueue.take();
         }
 
-        public void submitResult(Result result) throws InterruptedException {
+        public void submitResult(final Result result) throws InterruptedException {
             resultsQueue.put(result);
         }
 
@@ -124,7 +136,7 @@ public class ProcessingService<Data,Result> {
             return resultsQueue.poll(10, TimeUnit.MICROSECONDS);
         }
 
-        public void catchError(Throwable throwable) {
+        public void catchError(final Throwable throwable) {
             errorCatcher.uncaughtException(Thread.currentThread(), throwable);
         }
     }

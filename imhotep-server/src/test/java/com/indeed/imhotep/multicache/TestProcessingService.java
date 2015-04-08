@@ -115,7 +115,7 @@ public class TestProcessingService {
         };
     }
 
-    public void advancedTask(final int numTasks, Processor processor) {
+    void advancedTask(final int numTasks, Processor processor) {
         service = new AdvProcessingService<Long, Long>(newRouter(numTasks));
         for (int count = 0; count < numTasks; ++count)
             service.addTask(new Task());
@@ -131,7 +131,7 @@ public class TestProcessingService {
     @Test public void advancedTaskDiscard16() { advancedTask(16, null); }
     @Test public void advancedTaskDiscard128() { advancedTask(128, null); }
 
-    public void advancedBrokenTask(final int numTasks, Processor processor) {
+    void advancedBrokenTask(final int numTasks, Processor processor) {
         service = new AdvProcessingService<Long, Long>(newRouter(numTasks));
         for (int count = 0; count < numTasks; ++count)
             service.addTask(new BrokenTask());
