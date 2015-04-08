@@ -1,6 +1,5 @@
 package com.indeed.imhotep.local;
 
-import com.google.common.base.Throwables;
 import com.google.common.primitives.Ints;
 import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.util.core.sort.Quicksortable;
@@ -17,8 +16,6 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
-import java.util.concurrent.BrokenBarrierException;
-import java.util.concurrent.CyclicBarrier;
 
 /**
  * @author jplaisance
@@ -32,15 +29,15 @@ public final class MultiCacheConfig {
     private StatsOrderingInfo[] ordering;
 
     public static class StatsOrderingInfo {
-        public final int metricIndex;
+        public final int originalOrder;
         public final long min;
         public final long max;
         public final int sizeInBytes;
         public final int vectorNum;
         public final int offsetInVector;
 
-        public StatsOrderingInfo(int metricIndex, long min, long max, int sizeInBytes, int vectorNum, int offsetInVector) {
-            this.metricIndex = metricIndex;
+        public StatsOrderingInfo(int originalOrder, long min, long max, int sizeInBytes, int vectorNum, int offsetInVector) {
+            this.originalOrder = originalOrder;
             this.min = min;
             this.max = max;
             this.sizeInBytes = sizeInBytes;
@@ -227,7 +224,7 @@ public final class MultiCacheConfig {
         int metricIndex = 0;
         for (int i = 0; i < booleanMetrics.size(); i++) {
             final int metric = booleanMetrics.getInt(i);
-            ret[metric] = new StatsOrderingInfo(metricIndex, mins[metric], maxes[metric], 0, -1, -1);
+            ret[metricIndex] = new StatsOrderingInfo(metric, mins[metric], maxes[metric], 0, -1, -1);
             metricIndex++;
         }
         for (int i = 0; i < vectorMetrics.size(); i++) {
@@ -236,7 +233,7 @@ public final class MultiCacheConfig {
             for (int j = 0; j < list.size(); j++) {
                 final int metric = list.get(j);
                 final int size = (bits[metric] + 7) / 8;
-                ret[metric] = new StatsOrderingInfo(metricIndex, mins[metric], maxes[metric], size, i, index);
+                ret[metricIndex] = new StatsOrderingInfo(metric, mins[metric], maxes[metric], size, i, index);
                 index += size;
                 metricIndex++;
             }
@@ -330,7 +327,7 @@ public final class MultiCacheConfig {
             sizesInBytes[i] = orderInfo.sizeInBytes;
             vectorNums[i] = orderInfo.vectorNum;
             offsetsInVectors[i] = orderInfo.offsetInVector;
-            metricIndex[i] = (byte)orderInfo.metricIndex;
+            metricIndex[orderInfo.originalOrder] = (byte)i;
         }
 
 

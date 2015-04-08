@@ -2,6 +2,8 @@
 #include <assert.h>
 #include "table.h"
 
+#define CACHE_LINE_SIZE                    4
+
 #define MAX(a, b) ({ \
     __typeof__(a) _a = (a); \
     __typeof__(b) _b = (b); \
@@ -598,6 +600,15 @@ void packed_table_bit_set_regroup(packed_table_t *table,
         if (group == target_group) {
             packed_bf_grp->grp = get_bit(bits, row) ? positive_group : negative_group;
         }
+    }
+}
+
+void packed_table_prefetch_row(packed_table_t *table, int row_id)
+{
+	int idx = row_id * table->row_size;
+    for (int i = 0; i < table->unpadded_row_size; i += CACHE_LINE_SIZE) {
+        __v16qi *prefetch_addr = &table->data[idx + i];
+        PREFETCH(prefetch_addr);
     }
 }
 

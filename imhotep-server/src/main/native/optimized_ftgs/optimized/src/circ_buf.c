@@ -1,9 +1,13 @@
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 #include <emmintrin.h>
 
-//#define ALIGNED_ALLOC(alignment, size) (((alignment) < (size)) ? aligned_alloc(alignment,size) : aligned_alloc(alignment,alignment));
+#ifdef _SANITIZE_
 #define ALIGNED_ALLOC(alignment, size) malloc(size);
+#else
+#define ALIGNED_ALLOC(alignment, size) (((alignment) < (size)) ? aligned_alloc(alignment,size) : aligned_alloc(alignment,alignment));
+#endif
 
 
 struct circular_buffer {
@@ -41,6 +45,7 @@ static struct circular_buffer *alloc(int data_size, int count)
 
 	/* align buffers on cache lines */
 	buff->buffer = (char *restrict)ALIGNED_ALLOC(64, data_size * buff->len);
+	memset(buff->buffer, 0, data_size * buff->len);
 
 	return buff;
 }

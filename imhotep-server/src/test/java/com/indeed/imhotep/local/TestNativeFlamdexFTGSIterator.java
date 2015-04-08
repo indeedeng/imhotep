@@ -50,7 +50,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
- * @author jwolfe
+ * @author darren
  */
 public class TestNativeFlamdexFTGSIterator {
     // this field is silly and exists for regrouping purposes.
@@ -220,7 +220,7 @@ public class TestNativeFlamdexFTGSIterator {
 
         Map<String, List<Integer>> map = Maps.newTreeMap();
         while (!docs.isEmpty()) {
-            String term = RandomStringUtils.randomAlphabetic(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
+            String term = randomString(rand.nextInt(MAX_STRING_TERM_LEN - 1) + 1);
             if (map.containsKey(term))
                 continue;
             final int maxDocsPerTerm = Math.min(docs.size(), maxTermDocs);
@@ -243,7 +243,7 @@ public class TestNativeFlamdexFTGSIterator {
     }
 
     private String generateShard(List<FieldDesc> fieldDescs) throws IOException {
-        final String dir = Files.getTempDirectory("native-ftgs-test", "fubar");
+        final String dir = Files.getTempDirectory("native-ftgs-test", "test");
         
         // find max # of docs
         long nDocs = 0;
@@ -254,6 +254,7 @@ public class TestNativeFlamdexFTGSIterator {
         final SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, nDocs, true);
 
         for (FieldDesc fd : fieldDescs) {
+//            System.out.println(fd.name);
             if (fd.isIntfield) {
                 createFlamdexIntField(dir, fd.name, fd.termGenerator, fd.numDocs, w);
             } else {
@@ -266,7 +267,7 @@ public class TestNativeFlamdexFTGSIterator {
     }
 
     private String copyShard(String dir) throws IOException {
-        final String new_dir = Files.getTempDirectory("native-ftgs-test", "fubar");
+        final String new_dir = Files.getTempDirectory("native-ftgs-test", "verify-copy");
 
         FileUtils.copyDirectory(new File(dir), new File(new_dir));
 
@@ -372,18 +373,36 @@ public class TestNativeFlamdexFTGSIterator {
         return mtSession;
     }
 
+    private String randomString(int len) {
+        return RandomStringUtils.random(len, 0, 0, true, false, null, rand);
+    }
+
     @Test
     public void testSingleShard() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
+        final long seed = rand.nextLong();
+//        final long seed = -4122356988999045667L;
+        rand.setSeed(seed);
+        System.out.println("Random seed: " + seed);
+
         // need at least one
         final int nMetrics = rand.nextInt(MAX_N_METRICS - 1) + 1;
-        String fieldName = RandomStringUtils.randomAlphabetic(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
+        String fieldName = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
         String[] metricNames = new String[nMetrics];
         for (int i = 0; i < nMetrics; i++) {
-            metricNames[i] = RandomStringUtils.randomAlphabetic(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
+            metricNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
         }
 
         String shardname = createNewShard(nMetrics, fieldName, metricNames);
         String shardCopy = copyShard(shardname);
+//        final String shardname = "/tmp/native-ftgs-test3283394525064445890test";
+//        final String shardCopy = "/tmp/native-ftgs-test25480306807727479verify-copy";
+//
+//        final String fieldName = "TsIkdJzFserHLuXLAQQBjxSUVlZRLYNliQGlvwHNalVLUujjbYrFMFRJgDBTMmKcZEnknvaUrTnIvwNYEXhfECEYutG";
+//        Collection<String> mNames = SimpleFlamdexReader.open(shardname).getIntFields();
+//        final int nMetrics = mNames.size();
+//        //final String[] metricNames = mNames.toArray(new String[nMetrics]);
+//        final String[] metricNames = metricNames0;
+//        System.out.println(Arrays.toString(metricNames));
 
         final String[] stringFields = new String[]{fieldName};
         final String[] intFields = new String[0];
@@ -415,12 +434,17 @@ public class TestNativeFlamdexFTGSIterator {
 
     @Test
     public void test30Shards() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
+        final long seed = rand.nextLong();
+//        final long seed = -4122356988999045667L;
+        rand.setSeed(seed);
+        System.out.println("Random seed: " + seed);
+
         // need at least one
         final int nMetrics = rand.nextInt(MAX_N_METRICS - 1) + 1;
-        String fieldName = RandomStringUtils.randomAlphabetic(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
+        String fieldName = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
         String[] metricNames = new String[nMetrics];
         for (int i = 0; i < nMetrics; i++) {
-            metricNames[i] = RandomStringUtils.randomAlphabetic(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
+            metricNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
         }
 
 
@@ -453,7 +477,7 @@ public class TestNativeFlamdexFTGSIterator {
         RawFTGSIterator ftgsIterator = simulator.getIterator();
 
         compareIterators(ftgsIterator, verificationIter, nMetrics);
-        
+
         t.join();
 
         simulator.close();
@@ -499,9 +523,15 @@ public class TestNativeFlamdexFTGSIterator {
                 assertTrue(test.nextTerm());
                 assertEquals(valid.fieldIsIntType(), test.fieldIsIntType());
                 if (valid.fieldIsIntType()) {
-                    assertEquals(valid.termIntVal(), test.termIntVal());
+                    final long v = valid.termIntVal();
+                    final long t = test.termIntVal();
+//                    System.out.println("valid: " + v + ", test: " + t);
+                    assertEquals(v, t);
                 } else {
-                    assertEquals(valid.termStringVal(), test.termStringVal());
+                    final String v = valid.termStringVal();
+                    final String t = test.termStringVal();
+//                    System.out.println("valid: " + v + ", test: " + t);
+                    assertEquals(v, t);
                 }
                 assertEquals(valid.termDocFreq(), test.termDocFreq());
                 while (valid.nextGroup()) {

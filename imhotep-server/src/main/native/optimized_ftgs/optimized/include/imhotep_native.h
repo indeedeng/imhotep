@@ -17,8 +17,11 @@
 
 #define SIZE_OF_ERRSTR 256
 
-//#define ALIGNED_ALLOC(alignment, size) ((alignment) < (size)) ? aligned_alloc(alignment,size) : aligned_alloc(alignment,alignment);
+#ifdef _SANITIZE_
 #define ALIGNED_ALLOC(alignment, size) malloc(size);
+#else
+#define ALIGNED_ALLOC(alignment, size) (((alignment) < (size)) ? aligned_alloc(alignment,size) : aligned_alloc(alignment,alignment));
+#endif
 
 struct circular_buffer_vector;
 
@@ -52,7 +55,7 @@ struct buffered_socket {
 };
 
 struct term_s {
-    uint64_t int_term;
+    int64_t int_term;
     struct string_term_s string_term;
 };
 
@@ -201,6 +204,7 @@ void packed_table_bit_set_regroup(packed_table_t *table,
                                   const int target_group,
                                   const int negative_group,
                                   const int positive_group);
+void packed_table_prefetch_row(packed_table_t *table, int row_id);
 
 void packed_table_unpack_row_to_table(
                                              packed_table_t* src_table,
