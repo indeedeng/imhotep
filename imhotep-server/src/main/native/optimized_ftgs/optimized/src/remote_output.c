@@ -201,28 +201,28 @@ static int write_group_stats(struct buffered_socket* socket,
 
         for (; stat_index <= num_stats-8; stat_index += 8) {
             int64_t stat;
-            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+0);
+            stat = unpacked_table_get_and_clear_remapped_cell(group_stats, group, stat_index+0);
             TRY(write_svint64(socket, stat));
-            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+1);
+            stat = unpacked_table_get_and_clear_remapped_cell(group_stats, group, stat_index+1);
             TRY(write_svint64(socket, stat));
-            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+2);
+            stat = unpacked_table_get_and_clear_remapped_cell(group_stats, group, stat_index+2);
             TRY(write_svint64(socket, stat));
-            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+3);
+            stat = unpacked_table_get_and_clear_remapped_cell(group_stats, group, stat_index+3);
             TRY(write_svint64(socket, stat));
-            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+4);
+            stat = unpacked_table_get_and_clear_remapped_cell(group_stats, group, stat_index+4);
             TRY(write_svint64(socket, stat));
-            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+5);
+            stat = unpacked_table_get_and_clear_remapped_cell(group_stats, group, stat_index+5);
             TRY(write_svint64(socket, stat));
-            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+6);
+            stat = unpacked_table_get_and_clear_remapped_cell(group_stats, group, stat_index+6);
             TRY(write_svint64(socket, stat));
-            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+7);
+            stat = unpacked_table_get_and_clear_remapped_cell(group_stats, group, stat_index+7);
             TRY(write_svint64(socket, stat));
 
             _mm_prefetch(prefetch_start+stat_index, _MM_HINT_T0);
         }
         if (stat_index < num_stats) {
             do {
-                int64_t stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index);
+                int64_t stat = unpacked_table_get_and_clear_remapped_cell(group_stats, group, stat_index);
                 TRY(write_svint64(socket, stat));
                 stat_index++;
             } while (stat_index < num_stats);
@@ -241,26 +241,26 @@ static int write_group_stats(struct buffered_socket* socket,
 
         for (; stat_index <= num_stats-8; stat_index += 8) {
             int64_t stat;
-            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+0);
+            stat = unpacked_table_get_and_clear_remapped_cell(group_stats, group, stat_index+0);
             TRY(write_svint64(socket, stat));
-            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+1);
+            stat = unpacked_table_get_and_clear_remapped_cell(group_stats, group, stat_index+1);
             TRY(write_svint64(socket, stat));
-            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+2);
+            stat = unpacked_table_get_and_clear_remapped_cell(group_stats, group, stat_index+2);
             TRY(write_svint64(socket, stat));
-            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+3);
+            stat = unpacked_table_get_and_clear_remapped_cell(group_stats, group, stat_index+3);
             TRY(write_svint64(socket, stat));
-            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+4);
+            stat = unpacked_table_get_and_clear_remapped_cell(group_stats, group, stat_index+4);
             TRY(write_svint64(socket, stat));
-            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+5);
+            stat = unpacked_table_get_and_clear_remapped_cell(group_stats, group, stat_index+5);
             TRY(write_svint64(socket, stat));
-            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+6);
+            stat = unpacked_table_get_and_clear_remapped_cell(group_stats, group, stat_index+6);
             TRY(write_svint64(socket, stat));
-            stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index+7);
+            stat = unpacked_table_get_and_clear_remapped_cell(group_stats, group, stat_index+7);
             TRY(write_svint64(socket, stat));
         }
         if (stat_index < num_stats) {
             do {
-                int64_t stat = unpacked_table_get_remapped_cell(group_stats, group, stat_index);
+                int64_t stat = unpacked_table_get_and_clear_remapped_cell(group_stats, group, stat_index);
                 TRY(write_svint64(socket, stat));
                 stat_index++;
             } while (stat_index < num_stats);

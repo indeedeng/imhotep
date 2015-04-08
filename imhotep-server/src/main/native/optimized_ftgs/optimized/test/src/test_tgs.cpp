@@ -361,7 +361,7 @@ public:
 
   const Table<n_metrics>&           table() const { return _table;              }
   const shard_t&                    shard() const { return _shard;              }
-  unpacked_table_t*       group_stats_buf() const { return _worker.grp_stats;   }
+  unpacked_table_t*       group_stats_buf() const { return _session.grp_stats;   }
 
 private:
   string port_string(unsigned short port) {

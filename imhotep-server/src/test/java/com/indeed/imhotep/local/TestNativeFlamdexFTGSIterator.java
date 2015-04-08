@@ -182,6 +182,9 @@ public class TestNativeFlamdexFTGSIterator {
         while (!docs.isEmpty()) {
             final List<Integer> selectedDocs;
             final long term = termGenerator.randVal();
+            if (term == 0) {
+                continue;
+            }
             if (map.containsKey(term)) {
                 selectedDocs = map.get(term);
             } else {
@@ -329,8 +332,7 @@ public class TestNativeFlamdexFTGSIterator {
         }
 
         public long randVal() {
-            long val = (this.foo.nextLong() % (this.maxVal - this.minVal)) + this.minVal;
-            return (val == 0) ? 1 : val;
+            return (this.foo.nextLong() % (this.maxVal - this.minVal)) + this.minVal;
         }
 
         public static MetricMaxSizes getRandomSize() {

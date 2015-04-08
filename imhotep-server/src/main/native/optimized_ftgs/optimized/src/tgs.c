@@ -5,44 +5,7 @@
 #include "varintdecode.h"
 
 #define TGS_BUFFER_SIZE	     1024
-#define PREFETCH_BUFFER_SIZE 32
 
-
-/* No need to share the group stats buffer, so just keep one per session*/
-/* Make sure the one we have is large enough */
-static unpacked_table_t *allocate_grp_stats(struct worker_desc *desc,
-                                            struct session_desc *session,
-                                            packed_table_t *metric_desc)
-{
-    int gs_size = 2048;//row_size * session->num_groups;
-
-    if (desc->grp_stats == NULL) {
-        desc->buffer_size = gs_size;
-        desc->grp_stats = unpacked_table_create(metric_desc, session->num_groups);
-
-        if (session->temp_buf) unpacked_table_destroy(session->temp_buf);
-        session->temp_buf = unpacked_table_copy_layout(desc->grp_stats, PREFETCH_BUFFER_SIZE);
-
-        return desc->grp_stats;
-    }
-
-    assert(1 == 1);  /* we should never get here */
-
-    if (desc->buffer_size >= gs_size) {
-        // our buffer is large enough already;
-        return desc->grp_stats;
-    }
-
-    unpacked_table_destroy(desc->grp_stats);
-    // TODO: maybe resize smarter
-    desc->buffer_size = gs_size;
-    desc->grp_stats = unpacked_table_create(metric_desc, session->num_groups);
-
-    if (session->temp_buf) unpacked_table_destroy(session->temp_buf);
-    session->temp_buf = unpacked_table_copy_layout(desc->grp_stats, PREFETCH_BUFFER_SIZE);
-
-    return desc->grp_stats;
-}
 
 void tgs_init(struct worker_desc *worker,
               struct tgs_desc *desc,
@@ -66,7 +29,10 @@ void tgs_init(struct worker_desc *worker,
         infos[i].packed_metrics = session->shards[i];
     }
     desc->slices = infos;
-    desc->grp_buf = worker->grp_buf;
+    desc->grp_buf = session->grp_buf;
+    desc->updated_groups = session->nz_grps_buf;
+    desc->temp_table = session->temp_buf;
+    desc->group_stats = session->grp_stats;
 }
 
 void tgs_destroy(struct tgs_desc *desc)
@@ -79,7 +45,7 @@ int tgs_execute_pass(struct worker_desc *worker,
                      struct tgs_desc *desc)
 {
     uint32_t doc_id_buf[TGS_BUFFER_SIZE];
-    unpacked_table_t *group_stats;
+    unpacked_table_t *group_stats = desc->group_stats;
     int n_slices = desc->n_slices;
     struct index_slice_info *infos = desc->slices;
 
@@ -89,11 +55,6 @@ int tgs_execute_pass(struct worker_desc *worker,
         strcpy(worker->error.str, "tgs_execute_pass: No shards.");
         return -1;
     }
-
-    group_stats = allocate_grp_stats(worker, session, infos[0].packed_metrics);
-    session->current_tgs_pass->group_stats = group_stats;
-    desc->group_stats = group_stats;
-    desc->temp_table = session->temp_buf;
 
     for (int i = 0; i < n_slices; i++) {
         struct index_slice_info *slice;
@@ -125,16 +86,14 @@ int tgs_execute_pass(struct worker_desc *worker,
         }
     }
 
-    struct bit_tree* non_zero_rows    = unpacked_table_get_non_zero_rows(group_stats);;
+    struct bit_tree* non_zero_rows    = unpacked_table_get_non_zero_rows(group_stats);
     const int     n_rows           = unpacked_table_get_rows(group_stats);
-    uint32_t*        groups           = calloc(n_rows, sizeof(uint32_t));
-    const int32_t    term_group_count = bit_tree_dump(non_zero_rows, groups, n_rows);
+    const int32_t    term_group_count = bit_tree_dump(non_zero_rows, desc->updated_groups, n_rows);
     int result;
     if (term_group_count == 0) {
         result = 0;
     } else {
-        result = write_term_group_stats(session, desc, groups, term_group_count);
+        result = write_term_group_stats(session, desc, desc->updated_groups, term_group_count);
     }
-    free(groups);
     return result;
 }

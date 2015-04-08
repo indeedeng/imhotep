@@ -5,6 +5,7 @@
 #include "remote_output.h"
 
 #define CIRC_BUFFER_SIZE 32
+#define PREFETCH_BUFFER_SIZE 32
 
 int run_tgs_pass(struct worker_desc *worker,
                  struct session_desc *session,
@@ -45,9 +46,6 @@ int run_tgs_pass(struct worker_desc *worker,
              stream,
              session);
 
-    /* save just in case ... something? */
-    session->current_tgs_pass = &desc;
-
     /* do the Term Group Stats accumulation pass */
     int err;
     err = tgs_execute_pass(worker, session, &desc);
@@ -59,8 +57,6 @@ int run_tgs_pass(struct worker_desc *worker,
 
     /* clean up the tgs structure */
     tgs_destroy(&desc);
-
-    session->current_tgs_pass = NULL;
 
     return err;
 }
@@ -100,6 +96,19 @@ int register_shard(struct session_desc *session, packed_table_t *table)
     return -1;
 }
 
+/* No need to share the group stats buffer, so just keep one per session*/
+/* Make sure the one we have is large enough */
+static unpacked_table_t *allocate_grp_stats(struct session_desc *session,
+                                            packed_table_t *metric_desc)
+{
+	unpacked_table_t *grp_stats;
+
+	grp_stats = unpacked_table_create(metric_desc, session->num_groups);
+	session->temp_buf = unpacked_table_copy_layout(grp_stats, PREFETCH_BUFFER_SIZE);
+
+	return grp_stats;
+}
+
 void session_init(struct session_desc *session,
                   int n_groups,
                   int n_stats,
@@ -109,23 +118,27 @@ void session_init(struct session_desc *session,
     session->num_groups = n_groups;
     session->num_stats = n_stats;
     session->num_shards = n_shards;
-    session->current_tgs_pass = NULL;
 
-    session->temp_buf = NULL;
+    session->grp_stats = allocate_grp_stats(session, shards[0]);
+    session->grp_buf = circular_buffer_int_alloc(CIRC_BUFFER_SIZE);
+    session->nz_grps_buf = calloc(n_groups, sizeof(uint32_t));
     session->shards = (packed_table_t **)calloc(n_shards, sizeof(packed_table_t *));
     memcpy(session->shards, shards, n_shards * sizeof(packed_table_t *));
 }
 
 void session_destroy(struct session_desc *session)
 {
-    packed_table_t **shards;
+    unpacked_table_destroy(session->grp_stats);
 
-    shards = session->shards;
-    if (session->temp_buf) unpacked_table_destroy(session->temp_buf);
-    free(shards);
+    /* free the intermediate buffers */
+    circular_buffer_int_cleanup(session->grp_buf);
+    free(session->nz_grps_buf);
+    unpacked_table_destroy(session->temp_buf);
+
+    free(session->shards);
 }
 
-#define DEFAULT_BUFFER_SIZE 8192
+
 
 int worker_start_field(struct worker_desc *worker,
                        char *field_name,
@@ -167,11 +180,6 @@ void worker_init(struct worker_desc *worker,
                  int *socket_fds,
                  int num_sockets)
 {
-    worker->id = id;
-    worker->buffer_size = DEFAULT_BUFFER_SIZE;
-    worker->grp_stats = NULL;
-    worker->grp_buf = circular_buffer_int_alloc(CIRC_BUFFER_SIZE);
-
     worker->num_streams = num_sockets;
     worker->out_streams = calloc(num_sockets, sizeof(struct ftgs_outstream));
     for (int i = 0; i < num_sockets; i++) {
@@ -181,10 +189,6 @@ void worker_init(struct worker_desc *worker,
 
 void worker_destroy(struct worker_desc *worker)
 {
-    if (worker->grp_stats != NULL) {
-        unpacked_table_destroy(worker->grp_stats);
-    }
-
     /* free socket and term entries */
     for (int i = 0; i < worker->num_streams; i++) {
         stream_destroy( &worker->out_streams[i]);
@@ -192,7 +196,4 @@ void worker_destroy(struct worker_desc *worker)
 
     /* free socket array */
     free(worker->out_streams);
-
-    /* free the intermediate buffers */
-    circular_buffer_int_cleanup(worker->grp_buf);
 }

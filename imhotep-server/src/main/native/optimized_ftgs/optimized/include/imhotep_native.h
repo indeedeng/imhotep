@@ -66,11 +66,7 @@ struct ftgs_outstream {
 };
 
 struct worker_desc {
-    int id;
-    int buffer_size;
     int num_streams;
-    unpacked_table_t *grp_stats;
-    struct circular_buffer_int *grp_buf;
     struct ftgs_outstream *out_streams;
     struct runtime_err error;
 };
@@ -91,6 +87,7 @@ struct tgs_desc {
     unpacked_table_t *group_stats;
     unpacked_table_t *temp_table;
     uint32_t temp_table_mask;
+    uint32_t *updated_groups;
 
     struct circular_buffer_int *grp_buf;
     struct ftgs_outstream *stream;
@@ -102,7 +99,9 @@ struct session_desc {
     int num_shards;
     packed_table_t **shards;
     unpacked_table_t *temp_buf;
-    struct tgs_desc *current_tgs_pass;
+    unpacked_table_t *grp_stats;
+    struct circular_buffer_int *grp_buf;
+    uint32_t *nz_grps_buf;
 };
 
 void term_destroy(uint8_t term_type, struct term_s *term);
@@ -250,7 +249,7 @@ void unpacked_table_set_cell(const unpacked_table_t * restrict table,
                              const int column,
                              const long value);
 void *unpacked_table_get_rows_addr(const unpacked_table_t * restrict table, const int row);
-int64_t unpacked_table_get_remapped_cell(const unpacked_table_t *table,
+int64_t unpacked_table_get_and_clear_remapped_cell(const unpacked_table_t *table,
                                          const int row,
                                          const int orig_idx);
 void unpacked_table_add_rows(const unpacked_table_t* restrict src_table,
