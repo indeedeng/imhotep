@@ -215,6 +215,24 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         }
     }
 
+    private boolean waitForSpace(final long timeNanos) throws InterruptedException {
+        lock.lockInterruptibly();
+        try {
+            long nanos = timeNanos;
+            writerWaiting.value = true;
+            while (((tail.value+1)&moduloMask) == getHeadFromCache(tail.value)) {
+                if (nanos < 0){
+                    break;
+                }
+                nanos = notFull.awaitNanos(nanos);
+            }
+            return ((tail.value+1)&moduloMask) != getHeadFromCache(tail.value);
+        } finally {
+            writerWaiting.value = false;
+            lock.unlock();
+        }
+    }
+
     @Override
     public boolean offer(final E e, final long timeout, final TimeUnit unit) throws InterruptedException {
         if (e == null) {
@@ -222,15 +240,9 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         }
         final int tailPtr = tail.value;
         if (((tailPtr+1)&moduloMask) == getHeadFromCache(tailPtr)) {
-            lock.lockInterruptibly();
-            try {
-                notFull.awaitNanos(unit.toNanos(timeout));
-            } finally {
-                lock.unlock();
+            if (!waitForSpace(unit.toNanos(timeout))) {
+                return false;
             }
-        }
-        if (((tailPtr+1)&moduloMask) == getHeadFromCache(tailPtr)) {
-            return false;
         }
         insert(e, tailPtr);
         return true;
@@ -267,19 +279,32 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         }
     }
 
+    private boolean waitForInput(final long timeoutNanos) throws InterruptedException {
+        lock.lockInterruptibly();
+        try {
+            readerWaiting.value = true;
+            long nanos = timeoutNanos;
+            final int headPtr = head.value;
+            while ((headPtr ==  getTailFromCache(headPtr))) {
+                if (nanos < 0) {
+                    return false;
+                }
+                nanos = notEmpty.awaitNanos(timeoutNanos);
+            }
+            return headPtr != getTailFromCache(headPtr);
+        } finally {
+            readerWaiting.value = false;
+            lock.unlock();
+        }
+    }
+
     @Override
     public E poll(long timeout, TimeUnit unit) throws InterruptedException {
         final int headPtr = head.value;
         if (headPtr == getTailFromCache(headPtr)) {
-            lock.lockInterruptibly();
-            try {
-                notEmpty.awaitNanos(unit.toNanos(timeout));
-            } finally {
-                lock.unlock();
+            if (!waitForInput(unit.toNanos(timeout))) {
+                return null;
             }
-        }
-        if (headPtr == getTailFromCache(headPtr)) {
-            return null;
         }
         return takeElement(headPtr);
     }
