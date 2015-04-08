@@ -25,7 +25,7 @@ import java.io.*;
  */
 public class DumpFlamdex2 {
     public static void main(String[] args) throws Exception {
-        final SimpleFlamdexReader reader = SimpleFlamdexReader.open("/tmp/native-ftgs-test25480306807727479verify-copy");
+        final SimpleFlamdexReader reader = SimpleFlamdexReader.open("/tmp/native-ftgs-test925648550396895603test");
         final BufferedWriter w  = new BufferedWriter(new FileWriter("/tmp/shard.dat"));
 
         w.write("num docs: " + reader.getNumDocs());
@@ -45,6 +45,19 @@ public class DumpFlamdex2 {
                 final String term = iter.term();
                 w.write("String Term : " + term);
                 w.newLine();
+
+                stream.reset(iter);
+                int j = 0;
+                do {
+                    n = stream.fillDocIdBuffer(docIdBuffer);
+                    for (int i = 0; i < n; i++) {
+                        w.write(Integer.toString(docIdBuffer[i]) + ", ");
+                        j ++;
+                    }
+                } while (n == docIdBuffer.length);
+                w.newLine();
+                w.write("count: " + j);
+                w.newLine();
             }
             w.newLine();
         }
@@ -59,6 +72,19 @@ public class DumpFlamdex2 {
             while (iter.next()) {
                 final long term = iter.term();
                 w.write("Int Term : " + term);
+                w.newLine();
+
+                stream.reset(iter);
+                int j = 0;
+                do {
+                    n = stream.fillDocIdBuffer(docIdBuffer);
+                    for (int i = 0; i < n; i++) {
+                        w.write(Integer.toString(docIdBuffer[i]) + ", ");
+                        j ++;
+                    }
+                } while (n == docIdBuffer.length);
+                w.newLine();
+                w.write("count: " + j);
                 w.newLine();
             }
             w.newLine();
