@@ -1,0 +1,66 @@
+CC=/usr/bin/gcc-4.9
+CPP=/usr/bin/g++-4.9
+CFLAGS= -Wall -Werror -I./include -I../include  -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions
+CPPFLAGS=-Wall -Werror -I./include -I../include -I/usr/include/boost -std=c++0x -msse4.2 -fPIC
+
+LFLAGS=-shared
+
+OPT_CFLAGS= -O3 $(CFLAGS)
+DBG_CFLAGS= -g $(CFLAGS)
+
+LIBS=-lm -lstdc++
+
+TESTS := test_bit_tree test_circ_buf test_groups test_packed_shard test_tgs test_varintdecode
+
+all: $(TESTS)
+
+.PHONY: clean
+
+obj/%.o: src/%.cpp $(H_FILES)
+	$(CPP) -c -o $@ $< $(CPPFLAGS)
+
+obj/test_patch.o: src/test_patch.c
+	$(CC) -c -o $@ $< $(CFLAGS)
+
+test_bit_tree: obj/test_bit_tree.o ../obj/bit_tree.o
+	$(CPP) $ -o test_bit_tree $(LIBS) $^
+
+test_circ_buf: obj/test_circ_buf.o ../obj/circ_buf.o
+	$(CPP) $ -o test_circ_buf $(LIBS) $^
+
+GROUPS_OBJS = \
+    obj/test_patch.o          \
+    ../obj/bit_tree.o         \
+    ../obj/circ_buf.o         \
+    ../obj/groups.o           \
+    ../obj/local_session.o    \
+    ../obj/packed_table.o     \
+    ../obj/remote_output.o    \
+    ../obj/socket.o           \
+    ../obj/table_accumulate.o \
+    ../obj/tgs.o              \
+    ../obj/unpacked_table.o   \
+    ../obj/varintdecode.o
+
+test_groups: obj/test_groups.o $(GROUPS_OBJS)
+	$(CPP) $ -o test_groups $(LIBS) $^
+
+test_packed_shard: obj/test_packed_shard.o obj/test_patch.o ../obj/packed_table.o
+	$(CPP) $ -o test_packed_shard $(LIBS) $^
+
+TGS_OBJS = $(GROUPS_OBJS) ../obj/metrics_inverter.o
+
+test_tgs: obj/test_tgs.o $(TGS_OBJS)
+	$(CPP) $ -o test_tgs $(LIBS) $^ -L/usr/lib/x86_64-linux-gnu -lboost_system -lpthread
+
+test_varintdecode: obj/test_varintdecode.o ../obj/varintdecode.o
+	$(CPP) $ -o test_varintdecode $(LIBS) $^
+
+dump_term: obj/dump_term.o $(TGS_OBJS)
+	$(CPP) $ -o dump_term $(LIBS) $^ -L/usr/lib/x86_64-linux-gnu -lboost_system -lpthread
+
+clean:
+	rm -f $(ODIR)/*.o *~ core $(INCDIR)/*~
+	rm -f $(TESTS)
+	rm -f dump_term
+
