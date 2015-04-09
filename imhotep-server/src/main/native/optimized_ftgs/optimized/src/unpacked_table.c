@@ -147,6 +147,11 @@ void *unpacked_table_get_rows_addr(const unpacked_table_t * restrict table, cons
     return &table->data[index];
 }
 
+void unpacked_table_clear(const unpacked_table_t *table) {
+    memset(table->data, 0, table->size * sizeof(__m128i));
+}
+
+
 int64_t unpacked_table_get_and_clear_remapped_cell(const unpacked_table_t *table,
                                          const int row,
                                          const int orig_idx)
@@ -156,7 +161,7 @@ int64_t unpacked_table_get_and_clear_remapped_cell(const unpacked_table_t *table
 
 	remapped_col = table->col_remapping[orig_idx];
 	stat = unpacked_table_get_cell(table, row, remapped_col);
-	unpacked_table_set_cell(table, row, remapped_col, 0);
+	unpacked_table_set_cell(table, row, remapped_col, 0L);
 	return stat;
 }
 

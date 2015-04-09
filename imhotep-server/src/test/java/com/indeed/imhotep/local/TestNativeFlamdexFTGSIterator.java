@@ -296,18 +296,62 @@ public class TestNativeFlamdexFTGSIterator {
                 return ret;
             }
         },
-        LONG(Long.MAX_VALUE, Long.MIN_VALUE, "long"),
-        INT(Integer.MAX_VALUE, Integer.MIN_VALUE, "int"),
-        CHAR(65535, 0, "unsigned short"),
-        SHORT(Short.MAX_VALUE, Short.MIN_VALUE, "short"),
-        SIGNED_BYTE(Byte.MAX_VALUE, Byte.MIN_VALUE, "signed byte"),
-        BYTE(255,0,"unsigned byte"),
-        BINARY(1, 0, "binary");
+        LONG(Long.MAX_VALUE, Long.MIN_VALUE, "long") {
+            @Override
+            public long randVal() {
+                return this.foo.nextLong();
+            }
+        },
+        INT(Integer.MAX_VALUE, Integer.MIN_VALUE, "int"){
+            @Override
+            public long randVal() {
+                return this.foo.nextInt();
+            }
+        },
+        CHAR(65535, 0, "unsigned short"){
+            @Override
+            public long randVal() {
+                return (char)this.foo.nextInt();
+            }
+        },
+        SHORT(Short.MAX_VALUE, Short.MIN_VALUE, "short") {
+            @Override
+            public long randVal() {
+                return (short)this.foo.nextInt();
+            }
+        },
+        SIGNED_BYTE(Byte.MAX_VALUE, Byte.MIN_VALUE, "signed byte") {
+            @Override
+            public long randVal() {
+                byte[] b = new byte[1];
+                
+                this.foo.nextBytes(b);
+                return b[0];
+            }
+        },
+        BYTE(255,0,"unsigned byte") {
+            @Override
+            public long randVal() {
+                byte[] b = new byte[1];
+                
+                this.foo.nextBytes(b);
+                return b[0] - Byte.MIN_VALUE;
+            }
+        },
+        BINARY(1, 0, "binary") {
+            @Override
+            public long randVal() {
+                if (this.foo.nextBoolean())
+                    return 1;
+                else
+                    return 0;
+            }
+        };
 
-        private final long maxVal;
-        private final long minVal;
-        private final String name;
-        private final Random foo = new Random();
+        protected final long maxVal;
+        protected final long minVal;
+        protected final String name;
+        protected final Random foo = new Random();
 
         MetricMaxSizes(long maxVal, long minVal, String name) {
             this.maxVal = maxVal;
@@ -331,9 +375,7 @@ public class TestNativeFlamdexFTGSIterator {
             return name;
         }
 
-        public long randVal() {
-            return (this.foo.nextLong() % (this.maxVal - this.minVal)) + this.minVal;
-        }
+        public abstract long randVal();
 
         public static MetricMaxSizes getRandomSize() {
             switch (LONG.foo.nextInt(7)) {
@@ -404,7 +446,7 @@ public class TestNativeFlamdexFTGSIterator {
     @Test
     public void testSingleShard() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
 //        final long seed = rand.nextLong();
-        final long seed = -3306490781952738318L;
+        final long seed = 4018959275271169907L;
         rand.setSeed(seed);
         System.out.println("Random seed: " + seed);
 
@@ -424,10 +466,10 @@ public class TestNativeFlamdexFTGSIterator {
 
 //        String shardname = createNewShard(nMetrics, fieldName, metricNames);
 //        String shardCopy = copyShard(shardname);
-        final String shardname = "/tmp/native-ftgs-test925648550396895603test";
-        final String shardCopy = "/tmp/native-ftgs-test4183586578023159176verify-copy";
+        final String shardname = "/tmp/native-ftgs-test7441387427680321323test";
+        final String shardCopy = "/tmp/native-ftgs-test1373055341828621942verify-copy";
 
-        final String fieldName = "zhLXHdNZOtnnOupXWgwSOeutaLtndgxPdVzaynNULoGLiqZqSvOJLQtbTpujgoIlfTiXESLgcEIpyuFIgdZXoJm";
+        final String fieldName = "aQICAePldlkpHOqRWLPKowxrdCYJwHOjEszbKwErjhoVskKQPKvBNBnAnnNUvOkCmjJZtpeYssgONAdOCQLGZbZIeaYrQfdMGLRnvDeetmwWxdoaTnbvXPU";
         //Collection<String> mNames = SimpleFlamdexReader.open(shardname).getIntFields();
         final int nMetrics = metricNames0.length;
         //final String[] metricNames = mNames.toArray(new String[nMetrics]);
@@ -460,7 +502,7 @@ public class TestNativeFlamdexFTGSIterator {
         simulator.close();
         verificationIter.close();
     }
-
+//
 //    @Test
 //    public void test30Shards() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
 //        final long seed = rand.nextLong();
@@ -518,7 +560,7 @@ public class TestNativeFlamdexFTGSIterator {
                                   String[] metricNames) throws IOException {
         final List<FieldDesc> fieldDescs = new ArrayList<>(nMetrics);
 
-        int numDocs = rand.nextInt(64 * 2 ^ 20) + 1;  // 64MB
+        int numDocs = rand.nextInt(1 << 18) + 1;  // 1MB
 
         // create field
         {
@@ -613,7 +655,7 @@ public class TestNativeFlamdexFTGSIterator {
                                                                                        true),
                                                                   2,
                                                                   1)});
-        System.out.println(Arrays.toString(metricNames));
+//        System.out.println(Arrays.toString(metricNames));
         for (String metric : metricNames) {
             mtSession.pushStat(metric);
         }

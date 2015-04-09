@@ -249,6 +249,7 @@ void unpacked_table_set_cell(const unpacked_table_t * restrict table,
                              const int column,
                              const long value);
 void *unpacked_table_get_rows_addr(const unpacked_table_t * restrict table, const int row);
+void unpacked_table_clear(const unpacked_table_t *table);
 int64_t unpacked_table_get_and_clear_remapped_cell(const unpacked_table_t *table,
                                          const int row,
                                          const int orig_idx);
