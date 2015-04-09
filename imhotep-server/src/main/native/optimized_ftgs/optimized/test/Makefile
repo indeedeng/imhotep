@@ -1,7 +1,7 @@
 CC=/usr/bin/gcc-4.9
 CPP=/usr/bin/g++-4.9
-CFLAGS= -Wall -Werror -I./include -I../include  -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions
-CPPFLAGS=-Wall -Werror -I./include -I../include -I/usr/include/boost -std=c++0x -msse4.2 -fPIC
+CFLAGS=-O3 -Wall -Werror -I./include -I../include  -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions
+CPPFLAGS=-O3 -Wall -Werror -I./include -I../include -I/usr/include/boost -std=c++0x -msse4.2 -fPIC
 
 LFLAGS=-shared
 
@@ -51,7 +51,7 @@ test_packed_shard: obj/test_packed_shard.o obj/test_patch.o ../obj/packed_table.
 TGS_OBJS = $(GROUPS_OBJS) ../obj/metrics_inverter.o
 
 test_tgs: obj/test_tgs.o $(TGS_OBJS)
-	$(CPP) $ -o test_tgs $(LIBS) $^ -L/usr/lib/x86_64-linux-gnu -lboost_system -lpthread
+	$(CPP) $ -o test_tgs $(LIBS) $^
 
 test_varintdecode: obj/test_varintdecode.o ../obj/varintdecode.o
 	$(CPP) $ -o test_varintdecode $(LIBS) $^

@@ -10,8 +10,6 @@
 #include <thread>
 #include <vector>
 
-#include <boost/asio.hpp>
-
 #define restrict __restrict__
 extern "C" {
 #include "circ_buf.h"
@@ -21,7 +19,6 @@ extern "C" {
 #include "test_utils.h"
 #include "varintdecode.h"
 
-using boost::asio::ip::tcp;
 using namespace std;
 
 typedef function<Metric(size_t index)>             MinMaxFunc;
@@ -117,7 +114,7 @@ class Table
     for (size_t doc_index(0); doc_index < n_docs; ++doc_index) {
       DocId   doc_id(doc_id_func(doc_index));
       GroupId group_id(group_id_func(doc_id));
-      entry_t   entry(doc_id, group_id);
+      entry_t entry(doc_id, group_id);
       for (size_t metric_index(0); metric_index < n_metrics; ++metric_index) {
         Metric value(metric_func(_mins[metric_index], _maxes[metric_index], metric_index, doc_index));
         value = min(_mins[metric_index], value);
@@ -184,15 +181,17 @@ class Table
     const GroupIds       group_ids(this->group_ids());
     const EntriesByGroup entries(entries_by_group());
     for (auto group_id: group_ids) {
-      metrics_t row;
-      auto range(entries.equal_range(group_id));
-      for_each(range.first, range.second,
-               [&] (const typename EntriesByGroup::value_type& value) {
-                 for (size_t metric_index(0); metric_index < n_metrics; ++metric_index) {
-                     row[metric_index] += value.second.metrics[metric_index];
-                 }
-               });
-      result.insert(make_pair(group_id, row));
+        metrics_t row;
+        if (group_id != 0) {
+          auto range(entries.equal_range(group_id));
+          for_each(range.first, range.second,
+                   [&] (const typename EntriesByGroup::value_type& value) {
+                     for (size_t metric_index(0); metric_index < n_metrics; ++metric_index) {
+                       row[metric_index] += value.second.metrics[metric_index];
+                     }
+                   });
+        }
+        result.insert(make_pair(group_id, row));
     }
     return result;
   }
@@ -254,41 +253,6 @@ struct Shard
 
 };
 
-template <size_t n_metrics, class handler_t>
-class StatsDecoder
-{
-public:
-    enum State     { Done = 0, ReadingFields = 1, ReadingTerms = 2, ReadingGroups = 3 };
-    enum FieldType { String = 0, Int = 1, EOS = 0xff };
-
-  void operator()(const vector<char>& buffer) {
-  }
-};
-
-void echo_stats(unsigned short port)
-{
-  boost::asio::io_service ios;
-  tcp::acceptor           acc(ios, tcp::endpoint(tcp::v4(), port));
-  tcp::socket             sock(ios);
-  acc.accept(sock);
-
-  vector<uint8_t> out;
-  char buf[4096];
-  boost::system::error_code error;
-  while (true) {
-    size_t length(sock.read_some(boost::asio::buffer(buf), error));
-    if (error == boost::asio::error::eof) {
-      break;
-    }
-    else if (error) {
-      throw boost::system::system_error(error);
-    }
-    copy_n(buf, length, back_inserter(out));
-  }
-}
-
-static unsigned short test_port = 12345;
-
 template <size_t n_metrics>
 class TGSTest
 {
@@ -300,8 +264,6 @@ class TGSTest
   Shard<n_metrics>    _shard;
   struct worker_desc  _worker;
   struct session_desc _session;
-
-  thread _echo_thread;
 
 public:
   typedef Shard<n_metrics>      shard_t;
@@ -317,15 +279,9 @@ public:
     : _n_docs(n_docs)
     , _n_groups(n_groups)
     , _table(n_docs, min_func, max_func, doc_id_func, group_id_func, metric_func)
-    , _shard(_table)
-    , _echo_thread(echo_stats, ++test_port) { // !@# race condition...
+    , _shard(_table) {
 
-    boost::asio::io_service io_service;
-    tcp::socket             sock(io_service);
-    tcp::resolver           resolver(io_service);
-    boost::asio::connect(sock, resolver.resolve({"localhost", port_string(test_port)}));
-
-    array <int, 1> socket_file_desc{{sock.native_handle()}};
+    array <int, 1> socket_file_desc{{-1}};
     worker_init(&_worker, 1, n_groups, n_metrics, socket_file_desc.data(), 1);
 
     packed_table_t* shards[] = { _shard() };
@@ -353,7 +309,6 @@ public:
   ~TGSTest() {
     session_destroy(&_session);
     worker_destroy(&_worker);
-    _echo_thread.join();
   }
 
   const size_t   n_docs() const { return _n_docs;   }
@@ -362,13 +317,6 @@ public:
   const Table<n_metrics>&           table() const { return _table;              }
   const shard_t&                    shard() const { return _shard;              }
   unpacked_table_t*       group_stats_buf() const { return _session.grp_stats;   }
-
-private:
-  string port_string(unsigned short port) {
-    ostringstream os;
-    os << port;
-    return os.str();
-  }
 };
 
 
@@ -417,7 +365,9 @@ int main(int argc, char* argv[])
   vector<MetricFunc> metric_funcs = {
     [](int64_t min_val, int64_t max_val, size_t metric_num, size_t row_num) { return min_val; },
     [](int64_t min_val, int64_t max_val, size_t metric_num, size_t row_num) { return max_val; },
-    [](int64_t min_val, int64_t max_val, size_t metric_num, size_t row_num) { return min_val + (max_val - min_val) / 2; },
+    [](int64_t min_val, int64_t max_val, size_t metric_num, size_t row_num) {
+        return min_val + (max_val - min_val) / 2;
+    },
     [](int64_t min_val, int64_t max_val, size_t metric_num, size_t row_num) {
         int64_t val = metric_num * row_num; // !@# check for overflow
         if (val > max_val)
