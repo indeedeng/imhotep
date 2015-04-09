@@ -72,11 +72,10 @@ public class AdvProcessingService<Data, Result> extends ProcessingService<Data, 
                 for (final Thread thread: threads) thread.interrupt();
             }
             finally {
-                for (final Thread thread: threads) thread.join();
+                join();
             }
         }
         catch (final Throwable throwable) {
-            errorTracker.set(true);
             errorCatcher.uncaughtException(Thread.currentThread(), throwable);
         }
         finally {

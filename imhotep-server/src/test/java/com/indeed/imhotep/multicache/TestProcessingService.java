@@ -30,7 +30,8 @@ public class TestProcessingService {
     class ProcessorException extends RuntimeException { }
 
     Random            random;
-    AtomicInteger     cleanupCounter;
+    AtomicInteger     processorCleanupCounter;
+    AtomicInteger     taskCleanupCounter;
     IntGenerator      generator;
     ProcessingService service;
 
@@ -42,15 +43,17 @@ public class TestProcessingService {
 
     @Before
     public void setUp() {
-        random         = new Random(0x42);
-        cleanupCounter = new AtomicInteger(0);
-        generator      = new IntGenerator(1000000);
-        service        = new ProcessingService();
+        random                  = new Random(0x42);
+        processorCleanupCounter = new AtomicInteger(0);
+        taskCleanupCounter      = new AtomicInteger(0);
+        generator               = new IntGenerator(1000000);
+        service                 = new ProcessingService();
     }
 
     @After
     public void tearDown() {
-        Assert.assertEquals(0, cleanupCounter.get());
+        Assert.assertEquals("processor cleanup", 0, processorCleanupCounter.get());
+        Assert.assertEquals("task cleanup",      0, taskCleanupCounter.get());
     }
 
     void normalTask(final int numTasks, Processor processor) {
@@ -184,10 +187,10 @@ public class TestProcessingService {
 
     class Task extends ProcessingTask <Long, Long> {
         @Override
-        public void init() { cleanupCounter.incrementAndGet(); }
+        public void init() { taskCleanupCounter.incrementAndGet(); }
 
         @Override
-        public void cleanup() { cleanupCounter.decrementAndGet(); }
+        public void cleanup() { taskCleanupCounter.decrementAndGet(); }
 
         @Override
         protected Long processData(final Long data) {
@@ -212,10 +215,10 @@ public class TestProcessingService {
 
     class Processor extends ResultProcessor<Long> {
         @Override
-        public void init() { cleanupCounter.incrementAndGet(); }
+        public void init() { processorCleanupCounter.incrementAndGet(); }
 
         @Override
-        public void cleanup() { cleanupCounter.decrementAndGet(); }
+        public void cleanup() { processorCleanupCounter.decrementAndGet(); }
 
         @Override
         protected void processResult(Long data) {

@@ -35,7 +35,7 @@ public class ProcessingService<Data, Result> {
     }
 
     protected final ProcessingQueuesHolder queues = new ProcessingQueuesHolder();
-    protected final AtomicBoolean errorTracker = new AtomicBoolean(false);
+    private final AtomicBoolean errorTracker = new AtomicBoolean(false);
     protected final ErrorCatcher errorCatcher = new ErrorCatcher();;
     protected final List<ProcessingTask<Data, Result>> tasks = Lists.newArrayListWithCapacity(32);;
     protected final List<Thread> threads = Lists.newArrayListWithCapacity(32);
@@ -86,7 +86,7 @@ public class ProcessingService<Data, Result> {
                 for (final Thread thread: threads) thread.interrupt();
             }
             finally {
-                for (final Thread thread: threads) thread.join();
+                join();
             }
         }
         catch (final Throwable throwable) {
@@ -108,6 +108,18 @@ public class ProcessingService<Data, Result> {
                 }
             }
             throw new ProcessingServiceException(toThrow);
+        }
+    }
+
+    protected void join() {
+        while (!threads.isEmpty()) {
+            try {
+                threads.get(0).join();
+                threads.remove(0);
+            }
+            catch (InterruptedException ex) {
+                // !@# timeout and hurl up a runtime exception?
+            }
         }
     }
 
