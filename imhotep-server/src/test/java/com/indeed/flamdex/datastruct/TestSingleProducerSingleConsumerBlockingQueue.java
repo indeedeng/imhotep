@@ -54,7 +54,7 @@ public class TestSingleProducerSingleConsumerBlockingQueue {
             int numOffers = 0;
             int numOfferTimeouts = 0;
             for (int i = 0; i < 1000000; i++) {
-                final Payload payload = new Payload(i, random.nextInt(1000));
+                final Payload payload = new Payload(i, random.nextInt(50));
                 switch (random.nextInt(3)) {
                     case 0:
                         queue.put(payload);
@@ -141,7 +141,7 @@ public class TestSingleProducerSingleConsumerBlockingQueue {
 
     public static void main(String[] args) throws InterruptedException, ExecutionException {
         BasicConfigurator.configure();
-        final BlockingQueue<Payload> queue = new SingleProducerSingleConsumerBlockingQueue<>(4);
+        final BlockingQueue<Payload> queue = new SingleProducerSingleConsumerBlockingQueue<>(4096);
         final Producer producer = new Producer(queue);
         final Consumer consumer = new Consumer(queue);
         final long blockQueue = System.currentTimeMillis();
