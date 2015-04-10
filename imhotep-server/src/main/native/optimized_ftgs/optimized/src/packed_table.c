@@ -528,15 +528,15 @@ void packed_table_set_col_range(packed_table_t *table,
     uint8_t packed_vector_index = (table->col_2_vector)[col];
 
     if (col < table->n_boolean_cols) {
-        for (int i = start_row; i < count; i++) {
-            internal_set_boolean_cell(table, i, col, col_vals[i] - min);
+        for (int i = 0; i < count; i++) {
+            internal_set_boolean_cell(table, start_row + i, col, col_vals[i] - min);
         }
         return;
     }
 
     col -= table->n_boolean_cols;
-    for (int i = start_row; i < count; i++) {
-        internal_set_cell(table, i, col, col_vals[i] - min, packed_vector_index);
+    for (int i = 0; i < count; i++) {
+        internal_set_cell(table, start_row + i, col, col_vals[i] - min, packed_vector_index);
     }
 }
 
@@ -569,8 +569,8 @@ void packed_table_set_group_range(packed_table_t *table,
                                   const int count,
                                   const int32_t * restrict group_vals)
 {
-    for (int row = start; row < count; row++) {
-        internal_set_group(table, row, group_vals[row]);
+    for (int i = 0; i < count; i++) {
+        internal_set_group(table, start + i, group_vals[i]);
     }
 }
 

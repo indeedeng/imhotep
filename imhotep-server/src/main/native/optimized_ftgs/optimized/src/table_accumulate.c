@@ -27,7 +27,6 @@ void lookup_and_accumulate_grp_stats(
     assert(prefetch_rows > 0);
     assert(prefetch_rows <= PREFETCH_DISTANCE);
 
-    const int min = (buffer_len < prefetch_rows) ? buffer_len : prefetch_rows;
     const uint32_t temp_buf_mask = prefetch_rows - 1;
     int non_zero_count = 0;
     int trailing_idx = 0;
@@ -35,7 +34,7 @@ void lookup_and_accumulate_grp_stats(
 
 
     /* loop through A rows, prefetching */
-    for (; idx < min; idx++) {
+    while (non_zero_count < prefetch_rows && idx < buffer_len) {
         int row_id = row_id_buffer[idx];
         int prefetch_idx = row_id_buffer[idx + prefetch_rows];
 
@@ -45,6 +44,7 @@ void lookup_and_accumulate_grp_stats(
         /* skip all group 0 docs */
         if (prefetch_grp == 0) {
         	packed_table_prefetch_row(src_table, prefetch_idx);
+        	idx ++;
         	continue;
         }
 
@@ -58,6 +58,7 @@ void lookup_and_accumulate_grp_stats(
                                          non_zero_count,
                                          prefetch_idx);
         non_zero_count ++;
+        idx ++;
     }
 
     /* loop through A rows, prefetching; loop through B rows */
@@ -74,17 +75,6 @@ void lookup_and_accumulate_grp_stats(
         	continue;
         }
 
-        /* save group into buffer */
-        circular_buffer_int_put(grp_buf, prefetch_grp);
-
-        /* loop through A row elements */
-        packed_table_unpack_row_to_table(src_table,
-                                         row_id,
-                                         temp_buf,
-                                         non_zero_count & temp_buf_mask,
-                                         prefetch_idx);
-        non_zero_count ++;
-
         /* get load idx */
         int current_grp = circular_buffer_int_get(grp_buf);
 
@@ -95,6 +85,17 @@ void lookup_and_accumulate_grp_stats(
                                 current_grp,
                                 prefetch_grp);
         trailing_idx ++;
+
+        /* save group into buffer */
+        circular_buffer_int_put(grp_buf, prefetch_grp);
+
+        /* loop through A row elements */
+        packed_table_unpack_row_to_table(src_table,
+                                         row_id,
+                                         temp_buf,
+                                         non_zero_count & temp_buf_mask,
+                                         prefetch_idx);
+        non_zero_count ++;
     }
 
     /* loop through A rows; loop through B rows */
@@ -109,17 +110,6 @@ void lookup_and_accumulate_grp_stats(
         	continue;
         }
 
-        /* save group into buffer */
-        circular_buffer_int_put(grp_buf, prefetch_grp);
-
-        /* loop through A row elements */
-        packed_table_unpack_row_to_table(src_table,
-                                         row_id,
-                                         temp_buf,
-                                         non_zero_count & temp_buf_mask,
-                                         row_id);
-        non_zero_count ++;
-
         /* get load idx */
         int current_grp = circular_buffer_int_get(grp_buf);
 
@@ -131,12 +121,23 @@ void lookup_and_accumulate_grp_stats(
                                 prefetch_grp);
 
         trailing_idx ++;
+
+        /* save group into buffer */
+        circular_buffer_int_put(grp_buf, prefetch_grp);
+
+        /* loop through A row elements */
+        packed_table_unpack_row_to_table(src_table,
+                                         row_id,
+                                         temp_buf,
+                                         non_zero_count & temp_buf_mask,
+                                         row_id);
+        non_zero_count ++;
     }
 
     /* loop through final B rows with no prefetch */
     for (; trailing_idx < non_zero_count; trailing_idx ++) {
         /* get load idx */
-        int current_grp = circular_buffer_int_get(grp_buf);
+        const int current_grp = circular_buffer_int_get(grp_buf);
 
         /* loop through B row elements */
         unpacked_table_add_rows(temp_buf,

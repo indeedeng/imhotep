@@ -54,7 +54,6 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
     static {
         loadNativeLibrary();
-//        nativeInit();
         log.info("libftgs loaded");
         log.info("Using SSSE3! (if the processor in this computer doesn't support SSSE3 "
                          + "this process will fail with SIGILL)");
@@ -84,7 +83,6 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             System.loadLibrary("ftgs"); // if this fails it throws UnsatisfiedLinkError
         }
     }
-//    private native static void nativeInit();
 
     private final AtomicReference<CyclicBarrier> writeFTGSSplitBarrier = new AtomicReference<>();
     private Socket[] ftgsOutputSockets = new Socket[256];
