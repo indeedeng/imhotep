@@ -30,6 +30,7 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.util.io.Files;
 
+import fj.P;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.RandomStringUtils;
 import org.junit.Test;
@@ -403,9 +404,10 @@ public class TestNativeFlamdexFTGSIterator {
     private static final int MAX_FIELD_NAME_LEN = 32;
 
 
-    private MTImhotepLocalMultiSession makeTestSession(List<String> shardDirs,
-                                                       String[] metricNames,
-                                                       BitsetOptimizationLevel level) throws ImhotepOutOfMemoryException, IOException {
+    private MTImhotepLocalMultiSession createMultisession(List<String> shardDirs,
+                                                          String[] metricNames,
+                                                          BitsetOptimizationLevel level,
+                                                          int[] boundaries) throws ImhotepOutOfMemoryException, IOException {
         ImhotepLocalSession[] localSessions = new ImhotepLocalSession[shardDirs.size()];
         for (int i = 0; i < shardDirs.size(); i++) {
             final String dir = shardDirs.get(i);
@@ -416,7 +418,7 @@ public class TestNativeFlamdexFTGSIterator {
         }
 
         final ExecutorService executor = Executors.newCachedThreadPool();
-        AtomicLong foo = new AtomicLong(100000);
+        AtomicLong foo = new AtomicLong(100000000);
         final MTImhotepLocalMultiSession mtSession;
         mtSession = new MTImhotepLocalMultiSession(localSessions,
                                                    new MemoryReservationContext(new ImhotepMemoryPool(
@@ -428,15 +430,16 @@ public class TestNativeFlamdexFTGSIterator {
         mtSession.regroup(new GroupRemapRule[]{new GroupRemapRule(1,
                                                                   new RegroupCondition(DOCID_FIELD,
                                                                                        true,
-                                                                                       4,
+                                                                                       boundaries[0],
                                                                                        null,
                                                                                        true),
                                                                   2,
                                                                   1)});
-//        System.out.println(Arrays.toString(metricNames));
+        System.out.println(Arrays.toString(metricNames));
         for (String metric : metricNames) {
             mtSession.pushStat(metric);
         }
+
         return mtSession;
     }
 
@@ -450,7 +453,7 @@ public class TestNativeFlamdexFTGSIterator {
         final long seed = 6856357630770252391L;
         rand.setSeed(seed);
         System.out.println("Random seed: " + seed);
-        final int numDocs = rand.nextInt(1 << 18) + 1;  // 1MB
+        final int numDocs = rand.nextInt(1 << 16) + 1;  // 64K
 
         // need at least one
 //        final int nMetrics = rand.nextInt(MAX_N_METRICS - 1) + 1;
@@ -480,19 +483,31 @@ public class TestNativeFlamdexFTGSIterator {
         final String[] stringFields = new String[]{fieldName};
         final String[] intFields = new String[0];
 
-        FTGSIterator verificationIter = getVerificationIterator(Arrays.asList(shardCopy),
-                                                                metricNames,
-                                                                BitsetOptimizationLevel.DONT_OPTIMIZE,
-                                                                stringFields,
-                                                                intFields,
-                                                                numDocs);
+        final int nGroups = 5;
+        final int[] boundaries = new int[nGroups];
 
-        final MTImhotepLocalMultiSession session;
-        session = makeTestSession(Arrays.asList(shardname),
-                                  metricNames,
-                                  BitsetOptimizationLevel.DONT_OPTIMIZE);
+        int prevBoundary = 0;
+        for (int i = 0; i < nGroups; i++) {
+            final int newBoundary = rand.nextInt(numDocs - prevBoundary);
+            boundaries[i] = newBoundary;
+            prevBoundary = newBoundary;
+        }
 
-        RunnableFactory factory = new WriteFTGSRunner(session, intFields, stringFields, 8);
+        System.out.println("group 0 boundary: " + boundaries[0]);
+
+        final MTImhotepLocalMultiSession verificationSession;
+        verificationSession = createMultisession(Arrays.asList(shardCopy),
+                                                 metricNames,
+                                                 BitsetOptimizationLevel.DONT_OPTIMIZE,
+                                                 boundaries);
+        FTGSIterator verificationIter = verificationSession.getFTGSIterator(intFields, stringFields);
+
+        final MTImhotepLocalMultiSession testSession;
+        testSession = createMultisession(Arrays.asList(shardname),
+                                           metricNames,
+                                           BitsetOptimizationLevel.DONT_OPTIMIZE,
+                                           boundaries);
+        RunnableFactory factory = new WriteFTGSRunner(testSession, intFields, stringFields, 8);
         ClusterSimulator simulator = new ClusterSimulator(8, nMetrics);
 
         Thread t = simulator.simulateServer(factory);
@@ -505,14 +520,14 @@ public class TestNativeFlamdexFTGSIterator {
         simulator.close();
         verificationIter.close();
     }
-//
+
 //    @Test
-//    public void test30Shards() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
+//    public void test10Shards() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
 //        final long seed = rand.nextLong();
 ////        final long seed = -4122356988999045667L;
 //        rand.setSeed(seed);
 //        System.out.println("Random seed: " + seed);
-//        final int numDocs = rand.nextInt(1 << 18) + 1;  // 1MB
+//        final int numDocs = rand.nextInt(1 << 16) + 1;  // 64K
 //
 //        // need at least one
 //        final int nMetrics = rand.nextInt(MAX_N_METRICS - 1) + 1;
@@ -525,7 +540,7 @@ public class TestNativeFlamdexFTGSIterator {
 //
 //        List<String> shardNames = new ArrayList<>();
 //        List<String> shardCopies = new ArrayList<>();
-//        for (int i = 0; i < 30; i++) {
+//        for (int i = 0; i < 10; i++) {
 //            final String shard = createNewShard(numDocs, nMetrics, fieldName, metricNames);
 //            shardNames.add(shard);
 //            shardCopies.add(copyShard(shard));
@@ -625,54 +640,6 @@ public class TestNativeFlamdexFTGSIterator {
             assertFalse(test.nextTerm());
         }
         assertFalse(test.nextField());
-    }
-
-    private FTGSIterator getVerificationIterator(List<String> shardDirs,
-                                                 String[] metricNames,
-                                                 BitsetOptimizationLevel level,
-                                                 String[] stringFields,
-                                                 String[] intFields,
-                                                 int numDocs) throws ImhotepOutOfMemoryException, IOException {
-        ImhotepLocalSession[] localSessions = new ImhotepLocalSession[shardDirs.size()];
-        for (int i = 0; i < shardDirs.size(); i++) {
-            final String dir = shardDirs.get(i);
-            final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir);
-            final ImhotepLocalSession localSession;
-            localSession = new ImhotepLocalSession(r, level == BitsetOptimizationLevel.OPTIMIZE);
-            localSessions[i] = localSession;
-        }
-
-        final ExecutorService executor = Executors.newCachedThreadPool();
-        AtomicLong foo = new AtomicLong(100000000);
-        final MTImhotepLocalMultiSession mtSession;
-        mtSession = new MTImhotepLocalMultiSession(localSessions,
-                                                   new MemoryReservationContext(new ImhotepMemoryPool(
-                                                           Long.MAX_VALUE)),
-                                                   executor,
-                                                   foo,
-                                                   true);
-
-        final int group0Boundry = rand.nextInt(numDocs);
-        final int group1Boundry = rand.nextInt(numDocs - group0Boundry) + group0Boundry;
-        final int group2Boundry = rand.nextInt(numDocs - group1Boundry) + group1Boundry;
-        final int group3Boundry = rand.nextInt(numDocs - group2Boundry) + group2Boundry;
-        
-        System.out.println("group 0 boundry: " + group0Boundry);
-
-        mtSession.regroup(new GroupRemapRule[]{new GroupRemapRule(1,
-                                                                  new RegroupCondition(DOCID_FIELD,
-                                                                                       true,
-                                                                                       group0Boundry,
-                                                                                       null,
-                                                                                       true),
-                                                                  2,
-                                                                  1)});
-        System.out.println(Arrays.toString(metricNames));
-        for (String metric : metricNames) {
-            mtSession.pushStat(metric);
-        }
-
-        return mtSession.getFTGSIterator(intFields, stringFields);
     }
 
 //    @Test
