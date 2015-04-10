@@ -3,6 +3,7 @@ package com.indeed.flamdex.datastruct;
 import junit.framework.Assert;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
+import org.junit.Test;
 
 import java.util.Random;
 import java.util.concurrent.BlockingQueue;
@@ -18,7 +19,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class TestSingleProducerSingleConsumerBlockingQueue {
 
-    private TestSingleProducerSingleConsumerBlockingQueue(){}
+    public TestSingleProducerSingleConsumerBlockingQueue(){}
 
     private static final Logger log = Logger.getLogger(TestSingleProducerSingleConsumerBlockingQueue.class);
     private static final Payload TERMINATOR = new Payload(0, 0);
@@ -139,7 +140,8 @@ public class TestSingleProducerSingleConsumerBlockingQueue {
 
     private static final ExecutorService executorService = Executors.newFixedThreadPool(12);
 
-    public static void main(String[] args) throws InterruptedException, ExecutionException {
+    @Test
+    public void testSPSCBQ() throws InterruptedException, ExecutionException {
         BasicConfigurator.configure();
         final BlockingQueue<Payload> queue = new SingleProducerSingleConsumerBlockingQueue<>(4096);
         final Producer producer = new Producer(queue);
