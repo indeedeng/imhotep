@@ -55,12 +55,7 @@ import static org.junit.Assert.assertTrue;
  */
 public class TestNativeFlamdexFTGSIterator {
     // this field is silly and exists for regrouping purposes.
-    private static final String DOCID_FIELD = "docIdField";
-
-    enum BitsetOptimizationLevel {
-        DONT_OPTIMIZE,
-        OPTIMIZE,
-    }
+//    private static final String DOCID_FIELD = "docIdField";
 
     public static class ClusterSimulator {
         public static final int PORT = 8138;
@@ -167,8 +162,7 @@ public class TestNativeFlamdexFTGSIterator {
     private final Random rand = new Random();
     private final int MAX_STRING_TERM_LEN = 128;
 
-    private void createFlamdexIntField(final String dir,
-                                       final String intFieldName,
+    private void createFlamdexIntField(final String intFieldName,
                                        final MetricMaxSizes termGenerator,
                                        final int size,
                                        SimpleFlamdexWriter w) throws IOException {
@@ -211,8 +205,7 @@ public class TestNativeFlamdexFTGSIterator {
         ifw.close();
     }
 
-    private void createFlamdexStringField(final String dir,
-                                       final String stringFieldName,
+    private void createFlamdexStringField(final String stringFieldName,
                                        final int size,
                                        SimpleFlamdexWriter w) throws IOException {
         final int maxTermDocs = (size < 2000) ? size : size / 1000;
@@ -260,19 +253,19 @@ public class TestNativeFlamdexFTGSIterator {
         for (FieldDesc fd : fieldDescs) {
 //            System.out.println(fd.name);
             if (fd.isIntfield) {
-                createFlamdexIntField(dir, fd.name, fd.termGenerator, fd.numDocs, w);
+                createFlamdexIntField(fd.name, fd.termGenerator, fd.numDocs, w);
             } else {
-                createFlamdexStringField(dir, fd.name, fd.numDocs, w);
+                createFlamdexStringField(fd.name, fd.numDocs, w);
             }
         }
 
         // create DOC_ID field
-        IntFieldWriter ifw = w.getIntFieldWriter(DOCID_FIELD);
-        for (int i = 0; i < totalNDocs; i++) {
-            ifw.nextTerm(i);
-            ifw.nextDoc(i);
-        }
-        ifw.close();
+//        IntFieldWriter ifw = w.getIntFieldWriter(DOCID_FIELD);
+//        for (int i = 0; i < totalNDocs; i++) {
+//            ifw.nextTerm(i);
+//            ifw.nextDoc(i);
+//        }
+//        ifw.close();
 
         w.close();
         return dir;
@@ -406,14 +399,13 @@ public class TestNativeFlamdexFTGSIterator {
 
     private MTImhotepLocalMultiSession createMultisession(List<String> shardDirs,
                                                           String[] metricNames,
-                                                          BitsetOptimizationLevel level,
                                                           int[] boundaries) throws ImhotepOutOfMemoryException, IOException {
         ImhotepLocalSession[] localSessions = new ImhotepLocalSession[shardDirs.size()];
         for (int i = 0; i < shardDirs.size(); i++) {
             final String dir = shardDirs.get(i);
             final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir);
             final ImhotepLocalSession localSession;
-            localSession = new ImhotepLocalSession(r, level == BitsetOptimizationLevel.OPTIMIZE);
+            localSession = new ImhotepLocalSession(r, false);
             localSessions[i] = localSession;
         }
 
@@ -427,14 +419,17 @@ public class TestNativeFlamdexFTGSIterator {
                                                    foo,
                                                    true);
 
-        mtSession.regroup(new GroupRemapRule[]{new GroupRemapRule(1,
-                                                                  new RegroupCondition(DOCID_FIELD,
-                                                                                       true,
-                                                                                       boundaries[0],
-                                                                                       null,
-                                                                                       true),
-                                                                  2,
-                                                                  1)});
+//        mtSession.regroup(new GroupRemapRule[]{new GroupRemapRule(1,
+//                                                                  new RegroupCondition(DOCID_FIELD,
+//                                                                                       true,
+//                                                                                       boundaries[0],
+//                                                                                       null,
+//                                                                                       true),
+//                                                                  2,
+//                                                                  1)});
+
+        mtSession.randomMultiRegroup("foo", true, "12345", 1, new double[]{}, new int[]{});
+
         System.out.println(Arrays.toString(metricNames));
         for (String metric : metricNames) {
             mtSession.pushStat(metric);
@@ -498,14 +493,12 @@ public class TestNativeFlamdexFTGSIterator {
         final MTImhotepLocalMultiSession verificationSession;
         verificationSession = createMultisession(Arrays.asList(shardCopy),
                                                  metricNames,
-                                                 BitsetOptimizationLevel.DONT_OPTIMIZE,
                                                  boundaries);
         FTGSIterator verificationIter = verificationSession.getFTGSIterator(intFields, stringFields);
 
         final MTImhotepLocalMultiSession testSession;
         testSession = createMultisession(Arrays.asList(shardname),
                                            metricNames,
-                                           BitsetOptimizationLevel.DONT_OPTIMIZE,
                                            boundaries);
         RunnableFactory factory = new WriteFTGSRunner(testSession, intFields, stringFields, 8);
         ClusterSimulator simulator = new ClusterSimulator(8, nMetrics);
@@ -551,15 +544,13 @@ public class TestNativeFlamdexFTGSIterator {
 //
 //        FTGSIterator verificationIter = getVerificationIterator(shardCopies,
 //                                                                metricNames,
-//                                                                BitsetOptimizationLevel.DONT_OPTIMIZE,
 //                                                                stringFields,
 //                                                                intFields,
 //                                                                numDocs);
 //
 //        final MTImhotepLocalMultiSession session;
 //        session = makeTestSession(shardNames,
-//                                  metricNames,
-//                                  BitsetOptimizationLevel.DONT_OPTIMIZE);
+//                                  metricNames);
 //
 //        RunnableFactory factory = new WriteFTGSRunner(session, intFields, stringFields, 8);
 //        ClusterSimulator simulator = new ClusterSimulator(8, nMetrics);

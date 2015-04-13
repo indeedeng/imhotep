@@ -32,11 +32,11 @@ void tgs_init(struct worker_desc *worker,
     desc->slices = infos;
     desc->grp_buf = session->grp_buf;
     desc->updated_groups = session->nz_grps_buf;
-    memset(session->nz_grps_buf, 0, session->num_groups * sizeof(uint32_t));
+//    memset(session->nz_grps_buf, 0, session->num_groups * sizeof(uint32_t));
     desc->temp_table = session->temp_buf;
-    unpacked_table_clear(session->temp_buf);
+//    unpacked_table_clear(session->temp_buf);
     desc->group_stats = session->grp_stats;
-    unpacked_table_clear(session->grp_stats);
+//    unpacked_table_clear(session->grp_stats);
 }
 
 void tgs_destroy(struct tgs_desc *desc)
