@@ -171,7 +171,7 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
 
     private void insert(final E e, final int tailPtr) {
         buffer[tailPtr] = e;
-        tail.lazySet((tailPtr+1)&moduloMask);
+        tail.lazySet((tailPtr + 1) & moduloMask);
         notifyReader();
     }
 
@@ -207,7 +207,11 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         try {
             writerWaiting.value = true;
             while (((tail.value+1)&moduloMask) == getHeadFromCache(tail.value)) {
-                notFull.await();
+                if (readerWaiting.value) {
+                    notifyReader();
+                } else {
+                    notFull.await();
+                }
             }
         } finally {
             writerWaiting.value = false;
@@ -271,7 +275,11 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
             readerWaiting.value = true;
             final int headPtr = head.value;
             while (headPtr == getTailFromCache(headPtr)) {
-                notEmpty.await();
+                if (!writerWaiting.value) {
+                    notEmpty.await();
+                } else {
+                    notifyWriter();
+                }
             }
         } finally {
             readerWaiting.value = false;
