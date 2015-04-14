@@ -76,7 +76,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             is.close();
             System.load(tempFile.getAbsolutePath());
             // noinspection ResultOfMethodCallIgnored
-//            tempFile.delete();
+            tempFile.delete();
         } catch (Throwable e) {
             e.printStackTrace();
             log.warn("unable to load libftgs using class loader, looking in java.library.path", e);
@@ -206,9 +206,6 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             closeFTGSSockets();
             throw new IllegalStateException("the session was closed before getting all the splits!");
         }
-//        if (latch.getCount() == 0) {
-//            throw new IllegalStateException("Latch was already set to zero!");
-//        }
 
         // now run the ftgs on the final thread
         try {

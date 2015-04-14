@@ -25,8 +25,8 @@ import java.io.*;
  */
 public class DumpFlamdex2 {
     public static void main(String[] args) throws Exception {
-        final SimpleFlamdexReader reader = SimpleFlamdexReader.open("/tmp/native-ftgs-test925648550396895603test");
-        final BufferedWriter w  = new BufferedWriter(new FileWriter("/tmp/shard.dat"));
+        final SimpleFlamdexReader reader = SimpleFlamdexReader.open(args[0]); //"/tmp/native-ftgs-test7045001985093560042test");
+        final BufferedWriter w  = new BufferedWriter(new FileWriter(args[1])); //"/tmp/shard3.dat"));
 
         w.write("num docs: " + reader.getNumDocs());
         w.newLine();

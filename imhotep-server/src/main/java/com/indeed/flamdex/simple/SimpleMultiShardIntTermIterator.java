@@ -89,7 +89,7 @@ final class SimpleMultiShardIntTermIterator implements Iterator<TermDesc>, Close
             result.nativeDocAddresses[id] = intTermIterator.getOffset() + intTermIterator.getDocListAddress();
             result.numDocsInTerm[id] = intTermIterator.docFreq();
         }
-        result.size = shardCount;
+        result.validShardCount = shardCount;
         result.intTerm = minIteratorIdPairs[0].intTermIterator.term();
         result.isIntTerm = true;
         result.stringTerm = null;
