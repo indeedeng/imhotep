@@ -435,7 +435,7 @@ public class TestNativeFlamdexFTGSIterator {
         }
 
         final ExecutorService executor = Executors.newCachedThreadPool();
-        AtomicLong foo = new AtomicLong(100000000);
+        AtomicLong foo = new AtomicLong(1000000000);
         final MTImhotepLocalMultiSession mtSession;
         mtSession = new MTImhotepLocalMultiSession(localSessions,
                                                    new MemoryReservationContext(new ImhotepMemoryPool(
@@ -463,53 +463,53 @@ public class TestNativeFlamdexFTGSIterator {
         return RandomStringUtils.random(len, 0, 0, true, false, null, rand);
     }
 
-    @Test
-    public void testSingleShard() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
-        final long seed = rand.nextLong();
-//        final long seed = -2529317167810500597L;
-        rand.setSeed(seed);
-        System.out.println("Random seed: " + seed);
-        final int numDocs = rand.nextInt(1 << 16) + 1;  // 64K
-
-        // need at least one
-        final int nMetrics = rand.nextInt(MAX_N_METRICS - 1) + 1;
-        String fieldName = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
-        String[] metricNames = new String[nMetrics];
-        for (int i = 0; i < nMetrics; i++) {
-            metricNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
-        }
-
-        String shardname = createNewShard(numDocs, nMetrics, fieldName, metricNames);
-        System.out.println(shardname);
-        String shardCopy = copyShard(shardname);
-        System.out.println(shardCopy);
-//        final String shardname = "/tmp/native-ftgs-test591448014941516110test";
-//        final String shardCopy = "/tmp/native-ftgs-test8877291921170684427verify-copy";
-
-        final String[] stringFields = new String[]{fieldName};
-        final String[] intFields = new String[0];
-
-        final MTImhotepLocalMultiSession verificationSession;
-        verificationSession = createMultisession(Arrays.asList(shardCopy),
-                                                 metricNames);
-        FTGSIterator verificationIter = verificationSession.getFTGSIterator(intFields, stringFields);
-
-        final MTImhotepLocalMultiSession testSession;
-        testSession = createMultisession(Arrays.asList(shardname),
-                                           metricNames);
-        RunnableFactory factory = new WriteFTGSRunner(testSession, intFields, stringFields, 8);
-        ClusterSimulator simulator = new ClusterSimulator(8, nMetrics);
-
-        Thread t = simulator.simulateServer(factory);
-        RawFTGSIterator ftgsIterator = simulator.getIterator();
-
-        compareIterators(ftgsIterator, verificationIter, nMetrics);
-
-        t.join();
-
-        simulator.close();
-        verificationIter.close();
-    }
+//    @Test
+//    public void testSingleShard() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
+//        final long seed = rand.nextLong();
+////        final long seed = -2529317167810500597L;
+//        rand.setSeed(seed);
+//        System.out.println("Random seed: " + seed);
+//        final int numDocs = rand.nextInt(1 << 16) + 1;  // 64K
+//
+//        // need at least one
+//        final int nMetrics = rand.nextInt(MAX_N_METRICS - 1) + 1;
+//        String fieldName = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
+//        String[] metricNames = new String[nMetrics];
+//        for (int i = 0; i < nMetrics; i++) {
+//            metricNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
+//        }
+//
+//        String shardname = createNewShard(numDocs, nMetrics, fieldName, metricNames);
+//        System.out.println(shardname);
+//        String shardCopy = copyShard(shardname);
+//        System.out.println(shardCopy);
+////        final String shardname = "/tmp/native-ftgs-test591448014941516110test";
+////        final String shardCopy = "/tmp/native-ftgs-test8877291921170684427verify-copy";
+//
+//        final String[] stringFields = new String[]{fieldName};
+//        final String[] intFields = new String[0];
+//
+//        final MTImhotepLocalMultiSession verificationSession;
+//        verificationSession = createMultisession(Arrays.asList(shardCopy),
+//                                                 metricNames);
+//        FTGSIterator verificationIter = verificationSession.getFTGSIterator(intFields, stringFields);
+//
+//        final MTImhotepLocalMultiSession testSession;
+//        testSession = createMultisession(Arrays.asList(shardname),
+//                                           metricNames);
+//        RunnableFactory factory = new WriteFTGSRunner(testSession, intFields, stringFields, 8);
+//        ClusterSimulator simulator = new ClusterSimulator(8, nMetrics);
+//
+//        Thread t = simulator.simulateServer(factory);
+//        RawFTGSIterator ftgsIterator = simulator.getIterator();
+//
+//        compareIterators(ftgsIterator, verificationIter, nMetrics);
+//
+//        t.join();
+//
+//        simulator.close();
+//        verificationIter.close();
+//    }
 
     @Test
     public void test10Shards() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
@@ -517,7 +517,7 @@ public class TestNativeFlamdexFTGSIterator {
 //        final long seed = -3805715792785289953L;
         rand.setSeed(seed);
         System.out.println("Random seed: " + seed);
-        final int numDocs = rand.nextInt(1 << 16) + 1;  // 64K
+        final int numDocs = rand.nextInt(1 << 20) + 1;  // 1M
 
         // need at least one
         final int nMetrics = rand.nextInt(MAX_N_METRICS - 1) + 1;
@@ -565,23 +565,50 @@ public class TestNativeFlamdexFTGSIterator {
 
         final MTImhotepLocalMultiSession verificationSession;
         verificationSession = createMultisession(shardCopies, metricNames);
-        FTGSIterator verificationIter = verificationSession.getFTGSIterator(intFields, stringFields);
+        for (int i = 0; i < 13; i++) {
+            long time = System.nanoTime();
+
+            FTGSIterator verificationIter = verificationSession.getFTGSIterator(intFields, stringFields);
+            readAllIterator(verificationIter, nMetrics);
+            verificationIter.close();
+
+            System.err.println("old ftgs time: " + (System.nanoTime() - time) / 1000);
+        }
+
+        {
+            long time = System.nanoTime();
+            System.gc();
+            System.err.println("gc time: " + (System.nanoTime() - time) / 1000);
+        }
 
         final MTImhotepLocalMultiSession testSession;
         testSession = createMultisession(shardNames, metricNames);
-
         RunnableFactory factory = new WriteFTGSRunner(testSession, intFields, stringFields, 8);
-        ClusterSimulator simulator = new ClusterSimulator(8, nMetrics);
 
-        Thread t = simulator.simulateServer(factory);
-        RawFTGSIterator ftgsIterator = simulator.getIterator();
+        for (int i = 0; i < 13; i++) {
+            long time = System.nanoTime();
+            ClusterSimulator simulator = new ClusterSimulator(8, nMetrics);
 
-        compareIterators(ftgsIterator, verificationIter, nMetrics);
+            Thread t = simulator.simulateServer(factory);
+            RawFTGSIterator ftgsIterator = simulator.getIterator();
 
-        t.join();
+//            compareIterators(ftgsIterator, verificationIter, nMetrics);
+            readAllIterator(ftgsIterator, nMetrics);
 
-        simulator.close();
-        verificationIter.close();
+            t.join();
+
+            simulator.close();
+
+            System.err.println("time: " + (System.nanoTime() - time) / 1000);
+        }
+
+        {
+            long time = System.nanoTime();
+            System.gc();
+            System.err.println("gc time: " + (System.nanoTime() - time) / 1000);
+        }
+
+//        verificationIter.close();
     }
 
     private String createNewShard(int numDocs,
@@ -659,4 +686,25 @@ public class TestNativeFlamdexFTGSIterator {
         assertFalse(test.nextField());
     }
 
+    private void readAllIterator(FTGSIterator iterator, int numStats) {
+        final long[] validStats = new long[numStats];
+        final long[] testStats = new long[numStats];
+
+        while (iterator.nextField()) {
+            while (iterator.nextTerm()) {
+                if (iterator.fieldIsIntType()) {
+                    final long v = iterator.termIntVal();
+//                    System.out.println("valid: " + v + ", test: " + t);
+                } else {
+                    String v = iterator.termStringVal();
+//                    System.out.println("valid: " + v + ", test: " + t);
+                }
+//                assertEquals(valid.termDocFreq(), test.termDocFreq());
+                while (iterator.nextGroup()) {
+//                    System.out.println(Integer.toString(valid.group()));
+                    iterator.groupStats(validStats);
+                }
+            }
+        }
+    }
 }
