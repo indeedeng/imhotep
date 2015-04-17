@@ -25,6 +25,7 @@ import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.multicache.ftgs.*;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
+
 import org.apache.log4j.Logger;
 
 import java.io.File;
@@ -45,6 +46,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+
+import javax.management.RuntimeErrorException;
 
 /**
  * @author jsgroth
@@ -162,15 +165,21 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                                        final Socket socket) throws ImhotepOutOfMemoryException {
         // save socket
         ftgsOutputSockets[splitIndex] = socket;
-        final MultiCache[] nativeCaches = updateMulticaches();
-        final FlamdexReader[] readers = new FlamdexReader[sessions.length];
-        for (int i = 0; i < sessions.length; i++) {
-            readers[i] = sessions[i].getReader();
-        }
 
         final CyclicBarrier newBarrier = new CyclicBarrier(numSplits, new Runnable() {
             @Override
             public void run() {
+                MultiCache[] nativeCaches;
+                try {
+                    nativeCaches = updateMulticaches();
+                } catch (ImhotepOutOfMemoryException e) {
+                    throw new RuntimeException(e);
+                }
+                final FlamdexReader[] readers = new FlamdexReader[sessions.length];
+                for (int i = 0; i < sessions.length; i++) {
+                    readers[i] = sessions[i].getReader();
+                }
+
                 // run service
                 final NativeFtgsRunner runner = new NativeFtgsRunner(readers,
                                                                      nativeCaches,

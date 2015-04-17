@@ -32,6 +32,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.indeed.imhotep.multicache.ftgs.TermDesc;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.RandomStringUtils;
 import org.junit.Test;
@@ -154,6 +155,7 @@ public class TestNativeFlamdexFTGSIterator {
         public boolean isIntfield;
         public int numDocs;
         public MetricMaxSizes termGenerator;
+        public List<String> terms;
     }
 
     private final Random rand = new Random();
@@ -257,17 +259,19 @@ public class TestNativeFlamdexFTGSIterator {
     }
 
     private void createFlamdexStringField(final String stringFieldName,
-                                       final int size,
-                                       SimpleFlamdexWriter w) throws IOException {
+                                          final int size,
+                                          SimpleFlamdexWriter w,
+                                          List<String> termsList) throws IOException {
         final int maxTermDocs = (size < 2000) ? size : size / 1000;
         final int maxUnassignedDocs = (size < 100) ? 10 : 100;
         StringFieldWriter sfw = w.getStringFieldWriter(stringFieldName);
 
         final UnusedDocsIds unusedDocIds = new UnusedDocsIds(size);
 
+        int i = 0;
         TreeMap<String, int[]> map = new TreeMap<>();
         while (unusedDocIds.size() > maxUnassignedDocs) {
-            final String term = randomString(rand.nextInt(MAX_STRING_TERM_LEN - 1) + 1);
+            final String term = termsList.get(i);
 
             final int maxDocsPerTerm = Math.min(unusedDocIds.size(), maxTermDocs);
             final int numDocs = unusedDocIds.size() > 1 ? rand.nextInt(maxDocsPerTerm - 1) + 1 : 1;
@@ -284,7 +288,7 @@ public class TestNativeFlamdexFTGSIterator {
         sfw.close();
     }
 
-    private String generateShard(List<FieldDesc> fieldDescs, int totalNDocs) throws IOException {
+    private String generateShard(List<FieldDesc> fieldDescs) throws IOException {
         final String dir = Files.getTempDirectory("native-ftgs-test", "test");
         
         // find max # of docs
@@ -300,7 +304,7 @@ public class TestNativeFlamdexFTGSIterator {
             if (fd.isIntfield) {
                 createFlamdexIntField(fd.name, fd.termGenerator, fd.numDocs, w);
             } else {
-                createFlamdexStringField(fd.name, fd.numDocs, w);
+                createFlamdexStringField(fd.name, fd.numDocs, w, fd.terms);
             }
         }
 
@@ -513,8 +517,8 @@ public class TestNativeFlamdexFTGSIterator {
 
     @Test
     public void test10Shards() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
-        final long seed = rand.nextLong();
-//        final long seed = -3805715792785289953L;
+//        final long seed = rand.nextLong();
+        final long seed = 4405491787374045543L;
         rand.setSeed(seed);
         System.out.println("Random seed: " + seed);
         final int numDocs = rand.nextInt(1 << 20) + 1;  // 1M
@@ -554,8 +558,12 @@ public class TestNativeFlamdexFTGSIterator {
 //        });
         final List<String> shardNames = new ArrayList<>();
         final List<String> shardCopies = new ArrayList<>();
+        final List<FieldDesc> fieldDescs = createShardProfile(numDocs,
+                                                             nMetrics,
+                                                             fieldName,
+                                                             metricNames);
         for (int i = 0; i < 10; i++) {
-            final String shard = createNewShard(numDocs, nMetrics, fieldName, metricNames);
+            final String shard = generateShard(fieldDescs);
             shardNames.add(shard);
             shardCopies.add(copyShard(shard));
         }
@@ -611,10 +619,10 @@ public class TestNativeFlamdexFTGSIterator {
 //        verificationIter.close();
     }
 
-    private String createNewShard(int numDocs,
-                                  int nMetrics,
-                                  String fieldName,
-                                  String[] metricNames) throws IOException {
+    private List<FieldDesc> createShardProfile(int numDocs,
+                                               int nMetrics,
+                                               String fieldName,
+                                               String[] metricNames) throws IOException {
         final List<FieldDesc> fieldDescs = new ArrayList<>(nMetrics);
 
         // create field
@@ -623,6 +631,12 @@ public class TestNativeFlamdexFTGSIterator {
             fd.isIntfield = false;
             fd.name = fieldName;
             fd.numDocs = numDocs;
+            final int numTerms = 4 * (1 << 20);  // 4M
+            fd.terms = new ArrayList<>(numTerms);
+            for (int i = 0; i < numTerms; i++) {
+                final String term = randomString(rand.nextInt(MAX_STRING_TERM_LEN - 1) + 1);
+                fd.terms.add(term);
+            }
             fieldDescs.add(fd);
         }
 
@@ -636,7 +650,7 @@ public class TestNativeFlamdexFTGSIterator {
             fieldDescs.add(fd);
         }
 
-        return generateShard(fieldDescs, numDocs);
+        return fieldDescs;
     }
 
     private void compareIterators(FTGSIterator test, FTGSIterator valid, int numStats) {
