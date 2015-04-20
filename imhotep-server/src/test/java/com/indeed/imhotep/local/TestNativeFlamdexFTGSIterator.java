@@ -112,6 +112,53 @@ public class TestNativeFlamdexFTGSIterator {
 
     }
 
+    public static class UncheckedClusterSimulator {
+        public static final int PORT = 8138;
+        private ServerSocket serverSocket;
+        private int nSplits;
+        private int nStats;
+
+        UncheckedClusterSimulator(int nSplits, int nStats) throws IOException {
+            this.nSplits = nSplits;
+            this.nStats = nStats;
+            this.serverSocket = new ServerSocket(PORT);
+        }
+
+        public RawFTGSIterator getIterator() throws IOException {
+            return null;
+        }
+
+        public Thread simulateServer(final RunnableFactory factory) throws IOException {
+            final Thread result = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        Thread[] threads = new Thread[nSplits];
+                        for (int i = 0; i < nSplits; i++) {
+                            Socket sock = null;
+                            Thread t = new Thread(factory.newRunnable(sock, i));
+                            t.start();
+                            threads[i] = t;
+                        }
+
+                        for (Thread t : threads) {
+                            t.join();
+                        }
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
+            result.start();
+            return result;
+        }
+
+        public void close() throws IOException {
+            this.serverSocket.close();
+        }
+
+    }
+
     public interface RunnableFactory {
         Runnable newRunnable(Socket socket, int i);
     }
@@ -139,9 +186,9 @@ public class TestNativeFlamdexFTGSIterator {
                 public void run() {
                     try {
                         session.writeFTGSIteratorSplit(intFields, stringFields, i, numSplits, socket);
-                        socket.close();
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
+//                        socket.close();
+//                    } catch (IOException e) {
+//                        throw new RuntimeException(e);
                     } catch (ImhotepOutOfMemoryException e) {
                         throw new RuntimeException(e);
                     }
@@ -571,18 +618,18 @@ public class TestNativeFlamdexFTGSIterator {
         final String[] stringFields = new String[]{fieldName};
         final String[] intFields = new String[0];
 
-        final MTImhotepLocalMultiSession verificationSession;
-        verificationSession = createMultisession(shardCopies, metricNames);
-        for (int i = 0; i < 13; i++) {
-            long time = System.nanoTime();
-
-            FTGSIterator verificationIter = verificationSession.getFTGSIterator(intFields, stringFields);
-            readAllIterator(verificationIter, nMetrics);
-            verificationIter.close();
-
-            System.err.println("old ftgs time: " + (System.nanoTime() - time) / 1000);
-        }
-
+//        final MTImhotepLocalMultiSession verificationSession;
+//        verificationSession = createMultisession(shardCopies, metricNames);
+//        for (int i = 0; i < 13; i++) {
+//            long time = System.nanoTime();
+//
+//            FTGSIterator verificationIter = verificationSession.getFTGSIterator(intFields, stringFields);
+//            readAllIterator(verificationIter, nMetrics);
+//            verificationIter.close();
+//
+//            System.err.println("old ftgs time: " + (System.nanoTime() - time) / 1000);
+//        }
+//
         {
             long time = System.nanoTime();
             System.gc();
@@ -595,13 +642,13 @@ public class TestNativeFlamdexFTGSIterator {
 
         for (int i = 0; i < 13; i++) {
             long time = System.nanoTime();
-            ClusterSimulator simulator = new ClusterSimulator(8, nMetrics);
+            UncheckedClusterSimulator simulator = new UncheckedClusterSimulator(8, nMetrics);
 
             Thread t = simulator.simulateServer(factory);
             RawFTGSIterator ftgsIterator = simulator.getIterator();
 
 //            compareIterators(ftgsIterator, verificationIter, nMetrics);
-            readAllIterator(ftgsIterator, nMetrics);
+//            readAllIterator(ftgsIterator, nMetrics);
 
             t.join();
 

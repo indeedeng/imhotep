@@ -99,11 +99,11 @@ public class NativeFtgsRunner {
         }
         
         /* Write "no more fields" terminator to the sockets */
-        for (int i = 0; i < numSplits; i++) {
-            final Socket s = sockets[i];
-            final OutputStream out = s.getOutputStream();
-            out.write(0);
-        }
+//        for (int i = 0; i < numSplits; i++) {
+//            final Socket s = sockets[i];
+//            final OutputStream out = s.getOutputStream();
+//            out.write(0);
+//        }
     }
 
     private void internalRun(String field,

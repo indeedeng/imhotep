@@ -55,7 +55,7 @@ public interface ImhotepServiceCore {
     void handleGetFTGSIterator(String sessionId, String[] intFields, String[] stringFields, OutputStream os) throws IOException;
     void handleGetSubsetFTGSIterator(String sessionId, Map<String, long[]> intFields, Map<String, String[]> stringFields, OutputStream os) throws IOException;
     void handleGetFTGSIteratorSplit(String sessionId, String[] intFields, String[] stringFields, OutputStream os, int splitIndex, int numSplits) throws IOException;
-    void handleGetFTGSIteratorSplitNative(String sessionId, String[] intFields, String[] stringFields, int splitIndex, int numSplits, Socket socket) throws IOException;
+    void handleGetFTGSIteratorSplitNative(String sessionId, String[] intFields, String[] stringFields, final OutputStream os, int splitIndex, int numSplits, Socket socket) throws IOException;
     void handleGetSubsetFTGSIteratorSplit(String sessionId, Map<String, long[]> intFields, Map<String, String[]> stringFields, OutputStream os, int splitIndex, int numSplits) throws IOException;
     void handleMergeFTGSIteratorSplit(String sessionId, String[] intFields, String[] stringFields, OutputStream os, InetSocketAddress[] nodes, int splitIndex) throws IOException;
     void handleMergeSubsetFTGSIteratorSplit(String sessionId, Map<String, long[]> intFields, Map<String, String[]> stringFields, OutputStream os, InetSocketAddress[] nodes, int splitIndex) throws IOException;
