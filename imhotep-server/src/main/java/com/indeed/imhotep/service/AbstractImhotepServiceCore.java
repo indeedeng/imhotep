@@ -169,11 +169,13 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
     }
 
     @Override
-    public void handleGetFTGSIteratorSplitNative(final String sessionId, final String[] intFields, final String[] stringFields, final int splitIndex, final int numSplits, final Socket socket) throws IOException {
-        doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Void, RuntimeException>() {
+    public void handleGetFTGSIteratorSplitNative(final String sessionId, final String[] intFields, final String[] stringFields, final OutputStream os, final int splitIndex, final int numSplits, final Socket socket) throws IOException {
+        doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Void, IOException>() {
             @Override
-            public Void apply(ImhotepSession imhotepSession) throws RuntimeException {
+            public Void apply(ImhotepSession imhotepSession) throws IOException {
                 try {
+                    sendSuccessResponse(os);
+                    os.flush();
                     imhotepSession.writeFTGSIteratorSplit(intFields, stringFields, splitIndex, numSplits, socket);
                 } catch (ImhotepOutOfMemoryException e) {
                     throw new RuntimeException(e);
