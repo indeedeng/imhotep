@@ -6,7 +6,6 @@ import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -24,7 +23,7 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * @author arun
  */
-public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQueue<E> {
+public class SingleProducerSingleConsumerBlockingQueue<E> implements CopyingBlockingQueue<E> {
 
     // x86/sun 64 bit jdk alignment:
     // 16 bytes object header
@@ -141,20 +140,6 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
     private final Condition notEmpty = lock.newCondition();
     private final Condition notFull = lock.newCondition();
 
-    public interface ObjFactory<E> {
-        E newObj();
-
-        E getNil();
-
-        boolean isNil(E dest);
-
-        boolean equalsNil(E dest);
-    }
-
-    public interface ObjCopier<E> {
-        void copy(E dest, E src);
-    }
-
 
     public SingleProducerSingleConsumerBlockingQueue(final int capacity) {
         if (capacity != Integer.highestOneBit(capacity)) {
@@ -186,6 +171,7 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         }
     }
 
+    @Override
     public boolean add(final E e) {
         if (offer(e)) {
             return true;
@@ -193,6 +179,7 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         throw new IllegalStateException("Queue is full");
     }
 
+    @Override
     public boolean offer(final E e) {
         if (null == e) {
             throw new NullPointerException("Can't write nulls!");
@@ -314,9 +301,15 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
     }
 
     private E takeElement(int headPtr) {
-        final E e = buffer[headPtr];
-        head.lazySet((headPtr+1)&moduloMask);
-        notifyWriter();
+        final E e;
+        if (copier == null) {
+            e = buffer[headPtr];
+            head.lazySet((headPtr + 1) & moduloMask);
+            notifyWriter();
+        } else {
+            e = factory.newObj();
+            takeElementCopy(headPtr, e);
+        }
         return e;
     }
 
@@ -397,6 +390,7 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         return headCache.value;
     }
 
+    @Override
     public E poll() {
         final int headPtr = head.value;
         final int tail = getTailFromCache(headPtr);
@@ -438,6 +432,7 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         }
     }
 
+    @Override
     public E remove() {
         final E e = poll();
         if (null == e) {
@@ -453,6 +448,7 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         }
     }
 
+    @Override
     public E element() {
         final E e = peek();
         if (null == e) {
@@ -468,6 +464,7 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         }
     }
 
+    @Override
     public E peek() {
         if (head.value == getTailFromCache(head.value)) {
             return null;
@@ -482,14 +479,17 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         copier.copy(dest, buffer[head.value]);
     }
 
+    @Override
     public int size() {
         throw new UnsupportedOperationException("unsupported operation");
     }
 
+    @Override
     public boolean isEmpty() {
         throw new UnsupportedOperationException("unsupported operation");
     }
 
+    @Override
     public boolean contains(final Object o) {
         throw new UnsupportedOperationException("unsupported operation");
     }
@@ -520,26 +520,32 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         }
     }
 
+    @Override
     public Iterator<E> iterator() {
         throw new UnsupportedOperationException("unsupported operation");
     }
 
+    @Override
     public Object[] toArray() {
         throw new UnsupportedOperationException("unsupported operation");
     }
 
+    @Override
     public <T> T[] toArray(final T[] a) {
         throw new UnsupportedOperationException("unsupported operation");
     }
 
+    @Override
     public boolean remove(final Object o) {
         throw new UnsupportedOperationException("unsupported operation");
     }
 
+    @Override
     public boolean containsAll(final Collection<?> c) {
         throw new UnsupportedOperationException("unsupported operation");
     }
 
+    @Override
     public boolean addAll(final Collection<? extends E> c) {
         for (final E e : c) {
             add(e);
@@ -547,14 +553,17 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         return true;
     }
 
+    @Override
     public boolean removeAll(final Collection<?> c) {
         throw new UnsupportedOperationException("unsupported operation");
     }
 
+    @Override
     public boolean retainAll(final Collection<?> c) {
         throw new UnsupportedOperationException("unsupported operation");
     }
 
+    @Override
     public void clear() {
         Object value;
         do {

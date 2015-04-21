@@ -14,13 +14,11 @@
 package com.indeed.imhotep.multicache;
 
 import com.google.common.collect.Lists;
+import com.indeed.flamdex.datastruct.CopyingBlockingQueue;
 import com.indeed.flamdex.datastruct.SingleProducerSingleConsumerBlockingQueue;
-import com.indeed.flamdex.datastruct.SingleProducerSingleConsumerBlockingQueue.ObjFactory;
-import com.indeed.flamdex.datastruct.SingleProducerSingleConsumerBlockingQueue.ObjCopier;
 
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Created by darren on 3/16/15.
@@ -28,17 +26,17 @@ import java.util.concurrent.TimeUnit;
 public class AdvProcessingService<Data, Result> extends ProcessingService<Data, Result> {
     private final List<ProcessingQueuesHolder> queuesList;
     private final TaskCoordinator<Data> coordinator;
-    private ObjFactory<Data> dataFactory;
-    private ObjCopier<Data> dataCopier;
-    private ObjFactory<Result> resultFactory;
-    private ObjCopier<Result> resultCopier;
+    private CopyingBlockingQueue.ObjFactory<Data> dataFactory;
+    private CopyingBlockingQueue.ObjCopier<Data> dataCopier;
+    private CopyingBlockingQueue.ObjFactory<Result> resultFactory;
+    private CopyingBlockingQueue.ObjCopier<Result> resultCopier;
 
     public AdvProcessingService(final TaskCoordinator<Data> coordinator,
-                                final ObjFactory<Data> dataFactory,
-                                final ObjCopier<Data> dataCopier,
-                                final ObjFactory<Result> resultFactory,
-                                final ObjCopier<Result> resultCopier) {
-        super();
+                                final CopyingBlockingQueue.ObjFactory<Data> dataFactory,
+                                final CopyingBlockingQueue.ObjCopier<Data> dataCopier,
+                                final CopyingBlockingQueue.ObjFactory<Result> resultFactory,
+                                final CopyingBlockingQueue.ObjCopier<Result> resultCopier) {
+        super(dataFactory.newObj(), resultFactory.newObj());
         this.coordinator = coordinator;
         this.dataFactory = dataFactory;
         this.dataCopier = dataCopier;
@@ -52,7 +50,7 @@ public class AdvProcessingService<Data, Result> extends ProcessingService<Data, 
         final int handle = super.addTask(task);
         final ProcessingQueuesHolder queue =
                 new AdvProcessingQueuesHolder(dataFactory, dataCopier, resultFactory, resultCopier);
-        task.configure(queue, Thread.currentThread());
+        task.configure(queue, Thread.currentThread(), dataFactory.newObj());
         queuesList.add(queue);
         return handle;
     }
@@ -63,7 +61,10 @@ public class AdvProcessingService<Data, Result> extends ProcessingService<Data, 
         try {
             if (resultProcessor != null) {
                 resultProcessorThread = new Thread(resultProcessor);
-                resultProcessor.configure(queuesList, Thread.currentThread(), numTasks);
+                resultProcessor.configure(queuesList,
+                                          Thread.currentThread(),
+                                          numTasks,
+                                          resultFactory.newObj());
                 resultProcessorThread.setUncaughtExceptionHandler(errorCatcher);
                 threads.add(resultProcessorThread);
             } else {
@@ -102,28 +103,17 @@ public class AdvProcessingService<Data, Result> extends ProcessingService<Data, 
     }
 
     public class AdvProcessingQueuesHolder extends ProcessingQueuesHolder {
-        private final SingleProducerSingleConsumerBlockingQueue<Data> spscDataQueue;
-        private final SingleProducerSingleConsumerBlockingQueue<Result> spscResultsQueue;
 
-        public AdvProcessingQueuesHolder(ObjFactory<Data> dataFactory,
-                                         ObjCopier<Data> dataCopier,
-                                         ObjFactory<Result> resultFactory,
-                                         ObjCopier<Result> resultCopier) {
-            spscDataQueue =
-                    new SingleProducerSingleConsumerBlockingQueue<>(64, dataFactory, dataCopier);
-            dataQueue = spscDataQueue;
-            spscResultsQueue = new SingleProducerSingleConsumerBlockingQueue<>(64,
-                                                                               resultFactory,
-                                                                               resultCopier);
-            resultsQueue = spscResultsQueue;
-        }
-
-        public void retrieveData(Data dest) throws InterruptedException {
-            spscDataQueue.take(dest);
-        }
-
-        public void retrieveResult(Result dest) throws InterruptedException {
-            spscResultsQueue.poll(10, TimeUnit.MICROSECONDS, dest);
+        public AdvProcessingQueuesHolder(CopyingBlockingQueue.ObjFactory<Data> dataFactory,
+                                         CopyingBlockingQueue.ObjCopier<Data> dataCopier,
+                                         CopyingBlockingQueue.ObjFactory<Result> resultFactory,
+                                         CopyingBlockingQueue.ObjCopier<Result> resultCopier) {
+            dataQueue = new SingleProducerSingleConsumerBlockingQueue<>(QUEUE_SIZE,
+                                                                        dataFactory,
+                                                                        dataCopier);
+            resultsQueue = new SingleProducerSingleConsumerBlockingQueue<>(QUEUE_SIZE,
+                                                                           resultFactory,
+                                                                           resultCopier);
         }
     }
 }

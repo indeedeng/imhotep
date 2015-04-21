@@ -14,12 +14,11 @@
 package com.indeed.imhotep.multicache;
 
 import com.google.common.collect.Lists;
+import com.indeed.flamdex.datastruct.CopyingBlockingQueue;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -27,6 +26,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Created by darren on 2/7/15.
  */
 public class ProcessingService<Data, Result> {
+
+    public ProcessingService(Data emptyDataObj, Result emptyResultObj) {
+        this.emptyDataObj = emptyDataObj;
+        this.emptyResultObj = emptyResultObj;
+    }
 
     public static class ProcessingServiceException extends RuntimeException {
         public ProcessingServiceException(final Throwable wrapped) {
@@ -36,15 +40,17 @@ public class ProcessingService<Data, Result> {
 
     protected final ProcessingQueuesHolder queues = new ProcessingQueuesHolder();
     private final AtomicBoolean errorTracker = new AtomicBoolean(false);
-    protected final ErrorCatcher errorCatcher = new ErrorCatcher();;
+    protected final ErrorCatcher errorCatcher = new ErrorCatcher();
     protected final List<ProcessingTask<Data, Result>> tasks = Lists.newArrayListWithCapacity(32);;
     protected final List<Thread> threads = Lists.newArrayListWithCapacity(32);
     protected Thread resultProcessorThread = null;
     protected int numTasks  = 0;
+    protected final Data emptyDataObj;
+    protected final Result emptyResultObj;
 
     public int addTask(final ProcessingTask<Data, Result> task) {
         tasks.add(task);
-        task.configure(queues, Thread.currentThread());
+        task.configure(queues, Thread.currentThread(), emptyDataObj);
 
         final Thread thread = new Thread(task);
         thread.setUncaughtExceptionHandler(errorCatcher);
@@ -62,7 +68,10 @@ public class ProcessingService<Data, Result> {
                 resultProcessorThread = new Thread(resultProcessor);
                 final List<ProcessingQueuesHolder> singltonList = new ArrayList<>(1);
                 singltonList.add(queues);
-                resultProcessor.configure(singltonList, Thread.currentThread(), numTasks);
+                resultProcessor.configure(singltonList,
+                                          Thread.currentThread(),
+                                          numTasks,
+                                          emptyResultObj);
                 resultProcessorThread.setUncaughtExceptionHandler(errorCatcher);
                 threads.add(resultProcessorThread);
             }
@@ -126,26 +135,27 @@ public class ProcessingService<Data, Result> {
     private static final Object COMPLETE_SENTINEL = new Object();
 
     public class ProcessingQueuesHolder {
+        protected static final int QUEUE_SIZE = 8192;
         public final Data   COMPLETE_DATA_SENTINEL   = (Data)   COMPLETE_SENTINEL;
         public final Result COMPLETE_RESULT_SENTINEL = (Result) COMPLETE_SENTINEL;
 
-        protected BlockingQueue<Data>   dataQueue    = new ArrayBlockingQueue<Data>(64);
-        protected BlockingQueue<Result> resultsQueue = new ArrayBlockingQueue<Result>(64);
+        protected CopyingBlockingQueue<Data> dataQueue;
+        protected CopyingBlockingQueue<Result> resultsQueue;
 
         public void submitData(final Data data) throws InterruptedException {
             dataQueue.put(data);
         }
 
-        public Data retrieveData() throws InterruptedException {
-            return dataQueue.take();
+        public void retrieveData(Data d) throws InterruptedException {
+            dataQueue.take(d);
         }
 
         public void submitResult(final Result result) throws InterruptedException {
             resultsQueue.put(result);
         }
 
-        public Result retrieveResult() throws InterruptedException {
-            return resultsQueue.poll(10, TimeUnit.MICROSECONDS);
+        public void retrieveResult(Result r) throws InterruptedException {
+            resultsQueue.poll(10, TimeUnit.MICROSECONDS, r);
         }
 
         public void catchError(final Throwable throwable) {

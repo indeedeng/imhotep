@@ -25,13 +25,16 @@ public abstract class ResultProcessor<Result> implements Runnable {
 
     private Thread owner = null;
     private int numTasks = 0;
+    private Result resultObj;
 
     public void configure(final List<? extends ProcessingService<?, Result>.ProcessingQueuesHolder> queues,
                           final Thread owner,
-                          final int numTasks) {
+                          final int numTasks,
+                          final Result emptyResultObj) {
         this.queues   = new ArrayList<>(queues);
         this.owner    = owner;
         this.numTasks = numTasks;
+        this.resultObj = emptyResultObj;
     }
 
     public final void run() {
@@ -42,12 +45,12 @@ public abstract class ResultProcessor<Result> implements Runnable {
                     final Iterator<ProcessingService<?, Result>.ProcessingQueuesHolder> iter = queues.iterator();
                     while (iter.hasNext()) {
                         final ProcessingService<?, Result>.ProcessingQueuesHolder queue = iter.next();
-                        final Result result = queue.retrieveResult();
-                        if (result == queue.COMPLETE_RESULT_SENTINEL) {
+                        queue.retrieveResult(resultObj);
+                        if (resultObj == queue.COMPLETE_RESULT_SENTINEL) {
                             --numTasks;
                         }
-                        else if (result != null) {
-                            processResult(result);
+                        else if (resultObj != null) {
+                            processResult(resultObj);
                         }
                     }
                 }

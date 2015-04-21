@@ -14,12 +14,10 @@
 package com.indeed.imhotep.multicache;
 
 import java.util.*;
-import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
 
 import org.junit.*;
 import org.junit.rules.*;
-import org.junit.Assert.*;
 
 /**
  * @author jfinley
@@ -47,7 +45,7 @@ public class TestProcessingService {
         processorCleanupCounter = new AtomicInteger(0);
         taskCleanupCounter      = new AtomicInteger(0);
         generator               = new IntGenerator(1000000);
-        service                 = new ProcessingService();
+        service                 = new ProcessingService(emptyDataObj, emptyResultObj);
     }
 
     @After

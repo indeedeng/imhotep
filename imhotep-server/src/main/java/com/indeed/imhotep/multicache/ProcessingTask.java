@@ -13,7 +13,6 @@
  */
 package com.indeed.imhotep.multicache;
 
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Created by darren on 2/8/15.
@@ -23,10 +22,14 @@ public abstract class ProcessingTask<Data, Result> implements Runnable {
 
     private Thread  owner          = null;
     private boolean discardResults = false;
+    private Data dataObj;
 
-    public void configure(final ProcessingService<Data, Result>.ProcessingQueuesHolder queue, final Thread owner) {
+    public void configure(final ProcessingService<Data, Result>.ProcessingQueuesHolder queue,
+                          final Thread owner,
+                          final Data emptyDataObj) {
         this.queue = queue;
         this.owner = owner;
+        this.dataObj = emptyDataObj;
     }
 
     public void setDiscardResults(final boolean discardResults) {
@@ -35,12 +38,12 @@ public abstract class ProcessingTask<Data, Result> implements Runnable {
 
     private void normalLoop() throws InterruptedException {
         boolean alive = true;
-        Data data = queue.retrieveData();
-        while (data != queue.COMPLETE_DATA_SENTINEL && alive) {
+        queue.retrieveData(dataObj);
+        while (dataObj != queue.COMPLETE_DATA_SENTINEL && alive) {
             try {
-                final Result result = processData(data);
+                final Result result = processData(dataObj);
                 queue.submitResult(result);
-                data = queue.retrieveData();
+                queue.retrieveData(dataObj);
             }
             catch (final InterruptedException ex) {
                 alive = false;
@@ -56,11 +59,11 @@ public abstract class ProcessingTask<Data, Result> implements Runnable {
 
     private void discardLoop() throws InterruptedException {
         boolean alive = true;
-        Data data = queue.retrieveData();
-        while (data != queue.COMPLETE_DATA_SENTINEL && alive) {
+        queue.retrieveData(dataObj);
+        while (dataObj != queue.COMPLETE_DATA_SENTINEL && alive) {
             try {
-                processData(data);
-                data = queue.retrieveData();
+                processData(dataObj);
+                queue.retrieveData(dataObj);
             }
             catch (final InterruptedException ex) {
                 alive = false;

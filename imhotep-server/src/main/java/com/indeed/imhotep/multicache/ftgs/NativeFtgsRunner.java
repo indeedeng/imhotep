@@ -3,6 +3,7 @@ package com.indeed.imhotep.multicache.ftgs;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
 import com.indeed.flamdex.api.FlamdexReader;
+import com.indeed.flamdex.datastruct.CopyingBlockingQueue;
 import com.indeed.flamdex.simple.MultiShardFlamdexReader;
 import com.indeed.imhotep.local.MultiCache;
 import com.indeed.imhotep.multicache.AdvProcessingService;
@@ -14,7 +15,6 @@ import javax.annotation.Nullable;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -38,6 +38,45 @@ public class NativeFtgsRunner {
         public TermDesc termDesc;
         public int splitIndex;
         public int socketNum;
+
+        static final class Factory implements CopyingBlockingQueue.ObjFactory<NativeTGSinfo> {
+            private final int capacity;
+
+            public Factory(int capacity) {
+                this.capacity = capacity;
+            }
+
+            @Override
+            public NativeTGSinfo newObj() {
+                final TermDesc td = new TermDesc(capacity);
+                final NativeTGSinfo result = new NativeTGSinfo();
+
+                result.termDesc = td;
+                return result;
+            }
+
+            @Override
+            public NativeTGSinfo getNil() {
+                final NativeTGSinfo result = new NativeTGSinfo();
+                result.termDesc = null;
+                result.socketNum = -1;
+                return result;
+            }
+
+            @Override
+            public boolean equalsNil(NativeTGSinfo dest) {
+                return dest.termDesc == null;
+            }
+        }
+
+        static final class Copier implements CopyingBlockingQueue.ObjCopier<NativeTGSinfo> {
+            @Override
+            public void copy(NativeTGSinfo dest, NativeTGSinfo src) {
+                TermDesc.copy(dest.termDesc, src.termDesc);
+                dest.splitIndex = src.splitIndex;
+                dest.socketNum = src.socketNum;
+            }
+        }
     }
 
     public NativeFtgsRunner(FlamdexReader[] flamdexReaders,
@@ -119,7 +158,11 @@ public class NativeFtgsRunner {
                 return info.splitIndex % NUM_WORKERS;
             }
         };
-        service = new AdvProcessingService<>(router);
+        service = new AdvProcessingService<>(router,
+                                             new NativeTGSinfo.Factory(numShards),
+                                             new NativeTGSinfo.Copier(),
+                                             null,
+                                             null);
         for (int i = 0; i < NUM_WORKERS; i++) {
             final List<Socket> socketList = new ArrayList<>();
             for (int j = 0; j < nSockets; j++) {
