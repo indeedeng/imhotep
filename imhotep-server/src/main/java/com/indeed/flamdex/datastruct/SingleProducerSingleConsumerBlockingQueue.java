@@ -125,6 +125,9 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
 
     private final int moduloMask;
     private final E[] buffer;
+    private final ObjFactory<E> factory;
+    private final ObjCopier<E> copier;
+    private final E nil;
 
     private final PaddedVolatileInt tail = new PaddedVolatileInt();
     private final PaddedVolatileInt head = new PaddedVolatileInt();
@@ -138,6 +141,20 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
     private final Condition notEmpty = lock.newCondition();
     private final Condition notFull = lock.newCondition();
 
+    public interface ObjFactory<E> {
+        E newObj();
+
+        E getNil();
+
+        boolean isNil(E dest);
+
+        boolean equalsNil(E dest);
+    }
+
+    public interface ObjCopier<E> {
+        void copy(E dest, E src);
+    }
+
 
     public SingleProducerSingleConsumerBlockingQueue(final int capacity) {
         if (capacity != Integer.highestOneBit(capacity)) {
@@ -146,6 +163,27 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         moduloMask = capacity-1;
         //noinspection unchecked
         buffer = (E[]) new Object[capacity];
+        factory = null;
+        copier = null;
+        nil = null;
+    }
+
+    public SingleProducerSingleConsumerBlockingQueue(final int capacity,
+                                                     ObjFactory<E> factory,
+                                                     ObjCopier<E> copier) {
+        if (capacity != Integer.highestOneBit(capacity)) {
+            throw new RuntimeException("capacity must be a power of two!");
+        }
+        this.moduloMask = capacity - 1;
+        //noinspection unchecked
+        this.buffer = (E[]) new Object[capacity];
+        this.factory = factory;
+        this.copier = copier;
+        this.nil = factory.getNil();
+
+        for (int i = 0; i < capacity; i++) {
+            this.buffer[i] = factory.newObj();
+        }
     }
 
     public boolean add(final E e) {
@@ -170,7 +208,11 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
     }
 
     private void insert(final E e, final int tailPtr) {
-        buffer[tailPtr] = e;
+        if (this.copier == null) {
+            buffer[tailPtr] = e;
+        } else {
+            copier.copy(buffer[tailPtr], e);
+        }
         tail.lazySet((tailPtr + 1) & moduloMask);
         notifyReader();
     }
@@ -262,11 +304,27 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         return takeElement(headPtr);
     }
 
+    public void take(E dest) throws InterruptedException {
+        final int headPtr = head.value;
+        final int cachedTail = getTailFromCache(headPtr);
+        if (headPtr == cachedTail) {
+            waitForInput();
+        }
+        takeElementCopy(headPtr, dest);
+    }
+
     private E takeElement(int headPtr) {
         final E e = buffer[headPtr];
         head.lazySet((headPtr+1)&moduloMask);
         notifyWriter();
         return e;
+    }
+
+    private void takeElementCopy(int headPtr, E ele) {
+        final E e = buffer[headPtr];
+        copier.copy(ele, e);
+        head.lazySet((headPtr + 1) & moduloMask);
+        notifyWriter();
     }
 
     private void waitForInput() throws InterruptedException {
@@ -317,6 +375,16 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         return takeElement(headPtr);
     }
 
+    public void poll(long timeout, TimeUnit unit, E dest) throws InterruptedException {
+        final int headPtr = head.value;
+        if (headPtr == getTailFromCache(headPtr)) {
+            if (!waitForInput(unit.toNanos(timeout))) {
+                copier.copy(dest, nil);
+            }
+        }
+        takeElementCopy(headPtr, dest);
+    }
+
     @Override
     public int remainingCapacity() {
         throw new UnsupportedOperationException("unsupported operation");
@@ -336,6 +404,16 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
             return takeElement(headPtr);
         } else {
             return null;
+        }
+    }
+
+    public void poll(E dest) {
+        final int headPtr = head.value;
+        final int tail = getTailFromCache(headPtr);
+        if (headPtr != tail) {
+            takeElementCopy(headPtr, dest);
+        } else {
+            copier.copy(dest, nil);
         }
     }
 
@@ -368,6 +446,13 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         return e;
     }
 
+    public void removeCopy(E dest) {
+        poll(dest);
+        if (factory.equalsNil(dest)) {
+            throw new NoSuchElementException("Queue is empty");
+        }
+    }
+
     public E element() {
         final E e = peek();
         if (null == e) {
@@ -376,11 +461,25 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         return e;
     }
 
+    public void element(E dest) {
+        peek(dest);
+        if (factory.equalsNil(dest)) {
+            throw new NoSuchElementException("Queue is empty");
+        }
+    }
+
     public E peek() {
         if (head.value == getTailFromCache(head.value)) {
             return null;
         }
         return buffer[head.value];
+    }
+
+    public void peek(E dest) {
+        if (head.value == getTailFromCache(head.value)) {
+            copier.copy(dest, nil);
+        }
+        copier.copy(dest, buffer[head.value]);
     }
 
     public int size() {
