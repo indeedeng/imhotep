@@ -181,7 +181,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                 }
 
                 // run service
-                final NativeFtgsRunner runner = new NativeFtgsRunner(readers,
+                final NativeFTGSRunner runner = new NativeFTGSRunner(readers,
                                                                      nativeCaches,
                                                                      getNumGroups(),
                                                                      numStats);
