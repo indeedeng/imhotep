@@ -28,6 +28,8 @@ public final class MultiCache implements Closeable {
     private final ImhotepLocalSession session;
     private int closedLookupCount = 0;
 
+    private static final int CHUNK_SIZE = 4096;
+
     public MultiCache(ImhotepLocalSession session,
                       int numDocsInShard,
                       MultiCacheConfig config,
@@ -46,15 +48,27 @@ public final class MultiCache implements Closeable {
 
         /* create the metric IntValueLookups, and populate the metrics in the multicache */
         this.nativeMetricLookups = new ArrayList<MultiCacheIntValueLookup>(this.numStats);
-        for (int i = 0; i < ordering.length; i++) {
-            final MultiCacheConfig.StatsOrderingInfo orderInfo = ordering[i];
+        for (int col = 0; col < ordering.length; col++) {
+            final MultiCacheConfig.StatsOrderingInfo orderInfo = ordering[col];
             final MultiCacheIntValueLookup metricLookup;
-            metricLookup = new MultiCacheIntValueLookup(i, orderInfo.min, orderInfo.max);
-
+            metricLookup = new MultiCacheIntValueLookup(col, orderInfo.min, orderInfo.max);
             this.nativeMetricLookups.add(metricLookup);
-
-            /* copy data into multicache */
-            copyValues(stats.get(orderInfo.originalOrder), numDocsInShard, i);
+        }
+        int row;
+        for (row = 0; row + CHUNK_SIZE < numDocsInShard; row = row + CHUNK_SIZE) {
+            for (int col = 0; col < ordering.length; col++) {
+                final MultiCacheConfig.StatsOrderingInfo orderInfo = ordering[col];
+                /* copy data into multicache */
+                copyValues(stats.get(orderInfo.originalOrder), row, CHUNK_SIZE, col);
+            }
+        }
+        int remaining = numDocsInShard - row;
+        if (remaining > 0) {
+            for (int col = 0; col < ordering.length; col++) {
+                final MultiCacheConfig.StatsOrderingInfo orderInfo = ordering[col];
+                /* copy data into multicache */
+                copyValues(stats.get(orderInfo.originalOrder), row, remaining, col);
+            }
         }
     }
 
@@ -85,19 +99,15 @@ public final class MultiCache implements Closeable {
                                      this.numStats);
     }
 
-    private void copyValues(IntValueLookup original, int numDocsInShard, int metricId) {
-        final int[] idBuffer = new int[BLOCK_COPY_SIZE];
-        final long[] valBuffer = new long[BLOCK_COPY_SIZE];
+    final int[] copyValuesIdBuffer = new int[CHUNK_SIZE];
+    final long[] copyValuesBuffer = new long[CHUNK_SIZE];
 
-        for (int start = 0; start < numDocsInShard; start += BLOCK_COPY_SIZE) {
-            final int end = Math.min(numDocsInShard, start + BLOCK_COPY_SIZE);
-            final int n = end - start;
-            for (int i = 0; i < n; i++) {
-                idBuffer[i] = start + i;
-            }
-            original.lookup(idBuffer, valBuffer, n);
-            nativePackMetricDataInRange(this.nativeShardDataPtr, metricId, start, n, valBuffer);
+    private void copyValues(IntValueLookup original, int start, int count, int metricId) {
+        for (int i = 0; i < count; i++) {
+            copyValuesIdBuffer[i] = start + i;
         }
+        original.lookup(copyValuesIdBuffer, copyValuesBuffer, count);
+        nativePackMetricDataInRange(this.nativeShardDataPtr, metricId, start, count, copyValuesBuffer);
     }
 
     private void copyGroups(GroupLookup original, int numDocsInShard) {
