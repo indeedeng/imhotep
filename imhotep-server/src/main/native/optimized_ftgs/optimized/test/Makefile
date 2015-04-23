@@ -1,11 +1,11 @@
 CC=/usr/bin/gcc-4.9
 CPP=/usr/bin/g++-4.9
-CFLAGS=-O3 -Wall -Werror -I./include -I../include  -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions
-CPPFLAGS=-O3 -Wall -Werror -I./include -I../include -I/usr/include/boost -std=c++0x -msse4.2 -fPIC
+CFLAGS=-Wall -Werror -I./include -I../include  -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions
+CPPFLAGS=-O3 -Wall -Werror -I./include -I../include -I/usr/include/boost -msse -msse2 -msse3 -mssse3 -msse4 -msse4.1 -msse4.2 -std=c++0x -fPIC
 
 LFLAGS=-shared
 
-OPT_CFLAGS= -O3 $(CFLAGS)
+OPT_CFLAGS= -g -O3 $(CFLAGS)
 DBG_CFLAGS= -g $(CFLAGS)
 
 LIBS=-lm -lstdc++

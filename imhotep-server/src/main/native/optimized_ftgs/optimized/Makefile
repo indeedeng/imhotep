@@ -4,8 +4,10 @@ JNI_HEADER_LOC=$(JAVA_HOME)/include
 JNI_HEADER_LOC2=$(JNI_HEADER_LOC)/linux
 #CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions #-fsanitize=address -fno-omit-frame-pointer -D_SANITIZE_
 #LFLAGS= -g -shared #-fsanitize=address
-CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions 
-LFLAGS= -flto -O3 -shared
+CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -msse -msse2 -msse3 -mssse3 -msse4 -msse4.1 -msse4.2 -std=gnu11 -fPIC -flax-vector-conversions -funroll-loops
+ 
+LFLAGS= -g -flto -O3 -shared
+
 
 #OPT_CFLAGS= -flto -O3 -funroll-loops -fvisibility=hidden $(CFLAGS)
 OPT_CFLAGS= -g -flto -O3 -funroll-loops $(CFLAGS)
