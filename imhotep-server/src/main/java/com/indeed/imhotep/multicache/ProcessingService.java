@@ -15,6 +15,7 @@ package com.indeed.imhotep.multicache;
 
 import com.google.common.collect.Lists;
 import com.indeed.flamdex.datastruct.CopyingBlockingQueue;
+import com.indeed.flamdex.datastruct.SingleProducerSingleConsumerBlockingQueue;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -23,34 +24,59 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Created by darren on 2/7/15.
+ * Created by darren on 3/16/15.
  */
 public class ProcessingService<Data, Result> {
-
-    public ProcessingService(Data emptyDataObj, Result emptyResultObj) {
-        this.emptyDataObj = emptyDataObj;
-        this.emptyResultObj = emptyResultObj;
-    }
-
     public static class ProcessingServiceException extends RuntimeException {
         public ProcessingServiceException(final Throwable wrapped) {
             super(wrapped);
         }
     }
 
-    protected final ProcessingQueuesHolder queues = new ProcessingQueuesHolder();
     private final AtomicBoolean errorTracker = new AtomicBoolean(false);
     protected final ErrorCatcher errorCatcher = new ErrorCatcher();
-    protected final List<ProcessingTask<Data, Result>> tasks = Lists.newArrayListWithCapacity(32);;
+    protected final List<ProcessingTask<Data, Result>> tasks = Lists.newArrayListWithCapacity(32);
     protected final List<Thread> threads = Lists.newArrayListWithCapacity(32);
     protected Thread resultProcessorThread = null;
-    protected int numTasks  = 0;
-    protected final Data emptyDataObj;
-    protected final Result emptyResultObj;
+    protected int numTasks = 0;
+
+    private final List<ProcessingQueuesHolder> queuesList;
+    private final TaskCoordinator<Data> coordinator;
+    private CopyingBlockingQueue.ObjFactory<Data> dataFactory;
+    private CopyingBlockingQueue.ObjCopier<Data> dataCopier;
+    private Data dataSentinel;
+    private CopyingBlockingQueue.ObjFactory<Result> resultFactory;
+    private CopyingBlockingQueue.ObjCopier<Result> resultCopier;
+    private Result resultSentinel;
+
+    public ProcessingService(final TaskCoordinator<Data> coordinator,
+                             final CopyingBlockingQueue.ObjFactory<Data> dataFactory,
+                             final CopyingBlockingQueue.ObjCopier<Data> dataCopier,
+                             final Data dataSentinel,
+                             final CopyingBlockingQueue.ObjFactory<Result> resultFactory,
+                             final CopyingBlockingQueue.ObjCopier<Result> resultCopier,
+                             final Result resultSentinel) {
+        this.coordinator = coordinator;
+        this.dataFactory = dataFactory;
+        this.dataCopier = dataCopier;
+        this.dataSentinel = dataSentinel;
+        this.resultFactory = resultFactory;
+        this.resultCopier = resultCopier;
+        this.resultSentinel = resultSentinel;
+        this.queuesList = Lists.newArrayListWithCapacity(32);
+    }
 
     public int addTask(final ProcessingTask<Data, Result> task) {
         tasks.add(task);
-        task.configure(queues, Thread.currentThread(), emptyDataObj);
+
+        final ProcessingQueuesHolder queue = new ProcessingQueuesHolder(dataFactory,
+                                                                        dataCopier,
+                                                                        dataSentinel,
+                                                                        resultFactory,
+                                                                        resultCopier,
+                                                                        resultSentinel);
+        task.configure(queue, Thread.currentThread(), dataFactory.newObj());
+        queuesList.add(queue);
 
         final Thread thread = new Thread(task);
         thread.setUncaughtExceptionHandler(errorCatcher);
@@ -66,44 +92,45 @@ public class ProcessingService<Data, Result> {
         try {
             if (resultProcessor != null) {
                 resultProcessorThread = new Thread(resultProcessor);
-                final List<ProcessingQueuesHolder> singltonList = new ArrayList<>(1);
-                singltonList.add(queues);
-                resultProcessor.configure(singltonList,
+                resultProcessor.configure(queuesList,
                                           Thread.currentThread(),
                                           numTasks,
-                                          emptyResultObj);
+                                          resultFactory.newObj());
                 resultProcessorThread.setUncaughtExceptionHandler(errorCatcher);
                 threads.add(resultProcessorThread);
-            }
-            else {
+            } else {
                 for (final ProcessingTask<Data, Result> task : tasks) {
                     task.setDiscardResults(true);
                 }
             }
 
-            for (final Thread thread : threads) thread.start();
+            for (final Thread thread : threads)
+                thread.start();
 
             try {
                 while (iterator.hasNext()) {
-                    queues.submitData(iterator.next());
+                    final Data data = iterator.next();
+                    final int handle = coordinator.route(data);
+                    queuesList.get(handle).submitData(data);
                 }
-                for (int count = 0; count < numTasks; ++count) {
-                    queues.submitData(queues.COMPLETE_DATA_SENTINEL);
+                for (final ProcessingQueuesHolder queue : queuesList) {
+                    queue.submitData(queue.COMPLETE_DATA_SENTINEL);
                 }
-            }
-            catch (final InterruptedException ex) {
-                for (final Thread thread: threads) thread.interrupt();
-            }
-            finally {
+            } catch (final InterruptedException ex) {
+                for (final Thread thread : threads)
+                    thread.interrupt();
+            } finally {
                 join();
             }
-        }
-        catch (final Throwable throwable) {
+        } catch (final Throwable throwable) {
             errorCatcher.uncaughtException(Thread.currentThread(), throwable);
-        }
-        finally {
+        } finally {
             handleErrors();
         }
+    }
+
+    public abstract static class TaskCoordinator<Data> {
+        public abstract int route(Data data);
     }
 
     protected void handleErrors() {
@@ -125,22 +152,37 @@ public class ProcessingService<Data, Result> {
             try {
                 threads.get(0).join();
                 threads.remove(0);
-            }
-            catch (InterruptedException ex) {
+            } catch (InterruptedException ex) {
                 // !@# timeout and hurl up a runtime exception?
             }
         }
     }
 
-    private static final Object COMPLETE_SENTINEL = new Object();
-
     public class ProcessingQueuesHolder {
         protected static final int QUEUE_SIZE = 8192;
-        public final Data   COMPLETE_DATA_SENTINEL   = (Data)   COMPLETE_SENTINEL;
-        public final Result COMPLETE_RESULT_SENTINEL = (Result) COMPLETE_SENTINEL;
 
-        protected CopyingBlockingQueue<Data> dataQueue;
-        protected CopyingBlockingQueue<Result> resultsQueue;
+        public final Data COMPLETE_DATA_SENTINEL;
+        public final Result COMPLETE_RESULT_SENTINEL;
+
+        protected final CopyingBlockingQueue<Data> dataQueue;
+        protected final CopyingBlockingQueue<Result> resultsQueue;
+
+        public ProcessingQueuesHolder(final CopyingBlockingQueue.ObjFactory<Data> dataFactory,
+                                      final CopyingBlockingQueue.ObjCopier<Data> dataCopier,
+                                      final Data dataSentinel,
+                                      final CopyingBlockingQueue.ObjFactory<Result> resultFactory,
+                                      final CopyingBlockingQueue.ObjCopier<Result> resultCopier,
+                                      final Result resultSentinel) {
+            dataQueue = new SingleProducerSingleConsumerBlockingQueue<>(QUEUE_SIZE,
+                                                                        dataFactory,
+                                                                        dataCopier);
+            resultsQueue = new SingleProducerSingleConsumerBlockingQueue<>(QUEUE_SIZE,
+                                                                           resultFactory,
+                                                                           resultCopier);
+
+            this.COMPLETE_DATA_SENTINEL = dataSentinel;
+            this.COMPLETE_RESULT_SENTINEL = resultSentinel;
+        }
 
         public void submitData(final Data data) throws InterruptedException {
             dataQueue.put(data);

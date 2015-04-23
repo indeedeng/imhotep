@@ -6,7 +6,7 @@ import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.datastruct.CopyingBlockingQueue;
 import com.indeed.flamdex.simple.MultiShardFlamdexReader;
 import com.indeed.imhotep.local.MultiCache;
-import com.indeed.imhotep.multicache.AdvProcessingService;
+import com.indeed.imhotep.multicache.ProcessingService;
 import com.indeed.util.core.hash.MurmurHash;
 
 import org.apache.log4j.Logger;
@@ -150,19 +150,20 @@ public class NativeFtgsRunner {
                              final Iterator<NativeTGSinfo> iter,
                              final Socket[] sockets,
                              final int nSockets) throws InterruptedException {
-        final AdvProcessingService<NativeTGSinfo, Void> service;
-        final AdvProcessingService.TaskCoordinator<NativeTGSinfo> router;
-        router = new AdvProcessingService.TaskCoordinator<NativeTGSinfo>() {
+        final ProcessingService<NativeTGSinfo, Void> service;
+        final ProcessingService.TaskCoordinator<NativeTGSinfo> router;
+        router = new ProcessingService.TaskCoordinator<NativeTGSinfo>() {
             @Override
             public int route(NativeTGSinfo info) {
                 return info.splitIndex % NUM_WORKERS;
             }
         };
-        service = new AdvProcessingService<>(router,
-                                             new NativeTGSinfo.Factory(numShards),
-                                             new NativeTGSinfo.Copier(),
-                                             null,
-                                             null);
+        service = new ProcessingService<>(router,
+                                          new NativeTGSinfo.Factory(numShards),
+                                          new NativeTGSinfo.Copier(),
+
+                                          null,
+                                          null);
         for (int i = 0; i < NUM_WORKERS; i++) {
             final List<Socket> socketList = new ArrayList<>();
             for (int j = 0; j < nSockets; j++) {
