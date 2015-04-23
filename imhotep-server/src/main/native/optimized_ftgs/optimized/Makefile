@@ -8,7 +8,7 @@ CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gn
 LFLAGS= -flto -O3 -shared
 
 #OPT_CFLAGS= -flto -O3 -funroll-loops -fvisibility=hidden $(CFLAGS)
-OPT_CFLAGS= -flto -O3 -funroll-loops $(CFLAGS)
+OPT_CFLAGS= -g -flto -O3 -funroll-loops $(CFLAGS)
 DBG_CFLAGS= -g $(CFLAGS)
 
 ODIR=obj
