@@ -10,7 +10,7 @@ DBG_CFLAGS= -g $(CFLAGS)
 
 LIBS=-lm -lstdc++
 
-TESTS := test_bit_tree test_circ_buf test_groups test_packed_shard test_tgs test_varintdecode
+TESTS := test_bit_tree test_circ_buf test_groups test_packed_shard test_tgs test_varintdecode packed_perf
 
 all: $(TESTS)
 
@@ -21,6 +21,9 @@ obj/%.o: src/%.cpp $(H_FILES)
 
 obj/test_patch.o: src/test_patch.c
 	$(CC) -c -o $@ $< $(CFLAGS)
+
+obj/packed_tree_perf_test.o: src/packed_tree_perf_test.c
+	$(CC) -c -o $@ $< $(OPT_CFLAGS)
 
 test_bit_tree: obj/test_bit_tree.o ../obj/bit_tree.o
 	$(CPP) $ -o test_bit_tree $(LIBS) $^
@@ -58,6 +61,10 @@ test_varintdecode: obj/test_varintdecode.o ../obj/varintdecode.o
 
 dump_term: obj/dump_term.o $(TGS_OBJS)
 	$(CPP) $ -o dump_term $(LIBS) $^ -L/usr/lib/x86_64-linux-gnu -lboost_system -lpthread
+
+packed_perf: obj/packed_tree_perf_test.o ../obj/packed_table.o
+	$(CC) $ -o packed_perf $^ -L/usr/lib/x86_64-linux-gnu -lrt 
+
 
 clean:
 	rm -f $(ODIR)/*.o *~ core $(INCDIR)/*~
