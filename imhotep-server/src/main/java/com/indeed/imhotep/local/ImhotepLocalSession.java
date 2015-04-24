@@ -1838,6 +1838,13 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
                 throw new IllegalArgumentException("invalid hasint metric: " + statName);
             }
             statLookup[numStats] = hasIntTermFilter(split[0], Integer.parseInt(split[1]));
+        } else if (statName.startsWith("regex ")) {
+            final String s = statName.substring(6).trim();
+            final String[] split = s.split(":", 2);
+            if (split.length < 2) {
+                throw new IllegalArgumentException("invalid regex metric: " + statName);
+            }
+            statLookup[numStats] = hasRegexFilter(split[0], split[1]);
         } else if (statName.startsWith("inttermcount ")) {
             final String field = statName.substring(13).trim();
             statLookup[numStats] = intTermCountLookup(field);
@@ -2899,6 +2906,19 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
         return new BitSetIntValueLookup(
                                         FlamdexUtils.cacheHasStringTerm(field, term, flamdexReader),
                                         memoryUsage);
+    }
+
+    private IntValueLookup hasRegexFilter(String field, String regex) throws ImhotepOutOfMemoryException {
+        final long memoryUsage = getBitSetMemoryUsage();
+
+        if (!memory.claimMemory(memoryUsage)) {
+            throw new ImhotepOutOfMemoryException();
+        }
+
+        return new BitSetIntValueLookup(
+                FlamdexUtils.cacheRegex(field, regex, flamdexReader),
+                memoryUsage
+        );
     }
 
     private IntValueLookup intTermCountLookup(final String field) throws ImhotepOutOfMemoryException {

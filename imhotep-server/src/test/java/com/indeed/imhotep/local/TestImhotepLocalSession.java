@@ -1911,4 +1911,42 @@ public class TestImhotepLocalSession {
 
         session1.close();
     }
+
+    @Test
+    public void testRegexMetric() throws ImhotepOutOfMemoryException {
+        final FlamdexReader r = MakeAFlamdex.make();
+        final ImhotepLocalSession session =
+                new ImhotepLocalSession(r,
+                        "/tmp/imhotep.test",
+                        new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
+                        false, null);
+
+        session.pushStat("regex if1:9000");
+        Assert.assertArrayEquals(new long[]{0, 3}, session.getGroupStats(0));
+        session.popStat();
+
+        session.pushStat("regex if3:.*9");
+        Assert.assertArrayEquals(new long[]{0, 10}, session.getGroupStats(0));
+        session.popStat();
+
+        session.pushStat("regex if3:notaninteger");
+        Assert.assertArrayEquals(new long[]{0, 0}, session.getGroupStats(0));
+        session.popStat();
+
+        session.pushStat("regex sf1:");
+        Assert.assertArrayEquals(new long[]{0, 2}, session.getGroupStats(0));
+        session.popStat();
+
+        session.pushStat("regex sf2:b");
+        Assert.assertArrayEquals(new long[]{0, 4}, session.getGroupStats(0));
+        session.popStat();
+
+        session.pushStat("regex floatfield:[0-9]*\\.[0-9]*");
+        Assert.assertArrayEquals(new long[]{0, 10}, session.getGroupStats(0));
+        session.popStat();
+
+        session.pushStat("regex nonexistent:anything");
+        Assert.assertArrayEquals(new long[]{0, 0}, session.getGroupStats(0));
+        session.popStat();
+    }
 }
