@@ -3,6 +3,7 @@
 #include "table.h"
 
 #define CACHE_LINE_SIZE                    4
+#define PREFECTCH_DISTANCE                 8
 
 #define MAX(a, b) ({ \
     __typeof__(a) _a = (a); \
@@ -529,14 +530,30 @@ void packed_table_set_col_range(packed_table_t *table,
 
     if (col < table->n_boolean_cols) {
         for (int i = 0; i < count; i++) {
-            internal_set_boolean_cell(table, start_row + i, col, col_vals[i] - min);
+            int row_id = start_row + i;
+            internal_set_boolean_cell(table, row_id, col, col_vals[i] - min);
+
+            // Prefetch
+            {
+                int idx = (row_id + PREFECTCH_DISTANCE) * table->row_size;
+                __v16qi *prefetch_addr = &table->data[idx];
+                PREFETCH(prefetch_addr);
+            }
         }
         return;
     }
 
     col -= table->n_boolean_cols;
-    for (int i = 0; i < count; i++) {
-        internal_set_cell(table, start_row + i, col, col_vals[i] - min, packed_vector_index);
+    for (int i = 0; i + 8 < count; i+= 8) {
+            int row_id = start_row + i;
+            internal_set_cell(table, row_id, col, col_vals[i] - min, packed_vector_index);
+
+            // Prefetch
+            {
+                int idx = (row_id + PREFECTCH_DISTANCE) * table->row_size;
+                __v16qi *prefetch_addr = &table->data[idx];
+                PREFETCH(prefetch_addr);
+            }
     }
 }
 

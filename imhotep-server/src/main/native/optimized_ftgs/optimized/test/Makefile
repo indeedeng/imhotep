@@ -63,7 +63,7 @@ dump_term: obj/dump_term.o $(TGS_OBJS)
 	$(CPP) $ -o dump_term $(LIBS) $^ -L/usr/lib/x86_64-linux-gnu -lboost_system -lpthread
 
 packed_perf: obj/packed_tree_perf_test.o ../obj/packed_table.o
-	$(CC) $ -o packed_perf $^ -L/usr/lib/x86_64-linux-gnu -lrt 
+	$(CC) $ -flto -funroll-loops -O3 -o packed_perf $^ -L/usr/lib/x86_64-linux-gnu -lrt 
 
 
 clean:
