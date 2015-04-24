@@ -30,6 +30,8 @@ import com.indeed.util.mmap.IntArray;
 import com.indeed.util.mmap.LongArray;
 import com.indeed.util.mmap.MMapBuffer;
 import com.indeed.util.mmap.ShortArray;
+import dk.brics.automaton.Automaton;
+import dk.brics.automaton.RegExp;
 import org.apache.log4j.Logger;
 
 import java.io.EOFException;
@@ -537,6 +539,45 @@ public class FlamdexUtils {
             iter.close();
         }
         return ret;
+    }
+
+    public static ThreadSafeBitSet cacheRegex(final String field, final String regex, final FlamdexReader reader) {
+        final Automaton automaton = new RegExp(regex).toAutomaton();
+        final ThreadSafeBitSet ret = new ThreadSafeBitSet(reader.getNumDocs());
+        if (reader.getIntFields().contains(field)) {
+            cacheIntFieldRegex(field, reader, automaton, ret);
+        } else if (reader.getStringFields().contains(field)) {
+            cacheStringFieldRegex(field, reader, automaton, ret);
+        } else {
+            // No exception on unknown field because fields can be added and queries can legitimately cross boundaries
+            // where the field isn't defined. Instead, just return an empty bitset.
+        }
+        return ret;
+    }
+
+    private static void cacheIntFieldRegex(String field, FlamdexReader reader, Automaton automaton, ThreadSafeBitSet ret) {
+        try (final IntTermIterator iter = reader.getIntTermIterator(field);
+             final DocIdStream dis = reader.getDocIdStream()) {
+            while (iter.next()) {
+                if (automaton.run(String.valueOf(iter.term()))) {
+                    dis.reset(iter);
+                    fillBitSet(dis, ret);
+                }
+            }
+        }
+    }
+
+    // TODO: Use automaton.getCommonPrefix() to reset to a start point and short circuit after that prefix?
+    private static void cacheStringFieldRegex(String field, FlamdexReader reader, Automaton automaton, ThreadSafeBitSet ret) {
+        try (final StringTermIterator iter = reader.getStringTermIterator(field);
+             final DocIdStream dis = reader.getDocIdStream()) {
+            while (iter.next()) {
+                if (automaton.run(iter.term())) {
+                    dis.reset(iter);
+                    fillBitSet(dis, ret);
+                }
+            }
+        }
     }
 
     public static long getIntTotalDocFreq(final FlamdexReader r, final String field) {
