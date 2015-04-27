@@ -14,91 +14,75 @@
 package com.indeed.imhotep.multicache;
 
 
+import java.util.concurrent.CountDownLatch;
+
 /**
  * Created by darren on 2/8/15.
  */
 public abstract class ProcessingTask<Data, Result> implements Runnable {
+    private ProcessingService.ErrorHandler errorHandler;
+    private CountDownLatch completionLatch;
+    private boolean discardResults = false;
+
     protected ProcessingService<Data, Result>.ProcessingQueuesHolder queue;
 
-    private Thread  owner          = null;
-    private boolean discardResults = false;
-    private Data dataObj;
 
     public void configure(final ProcessingService<Data, Result>.ProcessingQueuesHolder queue,
-                          final Thread owner,
-                          final Data emptyDataObj) {
+                          final ProcessingService.ErrorHandler errorHandler) {
         this.queue = queue;
-        this.owner = owner;
-        this.dataObj = emptyDataObj;
+        this.errorHandler = errorHandler;
     }
 
     public void setDiscardResults(final boolean discardResults) {
         this.discardResults = discardResults;
     }
 
+    public void setCompletionLatch(CountDownLatch completionLatch) {
+        this.completionLatch = completionLatch;
+    }
+
     private void normalLoop() throws InterruptedException {
-        boolean alive = true;
-        queue.retrieveData(dataObj);
-        while (dataObj != queue.COMPLETE_DATA_SENTINEL && alive) {
-            try {
-                final Result result = processData(dataObj);
+        Data data = queue.retrieveData();
+        while (data != queue.COMPLETE_DATA_SENTINEL) {
+                final Result result = processData(data);
                 queue.submitResult(result);
-                queue.retrieveData(dataObj);
-            }
-            catch (final InterruptedException ex) {
-                alive = false;
-            }
-            catch (final Throwable thr) {
-                alive = false;
-                queue.catchError(thr);
-                owner.interrupt();
-            }
+                data = queue.retrieveData();
         }
-        if (alive) queue.submitResult(queue.COMPLETE_RESULT_SENTINEL);
+        queue.submitResult(queue.COMPLETE_RESULT_SENTINEL);
     }
 
     private void discardLoop() throws InterruptedException {
-        boolean alive = true;
-        queue.retrieveData(dataObj);
-        while (dataObj != queue.COMPLETE_DATA_SENTINEL && alive) {
-            try {
-                processData(dataObj);
-                queue.retrieveData(dataObj);
-            }
-            catch (final InterruptedException ex) {
-                alive = false;
-            }
-            catch (final Throwable thr) {
-                alive = false;
-                queue.catchError(thr);
-                owner.interrupt();
-            }
+        Data data = queue.retrieveData();
+        while (data != queue.COMPLETE_DATA_SENTINEL) {
+                processData(data);
+                data = queue.retrieveData();
         }
     }
 
     public final void run() {
         try {
+
             init();
-            try {
-                if (!discardResults)
-                    normalLoop();
-                else
-                    discardLoop();
+            if (!discardResults) {
+                normalLoop();
+            } else {
+                discardLoop();
             }
-            finally {
-                cleanup();
-            }
-        }
-        catch (final InterruptedException ex) {
+            complete();
+
+        } catch (final InterruptedException ex) {
             // we've been signaled to go away
-        }
-        catch (final Throwable throwable) {
-            queue.catchError(throwable);
-            owner.interrupt();
+        } catch (final Throwable throwable) {
+            errorHandler.declareError(throwable);
+        } finally {
+            cleanup();
+            completionLatch.countDown();
         }
     }
 
     protected void init() { }
+
+    protected void complete() { }
 
     protected abstract Result processData(Data data);
 

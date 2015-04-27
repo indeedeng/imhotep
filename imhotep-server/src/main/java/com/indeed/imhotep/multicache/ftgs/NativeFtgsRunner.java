@@ -2,8 +2,8 @@ package com.indeed.imhotep.multicache.ftgs;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.indeed.flamdex.api.FlamdexReader;
-import com.indeed.flamdex.datastruct.CopyingBlockingQueue;
 import com.indeed.flamdex.simple.MultiShardFlamdexReader;
 import com.indeed.imhotep.local.MultiCache;
 import com.indeed.imhotep.multicache.ProcessingService;
@@ -15,10 +15,13 @@ import javax.annotation.Nullable;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Created by darren on 3/18/15.
@@ -38,45 +41,6 @@ public class NativeFtgsRunner {
         public TermDesc termDesc;
         public int splitIndex;
         public int socketNum;
-
-        static final class Factory implements CopyingBlockingQueue.ObjFactory<NativeTGSinfo> {
-            private final int capacity;
-
-            public Factory(int capacity) {
-                this.capacity = capacity;
-            }
-
-            @Override
-            public NativeTGSinfo newObj() {
-                final TermDesc td = new TermDesc(capacity);
-                final NativeTGSinfo result = new NativeTGSinfo();
-
-                result.termDesc = td;
-                return result;
-            }
-
-            @Override
-            public NativeTGSinfo getNil() {
-                final NativeTGSinfo result = new NativeTGSinfo();
-                result.termDesc = null;
-                result.socketNum = -1;
-                return result;
-            }
-
-            @Override
-            public boolean equalsNil(NativeTGSinfo dest) {
-                return dest.termDesc == null;
-            }
-        }
-
-        static final class Copier implements CopyingBlockingQueue.ObjCopier<NativeTGSinfo> {
-            @Override
-            public void copy(NativeTGSinfo dest, NativeTGSinfo src) {
-                TermDesc.copy(dest.termDesc, src.termDesc);
-                dest.splitIndex = src.splitIndex;
-                dest.socketNum = src.socketNum;
-            }
-        }
     }
 
     public NativeFtgsRunner(FlamdexReader[] flamdexReaders,
@@ -104,14 +68,14 @@ public class NativeFtgsRunner {
     }
 
     private static final int minHashString(final byte[] termStringBytes,
-                              final int termStringLength,
-                              final int numSplits) {
+                                           final int termStringLength,
+                                           final int numSplits) {
         int v;
 
         v = MurmurHash.hash32(termStringBytes, 0, termStringLength);
         v *= LARGE_PRIME_FOR_CLUSTER_SPLIT;
         v += 12345;
-        v &=  0x7FFFFFFF;
+        v &= 0x7FFFFFFF;
         v = v >> 16;
         return v % numSplits;
     }
@@ -120,10 +84,17 @@ public class NativeFtgsRunner {
                     final String[] stringFields,
                     final int numSplits,
                     final Socket[] sockets) throws InterruptedException, IOException {
+
+        final ThreadFactoryBuilder builder = new ThreadFactoryBuilder();
+        builder.setDaemon(true);
+        builder.setNameFormat("Native-FTGS-Thread -%d");
+        final ExecutorService threadPool;
+        threadPool = Executors.newFixedThreadPool(NUM_WORKERS + 2, builder.build());
+
         for (String field : intFields) {
             final CloseableIter iter = createIntIterator(field, numSplits);
             try {
-                internalRun(field, true, iter, sockets, numSplits);
+                internalRun(field, true, iter, sockets, numSplits, threadPool);
             } finally {
                 iter.close();
             }
@@ -131,25 +102,26 @@ public class NativeFtgsRunner {
         for (String field : stringFields) {
             final CloseableIter iter = createStringIterator(field, numSplits);
             try {
-                internalRun(field, false, iter, sockets, numSplits);
+                internalRun(field, false, iter, sockets, numSplits, threadPool);
             } finally {
                 iter.close();
             }
         }
         
         /* Write "no more fields" terminator to the sockets */
-//        for (int i = 0; i < numSplits; i++) {
-//            final Socket s = sockets[i];
-//            final OutputStream out = s.getOutputStream();
-//            out.write(0);
-//        }
+        for (int i = 0; i < numSplits; i++) {
+            final Socket s = sockets[i];
+            final OutputStream out = s.getOutputStream();
+            out.write(0);
+        }
     }
 
     private void internalRun(String field,
                              boolean isIntField,
                              final Iterator<NativeTGSinfo> iter,
                              final Socket[] sockets,
-                             final int nSockets) throws InterruptedException {
+                             final int nSockets,
+                             ExecutorService threadPool) {
         final ProcessingService<NativeTGSinfo, Void> service;
         final ProcessingService.TaskCoordinator<NativeTGSinfo> router;
         router = new ProcessingService.TaskCoordinator<NativeTGSinfo>() {
@@ -158,12 +130,7 @@ public class NativeFtgsRunner {
                 return info.splitIndex % NUM_WORKERS;
             }
         };
-        service = new ProcessingService<>(router,
-                                          new NativeTGSinfo.Factory(numShards),
-                                          new NativeTGSinfo.Copier(),
-
-                                          null,
-                                          null);
+        service = new ProcessingService<>(router, threadPool);
         for (int i = 0; i < NUM_WORKERS; i++) {
             final List<Socket> socketList = new ArrayList<>();
             for (int j = 0; j < nSockets; j++) {

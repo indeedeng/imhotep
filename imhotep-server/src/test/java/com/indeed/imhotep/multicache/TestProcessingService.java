@@ -14,9 +14,11 @@
 package com.indeed.imhotep.multicache;
 
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.*;
 
-import com.indeed.flamdex.datastruct.CopyingBlockingQueue;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.junit.*;
 import org.junit.rules.*;
 
@@ -25,12 +27,6 @@ import org.junit.rules.*;
  */
 public class TestProcessingService {
 
-    static class MyLong {
-        public long val;
-
-        MyLong(long v) { val = v; }
-    }
-
     class TaskException      extends RuntimeException { }
     class ProcessorException extends RuntimeException { }
 
@@ -38,9 +34,10 @@ public class TestProcessingService {
     AtomicInteger     processorCleanupCounter;
     AtomicInteger     taskCleanupCounter;
     IntGenerator      generator;
+    ExecutorService   executorService;
 
     @Rule
-    public Timeout globalTimeout = new Timeout(10000);
+    public Timeout globalTimeout = new Timeout(100000);
 
     @Rule
     public ExpectedException exception = ExpectedException.none();
@@ -51,53 +48,36 @@ public class TestProcessingService {
         processorCleanupCounter = new AtomicInteger(0);
         taskCleanupCounter      = new AtomicInteger(0);
         generator               = new IntGenerator(1000000);
+        executorService         = createExecutorService();
     }
 
     @After
     public void tearDown() {
         Assert.assertEquals("processor cleanup", 0, processorCleanupCounter.get());
         Assert.assertEquals("task cleanup",      0, taskCleanupCounter.get());
+        executorService.shutdown();
     }
 
-    ProcessingService.TaskCoordinator<MyLong> newRouter(final int numTasks) {
-        return new ProcessingService.TaskCoordinator<MyLong>() {
+    ProcessingService.TaskCoordinator<Long> newRouter(final int numTasks) {
+        return new ProcessingService.TaskCoordinator<Long>() {
             @Override
-                public int route(MyLong data) { return Math.abs((int)data.val) % numTasks; }
+                public int route(Long data) { return (int) Math.abs(data) % numTasks; }
         };
     }
 
-    private static class MyLongFactory implements  CopyingBlockingQueue.ObjFactory<MyLong> {
+    private ExecutorService createExecutorService() {
+        final ThreadFactoryBuilder builder = new ThreadFactoryBuilder();
+        builder.setDaemon(true);
+        builder.setNameFormat("Native-FTGS-Thread -%d");
+        final ExecutorService threadPool;
+        threadPool = Executors.newCachedThreadPool(builder.build());
 
-        @Override
-        public MyLong newObj() {
-            return new MyLong(0);
-        }
-
-        @Override
-        public MyLong getNil() {
-            return new MyLong(Long.MIN_VALUE);
-        }
-
-        @Override
-        public boolean equalsNil(MyLong dest) {
-            return dest.val == Long.MIN_VALUE;
-        }
-    }
-
-    private static class MyLongCopier implements CopyingBlockingQueue.ObjCopier<MyLong> {
-
-        @Override
-        public void copy(MyLong dest, MyLong src) {
-            dest.val = src.val;
-        }
+        return threadPool;
     }
 
     void advancedTask(final int numTasks, Processor processor) {
-        ProcessingService service = new ProcessingService<MyLong, MyLong>(newRouter(numTasks),
-                                                                          new MyLongFactory(),
-                                                                          new MyLongCopier(),
-                                                                          new MyLongFactory(),
-                                                                          new MyLongCopier());
+        ProcessingService service =
+                new ProcessingService<Long, Long>(newRouter(numTasks), executorService);
         for (int count = 0; count < numTasks; ++count)
             service.addTask(new Task());
         service.processData(generator, processor);
@@ -113,11 +93,8 @@ public class TestProcessingService {
     @Test public void advancedTaskDiscard128() { advancedTask(128, null); }
 
     void advancedBrokenTask(final int numTasks, Processor processor) {
-        ProcessingService service = new ProcessingService<MyLong, MyLong>(newRouter(numTasks),
-                                                                          new MyLongFactory(),
-                                                                          new MyLongCopier(),
-                                                                          new MyLongFactory(),
-                                                                          new MyLongCopier());
+        ProcessingService service = new ProcessingService<Long, Long>(newRouter(numTasks),
+                                                                      executorService);
         for (int count = 0; count < numTasks; ++count)
             service.addTask(new BrokenTask());
         exception.expect(ProcessingService.ProcessingServiceException.class);
@@ -134,11 +111,8 @@ public class TestProcessingService {
     @Test public void advancedBrokenTaskDiscard128() { advancedBrokenTask(128, null); }
 
     void advancedBrokenProcessor(final int numTasks) {
-        ProcessingService service = new ProcessingService<MyLong, MyLong>(newRouter(numTasks),
-                                                                          new MyLongFactory(),
-                                                                          new MyLongCopier(),
-                                                                          new MyLongFactory(),
-                                                                          new MyLongCopier());
+        ProcessingService service = new ProcessingService<Long, Long>(newRouter(numTasks),
+                                                                      executorService);
         for (int count = 0; count < numTasks; ++count)
             service.addTask(new Task());
         exception.expect(ProcessingService.ProcessingServiceException.class);
@@ -151,11 +125,8 @@ public class TestProcessingService {
     @Test public void advancedBrokenProcessor128() { advancedBrokenProcessor(128); }
 
     void advancedBrokenTaskAndProcessor(final int numTasks) {
-        ProcessingService service = new ProcessingService<MyLong, MyLong>(newRouter(numTasks),
-                                                                          new MyLongFactory(),
-                                                                          new MyLongCopier(),
-                                                                          new MyLongFactory(),
-                                                                          new MyLongCopier());
+        ProcessingService service = new ProcessingService<Long, Long>(newRouter(numTasks),
+                                                                      createExecutorService());
         for (int count = 0; count < numTasks; ++count)
             service.addTask(new BrokenTask());
         exception.expect(ProcessingService.ProcessingServiceException.class);
@@ -167,15 +138,15 @@ public class TestProcessingService {
     @Test public void advancedBrokenTaskAndProcessor16() { advancedBrokenTaskAndProcessor(16); }
     @Test public void advancedBrokenTaskAndProcessor128() { advancedBrokenTaskAndProcessor(128); }
 
-    class IntGenerator implements Iterator<MyLong> {
+    class IntGenerator implements Iterator<Long> {
         private long count;
         public IntGenerator(final long count) { this.count = count; }
         public boolean hasNext() { return count > 0; }
-        public MyLong next() { --count; return new MyLong(random.nextInt()); }
+        public Long next() { --count; return new Long(random.nextInt()); }
         public void remove() { }
     }
 
-    class Task extends ProcessingTask <MyLong, MyLong> {
+    class Task extends ProcessingTask <Long, Long> {
         @Override
         public void init() { taskCleanupCounter.incrementAndGet(); }
 
@@ -183,12 +154,12 @@ public class TestProcessingService {
         public void cleanup() { taskCleanupCounter.decrementAndGet(); }
 
         @Override
-        protected MyLong processData(final MyLong data) {
+        protected Long processData(final Long data) {
             long result = 0;
-            for (long value = data.val % 1023; value > 1; --value) {
+            for (long value = data % 1023; value > 1; --value) {
                 result *= value;
             }
-            return new MyLong(result);
+            return new Long(result);
         }
     }
 
@@ -196,14 +167,14 @@ public class TestProcessingService {
         private int counter = 1000;
 
         @Override
-        protected MyLong processData(final MyLong data) {
+        protected Long processData(final Long data) {
             --counter;
             if (counter <= 0) throw new TaskException();
             return super.processData(data);
         }
     }
 
-    class Processor extends ResultProcessor<MyLong> {
+    class Processor extends ResultProcessor<Long> {
         @Override
         public void init() { processorCleanupCounter.incrementAndGet(); }
 
@@ -211,9 +182,9 @@ public class TestProcessingService {
         public void cleanup() { processorCleanupCounter.decrementAndGet(); }
 
         @Override
-        protected void processResult(MyLong data) {
+        protected void processResult(Long data) {
             long result = 0;
-            for (long value = data.val % 1023; value > 1; --value) {
+            for (long value = data % 1023; value > 1; --value) {
                 result *= value;
             }
         }
@@ -223,7 +194,7 @@ public class TestProcessingService {
         private int counter = 1000;
 
         @Override
-        protected void processResult(final MyLong data) {
+        protected void processResult(final Long data) {
             --counter;
             if (counter <= 0) throw new ProcessorException();
             super.processResult(data);
