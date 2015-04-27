@@ -16,6 +16,7 @@ package com.indeed.imhotep.multicache;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * Created by darren on 2/8/15.
@@ -23,51 +24,54 @@ import java.util.List;
 public abstract class ResultProcessor<Result> implements Runnable {
     protected List<ProcessingService<?, Result>.ProcessingQueuesHolder> queues;
 
-    private Thread owner = null;
     private int numTasks = 0;
+    private CountDownLatch completionLatch;
+    private ProcessingService.ErrorHandler errorHandler;
 
     public void configure(final List<? extends ProcessingService<?, Result>.ProcessingQueuesHolder> queues,
-                          final Thread owner,
+                          final ProcessingService.ErrorHandler errorHandler,
                           final int numTasks) {
+        this.errorHandler = errorHandler;
         this.queues   = new ArrayList<>(queues);
-        this.owner    = owner;
         this.numTasks = numTasks;
+    }
+
+    public void setCompletionLatch(CountDownLatch completionLatch) {
+        this.completionLatch = completionLatch;
     }
 
     public final void run() {
         try {
             init();
-            try {
-                while (!queues.isEmpty() && numTasks > 0) {
-                    final Iterator<ProcessingService<?, Result>.ProcessingQueuesHolder> iter = queues.iterator();
-                    while (iter.hasNext()) {
-                        final ProcessingService<?, Result>.ProcessingQueuesHolder queue = iter.next();
-                        final Result result = queue.retrieveResult();
-                        if (result == queue.COMPLETE_RESULT_SENTINEL) {
-                            --numTasks;
-                        }
-                        else if (result != null) {
-                            processResult(result);
-                        }
+
+            while (!queues.isEmpty() && numTasks > 0) {
+                final Iterator<ProcessingService<?, Result>.ProcessingQueuesHolder> iter;
+                iter = queues.iterator();
+
+                while (iter.hasNext()) {
+                    final ProcessingService<?, Result>.ProcessingQueuesHolder queue = iter.next();
+                    Result result = queue.retrieveResult();
+                    if (result == queue.COMPLETE_RESULT_SENTINEL) {
+                        --numTasks;
+                    } else if (result != null) {
+                        processResult(result);
                     }
                 }
             }
-            finally {
-                cleanup();
-            }
-        }
-        catch (final InterruptedException ex) {
+
+            complete();
+        } catch (final InterruptedException ex) {
             // we've been signaled to go away
-        }
-        catch (final Throwable throwable) {
-            for (final ProcessingService<?, Result>.ProcessingQueuesHolder queue: queues) {
-                queue.catchError(throwable);
-            }
-            owner.interrupt();
+        } catch (final Throwable throwable) {
+            errorHandler.declareError(throwable);
+        } finally {
+            cleanup();
+            completionLatch.countDown();
         }
     }
 
     protected void init() { }
+    protected void complete() { }
     protected abstract void processResult(Result result);
     protected void cleanup() { }
 }

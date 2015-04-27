@@ -1,5 +1,7 @@
 package com.indeed.imhotep.multicache.ftgs;
 
+import com.indeed.flamdex.datastruct.CopyingBlockingQueue;
+
 import java.util.Arrays;
 
 /**
@@ -36,4 +38,26 @@ public final class TermDesc {
     public int size() {
         return this.sz;
     }
+
+    public static void copy(TermDesc dest, TermDesc src) {
+        dest.field = src.field;
+        System.arraycopy(src.nativeDocAddresses, 0, dest.nativeDocAddresses, 0, src.size());
+        System.arraycopy(src.numDocsInTerm, 0, dest.numDocsInTerm, 0, src.size());
+        dest.validShardCount = src.validShardCount;
+        dest.isIntTerm = src.isIntTerm;
+        dest.intTerm = src.intTerm;
+        if (src.stringTerm == null) {
+            dest.stringTerm = null;
+        } else {
+            if (dest.stringTerm.length < src.stringTermLen) {
+                dest.stringTerm = Arrays.copyOf(src.stringTerm, src.stringTermLen);
+            } else {
+                System.arraycopy(src.stringTerm, 0, dest.stringTerm, 0, src.stringTermLen);
+            }
+
+        }
+        dest.stringTermLen = src.stringTermLen;
+        // don't copy sz
+    }
+
 }

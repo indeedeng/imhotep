@@ -6,7 +6,6 @@ import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -24,7 +23,7 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * @author arun
  */
-public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQueue<E> {
+public class SingleProducerSingleConsumerBlockingQueue<E> implements CopyingBlockingQueue<E> {
 
     // x86/sun 64 bit jdk alignment:
     // 16 bytes object header
@@ -125,6 +124,9 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
 
     private final int moduloMask;
     private final E[] buffer;
+    private final ObjFactory<E> factory;
+    private final ObjCopier<E> copier;
+    private final E nil;
 
     private final PaddedVolatileInt tail = new PaddedVolatileInt();
     private final PaddedVolatileInt head = new PaddedVolatileInt();
@@ -146,8 +148,30 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         moduloMask = capacity-1;
         //noinspection unchecked
         buffer = (E[]) new Object[capacity];
+        factory = null;
+        copier = null;
+        nil = null;
     }
 
+    public SingleProducerSingleConsumerBlockingQueue(final int capacity,
+                                                     ObjFactory<E> factory,
+                                                     ObjCopier<E> copier) {
+        if (capacity != Integer.highestOneBit(capacity)) {
+            throw new RuntimeException("capacity must be a power of two!");
+        }
+        this.moduloMask = capacity - 1;
+        //noinspection unchecked
+        this.buffer = (E[]) new Object[capacity];
+        this.factory = factory;
+        this.copier = copier;
+        this.nil = factory.getNil();
+
+        for (int i = 0; i < capacity; i++) {
+            this.buffer[i] = factory.newObj();
+        }
+    }
+
+    @Override
     public boolean add(final E e) {
         if (offer(e)) {
             return true;
@@ -155,6 +179,7 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         throw new IllegalStateException("Queue is full");
     }
 
+    @Override
     public boolean offer(final E e) {
         if (null == e) {
             throw new NullPointerException("Can't write nulls!");
@@ -170,7 +195,11 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
     }
 
     private void insert(final E e, final int tailPtr) {
-        buffer[tailPtr] = e;
+        if (this.copier == null) {
+            buffer[tailPtr] = e;
+        } else {
+            copier.copy(buffer[tailPtr], e);
+        }
         tail.lazySet((tailPtr + 1) & moduloMask);
         notifyReader();
     }
@@ -262,11 +291,33 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         return takeElement(headPtr);
     }
 
+    public void take(E dest) throws InterruptedException {
+        final int headPtr = head.value;
+        final int cachedTail = getTailFromCache(headPtr);
+        if (headPtr == cachedTail) {
+            waitForInput();
+        }
+        takeElementCopy(headPtr, dest);
+    }
+
     private E takeElement(int headPtr) {
-        final E e = buffer[headPtr];
-        head.lazySet((headPtr+1)&moduloMask);
-        notifyWriter();
+        final E e;
+        if (copier == null) {
+            e = buffer[headPtr];
+            head.lazySet((headPtr + 1) & moduloMask);
+            notifyWriter();
+        } else {
+            e = factory.newObj();
+            takeElementCopy(headPtr, e);
+        }
         return e;
+    }
+
+    private void takeElementCopy(int headPtr, E ele) {
+        final E e = buffer[headPtr];
+        copier.copy(ele, e);
+        head.lazySet((headPtr + 1) & moduloMask);
+        notifyWriter();
     }
 
     private void waitForInput() throws InterruptedException {
@@ -317,6 +368,16 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         return takeElement(headPtr);
     }
 
+    public void poll(long timeout, TimeUnit unit, E dest) throws InterruptedException {
+        final int headPtr = head.value;
+        if (headPtr == getTailFromCache(headPtr)) {
+            if (!waitForInput(unit.toNanos(timeout))) {
+                copier.copy(dest, nil);
+            }
+        }
+        takeElementCopy(headPtr, dest);
+    }
+
     @Override
     public int remainingCapacity() {
         throw new UnsupportedOperationException("unsupported operation");
@@ -329,6 +390,7 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         return headCache.value;
     }
 
+    @Override
     public E poll() {
         final int headPtr = head.value;
         final int tail = getTailFromCache(headPtr);
@@ -336,6 +398,16 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
             return takeElement(headPtr);
         } else {
             return null;
+        }
+    }
+
+    public void poll(E dest) {
+        final int headPtr = head.value;
+        final int tail = getTailFromCache(headPtr);
+        if (headPtr != tail) {
+            takeElementCopy(headPtr, dest);
+        } else {
+            copier.copy(dest, nil);
         }
     }
 
@@ -360,6 +432,7 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         }
     }
 
+    @Override
     public E remove() {
         final E e = poll();
         if (null == e) {
@@ -368,6 +441,14 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         return e;
     }
 
+    public void removeCopy(E dest) {
+        poll(dest);
+        if (factory.equalsNil(dest)) {
+            throw new NoSuchElementException("Queue is empty");
+        }
+    }
+
+    @Override
     public E element() {
         final E e = peek();
         if (null == e) {
@@ -376,6 +457,14 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         return e;
     }
 
+    public void element(E dest) {
+        peek(dest);
+        if (factory.equalsNil(dest)) {
+            throw new NoSuchElementException("Queue is empty");
+        }
+    }
+
+    @Override
     public E peek() {
         if (head.value == getTailFromCache(head.value)) {
             return null;
@@ -383,14 +472,24 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         return buffer[head.value];
     }
 
+    public void peek(E dest) {
+        if (head.value == getTailFromCache(head.value)) {
+            copier.copy(dest, nil);
+        }
+        copier.copy(dest, buffer[head.value]);
+    }
+
+    @Override
     public int size() {
         throw new UnsupportedOperationException("unsupported operation");
     }
 
+    @Override
     public boolean isEmpty() {
         throw new UnsupportedOperationException("unsupported operation");
     }
 
+    @Override
     public boolean contains(final Object o) {
         throw new UnsupportedOperationException("unsupported operation");
     }
@@ -421,26 +520,32 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         }
     }
 
+    @Override
     public Iterator<E> iterator() {
         throw new UnsupportedOperationException("unsupported operation");
     }
 
+    @Override
     public Object[] toArray() {
         throw new UnsupportedOperationException("unsupported operation");
     }
 
+    @Override
     public <T> T[] toArray(final T[] a) {
         throw new UnsupportedOperationException("unsupported operation");
     }
 
+    @Override
     public boolean remove(final Object o) {
         throw new UnsupportedOperationException("unsupported operation");
     }
 
+    @Override
     public boolean containsAll(final Collection<?> c) {
         throw new UnsupportedOperationException("unsupported operation");
     }
 
+    @Override
     public boolean addAll(final Collection<? extends E> c) {
         for (final E e : c) {
             add(e);
@@ -448,14 +553,17 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements BlockingQue
         return true;
     }
 
+    @Override
     public boolean removeAll(final Collection<?> c) {
         throw new UnsupportedOperationException("unsupported operation");
     }
 
+    @Override
     public boolean retainAll(final Collection<?> c) {
         throw new UnsupportedOperationException("unsupported operation");
     }
 
+    @Override
     public void clear() {
         Object value;
         do {

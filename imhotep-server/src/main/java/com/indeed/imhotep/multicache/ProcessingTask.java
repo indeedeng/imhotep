@@ -13,89 +13,76 @@
  */
 package com.indeed.imhotep.multicache;
 
-import java.util.concurrent.atomic.AtomicBoolean;
+
+import java.util.concurrent.CountDownLatch;
 
 /**
  * Created by darren on 2/8/15.
  */
 public abstract class ProcessingTask<Data, Result> implements Runnable {
-    protected ProcessingService<Data, Result>.ProcessingQueuesHolder queue;
-
-    private Thread  owner          = null;
+    private ProcessingService.ErrorHandler errorHandler;
+    private CountDownLatch completionLatch;
     private boolean discardResults = false;
 
-    public void configure(final ProcessingService<Data, Result>.ProcessingQueuesHolder queue, final Thread owner) {
+    protected ProcessingService<Data, Result>.ProcessingQueuesHolder queue;
+
+
+    public void configure(final ProcessingService<Data, Result>.ProcessingQueuesHolder queue,
+                          final ProcessingService.ErrorHandler errorHandler) {
         this.queue = queue;
-        this.owner = owner;
+        this.errorHandler = errorHandler;
     }
 
     public void setDiscardResults(final boolean discardResults) {
         this.discardResults = discardResults;
     }
 
+    public void setCompletionLatch(CountDownLatch completionLatch) {
+        this.completionLatch = completionLatch;
+    }
+
     private void normalLoop() throws InterruptedException {
-        boolean alive = true;
         Data data = queue.retrieveData();
-        while (data != queue.COMPLETE_DATA_SENTINEL && alive) {
-            try {
+        while (data != queue.COMPLETE_DATA_SENTINEL) {
                 final Result result = processData(data);
                 queue.submitResult(result);
                 data = queue.retrieveData();
-            }
-            catch (final InterruptedException ex) {
-                alive = false;
-            }
-            catch (final Throwable thr) {
-                alive = false;
-                queue.catchError(thr);
-                owner.interrupt();
-            }
         }
-        if (alive) queue.submitResult(queue.COMPLETE_RESULT_SENTINEL);
+        queue.submitResult(queue.COMPLETE_RESULT_SENTINEL);
     }
 
     private void discardLoop() throws InterruptedException {
-        boolean alive = true;
         Data data = queue.retrieveData();
-        while (data != queue.COMPLETE_DATA_SENTINEL && alive) {
-            try {
+        while (data != queue.COMPLETE_DATA_SENTINEL) {
                 processData(data);
                 data = queue.retrieveData();
-            }
-            catch (final InterruptedException ex) {
-                alive = false;
-            }
-            catch (final Throwable thr) {
-                alive = false;
-                queue.catchError(thr);
-                owner.interrupt();
-            }
         }
     }
 
     public final void run() {
         try {
+
             init();
-            try {
-                if (!discardResults)
-                    normalLoop();
-                else
-                    discardLoop();
+            if (!discardResults) {
+                normalLoop();
+            } else {
+                discardLoop();
             }
-            finally {
-                cleanup();
-            }
-        }
-        catch (final InterruptedException ex) {
+            complete();
+
+        } catch (final InterruptedException ex) {
             // we've been signaled to go away
-        }
-        catch (final Throwable throwable) {
-            queue.catchError(throwable);
-            owner.interrupt();
+        } catch (final Throwable throwable) {
+            errorHandler.declareError(throwable);
+        } finally {
+            cleanup();
+            completionLatch.countDown();
         }
     }
 
     protected void init() { }
+
+    protected void complete() { }
 
     protected abstract Result processData(Data data);
 

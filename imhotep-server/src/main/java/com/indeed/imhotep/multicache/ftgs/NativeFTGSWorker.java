@@ -41,6 +41,7 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFTGSRunner.NativeTGSi
             Socket sock = sockets[i];
             int fd = SocketUtils.getOutputDescriptor(sock);
             socketArr[i] = fd;
+            socketArr[i] = i + 8;
         }
     }
 
@@ -88,10 +89,18 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFTGSRunner.NativeTGSi
     }
 
     @Override
-    protected void cleanup() {
+    protected void complete() {
         native_end_field(this.nativeWorkerStructPtr, this.nativeSessionStructPtr);
-        native_session_destroy(this.nativeWorkerStructPtr, this.nativeSessionStructPtr);
-        native_worker_destroy(this.nativeWorkerStructPtr);
+    }
+
+    @Override
+    protected void cleanup() {
+        if (this.nativeSessionStructPtr != 0) {
+            native_session_destroy(this.nativeWorkerStructPtr, this.nativeSessionStructPtr);
+        }
+        if (this.nativeWorkerStructPtr != 0) {
+            native_worker_destroy(this.nativeWorkerStructPtr);
+        }
     }
 
     private static native int native_start_field(long nativeWorkerStructPtr,

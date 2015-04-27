@@ -72,9 +72,7 @@ public final class GenericFlamdexReader implements FlamdexReader {
         this.stringFields = stringFields;
     }
 
-    public static FlamdexReader open(
-            String directory
-    ) throws IOException {
+    public static FlamdexReader open(String directory) throws IOException {
         final FlamdexReader r = internalOpen(directory);
         if (RamsesFlamdexWrapper.ramsesFilesExist(directory)) {
             return new RamsesFlamdexWrapper(r, directory);

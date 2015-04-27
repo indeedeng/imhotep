@@ -2,10 +2,11 @@ package com.indeed.imhotep.multicache.ftgs;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.simple.MultiShardFlamdexReader;
 import com.indeed.imhotep.local.MultiCache;
-import com.indeed.imhotep.multicache.AdvProcessingService;
+import com.indeed.imhotep.multicache.ProcessingService;
 import com.indeed.util.core.hash.MurmurHash;
 
 import org.apache.log4j.Logger;
@@ -19,6 +20,8 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Created by darren on 3/18/15.
@@ -65,14 +68,14 @@ public class NativeFTGSRunner {
     }
 
     private static final int minHashString(final byte[] termStringBytes,
-                              final int termStringLength,
-                              final int numSplits) {
+                                           final int termStringLength,
+                                           final int numSplits) {
         int v;
 
         v = MurmurHash.hash32(termStringBytes, 0, termStringLength);
         v *= LARGE_PRIME_FOR_CLUSTER_SPLIT;
         v += 12345;
-        v &=  0x7FFFFFFF;
+        v &= 0x7FFFFFFF;
         v = v >> 16;
         return v % numSplits;
     }
@@ -81,10 +84,17 @@ public class NativeFTGSRunner {
                     final String[] stringFields,
                     final int numSplits,
                     final Socket[] sockets) throws InterruptedException, IOException {
+
+        final ThreadFactoryBuilder builder = new ThreadFactoryBuilder();
+        builder.setDaemon(true);
+        builder.setNameFormat("Native-FTGS-Thread -%d");
+        final ExecutorService threadPool;
+        threadPool = Executors.newFixedThreadPool(NUM_WORKERS + 2, builder.build());
+
         for (String field : intFields) {
             final CloseableIter iter = createIntIterator(field, numSplits);
             try {
-                internalRun(field, true, iter, sockets, numSplits);
+                internalRun(field, true, iter, sockets, numSplits, threadPool);
             } finally {
                 iter.close();
             }
@@ -92,7 +102,7 @@ public class NativeFTGSRunner {
         for (String field : stringFields) {
             final CloseableIter iter = createStringIterator(field, numSplits);
             try {
-                internalRun(field, false, iter, sockets, numSplits);
+                internalRun(field, false, iter, sockets, numSplits, threadPool);
             } finally {
                 iter.close();
             }
@@ -110,16 +120,17 @@ public class NativeFTGSRunner {
                              boolean isIntField,
                              final Iterator<NativeTGSinfo> iter,
                              final Socket[] sockets,
-                             final int nSockets) throws InterruptedException {
-        final AdvProcessingService<NativeTGSinfo, Void> service;
-        final AdvProcessingService.TaskCoordinator<NativeTGSinfo> router;
-        router = new AdvProcessingService.TaskCoordinator<NativeTGSinfo>() {
+                             final int nSockets,
+                             ExecutorService threadPool) {
+        final ProcessingService<NativeTGSinfo, Void> service;
+        final ProcessingService.TaskCoordinator<NativeTGSinfo> router;
+        router = new ProcessingService.TaskCoordinator<NativeTGSinfo>() {
             @Override
             public int route(NativeTGSinfo info) {
                 return info.splitIndex % NUM_WORKERS;
             }
         };
-        service = new AdvProcessingService<>(router);
+        service = new ProcessingService<>(router, threadPool);
         for (int i = 0; i < NUM_WORKERS; i++) {
             final List<Socket> socketList = new ArrayList<>();
             for (int j = 0; j < nSockets; j++) {

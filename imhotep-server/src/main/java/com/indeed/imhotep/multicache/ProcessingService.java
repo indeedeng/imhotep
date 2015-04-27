@@ -14,41 +14,48 @@
 package com.indeed.imhotep.multicache;
 
 import com.google.common.collect.Lists;
+import com.indeed.flamdex.datastruct.CopyingBlockingQueue;
+import com.indeed.flamdex.datastruct.SingleProducerSingleConsumerBlockingQueue;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Created by darren on 2/7/15.
+ * Created by darren on 3/16/15.
  */
 public class ProcessingService<Data, Result> {
+    private final ErrorState errorState = new ErrorState();
+    private final ErrorHandler errorHandler = new ErrorHandler();
+    private final List<ProcessingTask<Data, Result>> tasks = Lists.newArrayListWithCapacity(32);
+    private int numTasks = 0;
+    private ResultProcessor<Result> resultProcessor;
+    private CountDownLatch completionLatch;
 
-    public static class ProcessingServiceException extends RuntimeException {
-        public ProcessingServiceException(final Throwable wrapped) {
-            super(wrapped);
-        }
+    private final List<ProcessingQueuesHolder> queuesList;
+    private final TaskCoordinator<Data> coordinator;
+    private final ExecutorService threadPool;
+
+    public ProcessingService(final TaskCoordinator<Data> coordinator,
+                             final ExecutorService threadPool) {
+        this.coordinator = coordinator;
+        this.threadPool = threadPool;
+        this.queuesList = Lists.newArrayListWithCapacity(32);
     }
-
-    protected final ProcessingQueuesHolder queues = new ProcessingQueuesHolder();
-    private final AtomicBoolean errorTracker = new AtomicBoolean(false);
-    protected final ErrorCatcher errorCatcher = new ErrorCatcher();;
-    protected final List<ProcessingTask<Data, Result>> tasks = Lists.newArrayListWithCapacity(32);;
-    protected final List<Thread> threads = Lists.newArrayListWithCapacity(32);
-    protected Thread resultProcessorThread = null;
-    protected int numTasks  = 0;
 
     public int addTask(final ProcessingTask<Data, Result> task) {
         tasks.add(task);
-        task.configure(queues, Thread.currentThread());
 
-        final Thread thread = new Thread(task);
-        thread.setUncaughtExceptionHandler(errorCatcher);
-        threads.add(thread);
+        final ProcessingQueuesHolder queue = new ProcessingQueuesHolder();
+        task.configure(queue, errorHandler);
+        queuesList.add(queue);
 
         final int taskNum = numTasks;
         ++numTasks;
@@ -57,80 +64,99 @@ public class ProcessingService<Data, Result> {
 
     public void processData(final Iterator<Data> iterator,
                             final ResultProcessor<Result> resultProcessor) {
+        if (resultProcessor != null) {
+            this.resultProcessor = resultProcessor;
+            this.completionLatch = new CountDownLatch(numTasks + 1);
+
+            resultProcessor.configure(queuesList, errorHandler, numTasks);
+        } else {
+            this.completionLatch = new CountDownLatch(numTasks);
+
+            for (final ProcessingTask<Data, Result> task : tasks) {
+                task.setDiscardResults(true);
+            }
+        }
+
+        /* generate data for the workers in a separate thread */
+        threadPool.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    while (iterator.hasNext()) {
+                        final Data data = iterator.next();
+                        final int handle = coordinator.route(data);
+                        queuesList.get(handle).submitData(data);
+                    }
+                    for (final ProcessingQueuesHolder queue : queuesList) {
+                        queue.submitData(queue.COMPLETE_DATA_SENTINEL);
+                    }
+
+                    completionLatch.await();
+                    errorState.declareComplete();
+                } catch (final InterruptedException ex) {
+                    // thread is being stopped, just exit
+                } catch (final Throwable throwable) {
+                    errorHandler.declareError(throwable);
+                }
+            }
+        });
+
         try {
+            /* create the data processing threads after the producer */
             if (resultProcessor != null) {
-                resultProcessorThread = new Thread(resultProcessor);
-                final List<ProcessingQueuesHolder> singltonList = new ArrayList<>(1);
-                singltonList.add(queues);
-                resultProcessor.configure(singltonList, Thread.currentThread(), numTasks);
-                resultProcessorThread.setUncaughtExceptionHandler(errorCatcher);
-                threads.add(resultProcessorThread);
+                resultProcessor.setCompletionLatch(completionLatch);
+                threadPool.execute(resultProcessor);
             }
-            else {
-                for (final ProcessingTask<Data, Result> task : tasks) {
-                    task.setDiscardResults(true);
-                }
+            for (final ProcessingTask<Data, Result> task : tasks) {
+                task.setCompletionLatch(completionLatch);
+                threadPool.execute(task);
             }
-
-            for (final Thread thread : threads) thread.start();
-
-            try {
-                while (iterator.hasNext()) {
-                    queues.submitData(iterator.next());
-                }
-                for (int count = 0; count < numTasks; ++count) {
-                    queues.submitData(queues.COMPLETE_DATA_SENTINEL);
-                }
-            }
-            catch (final InterruptedException ex) {
-                for (final Thread thread: threads) thread.interrupt();
-            }
-            finally {
-                join();
-            }
+        } catch (final RejectedExecutionException e) {
+            // An error has probably already killed the executor service
         }
-        catch (final Throwable throwable) {
-            errorCatcher.uncaughtException(Thread.currentThread(), throwable);
-        }
-        finally {
-            handleErrors();
+
+        try {
+            errorState.await();
+            if (errorState.isInError()) {
+                /* wait 1 minute for all the threads to terminate */
+                threadPool.awaitTermination(1, TimeUnit.MINUTES);
+                handleErrors();
+            }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 
-    protected void handleErrors() {
-        if (errorTracker.get()) {
-            final List<Throwable> errors = errorCatcher.errors;
-            final Throwable toThrow = errors.get(0);
-            for (int i = 1; i < errors.size(); i++) {
-                final Throwable toSuppress = errors.get(i);
-                if (toThrow != toSuppress) {
-                    toThrow.addSuppressed(toSuppress);
-                }
-            }
-            throw new ProcessingServiceException(toThrow);
-        }
-    }
-
-    protected void join() {
-        while (!threads.isEmpty()) {
-            try {
-                threads.get(0).join();
-                threads.remove(0);
-            }
-            catch (InterruptedException ex) {
-                // !@# timeout and hurl up a runtime exception?
+    private void handleErrors() {
+        final List<Throwable> errors = errorHandler.errors;
+        final Throwable toThrow = errors.get(0);
+        for (int i = 1; i < errors.size(); i++) {
+            final Throwable toSuppress = errors.get(i);
+            if (toThrow != toSuppress) {
+                toThrow.addSuppressed(toSuppress);
             }
         }
+        throw new ProcessingServiceException(toThrow);
     }
-
-    private static final Object COMPLETE_SENTINEL = new Object();
 
     public class ProcessingQueuesHolder {
-        public final Data   COMPLETE_DATA_SENTINEL   = (Data)   COMPLETE_SENTINEL;
-        public final Result COMPLETE_RESULT_SENTINEL = (Result) COMPLETE_SENTINEL;
+        private static final int QUEUE_SIZE = 8192;
 
-        protected BlockingQueue<Data>   dataQueue    = new ArrayBlockingQueue<Data>(64);
-        protected BlockingQueue<Result> resultsQueue = new ArrayBlockingQueue<Result>(64);
+        public final Data COMPLETE_DATA_SENTINEL;
+        public final Result COMPLETE_RESULT_SENTINEL;
+
+        private final BlockingQueue<Data> dataQueue;
+        private final BlockingQueue<Result> resultsQueue;
+
+        public ProcessingQueuesHolder() {
+//            dataQueue = new ArrayBlockingQueue<>(QUEUE_SIZE);
+//            resultsQueue = new ArrayBlockingQueue<>(QUEUE_SIZE);
+            dataQueue = new SingleProducerSingleConsumerBlockingQueue<>(QUEUE_SIZE);
+            resultsQueue = new SingleProducerSingleConsumerBlockingQueue<>(QUEUE_SIZE);
+
+            this.COMPLETE_DATA_SENTINEL = (Data) new Object();
+            this.COMPLETE_RESULT_SENTINEL = (Result) new Object();
+        }
 
         public void submitData(final Data data) throws InterruptedException {
             dataQueue.put(data);
@@ -147,19 +173,50 @@ public class ProcessingService<Data, Result> {
         public Result retrieveResult() throws InterruptedException {
             return resultsQueue.poll(10, TimeUnit.MICROSECONDS);
         }
+    }
 
-        public void catchError(final Throwable throwable) {
-            errorCatcher.uncaughtException(Thread.currentThread(), throwable);
+    public abstract static class TaskCoordinator<Data> {
+        public abstract int route(Data data);
+    }
+
+    private static final class ErrorState {
+        private boolean inError = false;
+
+        synchronized void setError() {
+            this.inError = true;
+            notifyAll();
+        }
+
+        synchronized boolean isInError() {
+            return this.inError;
+        }
+
+        synchronized void await() throws InterruptedException {
+            if (this.inError)
+                return;
+            wait();
+        }
+
+        synchronized void declareComplete() {
+            notifyAll();
         }
     }
 
-    public class ErrorCatcher implements Thread.UncaughtExceptionHandler {
+
+    public final class ErrorHandler  {
         private final List<Throwable> errors = new ArrayList<>();
 
-        @Override
-        public synchronized void uncaughtException(Thread t, Throwable e) {
-            errorTracker.set(true);
+        public synchronized void declareError(Throwable e) {
             errors.add(e);
+            errorState.setError();
+            threadPool.shutdownNow();
         }
     }
+
+    public static class ProcessingServiceException extends RuntimeException {
+        public ProcessingServiceException(final Throwable wrapped) {
+            super(wrapped);
+        }
+    }
+
 }
