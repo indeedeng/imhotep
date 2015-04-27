@@ -6,7 +6,7 @@ import java.nio.charset.Charset;
 import com.indeed.imhotep.io.SocketUtils;
 import com.indeed.imhotep.multicache.ProcessingTask;
 
-public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSinfo,Void> {
+public class NativeFTGSWorker extends ProcessingTask<NativeFTGSRunner.NativeTGSinfo,Void> {
     private static final Charset UTF_8 = Charset.forName("UTF-8");
 
     private long nativeWorkerStructPtr;
@@ -63,7 +63,7 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFtgsRunner.NativeTGSi
     }
 
     @Override
-    public Void processData(NativeFtgsRunner.NativeTGSinfo info) {
+    public Void processData(NativeFTGSRunner.NativeTGSinfo info) {
         int err;
 
         if (info.termDesc.isIntTerm) {

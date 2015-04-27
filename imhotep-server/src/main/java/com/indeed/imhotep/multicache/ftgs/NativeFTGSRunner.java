@@ -26,8 +26,8 @@ import java.util.concurrent.Executors;
 /**
  * Created by darren on 3/18/15.
  */
-public class NativeFtgsRunner {
-    private static final Logger log = Logger.getLogger(NativeFtgsRunner.class);
+public class NativeFTGSRunner {
+    private static final Logger log = Logger.getLogger(NativeFTGSRunner.class);
     private static final int NUM_WORKERS = 8;
     private static final int LARGE_PRIME_FOR_CLUSTER_SPLIT = 969168349;
 
@@ -43,7 +43,7 @@ public class NativeFtgsRunner {
         public int socketNum;
     }
 
-    public NativeFtgsRunner(FlamdexReader[] flamdexReaders,
+    public NativeFTGSRunner(FlamdexReader[] flamdexReaders,
                             MultiCache[] multiCaches,
                             int numGroups,
                             int numMetrics) {
