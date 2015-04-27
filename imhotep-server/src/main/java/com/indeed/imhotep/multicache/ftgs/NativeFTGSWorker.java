@@ -41,7 +41,6 @@ public class NativeFTGSWorker extends ProcessingTask<NativeFTGSRunner.NativeTGSi
             Socket sock = sockets[i];
             int fd = SocketUtils.getOutputDescriptor(sock);
             socketArr[i] = fd;
-            socketArr[i] = i + 8;
         }
     }
 

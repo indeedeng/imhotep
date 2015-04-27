@@ -24,7 +24,9 @@ void stream_destroy(struct ftgs_outstream *stream)
     free(stream->socket.buffer);
     stream->socket.buffer_len = 0;
     stream->socket.buffer_ptr = 0;
-    free(stream->socket.err);
+    if (stream->socket.err != NULL) {
+        free(stream->socket.err);
+    }
     if (stream->prev_term.string_term.term != NULL) {
     	free(stream->prev_term.string_term.term);
     }

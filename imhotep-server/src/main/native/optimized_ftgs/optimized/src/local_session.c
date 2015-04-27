@@ -167,6 +167,7 @@ int worker_end_field(struct worker_desc *worker)
         if (err == -1) {
 			worker->error = *worker->out_streams[i].socket.err;
 			free(worker->out_streams[i].socket.err);
+			worker->out_streams[i].socket.err = NULL;
 			return -1;
         }
     }

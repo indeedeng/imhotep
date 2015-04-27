@@ -11,12 +11,11 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.indeed.imhotep.local;
+package com.indeed.imhotep.local;
 
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteStreams;
 import com.indeed.flamdex.api.FlamdexReader;
-import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.MemoryReservationContext;
@@ -47,7 +46,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-import javax.management.RuntimeErrorException;
 
 /**
  * @author jsgroth
@@ -79,7 +77,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             is.close();
             System.load(tempFile.getAbsolutePath());
             // noinspection ResultOfMethodCallIgnored
-//            tempFile.delete();
+            tempFile.delete();
         } catch (Throwable e) {
             e.printStackTrace();
             log.warn("unable to load libftgs using class loader, looking in java.library.path", e);
@@ -137,7 +135,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         Closeables2.closeAll(Arrays.asList(ftgsOutputSockets), log);
     }
     
-    private MultiCache[] updateMulticaches() throws ImhotepOutOfMemoryException {
+    public MultiCache[] updateMulticaches() throws ImhotepOutOfMemoryException {
         final MultiCache[] multiCaches = new MultiCache[sessions.length];
         final MultiCacheConfig config = new MultiCacheConfig();
         final StatLookup[] sessionsStats = new StatLookup[sessions.length];

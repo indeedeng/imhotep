@@ -224,7 +224,7 @@ public final class MultiCacheConfig {
         int metricIndex = 0;
         for (int i = 0; i < booleanMetrics.size(); i++) {
             final int metric = booleanMetrics.getInt(i);
-            ret[metricIndex] = new StatsOrderingInfo(metric, mins[metric], maxes[metric], 0, -1, -1);
+            ret[metricIndex] = new StatsOrderingInfo(metric, mins[metric], maxes[metric], 0, 0, 0);
             metricIndex++;
         }
         for (int i = 0; i < vectorMetrics.size(); i++) {

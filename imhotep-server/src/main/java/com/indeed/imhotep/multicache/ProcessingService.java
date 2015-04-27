@@ -14,19 +14,16 @@
 package com.indeed.imhotep.multicache;
 
 import com.google.common.collect.Lists;
-import com.indeed.flamdex.datastruct.CopyingBlockingQueue;
 import com.indeed.flamdex.datastruct.SingleProducerSingleConsumerBlockingQueue;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Created by darren on 3/16/15.

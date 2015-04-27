@@ -5,10 +5,12 @@ import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.imhotep.BitTree;
 import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.util.core.threads.ThreadSafeBitSet;
+
 import org.apache.log4j.Logger;
 
 import java.io.Closeable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -47,13 +49,14 @@ public final class MultiCache implements Closeable {
         copyGroups(groupLookup, numDocsInShard);
 
         /* create the metric IntValueLookups, and populate the metrics in the multicache */
-        this.nativeMetricLookups = new ArrayList<MultiCacheIntValueLookup>(this.numStats);
+        final MultiCacheIntValueLookup[] metricLookups = new MultiCacheIntValueLookup[this.numStats];
         for (int col = 0; col < ordering.length; col++) {
             final MultiCacheConfig.StatsOrderingInfo orderInfo = ordering[col];
             final MultiCacheIntValueLookup metricLookup;
             metricLookup = new MultiCacheIntValueLookup(col, orderInfo.min, orderInfo.max);
-            this.nativeMetricLookups.add(metricLookup);
+            metricLookups[orderInfo.originalOrder] = metricLookup;
         }
+        this.nativeMetricLookups = Arrays.asList(metricLookups);
         int row;
         for (row = 0; row + CHUNK_SIZE < numDocsInShard; row = row + CHUNK_SIZE) {
             for (int col = 0; col < ordering.length; col++) {

@@ -544,7 +544,7 @@ void packed_table_set_col_range(packed_table_t *table,
     }
 
     col -= table->n_boolean_cols;
-    for (int i = 0; i + 8 < count; i+= 8) {
+    for (int i = 0; i < count; i ++) {
             int row_id = start_row + i;
             internal_set_cell(table, row_id, col, col_vals[i] - min, packed_vector_index);
 

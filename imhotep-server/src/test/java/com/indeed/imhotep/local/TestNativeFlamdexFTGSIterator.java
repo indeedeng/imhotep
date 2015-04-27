@@ -32,7 +32,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.indeed.imhotep.multicache.ftgs.TermDesc;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.RandomStringUtils;
 import org.junit.Test;
@@ -112,7 +111,7 @@ public class TestNativeFlamdexFTGSIterator {
 
     }
 
-    public static class UncheckedClusterSimulator {
+    private static class UncheckedClusterSimulator {
         public static final int PORT = 8138;
         private ServerSocket serverSocket;
         private int nSplits;
@@ -186,9 +185,9 @@ public class TestNativeFlamdexFTGSIterator {
                 public void run() {
                     try {
                         session.writeFTGSIteratorSplit(intFields, stringFields, i, numSplits, socket);
-//                        socket.close();
-//                    } catch (IOException e) {
-//                        throw new RuntimeException(e);
+                        socket.close();
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
                     } catch (ImhotepOutOfMemoryException e) {
                         throw new RuntimeException(e);
                     }
@@ -514,61 +513,12 @@ public class TestNativeFlamdexFTGSIterator {
         return RandomStringUtils.random(len, 0, 0, true, false, null, rand);
     }
 
-//    @Test
-//    public void testSingleShard() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
-//        final long seed = rand.nextLong();
-////        final long seed = -2529317167810500597L;
-//        rand.setSeed(seed);
-//        System.out.println("Random seed: " + seed);
-//        final int numDocs = rand.nextInt(1 << 16) + 1;  // 64K
-//
-//        // need at least one
-//        final int nMetrics = rand.nextInt(MAX_N_METRICS - 1) + 1;
-//        String fieldName = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
-//        String[] metricNames = new String[nMetrics];
-//        for (int i = 0; i < nMetrics; i++) {
-//            metricNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
-//        }
-//
-//        final List<FieldDesc> fieldDescs = createShardProfile(numDocs, nMetrics, fieldName, metricNames);
-//        final String shardname = generateShard(fieldDescs);
-//        System.out.println(shardname);
-//        String shardCopy = copyShard(shardname);
-//        System.out.println(shardCopy);
-////        final String shardname = "/tmp/native-ftgs-test591448014941516110test";
-////        final String shardCopy = "/tmp/native-ftgs-test8877291921170684427verify-copy";
-//
-//        final String[] stringFields = new String[]{fieldName};
-//        final String[] intFields = new String[0];
-//
-//        final MTImhotepLocalMultiSession verificationSession;
-//        verificationSession = createMultisession(Arrays.asList(shardCopy),
-//                                                 metricNames);
-//        FTGSIterator verificationIter = verificationSession.getFTGSIterator(intFields, stringFields);
-//
-//        final MTImhotepLocalMultiSession testSession;
-//        testSession = createMultisession(Arrays.asList(shardname),
-//                                           metricNames);
-//        RunnableFactory factory = new WriteFTGSRunner(testSession, intFields, stringFields, 8);
-//        ClusterSimulator simulator = new ClusterSimulator(8, nMetrics);
-//
-//        Thread t = simulator.simulateServer(factory);
-//        RawFTGSIterator ftgsIterator = simulator.getIterator();
-//
-//        compareIterators(ftgsIterator, verificationIter, nMetrics);
-//
-//        t.join();
-//
-//        simulator.close();
-//        verificationIter.close();
-//    }
-
     @Test
-    public void test10Shards() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
+    public void testSingleShard() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
         final long seed = rand.nextLong();
-//        final long seed = -4122356988999045667L;
+//        final long seed = -2155255878033953833L;
         rand.setSeed(seed);
-        System.out.println("Random seed: " + seed);
+//        System.out.println("Random seed: " + seed);
         final int numDocs = rand.nextInt(1 << 16) + 1;  // 64K
 
         // need at least one
@@ -579,6 +529,77 @@ public class TestNativeFlamdexFTGSIterator {
             metricNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
         }
 
+        final List<FieldDesc> fieldDescs = createShardProfile(numDocs, nMetrics, fieldName, metricNames);
+        final String shardname = generateShard(fieldDescs);
+//        System.out.println(shardname);
+        String shardCopy = copyShard(shardname);
+//        System.out.println(shardCopy);
+//        final String shardname = "/tmp/native-ftgs-test3445570521338951695test";
+//        final String shardCopy = "/tmp/native-ftgs-test5526201544532342896verify-copy";
+
+        final String[] stringFields = new String[]{fieldName};
+        final String[] intFields = new String[0];
+
+        final MTImhotepLocalMultiSession verificationSession;
+        verificationSession = createMultisession(Arrays.asList(shardCopy),
+                                                 metricNames);
+        FTGSIterator verificationIter = verificationSession.getFTGSIterator(intFields, stringFields);
+
+        final MTImhotepLocalMultiSession testSession;
+        testSession = createMultisession(Arrays.asList(shardname),
+                                           metricNames);
+        RunnableFactory factory = new WriteFTGSRunner(testSession, intFields, stringFields, 8);
+        ClusterSimulator simulator = new ClusterSimulator(8, nMetrics);
+
+        Thread t = simulator.simulateServer(factory);
+        RawFTGSIterator ftgsIterator = simulator.getIterator();
+
+        compareIterators(ftgsIterator, verificationIter, nMetrics);
+
+        t.join();
+
+        simulator.close();
+        verificationIter.close();
+    }
+
+    @Test
+    public void test10Shards() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
+        final long seed = rand.nextLong();
+//        final long seed = -4122356988999045667L;
+        rand.setSeed(seed);
+//        System.out.println("Random seed: " + seed);
+        final int numDocs = rand.nextInt(1 << 16) + 1;  // 64K
+
+        // need at least one
+        final int nMetrics = rand.nextInt(MAX_N_METRICS - 1) + 1;
+        String fieldName = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
+        String[] metricNames = new String[nMetrics];
+        for (int i = 0; i < nMetrics; i++) {
+            metricNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
+        }
+
+//        List<String> shardCopies =
+//                Arrays.asList(new String[] { "/tmp/native-ftgs-test2019957327669565406verify-copy",
+//                                            "/tmp/native-ftgs-test2086104149988911923verify-copy",
+//                                            "/tmp/native-ftgs-test2550620506633025168verify-copy",
+//                                            "/tmp/native-ftgs-test3378193281749620968verify-copy",
+//                                            "/tmp/native-ftgs-test3521534428337709411verify-copy",
+//                                            "/tmp/native-ftgs-test7398457726209096601verify-copy",
+//                                            "/tmp/native-ftgs-test7624881454913744027verify-copy",
+//                                            "/tmp/native-ftgs-test4957208100491061858verify-copy",
+//                                            "/tmp/native-ftgs-test8643851881666654216verify-copy",
+//                                            "/tmp/native-ftgs-test8771242174575689719verify-copy" });
+//        List<String> shardNames =
+//                Arrays.asList(new String[] { "/tmp/native-ftgs-test2516537865227324444test",
+//                                            "/tmp/native-ftgs-test4939771279954664194test",
+//                                            "/tmp/native-ftgs-test6735761589277623564test",
+//                                            "/tmp/native-ftgs-test7045001985093560042test",
+//                                            "/tmp/native-ftgs-test8960462730886152860test",
+//                                            "/tmp/native-ftgs-test8988934566151064202test",
+//                                            "/tmp/native-ftgs-test7741967259764742014test",
+//                                            "/tmp/native-ftgs-test133381526348508656test",
+//                                            "/tmp/native-ftgs-test4327346230585862211test",
+//                                            "/tmp/native-ftgs-test2103214280390889017test" });
         List<String> shardNames = new ArrayList<>();
         List<String> shardCopies = new ArrayList<>();
         final List<FieldDesc> fieldDescs = createShardProfile(numDocs,
@@ -614,112 +635,6 @@ public class TestNativeFlamdexFTGSIterator {
         simulator.close();
         verificationIter.close();
     }
-
-
-
-//    @Test
-//    public void test10Shards() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
-////        final long seed = rand.nextLong();
-//        final long seed = 4405491787374045543L;
-//        rand.setSeed(seed);
-//        System.out.println("Random seed: " + seed);
-//        final int numDocs = rand.nextInt(1 << 20) + 1;  // 1M
-//
-//        // need at least one
-//        final int nMetrics = rand.nextInt(MAX_N_METRICS - 1) + 1;
-//        String fieldName = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
-//        String[] metricNames = new String[nMetrics];
-//        for (int i = 0; i < nMetrics; i++) {
-//            metricNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
-//        }
-//
-//
-////        List<String> shardCopies = Arrays.asList(new String[] {
-////                "/tmp/native-ftgs-test2019957327669565406verify-copy",
-////                "/tmp/native-ftgs-test2086104149988911923verify-copy",
-////                "/tmp/native-ftgs-test2550620506633025168verify-copy",
-////                "/tmp/native-ftgs-test3378193281749620968verify-copy",
-////                "/tmp/native-ftgs-test3521534428337709411verify-copy",
-////                "/tmp/native-ftgs-test7398457726209096601verify-copy",
-////                "/tmp/native-ftgs-test7624881454913744027verify-copy",
-////                "/tmp/native-ftgs-test4957208100491061858verify-copy",
-////                "/tmp/native-ftgs-test8643851881666654216verify-copy",
-////                "/tmp/native-ftgs-test8771242174575689719verify-copy"
-////        }) ;
-////        List<String> shardNames = Arrays.asList(new String[]{
-////                "/tmp/native-ftgs-test2516537865227324444test",
-////                "/tmp/native-ftgs-test4939771279954664194test",
-////                "/tmp/native-ftgs-test6735761589277623564test",
-////                "/tmp/native-ftgs-test7045001985093560042test",
-////                "/tmp/native-ftgs-test8960462730886152860test",
-////                "/tmp/native-ftgs-test8988934566151064202test",
-////                "/tmp/native-ftgs-test7741967259764742014test",
-////                "/tmp/native-ftgs-test133381526348508656test",
-////                "/tmp/native-ftgs-test4327346230585862211test",
-////                "/tmp/native-ftgs-test2103214280390889017test"
-////        });
-//        final List<String> shardNames = new ArrayList<>();
-//        final List<String> shardCopies = new ArrayList<>();
-//        final List<FieldDesc> fieldDescs = createShardProfile(numDocs,
-//                                                             nMetrics,
-//                                                             fieldName,
-//                                                             metricNames);
-//        for (int i = 0; i < 10; i++) {
-//            final String shard = generateShard(fieldDescs);
-//            shardNames.add(shard);
-//            shardCopies.add(copyShard(shard));
-//        }
-//
-//        final String[] stringFields = new String[]{fieldName};
-//        final String[] intFields = new String[0];
-//
-//        final MTImhotepLocalMultiSession verificationSession;
-//        verificationSession = createMultisession(shardCopies, metricNames);
-//        for (int i = 0; i < 13; i++) {
-//            long time = System.nanoTime();
-//
-//            FTGSIterator verificationIter = verificationSession.getFTGSIterator(intFields, stringFields);
-//            readAllIterator(verificationIter, nMetrics);
-//            verificationIter.close();
-//
-//            System.err.println("old ftgs time: " + (System.nanoTime() - time) / 1000);
-//        }
-//
-//        {
-//            long time = System.nanoTime();
-//            System.gc();
-//            System.err.println("gc time: " + (System.nanoTime() - time) / 1000);
-//        }
-//
-//        final MTImhotepLocalMultiSession testSession;
-//        testSession = createMultisession(shardNames, metricNames);
-//        RunnableFactory factory = new WriteFTGSRunner(testSession, intFields, stringFields, 8);
-//
-//        for (int i = 0; i < 13; i++) {
-//            long time = System.nanoTime();
-//            UncheckedClusterSimulator simulator = new UncheckedClusterSimulator(8, nMetrics);
-//
-//            Thread t = simulator.simulateServer(factory);
-//            RawFTGSIterator ftgsIterator = simulator.getIterator();
-//
-//            compareIterators(ftgsIterator, verificationIter, nMetrics);
-////            readAllIterator(ftgsIterator, nMetrics);
-//
-//            t.join();
-//
-//            simulator.close();
-//
-//            System.err.println("time: " + (System.nanoTime() - time) / 1000);
-//        }
-//
-//        {
-//            long time = System.nanoTime();
-//            System.gc();
-//            System.err.println("gc time: " + (System.nanoTime() - time) / 1000);
-//        }
-//
-////        verificationIter.close();
-//    }
 
     private List<FieldDesc> createShardProfile(int numDocs,
                                                int nMetrics,
