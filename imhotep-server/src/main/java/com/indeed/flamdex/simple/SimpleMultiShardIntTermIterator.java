@@ -93,7 +93,6 @@ final class SimpleMultiShardIntTermIterator implements Iterator<TermDesc>, Close
         result.intTerm = minIteratorIdPairs[0].intTermIterator.term();
         result.isIntTerm = true;
         result.stringTerm = null;
-        result.field = this.fieldName;
         return result;
     }
 

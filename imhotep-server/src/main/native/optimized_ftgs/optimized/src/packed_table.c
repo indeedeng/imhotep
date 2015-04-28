@@ -449,7 +449,7 @@ int packed_table_get_num_groups(packed_table_t *table)
     return result;
 }
 
-int packed_table_get_group(packed_table_t *table, int row)
+inline int packed_table_get_group(packed_table_t *table, int row)
 {
     int row_size = table->row_size;
 

@@ -1,5 +1,6 @@
 #include <stddef.h>
 #include <string.h>
+#include <errno.h>
 #include "imhotep_native.h"
 #include "circ_buf.h"
 #include "remote_output.h"
@@ -143,33 +144,59 @@ void session_destroy(struct session_desc *session)
 int worker_start_field(struct worker_desc *worker,
                        char *field_name,
                        int len,
-                       int term_type)
+                       int term_type,
+                       int stream_num)
 {
     int err;
 
-    for (int i = 0; i < worker->num_streams; i++) {
-        err = write_field_start(&worker->out_streams[i], field_name, len, term_type);
-        if (err != 0) {
-			worker->error = *worker->out_streams[i].socket.err;
-			free(worker->out_streams[i].socket.err);
-			return err;
-        }
+    if (stream_num >= worker->num_streams) {
+        worker->error.code = EBADF;
+        snprintf(worker->error.str, sizeof(worker->error.str), "Invalid socket number.");
+        return -1;
+    }
+    err = write_field_start(&worker->out_streams[stream_num], field_name, len, term_type);
+    if (err != 0) {
+        worker->error = *worker->out_streams[stream_num].socket.err;
+        free(worker->out_streams[stream_num].socket.err);
+        return err;
     }
     return 0;
 }
 
-int worker_end_field(struct worker_desc *worker)
+int worker_end_field(struct worker_desc *worker, int stream_num)
 {
     int err;
 
-    for (int i = 0; i < worker->num_streams; i++) {
-        err = write_field_end(&worker->out_streams[i]);
-        if (err == -1) {
-			worker->error = *worker->out_streams[i].socket.err;
-			free(worker->out_streams[i].socket.err);
-			worker->out_streams[i].socket.err = NULL;
-			return -1;
-        }
+    if (stream_num >= worker->num_streams) {
+        worker->error.code = EBADF;
+        snprintf(worker->error.str, sizeof(worker->error.str), "Invalid socket number.");
+        return -1;
+    }
+    err = write_field_end(&worker->out_streams[stream_num]);
+    if (err == -1) {
+        worker->error = *worker->out_streams[stream_num].socket.err;
+        free(worker->out_streams[stream_num].socket.err);
+        worker->out_streams[stream_num].socket.err = NULL;
+        return -1;
+    }
+    return 0;
+}
+
+int worker_end_stream(struct worker_desc *worker, int stream_num)
+{
+    int err;
+
+    if (stream_num >= worker->num_streams) {
+        worker->error.code = EBADF;
+        snprintf(worker->error.str, sizeof(worker->error.str), "Invalid socket number.");
+        return -1;
+    }
+    err = write_stream_end(&worker->out_streams[stream_num]);
+    if (err == -1) {
+        worker->error = *worker->out_streams[stream_num].socket.err;
+        free(worker->out_streams[stream_num].socket.err);
+        worker->out_streams[stream_num].socket.err = NULL;
+        return -1;
     }
     return 0;
 }

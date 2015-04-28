@@ -10,18 +10,26 @@ extern "C" {
 /*
  * Class:     com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker
  * Method:    native_start_field
- * Signature: (JJ[BIZ)I
+ * Signature: (JJ[BIZI)I
  */
 JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_native_1start_1field
-  (JNIEnv *, jclass, jlong, jlong, jbyteArray, jint, jboolean);
+  (JNIEnv *, jclass, jlong, jlong, jbyteArray, jint, jboolean, jint);
 
 /*
  * Class:     com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker
  * Method:    native_end_field
- * Signature: (JJ)I
+ * Signature: (JJI)I
  */
 JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_native_1end_1field
-  (JNIEnv *, jclass, jlong, jlong);
+  (JNIEnv *, jclass, jlong, jlong, jint);
+
+/*
+ * Class:     com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker
+ * Method:    native_end_stream
+ * Signature: (JJI)I
+ */
+JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_native_1end_1stream
+  (JNIEnv *, jclass, jlong, jlong, jint);
 
 /*
  * Class:     com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker

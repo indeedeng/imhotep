@@ -14,7 +14,7 @@
 /*
  * Class:     com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker
  * Method:    native_start_field
- * Signature: (JJ[BIZ)I
+ * Signature: (JJ[BIZI)I
  */
 JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_native_1start_1field
 						(JNIEnv *java_env,
@@ -23,7 +23,8 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_
 						jlong session_addr,
 						jbyteArray field_name_bytes_arr,
 						jint field_name_len,
-						jboolean is_int_field_jboolean)
+						jboolean is_int_field_jboolean,
+						jint socket_num)
 {
 	struct worker_desc *worker;
 	jbyte *field_name;
@@ -36,7 +37,8 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_
 
 	field_name = (*java_env)->GetPrimitiveArrayCritical(java_env, field_name_bytes_arr, &madeCopy);
     err = worker_start_field(worker, (char *)field_name, field_name_len,
-                             (is_int_field) ? TERM_TYPE_INT : TERM_TYPE_STRING);
+                             (is_int_field) ? TERM_TYPE_INT : TERM_TYPE_STRING,
+                             socket_num);
 	(*java_env)->ReleasePrimitiveArrayCritical(java_env, field_name_bytes_arr, field_name, JNI_ABORT);
 
 	if (err != 0) {
@@ -57,18 +59,19 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_
 /*
  * Class:     com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker
  * Method:    native_end_field
- * Signature: (JJ)I
+ * Signature: (JJI)I
  */
 JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_native_1end_1field
 						(JNIEnv *java_env,
 						jclass class,
 						jlong worker_addr,
-						jlong session_addr)
+						jlong session_addr,
+						jint socket_num)
 {
 	struct worker_desc *worker = (struct worker_desc *)worker_addr;
 	int err;
 
-    err = worker_end_field(worker);
+    err = worker_end_field(worker, socket_num);
 
 	if (err != 0) {
 		/* Note: ThrowNew() copies the message handed to it, as one
@@ -83,6 +86,38 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_
 	}
 
 	return (jint)err;
+}
+
+/*
+ * Class:     com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker
+ * Method:    native_end_stream
+ * Signature: (JJI)I
+ */
+JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_native_1end_1stream
+                        (JNIEnv *java_env,
+                        jclass class,
+                        jlong worker_addr,
+                        jlong session_addr,
+                        jint socket_num)
+{
+    struct worker_desc *worker = (struct worker_desc *)worker_addr;
+    int err;
+
+    err = worker_end_stream(worker, socket_num);
+
+    if (err != 0) {
+        /* Note: ThrowNew() copies the message handed to it, as one
+         would expect. I could not find mention of this behavior in
+         the JNI spec, but I verified this empirically. Therefore,
+         it's okay to hand it the stack-allocated string below. */
+        jclass exClass = (*java_env)->FindClass(java_env, "java/lang/RuntimeException");
+        char message[SIZE_OF_ERRSTR];
+        snprintf(message, sizeof(message), "%s (%d) %s", __FUNCTION__,
+                 worker->error.code, worker->error.str);
+        (*java_env)->ThrowNew(java_env, exClass, message);
+    }
+
+    return (jint)err;
 }
 
 JNIEXPORT jlong JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_native_1init

@@ -19,7 +19,7 @@ struct circular_buffer {
 };
 
 
-static struct circular_buffer *alloc(int data_size, int count)
+static inline struct circular_buffer *alloc(int data_size, int count)
 {
 	struct circular_buffer *buff;
 

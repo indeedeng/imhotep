@@ -102,7 +102,6 @@ final class SimpleMultiShardStringTermIterator implements Iterator<TermDesc>, Cl
                                           len);
         result.stringTermLen = len;
         result.isIntTerm = false;
-        result.field = this.fieldName;
         return result;
     }
 

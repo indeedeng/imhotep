@@ -34,7 +34,7 @@ void bit_tree_destroy(struct bit_tree *tree)
     free(tree->bitsets);
 }
 
-void bit_tree_set(struct bit_tree *tree, int32_t index)
+inline void bit_tree_set(struct bit_tree *tree, int32_t index)
 {
     const size_t length = tree->depth + 1;
     for (size_t i = 0; i < length; ++i) {
@@ -47,7 +47,7 @@ void bit_tree_set(struct bit_tree *tree, int32_t index)
 void bit_tree_iterate(struct bit_tree *tree, uint32_t *index_arr, int32_t len)
 { }
 
-int32_t bit_tree_dump(struct bit_tree *tree, uint32_t *restrict index_arr, int32_t len)
+inline int32_t bit_tree_dump(struct bit_tree *tree, uint32_t *restrict index_arr, int32_t len)
 {
     int count = 0;
     int index = 0;

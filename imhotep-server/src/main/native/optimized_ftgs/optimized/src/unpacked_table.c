@@ -140,7 +140,7 @@ void unpacked_table_set_cell(const unpacked_table_t * restrict table,
     row_data[table->col_offset[column]] = value;
 }
 
-void *unpacked_table_get_rows_addr(const unpacked_table_t * restrict table, const int row)
+inline void *unpacked_table_get_rows_addr(const unpacked_table_t * restrict table, const int row)
 {
     const int index = row * table->padded_row_len;
 
@@ -174,11 +174,12 @@ static inline void core(__v2di * restrict src_row,
     dest_row[vector_num] += src_row[vector_num] + mins[vector_num];
 }
 
-void unpacked_table_add_rows(const unpacked_table_t* restrict src_table,
-                             const int src_row_id,
-                             unpacked_table_t* restrict dest_table,
-                             const int dest_row_id,
-                             const int prefetch_row_id)
+inline void unpacked_table_add_rows(
+                                    const unpacked_table_t* restrict src_table,
+                                    const int src_row_id,
+                                    unpacked_table_t* restrict dest_table,
+                                    const int dest_row_id,
+                                    const int prefetch_row_id)
 {
     /* flag row as modified */
     bit_tree_set(&dest_table->non_zero_rows, dest_row_id);

@@ -34,8 +34,10 @@ void session_destroy(struct session_desc *session);
 int worker_start_field(struct worker_desc *worker,
                        char *field_name,
                        int len,
-                       int term_type);
-int worker_end_field(struct worker_desc *worker);
+                       int term_type,
+                       int socket_num);
+int worker_end_field(struct worker_desc *worker, int socket_num);
+int worker_end_stream(struct worker_desc *worker, int stream_num);
 
 void worker_init(struct worker_desc *worker,
                  int id,

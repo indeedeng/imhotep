@@ -184,6 +184,19 @@ int write_field_end(struct ftgs_outstream* stream)
     return 0;
 }
 
+int write_stream_end(struct ftgs_outstream* stream)
+{
+    struct buffered_socket* socket = &stream->socket;
+
+    /* write 0 */
+    TRY(write_byte(socket, 0));
+
+    /* flush whatever is left in the socket buffer */
+    TRY(flush_buffer(&stream->socket));
+
+    return 0;
+}
+
 static int write_group_stats(struct buffered_socket* socket,
                              const uint32_t* restrict non_zero_groups,
                              const int nz_group_count,

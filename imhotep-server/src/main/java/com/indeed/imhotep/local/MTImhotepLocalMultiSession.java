@@ -15,6 +15,7 @@ package com.indeed.imhotep.local;
 
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteStreams;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.ImhotepRemoteSession;
@@ -42,6 +43,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -92,6 +94,8 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
     private final ExecutorService executor;
 
+    private final ExecutorService ftgsExecutor;
+
     private final AtomicReference<Boolean> closed = new AtomicReference<>();
 
     private final long memoryClaimed;
@@ -101,13 +105,19 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     public MTImhotepLocalMultiSession(final ImhotepLocalSession[] sessions,
                                       final MemoryReservationContext memory,
                                       final ExecutorService executor,
-                                      final AtomicLong tempFileSizeBytesLeft, boolean useNativeFtgs) throws ImhotepOutOfMemoryException {
+                                      final AtomicLong tempFileSizeBytesLeft,
+                                      boolean useNativeFtgs) throws ImhotepOutOfMemoryException {
         super(sessions, tempFileSizeBytesLeft);
         this.useNativeFtgs = useNativeFtgs;
         this.memory = memory;
         this.executor = executor;
         this.memoryClaimed = 0;
         this.closed.set(false);
+
+        final ThreadFactoryBuilder builder = new ThreadFactoryBuilder();
+        builder.setDaemon(true);
+        builder.setNameFormat("Native-FTGS-Thread -%d");
+        this.ftgsExecutor = Executors.newCachedThreadPool(builder.build());
 
         if (!memory.claimMemory(memoryClaimed)) {
             //noinspection NewExceptionWithoutArguments
@@ -178,15 +188,16 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                     readers[i] = sessions[i].getReader();
                 }
 
-                // run service
-                final NativeFTGSRunner runner = new NativeFTGSRunner(readers,
-                                                                     nativeCaches,
-                                                                     getNumGroups(),
-                                                                     numStats);
                 try {
-                    runner.run(intFields, stringFields, numSplits, ftgsOutputSockets);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
+                    // run service
+                    final NativeFTGSRunner runner = new NativeFTGSRunner(readers,
+                                                                         nativeCaches,
+                                                                         intFields,
+                                                                         stringFields,
+                                                                         getNumGroups(),
+                                                                         numStats,
+                                                                         numSplits);
+                    runner.run(ftgsOutputSockets, numSplits, ftgsExecutor);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
