@@ -43,7 +43,7 @@ void socket_capture_error(struct buffered_socket *socket, const int code)
 
 
 struct term_s *term_create(uint8_t term_type,
-                              int int_term,
+                              long int_term,
                               char *string_term,
                               int string_term_len)
 {

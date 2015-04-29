@@ -11,7 +11,7 @@
 int run_tgs_pass(struct worker_desc *worker,
                  struct session_desc *session,
                  uint8_t term_type,
-                 int int_term,
+                 long int_term,
                  char *string_term,
                  int string_term_len,
                  long *addresses,

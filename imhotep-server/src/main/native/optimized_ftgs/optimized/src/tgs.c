@@ -64,7 +64,7 @@ int tgs_execute_pass(struct worker_desc *worker,
         struct index_slice_info *slice;
         int remaining;      /* num docs remaining */
         uint8_t *read_addr;
-        int last_value;     /* delta decode tracker */
+        long last_value;     /* delta decode tracker */
 
         slice = &infos[i];
         remaining = slice->n_docs_in_slice;

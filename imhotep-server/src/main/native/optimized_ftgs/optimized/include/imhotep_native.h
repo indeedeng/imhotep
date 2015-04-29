@@ -131,7 +131,7 @@ void stream_init(struct ftgs_outstream *stream, uint32_t fd);
 void stream_destroy(struct ftgs_outstream *stream);
 void socket_capture_error(struct buffered_socket *socket, const int code);
 struct term_s *term_create(uint8_t term_type,
-                              int int_term,
+                              long int_term,
                               char *string_term,
                               int string_term_len);
 void term_destroy(uint8_t term_type, struct term_s *term);
