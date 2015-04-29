@@ -21,6 +21,7 @@ import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongList;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -54,6 +55,24 @@ public final class FlamdexDocument {
     @Nonnull
     public Map<String, List<String>> getStringFields() {
         return stringFields;
+    }
+
+    /**
+     * Returns a list of the int terms for a given field.
+     * If this field hasn't been added, null is returned.
+     */
+    @Nullable
+    public LongList getIntTerms(@Nonnull final String field) {
+        return intFields.get(field);
+    }
+
+    /**
+     * Returns a list of the string terms for a given field.
+     * If this field hasn't been added, null is returned.
+     */
+    @Nullable
+    public List<String> getStringTerms(@Nonnull final String field) {
+        return stringFields.get(field);
     }
 
     public void setIntField(@Nonnull final String field, @Nonnull final LongList terms) {
