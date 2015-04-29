@@ -17,43 +17,43 @@
  * Signature: (JJ[BIZI)I
  */
 JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_native_1start_1field
-						(JNIEnv *java_env,
-						jclass class,
-						jlong worker_addr,
-						jlong session_addr,
-						jbyteArray field_name_bytes_arr,
-						jint field_name_len,
-						jboolean is_int_field_jboolean,
-						jint socket_num)
+(JNIEnv *java_env,
+ jclass class,
+ jlong worker_addr,
+ jlong session_addr,
+ jbyteArray field_name_bytes_arr,
+ jint field_name_len,
+ jboolean is_int_field_jboolean,
+ jint socket_num)
 {
-	struct worker_desc *worker;
-	jbyte *field_name;
-	uint32_t is_int_field;
-	jboolean madeCopy;
-	int err;
+    struct worker_desc *worker;
+    jbyte *field_name;
+    uint32_t is_int_field;
+    jboolean madeCopy;
+    int err;
 
-	worker = (struct worker_desc *)worker_addr;
-	is_int_field = is_int_field_jboolean;
+    worker = (struct worker_desc *)worker_addr;
+    is_int_field = is_int_field_jboolean;
 
-	field_name = (*java_env)->GetPrimitiveArrayCritical(java_env, field_name_bytes_arr, &madeCopy);
+    field_name = (*java_env)->GetPrimitiveArrayCritical(java_env, field_name_bytes_arr, &madeCopy);
     err = worker_start_field(worker, (char *)field_name, field_name_len,
                              (is_int_field) ? TERM_TYPE_INT : TERM_TYPE_STRING,
                              socket_num);
-	(*java_env)->ReleasePrimitiveArrayCritical(java_env, field_name_bytes_arr, field_name, JNI_ABORT);
+    (*java_env)->ReleasePrimitiveArrayCritical(java_env, field_name_bytes_arr, field_name, JNI_ABORT);
 
-	if (err != 0) {
-		/* Note: ThrowNew() copies the message handed to it, as one
-		 would expect. I could not find mention of this behavior in
-		 the JNI spec, but I verified this empirically. Therefore,
-		 it's okay to hand it the stack-allocated string below. */
-		jclass exClass = (*java_env)->FindClass(java_env, "java/lang/RuntimeException");
-		char message[SIZE_OF_ERRSTR];
-		snprintf(message, sizeof(message), "%s (%d) %s", __FUNCTION__,
-		         worker->error.code, worker->error.str);
-		(*java_env)->ThrowNew(java_env, exClass, message);
-	}
+    if (err != 0) {
+        /* Note: ThrowNew() copies the message handed to it, as one
+           would expect. I could not find mention of this behavior in
+           the JNI spec, but I verified this empirically. Therefore,
+           it's okay to hand it the stack-allocated string below. */
+        jclass exClass = (*java_env)->FindClass(java_env, "java/lang/RuntimeException");
+        char message[SIZE_OF_ERRSTR];
+        snprintf(message, sizeof(message), "%s (%d) %s", __FUNCTION__,
+                 worker->error.code, worker->error.str);
+        (*java_env)->ThrowNew(java_env, exClass, message);
+    }
 
-	return (jint)err;
+    return (jint)err;
 }
 
 /*
@@ -62,30 +62,30 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_
  * Signature: (JJI)I
  */
 JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_native_1end_1field
-						(JNIEnv *java_env,
-						jclass class,
-						jlong worker_addr,
-						jlong session_addr,
-						jint socket_num)
+(JNIEnv *java_env,
+ jclass class,
+ jlong worker_addr,
+ jlong session_addr,
+ jint socket_num)
 {
-	struct worker_desc *worker = (struct worker_desc *)worker_addr;
-	int err;
+    struct worker_desc *worker = (struct worker_desc *)worker_addr;
+    int err;
 
     err = worker_end_field(worker, socket_num);
 
-	if (err != 0) {
-		/* Note: ThrowNew() copies the message handed to it, as one
-		 would expect. I could not find mention of this behavior in
-		 the JNI spec, but I verified this empirically. Therefore,
-		 it's okay to hand it the stack-allocated string below. */
-		jclass exClass = (*java_env)->FindClass(java_env, "java/lang/RuntimeException");
-		char message[SIZE_OF_ERRSTR];
-		snprintf(message, sizeof(message), "%s (%d) %s", __FUNCTION__,
-		         worker->error.code, worker->error.str);
-		(*java_env)->ThrowNew(java_env, exClass, message);
-	}
+    if (err != 0) {
+        /* Note: ThrowNew() copies the message handed to it, as one
+           would expect. I could not find mention of this behavior in
+           the JNI spec, but I verified this empirically. Therefore,
+           it's okay to hand it the stack-allocated string below. */
+        jclass exClass = (*java_env)->FindClass(java_env, "java/lang/RuntimeException");
+        char message[SIZE_OF_ERRSTR];
+        snprintf(message, sizeof(message), "%s (%d) %s", __FUNCTION__,
+                 worker->error.code, worker->error.str);
+        (*java_env)->ThrowNew(java_env, exClass, message);
+    }
 
-	return (jint)err;
+    return (jint)err;
 }
 
 /*
@@ -94,11 +94,11 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_
  * Signature: (JJI)I
  */
 JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_native_1end_1stream
-                        (JNIEnv *java_env,
-                        jclass class,
-                        jlong worker_addr,
-                        jlong session_addr,
-                        jint socket_num)
+(JNIEnv *java_env,
+ jclass class,
+ jlong worker_addr,
+ jlong session_addr,
+ jint socket_num)
 {
     struct worker_desc *worker = (struct worker_desc *)worker_addr;
     int err;
@@ -107,9 +107,9 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_
 
     if (err != 0) {
         /* Note: ThrowNew() copies the message handed to it, as one
-         would expect. I could not find mention of this behavior in
-         the JNI spec, but I verified this empirically. Therefore,
-         it's okay to hand it the stack-allocated string below. */
+           would expect. I could not find mention of this behavior in
+           the JNI spec, but I verified this empirically. Therefore,
+           it's okay to hand it the stack-allocated string below. */
         jclass exClass = (*java_env)->FindClass(java_env, "java/lang/RuntimeException");
         char message[SIZE_OF_ERRSTR];
         snprintf(message, sizeof(message), "%s (%d) %s", __FUNCTION__,
@@ -121,24 +121,24 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_
 }
 
 JNIEXPORT jlong JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_native_1init
-  						(JNIEnv *java_env,
-  						jclass class,
-  						jint id,
-  						jint n_groups,
-  						jint n_metrics,
-  						jintArray socket_fds,
-  						jint len)
+(JNIEnv *java_env,
+ jclass class,
+ jint id,
+ jint n_groups,
+ jint n_metrics,
+ jintArray socket_fds,
+ jint len)
 {
-  struct worker_desc *worker;
-  jint *fds;
-  jboolean madeCopy;
+    struct worker_desc *worker;
+    jint *fds;
+    jboolean madeCopy;
 
-  fds = (*java_env)->GetPrimitiveArrayCritical(java_env, socket_fds, &madeCopy);
-  worker = calloc(1, sizeof(struct worker_desc));
-  worker_init(worker,id, n_groups, n_metrics, fds, len);
-  (*java_env)->ReleasePrimitiveArrayCritical(java_env, socket_fds, fds, JNI_ABORT);
+    fds = (*java_env)->GetPrimitiveArrayCritical(java_env, socket_fds, &madeCopy);
+    worker = calloc(1, sizeof(struct worker_desc));
+    worker_init(worker,id, n_groups, n_metrics, fds, len);
+    (*java_env)->ReleasePrimitiveArrayCritical(java_env, socket_fds, fds, JNI_ABORT);
 
-  return (jlong)worker;
+    return (jlong)worker;
 }
 
 /*
@@ -147,24 +147,24 @@ JNIEXPORT jlong JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker
  * Signature: (J[JIII)J
  */
 JNIEXPORT jlong JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_native_1session_1create
-						(JNIEnv *env,
-						jclass class,
-						jlong worker_addr,
-						jlongArray shard_ptr_arr,
-						jint n_shards,
-						jint n_groups,
-						jint n_metrics)
+(JNIEnv *env,
+ jclass class,
+ jlong worker_addr,
+ jlongArray shard_ptr_arr,
+ jint n_shards,
+ jint n_groups,
+ jint n_metrics)
 {
-	struct session_desc *session;
-	packed_table_t **shard_ptrs;
-	jboolean madeCopy;
+    struct session_desc *session;
+    packed_table_t **shard_ptrs;
+    jboolean madeCopy;
 
-	session = calloc(1, sizeof(struct session_desc));
-	shard_ptrs = (*env)->GetPrimitiveArrayCritical(env, shard_ptr_arr, &madeCopy);
-	session_init(session, n_groups, n_metrics, shard_ptrs, n_shards);
-	(*env)->ReleasePrimitiveArrayCritical(env, shard_ptr_arr, shard_ptrs, JNI_ABORT);
+    session = calloc(1, sizeof(struct session_desc));
+    shard_ptrs = (*env)->GetPrimitiveArrayCritical(env, shard_ptr_arr, &madeCopy);
+    session_init(session, n_groups, n_metrics, shard_ptrs, n_shards);
+    (*env)->ReleasePrimitiveArrayCritical(env, shard_ptr_arr, shard_ptrs, JNI_ABORT);
 
-	return (jlong)session;
+    return (jlong)session;
 }
 
 /*
@@ -173,55 +173,55 @@ JNIEXPORT jlong JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker
  * Signature: (JJJ[J[III)I
  */
 JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_native_1run_1int_1tgs_1pass
-						(JNIEnv *java_env,
-						jclass class,
-						jlong worker_addr,
-						jlong session_addr,
-						jlong int_term,
-						jlongArray slice_offsets_arr,
-						jintArray docs_per_slice_arr,
-						jint num_shards,
-						jint socket_num)
+(JNIEnv *java_env,
+ jclass class,
+ jlong worker_addr,
+ jlong session_addr,
+ jlong int_term,
+ jlongArray slice_offsets_arr,
+ jintArray docs_per_slice_arr,
+ jint num_shards,
+ jint socket_num)
 {
-	struct worker_desc *worker;
-	struct session_desc *session;
-	jlong *slice_offsets;
-	jint *docs_per_slice;
-	jboolean madeCopy;
+    struct worker_desc *worker;
+    struct session_desc *session;
+    jlong *slice_offsets;
+    jint *docs_per_slice;
+    jboolean madeCopy;
 
-	worker = (struct worker_desc *)worker_addr;
-	session = (struct session_desc *)session_addr;
+    worker = (struct worker_desc *)worker_addr;
+    session = (struct session_desc *)session_addr;
 
-	slice_offsets = (*java_env)->GetPrimitiveArrayCritical(java_env, slice_offsets_arr, &madeCopy);
-	docs_per_slice = (*java_env)->GetPrimitiveArrayCritical(java_env, docs_per_slice_arr, &madeCopy);
+    slice_offsets = (*java_env)->GetPrimitiveArrayCritical(java_env, slice_offsets_arr, &madeCopy);
+    docs_per_slice = (*java_env)->GetPrimitiveArrayCritical(java_env, docs_per_slice_arr, &madeCopy);
 
-	int err = run_tgs_pass(worker,
-							session,
-							TERM_TYPE_INT,
-							int_term,
-							NULL,
-							0,
-							slice_offsets,
-							docs_per_slice,
-							num_shards,
-							socket_num);
+    int err = run_tgs_pass(worker,
+                           session,
+                           TERM_TYPE_INT,
+                           int_term,
+                           NULL,
+                           0,
+                           slice_offsets,
+                           docs_per_slice,
+                           num_shards,
+                           socket_num);
 
-	(*java_env)->ReleasePrimitiveArrayCritical(java_env, docs_per_slice_arr, docs_per_slice, JNI_ABORT);
-	(*java_env)->ReleasePrimitiveArrayCritical(java_env, slice_offsets_arr, slice_offsets, JNI_ABORT);
+    (*java_env)->ReleasePrimitiveArrayCritical(java_env, docs_per_slice_arr, docs_per_slice, JNI_ABORT);
+    (*java_env)->ReleasePrimitiveArrayCritical(java_env, slice_offsets_arr, slice_offsets, JNI_ABORT);
 
-	if (err != 0) {
-		/* Note: ThrowNew() copies the message handed to it, as one
-		 would expect. I could not find mention of this behavior in
-		 the JNI spec, but I verified this empirically. Therefore,
-		 it's okay to hand it the stack-allocated string below. */
-		jclass exClass = (*java_env)->FindClass(java_env, "java/lang/RuntimeException");
-		char message[SIZE_OF_ERRSTR];
-		snprintf(message, sizeof(message), "%s (%d) %s", __FUNCTION__,
-		         worker->error.code, worker->error.str);
-		(*java_env)->ThrowNew(java_env, exClass, message);
-	}
+    if (err != 0) {
+        /* Note: ThrowNew() copies the message handed to it, as one
+           would expect. I could not find mention of this behavior in
+           the JNI spec, but I verified this empirically. Therefore,
+           it's okay to hand it the stack-allocated string below. */
+        jclass exClass = (*java_env)->FindClass(java_env, "java/lang/RuntimeException");
+        char message[SIZE_OF_ERRSTR];
+        snprintf(message, sizeof(message), "%s (%d) %s", __FUNCTION__,
+                 worker->error.code, worker->error.str);
+        (*java_env)->ThrowNew(java_env, exClass, message);
+    }
 
-	return (jint)err;
+    return (jint)err;
 }
 
 /*
@@ -230,59 +230,59 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_
  * Signature: (JJ[BI[J[III)I
  */
 JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_native_1run_1string_1tgs_1pass
-						(JNIEnv *java_env,
-						jclass class,
-						jlong worker_addr,
-						jlong session_addr,
-						jbyteArray string_term_bytes_arr,
-						jint string_term_len,
-						jlongArray slice_offsets_arr,
-						jintArray docs_per_slice_arr,
-						jint num_shards,
-						jint socket_num)
+(JNIEnv *java_env,
+ jclass class,
+ jlong worker_addr,
+ jlong session_addr,
+ jbyteArray string_term_bytes_arr,
+ jint string_term_len,
+ jlongArray slice_offsets_arr,
+ jintArray docs_per_slice_arr,
+ jint num_shards,
+ jint socket_num)
 {
-	struct worker_desc *worker;
-	struct session_desc *session;
-	jlong *slice_offsets;
-	jint *docs_per_slice;
-	jbyte *string_term;
-	jboolean madeCopy;
+    struct worker_desc *worker;
+    struct session_desc *session;
+    jlong *slice_offsets;
+    jint *docs_per_slice;
+    jbyte *string_term;
+    jboolean madeCopy;
 
-	worker = (struct worker_desc *)worker_addr;
-	session = (struct session_desc *)session_addr;
+    worker = (struct worker_desc *)worker_addr;
+    session = (struct session_desc *)session_addr;
 
-	slice_offsets = (*java_env)->GetPrimitiveArrayCritical(java_env, slice_offsets_arr, &madeCopy);
-	docs_per_slice = (*java_env)->GetPrimitiveArrayCritical(java_env, docs_per_slice_arr, &madeCopy);
-	string_term = (*java_env)->GetPrimitiveArrayCritical(java_env, string_term_bytes_arr, &madeCopy);
+    slice_offsets = (*java_env)->GetPrimitiveArrayCritical(java_env, slice_offsets_arr, &madeCopy);
+    docs_per_slice = (*java_env)->GetPrimitiveArrayCritical(java_env, docs_per_slice_arr, &madeCopy);
+    string_term = (*java_env)->GetPrimitiveArrayCritical(java_env, string_term_bytes_arr, &madeCopy);
 
-	int err = run_tgs_pass(worker,
-							session,
-							TERM_TYPE_STRING,
-							-1,
-							(char *)string_term,
-							string_term_len,
-							slice_offsets,
-							docs_per_slice,
-							num_shards,
-							socket_num);
+    int err = run_tgs_pass(worker,
+                           session,
+                           TERM_TYPE_STRING,
+                           -1,
+                           (char *)string_term,
+                           string_term_len,
+                           slice_offsets,
+                           docs_per_slice,
+                           num_shards,
+                           socket_num);
 
-	(*java_env)->ReleasePrimitiveArrayCritical(java_env, string_term_bytes_arr, string_term, JNI_ABORT);
-	(*java_env)->ReleasePrimitiveArrayCritical(java_env, docs_per_slice_arr, docs_per_slice, JNI_ABORT);
-	(*java_env)->ReleasePrimitiveArrayCritical(java_env, slice_offsets_arr, slice_offsets, JNI_ABORT);
+    (*java_env)->ReleasePrimitiveArrayCritical(java_env, string_term_bytes_arr, string_term, JNI_ABORT);
+    (*java_env)->ReleasePrimitiveArrayCritical(java_env, docs_per_slice_arr, docs_per_slice, JNI_ABORT);
+    (*java_env)->ReleasePrimitiveArrayCritical(java_env, slice_offsets_arr, slice_offsets, JNI_ABORT);
 
-	if (err != 0) {
-		/* Note: ThrowNew() copies the message handed to it, as one
-		 would expect. I could not find mention of this behavior in
-		 the JNI spec, but I verified this empirically. Therefore,
-		 it's okay to hand it the stack-allocated string below. */
-		jclass exClass = (*java_env)->FindClass(java_env, "java/lang/RuntimeException");
-		char message[SIZE_OF_ERRSTR];
-		snprintf(message, sizeof(message), "%s (%d) %s", __FUNCTION__,
-		         worker->error.code, worker->error.str);
-		(*java_env)->ThrowNew(java_env, exClass, message);
-	}
+    if (err != 0) {
+        /* Note: ThrowNew() copies the message handed to it, as one
+           would expect. I could not find mention of this behavior in
+           the JNI spec, but I verified this empirically. Therefore,
+           it's okay to hand it the stack-allocated string below. */
+        jclass exClass = (*java_env)->FindClass(java_env, "java/lang/RuntimeException");
+        char message[SIZE_OF_ERRSTR];
+        snprintf(message, sizeof(message), "%s (%d) %s", __FUNCTION__,
+                 worker->error.code, worker->error.str);
+        (*java_env)->ThrowNew(java_env, exClass, message);
+    }
 
-	return (jint)err;
+    return (jint)err;
 }
 
 /*
@@ -292,14 +292,14 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_
  */
 JNIEXPORT void JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_native_1session_1destroy
 //  (JNIEnv *, jclass, jlong, jlong);
-						(JNIEnv *java_env,
-						jclass class,
-						jlong worker_addr,
-						jlong session_addr)
+(JNIEnv *java_env,
+ jclass class,
+ jlong worker_addr,
+ jlong session_addr)
 {
-	struct session_desc *session = (struct session_desc *)session_addr;
+    struct session_desc *session = (struct session_desc *)session_addr;
 
-	session_destroy(session);
+    session_destroy(session);
 }
 
 /*
@@ -309,14 +309,14 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_
  */
 JNIEXPORT void JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_native_1worker_1destroy
 //  (JNIEnv *, jclass, jlong);
-						(JNIEnv *java_env,
-						jclass class,
-						jlong worker_addr)
+(JNIEnv *java_env,
+ jclass class,
+ jlong worker_addr)
 {
-	struct worker_desc *worker;
+    struct worker_desc *worker;
 
-	worker = (struct worker_desc *)worker_addr;
-	worker_destroy(worker);
+    worker = (struct worker_desc *)worker_addr;
+    worker_destroy(worker);
 }
 
 
@@ -426,7 +426,7 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiRegroupInternals_nativ
  * Signature: ()V
  */
 JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MTImhotepLocalMultiSession_nativeInit
-                                (JNIEnv *java_env, jclass mt_local_session_class)
+(JNIEnv *java_env, jclass mt_local_session_class)
 {
     simdvbyteinit();
 }
