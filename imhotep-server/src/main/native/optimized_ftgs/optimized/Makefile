@@ -30,8 +30,8 @@ all: native_lib
 
 native_lib: $(filter-out $(ODIR)/test_invert_metrics.o,$(OBJ_FILES))
 	$(CC) $(LFLAGS) -Wl,-export-dynamic -Wl,-init,simdvbyteinit $(LIBS) -Wl,-soname,libftgs.so.1 -o libftgs.so.1.0.1 $^
+	cp  libftgs.so.1.0.1 ../../../resources/native/Linux-amd64
 
 clean:
 	rm -f $(ODIR)/*.o *~ core $(INCDIR)/*~
 	rm -f libftgs.so.1.0.1
-
