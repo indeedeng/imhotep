@@ -516,29 +516,47 @@ public class TestNativeFlamdexFTGSIterator {
     @Test
     public void testSingleShard() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
         final long seed = rand.nextLong();
-//        final long seed = -2155255878033953833L;
+//        final long seed = -5222463107059882979L;
         rand.setSeed(seed);
-//        System.out.println("Random seed: " + seed);
+        System.out.println("Random seed: " + seed);
         final int numDocs = rand.nextInt(1 << 16) + 1;  // 64K
 
         // need at least one
         final int nMetrics = rand.nextInt(MAX_N_METRICS - 1) + 1;
-        String fieldName = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
+        final int nIntFields = rand.nextInt(3 - 1) + 1;
+        final int nStringFields = rand.nextInt(3 - 1) + 1;
+        String[] stringFieldNames = new String[nStringFields];
+        for (int i = 0; i < nStringFields; i++) {
+            stringFieldNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
+        }
+        String[] intFieldNames = new String[nIntFields];
+        for (int i = 0; i < nIntFields; i++) {
+            intFieldNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
+        }
         String[] metricNames = new String[nMetrics];
         for (int i = 0; i < nMetrics; i++) {
             metricNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
         }
 
-        final List<FieldDesc> fieldDescs = createShardProfile(numDocs, nMetrics, fieldName, metricNames);
+        final List<FieldDesc> fieldDescs =
+                createShardProfile(numDocs,
+                                   nMetrics,
+                                   nStringFields,
+                                   stringFieldNames,
+                                   nIntFields,
+                                   intFieldNames,
+                                   metricNames);
         final String shardname = generateShard(fieldDescs);
-//        System.out.println(shardname);
+        System.out.println(shardname);
         String shardCopy = copyShard(shardname);
-//        System.out.println(shardCopy);
-//        final String shardname = "/tmp/native-ftgs-test3445570521338951695test";
-//        final String shardCopy = "/tmp/native-ftgs-test5526201544532342896verify-copy";
+        System.out.println(shardCopy);
+//        final String shardname = "/tmp/native-ftgs-test5538084542377083584test";
+//        final String shardCopy = "/tmp/native-ftgs-test8215907253172222376verify-copy";
 
-        final String[] stringFields = new String[]{fieldName};
-        final String[] intFields = new String[0];
+        final String[] stringFields = stringFieldNames;
+        final String[] intFields = intFieldNames;
+        System.out.println("string fields: \n" + Arrays.toString(stringFields));
+        System.out.println("int fields: \n" + Arrays.toString(intFields));
 
         final MTImhotepLocalMultiSession verificationSession;
         verificationSession = createMultisession(Arrays.asList(shardCopy),
@@ -567,12 +585,21 @@ public class TestNativeFlamdexFTGSIterator {
         final long seed = rand.nextLong();
 //        final long seed = -4122356988999045667L;
         rand.setSeed(seed);
-//        System.out.println("Random seed: " + seed);
+        System.out.println("Random seed: " + seed);
         final int numDocs = rand.nextInt(1 << 16) + 1;  // 64K
 
         // need at least one
+        final int nIntFields = rand.nextInt(3 - 1) + 1;
+        final int nStringFields = rand.nextInt(3 - 1) + 1;
         final int nMetrics = rand.nextInt(MAX_N_METRICS - 1) + 1;
-        String fieldName = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
+        String[] stringFieldNames = new String[nStringFields];
+        for (int i = 0; i < nStringFields; i++) {
+            stringFieldNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
+        }
+        String[] intFieldNames = new String[nIntFields];
+        for (int i = 0; i < nIntFields; i++) {
+            intFieldNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
+        }
         String[] metricNames = new String[nMetrics];
         for (int i = 0; i < nMetrics; i++) {
             metricNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
@@ -602,18 +629,23 @@ public class TestNativeFlamdexFTGSIterator {
 //                                            "/tmp/native-ftgs-test2103214280390889017test" });
         List<String> shardNames = new ArrayList<>();
         List<String> shardCopies = new ArrayList<>();
-        final List<FieldDesc> fieldDescs = createShardProfile(numDocs,
-                                                             nMetrics,
-                                                             fieldName,
-                                                             metricNames);
+        final List<FieldDesc> fieldDescs =
+                createShardProfile(numDocs,
+                                   nMetrics,
+                                   nStringFields,
+                                   stringFieldNames,
+                                   nIntFields,
+                                   intFieldNames,
+                                   metricNames);
+
         for (int i = 0; i < 10; i++) {
             final String shard = generateShard(fieldDescs);
             shardNames.add(shard);
             shardCopies.add(copyShard(shard));
         }
 
-        final String[] stringFields = new String[]{fieldName};
-        final String[] intFields = new String[0];
+        final String[] stringFields = stringFieldNames;
+        final String[] intFields = intFieldNames;
 
         final MTImhotepLocalMultiSession verificationSession;
         verificationSession = createMultisession(shardCopies, metricNames);
@@ -638,23 +670,38 @@ public class TestNativeFlamdexFTGSIterator {
 
     private List<FieldDesc> createShardProfile(int numDocs,
                                                int nMetrics,
-                                               String fieldName,
+                                               int nStringFields,
+                                               String[] stringFieldNames,
+                                               int nIntFields,
+                                               String[] intFieldNames,
                                                String[] metricNames) throws IOException {
         final List<FieldDesc> fieldDescs = new ArrayList<>(nMetrics);
 
-        // create field
         {
-            final FieldDesc fd = new FieldDesc();
-            fd.isIntfield = false;
-            fd.name = fieldName;
-            fd.numDocs = numDocs;
-            final int numTerms = 4 * (1 << 20);  // 4M
-            fd.terms = new ArrayList<>(numTerms);
-            for (int i = 0; i < numTerms; i++) {
-                final String term = randomString(rand.nextInt(MAX_STRING_TERM_LEN - 1) + 1);
-                fd.terms.add(term);
+            // create string Fields
+            for (int i = 0; i < nStringFields; i++) {
+                final FieldDesc fd = new FieldDesc();
+                fd.isIntfield = false;
+                fd.name = stringFieldNames[i];
+                fd.numDocs = numDocs;
+                final int numTerms = (1 << 20);  // 1M
+                fd.terms = new ArrayList<>(numTerms);
+                for (int j = 0; j < numTerms; j++) {
+                    final String term = randomString(rand.nextInt(MAX_STRING_TERM_LEN - 1) + 1);
+                    fd.terms.add(term);
+                }
+                fieldDescs.add(fd);
             }
-            fieldDescs.add(fd);
+
+            // create int Fields
+            for (int i = 0; i < nIntFields; i++) {
+                final FieldDesc fd = new FieldDesc();
+                fd.isIntfield = true;
+                fd.name = intFieldNames[i];
+                fd.numDocs = numDocs;
+                fd.termGenerator = MetricMaxSizes.getRandomSize();
+                fieldDescs.add(fd);
+            }
         }
 
         // create metrics
@@ -678,24 +725,39 @@ public class TestNativeFlamdexFTGSIterator {
             assertTrue(test.nextField());
             assertEquals(valid.fieldIsIntType(), test.fieldIsIntType());
             assertEquals(valid.fieldName(), test.fieldName());
-            while (valid.nextTerm()) {
+            {
+                final String v = valid.fieldName();
+                final String t = test.fieldName();
+//                System.out.println("field - valid: " + v + ", test: " + t);
+            }
+            term: while (valid.nextTerm()) {
                 assertTrue(test.nextTerm());
                 assertEquals(valid.fieldIsIntType(), test.fieldIsIntType());
                 if (valid.fieldIsIntType()) {
-                    final long v = valid.termIntVal();
+                    long v = valid.termIntVal();
                     final long t = test.termIntVal();
-//                    System.out.println("valid: " + v + ", test: " + t);
+//                    System.out.println("term - valid: " + v + ", test: " + t);
+                    while (v != t) {
+                        /* check to see if there are any groups in the term */
+                        if (valid.nextGroup()) {
+                            break;
+                        }
+                        if (!valid.nextTerm())
+                            break term;
+                        v = valid.termIntVal();
+                    }
                     assertEquals(v, t);
                 } else {
                     String v = valid.termStringVal();
                     final String t = test.termStringVal();
-//                    System.out.println("valid: " + v + ", test: " + t);
+//                    System.out.println("term - valid: " + v + ", test: " + t);
                     while (!v.equals(t)) {
                         /* check to see if there are any groups in the term */
                         if (valid.nextGroup()) {
                             break;
                         }
-                        valid.nextTerm();
+                        if (!valid.nextTerm())
+                            break term;
                         v = valid.termStringVal();
                     }
                     assertEquals(v, t);

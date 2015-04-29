@@ -97,6 +97,8 @@ public class NativeFTGSOpIterator implements Iterator<NativeFTGSOpIterator.Nativ
     }
 
     /******
+     * If C had a yield keyword like python, I would write the iterator like below.
+     * 
         for (String field : intFields) {
             final CloseableIter iter = createIntIterator(field, numSplits);
             for (i = 0; i < numSplits; i++) {
@@ -252,6 +254,7 @@ public class NativeFTGSOpIterator implements Iterator<NativeFTGSOpIterator.Nativ
     private NativeTGSinfo startIntFieldInfo(String intField, int splitNum) {
         final NativeTGSinfo info = new NativeTGSinfo();
         info.termDesc = null;
+        info.isIntField = true;
         info.splitIndex = splitNum;
         info.socketNum = splitNum / numWorkers;
         info.operation = NativeTGSinfo.FIELD_START_OPERATION;
@@ -263,6 +266,7 @@ public class NativeFTGSOpIterator implements Iterator<NativeFTGSOpIterator.Nativ
         final NativeTGSinfo info = new NativeTGSinfo();
         final TermDesc desc = termIter.next();
         info.termDesc = desc;
+        info.isIntField = true;
         info.splitIndex = minHashInt(desc.intTerm, numSplits);
         info.socketNum = info.splitIndex / numWorkers;
         info.operation = NativeTGSinfo.TGS_OPERATION;
@@ -274,6 +278,7 @@ public class NativeFTGSOpIterator implements Iterator<NativeFTGSOpIterator.Nativ
     private NativeTGSinfo endIntFieldInfo(int splitNum) {
         final NativeTGSinfo info = new NativeTGSinfo();
         info.termDesc = null;
+        info.isIntField = true;
         info.splitIndex = splitNum;
         info.socketNum = splitNum / numWorkers;
         info.operation = NativeTGSinfo.FIELD_END_OPERATION;
@@ -284,6 +289,7 @@ public class NativeFTGSOpIterator implements Iterator<NativeFTGSOpIterator.Nativ
     private NativeTGSinfo startStringFieldInfo(String stringField, int splitNum) {
         final NativeTGSinfo info = new NativeTGSinfo();
         info.termDesc = null;
+        info.isIntField = false;
         info.splitIndex = splitNum;
         info.socketNum = splitNum / numWorkers;
         info.operation = NativeTGSinfo.FIELD_START_OPERATION;
@@ -295,6 +301,7 @@ public class NativeFTGSOpIterator implements Iterator<NativeFTGSOpIterator.Nativ
         final NativeTGSinfo info = new NativeTGSinfo();
         final TermDesc desc = termIter.next();
         info.termDesc = desc;
+        info.isIntField = false;
         info.splitIndex = minHashString(desc.stringTerm, desc.stringTermLen, numSplits);
         info.socketNum = info.splitIndex / numWorkers;
         info.operation = NativeTGSinfo.TGS_OPERATION;
@@ -306,6 +313,7 @@ public class NativeFTGSOpIterator implements Iterator<NativeFTGSOpIterator.Nativ
     private NativeTGSinfo endStringFieldInfo(int splitNum) {
         final NativeTGSinfo info = new NativeTGSinfo();
         info.termDesc = null;
+        info.isIntField = false;
         info.splitIndex = splitNum;
         info.socketNum = splitNum / numWorkers;
         info.operation = NativeTGSinfo.FIELD_END_OPERATION;
@@ -316,6 +324,7 @@ public class NativeFTGSOpIterator implements Iterator<NativeFTGSOpIterator.Nativ
     private NativeTGSinfo noMoreFieldsInfo(int splitNum) {
         final NativeTGSinfo info = new NativeTGSinfo();
         info.termDesc = null;
+        info.isIntField = false;
         info.splitIndex = splitNum;
         info.socketNum = splitNum / numWorkers;
         info.operation = NativeTGSinfo.NO_MORE_FIELDS_OPERATION;
