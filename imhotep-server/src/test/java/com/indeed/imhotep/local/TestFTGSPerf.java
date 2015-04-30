@@ -25,6 +25,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.indeed.imhotep.multicache.ftgs.TermDesc;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.RandomStringUtils;
 import org.junit.*;
@@ -53,16 +54,25 @@ public class TestFTGSPerf {
             this.serverSocket = new ServerSocket(PORT);
         }
 
-        public RawFTGSIterator getIterator() throws IOException {
-            List<RawFTGSIterator> iters = new ArrayList<>();
+        public void readData() throws IOException {
             for (int i = 0; i < nSplits; i++) {
                 Socket sock = new Socket("localhost", PORT);
-                InputStream is = sock.getInputStream();
-                RawFTGSIterator ftgs = new InputStreamFTGSIterator(is, nStats);
-                iters.add(ftgs);
+                final InputStream is = sock.getInputStream();
+                new Thread(new Runnable() {
+                    
+                    @Override
+                    public void run() {
+                        final byte[] buffer = new byte[8192];
+                        try {
+                            while (true) {
+                                is.read(buffer);
+                            }
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }).start();
             }
-            RawFTGSMerger merger  = new RawFTGSMerger(iters, nStats, null);
-            return merger;
         }
 
         public Thread simulateServer(final RunnableFactory factory) throws IOException {

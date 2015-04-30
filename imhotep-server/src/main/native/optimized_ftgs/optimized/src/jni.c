@@ -192,8 +192,8 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_
     worker = (struct worker_desc *)worker_addr;
     session = (struct session_desc *)session_addr;
 
-    slice_offsets = (*java_env)->GetPrimitiveArrayCritical(java_env, slice_offsets_arr, &madeCopy);
-    docs_per_slice = (*java_env)->GetPrimitiveArrayCritical(java_env, docs_per_slice_arr, &madeCopy);
+    slice_offsets = (*java_env)->GetLongArrayElements(java_env, slice_offsets_arr, &madeCopy);
+    docs_per_slice = (*java_env)->GetIntArrayElements(java_env, docs_per_slice_arr, &madeCopy);
 
     int err = run_tgs_pass(worker,
                            session,
@@ -206,8 +206,8 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_
                            num_shards,
                            socket_num);
 
-    (*java_env)->ReleasePrimitiveArrayCritical(java_env, docs_per_slice_arr, docs_per_slice, JNI_ABORT);
-    (*java_env)->ReleasePrimitiveArrayCritical(java_env, slice_offsets_arr, slice_offsets, JNI_ABORT);
+    (*java_env)->ReleaseIntArrayElements(java_env, docs_per_slice_arr, docs_per_slice, JNI_ABORT);
+    (*java_env)->ReleaseLongArrayElements(java_env, slice_offsets_arr, slice_offsets, JNI_ABORT);
 
     if (err != 0) {
         /* Note: ThrowNew() copies the message handed to it, as one
@@ -251,9 +251,9 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_
     worker = (struct worker_desc *)worker_addr;
     session = (struct session_desc *)session_addr;
 
-    slice_offsets = (*java_env)->GetPrimitiveArrayCritical(java_env, slice_offsets_arr, &madeCopy);
-    docs_per_slice = (*java_env)->GetPrimitiveArrayCritical(java_env, docs_per_slice_arr, &madeCopy);
-    string_term = (*java_env)->GetPrimitiveArrayCritical(java_env, string_term_bytes_arr, &madeCopy);
+    slice_offsets = (*java_env)->GetLongArrayElements(java_env, slice_offsets_arr, &madeCopy);
+    docs_per_slice = (*java_env)->GetIntArrayElements(java_env, docs_per_slice_arr, &madeCopy);
+    string_term = (*java_env)->GetByteArrayElements(java_env, string_term_bytes_arr, &madeCopy);
 
     int err = run_tgs_pass(worker,
                            session,
@@ -266,9 +266,9 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_multicache_ftgs_NativeFTGSWorker_
                            num_shards,
                            socket_num);
 
-    (*java_env)->ReleasePrimitiveArrayCritical(java_env, string_term_bytes_arr, string_term, JNI_ABORT);
-    (*java_env)->ReleasePrimitiveArrayCritical(java_env, docs_per_slice_arr, docs_per_slice, JNI_ABORT);
-    (*java_env)->ReleasePrimitiveArrayCritical(java_env, slice_offsets_arr, slice_offsets, JNI_ABORT);
+    (*java_env)->ReleaseByteArrayElements(java_env, string_term_bytes_arr, string_term, JNI_ABORT);
+    (*java_env)->ReleaseIntArrayElements(java_env, docs_per_slice_arr, docs_per_slice, JNI_ABORT);
+    (*java_env)->ReleaseLongArrayElements(java_env, slice_offsets_arr, slice_offsets, JNI_ABORT);
 
     if (err != 0) {
         /* Note: ThrowNew() copies the message handed to it, as one

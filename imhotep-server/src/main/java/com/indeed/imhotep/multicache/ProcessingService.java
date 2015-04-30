@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -115,7 +116,7 @@ public class ProcessingService<Data, Result> {
         try {
             errorState.await();
             if (errorState.isInError()) {
-                /* wait 1 minute for all the threads to terminate */
+                /* wait a max of 1 minute for all the threads to terminate */
                 threadPool.awaitTermination(1, TimeUnit.MINUTES);
                 handleErrors();
             }
@@ -148,8 +149,10 @@ public class ProcessingService<Data, Result> {
         public ProcessingQueuesHolder() {
 //            dataQueue = new ArrayBlockingQueue<>(QUEUE_SIZE);
 //            resultsQueue = new ArrayBlockingQueue<>(QUEUE_SIZE);
-            dataQueue = new SingleProducerSingleConsumerBlockingQueue<>(QUEUE_SIZE);
-            resultsQueue = new SingleProducerSingleConsumerBlockingQueue<>(QUEUE_SIZE);
+            dataQueue = new LinkedBlockingQueue<>();
+            resultsQueue = new LinkedBlockingQueue<>();
+//            dataQueue = new SingleProducerSingleConsumerBlockingQueue<>(QUEUE_SIZE);
+//            resultsQueue = new SingleProducerSingleConsumerBlockingQueue<>(QUEUE_SIZE);
 
             this.COMPLETE_DATA_SENTINEL = (Data) new Object();
             this.COMPLETE_RESULT_SENTINEL = (Result) new Object();
