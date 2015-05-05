@@ -693,7 +693,7 @@ static inline int core(packed_table_t* src_table,
     return src_table->n_cols_per_vector[vector_num];
 }
 
-void packed_table_unpack_row_to_table(
+inline void packed_table_unpack_row_to_table(
                                              packed_table_t* src_table,
                                              int src_row_id,
                                              unpacked_table_t* dest_table,

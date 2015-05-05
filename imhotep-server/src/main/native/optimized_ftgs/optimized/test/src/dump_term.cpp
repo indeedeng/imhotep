@@ -350,7 +350,7 @@ int main(int argc, char* argv[])
         }
     }
 
-    for (int i = 0; i < 200; i++) {
+    for (int i = 0; i < 10; i++) {
         struct timespec start;
         clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 

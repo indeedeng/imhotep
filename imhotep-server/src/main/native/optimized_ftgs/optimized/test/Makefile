@@ -1,7 +1,7 @@
 CC=/usr/bin/gcc-4.9
 CPP=/usr/bin/g++-4.9
 CFLAGS=-Wall -Werror -I./include -I../include  -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions 
-CPPFLAGS=-g -O3 -Wall -Werror -I./include -I../include -I/usr/include/boost -msse4.2 -std=c++0x -fPIC  -flto
+CPPFLAGS=-g -O3 -Wall -Werror -I./include -I../include -I/usr/include/boost -msse4.2 -std=c++0x -fPIC  -flto -funroll-loops
 #CFLAGS=-Wall -Werror -I./include -I../include  -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions -fsanitize=address -fno-omit-frame-pointer -D_SANITIZE_
 #CPPFLAGS=-g -Wall -Werror -I./include -I../include -I/usr/include/boost -msse4.2 -std=c++0x -fPIC -fsanitize=address -fno-omit-frame-pointer -D_SANITIZE_
 

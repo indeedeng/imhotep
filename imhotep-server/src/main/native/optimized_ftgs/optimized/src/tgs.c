@@ -14,25 +14,22 @@
 void tgs_init(struct worker_desc *worker,
               struct tgs_desc *desc,
               uint8_t term_type,
-              struct term_s *term,
               long *addresses,
               int *docs_per_shard,
               int num_shard,
               struct ftgs_outstream *stream,
               struct session_desc *session)
 {
-    struct index_slice_info *infos;
+    struct index_slice_info *infos = desc->slices;
+
     desc->term_type = term_type;
-    desc->term = term;
     desc->n_slices = num_shard;
     desc->stream = stream;
-    infos = (struct index_slice_info *)calloc(num_shard, sizeof(struct index_slice_info));
     for (int i = 0; i < num_shard; i++) {
         infos[i].n_docs_in_slice = docs_per_shard[i];
         infos[i].doc_slice = (uint8_t *)addresses[i];
         infos[i].packed_metrics = session->shards[i];
     }
-    desc->slices = infos;
     desc->grp_buf = session->grp_buf;
     desc->updated_groups = session->nz_grps_buf;
 //    memset(session->nz_grps_buf, 0, session->num_groups * sizeof(uint32_t));
@@ -44,7 +41,6 @@ void tgs_init(struct worker_desc *worker,
 
 void tgs_destroy(struct tgs_desc *desc)
 {
-    free(desc->slices);
 }
 
 int tgs_execute_pass(struct worker_desc *worker,

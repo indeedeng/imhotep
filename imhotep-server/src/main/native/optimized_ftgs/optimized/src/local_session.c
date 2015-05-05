@@ -7,8 +7,8 @@
 
 #include "high_perf_timer.h"
 
-#define CIRC_BUFFER_SIZE 32
-#define PREFETCH_BUFFER_SIZE 32
+#define CIRC_BUFFER_SIZE 64
+#define PREFETCH_BUFFER_SIZE 64
 
 int run_tgs_pass(struct worker_desc *worker,
                  struct session_desc *session,
@@ -23,7 +23,6 @@ int run_tgs_pass(struct worker_desc *worker,
 {
     struct tgs_desc desc;
     struct ftgs_outstream *stream;
-    struct term_s* current_term;
 
     start_timer(worker, 3);
 
@@ -35,7 +34,7 @@ int run_tgs_pass(struct worker_desc *worker,
         return -1;
     }
 
-    current_term = term_create(term_type, int_term, string_term, string_term_len);
+    term_init(&desc.term, term_type, int_term, string_term, string_term_len);
 
     /* find the stream data struct by index */
     stream = &worker->out_streams[socket_num];
@@ -44,7 +43,6 @@ int run_tgs_pass(struct worker_desc *worker,
     tgs_init(worker,
              &desc,
              term_type,
-             current_term,
              addresses,
              docs_per_shard,
              num_shard,

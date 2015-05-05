@@ -294,7 +294,7 @@ static inline size_t prefix_len(const struct string_term_s* restrict term,
     return min;
 }
 
-int write_term_group_stats(const struct session_desc* session, const struct tgs_desc* tgs,
+int write_term_group_stats(const struct session_desc* session, struct tgs_desc* tgs,
                            const uint32_t* restrict groups, const int term_group_count)
 {
 	struct buffered_socket *socket = &tgs->stream->socket;
@@ -306,21 +306,21 @@ int write_term_group_stats(const struct session_desc* session, const struct tgs_
     if (socket->socket_fd < 0) return 0;
 
     if (tgs->term_type == TERM_TYPE_INT) {
-        if (prev_term->int_term == -1 && tgs->term->int_term == -1) {
+        if (prev_term->int_term == -1 && tgs->term.int_term == -1) {
             TRY(write_byte(socket, 0x80));
             TRY(write_byte(socket, 0));
         } else {
-            TRY(write_vint64(socket, tgs->term->int_term - prev_term->int_term));
+            TRY(write_vint64(socket, tgs->term.int_term - prev_term->int_term));
         }
-        term_update_int(prev_term, tgs->term);
+        term_update_int(prev_term, &tgs->term);
     } else {
-        struct string_term_s* term = &tgs->term->string_term;
+        struct string_term_s* term = &tgs->term.string_term;
         struct string_term_s* previous_term = &prev_term->string_term;
         size_t p_len = prefix_len(term, previous_term);
         TRY(write_vint64(socket, previous_term->len - p_len + 1));
         TRY(write_vint64(socket, term->len - p_len));
         TRY(write_bytes(socket, (uint8_t*)(term->term + p_len), term->len - p_len));
-        term_update_string(prev_term, tgs->term);
+        term_update_string(prev_term, &tgs->term);
     }
     int64_t term_doc_freq = 0;
     for (int i = 0; i < tgs->n_slices; i++) {

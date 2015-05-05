@@ -9,7 +9,7 @@ LFLAGS= -g -O3 -flto -funroll-loops -shared
 #LFLAGS= -g -shared
 
 #OPT_CFLAGS= -flto -O3 -funroll-loops -fvisibility=hidden $(CFLAGS)
-OPT_CFLAGS= -g -flto -O3 $(CFLAGS)
+OPT_CFLAGS= -g -flto -O3 -funroll-loops $(CFLAGS)
 DBG_CFLAGS= -g $(CFLAGS)
 
 ODIR=obj

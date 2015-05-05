@@ -42,14 +42,13 @@ void socket_capture_error(struct buffered_socket *socket, const int code)
 }
 
 
-struct term_s *term_create(uint8_t term_type,
-                              long int_term,
-                              char *string_term,
-                              int string_term_len)
+void term_init(
+               struct term_s *term,
+               uint8_t term_type,
+               long int_term,
+               char *string_term,
+               int string_term_len)
 {
-    struct term_s *term;
-
-    term = calloc(1, sizeof(struct term_s));
     switch(term_type) {
     case TERM_TYPE_STRING:
         term->string_term.term = calloc(string_term_len, sizeof(char));
@@ -60,7 +59,6 @@ struct term_s *term_create(uint8_t term_type,
         term->int_term = int_term;
         break;
     }
-    return term;
 }
 
 void term_destroy(uint8_t term_type, struct term_s *term)
@@ -68,10 +66,8 @@ void term_destroy(uint8_t term_type, struct term_s *term)
     switch(term_type) {
     case TERM_TYPE_STRING:
         free(term->string_term.term);
-        free(term);
         break;
     case TERM_TYPE_INT:
-        free(term);
         break;
     }
 }
