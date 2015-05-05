@@ -174,7 +174,7 @@ static inline void core(__v2di * restrict src_row,
     dest_row[vector_num] += src_row[vector_num] + mins[vector_num];
 }
 
-inline void unpacked_table_add_rows(
+void unpacked_table_add_rows(
                                     const unpacked_table_t* restrict src_table,
                                     const int src_row_id,
                                     unpacked_table_t* restrict dest_table,

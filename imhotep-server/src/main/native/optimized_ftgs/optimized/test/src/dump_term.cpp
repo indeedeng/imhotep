@@ -16,6 +16,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <time.h>
 
 #define restrict __restrict__
 extern "C" {
@@ -200,6 +201,7 @@ private:
             const long doc_id(it.next());
             packed_table_set_cell(table, doc_id, col, term);
             if (group_by_me) {
+
                 packed_table_set_group(table, doc_id, abs(term) % n_groups());
             }
         }
@@ -266,6 +268,13 @@ operator<<(ostream& os, unpacked_table_t* stats) {
     return os;
 }
 
+void rrrandom_regroup(packed_table_t* table, int num_docs, int num_grps) {
+
+	for(int i = 0; i < num_docs; i++) {
+		const int grp_id = rand() % num_grps;
+	    packed_table_set_group(table, i, grp_id);
+	}
+}
 
 int main(int argc, char* argv[])
 {
@@ -277,8 +286,10 @@ int main(int argc, char* argv[])
     }
     string shard_dir(argv[1]);
     vector<string> fields;
-    for (int i_argv(2); i_argv < argc; ++i_argv) { fields.push_back(argv[i_argv]); }
+    string ftgs_field = argv[2];
+    for (int i_argv(3); i_argv < argc; ++i_argv) { fields.push_back(argv[i_argv]); }
 
+    IntFieldView ftgs_field_view(shard_dir, ftgs_field);
     vector<shared_ptr<IntFieldView>> field_views;
     for (auto field: fields) {
         field_views.push_back(make_shared<IntFieldView>(shard_dir, field));
@@ -294,6 +305,8 @@ int main(int argc, char* argv[])
         n_rows         = std::max(n_rows, field_view.n_rows());
     }
 
+    cerr << "Num rows: " << n_rows << endl;
+
     TableMetadata metadata(n_cols, col_mins.data(), col_maxes.data());
     packed_table_t* table(packed_table_create(n_rows,
                                               col_mins.data(), col_maxes.data(),
@@ -302,38 +315,88 @@ int main(int argc, char* argv[])
     for (size_t col(0); col < n_cols; ++col) {
         field_views[col]->pack(table, col, col == 0);
     }
+    rrrandom_regroup(table, n_rows, 40000);
 
-    cout << field_views;
+
+//    cout << field_views;
 
     array <int, 1> socket_file_desc{{-1}};
     struct worker_desc  worker;
-    worker_init(&worker, 1, n_rows, n_cols, socket_file_desc.data(), 1);
+    worker_init(&worker, 1, 40000, n_cols, socket_file_desc.data(), 1);
 
     packed_table_t* shards[] = { table };
     struct session_desc session;
-    session_init(&session, (*field_views.begin())->n_groups(), n_cols, shards, 1);
+    session_init(&session, 40000, n_cols, shards, 1);
 
     array <int, 1> shard_handles;
     shard_handles[0] = register_shard(&session, table);
 
-    IntFieldView::TermIterator it(field_views[0]->term_iterator());
-    while (it.has_next()) {
-        IntFieldView::TermIterator::Tuple next(it.next());
-        const long offset(get<1>(next));
-        const long doc_freq(get<2>(next));
-        array<long, 1> addresses{{(long) field_views[0]->doc_id_stream(offset)}};
-        array<int, 1> docs_in_term{{(int) doc_freq}};
+    for (int i = 0; i < 4; i++) {
+        IntFieldView::TermIterator it(ftgs_field_view.term_iterator());
+        while (it.has_next()) {
+            IntFieldView::TermIterator::Tuple next(it.next());
+            const long offset(get<1>(next));
+            const long doc_freq(get<2>(next));
+            array<long, 1> addresses{{(long) ftgs_field_view.doc_id_stream(offset)}};
+            array<int, 1> docs_in_term{{(int) doc_freq}};
 
-        run_tgs_pass(&worker,
-                     &session,
-                     TERM_TYPE_INT, 1,
-                     NULL, 0,
-                     addresses.data(),
-                     docs_in_term.data(),
-                     1, 0);
+            run_tgs_pass(&worker,
+                         &session,
+                         TERM_TYPE_INT, 1,
+                         NULL, 0,
+                         addresses.data(),
+                         docs_in_term.data(),
+                         1, 0);
+        }
     }
+
+    for (int i = 0; i < 200; i++) {
+        struct timespec start;
+        clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+
+        IntFieldView::TermIterator it(ftgs_field_view.term_iterator());
+        while (it.has_next()) {
+            IntFieldView::TermIterator::Tuple next(it.next());
+            const long term(get<0>(next));
+            const long offset(get<1>(next));
+            const long doc_freq(get<2>(next));
+            array<long, 1> addresses{{(long) ftgs_field_view.doc_id_stream(offset)}};
+            array<int, 1> docs_in_term{{(int) doc_freq}};
+
+            run_tgs_pass(&worker,
+                         &session,
+                         TERM_TYPE_INT,
+                         term,
+                         NULL, 0,
+                         addresses.data(),
+                         docs_in_term.data(),
+                         1, 0);
+        }
+
+        struct timespec end;
+        clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+
+        end.tv_sec -= start.tv_sec;
+        end.tv_nsec -= start.tv_nsec;
+        if (end.tv_nsec < 0) {
+            end.tv_sec--;
+            end.tv_nsec += 1000000000;
+        }
+        if (end.tv_nsec >= 1000000000) {
+            end.tv_sec++;
+            end.tv_nsec -= 1000000000;
+        }
+
+        cout << "Seconds: " << end.tv_sec << endl;
+        cout << "Nanoseconds: " << end.tv_nsec << endl;
+    }
+
+    session_destroy(&session);
+
+    worker_destroy(&worker);
 
     // cout << endl << worker.grp_stats << endl;
 
     packed_table_destroy(table);
+
 }

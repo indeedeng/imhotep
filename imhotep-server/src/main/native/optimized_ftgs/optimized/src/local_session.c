@@ -5,6 +5,8 @@
 #include "circ_buf.h"
 #include "remote_output.h"
 
+#include "high_perf_timer.h"
+
 #define CIRC_BUFFER_SIZE 32
 #define PREFETCH_BUFFER_SIZE 32
 
@@ -22,6 +24,8 @@ int run_tgs_pass(struct worker_desc *worker,
     struct tgs_desc desc;
     struct ftgs_outstream *stream;
     struct term_s* current_term;
+
+    start_timer(worker, 3);
 
     /* just in case. Kinda unnecessary to check this here */
     if (num_shard > session->num_shards) {
@@ -58,6 +62,8 @@ int run_tgs_pass(struct worker_desc *worker,
 
     /* clean up the tgs structure */
     tgs_destroy(&desc);
+
+    end_timer(worker, 3);
 
     return err;
 }
@@ -213,10 +219,26 @@ void worker_init(struct worker_desc *worker,
     for (int i = 0; i < num_sockets; i++) {
         stream_init(&worker->out_streams[i], socket_fds[i]);
     }
+
+    for (int i = 0; i < 32; i++) {
+        worker->timings[i] = 0;
+    }
+
+    start_timer(worker, 0);
 }
 
 void worker_destroy(struct worker_desc *worker)
 {
+    end_timer(worker, 0);
+
+    fprintf(stderr, "Total time: %ld\n", worker->timings[0]);
+
+    for (int i = 1; i < 32; i++) {
+        if (worker->timings[i] == 0)
+            continue;
+        fprintf(stderr, "Timing %d:   %ld\n", i, worker->timings[i]);
+    }
+
     /* free socket and term entries */
     for (int i = 0; i < worker->num_streams; i++) {
         stream_destroy( &worker->out_streams[i]);

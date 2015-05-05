@@ -1,11 +1,13 @@
 CC=/usr/bin/gcc-4.9
 CPP=/usr/bin/g++-4.9
-CFLAGS=-Wall -Werror -I./include -I../include  -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions
-CPPFLAGS=-O3 -Wall -Werror -I./include -I../include -I/usr/include/boost -msse -msse2 -msse3 -mssse3 -msse4 -msse4.1 -msse4.2 -std=c++0x -fPIC
+CFLAGS=-Wall -Werror -I./include -I../include  -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions 
+CPPFLAGS=-g -O3 -Wall -Werror -I./include -I../include -I/usr/include/boost -msse4.2 -std=c++0x -fPIC  -flto
+#CFLAGS=-Wall -Werror -I./include -I../include  -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions -fsanitize=address -fno-omit-frame-pointer -D_SANITIZE_
+#CPPFLAGS=-g -Wall -Werror -I./include -I../include -I/usr/include/boost -msse4.2 -std=c++0x -fPIC -fsanitize=address -fno-omit-frame-pointer -D_SANITIZE_
 
-LFLAGS=-shared
+LFLAGS=-g -O3 -flto
 
-OPT_CFLAGS= -g -O3 $(CFLAGS)
+OPT_CFLAGS= -g -O3 -flto -funroll-loops $(CFLAGS)
 DBG_CFLAGS= -g $(CFLAGS)
 
 LIBS=-lm -lstdc++
@@ -60,7 +62,7 @@ test_varintdecode: obj/test_varintdecode.o ../obj/varintdecode.o
 	$(CPP) $ -o test_varintdecode $(LIBS) $^
 
 dump_term: obj/dump_term.o $(TGS_OBJS)
-	$(CPP) $ -o dump_term $(LIBS) $^ -L/usr/lib/x86_64-linux-gnu -lboost_system -lpthread
+	$(CPP) $(LFLAGS) $ -o dump_term $(LIBS) $^ -L/usr/lib/x86_64-linux-gnu -lboost_system -lpthread #-lasan
 
 packed_perf: obj/packed_tree_perf_test.o ../obj/packed_table.o
 	$(CC) $ -flto -funroll-loops -O3 -o packed_perf $^ -L/usr/lib/x86_64-linux-gnu -lrt 

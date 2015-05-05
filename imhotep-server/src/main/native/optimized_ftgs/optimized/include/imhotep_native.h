@@ -69,6 +69,7 @@ struct worker_desc {
     int num_streams;
     struct ftgs_outstream *out_streams;
     struct runtime_err error;
+    long timings[32];
 };
 
 struct index_slice_info {
@@ -140,6 +141,7 @@ void term_update_string(struct term_s *term, struct term_s *new_term);
 void term_reset(struct term_s *term);
 
 void lookup_and_accumulate_grp_stats(
+                                     struct worker_desc *worker,
                                    packed_table_t *src_table,
                                    unpacked_table_t *dest_table,
                                    uint32_t* row_id_buffer,
