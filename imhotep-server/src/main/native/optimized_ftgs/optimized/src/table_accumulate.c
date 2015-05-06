@@ -9,13 +9,13 @@
  * Two array loop
  */
 void lookup_and_accumulate_grp_stats(
-                                     struct worker_desc *worker,
-                                   packed_table_t *src_table,
-                                   unpacked_table_t *dest_table,
-                                   uint32_t* row_id_buffer,
-                                   int buffer_len,
-                                   struct circular_buffer_int *grp_buf,
-                                   unpacked_table_t *temp_buf)
+                                     const struct worker_desc *worker,
+                                     const packed_table_t *src_table,
+                                     const unpacked_table_t *dest_table,
+                                     const uint32_t* row_id_buffer,
+                                     const int buffer_len,
+                                     const struct circular_buffer_int *grp_buf,
+                                     const unpacked_table_t *temp_buf)
 {
     /*
      * calculate the number of rows to prefetch to keep the total number

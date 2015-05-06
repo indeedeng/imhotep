@@ -42,6 +42,7 @@ GROUPS_OBJS = \
     ../obj/packed_table.o     \
     ../obj/remote_output.o    \
     ../obj/socket.o           \
+    ../obj/binary_table_accumulate.o \
     ../obj/table_accumulate.o \
     ../obj/tgs.o              \
     ../obj/unpacked_table.o   \

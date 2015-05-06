@@ -11,6 +11,12 @@
     _a > _b ? _a : _b; \
 })
 
+struct bit_fields_and_group {
+    uint32_t grp :28;
+    uint32_t metrics :4;
+};
+
+
 /* Creates the starting and end indexes of the cols, where col/16 indicates
  * in which vector the col is.
  */
@@ -245,8 +251,9 @@ packed_table_t *packed_table_create(int n_rows,
     if (n_cols - table->n_boolean_cols != 0) {
         createShuffleVecFromIndexes(table, index_cols);
         createShuffleBlendFromIndexes(table, index_cols);
+        table->only_binary_columns = 0;
     } else {
-
+        table->only_binary_columns = 1;
     }
 
     table->size = n_rows * table->row_size;
@@ -277,27 +284,32 @@ void packed_table_destroy(packed_table_t *table)
 /*
  * Attribute Getters
  */
-int packed_table_get_size(packed_table_t *table)
+int packed_table_is_binary_only(const packed_table_t *table)
+{
+    return table->only_binary_columns;
+}
+
+int packed_table_get_size(const packed_table_t *table)
 {
     return table->n_rows * table->row_size;
 }
 
-int packed_table_get_row_size(packed_table_t *table)
+int packed_table_get_row_size(const packed_table_t *table)
 {
     return table->row_size;
 }
 
-int packed_table_get_rows(packed_table_t *table)
+int packed_table_get_rows(const packed_table_t *table)
 {
     return table->n_rows;
 }
 
-int packed_table_get_cols(packed_table_t *table)
+int packed_table_get_cols(const packed_table_t *table)
 {
     return table->n_cols;
 }
 
-__v16qi * packed_table_get_row_addr(packed_table_t *table, int row)
+__v16qi * packed_table_get_row_addr(const packed_table_t *table, int row)
 {
     return &table->data[row * table->row_size];
 }
@@ -305,12 +317,11 @@ __v16qi * packed_table_get_row_addr(packed_table_t *table, int row)
 /*
  * Shared cell accessors and setters
  */
-static inline void internal_set_cell(
-                       packed_table_t* table,
-                       int row,
-                       int col,
-                       long value,
-                       uint8_t row_vector_index)
+static inline void internal_set_cell(const packed_table_t* table,
+                                     const int row,
+                                     const int col,
+                                     const long value,
+                                     const uint8_t row_vector_index)
 {
     size_t index = row * table->row_size;
 
@@ -328,26 +339,32 @@ static inline void internal_set_cell(
     table->data[vector_index] = updated_data;
 }
 
-static inline void internal_set_boolean_cell(packed_table_t* table,
-                                             int row,
-                                             int col,
-                                             long value)
+static inline void internal_set_boolean_cell(const packed_table_t* table,
+                                             const int row,
+                                             const int col,
+                                             const long value)
 {
-    __v16qi *packed_addr;
     uint32_t *store_address;
-    int index = row * table->row_size + 0;
 
-    packed_addr = &(table->data[index]);
-    store_address = (uint32_t *)packed_addr;
+    if (table->only_binary_columns) {
+        uint32_t *packed_data = (uint32_t *)table->data;
+        store_address = &packed_data[row];
+    } else {
+        __v16qi *packed_addr;
+        int index = row * table->row_size;
+
+        packed_addr = &(table->data[index]);
+        store_address = (uint32_t *)packed_addr;
+    }
+
     *store_address |= (value) << (GROUP_SIZE + col);
 }
 
-static inline int64_t internal_get_cell(
-                          packed_table_t* table,
-                          int row,
-                          int column,
-                          int row_size,
-                          uint8_t col_vector)
+static inline int64_t internal_get_cell(const packed_table_t* table,
+                                        const int row,
+                                        const int column,
+                                        const int row_size,
+                                        const uint8_t col_vector)
 {
     __v16qi packed;
     __v16qi shuffle_control_vec;
@@ -360,49 +377,58 @@ static inline int64_t internal_get_cell(
     return result;
 }
 
-static inline int internal_get_boolean_cell(
-                             packed_table_t* table,
-                             int row,
-                             int column,
-                             int row_size)
+static inline int internal_get_boolean_cell(const packed_table_t* table,
+                                            const int row,
+                                            const int column,
+                                            const int row_size)
 {
-    __v16qi* packed_addr;
     uint32_t* load_address;
     uint32_t bit;
 
-    int index = row * row_size + 0;
-    packed_addr = &table->data[index];
-    load_address = (uint32_t*)packed_addr;
+    if (table->only_binary_columns) {
+        uint32_t *packed_data = (uint32_t *)table->data;
+        load_address = &packed_data[row];
+    } else {
+        __v16qi* packed_addr;
+        int index = row * row_size;
+
+        packed_addr = &table->data[index];
+        load_address = (uint32_t*)packed_addr;
+    }
     bit = (*load_address) & (1 << (GROUP_SIZE + column));
 
     return (bit != 0);
 }
 
-static inline int internal_get_group(
-                                     packed_table_t* table,
-                                     int row,
-                                     int row_size)
+static inline int internal_get_group(const packed_table_t* table, const int row, const int row_size)
 {
-    __v16qi *packed_addr;
     const struct bit_fields_and_group *packed_bf_grp;
-    const int index = row * row_size;
 
-    packed_addr = &table->data[index];
-    packed_bf_grp = (struct bit_fields_and_group *) packed_addr;
+    if (table->only_binary_columns) {
+        uint32_t *packed_data = (uint32_t *)table->data;
+        packed_bf_grp = (struct bit_fields_and_group *) &packed_data[row];
+    } else {
+        const int index = row * row_size;
+        const __v16qi *packed_addr = &table->data[index];
+        packed_bf_grp = (struct bit_fields_and_group *) packed_addr;
+    }
+
     return packed_bf_grp->grp;
 }
 
-static inline void internal_set_group(
-                        packed_table_t* table,
-                        int row,
-                        int value)
+static inline void internal_set_group(const packed_table_t* table, const int row, const int value)
 {
-    __v16qi *packed_addr;
     struct bit_fields_and_group *packed_bf_grp;
-    const size_t index = row * table->row_size;
 
-    packed_addr = &table->data[index];
-    packed_bf_grp = (struct bit_fields_and_group *)packed_addr;
+    if (table->only_binary_columns) {
+        uint32_t *packed_data = (uint32_t *)table->data;
+        packed_bf_grp = (struct bit_fields_and_group *) &packed_data[row];
+    } else {
+        const size_t index = row * table->row_size;
+        const __v16qi *packed_addr = &table->data[index];
+        packed_bf_grp = (struct bit_fields_and_group *)packed_addr;
+    }
+
     packed_bf_grp->grp = value & GROUP_MASK;
 }
 
@@ -410,7 +436,7 @@ static inline void internal_set_group(
 /*
  * External cell accessors and getters
  */
-long packed_table_get_cell(packed_table_t *table, int row, int column)
+long packed_table_get_cell(const packed_table_t *table, const int row, int column)
 {
     uint8_t n_boolean_cols = table->n_boolean_cols;
     int row_size = table->row_size;
@@ -425,7 +451,10 @@ long packed_table_get_cell(packed_table_t *table, int row, int column)
     return internal_get_boolean_cell(table, row, column, row_size) + min;
 }
 
-void packed_table_set_cell(packed_table_t *table, int row, int col, long value)
+void packed_table_set_cell(const packed_table_t *table,
+                           const int row,
+                           const int col,
+                           const long value)
 {
     uint8_t packed_vector_index = (table->col_2_vector)[col];
     int64_t min = (table->col_mins)[col];
@@ -438,7 +467,7 @@ void packed_table_set_cell(packed_table_t *table, int row, int col, long value)
     internal_set_cell(table, row, col, value, packed_vector_index);
 }
 
-int packed_table_get_num_groups(packed_table_t *table)
+int packed_table_get_num_groups(const packed_table_t *table)
 {
     int result = 0;
     const int rows = packed_table_get_rows(table);
@@ -449,19 +478,19 @@ int packed_table_get_num_groups(packed_table_t *table)
     return result;
 }
 
-inline int packed_table_get_group(packed_table_t *table, int row)
+inline int packed_table_get_group(const packed_table_t *table, const int row)
 {
     int row_size = table->row_size;
 
     return internal_get_group(table, row, row_size);
 }
 
-void packed_table_set_group(packed_table_t *table, int row, int value)
+void packed_table_set_group(const packed_table_t *table, const int row, const int value)
 {
     internal_set_group(table, row, value);
 }
 
-void packed_table_set_all_groups(packed_table_t *table, int value)
+void packed_table_set_all_groups(const packed_table_t *table, const int value)
 {
     int n_rows = table->n_rows;
 
@@ -471,11 +500,11 @@ void packed_table_set_all_groups(packed_table_t *table, int value)
 }
 
 
-void packed_table_batch_col_lookup( packed_table_t *table,
-                                int * restrict row_ids,
-                                int n_row_ids,
-                                int64_t * restrict dest,
-                                int column)
+void packed_table_batch_col_lookup(const packed_table_t *table,
+                                   const int * restrict row_ids,
+                                   const int n_row_ids,
+                                   int64_t * restrict dest,
+                                   int column)
 {
     uint8_t n_boolean_cols = table->n_boolean_cols;
     int row_size = table->row_size;
@@ -497,11 +526,11 @@ void packed_table_batch_col_lookup( packed_table_t *table,
     }
 }
 
-void packed_table_batch_set_col(   packed_table_t *table,
-                            int * restrict row_ids,
-                            int n_row_ids,
-                            int64_t * restrict col_vals,
-                            int col)
+void packed_table_batch_set_col(const packed_table_t *table,
+                                const int * restrict row_ids,
+                                const int n_row_ids,
+                                const int64_t * restrict col_vals,
+                                int col)
 {
     int64_t min = (table->col_mins)[col];
     uint8_t packed_vector_index = (table->col_2_vector)[col];
@@ -519,7 +548,7 @@ void packed_table_batch_set_col(   packed_table_t *table,
     }
 }
 
-void packed_table_set_col_range(packed_table_t *table,
+void packed_table_set_col_range(const packed_table_t *table,
                                 const int start_row,
                                 const int64_t * restrict col_vals,
                                 const int count,
@@ -557,10 +586,10 @@ void packed_table_set_col_range(packed_table_t *table,
     }
 }
 
-void packed_table_batch_group_lookup( packed_table_t *table,
-                                int * restrict row_ids,
-                                int n_row_ids,
-                                int32_t * restrict dest)
+void packed_table_batch_group_lookup(const packed_table_t *table,
+                                     const int * restrict row_ids,
+                                     const int n_row_ids,
+                                     int32_t * restrict dest)
 {
     int row_size = table->row_size;
 
@@ -570,10 +599,10 @@ void packed_table_batch_group_lookup( packed_table_t *table,
     }
 }
 
-void packed_table_batch_set_group(   packed_table_t *table,
-                            int * restrict row_ids,
-                            int n_row_ids,
-                            int32_t * restrict group_vals)
+void packed_table_batch_set_group(const packed_table_t *table,
+                                  const int * restrict row_ids,
+                                  const int n_row_ids,
+                                  const int32_t * restrict group_vals)
 {
     for (int i = 0; i < n_row_ids; i++) {
         int row = row_ids[i];
@@ -581,7 +610,7 @@ void packed_table_batch_set_group(   packed_table_t *table,
     }
 }
 
-void packed_table_set_group_range(packed_table_t *table,
+void packed_table_set_group_range(const packed_table_t *table,
                                   const int start,
                                   const int count,
                                   const int32_t * restrict group_vals)
@@ -598,7 +627,7 @@ static inline int get_bit(const long* restrict bits_arr, const int idx)
     return bits & (0x1L << word_idx);
 }
 
-void packed_table_bit_set_regroup(packed_table_t *table,
+void packed_table_bit_set_regroup(const packed_table_t *table,
                                   const long* restrict bits,
                                   const int target_group,
                                   const int negative_group,
@@ -620,7 +649,7 @@ void packed_table_bit_set_regroup(packed_table_t *table,
     }
 }
 
-void packed_table_prefetch_row(packed_table_t *table, int row_id)
+void packed_table_prefetch_row(const packed_table_t *table, const int row_id)
 {
 	int idx = row_id * table->row_size;
     for (int i = 0; i < table->unpadded_row_size; i += CACHE_LINE_SIZE) {
@@ -676,11 +705,11 @@ static inline void unpack_vector(const packed_table_t* src_table,
     }
 }
 
-static inline int core(packed_table_t* src_table,
-                       unpacked_table_t* dest_table,
-                       int from_col,
-                       int vector_num,
-                       __v16qi* restrict src_row,
+static inline int core(const packed_table_t* src_table,
+                       const unpacked_table_t* dest_table,
+                       const int from_col,
+                       const int vector_num,
+                       const __v16qi* restrict src_row,
                        __v2di* restrict dest_row)
 {
     int offset_in_row = dest_table->col_offset[from_col];
@@ -693,19 +722,18 @@ static inline int core(packed_table_t* src_table,
     return src_table->n_cols_per_vector[vector_num];
 }
 
-inline void packed_table_unpack_row_to_table(
-                                             packed_table_t* src_table,
-                                             int src_row_id,
-                                             unpacked_table_t* dest_table,
-                                             int dest_row_id,
-                                             int prefetch_row_id)
+inline void packed_table_unpack_row_to_table(const packed_table_t* src_table,
+                                             const int src_row_id,
+                                             const unpacked_table_t* dest_table,
+                                             const int dest_row_id,
+                                             const int prefetch_row_id)
 {
     __v16qi* restrict src_row = &src_table->data[src_row_id * src_table->row_size];
     __v2di* restrict dest_row = &dest_table->data[dest_row_id * dest_table->padded_row_len];
 
     /* unpack and save the bit field metrics */
     struct bit_fields_and_group packed_bf_g = *((struct bit_fields_and_group *)src_row);
-    unpack_bit_fields(dest_row, packed_bf_g.cols, src_table->n_boolean_cols);
+    unpack_bit_fields(dest_row, packed_bf_g.metrics, src_table->n_boolean_cols);
 
     /* return if there are only bit field columns */
     if (src_table->n_cols == src_table->n_boolean_cols) {

@@ -7,7 +7,7 @@ struct bit_tree {
     int64_t **restrict bitsets;
 };
 
-void bit_tree_init(struct bit_tree *tree, int32_t size);
+struct bit_tree * bit_tree_create(int32_t size);
 void bit_tree_destroy(struct bit_tree *tree);
 void bit_tree_set(struct bit_tree *tree, int32_t index);
 void bit_tree_iterate(struct bit_tree *tree, uint32_t *index_arr, int32_t len);

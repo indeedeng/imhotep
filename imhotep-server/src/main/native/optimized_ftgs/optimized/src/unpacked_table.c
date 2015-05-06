@@ -64,14 +64,14 @@ unpacked_table_t *unpacked_table_create(packed_table_t *packed_table, int n_rows
         table_mins[offset_in_row] = column_mins[i];
     }
 
-    bit_tree_init(&table->non_zero_rows, n_rows);
+    table->non_zero_rows = bit_tree_create(n_rows);
 
     return table;
 }
 
 void unpacked_table_destroy(unpacked_table_t *table)
 {
-    bit_tree_destroy(&table->non_zero_rows);
+    bit_tree_destroy(table->non_zero_rows);
     free(table->col_mins);
     free(table->col_offset);
     free(table->data);
@@ -79,23 +79,23 @@ void unpacked_table_destroy(unpacked_table_t *table)
 }
 
 
-int unpacked_table_get_size(unpacked_table_t *table)
+int unpacked_table_get_size(const unpacked_table_t *table)
 {
     return table->size;
 }
 
-int unpacked_table_get_rows(unpacked_table_t *table)
+int unpacked_table_get_rows(const unpacked_table_t *table)
 {
     return table->n_rows;
 }
 
-int unpacked_table_get_cols(unpacked_table_t *table)
+int unpacked_table_get_cols(const unpacked_table_t *table)
 {
     return table->n_cols;
 }
 
 
-unpacked_table_t *unpacked_table_copy_layout(unpacked_table_t *src_table, int n_rows)
+unpacked_table_t *unpacked_table_copy_layout(const unpacked_table_t *src_table, const int n_rows)
 {
     unpacked_table_t *new_table;
 
@@ -114,7 +114,7 @@ unpacked_table_t *unpacked_table_copy_layout(unpacked_table_t *src_table, int n_
     new_table->data = ALIGNED_ALLOC(64, sizeof(__v2di) * new_table->size);
     memset(new_table->data, 0, sizeof(__v2di) * new_table->size);
 
-    bit_tree_init(&new_table->non_zero_rows, n_rows);
+    new_table->non_zero_rows = bit_tree_create(n_rows);
 
     return new_table;
 }
@@ -153,8 +153,8 @@ void unpacked_table_clear(const unpacked_table_t *table) {
 
 
 int64_t unpacked_table_get_and_clear_remapped_cell(const unpacked_table_t *table,
-                                         const int row,
-                                         const int orig_idx)
+                                                   const int row,
+                                                   const int orig_idx)
 {
 	int64_t stat;
 	int remapped_col;
@@ -166,23 +166,22 @@ int64_t unpacked_table_get_and_clear_remapped_cell(const unpacked_table_t *table
 }
 
 
-static inline void core(__v2di * restrict src_row,
+static inline void core(const __v2di * restrict src_row,
                         __v2di * restrict dest_row,
-                        __v2di * restrict mins,
-                        int vector_num)
+                        const __v2di * restrict mins,
+                        const int vector_num)
 {
     dest_row[vector_num] += src_row[vector_num] + mins[vector_num];
 }
 
-inline void unpacked_table_add_rows(
-                                    const unpacked_table_t* restrict src_table,
+inline void unpacked_table_add_rows(const unpacked_table_t* restrict src_table,
                                     const int src_row_id,
-                                    unpacked_table_t* restrict dest_table,
+                                    const unpacked_table_t* restrict dest_table,
                                     const int dest_row_id,
                                     const int prefetch_row_id)
 {
     /* flag row as modified */
-    bit_tree_set(&dest_table->non_zero_rows, dest_row_id);
+    bit_tree_set(dest_table->non_zero_rows, dest_row_id);
 
     /* loop through row elements */
     int vector_num;
@@ -219,7 +218,7 @@ inline void unpacked_table_add_rows(
     }
 }
 
-struct bit_tree* unpacked_table_get_non_zero_rows(unpacked_table_t* table)
+struct bit_tree* unpacked_table_get_non_zero_rows(const unpacked_table_t* table)
 {
-    return &(table->non_zero_rows);
+    return table->non_zero_rows;
 }

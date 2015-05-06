@@ -136,9 +136,9 @@ static inline int write_svint64(struct buffered_socket* socket, const int64_t i)
 }
 
 int write_field_start(struct ftgs_outstream* stream,
-                char *field_name,
-                int len,
-                int term_type)
+                const char *field_name,
+                const int len,
+                const int term_type)
 {
 	struct buffered_socket* socket = &stream->socket;
 
@@ -294,8 +294,10 @@ static inline size_t prefix_len(const struct string_term_s* restrict term,
     return min;
 }
 
-int write_term_group_stats(const struct session_desc* session, struct tgs_desc* tgs,
-                           const uint32_t* restrict groups, const int term_group_count)
+int write_term_group_stats(const struct session_desc* session,
+                           struct tgs_desc* tgs,
+                           const uint32_t* restrict groups,
+                           const int term_group_count)
 {
 	struct buffered_socket *socket = &tgs->stream->socket;
 	struct term_s *prev_term = &tgs->stream->prev_term;

@@ -44,13 +44,13 @@ void tgs_destroy(struct tgs_desc *desc)
 }
 
 int tgs_execute_pass(struct worker_desc *worker,
-                     struct session_desc *session,
+                     const struct session_desc *session,
                      struct tgs_desc *desc)
 {
     uint32_t doc_id_buf[TGS_BUFFER_SIZE];
-    unpacked_table_t *group_stats = desc->group_stats;
-    int n_slices = desc->n_slices;
-    struct index_slice_info *infos = desc->slices;
+    const unpacked_table_t *group_stats = desc->group_stats;
+    const int n_slices = desc->n_slices;
+    const struct index_slice_info *infos = desc->slices;
 
     if (desc->n_slices <= 0) {
         /* error */
@@ -60,12 +60,11 @@ int tgs_execute_pass(struct worker_desc *worker,
     }
 
     for (int i = 0; i < n_slices; i++) {
-        struct index_slice_info *slice;
+        const struct index_slice_info *slice = &infos[i];
         int remaining;      /* num docs remaining */
         uint8_t *read_addr;
         long last_value;     /* delta decode tracker */
 
-        slice = &infos[i];
         remaining = slice->n_docs_in_slice;
         read_addr = slice->doc_slice;
         last_value = 0;
@@ -82,13 +81,22 @@ int tgs_execute_pass(struct worker_desc *worker,
 
             start_timer(worker, 1);
 
-            lookup_and_accumulate_grp_stats(worker,
-                                            shard_data,
-                                            group_stats,
-                                            doc_id_buf,
-                                            count,
-                                            desc->grp_buf,
-                                            session->temp_buf);
+            if (session->only_binary_metrics) {
+                binary_lookup_and_accumulate_grp_stats(worker,
+                                                       shard_data,
+                                                       group_stats,
+                                                       doc_id_buf,
+                                                       count,
+                                                       desc->grp_buf);
+            } else {
+                lookup_and_accumulate_grp_stats(worker,
+                                                shard_data,
+                                                group_stats,
+                                                doc_id_buf,
+                                                count,
+                                                desc->grp_buf,
+                                                session->temp_buf);
+            }
             last_value = doc_id_buf[count - 1];
 
             end_timer(worker, 1);

@@ -98,6 +98,7 @@ struct session_desc {
     int num_groups;
     int num_stats;
     int num_shards;
+    int only_binary_metrics;
     packed_table_t **shards;
     unpacked_table_t *temp_buf;
     unpacked_table_t *grp_stats;
@@ -107,7 +108,7 @@ struct session_desc {
 
 void term_destroy(uint8_t term_type, struct term_s *term);
 int tgs_execute_pass(struct worker_desc *worker,
-                     struct session_desc *session,
+                     const struct session_desc *session,
                      struct tgs_desc *desc);
 
 void tgs_init(struct worker_desc *worker,
@@ -142,13 +143,20 @@ void term_update_string(struct term_s *term, struct term_s *new_term);
 void term_reset(struct term_s *term);
 
 void lookup_and_accumulate_grp_stats(
-                                     struct worker_desc *worker,
-                                   packed_table_t *src_table,
-                                   unpacked_table_t *dest_table,
-                                   uint32_t* row_id_buffer,
-                                   int buffer_len,
-                                   struct circular_buffer_int *grp_buf,
-                                   unpacked_table_t *temp_buf);
+                                     const struct worker_desc *worker,
+                                     const packed_table_t *src_table,
+                                     const unpacked_table_t *dest_table,
+                                     const uint32_t* row_id_buffer,
+                                     const int buffer_len,
+                                     const struct circular_buffer_int *grp_buf,
+                                     const unpacked_table_t *temp_buf);
+
+void binary_lookup_and_accumulate_grp_stats(const struct worker_desc *worker,
+                                            const packed_table_t *src_table,
+                                            const unpacked_table_t *dest_table,
+                                            const uint32_t* restrict row_id_buffer,
+                                            const int buffer_len,
+                                            const struct circular_buffer_int *grp_buf);
 
 packed_table_t *packed_table_create(int n_rows,
                                     int64_t *column_mins,
@@ -159,69 +167,94 @@ packed_table_t *packed_table_create(int n_rows,
                                     int8_t *original_idx,
                                     int n_cols);
 void packed_table_destroy(packed_table_t *table);
-int packed_table_get_size(packed_table_t *table);
-int packed_table_get_row_size(packed_table_t *table);
-int packed_table_get_rows(packed_table_t *table);
-int packed_table_get_cols(packed_table_t *table);
-__v16qi * packed_table_get_row_addr(packed_table_t *table, int row);
 
-long packed_table_get_cell(packed_table_t *table, int row, int column);
-void packed_table_set_cell(packed_table_t *table, int row, int col, long value);
-int packed_table_get_num_groups(packed_table_t *table);
-int packed_table_get_group(packed_table_t *table, int row);
-void packed_table_set_group(packed_table_t *table, int row, int value);
-void packed_table_set_all_groups(packed_table_t *table, int value);
+/*
+ * Attribute Getters
+ */
+int packed_table_is_binary_only(const packed_table_t *table);
+int packed_table_get_size(const packed_table_t *table);
+int packed_table_get_row_size(const packed_table_t *table);
+int packed_table_get_rows(const packed_table_t *table);
+int packed_table_get_cols(const packed_table_t *table);
+__v16qi * packed_table_get_row_addr(const packed_table_t *table, int row);
 
-void packed_table_batch_col_lookup( packed_table_t *table,
-                                int * restrict row_ids,
-                                int n_row_ids,
-                                int64_t * restrict dest,
-                                int column);
-void packed_table_batch_set_col(   packed_table_t *table,
-                            int * restrict row_ids,
-                            int n_row_ids,
-                            int64_t * restrict col_vals,
-                            int col);
-void packed_table_set_col_range(packed_table_t *table,
-                                const int start_row,
-                                const int64_t * restrict col_vals,
-                                const int count,
-                                const int col);
+/*
+ * External cell accessors and getters
+ */
+long packed_table_get_cell(const packed_table_t *table, const int row, const int column);
+void packed_table_set_cell(const packed_table_t *table,
+                           const int row,
+                           const int col,
+                           const long value);
+int packed_table_get_num_groups(const packed_table_t *table);
+int packed_table_get_group(const packed_table_t *table, const int row);
+void packed_table_set_group(const packed_table_t *table, const int row, const int value);
+void packed_table_set_all_groups(const packed_table_t *table, const int value);
 
-void packed_table_batch_group_lookup( packed_table_t *table,
-                                int * restrict row_ids,
-                                int n_row_ids,
-                                int32_t * restrict dest);
-void packed_table_batch_set_group(   packed_table_t *table,
-                            int * restrict row_ids,
-                            int n_row_ids,
-                            int32_t * restrict group_vals);
-void packed_table_set_group_range(packed_table_t *table,
-                                  const int start,
-                                  const int count,
-                                  const int32_t * restrict group_vals);
+void packed_table_batch_col_lookup(
+        const packed_table_t *table,
+        const int * restrict row_ids,
+        const int n_row_ids,
+        int64_t * restrict dest,
+        const int column);
 
-void packed_table_bit_set_regroup(packed_table_t *table,
-                                  const long *bits,
-                                  const int target_group,
-                                  const int negative_group,
-                                  const int positive_group);
-void packed_table_prefetch_row(packed_table_t *table, int row_id);
+void packed_table_batch_set_col(
+        const packed_table_t *table,
+        const int * restrict row_ids,
+        const int n_row_ids,
+        const int64_t * restrict col_vals,
+        const int col);
 
-void packed_table_unpack_row_to_table(
-                                             packed_table_t* src_table,
-                                             int src_row_id,
-                                             unpacked_table_t* dest_table,
-                                             int dest_row_id,
-                                             int prefetch_row_id);
+void packed_table_set_col_range(
+        const packed_table_t *table,
+        const int start_row,
+        const int64_t * restrict col_vals,
+        const int count,
+        int col);
+
+void packed_table_batch_group_lookup(
+        const packed_table_t *table,
+        const int * restrict row_ids,
+        const int n_row_ids,
+        int32_t * restrict dest);
+
+void packed_table_batch_set_group(
+        const packed_table_t *table,
+        const int * restrict row_ids,
+        const int n_row_ids,
+        const int32_t * restrict group_vals);
+
+void packed_table_set_group_range(
+        const packed_table_t *table,
+        const int start,
+        const int count,
+        const int32_t * restrict group_vals);
+
+void packed_table_bit_set_regroup(
+        const packed_table_t *table,
+        const long* restrict bits,
+        const int target_group,
+        const int negative_group,
+        const int positive_group);
+
+void packed_table_prefetch_row(const packed_table_t *table, const int row_id);
+
+/*
+ *  FTGS below:
+ */
+void packed_table_unpack_row_to_table(const packed_table_t* src_table,
+                                      const int src_row_id,
+                                      const unpacked_table_t* dest_table,
+                                      const int dest_row_id,
+                                      const int prefetch_row_id);
 
 unpacked_table_t *unpacked_table_create(packed_table_t *packed_table, int n_rows);
 void unpacked_table_destroy(unpacked_table_t *table);
-int unpacked_table_get_size(unpacked_table_t *table);
-int unpacked_table_get_rows(unpacked_table_t *table);
-int unpacked_table_get_cols(unpacked_table_t *table);
-unpacked_table_t *unpacked_table_copy_layout(unpacked_table_t *src_table, int num_rows);
-struct bit_tree* unpacked_table_get_non_zero_rows(unpacked_table_t* table);
+int unpacked_table_get_size(const unpacked_table_t *table);
+int unpacked_table_get_rows(const unpacked_table_t *table);
+int unpacked_table_get_cols(const unpacked_table_t *table);
+unpacked_table_t *unpacked_table_copy_layout(const unpacked_table_t *src_table, const int num_rows);
+struct bit_tree* unpacked_table_get_non_zero_rows(const unpacked_table_t* table);
 
 int remap_docs_in_target_groups_int8_t(packed_table_t* packed_table,
                                        int8_t*         results,
@@ -244,20 +277,24 @@ int remap_docs_in_target_groups_int32_t(packed_table_t* packed_table,
                                         int*            remappings,
                                         long            placeholder_group);
 
-long unpacked_table_get_cell(const unpacked_table_t * restrict table,
-                             const int row,
-                             const int column);
-void unpacked_table_set_cell(const unpacked_table_t * restrict table,
-                             const int row,
-                             const int column,
-                             const long value);
+long unpacked_table_get_cell(
+        const unpacked_table_t * restrict table,
+        const int row,
+        const int column);
+void unpacked_table_set_cell(
+        const unpacked_table_t * restrict table,
+        const int row,
+        const int column,
+        const long value);
 void *unpacked_table_get_rows_addr(const unpacked_table_t * restrict table, const int row);
 void unpacked_table_clear(const unpacked_table_t *table);
-int64_t unpacked_table_get_and_clear_remapped_cell(const unpacked_table_t *table,
-                                         const int row,
-                                         const int orig_idx);
-void unpacked_table_add_rows(const unpacked_table_t* restrict src_table,
-                             const int src_row_id,
-                             unpacked_table_t* restrict dest_table,
-                             const int dest_row_id,
-                             const int prefetch_row_id);
+int64_t unpacked_table_get_and_clear_remapped_cell(
+        const unpacked_table_t *table,
+        const int row,
+        const int orig_idx);
+void unpacked_table_add_rows(
+        const unpacked_table_t* restrict src_table,
+        const int src_row_id,
+        const unpacked_table_t* restrict dest_table,
+        const int dest_row_id,
+        const int prefetch_row_id);

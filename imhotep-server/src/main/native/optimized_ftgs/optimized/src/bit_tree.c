@@ -14,15 +14,20 @@ static int32_t log2_of_size(int32_t size) {
     return 31 - __builtin_clz(size);
 }
 
-void bit_tree_init(struct bit_tree *tree, int32_t size)
+struct bit_tree * bit_tree_create(int32_t size)
 {
+    struct bit_tree *tree;
     const size_t length = log2_of_size(size - 1) / 6 + 1;
+
+    tree = calloc(1, sizeof(struct bit_tree));
     tree->bitsets = calloc(length, sizeof(int64_t*));
     for (size_t i = 0; i < length; ++i) {
         size = (size+63)/64;
         tree->bitsets[i] = calloc(size, sizeof(int64_t));
     }
     tree->depth = length - 1;
+
+    return tree;
 }
 
 void bit_tree_destroy(struct bit_tree *tree)
@@ -32,6 +37,7 @@ void bit_tree_destroy(struct bit_tree *tree)
         free(tree->bitsets[i]);
     }
     free(tree->bitsets);
+    free(tree);
 }
 
 inline void bit_tree_set(struct bit_tree *tree, int32_t index)

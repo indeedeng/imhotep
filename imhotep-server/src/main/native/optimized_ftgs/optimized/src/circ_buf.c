@@ -90,7 +90,7 @@ void circular_buffer_vector_cleanup(struct circular_buffer_vector *buff)
 	cleanup(circ_buf);
 }
 
-void circular_buffer_int_put(struct circular_buffer_int *buff, uint32_t data)
+void circular_buffer_int_put(const struct circular_buffer_int *buff, uint32_t data)
 {
 	struct circular_buffer *circ_buf = (struct circular_buffer *)buff;
 	uint32_t *restrict buffer;
@@ -111,7 +111,7 @@ void circular_buffer_vector_put(struct circular_buffer_vector *buff, __m128i dat
 	circ_buf->head ++;
 }
 
-uint32_t circular_buffer_int_get(struct circular_buffer_int *buff)
+uint32_t circular_buffer_int_get(const struct circular_buffer_int *buff)
 {
 	struct circular_buffer *circ_buf = (struct circular_buffer *)buff;
 	uint32_t *restrict buffer;

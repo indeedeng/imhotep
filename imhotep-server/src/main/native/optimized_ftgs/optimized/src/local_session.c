@@ -92,6 +92,12 @@ void destroy_shard_multicache(packed_table_t *table)
 
 int register_shard(struct session_desc *session, packed_table_t *table)
 {
+    if (packed_table_is_binary_only(table)) {
+        session->only_binary_metrics = 1;
+    } else {
+        session->only_binary_metrics = 0;
+    }
+
     for (int i = 0; i < session->num_shards; i++) {
         if (session->shards[i] == NULL) {
             session->shards[i] = table;

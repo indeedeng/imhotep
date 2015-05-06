@@ -10,12 +10,12 @@
 
 #include <immintrin.h>
 
-static inline void start_timer(struct worker_desc *worker, int timer_num) {
+static inline void start_timer(const struct worker_desc *worker, int timer_num) {
 //    if (timer_num <= 3)// || timer_num == 5 || timer_num == 6)
 //        worker->timings[timer_num] -= __builtin_ia32_rdtsc();
 }
 
-static inline void end_timer(struct worker_desc *worker, int timer_num) {
+static inline void end_timer(const struct worker_desc *worker, int timer_num) {
 //    if (timer_num <= 3)// || timer_num == 5 || timer_num == 6)
 //        worker->timings[timer_num] += __builtin_ia32_rdtsc();
 }
