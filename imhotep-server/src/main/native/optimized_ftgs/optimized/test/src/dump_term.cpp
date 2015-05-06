@@ -16,7 +16,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <time.h>
 
 #define restrict __restrict__
 extern "C" {
@@ -28,6 +27,14 @@ extern "C" {
 #include "test_utils.h"
 #include "varintdecode.h"
 
+#include <boost/accumulators/accumulators.hpp>
+#include <boost/accumulators/statistics/stats.hpp>
+#include <boost/accumulators/statistics/mean.hpp>
+#include <boost/accumulators/statistics/variance.hpp>
+
+#include <boost/progress.hpp>
+
+using namespace boost::accumulators;
 using namespace std;
 
 size_t file_size(int fd)
@@ -72,7 +79,7 @@ public:
 };
 
 class IntFieldView {
-    static constexpr size_t _n_groups = 3;
+    static constexpr size_t _n_groups = 30000;
 
     string _name;
 
@@ -201,7 +208,6 @@ private:
             const long doc_id(it.next());
             packed_table_set_cell(table, doc_id, col, term);
             if (group_by_me) {
-
                 packed_table_set_group(table, doc_id, abs(term) % n_groups());
             }
         }
@@ -318,7 +324,7 @@ int main(int argc, char* argv[])
     rrrandom_regroup(table, n_rows, 40000);
 
 
-//    cout << field_views;
+    // cout << field_views;
 
     array <int, 1> socket_file_desc{{-1}};
     struct worker_desc  worker;
@@ -350,7 +356,11 @@ int main(int argc, char* argv[])
         }
     }
 
-    for (int i = 0; i < 10; i++) {
+    constexpr size_t n_iterations = 10;
+    constexpr size_t NANOS_PER_SEC = 1000000000;
+    accumulator_set<double, stats<tag::mean, tag::variance > > acc;
+
+    for (size_t i = 0; i < n_iterations; i++) {
         struct timespec start;
         clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
@@ -380,16 +390,22 @@ int main(int argc, char* argv[])
         end.tv_nsec -= start.tv_nsec;
         if (end.tv_nsec < 0) {
             end.tv_sec--;
-            end.tv_nsec += 1000000000;
+            end.tv_nsec += NANOS_PER_SEC;
         }
-        if (end.tv_nsec >= 1000000000) {
+        if (size_t(end.tv_nsec) >= NANOS_PER_SEC) {
             end.tv_sec++;
-            end.tv_nsec -= 1000000000;
+            end.tv_nsec -= NANOS_PER_SEC;
         }
 
-        cout << "Seconds: " << end.tv_sec << endl;
-        cout << "Nanoseconds: " << end.tv_nsec << endl;
+        const double elapsed((end.tv_sec * NANOS_PER_SEC + end.tv_nsec) / double(NANOS_PER_SEC));
+        acc(elapsed);
+
+        // cout << "Seconds: " << end.tv_sec << endl;
+        // cout << "Nanoseconds: " << end.tv_nsec << endl;
     }
+    cout << "iterations: " << n_iterations;
+    cout << " mean: " << mean(acc);
+    cout << " stddev: " << sqrt(variance(acc)) << endl;
 
     session_destroy(&session);
 
@@ -398,5 +414,4 @@ int main(int argc, char* argv[])
     // cout << endl << worker.grp_stats << endl;
 
     packed_table_destroy(table);
-
 }
