@@ -671,7 +671,7 @@ public class TestFTGSPerf {
     }
 
     */
-    @Test
+//    @Test
     public void testNative() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
         System.err.println("starting...");
         for (int z = 0; z < 100; ++z) {

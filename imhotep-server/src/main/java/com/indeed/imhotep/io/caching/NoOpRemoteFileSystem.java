@@ -94,7 +94,7 @@ public class NoOpRemoteFileSystem extends RemoteFileSystem {
 
     @Override
     public Map<String, File> loadDirectory(String fullPath, File location) throws IOException {
-        final Map<String, File> results = new HashMap<String,File>(100);
+        final Map<String, File> results = new HashMap<String,File>();
         final File dir = new File(fullPath);
         
         if (location != null) {
