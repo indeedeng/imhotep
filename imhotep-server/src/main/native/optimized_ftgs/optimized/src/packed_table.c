@@ -28,7 +28,7 @@ static void createColumnIndexes(
                                 int32_t * restrict offsets_in_vecs,
                                 uint16_t *index_cols)
 {
-    const int n_vectors = vec_nums[n_cols - 1] + 1;
+    const uint16_t n_vectors = vec_nums[n_cols - 1] + 1;
 
     /* Pack the cols and create indexes to find where they start and end */
     for (int i = 0; i < n_cols; i++) {
@@ -61,6 +61,7 @@ static void createColumnIndexes(
         /* round up to the next multiple of 2 */
         table->row_size = (n_vectors + 1) & (~0x1);
     }
+    table->row_size_bytes = table->row_size * sizeof(__m128);
 }
 
 //Create the array that after  can be used to get 2 cols at a time from the main
@@ -344,24 +345,15 @@ static inline void internal_set_boolean_cell(const packed_table_t* table,
                                              const int col,
                                              const long value)
 {
-    uint32_t *store_address;
-
-    if (table->only_binary_columns) {
-        uint32_t *packed_data = (uint32_t *)table->data;
-        store_address = &packed_data[row];
-    } else {
-        const int index = row * table->row_size;
-        const __v16qi *packed_addr = &(table->data[index]);
-        store_address = (uint32_t *)packed_addr;
-    }
-
+    void *packed_addr = (void *)table->data;
+    uint32_t* store_address = packed_addr + (row * table->row_size_bytes);
     *store_address |= (value) << (GROUP_SIZE + col);
 }
 
 static inline int64_t internal_get_cell(const packed_table_t* table,
                                         const int row,
                                         const int column,
-                                        const int row_size,
+                                        const uint16_t row_size,
                                         const uint8_t col_vector)
 {
     const __v16qi packed = (table->data)[row * row_size + col_vector];
@@ -373,54 +365,27 @@ static inline int64_t internal_get_cell(const packed_table_t* table,
 static inline int internal_get_boolean_cell(const packed_table_t* table,
                                             const int row,
                                             const int column,
-                                            const int row_size)
+                                            const uint16_t row_size)
 {
-    uint32_t* load_address;
-
-    if (table->only_binary_columns) {
-        uint32_t *packed_data = (uint32_t *)table->data;
-        load_address = &packed_data[row];
-    } else {
-        __v16qi* packed_addr;
-        int index = row * row_size;
-
-        packed_addr = &table->data[index];
-        load_address = (uint32_t*)packed_addr;
-    }
+    const void *packed_addr = (void *)table->data;
+    const uint32_t* load_address = packed_addr + (row * table->row_size_bytes);
     const uint32_t bit = (*load_address) & (1 << (GROUP_SIZE + column));
-
     return (bit != 0);
 }
 
-static inline int internal_get_group(const packed_table_t* table, const int row, const int row_size)
+static inline int internal_get_group(const packed_table_t* table,
+                                     const int row,
+                                     const uint16_t row_size)
 {
-    const struct bit_fields_and_group *packed_bf_grp;
-
-    if (table->only_binary_columns) {
-        const uint32_t *packed_data = (uint32_t *)table->data;
-        packed_bf_grp = (struct bit_fields_and_group *) &packed_data[row];
-    } else {
-        const int index = row * row_size;
-        const __v16qi *packed_addr = &table->data[index];
-        packed_bf_grp = (struct bit_fields_and_group *) packed_addr;
-    }
-
+    const void *packed_addr = (void *)table->data;
+    const struct bit_fields_and_group* packed_bf_grp = packed_addr + (row * table->row_size_bytes);
     return packed_bf_grp->grp;
 }
 
 static inline void internal_set_group(const packed_table_t* table, const int row, const int value)
 {
-    struct bit_fields_and_group *packed_bf_grp;
-
-    if (table->only_binary_columns) {
-        const uint32_t *packed_data = (uint32_t *)table->data;
-        packed_bf_grp = (struct bit_fields_and_group *) &packed_data[row];
-    } else {
-        const size_t index = row * table->row_size;
-        const __v16qi *packed_addr = &table->data[index];
-        packed_bf_grp = (struct bit_fields_and_group *)packed_addr;
-    }
-
+    void *packed_addr = (void *)table->data;
+    struct bit_fields_and_group* packed_bf_grp = packed_addr + (row * table->row_size_bytes);
     packed_bf_grp->grp = value & GROUP_MASK;
 }
 
@@ -472,7 +437,7 @@ int packed_table_get_num_groups(const packed_table_t *table)
 
 inline int packed_table_get_group(const packed_table_t *table, const int row)
 {
-    const int row_size = table->row_size;
+    const uint16_t row_size = table->row_size;
 
     return internal_get_group(table, row, row_size);
 }
@@ -499,7 +464,7 @@ void packed_table_batch_col_lookup(const packed_table_t *table,
                                    int column)
 {
     const uint8_t n_boolean_cols = table->n_boolean_cols;
-    const int row_size = table->row_size;
+    const uint16_t row_size = table->row_size;
     const int64_t min = (table->col_mins)[column];
 
     if (column >= n_boolean_cols) {
@@ -583,7 +548,7 @@ void packed_table_batch_group_lookup(const packed_table_t *table,
                                      const int n_row_ids,
                                      int32_t * restrict dest)
 {
-    const int row_size = table->row_size;
+    const uint16_t row_size = table->row_size;
 
     for (int i = 0; i < n_row_ids; i++) {
         const int row = row_ids[i];
@@ -626,7 +591,7 @@ void packed_table_bit_set_regroup(const packed_table_t *table,
                                   const int positive_group)
 {
     const int n_rows = table->n_rows;
-    const int row_size = table->row_size;
+    const uint16_t row_size = table->row_size;
 
     for (int row = 0; row < n_rows; ++row) {
         const int index = row * row_size;

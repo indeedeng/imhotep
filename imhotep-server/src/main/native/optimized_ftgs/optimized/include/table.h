@@ -27,12 +27,11 @@ struct packed_table_desc {
     int size;                    /* Data size in 16B vectors */
     int only_binary_columns;     /* Flag indicating table has only binary data */
 
-    uint8_t n_boolean_cols;      /* Number of boolean cols */
+    uint16_t row_size;           /* How many __m128 vectors a single row uses */
+    uint16_t unpadded_row_size;  /* How many __m128 vectors a single row uses, without the end padding */
+    uint16_t row_size_bytes;     /* How many bytes a single row uses */
 
-    int row_size;                /* How many __m128 vectors a single row uses */
-    int unpadded_row_size;       /* How many __m128 vectors a single row uses, without the end padding */
-
-    uint8_t* col_remapping;     /* Order stats were pushed. They are reordered to pack better */
+    uint8_t* col_remapping;      /* Order stats were pushed. They are reordered to pack better */
 
     uint8_t *col_2_vector;       /* The vector in which the column resides */
     int64_t *col_mins;           /* The minimal value of each column */
@@ -46,6 +45,8 @@ struct packed_table_desc {
     uint8_t *n_cols_per_vector;  /* Number of column in each of the vectors, *NOT* counting booleans */
 
     __v16qi *data;               /* packed data */
+
+    uint8_t n_boolean_cols;      /* Number of boolean cols */
 };
 typedef struct packed_table_desc packed_table_t;
 

@@ -79,8 +79,6 @@ int tgs_execute_pass(struct worker_desc *worker,
 
             packed_table_t* shard_data = slice->packed_metrics;
 
-            start_timer(worker, 1);
-
             if (session->only_binary_metrics) {
                 binary_lookup_and_accumulate_grp_stats(worker,
                                                        shard_data,
@@ -98,12 +96,9 @@ int tgs_execute_pass(struct worker_desc *worker,
                                                 session->temp_buf);
             }
             last_value = doc_id_buf[count - 1];
-
-            end_timer(worker, 1);
         }
     }
 
-    start_timer(worker, 2);
     struct bit_tree* non_zero_rows    = unpacked_table_get_non_zero_rows(group_stats);
     const int     n_rows           = unpacked_table_get_rows(group_stats);
     const int32_t    term_group_count = bit_tree_dump(non_zero_rows, desc->updated_groups, n_rows);
@@ -113,7 +108,5 @@ int tgs_execute_pass(struct worker_desc *worker,
     } else {
         result = write_term_group_stats(session, desc, desc->updated_groups, term_group_count);
     }
-    end_timer(worker, 2);
-
     return result;
 }

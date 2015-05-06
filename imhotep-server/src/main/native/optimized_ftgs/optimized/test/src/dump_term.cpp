@@ -356,7 +356,7 @@ int main(int argc, char* argv[])
         }
     }
 
-    constexpr size_t n_iterations = 10;
+    constexpr size_t n_iterations = 20;
     constexpr size_t NANOS_PER_SEC = 1000000000;
     accumulator_set<double, stats<tag::mean, tag::variance > > acc;
 
