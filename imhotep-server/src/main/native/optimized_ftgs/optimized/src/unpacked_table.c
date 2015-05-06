@@ -186,9 +186,9 @@ inline void unpacked_table_add_rows(const unpacked_table_t* restrict src_table,
     /* loop through row elements */
     int vector_num;
     const int n_vecs = src_table->unpadded_row_len;
-    __v2di * restrict src_row = &src_table->data[src_row_id * src_table->padded_row_len];
+    const __v2di * restrict src_row = &src_table->data[src_row_id * src_table->padded_row_len];
     __v2di * restrict dest_row = &dest_table->data[dest_row_id * dest_table->padded_row_len];
-    __v2di * restrict mins = dest_table->col_mins;
+    const __v2di * restrict mins = dest_table->col_mins;
     for (vector_num = 0; vector_num < n_vecs - 4; vector_num += 4)
     {
         core(src_row, dest_row, mins, vector_num + 0);
@@ -200,7 +200,7 @@ inline void unpacked_table_add_rows(const unpacked_table_t* restrict src_table,
         {
             __v2di *prefetch_addr = &dest_table->data[prefetch_row_id * dest_table->padded_row_len
                                                       + vector_num];
-            PREFETCH(prefetch_addr);
+            PREFETCH_KEEP(prefetch_addr);
         }
     }
 
@@ -208,7 +208,7 @@ inline void unpacked_table_add_rows(const unpacked_table_t* restrict src_table,
     if (vector_num < n_vecs) {
         __v2di *prefetch_addr = &dest_table->data[prefetch_row_id * dest_table->padded_row_len
                                                   + vector_num];
-        PREFETCH(prefetch_addr);
+        PREFETCH_KEEP(prefetch_addr);
     }
 
     /* loop through the remaining row elements */

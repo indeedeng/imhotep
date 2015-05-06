@@ -566,7 +566,7 @@ void packed_table_set_col_range(const packed_table_t *table,
             {
                 int idx = (row_id + PREFETCH_DISTANCE) * table->row_size;
                 __v16qi *prefetch_addr = &table->data[idx];
-                PREFETCH(prefetch_addr);
+                PREFETCH_DISCARD(prefetch_addr);
             }
         }
         return;
@@ -581,7 +581,7 @@ void packed_table_set_col_range(const packed_table_t *table,
             {
                 int idx = (row_id + PREFETCH_DISTANCE) * table->row_size;
                 __v16qi *prefetch_addr = &table->data[idx];
-                PREFETCH(prefetch_addr);
+                PREFETCH_DISCARD(prefetch_addr);
             }
     }
 }
@@ -654,7 +654,7 @@ void packed_table_prefetch_row(const packed_table_t *table, const int row_id)
 	int idx = row_id * table->row_size;
     for (int i = 0; i < table->unpadded_row_size; i += CACHE_LINE_SIZE) {
         __v16qi *prefetch_addr = &table->data[idx + i];
-        PREFETCH(prefetch_addr);
+        PREFETCH_DISCARD(prefetch_addr);
     }
 }
 
@@ -739,7 +739,7 @@ inline void packed_table_unpack_row_to_table(const packed_table_t* src_table,
     if (src_table->n_cols == src_table->n_boolean_cols) {
         /* prefetch */
         __v16qi *prefetch_addr = &src_table->data[prefetch_row_id * src_table->row_size];
-        PREFETCH(prefetch_addr);
+        PREFETCH_DISCARD(prefetch_addr);
 
         return;
     }
@@ -759,7 +759,7 @@ inline void packed_table_unpack_row_to_table(const packed_table_t* src_table,
         {
             __v16qi *prefetch_addr = &src_table->data[prefetch_row_id * src_table->row_size
                                                      + vector_num];
-            PREFETCH(prefetch_addr);
+            PREFETCH_DISCARD(prefetch_addr);
         }
     }
 
@@ -767,7 +767,7 @@ inline void packed_table_unpack_row_to_table(const packed_table_t* src_table,
     if (vector_num < n_packed_vecs) {
         __v16qi *prefetch_addr = &src_table->data[prefetch_row_id * src_table->row_size
                                                  + vector_num];
-        PREFETCH(prefetch_addr);
+        PREFETCH_DISCARD(prefetch_addr);
     }
 
     /* loop through the remaining row elements */

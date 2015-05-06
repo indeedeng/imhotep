@@ -11,7 +11,8 @@
 #define GROUP_MASK                             0xFFFFFFF
 #define MAX_BIT_FIELDS                          4
 #define GROUP_SIZE                              28
-#define PREFETCH(address)                       _mm_prefetch(address, _MM_HINT_T0)
+#define PREFETCH_KEEP(address)                       _mm_prefetch(address, _MM_HINT_T0)
+#define PREFETCH_DISCARD(address)                       _mm_prefetch(address, _MM_HINT_NTA)
 //#define PREFETCH(address)
 
 #ifdef _SANITIZE_

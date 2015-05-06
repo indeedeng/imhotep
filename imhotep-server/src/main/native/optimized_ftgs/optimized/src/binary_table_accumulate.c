@@ -19,7 +19,7 @@ binary_packed_table_prefetch_row(const packed_table_t *src_table, int row_id)
     struct bit_fields_and_group *data;
 
     data = (struct bit_fields_and_group *)src_table->data;
-    __builtin_prefetch(&data[row_id]);
+    PREFETCH_KEEP(&data[row_id]);
 }
 
 static inline void
@@ -54,7 +54,7 @@ unpacked_table_add_binary_data(
 
     data[idx] += vec1;
 
-    PREFETCH(&data[prefetch_idx]);
+    PREFETCH_KEEP(&data[prefetch_idx]);
 }
 
 
