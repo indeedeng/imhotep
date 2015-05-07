@@ -69,7 +69,7 @@ struct worker_desc {
     int num_streams;
     struct ftgs_outstream *out_streams;
     struct runtime_err error;
-    long timings[32];
+//    long timings[32];
 };
 
 struct index_slice_info {

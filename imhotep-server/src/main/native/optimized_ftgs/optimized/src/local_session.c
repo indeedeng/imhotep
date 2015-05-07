@@ -224,24 +224,18 @@ void worker_init(struct worker_desc *worker,
         stream_init(&worker->out_streams[i], socket_fds[i]);
     }
 
-    for (int i = 0; i < 32; i++) {
-        worker->timings[i] = 0;
-    }
-
-    start_timer(worker, 0);
+//    for (int i = 0; i < 32; i++) {
+//        worker->timings[i] = 0;
+//    }
 }
 
 void worker_destroy(struct worker_desc *worker)
 {
-    end_timer(worker, 0);
-
-    fprintf(stderr, "Total time: %ld\n", worker->timings[0]);
-
-    for (int i = 1; i < 32; i++) {
-        if (worker->timings[i] == 0)
-            continue;
-        fprintf(stderr, "Timing %d:   %ld\n", i, worker->timings[i]);
-    }
+//    for (int i = 1; i < 32; i++) {
+//        if (worker->timings[i] == 0)
+//            continue;
+//        fprintf(stderr, "Timing %d:   %ld\n", i, worker->timings[i]);
+//    }
 
     /* free socket and term entries */
     for (int i = 0; i < worker->num_streams; i++) {

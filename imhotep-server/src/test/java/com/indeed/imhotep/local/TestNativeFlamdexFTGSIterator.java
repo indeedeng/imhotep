@@ -111,53 +111,6 @@ public class TestNativeFlamdexFTGSIterator {
 
     }
 
-    private static class UncheckedClusterSimulator {
-        public static final int PORT = 8138;
-        private ServerSocket serverSocket;
-        private int nSplits;
-        private int nStats;
-
-        UncheckedClusterSimulator(int nSplits, int nStats) throws IOException {
-            this.nSplits = nSplits;
-            this.nStats = nStats;
-            this.serverSocket = new ServerSocket(PORT);
-        }
-
-        public RawFTGSIterator getIterator() throws IOException {
-            return null;
-        }
-
-        public Thread simulateServer(final RunnableFactory factory) throws IOException {
-            final Thread result = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        Thread[] threads = new Thread[nSplits];
-                        for (int i = 0; i < nSplits; i++) {
-                            Socket sock = null;
-                            Thread t = new Thread(factory.newRunnable(sock, i));
-                            t.start();
-                            threads[i] = t;
-                        }
-
-                        for (Thread t : threads) {
-                            t.join();
-                        }
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
-            });
-            result.start();
-            return result;
-        }
-
-        public void close() throws IOException {
-            this.serverSocket.close();
-        }
-
-    }
-
     public interface RunnableFactory {
         Runnable newRunnable(Socket socket, int i);
     }
@@ -545,7 +498,8 @@ public class TestNativeFlamdexFTGSIterator {
                                    stringFieldNames,
                                    nIntFields,
                                    intFieldNames,
-                                   metricNames);
+                                   metricNames,
+                                   false);
         final String shardname = generateShard(fieldDescs);
         System.out.println(shardname);
         String shardCopy = copyShard(shardname);
@@ -566,6 +520,71 @@ public class TestNativeFlamdexFTGSIterator {
         final MTImhotepLocalMultiSession testSession;
         testSession = createMultisession(Arrays.asList(shardname),
                                            metricNames);
+        RunnableFactory factory = new WriteFTGSRunner(testSession, intFields, stringFields, 8);
+        ClusterSimulator simulator = new ClusterSimulator(8, nMetrics);
+
+        Thread t = simulator.simulateServer(factory);
+        RawFTGSIterator ftgsIterator = simulator.getIterator();
+
+        compareIterators(ftgsIterator, verificationIter, nMetrics);
+
+        t.join();
+
+        simulator.close();
+        verificationIter.close();
+    }
+
+    @Test
+    public void testSingleShardBinary() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
+        final long seed = rand.nextLong();
+//        final long seed = -5222463107059882979L;
+        rand.setSeed(seed);
+        System.out.println("Random seed: " + seed);
+        final int numDocs = rand.nextInt(1 << 16) + 1;  // 64K
+
+        // need at least one
+        final int nMetrics = 3;
+        final int nIntFields = rand.nextInt(3 - 1) + 1;
+        final int nStringFields = rand.nextInt(3 - 1) + 1;
+        String[] stringFieldNames = new String[nStringFields];
+        for (int i = 0; i < nStringFields; i++) {
+            stringFieldNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN - 1) + 1);
+        }
+        String[] intFieldNames = new String[nIntFields];
+        for (int i = 0; i < nIntFields; i++) {
+            intFieldNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN - 1) + 1);
+        }
+        String[] metricNames = new String[nMetrics];
+        for (int i = 0; i < nMetrics; i++) {
+            metricNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN - 1) + 1);
+        }
+
+        final List<FieldDesc> fieldDescs = createShardProfile(numDocs,
+                                                              nMetrics,
+                                                              nStringFields,
+                                                              stringFieldNames,
+                                                              nIntFields,
+                                                              intFieldNames,
+                                                              metricNames,
+                                                              true);
+        final String shardname = generateShard(fieldDescs);
+        System.out.println(shardname);
+        String shardCopy = copyShard(shardname);
+        System.out.println(shardCopy);
+//        final String shardname = "/tmp/native-ftgs-test5538084542377083584test";
+//        final String shardCopy = "/tmp/native-ftgs-test8215907253172222376verify-copy";
+
+        final String[] stringFields = stringFieldNames;
+        final String[] intFields = intFieldNames;
+        System.out.println("string fields: \n" + Arrays.toString(stringFields));
+        System.out.println("int fields: \n" + Arrays.toString(intFields));
+
+        final MTImhotepLocalMultiSession verificationSession;
+        verificationSession = createMultisession(Arrays.asList(shardCopy), metricNames);
+        FTGSIterator verificationIter = verificationSession.getFTGSIterator(intFields, stringFields);
+
+        final MTImhotepLocalMultiSession testSession;
+        testSession = createMultisession(Arrays.asList(shardname), metricNames);
         RunnableFactory factory = new WriteFTGSRunner(testSession, intFields, stringFields, 8);
         ClusterSimulator simulator = new ClusterSimulator(8, nMetrics);
 
@@ -636,7 +655,8 @@ public class TestNativeFlamdexFTGSIterator {
                                    stringFieldNames,
                                    nIntFields,
                                    intFieldNames,
-                                   metricNames);
+                                   metricNames,
+                                   false);
 
         for (int i = 0; i < 10; i++) {
             final String shard = generateShard(fieldDescs);
@@ -674,7 +694,8 @@ public class TestNativeFlamdexFTGSIterator {
                                                String[] stringFieldNames,
                                                int nIntFields,
                                                String[] intFieldNames,
-                                               String[] metricNames) throws IOException {
+                                               String[] metricNames,
+                                               boolean binaryOnly) throws IOException {
         final List<FieldDesc> fieldDescs = new ArrayList<>(nMetrics);
 
         {
@@ -699,7 +720,11 @@ public class TestNativeFlamdexFTGSIterator {
                 fd.isIntfield = true;
                 fd.name = intFieldNames[i];
                 fd.numDocs = numDocs;
-                fd.termGenerator = MetricMaxSizes.getRandomSize();
+                if (binaryOnly) {
+                    fd.termGenerator = MetricMaxSizes.BINARY;
+                } else {
+                    fd.termGenerator = MetricMaxSizes.getRandomSize();
+                }
                 fieldDescs.add(fd);
             }
         }
