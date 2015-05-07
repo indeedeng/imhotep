@@ -24,7 +24,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 
-import fj.data.vector.V;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
 
@@ -35,8 +34,11 @@ import com.google.common.cache.RemovalCause;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 import com.google.common.cache.Weigher;
+import org.apache.log4j.Logger;
 
 public class CachedRemoteFileSystem extends RemoteFileSystem {
+    private static final Logger log = Logger.getLogger(CachedRemoteFileSystem.class);
+
     private RemoteFileSystem parentFS;
     private String mountPoint;
     private RemoteFileSystemMounter mounter;
@@ -193,6 +195,7 @@ public class CachedRemoteFileSystem extends RemoteFileSystem {
             if (cachedDir.isDirectory()) {
                 final Map<String, File> results = new HashMap<String,File>();
                 results.put(fullPath, cachedDir);
+                System.out.println("Return cached Directory");
                 return results;
             } else {
                 throw new IOException(fullPath + " is not a directory.");
@@ -203,7 +206,9 @@ public class CachedRemoteFileSystem extends RemoteFileSystem {
         if (isAlias(fullPath)) {
             throw new UnsupportedOperationException("Cache cannot handle directory and file aliases");
         }
-        
+
+        System.out.println("Loading and caching directory");
+
         localDir = new File(localCacheDir, relativePath);
         /* create all the directories on the path to the file */
         localDir.getParentFile().mkdirs();

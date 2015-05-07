@@ -12,7 +12,6 @@
  * limitations under the License.
  */
 /* This test is expensive and slow, so skip it unless there is a specific problem */
-
 //
 //package com.indeed.imhotep.io.caching;
 //
@@ -129,6 +128,7 @@
 //        os.close();
 //        /* to test directory lookups */
 //        client.putObject(s3bucket, s3prefix + "1/2/31/1231.file", dataFile);
+//        client.putObject(s3bucket, s3prefix + "1/2/31/1232.file", dataFile);
 //        dataFile.delete();
 //
 //        for (int i = 2; i <= 5; i++) {
@@ -417,7 +417,37 @@
 //        assertNotNull(result);
 //        Arrays.sort(result);
 //        assertArrayEquals(dir11, result);
+//    }
 //
+//    @Test
+//    public void testLoadDirectory() throws IOException {
+//        File result;
+//        CachedFile target;
+//        String[] dir1231 = {"1231.file", "1232.file"};
+//        String[] dir12345 = {"12345.file"};
+//
+//        Arrays.sort(dir1231);
+//        Arrays.sort(dir12345);
+//
+//        target = CachedFile.create("/foo/data/1/2/31");
+//        result = target.loadDirectory();
+//        assertNotNull(result);
+//        assertArrayEquals(dir1231, result.list());
+//
+//        target = CachedFile.create("/foo/data/1/2/3/4/5");
+//        result = target.loadDirectory();
+//        assertNotNull(result);
+//        assertArrayEquals(dir12345, result.list());
+//
+//        target = CachedFile.create("/foo/data/1/2/31");
+//        result = target.loadDirectory();
+//        assertNotNull(result);
+//        assertArrayEquals(dir1231, result.list());
+//
+//        target = CachedFile.create("/foo/data/1/2/3/4/5");
+//        result = target.loadDirectory();
+//        assertNotNull(result);
+//        assertArrayEquals(dir12345, result.list());
 //    }
 //
 //    @Test
