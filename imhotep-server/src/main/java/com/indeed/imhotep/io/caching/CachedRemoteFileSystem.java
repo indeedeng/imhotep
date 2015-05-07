@@ -107,6 +107,7 @@ public class CachedRemoteFileSystem extends RemoteFileSystem {
                             });
 
 //        scanExistingFiles();
+        removeExistingFiles();
     }
     
     private void scanExistingFiles() throws IOException {
@@ -124,7 +125,12 @@ public class CachedRemoteFileSystem extends RemoteFileSystem {
             cache.put(cachePath, cachedFile);
         }
     }
-    
+
+    private void removeExistingFiles() throws IOException {
+        FileUtils.deleteDirectory(localCacheDir);
+        localCacheDir.mkdir();
+    }
+
     private void removeFile(File cachedFile) {
         cachedFile.delete();
     }
@@ -195,7 +201,7 @@ public class CachedRemoteFileSystem extends RemoteFileSystem {
             if (cachedDir.isDirectory()) {
                 final Map<String, File> results = new HashMap<String,File>();
                 results.put(fullPath, cachedDir);
-                System.out.println("Return cached Directory");
+                log.info("Return cached Directory");
                 return results;
             } else {
                 throw new IOException(fullPath + " is not a directory.");
@@ -207,7 +213,7 @@ public class CachedRemoteFileSystem extends RemoteFileSystem {
             throw new UnsupportedOperationException("Cache cannot handle directory and file aliases");
         }
 
-        System.out.println("Loading and caching directory");
+        log.info("Loading and caching directory");
 
         localDir = new File(localCacheDir, relativePath);
         /* create all the directories on the path to the file */
