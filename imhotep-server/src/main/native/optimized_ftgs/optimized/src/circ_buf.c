@@ -2,11 +2,12 @@
 #include <stdint.h>
 #include <string.h>
 #include <emmintrin.h>
+#include <malloc.h>
 
 #ifdef _SANITIZE_
 #define ALIGNED_ALLOC(alignment, size) malloc(size);
 #else
-#define ALIGNED_ALLOC(alignment, size) (((alignment) < (size)) ? aligned_alloc(alignment,size) : aligned_alloc(alignment,alignment));
+#define ALIGNED_ALLOC(alignment, size) (((alignment) < (size)) ? memalign(alignment,size) : memalign(alignment,alignment));
 #endif
 
 

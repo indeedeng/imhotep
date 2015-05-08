@@ -7,6 +7,7 @@
 #include <tmmintrin.h>
 #include <pmmintrin.h>
 #include "bit_tree.h"
+#include <malloc.h>
 
 #define GROUP_MASK                             0xFFFFFFF
 #define MAX_BIT_FIELDS                          4
@@ -18,7 +19,7 @@
 #ifdef _SANITIZE_
 #define ALIGNED_ALLOC(alignment, size) malloc(size);
 #else
-#define ALIGNED_ALLOC(alignment, size) (((alignment) < (size)) ? aligned_alloc(alignment,size) : aligned_alloc(alignment,alignment));
+#define ALIGNED_ALLOC(alignment, size) (((alignment) < (size)) ? memalign(alignment,size) : memalign(alignment,alignment));
 #endif
 
 struct packed_table_desc {

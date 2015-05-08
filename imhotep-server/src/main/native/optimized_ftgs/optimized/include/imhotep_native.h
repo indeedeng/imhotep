@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include "bit_tree.h"
-
+#include <malloc.h>
 
 #define TERM_TYPE_STRING 0
 #define TERM_TYPE_INT    1
@@ -20,7 +20,7 @@
 #ifdef _SANITIZE_
 #define ALIGNED_ALLOC(alignment, size) malloc(size);
 #else
-#define ALIGNED_ALLOC(alignment, size) (((alignment) < (size)) ? aligned_alloc(alignment,size) : aligned_alloc(alignment,alignment));
+#define ALIGNED_ALLOC(alignment, size) (((alignment) < (size)) ? memalign(alignment,size) : memalign(alignment,alignment));
 #endif
 
 struct circular_buffer_vector;
