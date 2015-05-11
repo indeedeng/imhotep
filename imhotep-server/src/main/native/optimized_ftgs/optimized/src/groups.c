@@ -13,7 +13,7 @@
 #include "groups.template"
 #undef TYPE
 
-#define TYPE uint16_t
+#define TYPE int16_t
 #include "groups.template"
 #undef TYPE
 

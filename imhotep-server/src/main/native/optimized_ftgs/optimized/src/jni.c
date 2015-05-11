@@ -370,7 +370,7 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiRegroupInternals_nativ
     jint*    remappings_array = (*java_env)->GetPrimitiveArrayCritical(java_env, remappings, &unused);
 
     int status = remap_docs_in_target_groups_int16_t((packed_table_t*) native_shard_data_ptr,
-                                                     results_array,
+                                                     (int16_t*) results_array,
                                                      (uint8_t*) doc_list_address, n_docs,
                                                      remappings_array,
                                                      placeholder_group);
