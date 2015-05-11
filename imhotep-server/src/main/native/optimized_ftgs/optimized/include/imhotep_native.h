@@ -263,8 +263,15 @@ int remap_docs_in_target_groups_int8_t(packed_table_t* packed_table,
                                        int*            remappings,
                                        long            placeholder_group);
 
+int remap_docs_in_target_groups_uint16_t(packed_table_t* packed_table,
+                                        uint16_t*       results,
+                                        uint8_t*        doc_id_stream,
+                                        size_t          n_doc_ids,
+                                        int*            remappings,
+                                        long            placeholder_group);
+
 int remap_docs_in_target_groups_int16_t(packed_table_t* packed_table,
-                                        int16_t*        results,
+                                        int16_t*       results,
                                         uint8_t*        doc_id_stream,
                                         size_t          n_doc_ids,
                                         int*            remappings,

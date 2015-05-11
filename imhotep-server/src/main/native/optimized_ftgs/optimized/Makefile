@@ -1,15 +1,15 @@
-IDIR =include
+IDIR=include
 CC=/usr/bin/gcc-4.9
 JNI_HEADER_LOC=$(JAVA_HOME)/include
 JNI_HEADER_LOC2=$(JNI_HEADER_LOC)/linux
 #CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions -fsanitize=address -fno-omit-frame-pointer -D_SANITIZE_
 #LFLAGS= -g -shared -fsanitize=address
 CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions
-LFLAGS= -g -O3 -flto -funroll-loops -shared 
+LFLAGS= -g -O3 -flto -shared 
 #LFLAGS= -g -shared
 
-#OPT_CFLAGS= -flto -O3 -funroll-loops -fvisibility=hidden $(CFLAGS)
-OPT_CFLAGS= -g -flto -O3 -funroll-loops $(CFLAGS)
+OPT_CFLAGS= -flto -O3 -fvisibility=hidden $(CFLAGS)
+#OPT_CFLAGS= -g -flto -O3 -funroll-loops $(CFLAGS)
 DBG_CFLAGS= -g $(CFLAGS)
 
 ODIR=obj
@@ -22,7 +22,7 @@ H_FILES := $(wildcard include/*.h)
 OBJ_FILES := $(addprefix obj/,$(notdir $(C_FILES:.c=.o)))
 
 $(ODIR)/%.o: src/%.c $(H_FILES)
-	$(CC) -c -o $@ $< $(OPT_CFLAGS)
+	$(CC) -include $(IDIR)/gcc_preinclude.h -c -o $@ $< $(OPT_CFLAGS)
 
 .PHONY: clean
 

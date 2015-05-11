@@ -17,6 +17,10 @@
 #include "groups.template"
 #undef TYPE
 
+#define TYPE uint16_t
+#include "groups.template"
+#undef TYPE
+
 #define TYPE int32_t
 #include "groups.template"
 #undef TYPE
