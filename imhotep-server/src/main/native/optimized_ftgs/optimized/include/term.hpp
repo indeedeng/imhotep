@@ -27,9 +27,10 @@ namespace imhotep {
         int64_t     doc_offset() const { return _doc_offset; }
         int64_t     doc_freq()   const { return _doc_freq;   }
 
-        bool operator<(const TermType& rhs) const { return id() < rhs.id(); }
+        bool operator==(const Term& rhs) const { return _id == rhs._id; }
+        bool operator<(const Term& rhs) const { return id() < rhs.id(); }
 
-        bool is_null() const { return *this == Term(); }
+        bool empty() const { return _id == 0; } // !@# is zero really a distinguished value?
     };
 
     typedef Term<int64_t> IntTerm;

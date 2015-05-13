@@ -3,8 +3,8 @@
 
 #include <atomic>
 #include <functional>
-#include <limits>
 #include <memory>
+#include <mutex>
 #include <vector>
 
 #include <boost/lockfree/queue.hpp>
@@ -14,15 +14,32 @@
 namespace imhotep {
 
     template <typename TERM_TYPE>
-    class TermQueue : public boost::lockfree::queue<TERM_TYPE> {
+    class TermQueue {
     public:
-        typedef std::shared_ptr<TermQueue> Ptr; // !@# ultimately replace with intrusive_ptr...
+        typedef std::shared_ptr<TermQueue<TERM_TYPE>> Ptr;
 
-        static constexpr TERM_TYPE NIL = TERM_TYPE(0, 0, 0);
-        static constexpr TERM_TYPE EOQ =
-            TERM_TYPE(std::numeric_limits<typename TERM_TYPE::id_type>::max(),
-                      std::numeric_limits<uint64_t>::max(),
-                      std::numeric_limits<uint64_t>::max());
+        const TERM_TYPE& front() const { return _front; }
+
+        bool empty() { return _front.empty() && _input_queue.empty(); }
+
+        bool push(const TERM_TYPE value) {
+            return _input_queue.push(value);
+        }
+
+        void refresh() {
+            if (_front.empty()) _input_queue.pop(_front);
+        }
+
+        typedef std::function<void(const TERM_TYPE& term)> Consume;
+        void pop(Consume& consume) {
+            consume(_front);
+            _front = TERM_TYPE();
+        }
+    private:
+        typedef boost::lockfree::queue<TERM_TYPE, boost::lockfree::capacity<4096 * 2>> InputQueue;
+
+        InputQueue _input_queue;
+        TERM_TYPE  _front = TERM_TYPE();
     };
 
     /** Notes: only one thread is allowed to insert into a given input
@@ -31,32 +48,83 @@ namespace imhotep {
     template <typename TERM_TYPE>
     class Merger{
     public:
-        typedef TermQueue<TERM_TYPE>  Queue;
-        typedef std::pair<typename Queue::Ptr, TERM_TYPE> QueueTermPair;
-        typedef std::function<void(QueueTermPair&)> InsertAndProcess;
+        typedef std::function<void(const TERM_TYPE& term)> InsertAndProcess;
+        typedef std::function<void(const TERM_TYPE& term)> Consume;
+
+        Merger()              = default;
+        Merger(const Merger&) = delete;
 
         /** I am not threadsafe. */
-        InsertAndProcess attach(typename Queue::Ptr queue) {
-            _inputs.push_back(std::make_pair(queue, Queue::NIL));
-            ++_empty_inputs;
-            return [&](QueueTermPair&) { process(); };
+        InsertAndProcess attach(Consume& consume) {
+            term_queue_ptr term_queue(std::make_shared<TermQueue<TERM_TYPE>>());
+            _queues.push_back(term_queue);
+            // !@# Should consume be captured by ref?
+            return [this, term_queue, &consume](const TERM_TYPE& term) {
+                process(term_queue, term, consume);
+            };
         }
 
-        void join() {
-            // tbd...
+        /** Should only be called after all producer threads have been join()-ed */
+        void join(Consume& consume) {
+            while (!_queues.empty()) {
+                TERM_TYPE                   lowest;
+                typename queues_t::iterator it(_queues.begin());
+
+                while (it != _queues.end()) {
+                    (*it)->refresh();
+                    if ((*it)->empty()) {
+                        it = _queues.erase(it);
+                    }
+                    else {
+                        if (lowest.empty() || (*it)->front() < lowest) {
+                            lowest = (*it)->front();
+                        }
+                        ++it;
+                    }
+                }
+
+                if (!lowest.empty()) {
+                    for (it = _queues.begin(); it != _queues.end(); ++it) {
+                        if ((*it)->front() == lowest) {
+                            (*it)->pop(consume);
+                        }
+                    }
+                }
+            }
         }
 
     private:
-        std::vector<QueueTermPair> _inputs;
-        std::atomic_int            _empty_inputs = 0;
+        typedef typename TermQueue<TERM_TYPE>::Ptr term_queue_ptr;
+        typedef std::vector<term_queue_ptr>        queues_t;
 
-        void process(QueueTermPair& pair) {
-            /* insert pair.second into pair.first (the queue), unless
-               the queue's current value is empty, in which case we
-               just set it directly, decrementing _empty_inputs. When
-               _empty_inputs is zero, it's time to produce a new value
-               (or values) and try to pop all our queues
-            */
+        std::mutex _mutex;
+        queues_t   _queues;
+
+        void process(term_queue_ptr term_queue,
+                     TERM_TYPE value,
+                     Consume& consume) {
+            bool pushed;
+            do {
+                pushed = term_queue->push(value);
+                if (_mutex.try_lock()) {
+                    TERM_TYPE lowest;
+                    typename queues_t::iterator it(_queues.begin());
+                    do {
+                        (*it)->refresh();
+                        if (lowest.empty() || (*it)->front() < lowest) {
+                            lowest = (*it)->front();
+                        }
+                    } while (!lowest.empty() && ++it != _queues.end());
+                    if (!lowest.empty()) {
+                        for (it = _queues.begin(); it != _queues.end(); ++it) {
+                            if ((*it)->front() == lowest) {
+                                (*it)->pop(consume);
+                            }
+                        }
+                    }
+                    _mutex.unlock();
+                }
+            } while (!pushed);
         }
     };
 
