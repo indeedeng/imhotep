@@ -1,7 +1,7 @@
 CC=/usr/bin/gcc-4.9
 CPP=/usr/bin/g++-4.9
 CFLAGS=-Wall -Werror -I./include -I../include  -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions
-CPPFLAGS=-g  -Wall -Werror -I./include -I../include -I/usr/include/boost -msse4.2 -std=c++0x -fPIC  -flto -funroll-loops
+CPPFLAGS=-g  -O3 -Wall -Werror -I./include -I../include -I/usr/include/boost -msse4.2 -std=c++0x -fPIC  -flto -funroll-loops
 LFLAGS=-g -O3 -flto
 
 OPT_CFLAGS= -g -O3 -flto -funroll-loops $(CFLAGS)
@@ -10,14 +10,16 @@ DBG_CFLAGS= -g $(CPPFLAGS)
 LIBS=-lm -lstdc++
 
 TESTS := \
-	test_bit_tree     \
-	test_circ_buf     \
-	test_groups       \
-	test_merge        \
-	test_packed_shard \
-	test_tgs          \
-	test_varintdecode \
-	packed_perf
+	packed_perf             \
+	test_bit_tree           \
+	test_circ_buf           \
+	test_groups             \
+	test_int_term_iterator \
+	test_merge              \
+	test_packed_shard       \
+	test_string_pool        \
+	test_tgs                \
+	test_varintdecode
 
 all: $(TESTS)
 
@@ -40,7 +42,12 @@ test_circ_buf: obj/test_circ_buf.o ../obj/circ_buf.o
 
 test_merge: obj/test_merge.o
 	$(CPP) -pthread $(CPPFLAGS) $ -o test_merge $(LIBS) $^
-#	$(CPP) $(OPT_CPPFLAGS) $ -o test_merge $(LIBS) $^
+
+test_string_pool: obj/test_string_pool.o
+	$(CPP) $(CPPFLAGS) $ -o test_string_pool $(LIBS) $^
+
+test_int_term_iterator: obj/test_int_term_iterator.o
+	$(CPP) $(CPPFLAGS) $ -o test_int_term_iterator $(LIBS) $^
 
 GROUPS_OBJS = \
     obj/test_patch.o          \

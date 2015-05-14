@@ -37,14 +37,6 @@ extern "C" {
 using namespace boost::accumulators;
 using namespace std;
 
-size_t file_size(int fd)
-{
-    struct stat buf;
-    int rc(fstat(fd, &buf));
-    if (rc != 0) throw std::runtime_error(strerror(errno));
-    return buf.st_size;
-}
-
 class MMappedVarIntView : public VarIntView
 {
     int         _fd     = 0;
@@ -76,6 +68,14 @@ public:
     }
 
     void * mapped() { return _mapped; }
+
+private:
+    size_t file_size(int fd) {
+        struct stat buf;
+        int rc(fstat(fd, &buf));
+        if (rc != 0) throw std::runtime_error(strerror(errno));
+        return buf.st_size;
+    }
 };
 
 class IntFieldView {

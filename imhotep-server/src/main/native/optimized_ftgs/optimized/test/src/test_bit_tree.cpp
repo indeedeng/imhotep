@@ -33,8 +33,8 @@ int main(int argc, char* argv[])
 
             const int size(random(1<<i) + 1);
             bs->reset();
-            struct bit_tree tree;
-            bit_tree_init(&tree, size);
+            struct bit_tree* tree_ptr(bit_tree_create(size));
+            struct bit_tree& tree(*tree_ptr);
 
             size_t n_entries(size/(1<<density));
             for (size_t j(0); j < n_entries; ++j) {
@@ -51,7 +51,7 @@ int main(int argc, char* argv[])
             }
 
             free(entries);
-            bit_tree_destroy(&tree);
+            bit_tree_destroy(tree_ptr);
         }
     }
 
