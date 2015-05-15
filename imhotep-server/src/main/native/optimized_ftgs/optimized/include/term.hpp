@@ -7,24 +7,22 @@
 
 namespace imhotep {
 
-    template <typename term_t>
+    template <typename id_type>
     class Term {
-        term_t  _id         = 0;
+        id_type _id         = 0;
         int64_t _doc_offset = 0;
         int64_t _doc_freq   = 0;
 
     public:
-        typedef term_t id_type;
-
         Term() = default;
 
-        Term(const term_t& id, int64_t doc_offset, int64_t doc_freq)
+        Term(const id_type& id, int64_t doc_offset, int64_t doc_freq)
             : _id(id)
             , _doc_offset(doc_offset)
             , _doc_freq(doc_freq)
         { }
 
-        const term_t& id() const { return _id; }
+        const id_type& id() const { return _id; }
 
         int64_t doc_offset() const { return _doc_offset; }
         int64_t   doc_freq() const { return _doc_freq;   }
@@ -38,9 +36,9 @@ namespace imhotep {
 
 } // namespace imhotep
 
-template<typename term_t>
+template<typename id_type>
 std::ostream&
-operator<<(std::ostream& os, const imhotep::Term<term_t>& term)
+operator<<(std::ostream& os, const imhotep::Term<id_type>& term)
 {
     os << "id: "          << term.id()
        << " doc_offset: " << term.doc_offset()

@@ -17,6 +17,7 @@ TESTS := \
 	test_int_term_iterator \
 	test_packed_shard      \
 	test_split             \
+	test_split_iterator    \
 	test_tgs               \
 	test_varintdecode
 
@@ -41,6 +42,9 @@ test_circ_buf: obj/test_circ_buf.o ../obj/circ_buf.o
 
 test_split: obj/test_split.o
 	$(CPP) -pthread $(CPPFLAGS) $ -o test_split $(LIBS) $^
+
+test_split_iterator: obj/test_split_iterator.o
+	$(CPP) $(CPPFLAGS) $ -o test_split_iterator $(LIBS) $^
 
 test_int_term_iterator: obj/test_int_term_iterator.o
 	$(CPP) $(CPPFLAGS) $ -o test_int_term_iterator $(LIBS) $^

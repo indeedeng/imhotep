@@ -14,6 +14,9 @@
 
 namespace imhotep {
 
+    /** !@# todo(johnf): Splitter either needs to produce doc
+         addresses instead of offsets or somehow preserve doc base
+         address (or file). */
     template <typename term_t>
     class Splitter {
         const std::string        _shard;
@@ -67,7 +70,16 @@ namespace imhotep {
         while (it != end) {
             const size_t   split(min_hash_int(it->id()));
             std::ofstream& of(*split_files[split]);
-            of << it->id() << it->doc_offset() << it->doc_freq();
+            const term_t term(*it);
+            of.write(reinterpret_cast<const char *>(&term), sizeof(term_t));
+            /*
+            const int64_t  id(it->id());
+            const int64_t  doc_offset(it->doc_offset());
+            const int64_t  doc_freq(it->doc_freq());
+            of.write(reinterpret_cast<const char*>(&id), sizeof(int64_t));
+            of.write(reinterpret_cast<const char*>(&doc_offset), sizeof(int64_t));
+            of.write(reinterpret_cast<const char*>(&doc_freq), sizeof(int64_t));
+            */
             ++it;
         }
         for (auto os_ptr: split_files) delete os_ptr;
