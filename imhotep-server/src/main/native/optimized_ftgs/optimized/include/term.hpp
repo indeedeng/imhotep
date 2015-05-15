@@ -3,46 +3,44 @@
 
 #include <stdint.h>
 #include <iostream>
+#include <string>
 
 namespace imhotep {
 
-    template <typename TYPE>
+    template <typename term_t>
     class Term {
-        TYPE    _id         = 0;
+        term_t  _id         = 0;
         int64_t _doc_offset = 0;
         int64_t _doc_freq   = 0;
 
     public:
-        typedef TYPE id_type;
+        typedef term_t id_type;
 
         Term() = default;
 
-        Term(const TYPE& id, int64_t doc_offset, int64_t doc_freq)
+        Term(const term_t& id, int64_t doc_offset, int64_t doc_freq)
             : _id(id)
             , _doc_offset(doc_offset)
             , _doc_freq(doc_freq)
         { }
 
-        const TYPE& id()         const { return _id;         }
-        int64_t     doc_offset() const { return _doc_offset; }
-        int64_t     doc_freq()   const { return _doc_freq;   }
+        const term_t& id() const { return _id; }
+
+        int64_t doc_offset() const { return _doc_offset; }
+        int64_t   doc_freq() const { return _doc_freq;   }
 
         bool operator==(const Term& rhs) const { return _id == rhs._id; }
         bool operator<(const Term& rhs) const { return id() < rhs.id(); }
-
-        bool empty() const { return _id == 0; } // !@# is zero really a distinguished value?
     };
 
-    typedef Term<int64_t> IntTerm;
-
-    typedef uint64_t StringTermId;
-    typedef Term<StringTermId> StringTerm;
+    typedef Term<int64_t>     IntTerm;
+    typedef Term<std::string> StringTerm;
 
 } // namespace imhotep
 
-template<typename TYPE>
+template<typename term_t>
 std::ostream&
-operator<<(std::ostream& os, const imhotep::Term<TYPE>& term)
+operator<<(std::ostream& os, const imhotep::Term<term_t>& term)
 {
     os << "id: "          << term.id()
        << " doc_offset: " << term.doc_offset()

@@ -10,15 +10,14 @@ DBG_CFLAGS= -g $(CPPFLAGS)
 LIBS=-lm -lstdc++
 
 TESTS := \
-	packed_perf             \
-	test_bit_tree           \
-	test_circ_buf           \
-	test_groups             \
+	packed_perf            \
+	test_bit_tree          \
+	test_circ_buf          \
+	test_groups            \
 	test_int_term_iterator \
-	test_merge              \
-	test_packed_shard       \
-	test_string_pool        \
-	test_tgs                \
+	test_packed_shard      \
+	test_split             \
+	test_tgs               \
 	test_varintdecode
 
 all: $(TESTS)
@@ -40,11 +39,8 @@ test_bit_tree: obj/test_bit_tree.o ../obj/bit_tree.o
 test_circ_buf: obj/test_circ_buf.o ../obj/circ_buf.o
 	$(CPP) $ -o test_circ_buf $(LIBS) $^
 
-test_merge: obj/test_merge.o
-	$(CPP) -pthread $(CPPFLAGS) $ -o test_merge $(LIBS) $^
-
-test_string_pool: obj/test_string_pool.o
-	$(CPP) $(CPPFLAGS) $ -o test_string_pool $(LIBS) $^
+test_split: obj/test_split.o
+	$(CPP) -pthread $(CPPFLAGS) $ -o test_split $(LIBS) $^
 
 test_int_term_iterator: obj/test_int_term_iterator.o
 	$(CPP) $(CPPFLAGS) $ -o test_int_term_iterator $(LIBS) $^
