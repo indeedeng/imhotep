@@ -10,8 +10,7 @@
 #include <string>
 #include <vector>
 
-#include "int_term_iterator.hpp"
-#include "string_term_iterator.hpp"
+#include "term_iterator.hpp"
 
 namespace imhotep {
 

@@ -2,7 +2,7 @@
 #include <iostream>
 #include <limits>
 
-#include "string_term_iterator.hpp"
+#include "term_iterator.hpp"
 
 using namespace std;
 using namespace imhotep;
