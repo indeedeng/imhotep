@@ -19,9 +19,6 @@ namespace imhotep {
          address (or file). */
     template <typename term_t>
     class Splitter {
-        const std::string        _shard;
-        const std::string        _field;
-        std::vector<std::string> _splits;
     public:
         Splitter(const std::string& shard,
                  const std::string& field,
@@ -35,6 +32,10 @@ namespace imhotep {
         FILE* open_split(const std::string& split);
 
         void encode(std::ostream& os, const term_t& term);
+
+        const std::string        _shard;
+        const std::string        _field;
+        std::vector<std::string> _splits;
     };
 
 

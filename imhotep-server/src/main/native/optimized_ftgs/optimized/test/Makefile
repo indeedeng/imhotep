@@ -19,6 +19,7 @@ TESTS := \
 	test_split                \
 	test_merge_iterator       \
 	test_string_term_iterator \
+	test_term_provider        \
 	test_tgs                  \
 	test_varintdecode
 
@@ -52,6 +53,9 @@ test_int_term_iterator: obj/test_int_term_iterator.o
 
 test_string_term_iterator: obj/test_string_term_iterator.o
 	$(CPP) $(CPPFLAGS) $ -o test_string_term_iterator $(LIBS) $^
+
+test_term_provider: obj/test_term_provider.o
+	$(CPP) -pthread $(CPPFLAGS) $ -o test_term_provider $(LIBS) $^
 
 GROUPS_OBJS = \
     obj/test_patch.o          \
