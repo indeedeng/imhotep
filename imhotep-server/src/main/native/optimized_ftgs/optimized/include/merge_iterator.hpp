@@ -11,15 +11,16 @@
 
 namespace imhotep {
 
-    class merge_int_term_iterator
-        : public boost::iterator_facade<merge_int_term_iterator, IntTerm const,
+    template <typename term_t>
+    class merge_term_iterator
+        : public boost::iterator_facade<merge_term_iterator<term_t>,
+                                        term_t const,
                                         boost::forward_traversal_tag> {
-
     public:
-        merge_int_term_iterator() { }
+        merge_term_iterator() { }
 
         template <typename iterator>
-        merge_int_term_iterator(iterator begin, iterator end)
+        merge_term_iterator(iterator begin, iterator end)
             : _its(begin, end)
             , _queue(CompareIt(), _its) {
             increment();
@@ -29,27 +30,27 @@ namespace imhotep {
         friend class boost::iterator_core_access;
 
         struct CompareIt {
-            bool operator()(const split_int_term_iterator& thing1,
-                            const split_int_term_iterator& thing2) {
+            bool operator()(const split_iterator<term_t>& thing1,
+                            const split_iterator<term_t>& thing2) {
                 return *thing1 < *thing2;
             }
         };
 
         typedef std::priority_queue<
-            split_int_term_iterator,
-            std::vector<split_int_term_iterator>,
+            split_iterator<term_t>,
+            std::vector<split_iterator<term_t>>,
             CompareIt
             > PriorityQueue;
 
         void increment() {
-            static split_int_term_iterator end;
+            static split_iterator<term_t> end;
 
             if (_queue.empty()) {
                 _its.clear();
                 return;
             }
 
-            split_int_term_iterator it(_queue.top());
+            split_iterator<term_t> it(_queue.top());
             _current = *it;
             _queue.pop();
             ++it;
@@ -58,19 +59,22 @@ namespace imhotep {
             }
         }
 
-        bool equal(const merge_int_term_iterator& other) const {
+        bool equal(const merge_term_iterator& other) const {
             return _its == other._its;
         }
 
-        const IntTerm& dereference() const {
+        const term_t& dereference() const {
             return _current;
         }
 
-        std::vector<split_int_term_iterator> _its;
+        std::vector<split_iterator<term_t>> _its;
+
         PriorityQueue _queue;
-        IntTerm       _current;
+        term_t        _current;
     };
 
+    typedef merge_term_iterator<IntTerm>    merge_int_term_iterator;
+    typedef merge_term_iterator<StringTerm> merge_string_term_iterator;
 }
 
 #endif
