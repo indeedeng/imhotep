@@ -9,7 +9,8 @@ namespace imhotep {
 
     template <typename id_type>
     struct id_type_traits {
-        static id_type default_value() { return 0; }
+        static id_type     default_value();
+        static std::string     extension();
     };
 
     template <typename id_type>
@@ -34,19 +35,27 @@ namespace imhotep {
         int64_t doc_offset() const { return _doc_offset; }
         int64_t   doc_freq() const { return _doc_freq;   }
 
-        bool operator==(const Term& rhs) const { return _id == rhs._id; }
-        bool operator<(const Term& rhs) const { return id() < rhs.id(); }
+        bool operator==(const Term& rhs) const { return id() == rhs.id(); }
+        bool operator<(const Term& rhs)  const { return id() <  rhs.id(); }
     };
 
     typedef Term<int64_t>     IntTerm;
     typedef Term<std::string> StringTerm;
 
     template <>
+    struct id_type_traits<int64_t> {
+        static int64_t     default_value() { return 0;          }
+        static std::string     extension() { return "intterms"; }
+    };
+
+    template <>
     struct id_type_traits<std::string> {
         static std::string default_value() { return std::string(); }
+        static std::string     extension() { return "strterms";    }
     };
 
 } // namespace imhotep
+
 
 template<typename id_type>
 std::ostream&

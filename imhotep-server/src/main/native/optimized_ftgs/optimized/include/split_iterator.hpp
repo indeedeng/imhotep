@@ -87,9 +87,6 @@ namespace imhotep {
         return StringTerm(std::string(_id_buffer.begin(), _id_buffer.end()),
                           doc_offset, doc_freq);
     }
-
-    typedef split_iterator<IntTerm>    split_int_term_iterator;
-    typedef split_iterator<StringTerm> split_string_term_iterator;
 }
 
 #endif

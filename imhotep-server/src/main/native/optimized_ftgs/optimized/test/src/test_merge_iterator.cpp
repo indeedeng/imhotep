@@ -7,15 +7,15 @@
 using namespace std;
 using namespace imhotep;
 
-template <typename split_it, typename merge_it>
+template <typename term_t>
 void merge(const vector<string>& splits) {
-    vector<split_it> its;
+    vector<split_iterator<term_t>> its;
     for (string split: splits) {
-        its.push_back(split_it(split));
+        its.push_back(split_iterator<term_t>(split));
     }
 
-    merge_it it(its.begin(), its.end());
-    merge_it end;
+    merge_iterator<term_t> it(its.begin(), its.end());
+    merge_iterator<term_t> end;
     while (it != end) {
         cout << *it << endl;
         ++it;
@@ -33,10 +33,10 @@ int main(int argc, char *argv[])
     }
 
     if (kind == "int") {
-        merge<split_int_term_iterator, merge_int_term_iterator>(splits);
+        merge<IntTerm>(splits);
     }
     else if (kind == "string") {
-        merge<split_string_term_iterator, merge_string_term_iterator>(splits);
+        merge<StringTerm>(splits);
     }
     else {
         cerr << "Say what?" << endl;

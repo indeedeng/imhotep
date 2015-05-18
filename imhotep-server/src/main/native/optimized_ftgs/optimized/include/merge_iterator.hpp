@@ -12,15 +12,15 @@
 namespace imhotep {
 
     template <typename term_t>
-    class merge_term_iterator
-        : public boost::iterator_facade<merge_term_iterator<term_t>,
+    class merge_iterator
+        : public boost::iterator_facade<merge_iterator<term_t>,
                                         term_t const,
                                         boost::forward_traversal_tag> {
     public:
-        merge_term_iterator() { }
+        merge_iterator() { }
 
         template <typename iterator>
-        merge_term_iterator(iterator begin, iterator end)
+        merge_iterator(iterator begin, iterator end)
             : _its(begin, end)
             , _queue(CompareIt(), _its) {
             increment();
@@ -59,7 +59,7 @@ namespace imhotep {
             }
         }
 
-        bool equal(const merge_term_iterator& other) const {
+        bool equal(const merge_iterator& other) const {
             return _its == other._its;
         }
 
@@ -72,9 +72,6 @@ namespace imhotep {
         PriorityQueue _queue;
         term_t        _current;
     };
-
-    typedef merge_term_iterator<IntTerm>    merge_int_term_iterator;
-    typedef merge_term_iterator<StringTerm> merge_string_term_iterator;
 }
 
 #endif

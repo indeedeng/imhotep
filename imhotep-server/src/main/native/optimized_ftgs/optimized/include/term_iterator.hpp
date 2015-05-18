@@ -25,10 +25,19 @@ namespace imhotep {
     public:
         term_iterator() { }
 
-        term_iterator(const std::string& shard_dir, const std::string& name);
+        term_iterator(const std::string& shard_dir, const std::string& name)
+            : _view(std::make_shared<MMappedVarIntView>(term_filename(shard_dir, name))) {
+            increment();
+        }
 
     private:
         friend class boost::iterator_core_access;
+
+        std::string term_filename(const std::string& shard_dir,
+                                  const std::string& name) const {
+            return shard_dir + "/fld-" + name + "." +
+                id_type_traits<typename term_t::id_type>::extension();
+        }
 
         void increment();
 
