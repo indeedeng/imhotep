@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "int_term_iterator.hpp"
+#include "string_term_iterator.hpp"
 
 namespace imhotep {
 
@@ -35,9 +36,12 @@ namespace imhotep {
         static constexpr uint64_t LARGE_PRIME_FOR_CLUSTER_SPLIT = 969168349;
 
         FILE* open_split(const std::string& split);
-        size_t min_hash_int(int64_t term);
     };
 
+
+    template <typename term_t> struct SplitterTraits { typedef void iterator_t; };
+    template <> struct SplitterTraits<IntTerm>    { typedef int_term_iterator    iterator_t; };
+    template <> struct SplitterTraits<StringTerm> { typedef string_term_iterator iterator_t; };
 
     template <typename term_t>
     Splitter<term_t>::Splitter(const std::string& shard,
@@ -57,7 +61,6 @@ namespace imhotep {
         }
     }
 
-
     template <typename term_t>
     void Splitter<term_t>::run()
     {
@@ -65,26 +68,18 @@ namespace imhotep {
         for (std::string split: splits()) {
             split_files.push_back(new std::ofstream(split.c_str()));
         }
-        int_term_iterator it(_shard, _field);
-        int_term_iterator end;
+        std::hash<typename term_t::id_t>            hash_fun;
+        typename SplitterTraits<term_t>::iterator_t it(_shard, _field);
+        typename SplitterTraits<term_t>::iterator_t end;
         while (it != end) {
-            const size_t   split(min_hash_int(it->id()));
+            const size_t   split(hash_fun(it->id()) % _splits.size());
             std::ofstream& of(*split_files[split]);
-            const term_t term(*it);
-            of.write(reinterpret_cast<const char *>(&term), sizeof(term_t));
-            /*
-            const int64_t  id(it->id());
-            const int64_t  doc_offset(it->doc_offset());
-            const int64_t  doc_freq(it->doc_freq());
-            of.write(reinterpret_cast<const char*>(&id), sizeof(int64_t));
-            of.write(reinterpret_cast<const char*>(&doc_offset), sizeof(int64_t));
-            of.write(reinterpret_cast<const char*>(&doc_freq), sizeof(int64_t));
-            */
+            const term_t   term(*it);
+            of.write(reinterpret_cast<const char *>(&term), sizeof(IntTerm));
             ++it;
         }
         for (auto os_ptr: split_files) delete os_ptr;
     }
-
 
     template <typename term_t>
     FILE* Splitter<term_t>::open_split(const std::string& split) {
@@ -95,17 +90,6 @@ namespace imhotep {
         }
         return result;
     }
-
-
-    template <typename term_t>
-    size_t Splitter<term_t>::min_hash_int(int64_t term) {
-        int32_t v(term * LARGE_PRIME_FOR_CLUSTER_SPLIT);
-        v += 12345;
-        v &= std::numeric_limits<int32_t>::max();
-        v = v >> 16;
-        return v % _splits.size();
-    }
-
 }
 
 #endif

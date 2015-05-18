@@ -10,15 +10,16 @@ DBG_CFLAGS= -g $(CPPFLAGS)
 LIBS=-lm -lstdc++
 
 TESTS := \
-	packed_perf            \
-	test_bit_tree          \
-	test_circ_buf          \
-	test_groups            \
-	test_int_term_iterator \
-	test_packed_shard      \
-	test_split             \
-	test_split_iterator    \
-	test_tgs               \
+	packed_perf               \
+	test_bit_tree             \
+	test_circ_buf             \
+	test_groups               \
+	test_int_term_iterator    \
+	test_packed_shard         \
+	test_split                \
+	test_merge_iterator       \
+	test_string_term_iterator \
+	test_tgs                  \
 	test_varintdecode
 
 all: $(TESTS)
@@ -43,11 +44,14 @@ test_circ_buf: obj/test_circ_buf.o ../obj/circ_buf.o
 test_split: obj/test_split.o
 	$(CPP) -pthread $(CPPFLAGS) $ -o test_split $(LIBS) $^
 
-test_split_iterator: obj/test_split_iterator.o
-	$(CPP) $(CPPFLAGS) $ -o test_split_iterator $(LIBS) $^
+test_merge_iterator: obj/test_merge_iterator.o
+	$(CPP) $(CPPFLAGS) $ -o test_merge_iterator $(LIBS) $^
 
 test_int_term_iterator: obj/test_int_term_iterator.o
 	$(CPP) $(CPPFLAGS) $ -o test_int_term_iterator $(LIBS) $^
+
+test_string_term_iterator: obj/test_string_term_iterator.o
+	$(CPP) $(CPPFLAGS) $ -o test_string_term_iterator $(LIBS) $^
 
 GROUPS_OBJS = \
     obj/test_patch.o          \

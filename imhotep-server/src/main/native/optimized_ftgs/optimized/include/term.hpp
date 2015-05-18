@@ -8,12 +8,19 @@
 namespace imhotep {
 
     template <typename id_type>
+    struct id_type_traits {
+        static id_type default_value() { return 0; }
+    };
+
+    template <typename id_type>
     class Term {
-        id_type _id         = 0;
+        id_type _id         = id_type_traits<id_type>::default_value();
         int64_t _doc_offset = 0;
         int64_t _doc_freq   = 0;
 
     public:
+        typedef id_type id_t;
+
         Term() = default;
 
         Term(const id_type& id, int64_t doc_offset, int64_t doc_freq)
@@ -33,6 +40,11 @@ namespace imhotep {
 
     typedef Term<int64_t>     IntTerm;
     typedef Term<std::string> StringTerm;
+
+    template <>
+    struct id_type_traits<std::string> {
+        static std::string default_value() { return std::string(); }
+    };
 
 } // namespace imhotep
 

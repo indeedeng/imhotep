@@ -52,9 +52,9 @@ namespace imhotep {
 
     class MMappedVarIntView : public VarIntView
     {
-        int         _fd     = 0;
-        size_t      _length = 0;
-        void*       _mapped = 0;
+        int    _fd     = 0;
+        size_t _length = 0;
+        void*  _mapped = 0;
 
     public:
         MMappedVarIntView() { }

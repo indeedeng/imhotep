@@ -8,10 +8,29 @@ using namespace imhotep;
 
 constexpr size_t num_splits = 8;
 
+template <typename term_t>
+void test_splitter(const vector<string>& shards,
+                   const std::string& field,
+                   const std::string& split_dir)
+{
+    vector<thread> threads;
+    vector<Splitter<term_t>> splitters;
+    for (string shard: shards) {
+        splitters.push_back(Splitter<term_t>(shard, field, split_dir, num_splits));
+    }
+    for (Splitter<term_t>& splitter: splitters) {
+        threads.push_back(thread([&splitter]() { splitter.run(); } ));
+    }
+    for (thread& th: threads) {
+        th.join();
+    }
+}
+
 int main(int argc, char *argv[])
 {
-    const string field(argv[1]);
-    const string split_dir(argv[2]);
+    const string kind(argv[1]);
+    const string field(argv[2]);
+    const string split_dir(argv[3]);
 
     vector<string> shards;
     string str;
@@ -19,15 +38,14 @@ int main(int argc, char *argv[])
         shards.push_back(str);
     }
 
-    vector<Splitter<IntTerm>> splitters;
-    for (string shard: shards) {
-        splitters.push_back(Splitter<IntTerm>(shard, field, split_dir, num_splits));
+    if (kind == "int") {
+        test_splitter<IntTerm>(shards, field, split_dir);
     }
-    vector<thread> threads;
-    for (Splitter<IntTerm>& splitter: splitters) {
-        threads.push_back(thread([&splitter]() { splitter.run(); } ));
+    else if (kind == "string") {
+        test_splitter<StringTerm>(shards, field, split_dir);
     }
-    for (thread& th: threads) {
-        th.join();
+    else {
+        cerr << "Say what?" << endl;
+        exit(1);
     }
 }
