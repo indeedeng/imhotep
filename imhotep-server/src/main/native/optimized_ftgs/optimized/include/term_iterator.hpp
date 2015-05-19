@@ -30,6 +30,11 @@ namespace imhotep {
             increment();
         }
 
+        term_iterator(const char* begin, const char* end)
+            : _view(std::make_shared<VarIntView>(begin, end)) {
+            increment();
+        }
+
     private:
         friend class boost::iterator_core_access;
 
@@ -39,8 +44,7 @@ namespace imhotep {
 
         const term_t& dereference() const { return _current; }
 
-        // !@# replace with intrusive?
-        std::shared_ptr<MMappedVarIntView> _view = std::make_shared<MMappedVarIntView>();
+        std::shared_ptr<VarIntView> _view = std::make_shared<VarIntView>();
 
         term_t _current;
 

@@ -25,6 +25,10 @@ namespace imhotep {
             : _begin(begin) , _end(end)
         { }
 
+        bool operator==(VarIntView const& rhs) const {
+            return _begin == rhs._begin && _end == rhs._end;
+        }
+
         const char* begin() const { return _begin; }
         const char* end()   const { return _end;   }
 
@@ -80,10 +84,6 @@ namespace imhotep {
         ~MMappedVarIntView() {
             munmap(_mapped, _length);
             close(_fd);
-        }
-
-        bool operator==(MMappedVarIntView const& rhs) const {
-            return _begin == rhs._begin && _end == rhs._end;
         }
 
         void * mapped() { return _mapped; }
