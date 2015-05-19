@@ -74,19 +74,14 @@ namespace imhotep
 
         void awaitCompletion(void)
         {
-            {
-                std::unique_lock<std::mutex> lock(this->_mutex);
+            std::lock_guard<std::mutex> lock(this->_mutex);
 
-                this->completion_condition.wait(lock,
-                        [this] {return
-                                (this->tasks.empty() && this->num_tasks_running == 0)
-                                || this->stop;}
-                );
+            completion_condition.wait(lock, [this] {
+                    return (this->tasks.empty() && this->num_tasks_running == 0)
+                        || this->stop;
+                } );
 
-                if (this->failure_cause) {
-                    std::rethrow_exception(this->failure_cause);
-                }
-            }
+            if (this->failure_cause)  std::rethrow_exception(this->failure_cause);
         }
 
         // add new work item to the pool

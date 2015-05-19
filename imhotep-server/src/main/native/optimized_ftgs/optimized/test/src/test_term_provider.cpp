@@ -1,5 +1,6 @@
 #include <iostream>
 #include <thread>
+#include <utility>
 
 #include "term_provider.hpp"
 
@@ -11,7 +12,14 @@ void test_term_provider(const vector<string>& shards,
                         const string& field,
                         const string& split_dir,
                         size_t num_splits=7) {
-    TermProvider<term_t> provider(shards, field, split_dir, num_splits);
+
+    vector<typename TermProvider<term_t>::term_source_t> sources;
+    for (string shard: shards) {
+        term_iterator<term_t> it(Shard::term_filename<term_t>(shard, field));
+        sources.push_back(make_pair(shard, it));
+    }
+
+    TermProvider<term_t> provider(sources, field, split_dir, num_splits);
     for (auto split: provider.splits()) {
         cout << split.first << ':' + split.second << endl;
     }
