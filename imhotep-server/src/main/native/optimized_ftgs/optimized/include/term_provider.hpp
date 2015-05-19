@@ -1,6 +1,8 @@
 #ifndef TERM_PROVIDER_HPP
 #define TERM_PROVIDER_HPP
 
+#include <algorithm>
+#include <iterator>
 #include <map>
 #include <string>
 #include <thread>
@@ -8,7 +10,9 @@
 #include <vector>
 
 #include "merge_iterator.hpp"
+#include "split_iterator.hpp"
 #include "splitter.hpp"
+#include "term_desc_iterator.hpp"
 
 namespace imhotep {
 
@@ -26,8 +30,7 @@ namespace imhotep {
                      const std::string&                split_dir,
                      size_t                            num_splits);
 
-        merge_iterator<term_t> begin(size_t split);
-        merge_iterator<term_t> end(size_t split);
+        term_desc_iterator<term_t> merge(size_t split) const;
 
         const split_map_t& splits() const { return _splits; }
 
@@ -60,6 +63,21 @@ namespace imhotep {
         for (std::thread& th: threads) {
             th.join();
         }
+    }
+
+    template <typename term_t>
+    term_desc_iterator<term_t> TermProvider<term_t>::merge(size_t split) const
+    {
+        typedef split_map_t::const_iterator map_it_t;
+        std::vector<split_iterator<term_t>> split_its;
+        std::pair<map_it_t, map_it_t> matches(splits().equal_range(split));
+        std::transform(matches.first, matches.second, std::back_inserter(split_its),
+                       [](const std::string& splitfile) {
+                           return split_iterator<term_t>(splitfile);
+                       });
+        merge_iterator<term_t> begin(split_its.begin, split_its.end());
+        merge_iterator<term_t> end;
+        return term_desc_iterator<merge_iterator<term_t>>(begin, end);
     }
 
 } // namespace imhotep
