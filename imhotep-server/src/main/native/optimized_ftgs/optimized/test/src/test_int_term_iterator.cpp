@@ -2,6 +2,7 @@
 #include <iostream>
 #include <limits>
 
+#include "shard.hpp"
 #include "term_iterator.hpp"
 
 using namespace std;
@@ -16,7 +17,7 @@ int main(int argc, char *argv[])
     const string shard_dir(argv[1]);
     const string field_name(argv[2]);
 
-    int_term_iterator it(shard_dir, field_name);
+    int_term_iterator it(Shard::term_filename<IntTerm>(shard_dir, field_name));
     int_term_iterator end;
     while (it != end) {
         cout << *it << endl;

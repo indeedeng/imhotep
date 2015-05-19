@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "shard.hpp"
 #include "term_iterator.hpp"
 
 namespace imhotep {
@@ -69,7 +70,7 @@ namespace imhotep {
             split_files.push_back(new std::ofstream(split.c_str()));
         }
         std::hash<typename term_t::id_t>            hash_fun;
-        typename SplitterTraits<term_t>::iterator_t it(_shard, _field);
+        typename SplitterTraits<term_t>::iterator_t it(Shard::term_filename<term_t>(_shard, _field));
         typename SplitterTraits<term_t>::iterator_t end;
         while (it != end) {
             const size_t   split(hash_fun(it->id()) % _splits.size());

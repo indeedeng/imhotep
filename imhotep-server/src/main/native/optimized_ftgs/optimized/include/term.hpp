@@ -8,14 +8,19 @@
 namespace imhotep {
 
     template <typename id_type>
-    struct id_type_traits {
-        static id_type     default_value();
-        static std::string     extension();
+    struct id_traits {
+        static id_type default_value();
+    };
+
+    template <typename term_t>
+    struct term_traits {
+        static std::string  term_file_extension();
+        static std::string docid_file_extension();
     };
 
     template <typename id_type>
     class Term {
-        id_type _id         = id_type_traits<id_type>::default_value();
+        id_type _id         = id_traits<id_type>::default_value();
         int64_t _doc_offset = 0;
         int64_t _doc_freq   = 0;
 
@@ -43,15 +48,25 @@ namespace imhotep {
     typedef Term<std::string> StringTerm;
 
     template <>
-    struct id_type_traits<int64_t> {
-        static int64_t     default_value() { return 0;          }
-        static std::string     extension() { return "intterms"; }
+    struct id_traits<int64_t> {
+        static int64_t default_value() { return 0; }
     };
 
     template <>
-    struct id_type_traits<std::string> {
+    struct id_traits<std::string> {
         static std::string default_value() { return std::string(); }
-        static std::string     extension() { return "strterms";    }
+    };
+
+    template <>
+    struct term_traits<IntTerm> {
+        static std::string  term_file_extension() { return "intterms"; }
+        static std::string docid_file_extension() { return "intdocs";  }
+    };
+
+    template <>
+    struct term_traits<StringTerm> {
+        static std::string  term_file_extension() { return "strterms"; }
+        static std::string docid_file_extension() { return "strdocs";  }
     };
 
 } // namespace imhotep

@@ -25,25 +25,17 @@ namespace imhotep {
     public:
         term_iterator() { }
 
-        term_iterator(const std::string& shard_dir, const std::string& name)
-            : _view(std::make_shared<MMappedVarIntView>(term_filename(shard_dir, name))) {
+        term_iterator(const std::string& filename)
+            : _view(std::make_shared<MMappedVarIntView>(filename)) {
             increment();
         }
 
     private:
         friend class boost::iterator_core_access;
 
-        std::string term_filename(const std::string& shard_dir,
-                                  const std::string& name) const {
-            return shard_dir + "/fld-" + name + "." +
-                id_type_traits<typename term_t::id_type>::extension();
-        }
-
         void increment();
 
-        bool equal(const term_iterator& other) const {
-            return *_view == *other._view;
-        }
+        bool equal(const term_iterator& other) const { return *_view == *other._view; }
 
         const term_t& dereference() const { return _current; }
 
@@ -98,18 +90,6 @@ namespace imhotep {
         else {
             _view = std::make_shared<MMappedVarIntView>();
         }
-    }
-
-    template<>
-    term_iterator<IntTerm>::term_iterator(const std::string& shard_dir, const std::string& name)
-        : _view(std::make_shared<MMappedVarIntView>(shard_dir + "/fld-" + name + ".intterms")) {
-        increment();
-    }
-
-    template<>
-    term_iterator<StringTerm>::term_iterator(const std::string& shard_dir, const std::string& name)
-        : _view(std::make_shared<MMappedVarIntView>(shard_dir + "/fld-" + name + ".strterms")) {
-        increment();
     }
 
     typedef term_iterator<IntTerm>    int_term_iterator;
