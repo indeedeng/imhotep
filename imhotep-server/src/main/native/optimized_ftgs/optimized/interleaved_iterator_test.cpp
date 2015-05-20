@@ -5,46 +5,32 @@
  *      Author: darren
  */
 
-#include "interleaved_iterator.hpp"
+#include <array>
 #include <iostream>       // std::cout
+#include <list>
+#include <utility>
+
+#include "interleaved_iterator.hpp"
 
 int main()
 {
+    typedef std::list<int> List;
 
-    std::vector<int> vec1;
-    std::vector<int> vec2;
-    std::vector<int> vec3;
-    std::vector<int> vec4;
-    std::vector<int> vec5;
-
-    std::vector<std::vector<int>::iterator> vecs;
-    std::vector<std::vector<int>::iterator> vec_ends;
-
-    for (int i = 0; i < 5; i ++) {
-        vec1.push_back(i * 5);
-        vec2.push_back(i * 5 + 1);
-        vec3.push_back(i * 5 + 2);
-        vec4.push_back(i * 5 + 3);
-        vec5.push_back(i * 5 + 4);
+    std::array<List, 5> lists;
+    for (size_t i(0); i < lists.size(); ++i) {
+        for (size_t j(0); j < lists.size(); ++j) {
+            lists[j].push_back(i * 5 + j);
+        }
     }
 
-    vecs.push_back(vec1.begin());
-    vecs.push_back(vec2.begin());
-    vecs.push_back(vec3.begin());
-    vecs.push_back(vec4.begin());
-    vecs.push_back(vec5.begin());
+    typedef std::pair<List::iterator, List::iterator> PairOfIt;
+    std::array<PairOfIt, 5> pairs;
+    for (size_t i(0); i < pairs.size(); ++i) {
+        pairs[i] = PairOfIt(lists[i].begin(), lists[i].end());
+    }
 
-    vec_ends.push_back(vec1.end());
-    vec_ends.push_back(vec2.end());
-    vec_ends.push_back(vec3.end());
-    vec_ends.push_back(vec4.end());
-    vec_ends.push_back(vec5.end());
-
-    imhotep::interleaved_iterator<std::vector<int>::iterator> my_iter(vecs.begin(),
-                                                                      vecs.end(),
-                                                                      vec_ends.begin(),
-                                                                      vec_ends.end());
-    imhotep::interleaved_iterator<std::vector<int>::iterator> my_iter_end;
+    imhotep::interleaved_iterator<List::iterator>           my_iter(pairs.begin(), pairs.end());
+    imhotep::interleaved_iterator<std::list<int>::iterator> my_iter_end;
 
     while(my_iter != my_iter_end) {
         std::cout << *my_iter << ", ";
