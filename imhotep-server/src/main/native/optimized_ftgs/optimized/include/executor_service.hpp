@@ -4,7 +4,8 @@
  *  Created on: May 12, 2015
  *      Author: darren
  */
-#pragma once
+#ifndef EXECUTOR_SERVICE_HPP
+#define EXECUTOR_SERVICE_HPP
 
 #include <vector>
 #include <queue>
@@ -144,4 +145,6 @@ namespace imhotep
         bool stop;
     };
 
-}
+} // namespace imhotep
+
+#endif
