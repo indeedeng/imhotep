@@ -23,8 +23,8 @@ namespace imhotep
     class ExecutorService {
     public:
         // the constructor just launches some amount of workers
-        ExecutorService(size_t threads) :
-                stop(false), num_tasks_running(threads)
+        ExecutorService(size_t threads)
+            : num_tasks_running(threads)
         {
             for (size_t i = 0; i < threads; ++i) {
                 workers.emplace_back(
@@ -75,7 +75,7 @@ namespace imhotep
 
         void awaitCompletion(void)
         {
-            std::lock_guard<std::mutex> lock(this->_mutex);
+            std::unique_lock<std::mutex> lock(this->_mutex);
 
             completion_condition.wait(lock, [this] {
                     return (this->tasks.empty() && this->num_tasks_running == 0)
@@ -142,7 +142,7 @@ namespace imhotep
         std::mutex _mutex;
         std::condition_variable condition;
         std::condition_variable completion_condition;
-        bool stop;
+        bool stop = false;
     };
 
 } // namespace imhotep
