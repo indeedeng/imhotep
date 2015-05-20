@@ -2,6 +2,7 @@
 #include <thread>
 #include <utility>
 
+#include "executor_service.hpp"
 #include "shard.hpp"
 #include "term_provider.hpp"
 
@@ -21,16 +22,21 @@ void test_term_provider(const vector<string>& shards,
     }
 
     TermProvider<term_t> provider(sources, field, split_dir, num_splits);
-    for (auto split: provider.splits()) {
-        cout << split.first << ':' + split.second << endl;
-    }
 
-    TermDescIterator<MergeIterator<term_t>> it(provider.merge(1));
-    TermDescIterator<MergeIterator<term_t>> end;
-    while (it != end) {
-        cout << *it << endl;
-        ++it;
+    ExecutorService es;
+    for (size_t split_num(0); split_num < num_splits; ++split_num) {
+        es.enqueue([&provider, split_num] {
+                TermDescIterator<MergeIterator<term_t>> it(provider.merge(split_num));
+                TermDescIterator<MergeIterator<term_t>> end;
+                size_t num_descs(0);
+                while (it != end) {
+                    ++num_descs;
+                    ++it;
+                }
+                cout << "num_descs: " << num_descs << endl;
+            });
     }
+    es.awaitCompletion();
 }
 
 int main(int argc, char *argv[])
