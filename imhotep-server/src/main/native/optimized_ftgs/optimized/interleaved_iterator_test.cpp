@@ -18,6 +18,7 @@ int main()
     std::vector<int> vec5;
 
     std::vector<std::vector<int>::iterator> vecs;
+    std::vector<std::vector<int>::iterator> vec_ends;
 
     for (int i = 0; i < 5; i ++) {
         vec1.push_back(i * 5);
@@ -33,7 +34,16 @@ int main()
     vecs.push_back(vec4.begin());
     vecs.push_back(vec5.begin());
 
-    imhotep::interleaved_iterator<std::vector<int>::iterator> my_iter(vecs.begin(), vecs.end());
+    vec_ends.push_back(vec1.end());
+    vec_ends.push_back(vec2.end());
+    vec_ends.push_back(vec3.end());
+    vec_ends.push_back(vec4.end());
+    vec_ends.push_back(vec5.end());
+
+    imhotep::interleaved_iterator<std::vector<int>::iterator> my_iter(vecs.begin(),
+                                                                      vecs.end(),
+                                                                      vec_ends.begin(),
+                                                                      vec_ends.end());
     imhotep::interleaved_iterator<std::vector<int>::iterator> my_iter_end;
 
     while(my_iter != my_iter_end) {
