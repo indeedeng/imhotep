@@ -40,8 +40,6 @@ namespace imhotep {
         void run();
 
     private:
-        std::string name_of(const std::string& shard) const;
-
         FILE* open_split(const std::string& split);
 
         void encode(std::ostream& os, const term_t& term);
@@ -58,7 +56,7 @@ namespace imhotep {
                                const std::string& field,
                                const std::string& output_dir,
                                size_t num_splits)
-        : Splitter(name_of(shard), field,
+        : Splitter(Shard::name_of(shard), field,
                    term_iterator_t(Shard::term_filename<term_t>(shard, field)),
                    output_dir, num_splits)
     { }
@@ -98,14 +96,6 @@ namespace imhotep {
             ++it;
         }
         for (auto os_ptr: split_files) delete os_ptr;
-    }
-
-    template <typename term_t>
-    std::string Splitter<term_t>::name_of(const std::string& shard) const
-    {
-        const std::string::size_type pos(shard.find_last_of('/'));
-        return pos == std::string::npos ?
-            shard : shard.substr(pos + 1);
     }
 
     template <typename term_t>

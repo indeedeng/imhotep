@@ -2,6 +2,7 @@
 #include <thread>
 #include <utility>
 
+#include "shard.hpp"
 #include "term_provider.hpp"
 
 using namespace std;
@@ -16,12 +17,19 @@ void test_term_provider(const vector<string>& shards,
     vector<typename TermProvider<term_t>::term_source_t> sources;
     for (string shard: shards) {
         TermIterator<term_t> it(Shard::term_filename<term_t>(shard, field));
-        sources.push_back(make_pair(shard, it));
+        sources.push_back(make_pair(Shard::name_of(shard), it));
     }
 
     TermProvider<term_t> provider(sources, field, split_dir, num_splits);
     for (auto split: provider.splits()) {
         cout << split.first << ':' + split.second << endl;
+    }
+
+    TermDescIterator<MergeIterator<term_t>> it(provider.merge(1));
+    TermDescIterator<MergeIterator<term_t>> end;
+    while (it != end) {
+        cout << *it << endl;
+        ++it;
     }
 }
 
