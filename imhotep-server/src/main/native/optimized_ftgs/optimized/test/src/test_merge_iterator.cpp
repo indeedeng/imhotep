@@ -9,13 +9,13 @@ using namespace imhotep;
 
 template <typename term_t>
 void merge(const vector<string>& splits) {
-    vector<split_iterator<term_t>> its;
+    vector<SplitIterator<term_t>> its;
     for (string split: splits) {
-        its.push_back(split_iterator<term_t>(split));
+        its.push_back(SplitIterator<term_t>(split));
     }
 
-    merge_iterator<term_t> it(its.begin(), its.end());
-    merge_iterator<term_t> end;
+    MergeIterator<term_t> it(its.begin(), its.end());
+    MergeIterator<term_t> end;
     while (it != end) {
         cout << *it << endl;
         ++it;

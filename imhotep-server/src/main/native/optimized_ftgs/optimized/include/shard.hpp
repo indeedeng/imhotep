@@ -13,14 +13,14 @@ namespace imhotep {
         static std::string term_filename(const std::string& shard_dir,
                                          const std::string& field) {
             return base_filename(shard_dir, field) +
-                term_traits<term_t>::term_file_extension();
+                TermTraits<term_t>::term_file_extension();
         }
 
         template <typename term_t>
         static std::string docid_filename(const std::string& shard_dir,
                                           const std::string& field) {
             return base_filename(shard_dir, field) +
-                term_traits<term_t>::docid_file_extension();
+                TermTraits<term_t>::docid_file_extension();
         }
 
     private:

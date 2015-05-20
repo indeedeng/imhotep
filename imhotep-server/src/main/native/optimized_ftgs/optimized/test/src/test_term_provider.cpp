@@ -15,7 +15,7 @@ void test_term_provider(const vector<string>& shards,
 
     vector<typename TermProvider<term_t>::term_source_t> sources;
     for (string shard: shards) {
-        term_iterator<term_t> it(Shard::term_filename<term_t>(shard, field));
+        TermIterator<term_t> it(Shard::term_filename<term_t>(shard, field));
         sources.push_back(make_pair(shard, it));
     }
 

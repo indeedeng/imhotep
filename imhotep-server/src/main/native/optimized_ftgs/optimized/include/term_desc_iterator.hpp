@@ -7,12 +7,10 @@
 
 #include <boost/iterator/iterator_facade.hpp>
 
-#include "term_iterator.hpp"
-
 namespace imhotep {
 
     template <typename term_t>
-    class term_desc {
+    class TermDesc {
     public:
         typedef typename term_t::id_t id_t;
 
@@ -25,10 +23,10 @@ namespace imhotep {
 
         void reset(const id_t& id);
 
-        term_desc& operator+=(const term_t& term);
+        TermDesc& operator+=(const term_t& term);
 
     private:
-        id_t                 _id = id_traits<id_t>::default_value();
+        id_t                 _id = IdTraits<id_t>::default_value();
         std::vector<int64_t> _docid_addresses;
         std::vector<int64_t> _doc_freqs;
 
@@ -36,24 +34,24 @@ namespace imhotep {
 
 
     template <typename iterator_t>
-    class term_desc_iterator
-        : public boost::iterator_facade<term_desc_iterator<iterator_t>,
-                                        term_desc<typename iterator_t::value_type> const,
+    class TermDescIterator
+        : public boost::iterator_facade<TermDescIterator<iterator_t>,
+                                        TermDesc<typename iterator_t::value_type> const,
                                         boost::forward_traversal_tag> {
     public:
         typedef typename iterator_t::value_type term_t;
-        typedef term_desc<term_t>               term_desc_t;
+        typedef TermDesc<term_t>                term_desc_t;
 
-        term_desc_iterator() { }
+        TermDescIterator() { }
 
-        term_desc_iterator(const iterator_t begin, const iterator_t end);
+        TermDescIterator(const iterator_t begin, const iterator_t end);
 
     private:
         friend class boost::iterator_core_access;
 
         void increment();
 
-        bool equal(const term_desc_iterator& other) const;
+        bool equal(const TermDescIterator& other) const;
 
         const term_desc_t& dereference() const { return _current; }
 
@@ -65,14 +63,14 @@ namespace imhotep {
 
 
     template <typename term_t>
-    size_t term_desc<term_t>::count() const
+    size_t TermDesc<term_t>::count() const
     {
         assert(_docid_addresses.size() == _doc_freqs.size());
         return _doc_freqs.size();
     }
 
     template <typename term_t>
-    void term_desc<term_t>::reset(const id_t& id)
+    void TermDesc<term_t>::reset(const id_t& id)
     {
         _id = id;
         _docid_addresses.clear();
@@ -80,7 +78,7 @@ namespace imhotep {
     }
 
     template <typename term_t>
-    term_desc<term_t>& term_desc<term_t>::operator+=(const term_t& term)
+    TermDesc<term_t>& TermDesc<term_t>::operator+=(const term_t& term)
     {
         assert(_id == term.id());
         _docid_addresses.push_back(term.doc_offset());
@@ -90,8 +88,8 @@ namespace imhotep {
 
 
     template <typename iterator_t>
-    term_desc_iterator<iterator_t>::term_desc_iterator(const iterator_t begin,
-                                                       const iterator_t end)
+    TermDescIterator<iterator_t>::TermDescIterator(const iterator_t begin,
+                                                   const iterator_t end)
         : _begin(begin)
         , _end(end)
     {
@@ -99,7 +97,7 @@ namespace imhotep {
     }
 
     template <typename iterator_t>
-    void term_desc_iterator<iterator_t>::increment()
+    void TermDescIterator<iterator_t>::increment()
     {
         if (_begin == _end) {
             _current = term_desc_t();
@@ -115,7 +113,7 @@ namespace imhotep {
     }
 
     template <typename iterator_t>
-    bool term_desc_iterator<iterator_t>::equal(const term_desc_iterator& other) const
+    bool TermDescIterator<iterator_t>::equal(const TermDescIterator& other) const
     {
         return _begin == other._begin && _end == other._end;
     }
@@ -125,7 +123,7 @@ namespace imhotep {
 
 
 template <typename term_t>
-std::ostream& operator<<(std::ostream& os, const imhotep::term_desc<term_t>& desc)
+std::ostream& operator<<(std::ostream& os, const imhotep::TermDesc<term_t>& desc)
 {
     os << desc.id() << " {";
     for (size_t index(0); index < desc.count(); ++index) {

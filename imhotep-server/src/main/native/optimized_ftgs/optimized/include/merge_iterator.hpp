@@ -12,15 +12,15 @@
 namespace imhotep {
 
     template <typename term_t>
-    class merge_iterator
-        : public boost::iterator_facade<merge_iterator<term_t>,
+    class MergeIterator
+        : public boost::iterator_facade<MergeIterator<term_t>,
                                         term_t const,
                                         boost::forward_traversal_tag> {
     public:
-        merge_iterator() { }
+        MergeIterator() { }
 
         template <typename iterator>
-        merge_iterator(iterator begin, iterator end)
+        MergeIterator(iterator begin, iterator end)
             : _its(begin, end)
             , _queue(CompareIt(), _its) {
             increment();
@@ -30,27 +30,27 @@ namespace imhotep {
         friend class boost::iterator_core_access;
 
         struct CompareIt {
-            bool operator()(const split_iterator<term_t>& thing1,
-                            const split_iterator<term_t>& thing2) {
+            bool operator()(const SplitIterator<term_t>& thing1,
+                            const SplitIterator<term_t>& thing2) {
                 return *thing1 < *thing2;
             }
         };
 
         typedef std::priority_queue<
-            split_iterator<term_t>,
-            std::vector<split_iterator<term_t>>,
+            SplitIterator<term_t>,
+            std::vector<SplitIterator<term_t>>,
             CompareIt
             > PriorityQueue;
 
         void increment() {
-            static split_iterator<term_t> end;
+            static SplitIterator<term_t> end;
 
             if (_queue.empty()) {
                 _its.clear();
                 return;
             }
 
-            split_iterator<term_t> it(_queue.top());
+            SplitIterator<term_t> it(_queue.top());
             _current = *it;
             _queue.pop();
             ++it;
@@ -59,7 +59,7 @@ namespace imhotep {
             }
         }
 
-        bool equal(const merge_iterator& other) const {
+        bool equal(const MergeIterator& other) const {
             return _its == other._its;
         }
 
@@ -67,7 +67,7 @@ namespace imhotep {
             return _current;
         }
 
-        std::vector<split_iterator<term_t>> _its;
+        std::vector<SplitIterator<term_t>> _its;
 
         PriorityQueue _queue;
         term_t        _current;

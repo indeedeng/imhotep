@@ -15,26 +15,26 @@
 namespace imhotep {
 
     template <typename term_t>
-    struct term_iterator_traits {
+    struct TermIteratorTraits {
         typedef void buffer_t;
     };
 
     template <typename term_t>
-    class term_iterator
-        : public boost::iterator_facade<term_iterator<term_t>, term_t const,
+    class TermIterator
+        : public boost::iterator_facade<TermIterator<term_t>, term_t const,
                                         boost::forward_traversal_tag> {
     public:
-        term_iterator() { }
+        TermIterator() { }
 
-        term_iterator(const std::string& filename,
-                      int64_t docid_base=0)
+        TermIterator(const std::string& filename,
+                     int64_t docid_base=0)
             : _view(std::make_shared<MMappedVarIntView>(filename))
             , _docid_base(docid_base) {
             increment();
         }
 
-        term_iterator(const char* begin, const char* end,
-                      int64_t docid_base=0)
+        TermIterator(const char* begin, const char* end,
+                     int64_t docid_base=0)
             : _view(std::make_shared<VarIntView>(begin, end))
             , _docid_base(docid_base) {
             increment();
@@ -45,7 +45,7 @@ namespace imhotep {
 
         void increment();
 
-        bool equal(const term_iterator& other) const { return *_view == *other._view; }
+        bool equal(const TermIterator& other) const { return *_view == *other._view; }
 
         const term_t& dereference() const { return _current; }
 
@@ -55,20 +55,20 @@ namespace imhotep {
 
         term_t _current;
 
-        typename term_iterator_traits<term_t>::buffer_t _id_buffer;
+        typename TermIteratorTraits<term_t>::buffer_t _id_buffer;
     };
 
-    template <> struct term_iterator_traits<IntTerm> {
+    template <> struct TermIteratorTraits<IntTerm> {
         struct Unused { };
         typedef Unused buffer_t;
     };
 
-    template <> struct term_iterator_traits<StringTerm> {
+    template <> struct TermIteratorTraits<StringTerm> {
         typedef std::string buffer_t;
     };
 
     template<>
-    void term_iterator<IntTerm>::increment() {
+    void TermIterator<IntTerm>::increment() {
         if (!_view->empty()) {
             const int64_t id_delta(_view->read_varint<int64_t>(_view->read()));
             const int64_t offset_delta(_view->read_varint<int64_t>(_view->read()));
@@ -83,7 +83,7 @@ namespace imhotep {
     }
 
     template<>
-    void term_iterator<StringTerm>::increment() {
+    void TermIterator<StringTerm>::increment() {
         if (!_view->empty()) {
             const int64_t erase(_view->read_varint<int64_t>(_view->read()));
             const int64_t append(_view->read_varint<int64_t>(_view->read()));
@@ -103,8 +103,8 @@ namespace imhotep {
         }
     }
 
-    typedef term_iterator<IntTerm>    int_term_iterator;
-    typedef term_iterator<StringTerm> string_term_iterator;
+    typedef TermIterator<IntTerm>    IntTermIterator;
+    typedef TermIterator<StringTerm> StringTermIterator;
 
 } // namespace imhotep
 

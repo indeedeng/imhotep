@@ -15,9 +15,9 @@
 
 namespace imhotep {
 
-    template <typename term_t> struct SplitterTraits { typedef void                 iterator_t; };
-    template <> struct SplitterTraits<IntTerm>       { typedef int_term_iterator    iterator_t; };
-    template <> struct SplitterTraits<StringTerm>    { typedef string_term_iterator iterator_t; };
+    template <typename term_t> struct SplitterTraits { typedef void               iterator_t; };
+    template <> struct SplitterTraits<IntTerm>       { typedef IntTermIterator    iterator_t; };
+    template <> struct SplitterTraits<StringTerm>    { typedef StringTermIterator iterator_t; };
 
     template <typename term_t>
     class Splitter {

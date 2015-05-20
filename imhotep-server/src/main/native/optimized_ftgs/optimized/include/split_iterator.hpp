@@ -11,20 +11,20 @@
 namespace imhotep {
 
     template <typename term_t>
-    struct split_iterator_traits {
+    struct SplitIteratorTraits {
         typedef void buffer_t;
     };
 
     template <typename term_t>
-    class split_iterator
-        : public boost::iterator_facade<split_iterator<term_t>,
+    class SplitIterator
+        : public boost::iterator_facade<SplitIterator<term_t>,
                                         term_t const,
                                         boost::forward_traversal_tag> {
 
     public:
-        split_iterator() { }
+        SplitIterator() { }
 
-        split_iterator(const std::string& split_file)
+        SplitIterator(const std::string& split_file)
             : _ifs(std::make_shared<std::ifstream>(split_file.c_str())) {
             increment();
         }
@@ -39,7 +39,7 @@ namespace imhotep {
             if (_ifs->eof()) _ifs.reset();
         }
 
-        bool equal(const split_iterator& other) const {
+        bool equal(const SplitIterator& other) const {
             return
                 (!_ifs && !other._ifs) ||
                 (_ifs && other._ifs && *_ifs == *other._ifs);
@@ -53,20 +53,20 @@ namespace imhotep {
 
         term_t _current;
 
-        typename split_iterator_traits<term_t>::buffer_t _id_buffer;
+        typename SplitIteratorTraits<term_t>::buffer_t _id_buffer;
     };
 
-    template <> struct split_iterator_traits<IntTerm> {
+    template <> struct SplitIteratorTraits<IntTerm> {
         struct Unused { };
         typedef Unused buffer_t;
     };
 
-    template <> struct split_iterator_traits<StringTerm> {
+    template <> struct SplitIteratorTraits<StringTerm> {
         typedef std::vector<char> buffer_t;
     };
 
     template<>
-    IntTerm split_iterator<IntTerm>::decode(std::istream& is)
+    IntTerm SplitIterator<IntTerm>::decode(std::istream& is)
     {
         IntTerm result;
         is.read(reinterpret_cast<char*>(&result), sizeof(IntTerm));
@@ -74,7 +74,7 @@ namespace imhotep {
     }
 
     template<>
-    StringTerm split_iterator<StringTerm>::decode(std::istream& is)
+    StringTerm SplitIterator<StringTerm>::decode(std::istream& is)
     {
         size_t   id_size(0);
         uint64_t doc_offset(0);
