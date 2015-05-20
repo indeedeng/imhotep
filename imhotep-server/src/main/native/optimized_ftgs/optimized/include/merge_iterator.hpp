@@ -32,7 +32,7 @@ namespace imhotep {
         struct CompareIt {
             bool operator()(const SplitIterator<term_t>& thing1,
                             const SplitIterator<term_t>& thing2) {
-                return *thing1 < *thing2;
+                return *thing1 > *thing2;
             }
         };
 
