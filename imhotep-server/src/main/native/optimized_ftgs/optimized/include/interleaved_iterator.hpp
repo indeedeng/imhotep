@@ -12,17 +12,17 @@
 namespace imhotep {
 
     template <typename iter_t>
-    class interleaved_iterator
-        : public boost::iterator_facade<interleaved_iterator<iter_t>,
+    class InterleavedIterator
+        : public boost::iterator_facade<InterleavedIterator<iter_t>,
                                         typename std::iterator_traits<iter_t>::value_type const,
                                         boost::forward_traversal_tag> {
     public:
         typedef typename std::iterator_traits<iter_t>::value_type value_t;
 
-        interleaved_iterator() : _queue(0) { }
+        InterleavedIterator() : _queue(0) { }
 
         template <typename iterator>
-        interleaved_iterator(iterator begin, iterator end) {
+        InterleavedIterator(iterator begin, iterator end) {
             std::for_each(begin, end, [this] (std::pair<iter_t, iter_t> itpair) {
                     if (itpair.first != itpair.second) {
                         _queue->push(itpair);
@@ -51,7 +51,7 @@ namespace imhotep {
             }
         }
 
-        bool equal(const interleaved_iterator& other) const {
+        bool equal(const InterleavedIterator& other) const {
             return (!_queue && !other._queue) ||
                 (_queue && other._queue && (_queue == other._queue));
         }

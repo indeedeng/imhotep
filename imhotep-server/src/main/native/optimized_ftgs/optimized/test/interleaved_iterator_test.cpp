@@ -29,8 +29,8 @@ int main()
         pairs[i] = PairOfIt(lists[i].begin(), lists[i].end());
     }
 
-    imhotep::interleaved_iterator<List::iterator>           my_iter(pairs.begin(), pairs.end());
-    imhotep::interleaved_iterator<std::list<int>::iterator> my_iter_end;
+    imhotep::InterleavedIterator<List::iterator>           my_iter(pairs.begin(), pairs.end());
+    imhotep::InterleavedIterator<std::list<int>::iterator> my_iter_end;
 
     while(my_iter != my_iter_end) {
         std::cout << *my_iter << ", ";
