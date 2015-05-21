@@ -23,7 +23,11 @@ namespace imhotep {
 
         template <typename iterator>
         interleaved_iterator(iterator begin, iterator end) {
-            std::for_each(begin, end, [this] (std::pair<iter_t, iter_t> it) { _queue->push(it); });
+            std::for_each(begin, end, [this] (std::pair<iter_t, iter_t> itpair) {
+                    if (itpair.first != itpair.second) {
+                        _queue->push(itpair);
+                    }
+                });
             increment();
         }
 
