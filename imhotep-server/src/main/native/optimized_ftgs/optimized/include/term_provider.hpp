@@ -22,8 +22,10 @@ namespace imhotep {
         typedef std::pair<std::string, TermIterator<term_t>> term_source_t;
         typedef std::multimap<size_t, std::string>           split_map_t;
 
-        TermProvider()                        = delete;
-        TermProvider(const TermProvider& rhs) = delete;
+        TermProvider()                    = delete;
+        TermProvider(const TermProvider&) = default;
+
+        TermProvider& operator=(const TermProvider&) = default;
 
         TermProvider(const std::vector<term_source_t>& sources,
                      const std::string&                field,
@@ -37,6 +39,9 @@ namespace imhotep {
     private:
         split_map_t _splits;
     };
+
+    typedef TermProvider<IntTerm>    IntTermProvider;
+    typedef TermProvider<StringTerm> StringTermProvider;
 
 
     template <typename term_t>
