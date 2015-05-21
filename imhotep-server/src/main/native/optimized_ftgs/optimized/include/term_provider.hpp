@@ -43,6 +43,7 @@ namespace imhotep {
     typedef TermProvider<IntTerm>    IntTermProvider;
     typedef TermProvider<StringTerm> StringTermProvider;
 
+    /*
 
     template <typename term_t>
     TermProvider<term_t>::TermProvider(const std::vector<term_source_t>& sources,
@@ -69,6 +70,7 @@ namespace imhotep {
             th.join();
         }
     }
+    */
 
     template <typename term_t>
     TermDescIterator<MergeIterator<term_t>> TermProvider<term_t>::merge(size_t split) const

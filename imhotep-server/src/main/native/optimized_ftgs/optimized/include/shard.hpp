@@ -3,12 +3,22 @@
 
 #include <string>
 
+#define restrict __restrict__
+extern "C" {
+#include "imhotep_native.h"
+}
 #include "term.hpp"
 
 namespace imhotep {
 
     class Shard {
+        const std::string     _dir;
+        const packed_table_t* _table = 0;
     public:
+        const std::string& dir() const { return _dir; }
+
+        const packed_table_t* table() const { return _table; }
+
         template <typename term_t>
         static std::string term_filename(const std::string& shard_dir,
                                          const std::string& field) {
