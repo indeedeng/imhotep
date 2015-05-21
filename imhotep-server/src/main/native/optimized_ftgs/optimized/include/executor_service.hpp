@@ -23,7 +23,7 @@ namespace imhotep
     class ExecutorService {
     public:
         // the constructor just launches some amount of workers
-        ExecutorService(size_t threads)
+        ExecutorService(size_t threads=std::thread::hardware_concurrency())
             : num_tasks_running(threads)
         {
             for (size_t i = 0; i < threads; ++i) {

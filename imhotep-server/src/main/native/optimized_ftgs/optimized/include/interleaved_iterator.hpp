@@ -1,72 +1,69 @@
-#pragma once
+#ifndef INTERLEAVED_ITERATOR_HPP
+#define INTERLEAVED_ITERATOR_HPP
 
-#include <vector>
+#include <algorithm>
 #include <iterator>
+#include <memory>
+#include <queue>
+#include <vector>
 
 #include <boost/iterator/iterator_facade.hpp>
 
 namespace imhotep {
 
     template <typename iter_t>
-    class interleaved_iterator
-        : public boost::iterator_facade<interleaved_iterator<iter_t>,
-                                         typename std::iterator_traits<iter_t>::value_type,
-                                         boost::forward_traversal_tag> {
+    class InterleavedIterator
+        : public boost::iterator_facade<InterleavedIterator<iter_t>,
+                                        typename std::iterator_traits<iter_t>::value_type const,
+                                        boost::forward_traversal_tag> {
     public:
-        typedef typename std::iterator_traits<iter_t>::reference ref_type;
+        typedef typename std::iterator_traits<iter_t>::value_type value_t;
 
-        interleaved_iterator() { }
+        InterleavedIterator() : _queue(0) { }
 
-        template <typename i1, typename i2>
-        interleaved_iterator(i1 iters_begin,
-                             i1 iters_end,
-                             i2 ends_begin,
-                             i2 ends_end)
-            :
-                _iterators(iters_begin, iters_end),
-                _ends(ends_begin, ends_end),
-                current_iter(_iterators.begin()),
-                current_end(_ends.begin())
-        { }
+        template <typename iterator>
+        InterleavedIterator(iterator begin, iterator end) {
+            std::for_each(begin, end, [this] (std::pair<iter_t, iter_t> itpair) {
+                    if (itpair.first != itpair.second) {
+                        _queue->push(itpair);
+                    }
+                });
+            increment();
+        }
 
     private:
         friend class boost::iterator_core_access;
 
-        void increment()
-        {
-            static iter_t end;
+        void increment() {
+            if (!_queue) return;
 
-            if (_iterators.empty()) {
+            if (_queue->empty()) {
+                _queue.reset();
                 return;
             }
 
-            (*current_iter) ++;
-
-            if (*current_iter == *current_end) {
-                current_iter = _iterators.erase(current_iter);
-                current_end = _ends.erase(current_end);
-            } else {
-                current_iter ++;
-                current_end ++;
-            }
-
-            if (current_iter == _iterators.end()) {
-                current_iter = _iterators.begin();
-                current_end = _ends.begin();
+            std::pair<iter_t, iter_t> cursor(_queue->front());
+            _current = *cursor.first;
+            _queue->pop();
+            ++cursor.first;
+            if (cursor.first != cursor.second) {
+                _queue->push(cursor);
             }
         }
 
-        bool equal(const interleaved_iterator& other) const
-        {
-            return _iterators == other._iterators;
+        bool equal(const InterleavedIterator& other) const {
+            return (!_queue && !other._queue) ||
+                (_queue && other._queue && (_queue == other._queue));
         }
 
-        const ref_type dereference() const { return **current_iter; }
+        const value_t& dereference() const { return _current; }
 
-        std::vector<iter_t> _iterators;
-        std::vector<iter_t> _ends;
-        typename std::vector<iter_t>::iterator current_iter;
-        typename std::vector<iter_t>::iterator current_end;
+        value_t _current;
+
+        typedef std::queue<std::pair<iter_t, iter_t>> queue_t;
+        std::shared_ptr<queue_t> _queue = std::make_shared<queue_t>();
     };
 
 } // namespace imhotep
+
+#endif
