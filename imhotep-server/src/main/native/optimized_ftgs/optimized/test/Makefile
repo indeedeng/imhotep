@@ -54,7 +54,14 @@ test_int_term_iterator: obj/test_int_term_iterator.o
 test_string_term_iterator: obj/test_string_term_iterator.o
 	$(CPP) $(CPPFLAGS) $ -o test_string_term_iterator $(LIBS) $^
 
-test_term_provider: obj/test_term_provider.o
+TERM_PROVIDER_OBJS = \
+	../cppobj/executor_service.o \
+	../cppobj/split_iterator.o   \
+	../cppobj/splitter.o         \
+	../cppobj/term_iterator.o    \
+	../cppobj/term_provider.o
+
+test_term_provider: obj/test_term_provider.o $(TERM_PROVIDER_OBJS)
 	$(CPP) -pthread $(CPPFLAGS) $ -o test_term_provider $(LIBS) $^
 
 GROUPS_OBJS = \
@@ -90,11 +97,10 @@ dump_term: obj/dump_term.o $(TGS_OBJS)
 	$(CPP) $(LFLAGS) $ -o dump_term $(LIBS) $^ -L/usr/lib/x86_64-linux-gnu -lboost_system -lpthread #-lasan
 
 packed_perf: obj/packed_tree_perf_test.o ../obj/packed_table.o
-	$(CC) $ -flto -funroll-loops -O3 -o packed_perf $^ -L/usr/lib/x86_64-linux-gnu -lrt 
+	$(CC) $ -flto -funroll-loops -O3 -o packed_perf $^ -L/usr/lib/x86_64-linux-gnu -lrt
 
 
 clean:
 	rm -f obj/*.o *~ core $(INCDIR)/*~
 	rm -f $(TESTS)
 	rm -f dump_term
-

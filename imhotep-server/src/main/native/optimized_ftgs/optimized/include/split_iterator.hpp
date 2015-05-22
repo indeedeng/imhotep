@@ -56,6 +56,15 @@ namespace imhotep {
         typename SplitIteratorTraits<term_t>::buffer_t _id_buffer;
     };
 
+    template <> struct SplitIteratorTraits<IntTerm> {
+        struct Unused { };
+        typedef Unused buffer_t;
+    };
+
+    template <> struct SplitIteratorTraits<StringTerm> {
+        typedef std::vector<char> buffer_t;
+    };
+
 }
 
 #endif

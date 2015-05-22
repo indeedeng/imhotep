@@ -2,15 +2,6 @@
 
 namespace imhotep {
 
-    template <> struct SplitIteratorTraits<IntTerm> {
-        struct Unused { };
-        typedef Unused buffer_t;
-    };
-
-    template <> struct SplitIteratorTraits<StringTerm> {
-        typedef std::vector<char> buffer_t;
-    };
-
     template<>
     IntTerm SplitIterator<IntTerm>::decode(std::istream& is) {
         IntTerm result;

@@ -28,6 +28,28 @@ namespace imhotep {
         }
     }
 
+    template <typename term_t>
+    TermDescIterator<MergeIterator<term_t>> TermProvider<term_t>::merge(size_t split) const {
+        typedef split_map_t::const_iterator map_it_t;
+        typedef SplitIterator<term_t>       split_it_t;
+
+        std::vector<split_it_t> split_its;
+
+        std::pair<map_it_t, map_it_t> matches(splits().equal_range(split));
+        std::transform(matches.first, matches.second, std::back_inserter(split_its),
+                       [](std::pair<size_t, const std::string&> entry) {
+                           return SplitIterator<term_t>(entry.second);
+                       });
+
+        MergeIterator<term_t> begin(split_its.begin(), split_its.end());
+        MergeIterator<term_t> end;
+
+        return TermDescIterator<MergeIterator<term_t>>(begin, end);
+    }
+
+
+    /* template instantiations */
+
     template
     TermProvider<IntTerm>::TermProvider(const std::vector<term_source_t>& sources,
                                         const std::string&                field,
@@ -40,5 +62,9 @@ namespace imhotep {
                                            const std::string&                split_dir,
                                            size_t                            num_splits);
 
+
+
+    template TermDescIterator<MergeIterator<IntTerm>>    TermProvider<IntTerm>::merge(size_t split)    const;
+    template TermDescIterator<MergeIterator<StringTerm>> TermProvider<StringTerm>::merge(size_t split) const;
 
 } // namespace imhotep
