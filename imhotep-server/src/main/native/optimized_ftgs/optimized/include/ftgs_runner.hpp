@@ -39,9 +39,6 @@ namespace imhotep {
 
     class FTGSRunner {
     public:
-        /** todo(johnf): incorporate ExecutorService
-            todo(johnf): plumb docid base addresses through (or wire that up somehow)
-         */
         FTGSRunner(const std::vector<Shard>&       shards,
                    const std::vector<std::string>& int_fieldnames,
                    const std::vector<std::string>& string_fieldnames,
@@ -54,7 +51,7 @@ namespace imhotep {
         void operator()();
 
     private:
-
+        const std::vector<Shard>  _shards;
         TermProviders<IntTerm>    _int_term_providers;
         TermProviders<StringTerm> _string_term_providers;
     };

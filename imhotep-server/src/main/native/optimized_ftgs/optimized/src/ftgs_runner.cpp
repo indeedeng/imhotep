@@ -39,7 +39,8 @@ namespace imhotep {
                            const std::string&              split_dir,
                            size_t                          num_splits,
                            ExecutorService&                executor)
-        : _int_term_providers(shards, int_fieldnames, split_dir, num_splits, executor)
+        : _shards(shards)
+        , _int_term_providers(shards, int_fieldnames, split_dir, num_splits, executor)
         , _string_term_providers(shards, string_fieldnames, split_dir, num_splits, executor)
     { }
 

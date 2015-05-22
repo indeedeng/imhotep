@@ -8,6 +8,7 @@
 #define restrict __restrict__
 extern "C" {
 #include "imhotep_native.h"
+#include "table.h"
 }
 
 #include "term.hpp"
@@ -32,7 +33,7 @@ namespace imhotep {
 
         const std::string& dir() const { return _dir; }
 
-        packed_table_ptr table() { return _table; }
+        const packed_table_ptr table() const { return _table; }
 
         template <typename term_t>
         var_int_view_ptr term_view(const std::string& field) const {
