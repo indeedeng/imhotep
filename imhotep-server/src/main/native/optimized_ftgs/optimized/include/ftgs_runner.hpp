@@ -22,8 +22,8 @@ namespace imhotep {
                       ExecutorService&                executor);
 
     private:
-        typedef TermIterator<term_t>            term_it;
-        typedef std::pair<std::string, term_it> term_source_t;
+        typedef TermIterator<term_t>      term_it;
+        typedef std::pair<Shard, term_it> term_source_t;
 
         std::vector<term_source_t> term_sources(const std::vector<Shard>& shards,
                                                 const std::string&        field) const {
@@ -31,8 +31,8 @@ namespace imhotep {
             std::transform(shards.begin(), shards.end(),
                            std::back_inserter(result),
                            [&field](const Shard& shard) {
-                               term_it it(Shard::term_filename<term_t>(shard.dir(), field));
-                               return std::make_pair(Shard::name_of(shard.dir()), it);
+                               term_it it(shard.term_filename<term_t>(field));
+                               return std::make_pair(shard, it);
                            });
             return result;
         }

@@ -14,10 +14,10 @@ int main(int argc, char *argv[])
         cerr << "usage: " << argv[0] << " <shard dir> <field name>" << endl;
     }
 
-    const string shard_dir(argv[1]);
+    const Shard  shard(argv[1]);
     const string field_name(argv[2]);
 
-    IntTermIterator it(Shard::term_filename<IntTerm>(shard_dir, field_name));
+    IntTermIterator it(shard.term_filename<IntTerm>(field_name));
     IntTermIterator end;
     while (it != end) {
         cout << *it << endl;

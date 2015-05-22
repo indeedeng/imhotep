@@ -10,15 +10,15 @@ using namespace std;
 using namespace imhotep;
 
 template <typename term_t>
-void test_term_provider(const vector<string>& shards,
-                        const string& field,
-                        const string& split_dir,
-                        size_t num_splits=7) {
+void test_term_provider(const vector<Shard>& shards,
+                        const string&        field,
+                        const string&        split_dir,
+                        size_t num_splits = 7) {
 
     vector<typename TermProvider<term_t>::term_source_t> sources;
-    for (string shard: shards) {
-        TermIterator<term_t> it(Shard::term_filename<term_t>(shard, field));
-        sources.push_back(make_pair(Shard::name_of(shard), it));
+    for (const Shard& shard: shards) {
+        TermIterator<term_t> it(shard.term_filename<term_t>(field));
+        sources.push_back(make_pair(shard, it));
     }
 
     ExecutorService executor;
@@ -45,10 +45,10 @@ int main(int argc, char *argv[])
     const string field(argv[2]);
     const string split_dir(argv[3]);
 
-    vector<string> shards;
+    vector<Shard> shards;
     string str;
     while (getline(cin, str) && str.length()) {
-        shards.push_back(str);
+        shards.push_back(Shard(str));
     }
 
     if (kind == "int") {

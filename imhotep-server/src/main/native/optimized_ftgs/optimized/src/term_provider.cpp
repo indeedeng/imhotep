@@ -10,9 +10,9 @@ namespace imhotep {
                                        ExecutorService&                  executor) {
         std::vector<Splitter<term_t>> splitters;
         for (term_source_t source: sources) {
-            const std::string&   shardname(source.first);
+            const Shard&         shard(source.first);
             TermIterator<term_t> term_iterator(source.second);
-            splitters.push_back(Splitter<term_t>(shardname, field, term_iterator,
+            splitters.push_back(Splitter<term_t>(shard, field, term_iterator,
                                                  split_dir, num_splits));
             const std::vector<std::string>& splits(splitters.back().splits());
             for (size_t split_num(0); split_num < splits.size(); ++split_num) {

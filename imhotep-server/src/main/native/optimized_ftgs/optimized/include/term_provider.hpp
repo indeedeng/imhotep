@@ -11,6 +11,7 @@
 
 #include "executor_service.hpp"
 #include "merge_iterator.hpp"
+#include "shard.hpp"
 #include "split_iterator.hpp"
 #include "splitter.hpp"
 #include "term_desc_iterator.hpp"
@@ -20,8 +21,8 @@ namespace imhotep {
     template <typename term_t>
     class TermProvider {
     public:
-        typedef std::pair<std::string, TermIterator<term_t>> term_source_t;
-        typedef std::multimap<size_t, std::string>           split_map_t;
+        typedef std::pair<Shard, TermIterator<term_t>> term_source_t;
+        typedef std::multimap<size_t, std::string>     split_map_t;
 
         TermProvider()                    = delete;
         TermProvider(const TermProvider&) = default;

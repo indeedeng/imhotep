@@ -1,7 +1,7 @@
 CC=/usr/bin/gcc-4.9
 CPP=/usr/bin/g++-4.9
 CFLAGS=-Wall -Werror -I./include -I../include  -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions
-CPPFLAGS=-g  -O3 -Wall -Werror -I./include -I../include -I/usr/include/boost -msse4.2 -std=c++0x -fPIC  -flto -funroll-loops
+CPPFLAGS=-g -O3  -Wall -Werror -I./include -I../include -I/usr/include/boost -msse4.2 -std=c++0x -fPIC  -flto -funroll-loops
 LFLAGS=-g -O3 -flto
 
 OPT_CFLAGS= -g -O3 -flto -funroll-loops $(CFLAGS)
@@ -42,16 +42,16 @@ test_bit_tree: obj/test_bit_tree.o ../obj/bit_tree.o
 test_circ_buf: obj/test_circ_buf.o ../obj/circ_buf.o
 	$(CPP) $ -o test_circ_buf $(LIBS) $^
 
-test_split: obj/test_split.o
+test_split: obj/test_split.o ../cppobj/splitter.o ../cppobj/term_iterator.o
 	$(CPP) -pthread $(CPPFLAGS) $ -o test_split $(LIBS) $^
 
-test_merge_iterator: obj/test_merge_iterator.o
+test_merge_iterator: obj/test_merge_iterator.o ../cppobj/split_iterator.o
 	$(CPP) $(CPPFLAGS) $ -o test_merge_iterator $(LIBS) $^
 
-test_int_term_iterator: obj/test_int_term_iterator.o
+test_int_term_iterator: obj/test_int_term_iterator.o ../cppobj/term_iterator.o
 	$(CPP) $(CPPFLAGS) $ -o test_int_term_iterator $(LIBS) $^
 
-test_string_term_iterator: obj/test_string_term_iterator.o
+test_string_term_iterator: obj/test_string_term_iterator.o ../cppobj/term_iterator.o
 	$(CPP) $(CPPFLAGS) $ -o test_string_term_iterator $(LIBS) $^
 
 TERM_PROVIDER_OBJS = \

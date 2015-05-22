@@ -24,19 +24,21 @@ namespace imhotep {
     public:
         typedef typename SplitterTraits<term_t>::iterator_t term_iterator_t;
 
-        Splitter(const std::string& shard,
+        Splitter(const Shard&       shard,
                  const std::string& field,
                  const std::string& output_dir,
                  size_t num_splits);
 
-        Splitter(const std::string& shardname,
+        Splitter(const Shard&       shard,
                  const std::string& field,
                  term_iterator_t    term_iterator,
                  const std::string& output_dir,
                  size_t num_splits);
 
-        const std::string& shardname() const { return _shardname; }
+        const Shard& shard() const { return _shard; }
+
         const std::vector<std::string>& splits() const { return _splits; }
+
         void run();
 
     private:
@@ -44,7 +46,7 @@ namespace imhotep {
 
         void encode(std::ostream& os, const term_t& term);
 
-        const std::string _shardname;
+        const Shard       _shard;
         const std::string _field;
         term_iterator_t   _term_iterator;
 
@@ -52,28 +54,28 @@ namespace imhotep {
     };
 
     template <typename term_t>
-    Splitter<term_t>::Splitter(const std::string& shard,
+    Splitter<term_t>::Splitter(const Shard&       shard,
                                const std::string& field,
                                const std::string& output_dir,
-                               size_t num_splits)
-        : Splitter(Shard::name_of(shard), field,
-                   term_iterator_t(Shard::term_filename<term_t>(shard, field)),
+                               size_t             num_splits)
+        : Splitter(shard, field,
+                   term_iterator_t(shard.term_filename<term_t>(field)),
                    output_dir, num_splits)
     { }
 
     template <typename term_t>
-    Splitter<term_t>::Splitter(const std::string& shardname,
+    Splitter<term_t>::Splitter(const Shard&       shard,
                                const std::string& field,
                                term_iterator_t    term_iterator,
                                const std::string& output_dir,
                                size_t             num_splits)
-        : _shardname(shardname)
+        : _shard(shard)
         , _field(field)
         , _term_iterator(term_iterator)
     {
         for (size_t split(0); split < num_splits; ++split) {
             std::ostringstream os;
-            os << output_dir << '/' << _shardname << '.' << split;
+            os << output_dir << '/' << shard.name_of() << '.' << split;
             _splits.push_back(os.str());
         }
     }
