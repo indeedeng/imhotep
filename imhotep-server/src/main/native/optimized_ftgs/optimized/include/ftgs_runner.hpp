@@ -31,8 +31,7 @@ namespace imhotep {
             std::transform(shards.begin(), shards.end(),
                            std::back_inserter(result),
                            [&field](const Shard& shard) {
-                               term_it it(shard.term_filename<term_t>(field));
-                               return std::make_pair(shard, it);
+                               return std::make_pair(shard, term_it(shard, field));
                            });
             return result;
         }

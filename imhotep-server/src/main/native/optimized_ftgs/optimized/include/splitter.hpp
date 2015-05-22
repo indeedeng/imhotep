@@ -59,7 +59,7 @@ namespace imhotep {
                                const std::string& output_dir,
                                size_t             num_splits)
         : Splitter(shard, field,
-                   term_iterator_t(shard.term_filename<term_t>(field)),
+                   term_iterator_t(shard, field),
                    output_dir, num_splits)
     { }
 

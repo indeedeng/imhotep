@@ -1,6 +1,7 @@
 #ifndef SHARD_HPP
 #define SHARD_HPP
 
+#include <map>
 #include <memory>
 #include <string>
 
@@ -8,16 +9,19 @@
 extern "C" {
 #include "imhotep_native.h"
 }
+
 #include "term.hpp"
+#include "var_int_view.hpp"
 
 namespace imhotep {
 
     class Shard {
     public:
-        typedef std::shared_ptr<packed_table_t> packed_table_ptr;
+        typedef std::shared_ptr<packed_table_t>    packed_table_ptr;
+        typedef std::shared_ptr<MMappedVarIntView> var_int_view_ptr;
 
         explicit Shard(const std::string& dir,
-              packed_table_ptr   table = packed_table_ptr())
+                       packed_table_ptr   table = packed_table_ptr())
             : _dir(dir)
             , _table(table)
         { }
@@ -29,6 +33,28 @@ namespace imhotep {
         const std::string& dir() const { return _dir; }
 
         packed_table_ptr table() { return _table; }
+
+        template <typename term_t>
+        var_int_view_ptr term_view(const std::string& field) const {
+            FieldToVarIntView::iterator result(_term_views.find(field));
+            if (result == _term_views.end()) {
+                const std::string filename(term_filename<term_t>(field));
+                var_int_view_ptr  view(std::make_shared<MMappedVarIntView>(filename));
+                result = _term_views.insert(std::make_pair(field, view)).first;
+            }
+            return result->second;
+        }
+
+        template <typename term_t>
+        var_int_view_ptr docid_view(const std::string& field) const {
+            FieldToVarIntView::iterator result(_docid_views.find(field));
+            if (result == _docid_views.end()) {
+                const std::string filename(docid_filename<term_t>(field));
+                var_int_view_ptr  view(std::make_shared<MMappedVarIntView>(filename));
+                result = _docid_views.insert(std::make_pair(field, view)).first;
+            }
+            return result->second;
+        }
 
         template <typename term_t>
         std::string term_filename(const std::string& field) const {
@@ -49,6 +75,10 @@ namespace imhotep {
         std::string base_filename(const std::string& field) const {
             return dir() + "/fld-" + field + ".";
         }
+
+        typedef std::map<std::string, var_int_view_ptr> FieldToVarIntView;
+        mutable FieldToVarIntView _term_views;
+        mutable FieldToVarIntView _docid_views;
 
         const std::string _dir;
         packed_table_ptr  _table;

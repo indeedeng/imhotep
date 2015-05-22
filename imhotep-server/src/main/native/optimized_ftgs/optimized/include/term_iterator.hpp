@@ -9,6 +9,7 @@
 
 #include <boost/iterator/iterator_facade.hpp>
 
+#include "shard.hpp"
 #include "term.hpp"
 #include "var_int_view.hpp"
 
@@ -26,17 +27,16 @@ namespace imhotep {
     public:
         TermIterator() { }
 
-        TermIterator(const std::string& filename,
-                     int64_t docid_base=0)
-            : _view(std::make_shared<MMappedVarIntView>(filename))
-            , _docid_base(docid_base) {
+        TermIterator(const Shard&       shard,
+                     const std::string& field)
+            : _term_view(shard.term_view<term_t>(field))
+            , _docid_view(shard.docid_view<term_t>(field))
+            , _docid_base(_docid_view ? reinterpret_cast<int64_t>(_docid_view->begin()) : 0) {
             increment();
         }
 
-        TermIterator(const char* begin, const char* end,
-                     int64_t docid_base=0)
-            : _view(std::make_shared<VarIntView>(begin, end))
-            , _docid_base(docid_base) {
+        TermIterator(const char* begin, const char* end)
+            : _term_view(std::make_shared<VarIntView>(begin, end)) {
             increment();
         }
 
@@ -45,13 +45,14 @@ namespace imhotep {
 
         void increment();
 
-        bool equal(const TermIterator& other) const { return *_view == *other._view; }
+        bool equal(const TermIterator& other) const { return *_term_view == *other._term_view; }
 
         const term_t& dereference() const { return _current; }
 
-        std::shared_ptr<VarIntView> _view = std::make_shared<VarIntView>();
+        std::shared_ptr<VarIntView> _term_view  = std::make_shared<VarIntView>();
+        std::shared_ptr<VarIntView> _docid_view = std::make_shared<VarIntView>();
 
-        int64_t _docid_base = 0;
+        const int64_t _docid_base = 0;
 
         term_t _current;
 

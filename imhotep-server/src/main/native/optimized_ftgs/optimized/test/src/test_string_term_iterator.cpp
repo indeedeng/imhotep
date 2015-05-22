@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
     const Shard  shard(argv[1]);
     const string field_name(argv[2]);
 
-    StringTermIterator it(shard.term_filename<StringTerm>(field_name));
+    StringTermIterator it(shard, field_name);
     StringTermIterator end;
     while (it != end) {
         cout << *it << endl;
