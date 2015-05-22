@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include "executor_service.hpp"
 #include "merge_iterator.hpp"
 #include "split_iterator.hpp"
 #include "splitter.hpp"
@@ -30,7 +31,8 @@ namespace imhotep {
         TermProvider(const std::vector<term_source_t>& sources,
                      const std::string&                field,
                      const std::string&                split_dir,
-                     size_t                            num_splits);
+                     size_t                            num_splits,
+                     ExecutorService&                  executor);
 
         TermDescIterator<MergeIterator<term_t>> merge(size_t split) const;
 

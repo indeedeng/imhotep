@@ -6,9 +6,8 @@ namespace imhotep {
     TermProvider<term_t>::TermProvider(const std::vector<term_source_t>& sources,
                                        const std::string&                field,
                                        const std::string&                split_dir,
-                                       size_t                            num_splits)
-    {
-        std::vector<std::thread> threads;
+                                       size_t                            num_splits,
+                                       ExecutorService&                  executor) {
         std::vector<Splitter<term_t>> splitters;
         for (term_source_t source: sources) {
             const std::string&   shardname(source.first);
@@ -21,11 +20,9 @@ namespace imhotep {
             }
         }
         for (Splitter<term_t>& splitter: splitters) {
-            threads.push_back(std::thread([&splitter]() { splitter.run(); } ));
+            executor.enqueue([&splitter]() { splitter.run(); } );;
         }
-        for (std::thread& th: threads) {
-            th.join();
-        }
+        executor.await_completion();
     }
 
     template <typename term_t>
@@ -54,14 +51,15 @@ namespace imhotep {
     TermProvider<IntTerm>::TermProvider(const std::vector<term_source_t>& sources,
                                         const std::string&                field,
                                         const std::string&                split_dir,
-                                        size_t                            num_splits);
+                                        size_t                            num_splits,
+                                        ExecutorService&                  executor);
 
     template
     TermProvider<StringTerm>::TermProvider(const std::vector<term_source_t>& sources,
                                            const std::string&                field,
                                            const std::string&                split_dir,
-                                           size_t                            num_splits);
-
+                                           size_t                            num_splits,
+                                           ExecutorService&                  executor);
 
 
     template TermDescIterator<MergeIterator<IntTerm>>    TermProvider<IntTerm>::merge(size_t split)    const;

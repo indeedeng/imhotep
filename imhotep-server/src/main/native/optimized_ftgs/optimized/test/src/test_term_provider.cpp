@@ -21,11 +21,11 @@ void test_term_provider(const vector<string>& shards,
         sources.push_back(make_pair(Shard::name_of(shard), it));
     }
 
-    TermProvider<term_t> provider(sources, field, split_dir, num_splits);
+    ExecutorService executor;
+    TermProvider<term_t> provider(sources, field, split_dir, num_splits, executor);
 
-    ExecutorService es;
     for (size_t split_num(0); split_num < num_splits; ++split_num) {
-        es.enqueue([&provider, split_num] {
+        executor.enqueue([&provider, split_num] {
                 TermDescIterator<MergeIterator<term_t>> it(provider.merge(split_num));
                 TermDescIterator<MergeIterator<term_t>> end;
                 size_t num_descs(0);
@@ -36,7 +36,7 @@ void test_term_provider(const vector<string>& shards,
                 cout << "num_descs: " << num_descs << endl;
             });
     }
-    es.awaitCompletion();
+    executor.await_completion();
 }
 
 int main(int argc, char *argv[])

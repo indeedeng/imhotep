@@ -6,12 +6,15 @@ namespace imhotep {
     TermProviders<term_t>::TermProviders(const std::vector<Shard>&       shards,
                                          const std::vector<std::string>& field_names,
                                          const std::string&              split_dir,
-                                         size_t                          num_splits) {
+                                         size_t                          num_splits,
+                                         ExecutorService&                executor) {
         std::transform(field_names.begin(), field_names.end(),
                        std::back_inserter<TermProviders>(*this),
-                       [this, &shards, &split_dir, num_splits](const std::string& field) {
+                       [this, &shards, &split_dir, num_splits, &executor](const std::string& field) {
                            std::vector<term_source_t> sources(term_sources(shards, field));
-                           return std::make_pair(field, TermProvider<term_t>(sources, field, split_dir, num_splits));
+                           return std::make_pair(field, TermProvider<term_t>(sources, field,
+                                                                             split_dir, num_splits,
+                                                                             executor));
                        });
     }
 
@@ -19,22 +22,25 @@ namespace imhotep {
     TermProviders<IntTerm>::TermProviders(const std::vector<Shard>&       shards,
                                           const std::vector<std::string>& field_names,
                                           const std::string&              split_dir,
-                                          size_t                          num_splits);
+                                          size_t                          num_splits,
+                                          ExecutorService&                executor);
 
     template
     TermProviders<StringTerm>::TermProviders(const std::vector<Shard>&       shards,
                                              const std::vector<std::string>& field_names,
                                              const std::string&              split_dir,
-                                             size_t                          num_splits);
+                                             size_t                          num_splits,
+                                             ExecutorService&                executor);
 
 
     FTGSRunner::FTGSRunner(const std::vector<Shard>&       shards,
                            const std::vector<std::string>& int_fieldnames,
                            const std::vector<std::string>& string_fieldnames,
                            const std::string&              split_dir,
-                           size_t                          num_splits)
-        : _int_term_providers(shards, int_fieldnames, split_dir, num_splits)
-        , _string_term_providers(shards, string_fieldnames, split_dir, num_splits)
+                           size_t                          num_splits,
+                           ExecutorService&                executor)
+        : _int_term_providers(shards, int_fieldnames, split_dir, num_splits, executor)
+        , _string_term_providers(shards, string_fieldnames, split_dir, num_splits, executor)
     { }
 
     void FTGSRunner::operator()() {

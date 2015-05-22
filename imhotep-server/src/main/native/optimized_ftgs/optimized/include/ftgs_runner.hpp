@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include "executor_service.hpp"
 #include "shard.hpp"
 #include "term_provider.hpp"
 
@@ -17,7 +18,8 @@ namespace imhotep {
         TermProviders(const std::vector<Shard>&       shards,
                       const std::vector<std::string>& field_names,
                       const std::string&              split_dir,
-                      size_t                          num_splits);
+                      size_t                          num_splits,
+                      ExecutorService&                executor);
 
     private:
         typedef TermIterator<term_t>            term_it;
@@ -45,7 +47,8 @@ namespace imhotep {
                    const std::vector<std::string>& int_fieldnames,
                    const std::vector<std::string>& string_fieldnames,
                    const std::string&              split_dir,
-                   size_t                          num_splits);
+                   size_t                          num_splits,
+                   ExecutorService&                executor);
 
         FTGSRunner(const FTGSRunner& rhs) = delete;
 
