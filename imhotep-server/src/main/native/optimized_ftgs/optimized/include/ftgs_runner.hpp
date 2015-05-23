@@ -47,6 +47,7 @@ namespace imhotep {
                    const std::vector<std::string>& string_fieldnames,
                    const std::string&              split_dir,
                    size_t                          num_splits,
+                   size_t                          num_workers,
                    ExecutorService&                executor);
 
         FTGSRunner(const FTGSRunner& rhs) = delete;
@@ -55,8 +56,12 @@ namespace imhotep {
 
     private:
 
+        const std::vector<std::string>& _int_fieldnames;
+        const std::vector<std::string>& _string_fieldnames;
         TermProviders<IntTerm>    _int_term_providers;
         TermProviders<StringTerm> _string_term_providers;
+        size_t _num_splits;
+        size_t _num_workers;
     };
 
 } // namespace imhotep

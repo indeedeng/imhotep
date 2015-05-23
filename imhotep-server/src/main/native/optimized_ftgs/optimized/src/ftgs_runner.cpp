@@ -1,3 +1,7 @@
+#include <tuple>
+#include <functional>
+#include <boost/iterator/transform_iterator.hpp>
+#include "ChainedIterator.hpp"
 #include "ftgs_runner.hpp"
 
 namespace imhotep {
@@ -32,18 +36,98 @@ namespace imhotep {
                                              size_t                          num_splits,
                                              ExecutorService&                executor);
 
+    class op_desc {
+    public:
+        static const int8_t TGS_OPERATION = 1;
+        static const int8_t FIELD_START_OPERATION = 2;
+        static const int8_t FIELD_END_OPERATION = 3;
+        static const int8_t NO_MORE_FIELDS_OPERATION = 4;
+
+        TermDesc    _termDesc;
+        int32_t      _splitIndex;
+        int8_t       _operation;
+        std::string _fieldName;
+
+        op_desc(int32_t splitIndex, int8_t operation) :
+                _splitIndex(splitIndex),
+                _operation(operation)
+        { }
+
+        op_desc& operator()(TermDesc& desc) {
+            _termDesc = desc;
+            return *this;
+        }
+    };
+
 
     FTGSRunner::FTGSRunner(const std::vector<Shard>&       shards,
                            const std::vector<std::string>& int_fieldnames,
                            const std::vector<std::string>& string_fieldnames,
                            const std::string&              split_dir,
                            size_t                          num_splits,
+                           size_t                          num_workers,
                            ExecutorService&                executor)
         : _int_term_providers(shards, int_fieldnames, split_dir, num_splits, executor)
         , _string_term_providers(shards, string_fieldnames, split_dir, num_splits, executor)
+        , _num_splits(num_splits)
+        , _num_workers(num_workers)
+        , _int_fieldnames(int_fieldnames)
+        , _string_fieldnames(string_fieldnames)
     { }
 
     void FTGSRunner::operator()() {
+        using int_transform =
+                typename boost::transform_iterator<
+                                    op_desc,
+                                    TermDescIterator<MergeIterator<IntTerm>>
+                           >;
+        using string_transform =
+                typename boost::transform_iterator<
+                                    op_desc,
+                                    TermDescIterator<MergeIterator<StringTerm>>
+                           >;
+
+        for (int i = 0; i < _num_splits; i++) {
+
+            // get split iterators for every field
+            std::vector<std::pair<int_transform, int_transform>> int_term_desc_iters;
+            std::vector<std::pair<string_transform,string_transform>> string_term_desc_iters;
+
+            for (int j = 0; j < _int_term_providers.size(); j++) {
+                op_desc desc(i, op_desc::TGS_OPERATION);
+                auto provider = _int_term_providers[j].second;
+                TermDescIterator<MergeIterator<IntTerm>> provider_end;
+                const auto wrapped_provider =
+                        boost::make_transform_iterator(provider.merge(i), desc);
+                const auto wrapped_end =
+                        boost::make_transform_iterator(provider_end, desc);
+                int_term_desc_iters.push_back( {wrapped_provider, wrapped_end} );
+            }
+            for (int j = 0; j < _string_term_providers.size(); j++) {
+                op_desc desc(i, op_desc::TGS_OPERATION);
+                auto provider = _string_term_providers[j].second;
+                TermDescIterator<MergeIterator<StringTerm>> provider_end;
+                const auto wrapped_provider =
+                        boost::make_transform_iterator(provider.merge(i), desc);
+                const auto wrapped_end =
+                        boost::make_transform_iterator(provider_end, desc);
+                string_term_desc_iters.push_back( {wrapped_provider, wrapped_end} );
+            }
+
+            auto splits = std::make_pair(int_term_desc_iters, string_term_desc_iters);
+
+            // create chained iterator for the field
+            auto chained_splits = ChainedIterator<int_transform, string_transform>(
+                    splits,
+                    [=](int32_t num) -> op_desc {
+                        return op_desc(i, op_desc::FIELD_START_OPERATION);
+                    },
+                    [=](int32_t num) -> op_desc {
+                        return op_desc(i, op_desc::FIELD_END_OPERATION);
+                    });
+
+            // save the iterator
+        }
     }
 
 } // namespace imhotep
