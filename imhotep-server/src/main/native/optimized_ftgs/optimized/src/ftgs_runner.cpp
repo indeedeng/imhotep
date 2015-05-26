@@ -1,3 +1,6 @@
+#define BOOST_RESULT_OF_USE_DECLTYPE    1
+
+#include <tuple>
 #include "ftgs_runner.hpp"
 
 namespace imhotep {
@@ -38,13 +41,15 @@ namespace imhotep {
                            const std::vector<std::string>& string_fieldnames,
                            const std::string&              split_dir,
                            size_t                          num_splits,
+                           size_t                          num_workers,
                            ExecutorService&                executor)
         : _shards(shards)
         , _int_term_providers(shards, int_fieldnames, split_dir, num_splits, executor)
         , _string_term_providers(shards, string_fieldnames, split_dir, num_splits, executor)
+        , _num_splits(num_splits)
+        , _num_workers(num_workers)
+        , _int_fieldnames(int_fieldnames)
+        , _string_fieldnames(string_fieldnames)
     { }
-
-    void FTGSRunner::operator()() {
-    }
 
 } // namespace imhotep
