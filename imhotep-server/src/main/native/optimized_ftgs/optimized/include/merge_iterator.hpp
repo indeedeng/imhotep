@@ -24,10 +24,13 @@ namespace imhotep {
         MergeIterator() { }
 
         template <typename iterator>
-        MergeIterator(iterator begin, iterator end)
-            : _its(begin, end)
-            , _queue(CompareIt(), _its) {
-            // !@# todo(johnf) : only add iterators that are not at their ends...
+        MergeIterator(iterator begin, iterator end) {
+            std::copy_if(begin, end, std::back_inserter(_its),
+                         [] (Entry& entry) {
+                             static SplitIterator<term_t> split_end;
+                             return entry.first != split_end;
+                         });
+            _queue = PriorityQueue(CompareIt(), _its);
             increment();
         }
 
