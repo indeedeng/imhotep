@@ -44,12 +44,12 @@ namespace imhotep {
                            size_t                          num_workers,
                            ExecutorService&                executor)
         : _shards(shards)
+        , _int_fieldnames(int_fieldnames)
+        , _string_fieldnames(string_fieldnames)
         , _int_term_providers(shards, int_fieldnames, split_dir, num_splits, executor)
         , _string_term_providers(shards, string_fieldnames, split_dir, num_splits, executor)
         , _num_splits(num_splits)
         , _num_workers(num_workers)
-        , _int_fieldnames(int_fieldnames)
-        , _string_fieldnames(string_fieldnames)
     { }
 
 } // namespace imhotep

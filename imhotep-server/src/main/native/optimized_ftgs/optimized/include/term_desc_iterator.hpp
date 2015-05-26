@@ -5,8 +5,6 @@
 #include <iostream>
 #include <vector>
 
-#include <boost/iterator/iterator_facade.hpp>
-
 #include "shard.hpp"
 
 namespace imhotep {
@@ -40,11 +38,9 @@ namespace imhotep {
 
 
     template <typename term_t>
-    class TermDescIterator
-        : public boost::iterator_facade<TermDescIterator<term_t>,
-                                        TermDesc const,
-                                        boost::forward_traversal_tag> {
+    class TermDescIterator {
     public:
+        typedef TermDesc value_type;
         typedef MergeIterator<term_t> iterator_t;
 
         TermDescIterator() { }
@@ -52,24 +48,15 @@ namespace imhotep {
         TermDescIterator(const iterator_t begin, const iterator_t end) :
                 _begin(begin),
                 _end(end)
-        {
-            increment();
-        }
+        { }
 
+        const bool hasNext(void) const;
+
+        void next(value_type& data);
 
     private:
-        friend class boost::iterator_core_access;
-
-        void increment();
-
-        bool equal(const TermDescIterator& other) const;
-
-        const TermDesc& dereference() const { return _current; }
-
         iterator_t _begin;
         iterator_t _end;
-
-        TermDesc _current;
     };
 
 
@@ -110,26 +97,25 @@ namespace imhotep {
     }
 
     template <typename term_t>
-    void TermDescIterator<term_t>::increment()
+    void TermDescIterator<term_t>::next(value_type& data)
     {
         if (_begin == _end) {
-            _current = TermDesc();
+            data = TermDesc();
             return;
         }
 
-        _current.reset(_begin->first.id(), _begin->second);
+        data.reset(_begin->first.id(), _begin->second);
         term_t& current_id = _begin->first.id();
-        iterator_t it(_begin);
         while (_begin != _end && _begin->first.id() == current_id) {
-            _current += *_begin;
+            data += *_begin;
             ++_begin;
         }
     }
 
     template <typename term_t>
-    bool TermDescIterator<term_t>::equal(const TermDescIterator& other) const
+    const bool TermDescIterator<term_t>::hasNext(void) const
     {
-        return _begin == other._begin && _end == other._end;
+        return _begin == _end;
     }
 
 

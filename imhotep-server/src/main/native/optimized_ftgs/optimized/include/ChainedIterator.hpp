@@ -22,19 +22,20 @@ namespace imhotep {
 
         ChainedIterator() { }
 
-        ChainedIterator(t1_vector_t t1_vec,
-                        t2_vector_t t2_vec,
-                        generator_type&& f1,
-                        generator_type&& f2) :
+//        template<typename func1_t, typename func2_t>
+        ChainedIterator(t1_vector_t& t1_vec,
+                        t2_vector_t& t2_vec,
+                        generator_type f1,
+                        generator_type f2) :
                 _t1_iters(t1_vec),
                 _t2_iters(t2_vec),
                 _prefix_func(f1),
                 _suffix_func(f2)
         {
-            if (_t1_iters && !_t1_iters.empty()) {
+            if (!_t1_iters.empty()) {
                 _current_t1_iter = _t1_iters[0];
             }
-            if (_t2_iters && !_t2_iters.empty()) {
+            if (!_t2_iters.empty()) {
                 _current_t2_iter = _t2_iters[0];
             }
 
@@ -96,8 +97,8 @@ namespace imhotep {
             return _current_iter_num < (_t1_iters.size() + _t2_iters.size());
         }
 
-        t1_vector_t _t1_iters;
-        t2_vector_t _t2_iters;
+        t1_vector_t& _t1_iters;
+        t2_vector_t& _t2_iters;
         jIter_type1 _current_t1_iter;
         jIter_type2 _current_t2_iter;
         int32_t _current_iter_num = 0;

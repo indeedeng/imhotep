@@ -57,19 +57,18 @@ namespace imhotep {
 
 
     template<typename term_t>
-    auto build_term_iters(const TermProviders<term_t>& providers, int split_num)
+    auto build_term_iters(const TermProviders<term_t>& providers, int split_num) ->
+        std::vector<transform_jIterator<TermDescIterator<term_t>, op_desc>>
     {
-        using desc_iter_t = iterator_2_jIterator<TermDescIterator<term_t>>;
-        using transform_t = transform_jIterator<op_desc, desc_iter_t>;
+        using transform_t = transform_jIterator<TermDescIterator<term_t>, op_desc>;
 
         std::vector<transform_t> term_desc_iters;
 
-        for (int i = 0; i < providers.size(); i++) {
+        for (size_t i = 0; i < providers.size(); i++) {
             auto provider = providers[i].second;
 
             op_desc func(i, op_desc::TGS_OPERATION);
-            const auto j_provider = desc_iter_t(provider.merge(split_num));
-            const auto wrapped_provider = transform_t(j_provider, func);
+            const auto wrapped_provider = transform_t(provider.merge(split_num), func);
             term_desc_iters.push_back(wrapped_provider);
         }
 
@@ -77,20 +76,12 @@ namespace imhotep {
     }
 
     int run(FTGSRunner& runner) {
-        using int_transform =
-                transform_jIterator<
-                                    op_desc,
-                                    TermDescIterator<IntTerm>
-                           >;
-        using string_transform =
-                transform_jIterator<
-                                    op_desc,
-                                    TermDescIterator<StringTerm>
-                           >;
+        using int_transform = transform_jIterator<TermDescIterator<IntTerm>, op_desc>;
+        using string_transform = transform_jIterator<TermDescIterator<StringTerm>, op_desc>;
 
         std::vector<ChainedIterator<int_transform, string_transform>> split_iters;
 
-        for (int i = 0; i < runner.getNumSplits(); i++) {
+        for (size_t i = 0; i < runner.getNumSplits(); i++) {
 
             auto int_term_desc_iters = build_term_iters(runner.getIntTermProviders(), i);
             auto string_term_desc_iters =
@@ -116,15 +107,20 @@ namespace imhotep {
 //            }
 
             // create chained iterator for the field
+            std::function<op_desc (int32_t num)> f1 = [=](int32_t num) -> op_desc
+                    {
+                        return op_desc(i, op_desc::FIELD_START_OPERATION);
+                    };
+            std::function<op_desc (int32_t num)> f2 = [=](int32_t num) -> op_desc
+                    {
+                        return op_desc(i, op_desc::FIELD_END_OPERATION);
+                    };
+
             auto chained_splits = ChainedIterator<int_transform, string_transform>(
                     int_term_desc_iters,
                     string_term_desc_iters,
-                    [=](int32_t num) -> op_desc {
-                        return op_desc(i, op_desc::FIELD_START_OPERATION);
-                    },
-                    [=](int32_t num) -> op_desc {
-                        return op_desc(i, op_desc::FIELD_END_OPERATION);
-                    });
+                    f1,
+                    f2);
 
             // save the iterator
             split_iters.push_back(chained_splits);
