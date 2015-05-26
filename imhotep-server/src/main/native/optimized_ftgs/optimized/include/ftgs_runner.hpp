@@ -52,16 +52,46 @@ namespace imhotep {
 
         FTGSRunner(const FTGSRunner& rhs) = delete;
 
-        void operator()();
+        const std::vector<std::string>& getIntFieldnames() const
+        {
+            return _int_fieldnames;
+        }
+
+        const TermProviders<IntTerm>& getIntTermProviders() const
+        {
+            return _int_term_providers;
+        }
+
+        const size_t getNumSplits() const
+        {
+            return _num_splits;
+        }
+
+        const size_t getNumWorkers() const
+        {
+            return _num_workers;
+        }
+
+        const std::vector<std::string>& getStringFieldnames() const
+        {
+            return _string_fieldnames;
+        }
+
+        const TermProviders<StringTerm>& getStringTermProviders() const
+        {
+            return _string_term_providers;
+        }
 
     private:
+        template<typename term_t>
+        auto build_term_iters(TermProviders<term_t> providers);
 
         const std::vector<std::string>& _int_fieldnames;
         const std::vector<std::string>& _string_fieldnames;
-        TermProviders<IntTerm>    _int_term_providers;
-        TermProviders<StringTerm> _string_term_providers;
-        size_t _num_splits;
-        size_t _num_workers;
+        const TermProviders<IntTerm>    _int_term_providers;
+        const TermProviders<StringTerm> _string_term_providers;
+        const size_t _num_splits;
+        const size_t _num_workers;
     };
 
 } // namespace imhotep

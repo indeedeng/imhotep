@@ -9,6 +9,8 @@
 #ifndef imhotep_jIterator_h
 #define imhotep_jIterator_h
 
+#include <iterator>
+#include <type_traits>
 
 namespace imhotep {
     
@@ -24,7 +26,7 @@ namespace imhotep {
         
         const bool has_next()
         const {
-            return _base_iterator != end_iter;
+            return _base_iterator != _end_iterator;
         }
         
         void next(value_type data)
@@ -32,8 +34,6 @@ namespace imhotep {
             data = *_base_iterator;
             
             _base_iterator++;
-            
-            return data;
         }
         
     private:
@@ -41,13 +41,16 @@ namespace imhotep {
         iter_t _end_iterator;
     };
     
-    template<typename j_iter_t>
+    template<typename j_iter_t, class func_t>
     class transform_jIterator {
     public:
-        typedef typename std::iterator_traits<iter_t>::value_type value_type;
+        typedef typename j_iter_t::value_type value_type;
         
-        
-        
+        transform_jIterator(j_iter_t iter, func_t func) :
+            _base_jIterator(iter),
+            _transform_func(func)
+        { }
+
         const bool has_next()
         const {
             return _base_jIterator.has_next();
