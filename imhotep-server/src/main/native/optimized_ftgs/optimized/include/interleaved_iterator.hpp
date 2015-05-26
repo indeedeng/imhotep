@@ -7,15 +7,10 @@
 #include <queue>
 #include <vector>
 
-#include <boost/iterator/iterator_facade.hpp>
-
 namespace imhotep {
 
     template <typename iter_t>
-    class InterleavedIterator
-        : public boost::iterator_facade<InterleavedIterator<iter_t>,
-                                        typename std::iterator_traits<iter_t>::value_type const,
-                                        boost::forward_traversal_tag> {
+    class InterleavedJIterator {
     public:
         typedef typename std::iterator_traits<iter_t>::value_type value_t;
 

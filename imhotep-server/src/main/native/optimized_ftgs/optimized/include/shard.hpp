@@ -7,7 +7,8 @@
 
 #define restrict __restrict__
 extern "C" {
-#include "imhotep_native.h"
+        //#include "imhotep_native.h"
+    typedef void* packed_table_t;
 }
 
 #include "term.hpp"

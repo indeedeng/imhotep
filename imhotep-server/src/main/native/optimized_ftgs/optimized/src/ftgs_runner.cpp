@@ -1,3 +1,5 @@
+#define BOOST_RESULT_OF_USE_DECLTYPE    1
+
 #include <tuple>
 #include <functional>
 #include <boost/iterator/transform_iterator.hpp>
@@ -42,21 +44,35 @@ namespace imhotep {
         static const int8_t FIELD_START_OPERATION = 2;
         static const int8_t FIELD_END_OPERATION = 3;
         static const int8_t NO_MORE_FIELDS_OPERATION = 4;
-
+        
         TermDesc    _termDesc;
         int32_t      _splitIndex;
         int8_t       _operation;
         std::string _fieldName;
 
+        op_desc() { }
+        
         op_desc(int32_t splitIndex, int8_t operation) :
                 _splitIndex(splitIndex),
                 _operation(operation)
         { }
+    };
+    
+    class op_func {
+    public:
+        typedef op_desc result_type;
+        
+        op_func() { }
+        
+        op_func(int32_t splitIndex, int8_t operation) : _op_desc(splitIndex, operation) { }
 
-        op_desc& operator()(TermDesc& desc) {
-            _termDesc = desc;
-            return *this;
+        const op_desc& operator()(const TermDesc& desc) const {
+            _op_desc._termDesc = desc;
+            return _op_desc;
         }
+        
+    private:
+        mutable op_desc _op_desc;
     };
 
 
@@ -78,12 +94,12 @@ namespace imhotep {
     void FTGSRunner::operator()() {
         using int_transform =
                 typename boost::transform_iterator<
-                                    op_desc,
+                                    op_func,
                                     TermDescIterator<MergeIterator<IntTerm>>
                            >;
         using string_transform =
                 typename boost::transform_iterator<
-                                    op_desc,
+                                    op_func,
                                     TermDescIterator<MergeIterator<StringTerm>>
                            >;
 
@@ -94,23 +110,19 @@ namespace imhotep {
             std::vector<std::pair<string_transform,string_transform>> string_term_desc_iters;
 
             for (int j = 0; j < _int_term_providers.size(); j++) {
-                op_desc desc(i, op_desc::TGS_OPERATION);
+                op_func func(i, op_desc::TGS_OPERATION);
                 auto provider = _int_term_providers[j].second;
                 TermDescIterator<MergeIterator<IntTerm>> provider_end;
                 const auto wrapped_provider =
-                        boost::make_transform_iterator(provider.merge(i), desc);
-                const auto wrapped_end =
-                        boost::make_transform_iterator(provider_end, desc);
+                        boost::make_transform_iterator(provider.merge(i), func);
                 int_term_desc_iters.push_back( {wrapped_provider, wrapped_end} );
             }
             for (int j = 0; j < _string_term_providers.size(); j++) {
-                op_desc desc(i, op_desc::TGS_OPERATION);
+                op_func func(i, op_desc::TGS_OPERATION);
                 auto provider = _string_term_providers[j].second;
                 TermDescIterator<MergeIterator<StringTerm>> provider_end;
                 const auto wrapped_provider =
-                        boost::make_transform_iterator(provider.merge(i), desc);
-                const auto wrapped_end =
-                        boost::make_transform_iterator(provider_end, desc);
+                        boost::make_transform_iterator(provider.merge(i), func);
                 string_term_desc_iters.push_back( {wrapped_provider, wrapped_end} );
             }
 
