@@ -7,6 +7,8 @@
 
 #include <boost/iterator/iterator_facade.hpp>
 
+#include "shard.hpp"
+
 namespace imhotep {
 
     template <typename term_t>
@@ -19,32 +21,35 @@ namespace imhotep {
         const int64_t* docid_addresses() const { return _docid_addresses.data(); }
         const int64_t*       doc_freqs() const { return _doc_freqs.data();       }
 
+        Shard::packed_table_ptr table() { return _table; }
+
         size_t count() const;
 
-        void reset(const id_t& id);
+        void reset(const id_t& id, Shard::packed_table_ptr table);
 
         TermDesc& operator+=(const term_t& term);
 
     private:
-        id_t                 _id = IdTraits<id_t>::default_value();
-        std::vector<int64_t> _docid_addresses;
-        std::vector<int64_t> _doc_freqs;
-
+        id_t                    _id = IdTraits<id_t>::default_value();
+        std::vector<int64_t>    _docid_addresses;
+        std::vector<int64_t>    _doc_freqs;
+        Shard::packed_table_ptr _table;
     };
 
 
-    template <typename iterator_t>
+    template <typename term_t>
     class TermDescIterator
-        : public boost::iterator_facade<TermDescIterator<iterator_t>,
-                                        TermDesc<typename iterator_t::value_type> const,
+        : public boost::iterator_facade<TermDescIterator<term_t>,
+                                        TermDesc<term_t> const,
                                         boost::forward_traversal_tag> {
     public:
-        typedef typename iterator_t::value_type term_t;
-        typedef TermDesc<term_t>                term_desc_t;
+        typedef TermDesc<term_t>      term_desc_t;
+        typedef MergeIterator<term_t> iterator_t;
 
         TermDescIterator() { }
 
-        TermDescIterator(const iterator_t begin, const iterator_t end);
+        TermDescIterator(const iterator_t begin,
+                         const iterator_t end);
 
     private:
         friend class boost::iterator_core_access;
@@ -70,11 +75,12 @@ namespace imhotep {
     }
 
     template <typename term_t>
-    void TermDesc<term_t>::reset(const id_t& id)
+    void TermDesc<term_t>::reset(const id_t& id, Shard::packed_table_ptr table)
     {
         _id = id;
         _docid_addresses.clear();
         _doc_freqs.clear();
+        _table = table;
     }
 
     template <typename term_t>
@@ -104,10 +110,10 @@ namespace imhotep {
             return;
         }
 
-        _current.reset(_begin->id());
+        _current.reset(_begin->first.id(), _begin->second);
         iterator_t it(_begin);
-        while (_begin != _end && _begin->id() == _current.id()) {
-            _current += *_begin;
+        while (_begin != _end && _begin->first.id() == _current.id()) {
+            _current += (*_begin).first;
             ++_begin;
         }
     }

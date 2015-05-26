@@ -1,5 +1,7 @@
 #include <iostream>
 #include <thread>
+#include <vector>
+#include <utility>
 
 #include "merge_iterator.hpp"
 #include "split_iterator.hpp"
@@ -9,15 +11,16 @@ using namespace imhotep;
 
 template <typename term_t>
 void merge(const vector<string>& splits) {
-    vector<SplitIterator<term_t>> its;
+    Shard::packed_table_ptr table;
+    vector<typename MergeIterator<term_t>::Entry> pairs;
     for (string split: splits) {
-        its.push_back(SplitIterator<term_t>(split));
+        pairs.push_back(make_pair(SplitIterator<term_t>(split), table));
     }
 
-    MergeIterator<term_t> it(its.begin(), its.end());
+    MergeIterator<term_t> it(pairs.begin(), pairs.end());
     MergeIterator<term_t> end;
     while (it != end) {
-        cout << *it << endl;
+        cout << (*it).first << endl;
         ++it;
     }
 }

@@ -16,7 +16,7 @@ namespace imhotep {
                                                  split_dir, num_splits));
             const std::vector<std::string>& splits(splitters.back().splits());
             for (size_t split_num(0); split_num < splits.size(); ++split_num) {
-                _splits.insert(std::make_pair(split_num, splits[split_num]));
+                _splits.insert(std::make_pair(split_num, SplitDesc(splits[split_num], shard.table())));
             }
         }
         for (Splitter<term_t>& splitter: splitters) {
@@ -26,22 +26,23 @@ namespace imhotep {
     }
 
     template <typename term_t>
-    TermDescIterator<MergeIterator<term_t>> TermProvider<term_t>::merge(size_t split) const {
+    TermDescIterator<term_t> TermProvider<term_t>::merge(size_t split) const {
         typedef split_map_t::const_iterator map_it_t;
-        typedef SplitIterator<term_t>       split_it_t;
 
-        std::vector<split_it_t> split_its;
+        std::vector<typename MergeIterator<term_t>::Entry> pairs;
 
         std::pair<map_it_t, map_it_t> matches(splits().equal_range(split));
-        std::transform(matches.first, matches.second, std::back_inserter(split_its),
-                       [](std::pair<size_t, const std::string&> entry) {
-                           return SplitIterator<term_t>(entry.second);
+        std::transform(matches.first, matches.second, std::back_inserter(pairs),
+                       [](std::pair<size_t, const SplitDesc&> entry) {
+                           const SplitDesc& split_desc(entry.second);
+                           return std::make_pair(SplitIterator<term_t>(split_desc.filename()),
+                                                 split_desc.table());
                        });
 
-        MergeIterator<term_t> begin(split_its.begin(), split_its.end());
+        MergeIterator<term_t> begin(pairs.begin(), pairs.end());
         MergeIterator<term_t> end;
 
-        return TermDescIterator<MergeIterator<term_t>>(begin, end);
+        return TermDescIterator<term_t>(begin, end);
     }
 
 
@@ -62,7 +63,7 @@ namespace imhotep {
                                            ExecutorService&                  executor);
 
 
-    template TermDescIterator<MergeIterator<IntTerm>>    TermProvider<IntTerm>::merge(size_t split)    const;
-    template TermDescIterator<MergeIterator<StringTerm>> TermProvider<StringTerm>::merge(size_t split) const;
+    template TermDescIterator<IntTerm>    TermProvider<IntTerm>::merge(size_t split)    const;
+    template TermDescIterator<StringTerm> TermProvider<StringTerm>::merge(size_t split) const;
 
 } // namespace imhotep

@@ -3,10 +3,12 @@
 
 #include <algorithm>
 #include <queue>
+#include <utility>
 #include <vector>
 
 #include <boost/iterator/iterator_facade.hpp>
 
+#include "shard.hpp"
 #include "split_iterator.hpp"
 
 namespace imhotep {
@@ -14,15 +16,18 @@ namespace imhotep {
     template <typename term_t>
     class MergeIterator
         : public boost::iterator_facade<MergeIterator<term_t>,
-                                        term_t const,
+                                        std::pair<term_t, Shard::packed_table_ptr> const,
                                         boost::forward_traversal_tag> {
     public:
+        typedef std::pair<SplitIterator<term_t>, Shard::packed_table_ptr> Entry;
+
         MergeIterator() { }
 
         template <typename iterator>
         MergeIterator(iterator begin, iterator end)
             : _its(begin, end)
             , _queue(CompareIt(), _its) {
+            // !@# todo(johnf) : only add iterators that are not at their ends...
             increment();
         }
 
@@ -30,15 +35,15 @@ namespace imhotep {
         friend class boost::iterator_core_access;
 
         struct CompareIt {
-            bool operator()(const SplitIterator<term_t>& thing1,
-                            const SplitIterator<term_t>& thing2) {
-                return *thing1 > *thing2;
+            bool operator()(const Entry& thing1,
+                            const Entry& thing2) {
+                return *thing1.first > *thing2.first;
             }
         };
 
         typedef std::priority_queue<
-            SplitIterator<term_t>,
-            std::vector<SplitIterator<term_t>>,
+            Entry,
+            std::vector<Entry>,
             CompareIt
             > PriorityQueue;
 
@@ -50,12 +55,12 @@ namespace imhotep {
                 return;
             }
 
-            SplitIterator<term_t> it(_queue.top());
-            _current = *it;
+            Entry entry(_queue.top());
+            _current = std::make_pair(*entry.first, entry.second);
             _queue.pop();
-            ++it;
-            if (it != end) {
-                _queue.push(it);
+            ++entry.first;
+            if (entry.first != end) {
+                _queue.push(entry);
             }
         }
 
@@ -63,14 +68,14 @@ namespace imhotep {
             return _its == other._its;
         }
 
-        const term_t& dereference() const {
+        typename MergeIterator::reference dereference() const {
             return _current;
         }
 
-        std::vector<SplitIterator<term_t>> _its;
+        std::vector<Entry> _its;
 
-        PriorityQueue _queue;
-        term_t        _current;
+        PriorityQueue                      _queue;
+        typename MergeIterator::value_type _current;
     };
 }
 

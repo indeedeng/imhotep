@@ -26,8 +26,8 @@ void test_term_provider(const vector<Shard>& shards,
 
     for (size_t split_num(0); split_num < num_splits; ++split_num) {
         executor.enqueue([&provider, split_num] {
-                TermDescIterator<MergeIterator<term_t>> it(provider.merge(split_num));
-                TermDescIterator<MergeIterator<term_t>> end;
+                TermDescIterator<term_t> it(provider.merge(split_num));
+                TermDescIterator<term_t> end;
                 size_t num_descs(0);
                 while (it != end) {
                     ++num_descs;

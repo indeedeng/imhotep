@@ -18,11 +18,27 @@
 
 namespace imhotep {
 
+    class SplitDesc {
+    public:
+        SplitDesc(const std::string& filename, Shard::packed_table_ptr table)
+            : _filename(filename)
+            , _table(table)
+        { }
+
+        const std::string& filename() const { return _filename; }
+
+        const Shard::packed_table_ptr table() const { return _table; }
+
+    private:
+        const std::string             _filename;
+        const Shard::packed_table_ptr _table;
+    };
+
     template <typename term_t>
     class TermProvider {
     public:
         typedef std::pair<Shard, TermIterator<term_t>> term_source_t;
-        typedef std::multimap<size_t, std::string>     split_map_t;
+        typedef std::multimap<size_t, SplitDesc>       split_map_t;
 
         TermProvider()                    = delete;
         TermProvider(const TermProvider&) = default;
@@ -35,7 +51,7 @@ namespace imhotep {
                      size_t                            num_splits,
                      ExecutorService&                  executor);
 
-        TermDescIterator<MergeIterator<term_t>> merge(size_t split) const;
+        TermDescIterator<term_t> merge(size_t split) const;
 
         const split_map_t& splits() const { return _splits; }
 
