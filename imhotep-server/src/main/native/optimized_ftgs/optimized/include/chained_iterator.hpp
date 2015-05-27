@@ -1,4 +1,5 @@
-#pragma once
+#ifndef CHAINED_ITERATOR_HPP
+#define CHAINED_ITERATOR_HPP
 
 #include <functional>
 #include <vector>
@@ -109,3 +110,5 @@ namespace imhotep {
     };
 
 } // namespace imhotep
+
+#endif

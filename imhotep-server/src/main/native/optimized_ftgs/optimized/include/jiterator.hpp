@@ -6,15 +6,15 @@
 //  Copyright (c) 2015 indeed.com. All rights reserved.
 //
 
-#ifndef imhotep_jIterator_h
-#define imhotep_jIterator_h
+#ifndef JITERATOR_H
+#define JITERATOR_H
 
 #include <functional>
 #include <iterator>
 #include <type_traits>
 
 namespace imhotep {
-    
+
     template<typename v_type>
     class base_jIterator {
     public:
@@ -37,24 +37,24 @@ namespace imhotep {
             _base_iterator(base_iter),
             _end_iterator(end_iter)
         { }
-        
+
         const bool has_next()
         const {
             return _base_iterator != _end_iterator;
         }
-        
+
         void next(value_type data)
         {
             data = *_base_iterator;
-            
+
             _base_iterator++;
         }
-        
+
     private:
         iter_t _base_iterator;
         iter_t _end_iterator;
     };
-    
+
 
     template<typename j_iter_t, class func_t>
     class transform_jIterator {
@@ -72,12 +72,12 @@ namespace imhotep {
         const {
             return _base_jIterator.has_next();
         }
-        
+
         void next(value_type data)
         {
             _transform_func(data, _base_jIterator);
         }
-        
+
     private:
 
         static void do_nothing(value_type data, j_iter_t iter) { }

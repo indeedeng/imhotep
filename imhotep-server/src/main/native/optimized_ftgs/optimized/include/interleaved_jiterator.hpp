@@ -1,4 +1,5 @@
-#pragma once
+#ifndef INTERLEAVED_ITERATOR_HPP
+#define INTERLEAVED_ITERATOR_HPP
 
 #include <memory>
 #include <queue>
@@ -49,3 +50,4 @@ namespace imhotep {
 
 } // namespace imhotep
 
+#endif

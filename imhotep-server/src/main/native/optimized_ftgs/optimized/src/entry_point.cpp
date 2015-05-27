@@ -5,9 +5,9 @@
  *      Author: darren
  */
 #include <tuple>
-#include "jIterator.hpp"
-#include "ChainedIterator.hpp"
+#include "chained_iterator.hpp"
 #include "ftgs_runner.hpp"
+#include "jiterator.hpp"
 
 namespace imhotep {
 
