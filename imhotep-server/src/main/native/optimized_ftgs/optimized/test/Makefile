@@ -11,6 +11,7 @@ LIBS=\
 	-lboost_filesystem      \
 	-lboost_program_options \
 	-lboost_system          \
+	-lyaml-cpp              \
 	-lm -lstdc++
 
 TESTS := \
@@ -69,7 +70,13 @@ TERM_PROVIDER_OBJS = \
 test_term_provider: obj/test_term_provider.o $(TERM_PROVIDER_OBJS)
 	$(CPP) -pthread $(CPPFLAGS) $ -o test_term_provider $(LIBS) $^
 
-test_ftgs_runner: obj/test_ftgs_runner.o $(TERM_PROVIDER_OBJS) ../cppobj/ftgs_runner.o
+FTGS_RUNNER_OBJS =\
+	$(TERM_PROVIDER_OBJS) \
+	../cppobj/ftgs_runner.o	\
+	obj/test_patch.o \
+    ../obj/packed_table.o
+
+test_ftgs_runner: obj/test_ftgs_runner.o $(FTGS_RUNNER_OBJS)
 	$(CPP) -pthread $(CPPFLAGS) $ -o test_ftgs_runner $^ $(LIBS)
 
 GROUPS_OBJS = \

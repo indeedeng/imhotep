@@ -31,6 +31,9 @@ namespace imhotep
         /** block until all workers complete or an unrecoverable error occurs */
         void await_completion(void);
 
+        /** @return the number of worker threads in the executor's pool */
+        size_t num_workers() const { return _workers.size(); }
+
         /** add new work item to the pool */
         template<class F, class... Args>
         auto enqueue(F&& f, Args&&... args)
