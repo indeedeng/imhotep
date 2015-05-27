@@ -16,6 +16,7 @@ void tgs_init(struct worker_desc *worker,
               uint8_t term_type,
               long *addresses,
               int *docs_per_shard,
+              packed_table_t *shards,
               int num_shard,
               struct ftgs_outstream *stream,
               struct session_desc *session)
@@ -28,7 +29,7 @@ void tgs_init(struct worker_desc *worker,
     for (int i = 0; i < num_shard; i++) {
         infos[i].n_docs_in_slice = docs_per_shard[i];
         infos[i].doc_slice = (uint8_t *)addresses[i];
-        infos[i].packed_metrics = session->shards[i];
+        infos[i].packed_metrics = shards[i];
     }
     desc->grp_buf = session->grp_buf;
     desc->updated_groups = session->nz_grps_buf;

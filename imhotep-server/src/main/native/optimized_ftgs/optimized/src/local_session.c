@@ -18,6 +18,7 @@ int run_tgs_pass(struct worker_desc *worker,
                  int string_term_len,
                  long *addresses,
                  int *docs_per_shard,
+                 packed_table_t *shards,
                  int num_shard,
                  int socket_num)
 {
@@ -45,6 +46,7 @@ int run_tgs_pass(struct worker_desc *worker,
              term_type,
              addresses,
              docs_per_shard,
+             shards,
              num_shard,
              stream,
              session);
@@ -123,7 +125,6 @@ static unpacked_table_t *allocate_grp_stats(struct session_desc *session,
 void session_init(struct session_desc *session,
                   int n_groups,
                   int n_stats,
-                  packed_table_t **shards,
                   int n_shards)
 {
     session->num_groups = n_groups;
@@ -133,8 +134,6 @@ void session_init(struct session_desc *session,
     session->grp_stats = allocate_grp_stats(session, shards[0]);
     session->grp_buf = circular_buffer_int_alloc(CIRC_BUFFER_SIZE);
     session->nz_grps_buf = calloc(n_groups, sizeof(uint32_t));
-    session->shards = (packed_table_t **)calloc(n_shards, sizeof(packed_table_t *));
-    memcpy(session->shards, shards, n_shards * sizeof(packed_table_t *));
 }
 
 void session_destroy(struct session_desc *session)
@@ -145,8 +144,6 @@ void session_destroy(struct session_desc *session)
     circular_buffer_int_cleanup(session->grp_buf);
     free(session->nz_grps_buf);
     unpacked_table_destroy(session->temp_buf);
-
-    free(session->shards);
 }
 
 

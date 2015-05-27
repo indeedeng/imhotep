@@ -18,7 +18,7 @@ namespace imhotep {
         {
             std::for_each(begin, end, [this] (jIter_t it) {
                 if (it.hasNext()) {
-                    _queue->push(it);
+                    _queue.push(it);
                 }
             });
         }
@@ -38,14 +38,13 @@ namespace imhotep {
             _queue->pop();
             current_jIter.next(data);
             if (current_jIter.hasNext()) {
-                _queue->push(current_jIter);
+                _queue.push(current_jIter);
             }
         }
 
         bool hasNext() const { return !_queue.empty(); }
 
-        typedef std::queue<jIter_t> queue_t;
-        std::shared_ptr<queue_t> _queue = std::make_shared<queue_t>();
+        std::queue<jIter_t> _queue;
     };
 
 } // namespace imhotep

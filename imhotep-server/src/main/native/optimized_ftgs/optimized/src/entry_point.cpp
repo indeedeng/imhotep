@@ -4,10 +4,16 @@
  *  Created on: May 26, 2015
  *      Author: darren
  */
-#include <tuple>
+#include <array>
+#include <string>
+#include "jiterator.hpp"
 #include "chained_iterator.hpp"
 #include "ftgs_runner.hpp"
-#include "jiterator.hpp"
+#include "interleaved_jiterator.hpp"
+extern "C" {
+    #include "local_session.h"
+    #include "imhotep_native.h"
+}
 
 namespace imhotep {
 
@@ -33,27 +39,18 @@ namespace imhotep {
                 _operation(operation)
         { }
 
+        op_desc(int32_t splitIndex, int8_t operation, std::string field) :
+                _splitIndex(splitIndex),
+                _operation(operation),
+                _fieldName(field)
+        { }
+
         op_desc& operator()(TermDesc& desc) {
-            this->_termDesc = desc;
+            _termDesc = desc;
             return *this;
         }
 
     };
-
-//    class op_func {
-//    public:
-//        op_func() { }
-//
-//        op_func(int32_t splitIndex, int8_t operation) : _op_desc(splitIndex, operation) { }
-//
-//        op_desc& operator()(const TermDesc& desc) const {
-//            _op_desc._termDesc = desc;
-//            return _op_desc;
-//        }
-//
-//    private:
-//        op_desc _op_desc;
-//    };
 
 
     template<typename term_t>
@@ -75,56 +72,119 @@ namespace imhotep {
         return term_desc_iters;
     }
 
-    int run(FTGSRunner& runner) {
+    template<typename iterator_t>
+    int run_worker(struct worker_desc *worker, iterator_t iterator) {
+        op_desc op;
+
+        while (iterator.hasNext()) {
+            iterator.next(op);
+            switch (op._operation) {
+                case op_desc::FIELD_START_OPERATION:
+                    break;
+                case op_desc::TGS_OPERATION:
+                    break;
+                case op_desc::FIELD_END_OPERATION:
+                    break;
+                case op_desc::NO_MORE_FIELDS_OPERATION:
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        return 0;
+    }
+
+    int run(FTGSRunner& runner, int nGroups, int nMetrics, int *socket_fds) {
         using int_transform = transform_jIterator<TermDescIterator<IntTerm>, op_desc>;
         using string_transform = transform_jIterator<TermDescIterator<StringTerm>, op_desc>;
+        using chained_iter_t = ChainedIterator<int_transform, string_transform>;
 
-        std::vector<ChainedIterator<int_transform, string_transform>> split_iters;
+        std::vector<chained_iter_t> split_iters;
 
         for (size_t i = 0; i < runner.getNumSplits(); i++) {
 
-            auto int_term_desc_iters = build_term_iters(runner.getIntTermProviders(), i);
-            auto string_term_desc_iters =
-                    build_term_iters<StringTerm>(runner.getStringTermProviders(), i);
-
             // get split iterators for every field
-//            std::vector<int_transform> int_term_desc_iters;
-//            std::vector<string_transform> string_term_desc_iters;
-//
-//            for (int j = 0; j < runner._int_term_providers.size(); j++) {
-//                op_desc func(i, op_desc::TGS_OPERATION);
-//                auto provider = _int_term_providers[j].second;
-//                const auto j_provider = iterator_2_jIterator(provider.merge(i));
-//                const auto wrapped_provider = int_transform(j_provider, func);
-//                int_term_desc_iters.push_back(wrapped_provider);
-//            }
-//            for (int j = 0; j < _string_term_providers.size(); j++) {
-//                op_desc func(i, op_desc::TGS_OPERATION);
-//                auto provider = _string_term_providers[j].second;
-//                const auto j_provider = iterator_2_jIterator(provider.merge(i));
-//                const auto wrapped_provider = string_transform(j_provider, func);
-//                string_term_desc_iters.push_back(wrapped_provider);
-//            }
+            auto int_term_desc_iters = build_term_iters(runner.getIntTermProviders(), i);
+            auto string_term_desc_iters = build_term_iters(runner.getStringTermProviders(), i);
 
             // create chained iterator for the field
-            std::function<op_desc (int32_t num)> f1 = [=](int32_t num) -> op_desc
+            auto int_fields = runner.getIntFieldnames();
+            auto string_fields = runner.getStringFieldnames();
+            std::function<op_desc (int32_t)> f1 = [=](int32_t field_num) -> op_desc
                     {
-                        return op_desc(i, op_desc::FIELD_START_OPERATION);
+                        std::string& field = ((size_t)field_num < int_fields.size())
+                                ? int_fields[field_num]
+                                : string_fields[field_num - int_fields.size()];
+                        return op_desc(i, op_desc::FIELD_START_OPERATION, field);
                     };
-            std::function<op_desc (int32_t num)> f2 = [=](int32_t num) -> op_desc
+            std::function<op_desc (int32_t)> f2 = [=](int32_t field_num) -> op_desc
                     {
                         return op_desc(i, op_desc::FIELD_END_OPERATION);
                     };
 
-            auto chained_splits = ChainedIterator<int_transform, string_transform>(
-                    int_term_desc_iters,
-                    string_term_desc_iters,
-                    f1,
-                    f2);
+            auto chained_splits = chained_iter_t(int_term_desc_iters,
+                                                 string_term_desc_iters,
+                                                 f1,
+                                                 f2);
 
             // save the iterator
             split_iters.push_back(chained_splits);
         }
+
+        // create the workers
+        size_t num_workers = runner.getNumWorkers();
+        size_t num_streams_per_worker = runner.getNumSplits() / num_workers;
+        size_t num_plus_one_workers = runner.getNumSplits() % num_workers;
+
+        std::array<struct worker_desc, num_workers> workers;
+        std::vector<InterleavedJIterator<chained_iter_t>> final_iters;
+        int socket_offset = 0;
+        for (size_t i = 0; i < num_plus_one_workers; i++) {
+            worker_init(&workers[i],
+                        socket_offset,
+                        nGroups,
+                        nMetrics,
+                        &socket_fds[socket_offset],
+                        num_streams_per_worker + 1);
+
+            //TODO: create session
+
+            for (size_t j = 0; j < num_streams_per_worker + 1; j++) {
+                auto iter = InterleavedJIterator<chained_iter_t>(split_iters.begin()
+                                                                     + socket_offset,
+                                                                 split_iters.begin()
+                                                                     + socket_offset
+                                                                     + num_streams_per_worker + 1);
+                final_iters.push_back(iter);
+            }
+
+            socket_offset += num_streams_per_worker + 1;
+        }
+        for (size_t i = num_plus_one_workers; i < num_workers; i++) {
+            worker_init(&workers[i],
+                        socket_offset,
+                        nGroups,
+                        nMetrics,
+                        &socket_fds[socket_offset],
+                        num_streams_per_worker);
+
+            //TODO: create session
+
+            for (size_t j = 0; j < num_streams_per_worker; j++) {
+                auto iter = InterleavedJIterator<chained_iter_t>(split_iters.begin()
+                                                                     + socket_offset,
+                                                                 split_iters.begin()
+                                                                     + socket_offset
+                                                                     + num_streams_per_worker);
+                final_iters.push_back(iter);
+            }
+
+            socket_offset += num_streams_per_worker;
+        }
+
+
+        // kick off the workers
 
         return 0;
     }

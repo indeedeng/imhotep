@@ -23,24 +23,31 @@ namespace imhotep {
 
         ChainedIterator() { }
 
-//        template<typename func1_t, typename func2_t>
-        ChainedIterator(t1_vector_t& t1_vec,
-                        t2_vector_t& t2_vec,
+        ChainedIterator(t1_vector_t&& t1_vec,
+                        t2_vector_t&& t2_vec,
                         generator_type f1,
                         generator_type f2) :
                 _t1_iters(t1_vec),
                 _t2_iters(t2_vec),
                 _prefix_func(f1),
-                _suffix_func(f2)
-        {
-            if (!_t1_iters.empty()) {
-                _current_t1_iter = _t1_iters[0];
-            }
-            if (!_t2_iters.empty()) {
-                _current_t2_iter = _t2_iters[0];
-            }
+                _suffix_func(f2),
+                begin(true)
+        { }
 
-            begin = true;
+
+        void next(value_type& data)
+        {
+            if (_next_iter_num < _t1_iters.size()) {
+                _next_iter_num = inc_type(_t1_iters, _next_iter_num, data);
+            } else if (_next_iter_num < (_t1_iters.size() + _t2_iters.size())) {
+                _next_iter_num = inc_type(_t2_iters, _next_iter_num - _t1_iters.size(), data)
+                        + _t1_iters.size();
+            }
+        }
+
+        bool hasNext() const
+        {
+            return _next_iter_num < (_t1_iters.size() + _t2_iters.size());
         }
 
     private:
@@ -48,13 +55,13 @@ namespace imhotep {
         bool inc_core(jIter_t& it_curr, value_type& data)
         {
             if (begin) {
-                data = _prefix_func(_current_iter_num);
+                data = _prefix_func(_next_iter_num);
                 begin = false;
                 return true;
             }
 
             if (end) {
-                data = _suffix_func(_current_iter_num);
+                data = _suffix_func(_next_iter_num);
                 end = false;
                 return false;
             }
@@ -67,44 +74,20 @@ namespace imhotep {
         }
 
         template<typename jIter_t>
-        bool inc_type(std::vector<jIter_t>& iters, jIter_t& it_curr, value_type& data)
+        int inc_type(std::vector<jIter_t>& iters, int32_t iter_num, value_type& data)
         {
-            bool current_iter_has_more = inc_core(it_curr, data);
+            jIter_t& iter = iters[iter_num];
 
-            if (current_iter_has_more) {
-                return true;
-            }
-
-            if (_current_iter_num < iters.size()) {
-                it_curr = iters[0];
-                _current_iter_num ++;
-                begin = true;
-                return true;
-            }
-            return false;
+            const bool iter_has_more = inc_core(iter, data);
+            begin = !iter_has_more;
+            return iter_num + !iter_has_more;
         }
 
-        void next(value_type& data)
-        {
-            if (_current_iter_num < _t1_iters.size()) {
-                inc_type(_t1_iters, _current_t1_iter, data);
-            } else {
-                inc_type(_t2_iters, _current_t2_iter, data);
-            }
-        }
-
-        bool hasNext() const
-        {
-            return _current_iter_num < (_t1_iters.size() + _t2_iters.size());
-        }
-
-        t1_vector_t& _t1_iters;
-        t2_vector_t& _t2_iters;
-        jIter_type1 _current_t1_iter;
-        jIter_type2 _current_t2_iter;
-        int32_t _current_iter_num = 0;
+        t1_vector_t _t1_iters;
+        t2_vector_t _t2_iters;
         generator_type _prefix_func;
         generator_type _suffix_func;
+        int32_t _next_iter_num = 0;
         bool begin = false;
         bool end = false;
     };

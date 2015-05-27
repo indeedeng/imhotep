@@ -99,7 +99,6 @@ struct session_desc {
     int num_stats;
     int num_shards;
     int only_binary_metrics;
-    packed_table_t **shards;
     unpacked_table_t *temp_buf;
     unpacked_table_t *grp_stats;
     struct circular_buffer_int *grp_buf;
