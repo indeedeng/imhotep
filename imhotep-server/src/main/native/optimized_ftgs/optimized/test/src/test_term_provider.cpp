@@ -26,12 +26,12 @@ void test_term_provider(const vector<Shard>& shards,
 
     for (size_t split_num(0); split_num < num_splits; ++split_num) {
         executor.enqueue([&provider, split_num] {
-                TermDescIterator<term_t> it(provider.merge(split_num));
-                TermDescIterator<term_t> end;
+                TermDesc desc;
                 size_t num_descs(0);
-                while (it != end) {
+                TermDescIterator<term_t> it(provider.merge(split_num));
+                while (it.hasNext()) {
                     ++num_descs;
-                    ++it;
+                    it.next(desc);
                 }
                 cout << "num_descs: " << num_descs << endl;
             });

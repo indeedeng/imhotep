@@ -24,8 +24,8 @@ namespace imhotep {
         void reset(const int64_t id, Shard::packed_table_ptr table);
         void reset(const std::string& id, Shard::packed_table_ptr table);
 
-        template<typename id_type>
-        TermDesc& operator+=(const Term<id_type>& term);
+        template<typename term_t>
+        TermDesc& operator+=(const term_t& term);
 
     private:
         int64_t              _int_term;
@@ -89,11 +89,19 @@ namespace imhotep {
         _table = table;
     }
 
-    template<typename id_type>
-    TermDesc& TermDesc::operator+=(const Term<id_type>& term)
+    template<>
+    inline TermDesc& TermDesc::operator+=<IntTerm>(const IntTerm& term)
     {
-        assert(_int_term == term.int_term());
-        assert(_string_term == term.string_term());
+        assert(_int_term == term.id());
+        _docid_addresses.push_back(term.doc_offset());
+        _doc_freqs.push_back(term.doc_freq());
+        return *this;
+    }
+
+    template<>
+    inline TermDesc& TermDesc::operator+=<StringTerm>(const StringTerm& term)
+    {
+        assert(_string_term == term.id());
         _docid_addresses.push_back(term.doc_offset());
         _doc_freqs.push_back(term.doc_freq());
         return *this;
@@ -108,9 +116,9 @@ namespace imhotep {
         }
 
         data.reset(_begin->first.id(), _begin->second);
-        term_t& current_id = _begin->first.id();
+        const typename term_t::id_t current_id(_begin->first.id());
         while (_begin != _end && _begin->first.id() == current_id) {
-            data += *_begin;
+            data += (*_begin).first;
             ++_begin;
         }
     }
@@ -118,7 +126,7 @@ namespace imhotep {
     template <typename term_t>
     const bool TermDescIterator<term_t>::hasNext(void) const
     {
-        return _begin == _end;
+        return _begin != _end;
     }
 
 
