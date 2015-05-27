@@ -9,6 +9,7 @@
 
 #include <cassert>
 #include <cstring>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 
@@ -60,19 +61,24 @@ namespace imhotep {
         size_t _length = 0;
         void*  _mapped = 0;
 
+        int _errno = 0;
+
     public:
         MMappedVarIntView() { }
 
         MMappedVarIntView(const MMappedVarIntView& rhs) = delete;
 
         MMappedVarIntView(const std::string& filename)
-            : _fd(open(filename.c_str(), O_RDONLY)) {
+            : _fd(open(filename.c_str(), O_RDONLY))
+            , _errno(errno) {
             if (_fd <= 0) {
-                throw std::runtime_error("cannot open file: " + filename);
+                throw std::runtime_error("cannot open file: " + filename +
+                                         " " + std::string(strerror(_errno)));
             }
 
             _length = file_size(_fd);
             _mapped = mmap(0, _length, PROT_READ, MAP_PRIVATE | MAP_POPULATE, _fd, 0);
+            _errno  = errno;
             if (_mapped == reinterpret_cast<void*>(-1)) {
                 throw std::runtime_error("cannot mmap: " + std::string(strerror(errno)));
             }
@@ -82,8 +88,8 @@ namespace imhotep {
         }
 
         ~MMappedVarIntView() {
-            munmap(_mapped, _length);
-            close(_fd);
+            if (_mapped) munmap(_mapped, _length);
+            if (_fd > 0) close(_fd);
         }
 
         void * mapped() { return _mapped; }
