@@ -7,12 +7,17 @@ LFLAGS=-g -O3 -flto
 OPT_CFLAGS= -g -O3 -flto -funroll-loops $(CFLAGS)
 DBG_CFLAGS= -g $(CPPFLAGS)
 
-LIBS=-lm -lstdc++
+LIBS=\
+	-lboost_filesystem      \
+	-lboost_program_options \
+	-lboost_system          \
+	-lm -lstdc++
 
 TESTS := \
 	packed_perf               \
 	test_bit_tree             \
 	test_circ_buf             \
+	test_ftgs_runner          \
 	test_groups               \
 	test_int_term_iterator    \
 	test_packed_shard         \
@@ -63,6 +68,9 @@ TERM_PROVIDER_OBJS = \
 
 test_term_provider: obj/test_term_provider.o $(TERM_PROVIDER_OBJS)
 	$(CPP) -pthread $(CPPFLAGS) $ -o test_term_provider $(LIBS) $^
+
+test_ftgs_runner: obj/test_ftgs_runner.o $(TERM_PROVIDER_OBJS) ../cppobj/ftgs_runner.o
+	$(CPP) -pthread $(CPPFLAGS) $ -o test_ftgs_runner $^ $(LIBS)
 
 GROUPS_OBJS = \
     obj/test_patch.o          \
