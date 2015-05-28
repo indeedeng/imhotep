@@ -1,5 +1,7 @@
 #include "term_provider.hpp"
 
+#include "split_iterator.hpp"
+
 namespace imhotep {
 
     template <typename term_t>
@@ -35,7 +37,7 @@ namespace imhotep {
         std::transform(matches.first, matches.second, std::back_inserter(pairs),
                        [](std::pair<size_t, const SplitDesc&> entry) {
                            const SplitDesc& split_desc(entry.second);
-                           return std::make_pair(SplitIterator<term_t>(split_desc.filename()),
+                           return std::make_pair(SplitIterator<term_t>(split_desc.view()),
                                                  split_desc.table());
                        });
 

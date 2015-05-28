@@ -1,9 +1,11 @@
 #include <iostream>
+#include <memory>
 #include <thread>
 #include <vector>
 #include <utility>
 
 #include "merge_iterator.hpp"
+#include "mmapped_file.hpp"
 #include "split_iterator.hpp"
 
 using namespace std;
@@ -13,8 +15,11 @@ template <typename term_t>
 void merge(const vector<string>& splits) {
     Shard::packed_table_ptr table;
     vector<typename MergeIterator<term_t>::Entry> pairs;
+    vector<shared_ptr<MMappedFile>> split_files;
     for (string split: splits) {
-        pairs.push_back(make_pair(SplitIterator<term_t>(split), table));
+        split_files.push_back(make_shared<MMappedFile>(split));
+        SplitView view(split_files.back()->begin(), split_files.back()->end());
+        pairs.push_back(make_pair(SplitIterator<term_t>(view), table));
     }
 
     MergeIterator<term_t> it(pairs.begin(), pairs.end());

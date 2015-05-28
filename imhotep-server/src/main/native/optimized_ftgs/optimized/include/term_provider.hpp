@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <iterator>
 #include <map>
+#include <memory>
 #include <string>
 #include <thread>
 #include <utility>
@@ -11,9 +12,10 @@
 
 #include "executor_service.hpp"
 #include "merge_iterator.hpp"
+#include "mmapped_file.hpp"
 #include "shard.hpp"
-#include "split_iterator.hpp"
 #include "splitter.hpp"
+#include "split_view.hpp"
 #include "term_desc_iterator.hpp"
 
 namespace imhotep {
@@ -29,9 +31,16 @@ namespace imhotep {
 
         const Shard::packed_table_ptr table() const { return _table; }
 
+        SplitView view() const {
+            if (!_file) _file.reset(new MMappedFile(filename()));
+            return SplitView(_file->begin(), _file->end());
+        }
+
     private:
         const std::string             _filename;
         const Shard::packed_table_ptr _table;
+
+        mutable std::shared_ptr<MMappedFile> _file;
     };
 
     template <typename term_t>
@@ -57,6 +66,7 @@ namespace imhotep {
 
     private:
         split_map_t _splits;
+
     };
 
     typedef TermProvider<IntTerm>    IntTermProvider;

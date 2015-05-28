@@ -6,7 +6,6 @@
 #include <vector>
 #include <boost/iterator/iterator_facade.hpp>
 
-#include "mmapped_file.hpp"
 #include "split_view.hpp"
 #include "term.hpp"
 
@@ -20,9 +19,8 @@ namespace imhotep {
     public:
         SplitIterator() { }
 
-        SplitIterator(const std::string& split_file)
-            : _file(std::make_shared<MMappedFile>(split_file))
-            , _view(_file->begin(), _file->end()) {
+        SplitIterator(const SplitView& view)
+            : _view(view) {
             increment();
         }
 
@@ -43,10 +41,8 @@ namespace imhotep {
 
         term_t decode();
 
-        std::shared_ptr<MMappedFile> _file;
-        SplitView                    _view;
-
-        term_t _current;
+        SplitView _view;
+        term_t    _current;
     };
 }
 
