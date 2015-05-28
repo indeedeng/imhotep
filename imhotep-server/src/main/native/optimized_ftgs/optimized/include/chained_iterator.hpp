@@ -1,6 +1,7 @@
 #ifndef CHAINED_ITERATOR_HPP
 #define CHAINED_ITERATOR_HPP
 
+#include <utility>
 #include <functional>
 #include <vector>
 #include <iterator>
@@ -23,8 +24,8 @@ namespace imhotep {
 
         ChainedIterator() { }
 
-        ChainedIterator(t1_vector_t&& t1_vec,
-                        t2_vector_t&& t2_vec,
+        ChainedIterator(t1_vector_t t1_vec,
+                        t2_vector_t t2_vec,
                         generator_type f1,
                         generator_type f2) :
                 _t1_iters(t1_vec),
@@ -87,7 +88,7 @@ namespace imhotep {
         t2_vector_t _t2_iters;
         generator_type _prefix_func;
         generator_type _suffix_func;
-        int32_t _next_iter_num = 0;
+        size_t _next_iter_num = 0;
         bool begin = false;
         bool end = false;
     };

@@ -100,20 +100,16 @@ namespace imhotep {
         using string_transform = transform_jIterator<TermDescIterator<StringTerm>, op_desc>;
         using chained_iter_t = ChainedIterator<int_transform, string_transform>;
 
-        std::vector<chained_iter_t> split_iters;
+        std::vector<chained_iter_t> split_iters(runner.getNumSplits());
 
         for (size_t i = 0; i < runner.getNumSplits(); i++) {
-
-            // get split iterators for every field
-            auto int_term_desc_iters = build_term_iters(runner.getIntTermProviders(), i);
-            auto string_term_desc_iters = build_term_iters(runner.getStringTermProviders(), i);
 
             // create chained iterator for the field
             auto int_fields = runner.getIntFieldnames();
             auto string_fields = runner.getStringFieldnames();
             std::function<op_desc (int32_t)> f1 = [=](int32_t field_num) -> op_desc
                     {
-                        std::string& field = ((size_t)field_num < int_fields.size())
+                        const std::string& field = ((size_t)field_num < int_fields.size())
                                 ? int_fields[field_num]
                                 : string_fields[field_num - int_fields.size()];
                         return op_desc(i, op_desc::FIELD_START_OPERATION, field);
@@ -123,10 +119,12 @@ namespace imhotep {
                         return op_desc(i, op_desc::FIELD_END_OPERATION);
                     };
 
-            auto chained_splits = chained_iter_t(int_term_desc_iters,
-                                                 string_term_desc_iters,
-                                                 f1,
-                                                 f2);
+            // get split iterators for every field
+            auto chained_splits = ChainedIterator<int_transform, string_transform>(
+                    build_term_iters(runner.getIntTermProviders(), i),
+                    build_term_iters(runner.getStringTermProviders(), i),
+                    f1,
+                    f2);
 
             // save the iterator
             split_iters.push_back(chained_splits);
@@ -137,8 +135,8 @@ namespace imhotep {
         size_t num_streams_per_worker = runner.getNumSplits() / num_workers;
         size_t num_plus_one_workers = runner.getNumSplits() % num_workers;
 
-        std::array<struct worker_desc, num_workers> workers;
-        std::vector<InterleavedJIterator<chained_iter_t>> final_iters;
+        std::vector<struct worker_desc> workers(num_workers);
+        std::vector<InterleavedJIterator<chained_iter_t>> final_iters(num_workers);
         int socket_offset = 0;
         for (size_t i = 0; i < num_plus_one_workers; i++) {
             worker_init(&workers[i],

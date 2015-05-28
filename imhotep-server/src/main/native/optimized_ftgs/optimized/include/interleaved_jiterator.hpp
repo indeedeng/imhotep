@@ -11,7 +11,7 @@ namespace imhotep {
     public:
         typedef typename jIter_t::value_type value_type;
 
-        InterleavedJIterator() : _queue(0) { }
+        InterleavedJIterator() : _queue() { }
 
         template<typename iterator>
         InterleavedJIterator(iterator begin, iterator end)

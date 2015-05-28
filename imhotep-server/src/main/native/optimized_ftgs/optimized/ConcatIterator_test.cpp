@@ -4,8 +4,9 @@
  *  Created on: May 20, 2015
  *      Author: darren
  */
-
-#include "ChainedIterator.hpp"
+#include <utility>
+#include "chained_iterator.hpp"
+#include "jiterator.hpp"
 #include <iostream>       // std::cout
 
 struct fubar {
@@ -23,8 +24,7 @@ int main()
     std::vector<fubar> vec4;
     std::vector<fubar> vec5;
 
-    std::vector<std::vector<fubar>::iterator> vecs;
-    std::vector<std::vector<fubar>::iterator> vec_ends;
+    std::vector<imhotep::iterator_2_jIterator<std::vector<fubar>::iterator>> vecs;
 
     for (int i = 0; i < 5; i ++) {
         vec1.push_back(i * 5);
@@ -34,39 +34,38 @@ int main()
         vec5.push_back(i * 5 + 4);
     }
 
-    vecs.push_back(vec1.begin());
-    vecs.push_back(vec2.begin());
-    vecs.push_back(vec3.begin());
-    vecs.push_back(vec4.begin());
-    vecs.push_back(vec5.begin());
-
-    vec_ends.push_back(vec1.end());
-    vec_ends.push_back(vec2.end());
-    vec_ends.push_back(vec3.end());
-    vec_ends.push_back(vec4.end());
-    vec_ends.push_back(vec5.end());
+    vecs.push_back(imhotep::iterator_2_jIterator<std::vector<fubar>::iterator>(vec1.begin(), vec1.end()));
+    vecs.push_back(imhotep::iterator_2_jIterator<std::vector<fubar>::iterator>(vec2.begin(), vec2.end()));
+    vecs.push_back(imhotep::iterator_2_jIterator<std::vector<fubar>::iterator>(vec3.begin(), vec3.end()));
+    vecs.push_back(imhotep::iterator_2_jIterator<std::vector<fubar>::iterator>(vec4.begin(), vec4.end()));
+    vecs.push_back(imhotep::iterator_2_jIterator<std::vector<fubar>::iterator>(vec5.begin(), vec5.end()));
 
     int32_t start_int = 1;
     int32_t end_int = 11;
 
-    imhotep::ChainedIterator<std::vector<fubar>::iterator> my_iter(vecs.begin(),
-                                                                 vecs.end(),
-                                                                 vec_ends.begin(),
-                                                                 vec_ends.end(),
-    [start_int] (int num) {
+    std::function<fubar(int32_t)> f1 = [start_int] (int num) {
         return fubar(-(start_int + num));
-    },
-    [end_int] (int num) {
-        return fubar(-(end_int + num));
-    });
+    };
+    std::function<fubar(int32_t)> f2 = [end_int] (int num) {
+            return fubar(-(end_int + num));
+        };
 
-    imhotep::ChainedIterator<std::vector<fubar>::iterator> my_iter_end;
+    std::vector<imhotep::iterator_2_jIterator<std::vector<fubar>::iterator>> empty_vec;
 
-    while(my_iter != my_iter_end) {
-        std::cout << my_iter->bar << "\n";
-        my_iter ++;
+    imhotep::ChainedIterator< imhotep::iterator_2_jIterator<std::vector<fubar>::iterator>,
+                              imhotep::iterator_2_jIterator<std::vector<fubar>::iterator> >
+        my_iter(vecs,
+                empty_vec,
+                f1,
+                f2);
+
+    fubar buddy(-1);
+    while(my_iter.hasNext()) {
+        my_iter.next(buddy);
+
+        std::cout << buddy.bar << "\n";
     }
-    std::cout << my_iter->bar << "\n";
+//    std::cout << buddy.bar << "\n";
 
     std::cout << "complete.\n";
 

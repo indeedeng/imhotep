@@ -38,7 +38,7 @@ namespace imhotep {
             _end_iterator(end_iter)
         { }
 
-        const bool has_next()
+        const bool hasNext()
         const {
             return _base_iterator != _end_iterator;
         }

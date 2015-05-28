@@ -18,7 +18,7 @@ int run_tgs_pass(struct worker_desc *worker,
                  int string_term_len,
                  long *addresses,
                  int *docs_per_shard,
-                 packed_table_t *shards,
+                 packed_table_t **shards,
                  int num_shard,
                  int socket_num)
 {
@@ -92,22 +92,22 @@ void destroy_shard_multicache(packed_table_t *table)
     packed_table_destroy(table);
 }
 
-int register_shard(struct session_desc *session, packed_table_t *table)
-{
-    if (packed_table_is_binary_only(table)) {
-        session->only_binary_metrics = 1;
-    } else {
-        session->only_binary_metrics = 0;
-    }
-
-    for (int i = 0; i < session->num_shards; i++) {
-        if (session->shards[i] == NULL) {
-            session->shards[i] = table;
-            return i;
-        }
-    }
-    return -1;
-}
+//int register_shard(struct session_desc *session, packed_table_t *table)
+//{
+//    if (packed_table_is_binary_only(table)) {
+//        session->only_binary_metrics = 1;
+//    } else {
+//        session->only_binary_metrics = 0;
+//    }
+//
+//    for (int i = 0; i < session->num_shards; i++) {
+//        if (session->shards[i] == NULL) {
+//            session->shards[i] = table;
+//            return i;
+//        }
+//    }
+//    return -1;
+//}
 
 /* No need to share the group stats buffer, so just keep one per session*/
 /* Make sure the one we have is large enough */
@@ -125,13 +125,16 @@ static unpacked_table_t *allocate_grp_stats(struct session_desc *session,
 void session_init(struct session_desc *session,
                   int n_groups,
                   int n_stats,
-                  int n_shards)
+                  int n_shards,
+                  int only_binary_metrics,
+                  packed_table_t *sample_table)
 {
     session->num_groups = n_groups;
     session->num_stats = n_stats;
     session->num_shards = n_shards;
+    session->only_binary_metrics = only_binary_metrics;
 
-    session->grp_stats = allocate_grp_stats(session, shards[0]);
+    session->grp_stats = allocate_grp_stats(session, sample_table);
     session->grp_buf = circular_buffer_int_alloc(CIRC_BUFFER_SIZE);
     session->nz_grps_buf = calloc(n_groups, sizeof(uint32_t));
 }

@@ -115,6 +115,7 @@ void tgs_init(struct worker_desc *worker,
               uint8_t term_type,
               long *addresses,
               int *docs_per_shard,
+              packed_table_t **shards,
               int num_shard,
               struct ftgs_outstream *stream,
               struct session_desc *session);
