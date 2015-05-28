@@ -10,7 +10,7 @@ namespace imhotep {
 
     class TermDesc {
     public:
-        const int64_t int_term() const { return _int_term; }
+        int64_t               int_term() const { return _int_term;    }
         const std::string& string_term() const { return _string_term; }
 
         const int64_t* docid_addresses() const { return _docid_addresses.data(); }
@@ -27,11 +27,11 @@ namespace imhotep {
         TermDesc& operator+=(const term_t& term);
 
     private:
-        int64_t              _int_term;
-        std::string         _string_term;
-        bool                 _is_int_type;
-        std::vector<int64_t> _docid_addresses;
-        std::vector<int64_t> _doc_freqs;
+        int64_t                 _int_term;
+        std::string             _string_term;
+        bool                    _is_int_type;
+        std::vector<int64_t>    _docid_addresses;
+        std::vector<int64_t>    _doc_freqs;
         Shard::packed_table_ptr _table;
     };
 

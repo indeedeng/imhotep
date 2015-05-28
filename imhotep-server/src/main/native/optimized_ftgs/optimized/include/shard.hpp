@@ -18,7 +18,12 @@ namespace imhotep {
 
     class Shard {
     public:
-        typedef std::shared_ptr<packed_table_t>    packed_table_ptr;
+        /** A packed_table_ptr should be treated as a simple datum in the
+            context of this class and users of it. I.e., these are created
+            externally and their lifecycle managed elsewhere. (I'm not aware of
+            a C++ pointer idiom appropriate for such a case or I'd use it.) */
+        typedef const packed_table_t* packed_table_ptr;
+
         typedef std::shared_ptr<MMappedVarIntView> var_int_view_ptr;
 
         explicit Shard(const std::string& dir,
