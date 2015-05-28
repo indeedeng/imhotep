@@ -29,14 +29,9 @@ namespace imhotep {
 
         TermIterator(const Shard&       shard,
                      const std::string& field)
-            : _term_view(shard.term_view<term_t>(field))
-            , _docid_view(shard.docid_view<term_t>(field))
-            , _docid_base(_docid_view ? reinterpret_cast<int64_t>(_docid_view->begin()) : 0) {
-            increment();
-        }
-
-        TermIterator(const char* begin, const char* end)
-            : _term_view(std::make_shared<VarIntView>(begin, end)) {
+            : _term_view(*shard.term_view<term_t>(field))
+            , _docid_view(*shard.docid_view<term_t>(field))
+            , _docid_base(reinterpret_cast<int64_t>(_docid_view.begin())) {
             increment();
         }
 
@@ -45,12 +40,17 @@ namespace imhotep {
 
         void increment();
 
-        bool equal(const TermIterator& other) const { return *_term_view == *other._term_view; }
+        bool equal(const TermIterator& other) const {
+            return
+                (_term_view.empty() && other._term_view.empty()) ||
+                (_term_view == other._term_view &&
+                 _docid_view == other._docid_view);
+        }
 
         const term_t& dereference() const { return _current; }
 
-        std::shared_ptr<VarIntView> _term_view  = std::make_shared<VarIntView>();
-        std::shared_ptr<VarIntView> _docid_view = std::make_shared<VarIntView>();
+        VarIntView _term_view;
+        VarIntView _docid_view;
 
         const int64_t _docid_base = 0;
 
