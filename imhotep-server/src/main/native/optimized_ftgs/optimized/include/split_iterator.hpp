@@ -7,59 +7,16 @@
 #include <boost/iterator/iterator_facade.hpp>
 
 #include "mmapped_file.hpp"
+#include "split_view.hpp"
 #include "term.hpp"
 
 namespace imhotep {
-
-    class SplitView {
-    public:
-        typedef std::pair<const char*, const char*> Buffer;
-
-        SplitView(const char* begin = 0,
-                  const char* end   = 0)
-            : _begin(begin)
-            , _end(end)
-        { }
-
-        bool operator==(const SplitView& rhs) const {
-            return _begin == rhs._begin && _end == rhs._end;
-        }
-
-        bool empty() const { return _begin >= _end; }
-
-        template <typename T>
-        T read() {
-            /*
-            if (sizeof(T) > std::distance(_begin, _end)) {
-                throw std::length_error(__PRETTY_FUNCTION__);
-                }*/
-            const T* result(reinterpret_cast<const T*>(_begin));
-            _begin += sizeof(T);
-            return T(*result);
-        }
-
-        Buffer read_bytes(size_t length) {
-            /*
-            if (length > std::distance(_begin, _end)) {
-                throw std::length_error(__PRETTY_FUNCTION__);
-                }*/
-            const Buffer result(_begin, _begin + length);
-            _begin += length;
-            return result;
-        }
-
-    private:
-        const char* _begin = 0;
-        const char* _end   = 0;
-    };
-
 
     template <typename term_t>
     class SplitIterator
         : public boost::iterator_facade<SplitIterator<term_t>,
                                         term_t const,
                                         boost::forward_traversal_tag> {
-
     public:
         SplitIterator() { }
 
@@ -74,7 +31,7 @@ namespace imhotep {
 
         void increment() {
             if (!_view.empty()) {
-                _current = decode();
+                _current = _view.read<term_t>();
             }
         }
 
@@ -91,7 +48,6 @@ namespace imhotep {
 
         term_t _current;
     };
-
 }
 
 #endif
