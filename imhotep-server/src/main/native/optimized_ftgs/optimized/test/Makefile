@@ -62,9 +62,10 @@ test_string_term_iterator: obj/test_string_term_iterator.o ../cppobj/term_iterat
 
 TERM_PROVIDER_OBJS = \
 	../cppobj/executor_service.o \
-	../cppobj/split_iterator.o   \
-	../cppobj/splitter.o         \
-	../cppobj/term_iterator.o    \
+	../cppobj/split_iterator.o \
+	../cppobj/splitter.o \
+	../cppobj/term_desc_iterator.o \
+	../cppobj/term_iterator.o \
 	../cppobj/term_provider.o
 
 test_term_provider: obj/test_term_provider.o $(TERM_PROVIDER_OBJS)

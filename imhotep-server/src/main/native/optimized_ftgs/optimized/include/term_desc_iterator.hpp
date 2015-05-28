@@ -49,7 +49,7 @@ namespace imhotep {
                 _end(end)
         { }
 
-        const bool hasNext(void) const;
+        bool hasNext(void) const;
 
         void next(value_type& data);
 

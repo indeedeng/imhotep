@@ -2,14 +2,12 @@
 
 namespace imhotep {
 
-    inline
     size_t TermDesc::count() const
     {
         assert(_docid_addresses.size() == _doc_freqs.size());
         return _doc_freqs.size();
     }
 
-    inline
     void TermDesc::reset(const int64_t id, Shard::packed_table_ptr table)
     {
         _int_term = id;
@@ -20,7 +18,6 @@ namespace imhotep {
         _table = table;
     }
 
-    inline
     void TermDesc::reset(const std::string& id, Shard::packed_table_ptr table)
     {
         _int_term = -1;
@@ -66,9 +63,15 @@ namespace imhotep {
     }
 
     template <typename term_t>
-    const bool TermDescIterator<term_t>::hasNext(void) const
+    bool TermDescIterator<term_t>::hasNext(void) const
     {
         return _begin != _end;
     }
+
+    template void TermDescIterator<IntTerm>::next(TermDesc& data);
+    template void TermDescIterator<StringTerm>::next(TermDesc& data);
+
+    template bool TermDescIterator<IntTerm>::hasNext(void) const;
+    template bool TermDescIterator<StringTerm>::hasNext(void) const;
 
 } // namespace imhotep
