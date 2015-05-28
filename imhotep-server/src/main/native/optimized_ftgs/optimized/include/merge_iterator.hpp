@@ -2,7 +2,6 @@
 #define MERGE_ITERATOR_HPP
 
 #include <algorithm>
-#include <queue>
 #include <utility>
 #include <vector>
 
@@ -30,41 +29,38 @@ namespace imhotep {
                              static SplitIterator<term_t> split_end;
                              return entry.first != split_end;
                          });
-            _queue = PriorityQueue(CompareIt(), _its);
             increment();
         }
 
     private:
         friend class boost::iterator_core_access;
 
+        /*
         struct CompareIt {
             bool operator()(const Entry& thing1,
                             const Entry& thing2) {
                 return *thing1.first > *thing2.first;
             }
         };
-
-        typedef std::priority_queue<
-            Entry,
-            std::vector<Entry>,
-            CompareIt
-            > PriorityQueue;
+        */
 
         void increment() {
-            static SplitIterator<term_t> end;
+            static const SplitIterator<term_t> end;
 
-            if (_queue.empty()) {
-                _its.clear();
-                return;
+            if (_its.empty()) return;
+
+            auto lowest(_its.begin());
+            for (auto it(_its.begin()); it != _its.end(); ++it) {
+                const Entry& entry(*it);
+                if (*entry.first < *lowest->first) {
+                    lowest = it;
+                }
             }
 
-            Entry entry(_queue.top());
+            Entry& entry(*lowest);
             _current = std::make_pair(*entry.first, entry.second);
-            _queue.pop();
             ++entry.first;
-            if (entry.first != end) {
-                _queue.push(entry);
-            }
+            if (entry.first == end) _its.erase(lowest);
         }
 
         bool equal(const MergeIterator& other) const {
@@ -77,7 +73,6 @@ namespace imhotep {
 
         std::vector<Entry> _its;
 
-        PriorityQueue                      _queue;
         typename MergeIterator::value_type _current;
     };
 }
