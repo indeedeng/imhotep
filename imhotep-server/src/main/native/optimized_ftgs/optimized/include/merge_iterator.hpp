@@ -12,6 +12,15 @@
 
 namespace imhotep {
 
+    /** Combine a collection of SplitIterators such that we can iterate through
+        them collectively in ascending term id order.
+
+        Performance note: A vector organized as a heap is used internally to
+        order the SplitIterators. For smaller collections this loses out to a
+        simple linear scan approach. I'm taking it on faith that the heap will
+        win for larger collections, but this is worth revisiting in a more
+        realistic test scenario.
+     */
     template <typename term_t>
     class MergeIterator
         : public boost::iterator_facade<MergeIterator<term_t>,
@@ -29,20 +38,19 @@ namespace imhotep {
                              static SplitIterator<term_t> split_end;
                              return entry.first != split_end;
                          });
+            std::make_heap(_its.begin(), _its.end(), _compare);
             increment();
         }
 
     private:
         friend class boost::iterator_core_access;
 
-        /*
         struct CompareIt {
             bool operator()(const Entry& thing1,
-                            const Entry& thing2) {
+                            const Entry& thing2) const {
                 return *thing1.first > *thing2.first;
             }
         };
-        */
 
         void increment() {
             static const SplitIterator<term_t> end;
@@ -50,17 +58,17 @@ namespace imhotep {
             if (_its.empty()) return;
 
             auto lowest(_its.begin());
-            for (auto it(_its.begin()); it != _its.end(); ++it) {
-                const Entry& entry(*it);
-                if (*entry.first < *lowest->first) {
-                    lowest = it;
-                }
-            }
-
             Entry& entry(*lowest);
             _current = std::make_pair(*entry.first, entry.second);
+
             ++entry.first;
-            if (entry.first == end) _its.erase(lowest);
+            if (entry.first == end) {
+                _its.erase(lowest);
+            }
+            else {
+                std::pop_heap(_its.begin(), _its.end(), _compare);
+                std::push_heap(_its.begin(), _its.end(), _compare);
+            }
         }
 
         bool equal(const MergeIterator& other) const {
@@ -70,6 +78,8 @@ namespace imhotep {
         typename MergeIterator::reference dereference() const {
             return _current;
         }
+
+        static const CompareIt _compare;
 
         std::vector<Entry> _its;
 
