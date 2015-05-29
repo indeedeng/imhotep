@@ -4,6 +4,8 @@
  *  Created on: May 26, 2015
  *      Author: darren
  */
+#include "entry_point.hpp"
+
 #include <array>
 #include <string>
 #include "jiterator.hpp"

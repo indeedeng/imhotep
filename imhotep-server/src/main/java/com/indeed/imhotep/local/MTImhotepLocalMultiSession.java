@@ -22,6 +22,7 @@ import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.io.SocketUtils;
 import com.indeed.imhotep.multicache.ftgs.*;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
@@ -275,5 +276,46 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                 throw Throwables2.propagate(t, ExecutionException.class);
             }
         }
+    }
+
+    private native void nativeFTGS(final String[] shardDirs,
+                                   final long[]   packedTablePtrs,
+                                   final String[] intFields,
+                                   final String[] stringFields,
+                                   final String   splitsDir,
+                                   final int      numGroups,
+                                   final int      numStats,
+                                   final int      numSplits,
+                                   final int      numWorkers,
+                                   final int[]    socketFDs);
+
+    private void runNativeFTGS(final FlamdexReader[] readers,
+                               final MultiCache[]    nativeCaches,
+                               final String[]        intFields,
+                               final String[]        stringFields,
+                               final int             numGroups,
+                               final int             numStats,
+                               final int             numSplits,
+                               final Socket[]        sockets) {
+        String[] shardDirs = new String[readers.length];
+        for (int index = 0; index < readers.length; ++index) {
+            shardDirs[index] = readers[index].getDirectory();
+        }
+
+        long[] packedTablePtrs = new long[nativeCaches.length];
+        for (int index = 0; index < nativeCaches.length; ++index) {
+            packedTablePtrs[index] = nativeCaches[index].getNativeAddress();
+        }
+
+        final String splitsDir = "/tmp/splits"; // !@# FIX ME (read from a property?)
+        final int numWorkers = 8;               // !@# FIX ME (read from a property?)
+
+        int[] socketFDs = new int[sockets.length];
+        for (int index = 0; index < sockets.length; ++index) {
+            socketFDs[index] = SocketUtils.getOutputDescriptor(sockets[index]);
+        }
+
+        nativeFTGS(shardDirs, packedTablePtrs, intFields, stringFields, splitsDir,
+                   numGroups, numStats, numSplits, numWorkers, socketFDs);
     }
 }
