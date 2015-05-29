@@ -85,7 +85,8 @@ namespace imhotep {
     {
         std::vector<std::ofstream*> split_files;
         for (std::string split: splits()) {
-            split_files.push_back(new std::ofstream(split.c_str()));
+            split_files.push_back(new std::ofstream(split.c_str(),
+                                                    std::ios::binary | std::ios::out | std::ios::trunc));
         }
         std::hash<typename term_t::id_t> hash_fun;
         term_iterator_t it(_term_iterator);

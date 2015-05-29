@@ -32,7 +32,7 @@ namespace imhotep {
         const Shard::packed_table_ptr table() const { return _table; }
 
         SplitView view() const {
-            if (!_file) _file.reset(new MMappedFile(filename()));
+            if (!_file) _file.reset(new MMappedFile(filename(), true));
             return SplitView(_file->begin(), _file->end());
         }
 
@@ -42,6 +42,7 @@ namespace imhotep {
 
         mutable std::shared_ptr<MMappedFile> _file;
     };
+
 
     template <typename term_t>
     class TermProvider {
