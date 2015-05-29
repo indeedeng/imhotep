@@ -6,7 +6,7 @@ JNI_HEADER_LOC2=$(JNI_HEADER_LOC)/linux
 #CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions -fsanitize=address -fno-omit-frame-pointer -D_SANITIZE_
 #LFLAGS= -g -shared -fsanitize=address
 CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions
-CPPFLAGS=-g  -O3 -Wall -Werror -I./include -I/usr/include/boost -msse4.2 -std=c++0x -fPIC  -flto -funroll-loops
+CPPFLAGS=-g  -O3 -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -I/usr/include/boost -msse4.2 -std=c++14 -fPIC  -flto -funroll-loops
 LFLAGS= -g -O3 -flto -shared
 #LFLAGS= -g -shared
 

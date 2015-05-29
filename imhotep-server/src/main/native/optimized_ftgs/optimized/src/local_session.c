@@ -27,14 +27,6 @@ int run_tgs_pass(struct worker_desc *worker,
 
     start_timer(worker, 3);
 
-    /* just in case. Kinda unnecessary to check this here */
-    if (num_shard > session->num_shards) {
-        /* error */
-        worker->error.code = -1;
-        strcpy(worker->error.str, "Too many shards.");
-        return -1;
-    }
-
     term_init(&desc.term, term_type, int_term, string_term, string_term_len);
 
     /* find the stream data struct by index */
@@ -125,13 +117,11 @@ static unpacked_table_t *allocate_grp_stats(struct session_desc *session,
 void session_init(struct session_desc *session,
                   int n_groups,
                   int n_stats,
-                  int n_shards,
                   int only_binary_metrics,
                   packed_table_t *sample_table)
 {
     session->num_groups = n_groups;
     session->num_stats = n_stats;
-    session->num_shards = n_shards;
     session->only_binary_metrics = only_binary_metrics;
 
     session->grp_stats = allocate_grp_stats(session, sample_table);

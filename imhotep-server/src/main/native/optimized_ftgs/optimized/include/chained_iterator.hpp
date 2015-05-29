@@ -61,17 +61,13 @@ namespace imhotep {
                 return true;
             }
 
-            if (end) {
-                data = _suffix_func(_next_iter_num);
-                end = false;
-                return false;
+            if (it_curr.hasNext()) {
+                it_curr.next(data);
+                return true;
             }
 
-            it_curr.next(data);
-            if (!it_curr.hasNext()) {
-                end = true;
-            }
-            return true;
+            data = _suffix_func(_next_iter_num);
+            return false;
         }
 
         template<typename jIter_t>
@@ -90,7 +86,6 @@ namespace imhotep {
         generator_type _suffix_func;
         size_t _next_iter_num = 0;
         bool begin = false;
-        bool end = false;
     };
 
 } // namespace imhotep

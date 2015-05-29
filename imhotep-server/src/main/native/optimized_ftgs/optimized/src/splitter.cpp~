@@ -1,6 +1,0 @@
-#include "splitter.hpp"
-
-namespace imhotep {
-
-
-} // namespace imhotep

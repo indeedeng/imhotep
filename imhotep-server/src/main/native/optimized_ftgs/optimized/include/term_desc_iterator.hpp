@@ -18,6 +18,8 @@ namespace imhotep {
 
         Shard::packed_table_ptr table() { return _table; }
 
+        const bool is_int_field() const { return _is_int_type; }
+
         size_t count() const;
 
         void reset(const int64_t id, Shard::packed_table_ptr table);
@@ -27,12 +29,12 @@ namespace imhotep {
         TermDesc& operator+=(const term_t& term);
 
     private:
-        int64_t                 _int_term;
-        std::string             _string_term;
-        bool                    _is_int_type;
-        std::vector<int64_t>    _docid_addresses;
-        std::vector<int64_t>    _doc_freqs;
-        Shard::packed_table_ptr _table;
+        int64_t                  _int_term;
+        std::string              _string_term;
+        std::vector<int64_t>     _docid_addresses;
+        std::vector<int64_t>     _doc_freqs;
+        Shard::packed_table_ptr  _table;
+        bool                     _is_int_type;
     };
 
 

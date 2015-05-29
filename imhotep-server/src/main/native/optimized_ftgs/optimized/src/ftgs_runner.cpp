@@ -52,4 +52,47 @@ namespace imhotep {
         , _num_workers(num_workers)
     { }
 
+    template<typename term_t>
+    auto FTGSRunner::forSplit_getFieldIters(const TermProviders<term_t>& providers,
+                                            int split_num)
+        -> std::vector<wrapping_jIterator<TermDescIterator<term_t>, op_desc, op_desc>>
+    {
+        using transform_t = wrapping_jIterator<TermDescIterator<term_t>, op_desc, op_desc>;
+        std::vector<transform_t> term_desc_iters;
+
+        for (size_t i = 0; i < providers.size(); i++) {
+            auto provider = providers[i].second;
+
+            op_desc func(i, op_desc::TGS_OPERATION);
+            const auto wrapped_provider = transform_t(provider.merge(split_num), func);
+            term_desc_iters.push_back(wrapped_provider);
+        }
+
+        return term_desc_iters;
+    }
+
+    template <typename iter1_t, typename iter2_t>
+    auto FTGSRunner::forSplit_chainFieldIters(std::vector<iter1_t>& term_iter1,
+                                              std::vector<iter2_t>& term_iter2,
+                                              const int split_num)
+            -> ChainedIterator<iter1_t, iter2_t>
+    {
+        // create chained iterator for all fields
+        auto int_fields = getIntFieldnames();
+        auto string_fields = getStringFieldnames();
+        std::function<op_desc(int32_t)> f1 = [=](int32_t field_num) -> op_desc
+        {
+            const std::string& field = ((size_t)field_num < int_fields.size())
+            ? int_fields[field_num]
+            : string_fields[field_num - int_fields.size()];
+            return op_desc(split_num, op_desc::FIELD_START_OPERATION, field);
+        };
+        std::function<op_desc(int32_t)> f2 = [=](int32_t field_num) -> op_desc
+        {
+            return op_desc(split_num, op_desc::FIELD_END_OPERATION);
+        };
+
+        return ChainedIterator<iter1_t, iter2_t>(term_iter1, term_iter2, f1, f2);
+    }
+
 } // namespace imhotep

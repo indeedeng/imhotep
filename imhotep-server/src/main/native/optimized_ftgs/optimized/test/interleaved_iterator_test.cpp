@@ -5,12 +5,15 @@
  *      Author: darren
  */
 
+#include <algorithm>
 #include <array>
+#include <vector>
 #include <iostream>       // std::cout
 #include <list>
 #include <utility>
 
-#include "interleaved_iterator.hpp"
+#include "interleaved_jiterator.hpp"
+#include "jiterator.hpp"
 
 int main()
 {
@@ -23,18 +26,17 @@ int main()
         }
     }
 
-    typedef std::pair<List::iterator, List::iterator> PairOfIt;
-    std::array<PairOfIt, 5> pairs;
-    for (size_t i(0); i < pairs.size(); ++i) {
-        pairs[i] = PairOfIt(lists[i].begin(), lists[i].end());
+    std::vector<imhotep::iterator_2_jIterator<List::iterator>> iters;
+    for (size_t i(0); i < 5; ++i) {
+        iters.push_back(imhotep::iterator_2_jIterator<List::iterator>(lists[i].begin(), lists[i].end()));
     }
 
-    imhotep::InterleavedIterator<List::iterator>           my_iter(pairs.begin(), pairs.end());
-    imhotep::InterleavedIterator<std::list<int>::iterator> my_iter_end;
+    imhotep::InterleavedJIterator<imhotep::iterator_2_jIterator<List::iterator>> my_iter(iters.begin(), iters.end());
 
-    while(my_iter != my_iter_end) {
-        std::cout << *my_iter << ", ";
-        my_iter ++;
+    int foo = -99;
+    while(my_iter.hasNext()) {
+        my_iter.next(foo);
+        std::cout << foo << ", ";
     }
 
     std::cout << "\n";

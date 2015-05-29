@@ -9,10 +9,16 @@
 #include "jiterator.hpp"
 #include <iostream>       // std::cout
 
+bool flag = false;
+
 struct fubar {
     int bar;
 
-    fubar(int i) : bar(i) {}
+    fubar(int i) : bar(i)
+    { if (flag) std::cout << "created " << i << "\n"; }
+
+    ~fubar()
+    { if (flag) std::cout << "destroyed " << bar << "\n"; }
 };
 
 int main()
@@ -59,7 +65,9 @@ int main()
                 f1,
                 f2);
 
-    fubar buddy(-1);
+    flag = true;
+
+    fubar buddy(-99);
     while(my_iter.hasNext()) {
         my_iter.next(buddy);
 
@@ -69,5 +77,7 @@ int main()
 
     std::cout << "complete.\n";
 
-  return 0;
+    flag = false;
+
+    return 0;
 }

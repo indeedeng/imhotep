@@ -26,8 +26,8 @@ int register_shard(struct session_desc *session, packed_table_t *table);
 void session_init(struct session_desc *session,
                   int n_groups,
                   int n_stats,
-                  packed_table_t **shards,
-                  int n_shards);
+                  int only_binary_metrics,
+                  packed_table_t *sample_table);
 
 void session_destroy(struct session_desc *session);
 

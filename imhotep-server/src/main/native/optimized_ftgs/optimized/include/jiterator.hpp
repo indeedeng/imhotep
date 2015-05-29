@@ -22,9 +22,9 @@ namespace imhotep {
 
         base_jIterator() { }
 
-        const bool has_next() const { return false; }
+        const bool hasNext() const { return false; }
 
-        void next(value_type data) { }
+        void next(value_type& data) { }
     };
 
 
@@ -43,7 +43,7 @@ namespace imhotep {
             return _base_iterator != _end_iterator;
         }
 
-        void next(value_type data)
+        void next(value_type& data)
         {
             data = *_base_iterator;
 
@@ -56,34 +56,36 @@ namespace imhotep {
     };
 
 
-    template<typename j_iter_t, class func_t>
-    class transform_jIterator {
+    template<typename j_iter_t, typename outer_type, class func_t>
+    class wrapping_jIterator {
     public:
-        typedef decltype(func_t()) value_type;
+        typedef typename j_iter_t::value_type src_type;
+        typedef outer_type value_type;
 
-        transform_jIterator(void) { }
+        wrapping_jIterator(void) { }
 
-        transform_jIterator(j_iter_t iter, func_t func) :
+        wrapping_jIterator(j_iter_t iter, func_t func) :
             _base_jIterator(iter),
-            _transform_func(func)
+            _unwrapping_func(func)
         { }
 
-        const bool has_next()
+        const bool hasNext()
         const {
-            return _base_jIterator.has_next();
+            return _base_jIterator.hasNext();
         }
 
-        void next(value_type data)
+        void next(value_type& data)
         {
-            _transform_func(data, _base_jIterator);
+            // get _base_iter data type from the value_type data struct
+            src_type& temp = _unwrapping_func(data);
+
+            // fill with data
+            _base_jIterator.next(temp);
         }
 
     private:
-
-        static void do_nothing(value_type data, j_iter_t iter) { }
-
         j_iter_t _base_jIterator;
-        func_t _transform_func;
+        func_t _unwrapping_func;
     };
 }
 

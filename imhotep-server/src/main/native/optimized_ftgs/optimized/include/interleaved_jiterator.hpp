@@ -23,19 +23,13 @@ namespace imhotep {
             });
         }
 
-    private:
-        friend class boost::iterator_core_access;
-
         void next(value_type& data) {
-            if (!_queue) return;
-
-            if (_queue->empty()) {
-                _queue.reset();
+            if (_queue.empty()) {
                 return;
             }
 
-            jIter_t& current_jIter = _queue->front();
-            _queue->pop();
+            jIter_t& current_jIter = _queue.front();
+            _queue.pop();
             current_jIter.next(data);
             if (current_jIter.hasNext()) {
                 _queue.push(current_jIter);
@@ -44,6 +38,7 @@ namespace imhotep {
 
         bool hasNext() const { return !_queue.empty(); }
 
+    private:
         std::queue<jIter_t> _queue;
     };
 
