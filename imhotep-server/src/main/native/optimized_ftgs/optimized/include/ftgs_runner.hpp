@@ -26,11 +26,6 @@ namespace imhotep {
         static const int8_t FIELD_END_OPERATION = 3;
         static const int8_t NO_MORE_FIELDS_OPERATION = 4;
 
-        TermDesc     _termDesc;
-        int32_t      _splitIndex;
-        int8_t       _operation;
-        std::string  _fieldName;
-
         op_desc() :
             _splitIndex(-1),
             _operation(0)
@@ -51,6 +46,32 @@ namespace imhotep {
             return _termDesc;
         }
 
+        const TermDesc& term_desc() const { return _termDesc; }
+
+        int32_t split_index() const { return _splitIndex; }
+
+        int8_t operation() const { return _operation; }
+
+        const std::string field_name() const { return _fieldName; }
+
+        Encoding term_type() const { return _termDesc.encode_type(); }
+
+        int int_term() const { return _termDesc.int_term(); }
+
+        const char* str_term() const {
+            return term_type() == INT_TERM_TYPE ?
+                nullptr : _termDesc.string_term().c_str();
+        }
+
+        int str_term_length() const {
+            return term_type() == INT_TERM_TYPE ?
+                0 : _termDesc.string_term().length();
+        }
+    private:
+        TermDesc     _termDesc;
+        int32_t      _splitIndex;
+        int8_t       _operation;
+        std::string  _fieldName;
     };
 
 

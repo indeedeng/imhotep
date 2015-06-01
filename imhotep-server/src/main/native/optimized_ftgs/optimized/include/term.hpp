@@ -7,9 +7,12 @@
 
 namespace imhotep {
 
+    enum Encoding:int { STRING_TERM_TYPE=0, INT_TERM_TYPE=1 };
+
     template <typename id_type>
     struct IdTraits {
         static id_type default_value();
+        static Encoding encode();
     };
 
     template <typename term_t>
@@ -57,11 +60,13 @@ namespace imhotep {
     template <>
     struct IdTraits<int64_t> {
         static int64_t default_value() { return 0; }
+        static Encoding encode() { return INT_TERM_TYPE;  }
     };
 
     template <>
     struct IdTraits<std::string> {
         static std::string default_value() { return std::string(); }
+        static Encoding encode() { return STRING_TERM_TYPE;  }
     };
 
     template <>

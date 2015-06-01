@@ -54,47 +54,34 @@ namespace imhotep {
                 //TODO: fix split index
 
                 while (iterator.hasNext()) {
-                    int term_type;
                     iterator.next(op);
-                    switch (op._operation) {
+                    switch (op.operation()) {
                         case op_desc::FIELD_START_OPERATION:
-                            term_type = op._termDesc.is_int_field()
-                                                ? TERM_TYPE_INT
-                                                : TERM_TYPE_STRING;
-                             err = worker_start_field(&my_worker,
-                                                      op._fieldName.c_str(),
-                                                      (int) op._fieldName.length(),
-                                                      term_type,
-                                                      op._splitIndex);
+                            err = worker_start_field(&my_worker,
+                                                     op.field_name().c_str(),
+                                                     (int) op.field_name().length(),
+                                                     op.term_type(),
+                                                     op.split_index());
                             break;
                         case op_desc::TGS_OPERATION: {
-                            term_type = op._termDesc.is_int_field()
-                                                ? TERM_TYPE_INT
-                                                : TERM_TYPE_STRING;
-                            const char *str_term = op._termDesc.is_int_field()
-                                                ? NULL
-                                                : op._termDesc.string_term().c_str();
-                            int term_len  = op._termDesc.is_int_field()
-                                                ? 0
-                                                : op._termDesc.string_term().length();
                             err = run_tgs_pass(&my_worker,
                                                &my_session,
-                                               term_type,
-                                               op._termDesc.int_term(),
-                                               str_term,
-                                               term_len,
-                                               op._termDesc.docid_addresses(),
-                                               op._termDesc.doc_freqs(),
-                                               op._termDesc.tables(),
-                                               op._termDesc.count(),
-                                               op._splitIndex);
+                                               op.term_type(),
+                                               op.int_term(),
+                                               op.str_term(),
+                                               op.str_term_length(),
+                                               op.term_desc().docid_addresses(),
+                                               op.term_desc().doc_freqs(),
+                                               const_cast<const packed_table_t **>(op.term_desc().tables()),
+                                               op.term_desc().count(),
+                                               op.split_index());
                             break;
                         }
                         case op_desc::FIELD_END_OPERATION:
-                            err = worker_end_field(&my_worker, op._splitIndex);
+                            err = worker_end_field(&my_worker, op.split_index());
                             break;
                         case op_desc::NO_MORE_FIELDS_OPERATION:
-                            err = worker_end_stream(&my_worker, op._splitIndex);
+                            err = worker_end_stream(&my_worker, op.split_index());
                             break;
                         default:
                             break;

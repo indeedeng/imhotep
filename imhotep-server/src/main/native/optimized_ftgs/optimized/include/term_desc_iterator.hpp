@@ -15,7 +15,7 @@ namespace imhotep {
 
         const int64_t*           docid_addresses() const { return _docid_addresses.data(); }
         const int32_t*                 doc_freqs() const { return _doc_freqs.data();       }
-        Shard::packed_table_ptr*          tables()       { return _tables.data();          }
+        const Shard::packed_table_ptr*    tables() const { return _tables.data();          }
 
         const bool is_int_field() const { return _is_int_type; }
 
@@ -26,6 +26,10 @@ namespace imhotep {
 
         template<typename term_t>
         TermDesc& append(const term_t& term, Shard::packed_table_ptr table);
+
+        Encoding encode_type() const {
+            return _is_int_type ? INT_TERM_TYPE : STRING_TERM_TYPE;
+        }
 
     private:
         int64_t                              _int_term;
