@@ -161,6 +161,18 @@ namespace imhotep {
             return forSplit_chainFieldIters(int_field_iters, string_field_iters, split_num);
         }
 
+
+        const std::vector<Shard>  _shards;
+        const std::vector<std::string>& _int_fieldnames;
+        const std::vector<std::string>& _string_fieldnames;
+        const TermProviders<IntTerm>    _int_term_providers;
+        const TermProviders<StringTerm> _string_term_providers;
+        const size_t _num_splits;
+        const size_t _num_workers;
+
+    public:
+        typedef uint32_t split_handle_t;
+
         std::vector<int> forWorker_getSplitNums(size_t worker_num)
         {
             std::vector<int> results;
@@ -190,15 +202,11 @@ namespace imhotep {
             return results;
         }
 
-        const std::vector<Shard>  _shards;
-        const std::vector<std::string>& _int_fieldnames;
-        const std::vector<std::string>& _string_fieldnames;
-        const TermProviders<IntTerm>    _int_term_providers;
-        const TermProviders<StringTerm> _string_term_providers;
-        const size_t _num_splits;
-        const size_t _num_workers;
+        static int forWorker_getSplitOrdinal(split_handle_t handle, int split_num)
+        {
+            return split_num - handle;
+        }
 
-    public:
         auto build_worker(int worker_num,
                           int nGroups,
                           int nMetrics,
@@ -214,6 +222,7 @@ namespace imhotep {
             int nStreams = split_nums.size();
             int socket_file_descriptors[nStreams];
             std::vector<chained_iter_t> splits(nStreams);
+            split_handle_t handle = split_nums[0];
 
             int i = 0;
             for (auto n : split_nums) {
@@ -229,7 +238,7 @@ namespace imhotep {
 
             auto iter = InterleavedJIterator<chained_iter_t>(splits.begin(), splits.end());
 
-            return std::make_tuple(worker, session, iter);
+            return std::make_tuple(worker, session, iter, handle);
         }
 
     };

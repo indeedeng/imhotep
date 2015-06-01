@@ -38,12 +38,13 @@ namespace imhotep {
             struct worker_desc worker;
             struct session_desc session;
             InterleavedJIterator<chained_iter_t> iter;
-            std::tie(worker, session, iter) = runner.build_worker(i,
-                                                                  nGroups,
-                                                                  nMetrics,
-                                                                  only_binary_metrics,
-                                                                  sample_table,
-                                                                  socket_fds);
+            FTGSRunner::split_handle_t handle;
+            std::tie(worker, session, iter, handle) = runner.build_worker(i,
+                                                                          nGroups,
+                                                                          nMetrics,
+                                                                          only_binary_metrics,
+                                                                          sample_table,
+                                                                          socket_fds);
 
 
             // kick off the worker
@@ -55,17 +56,16 @@ namespace imhotep {
                 op_desc op;
                 int err __attribute__((unused));
 
-                //TODO: fix split index
-
                 while (iterator.hasNext()) {
                     iterator.next(op);
+                    int socket_num = FTGSRunner::forWorker_getSplitOrdinal(handle, op._splitIndex);
                     switch (op.operation()) {
                         case op_desc::FIELD_START_OPERATION:
                             err = worker_start_field(&my_worker,
                                                      op.field_name().c_str(),
                                                      (int) op.field_name().length(),
                                                      op.term_type(),
-                                                     op.split_index());
+                                                      socket_num);
                             break;
                         case op_desc::TGS_OPERATION: {
                             err = run_tgs_pass(&my_worker,
@@ -78,14 +78,14 @@ namespace imhotep {
                                                op.term_desc().doc_freqs(),
                                                const_cast<const packed_table_t **>(op.term_desc().tables()),
                                                op.term_desc().count(),
-                                               op.split_index());
+                                               socket_num);
                             break;
                         }
                         case op_desc::FIELD_END_OPERATION:
-                            err = worker_end_field(&my_worker, op.split_index());
+                            err = worker_end_field(&my_worker, socket_num);
                             break;
                         case op_desc::NO_MORE_FIELDS_OPERATION:
-                            err = worker_end_stream(&my_worker, op.split_index());
+                            err = worker_end_stream(&my_worker, socket_num);
                             break;
                         default:
                             break;
