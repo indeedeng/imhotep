@@ -54,11 +54,11 @@ namespace imhotep {
                 struct worker_desc my_worker = worker;
                 struct session_desc my_session = session;
                 op_desc op;
-                int err __attribute__((unused));
+                int err;
 
                 while (iterator.hasNext()) {
                     iterator.next(op);
-                    int socket_num = FTGSRunner::forWorker_getSplitOrdinal(handle, op._splitIndex);
+                    int socket_num = FTGSRunner::forWorker_getSplitOrdinal(handle, op.split_index());
                     switch (op.operation()) {
                         case op_desc::FIELD_START_OPERATION:
                             err = worker_start_field(&my_worker,
