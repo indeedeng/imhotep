@@ -246,7 +246,7 @@ void packed_table_unpack_row_to_table(const packed_table_t* src_table,
                                       const int dest_row_id,
                                       const int prefetch_row_id);
 
-unpacked_table_t *unpacked_table_create(packed_table_t *packed_table, int n_rows);
+unpacked_table_t *unpacked_table_create(const packed_table_t *packed_table, int n_rows);
 void unpacked_table_destroy(unpacked_table_t *table);
 int unpacked_table_get_size(const unpacked_table_t *table);
 int unpacked_table_get_rows(const unpacked_table_t *table);

@@ -103,6 +103,7 @@ Java_com_indeed_imhotep_local_MTImhotepLocalMultiSession_nativeFTGS(JNIEnv*     
                                                                     jobject*     mtImhotepLocalMultiSession,
                                                                     jobjectArray shardDirs,
                                                                     jlongArray   packedTablePtrs,
+                                                                    jboolean     onlyBinaryMetrics,
                                                                     jobjectArray intFields,
                                                                     jobjectArray strFields,
                                                                     jstring      splitsDir,
@@ -136,7 +137,8 @@ Java_com_indeed_imhotep_local_MTImhotepLocalMultiSession_nativeFTGS(JNIEnv*     
         const int        num_groups(from_java<jint, int>(env, numGroups));
         const int        num_metrics(from_java<jint, int>(env, numStats));
         std::vector<int> socket_fds(from_java_array<int>(env, socketFDs));
-        run(runner, num_groups, num_metrics, socket_fds.data());
+        const bool       only_binary_metrics(from_java<jboolean, bool>(env, onlyBinaryMetrics));
+        run(runner, num_groups, num_metrics, only_binary_metrics, shards[0].table(), socket_fds.data(), executor);
     }
     catch (const std::exception& ex) {
         jclass exClass = env->FindClass("java/lang/RuntimeException");

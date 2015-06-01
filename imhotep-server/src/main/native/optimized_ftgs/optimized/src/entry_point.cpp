@@ -11,7 +11,7 @@
 #include <tuple>
 #include "jiterator.hpp"
 #include "chained_iterator.hpp"
-#include "ftgs_runner.hpp"
+#include "entry_point.hpp"
 #include "interleaved_jiterator.hpp"
 extern "C" {
     #include "local_session.h"
@@ -20,17 +20,13 @@ extern "C" {
 
 namespace imhotep {
 
-    class ImhotepException : public std::runtime_error {
-        using std::runtime_error::runtime_error;
-    };
-
     int run(FTGSRunner& runner,
             int nGroups,
             int nMetrics,
             bool only_binary_metrics,
-            packed_table_t *sample_table,
+            const packed_table_t *sample_table,
             int *socket_fds,
-            ExecutorService executorService)
+            ExecutorService& executorService)
     {
         using int_transform = wrapping_jIterator<TermDescIterator<IntTerm>, op_desc, op_desc>;
         using string_transform = wrapping_jIterator<TermDescIterator<StringTerm>, op_desc, op_desc>;

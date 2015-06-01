@@ -104,7 +104,7 @@ void destroy_shard_multicache(packed_table_t *table)
 /* No need to share the group stats buffer, so just keep one per session*/
 /* Make sure the one we have is large enough */
 static unpacked_table_t *allocate_grp_stats(struct session_desc *session,
-                                            packed_table_t *metric_desc)
+                                            const packed_table_t *metric_desc)
 {
 	unpacked_table_t *grp_stats;
 
@@ -115,10 +115,10 @@ static unpacked_table_t *allocate_grp_stats(struct session_desc *session,
 }
 
 void session_init(struct session_desc *session,
-                  int n_groups,
-                  int n_stats,
-                  int only_binary_metrics,
-                  packed_table_t *sample_table)
+                  const int n_groups,
+                  const int n_stats,
+                  const int only_binary_metrics,
+                  const packed_table_t *sample_table)
 {
     session->num_groups = n_groups;
     session->num_stats = n_stats;

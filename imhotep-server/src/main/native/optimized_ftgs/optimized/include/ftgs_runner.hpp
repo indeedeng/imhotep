@@ -208,11 +208,11 @@ namespace imhotep {
         }
 
         auto build_worker(int worker_num,
-                          int nGroups,
-                          int nMetrics,
-                          bool only_binary_metrics,
-                          packed_table_t *sample_table,
-                          int *socket_fds)
+                          const int nGroups,
+                          const int nMetrics,
+                          const bool only_binary_metrics,
+                          const packed_table_t *sample_table,
+                          const int *socket_fds)
         {
             using int_transform = wrapping_jIterator<TermDescIterator<IntTerm>, op_desc, op_desc>;
             using string_transform = wrapping_jIterator<TermDescIterator<StringTerm>, op_desc, op_desc>;

@@ -25,10 +25,10 @@ void destroy_shard_multicache(packed_table_t *table);
 int register_shard(struct session_desc *session, packed_table_t *table);
 
 void session_init(struct session_desc *session,
-                  int n_groups,
-                  int n_stats,
-                  int only_binary_metrics,
-                  packed_table_t *sample_table);
+                  const int n_groups,
+                  const int n_stats,
+                  const int only_binary_metrics,
+                  const packed_table_t *sample_table);
 
 void session_destroy(struct session_desc *session);
 

@@ -2,7 +2,7 @@
 #include <string.h>
 #include "table.h"
 
-unpacked_table_t *unpacked_table_create(packed_table_t *packed_table, int n_rows)
+unpacked_table_t *unpacked_table_create(const packed_table_t *packed_table, int n_rows)
 {
     unpacked_table_t *table;
     int64_t *column_mins = packed_table->col_mins;

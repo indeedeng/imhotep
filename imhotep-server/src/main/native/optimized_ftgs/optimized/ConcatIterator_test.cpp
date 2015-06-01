@@ -70,10 +70,8 @@ int main()
     fubar buddy(-99);
     while(my_iter.hasNext()) {
         my_iter.next(buddy);
-
         std::cout << buddy.bar << "\n";
     }
-//    std::cout << buddy.bar << "\n";
 
     std::cout << "complete.\n";
 
