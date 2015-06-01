@@ -49,7 +49,7 @@ namespace imhotep {
                 struct worker_desc my_worker = worker;
                 struct session_desc my_session = session;
                 op_desc op;
-                int err;
+                int err __attribute__((unused));
 
                 //TODO: fix split index
 
@@ -78,15 +78,16 @@ namespace imhotep {
                                                 ? 0
                                                 : op._termDesc.string_term().length();
                             err = run_tgs_pass(&my_worker,
-                                                   &my_session,
-                                                   term_type,
-                                                   op._termDesc.int_term(),
-                                                   str_term,
-                                                   term_len,
-                                                   op._termDesc.docid_addresses(),
-                                                   op._termDesc.doc_freqs(),
-                                                   op._termDesc.count(),
-                                                   op._splitIndex);
+                                               &my_session,
+                                               term_type,
+                                               op._termDesc.int_term(),
+                                               str_term,
+                                               term_len,
+                                               op._termDesc.docid_addresses(),
+                                               op._termDesc.doc_freqs(),
+                                               op._termDesc.tables(),
+                                               op._termDesc.count(),
+                                               op._splitIndex);
                             break;
                         }
                         case op_desc::FIELD_END_OPERATION:
