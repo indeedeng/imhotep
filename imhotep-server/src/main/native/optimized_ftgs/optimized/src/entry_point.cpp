@@ -20,6 +20,10 @@ extern "C" {
 
 namespace imhotep {
 
+    class ImhotepException : public std::runtime_error {
+        using std::runtime_error::runtime_error;
+    };
+
     int run(FTGSRunner& runner,
             int nGroups,
             int nMetrics,
@@ -89,6 +93,17 @@ namespace imhotep {
                             break;
                         default:
                             break;
+                    }
+
+                    if (err != 0) {
+                        /* Note: ThrowNew() copies the message handed to it, as one
+                           would expect. I could not find mention of this behavior in
+                           the JNI spec, but I verified this empirically. Therefore,
+                           it's okay to hand it the stack-allocated string below. */
+                        char message[SIZE_OF_ERRSTR];
+                        snprintf(message, sizeof(message), "%s (%d) %s", __FUNCTION__,
+                                 my_worker.error.code, my_worker.error.str);
+                        throw ImhotepException(message);
                     }
                 }
 
