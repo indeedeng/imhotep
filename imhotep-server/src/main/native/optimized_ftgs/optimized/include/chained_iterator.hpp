@@ -21,17 +21,20 @@ namespace imhotep {
         typedef typename std::vector<jIter_type1> t1_vector_t;
         typedef typename std::vector<jIter_type2> t2_vector_t;
         typedef typename std::function<value_type(int32_t)> generator_type;
+        typedef typename std::function<value_type(void)> end_tag_gen_type;
 
         ChainedIterator() { }
 
         ChainedIterator(t1_vector_t t1_vec,
                         t2_vector_t t2_vec,
                         generator_type f1,
-                        generator_type f2) :
+                        generator_type f2,
+                        end_tag_gen_type f3) :
                 _t1_iters(t1_vec),
                 _t2_iters(t2_vec),
                 _prefix_func(f1),
                 _suffix_func(f2),
+                _end_func(f3),
                 begin(true)
         { }
 
@@ -43,12 +46,15 @@ namespace imhotep {
             } else if (_next_iter_num < (_t1_iters.size() + _t2_iters.size())) {
                 _next_iter_num = inc_type(_t2_iters, _next_iter_num - _t1_iters.size(), data)
                         + _t1_iters.size();
+            } else {
+                data = _end_func();
+                _end_func_run = true;
             }
         }
 
         bool hasNext() const
         {
-            return _next_iter_num < (_t1_iters.size() + _t2_iters.size());
+            return (_next_iter_num < (_t1_iters.size() + _t2_iters.size())) || !_end_func_run;
         }
 
     private:
@@ -84,8 +90,10 @@ namespace imhotep {
         t2_vector_t _t2_iters;
         generator_type _prefix_func;
         generator_type _suffix_func;
+        end_tag_gen_type _end_func;
         size_t _next_iter_num = 0;
         bool begin = false;
+        bool _end_func_run = false;
     };
 
 } // namespace imhotep

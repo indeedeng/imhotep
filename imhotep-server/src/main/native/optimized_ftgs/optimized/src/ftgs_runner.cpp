@@ -80,19 +80,27 @@ namespace imhotep {
         // create chained iterator for all fields
         auto int_fields = getIntFieldnames();
         auto string_fields = getStringFieldnames();
-        std::function<op_desc(int32_t)> f1 = [=](int32_t field_num) -> op_desc
-        {
-            const std::string& field = ((size_t)field_num < int_fields.size())
-            ? int_fields[field_num]
-            : string_fields[field_num - int_fields.size()];
-            return op_desc(split_num, op_desc::FIELD_START_OPERATION, field);
-        };
-        std::function<op_desc(int32_t)> f2 = [=](int32_t field_num) -> op_desc
-        {
-            return op_desc(split_num, op_desc::FIELD_END_OPERATION);
-        };
 
-        return ChainedIterator<iter1_t, iter2_t>(term_iter1, term_iter2, f1, f2);
+        return
+            ChainedIterator<iter1_t, iter2_t>
+                (term_iter1,
+                 term_iter2,
+                [=](int32_t field_num) -> op_desc
+                     {
+                         const std::string& field = ((size_t)field_num < int_fields.size())
+                         ? int_fields[field_num]
+                         : string_fields[field_num - int_fields.size()];
+                         return op_desc(split_num, op_desc::FIELD_START_OPERATION, field);
+                     },
+                [=](int32_t field_num) -> op_desc
+                     {
+                         return op_desc(split_num, op_desc::FIELD_END_OPERATION);
+                     },
+                [=]() -> op_desc
+                    {
+                         return op_desc(split_num, op_desc::NO_MORE_FIELDS_OPERATION);
+                    }
+                );
     }
 
 } // namespace imhotep

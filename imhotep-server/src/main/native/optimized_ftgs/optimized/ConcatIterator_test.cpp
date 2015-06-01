@@ -49,21 +49,21 @@ int main()
     int32_t start_int = 1;
     int32_t end_int = 11;
 
-    std::function<fubar(int32_t)> f1 = [start_int] (int num) {
-        return fubar(-(start_int + num));
-    };
-    std::function<fubar(int32_t)> f2 = [end_int] (int num) {
-            return fubar(-(end_int + num));
-        };
-
     std::vector<imhotep::iterator_2_jIterator<std::vector<fubar>::iterator>> empty_vec;
 
     imhotep::ChainedIterator< imhotep::iterator_2_jIterator<std::vector<fubar>::iterator>,
                               imhotep::iterator_2_jIterator<std::vector<fubar>::iterator> >
         my_iter(vecs,
                 empty_vec,
-                f1,
-                f2);
+              [start_int] (int num) {
+                  return fubar(-(start_int + num));
+              },
+              [end_int] (int num) {
+                  return fubar(-(end_int + num));
+              },
+              []() {
+                  return fubar(1313);
+              });
 
     flag = true;
 

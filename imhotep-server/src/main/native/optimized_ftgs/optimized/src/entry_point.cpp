@@ -38,8 +38,12 @@ namespace imhotep {
             struct worker_desc worker;
             struct session_desc session;
             InterleavedJIterator<chained_iter_t> iter;
-            std::tie(worker, session, iter) =
-                    runner.build_worker(i, nGroups, nMetrics, only_binary_metrics, sample_table, socket_fds);
+            std::tie(worker, session, iter) = runner.build_worker(i,
+                                                                  nGroups,
+                                                                  nMetrics,
+                                                                  only_binary_metrics,
+                                                                  sample_table,
+                                                                  socket_fds);
 
 
             // kick off the worker
