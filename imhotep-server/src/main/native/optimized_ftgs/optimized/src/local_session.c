@@ -13,12 +13,12 @@
 int run_tgs_pass(struct worker_desc *worker,
                  struct session_desc *session,
                  uint8_t term_type,
-                 long int_term,
-                 char *string_term,
-                 int string_term_len,
-                 long *addresses,
-                 int *docs_per_shard,
-                 packed_table_t **shards,
+                 const long int_term,
+                 const char *string_term,
+                 const int string_term_len,
+                 const long *addresses,
+                 const int *docs_per_shard,
+                 const packed_table_t **shards,
                  int num_shard,
                  int socket_num)
 {
@@ -142,7 +142,7 @@ void session_destroy(struct session_desc *session)
 
 
 int worker_start_field(struct worker_desc *worker,
-                       char *field_name,
+                       const char *field_name,
                        int len,
                        int term_type,
                        int stream_num)

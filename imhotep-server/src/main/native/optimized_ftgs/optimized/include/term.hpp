@@ -22,14 +22,14 @@ namespace imhotep {
     class Term {
         id_type _id         = IdTraits<id_type>::default_value();
         int64_t _doc_offset = 0;
-        int64_t _doc_freq   = 0;
+        int32_t _doc_freq   = 0;
 
     public:
         typedef id_type id_t;
 
         Term() = default;
 
-        Term(const id_type& id, int64_t doc_offset, int64_t doc_freq)
+        Term(const id_type& id, int64_t doc_offset, int32_t doc_freq)
             : _id(id)
             , _doc_offset(doc_offset)
             , _doc_freq(doc_freq)

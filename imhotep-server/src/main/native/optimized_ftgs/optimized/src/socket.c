@@ -42,12 +42,11 @@ void socket_capture_error(struct buffered_socket *socket, const int code)
 }
 
 
-void term_init(
-               struct term_s *term,
-               uint8_t term_type,
-               long int_term,
-               char *string_term,
-               int string_term_len)
+void term_init(struct term_s *term,
+               const uint8_t term_type,
+               const long int_term,
+               const char *string_term,
+               const int string_term_len)
 {
     switch(term_type) {
     case TERM_TYPE_STRING:

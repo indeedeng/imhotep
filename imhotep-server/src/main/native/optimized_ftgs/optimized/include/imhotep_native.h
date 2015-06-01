@@ -74,8 +74,8 @@ struct worker_desc {
 
 struct index_slice_info {
     int n_docs_in_slice;
-    uint8_t *doc_slice;
-    packed_table_t *packed_metrics;
+    const uint8_t *doc_slice;
+    const packed_table_t *packed_metrics;
 };
 
 struct tgs_desc {
@@ -112,9 +112,9 @@ int tgs_execute_pass(struct worker_desc *worker,
 void tgs_init(struct worker_desc *worker,
               struct tgs_desc *desc,
               uint8_t term_type,
-              long *addresses,
-              int *docs_per_shard,
-              packed_table_t **shards,
+              const long *addresses,
+              const int *docs_per_shard,
+              const packed_table_t **shards,
               int num_shard,
               struct ftgs_outstream *stream,
               struct session_desc *session);
@@ -130,12 +130,11 @@ int slice_copy_range(uint8_t* slice,
 void stream_init(struct ftgs_outstream *stream, uint32_t fd);
 void stream_destroy(struct ftgs_outstream *stream);
 void socket_capture_error(struct buffered_socket *socket, const int code);
-void term_init(
-               struct term_s *term,
-               uint8_t term_type,
-               long int_term,
-               char *string_term,
-               int string_term_len);
+void term_init(struct term_s *term,
+               const uint8_t term_type,
+               const long int_term,
+               const char *string_term,
+               const int string_term_len);
 void term_destroy(uint8_t term_type, struct term_s *term);
 void term_update_int(struct term_s *term, struct term_s *new_term);
 void term_update_string(struct term_s *term, struct term_s *new_term);

@@ -14,9 +14,9 @@
 void tgs_init(struct worker_desc *worker,
               struct tgs_desc *desc,
               uint8_t term_type,
-              long *addresses,
-              int *docs_per_shard,
-              packed_table_t **shards,
+              const long *addresses,
+              const int *docs_per_shard,
+              const packed_table_t **shards,
               int num_shard,
               struct ftgs_outstream *stream,
               struct session_desc *session)
@@ -63,7 +63,7 @@ int tgs_execute_pass(struct worker_desc *worker,
     for (int i = 0; i < n_slices; i++) {
         const struct index_slice_info *slice = &infos[i];
         int remaining;      /* num docs remaining */
-        uint8_t *read_addr;
+        const uint8_t *read_addr;
         long last_value;     /* delta decode tracker */
 
         remaining = slice->n_docs_in_slice;
@@ -78,7 +78,7 @@ int tgs_execute_pass(struct worker_desc *worker,
             read_addr += bytes_read;
             remaining -= count;
 
-            packed_table_t* shard_data = slice->packed_metrics;
+            const packed_table_t* shard_data = slice->packed_metrics;
 
             if (session->only_binary_metrics) {
                 binary_lookup_and_accumulate_grp_stats(worker,

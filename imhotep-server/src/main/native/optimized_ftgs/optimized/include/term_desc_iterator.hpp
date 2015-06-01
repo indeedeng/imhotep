@@ -14,7 +14,7 @@ namespace imhotep {
         const std::string& string_term() const { return _string_term; }
 
         const int64_t* docid_addresses() const { return _docid_addresses.data(); }
-        const int64_t*       doc_freqs() const { return _doc_freqs.data();       }
+        const int32_t*       doc_freqs() const { return _doc_freqs.data();       }
 
         Shard::packed_table_ptr table() { return _table; }
 
@@ -32,7 +32,7 @@ namespace imhotep {
         int64_t                  _int_term;
         std::string              _string_term;
         std::vector<int64_t>     _docid_addresses;
-        std::vector<int64_t>     _doc_freqs;
+        std::vector<int32_t>     _doc_freqs;
         Shard::packed_table_ptr  _table;
         bool                     _is_int_type;
     };

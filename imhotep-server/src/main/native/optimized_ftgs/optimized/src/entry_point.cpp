@@ -46,50 +46,54 @@ namespace imhotep {
             executorService.enqueue(
                     [=](InterleavedJIterator<chained_iter_t> iterator) -> int
             {
+                struct worker_desc my_worker = worker;
+                struct session_desc my_session = session;
                 op_desc op;
                 int err;
 
                 //TODO: fix split index
 
                 while (iterator.hasNext()) {
+                    int term_type;
                     iterator.next(op);
                     switch (op._operation) {
                         case op_desc::FIELD_START_OPERATION:
-                            int term_type = op._termDesc.is_int_field()
+                            term_type = op._termDesc.is_int_field()
                                                 ? TERM_TYPE_INT
                                                 : TERM_TYPE_STRING;
-                             err = worker_start_field(&worker,
+                             err = worker_start_field(&my_worker,
                                                       op._fieldName.c_str(),
-                                                      op._fieldName.length(),
+                                                      (int) op._fieldName.length(),
                                                       term_type,
                                                       op._splitIndex);
                             break;
-                        case op_desc::TGS_OPERATION:
-                            int term_type = op._termDesc.is_int_field()
+                        case op_desc::TGS_OPERATION: {
+                            term_type = op._termDesc.is_int_field()
                                                 ? TERM_TYPE_INT
                                                 : TERM_TYPE_STRING;
-                            char *str_term = op._termDesc.is_int_field()
+                            const char *str_term = op._termDesc.is_int_field()
                                                 ? NULL
                                                 : op._termDesc.string_term().c_str();
                             int term_len  = op._termDesc.is_int_field()
                                                 ? 0
                                                 : op._termDesc.string_term().length();
-                                int err = run_tgs_pass(&worker,
-                                                       &session,
-                                                       term_type,
-                                                       op._termDesc.int_term(),
-                                                       str_term,
-                                                       term_len,
-                                                       op._termDesc.docid_addresses(),
-                                                       op._termDesc.doc_freqs(),
-                                                       op._termDesc.count(),
-                                                       op._splitIndex);
+                            err = run_tgs_pass(&my_worker,
+                                                   &my_session,
+                                                   term_type,
+                                                   op._termDesc.int_term(),
+                                                   str_term,
+                                                   term_len,
+                                                   op._termDesc.docid_addresses(),
+                                                   op._termDesc.doc_freqs(),
+                                                   op._termDesc.count(),
+                                                   op._splitIndex);
                             break;
+                        }
                         case op_desc::FIELD_END_OPERATION:
-                            err = worker_end_field(&worker, op._splitIndex);
+                            err = worker_end_field(&my_worker, op._splitIndex);
                             break;
                         case op_desc::NO_MORE_FIELDS_OPERATION:
-                            err = worker_end_stream(&worker, op._splitIndex);
+                            err = worker_end_stream(&my_worker, op._splitIndex);
                             break;
                         default:
                             break;

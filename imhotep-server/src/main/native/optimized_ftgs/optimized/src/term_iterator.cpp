@@ -7,7 +7,7 @@ namespace imhotep {
         if (!_term_view.empty()) {
             const int64_t id_delta(_term_view.read_varint<int64_t>(_term_view.read()));
             const int64_t offset_delta(_term_view.read_varint<int64_t>(_term_view.read()));
-            const int64_t doc_freq(_term_view.read_varint<int64_t>(_term_view.read()));
+            const int64_t doc_freq(_term_view.read_varint<int32_t>(_term_view.read()));
             _current = IntTerm(_current.id() + id_delta,
                                _docid_base + _current.doc_offset() + offset_delta,
                                doc_freq);
