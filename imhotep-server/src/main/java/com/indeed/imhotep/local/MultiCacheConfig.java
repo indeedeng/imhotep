@@ -23,10 +23,8 @@ import java.util.ListIterator;
 public final class MultiCacheConfig {
     private static final Logger log = Logger.getLogger(MultiCacheConfig.class);
 
-//    private final CyclicBarrier barrier;
-//    private final IntValueLookup[][] sessionStats;
-//    private int numStats;
     private StatsOrderingInfo[] ordering;
+    private boolean onlyBinaryMetrics = false;
 
     public static class StatsOrderingInfo {
         public final int originalOrder;
@@ -46,46 +44,27 @@ public final class MultiCacheConfig {
         }
     }
 
-    public MultiCacheConfig() { //int numSessions) {
-//        this.sessionStats = new IntValueLookup[numSessions][];
-//
-//        this.barrier = new CyclicBarrier(numSessions, new Runnable() {
-//            @Override
-//            public void run() {
-//                ordering = calculateMetricOrder(sessionStats, numStats);
-//            }
-//        });
-    }
-
-//    public MultiCache buildMultiCache(ImhotepLocalSession session,
-//                                      int sessionIndex,
-//                                      GroupLookup groupLookup,
-//                                      IntValueLookup[] stats,
-//                                      int numStats) {
-//        this.sessionStats[sessionIndex] = Arrays.copyOf(stats, numStats);
-//        this.numStats = numStats;
-//
-//        try {
-//            barrier.await();
-//        } catch (InterruptedException e) {
-//            throw Throwables.propagate(e);
-//        } catch (BrokenBarrierException e) {
-//            throw Throwables.propagate(e);
-//        }
-//
-//        return new MultiCache(session,
-//                              session.getNumDocs(),
-//                              ordering,
-//                              stats,
-//                              groupLookup);
-//    }
+    public MultiCacheConfig() { }
 
     public StatsOrderingInfo[] getOrdering() {
         return this.ordering;
     }
 
+    public boolean isOnlyBinaryMetrics() {
+        return onlyBinaryMetrics;
+    }
+
     public void calcOrdering(final StatLookup[] statLookups, final int numStats) {
         this.ordering = calculateMetricOrder(statLookups, numStats);
+        
+        for (StatsOrderingInfo info : this.ordering) {
+            if (info.sizeInBytes != 0) {
+                this.onlyBinaryMetrics = false;
+                return;
+            }
+        }
+        
+        this.onlyBinaryMetrics = true;
     }
 
     private static StatsOrderingInfo[] calculateMetricOrder(final StatLookup[] sessionStats,
@@ -112,6 +91,19 @@ public final class MultiCacheConfig {
                 longMetrics.add(i);
             }
         }
+        
+        // Check if there are only boolean metrics
+        if (longMetrics.size() == 0) {
+            final StatsOrderingInfo[] ret = new StatsOrderingInfo[numStats];
+            int metricIndex = 0;
+            for (int i = 0; i < booleanMetrics.size(); i++) {
+                final int metric = booleanMetrics.getInt(i);
+                ret[metricIndex] = new StatsOrderingInfo(metric, mins[metric], maxes[metric], 0, 0, 0);
+                metricIndex++;
+            }
+            return ret;
+        }
+        
         final List<IntList> vectorMetrics;
         // do exhaustive search for up to 10 metrics
         // optimizes first for least number of vectors then least space used for group stats

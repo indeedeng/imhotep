@@ -4,6 +4,12 @@
     underscore-separated variable. The former are used to refer to Java entities
     and the latter c++ ones.
  */
+
+#include <jni.h>
+
+#undef  JNIEXPORT
+#define JNIEXPORT               __attribute__((visibility("default")))
+
 #include "run_native_ftgs.hpp"
 
 #include <algorithm>
@@ -96,11 +102,11 @@ using namespace imhotep;
 /*
  * Class:     com_indeed_imhotep_local_MTImhotepLocalMultiSession
  * Method:    nativeFTGS
- * Signature: ([Ljava/lang/String;[J[Ljava/lang/String;[Ljava/lang/String;Ljava/lang/String;IIII[I)V
+ * Signature: ([Ljava/lang/String;[JZ[Ljava/lang/String;[Ljava/lang/String;Ljava/lang/String;IIII[I)V
  */
 JNIEXPORT void JNICALL
 Java_com_indeed_imhotep_local_MTImhotepLocalMultiSession_nativeFTGS(JNIEnv*      env,
-                                                                    jobject*     mtImhotepLocalMultiSession,
+                                                                    jobject      mtImhotepLocalMultiSession,
                                                                     jobjectArray shardDirs,
                                                                     jlongArray   packedTablePtrs,
                                                                     jboolean     onlyBinaryMetrics,

@@ -144,14 +144,54 @@ namespace imhotep {
 
     private:
         template<typename term_t>
-        auto forSplit_getFieldIters(const TermProviders<term_t>& providers, int split_num) ->
-            std::vector<wrapping_jIterator<TermDescIterator<term_t>, op_desc, op_desc>>;
+        auto forSplit_getFieldIters(const TermProviders<term_t>& providers, int split_num)
+            -> std::vector<wrapping_jIterator<TermDescIterator<term_t>, op_desc, op_desc>>
+        {
+            using transform_t = wrapping_jIterator<TermDescIterator<term_t>, op_desc, op_desc>;
+            std::vector<transform_t> term_desc_iters;
+
+            for (size_t i = 0; i < providers.size(); i++) {
+                auto provider = providers[i].second;
+
+                op_desc func(i, op_desc::TGS_OPERATION);
+                const auto wrapped_provider = transform_t(provider.merge(split_num), func);
+                term_desc_iters.push_back(wrapped_provider);
+            }
+
+            return term_desc_iters;
+        }
 
         template <typename iter1_t, typename iter2_t>
         auto forSplit_chainFieldIters(std::vector<iter1_t>& term_iter1,
                                       std::vector<iter2_t>& term_iter2,
                                       const int split_num)
-            -> ChainedIterator<iter1_t, iter2_t>;
+                -> ChainedIterator<iter1_t, iter2_t>
+        {
+            // create chained iterator for all fields
+            auto int_fields = getIntFieldnames();
+            auto string_fields = getStringFieldnames();
+
+            return
+                ChainedIterator<iter1_t, iter2_t>
+                    (term_iter1,
+                     term_iter2,
+                    [=](int32_t field_num) -> op_desc
+                         {
+                             const std::string& field = ((size_t)field_num < int_fields.size())
+                             ? int_fields[field_num]
+                             : string_fields[field_num - int_fields.size()];
+                             return op_desc(split_num, op_desc::FIELD_START_OPERATION, field);
+                         },
+                    [=](int32_t field_num) -> op_desc
+                         {
+                             return op_desc(split_num, op_desc::FIELD_END_OPERATION);
+                         },
+                    [=]() -> op_desc
+                        {
+                             return op_desc(split_num, op_desc::NO_MORE_FIELDS_OPERATION);
+                        }
+                    );
+        }
 
         auto forSplit_getMultiFieldTermDescIter(const int split_num)
         {
@@ -173,39 +213,9 @@ namespace imhotep {
     public:
         typedef uint32_t split_handle_t;
 
-        std::vector<int> forWorker_getSplitNums(size_t worker_num)
-        {
-            std::vector<int> results;
-            size_t start;
-            size_t end;
-            const size_t num_workers = getNumWorkers();
-            const size_t num_streams_per_worker = getNumSplits() / num_workers;
-            const size_t num_plus_one_workers = getNumSplits() % num_workers;
+        std::vector<int> forWorker_getSplitNums(size_t worker_num);
 
-            // find start and end of split range
-            if (worker_num < num_plus_one_workers) {
-                start = (num_streams_per_worker + 1) * worker_num;
-                end = start + num_streams_per_worker + 1;
-            } else if (worker_num < num_workers) {
-                start = num_plus_one_workers * (num_streams_per_worker + 1)
-                        + num_streams_per_worker * (worker_num - num_plus_one_workers);
-                end = start + num_streams_per_worker;
-            } else {
-                // throw exception
-            }
-
-            // fill vector
-            while (start < end) {
-                results.push_back(start);
-                start ++;
-            }
-            return results;
-        }
-
-        static int forWorker_getSplitOrdinal(split_handle_t handle, int split_num)
-        {
-            return split_num - handle;
-        }
+        static int forWorker_getSplitOrdinal(split_handle_t handle, int split_num);
 
         auto build_worker(int worker_num,
                           const int nGroups,

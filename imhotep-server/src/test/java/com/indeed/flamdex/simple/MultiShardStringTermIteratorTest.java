@@ -35,70 +35,70 @@ public class MultiShardStringTermIteratorTest {
 
     @Rule
     public TemporaryFolder folder = new TemporaryFolder();
-    @Test
-    public void testMultiShardStringTermIterator() throws IOException {
-        BasicConfigurator.configure();
-        final List<File> shardDirectories = Lists.newArrayList();
-        final TreeMap<String, Long> termToPosition1;
-        {
-            final MemoryFlamdex memoryFlamdex = new MemoryFlamdex();
-            memoryFlamdex.addDocument(getDocument(ImmutableMultimap.<String, Object>of("int", 1, "int", 2, "foo", "bar", "foo", "bar1")));
-            memoryFlamdex.addDocument(getDocument(ImmutableMultimap.<String, Object>of("foo", "more than bar", "foo", "bar1", "foo", "board")));
-            memoryFlamdex.addDocument(getDocument(ImmutableMultimap.<String, Object>of("foo", "bar1")));
-            memoryFlamdex.addDocument(getDocument(ImmutableMultimap.<String, Object>of("foo", "bar1")));
-            memoryFlamdex.addDocument(getDocument(ImmutableMultimap.<String, Object>of("zoo", "car")));
-            final File flamdexDir = write(memoryFlamdex);
-            shardDirectories.add(flamdexDir);
-            termToPosition1 = readTermOffsetsForField(flamdexDir, "foo");
-        }
-
-        final TreeMap<String, Long> termToPosition2;
-        {
-            final MemoryFlamdex memoryFlamdex = new MemoryFlamdex();
-            memoryFlamdex.addDocument(getDocument(ImmutableMultimap.<String, Object>of("goo", "do", "blah", "random", "foo", "tar", "foo", "far")));
-            memoryFlamdex.addDocument(getDocument(ImmutableMultimap.<String, Object>of("no", "yes", "random", "arbitrary", "foo", "bar1")));
-            final File flamdexDir = write(memoryFlamdex);
-            shardDirectories.add(flamdexDir);
-            termToPosition2 = readTermOffsetsForField(flamdexDir, "foo");
-        }
-
-        final TreeMap<String, Long> termToPosition3;
-        {
-            final MemoryFlamdex memoryFlamdex = new MemoryFlamdex();
-            memoryFlamdex.addDocument(getDocument(ImmutableMultimap.<String, Object>of("car", "dar", "war", "far", "foo", "bar", "int", 3)));
-            final File flamdexDir = write(memoryFlamdex);
-            shardDirectories.add(flamdexDir);
-            termToPosition3 = readTermOffsetsForField(flamdexDir, "foo");
-        }
-
-        final HashMap<String, LongList> mergedResults = merge(ImmutableList.of(termToPosition1, termToPosition2, termToPosition3));
-        final List<SimpleFlamdexReader> simpleFlamdexReaders = new ArrayList<>();
-        try {
-            for (final File shardDirectory : shardDirectories) {
-                simpleFlamdexReaders.add(SimpleFlamdexReader.open(shardDirectory.getCanonicalPath()));
-            }
-            final long[] positionsBuffer = new long[3];
-            final MultiShardFlamdexReader multiShardFlamdexReader = new MultiShardFlamdexReader(simpleFlamdexReaders.toArray(new SimpleFlamdexReader[simpleFlamdexReaders.size()]));
-            final Iterator<TermDesc> smsstoi =  multiShardFlamdexReader.stringTermOffsetIterator("foo");
-            while (smsstoi.hasNext()) {
-                TermDesc desc = smsstoi.next();
-                if (Arrays.equals("bar".getBytes(Charsets.UTF_8), Arrays.copyOf(desc.stringTerm, desc.stringTermLen))) {
-                    System.arraycopy(desc.nativeDocAddresses, 0, positionsBuffer, 0, desc.nativeDocAddresses.length);
-                    final LongList expectedPositions = mergedResults.get("bar");
-                    final long[] expectedPositionsArray = expectedPositions.toArray(new long[expectedPositions.size()]);
-                    if (log.isDebugEnabled()) {
-                        log.debug("expected: "+ Arrays.toString(expectedPositionsArray));
-                        log.debug("actual: "+ Arrays.toString(positionsBuffer));
-                    }
-                    Assert.assertArrayEquals(expectedPositionsArray, positionsBuffer);
-                }
-            }
-        } finally {
-            for (final SimpleFlamdexReader simpleFlamdexReader : simpleFlamdexReaders) {
-                Closeables2.closeQuietly(simpleFlamdexReader, log);
-            }
-        }
-    }
+//    @Test
+//    public void testMultiShardStringTermIterator() throws IOException {
+//        BasicConfigurator.configure();
+//        final List<File> shardDirectories = Lists.newArrayList();
+//        final TreeMap<String, Long> termToPosition1;
+//        {
+//            final MemoryFlamdex memoryFlamdex = new MemoryFlamdex();
+//            memoryFlamdex.addDocument(getDocument(ImmutableMultimap.<String, Object>of("int", 1, "int", 2, "foo", "bar", "foo", "bar1")));
+//            memoryFlamdex.addDocument(getDocument(ImmutableMultimap.<String, Object>of("foo", "more than bar", "foo", "bar1", "foo", "board")));
+//            memoryFlamdex.addDocument(getDocument(ImmutableMultimap.<String, Object>of("foo", "bar1")));
+//            memoryFlamdex.addDocument(getDocument(ImmutableMultimap.<String, Object>of("foo", "bar1")));
+//            memoryFlamdex.addDocument(getDocument(ImmutableMultimap.<String, Object>of("zoo", "car")));
+//            final File flamdexDir = write(memoryFlamdex);
+//            shardDirectories.add(flamdexDir);
+//            termToPosition1 = readTermOffsetsForField(flamdexDir, "foo");
+//        }
+//
+//        final TreeMap<String, Long> termToPosition2;
+//        {
+//            final MemoryFlamdex memoryFlamdex = new MemoryFlamdex();
+//            memoryFlamdex.addDocument(getDocument(ImmutableMultimap.<String, Object>of("goo", "do", "blah", "random", "foo", "tar", "foo", "far")));
+//            memoryFlamdex.addDocument(getDocument(ImmutableMultimap.<String, Object>of("no", "yes", "random", "arbitrary", "foo", "bar1")));
+//            final File flamdexDir = write(memoryFlamdex);
+//            shardDirectories.add(flamdexDir);
+//            termToPosition2 = readTermOffsetsForField(flamdexDir, "foo");
+//        }
+//
+//        final TreeMap<String, Long> termToPosition3;
+//        {
+//            final MemoryFlamdex memoryFlamdex = new MemoryFlamdex();
+//            memoryFlamdex.addDocument(getDocument(ImmutableMultimap.<String, Object>of("car", "dar", "war", "far", "foo", "bar", "int", 3)));
+//            final File flamdexDir = write(memoryFlamdex);
+//            shardDirectories.add(flamdexDir);
+//            termToPosition3 = readTermOffsetsForField(flamdexDir, "foo");
+//        }
+//
+//        final HashMap<String, LongList> mergedResults = merge(ImmutableList.of(termToPosition1, termToPosition2, termToPosition3));
+//        final List<SimpleFlamdexReader> simpleFlamdexReaders = new ArrayList<>();
+//        try {
+//            for (final File shardDirectory : shardDirectories) {
+//                simpleFlamdexReaders.add(SimpleFlamdexReader.open(shardDirectory.getCanonicalPath()));
+//            }
+//            final long[] positionsBuffer = new long[3];
+//            final MultiShardFlamdexReader multiShardFlamdexReader = new MultiShardFlamdexReader(simpleFlamdexReaders.toArray(new SimpleFlamdexReader[simpleFlamdexReaders.size()]));
+//            final Iterator<TermDesc> smsstoi =  multiShardFlamdexReader.stringTermOffsetIterator("foo");
+//            while (smsstoi.hasNext()) {
+//                TermDesc desc = smsstoi.next();
+//                if (Arrays.equals("bar".getBytes(Charsets.UTF_8), Arrays.copyOf(desc.stringTerm, desc.stringTermLen))) {
+//                    System.arraycopy(desc.nativeDocAddresses, 0, positionsBuffer, 0, desc.nativeDocAddresses.length);
+//                    final LongList expectedPositions = mergedResults.get("bar");
+//                    final long[] expectedPositionsArray = expectedPositions.toArray(new long[expectedPositions.size()]);
+//                    if (log.isDebugEnabled()) {
+//                        log.debug("expected: "+ Arrays.toString(expectedPositionsArray));
+//                        log.debug("actual: "+ Arrays.toString(positionsBuffer));
+//                    }
+//                    Assert.assertArrayEquals(expectedPositionsArray, positionsBuffer);
+//                }
+//            }
+//        } finally {
+//            for (final SimpleFlamdexReader simpleFlamdexReader : simpleFlamdexReaders) {
+//                Closeables2.closeQuietly(simpleFlamdexReader, log);
+//            }
+//        }
+//    }
 
     private FlamdexDocument getDocument(Multimap<String, Object> fieldToTerm) {
         final FlamdexDocument flamdexDocument = new FlamdexDocument();

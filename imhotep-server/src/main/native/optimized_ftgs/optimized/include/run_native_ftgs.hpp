@@ -7,15 +7,13 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 /*
  * Class:     com_indeed_imhotep_local_MTImhotepLocalMultiSession
  * Method:    nativeFTGS
- * Signature: ([Ljava/lang/String;[J[Ljava/lang/String;[Ljava/lang/String;Ljava/lang/String;IIII[I)V
+ * Signature: ([Ljava/lang/String;[JZ[Ljava/lang/String;[Ljava/lang/String;Ljava/lang/String;IIII[I)V
  */
 JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MTImhotepLocalMultiSession_nativeFTGS
-  (JNIEnv *, jobject, jobjectArray, jlongArray, jobjectArray, jobjectArray, jstring, jint, jint, jint, jint, jintArray);
-
+  (JNIEnv *, jobject, jobjectArray, jlongArray, jboolean, jobjectArray, jobjectArray, jstring, jint, jint, jint, jint, jintArray);
 
 #ifdef __cplusplus
 }

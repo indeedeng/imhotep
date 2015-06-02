@@ -80,7 +80,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             is.close();
             System.load(tempFile.getAbsolutePath());
             // noinspection ResultOfMethodCallIgnored
-            tempFile.delete();
+//            tempFile.delete();
         } catch (Throwable e) {
             e.printStackTrace();
             log.warn("unable to load libftgs using class loader, looking in java.library.path", e);
@@ -102,6 +102,8 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     private final long memoryClaimed;
 
     private final boolean useNativeFtgs;
+    
+    private boolean onlyBinaryMetrics;
 
     public MTImhotepLocalMultiSession(final ImhotepLocalSession[] sessions,
                                       final MemoryReservationContext memory,
@@ -155,6 +157,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             sessionsStats[i] = sessions[i].statLookup;
         }
         config.calcOrdering(sessionsStats, sessions[0].numStats);
+        this.onlyBinaryMetrics = config.isOnlyBinaryMetrics();
 
         executeMemoryException(multiCaches, new ThrowingFunction<ImhotepSession, MultiCache>() {
             @Override
@@ -189,19 +192,28 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                     readers[i] = sessions[i].getReader();
                 }
 
-                try {
-                    // run service
-                    final NativeFTGSRunner runner = new NativeFTGSRunner(readers,
-                                                                         nativeCaches,
-                                                                         intFields,
-                                                                         stringFields,
-                                                                         getNumGroups(),
-                                                                         numStats,
-                                                                         numSplits);
-                    runner.run(ftgsOutputSockets, numSplits, ftgsExecutor);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
+//                try {
+//                    // run service
+//                    final NativeFTGSRunner runner = new NativeFTGSRunner(readers,
+//                                                                         nativeCaches,
+//                                                                         intFields,
+//                                                                         stringFields,
+//                                                                         getNumGroups(),
+//                                                                         numStats,
+//                                                                         numSplits);
+//                    runner.run(ftgsOutputSockets, numSplits, ftgsExecutor);
+                    runNativeFTGS(readers,
+                                nativeCaches,
+                                onlyBinaryMetrics,
+                                intFields,
+                                stringFields,
+                                getNumGroups(),
+                                numStats,
+                                numSplits,
+                                ftgsOutputSockets);
+//                } catch (IOException e) {
+//                    throw new RuntimeException(e);
+//                }
             }
         });
 
@@ -280,6 +292,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
     private native void nativeFTGS(final String[] shardDirs,
                                    final long[]   packedTablePtrs,
+                                   final boolean  onlyBinaryMetrics,
                                    final String[] intFields,
                                    final String[] stringFields,
                                    final String   splitsDir,
@@ -291,6 +304,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
     private void runNativeFTGS(final FlamdexReader[] readers,
                                final MultiCache[]    nativeCaches,
+                               final boolean        onlyBinaryMetrics,
                                final String[]        intFields,
                                final String[]        stringFields,
                                final int             numGroups,
@@ -315,7 +329,16 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             socketFDs[index] = SocketUtils.getOutputDescriptor(sockets[index]);
         }
 
-        nativeFTGS(shardDirs, packedTablePtrs, intFields, stringFields, splitsDir,
-                   numGroups, numStats, numSplits, numWorkers, socketFDs);
+        nativeFTGS(shardDirs,
+                   packedTablePtrs,
+                   onlyBinaryMetrics,
+                   intFields,
+                   stringFields,
+                   splitsDir,
+                   numGroups,
+                   numStats,
+                   numSplits,
+                   numWorkers,
+                   socketFDs);
     }
 }
