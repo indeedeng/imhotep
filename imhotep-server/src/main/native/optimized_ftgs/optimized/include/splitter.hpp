@@ -42,8 +42,6 @@ namespace imhotep {
         void run();
 
     private:
-        FILE* open_split(const std::string& split);
-
         void encode(std::ostream& os, const term_t& term);
 
         const Shard       _shard;
@@ -88,6 +86,7 @@ namespace imhotep {
             split_files.push_back(new std::ofstream(split.c_str(),
                                                     std::ios::binary | std::ios::out | std::ios::trunc));
         }
+
         std::hash<typename term_t::id_t> hash_fun;
         term_iterator_t it(_term_iterator);
         term_iterator_t end;
@@ -98,18 +97,8 @@ namespace imhotep {
             encode(of, term);
             ++it;
         }
-        for (auto os_ptr: split_files) delete os_ptr;
-    }
 
-    template <typename term_t>
-    FILE* Splitter<term_t>::open_split(const std::string& split)
-    {
-        FILE* result(fopen(split.c_str(), "w"));
-        if (!result) {
-            char message[1024];
-            throw std::runtime_error(strerror_r(errno, message, sizeof(message)));
-        }
-        return result;
+        for (auto os_ptr: split_files) delete os_ptr;
     }
 
 } // namespace imhotep
