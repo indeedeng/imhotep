@@ -11,6 +11,8 @@
 #include <stdexcept>
 #include <string>
 
+#include <fstream>
+
 namespace imhotep {
 
     class OpenedFile {
@@ -66,13 +68,17 @@ namespace imhotep {
             : OpenedFile(filename, delete_on_close)
             , _address(mmap(0, size(), PROT_READ, MAP_PRIVATE | MAP_POPULATE, fd(), 0)) {
 
-            if (_address == reinterpret_cast<void*>(-1)) {
+            if (_address == reinterpret_cast<void*>(-1) && size() != 0) {
                 throw std::runtime_error(std::string(__PRETTY_FUNCTION__)
                                          + std::string(": ") + std::string(strerror(errno)));
             }
         }
 
-        ~MMappedFile() { munmap(_address, size()); }
+        ~MMappedFile() {
+            if (_address != reinterpret_cast<void*>(-1)) {
+                munmap(_address, size());
+            }
+        }
 
         MMappedFile(const MMappedFile& rhs)            = delete;
         MMappedFile& operator=(const MMappedFile& rhs) = delete;
