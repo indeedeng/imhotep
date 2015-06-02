@@ -194,10 +194,18 @@ namespace imhotep {
         }
 
         auto forSplit_getMultiFieldTermDescIter(const int split_num)
+            -> imhotep::ChainedIterator<
+            imhotep::wrapping_jIterator<imhotep::TermDescIterator<imhotep::Term<long int> >,
+                    imhotep::op_desc, imhotep::op_desc>,
+            imhotep::wrapping_jIterator<
+                    imhotep::TermDescIterator<
+                            imhotep::Term<
+                                    std::basic_string<char, std::char_traits<char>,
+                                            std::allocator<char> > > >, imhotep::op_desc,
+                    imhotep::op_desc> >
         {
             auto int_field_iters = forSplit_getFieldIters(_int_term_providers, split_num);
             auto string_field_iters = forSplit_getFieldIters(_string_term_providers, split_num);
-
             return forSplit_chainFieldIters(int_field_iters, string_field_iters, split_num);
         }
 
@@ -223,6 +231,19 @@ namespace imhotep {
                           const bool only_binary_metrics,
                           const packed_table_t *sample_table,
                           const int *socket_fds)
+            -> std::tuple<worker_desc, session_desc,
+            imhotep::InterleavedJIterator<
+                    imhotep::ChainedIterator<
+                            imhotep::wrapping_jIterator<
+                                    imhotep::TermDescIterator<imhotep::Term<long int> >,
+                                    imhotep::op_desc, imhotep::op_desc>,
+                            imhotep::wrapping_jIterator<
+                                    imhotep::TermDescIterator<
+                                            imhotep::Term<
+                                                    std::basic_string<char,
+                                                            std::char_traits<char>,
+                                                            std::allocator<char> > > >,
+                                    imhotep::op_desc, imhotep::op_desc> > >, unsigned int>
         {
             using int_transform = wrapping_jIterator<TermDescIterator<IntTerm>, op_desc, op_desc>;
             using string_transform = wrapping_jIterator<TermDescIterator<StringTerm>, op_desc, op_desc>;
@@ -247,7 +268,6 @@ namespace imhotep {
             session_init(&session, nGroups, nMetrics, only_binary_metrics, sample_table);
 
             auto iter = InterleavedJIterator<chained_iter_t>(splits.begin(), splits.end());
-
             return std::make_tuple(worker, session, iter, handle);
         }
 
