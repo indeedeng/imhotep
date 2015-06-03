@@ -1,3 +1,5 @@
+MODE=dbg
+
 IDIR=include
 CC=/usr/bin/gcc-4.8
 CPP=/usr/bin/g++-4.8
@@ -5,15 +7,28 @@ JNI_HEADER_LOC=$(JAVA_HOME)/include
 JNI_HEADER_LOC2=$(JNI_HEADER_LOC)/linux
 #CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions -fsanitize=address -fno-omit-frame-pointer -D_SANITIZE_
 #LFLAGS= -g -shared -fsanitize=address
-CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions
-CPPFLAGS=-g -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -I/usr/include/boost -msse4.2 -std=c++11 -fPIC 
-#LFLAGS= -O3 -flto -shared
-LFLAGS= -g -shared
+BASE_CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions
+BASE_CPPFLAGS=-Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -I/usr/include/boost -msse4.2 -std=c++11 -fPIC
+BASE_LFLAGS= -shared 
 
-OPT_CFLAGS= -flto -O3 -fvisibility=hidden $(CFLAGS)
-OPT_CPPFLAGS= -flto -funroll-loops -O3 -fvisibility=hidden $(CPPFLAGS)
+DBG_CFLAGS= -g
+OPT_CFLAGS= -flto -O3 -fvisibility=hidden
 
-DBG_CFLAGS= -g $(CFLAGS)
+DBG_CPPFLAGS= -g
+OPT_CPPFLAGS= -flto -funroll-loops -O3 -fvisibility=hidden
+
+DBG_LFLAGS= -g
+OPT_LFLAGS= -O3 -flto
+
+ifeq ($(MODE),opt)
+	CFLAGS=$(BASE_CFLAGS) $(OPT_CFLAGS)
+	CPPFLAGS= $(BASE_CPPFLAGS) $(OPT_CPPFLAGS)
+	LFLAGS= $(BASE_LFLAGS) $(OPT_LFLAGS)
+else
+	CFLAGS= $(BASE_CFLAGS) $(DBG_CFLAGS)
+	CPPFLAGS= $(BASE_CPPFLAGS) $(DBG_CPPFLAGS)
+	LFLAGS= $(BASE_LFLAGS) $(DBG_LFLAGS)
+endif
 
 ODIR=obj
 CPPODIR=cppobj
@@ -32,7 +47,7 @@ HPP_FILES := $(wildcard include/*.hpp)
 CPP_OBJ_FILES += $(addprefix cppobj/,$(notdir $(CPP_FILES:.cpp=.o)))
 
 $(ODIR)/%.o: src/%.c $(H_FILES)
-	$(CC) -include $(IDIR)/gcc_preinclude.h -c -o $@ $< $(DBG_CFLAGS)
+	$(CC) -include $(IDIR)/gcc_preinclude.h -c -o $@ $< $(CFLAGS)
 
 $(CPPODIR)/%.o: src/%.cpp $(HPP_FILES)
 	$(CPP) -include $(IDIR)/gcc_preinclude.h -c -o $@ $< $(CPPFLAGS)
