@@ -64,7 +64,7 @@ namespace imhotep {
                             err = worker_start_field(&my_worker,
                                                      op.field_name().c_str(),
                                                      (int) op.field_name().length(),
-                                                     op.term_type(),
+                                                     op.field_type(),
                                                       socket_num);
                             break;
                         case op_desc::TGS_OPERATION: {

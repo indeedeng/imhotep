@@ -36,9 +36,10 @@ namespace imhotep {
                 _operation(operation)
         { }
 
-        op_desc(int32_t splitIndex, int8_t operation, std::string field) :
+        op_desc(int32_t splitIndex, int8_t operation, std::string field, bool type) :
                 _splitIndex(splitIndex),
                 _operation(operation),
+                _fieldIsInt(type),
                 _fieldName(field)
         { }
 
@@ -56,6 +57,8 @@ namespace imhotep {
 
         Encoding term_type() const { return _termDesc.encode_type(); }
 
+        int field_type() const { return _fieldIsInt ? TERM_TYPE_INT : TERM_TYPE_STRING; }
+
         int int_term() const { return _termDesc.int_term(); }
 
         const char* str_term() const {
@@ -71,6 +74,7 @@ namespace imhotep {
         TermDesc     _termDesc;
         int32_t      _splitIndex;
         int8_t       _operation;
+        bool         _fieldIsInt;
         std::string  _fieldName;
     };
 
@@ -180,7 +184,11 @@ namespace imhotep {
                              const std::string& field = ((size_t)field_num < int_fields.size())
                              ? int_fields[field_num]
                              : string_fields[field_num - int_fields.size()];
-                             return op_desc(split_num, op_desc::FIELD_START_OPERATION, field);
+                             const bool isIntField = ((size_t)field_num < int_fields.size())
+                                     ? true
+                                     : false;
+                             return op_desc(split_num, op_desc::FIELD_START_OPERATION,
+                                            field, isIntField);
                          },
                     [=](int32_t field_num) -> op_desc
                          {
