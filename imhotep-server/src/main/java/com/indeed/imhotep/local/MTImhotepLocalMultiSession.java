@@ -23,6 +23,7 @@ import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.io.SocketUtils;
+import com.indeed.imhotep.io.caching.CachedFile;
 import com.indeed.imhotep.multicache.ftgs.*;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
@@ -102,7 +103,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     private final long memoryClaimed;
 
     private final boolean useNativeFtgs;
-    
+
     private boolean onlyBinaryMetrics;
 
     public MTImhotepLocalMultiSession(final ImhotepLocalSession[] sessions,
@@ -127,7 +128,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             throw new ImhotepOutOfMemoryException();
         }
     }
-    
+
     @Override
     protected void preClose() {
         if (closed.compareAndSet(false, true)) {
@@ -147,7 +148,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     private void closeFTGSSockets() {
         Closeables2.closeAll(Arrays.asList(ftgsOutputSockets), log);
     }
-    
+
     public MultiCache[] updateMulticaches() throws ImhotepOutOfMemoryException {
         final MultiCache[] multiCaches = new MultiCache[sessions.length];
         final MultiCacheConfig config = new MultiCacheConfig();
@@ -179,42 +180,22 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         ftgsOutputSockets[splitIndex] = socket;
 
         final CyclicBarrier newBarrier = new CyclicBarrier(numSplits, new Runnable() {
-            @Override
-            public void run() {
-                MultiCache[] nativeCaches;
-                try {
-                    nativeCaches = updateMulticaches();
-                } catch (ImhotepOutOfMemoryException e) {
-                    throw new RuntimeException(e);
+                @Override
+                public void run() {
+                    MultiCache[] nativeCaches;
+                    try {
+                        nativeCaches = updateMulticaches();
+                    } catch (ImhotepOutOfMemoryException e) {
+                        throw new RuntimeException(e);
+                    }
+                    final FlamdexReader[] readers = new FlamdexReader[sessions.length];
+                    for (int i = 0; i < sessions.length; i++) {
+                        readers[i] = sessions[i].getReader();
+                    }
+                    runNativeFTGS(readers, nativeCaches, onlyBinaryMetrics,
+                                  intFields, stringFields, getNumGroups(),
+                                  numStats, numSplits, ftgsOutputSockets);
                 }
-                final FlamdexReader[] readers = new FlamdexReader[sessions.length];
-                for (int i = 0; i < sessions.length; i++) {
-                    readers[i] = sessions[i].getReader();
-                }
-
-//                try {
-//                    // run service
-//                    final NativeFTGSRunner runner = new NativeFTGSRunner(readers,
-//                                                                         nativeCaches,
-//                                                                         intFields,
-//                                                                         stringFields,
-//                                                                         getNumGroups(),
-//                                                                         numStats,
-//                                                                         numSplits);
-//                    runner.run(ftgsOutputSockets, numSplits, ftgsExecutor);
-                    runNativeFTGS(readers,
-                                nativeCaches,
-                                onlyBinaryMetrics,
-                                intFields,
-                                stringFields,
-                                getNumGroups(),
-                                numStats,
-                                numSplits,
-                                ftgsOutputSockets);
-//                } catch (IOException e) {
-//                    throw new RuntimeException(e);
-//                }
-            }
         });
 
         // agree on a single barrier
@@ -227,12 +208,16 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             }
         }
 
-        //There is a potential race condition between ftgsOutputSockets[i] being assigned and the sockets being closed
-        // when <code>close()</code> is called. If this method is called concurrently with close it's possible that
-        //ftgsOutputSockets[i] will be assigned after it has already been determined to be null in close. This will
-        //cause the socket to not be closed. By checking if the session is closed after the assignment we guarantee
-        //that either close() will close all sockets correctly (if closed is false here) or that we will close all the
-        //sockets if the session was closed simultaneously with this method being called (if closed is true here)
+        //There is a potential race condition between ftgsOutputSockets[i] being
+        // assigned and the sockets being closed when <code>close()</code> is
+        // called. If this method is called concurrently with close it's
+        // possible that ftgsOutputSockets[i] will be assigned after it has
+        // already been determined to be null in close. This will cause the
+        // socket to not be closed. By checking if the session is closed after
+        // the assignment we guarantee that either close() will close all
+        // sockets correctly (if closed is false here) or that we will close all
+        // the sockets if the session was closed simultaneously with this method
+        // being called (if closed is true here)
         if (closed.get()) {
             closeFTGSSockets();
             throw new IllegalStateException("the session was closed before getting all the splits!");
@@ -260,12 +245,17 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     }
 
     @Override
-    protected ImhotepRemoteSession createImhotepRemoteSession(InetSocketAddress address, String sessionId, AtomicLong tempFileSizeBytesLeft) {
-        return new ImhotepRemoteSession(address.getHostName(), address.getPort(), sessionId, tempFileSizeBytesLeft, useNativeFtgs);
+    protected ImhotepRemoteSession createImhotepRemoteSession(InetSocketAddress address,
+                                                              String sessionId,
+                                                              AtomicLong tempFileSizeBytesLeft) {
+        return new ImhotepRemoteSession(address.getHostName(), address.getPort(),
+                                        sessionId, tempFileSizeBytesLeft, useNativeFtgs);
     }
 
     @Override
-    protected <E, T> void execute(final T[] ret, E[] things, final ThrowingFunction<? super E, ? extends T> function) throws ExecutionException {
+    protected <E, T> void execute(final T[] ret, E[] things,
+                                  final ThrowingFunction<? super E, ? extends T> function)
+        throws ExecutionException {
         final List<Future<T>> futures = Lists.newArrayListWithCapacity(things.length);
         for (final E thing : things) {
             futures.add(executor.submit(new Callable<T>() {
@@ -302,6 +292,47 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                                    final int      numWorkers,
                                    final int[]    socketFDs);
 
+    private String[] getShardDirs(final FlamdexReader[] readers) {
+        final String[] shardDirs = new String[readers.length];
+
+        class LoadDirThread extends Thread {
+            final int index;
+            LoadDirThread(final int index) { this.index = index; }
+            public void run() {
+                String shardDir = readers[index].getDirectory();
+                try {
+                    CachedFile cf        = CachedFile.create(shardDir);
+                    File       cachedDir = cf.loadDirectory();
+                    synchronized (shardDirs) {
+                        shardDirs[index] = cachedDir.getAbsolutePath();
+                    }
+                }
+                catch (IOException ex) {
+                    throw new RuntimeException(ex);
+                }
+            }
+        }
+
+        LoadDirThread[] threads = new LoadDirThread[readers.length];
+        try {
+            for (int index = 0; index < readers.length; ++index) {
+                threads[index] = new LoadDirThread(index);
+                threads[index].start();
+            }
+        }
+        finally {
+            for (int index = 0; index < readers.length; ++index) {
+                try {
+                    threads[index].join();
+                }
+                catch (InterruptedException ex) {
+                    // !@# handle more gracefully
+                }
+            }
+        }
+        return shardDirs;
+    }
+
     private void runNativeFTGS(final FlamdexReader[] readers,
                                final MultiCache[]    nativeCaches,
                                final boolean        onlyBinaryMetrics,
@@ -311,10 +342,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                                final int             numStats,
                                final int             numSplits,
                                final Socket[]        sockets) {
-        String[] shardDirs = new String[readers.length];
-        for (int index = 0; index < readers.length; ++index) {
-            shardDirs[index] = readers[index].getDirectory();
-        }
+        String[] shardDirs = getShardDirs(readers);
 
         long[] packedTablePtrs = new long[nativeCaches.length];
         for (int index = 0; index < nativeCaches.length; ++index) {
@@ -329,16 +357,9 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             socketFDs[index] = SocketUtils.getOutputDescriptor(sockets[index]);
         }
 
-        nativeFTGS(shardDirs,
-                   packedTablePtrs,
-                   onlyBinaryMetrics,
-                   intFields,
-                   stringFields,
-                   splitsDir,
-                   numGroups,
-                   numStats,
-                   numSplits,
-                   numWorkers,
+        nativeFTGS(shardDirs, packedTablePtrs, onlyBinaryMetrics,
+                   intFields, stringFields, splitsDir,
+                   numGroups, numStats, numSplits, numWorkers,
                    socketFDs);
     }
 }
