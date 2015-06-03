@@ -17,6 +17,8 @@
 #include <functional>
 #include <stdexcept>
 
+#include "imhotep_error.hpp"
+
 namespace imhotep
 {
 
@@ -51,7 +53,7 @@ namespace imhotep
 
                 // don't allow enqueueing after stopping the pool
                 if (_stop) {
-                    throw std::runtime_error("enqueue on stopped ThreadPool");
+                    throw imhotep_error("enqueue on stopped ThreadPool");
                 }
 
                 _tasks.emplace([task]() {(*task)();});

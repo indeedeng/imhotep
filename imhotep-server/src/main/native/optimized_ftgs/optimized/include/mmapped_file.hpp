@@ -11,7 +11,7 @@
 #include <stdexcept>
 #include <string>
 
-#include <fstream>
+#include "imhotep_error.hpp"
 
 namespace imhotep {
 
@@ -23,8 +23,8 @@ namespace imhotep {
             , _fd(open(filename.c_str(), O_RDONLY)) {
 
             if (_fd <= 0) {
-                throw std::runtime_error("cannot open file: " + filename +
-                                         " " + std::string(strerror(errno)));
+                throw imhotep_error("cannot open file: " + filename +
+                                    " " + std::string(strerror(errno)));
             }
 
             struct stat buf;
@@ -34,7 +34,7 @@ namespace imhotep {
                 if (_delete_on_close) {
                     unlink(_filename.c_str());
                 }
-                throw std::runtime_error(strerror(errno));
+                throw imhotep_error(strerror(errno));
             }
             _size = buf.st_size;
         }
@@ -69,8 +69,8 @@ namespace imhotep {
             , _address(mmap(0, size(), PROT_READ, MAP_PRIVATE | MAP_POPULATE, fd(), 0)) {
 
             if (_address == reinterpret_cast<void*>(-1) && size() != 0) {
-                throw std::runtime_error(std::string(__PRETTY_FUNCTION__)
-                                         + std::string(": ") + std::string(strerror(errno)));
+                throw imhotep_error(std::string(__PRETTY_FUNCTION__)
+                                    + std::string(": ") + std::string(strerror(errno)));
             }
         }
 

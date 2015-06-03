@@ -13,6 +13,8 @@
 #include <stdexcept>
 #include <string>
 
+#include "imhotep_error.hpp"
+
 namespace imhotep {
 
     class VarIntView
@@ -72,15 +74,15 @@ namespace imhotep {
             : _fd(open(filename.c_str(), O_RDONLY))
             , _errno(errno) {
             if (_fd <= 0) {
-                throw std::runtime_error("cannot open file: " + filename +
-                                         " " + std::string(strerror(_errno)));
+                throw imhotep_error("cannot open file: " + filename +
+                                    " " + std::string(strerror(_errno)));
             }
 
             _length = file_size(_fd);
             _mapped = mmap(0, _length, PROT_READ, MAP_PRIVATE | MAP_POPULATE, _fd, 0);
             _errno  = errno;
             if (_mapped == reinterpret_cast<void*>(-1)) {
-                throw std::runtime_error("cannot mmap: " + std::string(strerror(errno)));
+                throw imhotep_error("cannot mmap: " + std::string(strerror(errno)));
             }
 
             _begin = (const char *) _mapped;
@@ -98,7 +100,7 @@ namespace imhotep {
         size_t file_size(int fd) {
             struct stat buf;
             int rc(fstat(fd, &buf));
-            if (rc != 0) throw std::runtime_error(strerror(errno));
+            if (rc != 0) throw imhotep_error(strerror(errno));
             return buf.st_size;
         }
     };

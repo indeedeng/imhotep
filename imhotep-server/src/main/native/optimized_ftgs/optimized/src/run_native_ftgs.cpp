@@ -12,8 +12,6 @@
 
 #include "run_native_ftgs.hpp"
 
-#include <execinfo.h>
-
 #include <algorithm>
 #include <array>
 #include <sstream>
@@ -99,21 +97,6 @@ namespace imhotep {
         if (condition) throw std::runtime_error(what);
     }
 
-    std::string capture_backtrace() {
-        static constexpr size_t depth = 1024;
-        std::array<void*, depth> trace;
-        const int                num_addresses(backtrace(&trace[0], trace.size()));
-        char**                   symbols(backtrace_symbols(trace.data(), num_addresses));
-        if (symbols) {
-            std::stringstream os;
-            for (int index(0); index < num_addresses; ++index) {
-                os << symbols[index] << std::endl;
-            }
-            return os.str();
-        }
-        return std::string("no stack trace available");
-    }
-
 } //  namespace imhotep
 
 using namespace imhotep;
@@ -167,10 +150,6 @@ Java_com_indeed_imhotep_local_MTImhotepLocalMultiSession_nativeFTGS(JNIEnv*     
     }
     catch (const std::exception& ex) {
         jclass exClass = env->FindClass("java/lang/RuntimeException");
-        std::ostringstream message;
-        message << ex.what() << std::endl << capture_backtrace() << std::endl;
-        env->ThrowNew(exClass, message.str().c_str());
+        env->ThrowNew(exClass, ex.what());
     }
 }
-
-
