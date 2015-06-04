@@ -75,7 +75,7 @@ namespace imhotep {
     {
         for (size_t split(0); split < num_splits; ++split) {
             std::ostringstream os;
-            os << output_dir << '/' << shard.name_of() << '.' << split;
+            os << output_dir << '/' << shard.name_of() << '.' << _field << '.' << split;
             _splits.push_back(os.str());
         }
     }

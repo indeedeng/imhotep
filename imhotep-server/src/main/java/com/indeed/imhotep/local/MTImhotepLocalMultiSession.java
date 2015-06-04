@@ -80,8 +80,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             os.close();
             is.close();
             System.load(tempFile.getAbsolutePath());
-            // noinspection ResultOfMethodCallIgnored
-//            tempFile.delete();
+            tempFile.delete();
         } catch (Throwable e) {
             e.printStackTrace();
             log.warn("unable to load libftgs using class loader, looking in java.library.path", e);

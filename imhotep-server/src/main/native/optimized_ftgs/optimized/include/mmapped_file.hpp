@@ -22,7 +22,7 @@ namespace imhotep {
             , _delete_on_close(delete_on_close)
             , _fd(open(filename.c_str(), O_RDONLY)) {
 
-            if (_fd <= 0) {
+            if (_fd == -1) {
                 throw imhotep_error("cannot open file: " + filename +
                                     " " + std::string(strerror(errno)));
             }
