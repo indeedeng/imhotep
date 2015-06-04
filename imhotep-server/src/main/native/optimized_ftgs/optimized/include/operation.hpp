@@ -31,6 +31,8 @@ namespace imhotep {
         enum OpCode:int8_t { INVALID = 0, TGS = 1, FIELD_START = 2, FIELD_END = 3, NO_MORE_FIELDS = 4 };
         enum FieldType:int { UNDEFINED = -1, STR_TERM = 0, INT_TERM = 1 };
 
+        Operation() : _op_code(INVALID) { }
+
         Operation(int32_t split_index, const std::string& field_name, FieldType field_type)
             : _op_code(FIELD_START)
             , _split_index(split_index)
