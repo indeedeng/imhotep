@@ -77,6 +77,22 @@ namespace imhotep {
         return result;
     }
 
+    template <>
+    std::vector<table_ptr> from_java_array<table_ptr>(JNIEnv* env, jlongArray values)
+    {
+        jsize                   valuesSize(env->GetArrayLength(values));
+        std::vector<table_ptr> result(valuesSize);
+        jboolean                unused(false);
+        jlong*                  elements(env->GetLongArrayElements(values, &unused));
+        for (jsize index(0); index < valuesSize; ++index) {
+            jlong element(elements[index]);
+            result[index] = *reinterpret_cast<table_ptr*>(&element);
+            fprintf(stderr, "result[%d]: %p\n", index, result[index]);
+        }
+        env->ReleaseLongArrayElements(values, elements, JNI_ABORT);
+        return result;
+    }
+
     /* !@# todo(johnf): figure out an elegant way to eliminate this code
        duplication */
     template <typename value_type>
