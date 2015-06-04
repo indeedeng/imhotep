@@ -51,7 +51,7 @@ test_circ_buf: obj/test_circ_buf.o ../obj/circ_buf.o
 test_split: obj/test_split.o ../cppobj/splitter.o ../cppobj/term_iterator.o
 	$(CPP) -pthread $(CPPFLAGS) $ -o test_split $(LIBS) $^
 
-test_merge_iterator: obj/test_merge_iterator.o
+test_merge_iterator: obj/test_merge_iterator.o ../cppobj/log.o
 	$(CPP) $(CPPFLAGS) $ -o test_merge_iterator $(LIBS) $^
 
 test_int_term_iterator: obj/test_int_term_iterator.o ../cppobj/term_iterator.o
