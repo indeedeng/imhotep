@@ -60,7 +60,7 @@ namespace imhotep {
         OpCode                 op_code() const { return _op_code;     }
         const std::string&  field_name() const { return _field_name;  }
 
-        FieldType field_type() const;
+        FieldType field_type() const; // !@# rename to "term_type?"
 
         const TermSeq<term_t>& term_seq() const { return _term_seq; }
 

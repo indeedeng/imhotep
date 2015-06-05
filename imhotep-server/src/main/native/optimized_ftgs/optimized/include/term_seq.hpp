@@ -43,6 +43,12 @@ namespace imhotep {
 
         const typename term_t::id_t& id() const { return _id; }
 
+        size_t size() const {
+            assert(docid_addresses().size() == doc_freqs().size());
+            assert(docid_addresses().size() == tables().size());
+            return docid_addresses().size();
+        }
+
         std::vector<int64_t> docid_addresses() const { return _docid_addresses; }
         std::vector<int32_t>       doc_freqs() const { return _doc_freqs;       }
 

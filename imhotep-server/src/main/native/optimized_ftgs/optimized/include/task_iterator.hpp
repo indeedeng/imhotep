@@ -42,52 +42,50 @@ namespace imhotep {
     private:
         friend class boost::iterator_core_access;
 
-        void increment() {
-            if (_int_current == _int_end && _str_current == _str_end) return;
-
-            if (_int_current != _int_end) {
-                struct worker_desc* worker_ptr(&_worker);
-                const Operation<IntTerm> op(*_int_current);
-                int socket_fd(_socket_fd);
-                switch (op.op_code()) {
-                case FIELD_START:
-                    _task = [worker_ptr, op, socket_fd]() {
-                        int err = worker_start_field(worker_ptr,
-                                                     op.field_name().c_str(),
-                                                     op.field_name().length(),
-                                                     op.field_type(),
-                                                     socket_fd);
-                        if (err != 0) {
-                            // !@# fix error message
-                            throw imhotep_error(__FUNCTION__);
-                        }
-                    };
-                    break;
-                case TGS:
-                    break;
-                case FIELD_END:
-                    _task = [worker_ptr, op, socket_fd]() {
-                        int err = worker_end_field(worker_ptr, socket_fd);
-                        if (err != 0) {
-                            // !@# fix error message
-                            throw imhotep_error(__FUNCTION__);
-                        }
-                    };
-                    break;
-                case NO_MORE_FIELDS:
-                    _task = [worker_ptr, op, socket_fd]() {
-                        int err = worker_end_stream(worker_ptr, socket_fd);
-                        if (err != 0) {
-                            // !@# fix error message
-                            throw imhotep_error(__FUNCTION__);
-                        }
-                    };
-                    break;
-                default:        // !@# 
-                    break;
+        template <typename term_t>
+        Task start_field(const Operation<term_t>& op) {
+            struct worker_desc*  worker_ptr(&_worker);
+            int                  socket_fd(_socket_fd);
+            return [worker_ptr, op, socket_fd]() {
+                int err = worker_start_field(worker_ptr,
+                                             op.field_name().c_str(),
+                                             op.field_name().length(),
+                                             op.field_type(),
+                                             socket_fd);
+                if (err != 0) {
+                    // !@# fix error message
+                    throw imhotep_error(__FUNCTION__);
                 }
-            }
+            };
         }
+
+        template <typename term_t> Task tgs(const Operation<term_t>& op);
+
+        Task end_field() {
+            struct worker_desc* worker_ptr(&_worker);
+            int                 socket_fd(_socket_fd);
+            return [worker_ptr, socket_fd]() {
+                int err = worker_end_field(worker_ptr, socket_fd);
+                if (err != 0) {
+                    // !@# fix error message
+                    throw imhotep_error(__FUNCTION__);
+                }
+            };
+        }
+
+        Task end_stream() {
+            struct worker_desc* worker_ptr(&_worker);
+            int                 socket_fd(_socket_fd);
+            return [worker_ptr, socket_fd]() {
+                int err = worker_end_stream(worker_ptr, socket_fd);
+                if (err != 0) {
+                    // !@# fix error message
+                    throw imhotep_error(__FUNCTION__);
+                }
+            };
+        }
+
+        void increment();
 
         bool equal(const TaskIterator& other) const {
             // !@# revisit
@@ -114,6 +112,80 @@ namespace imhotep {
         FieldOpIterator<StringTerm> _str_current;
         FieldOpIterator<StringTerm> _str_end;
     };
+
+    template <> inline
+    Task TaskIterator::tgs<IntTerm>(const Operation<IntTerm>& op) {
+        struct worker_desc*  worker_ptr(&_worker);
+        struct session_desc* session_ptr(&_session);
+        int                  socket_fd(_socket_fd);
+        return [worker_ptr, session_ptr, op, socket_fd]() {
+            int err = run_tgs_pass(worker_ptr, session_ptr,
+                                   op.field_type(),
+                                   op.term_seq().id(),
+                                   nullptr, 0,
+                                   op.term_seq().docid_addresses().data(),
+                                   op.term_seq().doc_freqs().data(),
+                                   op.term_seq().tables().data(),
+                                   op.term_seq().size(),
+                                   socket_fd);
+            if (err != 0) {
+                // !@# fix error message
+                throw imhotep_error(__FUNCTION__);
+            }
+        };
+    }
+
+    template <> inline
+    Task TaskIterator::tgs<StringTerm>(const Operation<StringTerm>& op) {
+        struct worker_desc*  worker_ptr(&_worker);
+        struct session_desc* session_ptr(&_session);
+        int                  socket_fd(_socket_fd);
+        return [worker_ptr, session_ptr, op, socket_fd]() {
+            int err = run_tgs_pass(worker_ptr, session_ptr,
+                                   op.field_type(),
+                                   0, // unused
+                                   op.term_seq().id().c_str(),
+                                   op.term_seq().id().length(),
+                                   op.term_seq().docid_addresses().data(),
+                                   op.term_seq().doc_freqs().data(),
+                                   op.term_seq().tables().data(),
+                                   op.term_seq().size(),
+                                   socket_fd);
+            if (err != 0) {
+                // !@# fix error message
+                throw imhotep_error(__FUNCTION__);
+            }
+        };
+    }
+
+    inline
+    void TaskIterator::increment() {
+        if (_int_current != _int_end) {
+            const Operation<IntTerm> op(*_int_current);
+            switch (op.op_code()) {
+            case FIELD_START:    _task = start_field(op);  break;
+            case TGS:            _task = tgs<IntTerm>(op); break;
+            case FIELD_END:      _task = end_field();      break;
+            case NO_MORE_FIELDS: _task = end_stream();     break;
+            default:        // !@#
+                break;
+            }
+            ++_int_current;
+        }
+        else if (_str_current != _str_end) {
+            const Operation<StringTerm> op(*_str_current);
+            switch (op.op_code()) {
+            case FIELD_START:    _task = start_field(op);     break;
+            case TGS:            _task = tgs<StringTerm>(op); break;
+            case FIELD_END:      _task = end_field();         break;
+            case NO_MORE_FIELDS: _task = end_stream();        break;
+            default:        // !@#
+                break;
+            }
+            ++_str_current;
+        }
+    }
+
 
 } // namespace imhotep
 
