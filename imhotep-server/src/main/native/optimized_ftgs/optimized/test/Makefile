@@ -86,8 +86,10 @@ FTGS_RUNNER_OBJS =\
 	../obj/packed_table.o\
 	../obj/varintdecode.o\
 	../obj/binary_table_accumulate.o\
-	../obj/table_accumulate.o
-
+	../obj/table_accumulate.o\
+	../cppobj/term_desc.o \
+	../cppobj/term_providers.o\
+	../cppobj/term_desc_iterator.o
 test_ftgs_runner: obj/test_ftgs_runner.o $(FTGS_RUNNER_OBJS)
 	$(CPP) -pthread $(CPPFLAGS) $ -o test_ftgs_runner $^ $(LIBS)
 
