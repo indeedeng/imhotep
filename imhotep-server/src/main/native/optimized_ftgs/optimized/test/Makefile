@@ -1,11 +1,11 @@
 CC=/usr/bin/gcc-4.9
 CPP=/usr/bin/g++-4.9
-CFLAGS=-Wall -Werror -I./include -I../include  -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions
-CPPFLAGS=-g -O3  -Wall -Werror -I./include -I../include -I/usr/include/boost -msse4.2 -std=c++14 -fPIC  -flto -funroll-loops
-LFLAGS=-g -O3 -flto
+CFLAGS=-g  -gdwarf-2 -O0 -Wall -Werror -I./include -I../include  -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions
+CPPFLAGS=-g  -gdwarf-2 -O0 -Wall -Werror -I./include -I../include -I/usr/include/boost -msse4.2 -std=c++14 -fPIC  -flto -funroll-loops
+LFLAGS=-g  -gdwarf-2 --shard-dir ~/indeed/organic/index20140512.12.20140628224651 --int-fields bsjc --full-test true -O0 -flto
 
-OPT_CFLAGS= -g -O3 -flto -funroll-loops $(CFLAGS)
-DBG_CFLAGS= -g $(CPPFLAGS)
+OPT_CFLAGS= -g  -gdwarf-2 -O0 -flto -funroll-loops $(CFLAGS)
+DBG_CFLAGS= -g  -gdwarf-2  $(CPPFLAGS)
 
 LIBS=\
 	-lboost_filesystem      \
@@ -74,7 +74,19 @@ FTGS_RUNNER_OBJS =\
 	$(TERM_PROVIDER_OBJS) \
 	../cppobj/ftgs_runner.o	\
 	obj/test_patch.o \
-    ../obj/packed_table.o
+	../cppobj/entry_point.o\
+	../obj/local_session.o\
+	../obj/socket.o\
+	../obj/tgs.o\
+	../obj/unpacked_table.o\
+	../obj/packed_table.o\
+	../obj/circ_buf.o\
+	../obj/bit_tree.o\
+	../obj/remote_output.o\
+	../obj/packed_table.o\
+	../obj/varintdecode.o\
+	../obj/binary_table_accumulate.o\
+	../obj/table_accumulate.o
 
 test_ftgs_runner: obj/test_ftgs_runner.o $(FTGS_RUNNER_OBJS)
 	$(CPP) -pthread $(CPPFLAGS) $ -o test_ftgs_runner $^ $(LIBS)
