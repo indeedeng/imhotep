@@ -240,7 +240,7 @@ namespace imhotep {
 
             int i = 0;
             for (auto n : split_nums) {
-                socket_file_descriptors[i] = n;
+                socket_file_descriptors[i] = socket_fds[n];
                 splits.push_back(forSplit_getMultiFieldTermDescIter(n));
                 i++;
             }
