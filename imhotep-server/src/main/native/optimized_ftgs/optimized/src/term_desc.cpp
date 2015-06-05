@@ -30,8 +30,8 @@ namespace imhotep {
     }
 
     template<>
-    inline TermDesc& TermDesc::append<IntTerm>(const IntTerm& term,
-                                               Shard::packed_table_ptr table)
+    TermDesc& TermDesc::append<IntTerm>(const IntTerm& term,
+                                        Shard::packed_table_ptr table)
     {
         assert(_int_term == term.id());
         _docid_addresses.push_back(term.doc_offset());
@@ -41,8 +41,8 @@ namespace imhotep {
     }
 
     template<>
-    inline TermDesc& TermDesc::append<StringTerm>(const StringTerm& term,
-                                                  Shard::packed_table_ptr table)
+    TermDesc& TermDesc::append<StringTerm>(const StringTerm& term,
+                                           Shard::packed_table_ptr table)
     {
         assert(_string_term == term.id());
         _docid_addresses.push_back(term.doc_offset());
