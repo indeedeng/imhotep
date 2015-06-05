@@ -17,6 +17,7 @@
 #include "splitter.hpp"
 #include "split_view.hpp"
 #include "term_desc_iterator.hpp"
+#include "term_seq_iterator.hpp"
 
 namespace imhotep {
 
@@ -62,6 +63,7 @@ namespace imhotep {
                      ExecutorService&                  executor);
 
         TermDescIterator<term_t> merge(size_t split) const;
+        TermSeqIterator<term_t> term_seq_it(size_t split) const;
 
         const split_map_t& splits() const { return _splits; }
 

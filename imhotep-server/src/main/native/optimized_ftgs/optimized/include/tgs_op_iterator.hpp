@@ -1,23 +1,24 @@
 #ifndef TGS_OP_ITERATOR_HPP
 #define TGS_OP_ITERATOR_HPP
 
-#include "merge_iterator.hpp"
+#include <boost/iterator/iterator_facade.hpp>
+
 #include "operation.hpp"
-#include "term_desc.hpp"
+#include "term_seq_iterator.hpp"
 
 namespace imhotep {
 
     template <typename term_t>
     class TGSOpIterator
         : public boost::iterator_facade<TGSOpIterator<term_t>,
-                                        Operation const,
+                                        Operation<term_t> const,
                                         boost::forward_traversal_tag> {
     public:
-        typedef MergeIterator<term_t> merge_it;
+        typedef TermSeqIterator<term_t> term_seq_it;
 
         TGSOpIterator() { }
 
-        TGSOpIterator(const Operation operation, merge_it begin, merge_it end)
+        TGSOpIterator(const Operation<term_t>& operation, term_seq_it begin, term_seq_it end)
             : _operation(operation)
             , _current(begin)
             , _end(end) {
@@ -30,22 +31,22 @@ namespace imhotep {
         void increment() {
             if (_current == _end) return;
 
-            _operation = Operation(_operation, *_current);
+            _operation = Operation<term_t>::tgs(_operation, *_current);
             ++_current;
         }
 
-        bool equel(const Operation& other) const  {
+        bool equal(const TGSOpIterator& other) const  {
             return _operation == other._operation; // !@# sufficient?
         }
 
-        const Operation& dereference() const {
+        const Operation<term_t>& dereference() const {
             return _operation;
         }
 
-        Operation _operation;
+        Operation<term_t> _operation;
 
-        merge_it _current;
-        merge_it _end;
+        term_seq_it _current;
+        term_seq_it _end;
     };
 
 } // namespace imhotep
