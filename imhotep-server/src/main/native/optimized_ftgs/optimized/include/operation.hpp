@@ -1,9 +1,7 @@
 #ifndef OPERATION_HPP
 #define OPERATION_HPP
 
-#include <boost/optional.hpp>
-
-#include "term_desc.hpp"
+#include "term_seq.hpp"
 
 namespace imhotep {
 
@@ -26,36 +24,67 @@ namespace imhotep {
                                   V
                                  (NMF)
      */
+    enum OpCode:int8_t { INVALID = 0, TGS = 1, FIELD_START = 2, FIELD_END = 3, NO_MORE_FIELDS = 4 };
+    enum FieldType:int { UNDEFINED = -1, STR_TERM = 0, INT_TERM = 1 };
+
+    template <typename term_t>
     class Operation {
     public:
-        enum OpCode:int8_t { INVALID = 0, TGS = 1, FIELD_START = 2, FIELD_END = 3, NO_MORE_FIELDS = 4 };
-        enum FieldType:int { UNDEFINED = -1, STR_TERM = 0, INT_TERM = 1 };
-
         Operation() : _op_code(INVALID) { }
 
-        Operation(int32_t split_index, const std::string& field_name, FieldType field_type)
+        bool operator==(const Operation& rhs) const {
+            return
+                _op_code     == rhs._op_code     &&
+                _split_index == rhs._split_index &&
+                _field_name  == rhs._field_name  &&
+                _term_seq    == rhs._term_seq;
+        }
+
+        static Operation field_start(int32_t split_index, const std::string& field_name) {
+            return Operation(split_index, field_name);
+        }
+
+        static Operation tgs(const Operation& operation, const TermSeq<term_t>& term_seq) {
+            return Operation(operation, term_seq);
+        }
+
+        static Operation field_end(const Operation& operation) {
+            return Operation(operation, FIELD_END);
+        }
+
+        static Operation no_more_fields(int32_t split_index) {
+            return Operation(split_index);
+        }
+
+        int32_t            split_index() const { return _split_index; }
+        OpCode                 op_code() const { return _op_code;     }
+        const std::string&  field_name() const { return _field_name;  }
+
+        FieldType field_type() const;
+
+        const TermSeq<term_t>& term_seq() const { return _term_seq; }
+
+    private:
+        Operation(int32_t split_index, const std::string& field_name)
             : _op_code(FIELD_START)
             , _split_index(split_index)
             , _field_name(field_name)
-            , _field_type(field_type)
         { }
 
-        Operation(const Operation& operation, const TermDesc& term_desc)
+        Operation(const Operation& operation, const TermSeq<term_t>& term_seq)
             : _op_code(TGS)
             , _split_index(operation._split_index)
             , _field_name(operation._field_name)
-            , _field_type(operation._field_type)
-            , _term_desc(term_desc) {
+            , _term_seq(term_seq) {
             assert(operation.op_code() == FIELD_START ||
                    operation.op_code() == TGS);
         }
 
-        Operation(const Operation& operation)
-            : _op_code(FIELD_END)
+        Operation(const Operation& operation, OpCode op_code)
+            : _op_code(op_code)
             , _split_index(operation._split_index)
             , _field_name(operation._field_name)
-            , _field_type(operation._field_type)
-            , _term_desc(operation._term_desc) {
+            , _term_seq(operation._term_seq) {
             assert(operation.op_code() == TGS);
         }
 
@@ -64,20 +93,18 @@ namespace imhotep {
             , _split_index(split_index)
         { }
 
-        int32_t            split_index() const { return _split_index; }
-        OpCode                 op_code() const { return _op_code;     }
-        FieldType           field_type() const { return _field_type;  }
-        const std::string&  field_name() const { return _field_name;  }
+        OpCode      _op_code     = INVALID;
+        int32_t     _split_index = -1;
+        std::string _field_name;
 
-        const boost::optional<TermDesc>& term_desc() const { return _term_desc; }
-
-    private:
-        OpCode                    _op_code     = INVALID;
-        int32_t                   _split_index = -1;
-        std::string               _field_name;
-        FieldType                 _field_type  = UNDEFINED;
-        boost::optional<TermDesc> _term_desc;
+        TermSeq<term_t> _term_seq;
     };
+
+    template<> inline
+    FieldType Operation<IntTerm>::Operation::field_type() const { return INT_TERM; }
+
+    template<> inline
+    FieldType Operation<StringTerm>::Operation::field_type() const { return STR_TERM; }
 
 } // namespace imhotep
 
