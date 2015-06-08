@@ -205,7 +205,7 @@ void worker_init(struct worker_desc *worker,
                  int id,
                  int num_groups,
                  int n_metrics,
-                 int *socket_fds,
+                 const int *socket_fds,
                  int num_sockets)
 {
     worker->num_streams = num_sockets;
