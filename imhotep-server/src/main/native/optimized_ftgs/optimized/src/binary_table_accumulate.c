@@ -72,7 +72,7 @@ void binary_lookup_and_accumulate_grp_stats(const struct worker_desc *worker,
     int trailing_idx = 0;
     int idx = 0;
 
-    uint64_t mini_buffer;
+    uint64_t mini_buffer = 0;
 
     /* loop through A rows, prefetching */
     while (non_zero_count < PREFETCH_DISTANCE && idx < buffer_len) {

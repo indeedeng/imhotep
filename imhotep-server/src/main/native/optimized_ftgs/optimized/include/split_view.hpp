@@ -62,8 +62,8 @@ namespace imhotep {
     StringTerm SplitView::read<StringTerm>() {
         const size_t            id_size(read<size_t>());
         const SplitView::Buffer id(read_bytes(id_size));
-        const uint64_t          doc_offset(read<uint64_t>());
-        const uint64_t          doc_freq(read<uint64_t>());
+        const int64_t           doc_offset(read<int64_t>());
+        const int64_t           doc_freq(read<int64_t>());
         return StringTerm(std::string(id.first, id.second), doc_offset, doc_freq);
     }
 }

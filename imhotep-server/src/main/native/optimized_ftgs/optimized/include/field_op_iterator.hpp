@@ -27,8 +27,6 @@ namespace imhotep {
         friend class boost::iterator_core_access;
 
         void increment() {
-            if (_current == _end) return;
-
             switch (_operation.op_code()) {
             case INVALID:
                 increment_field();
@@ -44,10 +42,14 @@ namespace imhotep {
                 }
                 else {
                     _operation = Operation<term_t>::field_end(_operation);
+                    ++_current;
                 }
                 break;
             case FIELD_END:
                 increment_field();
+                break;
+            case NO_MORE_FIELDS:
+                _operation = Operation<term_t>();
                 break;
             default:
                 // !@# software error?
@@ -55,10 +57,6 @@ namespace imhotep {
             }
         }
 
-        /* upon exit, either:
-           (_current == _end AND _operation == no_more_fields) OR
-           (_operation == field_start AND _tgs_current/end is non-empty)
-        */
         void increment_field() {
             bool found_one(false);
             while (!found_one && _current != _end) {
@@ -75,16 +73,18 @@ namespace imhotep {
                     ++_current;
                 }
             }
-            if (!found_one) {
+            if (!found_one && _operation.op_code() != INVALID) {
                 assert(_current == _end);
                 _operation = Operation<term_t>::no_more_fields(_split);
             }
         }
 
         bool equal(const FieldOpIterator& other) const {
-            /* !@# revisit */
-            return _current == other._current &&
-                _operation == other._operation;
+            /* !@# revisit - only works for comparing to end iterator. */
+            return
+                (_current == _end && other._current == other._end &&
+                 _tgs_current == _tgs_end && other._tgs_current == other._tgs_end &&
+                 _operation.op_code() == INVALID && other._operation.op_code() == INVALID);
         }
 
         const Operation<term_t>& dereference() const {

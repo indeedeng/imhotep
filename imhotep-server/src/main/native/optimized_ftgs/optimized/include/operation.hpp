@@ -1,6 +1,8 @@
 #ifndef OPERATION_HPP
 #define OPERATION_HPP
 
+#include <sstream>
+
 #include "term_seq.hpp"
 
 namespace imhotep {
@@ -26,6 +28,19 @@ namespace imhotep {
      */
     enum OpCode:int8_t { INVALID = 0, TGS = 1, FIELD_START = 2, FIELD_END = 3, NO_MORE_FIELDS = 4 };
     enum FieldType:int { UNDEFINED = -1, STR_TERM = 0, INT_TERM = 1 };
+
+    inline
+    std::string op_code_string(OpCode op_code) {
+        switch (op_code) {
+        case INVALID:        return "INVALID";
+        case TGS:            return "TGS";
+        case FIELD_START:    return "FIELD_START";
+        case FIELD_END:      return "FIELD_END";
+        case NO_MORE_FIELDS: return "NO_MORE_FIELDS";
+        default:             return "<software error - bad opcode>";
+        }
+    }
+
 
     template <typename term_t>
     class Operation {
@@ -63,6 +78,16 @@ namespace imhotep {
         FieldType field_type() const; // !@# rename to "term_type?"
 
         const TermSeq<term_t>& term_seq() const { return _term_seq; }
+
+        std::string to_string() const {
+            std::ostringstream os;
+            os << "[Operation split_index=" << split_index()
+               << " op_code=" << op_code() << "/" << op_code_string(op_code())
+               << " field_name=" << field_name()
+               << " term_seq=" << term_seq().to_string()
+               << "]";
+            return os.str();
+        }
 
     private:
         Operation(int32_t split_index, const std::string& field_name)

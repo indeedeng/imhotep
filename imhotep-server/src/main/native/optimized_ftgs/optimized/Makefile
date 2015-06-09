@@ -9,7 +9,7 @@ JNI_HEADER_LOC2=$(JNI_HEADER_LOC)/linux
 #LFLAGS= -g -shared -fsanitize=address
 BASE_CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions
 BASE_CPPFLAGS=-Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -I/usr/include/boost -msse4.2 -std=c++11 -fPIC
-BASE_LFLAGS= -shared 
+BASE_LFLAGS= -shared
 
 DBG_CFLAGS= -g
 OPT_CFLAGS= -flto -O3 -fvisibility=hidden
@@ -21,13 +21,13 @@ DBG_LFLAGS= -g
 OPT_LFLAGS= -O3 -flto
 
 ifeq ($(MODE),opt)
-	CFLAGS=$(BASE_CFLAGS) $(OPT_CFLAGS)
-	CPPFLAGS= $(BASE_CPPFLAGS) $(OPT_CPPFLAGS)
-	LFLAGS= $(BASE_LFLAGS) $(OPT_LFLAGS)
+	CFLAGS=$(OPT_CFLAGS) $(BASE_CFLAGS)
+	CPPFLAGS=$(OPT_CPPFLAGS) $(BASE_CPPFLAGS)
+	LFLAGS=$(OPT_LFLAGS) $(BASE_LFLAGS)
 else
-	CFLAGS= $(BASE_CFLAGS) $(DBG_CFLAGS)
-	CPPFLAGS= $(BASE_CPPFLAGS) $(DBG_CPPFLAGS)
-	LFLAGS= $(BASE_LFLAGS) $(DBG_LFLAGS)
+	CFLAGS= $(DBG_CFLAGS) $(BASE_CFLAGS)
+	CPPFLAGS= $(DBG_CPPFLAGS) $(BASE_CPPFLAGS)
+	LFLAGS= $(DBG_LFLAGS) $(BASE_LFLAGS)
 endif
 
 ODIR=obj
@@ -57,7 +57,7 @@ $(CPPODIR)/%.o: src/%.cpp $(HPP_FILES)
 all: native_lib
 
 native_lib: $(filter-out $(ODIR)/test_invert_metrics.o,$(OBJ_FILES)) $(CPP_OBJ_FILES)
-	$(CPP) $(LFLAGS) -Wl,-export-dynamic -Wl,-init,simdvbyteinit -Wl,-soname,libftgs.so.1 -o libftgs.so.1.0.1 $^ $(LIBS) 
+	$(CPP) $(LFLAGS) -Wl,-export-dynamic -Wl,-init,simdvbyteinit -Wl,-soname,libftgs.so.1 -o libftgs.so.1.0.1 $^ $(LIBS)
 	cp  libftgs.so.1.0.1 ../../../resources/native/Linux-amd64
 
 clean:

@@ -25,8 +25,9 @@ namespace imhotep {
 
         TermSeqIterator(merge_it begin, merge_it end)
             : _current(begin)
-            , _end(end)
-        { }
+            , _end(end) {
+            increment();
+        }
 
     private:
         friend class boost::iterator_core_access;

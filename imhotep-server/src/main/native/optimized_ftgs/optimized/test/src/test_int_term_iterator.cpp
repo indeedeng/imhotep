@@ -19,6 +19,9 @@ int main(int argc, char *argv[])
 
     IntTermIterator it(shard, field_name);
     IntTermIterator end;
+    cout << " *it = " << *it << endl;
+    cout << "*end = " << *end << endl;
+    cout << "it == end? " << (it == end ? "yes" : "no") << endl;
     while (it != end) {
         cout << *it << endl;
         ++it;

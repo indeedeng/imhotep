@@ -24,8 +24,10 @@ namespace imhotep {
                                         Task const,
                                         boost::forward_traversal_tag> {
     public:
-        TaskIterator(struct worker_desc&              worker,
-                     struct session_desc&             session,
+        TaskIterator() { }
+
+        TaskIterator(struct worker_desc*              worker,
+                     struct session_desc*             session,
                      size_t                           split,
                      int                              socket_fd,
                      const TermProviders<IntTerm>&    int_providers,
@@ -44,10 +46,9 @@ namespace imhotep {
 
         template <typename term_t>
         Task start_field(const Operation<term_t>& op) {
-            struct worker_desc*  worker_ptr(&_worker);
-            int                  socket_fd(_socket_fd);
-            return [worker_ptr, op, socket_fd]() {
-                int err = worker_start_field(worker_ptr,
+            const int socket_fd(_socket_fd);
+            return [this, op, socket_fd]() {
+                int err = worker_start_field(_worker,
                                              op.field_name().c_str(),
                                              op.field_name().length(),
                                              op.field_type(),
@@ -62,10 +63,9 @@ namespace imhotep {
         template <typename term_t> Task tgs(const Operation<term_t>& op);
 
         Task end_field() {
-            struct worker_desc* worker_ptr(&_worker);
-            int                 socket_fd(_socket_fd);
-            return [worker_ptr, socket_fd]() {
-                int err = worker_end_field(worker_ptr, socket_fd);
+            const int socket_fd(_socket_fd);
+            return [this, socket_fd]() {
+                int err = worker_end_field(_worker, socket_fd);
                 if (err != 0) {
                     // !@# fix error message
                     throw imhotep_error(__FUNCTION__);
@@ -74,10 +74,9 @@ namespace imhotep {
         }
 
         Task end_stream() {
-            struct worker_desc* worker_ptr(&_worker);
-            int                 socket_fd(_socket_fd);
-            return [worker_ptr, socket_fd]() {
-                int err = worker_end_stream(worker_ptr, socket_fd);
+            const int socket_fd(_socket_fd);
+            return [this, socket_fd]() {
+                int err = worker_end_stream(_worker, socket_fd);
                 if (err != 0) {
                     // !@# fix error message
                     throw imhotep_error(__FUNCTION__);
@@ -100,11 +99,11 @@ namespace imhotep {
         Task _empty_task = [](){ };
         Task _task = _empty_task;
 
-        struct worker_desc&  _worker;
-        struct session_desc& _session;
+        struct worker_desc*  _worker  = nullptr;
+        struct session_desc* _session = nullptr;
 
-        const size_t _split;
-        const int    _socket_fd;
+        size_t _split     = 0;
+        int    _socket_fd = -1;
 
         FieldOpIterator<IntTerm> _int_current;
         FieldOpIterator<IntTerm> _int_end;
@@ -115,11 +114,12 @@ namespace imhotep {
 
     template <> inline
     Task TaskIterator::tgs<IntTerm>(const Operation<IntTerm>& op) {
-        struct worker_desc*  worker_ptr(&_worker);
-        struct session_desc* session_ptr(&_session);
-        int                  socket_fd(_socket_fd);
-        return [worker_ptr, session_ptr, op, socket_fd]() {
-            int err = run_tgs_pass(worker_ptr, session_ptr,
+        const int socket_fd(_socket_fd);
+        return [this, op, socket_fd]() {
+            for (auto address: op.term_seq().docid_addresses()) {
+                std::cerr << " docid_address: " << reinterpret_cast<const void*>(address) << std::endl;
+            }
+            int err = run_tgs_pass(_worker, _session,
                                    op.field_type(),
                                    op.term_seq().id(),
                                    nullptr, 0,
@@ -137,11 +137,9 @@ namespace imhotep {
 
     template <> inline
     Task TaskIterator::tgs<StringTerm>(const Operation<StringTerm>& op) {
-        struct worker_desc*  worker_ptr(&_worker);
-        struct session_desc* session_ptr(&_session);
-        int                  socket_fd(_socket_fd);
-        return [worker_ptr, session_ptr, op, socket_fd]() {
-            int err = run_tgs_pass(worker_ptr, session_ptr,
+        const int socket_fd(_socket_fd);
+        return [this, op, socket_fd]() {
+            int err = run_tgs_pass(_worker, _session,
                                    op.field_type(),
                                    0, // unused
                                    op.term_seq().id().c_str(),
@@ -185,7 +183,6 @@ namespace imhotep {
             ++_str_current;
         }
     }
-
 
 } // namespace imhotep
 

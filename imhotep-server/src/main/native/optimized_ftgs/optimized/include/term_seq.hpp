@@ -1,6 +1,7 @@
 #ifndef TERM_SEQ_HPP
 #define TERM_SEQ_HPP
 
+#include <sstream>
 #include <vector>
 
 #include "merge_iterator.hpp"
@@ -53,6 +54,22 @@ namespace imhotep {
         std::vector<int32_t>       doc_freqs() const { return _doc_freqs;       }
 
         std::vector<Shard::packed_table_ptr> tables() const { return _tables; }
+
+        std::string to_string() const {
+            std::ostringstream os;
+            os << "[TermSeq id=" << id()
+               << " size=" << size()
+               << " addresses=";
+
+            os << "[";
+            for (auto addr: docid_addresses()) {
+                os << " " << reinterpret_cast<const void*>(addr);
+            }
+            os << " ]";
+
+            os << "]";
+            return os.str();
+        }
 
     private:
         typename term_t::id_t _id = IdTraits<typename term_t::id_t>::default_value();

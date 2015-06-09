@@ -19,66 +19,6 @@ extern "C" {
 
 namespace imhotep {
 
-    class op_desc {
-    public:
-        static const int8_t TGS_OPERATION = 1;
-        static const int8_t FIELD_START_OPERATION = 2;
-        static const int8_t FIELD_END_OPERATION = 3;
-        static const int8_t NO_MORE_FIELDS_OPERATION = 4;
-
-        op_desc() :
-            _splitIndex(-1),
-            _operation(0)
-        { }
-
-        op_desc(int32_t splitIndex, int8_t operation) :
-                _splitIndex(splitIndex),
-                _operation(operation)
-        { }
-
-        op_desc(int32_t splitIndex, int8_t operation, std::string field, bool type) :
-                _splitIndex(splitIndex),
-                _operation(operation),
-                _fieldIsInt(type),
-                _fieldName(field)
-        { }
-
-        TermDesc& operator()(op_desc& desc) {
-            return _termDesc;
-        }
-
-        const TermDesc& term_desc() const { return _termDesc; }
-
-        int32_t split_index() const { return _splitIndex; }
-
-        int8_t operation() const { return _operation; }
-
-        const std::string field_name() const { return _fieldName; }
-
-        Encoding term_type() const { return _termDesc.encode_type(); }
-
-        int field_type() const { return _fieldIsInt ? TERM_TYPE_INT : TERM_TYPE_STRING; }
-
-        int int_term() const { return _termDesc.int_term(); }
-
-        const char* str_term() const {
-            return term_type() == INT_TERM_TYPE ?
-                nullptr : _termDesc.string_term().c_str();
-        }
-
-        int str_term_length() const {
-            return term_type() == INT_TERM_TYPE ?
-                0 : _termDesc.string_term().length();
-        }
-    private:
-        TermDesc     _termDesc;
-        int32_t      _splitIndex;
-        int8_t       _operation;
-        bool         _fieldIsInt;
-        std::string  _fieldName;
-    };
-
-
     class FTGSRunner {
     public:
         FTGSRunner(const std::vector<Shard>&       shards,
@@ -91,169 +31,22 @@ namespace imhotep {
 
         FTGSRunner(const FTGSRunner& rhs) = delete;
 
-        const std::vector<std::string>& getIntFieldnames() const
-        {
-            return _int_fieldnames;
-        }
-
-        const TermProviders<IntTerm>& getIntTermProviders() const
-        {
-            return _int_term_providers;
-        }
-
-        const size_t getNumSplits() const
-        {
-            return _num_splits;
-        }
-
-        const size_t getNumWorkers() const
-        {
-            return _num_workers;
-        }
-
-        const std::vector<std::string>& getStringFieldnames() const
-        {
-            return _string_fieldnames;
-        }
-
-        const TermProviders<StringTerm>& getStringTermProviders() const
-        {
-            return _string_term_providers;
-        }
+        void run(int                     num_groups,
+                 int                     num_metrics,
+                 bool                    only_binary_metrics,
+                 Shard::packed_table_ptr sample_table,
+                 const std::vector<int>& socket_fds);
 
     private:
-        template<typename term_t>
-        auto forSplit_getFieldIters(const TermProviders<term_t>& providers, int split_num)
-            -> std::vector<wrapping_jIterator<TermDescIterator<term_t>, op_desc, op_desc>>
-        {
-            using transform_t = wrapping_jIterator<TermDescIterator<term_t>, op_desc, op_desc>;
-            std::vector<transform_t> term_desc_iters;
-
-            for (size_t i = 0; i < providers.size(); i++) {
-                auto provider = providers[i].second;
-
-                op_desc func(i, op_desc::TGS_OPERATION);
-                const auto wrapped_provider = transform_t(provider.merge(split_num), func);
-                term_desc_iters.push_back(wrapped_provider);
-            }
-
-            return term_desc_iters;
-        }
-
-        template <typename iter1_t, typename iter2_t>
-        auto forSplit_chainFieldIters(std::vector<iter1_t>& term_iter1,
-                                      std::vector<iter2_t>& term_iter2,
-                                      const int split_num)
-                -> ChainedIterator<iter1_t, iter2_t>
-        {
-            // create chained iterator for all fields
-            auto int_fields = getIntFieldnames();
-            auto string_fields = getStringFieldnames();
-
-            return
-                ChainedIterator<iter1_t, iter2_t>
-                    (term_iter1,
-                     term_iter2,
-                    [=](int32_t field_num) -> op_desc
-                         {
-                             const std::string& field = ((size_t)field_num < int_fields.size())
-                             ? int_fields[field_num]
-                             : string_fields[field_num - int_fields.size()];
-                             const bool isIntField = ((size_t)field_num < int_fields.size())
-                                     ? true
-                                     : false;
-                             return op_desc(split_num, op_desc::FIELD_START_OPERATION,
-                                            field, isIntField);
-                         },
-                    [=](int32_t field_num) -> op_desc
-                         {
-                             return op_desc(split_num, op_desc::FIELD_END_OPERATION);
-                         },
-                    [=]() -> op_desc
-                        {
-                             return op_desc(split_num, op_desc::NO_MORE_FIELDS_OPERATION);
-                        }
-                    );
-        }
-
-        auto forSplit_getMultiFieldTermDescIter(const int split_num)
-            -> imhotep::ChainedIterator<
-            imhotep::wrapping_jIterator<imhotep::TermDescIterator<imhotep::Term<long int> >,
-                    imhotep::op_desc, imhotep::op_desc>,
-            imhotep::wrapping_jIterator<
-                    imhotep::TermDescIterator<
-                            imhotep::Term<
-                                    std::basic_string<char, std::char_traits<char>,
-                                            std::allocator<char> > > >, imhotep::op_desc,
-                    imhotep::op_desc> >
-        {
-            auto int_field_iters = forSplit_getFieldIters(_int_term_providers, split_num);
-            auto string_field_iters = forSplit_getFieldIters(_string_term_providers, split_num);
-            return forSplit_chainFieldIters(int_field_iters, string_field_iters, split_num);
-        }
-
-
-        const std::vector<Shard>  _shards;
+        const std::vector<Shard>        _shards;
         const std::vector<std::string>& _int_fieldnames;
         const std::vector<std::string>& _string_fieldnames;
         const TermProviders<IntTerm>    _int_term_providers;
         const TermProviders<StringTerm> _string_term_providers;
-        const size_t _num_splits;
-        const size_t _num_workers;
+        const size_t                    _num_splits;
+        const size_t                    _num_workers;
 
-    public:
-        typedef uint32_t split_handle_t;
-
-        std::vector<int> forWorker_getSplitNums(size_t worker_num);
-
-        static int forWorker_getSplitOrdinal(split_handle_t handle, int split_num);
-
-        auto build_worker(int worker_num,
-                          const int nGroups,
-                          const int nMetrics,
-                          const bool only_binary_metrics,
-                          const packed_table_t *sample_table,
-                          const int *socket_fds)
-            -> std::tuple<worker_desc, session_desc,
-            imhotep::InterleavedJIterator<
-                    imhotep::ChainedIterator<
-                            imhotep::wrapping_jIterator<
-                                    imhotep::TermDescIterator<imhotep::Term<long int> >,
-                                    imhotep::op_desc, imhotep::op_desc>,
-                            imhotep::wrapping_jIterator<
-                                    imhotep::TermDescIterator<
-                                            imhotep::Term<
-                                                    std::basic_string<char,
-                                                            std::char_traits<char>,
-                                                            std::allocator<char> > > >,
-                                    imhotep::op_desc, imhotep::op_desc> > >, unsigned int>
-        {
-            using int_transform = wrapping_jIterator<TermDescIterator<IntTerm>, op_desc, op_desc>;
-            using string_transform = wrapping_jIterator<TermDescIterator<StringTerm>, op_desc, op_desc>;
-            using chained_iter_t = ChainedIterator<int_transform,string_transform>;
-
-            auto split_nums = forWorker_getSplitNums(worker_num);
-            int nStreams = split_nums.size();
-            int socket_file_descriptors[nStreams];
-            std::vector<chained_iter_t> splits(nStreams);
-            split_handle_t handle = split_nums[0];
-
-            int i = 0;
-            for (auto n : split_nums) {
-                socket_file_descriptors[i] = socket_fds[n];
-                splits.push_back(forSplit_getMultiFieldTermDescIter(n));
-                i++;
-            }
-
-            struct worker_desc worker;
-            worker_init(&worker, worker_num, nGroups, nMetrics, socket_file_descriptors, nStreams);
-            struct session_desc session;
-            session_init(&session, nGroups, nMetrics, only_binary_metrics, sample_table);
-
-            auto iter = InterleavedJIterator<chained_iter_t>(splits.begin(), splits.end());
-            return std::make_tuple(worker, session, iter, handle);
-        }
-
+        ExecutorService& _executor;
     };
 
 } // namespace imhotep

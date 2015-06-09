@@ -1,9 +1,107 @@
-#define BOOST_RESULT_OF_USE_DECLTYPE    1
-
-#include <tuple>
 #include "ftgs_runner.hpp"
 
+#include <iostream>
+#include <tuple>
+
+#include "task_iterator.hpp"
+
+#define BOOST_RESULT_OF_USE_DECLTYPE    1
+
 namespace imhotep {
+
+    class SplitRanges : public std::vector<std::pair<size_t, size_t>> {
+    public:
+        typedef std::pair<size_t, size_t> Range;
+
+        SplitRanges(size_t num_splits, size_t num_workers) {
+            const size_t streams_per_worker(num_splits / num_workers);
+            int remainder(num_splits % num_workers);
+            std::pair<size_t, size_t> current(std::make_pair(0, streams_per_worker +
+                                                             (remainder > 0 ? 1 : 0) - 1));
+            size_t index(0);
+            while (index < num_workers) {
+                push_back(current);
+                --remainder;
+                current.first = current.second + 1;
+                current.second = current.first + streams_per_worker +
+                    (remainder > 0 ? 1 : 0) - 1;
+                ++index;
+            }
+        }
+
+        const Range& splits_for(size_t worker_num) const { return at(worker_num); }
+    };
+
+    std::ostream& operator<<(std::ostream& os, const SplitRanges& ranges) {
+        for (auto range: ranges) {
+            os << "(" << range.first << ".." << range.second << ") ";
+        }
+        return os;
+    }
+
+    class Worker {
+    public:
+        Worker(size_t id,
+               const SplitRanges& split_ranges,
+               int  num_groups,
+               int  num_metrics,
+               bool only_binary_metrics,
+               Shard::packed_table_ptr          sample_table,
+               const std::vector<int>&          socket_fds,
+               const TermProviders<IntTerm>&    int_providers,
+               const TermProviders<StringTerm>& str_providers)
+            : _id(id) {
+            worker_init(&_worker, id, num_groups, num_metrics, socket_fds.data(), socket_fds.size());
+            session_init(&_session, num_groups, num_metrics, only_binary_metrics, sample_table);
+
+            const SplitRanges::Range splits(split_ranges.splits_for(id));
+            for (size_t split(splits.first); split != splits.second; ++split) {
+                try {
+                    //                _task_iterators.emplace_back(TaskIterator(&_worker, &_session, split, socket_fds.at(split),
+                _task_iterators.emplace_back(TaskIterator(&_worker, &_session, split, socket_fds[split],
+                                                          int_providers, str_providers));
+                }
+                catch (const std::exception& ex) {
+                    throw imhotep_error(ex.what());
+                }
+            }
+        }
+
+        ~Worker() {
+            // worker_destroy(&_worker);
+            // session_destroy(&_session);
+        }
+
+        size_t id() const { return _id; }
+
+        void run() {
+            static const TaskIterator task_it_end;
+            _current = _task_iterators.begin();
+            while (!_task_iterators.empty()) {
+                TaskIterator& task_it(*_current);
+                if (task_it != task_it_end) {
+                    (*task_it)();
+                    ++task_it;
+                    ++_current;
+                }
+                else {
+                    std::cerr << "erasing..." << std::endl;
+                    _current = _task_iterators.erase(_current);
+                }
+                if (_current == _task_iterators.end()) {
+                    _current = _task_iterators.begin();
+                }
+            }
+        }
+
+    private:
+        size_t _id;
+
+        struct worker_desc  _worker;
+        struct session_desc _session;
+        std::vector<TaskIterator>           _task_iterators;
+        std::vector<TaskIterator>::iterator _current;
+    };
 
     FTGSRunner::FTGSRunner(const std::vector<Shard>&       shards,
                            const std::vector<std::string>& int_fieldnames,
@@ -19,41 +117,30 @@ namespace imhotep {
         , _string_term_providers(shards, string_fieldnames, split_dir, num_splits, executor)
         , _num_splits(num_splits)
         , _num_workers(num_workers)
+        , _executor(executor)
     { }
 
-    std::vector<int> FTGSRunner::forWorker_getSplitNums(size_t worker_num)
-    {
-        std::vector<int> results;
-        size_t start;
-        size_t end;
-        const size_t num_workers = getNumWorkers();
-        const size_t num_streams_per_worker = getNumSplits() / num_workers;
-        const size_t num_plus_one_workers = getNumSplits() % num_workers;
-
-        // find start and end of split range
-        if (worker_num < num_plus_one_workers) {
-            start = (num_streams_per_worker + 1) * worker_num;
-            end = start + num_streams_per_worker + 1;
-        } else if (worker_num < num_workers) {
-            start = num_plus_one_workers * (num_streams_per_worker + 1)
-                    + num_streams_per_worker * (worker_num - num_plus_one_workers);
-            end = start + num_streams_per_worker;
-        } else {
-            // throw exception
+    void FTGSRunner::run(int                     num_groups,
+                         int                     num_metrics,
+                         bool                    only_binary_metrics,
+                         Shard::packed_table_ptr sample_table,
+                         const std::vector<int>& socket_fds) {
+        const SplitRanges split_ranges(_num_splits, _num_workers);
+        std::cerr << "socket_fds.size(): " << socket_fds.size() << std::endl;
+        std::cerr << "_num_splits: " << _num_splits
+                  << " _num_workers: " << _num_workers
+                  << " split_ranges: " <<  split_ranges
+                  << std::endl;
+        std::vector<Worker*> workers;
+        for (size_t id(0); id < _num_workers; ++id) {
+            workers.emplace_back(new Worker(id, split_ranges,
+                                            num_groups, num_metrics, only_binary_metrics,
+                                            sample_table, socket_fds,
+                                            _int_term_providers, _string_term_providers));
+            Worker& worker(*workers.back());
+            _executor.enqueue([&worker]() { worker.run(); });
         }
-
-        // fill vector
-        while (start < end) {
-            results.push_back(start);
-            start ++;
-        }
-        return results;
+        _executor.await_completion();
     }
-
-    int FTGSRunner::forWorker_getSplitOrdinal(split_handle_t handle, int split_num)
-    {
-        return split_num - handle;
-    }
-
 
 } // namespace imhotep

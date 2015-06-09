@@ -57,6 +57,8 @@ namespace imhotep {
             if (result == _docid_views.end()) {
                 const std::string filename(docid_filename<term_t>(field));
                 var_int_view_ptr  view(std::make_shared<MMappedVarIntView>(filename));
+                std::cerr << "address: " << reinterpret_cast<const void *>(view->begin())
+                          << " mapped: " << filename << std::endl;
                 result = _docid_views.insert(std::make_pair(field, view)).first;
             }
             return result->second;

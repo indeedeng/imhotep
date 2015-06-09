@@ -1,11 +1,11 @@
-CC=/usr/bin/gcc-4.9
-CPP=/usr/bin/g++-4.9
-CFLAGS=-g  -gdwarf-2 -O0 -Wall -Werror -I./include -I../include  -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions
-CPPFLAGS=-g  -gdwarf-2 -O0 -Wall -Werror -I./include -I../include -I/usr/include/boost -msse4.2 -std=c++14 -fPIC  -flto -funroll-loops
-LFLAGS=-g  -gdwarf-2 --shard-dir ~/indeed/organic/index20140512.12.20140628224651 --int-fields bsjc --full-test true -O0 -flto
+CC=/usr/bin/gcc-4.8
+CPP=/usr/bin/g++-4.8
+CFLAGS=-g -Wall -Werror -I./include -I../include  -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions
+CPPFLAGS=-g -Wall -Werror -I./include -I../include -I/usr/include/boost -msse4.2 -std=c++11 -fPIC  -flto -funroll-loops
+LFLAGS=-g -flto
 
-OPT_CFLAGS= -g  -gdwarf-2 -O0 -flto -funroll-loops $(CFLAGS)
-DBG_CFLAGS= -g  -gdwarf-2  $(CPPFLAGS)
+OPT_CFLAGS= -g  -flto -funroll-loops $(CFLAGS)
+DBG_CFLAGS= -g  $(CPPFLAGS)
 
 LIBS=\
 	-lboost_filesystem      \
@@ -18,12 +18,13 @@ TESTS := \
 	packed_perf               \
 	test_bit_tree             \
 	test_circ_buf             \
+	test_field_op_iterator    \
 	test_ftgs_runner          \
 	test_groups               \
 	test_int_term_iterator    \
+	test_merge_iterator       \
 	test_packed_shard         \
 	test_split                \
-	test_merge_iterator       \
 	test_string_term_iterator \
 	test_term_provider        \
 	test_tgs                  \
@@ -63,33 +64,36 @@ test_string_term_iterator: obj/test_string_term_iterator.o ../cppobj/term_iterat
 TERM_PROVIDER_OBJS = \
 	../cppobj/executor_service.o \
 	../cppobj/splitter.o \
-	../cppobj/term_desc_iterator.o \
+	../cppobj/term_seq_iterator.o \
 	../cppobj/term_iterator.o \
 	../cppobj/term_provider.o
 
 test_term_provider: obj/test_term_provider.o $(TERM_PROVIDER_OBJS)
-	$(CPP) -pthread $(CPPFLAGS) $ -o test_term_provider $(LIBS) $^
+	$(CPP) -pthread $(CPPFLAGS) $ -o test_term_provider $^ $(LIBS)
+
+test_field_op_iterator: obj/test_field_op_iterator.o $(TERM_PROVIDER_OBJS) ../cppobj/term_providers.o
+	$(CPP) -pthread $(CPPFLAGS) $ -o test_field_op_iterator $^ $(LIBS) 
 
 FTGS_RUNNER_OBJS =\
 	$(TERM_PROVIDER_OBJS) \
 	../cppobj/ftgs_runner.o	\
-	obj/test_patch.o \
-	../cppobj/entry_point.o\
-	../obj/local_session.o\
-	../obj/socket.o\
-	../obj/tgs.o\
-	../obj/unpacked_table.o\
-	../obj/packed_table.o\
-	../obj/circ_buf.o\
-	../obj/bit_tree.o\
-	../obj/remote_output.o\
-	../obj/packed_table.o\
-	../obj/varintdecode.o\
-	../obj/binary_table_accumulate.o\
-	../obj/table_accumulate.o\
 	../cppobj/term_desc.o \
-	../cppobj/term_providers.o\
-	../cppobj/term_desc_iterator.o
+	../cppobj/term_providers.o \
+	../cppobj/term_seq_iterator.o \
+	../obj/binary_table_accumulate.o \
+	../obj/bit_tree.o \
+	../obj/circ_buf.o \
+	../obj/local_session.o \
+	../obj/packed_table.o \
+	../obj/packed_table.o \
+	../obj/remote_output.o \
+	../obj/socket.o \
+	../obj/table_accumulate.o \
+	../obj/tgs.o \
+	../obj/unpacked_table.o \
+	../obj/varintdecode.o \
+	obj/test_patch.o
+
 test_ftgs_runner: obj/test_ftgs_runner.o $(FTGS_RUNNER_OBJS)
 	$(CPP) -pthread $(CPPFLAGS) $ -o test_ftgs_runner $^ $(LIBS)
 

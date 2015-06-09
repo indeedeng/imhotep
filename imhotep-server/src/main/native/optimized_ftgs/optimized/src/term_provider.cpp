@@ -90,4 +90,7 @@ namespace imhotep {
     template TermDescIterator<IntTerm>    TermProvider<IntTerm>::merge(size_t split)    const;
     template TermDescIterator<StringTerm> TermProvider<StringTerm>::merge(size_t split) const;
 
+    template TermSeqIterator<IntTerm>    TermProvider<IntTerm>::term_seq_it(size_t split)    const;
+    template TermSeqIterator<StringTerm> TermProvider<StringTerm>::term_seq_it(size_t split) const;
+
 } // namespace imhotep

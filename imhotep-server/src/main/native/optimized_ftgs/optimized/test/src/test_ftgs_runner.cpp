@@ -99,6 +99,7 @@ namespace test_ftgs_namespace{
         }
         //TODO FIX?
         for (const string& field: str_fields) {
+            std::cout << field << std::endl;
             throw runtime_error("nyi: support for string fields");
         }
 
@@ -124,8 +125,8 @@ namespace test_ftgs_namespace{
         vector<Shard> shards_with_tables;
         transform(metadata.begin(), metadata.end(), back_inserter(shards_with_tables),
                   [&int_fields, &str_fields](const ShardMetadata& sm) {
-            return make_shard(sm, int_fields, str_fields);
-        });
+                      return make_shard(sm, int_fields, str_fields);
+                  });
         return shards_with_tables;
     }
 
@@ -152,15 +153,15 @@ namespace test_ftgs_namespace{
     }
 
 
-        void test_ftgs_runner_full(const vector<Shard>&  shards,
-                                   const vector<string>& int_fields,
-                                   const vector<string>& str_fields,
-                                   const string&         splits_dir,
-                                   size_t                num_splits,
-                                   const int             num_groups,
-                                   const int             num_metrics,
-                                   std::vector<int> &    socket_fds,
-                                   const bool            only_binary_metrics=false){
+    void test_ftgs_runner_full(const vector<Shard>&  shards,
+                               const vector<string>& int_fields,
+                               const vector<string>& str_fields,
+                               const string&         splits_dir,
+                               size_t                num_splits,
+                               const int             num_groups,
+                               const int             num_metrics,
+                               std::vector<int> &    socket_fds,
+                               const bool            only_binary_metrics=false){
         vector<Shard> shards_with_tables=create_shards_with_tables(shards, int_fields, str_fields);
         ExecutorService       executor;
         const size_t num_workers= executor.num_workers();
@@ -173,13 +174,11 @@ namespace test_ftgs_namespace{
                           num_workers,
                           executor);
 
-        imhotep::run(runner,
-            num_groups,
-            num_metrics,
-            only_binary_metrics,
-            shards_with_tables[0].table(),
-            socket_fds.data(),
-            executor); //from run_native_ftgs.hpp
+        runner.run(num_groups,
+                   num_metrics,
+                   only_binary_metrics,
+                   shards_with_tables[0].table(),
+                   socket_fds);
     }
 }
 
@@ -206,8 +205,8 @@ int main(int argc, char *argv[])
          "directory to stash temp split files")
         ("num-splits", po::value<size_t>()->default_value(13, "UINT"),
          "number of splits to use")
-        ("full-test", po::value<bool>()->default_value(false, "BOOL"),
-              "needs num-groups and num-metrics set")
+        ("full-test", po::value<bool>()->default_value(true, "BOOL"),
+         "needs num-groups and num-metrics set")
 
         ;
 
@@ -216,15 +215,15 @@ int main(int argc, char *argv[])
     po::notify(vm);
 
     bool full_test = vm.count("full-test")&&
-                     vm["full-test"].as<bool>();
+        vm["full-test"].as<bool>();
 
     if (vm.count("help")||(
-            !vm.count("shard-dir") ||
-            !vm.count("int-fields")))
-    {
-        cout << desc << endl;
-        return 0;
-    }
+                           !vm.count("shard-dir") ||
+                           !vm.count("int-fields")))
+        {
+            cout << desc << endl;
+            return 0;
+        }
 
     vector<Shard> shards;
     fs::path shard_dir(vm["shard-dir"].as<string>());
@@ -243,24 +242,24 @@ int main(int argc, char *argv[])
     const size_t num_groups =1;
     const size_t num_metrics=int_fields.size();
     if (full_test){
-        std::vector<int> sockets(1,-1);
+        std::vector<int> sockets(num_splits, 1);
         bool only_binary_metrics=false;
         test_ftgs_namespace::test_ftgs_runner_full(shards,
-                                                    int_fields,
-                                                    str_fields,
-                                                    split_dir,
-                                                    num_splits,
-                                                    num_groups,
-                                                    num_metrics,
-                                                    sockets,
-                                                    only_binary_metrics);
+                                                   int_fields,
+                                                   str_fields,
+                                                   split_dir,
+                                                   num_splits,
+                                                   num_groups,
+                                                   num_metrics,
+                                                   sockets,
+                                                   only_binary_metrics);
     }
     else{
         test_ftgs_namespace::test_ftgs_runner_short(shards,
-                                               int_fields,
-                                               str_fields,
-                                               split_dir,
-                                               num_splits);
+                                                    int_fields,
+                                                    str_fields,
+                                                    split_dir,
+                                                    num_splits);
     }
     exit(0);
 }

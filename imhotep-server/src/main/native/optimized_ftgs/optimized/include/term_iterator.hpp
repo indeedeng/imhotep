@@ -32,6 +32,10 @@ namespace imhotep {
             : _term_view(*shard.term_view<term_t>(field))
             , _docid_view(*shard.docid_view<term_t>(field))
             , _docid_base(reinterpret_cast<int64_t>(_docid_view.begin())) {
+            std::cerr << __FUNCTION__
+                      << " field: " << field
+                      << " _docid_base: " << reinterpret_cast<const void*>(_docid_base)
+                      << std::endl;
             increment();
         }
 
