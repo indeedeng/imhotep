@@ -12,6 +12,9 @@ namespace imhotep {
                                _docid_base + _current.doc_offset() + offset_delta,
                                doc_freq);
         }
+        else {
+            _current = IntTerm();
+        }
     }
 
     template<>
@@ -29,6 +32,9 @@ namespace imhotep {
             _current = StringTerm(_id_buffer,
                                   _docid_base + _current.doc_offset() + offset_delta,
                                   doc_freq);
+        }
+        else {
+            _current = StringTerm();
         }
     }
 

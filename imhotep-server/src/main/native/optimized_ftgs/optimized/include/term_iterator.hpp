@@ -41,10 +41,7 @@ namespace imhotep {
         void increment();
 
         bool equal(const TermIterator& other) const {
-            return
-                (_term_view.empty() && other._term_view.empty()) ||
-                (_term_view == other._term_view &&
-                 _docid_view == other._docid_view);
+            return _current == other._current;
         }
 
         const term_t& dereference() const { return _current; }

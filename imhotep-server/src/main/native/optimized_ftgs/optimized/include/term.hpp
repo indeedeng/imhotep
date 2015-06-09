@@ -43,7 +43,12 @@ namespace imhotep {
         int64_t doc_offset() const { return _doc_offset; }
         int64_t   doc_freq() const { return _doc_freq;   }
 
-        bool operator==(const Term& rhs) const { return id() == rhs.id(); }
+        bool operator==(const Term& rhs) const {
+            return
+                id() == rhs.id() &&
+                doc_offset() == rhs.doc_offset() &&
+                doc_freq() == rhs.doc_freq();
+        }
 
         bool operator<(const Term& rhs) const {
             return id() < rhs.id() || (id() == rhs.id() && doc_offset() < rhs.doc_offset());
@@ -52,6 +57,8 @@ namespace imhotep {
         bool operator>(const Term& rhs) const {
             return id() > rhs.id() || (id() == rhs.id() && doc_offset() > rhs.doc_offset());
         }
+
+        bool empty() const { return _id == IdTraits<id_type>::default_value(); }
     };
 
     typedef Term<int64_t>     IntTerm;
