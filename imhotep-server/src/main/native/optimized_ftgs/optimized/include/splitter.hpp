@@ -28,13 +28,13 @@ namespace imhotep {
 
         Splitter(const Shard&       shard,
                  const std::string& field,
-                 const std::string& output_dir,
+                 const std::string& splits_dir,
                  size_t num_splits);
 
         Splitter(const Shard&       shard,
                  const std::string& field,
                  term_iterator_t    term_iterator,
-                 const std::string& output_dir,
+                 const std::string& splits_dir,
                  size_t num_splits);
 
         const Shard& shard() const { return _shard; }
@@ -56,27 +56,25 @@ namespace imhotep {
     template <typename term_t>
     Splitter<term_t>::Splitter(const Shard&       shard,
                                const std::string& field,
-                               const std::string& output_dir,
+                               const std::string& splits_dir,
                                size_t             num_splits)
         : Splitter(shard, field,
                    term_iterator_t(shard, field),
-                   output_dir, num_splits)
+                   splits_dir, num_splits)
     { }
 
     template <typename term_t>
     Splitter<term_t>::Splitter(const Shard&       shard,
                                const std::string& field,
                                term_iterator_t    term_iterator,
-                               const std::string& output_dir,
+                               const std::string& splits_dir,
                                size_t             num_splits)
         : _shard(shard)
         , _field(field)
         , _term_iterator(term_iterator)
     {
-        for (size_t split(0); split < num_splits; ++split) {
-            std::ostringstream os;
-            os << output_dir << '/' << shard.name_of() << '.' << _field << '.' << split;
-            _splits.push_back(os.str());
+        for (size_t split_num(0); split_num < num_splits; ++split_num) {
+            _splits.push_back(shard.split_filename(splits_dir, field, split_num));
         }
     }
 

@@ -3,6 +3,7 @@
 
 #include <map>
 #include <memory>
+#include <sstream>
 #include <string>
 
 #define restrict __restrict__
@@ -72,6 +73,14 @@ namespace imhotep {
         template <typename term_t>
         std::string docid_filename(const std::string& field) const {
             return base_filename(field) + TermTraits<term_t>::docid_file_extension();
+        }
+
+        std::string split_filename(const std::string& splits_dir,
+                                   const std::string& field,
+                                   size_t split_num) const {
+            std::ostringstream os;
+            os << splits_dir << '/' << name_of() << '.' << field << '.' << split_num;
+            return os.str();
         }
 
         std::string name_of() const {

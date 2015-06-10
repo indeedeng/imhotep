@@ -27,28 +27,6 @@ namespace imhotep {
         executor.await_completion();
     }
 
-    /******* Delete me! *******/
-    template <typename term_t>
-    TermDescIterator<term_t> TermProvider<term_t>::merge(size_t split) const {
-        typedef split_map_t::const_iterator map_it_t;
-
-        std::vector<typename MergeIterator<term_t>::Entry> pairs;
-
-        std::pair<map_it_t, map_it_t> matches(splits().equal_range(split));
-        std::transform(matches.first, matches.second, std::back_inserter(pairs),
-                       [](std::pair<size_t, const SplitDesc&> entry) {
-                           const SplitDesc& split_desc(entry.second);
-                           return std::make_pair(SplitIterator<term_t>(split_desc.view()),
-                                                 split_desc.table());
-                       });
-
-        MergeIterator<term_t> begin(pairs.begin(), pairs.end());
-        MergeIterator<term_t> end;
-
-        return TermDescIterator<term_t>(begin, end);
-    }
-    /******* Delete me! *******/
-
     template <typename term_t>
     TermSeqIterator<term_t> TermProvider<term_t>::term_seq_it(size_t split) const {
         typedef split_map_t::const_iterator map_it_t;
@@ -85,10 +63,6 @@ namespace imhotep {
                                            const std::string&                split_dir,
                                            size_t                            num_splits,
                                            ExecutorService&                  executor);
-
-
-    template TermDescIterator<IntTerm>    TermProvider<IntTerm>::merge(size_t split)    const;
-    template TermDescIterator<StringTerm> TermProvider<StringTerm>::merge(size_t split) const;
 
     template TermSeqIterator<IntTerm>    TermProvider<IntTerm>::term_seq_it(size_t split)    const;
     template TermSeqIterator<StringTerm> TermProvider<StringTerm>::term_seq_it(size_t split) const;
