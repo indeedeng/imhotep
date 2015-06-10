@@ -16,7 +16,6 @@
 #include "shard.hpp"
 #include "splitter.hpp"
 #include "split_view.hpp"
-#include "term_desc_iterator.hpp"
 #include "term_seq_iterator.hpp"
 
 namespace imhotep {

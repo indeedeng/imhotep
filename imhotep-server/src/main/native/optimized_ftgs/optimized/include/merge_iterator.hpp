@@ -2,6 +2,7 @@
 #define MERGE_ITERATOR_HPP
 
 #include <algorithm>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -12,25 +13,68 @@
 
 namespace imhotep {
 
+    template <typename term_t>
+    struct MergeInput {
+        SplitIterator<term_t>   _split_it;
+        Shard::packed_table_ptr _table;
+        const char*             _docid_offset;
+
+        MergeInput(const SplitIterator<term_t>& split_it,
+                   Shard::packed_table_ptr      table,
+                   const char*                  docid_offset)
+            : _split_it(split_it)
+            , _table(table)
+            , _docid_offset(docid_offset)
+        { }
+
+        bool operator==(const MergeInput& rhs) const {
+            return
+                _split_it     == rhs._split_it &&
+                _table        == rhs._table    &&
+                _docid_offset == rhs._docid_offset;
+        }
+    };
+
+    template <typename term_t>
+    struct MergeOutput {
+        term_t                  _term;
+        Shard::packed_table_ptr _table        = 0;
+        const char*             _docid_offset = 0;
+
+        MergeOutput() { }
+
+        MergeOutput(const term_t&           term,
+                    Shard::packed_table_ptr table,
+                    const char*             docid_offset)
+            : _term(term)
+            , _table(table)
+            , _docid_offset(docid_offset)
+        { }
+
+        MergeOutput(const MergeInput<term_t>& input)
+            : _term(*input._split_it)
+            , _table(input._table)
+            , _docid_offset(input._docid_offset)
+        { }
+    };
+
     /** Combine a collection of SplitIterators such that we can iterate through
         them collectively in ascending term id order.
      */
     template <typename term_t>
     class MergeIterator
         : public boost::iterator_facade<MergeIterator<term_t>,
-                                        std::pair<term_t, Shard::packed_table_ptr> const,
+                                        MergeOutput<term_t> const,
                                         boost::forward_traversal_tag> {
     public:
-        typedef std::pair<SplitIterator<term_t>, Shard::packed_table_ptr> Entry;
-
         MergeIterator() { }
 
         template <typename iterator>
         MergeIterator(iterator begin, iterator end) {
             std::copy_if(begin, end, std::back_inserter(_its),
-                         [] (Entry& entry) {
+                         [] (MergeInput<term_t>& entry) {
                              static SplitIterator<term_t> split_end;
-                             return entry.first != split_end;
+                             return entry._split_it != split_end;
                          });
             increment();
         }
@@ -49,29 +93,27 @@ namespace imhotep {
 
             auto lowest(_its.begin());
             for (auto it(_its.begin()); it != _its.end(); ++it) {
-                const Entry& entry(*it);
-                if (*entry.first < *lowest->first) {
+                const MergeInput<term_t>& entry(*it);
+                if (*entry._split_it < *lowest->_split_it) {
                     lowest = it;
                 }
             }
 
-            Entry& entry(*lowest);
-            _current = std::make_pair(*entry.first, entry.second);
-            ++entry.first;
-            if (entry.first == end) _its.erase(lowest);
+            MergeInput<term_t>& entry(*lowest);
+            _current = MergeOutput<term_t>(entry);
+            ++entry._split_it;
+            if (entry._split_it == end) _its.erase(lowest);
         }
 
         bool equal(const MergeIterator& other) const {
             return _its == other._its;
         }
 
-        typename MergeIterator::reference dereference() const {
-            return _current;
-        }
+        const MergeOutput<term_t>& dereference() const { return _current; }
 
-        std::vector<Entry> _its;
+        std::vector<MergeInput<term_t>> _its;
 
-        typename MergeIterator::value_type _current;
+        MergeOutput<term_t> _current;
     };
 }
 

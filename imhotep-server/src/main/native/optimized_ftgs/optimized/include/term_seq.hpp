@@ -21,12 +21,12 @@ namespace imhotep {
         /* ids must match all items in iterator range! */
         TermSeq(merge_it begin, merge_it end)
             : _id(begin != end ?
-                  begin->first.id() :
+                  (*begin)._term.id() :
                   IdTraits<typename term_t::id_t>::default_value()) {
 
             while (begin != end) {
-                const term_t&           term(begin->first);
-                Shard::packed_table_ptr table(begin->second);
+                const term_t&           term((*begin)._term);
+                Shard::packed_table_ptr table((*begin)._table);
                 _docid_addresses.push_back(term.doc_offset()); // !@# fix name mismatch
                 _doc_freqs.push_back(term.doc_freq());
                 _tables.push_back(table);

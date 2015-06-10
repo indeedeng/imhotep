@@ -35,10 +35,9 @@ namespace imhotep {
         void increment() {
             if (_current == _end) return;
 
-            const typename term_t::id_t id(_current->first.id());
-            auto matches_id([id](typename merge_it::reference element) {
-                    const term_t& term(element.first);
-                    return term.id() == id;
+            const typename term_t::id_t id((*_current)._term.id());
+            auto matches_id([id](MergeOutput<term_t> element) {
+                    return element._term.id() == id;
                 });
 
             merge_it next(std::find_if_not(_current, _end, matches_id));
