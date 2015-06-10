@@ -3,12 +3,12 @@
 
 #include <cstdint>
 #include <cstring>
-#include <limits>
 #include <fstream>
+#include <limits>
+#include <map>
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <vector>
 
 #include <boost/functional/hash.hpp>
 
@@ -24,6 +24,8 @@ namespace imhotep {
     template <typename term_t>
     class Splitter {
     public:
+        typedef std::map<size_t, std::string> SplitNumToField;
+
         typedef typename SplitterTraits<term_t>::iterator_t term_iterator_t;
 
         Splitter(const Shard&       shard,
@@ -39,7 +41,9 @@ namespace imhotep {
 
         const Shard& shard() const { return _shard; }
 
-        const std::vector<std::string>& splits() const { return _splits; }
+        const std::string& splits_dir() const { return _splits_dir; }
+
+        const SplitNumToField& splits() const { return _splits; } // !@# fix this name!
 
         void run();
 
@@ -47,10 +51,11 @@ namespace imhotep {
         void encode(std::ostream& os, const term_t& term);
 
         const Shard       _shard;
+        const std::string _splits_dir;
         const std::string _field;
         term_iterator_t   _term_iterator;
 
-        std::vector<std::string> _splits;
+        SplitNumToField _splits;
     };
 
     template <typename term_t>
@@ -70,11 +75,12 @@ namespace imhotep {
                                const std::string& splits_dir,
                                size_t             num_splits)
         : _shard(shard)
+        , _splits_dir(splits_dir)
         , _field(field)
         , _term_iterator(term_iterator)
     {
         for (size_t split_num(0); split_num < num_splits; ++split_num) {
-            _splits.push_back(shard.split_filename(splits_dir, field, split_num));
+            _splits[split_num] = field;
         }
     }
 
@@ -82,8 +88,9 @@ namespace imhotep {
     void Splitter<term_t>::run()
     {
         std::vector<std::ofstream*> split_files;
-        for (std::string split: splits()) {
-            split_files.push_back(new std::ofstream(split.c_str(),
+        for (auto kv: splits()) {
+            const std::string filename(_shard.split_filename(splits_dir(), kv.second, kv.first));
+            split_files.push_back(new std::ofstream(filename.c_str(),
                                                     std::ios::binary | std::ios::out | std::ios::trunc));
         }
 

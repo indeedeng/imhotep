@@ -16,9 +16,9 @@ namespace imhotep {
             TermIterator<term_t> term_iterator(source.second);
             splitters.push_back(Splitter<term_t>(shard, field, term_iterator,
                                                  split_dir, num_splits));
-            const std::vector<std::string>& splits(splitters.back().splits());
-            for (size_t split_num(0); split_num < splits.size(); ++split_num) {
-                _splits.insert(std::make_pair(split_num, SplitDesc(splits[split_num], shard)));
+            for (auto kv: splitters.back().splits()) {
+                const std::string filename(shard.split_filename(split_dir, kv.second, kv.first));
+                _splits.insert(std::make_pair(kv.first, SplitDesc(filename, shard)));
             }
         }
         for (Splitter<term_t>& splitter: splitters) {
