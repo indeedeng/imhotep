@@ -79,7 +79,6 @@ FTGS_RUNNER_OBJS =\
 	$(TERM_PROVIDER_OBJS) \
 	../cppobj/ftgs_runner.o	\
 	../cppobj/shard.o \
-	../cppobj/term_desc.o \
 	../cppobj/term_providers.o \
 	../cppobj/term_seq_iterator.o \
 	../obj/binary_table_accumulate.o \

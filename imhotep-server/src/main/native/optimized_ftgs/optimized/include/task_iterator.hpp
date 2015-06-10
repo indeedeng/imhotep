@@ -110,6 +110,14 @@ namespace imhotep {
 
         FieldOpIterator<StringTerm> _str_current;
         FieldOpIterator<StringTerm> _str_end;
+
+        std::vector<long> to_longs(const std::vector<const char*>& in_addrs) {
+            std::vector<long> result;
+            for (auto addr: in_addrs) {
+                result.push_back(reinterpret_cast<long>(addr));
+            }
+            return result;
+        }
     };
 
     template <> inline
@@ -123,7 +131,7 @@ namespace imhotep {
                                    op.field_type(),
                                    op.term_seq().id(),
                                    nullptr, 0,
-                                   op.term_seq().docid_addresses().data(),
+                                   to_longs(op.term_seq().docid_addresses()).data(),
                                    op.term_seq().doc_freqs().data(),
                                    op.term_seq().tables().data(),
                                    op.term_seq().size(),
@@ -144,7 +152,7 @@ namespace imhotep {
                                    0, // unused
                                    op.term_seq().id().c_str(),
                                    op.term_seq().id().length(),
-                                   op.term_seq().docid_addresses().data(),
+                                   to_longs(op.term_seq().docid_addresses()).data(),
                                    op.term_seq().doc_freqs().data(),
                                    op.term_seq().tables().data(),
                                    op.term_seq().size(),

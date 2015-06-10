@@ -22,19 +22,27 @@ namespace imhotep {
 
     class SplitDesc {
     public:
-        SplitDesc(const std::string& filename, const Shard& shard)
-            : _filename(filename)
+        SplitDesc(size_t split_num, const std::string& field, const Shard& shard)
+            : _split_num(split_num)
+            , _field(field)
             , _shard(shard)
         { }
 
-        const std::string& filename() const { return _filename; }
+        size_t split_num() const { return _split_num; }
+
+        const std::string& field() const { return _field; }
+
+        const Shard& shard() const { return _shard; }
 
         const Shard::packed_table_ptr table() const { return _shard.table(); }
 
-        SplitView view() const { return _shard.split_view(_filename); }
+        SplitView view(const std::string& split_dir) const {
+            return _shard.split_view(_shard.split_filename(split_dir, _field, _split_num));
+        }
 
     private:
-        const std::string _filename;
+        const size_t      _split_num;
+        const std::string _field;
         const Shard       _shard;
     };
 
@@ -61,7 +69,8 @@ namespace imhotep {
         const split_map_t& splits() const { return _splits; }
 
     private:
-        split_map_t _splits;
+        const std::string _split_dir;
+        split_map_t       _splits;
     };
 
     typedef TermProvider<IntTerm>    IntTermProvider;

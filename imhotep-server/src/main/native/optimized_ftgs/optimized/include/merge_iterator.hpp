@@ -17,44 +17,44 @@ namespace imhotep {
     struct MergeInput {
         SplitIterator<term_t>   _split_it;
         Shard::packed_table_ptr _table;
-        const char*             _docid_offset;
+        const char*             _docid_base;
 
         MergeInput(const SplitIterator<term_t>& split_it,
                    Shard::packed_table_ptr      table,
-                   const char*                  docid_offset)
+                   const char*                  docid_base)
             : _split_it(split_it)
             , _table(table)
-            , _docid_offset(docid_offset)
+            , _docid_base(docid_base)
         { }
 
         bool operator==(const MergeInput& rhs) const {
             return
-                _split_it     == rhs._split_it &&
-                _table        == rhs._table    &&
-                _docid_offset == rhs._docid_offset;
+                _split_it   == rhs._split_it &&
+                _table      == rhs._table    &&
+                _docid_base == rhs._docid_base;
         }
     };
 
     template <typename term_t>
     struct MergeOutput {
         term_t                  _term;
-        Shard::packed_table_ptr _table        = 0;
-        const char*             _docid_offset = 0;
+        Shard::packed_table_ptr _table      = 0;
+        const char*             _docid_base = 0;
 
         MergeOutput() { }
 
         MergeOutput(const term_t&           term,
                     Shard::packed_table_ptr table,
-                    const char*             docid_offset)
+                    const char*             docid_base)
             : _term(term)
             , _table(table)
-            , _docid_offset(docid_offset)
+            , _docid_base(docid_base)
         { }
 
         MergeOutput(const MergeInput<term_t>& input)
             : _term(*input._split_it)
             , _table(input._table)
-            , _docid_offset(input._docid_offset)
+            , _docid_base(input._docid_base)
         { }
     };
 

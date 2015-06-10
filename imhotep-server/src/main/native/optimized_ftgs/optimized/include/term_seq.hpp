@@ -27,7 +27,8 @@ namespace imhotep {
             while (begin != end) {
                 const term_t&           term((*begin)._term);
                 Shard::packed_table_ptr table((*begin)._table);
-                _docid_addresses.push_back(term.doc_offset()); // !@# fix name mismatch
+                const char*             docid_base((*begin)._docid_base);
+                _docid_addresses.push_back(docid_base + term.doc_offset());
                 _doc_freqs.push_back(term.doc_freq());
                 _tables.push_back(table);
                 ++begin;
@@ -50,8 +51,8 @@ namespace imhotep {
             return docid_addresses().size();
         }
 
-        std::vector<int64_t> docid_addresses() const { return _docid_addresses; }
-        std::vector<int32_t>       doc_freqs() const { return _doc_freqs;       }
+        std::vector<const char*> docid_addresses() const { return _docid_addresses; }
+        std::vector<int32_t>           doc_freqs() const { return _doc_freqs;       }
 
         std::vector<Shard::packed_table_ptr> tables() const { return _tables; }
 
@@ -74,8 +75,8 @@ namespace imhotep {
     private:
         typename term_t::id_t _id = IdTraits<typename term_t::id_t>::default_value();
 
-        std::vector<int64_t> _docid_addresses;
-        std::vector<int32_t> _doc_freqs;
+        std::vector<const char*> _docid_addresses;
+        std::vector<int32_t>     _doc_freqs;
 
         std::vector<Shard::packed_table_ptr> _tables;
     };
