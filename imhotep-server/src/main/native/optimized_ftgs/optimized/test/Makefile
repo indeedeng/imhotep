@@ -63,6 +63,7 @@ test_string_term_iterator: obj/test_string_term_iterator.o ../cppobj/term_iterat
 
 TERM_PROVIDER_OBJS = \
 	../cppobj/executor_service.o \
+	../cppobj/shard.o \
 	../cppobj/splitter.o \
 	../cppobj/term_seq_iterator.o \
 	../cppobj/term_iterator.o \
@@ -77,6 +78,7 @@ test_field_op_iterator: obj/test_field_op_iterator.o $(TERM_PROVIDER_OBJS) ../cp
 FTGS_RUNNER_OBJS =\
 	$(TERM_PROVIDER_OBJS) \
 	../cppobj/ftgs_runner.o	\
+	../cppobj/shard.o \
 	../cppobj/term_desc.o \
 	../cppobj/term_providers.o \
 	../cppobj/term_seq_iterator.o \
