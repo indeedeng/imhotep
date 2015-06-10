@@ -1,5 +1,7 @@
 #include "shard.hpp"
 
+#include <sstream>
+
 namespace imhotep {
 
     Shard::Shard(const std::string& dir, packed_table_ptr   table)
@@ -31,6 +33,11 @@ namespace imhotep {
         return result->second;
     }
 
+    SplitView Shard::split_view(const std::string& filename) const {
+        const MMappedFile& file(*split_file(filename));
+        return SplitView(file.begin(), file.end());
+    }
+
     template <typename term_t>
     std::string Shard::term_filename(const std::string& field) const {
         return base_filename(field) + TermTraits<term_t>::term_file_extension();
@@ -58,6 +65,21 @@ namespace imhotep {
         return dir() + "/fld-" + field + ".";
     }
 
+    std::shared_ptr<MMappedFile> Shard::split_file(const std::string& filename) const {
+        std::shared_ptr<MMappedFile> result;
+        SplitFileMap::iterator it(_split_files.find(filename));
+        if (it == _split_files.end()) {
+            // !@# Consider having Shard explicitly delete these in dtor.
+            result = std::make_shared<MMappedFile>(filename, true);
+            _split_files[filename] = result;
+        }
+        else {
+            result = it->second;
+        }
+        return result;
+    }
+
+
     /* template instantiations */
     template Shard::var_int_view_ptr Shard::term_view<IntTerm>(const std::string& field) const;
     template Shard::var_int_view_ptr Shard::term_view<StringTerm>(const std::string& field) const;
@@ -67,7 +89,5 @@ namespace imhotep {
     template std::string Shard::term_filename<StringTerm>(const std::string& field) const;
     template std::string Shard::docid_filename<IntTerm>(const std::string& field) const;
     template std::string Shard::docid_filename<StringTerm>(const std::string& field) const;
-
-
 
 } // namespace imhotep

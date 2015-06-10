@@ -18,7 +18,7 @@ namespace imhotep {
                                                  split_dir, num_splits));
             const std::vector<std::string>& splits(splitters.back().splits());
             for (size_t split_num(0); split_num < splits.size(); ++split_num) {
-                _splits.insert(std::make_pair(split_num, SplitDesc(splits[split_num], shard.table())));
+                _splits.insert(std::make_pair(split_num, SplitDesc(splits[split_num], shard)));
             }
         }
         for (Splitter<term_t>& splitter: splitters) {

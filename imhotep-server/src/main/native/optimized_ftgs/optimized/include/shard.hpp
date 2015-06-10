@@ -3,7 +3,6 @@
 
 #include <map>
 #include <memory>
-#include <sstream>
 #include <string>
 
 #define restrict __restrict__
@@ -12,6 +11,8 @@ extern "C" {
 #include "table.h"
 }
 
+#include "mmapped_file.hpp"
+#include "split_view.hpp"
 #include "term.hpp"
 #include "var_int_view.hpp"
 
@@ -44,6 +45,9 @@ namespace imhotep {
         template <typename term_t>
         var_int_view_ptr docid_view(const std::string& field) const;
 
+        // !@# ultimately this should probably be via (field, split_num)
+        SplitView split_view(const std::string& filename) const;
+
         template <typename term_t>
         std::string term_filename(const std::string& field) const;
 
@@ -59,9 +63,14 @@ namespace imhotep {
     private:
         std::string base_filename(const std::string& field) const;
 
+        std::shared_ptr<MMappedFile> split_file(const std::string& filename) const;
+
         typedef std::map<std::string, var_int_view_ptr> FieldToVarIntView;
         mutable FieldToVarIntView _term_views;
         mutable FieldToVarIntView _docid_views;
+
+        typedef std::map<std::string, std::shared_ptr<MMappedFile>> SplitFileMap;
+        mutable SplitFileMap _split_files;
 
         const std::string _dir;
         packed_table_ptr  _table;

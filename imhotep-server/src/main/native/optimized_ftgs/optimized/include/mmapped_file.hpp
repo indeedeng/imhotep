@@ -37,8 +37,6 @@ namespace imhotep {
                 throw imhotep_error(strerror(errno));
             }
             _size = buf.st_size;
-
-            std::cerr << "opened: " << _filename << std::endl;
         }
 
         ~OpenedFile() {
@@ -46,7 +44,6 @@ namespace imhotep {
             if (_delete_on_close) {
                 unlink(_filename.c_str());
             }
-            std::cerr << "closed: " << _filename << std::endl;
         }
 
         OpenedFile(const OpenedFile& rhs)            = delete;

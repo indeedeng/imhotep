@@ -23,25 +23,20 @@ namespace imhotep {
 
     class SplitDesc {
     public:
-        SplitDesc(const std::string& filename, Shard::packed_table_ptr table)
+        SplitDesc(const std::string& filename, const Shard& shard)
             : _filename(filename)
-            , _table(table)
+            , _shard(shard)
         { }
 
         const std::string& filename() const { return _filename; }
 
-        const Shard::packed_table_ptr table() const { return _table; }
+        const Shard::packed_table_ptr table() const { return _shard.table(); }
 
-        SplitView view() const {
-            if (!_file) _file.reset(new MMappedFile(filename(), true));
-            return SplitView(_file->begin(), _file->end());
-        }
+        SplitView view() const { return _shard.split_view(_filename); }
 
     private:
-        const std::string             _filename;
-        const Shard::packed_table_ptr _table;
-
-        mutable std::shared_ptr<MMappedFile> _file;
+        const std::string _filename;
+        const Shard       _shard;
     };
 
 
