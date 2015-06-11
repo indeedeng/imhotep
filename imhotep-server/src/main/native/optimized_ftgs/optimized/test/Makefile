@@ -1,10 +1,10 @@
 CC=/usr/bin/gcc-4.8
 CPP=/usr/bin/g++-4.8
 CFLAGS=-g -Wall -Werror -I./include -I../include  -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions
-CPPFLAGS=-g -Wall -Werror -I./include -I../include -I/usr/include/boost -msse4.2 -std=c++11 -fPIC  -flto -funroll-loops
-LFLAGS=-g -flto
+CPPFLAGS=-g -Wall -Werror -I./include -I../include -I/usr/include/boost -msse4.2 -std=c++11 -fPIC # -flto -funroll-loops
+LFLAGS=-g # -flto
 
-OPT_CFLAGS= -g  -flto -funroll-loops $(CFLAGS)
+OPT_CFLAGS= -g -O3 -flto -funroll-loops $(CFLAGS)
 DBG_CFLAGS= -g  $(CPPFLAGS)
 
 LIBS=\
@@ -96,7 +96,7 @@ FTGS_RUNNER_OBJS =\
 	obj/test_patch.o
 
 test_ftgs_runner: obj/test_ftgs_runner.o $(FTGS_RUNNER_OBJS)
-	$(CPP) -pthread $(CPPFLAGS) $ -o test_ftgs_runner $^ $(LIBS)
+	$(CPP) $(CPPFLAGS) -O3 -pthread $ -o test_ftgs_runner $^ $(LIBS)
 
 GROUPS_OBJS = \
     obj/test_patch.o          \
