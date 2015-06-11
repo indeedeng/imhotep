@@ -2,7 +2,9 @@
 #define SPLIT_VIEW_HPP
 
 #include <memory>
+#include <sstream>
 
+#include "imhotep_error.hpp"
 #include "term.hpp"
 
 namespace imhotep {
@@ -30,6 +32,8 @@ namespace imhotep {
         T read() {
             check_size(sizeof(T));
 
+            if (empty()) return T();
+
             const T* result(reinterpret_cast<const T*>(_begin));
             _begin += sizeof(T);
             return T(*result);
@@ -48,7 +52,14 @@ namespace imhotep {
             /* Note that this class maintains the invariant that _begin <= _end,
                therefore we need not worry about negative distances below. */
             if (_begin + size > _end) {
-                throw std::length_error(__PRETTY_FUNCTION__);
+                std::ostringstream os;
+                os << __FUNCTION__ << " error"
+                   << " _begin: " << (void*) _begin
+                   << " _end: " << (void*) _end
+                   << " (_end - _begin): " << (_end - _begin)
+                   << " size: " << size
+                   << " value: " << _begin;
+                throw imhotep_error(os.str());
             }
         }
 
@@ -64,7 +75,7 @@ namespace imhotep {
         const SplitView::Buffer id(read_bytes(id_size));
         const int64_t           doc_offset(read<int64_t>());
         const int32_t           doc_freq(read<int32_t>());
-        return StringTerm(std::string(id.first, id.second), doc_offset, doc_freq);
+        return StringTerm(std::string(id.first, std::distance(id.first, id.second)), doc_offset, doc_freq);
     }
 }
 

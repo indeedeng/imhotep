@@ -14,8 +14,12 @@ int main(int argc, char *argv[])
         cerr << "usage: " << argv[0] << " <shard dir> <field name>" << endl;
     }
 
-    const Shard  shard(argv[1]);
+    std::vector<std::string> int_terms;
+    std::vector<std::string> str_terms;
+
     const string field_name(argv[2]);
+    str_terms.push_back(field_name);
+    const Shard shard(argv[1], int_terms, str_terms);
 
     StringTermIterator it(shard, field_name);
     StringTermIterator end;

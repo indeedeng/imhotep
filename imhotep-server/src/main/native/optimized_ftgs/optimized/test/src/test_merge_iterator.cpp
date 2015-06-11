@@ -13,19 +13,22 @@ using namespace imhotep;
 
 template <typename term_t>
 void merge(const vector<string>& splits) {
-    Shard::packed_table_ptr table;
-    vector<typename MergeIterator<term_t>::Entry> pairs;
+    Shard::packed_table_ptr table(0);
+    vector<MergeInput<term_t>> inputs;
     vector<shared_ptr<MMappedFile>> split_files;
     for (string split: splits) {
         split_files.push_back(make_shared<MMappedFile>(split));
         SplitView view(split_files.back()->begin(), split_files.back()->end());
-        pairs.push_back(make_pair(SplitIterator<term_t>(view), table));
+        // std::cerr << "(" << split_files.back()->begin()
+        //           << "," << split_files.back()->end() << ")"
+        //           << std::endl;
+        inputs.push_back(MergeInput<term_t>(SplitIterator<term_t>(view), table, 0));
     }
 
-    MergeIterator<term_t> it(pairs.begin(), pairs.end());
+    MergeIterator<term_t> it(inputs.begin(), inputs.end());
     MergeIterator<term_t> end;
     while (it != end) {
-        cout << (*it).first << endl;
+        cout << (*it)._term << endl;
         ++it;
     }
 }

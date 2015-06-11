@@ -7,6 +7,7 @@
 
 #include "field_op_iterator.hpp"
 #include "imhotep_error.hpp"
+#include "log.hpp"
 #include "term.hpp"
 #include "term_providers.hpp"
 
@@ -46,6 +47,7 @@ namespace imhotep {
 
         template <typename term_t>
         Task start_field(const Operation<term_t>& op) {
+            Log::debug(__FUNCTION__);
             struct worker_desc* worker(_worker);
             const int           socket_fd(_socket_fd);
             return [op, worker, socket_fd]() {
@@ -64,6 +66,7 @@ namespace imhotep {
         template <typename term_t> Task tgs(const Operation<term_t>& op);
 
         Task end_field() {
+            Log::debug(__FUNCTION__);
             struct worker_desc* worker(_worker);
             const int           socket_fd(_socket_fd);
             return [worker, socket_fd]() {
@@ -76,6 +79,7 @@ namespace imhotep {
         }
 
         Task end_stream() {
+            Log::debug(__FUNCTION__);
             struct worker_desc* worker(_worker);
             const int           socket_fd(_socket_fd);
             return [worker, socket_fd]() {
@@ -125,6 +129,7 @@ namespace imhotep {
 
     template <> inline
     Task TaskIterator::tgs<IntTerm>(const Operation<IntTerm>& op) {
+        Log::debug(__FUNCTION__);
         struct worker_desc*  worker(_worker);
         struct session_desc* session(_session);
         const int            socket_fd(_socket_fd);
@@ -147,6 +152,7 @@ namespace imhotep {
 
     template <> inline
     Task TaskIterator::tgs<StringTerm>(const Operation<StringTerm>& op) {
+        Log::debug(__FUNCTION__);
         struct worker_desc*  worker(_worker);
         struct session_desc* session(_session);
         const int            socket_fd(_socket_fd);
@@ -170,7 +176,9 @@ namespace imhotep {
 
     inline
     void TaskIterator::increment() {
+        Log::debug(__FUNCTION__);
         if (_int_current != _int_end) {
+            Log::debug("if (_int_current != _int_end) {");
             const Operation<IntTerm> op(*_int_current);
             switch (op.op_code()) {
             case FIELD_START:    _task = start_field(op);  break;
@@ -183,6 +191,7 @@ namespace imhotep {
             ++_int_current;
         }
         else if (_str_current != _str_end) {
+            Log::debug("else if (_str_current != _str_end) {");
             const Operation<StringTerm> op(*_str_current);
             switch (op.op_code()) {
             case FIELD_START:    _task = start_field(op);     break;
@@ -194,6 +203,7 @@ namespace imhotep {
             }
             ++_str_current;
         }
+        Log::debug(__FUNCTION__ + std::string(" returns"));
     }
 
 } // namespace imhotep

@@ -49,16 +49,16 @@ test_bit_tree: obj/test_bit_tree.o ../obj/bit_tree.o
 test_circ_buf: obj/test_circ_buf.o ../obj/circ_buf.o
 	$(CPP) $ -o test_circ_buf $(LIBS) $^
 
-test_split: obj/test_split.o ../cppobj/splitter.o ../cppobj/term_iterator.o
+test_split: obj/test_split.o ../cppobj/shard.o ../cppobj/splitter.o ../cppobj/term_iterator.o
 	$(CPP) -pthread $(CPPFLAGS) $ -o test_split $(LIBS) $^
 
 test_merge_iterator: obj/test_merge_iterator.o ../cppobj/log.o
 	$(CPP) $(CPPFLAGS) $ -o test_merge_iterator $(LIBS) $^
 
-test_int_term_iterator: obj/test_int_term_iterator.o ../cppobj/term_iterator.o
+test_int_term_iterator: obj/test_int_term_iterator.o ../cppobj/shard.o ../cppobj/term_iterator.o
 	$(CPP) $(CPPFLAGS) $ -o test_int_term_iterator $(LIBS) $^
 
-test_string_term_iterator: obj/test_string_term_iterator.o ../cppobj/term_iterator.o
+test_string_term_iterator: obj/test_string_term_iterator.o ../cppobj/shard.o ../cppobj/term_iterator.o
 	$(CPP) $(CPPFLAGS) $ -o test_string_term_iterator $(LIBS) $^
 
 TERM_PROVIDER_OBJS = \
@@ -78,6 +78,7 @@ test_field_op_iterator: obj/test_field_op_iterator.o $(TERM_PROVIDER_OBJS) ../cp
 FTGS_RUNNER_OBJS =\
 	$(TERM_PROVIDER_OBJS) \
 	../cppobj/ftgs_runner.o	\
+	../cppobj/log.o \
 	../cppobj/shard.o \
 	../cppobj/term_providers.o \
 	../cppobj/term_seq_iterator.o \

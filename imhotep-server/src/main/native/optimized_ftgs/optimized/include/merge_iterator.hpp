@@ -8,6 +8,7 @@
 
 #include <boost/iterator/iterator_facade.hpp>
 
+#include "log.hpp"
 #include "shard.hpp"
 #include "split_iterator.hpp"
 
@@ -74,6 +75,8 @@ namespace imhotep {
             std::copy_if(begin, end, std::back_inserter(_its),
                          [] (MergeInput<term_t>& entry) {
                              static SplitIterator<term_t> split_end;
+                             Log::debug(__FUNCTION__);
+                             Log::debug(entry._split_it == split_end ? "(end)" : "(not end");
                              return entry._split_it != split_end;
                          });
             increment();

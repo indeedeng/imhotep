@@ -83,8 +83,11 @@ namespace imhotep {
         MMappedFile(const MMappedFile& rhs)            = delete;
         MMappedFile& operator=(const MMappedFile& rhs) = delete;
 
-        const char* begin() const { return reinterpret_cast<const char*>(_address); }
-        const char*   end() const { return begin() + size();                        }
+        const char* begin() const {
+            return size() != 0 ? reinterpret_cast<const char*>(_address) : 0;
+        }
+
+        const char* end() const { return begin() + size(); }
     private:
         void* _address = 0;
     };

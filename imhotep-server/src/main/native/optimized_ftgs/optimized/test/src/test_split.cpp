@@ -33,10 +33,16 @@ int main(int argc, char *argv[])
     const string field(argv[2]);
     const string split_dir(argv[3]);
 
+    std::vector<std::string> int_terms;
+    std::vector<std::string> str_terms;
+
+    int_terms.push_back(field); // !@# cheesy
+    str_terms.push_back(field); // duplicate fields even though only one will be used
+
     vector<Shard> shards;
     string str;
     while (getline(cin, str) && str.length()) {
-        shards.push_back(Shard(str));
+        shards.push_back(Shard(str, int_terms, str_terms));
     }
 
     if (kind == "int") {

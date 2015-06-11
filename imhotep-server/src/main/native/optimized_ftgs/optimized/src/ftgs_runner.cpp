@@ -1,8 +1,10 @@
 #include "ftgs_runner.hpp"
 
 #include <iostream>
+#include <sstream>
 #include <tuple>
 
+#include "log.hpp"
 #include "task_iterator.hpp"
 
 #define BOOST_RESULT_OF_USE_DECLTYPE    1
@@ -51,15 +53,21 @@ namespace imhotep {
                const TermProviders<IntTerm>&    int_providers,
                const TermProviders<StringTerm>& str_providers)
             : _id(id) {
+            Log::debug(__FUNCTION__);
             worker_init(&_worker, id, num_groups, num_metrics, socket_fds.data(), socket_fds.size());
             session_init(&_session, num_groups, num_metrics, only_binary_metrics, sample_table);
 
+            std::ostringstream os;
+            os << "ranges: " << split_ranges << std::endl;
             const SplitRanges::Range splits(split_ranges.splits_for(id));
-            for (size_t split(splits.first); split != splits.second; ++split) {
+            for (size_t split(splits.first); split <= splits.second; ++split) {
+                os << "split: " << split << std::endl;
                 _task_iterators.emplace_back(TaskIterator(&_worker, &_session, split,
                                                           socket_fds.at(split),
                                                           int_providers, str_providers));
             }
+            os << "_task_iterators.size(): " << _task_iterators.size();
+            Log::debug(os.str());
         }
 
         Worker(const Worker& worker) = delete;
@@ -72,6 +80,7 @@ namespace imhotep {
         size_t id() const { return _id; }
 
         void run() {
+            Log::debug(__FUNCTION__);
             static const TaskIterator task_it_end;
             _current = _task_iterators.begin();
             while (!_task_iterators.empty()) {
@@ -121,6 +130,8 @@ namespace imhotep {
                          bool                    only_binary_metrics,
                          Shard::packed_table_ptr sample_table,
                          const std::vector<int>& socket_fds) {
+        Log::debug(__FUNCTION__);
+        Log::debug("before run...");
         const SplitRanges split_ranges(_num_splits, _num_workers);
         std::vector<std::unique_ptr<Worker>> workers;
         for (size_t id(0); id < _num_workers; ++id) {
@@ -132,6 +143,7 @@ namespace imhotep {
             _executor.enqueue([&worker]() { worker->run(); });
         }
         _executor.await_completion();
+        Log::debug("after run...");
     }
 
 } // namespace imhotep

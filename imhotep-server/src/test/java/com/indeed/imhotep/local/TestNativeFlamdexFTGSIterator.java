@@ -468,8 +468,7 @@ public class TestNativeFlamdexFTGSIterator {
 
     @Test
     public void testSingleShard() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
-        final long seed = rand.nextLong();
-//        final long seed = -5222463107059882979L;
+        final long seed = -5222463107059882979L;
         rand.setSeed(seed);
         System.out.println("Random seed: " + seed);
         final int numDocs = rand.nextInt(1 << 16) + 1;  // 64K
@@ -480,15 +479,18 @@ public class TestNativeFlamdexFTGSIterator {
         final int nStringFields = rand.nextInt(3 - 1) + 1;
         String[] stringFieldNames = new String[nStringFields];
         for (int i = 0; i < nStringFields; i++) {
-            stringFieldNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
+            //            stringFieldNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
+            stringFieldNames[i] = String.format("str-%d", i);
         }
         String[] intFieldNames = new String[nIntFields];
         for (int i = 0; i < nIntFields; i++) {
-            intFieldNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
+            //            intFieldNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
+            intFieldNames[i] = String.format("int-%d", i);
         }
         String[] metricNames = new String[nMetrics];
         for (int i = 0; i < nMetrics; i++) {
-            metricNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
+            //            metricNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
+            metricNames[i] = String.format("metric-%d", i);
         }
 
         final List<FieldDesc> fieldDescs =
@@ -536,8 +538,7 @@ public class TestNativeFlamdexFTGSIterator {
 
     @Test
     public void testSingleShardBinary() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
-        final long seed = rand.nextLong();
-//        final long seed = -5222463107059882979L;
+        final long seed = -5222463107059882979L;
         rand.setSeed(seed);
         System.out.println("Random seed: " + seed);
         final int numDocs = rand.nextInt(1 << 16) + 1;  // 64K
@@ -548,15 +549,18 @@ public class TestNativeFlamdexFTGSIterator {
         final int nStringFields = rand.nextInt(3 - 1) + 1;
         String[] stringFieldNames = new String[nStringFields];
         for (int i = 0; i < nStringFields; i++) {
-            stringFieldNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN - 1) + 1);
+            //            stringFieldNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN - 1) + 1);
+            stringFieldNames[i] = String.format("str-%d", i);
         }
         String[] intFieldNames = new String[nIntFields];
         for (int i = 0; i < nIntFields; i++) {
-            intFieldNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN - 1) + 1);
+            //            intFieldNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN - 1) + 1);
+            intFieldNames[i] = String.format("int-%d", i);
         }
         String[] metricNames = new String[nMetrics];
         for (int i = 0; i < nMetrics; i++) {
-            metricNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN - 1) + 1);
+            //            metricNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN - 1) + 1);
+            metricNames[i] = String.format("metric-%d", i);
         }
 
         final List<FieldDesc> fieldDescs = createShardProfile(numDocs,
@@ -601,8 +605,7 @@ public class TestNativeFlamdexFTGSIterator {
 
     @Test
     public void test10Shards() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
-        final long seed = rand.nextLong();
-//        final long seed = -4122356988999045667L;
+        final long seed = -4122356988999045667L;
         rand.setSeed(seed);
         System.out.println("Random seed: " + seed);
         final int numDocs = rand.nextInt(1 << 16) + 1;  // 64K
@@ -613,39 +616,20 @@ public class TestNativeFlamdexFTGSIterator {
         final int nMetrics = rand.nextInt(MAX_N_METRICS - 1) + 1;
         String[] stringFieldNames = new String[nStringFields];
         for (int i = 0; i < nStringFields; i++) {
-            stringFieldNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
+            //            stringFieldNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
+            stringFieldNames[i] = String.format("str-%d", i);
         }
         String[] intFieldNames = new String[nIntFields];
         for (int i = 0; i < nIntFields; i++) {
-            intFieldNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
+            //            intFieldNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
+            intFieldNames[i] = String.format("int-%d", i);
         }
         String[] metricNames = new String[nMetrics];
         for (int i = 0; i < nMetrics; i++) {
-            metricNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
+            //            metricNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
+            metricNames[i] = String.format("metric-%d", i);
         }
 
-//        List<String> shardCopies =
-//                Arrays.asList(new String[] { "/tmp/native-ftgs-test2019957327669565406verify-copy",
-//                                            "/tmp/native-ftgs-test2086104149988911923verify-copy",
-//                                            "/tmp/native-ftgs-test2550620506633025168verify-copy",
-//                                            "/tmp/native-ftgs-test3378193281749620968verify-copy",
-//                                            "/tmp/native-ftgs-test3521534428337709411verify-copy",
-//                                            "/tmp/native-ftgs-test7398457726209096601verify-copy",
-//                                            "/tmp/native-ftgs-test7624881454913744027verify-copy",
-//                                            "/tmp/native-ftgs-test4957208100491061858verify-copy",
-//                                            "/tmp/native-ftgs-test8643851881666654216verify-copy",
-//                                            "/tmp/native-ftgs-test8771242174575689719verify-copy" });
-//        List<String> shardNames =
-//                Arrays.asList(new String[] { "/tmp/native-ftgs-test2516537865227324444test",
-//                                            "/tmp/native-ftgs-test4939771279954664194test",
-//                                            "/tmp/native-ftgs-test6735761589277623564test",
-//                                            "/tmp/native-ftgs-test7045001985093560042test",
-//                                            "/tmp/native-ftgs-test8960462730886152860test",
-//                                            "/tmp/native-ftgs-test8988934566151064202test",
-//                                            "/tmp/native-ftgs-test7741967259764742014test",
-//                                            "/tmp/native-ftgs-test133381526348508656test",
-//                                            "/tmp/native-ftgs-test4327346230585862211test",
-//                                            "/tmp/native-ftgs-test2103214280390889017test" });
         List<String> shardNames = new ArrayList<>();
         List<String> shardCopies = new ArrayList<>();
         final List<FieldDesc> fieldDescs =
