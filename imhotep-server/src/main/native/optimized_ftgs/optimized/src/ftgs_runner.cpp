@@ -56,20 +56,17 @@ namespace imhotep {
 
             const SplitRanges::Range splits(split_ranges.splits_for(id));
             for (size_t split(splits.first); split != splits.second; ++split) {
-                try {
-                    //                _task_iterators.emplace_back(TaskIterator(&_worker, &_session, split, socket_fds.at(split),
-                _task_iterators.emplace_back(TaskIterator(&_worker, &_session, split, socket_fds[split],
+                _task_iterators.emplace_back(TaskIterator(&_worker, &_session, split,
+                                                          socket_fds.at(split),
                                                           int_providers, str_providers));
-                }
-                catch (const std::exception& ex) {
-                    throw imhotep_error(ex.what());
-                }
             }
         }
 
+        Worker(const Worker& worker) = delete;
+
         ~Worker() {
-            // worker_destroy(&_worker);
-            // session_destroy(&_session);
+            worker_destroy(&_worker);
+            session_destroy(&_session);
         }
 
         size_t id() const { return _id; }
@@ -85,7 +82,6 @@ namespace imhotep {
                     ++_current;
                 }
                 else {
-                    std::cerr << "erasing..." << std::endl;
                     _current = _task_iterators.erase(_current);
                 }
                 if (_current == _task_iterators.end()) {
@@ -126,19 +122,14 @@ namespace imhotep {
                          Shard::packed_table_ptr sample_table,
                          const std::vector<int>& socket_fds) {
         const SplitRanges split_ranges(_num_splits, _num_workers);
-        std::cerr << "socket_fds.size(): " << socket_fds.size() << std::endl;
-        std::cerr << "_num_splits: " << _num_splits
-                  << " _num_workers: " << _num_workers
-                  << " split_ranges: " <<  split_ranges
-                  << std::endl;
-        std::vector<Worker*> workers;
+        std::vector<std::unique_ptr<Worker>> workers;
         for (size_t id(0); id < _num_workers; ++id) {
             workers.emplace_back(new Worker(id, split_ranges,
                                             num_groups, num_metrics, only_binary_metrics,
                                             sample_table, socket_fds,
                                             _int_term_providers, _string_term_providers));
-            Worker& worker(*workers.back());
-            _executor.enqueue([&worker]() { worker.run(); });
+            Worker* worker(workers.back().get());
+            _executor.enqueue([&worker]() { worker->run(); });
         }
         _executor.await_completion();
     }
