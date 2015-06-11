@@ -1,4 +1,4 @@
-MODE=dbg
+MODE=opt
 
 IDIR=include
 CC=/usr/bin/gcc-4.8
@@ -47,10 +47,10 @@ HPP_FILES := $(wildcard include/*.hpp)
 CPP_OBJ_FILES += $(addprefix cppobj/,$(notdir $(CPP_FILES:.cpp=.o)))
 
 $(ODIR)/%.o: src/%.c $(H_FILES)
-	$(CC) -include $(IDIR)/gcc_preinclude.h -c -o $@ $< $(CFLAGS)
+	$(CC) $(CFLAGS) -include $(IDIR)/gcc_preinclude.h -c -o $@ $<
 
 $(CPPODIR)/%.o: src/%.cpp $(HPP_FILES)
-	$(CPP) -include $(IDIR)/gcc_preinclude.h -c -o $@ $< $(CPPFLAGS)
+	$(CPP) $(CPPFLAGS) -include $(IDIR)/gcc_preinclude.h -c -o $@ $<
 
 .PHONY: clean
 
