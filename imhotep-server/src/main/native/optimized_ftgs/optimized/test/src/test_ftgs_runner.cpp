@@ -20,6 +20,7 @@
 extern "C" {
 #include "imhotep_native.h"
 #include "test_patch.h"
+#include "varintdecode.h"
 }
 
 using namespace std;
@@ -33,7 +34,7 @@ namespace test_ftgs_namespace{
         ShardMetadata(const Shard& shard)
             : _shard(shard)
             , _metadata(YAML::LoadFile(shard.dir() + "/metadata.txt"))
-        {cout << shard.dir() + "/metadata.txt" << endl; }
+        { }
 
         const Shard& shard() const { return _shard; }
 
@@ -113,7 +114,7 @@ namespace test_ftgs_namespace{
                                     mins.data(), maxes.data(),
                                     table_meta.sizes, table_meta.vec_nums, table_meta.offsets_in_vecs,
                                     vector<int8_t>(num_cols, 0).data(), num_cols);
-        return Shard(metadata.shard().dir(), table);
+        return Shard(metadata.shard().dir(), int_fields, str_fields, table);
     }
 
 
@@ -150,6 +151,9 @@ namespace test_ftgs_namespace{
                           num_workers,
                           executor);
 
+        for (Shard shard: shards_with_tables) {
+            packed_table_destroy(const_cast<packed_table_t*>(shard.table()));
+        }
     }
 
 
@@ -179,6 +183,10 @@ namespace test_ftgs_namespace{
                    only_binary_metrics,
                    shards_with_tables[0].table(),
                    socket_fds);
+
+        for (Shard shard: shards_with_tables) {
+            packed_table_destroy(const_cast<packed_table_t*>(shard.table()));
+        }
     }
 }
 
@@ -186,6 +194,8 @@ namespace test_ftgs_namespace{
 //base yourself on the java code
 int main(int argc, char *argv[])
 {
+    simdvbyteinit();
+
     namespace fs = boost::filesystem;
     namespace po = boost::program_options;
 
@@ -225,17 +235,19 @@ int main(int argc, char *argv[])
             return 0;
         }
 
+    const vector<string> int_fields(vm["int-fields"].as<vector<string>>());
+    const vector<string> str_fields(vm["str-fields"].as<vector<string>>());
+
     vector<Shard> shards;
     fs::path shard_dir(vm["shard-dir"].as<string>());
     if (!fs::exists(shard_dir) || !fs::is_directory(shard_dir))
         throw runtime_error("no such shard-dir");
     transform(fs::directory_iterator(shard_dir), fs::directory_iterator(),
               back_inserter(shards),
-              [](const fs::path& path) { return Shard(path.string()); });
+              [&int_fields, &str_fields](const fs::path& path) {
+                  return Shard(path.string(), int_fields, str_fields);
+              });
 
-
-    const vector<string> int_fields(vm["int-fields"].as<vector<string>>());
-    const vector<string> str_fields(vm["str-fields"].as<vector<string>>());
 
     const string split_dir(vm["split-dir"].as<string>());
     const size_t num_splits(vm["num-splits"].as<size_t>());
