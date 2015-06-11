@@ -14,7 +14,7 @@
 void tgs_init(struct worker_desc *worker,
               struct tgs_desc *desc,
               uint8_t term_type,
-              const long *addresses,
+              const char **addresses,
               const int *docs_per_shard,
               const packed_table_t **shards,
               int num_shard,
