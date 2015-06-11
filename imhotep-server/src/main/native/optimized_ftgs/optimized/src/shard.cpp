@@ -4,10 +4,22 @@
 
 namespace imhotep {
 
-    Shard::Shard(const std::string& dir, packed_table_ptr   table)
+    Shard::Shard(const std::string&              dir,
+                 const std::vector<std::string>& int_fields,
+                 const std::vector<std::string>& str_fields,
+                 packed_table_ptr                table)
         : _dir(dir)
-        , _table(table)
-    { }
+        , _table(table) {
+        /* !@# force caching of views for now... */
+        for (const std::string& field: int_fields) {
+            term_view<IntTerm>(field);
+            docid_view<IntTerm>(field);
+        }
+        for (const std::string& field: str_fields) {
+            term_view<StringTerm>(field);
+            docid_view<StringTerm>(field);
+        }
+    }
 
     template <typename term_t>
     Shard::var_int_view_ptr Shard::term_view(const std::string& field) const {
@@ -26,8 +38,6 @@ namespace imhotep {
         if (result == _docid_views.end()) {
             const std::string filename(docid_filename<term_t>(field));
             var_int_view_ptr  view(std::make_shared<MMappedVarIntView>(filename));
-            std::cerr << "address: " << reinterpret_cast<const void *>(view->begin())
-                      << " mapped: " << filename << std::endl;
             result = _docid_views.insert(std::make_pair(field, view)).first;
         }
         return result->second;

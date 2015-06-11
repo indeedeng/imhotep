@@ -4,6 +4,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #define restrict __restrict__
 extern "C" {
@@ -28,8 +29,10 @@ namespace imhotep {
 
         typedef std::shared_ptr<MMappedVarIntView> var_int_view_ptr;
 
-        explicit Shard(const std::string& dir,
-                       packed_table_ptr   table = packed_table_ptr());
+        explicit Shard(const std::string&              dir,
+                       const std::vector<std::string>& int_fields,
+                       const std::vector<std::string>& str_fields,
+                       packed_table_ptr                table = packed_table_ptr());
 
         Shard(const Shard& rhs) = default;
 
