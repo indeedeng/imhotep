@@ -80,14 +80,14 @@ namespace imhotep {
     template <>
     std::vector<table_ptr> from_java_array<table_ptr>(JNIEnv* env, jlongArray values)
     {
-        jsize                   valuesSize(env->GetArrayLength(values));
+        jsize                  valuesSize(env->GetArrayLength(values));
         std::vector<table_ptr> result(valuesSize);
-        jboolean                unused(false);
-        jlong*                  elements(env->GetLongArrayElements(values, &unused));
+        jboolean               unused(false);
+        jlong*                 elements(env->GetLongArrayElements(values, &unused));
         for (jsize index(0); index < valuesSize; ++index) {
             jlong element(elements[index]);
-            result[index] = *reinterpret_cast<table_ptr*>(&element);
-            fprintf(stderr, "result[%d]: %p\n", index, result[index]);
+            //            result[index] = *reinterpret_cast<table_ptr*>(&element);
+            result[index] = reinterpret_cast<table_ptr>(element);
         }
         env->ReleaseLongArrayElements(values, elements, JNI_ABORT);
         return result;
@@ -147,7 +147,7 @@ Java_com_indeed_imhotep_local_MTImhotepLocalMultiSession_nativeFTGS(JNIEnv*     
 
         std::vector<Shard> shards;
         for (size_t index(0); index < shard_dirs.size(); ++index) {
-            shards.push_back(Shard(shard_dirs[index], table_ptrs[index]));
+            shards.push_back(Shard(shard_dirs[index], int_fields, str_fields, table_ptrs[index]));
         }
 
         const std::string splits_dir(from_java<jstring, std::string>(env, splitsDir));
