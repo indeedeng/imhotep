@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <iostream>
 #include <thread>
 
@@ -36,19 +37,30 @@ int main(int argc, char *argv[])
     std::vector<std::string> int_terms;
     std::vector<std::string> str_terms;
 
-    int_terms.push_back(field); // !@# cheesy
-    str_terms.push_back(field); // duplicate fields even though only one will be used
-
-    vector<Shard> shards;
-    string str;
+    std::vector<std::string> shard_names;
+    std::string str;
     while (getline(cin, str) && str.length()) {
-        shards.push_back(Shard(str, int_terms, str_terms));
+        shard_names.push_back(str);
     }
 
+    vector<Shard> shards;
+
     if (kind == "int") {
+        int_terms.push_back(field);
+        std::transform(shard_names.begin(), shard_names.end(),
+                       std::back_inserter(shards),
+                       [&] (const std::string& name) {
+                           return Shard(name, int_terms, str_terms);
+                       });
         test_splitter<IntTerm>(shards, field, split_dir);
     }
     else if (kind == "string") {
+        str_terms.push_back(field);
+        std::transform(shard_names.begin(), shard_names.end(),
+                       std::back_inserter(shards),
+                       [&] (const std::string& name) {
+                           return Shard(name, int_terms, str_terms);
+                       });
         test_splitter<StringTerm>(shards, field, split_dir);
     }
     else {

@@ -12,16 +12,13 @@ using namespace std;
 using namespace imhotep;
 
 template <typename term_t>
-void merge(const vector<string>& splits) {
+void old_merge(const vector<string>& splits) {
     Shard::packed_table_ptr table(0);
     vector<MergeInput<term_t>> inputs;
     vector<shared_ptr<MMappedFile>> split_files;
     for (string split: splits) {
         split_files.push_back(make_shared<MMappedFile>(split));
         SplitView view(split_files.back()->begin(), split_files.back()->end());
-        // std::cerr << "(" << split_files.back()->begin()
-        //           << "," << split_files.back()->end() << ")"
-        //           << std::endl;
         inputs.push_back(MergeInput<term_t>(SplitIterator<term_t>(view), table, 0));
     }
 
@@ -30,6 +27,24 @@ void merge(const vector<string>& splits) {
     while (it != end) {
         cout << (*it)._term << endl;
         ++it;
+    }
+}
+
+template <typename term_t>
+void merge(const vector<string>& splits) {
+    for (string split: splits) {
+        std::cout << split << std::endl;
+        MMappedFile file(split);
+        cout << "file.size(): " << file.size() << endl;
+        SplitView view(file.begin(), file.end());
+        cout << "view.size(): " << view.size() << endl;
+        SplitIterator<term_t> split_it(view);
+        SplitIterator<term_t> end;
+        while (split_it != end) {
+            cout << *split_it << endl;
+            ++split_it;
+        }
+        cout << endl << endl;
     }
 }
 

@@ -99,12 +99,15 @@ namespace test_ftgs_namespace{
             maxes.push_back(min_max.second);
         }
         //TODO FIX?
+        /*
         for (const string& field: str_fields) {
             std::cout << field << std::endl;
             throw runtime_error("nyi: support for string fields");
         }
+        */
 
-        const size_t num_cols(int_fields.size() + str_fields.size());
+        //        const size_t num_cols(int_fields.size() + str_fields.size());
+        const size_t num_cols(int_fields.size());
 
         TableMetadata table_meta(num_cols, mins.data(), maxes.data());
 

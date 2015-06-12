@@ -72,8 +72,8 @@ TERM_PROVIDER_OBJS = \
 test_term_provider: obj/test_term_provider.o $(TERM_PROVIDER_OBJS)
 	$(CPP) -pthread $(CPPFLAGS) $ -o test_term_provider $^ $(LIBS)
 
-test_field_op_iterator: obj/test_field_op_iterator.o $(TERM_PROVIDER_OBJS) ../cppobj/term_providers.o
-	$(CPP) -pthread $(CPPFLAGS) $ -o test_field_op_iterator $^ $(LIBS) 
+test_field_op_iterator: obj/test_field_op_iterator.o $(TERM_PROVIDER_OBJS) ../cppobj/log.o ../cppobj/term_providers.o
+	$(CPP) -pthread $(CPPFLAGS) $ -o test_field_op_iterator $^ $(LIBS)
 
 FTGS_RUNNER_OBJS =\
 	$(TERM_PROVIDER_OBJS) \

@@ -31,6 +31,8 @@ int main(int argc, char *argv[])
          "root of shards directory")
         ("int-fields", po::value<vector<string>>()->default_value(empty, "FIELDS")->multitoken(),
          "list of int fields")
+        ("str-fields", po::value<vector<string>>()->default_value(empty, "FIELDS")->multitoken(),
+         "list of str fields")
         ("split-dir",  po::value<string>()->default_value("/tmp/splits", "DIR"),
          "directory to stash temp split files")
         ("num-splits", po::value<size_t>()->default_value(13, "UINT"),
@@ -48,40 +50,58 @@ int main(int argc, char *argv[])
         return 0;
     }
 
+    const vector<string> int_fields(vm["int-fields"].as<vector<string>>());
+    const vector<string> str_fields(vm["str-fields"].as<vector<string>>());
+
     vector<Shard> shards;
     fs::path shard_dir(vm["shard-dir"].as<string>());
     if (!fs::exists(shard_dir) || !fs::is_directory(shard_dir))
         throw runtime_error("no such shard-dir");
     transform(fs::directory_iterator(shard_dir), fs::directory_iterator(),
               back_inserter(shards),
-              [](const fs::path& path) { return Shard(path.string()); });
+              [int_fields, str_fields](const fs::path& path) {
+                  return Shard(path.string(), int_fields, str_fields);
+              });
 
-
-    const vector<string> int_fields(vm["int-fields"].as<vector<string>>());
-    const string         split_dir(vm["split-dir"].as<string>());
-    const size_t         num_splits(vm["num-splits"].as<size_t>());
+    const string split_dir(vm["split-dir"].as<string>());
+    const size_t num_splits(vm["num-splits"].as<size_t>());
 
     ExecutorService executor;
-    TermProviders<IntTerm> providers(shards, int_fields, split_dir, num_splits, executor);
+    TermProviders<IntTerm>    int_providers(shards, int_fields, split_dir, num_splits, executor);
+    TermProviders<StringTerm> str_providers(shards, str_fields, split_dir, num_splits, executor);
+
+    /*
+    for (size_t split_num(0); split_num < num_splits; ++split_num) {
+        // std::mutex cout_mutex;
+        // executor.enqueue([&providers, split_num, &cout_mutex] {
+        size_t                   num_ops(0);
+        FieldOpIterator<IntTerm> it(int_providers, split_num);
+        FieldOpIterator<IntTerm> end;
+        while (it != end) {
+            {
+                // std::lock_guard<std::mutex> guard(cout_mutex);
+                cout << it->to_string() << endl;
+            }
+            ++num_ops;
+            ++it;
+        }
+        // std::lock_guard<std::mutex> guard(cout_mutex);
+        cout << "split_num: " << split_num << " num_ops: " << num_ops << endl;
+        // });
+    }
+    */
 
     for (size_t split_num(0); split_num < num_splits; ++split_num) {
-        std::mutex cout_mutex;
-        executor.enqueue([&providers, split_num, &cout_mutex] {
-                size_t                   num_ops(0);
-                FieldOpIterator<IntTerm> it(providers, split_num);
-                FieldOpIterator<IntTerm> end;
-                while (it != end) {
-                    {
-                        std::lock_guard<std::mutex> guard(cout_mutex);
-                        cout << it->to_string() << endl;
-                    }
-                    ++num_ops;
-                    ++it;
-                }
-                std::lock_guard<std::mutex> guard(cout_mutex);
-                cout << "split_num: " << split_num << " num_ops: " << num_ops << endl;
-            });
+        size_t                      num_ops(0);
+        FieldOpIterator<StringTerm> it(str_providers, split_num);
+        FieldOpIterator<StringTerm> end;
+        while (it != end) {
+            cout << it->to_string() << endl;
+            ++num_ops;
+            ++it;
+        }
+        cout << "split_num: " << split_num << " num_ops: " << num_ops << endl;
     }
-    executor.await_completion();
+    // executor.await_completion();
 }
 
