@@ -1,6 +1,8 @@
 #ifndef FIELD_OP_ITERATOR_HPP
 #define FIELD_OP_ITERATOR_HPP
 
+#include <sstream>
+
 #include <boost/iterator/iterator_facade.hpp>
 
 #include "term_providers.hpp"
@@ -80,16 +82,13 @@ namespace imhotep {
         }
 
         bool equal(const FieldOpIterator& other) const {
-            /* !@# revisit - only works for comparing to end iterator. */
             return
-                (_current == _end && other._current == other._end &&
-                 _tgs_current == _tgs_end && other._tgs_current == other._tgs_end &&
-                 _operation.op_code() == INVALID && other._operation.op_code() == INVALID);
+                _current == _end && other._current == other._end &&
+                _tgs_current == _tgs_end && other._tgs_current == other._tgs_end &&
+                _operation.op_code() == INVALID && other._operation.op_code() == INVALID;
         }
 
-        const Operation<term_t>& dereference() const {
-            return _operation;
-        }
+        const Operation<term_t>& dereference() const { return _operation; }
 
         typename TermProviders<term_t>::const_iterator _current;
         typename TermProviders<term_t>::const_iterator _end;

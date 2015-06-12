@@ -46,7 +46,7 @@ namespace imhotep {
         }
 
         bool equal(const TermSeqIterator& other) const {
-            return _current == other._current; // !@# re-examine
+            return _current == other._current;
         }
 
         const TermSeq<term_t>& dereference() const { return _term_seq; }

@@ -37,7 +37,6 @@ namespace imhotep {
 
         bool equal(const TGSOpIterator& other) const  {
             return _current == other._current;
-            //            return _operation == other._operation; // !@# sufficient?
         }
 
         const Operation<term_t>& dereference() const {

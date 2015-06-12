@@ -45,9 +45,20 @@ namespace imhotep {
     private:
         friend class boost::iterator_core_access;
 
+        static std::string error_from(struct worker_desc* worker) {
+            return std::string(worker->error.str);
+        }
+
         template <typename term_t>
         Task start_field(const Operation<term_t>& op) {
-            Log::debug(__FUNCTION__);
+            Log::debug(__FUNCTION__ + std::string(" ") + op.to_string());
+            std::ostringstream os;
+            os << __FUNCTION__
+               << " worker: " << _worker
+               << " session: " << _session
+               << " socket_fd: " << _socket_fd;
+            Log::debug(os.str());
+
             struct worker_desc* worker(_worker);
             const int           socket_fd(_socket_fd);
             return [op, worker, socket_fd]() {
@@ -56,46 +67,49 @@ namespace imhotep {
                                              op.field_name().length(),
                                              op.field_type(),
                                              socket_fd);
-                if (err != 0) {
-                    // !@# fix error message
-                    throw imhotep_error(__FUNCTION__);
-                }
+                if (err != 0) throw imhotep_error(TaskIterator::error_from(worker));
             };
         }
 
         template <typename term_t> Task tgs(const Operation<term_t>& op);
 
         Task end_field() {
-            Log::debug(__FUNCTION__);
+            std::ostringstream os;
+            os << __FUNCTION__
+               << " worker: " << _worker
+               << " session: " << _session
+               << " socket_fd: " << _socket_fd;
+            Log::debug(os.str());
+
             struct worker_desc* worker(_worker);
             const int           socket_fd(_socket_fd);
             return [worker, socket_fd]() {
                 int err = worker_end_field(worker, socket_fd);
-                if (err != 0) {
-                    // !@# fix error message
-                    throw imhotep_error(__FUNCTION__);
-                }
+                if (err != 0) throw imhotep_error(TaskIterator::error_from(worker));
             };
         }
 
         Task end_stream() {
-            Log::debug(__FUNCTION__);
+            std::ostringstream os;
+            os << __FUNCTION__
+               << " worker: " << _worker
+               << " session: " << _session
+               << " socket_fd: " << _socket_fd;
+            Log::debug(os.str());
+
             struct worker_desc* worker(_worker);
             const int           socket_fd(_socket_fd);
             return [worker, socket_fd]() {
                 int err = worker_end_stream(worker, socket_fd);
-                if (err != 0) {
-                    // !@# fix error message
-                    throw imhotep_error(__FUNCTION__);
-                }
+                if (err != 0) throw imhotep_error(TaskIterator::error_from(worker));
             };
         }
 
         void increment();
 
         bool equal(const TaskIterator& other) const {
-            // !@# revisit
-            return _int_current == other._int_current &&
+            return
+                _int_current == other._int_current &&
                 _str_current == other._str_current;
         }
 
@@ -129,7 +143,13 @@ namespace imhotep {
 
     template <> inline
     Task TaskIterator::tgs<IntTerm>(const Operation<IntTerm>& op) {
-        Log::debug(__FUNCTION__);
+        std::ostringstream os;
+        os << __FUNCTION__
+           << " worker: " << _worker
+           << " session: " << _session
+           << " socket_fd: " << _socket_fd;
+        Log::debug(os.str());
+
         struct worker_desc*  worker(_worker);
         struct session_desc* session(_session);
         const int            socket_fd(_socket_fd);
@@ -143,16 +163,19 @@ namespace imhotep {
                                    op.term_seq().tables().data(),
                                    op.term_seq().size(),
                                    socket_fd);
-            if (err != 0) {
-                // !@# fix error message
-                throw imhotep_error(__FUNCTION__);
-            }
+            if (err != 0) throw imhotep_error(TaskIterator::error_from(worker));
         };
     }
 
     template <> inline
     Task TaskIterator::tgs<StringTerm>(const Operation<StringTerm>& op) {
-        Log::debug(__FUNCTION__);
+        std::ostringstream os;
+        os << __FUNCTION__
+           << " worker: " << _worker
+           << " session: " << _session
+           << " socket_fd: " << _socket_fd;
+        Log::debug(os.str());
+
         struct worker_desc*  worker(_worker);
         struct session_desc* session(_session);
         const int            socket_fd(_socket_fd);
@@ -167,43 +190,41 @@ namespace imhotep {
                                    op.term_seq().tables().data(),
                                    op.term_seq().size(),
                                    socket_fd);
-            if (err != 0) {
-                // !@# fix error message
-                throw imhotep_error(__FUNCTION__);
-            }
+            if (err != 0) throw imhotep_error(TaskIterator::error_from(worker));
         };
     }
 
     inline
     void TaskIterator::increment() {
-        Log::debug(__FUNCTION__);
         if (_int_current != _int_end) {
-            Log::debug("if (_int_current != _int_end) {");
             const Operation<IntTerm> op(*_int_current);
+            Log::debug(op.to_string());
             switch (op.op_code()) {
             case FIELD_START:    _task = start_field(op);  break;
             case TGS:            _task = tgs<IntTerm>(op); break;
             case FIELD_END:      _task = end_field();      break;
-            case NO_MORE_FIELDS: _task = end_stream();     break;
+            // case NO_MORE_FIELDS: _task = end_stream();     break;
             default:        // !@#
                 break;
             }
             ++_int_current;
         }
         else if (_str_current != _str_end) {
-            Log::debug("else if (_str_current != _str_end) {");
             const Operation<StringTerm> op(*_str_current);
+            Log::debug(op.to_string());
             switch (op.op_code()) {
             case FIELD_START:    _task = start_field(op);     break;
             case TGS:            _task = tgs<StringTerm>(op); break;
             case FIELD_END:      _task = end_field();         break;
-            case NO_MORE_FIELDS: _task = end_stream();        break;
+            // case NO_MORE_FIELDS: _task = end_stream();        break;
             default:        // !@#
                 break;
             }
             ++_str_current;
         }
-        Log::debug(__FUNCTION__ + std::string(" returns"));
+        else {
+            end_stream();
+        }
     }
 
 } // namespace imhotep

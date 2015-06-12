@@ -26,7 +26,8 @@ namespace imhotep {
             return _begin == rhs._begin && _end == rhs._end;
         }
 
-        bool empty() const { return _begin >= _end; }
+        bool   empty() const { return size() <= 0;    }
+        size_t  size() const { return _end - _begin;  }
 
         template <typename T>
         T read() {
@@ -67,6 +68,15 @@ namespace imhotep {
         const char* _end   = 0;
     };
 
+
+    template<>
+    inline
+    IntTerm SplitView::read<IntTerm>() {
+        const int64_t id(read<int64_t>());
+        const int64_t doc_offset(read<int64_t>());
+        const int32_t doc_freq(read<int32_t>());
+        return IntTerm(id, doc_offset, doc_freq);
+    }
 
     template<>
     inline

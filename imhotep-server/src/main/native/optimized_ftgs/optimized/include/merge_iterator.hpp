@@ -30,9 +30,10 @@ namespace imhotep {
 
         bool operator==(const MergeInput& rhs) const {
             return
-                _split_it   == rhs._split_it &&
-                _table      == rhs._table    &&
-                _docid_base == rhs._docid_base;
+                _split_it == rhs._split_it;
+                // _split_it   == rhs._split_it &&
+                // _table      == rhs._table    &&
+                // _docid_base == rhs._docid_base;
         }
     };
 
@@ -75,8 +76,6 @@ namespace imhotep {
             std::copy_if(begin, end, std::back_inserter(_its),
                          [] (MergeInput<term_t>& entry) {
                              static SplitIterator<term_t> split_end;
-                             Log::debug(__FUNCTION__);
-                             Log::debug(entry._split_it == split_end ? "(end)" : "(not end");
                              return entry._split_it != split_end;
                          });
             increment();

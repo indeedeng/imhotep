@@ -119,7 +119,7 @@ namespace imhotep {
         { }
 
         OpCode      _op_code     = INVALID;
-        int32_t     _split_index = -1;
+        int32_t     _split_index = 0;
         std::string _field_name;
 
         TermSeq<term_t> _term_seq;

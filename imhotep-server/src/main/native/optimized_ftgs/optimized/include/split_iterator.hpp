@@ -34,7 +34,7 @@ namespace imhotep {
         }
 
         bool equal(const SplitIterator& other) const {
-            return (_view.empty() && other._view.empty()) || _view == other._view;
+            return _view.size() == other._view.size();
         }
 
         const term_t& dereference() const { return _current; }

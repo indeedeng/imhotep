@@ -3,7 +3,10 @@
 
 #include <stdint.h>
 #include <iostream>
+#include <sstream>
 #include <string>
+
+#include "log.hpp"
 
 namespace imhotep {
 
@@ -41,7 +44,7 @@ namespace imhotep {
         const id_type& id() const { return _id; }
 
         int64_t doc_offset() const { return _doc_offset; }
-        int64_t   doc_freq() const { return _doc_freq;   }
+        int32_t   doc_freq() const { return _doc_freq;   }
 
         bool operator==(const Term& rhs) const {
             return
@@ -51,6 +54,7 @@ namespace imhotep {
         }
 
         bool operator<(const Term& rhs) const {
+            std::ostringstream os;
             return id() < rhs.id() || (id() == rhs.id() && doc_offset() < rhs.doc_offset());
         }
 
