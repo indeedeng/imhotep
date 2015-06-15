@@ -70,26 +70,17 @@ int main(int argc, char *argv[])
     TermProviders<IntTerm>    int_providers(shards, int_fields, split_dir, num_splits, executor);
     TermProviders<StringTerm> str_providers(shards, str_fields, split_dir, num_splits, executor);
 
-    /*
     for (size_t split_num(0); split_num < num_splits; ++split_num) {
-        // std::mutex cout_mutex;
-        // executor.enqueue([&providers, split_num, &cout_mutex] {
         size_t                   num_ops(0);
         FieldOpIterator<IntTerm> it(int_providers, split_num);
         FieldOpIterator<IntTerm> end;
         while (it != end) {
-            {
-                // std::lock_guard<std::mutex> guard(cout_mutex);
-                cout << it->to_string() << endl;
-            }
+            cout << it->to_string() << endl;
             ++num_ops;
             ++it;
         }
-        // std::lock_guard<std::mutex> guard(cout_mutex);
         cout << "split_num: " << split_num << " num_ops: " << num_ops << endl;
-        // });
     }
-    */
 
     for (size_t split_num(0); split_num < num_splits; ++split_num) {
         size_t                      num_ops(0);
@@ -102,6 +93,5 @@ int main(int argc, char *argv[])
         }
         cout << "split_num: " << split_num << " num_ops: " << num_ops << endl;
     }
-    // executor.await_completion();
 }
 

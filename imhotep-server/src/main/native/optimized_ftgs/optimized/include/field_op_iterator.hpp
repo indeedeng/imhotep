@@ -29,6 +29,8 @@ namespace imhotep {
         friend class boost::iterator_core_access;
 
         void increment() {
+            if (_current == _end && _tgs_current == _tgs_end) return;
+
             switch (_operation.op_code()) {
             case INVALID:
                 increment_field();
@@ -44,15 +46,17 @@ namespace imhotep {
                 }
                 else {
                     _operation = Operation<term_t>::field_end(_operation);
-                    ++_current;
                 }
                 break;
             case FIELD_END:
-                increment_field();
+                if (_current != _end) {
+                    increment_field();
+                }
+                else {
+                    _operation = Operation<term_t>();
+                }
                 break;
             case NO_MORE_FIELDS:
-                _operation = Operation<term_t>();
-                break;
             default:
                 // !@# software error?
                 break;
@@ -75,17 +79,16 @@ namespace imhotep {
                     ++_current;
                 }
             }
-            if (!found_one && _operation.op_code() != INVALID) {
-                assert(_current == _end);
-                _operation = Operation<term_t>::no_more_fields(_split);
-            }
+            // if (!found_one) {
+            //     _operation = Operation<term_t>();
+            // }
         }
 
         bool equal(const FieldOpIterator& other) const {
             return
-                _current == _end && other._current == other._end &&
-                _tgs_current == _tgs_end && other._tgs_current == other._tgs_end &&
-                _operation.op_code() == INVALID && other._operation.op_code() == INVALID;
+                (_current == other._current ||
+                 (_current == _end && other._current == other._end)) &&
+                _tgs_current == other._tgs_current;
         }
 
         const Operation<term_t>& dereference() const { return _operation; }

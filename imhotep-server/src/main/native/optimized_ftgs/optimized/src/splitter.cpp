@@ -20,7 +20,7 @@ namespace imhotep {
         const int64_t     doc_offset(term.doc_offset());
         const int32_t     doc_freq(term.doc_freq());
         os.write(reinterpret_cast<const char*>(&id_size), sizeof(id_size));
-        os.write(id.data(), id.size());
+        os.write(id.c_str(), id.size());
         os.write(reinterpret_cast<const char*>(&doc_offset), sizeof(doc_offset));
         os.write(reinterpret_cast<const char*>(&doc_freq), sizeof(doc_freq));
     }

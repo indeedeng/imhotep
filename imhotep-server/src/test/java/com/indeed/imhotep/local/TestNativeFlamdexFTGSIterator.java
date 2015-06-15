@@ -13,40 +13,22 @@
  */
  package com.indeed.imhotep.local;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Random;
-import java.util.TreeMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.io.*;
+import java.net.*;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.RandomStringUtils;
 import org.junit.Test;
 
-import com.indeed.flamdex.simple.SimpleFlamdexReader;
-import com.indeed.flamdex.simple.SimpleFlamdexWriter;
-import com.indeed.flamdex.writer.IntFieldWriter;
-import com.indeed.flamdex.writer.StringFieldWriter;
-import com.indeed.imhotep.ImhotepMemoryPool;
-import com.indeed.imhotep.InputStreamFTGSIterator;
-import com.indeed.imhotep.MemoryReservationContext;
-import com.indeed.imhotep.RawFTGSMerger;
-import com.indeed.imhotep.api.FTGSIterator;
-import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
-import com.indeed.imhotep.api.RawFTGSIterator;
+import com.indeed.flamdex.simple.*;
+import com.indeed.flamdex.writer.*;
+import com.indeed.imhotep.*;
+import com.indeed.imhotep.api.*;
 import com.indeed.util.io.Files;
 
 /**
@@ -90,7 +72,7 @@ public class TestNativeFlamdexFTGSIterator {
                             t.start();
                             threads[i] = t;
                         }
-                        
+
                         for (Thread t : threads) {
                             t.join();
                         }
@@ -159,7 +141,7 @@ public class TestNativeFlamdexFTGSIterator {
 
     private final Random rand = new Random();
     private final int MAX_STRING_TERM_LEN = 128;
-    
+
     private class UnusedDocsIds {
         final int[] docIds;
         int len;
@@ -182,7 +164,7 @@ public class TestNativeFlamdexFTGSIterator {
             if (nValidDocs < len / 2) {
                 this.compress();
             }
-            
+
             while (true) {
                 final int i = rand.nextInt(len);
                 if (docIds[i] < 0) {
@@ -194,11 +176,11 @@ public class TestNativeFlamdexFTGSIterator {
                 return docId;
             }
         }
-        
+
         private void compress() {
             int max = 0;
             int trailing = 0;
-            
+
             for (int i = 0; i < this.len; i++) {
                 if (docIds[i] < 0) {
                     continue;
@@ -209,79 +191,66 @@ public class TestNativeFlamdexFTGSIterator {
                     max = docIds[i];
                 }
             }
-            
+
             this.len = this.nValidDocs;
         }
     }
-    
+
     private int[] selectDocIds(final UnusedDocsIds unusedDocsIds,
                                int nDocsToSelect) {
         final int[] selectedDocs = new int[nDocsToSelect];
-        
+
         for (int n = 0; n < nDocsToSelect; n++) {
             selectedDocs[n] = unusedDocsIds.getRandId();
         }
-        
+
         Arrays.sort(selectedDocs);
         return selectedDocs;
     }
 
     private void createFlamdexIntField(final String intFieldName,
                                        final MetricMaxSizes termGenerator,
-                                       final int size,
+                                       final int numDocs,
                                        SimpleFlamdexWriter w) throws IOException {
-        final int maxTermDocs = (size < 2000) ? size : size / 1000;
-        final int maxUnassignedDocs = (size < 100) ? 10 : 100;
-        IntFieldWriter ifw = w.getIntFieldWriter(intFieldName);
+        final int numTerms       = 24;
+        final int numDocsPerTerm = numDocs / numTerms;
 
-        final UnusedDocsIds unusedDocIds = new UnusedDocsIds(size);
-
-        TreeMap<Long, int[]> map = new TreeMap<>();
-        while (unusedDocIds.size() > maxUnassignedDocs) {
-            final long term = termGenerator.randVal();
-            if (term == 0) {
-                continue;
-            }
-            final int maxDocsPerTerm = Math.min(unusedDocIds.size(), maxTermDocs);
-            final int numDocs = unusedDocIds.size() > 1 ? rand.nextInt(maxDocsPerTerm - 1) + 1 : 1;
-            final int[] docIds = selectDocIds(unusedDocIds, numDocs);
-            map.put(term, docIds);
+        ArrayList<Long> terms = new ArrayList();
+        Long currentTerm = termGenerator.randVal();
+        for (int count = 0; count < numTerms; ++count) {
+            terms.add(currentTerm);
+            currentTerm++;
         }
+        Collections.sort(terms);
 
-        for (Long term : map.keySet()) {
+        int doc = 0;
+        IntFieldWriter ifw = w.getIntFieldWriter(intFieldName);
+        for (Long term: terms) {
             ifw.nextTerm(term);
-            for (int doc : map.get(term)) {
+            for (int count = 0; count < numDocsPerTerm; ++count) {
                 ifw.nextDoc(doc);
+                ++doc;
             }
         }
         ifw.close();
     }
 
     private void createFlamdexStringField(final String stringFieldName,
-                                          final int size,
+                                          final int numDocs,
                                           SimpleFlamdexWriter w,
-                                          List<String> termsList) throws IOException {
-        final int maxTermDocs = (size < 2000) ? size : size / 1000;
-        final int maxUnassignedDocs = (size < 100) ? 10 : 100;
+                                          List<String> terms) throws IOException {
         StringFieldWriter sfw = w.getStringFieldWriter(stringFieldName);
+        final int numDocsPerTerm = numDocs / terms.size();
 
-        final UnusedDocsIds unusedDocIds = new UnusedDocsIds(size);
+        ArrayList<String> sortedTerms = new ArrayList(terms);
+        Collections.sort(sortedTerms);
 
-        int i = 0;
-        TreeMap<String, int[]> map = new TreeMap<>();
-        while (unusedDocIds.size() > maxUnassignedDocs) {
-            final String term = termsList.get(i);
-
-            final int maxDocsPerTerm = Math.min(unusedDocIds.size(), maxTermDocs);
-            final int numDocs = unusedDocIds.size() > 1 ? rand.nextInt(maxDocsPerTerm - 1) + 1 : 1;
-            final int[] docIds = selectDocIds(unusedDocIds, numDocs);
-            map.put(term, docIds);
-        }
-
-        for (String term : map.keySet()) {
+        int doc = 0;
+        for (String term: sortedTerms) {
             sfw.nextTerm(term);
-            for (int doc : map.get(term)) {
+            for (int count = 0; count < numDocsPerTerm; ++count) {
                 sfw.nextDoc(doc);
+                ++doc;
             }
         }
         sfw.close();
@@ -289,17 +258,16 @@ public class TestNativeFlamdexFTGSIterator {
 
     private String generateShard(List<FieldDesc> fieldDescs) throws IOException {
         final String dir = Files.getTempDirectory("native-ftgs-test", "test");
-        
+
         // find max # of docs
         long nDocs = 0;
         for (FieldDesc fd : fieldDescs) {
             nDocs = (fd.numDocs > nDocs) ? fd.numDocs : nDocs;
         }
-        
+
         final SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, nDocs, true);
 
         for (FieldDesc fd : fieldDescs) {
-//            System.out.println(fd.name);
             if (fd.isIntfield) {
                 createFlamdexIntField(fd.name, fd.termGenerator, fd.numDocs, w);
             } else {
@@ -348,7 +316,7 @@ public class TestNativeFlamdexFTGSIterator {
             @Override
             public long randVal() {
                 byte[] b = new byte[1];
-                
+
                 this.foo.nextBytes(b);
                 return b[0];
             }
@@ -357,7 +325,7 @@ public class TestNativeFlamdexFTGSIterator {
             @Override
             public long randVal() {
                 byte[] b = new byte[1];
-                
+
                 this.foo.nextBytes(b);
                 return b[0] - Byte.MIN_VALUE;
             }
@@ -468,46 +436,32 @@ public class TestNativeFlamdexFTGSIterator {
 
     @Test
     public void testSingleShard() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
-        final long seed = -5222463107059882979L;
+        final long seed = 42;
         rand.setSeed(seed);
         System.out.println("Random seed: " + seed);
-        final int numDocs = rand.nextInt(1 << 16) + 1;  // 64K
+        final int numDocs = 10000;
 
-        // need at least one
-        final int nMetrics = rand.nextInt(MAX_N_METRICS - 1) + 1;
-        final int nIntFields = rand.nextInt(3 - 1) + 1;
-        final int nStringFields = rand.nextInt(3 - 1) + 1;
+        final int numFields = 3;
+        final int nMetrics = numFields;
+        final int nIntFields = numFields;
+        final int nStringFields = numFields;
         String[] stringFieldNames = new String[nStringFields];
-        for (int i = 0; i < nStringFields; i++) {
-            //            stringFieldNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
-            stringFieldNames[i] = String.format("str-%d", i);
-        }
         String[] intFieldNames = new String[nIntFields];
-        for (int i = 0; i < nIntFields; i++) {
-            //            intFieldNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
-            intFieldNames[i] = String.format("int-%d", i);
-        }
         String[] metricNames = new String[nMetrics];
-        for (int i = 0; i < nMetrics; i++) {
-            //            metricNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
+        for (int i = 0; i < numFields; ++i) {
+            stringFieldNames[i] = String.format("str-%d", i);
+            intFieldNames[i] = String.format("int-%d", i);
             metricNames[i] = String.format("metric-%d", i);
         }
 
         final List<FieldDesc> fieldDescs =
-                createShardProfile(numDocs,
-                                   nMetrics,
-                                   nStringFields,
-                                   stringFieldNames,
-                                   nIntFields,
-                                   intFieldNames,
-                                   metricNames,
-                                   false);
+            createShardProfile(numDocs, nMetrics,
+                               nStringFields, stringFieldNames, nIntFields,
+                               intFieldNames, metricNames, false);
         final String shardname = generateShard(fieldDescs);
         System.out.println(shardname);
         String shardCopy = copyShard(shardname);
         System.out.println(shardCopy);
-//        final String shardname = "/tmp/native-ftgs-test5538084542377083584test";
-//        final String shardCopy = "/tmp/native-ftgs-test8215907253172222376verify-copy";
 
         final String[] stringFields = stringFieldNames;
         final String[] intFields = intFieldNames;
@@ -515,13 +469,11 @@ public class TestNativeFlamdexFTGSIterator {
         System.out.println("int fields: \n" + Arrays.toString(intFields));
 
         final MTImhotepLocalMultiSession verificationSession;
-        verificationSession = createMultisession(Arrays.asList(shardCopy),
-                                                 metricNames);
+        verificationSession = createMultisession(Arrays.asList(shardCopy), metricNames);
         FTGSIterator verificationIter = verificationSession.getFTGSIterator(intFields, stringFields);
 
         final MTImhotepLocalMultiSession testSession;
-        testSession = createMultisession(Arrays.asList(shardname),
-                                           metricNames);
+        testSession = createMultisession(Arrays.asList(shardname),metricNames);
         RunnableFactory factory = new WriteFTGSRunner(testSession, intFields, stringFields, 8);
         ClusterSimulator simulator = new ClusterSimulator(8, nMetrics);
 
@@ -536,9 +488,10 @@ public class TestNativeFlamdexFTGSIterator {
         verificationIter.close();
     }
 
-    @Test
+    //    @Test
     public void testSingleShardBinary() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
-        final long seed = -5222463107059882979L;
+        //        final long seed = -5222463107059882979L;
+        final long seed = 42;
         rand.setSeed(seed);
         System.out.println("Random seed: " + seed);
         final int numDocs = rand.nextInt(1 << 16) + 1;  // 64K
@@ -549,17 +502,14 @@ public class TestNativeFlamdexFTGSIterator {
         final int nStringFields = rand.nextInt(3 - 1) + 1;
         String[] stringFieldNames = new String[nStringFields];
         for (int i = 0; i < nStringFields; i++) {
-            //            stringFieldNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN - 1) + 1);
             stringFieldNames[i] = String.format("str-%d", i);
         }
         String[] intFieldNames = new String[nIntFields];
         for (int i = 0; i < nIntFields; i++) {
-            //            intFieldNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN - 1) + 1);
             intFieldNames[i] = String.format("int-%d", i);
         }
         String[] metricNames = new String[nMetrics];
         for (int i = 0; i < nMetrics; i++) {
-            //            metricNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN - 1) + 1);
             metricNames[i] = String.format("metric-%d", i);
         }
 
@@ -575,8 +525,6 @@ public class TestNativeFlamdexFTGSIterator {
         System.out.println(shardname);
         String shardCopy = copyShard(shardname);
         System.out.println(shardCopy);
-//        final String shardname = "/tmp/native-ftgs-test5538084542377083584test";
-//        final String shardCopy = "/tmp/native-ftgs-test8215907253172222376verify-copy";
 
         final String[] stringFields = stringFieldNames;
         final String[] intFields = intFieldNames;
@@ -603,9 +551,10 @@ public class TestNativeFlamdexFTGSIterator {
         verificationIter.close();
     }
 
-    @Test
+    //    @Test
     public void test10Shards() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
-        final long seed = -4122356988999045667L;
+        //        final long seed = -4122356988999045667L;
+        final long seed = 42;
         rand.setSeed(seed);
         System.out.println("Random seed: " + seed);
         final int numDocs = rand.nextInt(1 << 16) + 1;  // 64K
@@ -616,17 +565,14 @@ public class TestNativeFlamdexFTGSIterator {
         final int nMetrics = rand.nextInt(MAX_N_METRICS - 1) + 1;
         String[] stringFieldNames = new String[nStringFields];
         for (int i = 0; i < nStringFields; i++) {
-            //            stringFieldNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
             stringFieldNames[i] = String.format("str-%d", i);
         }
         String[] intFieldNames = new String[nIntFields];
         for (int i = 0; i < nIntFields; i++) {
-            //            intFieldNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
             intFieldNames[i] = String.format("int-%d", i);
         }
         String[] metricNames = new String[nMetrics];
         for (int i = 0; i < nMetrics; i++) {
-            //            metricNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
             metricNames[i] = String.format("metric-%d", i);
         }
 
@@ -689,10 +635,10 @@ public class TestNativeFlamdexFTGSIterator {
                 fd.isIntfield = false;
                 fd.name = stringFieldNames[i];
                 fd.numDocs = numDocs;
-                final int numTerms = (1 << 20);  // 1M
+                final int numTerms = 32;
                 fd.terms = new ArrayList<>(numTerms);
                 for (int j = 0; j < numTerms; j++) {
-                    final String term = randomString(rand.nextInt(MAX_STRING_TERM_LEN - 1) + 1);
+                    final String term = String.format("term-%d-xxx", j);
                     fd.terms.add(term);
                 }
                 fieldDescs.add(fd);

@@ -131,7 +131,6 @@ namespace imhotep {
                          Shard::packed_table_ptr sample_table,
                          const std::vector<int>& socket_fds) {
         Log::debug(__FUNCTION__);
-        Log::debug("before run...");
         const SplitRanges split_ranges(_num_splits, _num_workers);
         std::vector<std::unique_ptr<Worker>> workers;
         for (size_t id(0); id < _num_workers; ++id) {
@@ -140,10 +139,10 @@ namespace imhotep {
                                             sample_table, socket_fds,
                                             _int_term_providers, _string_term_providers));
             Worker* worker(workers.back().get());
-            _executor.enqueue([&worker]() { worker->run(); });
+            //            _executor.enqueue([&worker]() { worker->run(); });
+            worker->run();
         }
-        _executor.await_completion();
-        Log::debug("after run...");
+        // _executor.await_completion();
     }
 
 } // namespace imhotep

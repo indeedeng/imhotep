@@ -25,7 +25,7 @@ namespace imhotep {
                                         Task const,
                                         boost::forward_traversal_tag> {
     public:
-        TaskIterator() { }
+        TaskIterator() : _stream_ended(true) { }
 
         TaskIterator(struct worker_desc*              worker,
                      struct session_desc*             session,
@@ -109,8 +109,9 @@ namespace imhotep {
 
         bool equal(const TaskIterator& other) const {
             return
-                _int_current == other._int_current &&
-                _str_current == other._str_current;
+                _int_current  == other._int_current &&
+                _str_current  == other._str_current &&
+                _stream_ended == other._stream_ended;
         }
 
         const Task& dereference() const {
@@ -131,6 +132,8 @@ namespace imhotep {
 
         FieldOpIterator<StringTerm> _str_current;
         FieldOpIterator<StringTerm> _str_end;
+
+        bool _stream_ended = false;
 
         std::vector<long> to_longs(const std::vector<const char*>& in_addrs) {
             std::vector<long> result;
@@ -197,6 +200,7 @@ namespace imhotep {
     inline
     void TaskIterator::increment() {
         if (_int_current != _int_end) {
+            Log::debug(__FUNCTION__ + std::string("(_int_current != _int_end)"));
             const Operation<IntTerm> op(*_int_current);
             Log::debug(op.to_string());
             switch (op.op_code()) {
@@ -205,11 +209,13 @@ namespace imhotep {
             case FIELD_END:      _task = end_field();      break;
             // case NO_MORE_FIELDS: _task = end_stream();     break;
             default:        // !@#
+                Log::debug(__FUNCTION__ + std::string("!@# WTF?"));
                 break;
             }
             ++_int_current;
         }
         else if (_str_current != _str_end) {
+            Log::debug(__FUNCTION__ + std::string("(_str_current != _str_end)"));
             const Operation<StringTerm> op(*_str_current);
             Log::debug(op.to_string());
             switch (op.op_code()) {
@@ -218,12 +224,19 @@ namespace imhotep {
             case FIELD_END:      _task = end_field();         break;
             // case NO_MORE_FIELDS: _task = end_stream();        break;
             default:        // !@#
+                Log::debug(__FUNCTION__ + std::string("!@# WTF?"));
                 break;
             }
             ++_str_current;
         }
+        else if (!_stream_ended) {
+            Log::debug(__FUNCTION__ + std::string("(!_stream_ended)"));
+            _task = end_stream();
+            _stream_ended = true;
+        }
         else {
-            end_stream();
+            Log::debug(__FUNCTION__ + std::string("(complete)"));
+            _task = _empty_task;
         }
     }
 

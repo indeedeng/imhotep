@@ -26,6 +26,14 @@
 #include "log.hpp"
 #include "shard.hpp"
 
+
+/******************** delete me ********************/
+#define restrict __restrict__
+extern "C" {
+#include "varintdecode.h"
+}
+/******************** delete me ********************/
+
 namespace imhotep {
 
     typedef std::vector<std::string> strvec_t;
@@ -138,6 +146,8 @@ Java_com_indeed_imhotep_local_MTImhotepLocalMultiSession_nativeFTGS(JNIEnv*     
                                                                     jint         numWorkers,
                                                                     jintArray    socketFDs)
 {
+    simdvbyteinit();            // !@# ******************** delete me
+
     Log::debug(__FUNCTION__);
     try {
         const strvec_t shard_dirs(from_java_array<std::string>(env, shardDirs));
