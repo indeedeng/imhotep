@@ -28,20 +28,25 @@ namespace imhotep {
     private:
         friend class boost::iterator_core_access;
 
-        void increment() {
-            if (_current == _end && _tgs_current == _tgs_end) return;
+        void reset_field() {
+            const std::string&          field_name(_current->first);
+            const TermProvider<term_t>& provider(_current->second);
+            TermSeqIterator<term_t>     ts_begin(provider.term_seq_it(_split));
+            TermSeqIterator<term_t>     ts_end;
+            _operation = Operation<term_t>::field_start(_split, field_name);
+            _tgs_current = TGSOpIterator<term_t>(_operation, ts_begin, ts_end);
+        }
 
+        void increment() {
             switch (_operation.op_code()) {
             case INVALID:
-                increment_field();
+                if (_current != _end) {
+                    reset_field();
+                }
                 break;
             case FIELD_START:
-                _operation = *_tgs_current;
-                ++_tgs_current;
-                break;
-            case TGS:
                 if (_tgs_current != _tgs_end) {
-                    _operation = *_tgs_current;
+                    _operation = *_tgs_current; // tgs
                     ++_tgs_current;
                 }
                 else {
@@ -49,46 +54,35 @@ namespace imhotep {
                 }
                 break;
             case FIELD_END:
+                ++_current;
                 if (_current != _end) {
-                    increment_field();
+                    reset_field();
                 }
                 else {
                     _operation = Operation<term_t>();
                 }
                 break;
-            case NO_MORE_FIELDS:
+            case TGS:
+                ++_tgs_current;
+                if (_tgs_current != _tgs_end) {
+                    _operation = *_tgs_current; // tgs
+                }
+                else {
+                    _operation = Operation<term_t>::field_end(_operation);
+                }
+                break;
             default:
-                // !@# software error?
+                // s/w error
+                Log::error("WTF!?");
                 break;
             }
         }
 
-        void increment_field() {
-            bool found_one(false);
-            while (!found_one && _current != _end) {
-                const std::string&          field_name(_current->first);
-                const TermProvider<term_t>& provider(_current->second);
-                TermSeqIterator<term_t> ts_begin(provider.term_seq_it(_split));
-                TermSeqIterator<term_t> ts_end;
-                if (ts_begin != ts_end) {
-                    found_one = true;
-                    _operation = Operation<term_t>::field_start(_split, field_name);
-                    _tgs_current = TGSOpIterator<term_t>(_operation, ts_begin, ts_end);
-                }
-                else {
-                    ++_current;
-                }
-            }
-            // if (!found_one) {
-            //     _operation = Operation<term_t>();
-            // }
-        }
-
         bool equal(const FieldOpIterator& other) const {
-            return
-                (_current == other._current ||
-                 (_current == _end && other._current == other._end)) &&
-                _tgs_current == other._tgs_current;
+            const bool eofs(_current == _end);
+            const bool other_eofs(_current == _end);
+            const bool ops_equal(_operation == other._operation);
+            return eofs && other_eofs && ops_equal;
         }
 
         const Operation<term_t>& dereference() const { return _operation; }
