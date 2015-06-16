@@ -30,10 +30,9 @@ namespace imhotep {
 
         bool operator==(const MergeInput& rhs) const {
             return
-                _split_it == rhs._split_it;
-                // _split_it   == rhs._split_it &&
-                // _table      == rhs._table    &&
-                // _docid_base == rhs._docid_base;
+                _split_it   == rhs._split_it &&
+                _table      == rhs._table    &&
+                _docid_base == rhs._docid_base;
         }
     };
 

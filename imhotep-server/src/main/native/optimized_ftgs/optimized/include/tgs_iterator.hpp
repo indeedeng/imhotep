@@ -17,7 +17,7 @@ namespace imhotep {
 
         OperationIterator() { }
 
-        OperationIterator(merge_it begin, merge_it end) 
+        OperationIterator(merge_it begin, merge_it end)
             : _current(begin)
             , _end(end)
         { }

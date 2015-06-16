@@ -20,7 +20,6 @@
 #include <utility>
 #include <vector>
 
-#include "entry_point.hpp"
 #include "executor_service.hpp"
 #include "ftgs_runner.hpp"
 #include "log.hpp"

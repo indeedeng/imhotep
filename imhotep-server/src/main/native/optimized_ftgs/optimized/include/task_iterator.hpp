@@ -52,13 +52,6 @@ namespace imhotep {
         template <typename term_t>
         Task start_field(const Operation<term_t>& op) {
             Log::debug(__FUNCTION__ + std::string(" ") + op.to_string());
-            std::ostringstream os;
-            os << __FUNCTION__
-               << " worker: " << _worker
-               << " session: " << _session
-               << " worker_id: " << _worker_id;
-            Log::debug(os.str());
-
             struct worker_desc* worker(_worker);
             const int           worker_id(_worker_id);
             return [op, worker, worker_id]() {
@@ -74,13 +67,7 @@ namespace imhotep {
         template <typename term_t> Task tgs(const Operation<term_t>& op);
 
         Task end_field() {
-            std::ostringstream os;
-            os << __FUNCTION__
-               << " worker: " << _worker
-               << " session: " << _session
-               << " worker_id: " << _worker_id;
-            Log::debug(os.str());
-
+            Log::debug(__FUNCTION__);
             struct worker_desc* worker(_worker);
             const int           worker_id(_worker_id);
             return [worker, worker_id]() {
@@ -90,13 +77,7 @@ namespace imhotep {
         }
 
         Task end_stream() {
-            std::ostringstream os;
-            os << __FUNCTION__
-               << " worker: " << _worker
-               << " session: " << _session
-               << " worker_id: " << _worker_id;
-            Log::debug(os.str());
-
+            Log::debug(__FUNCTION__);
             struct worker_desc* worker(_worker);
             const int           worker_id(_worker_id);
             return [worker, worker_id]() {
@@ -146,13 +127,7 @@ namespace imhotep {
 
     template <> inline
     Task TaskIterator::tgs<IntTerm>(const Operation<IntTerm>& op) {
-        std::ostringstream os;
-        os << __FUNCTION__
-           << " worker: " << _worker
-           << " session: " << _session
-           << " worker_id: " << _worker_id;
-        Log::debug(os.str());
-
+        Log::debug(__FUNCTION__ + std::string(" ") + op.to_string());
         struct worker_desc*  worker(_worker);
         struct session_desc* session(_session);
         const int            worker_id(_worker_id);
@@ -172,13 +147,7 @@ namespace imhotep {
 
     template <> inline
     Task TaskIterator::tgs<StringTerm>(const Operation<StringTerm>& op) {
-        std::ostringstream os;
-        os << __FUNCTION__
-           << " worker: " << _worker
-           << " session: " << _session
-           << " worker_id: " << _worker_id;
-        Log::debug(os.str());
-
+        Log::debug(__FUNCTION__ + std::string(" ") + op.to_string());
         struct worker_desc*  worker(_worker);
         struct session_desc* session(_session);
         const int            worker_id(_worker_id);
@@ -200,42 +169,34 @@ namespace imhotep {
     inline
     void TaskIterator::increment() {
         if (_int_current != _int_end) {
-            Log::debug(__FUNCTION__ + std::string("(_int_current != _int_end)"));
             const Operation<IntTerm> op(*_int_current);
-            Log::debug(op.to_string());
             switch (op.op_code()) {
             case FIELD_START:    _task = start_field(op);  break;
             case TGS:            _task = tgs<IntTerm>(op); break;
             case FIELD_END:      _task = end_field();      break;
-            // case NO_MORE_FIELDS: _task = end_stream();     break;
-            default:        // !@#
+            default:
                 Log::debug(__FUNCTION__ + std::string("!@# WTF?"));
                 break;
             }
             ++_int_current;
         }
         else if (_str_current != _str_end) {
-            Log::debug(__FUNCTION__ + std::string("(_str_current != _str_end)"));
             const Operation<StringTerm> op(*_str_current);
-            Log::debug(op.to_string());
             switch (op.op_code()) {
             case FIELD_START:    _task = start_field(op);     break;
             case TGS:            _task = tgs<StringTerm>(op); break;
             case FIELD_END:      _task = end_field();         break;
-            // case NO_MORE_FIELDS: _task = end_stream();        break;
-            default:        // !@#
+            default:
                 Log::debug(__FUNCTION__ + std::string("!@# WTF?"));
                 break;
             }
             ++_str_current;
         }
         else if (!_stream_ended) {
-            Log::debug(__FUNCTION__ + std::string("(!_stream_ended)"));
             _task = end_stream();
             _stream_ended = true;
         }
         else {
-            Log::debug(__FUNCTION__ + std::string("(complete)"));
             _task = _empty_task;
         }
     }

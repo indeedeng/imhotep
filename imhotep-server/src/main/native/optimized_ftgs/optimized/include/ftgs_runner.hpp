@@ -6,16 +6,9 @@
 #include <utility>
 #include <vector>
 
-#include "jiterator.hpp"
-#include "chained_iterator.hpp"
 #include "executor_service.hpp"
 #include "shard.hpp"
 #include "term_providers.hpp"
-#include "interleaved_jiterator.hpp"
-extern "C" {
-    #include "local_session.h"
-    #include "imhotep_native.h"
-}
 
 namespace imhotep {
 

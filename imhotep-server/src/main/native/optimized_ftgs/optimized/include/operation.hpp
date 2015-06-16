@@ -7,20 +7,20 @@
 
 namespace imhotep {
 
-    /** Implements this state transition diagram:
+    /** Implements states for this state transition diagram:
 
         FS  = field start         |
         FE  = field end           | (index, name, type) <--
         TGS = tgs operation       V                       |
-        NMF = no more fields     (FS)                     |
-                                  |                       |
-                                  | (term desc) <--       |
-                                  V               |       |
-                                 (TGS)-------------       |
-                                  |                       |
-                                  |                       |
-                                  V                       |
-                                 (FE)----------------------
+        NMF = no more fields ----(FS)                     |
+                             |    |                       |
+                             |    | (term desc) <--       |
+                             |    V               |       |
+                             |   (TGS)-------------       |
+                             |    |                       |
+                             |    |                       |
+                             |    V                       |
+                             --> (FE)----------------------
                                   |
                                   |
                                   V
@@ -60,10 +60,12 @@ namespace imhotep {
         }
 
         static Operation tgs(const Operation& operation, const TermSeq<term_t>& term_seq) {
+            assert(operation.op_code() == FIELD_START || operation.op_code() == TGS);
             return Operation(operation, term_seq);
         }
 
         static Operation field_end(const Operation& operation) {
+            assert(operation.op_code() == FIELD_START || operation.op_code() == TGS);
             return Operation(operation, FIELD_END);
         }
 
@@ -100,18 +102,15 @@ namespace imhotep {
             : _op_code(TGS)
             , _split_index(operation._split_index)
             , _field_name(operation._field_name)
-            , _term_seq(term_seq) {
-            assert(operation.op_code() == FIELD_START ||
-                   operation.op_code() == TGS);
-        }
+            , _term_seq(term_seq)
+        { }
 
         Operation(const Operation& operation, OpCode op_code)
             : _op_code(op_code)
             , _split_index(operation._split_index)
             , _field_name(operation._field_name)
-            , _term_seq(operation._term_seq) {
-            assert(operation.op_code() == TGS);
-        }
+            , _term_seq(operation._term_seq)
+        { }
 
         Operation(int32_t split_index)
             : _op_code(NO_MORE_FIELDS)
