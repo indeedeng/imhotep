@@ -151,7 +151,9 @@ int worker_start_field(struct worker_desc *worker,
 
     if (stream_num >= worker->num_streams) {
         worker->error.code = EBADF;
-        snprintf(worker->error.str, sizeof(worker->error.str), "Invalid socket number.");
+        snprintf(worker->error.str, sizeof(worker->error.str),
+                 "Invalid socket number. stream_num: %d num_streams: %d",
+                 stream_num, worker->num_streams);
         return -1;
     }
     err = write_field_start(&worker->out_streams[stream_num], field_name, len, term_type);

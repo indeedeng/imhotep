@@ -43,31 +43,24 @@ namespace imhotep {
 
     class Worker {
     public:
-        Worker(size_t id,
-               const SplitRanges& split_ranges,
-               int  num_groups,
-               int  num_metrics,
-               bool only_binary_metrics,
+        Worker(size_t                           id,
+               const SplitRanges&               split_ranges,
+               int                              num_groups,
+               int                              num_metrics,
+               bool                             only_binary_metrics,
                Shard::packed_table_ptr          sample_table,
                const std::vector<int>&          socket_fds,
                const TermProviders<IntTerm>&    int_providers,
                const TermProviders<StringTerm>& str_providers)
             : _id(id) {
-            Log::debug(__FUNCTION__);
             worker_init(&_worker, id, num_groups, num_metrics, socket_fds.data(), socket_fds.size());
             session_init(&_session, num_groups, num_metrics, only_binary_metrics, sample_table);
 
-            std::ostringstream os;
-            os << "ranges: " << split_ranges << std::endl;
             const SplitRanges::Range splits(split_ranges.splits_for(id));
             for (size_t split(splits.first); split <= splits.second; ++split) {
-                os << "split: " << split << std::endl;
-                _task_iterators.emplace_back(TaskIterator(&_worker, &_session, split,
-                                                          socket_fds.at(split),
+                _task_iterators.emplace_back(TaskIterator(&_worker, &_session, split, id,
                                                           int_providers, str_providers));
             }
-            os << "_task_iterators.size(): " << _task_iterators.size();
-            Log::debug(os.str());
         }
 
         Worker(const Worker& worker) = delete;

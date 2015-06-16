@@ -351,9 +351,16 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         final String splitsDir = "/tmp/splits"; // !@# FIX ME (read from a property?)
         final int numWorkers = 8;               // !@# FIX ME (read from a property?)
 
-        int[] socketFDs = new int[sockets.length];
-        for (int index = 0; index < sockets.length; ++index) {
-            socketFDs[index] = SocketUtils.getOutputDescriptor(sockets[index]);
+        java.util.ArrayList<Integer> socketFDArray = new java.util.ArrayList<Integer>();
+        for (final Socket socket: sockets) {
+            final Integer fd = SocketUtils.getOutputDescriptor(socket);
+            if (fd >= 0) {
+                socketFDArray.add(fd);
+            }
+        }
+        int[] socketFDs = new int[socketFDArray.size()];
+        for (int index = 0; index < socketFDs.length; ++index) {
+            socketFDs[index] = socketFDArray.get(index);
         }
 
         nativeFTGS(shardDirs, packedTablePtrs, onlyBinaryMetrics,

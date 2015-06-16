@@ -30,13 +30,13 @@ namespace imhotep {
         TaskIterator(struct worker_desc*              worker,
                      struct session_desc*             session,
                      size_t                           split,
-                     int                              socket_fd,
+                     size_t                           worker_id,
                      const TermProviders<IntTerm>&    int_providers,
                      const TermProviders<StringTerm>& str_providers)
             : _worker(worker)
             , _session(session)
             , _split(split)
-            , _socket_fd(socket_fd)
+            , _worker_id(worker_id)
             , _int_current(int_providers, split)
             , _str_current(str_providers, split) {
             increment();
@@ -56,17 +56,17 @@ namespace imhotep {
             os << __FUNCTION__
                << " worker: " << _worker
                << " session: " << _session
-               << " socket_fd: " << _socket_fd;
+               << " worker_id: " << _worker_id;
             Log::debug(os.str());
 
             struct worker_desc* worker(_worker);
-            const int           socket_fd(_socket_fd);
-            return [op, worker, socket_fd]() {
+            const int           worker_id(_worker_id);
+            return [op, worker, worker_id]() {
                 int err = worker_start_field(worker,
                                              op.field_name().c_str(),
                                              op.field_name().length(),
                                              op.field_type(),
-                                             socket_fd);
+                                             worker_id);
                 if (err != 0) throw imhotep_error(TaskIterator::error_from(worker));
             };
         }
@@ -78,13 +78,13 @@ namespace imhotep {
             os << __FUNCTION__
                << " worker: " << _worker
                << " session: " << _session
-               << " socket_fd: " << _socket_fd;
+               << " worker_id: " << _worker_id;
             Log::debug(os.str());
 
             struct worker_desc* worker(_worker);
-            const int           socket_fd(_socket_fd);
-            return [worker, socket_fd]() {
-                int err = worker_end_field(worker, socket_fd);
+            const int           worker_id(_worker_id);
+            return [worker, worker_id]() {
+                int err = worker_end_field(worker, worker_id);
                 if (err != 0) throw imhotep_error(TaskIterator::error_from(worker));
             };
         }
@@ -94,13 +94,13 @@ namespace imhotep {
             os << __FUNCTION__
                << " worker: " << _worker
                << " session: " << _session
-               << " socket_fd: " << _socket_fd;
+               << " worker_id: " << _worker_id;
             Log::debug(os.str());
 
             struct worker_desc* worker(_worker);
-            const int           socket_fd(_socket_fd);
-            return [worker, socket_fd]() {
-                int err = worker_end_stream(worker, socket_fd);
+            const int           worker_id(_worker_id);
+            return [worker, worker_id]() {
+                int err = worker_end_stream(worker, worker_id);
                 if (err != 0) throw imhotep_error(TaskIterator::error_from(worker));
             };
         }
@@ -125,7 +125,7 @@ namespace imhotep {
         struct session_desc* _session = nullptr;
 
         size_t _split     = 0;
-        int    _socket_fd = -1;
+        size_t _worker_id = 0;
 
         FieldOpIterator<IntTerm> _int_current;
         FieldOpIterator<IntTerm> _int_end;
@@ -150,13 +150,13 @@ namespace imhotep {
         os << __FUNCTION__
            << " worker: " << _worker
            << " session: " << _session
-           << " socket_fd: " << _socket_fd;
+           << " worker_id: " << _worker_id;
         Log::debug(os.str());
 
         struct worker_desc*  worker(_worker);
         struct session_desc* session(_session);
-        const int            socket_fd(_socket_fd);
-        return [op, worker, session, socket_fd]() {
+        const int            worker_id(_worker_id);
+        return [op, worker, session, worker_id]() {
             int err = run_tgs_pass(worker, session,
                                    op.field_type(),
                                    op.term_seq().id(),
@@ -165,7 +165,7 @@ namespace imhotep {
                                    op.term_seq().doc_freqs().data(),
                                    op.term_seq().tables().data(),
                                    op.term_seq().size(),
-                                   socket_fd);
+                                   worker_id);
             if (err != 0) throw imhotep_error(TaskIterator::error_from(worker));
         };
     }
@@ -176,13 +176,13 @@ namespace imhotep {
         os << __FUNCTION__
            << " worker: " << _worker
            << " session: " << _session
-           << " socket_fd: " << _socket_fd;
+           << " worker_id: " << _worker_id;
         Log::debug(os.str());
 
         struct worker_desc*  worker(_worker);
         struct session_desc* session(_session);
-        const int            socket_fd(_socket_fd);
-        return [op, worker, session, socket_fd]() {
+        const int            worker_id(_worker_id);
+        return [op, worker, session, worker_id]() {
             int err = run_tgs_pass(worker, session,
                                    op.field_type(),
                                    0, // unused
@@ -192,7 +192,7 @@ namespace imhotep {
                                    op.term_seq().doc_freqs().data(),
                                    op.term_seq().tables().data(),
                                    op.term_seq().size(),
-                                   socket_fd);
+                                   worker_id);
             if (err != 0) throw imhotep_error(TaskIterator::error_from(worker));
         };
     }
