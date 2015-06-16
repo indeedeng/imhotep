@@ -31,10 +31,14 @@ namespace imhotep {
             if (!_view.empty()) {
                 _current = _view.read<term_t>();
             }
+            else {
+                _view = SplitView();
+                _current = term_t();
+            }
         }
 
         bool equal(const SplitIterator& other) const {
-            return _view.size() == other._view.size();
+            return _view == other._view;
         }
 
         const term_t& dereference() const { return _current; }

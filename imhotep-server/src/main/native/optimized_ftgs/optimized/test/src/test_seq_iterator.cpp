@@ -6,12 +6,13 @@
 
 #include "merge_iterator.hpp"
 #include "mmapped_file.hpp"
+#include "term_seq_iterator.hpp"
 
 using namespace std;
 using namespace imhotep;
 
 template <typename term_t>
-void merge(const vector<string>& splits) {
+void seq(const vector<string>& splits) {
     Shard::packed_table_ptr table(0);
     vector<MergeInput<term_t>> inputs;
     vector<shared_ptr<MMappedFile>> split_files;
@@ -21,10 +22,12 @@ void merge(const vector<string>& splits) {
         inputs.push_back(MergeInput<term_t>(SplitIterator<term_t>(view), table, 0));
     }
 
-    MergeIterator<term_t> it(inputs.begin(), inputs.end());
-    MergeIterator<term_t> end;
+    MergeIterator<term_t> mit(inputs.begin(), inputs.end());
+    MergeIterator<term_t> mend;
+    TermSeqIterator<term_t> it(mit, mend);
+    TermSeqIterator<term_t> end;
     while (it != end) {
-        cout << (*it)._term << endl;
+        cout << it->to_string() << endl;
         ++it;
     }
 }
@@ -40,10 +43,10 @@ int main(int argc, char *argv[])
     }
 
     if (kind == "int") {
-        merge<IntTerm>(splits);
+        seq<IntTerm>(splits);
     }
     else if (kind == "string") {
-        merge<StringTerm>(splits);
+        seq<StringTerm>(splits);
     }
     else {
         cerr << "Say what?" << endl;

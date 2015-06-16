@@ -24,7 +24,9 @@ TESTS := \
 	test_int_term_iterator    \
 	test_merge_iterator       \
 	test_packed_shard         \
+	test_seq_iterator         \
 	test_split                \
+	test_split_iterator       \
 	test_string_term_iterator \
 	test_term_provider        \
 	test_tgs                  \
@@ -55,6 +57,12 @@ test_split: obj/test_split.o ../cppobj/shard.o ../cppobj/splitter.o ../cppobj/te
 test_merge_iterator: obj/test_merge_iterator.o ../cppobj/log.o
 	$(CPP) $(CPPFLAGS) $ -o test_merge_iterator $(LIBS) $^
 
+test_seq_iterator: obj/test_seq_iterator.o ../cppobj/log.o
+	$(CPP) $(CPPFLAGS) $ -o test_seq_iterator $(LIBS) $^
+
+test_split_iterator: obj/test_split_iterator.o ../cppobj/log.o
+	$(CPP) $(CPPFLAGS) $ -o test_split_iterator $(LIBS) $^
+
 test_int_term_iterator: obj/test_int_term_iterator.o ../cppobj/shard.o ../cppobj/term_iterator.o
 	$(CPP) $(CPPFLAGS) $ -o test_int_term_iterator $(LIBS) $^
 
@@ -65,7 +73,6 @@ TERM_PROVIDER_OBJS = \
 	../cppobj/executor_service.o \
 	../cppobj/shard.o \
 	../cppobj/splitter.o \
-	../cppobj/term_seq_iterator.o \
 	../cppobj/term_iterator.o \
 	../cppobj/term_provider.o
 

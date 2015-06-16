@@ -33,20 +33,24 @@ namespace imhotep {
         friend class boost::iterator_core_access;
 
         void increment() {
-            if (_current == _end) return;
+            if (_current != _end) {
+                const typename term_t::id_t id((*_current)._term.id());
+                auto matches_id([id](MergeOutput<term_t> element) {
+                        return element._term.id() == id;
+                    });
 
-            const typename term_t::id_t id((*_current)._term.id());
-            auto matches_id([id](MergeOutput<term_t> element) {
-                    return element._term.id() == id;
-                });
-
-            merge_it next(std::find_if_not(_current, _end, matches_id));
-            _term_seq = TermSeq<term_t>(_current, next);
-            _current = next;
+                merge_it next(std::find_if_not(_current, _end, matches_id));
+                _term_seq = TermSeq<term_t>(_current, next);
+                _current = next;
+            }
+            else {
+                _term_seq = TermSeq<term_t>();
+            }
         }
 
         bool equal(const TermSeqIterator& other) const {
-            return _current == other._current;
+            return _current == other._current &&
+                _term_seq == other._term_seq;
         }
 
         const TermSeq<term_t>& dereference() const { return _term_seq; }

@@ -30,9 +30,10 @@ namespace imhotep {
 
         bool operator==(const MergeInput& rhs) const {
             return
-                _split_it   == rhs._split_it &&
-                _table      == rhs._table    &&
-                _docid_base == rhs._docid_base;
+                _split_it   == rhs._split_it;
+                // _split_it   == rhs._split_it &&
+                // _table      == rhs._table    &&
+                // _docid_base == rhs._docid_base;
         }
     };
 
@@ -57,6 +58,13 @@ namespace imhotep {
             , _table(input._table)
             , _docid_base(input._docid_base)
         { }
+
+        bool operator==(const MergeOutput& rhs) const {
+            return
+                _term       == rhs._term  &&
+                _table      == rhs._table &&
+                _docid_base == rhs._docid_base;
+        }
     };
 
     /** Combine a collection of SplitIterators such that we can iterate through
@@ -88,26 +96,31 @@ namespace imhotep {
            empty. Note that a linear scan beats the pants off of a heap for
            small numbers of contained iterators. */
         void increment() {
-            static const SplitIterator<term_t> end;
+            if (!_its.empty()) {
+                static const SplitIterator<term_t> end;
 
-            if (_its.empty()) return;
-
-            auto lowest(_its.begin());
-            for (auto it(_its.begin()); it != _its.end(); ++it) {
-                const MergeInput<term_t>& entry(*it);
-                if (*entry._split_it < *lowest->_split_it) {
-                    lowest = it;
+                auto lowest(_its.begin());
+                for (auto it(_its.begin()); it != _its.end(); ++it) {
+                    const MergeInput<term_t>& entry(*it);
+                    if (*entry._split_it < *lowest->_split_it) {
+                        lowest = it;
+                    }
                 }
-            }
 
-            MergeInput<term_t>& entry(*lowest);
-            _current = MergeOutput<term_t>(entry);
-            ++entry._split_it;
-            if (entry._split_it == end) _its.erase(lowest);
+                MergeInput<term_t>& entry(*lowest);
+                _current = MergeOutput<term_t>(entry);
+                ++entry._split_it;
+                if (entry._split_it == end) _its.erase(lowest);
+            }
+            else {
+                _current = MergeOutput<term_t>();
+            }
         }
 
         bool equal(const MergeIterator& other) const {
-            return _its == other._its;
+            return
+                _its == other._its &&
+                _current == other._current;
         }
 
         const MergeOutput<term_t>& dereference() const { return _current; }
