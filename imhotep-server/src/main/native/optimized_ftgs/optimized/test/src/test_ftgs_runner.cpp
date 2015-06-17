@@ -13,8 +13,6 @@
 #include "ftgs_runner.hpp"
 #include "shard.hpp"
 #include "term_iterator.hpp"
-#include "entry_point.hpp"
-
 
 #define restrict __restrict__
 extern "C" {

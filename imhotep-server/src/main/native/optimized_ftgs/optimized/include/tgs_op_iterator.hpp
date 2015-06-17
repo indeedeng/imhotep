@@ -29,14 +29,18 @@ namespace imhotep {
         friend class boost::iterator_core_access;
 
         void increment() {
-            if (_current == _end) return;
-
-            _operation = Operation<term_t>::tgs(_operation, *_current);
-            ++_current;
+            if (_current != _end) {
+                _operation = Operation<term_t>::tgs(_operation, *_current);
+                ++_current;
+            }
+            else {
+                _operation = Operation<term_t>();
+            }
         }
 
         bool equal(const TGSOpIterator& other) const  {
-            return _current == other._current;
+            return _current   == other._current
+                && _operation == other._operation;
         }
 
         const Operation<term_t>& dereference() const {

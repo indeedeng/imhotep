@@ -23,6 +23,7 @@ TESTS := \
 	test_groups               \
 	test_int_term_iterator    \
 	test_merge_iterator       \
+	test_op_iterator          \
 	test_packed_shard         \
 	test_seq_iterator         \
 	test_split                \
@@ -57,6 +58,9 @@ test_split: obj/test_split.o ../cppobj/shard.o ../cppobj/splitter.o ../cppobj/te
 test_merge_iterator: obj/test_merge_iterator.o ../cppobj/log.o
 	$(CPP) $(CPPFLAGS) $ -o test_merge_iterator $(LIBS) $^
 
+test_op_iterator: obj/test_op_iterator.o ../cppobj/log.o
+	$(CPP) $(CPPFLAGS) $ -o test_op_iterator $(LIBS) $^
+
 test_seq_iterator: obj/test_seq_iterator.o ../cppobj/log.o
 	$(CPP) $(CPPFLAGS) $ -o test_seq_iterator $(LIBS) $^
 
@@ -88,7 +92,6 @@ FTGS_RUNNER_OBJS =\
 	../cppobj/log.o \
 	../cppobj/shard.o \
 	../cppobj/term_providers.o \
-	../cppobj/term_seq_iterator.o \
 	../obj/binary_table_accumulate.o \
 	../obj/bit_tree.o \
 	../obj/circ_buf.o \
