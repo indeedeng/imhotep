@@ -4,12 +4,12 @@
     <parent>
         <groupId>com.indeed</groupId>
         <artifactId>imhotep</artifactId>
-        <version>1.0.19-SNAPSHOT</version>
+        <version>1.0.19</version>
     </parent>
 
 	<groupId>com.indeed</groupId>
 	<artifactId>imhotep-client</artifactId>
-	<version>1.0.19-SNAPSHOT</version>
+	<version>1.0.19</version>
 	<packaging>jar</packaging>
 
 	<licenses>
@@ -43,7 +43,7 @@
 				<artifactId>maven-protoc-plugin</artifactId>
 				<version>0.3.2</version>
 				<configuration>
-					<protocExecutable>/usr/bin/protoc</protocExecutable>
+					<protocExecutable>protoc</protocExecutable>
 				</configuration>
 				<executions>
 					<execution>
