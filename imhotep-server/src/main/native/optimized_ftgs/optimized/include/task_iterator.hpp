@@ -2,6 +2,7 @@
 #define TASK_ITERATOR_HPP
 
 #include <functional>
+#include <sstream>
 
 #include <boost/iterator/iterator_facade.hpp>
 
@@ -12,13 +13,35 @@
 #include "term_providers.hpp"
 
 extern "C" {
-    #include "local_session.h"
-    #include "imhotep_native.h"
+#include "local_session.h"
+#include "imhotep_native.h"
 }
 
 namespace imhotep {
 
-    typedef std::function<void(void)> Task;
+    typedef std::function<void(void)> Fun;
+
+    class Task {
+    public:
+        Task(const std::string& name, const Fun& fun)
+            : _name(name)
+            , _fun(fun)
+        { }
+
+        void operator()() const { _fun(); }
+
+        bool operator==(const Task& rhs) const {
+            return
+                _name == rhs._name &&
+                _fun.target<void(void)>() == rhs._fun.target<void(void)>();
+        }
+
+        const std::string& to_string() const { return _name; }
+
+    private:
+        std::string _name;
+        Fun         _fun;
+    };
 
     class TaskIterator
         : public boost::iterator_facade<TaskIterator,
@@ -51,55 +74,69 @@ namespace imhotep {
 
         template <typename term_t>
         Task start_field(const Operation<term_t>& op) {
-            Log::debug(__FUNCTION__ + std::string(" ") + op.to_string());
+            // Log::debug(__FUNCTION__ + std::string(" ") + op.to_string());
             struct worker_desc* worker(_worker);
             const int           worker_id(_worker_id);
-            return [op, worker, worker_id]() {
-                int err = worker_start_field(worker,
-                                             op.field_name().c_str(),
-                                             op.field_name().length(),
-                                             op.field_type(),
-                                             worker_id);
-                if (err != 0) throw imhotep_error(TaskIterator::error_from(worker));
-            };
+            return Task(__FUNCTION__,
+                        [op, worker, worker_id]() {
+                            int err = worker_start_field(worker,
+                                                         op.field_name().c_str(),
+                                                         op.field_name().length(),
+                                                         op.field_type(),
+                                                         worker_id);
+                            if (err != 0) throw imhotep_error(TaskIterator::error_from(worker));
+                        });
         }
 
         template <typename term_t> Task tgs(const Operation<term_t>& op);
 
         Task end_field() {
-            Log::debug(__FUNCTION__);
+            // Log::debug(__FUNCTION__);
             struct worker_desc* worker(_worker);
             const int           worker_id(_worker_id);
-            return [worker, worker_id]() {
-                int err = worker_end_field(worker, worker_id);
-                if (err != 0) throw imhotep_error(TaskIterator::error_from(worker));
-            };
+            return Task(__FUNCTION__,
+                        [worker, worker_id]() {
+                            int err = worker_end_field(worker, worker_id);
+                            if (err != 0) throw imhotep_error(TaskIterator::error_from(worker));
+                        });
         }
 
         Task end_stream() {
-            Log::debug(__FUNCTION__);
+            // Log::debug(__FUNCTION__);
             struct worker_desc* worker(_worker);
             const int           worker_id(_worker_id);
-            return [worker, worker_id]() {
-                int err = worker_end_stream(worker, worker_id);
-                if (err != 0) throw imhotep_error(TaskIterator::error_from(worker));
-            };
+            return Task(__FUNCTION__,
+                        [worker, worker_id]() {
+                            // Log::debug(__FUNCTION__);
+                            int err = worker_end_stream(worker, worker_id);
+                            if (err != 0) throw imhotep_error(TaskIterator::error_from(worker));
+                        });
         }
 
         void increment();
 
         bool equal(const TaskIterator& other) const {
-            return
-                _int_current  == other._int_current &&
-                _str_current  == other._str_current &&
-                _stream_ended == other._stream_ended;
+            const bool int_current(_int_current  == other._int_current);
+            const bool str_current(_str_current  == other._str_current);
+            const bool stream_ended(_stream_ended == other._stream_ended);
+            const bool task(_task == other._task );
+
+            // std::ostringstream os;
+            // os << __FUNCTION__
+            //    << " int_current: " << int_current
+            //    << " str_current: " << str_current
+            //    << " stream_ended: " << stream_ended
+            //    << " task: " << task;
+            // Log::debug(os.str());
+
+            return int_current && str_current && stream_ended && task;
         }
 
         const Task& dereference() const {
             return _task;
         }
 
-        Task _empty_task = [](){ };
+        Task _empty_task = Task(std::string("<empty>"), Fun([](void){}));
         Task _task = _empty_task;
 
         struct worker_desc*  _worker  = nullptr;
@@ -127,32 +164,34 @@ namespace imhotep {
 
     template <> inline
     Task TaskIterator::tgs<IntTerm>(const Operation<IntTerm>& op) {
-        Log::debug(__FUNCTION__ + std::string(" ") + op.to_string());
+        // Log::debug(__FUNCTION__ + std::string(" ") + op.to_string());
         struct worker_desc*  worker(_worker);
         struct session_desc* session(_session);
         const int            worker_id(_worker_id);
-        return [op, worker, session, worker_id]() {
-            int err = run_tgs_pass(worker, session,
-                                   op.field_type(),
-                                   op.term_seq().id(),
-                                   nullptr, 0,
-                                   op.term_seq().docid_addresses().data(),
-                                   op.term_seq().doc_freqs().data(),
-                                   op.term_seq().tables().data(),
-                                   op.term_seq().size(),
-                                   worker_id);
-            if (err != 0) throw imhotep_error(TaskIterator::error_from(worker));
-        };
+        return Task(__FUNCTION__,
+                    [op, worker, session, worker_id]() {
+                        int err = run_tgs_pass(worker, session,
+                                               op.field_type(),
+                                               op.term_seq().id(),
+                                               nullptr, 0,
+                                               op.term_seq().docid_addresses().data(),
+                                               op.term_seq().doc_freqs().data(),
+                                               op.term_seq().tables().data(),
+                                               op.term_seq().size(),
+                                               worker_id);
+                        if (err != 0) throw imhotep_error(TaskIterator::error_from(worker));
+                    });
     }
 
     template <> inline
     Task TaskIterator::tgs<StringTerm>(const Operation<StringTerm>& op) {
-        Log::debug(__FUNCTION__ + std::string(" ") + op.to_string());
+        // Log::debug(__FUNCTION__ + std::string(" ") + op.to_string());
         struct worker_desc*  worker(_worker);
         struct session_desc* session(_session);
         const int            worker_id(_worker_id);
-        return [op, worker, session, worker_id]() {
-            int err = run_tgs_pass(worker, session,
+        return Task(__FUNCTION__,
+                    [op, worker, session, worker_id]() {
+                        int err = run_tgs_pass(worker, session,
                                    op.field_type(),
                                    0, // unused
                                    op.term_seq().id().c_str(),
@@ -162,8 +201,8 @@ namespace imhotep {
                                    op.term_seq().tables().data(),
                                    op.term_seq().size(),
                                    worker_id);
-            if (err != 0) throw imhotep_error(TaskIterator::error_from(worker));
-        };
+                        if (err != 0) throw imhotep_error(TaskIterator::error_from(worker));
+                    });
     }
 
     inline
@@ -193,6 +232,7 @@ namespace imhotep {
             ++_str_current;
         }
         else if (!_stream_ended) {
+            // Log::debug(__FUNCTION__ + std::string(" ending steam"));
             _task = end_stream();
             _stream_ended = true;
         }

@@ -2,6 +2,8 @@
 #define TERM_HPP
 
 #include <stdint.h>
+
+#include <functional>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -63,6 +65,8 @@ namespace imhotep {
         }
 
         bool empty() const { return _id == IdTraits<id_type>::default_value(); }
+
+        size_t hash() const { return 0; }
     };
 
     typedef Term<int64_t>     IntTerm;
@@ -91,6 +95,18 @@ namespace imhotep {
         static std::string  term_file_extension() { return "strterms"; }
         static std::string docid_file_extension() { return "strdocs";  }
     };
+
+    template <> inline
+    size_t Term<int64_t>::hash() const {
+        static std::hash<int64_t> fun;
+        return fun(id());
+    }
+
+    template <> inline
+    size_t Term<std::string>::hash() const {
+        static std::hash<std::string> fun;
+        return fun(id());
+    }
 
 } // namespace imhotep
 

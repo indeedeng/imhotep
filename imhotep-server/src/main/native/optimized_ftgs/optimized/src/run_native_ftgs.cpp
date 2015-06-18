@@ -147,7 +147,7 @@ Java_com_indeed_imhotep_local_MTImhotepLocalMultiSession_nativeFTGS(JNIEnv*     
 {
     simdvbyteinit();            // !@# ******************** delete me
 
-    Log::debug(__FUNCTION__);
+    // Log::debug(__FUNCTION__);
     try {
         const strvec_t shard_dirs(from_java_array<std::string>(env, shardDirs));
         const strvec_t int_fields(from_java_array<std::string>(env, intFields));
@@ -174,9 +174,9 @@ Java_com_indeed_imhotep_local_MTImhotepLocalMultiSession_nativeFTGS(JNIEnv*     
         std::vector<int> socket_fds(from_java_array<int>(env, socketFDs));
         const bool       only_binary_metrics(from_java<jboolean, bool>(env, onlyBinaryMetrics));
 
-        Log::debug("before run...");
+        // Log::debug("before run...");
         runner.run(num_groups, num_metrics, only_binary_metrics, shards[0].table(), socket_fds);
-        Log::debug("after run...");
+        // Log::debug("after run...");
     }
     catch (const std::exception& ex) {
         jclass exClass = env->FindClass("java/lang/RuntimeException");

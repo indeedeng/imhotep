@@ -10,8 +10,6 @@
 #include <stdexcept>
 #include <string>
 
-#include <boost/functional/hash.hpp>
-
 #include "shard.hpp"
 #include "term_iterator.hpp"
 
@@ -97,10 +95,15 @@ namespace imhotep {
         term_iterator_t it(_term_iterator);
         term_iterator_t end;
         while (it != end) {
-            std::size_t hash_val(0);
-            boost::hash_combine(hash_val, it->id());
+            const size_t hash_val(it->hash());
+            const size_t split(hash_val % _splits.size());
 
-            const size_t   split(hash_val % _splits.size());
+            // std::cerr << __FUNCTION__
+            //           << " id: " << it->id()
+            //           << " hash_val: " << hash_val
+            //           << " split: " << split
+            //           << std::endl;
+
             std::ofstream& of(*split_files[split]);
             const term_t&  term(*it);
             encode(of, term);

@@ -424,6 +424,8 @@ void packed_table_set_cell(const packed_table_t *table,
     internal_set_cell(table, row, col, value, packed_vector_index);
 }
 
+#include <syslog.h>
+
 int packed_table_get_num_groups(const packed_table_t *table)
 {
     int result = 0;
@@ -432,6 +434,7 @@ int packed_table_get_num_groups(const packed_table_t *table)
         const int group = packed_table_get_group(table, row);
         result = MAX(result, group + 1);
     }
+    syslog(LOG_DEBUG, "%s: returns %d\n", __FUNCTION__, result);
     return result;
 }
 

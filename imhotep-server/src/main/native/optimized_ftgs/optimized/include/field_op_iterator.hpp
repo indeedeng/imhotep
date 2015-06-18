@@ -47,7 +47,7 @@ namespace imhotep {
             case FIELD_START:
                 if (_tgs_current != _tgs_end) {
                     _operation = *_tgs_current; // tgs
-                    ++_tgs_current;
+                    // ++_tgs_current;
                 }
                 else {
                     _operation = Operation<term_t>::field_end(_operation);
@@ -80,9 +80,16 @@ namespace imhotep {
 
         bool equal(const FieldOpIterator& other) const {
             const bool eofs(_current == _end);
-            const bool other_eofs(_current == _end);
+            const bool other_eofs(other._current == other._end);
             const bool ops_equal(_operation == other._operation);
-            return eofs && other_eofs && ops_equal;
+            const bool tgs_equal(_tgs_current == other._tgs_current);
+            // std::cerr << __FUNCTION__
+            //           << " eofs: " << eofs
+            //           << " other_eofs: " << other_eofs
+            //           << " ops_equal: " << ops_equal
+            //           << " tgs_equal: " << tgs_equal
+            //           << std::endl;
+            return eofs && other_eofs && ops_equal && tgs_equal;
         }
 
         const Operation<term_t>& dereference() const { return _operation; }

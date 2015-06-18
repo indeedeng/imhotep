@@ -216,12 +216,13 @@ public class TestNativeFlamdexFTGSIterator {
         final int numDocsPerTerm = numDocs / numTerms;
 
         ArrayList<Long> terms = new ArrayList();
-        Long currentTerm = termGenerator.randVal();
-        for (int count = 0; count < numTerms; ++count) {
-            terms.add(currentTerm);
-            currentTerm++;
+        // Long currentTerm = termGenerator.randVal();
+        for (long count = 0; count < numTerms; ++count) {
+            // terms.add(currentTerm);
+            terms.add(count);
+            // currentTerm++;
         }
-        Collections.sort(terms);
+        // Collections.sort(terms);
 
         int doc = 0;
         IntFieldWriter ifw = w.getIntFieldWriter(intFieldName);
@@ -395,7 +396,8 @@ public class TestNativeFlamdexFTGSIterator {
 
 
     private MTImhotepLocalMultiSession createMultisession(List<String> shardDirs,
-                                                          String[] metricNames) throws ImhotepOutOfMemoryException, IOException {
+                                                          String[] metricNames)
+        throws ImhotepOutOfMemoryException, IOException {
         ImhotepLocalSession[] localSessions = new ImhotepLocalSession[shardDirs.size()];
         for (int i = 0; i < shardDirs.size(); i++) {
             final String dir = shardDirs.get(i);
@@ -415,12 +417,14 @@ public class TestNativeFlamdexFTGSIterator {
                                                    foo,
                                                    true);
 
+        /*
         mtSession.randomMultiRegroup(metricNames[0],
                                      true,
                                      "12345",
                                      1,
                                      new double[] { 0.1, 0.4, 0.7 },
                                      new int[] { 0, 2, 3, 4 });
+        */
 
 //        System.out.println(Arrays.toString(metricNames));
         for (String metric : metricNames) {
@@ -480,6 +484,12 @@ public class TestNativeFlamdexFTGSIterator {
         Thread t = simulator.simulateServer(factory);
         RawFTGSIterator ftgsIterator = simulator.getIterator();
 
+        // System.err.println("java: ");
+        // dumpIterator(verificationIter, nMetrics);
+
+        // System.err.println("native:");
+        // dumpIterator(ftgsIterator, nMetrics);
+
         compareIterators(ftgsIterator, verificationIter, nMetrics);
 
         t.join();
@@ -488,7 +498,7 @@ public class TestNativeFlamdexFTGSIterator {
         verificationIter.close();
     }
 
-    //    @Test
+    @Test
     public void testSingleShardBinary() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
         //        final long seed = -5222463107059882979L;
         final long seed = 42;
@@ -551,7 +561,7 @@ public class TestNativeFlamdexFTGSIterator {
         verificationIter.close();
     }
 
-    //    @Test
+    @Test
     public void test10Shards() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
         //        final long seed = -4122356988999045667L;
         final long seed = 42;
@@ -672,6 +682,23 @@ public class TestNativeFlamdexFTGSIterator {
         return fieldDescs;
     }
 
+    private void dumpIterator(FTGSIterator it, int numStats) {
+        while (it.nextField()) {
+            System.err.println("field: " + it.fieldName());
+            while (it.nextTerm()) {
+                if (it.fieldIsIntType()) {
+                    System.err.print("  term: " + it.termIntVal());
+                } else {
+                    System.err.print("  term: " + it.termStringVal());
+                }
+                while (it.nextGroup()) {
+                    System.err.println("    group: " + it.group());
+                    // !@# print stats...
+                }
+            }
+        }
+    }
+
     private void compareIterators(FTGSIterator test, FTGSIterator valid, int numStats) {
         final long[] validStats = new long[numStats];
         final long[] testStats = new long[numStats];
@@ -683,7 +710,7 @@ public class TestNativeFlamdexFTGSIterator {
             {
                 final String v = valid.fieldName();
                 final String t = test.fieldName();
-//                System.out.println("field - valid: " + v + ", test: " + t);
+                System.out.println("field - valid: " + v + ", test: " + t);
             }
             term: while (valid.nextTerm()) {
                 assertTrue(test.nextTerm());
@@ -691,7 +718,7 @@ public class TestNativeFlamdexFTGSIterator {
                 if (valid.fieldIsIntType()) {
                     long v = valid.termIntVal();
                     final long t = test.termIntVal();
-//                    System.out.println("term - valid: " + v + ", test: " + t);
+                    System.out.println("term - valid: " + v + ", test: " + t);
                     while (v != t) {
                         /* check to see if there are any groups in the term */
                         if (valid.nextGroup()) {
@@ -705,7 +732,7 @@ public class TestNativeFlamdexFTGSIterator {
                 } else {
                     String v = valid.termStringVal();
                     final String t = test.termStringVal();
-//                    System.out.println("term - valid: " + v + ", test: " + t);
+                    System.out.println("term - valid: " + v + ", test: " + t);
                     while (!v.equals(t)) {
                         /* check to see if there are any groups in the term */
                         if (valid.nextGroup()) {
@@ -719,7 +746,7 @@ public class TestNativeFlamdexFTGSIterator {
                 }
 //                assertEquals(valid.termDocFreq(), test.termDocFreq());
                 while (valid.nextGroup()) {
-//                    System.out.println(Integer.toString(valid.group()));
+                    System.out.println(Integer.toString(valid.group()));
                     assertTrue(test.nextGroup());
                     assertEquals(valid.group(), test.group());
 

@@ -73,7 +73,6 @@ namespace imhotep {
         size_t id() const { return _id; }
 
         void run() {
-            Log::debug(__FUNCTION__);
             static const TaskIterator task_it_end;
             _current = _task_iterators.begin();
             while (!_task_iterators.empty()) {
@@ -123,7 +122,6 @@ namespace imhotep {
                          bool                    only_binary_metrics,
                          Shard::packed_table_ptr sample_table,
                          const std::vector<int>& socket_fds) {
-        Log::debug(__FUNCTION__);
         const SplitRanges split_ranges(_num_splits, _num_workers);
         std::vector<std::unique_ptr<Worker>> workers;
         for (size_t id(0); id < _num_workers; ++id) {

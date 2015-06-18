@@ -71,6 +71,7 @@ int main(int argc, char *argv[])
     TermProviders<StringTerm> str_providers(shards, str_fields, split_dir, num_splits, executor);
 
     for (size_t split_num(0); split_num < num_splits; ++split_num) {
+        cout << "split_num: " << split_num << endl;
         size_t                   num_ops(0);
         FieldOpIterator<IntTerm> it(int_providers, split_num);
         FieldOpIterator<IntTerm> end;
@@ -79,10 +80,11 @@ int main(int argc, char *argv[])
             ++num_ops;
             ++it;
         }
-        cout << "split_num: " << split_num << " num_ops: " << num_ops << endl;
+        cout << "num_ops: " << num_ops << endl;
     }
 
     for (size_t split_num(0); split_num < num_splits; ++split_num) {
+        cout << "split_num: " << split_num << endl;
         size_t                      num_ops(0);
         FieldOpIterator<StringTerm> it(str_providers, split_num);
         FieldOpIterator<StringTerm> end;
@@ -91,7 +93,7 @@ int main(int argc, char *argv[])
             ++num_ops;
             ++it;
         }
-        cout << "split_num: " << split_num << " num_ops: " << num_ops << endl;
+        cout << "num_ops: " << num_ops << endl;
     }
 }
 
