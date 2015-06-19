@@ -130,10 +130,9 @@ namespace imhotep {
                                             sample_table, socket_fds,
                                             _int_term_providers, _string_term_providers));
             Worker* worker(workers.back().get());
-            //            _executor.enqueue([&worker]() { worker->run(); });
-            worker->run();
+            _executor.enqueue([worker]() { worker->run(); });
         }
-        // _executor.await_completion();
+        _executor.await_completion();
     }
 
 } // namespace imhotep
