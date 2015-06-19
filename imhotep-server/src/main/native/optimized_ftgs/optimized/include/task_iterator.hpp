@@ -118,22 +118,18 @@ namespace imhotep {
         bool equal(const TaskIterator& other) const {
             const bool int_current(_int_current  == other._int_current);
             const bool str_current(_str_current  == other._str_current);
-            const bool stream_ended(_stream_ended == other._stream_ended);
-            const bool task(_task == other._task );
-
-            // std::ostringstream os;
-            // os << __FUNCTION__
-            //    << " int_current: " << int_current
-            //    << " str_current: " << str_current
-            //    << " stream_ended: " << stream_ended
-            //    << " task: " << task;
-            // Log::debug(os.str());
-
-            return int_current && str_current && stream_ended && task;
+            const bool completed(complete() == other.complete());
+            return int_current && str_current && completed;
         }
 
         const Task& dereference() const {
             return _task;
+        }
+
+        bool complete() const {
+            return _stream_ended
+                && _worker == nullptr
+                && _session == nullptr;
         }
 
         Task _empty_task = Task(std::string("<empty>"), Fun([](void){}));
@@ -237,7 +233,9 @@ namespace imhotep {
             _stream_ended = true;
         }
         else {
-            _task = _empty_task;
+            _task    = _empty_task;
+            _worker  = nullptr;
+            _session = nullptr;
         }
     }
 
