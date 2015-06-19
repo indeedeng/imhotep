@@ -25,7 +25,8 @@ namespace imhotep
     class ExecutorService {
     public:
         /** the constructor just launches some amount of workers */
-        ExecutorService(size_t threads=std::thread::hardware_concurrency());
+        //        ExecutorService(size_t threads=std::thread::hardware_concurrency());
+        ExecutorService(size_t threads=8);
 
         /** the destructor joins all threads */
         ~ExecutorService();
