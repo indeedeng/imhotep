@@ -1,5 +1,8 @@
 #include "shard.hpp"
 
+#include <sys/types.h>
+#include <unistd.h>
+
 #include <sstream>
 
 namespace imhotep {
@@ -62,7 +65,8 @@ namespace imhotep {
                                       const std::string& field,
                                       size_t split_num) const {
         std::ostringstream os;
-        os << splits_dir << '/' << name_of() << '.' << field << '.' << split_num;
+        os << splits_dir << '/' << name_of() << '.'
+           << field << '.' << getpid() << '.' << split_num;
         return os.str();
     }
 
