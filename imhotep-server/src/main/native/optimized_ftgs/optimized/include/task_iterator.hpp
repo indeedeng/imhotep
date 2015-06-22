@@ -19,11 +19,9 @@ extern "C" {
 
 namespace imhotep {
 
-    typedef std::function<void(void)> Task;
-
     class TaskIterator
         : public boost::iterator_facade<TaskIterator,
-                                        Task const,
+                                        int const,
                                         boost::forward_traversal_tag> {
     public:
         TaskIterator() : _stream_ended(true) { }
@@ -46,43 +44,21 @@ namespace imhotep {
     private:
         friend class boost::iterator_core_access;
 
-        static std::string error_from(struct worker_desc* worker) {
-            return std::string(worker->error.str);
+        template <typename term_t>
+        int start_field(const Operation<term_t>& op) {
+            return worker_start_field(_worker,
+                                      op.field_name().c_str(),
+                                      op.field_name().length(),
+                                      op.field_type(),
+                                      _worker_id);
         }
 
         template <typename term_t>
-        Task start_field(const Operation<term_t>& op) {
-            struct worker_desc* worker(_worker);
-            const int           worker_id(_worker_id);
-            return [op, worker, worker_id]() {
-                const int err(worker_start_field(worker,
-                                                 op.field_name().c_str(),
-                                                 op.field_name().length(),
-                                                 op.field_type(),
-                                                 worker_id));
-                if (err != 0) throw imhotep_error(TaskIterator::error_from(worker));
-            };
-        }
+        int tgs(const Operation<term_t>& op);
 
-        template <typename term_t> Task tgs(const Operation<term_t>& op);
+        int end_field() { return worker_end_field(_worker, _worker_id); }
 
-        Task end_field() {
-            struct worker_desc* worker(_worker);
-            const int           worker_id(_worker_id);
-            return [worker, worker_id]() {
-                const int err(worker_end_field(worker, worker_id));
-                if (err != 0) throw imhotep_error(TaskIterator::error_from(worker));
-            };
-        }
-
-        Task end_stream() {
-            struct worker_desc* worker(_worker);
-            const int           worker_id(_worker_id);
-            return [worker, worker_id]() {
-                const int err(worker_end_stream(worker, worker_id));
-                if (err != 0) throw imhotep_error(TaskIterator::error_from(worker));
-            };
-        }
+        int end_stream() { return worker_end_stream(_worker, _worker_id); }
 
         void increment();
 
@@ -92,7 +68,7 @@ namespace imhotep {
                 && complete() == other.complete();
         }
 
-        const Task& dereference() const { return _task; }
+        int dereference() const { return _err; }
 
         bool complete() const {
             return _stream_ended
@@ -100,7 +76,7 @@ namespace imhotep {
                 && _session == nullptr;
         }
 
-        Task _task;
+        int _err;
 
         struct worker_desc*  _worker  = nullptr;
         struct session_desc* _session = nullptr;
@@ -118,42 +94,30 @@ namespace imhotep {
     };
 
     template <> inline
-    Task TaskIterator::tgs<IntTerm>(const Operation<IntTerm>& op) {
-        struct worker_desc*  worker(_worker);
-        struct session_desc* session(_session);
-        const int            worker_id(_worker_id);
-        return [op, worker, session, worker_id]() {
-            const int err(run_tgs_pass(worker, session,
-                                       op.field_type(),
-                                       op.term_seq().id(),
-                                       nullptr, 0,
-                                       op.term_seq().docid_addresses().data(),
-                                       op.term_seq().doc_freqs().data(),
-                                       op.term_seq().tables().data(),
-                                       op.term_seq().size(),
-                                       worker_id));
-            if (err != 0) throw imhotep_error(TaskIterator::error_from(worker));
-        };
+    int TaskIterator::tgs<IntTerm>(const Operation<IntTerm>& op) {
+        return run_tgs_pass(_worker, _session,
+                            op.field_type(),
+                            op.term_seq().id(),
+                            nullptr, 0,
+                            op.term_seq().docid_addresses().data(),
+                            op.term_seq().doc_freqs().data(),
+                            op.term_seq().tables().data(),
+                            op.term_seq().size(),
+                            _worker_id);
     }
 
     template <> inline
-    Task TaskIterator::tgs<StringTerm>(const Operation<StringTerm>& op) {
-        struct worker_desc*  worker(_worker);
-        struct session_desc* session(_session);
-        const int            worker_id(_worker_id);
-        return [op, worker, session, worker_id]() {
-            const int err(run_tgs_pass(worker, session,
-                                       op.field_type(),
-                                       0, // unused
-                                       op.term_seq().id().c_str(),
-                                       op.term_seq().id().length(),
-                                       op.term_seq().docid_addresses().data(),
-                                       op.term_seq().doc_freqs().data(),
-                                       op.term_seq().tables().data(),
-                                       op.term_seq().size(),
-                                       worker_id));
-            if (err != 0) throw imhotep_error(TaskIterator::error_from(worker));
-        };
+    int TaskIterator::tgs<StringTerm>(const Operation<StringTerm>& op) {
+        return run_tgs_pass(_worker, _session,
+                            op.field_type(),
+                            0, // unused
+                            op.term_seq().id().c_str(),
+                            op.term_seq().id().length(),
+                            op.term_seq().docid_addresses().data(),
+                            op.term_seq().doc_freqs().data(),
+                            op.term_seq().tables().data(),
+                            op.term_seq().size(),
+                            _worker_id);
     }
 
     inline
@@ -161,9 +125,9 @@ namespace imhotep {
         if (_int_current != _int_end) {
             const Operation<IntTerm> op(*_int_current);
             switch (op.op_code()) {
-            case FIELD_START:    _task = start_field(op);  break;
-            case TGS:            _task = tgs<IntTerm>(op); break;
-            case FIELD_END:      _task = end_field();      break;
+            case FIELD_START:    _err = start_field(op);  break;
+            case TGS:            _err = tgs<IntTerm>(op); break;
+            case FIELD_END:      _err = end_field();      break;
             default:
                 throw imhotep_error(__FUNCTION__ + std::string(" s/w error!"));
                 break;
@@ -173,9 +137,9 @@ namespace imhotep {
         else if (_str_current != _str_end) {
             const Operation<StringTerm> op(*_str_current);
             switch (op.op_code()) {
-            case FIELD_START:    _task = start_field(op);     break;
-            case TGS:            _task = tgs<StringTerm>(op); break;
-            case FIELD_END:      _task = end_field();         break;
+            case FIELD_START:    _err = start_field(op);     break;
+            case TGS:            _err = tgs<StringTerm>(op); break;
+            case FIELD_END:      _err = end_field();         break;
             default:
                 throw imhotep_error(__FUNCTION__ + std::string(" s/w error!"));
                 break;
@@ -183,11 +147,11 @@ namespace imhotep {
             ++_str_current;
         }
         else if (!_stream_ended) {
-            _task = end_stream();
+            _err = end_stream();
             _stream_ended = true;
         }
         else {
-            _task    = Task();
+            _err     = 0;
             _worker  = nullptr;
             _session = nullptr;
         }

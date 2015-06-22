@@ -76,7 +76,10 @@ namespace imhotep {
             while (!_task_iterators.empty()) {
                 TaskIterator& task_it(*_current);
                 if (task_it != task_it_end) {
-                    (*task_it)();
+                    const int err(*task_it);
+                    if (err != 0) {
+                        throw imhotep_error(std::string(_worker.error.str));
+                    }
                     ++task_it;
                     ++_current;
                 }
