@@ -56,7 +56,6 @@ namespace imhotep {
         }
 
         bool operator<(const Term& rhs) const {
-            std::ostringstream os;
             return id() < rhs.id() || (id() == rhs.id() && doc_offset() < rhs.doc_offset());
         }
 
