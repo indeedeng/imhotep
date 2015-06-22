@@ -7,8 +7,6 @@
 #include "log.hpp"
 #include "task_iterator.hpp"
 
-#define BOOST_RESULT_OF_USE_DECLTYPE    1
-
 namespace imhotep {
 
     class SplitRanges : public std::vector<std::pair<size_t, size_t>> {
@@ -126,7 +124,10 @@ namespace imhotep {
         std::vector<std::unique_ptr<Worker>> workers;
         for (size_t id(0); id < _num_workers; ++id) {
             workers.emplace_back(new Worker(id, split_ranges,
-                                            num_groups, num_metrics, only_binary_metrics,
+                                            // num_groups, num_metrics, only_binary_metrics,
+                                            // !@# FIX ME for only binary metrics!!!!
+                                            num_groups, num_metrics, false,
+                                            // !@# FIX ME for only binary metrics!!!!
                                             sample_table, socket_fds,
                                             _int_term_providers, _string_term_providers));
             Worker* worker(workers.back().get());
