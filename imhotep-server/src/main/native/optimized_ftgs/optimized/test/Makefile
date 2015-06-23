@@ -1,8 +1,8 @@
 CC=/usr/bin/gcc-4.8
 CPP=/usr/bin/g++-4.8
 CFLAGS=-g -Wall -Werror -I./include -I../include  -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions
-CPPFLAGS=-g -Wall -Werror -I./include -I../include -I/usr/include/boost -msse4.2 -std=c++11 -fPIC # -flto -funroll-loops
-LFLAGS=-g # -flto
+CPPFLAGS=-g -O3 -Wall -Werror -I./include -I../include -I/usr/include/boost -msse4.2 -std=c++11 -fPIC # -flto -funroll-loops
+LFLAGS=-g -O3 -flto
 
 OPT_CFLAGS= -g -O3 -flto -funroll-loops $(CFLAGS)
 DBG_CFLAGS= -g  $(CPPFLAGS)
@@ -93,6 +93,7 @@ FTGS_RUNNER_OBJS =\
 	../cppobj/ftgs_runner.o	\
 	../cppobj/log.o \
 	../cppobj/shard.o \
+	../cppobj/task_iterator.o \
 	../cppobj/term_providers.o \
 	../obj/binary_table_accumulate.o \
 	../obj/bit_tree.o \

@@ -1,5 +1,5 @@
-#ifndef OPERATION_ITERATOR_HPP
-#define OPERATION_ITERATOR_HPP
+#ifndef TGS_ITERATOR_HPP
+#define TGS_ITERATOR_HPP
 
 #include "merge_iterator.hpp"
 #include "operation.hpp"

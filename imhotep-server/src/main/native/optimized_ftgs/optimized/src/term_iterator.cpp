@@ -29,7 +29,7 @@ namespace imhotep {
 
             const int64_t offset_delta(_term_view.read_varint<int64_t>(_term_view.read()));
             const int64_t doc_freq(_term_view.read_varint<int64_t>(_term_view.read()));
-            _current = StringTerm(_id_buffer,
+            _current = StringTerm(StringRange(_id_buffer),
                                   _current.doc_offset() + offset_delta,
                                   doc_freq);
         }

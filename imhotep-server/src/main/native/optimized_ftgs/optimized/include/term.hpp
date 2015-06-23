@@ -3,14 +3,63 @@
 
 #include <stdint.h>
 
+#include <algorithm>
+#include <cstring>
 #include <functional>
 #include <iostream>
+#include <iterator.hpp>
 #include <sstream>
 #include <string>
+
+#include <boost/functional/hash.hpp>
 
 #include "log.hpp"
 
 namespace imhotep {
+
+    class StringRange : public std::pair<const char*, const char*> {
+    public:
+        explicit StringRange(const std::string& str)
+            : std::pair<const char*, const char*>(std::make_pair(str.c_str(),
+                                                                 str.c_str() + str.size()))
+        { }
+
+        explicit StringRange(const char* begin=0, const char* end=0)
+            : std::pair<const char*, const char*>(std::make_pair(begin, end))
+        { }
+
+        const char* begin() const { return first;  }
+        const char*   end() const { return second; }
+
+        char const* c_str() const { return first; }
+
+        size_t size() const { return std::distance(first, second); }
+
+        bool empty() const { return size() == 0; }
+
+        bool operator==(const StringRange& rhs) const {
+            if (size() != rhs.size()) return false;
+            return std::equal(begin(), end(), rhs.begin());
+        }
+
+        bool operator!=(const StringRange& rhs) const {
+            if (size() == rhs.size()) return false;
+            return !std::equal(begin(), end(), rhs.begin());
+        }
+
+        bool operator<(const StringRange& rhs)  const {
+            const size_t len(std::min(size(), rhs.size()));
+            const int result(strncmp(begin(), rhs.begin(), len));
+            return
+                result < 0 ? true  :
+                result > 0 ? false :
+                size() < rhs.size();
+        }
+
+        bool operator>(const StringRange& rhs)  const = delete;
+        bool operator<=(const StringRange& rhs) const = delete;
+        bool operator>=(const StringRange& rhs) const = delete;
+    };
 
     enum Encoding:int { STRING_TERM_TYPE=0, INT_TERM_TYPE=1 };
 
@@ -37,7 +86,7 @@ namespace imhotep {
 
         Term() = default;
 
-        Term(const id_type& id, int64_t doc_offset, int32_t doc_freq)
+        explicit Term(const id_type& id, int64_t doc_offset, int32_t doc_freq)
             : _id(id)
             , _doc_offset(doc_offset)
             , _doc_freq(doc_freq)
@@ -69,7 +118,7 @@ namespace imhotep {
     };
 
     typedef Term<int64_t>     IntTerm;
-    typedef Term<std::string> StringTerm;
+    typedef Term<StringRange> StringTerm;
 
     template <>
     struct IdTraits<int64_t> {
@@ -78,8 +127,8 @@ namespace imhotep {
     };
 
     template <>
-    struct IdTraits<std::string> {
-        static std::string default_value() { return std::string(); }
+    struct IdTraits<StringRange> {
+        static StringRange default_value() { return StringRange(); }
         static Encoding encode() { return STRING_TERM_TYPE;  }
     };
 
@@ -102,13 +151,19 @@ namespace imhotep {
     }
 
     template <> inline
-    size_t Term<std::string>::hash() const {
-        static std::hash<std::string> fun;
-        return fun(id());
+    size_t Term<StringRange>::hash() const {
+        return boost::hash_range(id().first, id().second);
     }
 
 } // namespace imhotep
 
+inline std::ostream&
+operator<<(std::ostream& os, const imhotep::StringRange& str_range)
+{
+    const std::string str(str_range.c_str(), str_range.size());
+    os << str;
+    return os;
+}
 
 template<typename id_type>
 std::ostream&

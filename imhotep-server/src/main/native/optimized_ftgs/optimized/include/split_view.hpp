@@ -40,10 +40,10 @@ namespace imhotep {
             return T(*result);
         }
 
-        Buffer read_bytes(size_t length) {
+        StringRange read_bytes(size_t length) {
             check_size(length);
 
-            const Buffer result(_begin, _begin + length);
+            const StringRange result(_begin, _begin + length);
             _begin += length;
             return result;
         }
@@ -81,11 +81,11 @@ namespace imhotep {
     template<>
     inline
     StringTerm SplitView::read<StringTerm>() {
-        const size_t            id_size(read<size_t>());
-        const SplitView::Buffer id(read_bytes(id_size));
-        const int64_t           doc_offset(read<int64_t>());
-        const int32_t           doc_freq(read<int32_t>());
-        return StringTerm(std::string(id.first, std::distance(id.first, id.second)), doc_offset, doc_freq);
+        const size_t      id_size(read<size_t>());
+        const StringRange id(read_bytes(id_size));
+        const int64_t     doc_offset(read<int64_t>());
+        const int32_t     doc_freq(read<int32_t>());
+        return StringTerm(id, doc_offset, doc_freq);
     }
 }
 

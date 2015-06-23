@@ -90,7 +90,7 @@ public class TestNativeFlamdexFTGSIterator {
                             t.start();
                             threads[i] = t;
                         }
-                        
+
                         for (Thread t : threads) {
                             t.join();
                         }
@@ -159,7 +159,7 @@ public class TestNativeFlamdexFTGSIterator {
 
     private final Random rand = new Random();
     private final int MAX_STRING_TERM_LEN = 128;
-    
+
     private class UnusedDocsIds {
         final int[] docIds;
         int len;
@@ -182,7 +182,7 @@ public class TestNativeFlamdexFTGSIterator {
             if (nValidDocs < len / 2) {
                 this.compress();
             }
-            
+
             while (true) {
                 final int i = rand.nextInt(len);
                 if (docIds[i] < 0) {
@@ -194,11 +194,11 @@ public class TestNativeFlamdexFTGSIterator {
                 return docId;
             }
         }
-        
+
         private void compress() {
             int max = 0;
             int trailing = 0;
-            
+
             for (int i = 0; i < this.len; i++) {
                 if (docIds[i] < 0) {
                     continue;
@@ -209,19 +209,19 @@ public class TestNativeFlamdexFTGSIterator {
                     max = docIds[i];
                 }
             }
-            
+
             this.len = this.nValidDocs;
         }
     }
-    
+
     private int[] selectDocIds(final UnusedDocsIds unusedDocsIds,
                                int nDocsToSelect) {
         final int[] selectedDocs = new int[nDocsToSelect];
-        
+
         for (int n = 0; n < nDocsToSelect; n++) {
             selectedDocs[n] = unusedDocsIds.getRandId();
         }
-        
+
         Arrays.sort(selectedDocs);
         return selectedDocs;
     }
@@ -289,13 +289,13 @@ public class TestNativeFlamdexFTGSIterator {
 
     private String generateShard(List<FieldDesc> fieldDescs) throws IOException {
         final String dir = Files.getTempDirectory("native-ftgs-test", "test");
-        
+
         // find max # of docs
         long nDocs = 0;
         for (FieldDesc fd : fieldDescs) {
             nDocs = (fd.numDocs > nDocs) ? fd.numDocs : nDocs;
         }
-        
+
         final SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, nDocs, true);
 
         for (FieldDesc fd : fieldDescs) {
@@ -348,7 +348,7 @@ public class TestNativeFlamdexFTGSIterator {
             @Override
             public long randVal() {
                 byte[] b = new byte[1];
-                
+
                 this.foo.nextBytes(b);
                 return b[0];
             }
@@ -357,7 +357,7 @@ public class TestNativeFlamdexFTGSIterator {
             @Override
             public long randVal() {
                 byte[] b = new byte[1];
-                
+
                 this.foo.nextBytes(b);
                 return b[0] - Byte.MIN_VALUE;
             }
@@ -761,7 +761,7 @@ public class TestNativeFlamdexFTGSIterator {
                 if (valid.fieldIsIntType()) {
                     long v = valid.termIntVal();
                     final long t = test.termIntVal();
-//                    System.out.println("term - valid: " + v + ", test: " + t);
+       System.out.println("term - valid: " + v + ", test: " + t);
                     while (v != t) {
                         /* check to see if there are any groups in the term */
                         if (valid.nextGroup()) {

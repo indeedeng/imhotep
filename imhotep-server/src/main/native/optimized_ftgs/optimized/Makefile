@@ -6,17 +6,20 @@ CPP=/usr/bin/g++-4.8
 JNI_HEADER_LOC=$(JAVA_HOME)/include
 JNI_HEADER_LOC2=$(JNI_HEADER_LOC)/linux
 BASE_CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions
-BASE_CPPFLAGS=-Wall -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -I/usr/include/boost -msse4.2 -std=c++11 -fPIC
-BASE_LFLAGS= -shared
+BASE_CPPFLAGS=-Wall  -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -I/usr/include/boost -msse4.2 -std=c++11 -fPIC
+BASE_LFLAGS= -shared  -fno-omit-frame-pointer
 
 DBG_CFLAGS= -g -fno-omit-frame-pointer
-OPT_CFLAGS= -flto -O3 # -fvisibility=hidden
+#OPT_CFLAGS= -flto -g -O3 -fno-omit-frame-pointer -fvisibility=hidden
+OPT_CFLAGS= -g -O3 -fno-omit-frame-pointer -fvisibility=hidden
 
 DBG_CPPFLAGS= -g -fno-omit-frame-pointer
-OPT_CPPFLAGS= -flto -funroll-loops -O3 # -fvisibility=hidden
+#OPT_CPPFLAGS= -flto -funroll-loops -g -O3 -fno-omit-frame-pointer -fvisibility=hidden
+OPT_CPPFLAGS= -funroll-loops -g -O3 -fno-omit-frame-pointer -fvisibility=hidden
 
 DBG_LFLAGS= -g
-OPT_LFLAGS= -O3 -flto
+# OPT_LFLAGS= -O3 -flto
+OPT_LFLAGS= -O3
 
 ifeq ($(MODE),opt)
 	CFLAGS=$(OPT_CFLAGS) $(BASE_CFLAGS)

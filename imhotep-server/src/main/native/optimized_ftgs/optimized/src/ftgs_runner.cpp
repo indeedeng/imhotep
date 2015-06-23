@@ -4,8 +4,14 @@
 #include <sstream>
 #include <tuple>
 
+#include "imhotep_error.hpp"
 #include "log.hpp"
 #include "task_iterator.hpp"
+
+extern "C" {
+#include "local_session.h"
+#include "imhotep_native.h"
+}
 
 namespace imhotep {
 
@@ -76,8 +82,8 @@ namespace imhotep {
             while (!_task_iterators.empty()) {
                 TaskIterator& task_it(*_current);
                 if (task_it != task_it_end) {
-                    const int err(*task_it);
-                    if (err != 0) {
+                    const int err_result(*task_it);
+                    if (err_result != 0) {
                         throw imhotep_error(std::string(_worker.error.str));
                     }
                     ++task_it;
