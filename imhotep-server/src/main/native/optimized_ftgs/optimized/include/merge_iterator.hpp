@@ -82,7 +82,7 @@ namespace imhotep {
         MergeIterator(iterator begin, iterator end) {
             std::copy_if(begin, end, std::back_inserter(_its),
                          [] (MergeInput<term_t>& entry) {
-                             static SplitIterator<term_t> split_end;
+                             const SplitIterator<term_t> split_end;
                              return entry._split_it != split_end;
                          });
             increment();
@@ -97,7 +97,7 @@ namespace imhotep {
            small numbers of contained iterators. */
         void increment() {
             if (!_its.empty()) {
-                static const SplitIterator<term_t> end;
+                const SplitIterator<term_t> end;
 
                 auto lowest(_its.begin());
                 for (auto it(_its.begin()); it != _its.end(); ++it) {

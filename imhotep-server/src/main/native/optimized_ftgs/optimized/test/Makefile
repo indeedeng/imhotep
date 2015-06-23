@@ -1,5 +1,5 @@
-CC=/usr/bin/gcc-4.8
-CPP=/usr/bin/g++-4.8
+CC=/usr/bin/gcc-4.9
+CPP=/usr/bin/g++-4.9
 CFLAGS=-g -Wall -Werror -I./include -I../include  -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions
 CPPFLAGS=-g -Wall -Werror -I./include -I../include -I/usr/include/boost -msse4.2 -std=c++11 -fPIC # -flto -funroll-loops
 LFLAGS=-g # -flto
@@ -30,8 +30,8 @@ TESTS := \
 	test_split_iterator       \
 	test_string_term_iterator \
 	test_term_provider        \
-	test_tgs                  \
 	test_varintdecode
+#	test_tgs                  \
 
 all: $(TESTS)
 
