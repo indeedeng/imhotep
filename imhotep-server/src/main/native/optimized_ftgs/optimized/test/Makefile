@@ -1,5 +1,5 @@
-CC=/usr/bin/gcc-4.9
-CPP=/usr/bin/g++-4.9
+CC=/usr/bin/gcc-4.8
+CPP=/usr/bin/g++-4.8
 CFLAGS=-g -Wall -Werror -I./include -I../include  -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions
 CPPFLAGS=-g -Wall -Werror -I./include -I../include -I/usr/include/boost -msse4.2 -std=c++11 -fPIC # -flto -funroll-loops
 LFLAGS=-g # -flto
@@ -75,15 +75,17 @@ test_string_term_iterator: obj/test_string_term_iterator.o ../cppobj/shard.o ../
 
 TERM_PROVIDER_OBJS = \
 	../cppobj/executor_service.o \
+	../cppobj/log.o \
 	../cppobj/shard.o \
 	../cppobj/splitter.o \
 	../cppobj/term_iterator.o \
-	../cppobj/term_provider.o
+	../cppobj/term_provider.o \
+	../cppobj/term_providers.o
 
 test_term_provider: obj/test_term_provider.o $(TERM_PROVIDER_OBJS)
 	$(CPP) -pthread $(CPPFLAGS) $ -o test_term_provider $^ $(LIBS)
 
-test_field_op_iterator: obj/test_field_op_iterator.o $(TERM_PROVIDER_OBJS) ../cppobj/log.o ../cppobj/term_providers.o
+test_field_op_iterator: obj/test_field_op_iterator.o $(TERM_PROVIDER_OBJS)
 	$(CPP) -pthread $(CPPFLAGS) $ -o test_field_op_iterator $^ $(LIBS)
 
 FTGS_RUNNER_OBJS =\
