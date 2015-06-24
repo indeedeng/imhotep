@@ -22,10 +22,9 @@ namespace imhotep {
             }
         }
         for (Splitter<term_t>& splitter: splitters) {
-            //            executor.enqueue([&splitter]() { splitter.run(); } );;
-            splitter.run();
+            executor.enqueue([&splitter]() { splitter.run(); } );;
         }
-        //        executor.await_completion();
+        executor.await_completion();
     }
 
     template <typename term_t>

@@ -19,11 +19,9 @@ namespace imhotep {
                                         TermSeq<term_t> const,
                                         boost::forward_traversal_tag> {
     public:
-        typedef MergeIterator<term_t> merge_it;
-
         TermSeqIterator() { }
 
-        TermSeqIterator(merge_it begin, merge_it end)
+        TermSeqIterator(MergeIterator<term_t> begin, MergeIterator<term_t> end)
             : _current(begin)
             , _end(end) {
             increment();
@@ -39,7 +37,7 @@ namespace imhotep {
                         return element._term.id() == id;
                     });
 
-                merge_it next(std::find_if_not(_current, _end, matches_id));
+                MergeIterator<term_t> next(std::find_if_not(_current, _end, matches_id));
                 _term_seq = TermSeq<term_t>(_current, next);
                 _current = next;
             }
@@ -57,8 +55,8 @@ namespace imhotep {
 
         TermSeq<term_t> _term_seq;
 
-        merge_it _current;
-        merge_it _end;
+        MergeIterator<term_t> _current;
+        MergeIterator<term_t> _end;
     };
 
 } // namespace imhotep
