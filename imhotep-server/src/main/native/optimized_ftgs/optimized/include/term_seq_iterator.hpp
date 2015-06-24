@@ -38,7 +38,7 @@ namespace imhotep {
                     });
 
                 MergeIterator<term_t> next(std::find_if_not(_current, _end, matches_id));
-                _term_seq = TermSeq<term_t>(_current, next);
+                _term_seq.reset(_current, next);
                 _current = next;
             }
             else {

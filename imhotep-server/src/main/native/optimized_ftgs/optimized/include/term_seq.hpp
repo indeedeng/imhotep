@@ -19,10 +19,19 @@ namespace imhotep {
         TermSeq(const TermSeq& rhs) = default;
 
         /* ids must match all items in iterator range! */
-        TermSeq(merge_it begin, merge_it end)
-            : _id(begin != end ?
-                  (*begin)._term.id() :
-                  IdTraits<typename term_t::id_t>::default_value()) {
+        TermSeq(MergeIterator<term_t>& begin,
+                MergeIterator<term_t>& end) {
+            reset(begin, end);
+        }
+
+        void reset(MergeIterator<term_t>& begin,
+                   MergeIterator<term_t>& end) {
+            _id = begin != end ? (*begin)._term.id() :
+                IdTraits<typename term_t::id_t>::default_value();
+
+            _docid_addresses.clear();
+            _doc_freqs.clear();
+            _tables.clear();
 
             while (begin != end) {
                 const term_t&           term((*begin)._term);
