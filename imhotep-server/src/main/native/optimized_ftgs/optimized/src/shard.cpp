@@ -66,7 +66,8 @@ namespace imhotep {
                                       size_t split_num) const {
         std::ostringstream os;
         os << splits_dir << '/' << name_of() << '.'
-           << field << '.' << getpid() << '.' << split_num;
+            //           << field << '.' << getpid() << '.' << split_num;
+           << field << '.' << split_num;
         return os.str();
     }
 
