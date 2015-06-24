@@ -60,7 +60,7 @@ namespace imhotep {
 
     void TaskIterator::increment() {
         if (_int_current != _int_end) {
-            const Operation<IntTerm> op(*_int_current);
+            const Operation<IntTerm>& op(*_int_current);
             switch (op.op_code()) {
             case FIELD_START:    _err = start_field(op);  break;
             case TGS:            _err = tgs<IntTerm>(op); break;
@@ -72,7 +72,7 @@ namespace imhotep {
             ++_int_current;
         }
         else if (_str_current != _str_end) {
-            const Operation<StringTerm> op(*_str_current);
+            const Operation<StringTerm>& op(*_str_current);
             switch (op.op_code()) {
             case FIELD_START:    _err = start_field(op);     break;
             case TGS:            _err = tgs<StringTerm>(op); break;

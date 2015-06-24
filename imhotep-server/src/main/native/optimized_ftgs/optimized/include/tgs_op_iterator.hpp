@@ -18,40 +18,52 @@ namespace imhotep {
 
         TGSOpIterator() { }
 
-        TGSOpIterator(const Operation<term_t>& operation, term_seq_it begin, term_seq_it end)
-            : _operation(operation)
-            , _current(begin)
-            , _end(end) {
-            increment();
-        }
+        TGSOpIterator(const Operation<term_t>&       operation,
+                      const TermSeqIterator<term_t>& begin,
+                      const TermSeqIterator<term_t>& end);
 
     private:
         friend class boost::iterator_core_access;
 
-        void increment() {
-            if (_current != _end) {
-                _operation = Operation<term_t>::tgs(_operation, *_current);
-                ++_current;
-            }
-            else {
-                _operation = Operation<term_t>();
-            }
-        }
+        void increment();
 
-        bool equal(const TGSOpIterator& other) const  {
-            return _current   == other._current
-                && _operation == other._operation;
-        }
+        bool equal(const TGSOpIterator& other) const;
 
-        const Operation<term_t>& dereference() const {
-            return _operation;
-        }
+        const Operation<term_t>& dereference() const { return _operation; }
 
         Operation<term_t> _operation;
 
-        term_seq_it _current;
-        term_seq_it _end;
+        TermSeqIterator<term_t> _current;
+        TermSeqIterator<term_t> _end;
     };
+
+
+    template <typename term_t>
+    TGSOpIterator<term_t>::TGSOpIterator(const Operation<term_t>&       operation,
+                                         const TermSeqIterator<term_t>& begin,
+                                         const TermSeqIterator<term_t>& end)
+        : _operation(operation)
+        , _current(begin)
+        , _end(end) {
+        increment();
+    }
+
+    template <typename term_t>
+    void TGSOpIterator<term_t>::increment() {
+        if (_current != _end) {
+            _operation = Operation<term_t>::tgs(_operation, *_current);
+            ++_current;
+        }
+        else {
+            _operation = Operation<term_t>();
+        }
+    }
+
+    template <typename term_t>
+    bool TGSOpIterator<term_t>::equal(const TGSOpIterator& other) const  {
+        return _current   == other._current
+            && _operation == other._operation;
+    }
 
 } // namespace imhotep
 
