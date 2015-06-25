@@ -78,22 +78,20 @@ namespace imhotep {
 
         void run() {
             static const TaskIterator task_it_end;
-            _current = _task_iterators.begin();
-            while (!_task_iterators.empty()) {
-                TaskIterator& task_it(*_current);
-                if (task_it != task_it_end) {
-                    const int err_result(*task_it);
-                    if (err_result != 0) {
-                        throw imhotep_error(std::string(_worker.error.str));
+            bool done(false);
+            while (!done) {
+                done = true;
+                for (std::vector<TaskIterator>::iterator it(_task_iterators.begin());
+                     it != _task_iterators.end(); ++it) {
+                    TaskIterator& task_it(*it);
+                    if (task_it != task_it_end) {
+                        const int err_result(*task_it);
+                        if (err_result != 0) {
+                            throw imhotep_error(std::string(_worker.error.str));
+                        }
+                        ++task_it;
+                        done = false;
                     }
-                    ++task_it;
-                    ++_current;
-                }
-                else {
-                    _current = _task_iterators.erase(_current);
-                }
-                if (_current == _task_iterators.end()) {
-                    _current = _task_iterators.begin();
                 }
             }
         }
@@ -101,10 +99,9 @@ namespace imhotep {
     private:
         size_t _id;
 
-        struct worker_desc  _worker;
-        struct session_desc _session;
-        std::vector<TaskIterator>           _task_iterators;
-        std::vector<TaskIterator>::iterator _current;
+        struct worker_desc        _worker;
+        struct session_desc       _session;
+        std::vector<TaskIterator> _task_iterators;
     };
 
     FTGSRunner::FTGSRunner(const std::vector<Shard>&       shards,

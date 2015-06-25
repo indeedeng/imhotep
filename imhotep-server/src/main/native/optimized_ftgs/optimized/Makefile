@@ -1,4 +1,4 @@
-MODE=dbg
+MODE=opt
 
 IDIR=include
 CC=/usr/bin/gcc-4.8
