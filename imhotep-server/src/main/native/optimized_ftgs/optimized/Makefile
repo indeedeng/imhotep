@@ -1,4 +1,4 @@
-MODE=opt
+MODE=dbg
 
 IDIR=include
 CC=/usr/bin/gcc-4.8
@@ -10,16 +10,13 @@ BASE_CPPFLAGS=-Wall  -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -I/usr/i
 BASE_LFLAGS= -shared  -fno-omit-frame-pointer
 
 DBG_CFLAGS= -g -fno-omit-frame-pointer
-#OPT_CFLAGS= -flto -g -O3 -fno-omit-frame-pointer -fvisibility=hidden
-OPT_CFLAGS= -g -O3 -fno-omit-frame-pointer -fvisibility=hidden
+OPT_CFLAGS= -g -O3 -flto -fno-omit-frame-pointer -fvisibility=hidden
 
 DBG_CPPFLAGS= -g -fno-omit-frame-pointer
-#OPT_CPPFLAGS= -flto -funroll-loops -g -O3 -fno-omit-frame-pointer -fvisibility=hidden
-OPT_CPPFLAGS= -funroll-loops -g -O3 -fno-omit-frame-pointer -fvisibility=hidden
+OPT_CPPFLAGS= -g -O3 -flto -funroll-loops -fno-omit-frame-pointer -fvisibility=hidden
 
 DBG_LFLAGS= -g
-# OPT_LFLAGS= -O3 -flto
-OPT_LFLAGS= -O3
+OPT_LFLAGS= -O3 -flto
 
 ifeq ($(MODE),opt)
 	CFLAGS=$(OPT_CFLAGS) $(BASE_CFLAGS)

@@ -1,11 +1,28 @@
+MODE=dbg
+
 CC=/usr/bin/gcc-4.8
 CPP=/usr/bin/g++-4.8
-CFLAGS=-g -Wall -Werror -I./include -I../include  -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions
-CPPFLAGS=-g -O3 -Wall -Werror -I./include -I../include -I/usr/include/boost -msse4.2 -std=c++11 -fPIC # -flto -funroll-loops
-LFLAGS=-g -O3 -flto
+BASE_CFLAGS=-Wall -Werror -I./include -I../include  -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions -fno-omit-frame-pointer
+BASE_CPPFLAGS=-Wall -Werror -I./include -I../include -I/usr/include/boost -msse4.2 -std=c++11 -fPIC
 
-OPT_CFLAGS= -g -O3 -flto -funroll-loops $(CFLAGS)
-DBG_CFLAGS= -g  $(CPPFLAGS)
+DBG_CFLAGS= -g
+OPT_CFLAGS= -g -O3 -flto -funroll-loops
+
+DBG_CPPFLAGS= -g
+OPT_CPPFLAGS= -g -O3 -flto -funroll-loops -fno-omit-frame-pointer -fvisibility=hidden
+
+DBG_LFLAGS= -g
+OPT_LFLAGS= -O3 -flto
+
+ifeq ($(MODE),opt)
+	CFLAGS=$(OPT_CFLAGS) $(BASE_CFLAGS)
+	CPPFLAGS=$(OPT_CPPFLAGS) $(BASE_CPPFLAGS)
+	LFLAGS=$(OPT_LFLAGS) $(BASE_LFLAGS)
+else
+	CFLAGS= $(DBG_CFLAGS) $(BASE_CFLAGS)
+	CPPFLAGS= $(DBG_CPPFLAGS) $(BASE_CPPFLAGS)
+	LFLAGS= $(DBG_LFLAGS) $(BASE_LFLAGS)
+endif
 
 LIBS=\
 	-lboost_filesystem      \
@@ -44,7 +61,7 @@ obj/test_patch.o: src/test_patch.c
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 obj/packed_tree_perf_test.o: src/packed_tree_perf_test.c
-	$(CC) -c -o $@ $< $(OPT_CFLAGS)
+	$(CC) -c -o $@ $< $(CFLAGS)
 
 test_bit_tree: obj/test_bit_tree.o ../obj/bit_tree.o
 	$(CPP) $ -o test_bit_tree $(LIBS) $^
