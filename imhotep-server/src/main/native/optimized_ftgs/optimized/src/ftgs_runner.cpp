@@ -4,6 +4,8 @@
 #include <sstream>
 #include <tuple>
 
+#include <gperftools/profiler.h>
+
 #include "imhotep_error.hpp"
 #include "log.hpp"
 #include "task_iterator.hpp"
@@ -126,11 +128,13 @@ namespace imhotep {
                          bool                    only_binary_metrics,
                          Shard::packed_table_ptr sample_table,
                          const std::vector<int>& socket_fds) {
+        ProfilerStart("/tmp/googleymoogley.prof");
+
         const SplitRanges split_ranges(_num_splits, _num_workers);
         std::vector<std::unique_ptr<Worker>> workers;
         for (size_t id(0); id < _num_workers; ++id) {
             workers.emplace_back(new Worker(id, split_ranges,
-                                            //                                            num_groups, num_metrics, only_binary_metrics,
+                                            // num_groups, num_metrics, only_binary_metrics,
                                             num_groups, num_metrics, false,
                                             // !@# FIX ME!
                                             sample_table, socket_fds,
@@ -139,6 +143,8 @@ namespace imhotep {
             _executor.enqueue([worker]() { worker->run(); });
         }
         _executor.await_completion();
+
+        ProfilerStop();
     }
 
 } // namespace imhotep
