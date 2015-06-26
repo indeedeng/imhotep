@@ -55,22 +55,33 @@ namespace imhotep {
                 _term_seq    == rhs._term_seq;
         }
 
-        static Operation field_start(int32_t split_index, const std::string& field_name) {
-            return Operation(split_index, field_name);
+        void field_start(int32_t split_index, const std::string& field_name) {
+            _op_code     = FIELD_START;
+            _split_index = split_index;
+            _field_name  = field_name;
+            _term_seq.clear();
         }
 
-        static Operation tgs(const Operation& operation, const TermSeq<term_t>& term_seq) {
+        void tgs(const Operation& operation, const TermSeq<term_t>& term_seq) {
             assert(operation.op_code() == FIELD_START || operation.op_code() == TGS);
-            return Operation(operation, term_seq);
+            _op_code     = TGS;
+            _split_index = operation._split_index;
+            _field_name  = operation._field_name; // !@# optimize out?
+            _term_seq    = term_seq;
         }
 
-        static Operation field_end(const Operation& operation) {
+        void field_end(const Operation& operation) {
             assert(operation.op_code() == FIELD_START || operation.op_code() == TGS);
-            return Operation(operation, FIELD_END);
+            _op_code     = FIELD_END;
+            _split_index = operation._split_index;
+            _field_name  = operation._field_name;  // !@# optimize out?
+            _term_seq    = operation._term_seq;  // !@# optimize out?
         }
 
-        static Operation no_more_fields(int32_t split_index) {
-            return Operation(split_index);
+        void no_more_fields(int32_t split_index) {
+            _op_code     = NO_MORE_FIELDS;
+            _split_index = split_index;
+            _term_seq.clear();
         }
 
         int32_t            split_index() const { return _split_index; }
@@ -92,31 +103,6 @@ namespace imhotep {
         }
 
     private:
-        Operation(int32_t split_index, const std::string& field_name)
-            : _op_code(FIELD_START)
-            , _split_index(split_index)
-            , _field_name(field_name)
-        { }
-
-        Operation(const Operation& operation, const TermSeq<term_t>& term_seq)
-            : _op_code(TGS)
-            , _split_index(operation._split_index)
-            , _field_name(operation._field_name)
-            , _term_seq(term_seq)
-        { }
-
-        Operation(const Operation& operation, OpCode op_code)
-            : _op_code(op_code)
-            , _split_index(operation._split_index)
-            , _field_name(operation._field_name)
-            , _term_seq(operation._term_seq)
-        { }
-
-        Operation(int32_t split_index)
-            : _op_code(NO_MORE_FIELDS)
-            , _split_index(split_index)
-        { }
-
         OpCode      _op_code     = INVALID;
         int32_t     _split_index = 0;
         std::string _field_name;

@@ -51,7 +51,7 @@ namespace imhotep {
     template <typename term_t>
     void TGSOpIterator<term_t>::increment() {
         if (_current != _end) {
-            _operation = Operation<term_t>::tgs(_operation, *_current);
+            _operation.tgs(_operation, *_current);
             ++_current;
         }
         else {

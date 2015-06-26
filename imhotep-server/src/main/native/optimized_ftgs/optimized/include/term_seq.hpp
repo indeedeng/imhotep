@@ -44,6 +44,8 @@ namespace imhotep {
 
         std::string to_string() const;
 
+        void clear() { _guts.clear(); }
+
     private:
         typename term_t::id_t _id = IdTraits<typename term_t::id_t>::default_value();
 

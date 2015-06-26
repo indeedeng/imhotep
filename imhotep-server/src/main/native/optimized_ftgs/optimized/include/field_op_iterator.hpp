@@ -56,7 +56,7 @@ namespace imhotep {
         const TermProvider<term_t>& provider(_current->second);
         TermSeqIterator<term_t>     ts_begin(provider.term_seq_it(_split));
         TermSeqIterator<term_t>     ts_end;
-        _operation = Operation<term_t>::field_start(_split, field_name);
+        _operation.field_start(_split, field_name);
         _tgs_current = TGSOpIterator<term_t>(_operation, ts_begin, ts_end);
     }
 
@@ -73,7 +73,7 @@ namespace imhotep {
                 _operation = *_tgs_current; // tgs
             }
             else {
-                _operation = Operation<term_t>::field_end(_operation);
+                _operation.field_end(_operation);
             }
             break;
         case FIELD_END:
@@ -91,7 +91,7 @@ namespace imhotep {
                 _operation = *_tgs_current; // tgs
             }
             else {
-                _operation = Operation<term_t>::field_end(_operation);
+                _operation.field_end(_operation);
             }
             break;
         default:
