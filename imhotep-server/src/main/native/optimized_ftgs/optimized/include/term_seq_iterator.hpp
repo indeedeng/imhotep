@@ -32,14 +32,12 @@ namespace imhotep {
 
         void increment() {
             if (_current != _end) {
+                _term_seq.clear();
                 const typename term_t::id_t id((*_current)._term.id());
-                auto matches_id([id](MergeOutput<term_t> element) {
-                        return element._term.id() == id;
-                    });
-
-                MergeIterator<term_t> next(std::find_if_not(_current, _end, matches_id));
-                _term_seq.reset(_current, next);
-                _current = next;
+                while (_current != _end && (*_current)._term.id() == id) {
+                    _term_seq.push_back(*_current);
+                    ++_current;
+                }
             }
             else {
                 _term_seq = TermSeq<term_t>();

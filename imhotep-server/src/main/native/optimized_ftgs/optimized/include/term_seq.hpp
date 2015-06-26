@@ -46,6 +46,16 @@ namespace imhotep {
 
         void clear() { _guts.clear(); }
 
+        void push_back(const MergeOutput<term_t>& merge_result) {
+            const term_t&           term(merge_result._term);
+            Shard::packed_table_ptr table(merge_result._table);
+            const char*             docid_base(merge_result._docid_base);
+            _id = term.id();    // !@# optimize out?
+            docid_addresses().push_back(docid_base + term.doc_offset());
+            doc_freqs().push_back(term.doc_freq());
+            tables().push_back(table);
+        }
+
     private:
         typename term_t::id_t _id = IdTraits<typename term_t::id_t>::default_value();
 
@@ -68,25 +78,6 @@ namespace imhotep {
     template <typename term_t>
     TermSeq<term_t>::TermSeq(MergeIterator<term_t>& begin, MergeIterator<term_t>& end) {
         reset(begin, end);
-    }
-
-    template <typename term_t>
-    void TermSeq<term_t>::reset(MergeIterator<term_t>& begin,
-                                MergeIterator<term_t>& end) {
-        _id = begin != end ? (*begin)._term.id() :
-            IdTraits<typename term_t::id_t>::default_value();
-
-        _guts.clear();
-
-        while (begin != end) {
-            const term_t&           term((*begin)._term);
-            Shard::packed_table_ptr table((*begin)._table);
-            const char*             docid_base((*begin)._docid_base);
-            docid_addresses().push_back(docid_base + term.doc_offset());
-            doc_freqs().push_back(term.doc_freq());
-            tables().push_back(table);
-            ++begin;
-        }
     }
 
     template <typename term_t>

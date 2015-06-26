@@ -33,7 +33,7 @@ CPPODIR=cppobj
 LDIR =../lib
 
 LIBS=\
-	-lprofiler \	# DEBUG ************** REMOVE ME!!!
+	-lprofiler \
 	-lpthread  \
 	-lstdc++
 
