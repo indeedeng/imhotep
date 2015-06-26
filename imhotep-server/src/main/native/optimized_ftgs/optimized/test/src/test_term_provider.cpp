@@ -4,7 +4,6 @@
 
 #include "executor_service.hpp"
 #include "shard.hpp"
-#include "tgs_op_iterator.hpp"
 #include "term_provider.hpp"
 
 using namespace std;
@@ -46,29 +45,6 @@ void test_term_provider(ExecutorService&      executor,
     // executor.await_completion();
 }
 
-template <typename term_t>
-void test_tgs_ops(ExecutorService&      executor,
-                  TermProvider<term_t>& provider,
-                  const string&         field,
-                  size_t num_splits) {
-    for (size_t split_num(0); split_num < num_splits; ++split_num) {
-        // executor.enqueue([&provider, field, split_num] {
-                size_t                  num_ops(0);
-                Operation<term_t>       op = Operation<term_t>::field_start(split_num, field);
-                TermSeqIterator<term_t> term_seq_begin(provider.term_seq_it(split_num));
-                TermSeqIterator<term_t> term_seq_end;
-                TGSOpIterator<term_t>   it(op, term_seq_begin, term_seq_end);
-                TGSOpIterator<term_t>   end;
-                while (it != end) {
-                    cout << it->to_string() << endl;
-                    ++num_ops;
-                    ++it;
-                }
-                cout << "num_ops: " << num_ops << endl;
-            // });
-    }
-    // executor.await_completion();
-}
 
 int main(int argc, char *argv[])
 {
@@ -98,12 +74,10 @@ int main(int argc, char *argv[])
     if (kind == "int") {
         TermProvider<IntTerm> provider(make_provider<IntTerm>(executor, shards, field, split_dir, num_splits));
         test_term_provider<IntTerm>(executor, provider, field, num_splits);
-        // test_tgs_ops<IntTerm>(executor, provider, field, num_splits);
     }
     else if (kind == "string") {
         TermProvider<StringTerm> provider(make_provider<StringTerm>(executor, shards, field, split_dir, num_splits));
-        // test_term_provider<StringTerm>(executor, provider, field, num_splits);
-        test_tgs_ops<StringTerm>(executor, provider, field, num_splits);
+        test_term_provider<StringTerm>(executor, provider, field, num_splits);
     }
     else {
         cerr << "Say what?" << endl;

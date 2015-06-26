@@ -1,7 +1,7 @@
-MODE=dbg
+MODE=opt
 
-CC=/usr/bin/gcc-4.8
-CPP=/usr/bin/g++-4.8
+CC=/usr/bin/gcc-4.9
+CPP=/usr/bin/g++-4.9
 BASE_CFLAGS=-Wall -Werror -I./include -I../include  -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions -fno-omit-frame-pointer
 BASE_CPPFLAGS=-Wall -Werror -I./include -I../include -I/usr/include/boost -msse4.2 -std=c++11 -fPIC
 
@@ -28,6 +28,7 @@ LIBS=\
 	-lboost_filesystem      \
 	-lboost_program_options \
 	-lboost_system          \
+	-lprofiler              \	# DEBUG ************** REMOVE ME!!!
 	-lyaml-cpp              \
 	-lm -lstdc++
 
@@ -40,7 +41,6 @@ TESTS := \
 	test_groups               \
 	test_int_term_iterator    \
 	test_merge_iterator       \
-	test_op_iterator          \
 	test_packed_shard         \
 	test_seq_iterator         \
 	test_split                \
@@ -74,9 +74,6 @@ test_split: obj/test_split.o ../cppobj/shard.o ../cppobj/splitter.o ../cppobj/te
 
 test_merge_iterator: obj/test_merge_iterator.o ../cppobj/log.o
 	$(CPP) $(CPPFLAGS) $ -o test_merge_iterator $(LIBS) $^
-
-test_op_iterator: obj/test_op_iterator.o ../cppobj/log.o
-	$(CPP) $(CPPFLAGS) $ -o test_op_iterator $(LIBS) $^
 
 test_seq_iterator: obj/test_seq_iterator.o ../cppobj/log.o
 	$(CPP) $(CPPFLAGS) $ -o test_seq_iterator $(LIBS) $^

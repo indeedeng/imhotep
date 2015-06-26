@@ -5,8 +5,8 @@
 
 #include <boost/iterator/iterator_facade.hpp>
 
+#include "operation.hpp"
 #include "term_providers.hpp"
-#include "tgs_op_iterator.hpp"
 
 namespace imhotep {
 
@@ -36,9 +36,9 @@ namespace imhotep {
 
         size_t _split = 0;
 
-        Operation<term_t>     _operation;
-        TGSOpIterator<term_t> _tgs_current;
-        TGSOpIterator<term_t> _tgs_end;
+        Operation<term_t>       _operation;
+        TermSeqIterator<term_t> _ts_current;
+        TermSeqIterator<term_t> _ts_end;
     };
 
 
@@ -54,10 +54,8 @@ namespace imhotep {
     void FieldOpIterator<term_t>::reset_field() {
         const std::string&          field_name(_current->first);
         const TermProvider<term_t>& provider(_current->second);
-        TermSeqIterator<term_t>     ts_begin(provider.term_seq_it(_split));
-        TermSeqIterator<term_t>     ts_end;
+        _ts_current = TermSeqIterator<term_t>(provider.term_seq_it(_split));
         _operation.field_start(_split, field_name);
-        _tgs_current = TGSOpIterator<term_t>(_operation, ts_begin, ts_end);
     }
 
     template <typename term_t>
@@ -69,8 +67,8 @@ namespace imhotep {
             }
             break;
         case FIELD_START:
-            if (_tgs_current != _tgs_end) {
-                _operation = *_tgs_current; // tgs
+            if (_ts_current != _ts_end) {
+                _operation.tgs(*_ts_current);
             }
             else {
                 _operation.field_end(_operation);
@@ -86,9 +84,9 @@ namespace imhotep {
             }
             break;
         case TGS:
-            ++_tgs_current;
-            if (_tgs_current != _tgs_end) {
-                _operation = *_tgs_current; // tgs
+            ++_ts_current;
+            if (_ts_current != _ts_end) {
+                _operation.tgs(*_ts_current);
             }
             else {
                 _operation.field_end(_operation);
@@ -106,8 +104,8 @@ namespace imhotep {
         const bool eofs(_current == _end);
         const bool other_eofs(other._current == other._end);
         const bool ops_equal(_operation == other._operation);
-        const bool tgs_equal(_tgs_current == other._tgs_current);
-        return eofs && other_eofs && ops_equal && tgs_equal;
+        const bool ts_equal(_ts_current == other._ts_current);
+        return eofs && other_eofs && ops_equal && ts_equal;
     }
 
 } // namespace imhotep

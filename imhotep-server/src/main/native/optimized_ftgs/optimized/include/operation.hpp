@@ -62,25 +62,18 @@ namespace imhotep {
             _term_seq.clear();
         }
 
-        void tgs(const Operation& operation, const TermSeq<term_t>& term_seq) {
-            assert(operation.op_code() == FIELD_START || operation.op_code() == TGS);
-            _op_code     = TGS;
-            _split_index = operation._split_index;
-            _field_name  = operation._field_name; // !@# optimize out?
-            _term_seq    = term_seq;
+        void tgs(const TermSeq<term_t>& term_seq) {
+            _op_code  = TGS;
+            _term_seq = term_seq;
         }
 
         void field_end(const Operation& operation) {
             assert(operation.op_code() == FIELD_START || operation.op_code() == TGS);
-            _op_code     = FIELD_END;
-            _split_index = operation._split_index;
-            _field_name  = operation._field_name;  // !@# optimize out?
-            _term_seq    = operation._term_seq;  // !@# optimize out?
+            _op_code = FIELD_END;
         }
 
         void no_more_fields(int32_t split_index) {
-            _op_code     = NO_MORE_FIELDS;
-            _split_index = split_index;
+            _op_code = NO_MORE_FIELDS;
             _term_seq.clear();
         }
 
@@ -88,7 +81,7 @@ namespace imhotep {
         OpCode                 op_code() const { return _op_code;     }
         const std::string&  field_name() const { return _field_name;  }
 
-        FieldType field_type() const; // !@# rename to "term_type?"
+        FieldType field_type() const;
 
         const TermSeq<term_t>& term_seq() const { return _term_seq; }
 
@@ -103,10 +96,9 @@ namespace imhotep {
         }
 
     private:
-        OpCode      _op_code     = INVALID;
-        int32_t     _split_index = 0;
-        std::string _field_name;
-
+        OpCode          _op_code     = INVALID;
+        int32_t         _split_index = 0;
+        std::string     _field_name;
         TermSeq<term_t> _term_seq;
     };
 
