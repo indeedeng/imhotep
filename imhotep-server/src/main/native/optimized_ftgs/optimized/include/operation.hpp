@@ -51,14 +51,19 @@ namespace imhotep {
             return
                 _op_code     == rhs._op_code     &&
                 _split_index == rhs._split_index &&
-                _field_name  == rhs._field_name  &&
-                _term_seq    == rhs._term_seq;
+                _field_name  == rhs._field_name;
+        }
+
+        void clear() {
+            _op_code = INVALID;
+            _split_index = 0;
+            _field_name.clear();
+            _term_seq.clear();
         }
 
         void field_start(int32_t split_index, const std::string& field_name) {
             _op_code     = FIELD_START;
             _split_index = split_index;
-            _field_name  = field_name;
             _term_seq.clear();
         }
 

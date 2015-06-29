@@ -80,7 +80,7 @@ namespace imhotep {
                 reset_field();
             }
             else {
-                _operation = Operation<term_t>();
+                _operation.clear();
             }
             break;
         case TGS:
