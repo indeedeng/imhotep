@@ -3,6 +3,8 @@
 #include "circ_buf.h"
 #include "table.h"
 
+#define GET_METRICS_FROM_MINI_BUFFER(buffer) ( ((buffer) >> ( 4 * (PREFETCH_DISTANCE - 1) )) & 0xF )
+
 
 static inline struct bit_fields_and_group
 binary_packed_table_get_grp_and_metrics(const packed_table_t *src_table, int row_id)
@@ -27,34 +29,21 @@ unpacked_table_add_binary_data(
                                const unpacked_table_t *dest_table,
                                const int current_grp,
                                const int prefetch_grp,
-                               const int binary_metrics)
+                               int binary_metrics)
 {
-    const unsigned long packed_metrics = binary_metrics;
-    __v2di* restrict data = dest_table->data;
-    __v2di vec1;
-    __v2di vec2;
-    int idx;
-    int prefetch_idx;
+    const int idx = current_grp * dest_table->padded_row_len;
+    long* restrict row = (long *)&dest_table->data[idx];
 
-    if (dest_table->n_cols > 2) {
-        /* one vector */
-        const unsigned long hi_metrics = packed_metrics >> 2;
-        vec2[0] = hi_metrics & 1;
-        vec2[1] = (hi_metrics >> 1) & 1;
-
-        idx = current_grp * 2;
-        prefetch_idx = prefetch_grp * 2;
-        data[idx + 1] += vec2;
-    } else {
-        idx = current_grp;
-        prefetch_idx = prefetch_grp;
+    for (int i = 0; i < dest_table->n_cols; i ++) {
+        row[i] += binary_metrics & 1;
+        binary_metrics >>= 1;
     }
-    vec1[0] = packed_metrics & 1;
-    vec1[1] = (packed_metrics >> 1) & 1;
 
-    data[idx] += vec1;
+    int prefetch_idx = prefetch_grp * dest_table->padded_row_len;
+    PREFETCH_KEEP(&dest_table->data[prefetch_idx]);
 
-    PREFETCH_KEEP(&data[prefetch_idx]);
+    /* flag row as modified */
+    bit_tree_set(dest_table->non_zero_rows, current_grp);
 }
 
 
@@ -102,6 +91,10 @@ void binary_lookup_and_accumulate_grp_stats(const struct worker_desc *worker,
         idx ++;
     }
 
+    if (idx == buffer_len) {
+        mini_buffer <<= 4 * (PREFETCH_DISTANCE - non_zero_count);
+    }
+
     /* loop through A rows, prefetching; loop through B rows */
     for (; idx < buffer_len - PREFETCH_DISTANCE; idx ++) {
         int row_id = row_id_buffer[idx];
@@ -122,7 +115,7 @@ void binary_lookup_and_accumulate_grp_stats(const struct worker_desc *worker,
         int current_grp = circular_buffer_int_get(grp_buf);
 
         /* loop through B row elements */
-        const int binary_metrics = (mini_buffer >> (4 * PREFETCH_DISTANCE - 1)) & 0xFF;
+        const int binary_metrics = GET_METRICS_FROM_MINI_BUFFER(mini_buffer);
         unpacked_table_add_binary_data(dest_table, current_grp, prefetch_grp, binary_metrics);
         trailing_idx ++;
 
@@ -154,7 +147,7 @@ void binary_lookup_and_accumulate_grp_stats(const struct worker_desc *worker,
         int current_grp = circular_buffer_int_get(grp_buf);
 
         /* loop through B row elements */
-        const int binary_metrics = (mini_buffer >> (4 * PREFETCH_DISTANCE - 1)) & 0xF;
+        const int binary_metrics = GET_METRICS_FROM_MINI_BUFFER(mini_buffer);
         unpacked_table_add_binary_data(dest_table, current_grp, prefetch_grp, binary_metrics);
         trailing_idx ++;
 
@@ -174,10 +167,10 @@ void binary_lookup_and_accumulate_grp_stats(const struct worker_desc *worker,
         const int current_grp = circular_buffer_int_get(grp_buf);
 
         /* loop through B row elements */
-        const int binary_metrics = (mini_buffer >> (4 * PREFETCH_DISTANCE - 1)) & 0xFF;
+        const int binary_metrics = GET_METRICS_FROM_MINI_BUFFER(mini_buffer);
         unpacked_table_add_binary_data(dest_table, current_grp, current_grp, binary_metrics);
 
-        mini_buffer <<= 4;
+        mini_buffer = mini_buffer << 4;
     }
 
 }

@@ -67,7 +67,8 @@ packed_table_t *create_shard_multicache(uint32_t n_docs,
                                         int32_t *vec_nums,
                                         int32_t *offsets_in_vecs,
                                         int8_t *original_idxs,
-                                        int n_metrics)
+                                        int n_metrics,
+                                        int only_binary_metrics)
 {
     return packed_table_create(n_docs,
                                metric_mins,
@@ -76,7 +77,8 @@ packed_table_t *create_shard_multicache(uint32_t n_docs,
                                vec_nums,
                                offsets_in_vecs,
                                original_idxs,
-                               n_metrics);
+                               n_metrics,
+                               only_binary_metrics);
 }
 
 void destroy_shard_multicache(packed_table_t *table)

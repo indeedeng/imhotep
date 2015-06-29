@@ -42,7 +42,7 @@ public final class MultiCache implements Closeable {
         this.numDocsInShard = numDocsInShard;
         this.numStats = ordering.length;
 
-        this.nativeShardDataPtr = buildCache(ordering, this.numStats);
+        this.nativeShardDataPtr = buildCache(ordering, this.numStats, config.isOnlyBinaryMetrics());
 
         /* create the group lookup and populate the groups */
         this.nativeGroupLookup = new MultiCacheGroupLookup();
@@ -75,7 +75,9 @@ public final class MultiCache implements Closeable {
         }
     }
 
-    private long buildCache(MultiCacheConfig.StatsOrderingInfo[] ordering, int count) {
+    private long buildCache(MultiCacheConfig.StatsOrderingInfo[] ordering,
+                            int count,
+                            boolean onlyBinaryMetrics) {
         final long[] mins = new long[count];
         final long[] maxes = new long[count];
         final int[] sizesInBytes = new int[count];
@@ -99,7 +101,8 @@ public final class MultiCache implements Closeable {
                                      vectorNums,
                                      offsetsInVectors,
                                      originalOrder,
-                                     this.numStats);
+                                     this.numStats,
+                                     onlyBinaryMetrics);
     }
 
     final int[] copyValuesIdBuffer = new int[CHUNK_SIZE];
@@ -170,7 +173,8 @@ public final class MultiCache implements Closeable {
                                               int[] vectorNums,
                                               int[] offsetsInVectors,
                                               byte[] originalOrder,
-                                              int numStats);
+                                              int numStats,
+                                              boolean onlyBinaryMetrics);
 
     private static native void nativePackMetricDataInRange(long nativeShardDataPtr,
                                                            int metricId,

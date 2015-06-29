@@ -163,7 +163,8 @@ packed_table_t *packed_table_create(int n_rows,
                                     int32_t *vec_nums,
                                     int32_t *offsets_in_vecs,
                                     int8_t *original_idx,
-                                    int n_cols);
+                                    int n_cols,
+                                    int bin_pack);
 void packed_table_destroy(packed_table_t *table);
 
 /*

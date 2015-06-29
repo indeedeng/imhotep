@@ -25,7 +25,7 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_nativeDestroyMul
  * Signature: (I[J[J[I[I[I[BI)J
  */
 JNIEXPORT jlong JNICALL Java_com_indeed_imhotep_local_MultiCache_nativeBuildMultiCache
-  (JNIEnv *, jobject, jint, jlongArray, jlongArray, jintArray, jintArray, jintArray, jbyteArray, jint);
+  (JNIEnv *, jobject, jint, jlongArray, jlongArray, jintArray, jintArray, jintArray, jbyteArray, jint, jboolean);
 
 /*
  * Class:     com_indeed_imhotep_local_MultiCache

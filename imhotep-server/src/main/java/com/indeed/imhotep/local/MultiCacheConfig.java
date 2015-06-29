@@ -98,7 +98,9 @@ public final class MultiCacheConfig {
             int metricIndex = 0;
             for (int i = 0; i < booleanMetrics.size(); i++) {
                 final int metric = booleanMetrics.getInt(i);
-                ret[metricIndex] = new StatsOrderingInfo(metric, mins[metric], maxes[metric], 0, 0, 0);
+                // special case count
+                final long newMin = ((mins[metric] == 1) && (maxes[metric] == 1)) ? 0 : mins[metric];
+                ret[metricIndex] = new StatsOrderingInfo(metric, newMin, maxes[metric], 0, 0, 0);
                 metricIndex++;
             }
             return ret;

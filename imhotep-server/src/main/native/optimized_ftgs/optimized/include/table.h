@@ -65,16 +65,6 @@ struct unpacked_table_desc {
 };
 typedef struct unpacked_table_desc unpacked_table_t;
 
-packed_table_t *packed_table_create(int n_rows,
-                                    int64_t *column_mins,
-                                    int64_t *column_maxes,
-                                    int32_t *sizes,
-                                    int32_t *vec_nums,
-                                    int32_t *offsets_in_vecs,
-                                    int8_t *original_idx,
-                                    int n_cols);
-void packed_table_destroy(packed_table_t *table);
-
 /*
  * Attribute Getters
  */

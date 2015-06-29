@@ -26,7 +26,8 @@ JNIEXPORT jlong JNICALL Java_com_indeed_imhotep_local_MultiCache_nativeBuildMult
                                        jintArray vector_nums_array,
                                        jintArray offsets_in_vecs_array,
                                        jbyteArray original_order_arr,
-                                       jint n_stats)
+                                       jint n_stats,
+                                       jboolean only_binary_metrics)
 {
     packed_table_t *table;
     jboolean unused;
@@ -44,7 +45,7 @@ JNIEXPORT jlong JNICALL Java_com_indeed_imhotep_local_MultiCache_nativeBuildMult
     offests_in_vecs = (*env)->GetPrimitiveArrayCritical(env, offsets_in_vecs_array, &unused);
     original_order = (*env)->GetPrimitiveArrayCritical(env, original_order_arr, &unused);
     table = create_shard_multicache(n_docs, mins, maxes, sizes, vec_nums, offests_in_vecs,
-                                    original_order, n_stats);
+                                    original_order, n_stats, only_binary_metrics);
     (*env)->ReleasePrimitiveArrayCritical(env, original_order_arr, original_order, JNI_ABORT);
     (*env)->ReleasePrimitiveArrayCritical(env, offsets_in_vecs_array, offests_in_vecs, JNI_ABORT);
     (*env)->ReleasePrimitiveArrayCritical(env, vector_nums_array, vec_nums, JNI_ABORT);

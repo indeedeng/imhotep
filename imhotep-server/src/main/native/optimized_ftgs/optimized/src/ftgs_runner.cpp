@@ -137,8 +137,8 @@ namespace imhotep {
         std::vector<std::unique_ptr<Worker>> workers;
         for (size_t id(0); id < _num_workers; ++id) {
             workers.emplace_back(new Worker(id, split_ranges,
-                                            // num_groups, num_metrics, only_binary_metrics,
-                                            num_groups, num_metrics, false,
+                                            num_groups, num_metrics, only_binary_metrics,
+//                                            num_groups, num_metrics, false,
                                             // !@# FIX ME!
                                             sample_table, socket_fds,
                                             _int_term_providers, _string_term_providers));
