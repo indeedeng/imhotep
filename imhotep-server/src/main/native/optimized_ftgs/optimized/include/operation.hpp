@@ -1,3 +1,22 @@
+/** @file operation.hpp implements states for this state transition diagram:
+
+    FS  = field start            |
+    FE  = field end              | (index, name, type) <--
+    TGS = tgs operation          V                       |
+    NMF = no more fields    ----(FS)                     |
+                            |    |                       |
+                            |    | (term desc) <--       |
+                            |    V               |       |
+                            |   (TGS)-------------       |
+                            |    |                       |
+                            |    |                       |
+                            |    V                       |
+                            --> (FE)----------------------
+                            |
+                            |
+                            V
+                           (NMF)
+*/
 #ifndef OPERATION_HPP
 #define OPERATION_HPP
 
@@ -7,25 +26,6 @@
 
 namespace imhotep {
 
-    /** Implements states for this state transition diagram:
-
-        FS  = field start         |
-        FE  = field end           | (index, name, type) <--
-        TGS = tgs operation       V                       |
-        NMF = no more fields ----(FS)                     |
-                             |    |                       |
-                             |    | (term desc) <--       |
-                             |    V               |       |
-                             |   (TGS)-------------       |
-                             |    |                       |
-                             |    |                       |
-                             |    V                       |
-                             --> (FE)----------------------
-                                  |
-                                  |
-                                  V
-                                 (NMF)
-     */
     enum OpCode:int8_t { INVALID = 0, TGS = 1, FIELD_START = 2, FIELD_END = 3, NO_MORE_FIELDS = 4 };
     enum FieldType:int { UNDEFINED = -1, STR_TERM = 0, INT_TERM = 1 };
 
@@ -47,42 +47,6 @@ namespace imhotep {
     public:
         Operation() : _op_code(INVALID) { }
 
-        bool operator==(const Operation& rhs) const {
-            return
-                _op_code     == rhs._op_code     &&
-                _split_index == rhs._split_index &&
-                _field_name  == rhs._field_name;
-        }
-
-        void clear() {
-            _op_code = INVALID;
-            _split_index = 0;
-            _field_name.clear();
-            _term_seq.clear();
-        }
-
-        void field_start(int32_t split_index, const std::string& field_name) {
-            _op_code     = FIELD_START;
-            _split_index = split_index;
-            _field_name  = field_name;
-            _term_seq.clear();
-        }
-
-        void tgs(const TermSeq<term_t>& term_seq) {
-            _op_code  = TGS;
-            _term_seq = term_seq;
-        }
-
-        void field_end(const Operation& operation) {
-            assert(operation.op_code() == FIELD_START || operation.op_code() == TGS);
-            _op_code = FIELD_END;
-        }
-
-        void no_more_fields(int32_t split_index) {
-            _op_code = NO_MORE_FIELDS;
-            _term_seq.clear();
-        }
-
         int32_t            split_index() const { return _split_index; }
         OpCode                 op_code() const { return _op_code;     }
         const std::string&  field_name() const { return _field_name;  }
@@ -91,15 +55,15 @@ namespace imhotep {
 
         const TermSeq<term_t>& term_seq() const { return _term_seq; }
 
-        std::string to_string() const {
-            std::ostringstream os;
-            os << "[Operation split_index=" << split_index()
-               << " op_code=" << op_code() << "/" << op_code_string(op_code())
-               << " field_name=" << field_name()
-               << " term_seq=" << term_seq().to_string()
-               << "]";
-            return os.str();
-        }
+        bool operator==(const Operation& rhs) const;
+
+        void clear();
+        void field_start(int32_t split_index, const std::string& field_name);
+        void tgs(const TermSeq<term_t>& term_seq);
+        void field_end(const Operation& operation);
+        void no_more_fields(int32_t split_index);
+
+        std::string to_string() const;
 
     private:
         OpCode          _op_code     = INVALID;
