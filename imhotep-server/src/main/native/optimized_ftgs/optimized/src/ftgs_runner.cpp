@@ -101,8 +101,9 @@ namespace imhotep {
     private:
         size_t _id;
 
-        struct worker_desc        _worker;
-        struct session_desc       _session;
+        struct worker_desc  _worker;
+        struct session_desc _session;
+
         std::vector<TaskIterator> _task_iterators;
     };
 
@@ -128,7 +129,9 @@ namespace imhotep {
                          bool                    only_binary_metrics,
                          Shard::packed_table_ptr sample_table,
                          const std::vector<int>& socket_fds) {
-        ProfilerStart("/tmp/googleymoogley.prof");
+        std::ostringstream os;
+        os << "/tmp/ftgs_runner." << std::time(nullptr);
+        ProfilerStart(os.str().c_str());
 
         const SplitRanges split_ranges(_num_splits, _num_workers);
         std::vector<std::unique_ptr<Worker>> workers;

@@ -64,6 +64,7 @@ namespace imhotep {
         void field_start(int32_t split_index, const std::string& field_name) {
             _op_code     = FIELD_START;
             _split_index = split_index;
+            _field_name  = field_name;
             _term_seq.clear();
         }
 
