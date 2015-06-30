@@ -19,7 +19,9 @@ namespace imhotep {
     }
 
     template <typename term_t>
-    void Operation<term_t>::field_start(int32_t split_index, const std::string& field_name) {
+    void Operation<term_t>::field_start(int32_t split_index,
+                                        const std::string& field_name,
+                                        MergeIterator<term_t>& merge_it) {
         _op_code     = FIELD_START;
         _split_index = split_index;
         _field_name  = field_name;
@@ -27,9 +29,17 @@ namespace imhotep {
     }
 
     template <typename term_t>
-    void Operation<term_t>::tgs(const TermSeq<term_t>& term_seq) {
-        _op_code  = TGS;
-        _term_seq = term_seq;
+    void Operation<term_t>::tgs(MergeIterator<term_t>& merge_it) {
+        _op_code = TGS;
+        static MergeIterator<term_t> merge_end;
+        _term_seq.clear();
+        if (merge_it != merge_end) {
+            const typename term_t::id_t id((*merge_it)._term.id());
+            while (merge_it != merge_end && (*merge_it)._term.id() == id) {
+                _term_seq.push_back(*merge_it);
+                ++merge_it;
+            }
+        }
     }
 
     template <typename term_t>
@@ -59,16 +69,18 @@ namespace imhotep {
     /* template instantiations */
     template bool Operation<IntTerm>::operator==(const Operation& rhs) const;
     template void Operation<IntTerm>::clear();
-    template void Operation<IntTerm>::field_start(int32_t split_index, const std::string& field_name);
-    template void Operation<IntTerm>::tgs(const TermSeq<IntTerm>& term_seq);
+    template void Operation<IntTerm>::field_start(int32_t split_index, const std::string& field_name,
+                                                  MergeIterator<IntTerm>& merge_it);
+    template void Operation<IntTerm>::tgs(MergeIterator<IntTerm>& merge_it);
     template void Operation<IntTerm>::field_end(const Operation& operation);
     template void Operation<IntTerm>::no_more_fields(int32_t split_index);
     template std::string Operation<IntTerm>::to_string() const;
 
     template bool Operation<StringTerm>::operator==(const Operation& rhs) const;
     template void Operation<StringTerm>::clear();
-    template void Operation<StringTerm>::field_start(int32_t split_index, const std::string& field_name);
-    template void Operation<StringTerm>::tgs(const TermSeq<StringTerm>& term_seq);
+    template void Operation<StringTerm>::field_start(int32_t split_index, const std::string& field_name,
+                                                     MergeIterator<StringTerm>& merge_it);
+    template void Operation<StringTerm>::tgs(MergeIterator<StringTerm>& merge_it);
     template void Operation<StringTerm>::field_end(const Operation& operation);
     template void Operation<StringTerm>::no_more_fields(int32_t split_index);
     template std::string Operation<StringTerm>::to_string() const;

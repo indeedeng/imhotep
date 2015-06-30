@@ -22,6 +22,7 @@
 
 #include <sstream>
 
+#include "merge_iterator.hpp"
 #include "term_seq.hpp"
 
 namespace imhotep {
@@ -58,8 +59,8 @@ namespace imhotep {
         bool operator==(const Operation& rhs) const;
 
         void clear();
-        void field_start(int32_t split_index, const std::string& field_name);
-        void tgs(const TermSeq<term_t>& term_seq);
+        void field_start(int32_t split_index, const std::string& field_name, MergeIterator<term_t>& merge_it);
+        void tgs(MergeIterator<term_t>& merge_it);
         void field_end(const Operation& operation);
         void no_more_fields(int32_t split_index);
 

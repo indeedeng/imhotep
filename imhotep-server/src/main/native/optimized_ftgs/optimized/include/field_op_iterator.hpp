@@ -5,6 +5,7 @@
 
 #include <boost/iterator/iterator_facade.hpp>
 
+#include "merge_iterator.hpp"
 #include "operation.hpp"
 #include "term_providers.hpp"
 
@@ -38,9 +39,9 @@ namespace imhotep {
 
         size_t _split = 0;
 
-        Operation<term_t>       _operation;
-        TermSeqIterator<term_t> _ts_current;
-        TermSeqIterator<term_t> _ts_end;
+        Operation<term_t>     _operation;
+        MergeIterator<term_t> _merge_current;
+        MergeIterator<term_t> _merge_end;
     };
 
 } // namespace imhotep

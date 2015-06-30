@@ -28,7 +28,7 @@ namespace imhotep {
     }
 
     template <typename term_t>
-    TermSeqIterator<term_t> TermProvider<term_t>::term_seq_it(size_t split) const {
+    MergeIterator<term_t> TermProvider<term_t>::merge_it(size_t split) const {
         typedef split_map_t::const_iterator map_it_t;
 
         std::vector<MergeInput<term_t>> merge_inputs;
@@ -43,10 +43,7 @@ namespace imhotep {
                                                      split_desc.table(), docid_view->begin());
                        });
 
-        MergeIterator<term_t> begin(merge_inputs.begin(), merge_inputs.end());
-        MergeIterator<term_t> end;
-
-        return TermSeqIterator<term_t>(begin, end);
+        return MergeIterator<term_t>(merge_inputs.begin(), merge_inputs.end());
     }
 
 
@@ -66,7 +63,7 @@ namespace imhotep {
                                            size_t                            num_splits,
                                            ExecutorService&                  executor);
 
-    template TermSeqIterator<IntTerm>    TermProvider<IntTerm>::term_seq_it(size_t split)    const;
-    template TermSeqIterator<StringTerm> TermProvider<StringTerm>::term_seq_it(size_t split) const;
+    template MergeIterator<IntTerm>    TermProvider<IntTerm>::merge_it(size_t split)    const;
+    template MergeIterator<StringTerm> TermProvider<StringTerm>::merge_it(size_t split) const;
 
 } // namespace imhotep

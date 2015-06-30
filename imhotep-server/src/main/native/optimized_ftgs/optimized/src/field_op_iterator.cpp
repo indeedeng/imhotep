@@ -16,8 +16,8 @@ namespace imhotep {
     void FieldOpIterator<term_t>::reset_field() {
         const std::string&          field_name(_current->first);
         const TermProvider<term_t>& provider(_current->second);
-        _ts_current = provider.term_seq_it(_split);
-        _operation.field_start(_split, field_name);
+        _merge_current = provider.merge_it(_split);
+        _operation.field_start(_split, field_name, _merge_current);
     }
 
     template <typename term_t>
@@ -29,8 +29,8 @@ namespace imhotep {
             }
             break;
         case FIELD_START:
-            if (_ts_current != _ts_end) {
-                _operation.tgs(*_ts_current);
+            if (_merge_current != _merge_end) {
+                _operation.tgs(_merge_current);
             }
             else {
                 _operation.field_end(_operation);
@@ -46,9 +46,9 @@ namespace imhotep {
             }
             break;
         case TGS:
-            ++_ts_current;
-            if (_ts_current != _ts_end) {
-                _operation.tgs(*_ts_current);
+            //            ++_merge_current;   // !@# this seems dubious!!!
+            if (_merge_current != _merge_end) {
+                _operation.tgs(_merge_current);
             }
             else {
                 _operation.field_end(_operation);
@@ -65,8 +65,8 @@ namespace imhotep {
         const bool eofs(_current == _end);
         const bool other_eofs(other._current == other._end);
         const bool ops_equal(_operation == other._operation);
-        const bool ts_equal(_ts_current == other._ts_current);
-        return eofs && other_eofs && ops_equal && ts_equal;
+        const bool merge_equal(_merge_current == other._merge_current);
+        return eofs && other_eofs && ops_equal && merge_equal;
     }
 
 

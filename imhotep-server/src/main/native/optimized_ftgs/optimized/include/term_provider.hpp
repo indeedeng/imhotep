@@ -16,7 +16,6 @@
 #include "shard.hpp"
 #include "splitter.hpp"
 #include "split_view.hpp"
-#include "term_seq_iterator.hpp"
 
 namespace imhotep {
 
@@ -64,7 +63,7 @@ namespace imhotep {
                      size_t                            num_splits,
                      ExecutorService&                  executor);
 
-        TermSeqIterator<term_t> term_seq_it(size_t split) const;
+        MergeIterator<term_t> merge_it(size_t split) const;
 
         const split_map_t& splits() const { return _splits; }
 

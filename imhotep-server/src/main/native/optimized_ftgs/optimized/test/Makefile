@@ -89,7 +89,9 @@ test_string_term_iterator: obj/test_string_term_iterator.o ../cppobj/shard.o ../
 
 TERM_PROVIDER_OBJS = \
 	../cppobj/executor_service.o \
+	../cppobj/field_op_iterator.o \
 	../cppobj/log.o \
+	../cppobj/operation.o \
 	../cppobj/shard.o \
 	../cppobj/splitter.o \
 	../cppobj/term_iterator.o \
