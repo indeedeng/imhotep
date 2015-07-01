@@ -55,7 +55,7 @@ namespace imhotep {
 
         bool equal(const TaskIterator& other) const;
 
-        int dereference() const { return _err; }
+        reference dereference() const { return _err; }
 
         bool complete() const;
 
