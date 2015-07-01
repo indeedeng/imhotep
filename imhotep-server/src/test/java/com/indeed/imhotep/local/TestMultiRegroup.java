@@ -121,7 +121,7 @@ public class TestMultiRegroup extends TestCase {
     private int[] nativeRegroup(GroupMultiRemapRule[] regroupRule)
         throws IOException, ImhotepOutOfMemoryException {
         try (final SimpleFlamdexReader reader = SimpleFlamdexReader.open(shardDir.toString());
-             final ImhotepLocalSession session = new ImhotepLocalSession(reader)) {
+             final ImhotepNativeLocalSession session = new ImhotepNativeLocalSession(reader)) {
                 int[] result                   = new int[N_DOCS];
                 final FlamdexReader[]  readers = new FlamdexReader[] { reader };
                 final MultiCacheConfig config  = new MultiCacheConfig();

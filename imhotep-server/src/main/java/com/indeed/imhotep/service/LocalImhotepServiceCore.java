@@ -47,6 +47,7 @@ import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.io.ReadLock;
 import com.indeed.imhotep.io.Shard;
 import com.indeed.imhotep.local.ImhotepLocalSession;
+import com.indeed.imhotep.local.ImhotepNativeLocalSession;
 
 import org.apache.log4j.Logger;
 
@@ -618,11 +619,17 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
                 final CachedFlamdexReaderReference cachedFlamdexReaderReference = pair.getSecond();
                 try {
                     flamdexes.put(pair.getFirst(), cachedFlamdexReaderReference);
-                    localSessions[i] = new ImhotepLocalSession(cachedFlamdexReaderReference,
-                                                               this.shardTempDirectory,
-                                                               new MemoryReservationContext(memory),
-                                                               optimizeGroupZeroLookups,
-                                                               tempFileSizeBytesLeft);
+                    localSessions[i] = useNativeFtgs && allFlamdexReaders ?
+                        new ImhotepNativeLocalSession(cachedFlamdexReaderReference,
+                                                      this.shardTempDirectory,
+                                                      new MemoryReservationContext(memory),
+                                                      optimizeGroupZeroLookups,
+                                                      tempFileSizeBytesLeft) :
+                        new ImhotepLocalSession(cachedFlamdexReaderReference,
+                                                this.shardTempDirectory,
+                                                new MemoryReservationContext(memory),
+                                                optimizeGroupZeroLookups,
+                                                tempFileSizeBytesLeft);
                 } catch (RuntimeException e) {
                     Closeables2.closeQuietly(cachedFlamdexReaderReference, log);
                     localSessions[i] = null;
@@ -633,18 +640,14 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
                     throw e;
                 }
             }
-            final ImhotepSession session = new MTImhotepLocalMultiSession(localSessions,
-                                                                          new MemoryReservationContext(memory),
-                                                                          executor,
-                                                                          tempFileSizeBytesLeft,
-                                                                          useNativeFtgs && allFlamdexReaders);
-            getSessionManager().addSession(sessionId,
-                                           session,
-                                           flamdexes,
-                                           username,
-                                           ipAddress,
-                                           clientVersion,
-                                           dataset);
+            final ImhotepSession session =
+                new MTImhotepLocalMultiSession(localSessions,
+                                               new MemoryReservationContext(memory),
+                                               executor,
+                                               tempFileSizeBytesLeft,
+                                               useNativeFtgs && allFlamdexReaders);
+            getSessionManager().addSession(sessionId, session, flamdexes, username,
+                                           ipAddress, clientVersion, dataset);
         } catch (RuntimeException e) {
             closeNonNullSessions(localSessions);
             throw e;

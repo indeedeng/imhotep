@@ -11,7 +11,7 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.indeed.imhotep.local;
+package com.indeed.imhotep.local;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
@@ -105,8 +105,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
-import java.beans.PropertyChangeEvent;
-import java.beans.PropertyChangeListener;
 import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
@@ -189,9 +187,6 @@ public class ImhotepLocalSession extends AbstractImhotepSession {
     private final File optimizationLog;
 
     private FTGSSplitter ftgsIteratorSplits;
-    private MultiCache multiCache;
-    private boolean rebuildMultiCache = true;
-
     public ImhotepLocalSession(final FlamdexReader flamdexReader) throws ImhotepOutOfMemoryException {
         this(flamdexReader, null,
                 new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), false, null);
@@ -237,30 +232,10 @@ public class ImhotepLocalSession extends AbstractImhotepSession {
         } else {
             fieldZeroDocBitsets = null;
         }
-
-        this.statLookup.addPropertyChangeListener(new PropertyChangeListener() {
-                public void propertyChange(PropertyChangeEvent e) {
-                    ImhotepLocalSession.this.rebuildMultiCache = true;
-                }
-            });
     }
 
     FlamdexReader getReader() {
         return this.flamdexReader;
-    }
-
-    public MultiCache buildMultiCache(final MultiCacheConfig config) {
-        if (this.rebuildMultiCache) {
-            if (this.multiCache != null) {
-                this.multiCache.close();
-            }
-            this.multiCache = new MultiCache(this, this.numDocs, config,
-                                             this.statLookup, this.docIdToGroup);
-            this.docIdToGroup = this.multiCache.getGroupLookup();
-
-            this.rebuildMultiCache = false;
-        }
-        return this.multiCache;
     }
 
     public Map<String, DynamicMetric> getDynamicMetrics() {
@@ -894,6 +869,12 @@ public class ImhotepLocalSession extends AbstractImhotepSession {
         throw new UnsupportedOperationException();
     }
 
+    protected GroupLookup resizeGroupLookup(GroupLookup lookup, final int size,
+                                            final MemoryReservationContext memory)
+        throws ImhotepOutOfMemoryException  {
+        return GroupLookupFactory.resize(lookup, size, memory);
+    }
+
     @Override
     public synchronized int regroup(final GroupMultiRemapRule[] rules, boolean errorOnCollisions)
         throws ImhotepOutOfMemoryException {
@@ -918,11 +899,7 @@ public class ImhotepLocalSession extends AbstractImhotepSession {
 
         final int maxIntermediateGroup = Math.max(docIdToGroup.getNumGroups(), highestTarget);
         final int maxNewGroup = MultiRegroupInternals.findMaxGroup(rules);
-        docIdToGroup = multiCache != null ?
-            multiCache.getGroupLookup() :
-            GroupLookupFactory.resize(docIdToGroup,
-                                      Math.max(maxIntermediateGroup, maxNewGroup),
-                                      memory);
+        docIdToGroup = resizeGroupLookup(docIdToGroup, Math.max(maxIntermediateGroup, maxNewGroup), memory);
 
         MultiRegroupInternals.moveUntargeted(docIdToGroup, maxIntermediateGroup, rules);
 
@@ -1072,7 +1049,7 @@ public class ImhotepLocalSession extends AbstractImhotepSession {
         docIdToGroup.recalculateNumGroups();
         newNumGroups = docIdToGroup.getNumGroups();
         accountForFlamdexFTGSIteratorMemChange(oldNumGroups, newNumGroups);
-        if (multiCache == null) docIdToGroup = GroupLookupFactory.resize(docIdToGroup, 0, memory);
+        docIdToGroup = resizeGroupLookup(docIdToGroup, 0, memory);
         recalcGroupCounts(newNumGroups);
         recalcGroupStats(newNumGroups);
     }
@@ -2497,25 +2474,24 @@ public class ImhotepLocalSession extends AbstractImhotepSession {
         }
     }
 
-    private void tryClose() {
+    protected void freeDocIdToGroup() {
+        if (docIdToGroup != null) {
+            final long memFreed =
+                docIdToGroup.memoryUsed() + groupDocCount.length * 4L + BUFFER_SIZE
+                * (4 + 4 + 4) + 12L * docIdToGroup.getNumGroups();
+            docIdToGroup = null;
+            groupDocCount = null;
+            memory.releaseMemory(memFreed);
+        }
+    }
+
+    protected void tryClose() {
         try {
             Closeables2.closeQuietly(flamdexReaderRef, log);
             while (numStats > 0) {
                 popStat();
             }
-            if (docIdToGroup != null && (multiCache == null)) {
-                final long memFreed =
-                        docIdToGroup.memoryUsed() + groupDocCount.length * 4L + BUFFER_SIZE
-                                * (4 + 4 + 4) + 12L * docIdToGroup.getNumGroups();
-                docIdToGroup = null;
-                groupDocCount = null;
-                memory.releaseMemory(memFreed);
-            }
-
-            if (this.multiCache != null) {
-                this.multiCache.close();
-                // TODO: free memory?
-            }
+            freeDocIdToGroup();
 
             long dynamicMetricUsage = 0;
             for (DynamicMetric metric : getDynamicMetrics().values()) {
