@@ -56,9 +56,9 @@ namespace imhotep {
 
         bool operator==(const Term& rhs) const {
             return
-                id()         == rhs.id()         &&
-                doc_offset() == rhs.doc_offset() &&
-                doc_freq()   == rhs.doc_freq();
+                    doc_offset() == rhs.doc_offset() &&
+                    doc_freq()   == rhs.doc_freq()   &&
+                    id()         == rhs.id();
         }
 
         bool operator<(const Term& rhs) const {
