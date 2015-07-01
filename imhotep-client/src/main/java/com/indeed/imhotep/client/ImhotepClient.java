@@ -328,7 +328,7 @@ public class ImhotepClient implements Closeable {
             return this;
         }
 
-        public SessionBuilder shardsOverride(List<String> requiredShards) {
+        public SessionBuilder shardsOverride(Collection<String> requiredShards) {
             this.shardsOverride = Lists.newArrayList(requiredShards);
             return this;
         }

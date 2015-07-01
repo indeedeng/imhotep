@@ -1,4 +1,4 @@
-MODE=opt
+MODE=dbg
 
 IDIR=include
 CC=/usr/bin/gcc-4.9
@@ -10,10 +10,10 @@ BASE_CPPFLAGS=-Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -
 BASE_LFLAGS= -shared  -fno-omit-frame-pointer
 
 DBG_CFLAGS= -g -fno-omit-frame-pointer
-OPT_CFLAGS= -g -O3 -flto -fno-omit-frame-pointer -fvisibility=hidden
+OPT_CFLAGS= -g -O3 -flto -fvisibility=hidden
 
 DBG_CPPFLAGS= -g -fno-omit-frame-pointer
-OPT_CPPFLAGS= -g -O3 -flto -funroll-loops -fno-omit-frame-pointer -fvisibility=hidden
+OPT_CPPFLAGS= -g -O3 -flto -funroll-loops -fvisibility=hidden
 
 DBG_LFLAGS= -g
 OPT_LFLAGS= -O3 -flto
@@ -33,9 +33,10 @@ CPPODIR=cppobj
 LDIR =../lib
 
 LIBS=\
-	-lprofiler \
 	-lpthread  \
-	-lstdc++
+	-lstdc++   \
+#	-lprofiler \
+	
 
 C_FILES := $(wildcard src/*.c)
 H_FILES := $(wildcard include/*.h)
@@ -56,7 +57,7 @@ $(CPPODIR)/%.o: src/%.cpp $(HPP_FILES)
 all: native_lib
 
 native_lib: $(filter-out $(ODIR)/test_invert_metrics.o,$(OBJ_FILES)) $(CPP_OBJ_FILES)
-	$(CPP) $(LFLAGS) -Wl,-export-dynamic -Wl,-init,simdvbyteinit -Wl,-soname,libftgs.so.1 -o libftgs.so.1.0.1 $^ $(LIBS)
+	$(CPP) $(LFLAGS) -Wl,-export-dynamic -Wl,-soname,libftgs.so.1 -o libftgs.so.1.0.1 $^ $(LIBS)
 	cp  libftgs.so.1.0.1 ../../../resources/native/Linux-amd64
 
 clean:
