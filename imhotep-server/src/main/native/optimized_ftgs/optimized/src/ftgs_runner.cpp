@@ -4,7 +4,7 @@
 #include <sstream>
 #include <tuple>
 
-#include <gperftools/profiler.h>
+//#include <gperftools/profiler.h>
 
 #include "imhotep_error.hpp"
 #include "log.hpp"
@@ -131,7 +131,7 @@ namespace imhotep {
                          const std::vector<int>& socket_fds) {
         std::ostringstream os;
         os << "/tmp/ftgs_runner." << std::time(nullptr);
-        ProfilerStart(os.str().c_str());
+//        ProfilerStart(os.str().c_str());
 
         const SplitRanges split_ranges(_num_splits, _num_workers);
         std::vector<std::unique_ptr<Worker>> workers;
@@ -147,7 +147,7 @@ namespace imhotep {
         }
         _executor.await_completion();
 
-        ProfilerStop();
+//        ProfilerStop();
     }
 
 } // namespace imhotep
