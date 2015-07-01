@@ -55,6 +55,8 @@ int run_tgs_pass(struct worker_desc *worker,
     /* clean up the tgs structure */
     tgs_destroy(&desc);
 
+    term_destroy(term_type, &desc.term);
+
     end_timer(worker, 3);
 
     return err;
