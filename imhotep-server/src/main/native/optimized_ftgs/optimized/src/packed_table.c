@@ -17,6 +17,17 @@ struct bit_fields_and_group {
 };
 
 
+inline uint64_t packed_table_get_2_binary_cells(const packed_table_t *table, const int row, int column)
+{
+    const void *packed_addr = (void *)table->data;
+    const uint32_t* load_address = packed_addr + (row * table->row_size_bytes);
+    const uint32_t bits_and_grp = *load_address;
+    const int high_bit_num = GROUP_SIZE + 1;
+    const uint64_t high_word = ((bits_and_grp & (1L << high_bit_num)) << (32  - high_bit_num));
+    const uint64_t low_word = ((bits_and_grp >> GROUP_SIZE) & 0x1L);
+    return high_word | low_word;
+}
+
 /* Creates the starting and end indexes of the cols, where col/16 indicates
  * in which vector the col is.
  */

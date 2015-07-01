@@ -460,6 +460,8 @@ static index_bytes_consumed combined_lookup[sizeof(bytes_consumed)];
 
 static __m128i vectors[170];
 
+__attribute__ ((visibility ("default")))
+__attribute__ ((constructor))
 void simdvbyteinit(void) {
 	vectors[0] = _mm_setr_epi8(0, -1, 4, -1, 1, -1, 5, -1, 2, -1, -1, -1, 3, -1,
 			-1, -1);

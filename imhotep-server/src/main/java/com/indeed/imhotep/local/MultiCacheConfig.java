@@ -56,14 +56,14 @@ public final class MultiCacheConfig {
 
     public void calcOrdering(final StatLookup[] statLookups, final int numStats) {
         this.ordering = calculateMetricOrder(statLookups, numStats);
-        
+
         for (StatsOrderingInfo info : this.ordering) {
             if (info.sizeInBytes != 0) {
                 this.onlyBinaryMetrics = false;
                 return;
             }
         }
-        
+
         this.onlyBinaryMetrics = true;
     }
 
@@ -91,7 +91,7 @@ public final class MultiCacheConfig {
                 longMetrics.add(i);
             }
         }
-        
+
         // Check if there are only boolean metrics
         if (longMetrics.size() == 0) {
             final StatsOrderingInfo[] ret = new StatsOrderingInfo[numStats];
@@ -105,7 +105,7 @@ public final class MultiCacheConfig {
             }
             return ret;
         }
-        
+
         final List<IntList> vectorMetrics;
         // do exhaustive search for up to 10 metrics
         // optimizes first for least number of vectors then least space used for group stats
@@ -303,10 +303,10 @@ public final class MultiCacheConfig {
             sl.set(i, iv[i]);
         }
         multiCacher.calcOrdering(new StatLookup[] {sl}, iv.length);
-        
+
         StatsOrderingInfo[] ordering = multiCacher.ordering;
         int count = ordering.length;
-        
+
         final long[] mins = new long[count];
         final long[] maxes = new long[count];
         final int[] sizesInBytes = new int[count];

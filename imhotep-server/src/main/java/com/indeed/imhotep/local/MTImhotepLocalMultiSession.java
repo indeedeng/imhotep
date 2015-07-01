@@ -162,7 +162,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         executeMemoryException(multiCaches, new ThrowingFunction<ImhotepSession, MultiCache>() {
             @Override
             public MultiCache apply(ImhotepSession session) throws Exception {
-                return ((ImhotepLocalSession)session).buildMultiCache(config);
+                return ((ImhotepNativeLocalSession)session).buildMultiCache(config);
             }
         });
 

@@ -5,6 +5,26 @@
 
 #include "high_perf_timer.h"
 
+void updateGroupStats(const packed_table_t const * restrict table, long *sums, const int col)
+{
+    int num_rows = packed_table_get_rows(table);
+    for (int i = 0; i < num_rows; i++) {
+        int grp = packed_table_get_group(table, i);
+        sums[grp] += packed_table_get_cell(table, i, col);
+    }
+}
+
+/* Future optimization...
+void updateGroupStats_2binary(const packed_table_t const * restrict table, long *sums, const int col)
+{
+    int num_rows = packed_table_get_rows(table);
+    for (int i = 0; i < num_rows; i++) {
+        int grp = packed_table_get_group(table, i);
+        sums[grp] += packed_table_get_2_binary_cells(table, i, col);
+    }
+}
+*/
+
 /*
  * Two array loop
  */
