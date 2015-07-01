@@ -672,7 +672,7 @@ public class TestNativeFlamdexFTGSIterator {
         verificationIter.close();
     }
     
-
+    @Test
     public void testSingleShard() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
         final long seed = rand.nextLong();
 //        final long seed = 6757079647648910486L;
