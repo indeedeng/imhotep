@@ -682,8 +682,8 @@ public class TestNativeFlamdexFTGSIterator {
 
         // need at least one
         final int nMetrics = rand.nextInt(MAX_N_METRICS - 1) + 1;
-        final int nIntFields = rand.nextInt(3 - 1) + 1;
-        final int nStringFields = rand.nextInt(3 - 1) + 1;
+        final int nIntFields = rand.nextInt(3 - 1) + 2;
+        final int nStringFields = rand.nextInt(3 - 1) + 2;
         String[] stringFieldNames = new String[nStringFields];
         for (int i = 0; i < nStringFields; i++) {
             stringFieldNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN-1) + 1);
@@ -747,8 +747,8 @@ public class TestNativeFlamdexFTGSIterator {
         final int numDocs = rand.nextInt(1 << 17) + 1;  // 64K
 
         // need at least one
-        final int nIntFields = rand.nextInt(3 - 1) + 1;
-        final int nStringFields = rand.nextInt(3 - 1) + 1;
+        final int nIntFields = rand.nextInt(3 - 1) + 2;
+        final int nStringFields = rand.nextInt(3 - 1) + 2;
         final int nMetrics = rand.nextInt(MAX_N_METRICS - 1) + 1;
         String[] stringFieldNames = new String[nStringFields];
         for (int i = 0; i < nStringFields; i++) {
