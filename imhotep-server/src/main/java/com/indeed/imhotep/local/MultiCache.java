@@ -22,6 +22,7 @@ public final class MultiCache implements Closeable {
     private static final int BLOCK_COPY_SIZE = 8192;
 
     private long nativeShardDataPtr;
+    private final PackedTableView packedTable;
     private final int numDocsInShard;
     private final int numStats;
     private final List<MultiCacheIntValueLookup> nativeMetricLookups;
@@ -29,6 +30,7 @@ public final class MultiCache implements Closeable {
 
     private final ImhotepLocalSession session;
     private int closedLookupCount = 0;
+
 
     private static final int CHUNK_SIZE = 4096;
 
@@ -43,6 +45,7 @@ public final class MultiCache implements Closeable {
         this.numStats = ordering.length;
 
         this.nativeShardDataPtr = buildCache(ordering, this.numStats);
+        this.packedTable = new PackedTableView(this.nativeShardDataPtr);
 
         /* create the group lookup and populate the groups */
         this.nativeGroupLookup = new MultiCacheGroupLookup();
@@ -261,7 +264,6 @@ public final class MultiCache implements Closeable {
                 }
 
                 final int docId = MultiCache.this.session.docIdBuf[i];
-
                 MultiCache.this.session.docGroupBuffer[rewriteHead] = group;
                 MultiCache.this.session.docIdBuf[rewriteHead] = docId;
                 rewriteHead++;
@@ -361,12 +363,12 @@ public final class MultiCache implements Closeable {
 
         @Override
         public int get(int doc) {
-            return nativeGetGroup(MultiCache.this.nativeShardDataPtr, doc);
+            return MultiCache.this.packedTable.getGroup(doc);
         }
 
         @Override
         public void set(int doc, int group) {
-            nativeSetGroupForDoc(MultiCache.this.nativeShardDataPtr, doc, group);
+            MultiCache.this.packedTable.setGroup(doc, group);
         }
 
         @Override
