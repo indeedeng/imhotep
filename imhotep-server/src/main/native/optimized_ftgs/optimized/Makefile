@@ -1,4 +1,4 @@
-MODE=dbg
+MODE=opt
 
 IDIR=include
 CC=/usr/bin/gcc-4.9
@@ -9,13 +9,13 @@ BASE_CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -s
 BASE_CPPFLAGS=-Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -I/usr/include/boost -msse4.2 -std=c++11 -fPIC
 BASE_LFLAGS= -shared  -fno-omit-frame-pointer
 
-DBG_CFLAGS= -g -fno-omit-frame-pointer
+DBG_CFLAGS= -g3 #-fsanitize=address -fsanitize=undefined -fsanitize=null -fsanitize=bounds -fno-sanitize-recover=undefined -fno-omit-frame-pointer #-fsanitize-undefined-trap-on-error
 OPT_CFLAGS= -g -O3 -flto -fvisibility=hidden
 
-DBG_CPPFLAGS= -g -fno-omit-frame-pointer
-OPT_CPPFLAGS= -g -O3 -flto -funroll-loops -fvisibility=hidden
+DBG_CPPFLAGS= -g3 #-fsanitize=address -fsanitize=undefined -fsanitize=null -fsanitize=bounds -fno-sanitize-recover=undefined -fno-omit-frame-pointer #-fsanitize-undefined-trap-on-error  
+OPT_CPPFLAGS= -g -O3 -flto -fvisibility=hidden
 
-DBG_LFLAGS= -g
+DBG_LFLAGS= -g3 #-fsanitize=address -fsanitize=undefined -fsanitize=null -fsanitize=bounds -fno-sanitize-recover=undefined -fno-omit-frame-pointer -lasan #-fsanitize-undefined-trap-on-error  
 OPT_LFLAGS= -O3 -flto
 
 ifeq ($(MODE),opt)
