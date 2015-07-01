@@ -62,34 +62,34 @@ static inline int write_bytes(struct buffered_socket* socket,
 }
 
 static int write_vint64(struct buffered_socket* socket, const uint64_t i) {
-    if (i < 1L << 7) {
+    if (i < 1UL << 7) {
         TRY(write_byte(socket, (uint8_t) i));
-    } else if (i < 1L << 14) {
+    } else if (i < 1UL << 14) {
         TRY(write_byte(socket, (uint8_t) ((i&0x7F) | 0x80)));
         TRY(write_byte(socket, (uint8_t) (i>>7)));
-    } else if (i < 1L << 21) {
+    } else if (i < 1UL << 21) {
         TRY(write_byte(socket, (uint8_t) ((i&0x7F) | 0x80)));
         TRY(write_byte(socket, (uint8_t) (((i>>7)&0x7F) | 0x80)));
         TRY(write_byte(socket, (uint8_t) (i>>14)));
-    } else if (i < 1L << 28) {
+    } else if (i < 1UL << 28) {
         TRY(write_byte(socket, (uint8_t) ((i&0x7F) | 0x80)));
         TRY(write_byte(socket, (uint8_t) (((i>>7)&0x7F) | 0x80)));
         TRY(write_byte(socket, (uint8_t) (((i>>14)&0x7F) | 0x80)));
         TRY(write_byte(socket, (uint8_t) (i>>21)));
-    } else if (i < 1L << 35) {
+    } else if (i < 1UL << 35) {
         TRY(write_byte(socket, (uint8_t) ((i&0x7F) | 0x80)));
         TRY(write_byte(socket, (uint8_t) (((i>>7)&0x7F) | 0x80)));
         TRY(write_byte(socket, (uint8_t) (((i>>14)&0x7F) | 0x80)));
         TRY(write_byte(socket, (uint8_t) (((i>>21)&0x7F) | 0x80)));
         TRY(write_byte(socket, (uint8_t) (i>>28)));
-    } else if (i < 1L << 42) {
+    } else if (i < 1UL << 42) {
         TRY(write_byte(socket, (uint8_t) ((i&0x7F) | 0x80)));
         TRY(write_byte(socket, (uint8_t) (((i>>7)&0x7F) | 0x80)));
         TRY(write_byte(socket, (uint8_t) (((i>>14)&0x7F) | 0x80)));
         TRY(write_byte(socket, (uint8_t) (((i>>21)&0x7F) | 0x80)));
         TRY(write_byte(socket, (uint8_t) (((i>>28)&0x7F) | 0x80)));
         TRY(write_byte(socket, (uint8_t) (i>>35)));
-    } else if (i < 1L << 49) {
+    } else if (i < 1UL << 49) {
         TRY(write_byte(socket, (uint8_t) ((i&0x7F) | 0x80)));
         TRY(write_byte(socket, (uint8_t) (((i>>7)&0x7F) | 0x80)));
         TRY(write_byte(socket, (uint8_t) (((i>>14)&0x7F) | 0x80)));
@@ -97,7 +97,7 @@ static int write_vint64(struct buffered_socket* socket, const uint64_t i) {
         TRY(write_byte(socket, (uint8_t) (((i>>28)&0x7F) | 0x80)));
         TRY(write_byte(socket, (uint8_t) (((i>>35)&0x7F) | 0x80)));
         TRY(write_byte(socket, (uint8_t) (i>>42)));
-    } else if (i < 1L << 56) {
+    } else if (i < 1UL << 56) {
         TRY(write_byte(socket, (uint8_t) ((i&0x7F) | 0x80)));
         TRY(write_byte(socket, (uint8_t) (((i>>7)&0x7F) | 0x80)));
         TRY(write_byte(socket, (uint8_t) (((i>>14)&0x7F) | 0x80)));
@@ -106,7 +106,7 @@ static int write_vint64(struct buffered_socket* socket, const uint64_t i) {
         TRY(write_byte(socket, (uint8_t) (((i>>35)&0x7F) | 0x80)));
         TRY(write_byte(socket, (uint8_t) (((i>>42)&0x7F) | 0x80)));
         TRY(write_byte(socket, (uint8_t) (i>>49)));
-    } else if (i < 1L << 63) {
+    } else if (i < 1UL << 63) {
         TRY(write_byte(socket, (uint8_t) ((i&0x7F) | 0x80)));
         TRY(write_byte(socket, (uint8_t) (((i>>7)&0x7F) | 0x80)));
         TRY(write_byte(socket, (uint8_t) (((i>>14)&0x7F) | 0x80)));

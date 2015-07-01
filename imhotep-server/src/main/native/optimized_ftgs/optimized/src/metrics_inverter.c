@@ -38,7 +38,7 @@
  */
 static inline uint64_t set_bit(int64_t value, uint32_t offset)
 {
-	return value | (1 << offset);
+	return value | (1UL << offset);
 }
 
 static inline void invert_bitfield_terms(int64_t * restrict data_buf,

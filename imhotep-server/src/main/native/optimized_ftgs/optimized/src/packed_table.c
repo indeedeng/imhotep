@@ -375,7 +375,7 @@ static inline int internal_get_boolean_cell(const packed_table_t* table,
 {
     const void *packed_addr = (void *)table->data;
     const uint32_t* load_address = packed_addr + (row * table->row_size_bytes);
-    const uint32_t bit = (*load_address) & (1 << (GROUP_SIZE + column));
+    const uint32_t bit = (*load_address) & (1UL << (GROUP_SIZE + column));
     return (bit != 0);
 }
 
