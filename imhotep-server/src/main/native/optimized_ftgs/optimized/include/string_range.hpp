@@ -28,6 +28,7 @@ namespace imhotep {
 
         bool operator==(const StringRange& rhs) const {
             if (size() != rhs.size()) return false;
+            if (begin() == rhs.begin()) return true;
             return std::equal(begin(), end(), rhs.begin());
         }
 

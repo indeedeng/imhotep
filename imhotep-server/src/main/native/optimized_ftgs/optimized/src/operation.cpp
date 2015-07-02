@@ -15,7 +15,7 @@ namespace imhotep {
         _op_code = INVALID;
         _split_index = 0;
         _field_name.clear();
-        _term_seq.clear();
+        _term_seq.reset();
     }
 
     template <typename term_t>
@@ -25,20 +25,23 @@ namespace imhotep {
         _op_code     = FIELD_START;
         _split_index = split_index;
         _field_name  = field_name;
-        _term_seq.clear();
+        _term_seq.reset();
     }
 
     template <typename term_t>
     void Operation<term_t>::tgs(MergeIterator<term_t>& merge_it) {
         _op_code = TGS;
-        static MergeIterator<term_t> merge_end;
-        _term_seq.clear();
+        static const MergeIterator<term_t> merge_end;
         if (merge_it != merge_end) {
             const typename term_t::id_t id((*merge_it)._term.id());
+            _term_seq.reset(id);
             while (merge_it != merge_end && (*merge_it)._term.id() == id) {
                 _term_seq.push_back(*merge_it);
                 ++merge_it;
             }
+        }
+        else {
+            _term_seq.reset();
         }
     }
 
@@ -51,7 +54,7 @@ namespace imhotep {
     template <typename term_t>
     void Operation<term_t>::no_more_fields(int32_t split_index) {
         _op_code = NO_MORE_FIELDS;
-        _term_seq.clear();
+        _term_seq.reset();
     }
 
     template <typename term_t>

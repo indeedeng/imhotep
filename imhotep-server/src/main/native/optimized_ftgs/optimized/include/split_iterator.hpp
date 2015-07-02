@@ -43,8 +43,6 @@ namespace imhotep {
 
         const term_t& dereference() const { return _current; }
 
-        term_t decode();
-
         SplitView _view;
         term_t    _current;
     };

@@ -31,9 +31,9 @@ namespace imhotep {
 
         template <typename T>
         T read() {
-            check_size(sizeof(T));
 
             if (empty()) return T();
+            check_size(sizeof(T));
 
             const T* result(reinterpret_cast<const T*>(_begin));
             _begin += sizeof(T);
@@ -42,10 +42,9 @@ namespace imhotep {
 
         StringRange read_bytes(size_t length) {
             check_size(length);
-
-            const StringRange result(_begin, _begin + length);
+            const char* old_begin(_begin);
             _begin += length;
-            return result;
+            return StringRange(old_begin, _begin);
         }
 
     private:

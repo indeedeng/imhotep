@@ -30,13 +30,6 @@ namespace imhotep {
 
         size_t size() const;
 
-        /*
-        const std::vector<const char*>& docid_addresses() const { return _guts._docid_addresses; }
-        const std::vector<int32_t>&           doc_freqs() const { return _guts._doc_freqs;       }
-
-        const std::vector<Shard::packed_table_ptr>& tables() const { return _guts._tables; }
-        */
-
         std::vector<const char*>& docid_addresses() const { return _guts._docid_addresses; }
         std::vector<int32_t>&           doc_freqs() const { return _guts._doc_freqs;       }
 
@@ -44,16 +37,16 @@ namespace imhotep {
 
         std::string to_string() const;
 
-        void clear() { _guts.clear(); }
+        void reset(const typename term_t::id_t& id=IdTraits<typename term_t::id_t>::default_value()) {
+            _id = id;
+            _guts.clear();
+        }
 
         void push_back(const MergeOutput<term_t>& merge_result) {
-            const term_t&           term(merge_result._term);
-            Shard::packed_table_ptr table(merge_result._table);
-            const char*             docid_base(merge_result._docid_base);
-            _id = term.id();    // !@# optimize out?
-            docid_addresses().push_back(docid_base + term.doc_offset());
+            const term_t& term(merge_result._term);
+            docid_addresses().push_back(merge_result._docid_base + term.doc_offset());
             doc_freqs().push_back(term.doc_freq());
-            tables().push_back(table);
+            tables().push_back(merge_result._table);
         }
 
     private:

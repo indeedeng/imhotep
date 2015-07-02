@@ -29,11 +29,7 @@ namespace imhotep {
         { }
 
         bool operator==(const MergeInput& rhs) const {
-            return
-                _split_it   == rhs._split_it;
-                // _split_it   == rhs._split_it &&
-                // _table      == rhs._table    &&
-                // _docid_base == rhs._docid_base;
+            return _split_it == rhs._split_it;
         }
     };
 
@@ -61,9 +57,9 @@ namespace imhotep {
 
         bool operator==(const MergeOutput& rhs) const {
             return
-                _term       == rhs._term  &&
                 _table      == rhs._table &&
-                _docid_base == rhs._docid_base;
+                _docid_base == rhs._docid_base &&
+                _term       == rhs._term;
         }
     };
 
@@ -119,8 +115,8 @@ namespace imhotep {
 
         bool equal(const MergeIterator& other) const {
             return
-                _its == other._its &&
-                _current == other._current;
+                _current == other._current &&
+                _its == other._its;
         }
 
         const MergeOutput<term_t>& dereference() const { return _current; }
