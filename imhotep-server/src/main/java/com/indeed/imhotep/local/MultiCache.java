@@ -1,7 +1,9 @@
 package com.indeed.imhotep.local;
 
+import com.google.common.io.ByteStreams;
 import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.datastruct.FastBitSet;
+import com.indeed.flamdex.fieldcache.NativeFlamdexFieldCacher;
 import com.indeed.imhotep.BitTree;
 import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.util.core.threads.ThreadSafeBitSet;
@@ -9,6 +11,11 @@ import com.indeed.util.core.threads.ThreadSafeBitSet;
 import org.apache.log4j.Logger;
 
 import java.io.Closeable;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -34,6 +41,34 @@ public final class MultiCache implements Closeable {
 
     private static final int CHUNK_SIZE = 4096;
 
+    static {
+        loadNativeLibrary();
+        log.info("libmulticache loaded");
+    }
+
+    static void loadNativeLibrary() {
+        try {
+            final String osName = System.getProperty("os.name");
+            final String arch = System.getProperty("os.arch");
+            final String resourcePath = "/native/" + osName + "-" + arch + "/libmulticache.so.1.0.1";
+            final InputStream is = MultiCache.class.getResourceAsStream(resourcePath);
+            if (is == null) {
+                throw new FileNotFoundException(
+                        "unable to find libmulticache.so.1.0.1 at resource path " + resourcePath);
+            }
+            final File tempFile = File.createTempFile("libmulticache", ".so");
+            final OutputStream os = new FileOutputStream(tempFile);
+            ByteStreams.copy(is, os);
+            os.close();
+            is.close();
+            System.load(tempFile.getAbsolutePath());
+            tempFile.delete();
+        } catch (Throwable e) {
+            e.printStackTrace();
+            log.warn("unable to load libmulticache using class loader, looking in java.library.path", e);
+            System.loadLibrary("multicache"); // if this fails it throws UnsatisfiedLinkError
+        }
+    }
     public MultiCache(ImhotepLocalSession session,
                       int numDocsInShard,
                       MultiCacheConfig config,

@@ -24,7 +24,6 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.io.SocketUtils;
 import com.indeed.imhotep.io.caching.CachedFile;
-import com.indeed.imhotep.multicache.ftgs.*;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 
