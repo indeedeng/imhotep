@@ -170,11 +170,11 @@ public class ImhotepLocalSession extends AbstractImhotepSession {
     int[] groupDocCount;
 
     int numStats;
-    private long[][] groupStats = new long[MAX_NUMBER_STATS][];
+    protected long[][] groupStats = new long[MAX_NUMBER_STATS][];
     final StatLookup statLookup = new StatLookup(MAX_NUMBER_STATS);
     private final List<String> statCommands;
 
-    private final boolean[] needToReCalcGroupStats = new boolean[MAX_NUMBER_STATS];
+    protected final boolean[] needToReCalcGroupStats = new boolean[MAX_NUMBER_STATS];
 
     private boolean closed = false;
     @VisibleForTesting

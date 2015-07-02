@@ -17,15 +17,15 @@
  * Signature: (J[BJI[II)V
  */
 JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiRegroupInternals_nativeRemapDocsInTargetGroups__J_3BJI_3II
-(JNIEnv *java_env, jclass clazz,
+(JNIEnv *env, jclass clazz,
  long native_shard_data_ptr, jbyteArray results,
  jlong doc_list_address, jint n_docs,
  jintArray remappings,
  jint placeholder_group)
 {
     jboolean unused           = 0;
-    jbyte*   results_array    = (*java_env)->GetPrimitiveArrayCritical(java_env, results, &unused);
-    jint*    remappings_array = (*java_env)->GetPrimitiveArrayCritical(java_env, remappings, &unused);
+    jbyte*   results_array    = (*env)->GetPrimitiveArrayCritical(env, results, &unused);
+    jint*    remappings_array = (*env)->GetPrimitiveArrayCritical(env, remappings, &unused);
 
     int status = remap_docs_in_target_groups_int8_t((packed_table_t*) native_shard_data_ptr,
                                                     results_array,
@@ -33,14 +33,14 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiRegroupInternals_nativ
                                                     remappings_array,
                                                     placeholder_group);
 
-    (*java_env)->ReleasePrimitiveArrayCritical(java_env, remappings, remappings_array, JNI_ABORT);
-    (*java_env)->ReleasePrimitiveArrayCritical(java_env, results,    results_array,    0);
+    (*env)->ReleasePrimitiveArrayCritical(env, remappings, remappings_array, JNI_ABORT);
+    (*env)->ReleasePrimitiveArrayCritical(env, results,    results_array,    0);
 
     if (status != 0) {
-        jclass exClass = (*java_env)->FindClass(java_env, "java/lang/IllegalArgumentException");
-        (*java_env)->ThrowNew(java_env, exClass,
-                              "Regrouping on a multi-valued field doesn't work correctly so the "
-                              "operation is rejected.");
+        jclass exClass = (*env)->FindClass(env, "java/lang/IllegalArgumentException");
+        (*env)->ThrowNew(env, exClass,
+                         "Regrouping on a multi-valued field doesn't work correctly so the "
+                         "operation is rejected.");
     }
 }
 
@@ -50,30 +50,30 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiRegroupInternals_nativ
  * Signature: (J[CJI[II)V
  */
 JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiRegroupInternals_nativeRemapDocsInTargetGroups__J_3CJI_3II
-(JNIEnv *java_env, jclass clazz,
+(JNIEnv *env, jclass clazz,
  long native_shard_data_ptr, jcharArray results,
  jlong doc_list_address, jint n_docs,
  jintArray remappings,
  jint placeholder_group)
 {
     jboolean unused           = 0;
-    jchar*   results_array    = (*java_env)->GetPrimitiveArrayCritical(java_env, results, &unused);
-    jint*    remappings_array = (*java_env)->GetPrimitiveArrayCritical(java_env, remappings, &unused);
+    jchar*   results_array    = (*env)->GetPrimitiveArrayCritical(env, results, &unused);
+    jint*    remappings_array = (*env)->GetPrimitiveArrayCritical(env, remappings, &unused);
 
     int status = remap_docs_in_target_groups_uint16_t((packed_table_t*) native_shard_data_ptr,
-                                                     results_array,
-                                                     (uint8_t*) doc_list_address, n_docs,
-                                                     remappings_array,
-                                                     placeholder_group);
+                                                      results_array,
+                                                      (uint8_t*) doc_list_address, n_docs,
+                                                      remappings_array,
+                                                      placeholder_group);
 
-    (*java_env)->ReleasePrimitiveArrayCritical(java_env, remappings, remappings_array, JNI_ABORT);
-    (*java_env)->ReleasePrimitiveArrayCritical(java_env, results,    results_array,    0);
+    (*env)->ReleasePrimitiveArrayCritical(env, remappings, remappings_array, JNI_ABORT);
+    (*env)->ReleasePrimitiveArrayCritical(env, results,    results_array,    0);
 
     if (status != 0) {
-        jclass exClass = (*java_env)->FindClass(java_env, "java/lang/IllegalArgumentException");
-        (*java_env)->ThrowNew(java_env, exClass,
-                              "Regrouping on a multi-valued field doesn't work correctly so the "
-                              "operation is rejected.");
+        jclass exClass = (*env)->FindClass(env, "java/lang/IllegalArgumentException");
+        (*env)->ThrowNew(env, exClass,
+                         "Regrouping on a multi-valued field doesn't work correctly so the "
+                         "operation is rejected.");
     }
 }
 
@@ -83,15 +83,15 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiRegroupInternals_nativ
  * Signature: (J[IJI[II)V
  */
 JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiRegroupInternals_nativeRemapDocsInTargetGroups__J_3IJI_3II
-(JNIEnv *java_env, jclass clazz,
+(JNIEnv *env, jclass clazz,
  long native_shard_data_ptr, jintArray results,
  jlong doc_list_address, jint n_docs,
  jintArray remappings,
  jint placeholder_group)
 {
     jboolean unused           = 0;
-    jint*    results_array    = (*java_env)->GetPrimitiveArrayCritical(java_env, results, &unused);
-    jint*    remappings_array = (*java_env)->GetPrimitiveArrayCritical(java_env, remappings, &unused);
+    jint*    results_array    = (*env)->GetPrimitiveArrayCritical(env, results, &unused);
+    jint*    remappings_array = (*env)->GetPrimitiveArrayCritical(env, remappings, &unused);
 
     int status = remap_docs_in_target_groups_int32_t((packed_table_t*) native_shard_data_ptr,
                                                      results_array,
@@ -99,14 +99,14 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiRegroupInternals_nativ
                                                      remappings_array,
                                                      placeholder_group);
 
-    (*java_env)->ReleasePrimitiveArrayCritical(java_env, remappings, remappings_array, JNI_ABORT);
-    (*java_env)->ReleasePrimitiveArrayCritical(java_env, results,    results_array,    0);
+    (*env)->ReleasePrimitiveArrayCritical(env, remappings, remappings_array, JNI_ABORT);
+    (*env)->ReleasePrimitiveArrayCritical(env, results,    results_array,    0);
 
     if (status != 0) {
-        jclass exClass = (*java_env)->FindClass(java_env, "java/lang/IllegalArgumentException");
-        (*java_env)->ThrowNew(java_env, exClass,
-                              "Regrouping on a multi-valued field doesn't work correctly so the "
-                              "operation is rejected.");
+        jclass exClass = (*env)->FindClass(env, "java/lang/IllegalArgumentException");
+        (*env)->ThrowNew(env, exClass,
+                         "Regrouping on a multi-valued field doesn't work correctly so the "
+                         "operation is rejected.");
     }
 }
 
@@ -117,7 +117,7 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiRegroupInternals_nativ
  * Signature: ()V
  */
 JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MTImhotepLocalMultiSession_nativeInit
-(JNIEnv *java_env, jclass mt_local_session_class)
+(JNIEnv *env, jclass mt_local_session_class)
 {
     simdvbyteinit();
 }
@@ -129,12 +129,13 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MTImhotepLocalMultiSession_
  * Signature: (J)V
  */
 JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_PackedTableView_nativeBind
-(JNIEnv *java_env, jobject packedTableView, jlong nativeShardDataPtr)
+(JNIEnv *env, jobject packedTableView, jlong nativeShardDataPtr)
 {
     packed_table_t* packed_table = (packed_table_t*) nativeShardDataPtr;
-    jclass   clazz          = (*java_env)->GetObjectClass(java_env, packedTableView);
-    jfieldID tableDataPtrID = (*java_env)->GetFieldID(java_env, clazz, "tableDataPtr", "J");
-    jfieldID rowSizeID      = (*java_env)->GetFieldID(java_env, clazz, "rowSizeBytes", "I");
-    (*java_env)->SetLongField(java_env, packedTableView, tableDataPtrID, (jlong) packed_table->data);
-    (*java_env)->SetIntField(java_env, packedTableView, rowSizeID, (jint) packed_table->row_size_bytes);
+    jclass   clazz          = (*env)->GetObjectClass(env, packedTableView);
+    jfieldID tableDataPtrID = (*env)->GetFieldID(env, clazz, "tableDataPtr", "J");
+    jfieldID rowSizeID      = (*env)->GetFieldID(env, clazz, "rowSizeBytes", "I");
+    (*env)->SetLongField(env, packedTableView, tableDataPtrID, (jlong) packed_table->data);
+    (*env)->SetIntField(env, packedTableView, rowSizeID, (jint) packed_table->row_size_bytes);
 }
+

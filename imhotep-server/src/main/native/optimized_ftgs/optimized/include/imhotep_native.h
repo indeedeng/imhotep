@@ -140,6 +140,9 @@ void term_update_int(struct term_s *term, struct term_s *new_term);
 void term_update_string(struct term_s *term, struct term_s *new_term);
 void term_reset(struct term_s *term);
 
+void update_group_stats(const packed_table_t * restrict table, long *sums, const int col);
+void update_group_stats_2_binary(const packed_table_t * restrict table, long *sums, const int col);
+
 void lookup_and_accumulate_grp_stats(
                                      const struct worker_desc *worker,
                                      const packed_table_t *src_table,

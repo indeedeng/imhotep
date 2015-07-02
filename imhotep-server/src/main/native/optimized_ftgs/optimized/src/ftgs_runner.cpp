@@ -129,17 +129,15 @@ namespace imhotep {
                          bool                    only_binary_metrics,
                          Shard::packed_table_ptr sample_table,
                          const std::vector<int>& socket_fds) {
-        std::ostringstream os;
-        os << "/tmp/ftgs_runner." << std::time(nullptr);
-//        ProfilerStart(os.str().c_str());
+        // std::ostringstream os;
+        // os << "/tmp/ftgs_runner." << std::time(nullptr);
+        // ProfilerStart(os.str().c_str());
 
         const SplitRanges split_ranges(_num_splits, _num_workers);
         std::vector<std::unique_ptr<Worker>> workers;
         for (size_t id(0); id < _num_workers; ++id) {
             workers.emplace_back(new Worker(id, split_ranges,
                                             num_groups, num_metrics, only_binary_metrics,
-//                                            num_groups, num_metrics, false,
-                                            // !@# FIX ME!
                                             sample_table, socket_fds,
                                             _int_term_providers, _string_term_providers));
             Worker* worker(workers.back().get());
@@ -147,7 +145,7 @@ namespace imhotep {
         }
         _executor.await_completion();
 
-//        ProfilerStop();
+        // ProfilerStop();
     }
 
 } // namespace imhotep

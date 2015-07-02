@@ -190,6 +190,8 @@ public final class MultiCache implements Closeable {
                                                int count,
                                                int[] groupsBuffer);
 
+    public native void nativeGetGroupStats(int stat, long[] result);
+
     public long getNativeAddress() {
         return this.nativeShardDataPtr;
     }

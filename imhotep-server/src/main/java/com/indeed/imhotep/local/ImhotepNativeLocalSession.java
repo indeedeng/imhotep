@@ -73,6 +73,19 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
     }
 
     @Override
+    public synchronized long[] getGroupStats(int stat) {
+
+        if (multiCache == null) return super.getGroupStats(stat);
+
+        long[] result = groupStats[stat];
+        if (needToReCalcGroupStats[stat]) {
+            multiCache.nativeGetGroupStats(stat, result);
+            needToReCalcGroupStats[stat] = false;
+        }
+        return result;
+    }
+
+    @Override
     protected GroupLookup resizeGroupLookup(GroupLookup lookup, final int size,
                                             final MemoryReservationContext memory)
         throws ImhotepOutOfMemoryException {
@@ -82,6 +95,7 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
     @Override
     protected void freeDocIdToGroup() { }
 
+    @Override
     protected void tryClose() {
         super.tryClose();
         if (multiCache != null) {
@@ -89,4 +103,5 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
             // TODO: free memory?
         }
     }
+
 }

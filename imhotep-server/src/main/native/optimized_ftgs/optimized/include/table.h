@@ -136,6 +136,8 @@ void packed_table_bit_set_regroup(
 
 void packed_table_prefetch_row(const packed_table_t *table, const int row_id);
 
+uint64_t packed_table_get_2_binary_cells(const packed_table_t *table, const int row, int column);
+
 /*
  *  FTGS below:
  */

@@ -43,6 +43,14 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_nativePackMetric
 JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_nativeSetGroupsInRange
   (JNIEnv *, jobject, jlong, jint, jint, jintArray);
 
+/*
+ * Class:     com_indeed_imhotep_local_MultiCache
+ * Method:    nativeGetGroupStats
+ * Signature: (I[J)V
+ */
+JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_nativeGetGroupStats
+  (JNIEnv *, jobject, jint, jlongArray);
+
 #ifdef __cplusplus
 }
 #endif

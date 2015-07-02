@@ -1,8 +1,8 @@
 MODE=opt
 
 IDIR=include
-CC=/usr/bin/gcc-4.9
-CPP=/usr/bin/g++-4.9
+CC=/usr/bin/gcc-4.8
+CPP=/usr/bin/g++-4.8
 JNI_HEADER_LOC=$(JAVA_HOME)/include
 JNI_HEADER_LOC2=$(JNI_HEADER_LOC)/linux
 BASE_CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions
@@ -36,7 +36,7 @@ LIBS=\
 	-lpthread  \
 	-lstdc++   \
 #	-lprofiler \
-	
+
 
 C_FILES := $(wildcard src/*.c)
 H_FILES := $(wildcard include/*.h)

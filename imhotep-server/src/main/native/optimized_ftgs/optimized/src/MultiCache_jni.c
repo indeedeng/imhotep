@@ -112,6 +112,28 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_nativeSetGroupsI
 }
 
 /*
+ * Class:     com_indeed_imhotep_local_MultiCache
+ * Method:    nativeGetGroupStats
+ * Signature: (I[J)V
+ */
+JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_nativeGetGroupStats
+(JNIEnv *env, jobject multiCache, jint stat, jlongArray result)
+{
+    jclass          clazz                = (*env)->GetObjectClass(env, multiCache);
+    jfieldID        nativeShardDataPtrID = (*env)->GetFieldID(env, clazz, "nativeShardDataPtr", "J");
+    jlong           nativeShardDataPtr   = (*env)->GetLongField(env, multiCache, nativeShardDataPtrID);
+    packed_table_t* packed_table         = (packed_table_t*) nativeShardDataPtr;
+    jboolean        unused               = 0;
+    jlong*          sums                 = (*env)->GetPrimitiveArrayCritical(env, result, &unused);
+
+    /* !@# To do: check size of 'result' against number of groups in packed table */
+    update_group_stats(packed_table, sums, stat);
+
+    (*env)->ReleasePrimitiveArrayCritical(env, result, sums, 0);
+}
+
+
+/*
  * Class:     com_indeed_imhotep_local_MultiCache_MultiCacheIntValueLookup
  * Method:    nativeMetricLookup
  * Signature: (JI[I[JI)V
