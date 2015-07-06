@@ -1,6 +1,6 @@
 #include <jni.h>
 #include "imhotep_native.h"
-#include "local_session.h"
+//#include "local_session.h"
 
 #undef  JNIEXPORT
 #define JNIEXPORT               __attribute__((visibility("default")))
@@ -44,7 +44,7 @@ JNIEXPORT jlong JNICALL Java_com_indeed_imhotep_local_MultiCache_nativeBuildMult
     vec_nums = (*env)->GetPrimitiveArrayCritical(env, vector_nums_array, &unused);
     offests_in_vecs = (*env)->GetPrimitiveArrayCritical(env, offsets_in_vecs_array, &unused);
     original_order = (*env)->GetPrimitiveArrayCritical(env, original_order_arr, &unused);
-    table = create_shard_multicache(n_docs, mins, maxes, sizes, vec_nums, offests_in_vecs,
+    table = packed_table_create(n_docs, mins, maxes, sizes, vec_nums, offests_in_vecs,
                                     original_order, n_stats, only_binary_metrics);
     (*env)->ReleasePrimitiveArrayCritical(env, original_order_arr, original_order, JNI_ABORT);
     (*env)->ReleasePrimitiveArrayCritical(env, offsets_in_vecs_array, offests_in_vecs, JNI_ABORT);
@@ -63,7 +63,7 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_nativeDestroyMul
 {
     packed_table_t *table = (packed_table_t *)table_pointer;
 
-    destroy_shard_multicache(table);
+    packed_table_destroy(table);
 }
 
 /*

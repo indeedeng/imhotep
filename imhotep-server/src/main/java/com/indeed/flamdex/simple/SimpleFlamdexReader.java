@@ -13,6 +13,7 @@
  */
  package com.indeed.flamdex.simple;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -202,6 +203,11 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader implements RawFla
         } finally {
             iterator.close();
         }
+    }
+
+    @VisibleForTesting
+    public final IntValueLookup getMetricJava(String metric) throws FlamdexOutOfMemoryException {
+        return super.getMetric(metric);
     }
 
     private IntValueLookup cacheField(SimpleIntTermIterator iterator,

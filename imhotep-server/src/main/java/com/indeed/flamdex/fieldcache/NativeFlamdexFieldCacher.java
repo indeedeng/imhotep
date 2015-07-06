@@ -14,6 +14,7 @@
 package com.indeed.flamdex.fieldcache;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.io.ByteStreams;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.IntValueLookup;
@@ -22,12 +23,16 @@ import com.indeed.flamdex.datastruct.MMapFastBitSet;
 import com.indeed.flamdex.simple.SimpleIntTermIterator;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.mmap.MMapBuffer;
+
 import org.apache.log4j.Logger;
 
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.util.UUID;
@@ -36,6 +41,7 @@ import java.util.UUID;
  * @author jsgroth
  */
 public enum NativeFlamdexFieldCacher {
+
     LONG {
         @Override
         public long memoryRequired(int numDocs) {
@@ -776,6 +782,37 @@ public enum NativeFlamdexFieldCacher {
     };
 
     private static final Logger log = Logger.getLogger(NativeFlamdexFieldCacher.class);
+
+    static {
+        loadNativeLibrary();
+        log.info("libfieldcache loaded");
+    }
+
+    static void loadNativeLibrary() {
+        try {
+            final String osName = System.getProperty("os.name");
+            final String arch = System.getProperty("os.arch");
+            final String resourcePath = "/native/" + osName + "-" + arch + "/libfieldcache.so.1.0.1";
+            final InputStream is = NativeFlamdexFieldCacher.class.getResourceAsStream(resourcePath);
+            if (is == null) {
+                throw new FileNotFoundException(
+                        "unable to find libfieldcache.so.1.0.1 at resource path " + resourcePath);
+            }
+            final File tempFile = File.createTempFile("libfieldcache", ".so");
+            final OutputStream os = new FileOutputStream(tempFile);
+            ByteStreams.copy(is, os);
+            os.close();
+            is.close();
+            System.load(tempFile.getAbsolutePath());
+            tempFile.delete();
+        } catch (Throwable e) {
+            e.printStackTrace();
+            log.warn("unable to load libfieldcache using class loader, looking in java.library.path",
+                     e);
+            System.loadLibrary("fieldcache"); // if this fails it throws UnsatisfiedLinkError
+        }
+    }
+
     private static final int BUFFER_SIZE = 8192;
 
     public abstract long memoryRequired(int numDocs);

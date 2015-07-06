@@ -62,48 +62,6 @@ int run_tgs_pass(struct worker_desc *worker,
     return err;
 }
 
-packed_table_t *create_shard_multicache(uint32_t n_docs,
-                                        int64_t *metric_mins,
-                                        int64_t *metric_maxes,
-                                        int32_t *sizes,
-                                        int32_t *vec_nums,
-                                        int32_t *offsets_in_vecs,
-                                        int8_t *original_idxs,
-                                        int n_metrics,
-                                        int only_binary_metrics)
-{
-    return packed_table_create(n_docs,
-                               metric_mins,
-                               metric_maxes,
-                               sizes,
-                               vec_nums,
-                               offsets_in_vecs,
-                               original_idxs,
-                               n_metrics,
-                               only_binary_metrics);
-}
-
-void destroy_shard_multicache(packed_table_t *table)
-{
-    packed_table_destroy(table);
-}
-
-//int register_shard(struct session_desc *session, packed_table_t *table)
-//{
-//    if (packed_table_is_binary_only(table)) {
-//        session->only_binary_metrics = 1;
-//    } else {
-//        session->only_binary_metrics = 0;
-//    }
-//
-//    for (int i = 0; i < session->num_shards; i++) {
-//        if (session->shards[i] == NULL) {
-//            session->shards[i] = table;
-//            return i;
-//        }
-//    }
-//    return -1;
-//}
 
 /* No need to share the group stats buffer, so just keep one per session*/
 /* Make sure the one we have is large enough */

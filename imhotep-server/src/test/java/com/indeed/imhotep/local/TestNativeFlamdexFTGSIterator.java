@@ -19,8 +19,11 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -33,8 +36,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.google.common.io.ByteStreams;
+import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
+import com.indeed.flamdex.api.IntValueLookup;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.RandomStringUtils;
+import org.apache.log4j.Logger;
 import org.junit.Test;
 
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
@@ -876,6 +883,102 @@ public class TestNativeFlamdexFTGSIterator {
         verificationIter.close();
     }
 
+    @Test
+    public void testNativeMetricInverter() throws IOException, FlamdexOutOfMemoryException {
+        final long seed = rand.nextLong();
+//        final long seed = 5934453071102157952L;
+        rand.setSeed(seed);
+        System.out.println("Random seed: " + seed);
+        final int numDocs = (1 << 17) + rand.nextInt(1 << 17)+ 1;  // 128K
+
+        final int nMetrics = MetricMaxSizes.values().length;
+        String[] metricNames = new String[nMetrics];
+        for (int i = 0; i < nMetrics; i++) {
+            metricNames[i] = randomString(rand.nextInt(MAX_STRING_TERM_LEN - 1) + 1);
+        }
+
+//        List<String> shardCopies =
+//                Arrays.asList(new String[] { "/tmp/native-ftgs-test4073440857071201612test",
+//                                            "/tmp/native-ftgs-test3495740989105538049test" });
+//        List<String> shardNames =
+//                Arrays.asList(new String[] { "/tmp/native-ftgs-test4073440857071201612test",
+//                                           "/tmp/native-ftgs-test3495740989105538049test" });
+
+//        final List<FieldDesc> fieldDescs = createShardProfile(numDocs,
+//                                                              nMetrics,
+//                                                              0,
+//                                                              new String[0],
+//                                                              0,
+//                                                              new String[0],
+//                                                              metricNames,
+//                                                              false);
+
+        // create metrics
+        final List<FieldDesc> fieldDescs = new ArrayList<>(nMetrics);
+        int j = 0;
+        for (MetricMaxSizes sz : MetricMaxSizes.values()) {
+            final FieldDesc fd = new FieldDesc();
+            fd.isIntfield = true;
+            fd.name = metricNames[j++];
+            fd.termGenerator = sz;
+            fd.numDocs = numDocs;
+            fieldDescs.add(fd);
+        }
+
+        final String shardName = generateShard(fieldDescs);
+        System.out.println(shardName);
+        final String shardCopy = copyShard(shardName);
+
+        final SimpleFlamdexReader verificationShard = SimpleFlamdexReader.open(shardCopy);
+        final SimpleFlamdexReader testShard = SimpleFlamdexReader.open(shardName);
+        final int nDocs = testShard.getNumDocs();
+
+        // jit the code
+        long foo = 0;
+        int d[] = new int[1];
+        long v[] = new long[1];
+        d[0] = nDocs - 3;
+        for (int i = 0; i < 100; i++) {
+            for (String metric : metricNames) {
+                final IntValueLookup verificationIVL = verificationShard.getMetricJava(metric);
+                verificationIVL.lookup(d, v, 1);
+                foo += v[0];
+                final IntValueLookup testIVL = testShard.getMetric(metric);
+                testIVL.lookup(d, v, 1);
+                foo += v[0];
+            }
+        }
+        System.out.println("foo: " + foo);
+
+        for (String metric : metricNames) {
+            final long t1 = System.nanoTime();
+            final IntValueLookup verificationIVL = verificationShard.getMetricJava(metric);
+            final long t2 = System.nanoTime();
+            final IntValueLookup testIVL = testShard.getMetric(metric);
+            final long t3 = System.nanoTime();
+            System.out.println("Timings (max " + testIVL.getMax() + ") - "
+                                       + " java: " + (t2 - t1)
+                                       + " native: " + (t3 - t2));
+
+            int offset = 0;
+            int[] docIds = new int[1024];
+            long[] goodValues = new long[1024];
+            long[] testValues = new long[1024];
+            do {
+                int count = (nDocs - offset > 1024) ? 1024 : nDocs - offset;
+                for (int i = 0; i < 1024; i++) {
+                    docIds[i] = i + offset;
+                }
+                verificationIVL.lookup(docIds, goodValues, count);
+                testIVL.lookup(docIds, testValues, count);
+                assertArrayEquals("inverted metrics do not match in block " + ((offset / 1024) + 1),
+                                  goodValues, testValues);
+                offset += count;
+            } while(offset < nDocs);
+        }
+
+
+    }
 
     private void compareIterators(FTGSIterator test, FTGSIterator valid, int numStats) {
         final long[] validStats = new long[numStats];
