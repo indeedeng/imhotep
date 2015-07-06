@@ -503,7 +503,7 @@ public class TestNativeFlamdexFTGSIterator {
         public ImhotepLocalSession create(SimpleFlamdexReader reader,
                                           boolean optimizeGroupZeroLookups)
             throws ImhotepOutOfMemoryException {
-            return new ImhotepLocalSession(reader, optimizeGroupZeroLookups);
+            return new ImhotepJavaLocalSession(reader, optimizeGroupZeroLookups);
         }
     }
 

@@ -135,7 +135,7 @@ import java.util.regex.Pattern;
  * This class isn't even close to remotely thread safe, do not use it
  * simultaneously from multiple threads
  */
-public class ImhotepLocalSession extends AbstractImhotepSession {
+public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     static final Logger log = Logger.getLogger(ImhotepLocalSession.class);
 
     static final boolean logTiming;
@@ -145,7 +145,7 @@ public class ImhotepLocalSession extends AbstractImhotepSession {
             "true".equals(System.getProperty("com.indeed.imhotep.local.ImhotepLocalSession.logTiming"));
     }
 
-    private static final int MAX_NUMBER_STATS = 64;
+    static final int MAX_NUMBER_STATS = 64;
     static final int BUFFER_SIZE = 2048;
     private final AtomicLong tempFileSizeBytesLeft;
 
@@ -170,13 +170,14 @@ public class ImhotepLocalSession extends AbstractImhotepSession {
     int[] groupDocCount;
 
     int numStats;
-    protected long[][] groupStats = new long[MAX_NUMBER_STATS][];
-    final StatLookup statLookup = new StatLookup(MAX_NUMBER_STATS);
+
+    protected final GroupStatCache groupStats;
+    protected final StatLookup     statLookup = new StatLookup(MAX_NUMBER_STATS);
+
     private final List<String> statCommands;
 
-    protected final boolean[] needToReCalcGroupStats = new boolean[MAX_NUMBER_STATS];
-
     private boolean closed = false;
+
     @VisibleForTesting
     private Map<String, DynamicMetric> dynamicMetrics = Maps.newHashMap();
 
@@ -221,6 +222,9 @@ public class ImhotepLocalSession extends AbstractImhotepSession {
         docIdToGroup.recalculateNumGroups();
         groupDocCount = clearAndResize((int[]) null, docIdToGroup.getNumGroups(), memory);
         groupDocCount[1] = numDocs;
+
+        this.groupStats = new GroupStatCache(MAX_NUMBER_STATS, memory);
+
         this.statCommands = new ArrayList<String>();
 
         this.optimizationLog =
@@ -456,7 +460,7 @@ public class ImhotepLocalSession extends AbstractImhotepSession {
      * Resets the Flamdex readers to the original un-optimized versions and
      * constructs the DynamicMetrics to match what they should be if no
      * optimization had taken place.
-     * 
+     *
      * The GroupLookup does not have to be reconstructed since it will be set to
      * a constant value as a result of a reset() call
      */
@@ -1051,7 +1055,7 @@ public class ImhotepLocalSession extends AbstractImhotepSession {
         accountForFlamdexFTGSIteratorMemChange(oldNumGroups, newNumGroups);
         docIdToGroup = resizeGroupLookup(docIdToGroup, 0, memory);
         recalcGroupCounts(newNumGroups);
-        recalcGroupStats(newNumGroups);
+        groupStats.reset(numStats, newNumGroups);
     }
 
     private void accountForFlamdexFTGSIteratorMemChange(final int oldNumGroups,
@@ -1816,20 +1820,6 @@ public class ImhotepLocalSession extends AbstractImhotepSession {
         return docIdToGroup.getNumGroups();
     }
 
-    @Override
-    public synchronized long[] getGroupStats(int stat) {
-        if (needToReCalcGroupStats[stat]) {
-            updateGroupStatsAllDocs(statLookup.get(stat),
-                                    groupStats[stat],
-                                    docIdToGroup,
-                                    docGroupBuffer,
-                                    docIdBuf,
-                                    valBuf);
-            needToReCalcGroupStats[stat] = false;
-        }
-        return groupStats[stat];
-    }
-
     private static GroupRemapRule[] cleanUpRules(GroupRemapRule[] rawRules, int numGroups) {
         final GroupRemapRule[] cleanRules = new GroupRemapRule[numGroups];
         for (final GroupRemapRule rawRule : rawRules) {
@@ -1842,13 +1832,6 @@ public class ImhotepLocalSession extends AbstractImhotepSession {
             cleanRules[rawRule.targetGroup] = rawRule;
         }
         return cleanRules;
-    }
-
-    private void recalcGroupStats(int numGroups) throws ImhotepOutOfMemoryException {
-        for (int statIndex = 0; statIndex < numStats; statIndex++) {
-            groupStats[statIndex] = clearAndResize(groupStats[statIndex], numGroups, memory);
-            needToReCalcGroupStats[statIndex] = true;
-        }
     }
 
     private void recalcGroupCounts(int numGroups)
@@ -2114,9 +2097,7 @@ public class ImhotepLocalSession extends AbstractImhotepSession {
                 throw new ImhotepOutOfMemoryException(e);
             }
         }
-        // todo: check if metric is invalid... ?
-        groupStats[numStats] = clearAndResize((long[]) null, docIdToGroup.getNumGroups(), memory);
-        needToReCalcGroupStats[numStats] = true;
+        groupStats.resetStat(numStats, docIdToGroup.getNumGroups());
         numStats++;
 
         // FlamdexFTGSIterator.termGrpStats
@@ -2157,10 +2138,10 @@ public class ImhotepLocalSession extends AbstractImhotepSession {
 
         final IntValueLookup ret = statLookup.get(numStats);
         statLookup.set(numStats, null);
-        final long memFreed = groupStats[numStats].length * 8 + 8L * docIdToGroup.getNumGroups();
-        groupStats[numStats] = null;
 
-        memory.releaseMemory(memFreed);
+        groupStats.clearStat(numStats);
+
+        memory.releaseMemory(8L * docIdToGroup.getNumGroups());
 
         return ret;
     }
@@ -2226,10 +2207,7 @@ public class ImhotepLocalSession extends AbstractImhotepSession {
 
         // pessimistically recompute all stats -- other metrics may indirectly
         // refer to this one
-        for (int i = 0; i < numStats; i++) {
-            needToReCalcGroupStats[i] = true;
-            groupStats[i] = clearAndResize(groupStats[i], docIdToGroup.getNumGroups(), memory);
-        }
+        groupStats.reset(numStats, docIdToGroup.getNumGroups());
     }
 
     @Override
@@ -2422,12 +2400,9 @@ public class ImhotepLocalSession extends AbstractImhotepSession {
                 }
                 stringTermIterator.close();
             }
-            // pessimistically recompute all stats -- other metrics may indirectly
-            // refer to this one
-            for (int i = 0; i < numStats; i++) {
-                needToReCalcGroupStats[i] = true;
-                groupStats[i] = clearAndResize(groupStats[i], docIdToGroup.getNumGroups(), memory);
-            }
+            // pessimistically recompute all stats -- other metrics may
+            // indirectly refer to this one
+            groupStats.reset(numStats, docIdToGroup.getNumGroups());
         } catch (ImhotepOutOfMemoryException e) {
             throw Throwables.propagate(e);
         } finally {
@@ -2548,7 +2523,7 @@ public class ImhotepLocalSession extends AbstractImhotepSession {
         accountForFlamdexFTGSIteratorMemChange(docIdToGroup.getNumGroups(), newNumGroups);
         docIdToGroup = new ConstantGroupLookup(this, group, numDocs);
         recalcGroupCounts(newNumGroups);
-        recalcGroupStats(newNumGroups);
+        groupStats.reset(numStats, newNumGroups);
         memory.releaseMemory(bytesToFree);
     }
 
@@ -2594,36 +2569,6 @@ public class ImhotepLocalSession extends AbstractImhotepSession {
         }
         Arrays.fill(a, 0);
         return a;
-    }
-
-    private static void updateGroupStatsAllDocs(IntValueLookup statLookup,
-                                                long[] groupStats,
-                                                GroupLookup docIdToGroup,
-                                                int[] docGrpBuffer,
-                                                int[] docIdBuf,
-                                                long[] valBuf) {
-        // populate new group stats
-        final int numDocs = docIdToGroup.size();
-        for (int start = 0; start < numDocs; start += BUFFER_SIZE) {
-            final int n = Math.min(BUFFER_SIZE, numDocs - start);
-            for (int i = 0; i < n; i++) {
-                docIdBuf[i] = start + i;
-            }
-            docIdToGroup.fillDocGrpBuffer(docIdBuf, docGrpBuffer, n);
-            updateGroupStatsDocIdBuf(statLookup, groupStats, docGrpBuffer, docIdBuf, valBuf, n);
-        }
-    }
-
-    static void updateGroupStatsDocIdBuf(IntValueLookup statLookup,
-                                         long[] groupStats,
-                                         int[] docGrpBuffer,
-                                         int[] docIdBuf,
-                                         long[] valBuf,
-                                         int n) {
-        statLookup.lookup(docIdBuf, valBuf, n);
-        for (int i = 0; i < n; i++) {
-            groupStats[docGrpBuffer[i]] += valBuf[i];
-        }
     }
 
     static void clear(long[] array, int[] groupsSeen, int groupsSeenCount) {

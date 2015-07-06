@@ -63,7 +63,7 @@ public class TestIndexReWriter {
 
         r1.addStringTerm("sf1", "☃", Arrays.asList(1, 4, 5, 6, 7));
 
-        ImhotepLocalSession session1 = new ImhotepLocalSession(r1);
+        ImhotepLocalSession session1 = new ImhotepJavaLocalSession(r1);
 
         /* make session 2 */
         MockFlamdexReader r2 =
@@ -83,7 +83,7 @@ public class TestIndexReWriter {
 
         r2.addStringTerm("sf1", "☃", Arrays.asList(1, 4, 5, 6, 7));
 
-        ImhotepLocalSession session2 = new ImhotepLocalSession(r2);
+        ImhotepLocalSession session2 = new ImhotepJavaLocalSession(r2);
 
         /* make session 3 */
         MockFlamdexReader r3 =
@@ -97,7 +97,7 @@ public class TestIndexReWriter {
 
         r2.addStringTerm("sf1", "☃", Arrays.asList(1, 4, 5, 6, 7));
 
-        ImhotepLocalSession session3 = new ImhotepLocalSession(r3);
+        ImhotepLocalSession session3 = new ImhotepJavaLocalSession(r3);
 
         /* merge sessions */
         MockFlamdexWriter w = new MockFlamdexWriter("foo");
@@ -174,7 +174,7 @@ public class TestIndexReWriter {
 
         r1.addIntTerm("if1", 3, Arrays.asList(1, 4, 5, 6, 7));
 
-        ImhotepLocalSession session1 = new ImhotepLocalSession(r1);
+        ImhotepLocalSession session1 = new ImhotepJavaLocalSession(r1);
 
         /* make session 2 */
         MockFlamdexReader r2 =
@@ -194,7 +194,7 @@ public class TestIndexReWriter {
 
         r2.addIntTerm("if1", 3, Arrays.asList(1, 4, 5, 6, 7));
 
-        ImhotepLocalSession session2 = new ImhotepLocalSession(r2);
+        ImhotepLocalSession session2 = new ImhotepJavaLocalSession(r2);
 
         /* make session 3 */
         MockFlamdexReader r3 =
@@ -208,7 +208,7 @@ public class TestIndexReWriter {
 
         r2.addIntTerm("if1", 3, Arrays.asList(1, 4, 5, 6, 7));
 
-        ImhotepLocalSession session3 = new ImhotepLocalSession(r3);
+        ImhotepLocalSession session3 = new ImhotepJavaLocalSession(r3);
 
         /* merge sessions */
         MockFlamdexWriter w = new MockFlamdexWriter("foo");
@@ -264,7 +264,7 @@ public class TestIndexReWriter {
     public void testGroupMerging() throws ImhotepOutOfMemoryException, IOException {
         /* make session 1 */
         final FlamdexReader r1 = MakeAFlamdex.make();
-        final ImhotepLocalSession session1 = new ImhotepLocalSession(r1);
+        final ImhotepLocalSession session1 = new ImhotepJavaLocalSession(r1);
         session1.pushStat("count()");
         session1.createDynamicMetric("foo");
         session1.createDynamicMetric("bar");
@@ -297,7 +297,7 @@ public class TestIndexReWriter {
 
         /* make session 2 */
         final FlamdexReader r2 = MakeAFlamdex.make();
-        final ImhotepLocalSession session2 = new ImhotepLocalSession(r2);
+        final ImhotepLocalSession session2 = new ImhotepJavaLocalSession(r2);
         session2.pushStat("count()");
         session2.createDynamicMetric("foo");
         session2.createDynamicMetric("cat");
@@ -441,7 +441,7 @@ public class TestIndexReWriter {
     public void testGroup0Filtering() throws ImhotepOutOfMemoryException, IOException {
         /* make session 1 */
         final FlamdexReader r1 = MakeAFlamdex.make();
-        final ImhotepLocalSession session1 = new ImhotepLocalSession(r1);
+        final ImhotepLocalSession session1 = new ImhotepJavaLocalSession(r1);
         session1.pushStat("count()");
         session1.createDynamicMetric("foo");
         session1.createDynamicMetric("bar");
@@ -475,7 +475,7 @@ public class TestIndexReWriter {
 
         /* make session 2 */
         final FlamdexReader r2 = MakeAFlamdex.make();
-        final ImhotepLocalSession session2 = new ImhotepLocalSession(r2);
+        final ImhotepLocalSession session2 = new ImhotepJavaLocalSession(r2);
         session2.pushStat("count()");
         session2.createDynamicMetric("foo");
         session2.createDynamicMetric("cat");

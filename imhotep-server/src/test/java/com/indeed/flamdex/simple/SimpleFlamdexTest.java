@@ -33,6 +33,7 @@ import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.local.ImhotepJavaLocalSession;
 import com.indeed.imhotep.local.ImhotepLocalSession;
 import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
 
@@ -85,7 +86,7 @@ public class SimpleFlamdexTest {
             FlamdexReader r = new LuceneFlamdexReader(IndexReader.open(tempDir));
             final ExecutorService executor = Executors.newCachedThreadPool();
             try {
-                final ImhotepSession session = new MTImhotepLocalMultiSession(new ImhotepLocalSession[] { new ImhotepLocalSession(r) },
+                final ImhotepSession session = new MTImhotepLocalMultiSession(new ImhotepLocalSession[] { new ImhotepJavaLocalSession(r) },
                         new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
                         executor,
                         null,

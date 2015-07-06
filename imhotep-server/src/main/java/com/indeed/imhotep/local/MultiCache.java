@@ -313,12 +313,12 @@ public final class MultiCache implements Closeable {
 
             if (rewriteHead > 0) {
                 for (int statIndex = 0; statIndex < MultiCache.this.session.numStats; statIndex++) {
-                    ImhotepLocalSession.updateGroupStatsDocIdBuf(MultiCache.this.session.statLookup.get(statIndex),
-                                                                 termGrpStats[statIndex],
-                                                                 MultiCache.this.session.docGroupBuffer,
-                                                                 MultiCache.this.session.docIdBuf,
-                                                                 MultiCache.this.session.valBuf,
-                                                                 rewriteHead);
+                    ImhotepJavaLocalSession.updateGroupStatsDocIdBuf(MultiCache.this.session.statLookup.get(statIndex),
+                                                                     termGrpStats[statIndex],
+                                                                     MultiCache.this.session.docGroupBuffer,
+                                                                     MultiCache.this.session.docIdBuf,
+                                                                     MultiCache.this.session.valBuf,
+                                                                     rewriteHead);
                 }
             }
         }

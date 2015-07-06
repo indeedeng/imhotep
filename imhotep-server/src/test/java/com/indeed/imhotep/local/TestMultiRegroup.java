@@ -109,7 +109,7 @@ public class TestMultiRegroup extends TestCase {
     private int[] normalRegroup(GroupMultiRemapRule[] regroupRule)
         throws IOException, ImhotepOutOfMemoryException {
         try (final SimpleFlamdexReader reader = SimpleFlamdexReader.open(shardDir.toString());
-             final ImhotepLocalSession session = new ImhotepLocalSession(reader)) {
+             final ImhotepLocalSession session = new ImhotepJavaLocalSession(reader)) {
                 int[] result = new int[N_DOCS];
                 final FlamdexReader[]  readers = new FlamdexReader[] { reader };
                 session.regroup(regroupRule);

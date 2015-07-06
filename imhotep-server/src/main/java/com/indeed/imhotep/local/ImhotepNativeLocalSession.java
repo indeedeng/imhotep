@@ -22,7 +22,8 @@ import org.apache.log4j.Logger;
 import java.beans.*;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class ImhotepNativeLocalSession extends ImhotepLocalSession {
+//public class ImhotepNativeLocalSession extends ImhotepLocalSession {
+public class ImhotepNativeLocalSession extends ImhotepJavaLocalSession {
 
     static final Logger log = Logger.getLogger(ImhotepNativeLocalSession.class);
 
@@ -75,12 +76,18 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
     @Override
     public synchronized long[] getGroupStats(int stat) {
 
-        if (multiCache == null) return super.getGroupStats(stat);
+        if (multiCache == null) {
+            final MultiCacheConfig config = new MultiCacheConfig();
+            final StatLookup[] statLookups = new StatLookup[1];
+            statLookups[0] = statLookup;
+            config.calcOrdering(statLookups, numStats);
+            buildMultiCache(config);
+        }
 
-        long[] result = groupStats[stat];
-        if (needToReCalcGroupStats[stat]) {
+        long[] result = groupStats.get(stat);
+        if (groupStats.isDirty(stat)) {
             multiCache.nativeGetGroupStats(stat, result);
-            needToReCalcGroupStats[stat] = false;
+            groupStats.validate(stat);
         }
         return result;
     }
@@ -103,5 +110,4 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
             // TODO: free memory?
         }
     }
-
 }

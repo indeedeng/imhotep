@@ -22,6 +22,7 @@ import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.local.ImhotepJavaLocalSession;
 import com.indeed.imhotep.local.ImhotepLocalSession;
 import org.apache.lucene.analysis.WhitespaceAnalyzer;
 import org.apache.lucene.document.Document;
@@ -78,7 +79,7 @@ public class TestCloseSessionDuringFTGS {
             };
             final ExecutorService executor = Executors.newCachedThreadPool();
             try {
-                final ImhotepSession session = new MTImhotepLocalMultiSession(new ImhotepLocalSession[] { new ImhotepLocalSession(r) },
+                final ImhotepSession session = new MTImhotepLocalMultiSession(new ImhotepLocalSession[] { new ImhotepJavaLocalSession(r) },
                         new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
                         executor,
                         null,

@@ -46,6 +46,7 @@ import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.io.Shard;
 import com.indeed.imhotep.io.caching.CachedFile;
 import com.indeed.imhotep.local.ImhotepLocalSession;
+import com.indeed.imhotep.local.ImhotepJavaLocalSession;
 
 import org.apache.log4j.Logger;
 
@@ -598,10 +599,10 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
                 try {
                     flamdexes.put(pair.getFirst(), cachedFlamdexReaderReference);
                     localSessions[i] =
-                            new ImhotepLocalSession(cachedFlamdexReaderReference,
-                                                    this.shardTempDirectory,
-                                                    new MemoryReservationContext(memory),
-                                                    optimizeGroupZeroLookups, tempFileSizeBytesLeft);
+                            new ImhotepJavaLocalSession(cachedFlamdexReaderReference,
+                                                        this.shardTempDirectory,
+                                                        new MemoryReservationContext(memory),
+                                                        optimizeGroupZeroLookups, tempFileSizeBytesLeft);
                 } catch (RuntimeException e) {
                     Closeables2.closeQuietly(cachedFlamdexReaderReference, log);
                     localSessions[i] = null;
