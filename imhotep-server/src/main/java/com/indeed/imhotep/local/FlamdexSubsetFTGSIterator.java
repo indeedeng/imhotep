@@ -56,9 +56,6 @@ class FlamdexSubsetFTGSIterator extends AbstractFlamdexFTGSIterator {
                 currentFieldIsIntType = true;
                 if (intTermIterator != null) Closeables2.closeQuietly(intTermIterator, ImhotepLocalSession.log);
                 intTermIterator = flamdexReader.get().getIntTermIterator(currentField);
-                if (session.fieldZeroDocBitsets != null) {
-                    fieldZeroDocBitset = session.fieldZeroDocBitsets.get(Pair.of(currentField, currentFieldIsIntType));
-                }
                 termIndex = 0;
                 return true;
             }
@@ -70,9 +67,6 @@ class FlamdexSubsetFTGSIterator extends AbstractFlamdexFTGSIterator {
                 currentFieldIsIntType = false;
                 if (stringTermIterator != null) Closeables2.closeQuietly(stringTermIterator, ImhotepLocalSession.log);
                 stringTermIterator = flamdexReader.get().getStringTermIterator(currentField);
-                if (session.fieldZeroDocBitsets != null) {
-                    fieldZeroDocBitset = session.fieldZeroDocBitsets.get(Pair.of(currentField, currentFieldIsIntType));
-                }
                 termIndex = 0;
                 return true;
             }
