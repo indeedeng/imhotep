@@ -80,7 +80,7 @@ public final class MultiCache implements Closeable {
         this.numStats = ordering.length;
 
         this.nativeShardDataPtr = buildCache(ordering, this.numStats, config.isOnlyBinaryMetrics());
-        this.packedTable = new PackedTableView(this.nativeShardDataPtr);
+        this.packedTable = new PackedTableView(ordering, this.nativeShardDataPtr);
 
         /* create the group lookup and populate the groups */
         this.nativeGroupLookup = new MultiCacheGroupLookup();

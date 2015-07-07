@@ -16,14 +16,19 @@ package com.indeed.imhotep.local;
 import sun.misc.Unsafe;
 
 /**
- * Provides a view from Java of the C packed_table_t struct, i.e. the packed
- * table getters defined in imhotep_native.h. Why not just call through JNI
- * to these functions, you ask? Because although JNI invocation overhead is
- * theoretically minuscule, in practice it appears to kill our
- * performance. So, the idea here is to grab the stuff directly from Java
- * with the help of sun.misc.Unsafe.
+ * Provides a view from Java of the C packed_table_t struct, i.e. the
+ * packed table getters defined in imhotep_native.h. Why not just call
+ * through JNI to these functions, you ask? Because although JNI
+ * invocation overhead is theoretically minuscule, in practice it
+ * appears to kill our performance. So, the idea here is to grab the
+ * stuff directly from Java with the help of sun.misc.Unsafe.
  */
 public final class PackedTableView {
+
+    private static final int SIZEOF_VECTOR = 16;
+
+    /** Metadata from MultiCacheConfig. */
+    private final MultiCacheConfig.StatsOrderingInfo[] ordering;
 
     /**
      * Metadata that we care about for the packed_table. These should all be
@@ -40,7 +45,9 @@ public final class PackedTableView {
      * @param nativeShardDataPtr - in C terms, a "packed_table_t *" as returned
      * by the native call packed_table_create.
      */
-    public PackedTableView(long nativeShardDataPtr) {
+    public PackedTableView(final MultiCacheConfig.StatsOrderingInfo[] ordering,
+                           final long nativeShardDataPtr) {
+        this.ordering           = ordering;
         this.nativeShardDataPtr = nativeShardDataPtr;
         nativeBind(nativeShardDataPtr);
     }
@@ -70,8 +77,22 @@ public final class PackedTableView {
         unsafe.putInt(rowAddress, groupField);
     }
 
+    public int getIntCell(final int row, final int col) {
+        return unsafe.getInt(intCellAddress(row, col));
+    }
+
+    public void setIntCell(final int row, final int col, final int value) {
+        unsafe.putInt(intCellAddress(row, col), value);
+    }
+
     private long rowAddress(final int row) {
         return tableDataPtr + rowSizeBytes * row;
+    }
+
+    private long intCellAddress(final int row, final int col) {
+        final MultiCacheConfig.StatsOrderingInfo meta = ordering[col];
+        final long rowAddress = rowAddress(row);
+        return rowAddress + SIZEOF_VECTOR * meta.vectorNum + meta.offsetInVector;
     }
 
     private native void nativeBind(long nativeShardDataPtr);
