@@ -22,8 +22,7 @@ import org.apache.log4j.Logger;
 import java.beans.*;
 import java.util.concurrent.atomic.AtomicLong;
 
-//public class ImhotepNativeLocalSession extends ImhotepLocalSession {
-public class ImhotepNativeLocalSession extends ImhotepJavaLocalSession {
+public class ImhotepNativeLocalSession extends ImhotepLocalSession {
 
     static final Logger log = Logger.getLogger(ImhotepNativeLocalSession.class);
 

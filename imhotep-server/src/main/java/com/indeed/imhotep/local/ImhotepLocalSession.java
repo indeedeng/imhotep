@@ -651,16 +651,19 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             new FlamdexSubsetFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields);
     }
 
-    public DocIterator getDocIterator(final String[] intFields, final String[] stringFields)
-        throws ImhotepOutOfMemoryException {
-        boolean shardOnlyContainsGroupZero = true;
+    private boolean shardOnlyContainsGroupZero() {
         for (int group = 1; group < groupDocCount.length; group++) {
             if (groupDocCount[group] != 0) {
-                shardOnlyContainsGroupZero = false;
-                break;
+                return false;
             }
         }
-        if (shardOnlyContainsGroupZero) {
+        return true;
+    }
+
+    public DocIterator getDocIterator(final String[] intFields, final String[] stringFields)
+        throws ImhotepOutOfMemoryException {
+
+        if (shardOnlyContainsGroupZero()) {
             return emptyDocIterator();
         }
 
@@ -760,30 +763,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     private static DocIterator emptyDocIterator() {
         return new DocIterator() {
-            @Override
-            public boolean next() {
-                return false;
-            }
-
-            @Override
-            public int getGroup() {
-                return 0;
-            }
-
-            @Override
-            public long getInt(int index) {
-                return 0;
-            }
-
-            @Override
-            public String getString(int index) {
-                return null;
-            }
-
-            @Override
-            public void close() {
-
-            }
+            @Override public boolean next() { return false; }
+            @Override public int getGroup() { return 0; }
+            @Override public long getInt(int index) { return 0; }
+            @Override public String getString(int index) { return null; }
+            @Override public void close() { }
         };
     }
 
@@ -905,8 +889,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         final int placeholderGroup = maxConditionIndex + 1;
 
         final int parallelArrayBytes = 3 * 4 * numConditions + 8 * numConditions;
-        // int[highestTarget+1], int[highestTarget+1][], <int or
-        // string>[highestTarget+1][]
+        // int[highestTarget+1], int[highestTarget+1][], <int or string>[highestTarget+1][]
         // The last two are jagged arrays, and the cardinality of the subarrays
         // sums to numConditions at most
         final int maxInequalityBytes = (highestTarget + 1) * (4 + 8 + 8) + numConditions * (4 + 8);

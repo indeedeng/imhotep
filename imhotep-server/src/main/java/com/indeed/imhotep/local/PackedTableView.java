@@ -71,8 +71,6 @@ public final class PackedTableView {
     }
 
     private long rowAddress(final int row) {
-        // System.err.printf("shardAddr: %x tablePtr: %x row %d rowSizeBytes: %d result: %d\n",
-        //                   nativeShardDataPtr, tableDataPtr, row, rowSizeBytes, tableDataPtr + rowSizeBytes * row);
         return tableDataPtr + rowSizeBytes * row;
     }
 
