@@ -1591,10 +1591,9 @@ public class TestImhotepLocalSession {
         /* make session 1 */
         final FlamdexReader r1 = MakeAFlamdex.make();
         final ImhotepLocalSession session1 =
-                new ImhotepJavaLocalSession(r1,
-                                        "/tmp/imhotep.test",
+            new ImhotepJavaLocalSession(r1, "/tmp/imhotep.test",
                                         new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
-                                        false, null);
+                                        null);
         session1.pushStat("count()");
         session1.createDynamicMetric("foo");
         session1.createDynamicMetric("bar");
@@ -1771,7 +1770,7 @@ public class TestImhotepLocalSession {
                 new ImhotepJavaLocalSession(r1,
                                         "/tmp/imhotep.test",
                                         new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
-                                        false, null);
+                                        null);
         session1.pushStat("count()");
         session1.createDynamicMetric("foo");
         session1.createDynamicMetric("bar");

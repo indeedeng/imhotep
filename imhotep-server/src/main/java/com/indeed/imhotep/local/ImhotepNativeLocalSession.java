@@ -20,7 +20,9 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import org.apache.log4j.Logger;
 
 import java.beans.*;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
+import javax.annotation.Nonnull;
 
 public class ImhotepNativeLocalSession extends ImhotepLocalSession {
 
@@ -31,27 +33,15 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
 
     public ImhotepNativeLocalSession(final FlamdexReader flamdexReader)
         throws ImhotepOutOfMemoryException {
-        this(flamdexReader, null,
-             new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
-             false, null);
-    }
-
-    public ImhotepNativeLocalSession(FlamdexReader flamdexReader, boolean optimizeGroupZeroLookups)
-        throws ImhotepOutOfMemoryException {
-        this(flamdexReader, null,
-             new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
-             optimizeGroupZeroLookups, null);
+        this(flamdexReader, new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), null);
     }
 
     public ImhotepNativeLocalSession(final FlamdexReader flamdexReader,
-                                     String optimizedIndexDirectory,
                                      final MemoryReservationContext memory,
-                                     boolean optimizeGroupZeroLookups,
                                      AtomicLong tempFileSizeBytesLeft)
         throws ImhotepOutOfMemoryException {
 
-        super(flamdexReader, optimizedIndexDirectory, memory,
-              optimizeGroupZeroLookups, tempFileSizeBytesLeft);
+        super(flamdexReader, memory, tempFileSizeBytesLeft);
 
         this.statLookup.addPropertyChangeListener(new PropertyChangeListener() {
                 public void propertyChange(PropertyChangeEvent e) {
@@ -70,6 +60,12 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
             rebuildMultiCache = false;
         }
         return multiCache;
+    }
+
+    @Override
+    public synchronized void rebuildAndFilterIndexes(@Nonnull final List<String> intFields,
+                                                     @Nonnull final List<String> stringFields) {
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -103,10 +99,10 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
 
     @Override
     protected void tryClose() {
-        super.tryClose();
         if (multiCache != null) {
             multiCache.close();
             // TODO: free memory?
         }
+        super.tryClose();
     }
 }

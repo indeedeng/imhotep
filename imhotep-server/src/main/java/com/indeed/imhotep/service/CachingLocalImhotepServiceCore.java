@@ -602,7 +602,7 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
                             new ImhotepJavaLocalSession(cachedFlamdexReaderReference,
                                                         this.shardTempDirectory,
                                                         new MemoryReservationContext(memory),
-                                                        optimizeGroupZeroLookups, tempFileSizeBytesLeft);
+                                                        tempFileSizeBytesLeft);
                 } catch (RuntimeException e) {
                     Closeables2.closeQuietly(cachedFlamdexReaderReference, log);
                     localSessions[i] = null;

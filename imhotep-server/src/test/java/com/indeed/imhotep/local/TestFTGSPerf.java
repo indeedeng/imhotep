@@ -430,7 +430,7 @@ public class TestFTGSPerf {
         for (int i = 0; i < shardDirs.size(); i++) {
             final String dir = shardDirs.get(i);
             final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir);
-            final ImhotepLocalSession localSession = new ImhotepJavaLocalSession(r, false);
+            final ImhotepLocalSession localSession = new ImhotepJavaLocalSession(r);
             localSessions[i] = localSession;
         }
 

@@ -500,19 +500,17 @@ public class TestNativeFlamdexFTGSIterator {
     private static final int MAX_N_METRICS = 64;
 
     class ImhotepLocalSessionFactory {
-        public ImhotepLocalSession create(SimpleFlamdexReader reader,
-                                          boolean optimizeGroupZeroLookups)
+        public ImhotepLocalSession create(SimpleFlamdexReader reader)
             throws ImhotepOutOfMemoryException {
-            return new ImhotepJavaLocalSession(reader, optimizeGroupZeroLookups);
+            return new ImhotepJavaLocalSession(reader);
         }
     }
 
     class ImhotepNativeLocalSessionFactory extends ImhotepLocalSessionFactory {
         @Override
-        public ImhotepLocalSession create(SimpleFlamdexReader reader,
-                                          boolean optimizeGroupZeroLookups)
+        public ImhotepLocalSession create(SimpleFlamdexReader reader)
             throws ImhotepOutOfMemoryException {
-            return new ImhotepNativeLocalSession(reader, optimizeGroupZeroLookups);
+            return new ImhotepNativeLocalSession(reader);
         }
     }
 
@@ -520,14 +518,14 @@ public class TestNativeFlamdexFTGSIterator {
                                                           String[] intFieldNames,
                                                           String[] strFieldNames,
                                                           String[] metricNames,
-                                                          ImhotepLocalSessionFactory factory) 
-                                                                  throws ImhotepOutOfMemoryException, IOException {
+                                                          ImhotepLocalSessionFactory factory)
+        throws ImhotepOutOfMemoryException, IOException {
         ImhotepLocalSession[] localSessions = new ImhotepLocalSession[shardDirs.size()];
         for (int i = 0; i < shardDirs.size(); i++) {
             final String dir = shardDirs.get(i);
             final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir);
             final ImhotepLocalSession localSession;
-            localSession = factory.create(r, false);
+            localSession = factory.create(r);
             localSessions[i] = localSession;
         }
 

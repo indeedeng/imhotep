@@ -14,123 +14,42 @@
 package com.indeed.imhotep.local;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
-import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableListMultimap;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Multimaps;
-import com.google.common.primitives.Ints;
-import com.google.common.primitives.Longs;
+import com.google.common.base.*;
+import com.google.common.collect.*;
+import com.google.common.primitives.*;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.indeed.flamdex.api.DocIdStream;
-import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
-import com.indeed.flamdex.api.FlamdexReader;
-import com.indeed.flamdex.api.IntTermIterator;
-import com.indeed.flamdex.api.IntValueLookup;
-import com.indeed.flamdex.api.RawFlamdexReader;
-import com.indeed.flamdex.api.StringTermDocIterator;
-import com.indeed.flamdex.api.StringTermIterator;
-import com.indeed.flamdex.api.StringValueLookup;
-import com.indeed.flamdex.api.TermDocIterator;
-import com.indeed.flamdex.datastruct.FastBitSet;
-import com.indeed.flamdex.datastruct.FastBitSetPooler;
-import com.indeed.flamdex.fieldcache.ByteArrayIntValueLookup;
-import com.indeed.flamdex.fieldcache.IntArrayIntValueLookup;
-import com.indeed.flamdex.query.Query;
-import com.indeed.flamdex.query.Term;
+import com.indeed.flamdex.api.*;
+import com.indeed.flamdex.datastruct.*;
+import com.indeed.flamdex.fieldcache.*;
+import com.indeed.flamdex.query.*;
 import com.indeed.flamdex.reader.FlamdexMetadata;
 import com.indeed.flamdex.search.FlamdexSearcher;
-import com.indeed.flamdex.simple.SimpleFlamdexReader;
-import com.indeed.flamdex.simple.SimpleFlamdexWriter;
 import com.indeed.flamdex.utils.FlamdexUtils;
-import com.indeed.imhotep.AbstractImhotepSession;
-import com.indeed.imhotep.FTGSSplitter;
-import com.indeed.imhotep.GroupMultiRemapRule;
-import com.indeed.imhotep.GroupRemapRule;
-import com.indeed.imhotep.ImhotepMemoryPool;
-import com.indeed.imhotep.MemoryReservationContext;
-import com.indeed.imhotep.MemoryReserver;
-import com.indeed.imhotep.QueryRemapRule;
-import com.indeed.imhotep.RegroupCondition;
-import com.indeed.imhotep.TermCount;
-import com.indeed.imhotep.api.DocIterator;
-import com.indeed.imhotep.api.FTGSIterator;
-import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
-import com.indeed.imhotep.api.RawFTGSIterator;
+import com.indeed.imhotep.*;
+import com.indeed.imhotep.api.*;
 import com.indeed.imhotep.group.ImhotepChooser;
 import com.indeed.imhotep.marshal.ImhotepDaemonMarshaller;
-import com.indeed.imhotep.metrics.AbsoluteValue;
-import com.indeed.imhotep.metrics.Addition;
-import com.indeed.imhotep.metrics.CachedInterleavedMetrics;
-import com.indeed.imhotep.metrics.CachedMetric;
-import com.indeed.imhotep.metrics.Constant;
-import com.indeed.imhotep.metrics.Count;
-import com.indeed.imhotep.metrics.DelegatingMetric;
-import com.indeed.imhotep.metrics.Division;
-import com.indeed.imhotep.metrics.Equal;
-import com.indeed.imhotep.metrics.Exponential;
-import com.indeed.imhotep.metrics.GreaterThan;
-import com.indeed.imhotep.metrics.GreaterThanOrEqual;
-import com.indeed.imhotep.metrics.LessThan;
-import com.indeed.imhotep.metrics.LessThanOrEqual;
-import com.indeed.imhotep.metrics.Log;
-import com.indeed.imhotep.metrics.Log1pExp;
-import com.indeed.imhotep.metrics.Logistic;
-import com.indeed.imhotep.metrics.Max;
-import com.indeed.imhotep.metrics.Min;
-import com.indeed.imhotep.metrics.Modulus;
-import com.indeed.imhotep.metrics.Multiplication;
-import com.indeed.imhotep.metrics.NotEqual;
-import com.indeed.imhotep.metrics.ShiftLeft;
-import com.indeed.imhotep.metrics.ShiftRight;
-import com.indeed.imhotep.metrics.Subtraction;
+import com.indeed.imhotep.metrics.*;
 import com.indeed.imhotep.protobuf.QueryMessage;
-import com.indeed.imhotep.service.CachedFlamdexReader;
-import com.indeed.imhotep.service.RawCachedFlamdexReader;
-import com.indeed.util.core.Pair;
-import com.indeed.util.core.Throwables2;
+import com.indeed.imhotep.service.*;
+import com.indeed.util.core.*;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.core.threads.ThreadSafeBitSet;
-import dk.brics.automaton.Automaton;
-import dk.brics.automaton.RegExp;
+import dk.brics.automaton.*;
 import it.unimi.dsi.fastutil.PriorityQueue;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.*;
 import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
 import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
-import java.io.EOFException;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.OutputStream;
-import java.io.Serializable;
-import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.io.*;
+import java.net.*;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.regex.*;
 
 /**
  * This class isn't even close to remotely thread safe, do not use it
@@ -150,19 +69,15 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     static final int BUFFER_SIZE = 2048;
     private final AtomicLong tempFileSizeBytesLeft;
 
-    private int numDocs;
+    protected int numDocs;
     // buffers that will be reused to avoid excessive allocations
     final int[] docIdBuf = new int[BUFFER_SIZE];
     final long[] valBuf = new long[BUFFER_SIZE];
     final int[] docGroupBuffer = new int[BUFFER_SIZE];
 
     // do not close flamdexReader, it is separately refcounted
-    private FlamdexReader flamdexReader;
-    private SharedReference<FlamdexReader> flamdexReaderRef;
-    private FlamdexReader originalReader;
-    private SharedReference<FlamdexReader> originalReaderRef;
-
-    private final String optimizedIndexesDir;
+    protected FlamdexReader flamdexReader;
+    protected SharedReference<FlamdexReader> flamdexReaderRef;
 
     final MemoryReservationContext memory;
 
@@ -175,16 +90,14 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     protected final GroupStatCache groupStats;
     protected final StatLookup     statLookup = new StatLookup(MAX_NUMBER_STATS);
 
-    private final List<String> statCommands;
+    protected final List<String> statCommands;
 
     private boolean closed = false;
 
     @VisibleForTesting
-    private Map<String, DynamicMetric> dynamicMetrics = Maps.newHashMap();
+    protected Map<String, DynamicMetric> dynamicMetrics = Maps.newHashMap();
 
     private final Exception constructorStackTrace;
-
-    private final File optimizationLog;
 
     private interface DocIdHandler {
         public void handle(final int[] docIdBuf, final int index);
@@ -216,21 +129,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     private FTGSSplitter ftgsIteratorSplits;
     public ImhotepLocalSession(final FlamdexReader flamdexReader) throws ImhotepOutOfMemoryException {
-        this(flamdexReader, null,
-                new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), false, null);
-    }
-
-    public ImhotepLocalSession(FlamdexReader flamdexReader, boolean optimizeGroupZeroLookups)
-        throws ImhotepOutOfMemoryException {
-        this(flamdexReader, null,
-                new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
-                optimizeGroupZeroLookups, null);
+        this(flamdexReader, new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), null);
     }
 
     public ImhotepLocalSession(final FlamdexReader flamdexReader,
-                               String optimizedIndexDirectory,
                                final MemoryReservationContext memory,
-                               boolean optimizeGroupZeroLookups,
                                AtomicLong tempFileSizeBytesLeft)
         throws ImhotepOutOfMemoryException {
         this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
@@ -239,7 +142,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         this.flamdexReader = flamdexReader;
         this.memory = memory;
         this.numDocs = flamdexReader.getNumDocs();
-        this.optimizedIndexesDir = optimizedIndexDirectory;
 
         if (!memory.claimMemory(BUFFER_SIZE * (4 + 4 + 4) + 12 * 2)) {
             throw new ImhotepOutOfMemoryException();
@@ -253,9 +155,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         this.groupStats = new GroupStatCache(MAX_NUMBER_STATS, memory);
 
         this.statCommands = new ArrayList<String>();
-
-        this.optimizationLog =
-            new File(this.optimizedIndexesDir, UUID.randomUUID().toString() + ".optimization_log");
     }
 
     FlamdexReader getReader() {
@@ -268,342 +167,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     int getNumDocs() {
         return this.numDocs;
-    }
-
-    /*
-     * record structure to store the info necessary to rebuild the
-     * DynamicMetrics after one or more optimizes and a reset
-     */
-    public static class OptimizationRecord implements Serializable {
-        private static final long serialVersionUID = 1L;
-        public long time;
-        List<String> intFieldsMerged;
-        List<String> stringFieldsMerged;
-        String shardLocation;
-        List<ShardMergeInfo> mergedShards;
-    }
-
-    public static class ShardMergeInfo implements Serializable {
-        private static final long serialVersionUID = 1L;
-        int numDocs;
-        Map<String, DynamicMetric> dynamicMetrics;
-        int[] newDocIdToOldDocId;
-    }
-
-    /*
-     * Finds a good place to store the new, optimized shard and opens a
-     * SimpleFlamdexWriter to it.
-     */
-    private SimpleFlamdexWriter createNewTempWriter(int maxDocs) throws IOException {
-        final File tempIdxDir;
-        final String newShardName;
-        final File newShardDir;
-
-        newShardName = "temp." + UUID.randomUUID().toString();
-        tempIdxDir = new File(this.optimizedIndexesDir);
-        newShardDir = new File(tempIdxDir, newShardName);
-        newShardDir.mkdir();
-
-        return new SimpleFlamdexWriter(newShardDir.getCanonicalPath(), maxDocs);
-    }
-
-    /* wrapper for SimpleFlamdexReader which deletes the on disk data on close() */
-    private static class AutoDeletingReader extends SimpleFlamdexReader {
-
-        public AutoDeletingReader(String directory,
-                                  int numDocs,
-                                  Collection<String> intFields,
-                                  Collection<String> stringFields,
-                                  boolean useMMapMetrics) {
-            super(directory, numDocs, intFields, stringFields, useMMapMetrics);
-        }
-
-        public static AutoDeletingReader open(String directory) throws IOException {
-            return open(directory, new Config());
-        }
-
-        public static AutoDeletingReader open(String directory, Config config) throws IOException {
-            final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(directory);
-            final Collection<String> intFields = scan(directory, ".intterms");
-            final Collection<String> stringFields = scan(directory, ".strterms");
-            if (config.isWriteBTreesIfNotExisting()) {
-                buildIntBTrees(directory, Lists.newArrayList(intFields));
-                buildStringBTrees(directory, Lists.newArrayList(stringFields));
-            }
-            return new AutoDeletingReader(directory, metadata.numDocs, intFields, stringFields,
-                                          config.isUseMMapMetrics());
-        }
-
-        @Override
-        public void close() throws IOException {
-            File dir = new File(this.directory);
-            super.close();
-
-            FileUtils.deleteDirectory(dir);
-        }
-
-    }
-
-    /* Tweak to ObjectOutputStream which allows it to append to an existing file */
-    public static class AppendingObjectOutputStream extends ObjectOutputStream {
-
-        public AppendingObjectOutputStream(OutputStream out) throws IOException {
-            super(out);
-        }
-
-        @Override
-        protected void writeStreamHeader() throws IOException {
-            // do not write a header, but reset:
-            reset();
-        }
-
-    }
-
-    @Override
-    public synchronized void rebuildAndFilterIndexes(@Nonnull final List<String> intFields,
-                                                     @Nonnull final List<String> stringFields)
-        throws ImhotepOutOfMemoryException {
-        final IndexReWriter rewriter;
-        final ObjectOutputStream oos;
-        final SimpleFlamdexWriter w;
-        final ArrayList<String> statsCopy;
-
-        long time = System.currentTimeMillis();
-
-        /* pop off all the stats, they will be repushed after the optimization */
-        statsCopy = new ArrayList<String>(this.statCommands);
-        while (this.numStats > 0) {
-            this.popStat();
-        }
-        this.statCommands.clear();
-
-        MemoryReservationContext rewriterMemory = new MemoryReservationContext(memory);
-        rewriter = new IndexReWriter(Arrays.asList(this), this, rewriterMemory);
-        try {
-            w = createNewTempWriter(this.numDocs);
-            rewriter.optimizeIndecies(intFields, stringFields, w);
-            w.close();
-
-            /*
-             * save a record of the merge, so it can be unwound later if the
-             * shards are reset
-             */
-            if (this.optimizationLog.exists()) {
-                /* plain ObjectOutputStream does not append correctly */
-                oos =
-                        new AppendingObjectOutputStream(new FileOutputStream(this.optimizationLog,
-                                                                             true));
-            } else {
-                oos = new ObjectOutputStream(new FileOutputStream(this.optimizationLog, true));
-            }
-
-            OptimizationRecord record = new OptimizationRecord();
-
-            record.time = time;
-            record.intFieldsMerged = intFields;
-            record.stringFieldsMerged = stringFields;
-            record.shardLocation = w.getOutputDirectory();
-            record.mergedShards = new ArrayList<ShardMergeInfo>();
-
-            ShardMergeInfo info = new ShardMergeInfo();
-            info.numDocs = this.flamdexReader.getNumDocs();
-            info.dynamicMetrics = this.getDynamicMetrics();
-            info.newDocIdToOldDocId = rewriter.getPerSessionMappings().get(0);
-            record.mergedShards.add(info);
-
-            oos.writeObject(record);
-            oos.close();
-
-            /* use rebuilt structures */
-            memory.releaseMemory(this.docIdToGroup.memoryUsed());
-            rewriterMemory.hoist(rewriter.getNewGroupLookup().memoryUsed());
-            this.docIdToGroup = rewriter.getNewGroupLookup();
-
-            for (DynamicMetric dm : this.dynamicMetrics.values()) {
-                memory.releaseMemory(dm.memoryUsed());
-            }
-            for (DynamicMetric dm : rewriter.getDynamicMetrics().values()) {
-                rewriterMemory.hoist(dm.memoryUsed());
-            }
-            this.dynamicMetrics = rewriter.getDynamicMetrics();
-
-            /* release memory used by the index rewriter */
-            rewriterMemory.close();
-
-            /*
-             * replace flamdexReader pointers, but keep the originals in case
-             * there is a reset() call
-             */
-            if (this.originalReader == null) {
-                this.originalReader = this.flamdexReader;
-            }
-            if (this.originalReaderRef == null) {
-                this.originalReaderRef = this.flamdexReaderRef;
-            } else {
-                /* close the unnecessary optimized index */
-                this.flamdexReaderRef.close();
-            }
-
-            FlamdexReader flamdex = AutoDeletingReader.open(w.getOutputDirectory());
-            if (flamdex instanceof RawFlamdexReader) {
-                this.flamdexReader =
-                        new RawCachedFlamdexReader(new MemoryReservationContext(memory),
-                                                   (RawFlamdexReader) flamdex, null, null, null,
-                                                   null);
-            } else {
-                this.flamdexReader =
-                        new CachedFlamdexReader(new MemoryReservationContext(memory), flamdex,
-                                                null, null, null, null);
-            }
-            this.flamdexReaderRef = SharedReference.create(this.flamdexReader);
-
-            /* alter tracking fields to reflect the removal of group 0 docs */
-            this.numDocs = this.flamdexReader.getNumDocs();
-            this.groupDocCount[0] = 0;
-
-            /* push the stats back on */
-            for (String stat : statsCopy) {
-                if ("pop".equals(stat)) {
-                    this.popStat();
-                } else {
-                    this.pushStat(stat);
-                }
-            }
-
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-    }
-
-    /*
-     * Resets the Flamdex readers to the original un-optimized versions and
-     * constructs the DynamicMetrics to match what they should be if no
-     * optimization had taken place.
-     *
-     * The GroupLookup does not have to be reconstructed since it will be set to
-     * a constant value as a result of a reset() call
-     */
-    private synchronized void resetOptimizedReaders() throws ImhotepOutOfMemoryException {
-        ObjectInputStream ois = null;
-        ArrayList<OptimizationRecord> records = new ArrayList<OptimizationRecord>();
-        final long memoryUse;
-        final ArrayList<String> statsCopy;
-
-        /* check if this session has been optimized */
-        if (this.originalReader == null) {
-            return;
-        }
-
-        /* check for space in memory */
-        memoryUse = this.optimizationLog.length();
-        if (!this.memory.claimMemory(memoryUse)) {
-            throw new ImhotepOutOfMemoryException();
-        }
-
-        /* pop off all the stats, they will be repushed after the flamdex reset */
-        statsCopy = new ArrayList<String>(this.statCommands);
-        while (this.numStats > 0) {
-            this.popStat();
-        }
-        this.statCommands.clear();
-
-        /* read in all the optimization records */
-        try {
-            ois = new ObjectInputStream(new FileInputStream(this.optimizationLog));
-            while (true) {
-                /*
-                 * adds the records so the last written record is first in the
-                 * list
-                 */
-                records.add(0, (OptimizationRecord) ois.readObject());
-            }
-        } catch (EOFException e) {
-            // read all the records
-            try {
-                if (ois != null) {
-                    ois.close();
-                    this.optimizationLog.delete();
-                }
-            } catch (IOException e1) {
-                /* do nothing */
-                e.printStackTrace();
-            }
-        } catch (ClassNotFoundException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } finally {
-            /* the log is no longer needed, so remove it */
-            this.optimizationLog.delete();
-        }
-
-        /* reconstruct the dynamic metrics */
-        Map<String, DynamicMetric> newMetrics;
-        Map<String, DynamicMetric> oldMetrics;
-        int numNewDocs;
-        int numOldDocs;
-        newMetrics = this.dynamicMetrics;
-        numNewDocs = this.flamdexReader.getNumDocs();
-        for (OptimizationRecord opRec : records) {
-            int[] newToOldIdMapping = opRec.mergedShards.get(0).newDocIdToOldDocId;
-            oldMetrics = opRec.mergedShards.get(0).dynamicMetrics;
-            numOldDocs = opRec.mergedShards.get(0).numDocs;
-
-            for (Map.Entry<String, DynamicMetric> e : newMetrics.entrySet()) {
-                DynamicMetric oldMetric = oldMetrics.get(e.getKey());
-                DynamicMetric newMetric = e.getValue();
-                if (oldMetric == null) {
-                    oldMetric = new DynamicMetric(numOldDocs);
-                }
-                for (int i = 0; i < numNewDocs; i++) {
-                    int oldId = newToOldIdMapping[i];
-                    int value = newMetric.lookupSingleVal(i);
-                    oldMetric.set(oldId, value);
-                }
-
-                oldMetrics.put(e.getKey(), oldMetric);
-            }
-            numNewDocs = numOldDocs;
-            newMetrics = oldMetrics;
-        }
-
-        /* adjust the memory tracking */
-        for (DynamicMetric dm : this.dynamicMetrics.values()) {
-            memory.releaseMemory(dm.memoryUsed());
-        }
-        for (DynamicMetric dm : newMetrics.values()) {
-            memory.claimMemory(dm.memoryUsed());
-        }
-        this.dynamicMetrics = newMetrics;
-
-        try {
-            /* close temp index reader */
-            this.flamdexReaderRef.close();
-        } catch (IOException e) {
-            log.error("Could not close optimized reader");
-        }
-
-        /* reopen the original flamdex readers */
-        this.flamdexReader = this.originalReader;
-        this.flamdexReaderRef = this.originalReaderRef;
-        this.originalReader = null;
-        this.originalReaderRef = null;
-
-        this.numDocs = this.flamdexReader.getNumDocs();
-
-        /* push the stats back on */
-        for (String stat : statsCopy) {
-            if ("pop".equals(stat)) {
-                this.popStat();
-            } else {
-                this.pushStat(stat);
-            }
-        }
-
-        /* release the memory used by the log reading */
-        this.memory.releaseMemory(memoryUse);
-
     }
 
     /**
@@ -2384,22 +1947,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 log.error("ImhotepLocalSession is leaking! memory reserved after all memory has been freed: "
                           + memory.usedMemory());
             }
-
-            /* clean up the optimization log */
-            if (this.optimizationLog.exists()) {
-                this.optimizationLog.delete();
-            }
-            try {
-                /* close temp readers, if there are any */
-                if (this.originalReader != null) {
-                    this.flamdexReaderRef.close();
-                    this.flamdexReader = this.originalReader;
-                    this.flamdexReaderRef = this.originalReaderRef;
-                }
-            } catch (IOException e) {
-                log.error("Could not close optimized reader");
-            }
-
         } finally {
             Closeables2.closeQuietly(memory, log);
         }
@@ -2415,11 +1962,10 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     @Override
     public synchronized void resetGroups() throws ImhotepOutOfMemoryException {
-        resetOptimizedReaders();
         resetGroupsTo(1);
     }
 
-    private void resetGroupsTo(int group) throws ImhotepOutOfMemoryException {
+    protected void resetGroupsTo(int group) throws ImhotepOutOfMemoryException {
         final long bytesToFree = docIdToGroup.memoryUsed();
         final int newNumGroups = group + 1;
 
