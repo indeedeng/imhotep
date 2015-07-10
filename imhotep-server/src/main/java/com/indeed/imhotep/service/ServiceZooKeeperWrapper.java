@@ -13,6 +13,7 @@
  */
  package com.indeed.imhotep.service;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.indeed.util.zookeeper.ZooKeeperConnection;
 import org.apache.log4j.Logger;
@@ -25,39 +26,59 @@ import org.apache.zookeeper.ZooDefs;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
-/**
- * @author jsgroth
- */
-public class ServiceZooKeeperWrapper implements Closeable {
+public class ServiceZooKeeperWrapper implements Closeable, Runnable, Watcher {
+
     private static final Logger log = Logger.getLogger(ServiceZooKeeperWrapper.class);
 
     private static final int TIMEOUT = 60000;
 
-    private final ZooKeeperConnection zkConnection;
     private final String rootPath, nodeName;
     private final byte[] data;
-    private volatile boolean closed;
 
-    public ServiceZooKeeperWrapper(final String zkNodes, final String hostname, final int port,
+    private final ZooKeeperConnection zkConnection;
+
+    private final AtomicBoolean   closed   = new AtomicBoolean(false);
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+
+    public ServiceZooKeeperWrapper(final String zkNodes,
+                                   final String hostname,
+                                   final int port,
                                    final String rootPath) {
-        zkConnection = new ZooKeeperConnection(zkNodes, TIMEOUT);
+        zkConnection  = new ZooKeeperConnection(zkNodes, TIMEOUT);
         this.rootPath = rootPath;
-        nodeName = UUID.randomUUID().toString();
-        data = (hostname+":"+port).getBytes(Charsets.UTF_8);
-        closed = false;
+        nodeName      = UUID.randomUUID().toString();
+        data          = (hostname + ":" + port).getBytes(Charsets.UTF_8);
 
-        createNode();
-        zkConnection.register(new MyWatcher());
+        try {
+            Future<?> future = executor.submit(this);
+            if (future.get() != null) {
+                throw new RuntimeException("failed to execute ServiceZooKeeperWrapper task");
+            }
+        } catch (Exception ex) {
+            log.error("failed to create ServiceZooKeeperWrapper", ex);
+            try {
+                close();
+            }
+            catch (IOException ioex) {
+                log.error("failed to close ServiceZooKeeperWrapper", ioex);
+            }
+        }
     }
 
     @Override
     public void close() throws IOException {
-        closed = true;
         try {
-            zkConnection.close();
+            if (closed.compareAndSet(false, true)) {
+                zkConnection.close();
+            }
         } catch (InterruptedException e) {
-            log.error(e);
+            log.error("failed to close ZooKeeper connection", e);
         }
     }
 
@@ -65,43 +86,51 @@ public class ServiceZooKeeperWrapper implements Closeable {
         return zkConnection.getState().isAlive();
     }
 
-    private void createNode() {
+    public void run() {
+        boolean connected = false;
         boolean created = false;
-        while (!created) {
+        while (!created && !closed.get()) {
             try {
                 try {
-                    zkConnection.connect();
-                    ZooKeeperConnection.createFullPath(zkConnection, rootPath, new byte[0], CreateMode.PERSISTENT, true);
-                    zkConnection.create(rootPath + "/"+nodeName, data, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
+                    if (!connected) {
+                        /* Note that ZooKeeperConnection blocks until it sees a
+                           SyncConnected state (unlike ZooKeeper::connect(), which is
+                           asynchronous. */
+                        zkConnection.connect();
+                        zkConnection.register(this);
+                        connected = true;
+                    }
+                    /* Note that ZooKeeperConnection only creates these if they do
+                       not already exist. So there's no harm in executing these
+                       multiple times in the face of transient failures. */
+                    zkConnection.createFullPath(rootPath, new byte[0], CreateMode.PERSISTENT, true);
+                    zkConnection.create(rootPath + "/" + nodeName, data,
+                                        ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
                     created = true;
-                } catch (IOException e) {
-                    log.error(e);
-                    Thread.sleep(TIMEOUT);
-                } catch (KeeperException e) {
-                    log.error(e);
-                    zkConnection.close();
+                }
+                catch (Exception ex) {
+                    log.error("failed to create ZooKeeper entries", ex);
                     Thread.sleep(TIMEOUT);
                 }
-            } catch (InterruptedException e) {
-                log.error(e);
+            }
+            catch (InterruptedException ex) {
+                log.error("interrupted whilst creating ZooKeeper entries", ex);
             }
         }
     }
 
-    private class MyWatcher implements Watcher {
-        @Override
-        public void process(WatchedEvent watchedEvent) {
-            if (!closed) {
-                if (watchedEvent.getType() == Event.EventType.None && watchedEvent.getState() != Event.KeeperState.SyncConnected) {
-                    try {
-                        zkConnection.close();
-                    } catch (InterruptedException e) {
-                        log.error(e);
-                    }
-                    createNode();
-                }
-                zkConnection.register(this);
+    public void process(WatchedEvent watchedEvent) {
+
+        if (closed.get()) return;
+
+        if (watchedEvent.getType() == Event.EventType.None &&
+            watchedEvent.getState() == Event.KeeperState.Expired) {
+            try {
+                zkConnection.close();
+            } catch (InterruptedException ex) {
+                log.error("failed to close connection", ex);
             }
+            executor.submit(this);
         }
     }
 }
