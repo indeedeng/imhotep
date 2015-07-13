@@ -333,7 +333,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
     private void runNativeFTGS(final FlamdexReader[] readers,
                                final MultiCache[]    nativeCaches,
-                               final boolean        onlyBinaryMetrics,
+                               final boolean         onlyBinaryMetrics,
                                final String[]        intFields,
                                final String[]        stringFields,
                                final int             numGroups,
