@@ -121,6 +121,13 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader implements RawFla
         final String termsFilename = CachedFile.buildPath(directory, SimpleIntFieldWriter.getTermsFilename(field));
         final String docsFilename = CachedFile.buildPath(directory, SimpleIntFieldWriter.getDocsFilename(field));
         if (CachedFile.create(termsFilename).length() == 0L) {
+            // try to read it as a String field and convert
+            final SimpleStringTermIterator stringTermIterator = getStringTermIterator(field);
+            if(!(stringTermIterator instanceof NullStringTermIterator)) {
+                return new StringToIntTermIterator(stringTermIterator);
+            }
+
+            // string field not found. return a null iterator
             return new NullIntTermIterator(docsFilename);
         }
         final String indexFilename = CachedFile.buildPath(directory, "fld-"+field);
