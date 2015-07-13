@@ -27,8 +27,6 @@ namespace imhotep {
             a C++ pointer idiom appropriate for such a case or I'd use it.) */
         typedef const packed_table_t* packed_table_ptr;
 
-        typedef std::shared_ptr<MMappedVarIntView> var_int_view_ptr;
-
         explicit Shard(const std::string&              dir,
                        const std::vector<std::string>& int_fields,
                        const std::vector<std::string>& str_fields,
@@ -43,10 +41,10 @@ namespace imhotep {
         const packed_table_ptr table() const { return _table; }
 
         template <typename term_t>
-        var_int_view_ptr term_view(const std::string& field) const;
+        VarIntView term_view(const std::string& field) const;
 
         template <typename term_t>
-        var_int_view_ptr docid_view(const std::string& field) const;
+        VarIntView docid_view(const std::string& field) const;
 
         // !@# ultimately this should probably be via (field, split_num)
         SplitView split_view(const std::string& filename) const;
@@ -68,9 +66,9 @@ namespace imhotep {
 
         std::shared_ptr<MMappedFile> split_file(const std::string& filename) const;
 
-        typedef std::map<std::string, var_int_view_ptr> FieldToVarIntView;
-        mutable FieldToVarIntView _term_views;
-        mutable FieldToVarIntView _docid_views;
+        typedef std::map<std::string, std::shared_ptr<MMappedFile>> FieldToMMappedFile;
+        mutable FieldToMMappedFile _term_views;
+        mutable FieldToMMappedFile _docid_views;
 
         typedef std::map<std::string, std::shared_ptr<MMappedFile>> SplitFileMap;
         mutable SplitFileMap _split_files;

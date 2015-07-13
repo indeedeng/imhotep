@@ -25,25 +25,25 @@ namespace imhotep {
     }
 
     template <typename term_t>
-    Shard::var_int_view_ptr Shard::term_view(const std::string& field) const {
-        FieldToVarIntView::iterator result(_term_views.find(field));
-        if (result == _term_views.end()) {
+    VarIntView Shard::term_view(const std::string& field) const {
+        FieldToMMappedFile::iterator it(_term_views.find(field));
+        if (it == _term_views.end()) {
             const std::string filename(term_filename<term_t>(field));
-            var_int_view_ptr  view(std::make_shared<MMappedVarIntView>(filename));
-            result = _term_views.insert(std::make_pair(field, view)).first;
+            std::shared_ptr<MMappedFile> view(std::make_shared<MMappedFile>(filename));
+            it = _term_views.insert(std::make_pair(field, view)).first;
         }
-        return result->second;
+        return VarIntView(it->second->begin(), it->second->end());
     }
 
     template <typename term_t>
-    Shard::var_int_view_ptr Shard::docid_view(const std::string& field) const {
-        FieldToVarIntView::iterator result(_docid_views.find(field));
-        if (result == _docid_views.end()) {
+    VarIntView Shard::docid_view(const std::string& field) const {
+        FieldToMMappedFile::iterator it(_docid_views.find(field));
+        if (it == _docid_views.end()) {
             const std::string filename(docid_filename<term_t>(field));
-            var_int_view_ptr  view(std::make_shared<MMappedVarIntView>(filename));
-            result = _docid_views.insert(std::make_pair(field, view)).first;
+            std::shared_ptr<MMappedFile> view(std::make_shared<MMappedFile>(filename));
+            it = _docid_views.insert(std::make_pair(field, view)).first;
         }
-        return result->second;
+        return VarIntView(it->second->begin(), it->second->end());
     }
 
     SplitView Shard::split_view(const std::string& filename) const {
@@ -96,10 +96,10 @@ namespace imhotep {
 
 
     /* template instantiations */
-    template Shard::var_int_view_ptr Shard::term_view<IntTerm>(const std::string& field) const;
-    template Shard::var_int_view_ptr Shard::term_view<StringTerm>(const std::string& field) const;
-    template Shard::var_int_view_ptr Shard::docid_view<IntTerm>(const std::string& field) const;
-    template Shard::var_int_view_ptr Shard::docid_view<StringTerm>(const std::string& field) const;
+    template VarIntView Shard::term_view<IntTerm>(const std::string& field) const;
+    template VarIntView Shard::term_view<StringTerm>(const std::string& field) const;
+    template VarIntView Shard::docid_view<IntTerm>(const std::string& field) const;
+    template VarIntView Shard::docid_view<StringTerm>(const std::string& field) const;
     template std::string Shard::term_filename<IntTerm>(const std::string& field) const;
     template std::string Shard::term_filename<StringTerm>(const std::string& field) const;
     template std::string Shard::docid_filename<IntTerm>(const std::string& field) const;

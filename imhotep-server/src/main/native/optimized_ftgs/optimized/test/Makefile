@@ -33,16 +33,14 @@ LIBS=\
 	-lm -lstdc++
 
 TESTS := \
-	packed_perf               \
+	packed_tree_perf_test     \
 	test_bit_tree             \
 	test_circ_buf             \
 	test_field_op_iterator    \
 	test_ftgs_runner          \
-	test_groups               \
 	test_int_term_iterator    \
 	test_merge_iterator       \
 	test_packed_shard         \
-	test_seq_iterator         \
 	test_split                \
 	test_split_iterator       \
 	test_string_term_iterator \
@@ -74,9 +72,6 @@ test_split: obj/test_split.o ../cppobj/shard.o ../cppobj/splitter.o ../cppobj/te
 
 test_merge_iterator: obj/test_merge_iterator.o ../cppobj/log.o
 	$(CPP) $(CPPFLAGS) $ -o test_merge_iterator $(LIBS) $^
-
-test_seq_iterator: obj/test_seq_iterator.o ../cppobj/log.o
-	$(CPP) $(CPPFLAGS) $ -o test_seq_iterator $(LIBS) $^
 
 test_split_iterator: obj/test_split_iterator.o ../cppobj/log.o
 	$(CPP) $(CPPFLAGS) $ -o test_split_iterator $(LIBS) $^
@@ -128,12 +123,16 @@ FTGS_RUNNER_OBJS =\
 test_ftgs_runner: obj/test_ftgs_runner.o $(FTGS_RUNNER_OBJS)
 	$(CPP) $(CPPFLAGS) -O3 -pthread $ -o test_ftgs_runner $^ $(LIBS)
 
-GROUPS_OBJS = \
+test_packed_shard: obj/test_packed_shard.o obj/test_patch.o ../obj/packed_table.o
+	$(CPP) $ -o test_packed_shard $(LIBS) $^
+
+TGS_OBJS = \
     obj/test_patch.o          \
     ../obj/bit_tree.o         \
     ../obj/circ_buf.o         \
     ../obj/groups.o           \
     ../obj/local_session.o    \
+    ../obj/metrics_inverter.o \
     ../obj/packed_table.o     \
     ../obj/remote_output.o    \
     ../obj/socket.o           \
@@ -143,13 +142,6 @@ GROUPS_OBJS = \
     ../obj/unpacked_table.o   \
     ../obj/varintdecode.o
 
-test_groups: obj/test_groups.o $(GROUPS_OBJS)
-	$(CPP) $ -o test_groups $(LIBS) $^
-
-test_packed_shard: obj/test_packed_shard.o obj/test_patch.o ../obj/packed_table.o
-	$(CPP) $ -o test_packed_shard $(LIBS) $^
-
-TGS_OBJS = $(GROUPS_OBJS) ../obj/metrics_inverter.o
 
 test_tgs: obj/test_tgs.o $(TGS_OBJS)
 	$(CPP) $ -o test_tgs $(LIBS) $^
@@ -160,8 +152,8 @@ test_varintdecode: obj/test_varintdecode.o ../obj/varintdecode.o
 dump_term: obj/dump_term.o $(TGS_OBJS)
 	$(CPP) $(LFLAGS) $ -o dump_term $(LIBS) $^ -L/usr/lib/x86_64-linux-gnu -lboost_system -lpthread #-lasan
 
-packed_perf: obj/packed_tree_perf_test.o ../obj/packed_table.o
-	$(CC) $ -flto -funroll-loops -O3 -o packed_perf $^ -L/usr/lib/x86_64-linux-gnu -lrt
+packed_tree_perf_test: obj/packed_tree_perf_test.o ../obj/packed_table.o
+	$(CC) $ -flto -funroll-loops -O3 -o packed_tree_perf_test $^ -L/usr/lib/x86_64-linux-gnu -lrt
 
 
 clean:

@@ -29,8 +29,8 @@ namespace imhotep {
 
         TermIterator(const Shard&       shard,
                      const std::string& field)
-            : _term_view(*shard.term_view<term_t>(field))
-            , _docid_view(*shard.docid_view<term_t>(field)) {
+            : _term_view(shard.term_view<term_t>(field))
+            , _docid_view(shard.docid_view<term_t>(field)) {
             increment();
         }
 

@@ -36,11 +36,11 @@ namespace imhotep {
         std::pair<map_it_t, map_it_t> matches(splits().equal_range(split));
         std::transform(matches.first, matches.second, std::back_inserter(merge_inputs),
                        [this](std::pair<size_t, const SplitDesc&> entry) {
-                           const SplitDesc&        split_desc(entry.second);
-                           const std::string&      field(split_desc.field());
-                           Shard::var_int_view_ptr docid_view(split_desc.shard().docid_view<term_t>(field));
+                           const SplitDesc&   split_desc(entry.second);
+                           const std::string& field(split_desc.field());
+                           VarIntView         docid_view(split_desc.shard().docid_view<term_t>(field));
                            return MergeInput<term_t>(SplitIterator<term_t>(split_desc.view(_split_dir)),
-                                                     split_desc.table(), docid_view->begin());
+                                                     split_desc.table(), docid_view.begin());
                        });
 
         return MergeIterator<term_t>(merge_inputs.begin(), merge_inputs.end());

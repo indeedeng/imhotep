@@ -38,7 +38,7 @@ bool test_packed_tables(int                 n_docs,
   ShardAttrs<n_metrics> attrs(mins, maxes);
   packed_table_t* shard(packed_table_create(n_docs, mins.data(), maxes.data(),
                                             attrs.sizes, attrs.vec_nums, attrs.offsets_in_vecs,
-                                            unused_original_idx.data(), n_metrics));;
+                                            unused_original_idx.data(), n_metrics, false));;
 
   vector<int> doc_ids(n_docs);
   for (int doc_id = 0; doc_id < n_docs; ++doc_id) {

@@ -31,15 +31,11 @@ void test_term_provider(ExecutorService&      executor,
                         size_t num_splits) {
     for (size_t split_num(0); split_num < num_splits; ++split_num) {
         // executor.enqueue([&provider, field, split_num] {
-                size_t                  num_term_seqs(0);
-                TermSeqIterator<term_t> term_seq_it(provider.term_seq_it(split_num));
-                TermSeqIterator<term_t> term_seq_end;
-                while (term_seq_it != term_seq_end) {
-                    cout << term_seq_it->to_string() << endl;
-                    ++num_term_seqs;
-                    ++term_seq_it;
+                MergeIterator<term_t> merge_it(provider.merge_it(split_num));
+                MergeIterator<term_t> merge_end;
+                while (merge_it != merge_end) {
+                    ++merge_it;
                 }
-                cout << "num_term_seqs: " << num_term_seqs << endl;
             // });
     }
     // executor.await_completion();

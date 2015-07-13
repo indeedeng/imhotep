@@ -287,7 +287,8 @@ int main(int argc, char** argv) {
                                                 vec_nums,
                                                 offsets_in_vecs,
                                                 original_idx,
-                                                num_metrics);
+                                                num_metrics,
+                                                0);
 
     clock_gettime(CLOCK_MONOTONIC, &end);
     fprintf(stderr, "created packed table: %f \n", diff(start,end));

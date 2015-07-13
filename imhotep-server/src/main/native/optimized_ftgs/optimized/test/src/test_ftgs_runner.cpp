@@ -62,7 +62,6 @@ namespace test_ftgs_namespace{
         return make_pair(0, 0);
     }
 
-
     struct TableMetadata {
         int32_t* sizes           = 0;
         int32_t* vec_nums        = 0;
@@ -87,7 +86,8 @@ namespace test_ftgs_namespace{
 
     Shard make_shard(const ShardMetadata&  metadata,
                      const vector<string>& int_fields,
-                     const vector<string>& str_fields)
+                     const vector<string>& str_fields,
+                     const bool            only_binary_metrics)
     {
         vector<int64_t> mins;
         vector<int64_t> maxes;
@@ -96,16 +96,8 @@ namespace test_ftgs_namespace{
             mins.push_back(min_max.first);
             maxes.push_back(min_max.second);
         }
-        //TODO FIX?
-        /*
-        for (const string& field: str_fields) {
-            std::cout << field << std::endl;
-            throw runtime_error("nyi: support for string fields");
-        }
-        */
 
-        //        const size_t num_cols(int_fields.size() + str_fields.size());
-        const size_t num_cols(int_fields.size());
+        const size_t num_cols(int_fields.size() + str_fields.size());
 
         TableMetadata table_meta(num_cols, mins.data(), maxes.data());
 
@@ -114,7 +106,7 @@ namespace test_ftgs_namespace{
         table = packed_table_create(metadata.num_docs(),
                                     mins.data(), maxes.data(),
                                     table_meta.sizes, table_meta.vec_nums, table_meta.offsets_in_vecs,
-                                    vector<int8_t>(num_cols, 0).data(), num_cols);
+                                    vector<int8_t>(num_cols, 0).data(), num_cols, only_binary_metrics);
         return Shard(metadata.shard().dir(), int_fields, str_fields, table);
     }
 
@@ -122,52 +114,30 @@ namespace test_ftgs_namespace{
 
     vector<Shard> create_shards_with_tables(const vector<Shard>&  shards,
                                             const vector<string>& int_fields,
-                                            const vector<string>& str_fields){
+                                            const vector<string>& str_fields,
+                                            const bool            only_binary_metrics) {
         vector<ShardMetadata> metadata(shards.begin(), shards.end());
         vector<Shard> shards_with_tables;
         transform(metadata.begin(), metadata.end(), back_inserter(shards_with_tables),
-                  [&int_fields, &str_fields](const ShardMetadata& sm) {
-                      return make_shard(sm, int_fields, str_fields);
+                  [&int_fields, &str_fields, only_binary_metrics](const ShardMetadata& sm) {
+                      return make_shard(sm, int_fields, str_fields, only_binary_metrics);
                   });
         return shards_with_tables;
     }
 
 
 
-    void test_ftgs_runner_short(const vector<Shard>&  shards,
-                                const vector<string>& int_fields,
-                                const vector<string>& str_fields,
-                                const string&         splits_dir,
-                                size_t                num_splits =7
-                                ){
-        vector<Shard> shards_with_tables=create_shards_with_tables(shards, int_fields, str_fields);
-        ExecutorService       executor;
-        const size_t num_workers= executor.num_workers();
-
-        FTGSRunner runner(shards_with_tables,
-                          int_fields,
-                          str_fields,
-                          splits_dir,
-                          num_splits,
-                          num_workers,
-                          executor);
-
-        for (Shard shard: shards_with_tables) {
-            packed_table_destroy(const_cast<packed_table_t*>(shard.table()));
-        }
-    }
-
-
-    void test_ftgs_runner_full(const vector<Shard>&  shards,
-                               const vector<string>& int_fields,
-                               const vector<string>& str_fields,
-                               const string&         splits_dir,
-                               size_t                num_splits,
-                               const int             num_groups,
-                               const int             num_metrics,
-                               std::vector<int> &    socket_fds,
-                               const bool            only_binary_metrics=false){
-        vector<Shard> shards_with_tables=create_shards_with_tables(shards, int_fields, str_fields);
+    void test_ftgs_runner(const vector<Shard>&  shards,
+                          const vector<string>& int_fields,
+                          const vector<string>& str_fields,
+                          const string&         splits_dir,
+                          size_t                num_splits,
+                          const int             num_groups,
+                          const int             num_metrics,
+                          std::vector<int> &    socket_fds,
+                          const bool            only_binary_metrics=false){
+        vector<Shard> shards_with_tables(create_shards_with_tables(shards, int_fields, str_fields,
+                                                                   only_binary_metrics));
         ExecutorService       executor;
         const size_t num_workers= executor.num_workers();
 
@@ -191,8 +161,9 @@ namespace test_ftgs_namespace{
     }
 }
 
-//TODO calculate int_fields,stringFields, numGroups, numStats, num_metrics and sockets based on the min info needed.
-//base yourself on the java code
+// TODO calculate int_fields,stringFields, numGroups, numStats,
+// num_metrics and sockets based on the min info needed.  base yourself
+// on the java code
 int main(int argc, char *argv[])
 {
     simdvbyteinit();
@@ -216,25 +187,16 @@ int main(int argc, char *argv[])
          "directory to stash temp split files")
         ("num-splits", po::value<size_t>()->default_value(13, "UINT"),
          "number of splits to use")
-        ("full-test", po::value<bool>()->default_value(true, "BOOL"),
-         "needs num-groups and num-metrics set")
-
         ;
 
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
     po::notify(vm);
 
-    bool full_test = vm.count("full-test")&&
-        vm["full-test"].as<bool>();
-
-    if (vm.count("help")||(
-                           !vm.count("shard-dir") ||
-                           !vm.count("int-fields")))
-        {
-            cout << desc << endl;
-            return 0;
-        }
+    if (vm.count("help") || (!vm.count("shard-dir") || !vm.count("int-fields"))) {
+        cerr << desc << endl;
+        return 1;
+    }
 
     const vector<string> int_fields(vm["int-fields"].as<vector<string>>());
     const vector<string> str_fields(vm["str-fields"].as<vector<string>>());
@@ -254,26 +216,11 @@ int main(int argc, char *argv[])
     const size_t num_splits(vm["num-splits"].as<size_t>());
     const size_t num_groups =1;
     const size_t num_metrics=int_fields.size();
-    if (full_test){
-        std::vector<int> sockets(num_splits, 1);
-        bool only_binary_metrics=false;
-        test_ftgs_namespace::test_ftgs_runner_full(shards,
-                                                   int_fields,
-                                                   str_fields,
-                                                   split_dir,
-                                                   num_splits,
-                                                   num_groups,
-                                                   num_metrics,
-                                                   sockets,
-                                                   only_binary_metrics);
-    }
-    else{
-        test_ftgs_namespace::test_ftgs_runner_short(shards,
-                                                    int_fields,
-                                                    str_fields,
-                                                    split_dir,
-                                                    num_splits);
-    }
-    exit(0);
+    std::vector<int> sockets(num_splits, 1);
+    bool only_binary_metrics=false;
+    test_ftgs_namespace::test_ftgs_runner(shards, int_fields, str_fields,
+                                          split_dir, num_splits,
+                                          num_groups, num_metrics,
+                                          sockets, only_binary_metrics);
 }
 
