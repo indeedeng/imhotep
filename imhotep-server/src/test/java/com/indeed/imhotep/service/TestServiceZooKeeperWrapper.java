@@ -27,18 +27,16 @@ import org.junit.rules.*;
 import java.io.*;
 import java.util.*;
 
-public class TestServiceZooKeeperWrapper
-    implements Watcher {
+public class TestServiceZooKeeperWrapper {
 
-    private static final int TIMEOUT_SECS   = 3;
-    //    private static final int TIMEOUT_MILLIS = 3000;
+    private static final int TIMEOUT_MILLIS = 3000;
 
     @Rule
-    public Timeout globalTimeout = new Timeout(TIMEOUT_SECS * 1000 * 10);
+    public Timeout globalTimeout = new Timeout(TIMEOUT_MILLIS);
 
     private final String host    = "localhost";
-    private final int    port    = 54321;
-    private final String zkNodes = host + ":" + Integer.toString(port);
+    private int    port    = 54321;
+    private String zkNodes;
 
     private boolean             connected; // !@# should probably be atomic...
     private File                dataDir;
@@ -51,20 +49,15 @@ public class TestServiceZooKeeperWrapper
 
         connected = false;
 
+        ++port;
+        zkNodes = host + ":" + Integer.toString(port);
+
         dataDir = new File(Files.getTempDirectory("zk-data-dir", Long.toString(System.nanoTime())));
         dataDir.mkdir();
 
         final Properties props = new Properties();
         props.setProperty("dataDir", dataDir.toString());
         props.setProperty("clientPort", Integer.toString(port));
-        //        props.setProperty("tickTime", "1000");
-
-        /*
-        Logger zkLogger = Logger.getLogger("org.apache.zookeeper");
-        zkLogger.setLevel(Level.TRACE);
-        ConsoleAppender appender = new ConsoleAppender(new SimpleLayout(), ConsoleAppender.SYSTEM_ERR);
-        zkLogger.addAppender(appender);
-        */
 
         final QuorumPeerConfig quorumConfig = new QuorumPeerConfig();
         quorumConfig.parseProperties(props);
@@ -87,7 +80,7 @@ public class TestServiceZooKeeperWrapper
     }
 
     @Test
-    public void reconnectAfterExpiration()
+    public void simpleConnect()
         throws IOException, InterruptedException, KeeperException {
 
         final String rootPath = "/" + new Object(){}.getClass().getEnclosingMethod().getName();
@@ -99,28 +92,24 @@ public class TestServiceZooKeeperWrapper
         }
     }
 
+    @Test
+    public void connectAndClose()
+        throws IOException, InterruptedException, KeeperException {
+
+        final String rootPath = "/" + new Object(){}.getClass().getEnclosingMethod().getName();
+
+        ServiceZooKeeperWrapper wrapper = new ServiceZooKeeperWrapper(zkNodes, host, port, rootPath);
+
+        while (!wrapper.isAlive()) { Thread.sleep(100); }
+        wrapper.close();
+        while (wrapper.isAlive()) { Thread.sleep(100); }
+    }
+
     @After
     public void tearDown()
         throws InterruptedException {
         zkThread.interrupt();
         zkThread.join();
         Files.delete(dataDir.toString());
-    }
-
-    public void process(WatchedEvent event) {
-        System.err.println("Test: " + event);
-        if (event.getState() == Event.KeeperState.SyncConnected) {
-            synchronized (this) {
-                connected = true;
-                this.notify();
-            }
-        }
-    }
-
-    private class BogoWatcher implements Watcher {
-        @Override
-        public void process(WatchedEvent event) {
-            System.err.println("BogoWatcher: " + event);
-        }
     }
 }
