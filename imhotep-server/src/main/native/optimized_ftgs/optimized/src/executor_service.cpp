@@ -1,5 +1,12 @@
 #include "executor_service.hpp"
 
+#include <unistd.h>
+
+#include <cstring>
+#include <sstream>
+
+#include "log.hpp"
+
 namespace imhotep {
 
     ExecutorService::ExecutorService(size_t threads)
@@ -73,6 +80,22 @@ namespace imhotep {
         }
 
         _completion_condition.notify_all();
+    }
+
+    size_t ExecutorService::num_processors() {
+        // Ideally we should just return std::thread::hardware_concurrency(),
+        // however that call is not available in libstdc++ on all the platforms
+        // we target.
+        const long result(sysconf(_SC_NPROCESSORS_ONLN));
+        if (result < 1) {
+            const long fallback(8);
+            std::ostringstream os;
+            os << __FUNCTION__ << ": error querying the number of processors available,"
+               << " falling back to " << fallback
+               << " errno: " << errno << ": " << strerror(errno);
+            Log::error(os.str());
+        }
+        return result;
     }
 
 } // namespace imhotep
