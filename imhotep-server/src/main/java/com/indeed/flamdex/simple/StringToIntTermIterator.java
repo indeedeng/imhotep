@@ -1,5 +1,7 @@
 package com.indeed.flamdex.simple;
 
+import java.io.IOException;
+
 /**
  * @author vladimir
  */
@@ -48,5 +50,10 @@ public class StringToIntTermIterator implements SimpleIntTermIterator  {
     @Override
     public void close() {
         stringTermIterator.close();
+    }
+
+    @Override
+    public long getDocListAddress() throws IOException {
+        return stringTermIterator.getDocListAddress();
     }
 }

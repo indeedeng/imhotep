@@ -1915,10 +1915,10 @@ public class TestImhotepLocalSession {
     public void testRegexMetric() throws ImhotepOutOfMemoryException {
         final FlamdexReader r = MakeAFlamdex.make();
         final ImhotepLocalSession session =
-                new ImhotepLocalSession(r,
+                new ImhotepJavaLocalSession(r,
                         "/tmp/imhotep.test",
                         new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
-                        false, null);
+                        null);
 
         session.pushStat("regex if1:9000");
         Assert.assertArrayEquals(new long[]{0, 3}, session.getGroupStats(0));
