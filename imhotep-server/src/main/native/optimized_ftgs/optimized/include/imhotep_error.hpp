@@ -12,10 +12,12 @@ namespace imhotep {
     class imhotep_error : public std::runtime_error {
     public:
         imhotep_error(const std::string& what)
-            : std::runtime_error(decorate(what))
+            //            : std::runtime_error(decorate(what))
+            : std::runtime_error(what)
         { }
 
     private:
+        /*
         static std::string decorate(const std::string& what) {
             std::stringstream message;
             message << what << std::endl;
@@ -33,7 +35,8 @@ namespace imhotep {
                 message << "(no stack trace available)";
             }
             return message.str();
-        }
+            }
+        */
     };
 }
 
