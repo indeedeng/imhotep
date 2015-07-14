@@ -79,7 +79,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             os.close();
             is.close();
             System.load(tempFile.getAbsolutePath());
-//            tempFile.delete();
+            tempFile.delete();
         } catch (Throwable e) {
             e.printStackTrace();
             log.warn("unable to load libftgs using class loader, looking in java.library.path", e);
@@ -347,7 +347,9 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             packedTablePtrs[index] = nativeCaches[index].getNativeAddress();
         }
 
-        final String splitsDir = "/tmp/splits"; // !@# FIX ME (read from a property?)
+        // !@# FIX ME - CHANGE THIS DEFAULT
+        final String splitsDir = System.getProperty("native.splits.dir", "/mnt/tmp/stage");
+        // !@# FIX ME - CHANGE THIS DEFAULT
         final int numWorkers = 8;               // !@# FIX ME (read from a property?)
 
         java.util.ArrayList<Integer> socketFDArray = new java.util.ArrayList<Integer>();
