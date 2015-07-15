@@ -39,8 +39,8 @@ namespace imhotep {
     };
 
     std::ostream& operator<<(std::ostream& os, const SplitRanges& ranges) {
-        for (auto range: ranges) {
-            os << "(" << range.first << ".." << range.second << ") ";
+        for (SplitRanges::const_iterator it(ranges.begin()); it != ranges.end(); ++it) {
+            os << "(" << it->first << ".." << it->second << ") ";
         }
         return os;
     }
@@ -135,7 +135,7 @@ namespace imhotep {
                                             sample_table, socket_fds,
                                             _int_term_providers, _string_term_providers));
             Worker* worker(workers.back().get());
-            _executor.enqueue([worker]() { worker->run(); });
+            _executor.enqueue(std::bind(&Worker::run, worker));
         }
         _executor.await_completion();
     }

@@ -1,5 +1,5 @@
 #include <emmintrin.h>
-#include <popcntintrin.h>
+// #include <popcntintrin.h>
 #include <stdlib.h>
 #include <string.h>
 #include "bit_tree.h"
@@ -69,12 +69,14 @@ inline int32_t bit_tree_dump(struct bit_tree *tree, uint32_t *restrict index_arr
             const int64_t lsb = tree->bitsets[depth][index] & -tree->bitsets[depth][index];
             tree->bitsets[depth][index] ^= lsb;
             --depth;
-            index = (index << 6) + _mm_popcnt_u64(lsb - 1);
+            //            index = (index << 6) + _mm_popcnt_u64(lsb - 1);
+            index = (index << 6) + __builtin_popcountl(lsb - 1);
         }
         while (tree->bitsets[0][index] != 0) {
             const int64_t lsb = tree->bitsets[0][index] & -tree->bitsets[0][index];
             tree->bitsets[0][index] ^= lsb;
-            index_arr[count++] = (index << 6) + _mm_popcnt_u64(lsb - 1);
+            //            index_arr[count++] = (index << 6) + _mm_popcnt_u64(lsb - 1);
+            index_arr[count++] = (index << 6) + __builtin_popcountl(lsb - 1);
         }
         if (tree->depth == 0) return count;
         depth = 1;

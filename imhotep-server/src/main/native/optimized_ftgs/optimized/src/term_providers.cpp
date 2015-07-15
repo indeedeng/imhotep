@@ -8,14 +8,16 @@ namespace imhotep {
                                          const std::string&              split_dir,
                                          size_t                          num_splits,
                                          ExecutorService&                executor) {
-        std::transform(field_names.begin(), field_names.end(),
-                       std::back_inserter<TermProviders>(*this),
-                       [this, &shards, &split_dir, num_splits, &executor](const std::string& field) {
-                           std::vector<term_source_t> sources(term_sources(shards, field));
-                           return std::make_pair(field, TermProvider<term_t>(sources, field,
-                                                                             split_dir, num_splits,
-                                                                             executor));
-                       });
+
+        for (std::vector<std::string>::const_iterator it(field_names.begin());
+             it != field_names.end(); ++it) {
+            const std::string& field(*it);
+            std::vector<term_source_t> sources(term_sources(shards, field));
+            emplace_back(std::make_pair(field,
+                                        TermProvider<term_t>(sources, field,
+                                                             split_dir, num_splits,
+                                                             executor)));
+        }
     }
 
     template

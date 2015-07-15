@@ -36,10 +36,13 @@ namespace imhotep {
     template <typename term_t>
     struct MergeOutput {
         term_t                  _term;
-        Shard::packed_table_ptr _table      = 0;
-        const char*             _docid_base = 0;
+        Shard::packed_table_ptr _table;
+        const char*             _docid_base;
 
-        MergeOutput() { }
+        MergeOutput()
+            : _table(0)
+            , _docid_base(0)
+        { }
 
         MergeOutput(const term_t&           term,
                     Shard::packed_table_ptr table,
@@ -71,16 +74,20 @@ namespace imhotep {
         : public boost::iterator_facade<MergeIterator<term_t>,
                                         MergeOutput<term_t> const,
                                         boost::forward_traversal_tag> {
+        struct SplitItsMatch {
+            const SplitIterator<term_t> split_end;
+            bool operator()(MergeInput<term_t>& entry) const {
+                return entry._split_it != split_end;
+            }
+        };
+
     public:
         MergeIterator() { }
 
         template <typename iterator>
         MergeIterator(iterator begin, iterator end) {
-            std::copy_if(begin, end, std::back_inserter(_its),
-                         [] (MergeInput<term_t>& entry) {
-                             const SplitIterator<term_t> split_end;
-                             return entry._split_it != split_end;
-                         });
+            SplitItsMatch splitItsMatch;
+            std::copy_if(begin, end, std::back_inserter(_its), splitItsMatch);
             increment();
         }
 

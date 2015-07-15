@@ -14,13 +14,14 @@ namespace imhotep {
         : _dir(dir)
         , _table(table) {
         /* !@# force caching of views for now... */
-        for (const std::string& field: int_fields) {
-            term_view<IntTerm>(field);
-            docid_view<IntTerm>(field);
+        typedef std::vector<std::string>::const_iterator It;
+        for (It it(int_fields.begin()); it != int_fields.end(); ++it) {
+            term_view<IntTerm>(*it);
+            docid_view<IntTerm>(*it);
         }
-        for (const std::string& field: str_fields) {
-            term_view<StringTerm>(field);
-            docid_view<StringTerm>(field);
+        for (It it(str_fields.begin()); it != str_fields.end(); ++it) {
+            term_view<StringTerm>(*it);
+            docid_view<StringTerm>(*it);
         }
     }
 

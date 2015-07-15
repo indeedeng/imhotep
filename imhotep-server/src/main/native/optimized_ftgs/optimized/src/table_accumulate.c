@@ -6,7 +6,7 @@
 
 #include "high_perf_timer.h"
 
-void update_group_stats(const packed_table_t * restrict table, long *sums, const int col)
+void update_group_stats(const packed_table_ptr restrict table, long *sums, const int col)
 {
     int num_rows = packed_table_get_rows(table);
     for (int i = 0; i < num_rows; i++) {
@@ -15,7 +15,7 @@ void update_group_stats(const packed_table_t * restrict table, long *sums, const
     }
 }
 
-void update_group_stats_2_binary(const packed_table_t * restrict table, long *sums, const int col)
+void update_group_stats_2_binary(const packed_table_ptr restrict table, long *sums, const int col)
 {
     int num_rows = packed_table_get_rows(table);
     for (int i = 0; i < num_rows; i++) {
@@ -27,14 +27,13 @@ void update_group_stats_2_binary(const packed_table_t * restrict table, long *su
 /*
  * Two array loop
  */
-void lookup_and_accumulate_grp_stats(
-                                     const struct worker_desc *worker,
-                                     const packed_table_t *src_table,
-                                     const unpacked_table_t *dest_table,
+void lookup_and_accumulate_grp_stats(const struct worker_desc *worker,
+                                     const packed_table_ptr src_table,
+                                     const unpacked_table_ptr dest_table,
                                      const uint32_t* row_id_buffer,
                                      const int buffer_len,
                                      const struct circular_buffer_int *grp_buf,
-                                     const unpacked_table_t *temp_buf)
+                                     const unpacked_table_ptr temp_buf)
 {
     /*
      * calculate the number of rows to prefetch to keep the total number

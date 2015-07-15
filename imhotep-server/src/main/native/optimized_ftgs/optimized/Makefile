@@ -1,22 +1,22 @@
 MODE=opt
 
 IDIR=include
-CC=/usr/bin/gcc-4.9
-CPP=/usr/bin/g++-4.9
+CC=/usr/bin/gcc-4.4
+CPP=/usr/bin/g++-4.4
 JNI_HEADER_LOC=$(JAVA_HOME)/include
 JNI_HEADER_LOC2=$(JNI_HEADER_LOC)/linux
-BASE_CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions
-BASE_CPPFLAGS=-Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -I/usr/include/boost -msse4.2 -std=c++11 -fPIC
+BASE_CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu99 -msse4.2 -fPIC -flax-vector-conversions
+BASE_CPPFLAGS=-Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -I/usr/include/boost -msse4.2 -std=c++0x -fPIC
 BASE_LFLAGS= -shared  -fno-omit-frame-pointer
 
 DBG_CFLAGS= -g3 -fsanitize=address -fsanitize=undefined -fsanitize=null -fsanitize=bounds -fno-omit-frame-pointer #-fsanitize-undefined-trap-on-error -fno-sanitize-recover=undefined
-OPT_CFLAGS= -g -O3 -flto -fvisibility=hidden
+OPT_CFLAGS= -g -O3  -fvisibility=hidden
 
 DBG_CPPFLAGS= -g3 -fsanitize=address -fsanitize=undefined -fsanitize=null -fsanitize=bounds -fno-omit-frame-pointer #-fsanitize-undefined-trap-on-error -fno-sanitize-recover=undefined
-OPT_CPPFLAGS= -g -O3 -flto -fvisibility=hidden 
+OPT_CPPFLAGS= -g -O3  -fvisibility=hidden 
 
 DBG_LFLAGS= -g3 -fsanitize=address -fsanitize=undefined -fsanitize=null -fsanitize=bounds -fno-omit-frame-pointer -lasan #-fsanitize-undefined-trap-on-error  -fno-sanitize-recover=undefined  
-OPT_LFLAGS= -g -O3 -flto -static-libstdc++ -static-libgcc 
+OPT_LFLAGS= -g -O3 -static-libgcc 
 
 ifeq ($(MODE),opt)
 	CFLAGS=$(OPT_CFLAGS) $(BASE_CFLAGS)

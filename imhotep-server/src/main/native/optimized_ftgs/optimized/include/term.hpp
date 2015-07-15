@@ -34,14 +34,18 @@ namespace imhotep {
 
     template <typename id_type>
     class Term {
-        id_type _id         = IdTraits<id_type>::default_value();
-        int64_t _doc_offset = 0;
-        int32_t _doc_freq   = 0;
+        id_type _id;
+        int64_t _doc_offset;
+        int32_t _doc_freq;
 
     public:
         typedef id_type id_t;
 
-        Term() = default;
+        Term()
+            : _id(IdTraits<id_type>::default_value())
+            , _doc_offset(0)
+            , _doc_freq(0)
+        { }
 
         explicit Term(const id_type& id, int64_t doc_offset, int32_t doc_freq)
             : _id(id)

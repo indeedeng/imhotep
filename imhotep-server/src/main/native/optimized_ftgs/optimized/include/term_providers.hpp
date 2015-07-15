@@ -26,11 +26,11 @@ namespace imhotep {
         std::vector<term_source_t> term_sources(const std::vector<Shard>& shards,
                                                 const std::string&        field) const {
             std::vector<term_source_t> result;
-            std::transform(shards.begin(), shards.end(),
-                           std::back_inserter(result),
-                           [&field](const Shard& shard) {
-                               return std::make_pair(shard, term_it(shard, field));
-                           });
+            for (std::vector<Shard>::const_iterator it(shards.begin());
+                 it != shards.end(); ++it) {
+                const Shard& shard(*it);
+                result.emplace_back(std::make_pair(shard, term_it(shard, field)));
+            }
             return result;
         }
     };

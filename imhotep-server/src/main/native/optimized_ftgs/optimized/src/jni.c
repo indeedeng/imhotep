@@ -27,7 +27,7 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiRegroupInternals_nativ
     jbyte*   results_array    = (*env)->GetPrimitiveArrayCritical(env, results, &unused);
     jint*    remappings_array = (*env)->GetPrimitiveArrayCritical(env, remappings, &unused);
 
-    int status = remap_docs_in_target_groups_int8_t((packed_table_t*) native_shard_data_ptr,
+    int status = remap_docs_in_target_groups_int8_t((packed_table_ptr) native_shard_data_ptr,
                                                     results_array,
                                                     (uint8_t*) doc_list_address, n_docs,
                                                     remappings_array,
@@ -60,7 +60,7 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiRegroupInternals_nativ
     jchar*   results_array    = (*env)->GetPrimitiveArrayCritical(env, results, &unused);
     jint*    remappings_array = (*env)->GetPrimitiveArrayCritical(env, remappings, &unused);
 
-    int status = remap_docs_in_target_groups_uint16_t((packed_table_t*) native_shard_data_ptr,
+    int status = remap_docs_in_target_groups_uint16_t((packed_table_ptr) native_shard_data_ptr,
                                                       results_array,
                                                       (uint8_t*) doc_list_address, n_docs,
                                                       remappings_array,
@@ -93,7 +93,7 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiRegroupInternals_nativ
     jint*    results_array    = (*env)->GetPrimitiveArrayCritical(env, results, &unused);
     jint*    remappings_array = (*env)->GetPrimitiveArrayCritical(env, remappings, &unused);
 
-    int status = remap_docs_in_target_groups_int32_t((packed_table_t*) native_shard_data_ptr,
+    int status = remap_docs_in_target_groups_int32_t((packed_table_ptr) native_shard_data_ptr,
                                                      results_array,
                                                      (uint8_t*) doc_list_address, n_docs,
                                                      remappings_array,
@@ -131,11 +131,13 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MTImhotepLocalMultiSession_
 JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_PackedTableView_nativeBind
 (JNIEnv *env, jobject packedTableView, jlong nativeShardDataPtr)
 {
-    packed_table_t* packed_table = (packed_table_t*) nativeShardDataPtr;
+    packed_table_ptr packed_table = (packed_table_ptr) nativeShardDataPtr;
     jclass   clazz          = (*env)->GetObjectClass(env, packedTableView);
     jfieldID tableDataPtrID = (*env)->GetFieldID(env, clazz, "tableDataPtr", "J");
     jfieldID rowSizeID      = (*env)->GetFieldID(env, clazz, "rowSizeBytes", "I");
-    (*env)->SetLongField(env, packedTableView, tableDataPtrID, (jlong) packed_table->data);
-    (*env)->SetIntField(env, packedTableView, rowSizeID, (jint) packed_table->row_size_bytes);
+    (*env)->SetLongField(env, packedTableView, tableDataPtrID,
+                         (jlong) packed_table_get_row_addr(packed_table, 0));
+    (*env)->SetIntField(env, packedTableView, rowSizeID,
+                        (jint) packed_table_get_row_size(packed_table));
 }
 

@@ -13,7 +13,6 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
-#include <future>
 #include <functional>
 #include <stdexcept>
 
@@ -37,41 +36,46 @@ namespace imhotep
         size_t num_workers() const { return _workers.size(); }
 
         /** add new work item to the pool */
-        template<class F, class... Args>
-        auto enqueue(F&& f, Args&&... args)
-            -> std::future<typename std::result_of<F(Args...)>::type>
+        void enqueue(const std::function<void()>& task)
         {
-            using return_type = typename std::result_of<F(Args...)>::type;
+            std::unique_lock<std::mutex> lock(_mutex);
 
-            auto task = std::make_shared< std::packaged_task<return_type()> >(
-                    std::bind(std::forward<F>(f), std::forward<Args>(args)...)
-                );
-
-            std::future<return_type> res = task->get_future();
-            {
-                std::unique_lock<std::mutex> lock(_mutex);
-
-                // don't allow enqueueing after stopping the pool
-                if (_stop) {
-                    throw imhotep_error("enqueue on stopped ThreadPool");
-                }
-
-                _tasks.emplace([task]() {(*task)();});
+            // don't allow enqueueing after stopping the pool
+            if (_stop) {
+                throw imhotep_error("enqueue on stopped ThreadPool");
             }
+            _tasks.push(task);
             _condition.notify_one();
-            return res;
         }
+
+        bool unblocked() const { return _stop || !_tasks.empty();                             }
+        bool  complete() const { return (_tasks.empty() && _num_tasks_running == 0) || _stop; }
 
     private:
         static size_t num_processors();
 
+        struct Unblocked {
+            const ExecutorService& _self;
+            Unblocked(const ExecutorService& self) : _self(self)  { }
+            bool operator()() const { return _self.unblocked(); }
+        };
+
+        struct Complete {
+            const ExecutorService& _self;
+            Complete(const ExecutorService& self) : _self(self)  { }
+            bool operator()() const { return _self.complete(); }
+        };
+
+        void work();
+
         // need to keep track of threads so we can join them
         std::vector<std::thread> _workers;
+
         // the task queue
-        std::queue<std::function<void()> > _tasks;
+        std::queue<std::function<void()>> _tasks;
 
         // to keep track of the cause if a failure has shut everything down
-        std::exception_ptr _failure_cause;
+        std::string _failure_cause;
 
         // number of tasks still executing
         int _num_tasks_running;
@@ -80,7 +84,7 @@ namespace imhotep
         std::mutex _mutex;
         std::condition_variable _condition;
         std::condition_variable _completion_condition;
-        bool _stop = false;
+        bool _stop;
     };
 
 } // namespace imhotep

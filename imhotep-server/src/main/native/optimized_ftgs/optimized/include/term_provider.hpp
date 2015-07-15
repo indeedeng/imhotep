@@ -68,8 +68,8 @@ namespace imhotep {
         const split_map_t& splits() const { return _splits; }
 
     private:
-        const std::string _split_dir;
-        split_map_t       _splits;
+        std::string _split_dir;
+        split_map_t _splits;
     };
 
     typedef TermProvider<IntTerm>    IntTermProvider;

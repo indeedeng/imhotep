@@ -1,14 +1,15 @@
 #include <assert.h>
 #include <string.h>
+#include "imhotep_native.h"
 #include "table.h"
 
-unpacked_table_t *unpacked_table_create(const packed_table_t *packed_table, int n_rows)
+unpacked_table_ptr unpacked_table_create(const packed_table_ptr packed_table, int n_rows)
 {
-    unpacked_table_t *table;
+    unpacked_table_ptr table;
     int64_t *column_mins = packed_table->col_mins;
     int n_cols = packed_table_get_cols(packed_table);
 
-    table = (unpacked_table_t *)calloc(1, sizeof(unpacked_table_t));
+    table = (unpacked_table_ptr )calloc(1, sizeof(unpacked_table_t));
     table->n_rows = n_rows;
     table->n_cols = n_cols;
     table->col_remapping = calloc(n_cols, sizeof(uint8_t));
@@ -69,7 +70,7 @@ unpacked_table_t *unpacked_table_create(const packed_table_t *packed_table, int 
     return table;
 }
 
-void unpacked_table_destroy(unpacked_table_t *table)
+void unpacked_table_destroy(unpacked_table_ptr table)
 {
     bit_tree_destroy(table->non_zero_rows);
     free(table->col_mins);
@@ -79,25 +80,25 @@ void unpacked_table_destroy(unpacked_table_t *table)
 }
 
 
-int unpacked_table_get_size(const unpacked_table_t *table)
+int unpacked_table_get_size(const unpacked_table_ptr table)
 {
     return table->size;
 }
 
-int unpacked_table_get_rows(const unpacked_table_t *table)
+int unpacked_table_get_rows(const unpacked_table_ptr table)
 {
     return table->n_rows;
 }
 
-int unpacked_table_get_cols(const unpacked_table_t *table)
+int unpacked_table_get_cols(const unpacked_table_ptr table)
 {
     return table->n_cols;
 }
 
 
-unpacked_table_t *unpacked_table_copy_layout(const unpacked_table_t *src_table, const int n_rows)
+unpacked_table_ptr unpacked_table_copy_layout(const unpacked_table_ptr src_table, const int n_rows)
 {
-    unpacked_table_t *new_table;
+    unpacked_table_ptr new_table;
 
     new_table = calloc(1, sizeof(unpacked_table_t));
     new_table->n_rows = n_rows;
@@ -119,7 +120,7 @@ unpacked_table_t *unpacked_table_copy_layout(const unpacked_table_t *src_table, 
     return new_table;
 }
 
-long unpacked_table_get_cell(const unpacked_table_t * restrict table,
+long unpacked_table_get_cell(const unpacked_table_ptr  restrict table,
                              const int row,
                              const int column)
 {
@@ -129,7 +130,7 @@ long unpacked_table_get_cell(const unpacked_table_t * restrict table,
     return row_data[table->col_offset[column]];
 }
 
-void unpacked_table_set_cell(const unpacked_table_t * restrict table,
+void unpacked_table_set_cell(const unpacked_table_ptr  restrict table,
                              const int row,
                              const int column,
                              const long value)
@@ -140,19 +141,19 @@ void unpacked_table_set_cell(const unpacked_table_t * restrict table,
     row_data[table->col_offset[column]] = value;
 }
 
-inline void *unpacked_table_get_rows_addr(const unpacked_table_t * restrict table, const int row)
+inline void *unpacked_table_get_rows_addr(const unpacked_table_ptr  restrict table, const int row)
 {
     const int index = row * table->padded_row_len;
 
     return &table->data[index];
 }
 
-void unpacked_table_clear(const unpacked_table_t *table) {
+void unpacked_table_clear(const unpacked_table_ptr table) {
     memset(table->data, 0, table->size * sizeof(__m128i));
 }
 
 
-int64_t unpacked_table_get_and_clear_remapped_cell(const unpacked_table_t *table,
+int64_t unpacked_table_get_and_clear_remapped_cell(const unpacked_table_ptr table,
                                                    const int row,
                                                    const int orig_idx)
 {
@@ -174,9 +175,9 @@ static inline void core(const __v2di * restrict src_row,
     dest_row[vector_num] += src_row[vector_num] + mins[vector_num];
 }
 
-inline void unpacked_table_add_rows(const unpacked_table_t* restrict src_table,
+inline void unpacked_table_add_rows(const unpacked_table_ptr restrict src_table,
                                     const int src_row_id,
-                                    const unpacked_table_t* restrict dest_table,
+                                    const unpacked_table_ptr restrict dest_table,
                                     const int dest_row_id,
                                     const int prefetch_row_id)
 {
@@ -218,7 +219,7 @@ inline void unpacked_table_add_rows(const unpacked_table_t* restrict src_table,
     }
 }
 
-struct bit_tree* unpacked_table_get_non_zero_rows(const unpacked_table_t* table)
+struct bit_tree* unpacked_table_get_non_zero_rows(const unpacked_table_ptr table)
 {
     return table->non_zero_rows;
 }

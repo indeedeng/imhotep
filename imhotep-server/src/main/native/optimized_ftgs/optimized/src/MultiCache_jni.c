@@ -29,7 +29,7 @@ JNIEXPORT jlong JNICALL Java_com_indeed_imhotep_local_MultiCache_nativeBuildMult
                                        jint n_stats,
                                        jboolean only_binary_metrics)
 {
-    packed_table_t *table;
+    packed_table_ptr table;
     jboolean unused;
     jlong *mins;
     jlong *maxes;
@@ -61,7 +61,7 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_nativeDestroyMul
                                        jobject java_multicache,
                                        jlong table_pointer)
 {
-    packed_table_t *table = (packed_table_t *)table_pointer;
+    packed_table_ptr table = (packed_table_ptr )table_pointer;
 
     packed_table_destroy(table);
 }
@@ -80,7 +80,7 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_nativePackMetric
                                        jint count,
                                        jlongArray values_jarray)
 {
-    packed_table_t *table = (packed_table_t *)table_pointer;
+    packed_table_ptr table = (packed_table_ptr )table_pointer;
     jboolean unused;
     jlong *values;
 
@@ -102,7 +102,7 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_nativeSetGroupsI
                                      jint count,
                                      jintArray values_jarray)
 {
-    packed_table_t *table = (packed_table_t *)table_pointer;
+    packed_table_ptr table = (packed_table_ptr )table_pointer;
     jboolean unused;
     jint *values;
 
@@ -119,12 +119,12 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_nativeSetGroupsI
 JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_nativeGetGroupStats
 (JNIEnv *env, jobject multiCache, jint stat, jlongArray result)
 {
-    jclass          clazz                = (*env)->GetObjectClass(env, multiCache);
-    jfieldID        nativeShardDataPtrID = (*env)->GetFieldID(env, clazz, "nativeShardDataPtr", "J");
-    jlong           nativeShardDataPtr   = (*env)->GetLongField(env, multiCache, nativeShardDataPtrID);
-    packed_table_t* packed_table         = (packed_table_t*) nativeShardDataPtr;
-    jboolean        unused               = 0;
-    jlong*          sums                 = (*env)->GetPrimitiveArrayCritical(env, result, &unused);
+    jclass           clazz                = (*env)->GetObjectClass(env, multiCache);
+    jfieldID         nativeShardDataPtrID = (*env)->GetFieldID(env, clazz, "nativeShardDataPtr", "J");
+    jlong            nativeShardDataPtr   = (*env)->GetLongField(env, multiCache, nativeShardDataPtrID);
+    packed_table_ptr packed_table         = (packed_table_ptr) nativeShardDataPtr;
+    jboolean         unused               = 0;
+    jlong*           sums                 = (*env)->GetPrimitiveArrayCritical(env, result, &unused);
 
     /* !@# To do: check size of 'result' against number of groups in packed table */
     update_group_stats(packed_table, sums, stat);
@@ -147,7 +147,7 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_00024MultiCacheI
                                       jlongArray results_jarray,
                                       jint count)
 {
-    packed_table_t *table = (packed_table_t *)table_pointer;
+    packed_table_ptr table = (packed_table_ptr )table_pointer;
     jboolean unused_docIds;
     jboolean unused_values;
     jint *rows_ids;
@@ -173,7 +173,7 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_00024MultiCacheG
                                       jintArray groups_jarray,
                                       jint count)
 {
-    packed_table_t *table = (packed_table_t *)table_pointer;
+    packed_table_ptr table = (packed_table_ptr )table_pointer;
     jboolean unused_docIds;
     jboolean unused_results;
     jint *rows_ids;
@@ -199,7 +199,7 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_00024MultiCacheG
                                       jintArray groups_jarray,
                                       jint count)
 {
-    packed_table_t *table = (packed_table_t *)table_pointer;
+    packed_table_ptr table = (packed_table_ptr )table_pointer;
     jboolean unused_docIds;
     jboolean unused_groups;
     jint *rows_ids;
@@ -225,7 +225,7 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_00024MultiCacheG
                                          jint count,
                                          jintArray values_jarray)
 {
-    packed_table_t *table = (packed_table_t *)table_pointer;
+    packed_table_ptr table = (packed_table_ptr )table_pointer;
     jboolean unused;
     jint *values;
 
@@ -245,7 +245,7 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_local_MultiCache_00024MultiCacheG
                                          jlong table_pointer,
                                          jint group)
 {
-    packed_table_t *table = (packed_table_t *)table_pointer;
+    packed_table_ptr table = (packed_table_ptr )table_pointer;
 
     return (jint) packed_table_get_group(table, group);
 }
@@ -262,7 +262,7 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_00024MultiCacheG
                                          jint doc_id,
                                          jint group)
 {
-    packed_table_t *table = (packed_table_t *)table_pointer;
+    packed_table_ptr table = (packed_table_ptr )table_pointer;
 
     packed_table_set_group(table, doc_id, group);
 }
@@ -278,7 +278,7 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_00024MultiCacheG
                                          jlong table_pointer,
                                          jint group)
 {
-    packed_table_t *table = (packed_table_t *)table_pointer;
+    packed_table_ptr table = (packed_table_ptr )table_pointer;
 
     packed_table_set_all_groups(table, group);
 }
@@ -297,7 +297,7 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_MultiCache_00024MultiCacheG
                                          jint negativeGroup,
                                          jint positiveGroup)
 {
-    packed_table_t *table = (packed_table_t *)table_pointer;
+    packed_table_ptr table = (packed_table_ptr )table_pointer;
     jboolean unused;
     jlong *bits;
 
@@ -316,7 +316,7 @@ JNIEXPORT jint JNICALL Java_com_indeed_imhotep_local_MultiCache_00024MultiCacheG
    jobject java_group_lookup_obj,
    jlong table_pointer)
 {
-    packed_table_t *table = (packed_table_t *)table_pointer;
+    packed_table_ptr table = (packed_table_ptr )table_pointer;
     jint result = packed_table_get_num_groups(table);
     return result;
 }

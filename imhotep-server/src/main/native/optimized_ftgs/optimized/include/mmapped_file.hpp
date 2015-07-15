@@ -89,7 +89,7 @@ namespace imhotep {
 
         const char* end() const { return begin() + size(); }
     private:
-        void* _address = 0;
+        void* _address;
     };
 
 } // namespace imhotep

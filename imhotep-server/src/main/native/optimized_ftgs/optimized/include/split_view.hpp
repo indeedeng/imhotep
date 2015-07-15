@@ -63,8 +63,8 @@ namespace imhotep {
             }
         }
 
-        const char* _begin = 0;
-        const char* _end   = 0;
+        const char* _begin;
+        const char* _end;
     };
 
 

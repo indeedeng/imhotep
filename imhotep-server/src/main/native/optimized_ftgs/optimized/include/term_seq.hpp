@@ -15,7 +15,9 @@ namespace imhotep {
     public:
         typedef MergeIterator<term_t> merge_it;
 
-        TermSeq() { }
+        TermSeq()
+            : _id(IdTraits<typename term_t::id_t>::default_value())
+        { }
 
         TermSeq(const TermSeq& rhs) = default;
 
@@ -50,7 +52,7 @@ namespace imhotep {
         }
 
     private:
-        typename term_t::id_t _id = IdTraits<typename term_t::id_t>::default_value();
+        typename term_t::id_t _id;
 
         struct Guts {
             std::vector<const char*>             _docid_addresses;
@@ -69,7 +71,8 @@ namespace imhotep {
 
 
     template <typename term_t>
-    TermSeq<term_t>::TermSeq(MergeIterator<term_t>& begin, MergeIterator<term_t>& end) {
+    TermSeq<term_t>::TermSeq(MergeIterator<term_t>& begin, MergeIterator<term_t>& end)
+        : _id(IdTraits<typename term_t::id_t>::default_value()) {
         reset(begin, end);
     }
 
@@ -97,8 +100,9 @@ namespace imhotep {
            << " addresses=";
 
         os << "[";
-        for (auto addr: docid_addresses()) {
-            os << " " << reinterpret_cast<const void*>(addr);
+        for (std::vector<const char*>::const_iterator it(docid_addresses().begin());
+             it != docid_addresses().end(); ++it) {
+            os << " " << reinterpret_cast<const void*>(*it);
         }
         os << " ]";
 

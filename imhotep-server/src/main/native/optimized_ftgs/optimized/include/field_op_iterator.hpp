@@ -22,7 +22,7 @@ namespace imhotep {
                                         Operation<term_t> const,
                                         boost::forward_traversal_tag> {
     public:
-        FieldOpIterator() { }
+        FieldOpIterator() : _split(0) { }
 
         FieldOpIterator(const TermProviders<term_t>& providers, size_t split);
 
@@ -37,7 +37,7 @@ namespace imhotep {
         typename TermProviders<term_t>::const_iterator _current;
         typename TermProviders<term_t>::const_iterator _end;
 
-        size_t _split = 0;
+        size_t _split;
 
         Operation<term_t>     _operation;
         MergeIterator<term_t> _merge_current;

@@ -8,17 +8,17 @@ int run_tgs_pass(struct worker_desc *worker,
                  const int string_term_len,
                  const char **addresses,
                  const int *docs_per_shard,
-                 const packed_table_t **shards,
+                 const packed_table_ptr *shards,
                  int num_shard,
                  int socket_num);
 
-int register_shard(struct session_desc *session, packed_table_t *table);
+int register_shard(struct session_desc *session, packed_table_ptr table);
 
 void session_init(struct session_desc *session,
                   const int n_groups,
                   const int n_stats,
                   const int only_binary_metrics,
-                  const packed_table_t *sample_table);
+                  const packed_table_ptr sample_table);
 
 void session_destroy(struct session_desc *session);
 

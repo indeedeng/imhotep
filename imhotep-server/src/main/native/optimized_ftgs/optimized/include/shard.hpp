@@ -25,7 +25,7 @@ namespace imhotep {
             context of this class and users of it. I.e., these are created
             externally and their lifecycle managed elsewhere. (I'm not aware of
             a C++ pointer idiom appropriate for such a case or I'd use it.) */
-        typedef const packed_table_t* packed_table_ptr;
+        typedef ::packed_table_ptr packed_table_ptr;
 
         explicit Shard(const std::string&              dir,
                        const std::vector<std::string>& int_fields,
@@ -73,8 +73,8 @@ namespace imhotep {
         typedef std::map<std::string, std::shared_ptr<MMappedFile>> SplitFileMap;
         mutable SplitFileMap _split_files;
 
-        const std::string _dir;
-        packed_table_ptr  _table;
+        std::string      _dir;
+        packed_table_ptr _table;
     };
 
 } // namespace imhotep

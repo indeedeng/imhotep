@@ -1,5 +1,6 @@
 #include <string.h>
 #include <assert.h>
+#include "imhotep_native.h"
 #include "table.h"
 
 #define CACHE_LINE_SIZE                    4
@@ -16,8 +17,7 @@ struct bit_fields_and_group {
     uint32_t metrics :4;
 };
 
-
-inline uint64_t packed_table_get_2_binary_cells(const packed_table_t *table, const int row, int column)
+uint64_t packed_table_get_2_binary_cells(const packed_table_ptr table, const int row, int column)
 {
     const void *packed_addr = (void *)table->data;
     const uint32_t* load_address = packed_addr + (row * table->row_size_bytes);
@@ -32,7 +32,7 @@ inline uint64_t packed_table_get_2_binary_cells(const packed_table_t *table, con
  * in which vector the col is.
  */
 static void createColumnIndexes(
-                                packed_table_t *table,
+                                packed_table_ptr table,
                                 int n_cols,
                                 int32_t * restrict sizes,
                                 int32_t * restrict vec_nums,
@@ -78,7 +78,7 @@ static void createColumnIndexes(
 //Create the array that after  can be used to get 2 cols at a time from the main
 //vector array.**
 //**except when there is an odd number of integer cols in the vector;
-static void createShuffleVecFromIndexes(packed_table_t *table, uint16_t *index_cols)
+static void createShuffleVecFromIndexes(packed_table_ptr table, uint16_t *index_cols)
 {
     uint8_t byte_vector[16];
     int k;
@@ -166,7 +166,7 @@ static void createShuffleVecFromIndexes(packed_table_t *table, uint16_t *index_c
 }
 
 //Creates the shuffle and Blends vectors used to put cols inside the vector.
-static void createShuffleBlendFromIndexes(packed_table_t *table, uint16_t *index_cols)
+static void createShuffleBlendFromIndexes(packed_table_ptr table, uint16_t *index_cols)
 {
     uint8_t byte_vector_shuffle[16];
     uint8_t byte_vector_blend[16];
@@ -227,7 +227,7 @@ static void createShuffleBlendFromIndexes(packed_table_t *table, uint16_t *index
     }
 }
 
-packed_table_t *packed_table_create(int n_rows,
+packed_table_ptr packed_table_create(int n_rows,
                                     int64_t *column_mins,
                                     int64_t *column_maxes,
                                     int32_t *sizes,
@@ -237,12 +237,12 @@ packed_table_t *packed_table_create(int n_rows,
                                     int n_cols,
                                     int bin_pack)
 {
-    packed_table_t *table;
+    packed_table_ptr table;
     uint16_t index_cols[n_cols * 2];  /* Where in the vector is each column, counting booleans */
 
     memset(index_cols, 0, sizeof(index_cols));
 
-    table = (packed_table_t *)calloc(1, sizeof(packed_table_t));
+    table = (packed_table_ptr )calloc(1, sizeof(packed_table_t));
     table->n_rows = n_rows;
     table->n_cols = n_cols;
     table->col_remapping = calloc(n_cols, sizeof(uint8_t));
@@ -282,7 +282,7 @@ packed_table_t *packed_table_create(int n_rows,
     return table;
 }
 
-void packed_table_destroy(packed_table_t *table)
+void packed_table_destroy(packed_table_ptr table)
 {
     table->n_rows = -1;
     table->n_cols = -1;
@@ -303,32 +303,32 @@ void packed_table_destroy(packed_table_t *table)
 /*
  * Attribute Getters
  */
-int packed_table_is_binary_only(const packed_table_t *table)
+int packed_table_is_binary_only(const packed_table_ptr table)
 {
     return table->only_binary_columns;
 }
 
-int packed_table_get_size(const packed_table_t *table)
+int packed_table_get_size(const packed_table_ptr table)
 {
     return table->n_rows * table->row_size;
 }
 
-int packed_table_get_row_size(const packed_table_t *table)
+int packed_table_get_row_size(const packed_table_ptr table)
 {
     return table->row_size;
 }
 
-int packed_table_get_rows(const packed_table_t *table)
+int packed_table_get_rows(const packed_table_ptr table)
 {
     return table->n_rows;
 }
 
-int packed_table_get_cols(const packed_table_t *table)
+int packed_table_get_cols(const packed_table_ptr table)
 {
     return table->n_cols;
 }
 
-__v16qi * packed_table_get_row_addr(const packed_table_t *table, int row)
+__v16qi * packed_table_get_row_addr(const packed_table_ptr table, int row)
 {
     return &table->data[row * table->row_size];
 }
@@ -409,7 +409,7 @@ static inline void internal_set_group(const packed_table_t* table, const int row
 /*
  * External cell accessors and getters
  */
-long packed_table_get_cell(const packed_table_t *table, const int row, int column)
+long packed_table_get_cell(const packed_table_ptr table, const int row, int column)
 {
     const uint8_t n_boolean_cols = table->n_boolean_cols;
     const int row_size = table->row_size;
@@ -424,7 +424,7 @@ long packed_table_get_cell(const packed_table_t *table, const int row, int colum
     return internal_get_boolean_cell(table, row, column) + min;
 }
 
-void packed_table_set_cell(const packed_table_t *table,
+void packed_table_set_cell(const packed_table_ptr table,
                            const int row,
                            const int col,
                            const long value)
@@ -440,7 +440,17 @@ void packed_table_set_cell(const packed_table_t *table,
     internal_set_cell(table, row, col, value, packed_vector_index);
 }
 
-int packed_table_get_num_groups(const packed_table_t *table)
+int packed_table_get_group(const packed_table_ptr table, const int row)
+{
+    return internal_get_group(table, row);
+}
+
+void packed_table_set_group(const packed_table_ptr table, const int row, const int value)
+{
+    internal_set_group(table, row, value);
+}
+
+int packed_table_get_num_groups(const packed_table_ptr table)
 {
     int result = 0;
     const int rows = packed_table_get_rows(table);
@@ -451,17 +461,7 @@ int packed_table_get_num_groups(const packed_table_t *table)
     return result;
 }
 
-inline int packed_table_get_group(const packed_table_t *table, const int row)
-{
-    return internal_get_group(table, row);
-}
-
-void packed_table_set_group(const packed_table_t *table, const int row, const int value)
-{
-    internal_set_group(table, row, value);
-}
-
-void packed_table_set_all_groups(const packed_table_t *table, const int value)
+void packed_table_set_all_groups(const packed_table_ptr table, const int value)
 {
     const int n_rows = table->n_rows;
 
@@ -471,7 +471,7 @@ void packed_table_set_all_groups(const packed_table_t *table, const int value)
 }
 
 
-void packed_table_batch_col_lookup(const packed_table_t *table,
+void packed_table_batch_col_lookup(const packed_table_ptr table,
                                    const int * restrict row_ids,
                                    const int n_row_ids,
                                    int64_t * restrict dest,
@@ -497,7 +497,7 @@ void packed_table_batch_col_lookup(const packed_table_t *table,
     }
 }
 
-void packed_table_batch_set_col(const packed_table_t *table,
+void packed_table_batch_set_col(const packed_table_ptr table,
                                 const int * restrict row_ids,
                                 const int n_row_ids,
                                 const int64_t * restrict col_vals,
@@ -519,7 +519,7 @@ void packed_table_batch_set_col(const packed_table_t *table,
     }
 }
 
-void packed_table_set_col_range(const packed_table_t *table,
+void packed_table_set_col_range(const packed_table_ptr table,
                                 const int start_row,
                                 const int64_t * restrict col_vals,
                                 const int count,
@@ -558,7 +558,7 @@ void packed_table_set_col_range(const packed_table_t *table,
     }
 }
 
-void packed_table_batch_group_lookup(const packed_table_t *table,
+void packed_table_batch_group_lookup(const packed_table_ptr table,
                                      const int * restrict row_ids,
                                      const int n_row_ids,
                                      int32_t * restrict dest)
@@ -569,7 +569,7 @@ void packed_table_batch_group_lookup(const packed_table_t *table,
     }
 }
 
-void packed_table_batch_set_group(const packed_table_t *table,
+void packed_table_batch_set_group(const packed_table_ptr table,
                                   const int * restrict row_ids,
                                   const int n_row_ids,
                                   const int32_t * restrict group_vals)
@@ -580,7 +580,7 @@ void packed_table_batch_set_group(const packed_table_t *table,
     }
 }
 
-void packed_table_set_group_range(const packed_table_t *table,
+void packed_table_set_group_range(const packed_table_ptr table,
                                   const int start,
                                   const int count,
                                   const int32_t * restrict group_vals)
@@ -597,7 +597,7 @@ static inline int get_bit(const long* restrict bits_arr, const int idx)
     return bits & (0x1L << word_idx);
 }
 
-void packed_table_bit_set_regroup(const packed_table_t *table,
+void packed_table_bit_set_regroup(const packed_table_ptr table,
                                   const long* restrict bits,
                                   const int target_group,
                                   const int negative_group,
@@ -616,7 +616,7 @@ void packed_table_bit_set_regroup(const packed_table_t *table,
     }
 }
 
-void packed_table_prefetch_row(const packed_table_t *table, const int row_id)
+void packed_table_prefetch_row(const packed_table_ptr table, const int row_id)
 {
 	const int idx = row_id * table->row_size;
 
@@ -670,7 +670,7 @@ static inline void unpack_vector(const packed_table_t* src_table,
 }
 
 static inline int core(const packed_table_t* src_table,
-                       const unpacked_table_t* dest_table,
+                       const unpacked_table_ptr dest_table,
                        const int from_col,
                        const int vector_num,
                        const __v16qi* restrict src_row,
@@ -686,9 +686,9 @@ static inline int core(const packed_table_t* src_table,
     return src_table->n_cols_per_vector[vector_num];
 }
 
-inline void packed_table_unpack_row_to_table(const packed_table_t* src_table,
+inline void packed_table_unpack_row_to_table(const packed_table_ptr src_table,
                                              const int src_row_id,
-                                             const unpacked_table_t* dest_table,
+                                             const unpacked_table_ptr dest_table,
                                              const int dest_row_id,
                                              const int prefetch_row_id)
 {
@@ -739,4 +739,176 @@ inline void packed_table_unpack_row_to_table(const packed_table_t* src_table,
     {
         column_idx += core(src_table, dest_table, column_idx, vector_num, src_row, dest_row);
     }
+}
+
+#define GET_METRICS_FROM_MINI_BUFFER(buffer) ( ((buffer) >> ( 4 * (PREFETCH_DISTANCE - 1) )) & 0xF )
+
+
+static inline struct bit_fields_and_group
+binary_packed_table_get_grp_and_metrics(const packed_table_ptr src_table, int row_id)
+{
+    struct bit_fields_and_group *data;
+
+    data = (struct bit_fields_and_group *)src_table->data;
+    return data[row_id];
+}
+
+static inline void
+binary_packed_table_prefetch_row(const packed_table_ptr src_table, int row_id)
+{
+    struct bit_fields_and_group *data;
+
+    data = (struct bit_fields_and_group *)src_table->data;
+    PREFETCH_KEEP(&data[row_id]);
+}
+
+static inline void
+unpacked_table_add_binary_data(
+                               const unpacked_table_ptr dest_table,
+                               const int current_grp,
+                               const int prefetch_grp,
+                               int binary_metrics)
+{
+    const int idx = current_grp * dest_table->padded_row_len;
+    long* restrict row = (long *)&dest_table->data[idx];
+
+    for (int i = 0; i < dest_table->n_cols; i ++) {
+        row[i] += binary_metrics & 1;
+        binary_metrics >>= 1;
+    }
+
+    int prefetch_idx = prefetch_grp * dest_table->padded_row_len;
+    PREFETCH_KEEP(&dest_table->data[prefetch_idx]);
+
+    /* flag row as modified */
+    bit_tree_set(dest_table->non_zero_rows, current_grp);
+}
+
+
+/*
+ * Two array loop
+ */
+void binary_lookup_and_accumulate_grp_stats(const struct worker_desc *worker,
+                                            const packed_table_ptr src_table,
+                                            const unpacked_table_ptr dest_table,
+                                            const uint32_t* restrict row_id_buffer,
+                                            const int buffer_len,
+                                            const struct circular_buffer_int *grp_buf)
+{
+    int non_zero_count = 0;
+    int trailing_idx = 0;
+    int idx = 0;
+
+    uint64_t mini_buffer = 0;
+
+    /* loop through A rows, prefetching */
+    while (non_zero_count < PREFETCH_DISTANCE && idx < buffer_len) {
+        int row_id = row_id_buffer[idx];
+        int prefetch_idx = row_id_buffer[idx + PREFETCH_DISTANCE];
+
+        /* load value from A, save, prefetch B */
+        const struct bit_fields_and_group data =
+                binary_packed_table_get_grp_and_metrics(src_table, row_id);
+        const int prefetch_grp = data.grp;
+        binary_packed_table_prefetch_row(src_table, prefetch_idx);
+
+        /* skip all group 0 docs */
+        if (prefetch_grp == 0) {
+            idx ++;
+            continue;
+        }
+
+        /* save group into buffer */
+        circular_buffer_int_put(grp_buf, prefetch_grp);
+
+        /* loop through A row elements */
+        mini_buffer = mini_buffer << 4;
+        mini_buffer |= data.metrics;
+
+        non_zero_count ++;
+        idx ++;
+    }
+
+    if (idx == buffer_len) {
+        mini_buffer <<= 4 * (PREFETCH_DISTANCE - non_zero_count);
+    }
+
+    /* loop through A rows, prefetching; loop through B rows */
+    for (; idx < buffer_len - PREFETCH_DISTANCE; idx ++) {
+        int row_id = row_id_buffer[idx];
+        int prefetch_idx = row_id_buffer[idx + PREFETCH_DISTANCE];
+
+        /* load value from A, save, prefetch B */
+        const struct bit_fields_and_group data =
+                binary_packed_table_get_grp_and_metrics(src_table, row_id);
+        const int prefetch_grp = data.grp;
+        binary_packed_table_prefetch_row(src_table, prefetch_idx);
+
+        /* skip all group 0 docs */
+        if (prefetch_grp == 0) {
+            continue;
+        }
+
+        /* get load idx */
+        int current_grp = circular_buffer_int_get(grp_buf);
+
+        /* loop through B row elements */
+        const int binary_metrics = GET_METRICS_FROM_MINI_BUFFER(mini_buffer);
+        unpacked_table_add_binary_data(dest_table, current_grp, prefetch_grp, binary_metrics);
+        trailing_idx ++;
+
+        /* save group into buffer */
+        circular_buffer_int_put(grp_buf, prefetch_grp);
+
+        /* loop through A row elements */
+        mini_buffer = mini_buffer << 4;
+        mini_buffer |= data.metrics;
+
+        non_zero_count ++;
+    }
+
+    /* loop through A rows; loop through B rows */
+    for (; idx < buffer_len; idx ++) {
+        int row_id = row_id_buffer[idx];
+
+        /* load value from A, save, prefetch B */
+        const struct bit_fields_and_group data =
+                binary_packed_table_get_grp_and_metrics(src_table, row_id);
+        const int prefetch_grp = data.grp;
+
+        /* skip all group 0 docs */
+        if (prefetch_grp == 0) {
+            continue;
+        }
+
+        /* get load idx */
+        int current_grp = circular_buffer_int_get(grp_buf);
+
+        /* loop through B row elements */
+        const int binary_metrics = GET_METRICS_FROM_MINI_BUFFER(mini_buffer);
+        unpacked_table_add_binary_data(dest_table, current_grp, prefetch_grp, binary_metrics);
+        trailing_idx ++;
+
+        /* save group into buffer */
+        circular_buffer_int_put(grp_buf, prefetch_grp);
+
+        /* loop through A row elements */
+        mini_buffer = mini_buffer << 4;
+        mini_buffer |= data.metrics;
+
+        non_zero_count ++;
+    }
+
+    /* loop through final B rows with no prefetch */
+    for (; trailing_idx < non_zero_count; trailing_idx ++) {
+        /* get load idx */
+        const int current_grp = circular_buffer_int_get(grp_buf);
+
+        /* loop through B row elements */
+        const int binary_metrics = GET_METRICS_FROM_MINI_BUFFER(mini_buffer);
+        unpacked_table_add_binary_data(dest_table, current_grp, current_grp, binary_metrics);
+
+        mini_buffer = mini_buffer << 4;
+    }
+
 }

@@ -11,18 +11,29 @@ namespace imhotep {
                                        size_t                            num_splits,
                                        ExecutorService&                  executor)
         : _split_dir(split_dir) {
+
         std::vector<Splitter<term_t>> splitters;
-        for (term_source_t source: sources) {
+
+        for (typename std::vector<term_source_t>::const_iterator it(sources.begin());
+             it != sources.end(); ++it) {
+            const term_source_t& source(*it);
             const Shard&         shard(source.first);
             TermIterator<term_t> term_iterator(source.second);
             splitters.push_back(Splitter<term_t>(shard, field, term_iterator,
                                                  _split_dir, num_splits));
-            for (auto kv: splitters.back().splits()) {
+
+            const typename Splitter<term_t>::SplitNumToField& smtof(splitters.back().splits());
+            for (typename Splitter<term_t>::SplitNumToField::const_iterator split_it(smtof.begin());
+                 split_it != smtof.end(); ++split_it) {
+                const std::pair<size_t, std::string>& kv(*split_it);
                 _splits.insert(std::make_pair(kv.first, SplitDesc(kv.first, kv.second, shard)));
             }
         }
-        for (Splitter<term_t>& splitter: splitters) {
-            executor.enqueue([&splitter]() { splitter.run(); } );;
+
+        for (typename std::vector<Splitter<term_t>>::iterator it(splitters.begin());
+             it != splitters.end(); ++it) {
+            Splitter<term_t>& splitter(*it);
+            executor.enqueue(std::bind(&Splitter<term_t>::run, splitter));
         }
         executor.await_completion();
     }
@@ -34,15 +45,15 @@ namespace imhotep {
         std::vector<MergeInput<term_t>> merge_inputs;
 
         std::pair<map_it_t, map_it_t> matches(splits().equal_range(split));
-        std::transform(matches.first, matches.second, std::back_inserter(merge_inputs),
-                       [this](std::pair<size_t, const SplitDesc&> entry) {
-                           const SplitDesc&   split_desc(entry.second);
-                           const std::string& field(split_desc.field());
-                           VarIntView         docid_view(split_desc.shard().docid_view<term_t>(field));
-                           return MergeInput<term_t>(SplitIterator<term_t>(split_desc.view(_split_dir)),
-                                                     split_desc.table(), docid_view.begin());
-                       });
 
+        for (map_it_t it(matches.first); it != matches.second; ++it) {
+            const std::pair<size_t, const SplitDesc&>& entry(*it);
+            const SplitDesc&   split_desc(entry.second);
+            const std::string& field(split_desc.field());
+            VarIntView         docid_view(split_desc.shard().docid_view<term_t>(field));
+            merge_inputs.emplace_back(MergeInput<term_t>(SplitIterator<term_t>(split_desc.view(_split_dir)),
+                                                         split_desc.table(), docid_view.begin()));
+        }
         return MergeIterator<term_t>(merge_inputs.begin(), merge_inputs.end());
     }
 

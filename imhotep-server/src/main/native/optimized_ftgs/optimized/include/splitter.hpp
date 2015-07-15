@@ -48,10 +48,10 @@ namespace imhotep {
     private:
         void encode(std::ostream& os, const term_t& term);
 
-        const Shard       _shard;
-        const std::string _splits_dir;
-        const std::string _field;
-        term_iterator_t   _term_iterator;
+        Shard           _shard;
+        std::string     _splits_dir;
+        std::string     _field;
+        term_iterator_t _term_iterator;
 
         SplitNumToField _splits;
     };
@@ -86,7 +86,9 @@ namespace imhotep {
     void Splitter<term_t>::run()
     {
         std::vector<std::ofstream*> split_files;
-        for (auto kv: splits()) {
+        for (SplitNumToField::const_iterator split_it(splits().begin());
+             split_it != splits().end(); ++split_it) {
+            const std::pair<size_t, std::string>& kv(*split_it);
             const std::string filename(_shard.split_filename(splits_dir(), kv.second, kv.first));
             split_files.push_back(new std::ofstream(filename.c_str(),
                                                     std::ios::binary | std::ios::out | std::ios::trunc));
@@ -103,7 +105,10 @@ namespace imhotep {
             ++it;
         }
 
-        for (auto os_ptr: split_files) delete os_ptr;
+        for (std::vector<std::ofstream*>::iterator ofit(split_files.begin());
+             ofit != split_files.end(); ++ofit) {
+            delete *ofit;
+        }
     }
 
 } // namespace imhotep

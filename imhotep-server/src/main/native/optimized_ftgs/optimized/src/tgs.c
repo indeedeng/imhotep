@@ -16,7 +16,7 @@ void tgs_init(struct worker_desc *worker,
               uint8_t term_type,
               const char **addresses,
               const int *docs_per_shard,
-              const packed_table_t **shards,
+              const packed_table_ptr *shards,
               int num_shard,
               struct ftgs_outstream *stream,
               struct session_desc *session)
@@ -49,7 +49,7 @@ int tgs_execute_pass(struct worker_desc *worker,
                      struct tgs_desc *desc)
 {
     uint32_t doc_id_buf[TGS_BUFFER_SIZE];
-    const unpacked_table_t *group_stats = desc->group_stats;
+    const unpacked_table_ptr group_stats = desc->group_stats;
     const int n_slices = desc->n_slices;
     const struct index_slice_info *infos = desc->slices;
 
@@ -78,7 +78,7 @@ int tgs_execute_pass(struct worker_desc *worker,
             read_addr += bytes_read;
             remaining -= count;
 
-            const packed_table_t* shard_data = slice->packed_metrics;
+            const packed_table_ptr shard_data = slice->packed_metrics;
 
             if (session->only_binary_metrics) {
                 binary_lookup_and_accumulate_grp_stats(worker,

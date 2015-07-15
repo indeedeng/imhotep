@@ -59,13 +59,13 @@ namespace imhotep {
 
         bool complete() const;
 
-        int _err = 0;
+        int _err;
 
-        struct worker_desc*  _worker  = nullptr;
-        struct session_desc* _session = nullptr;
+        struct worker_desc*  _worker;
+        struct session_desc* _session;
 
-        size_t _split     = 0;
-        size_t _worker_id = 0;
+        size_t _split;
+        size_t _worker_id;
 
         FieldOpIterator<IntTerm> _int_current;
         FieldOpIterator<IntTerm> _int_end;
@@ -73,7 +73,7 @@ namespace imhotep {
         FieldOpIterator<StringTerm> _str_current;
         FieldOpIterator<StringTerm> _str_end;
 
-        bool _stream_ended = false;
+        bool _stream_ended;
     };
 
 } // namespace imhotep

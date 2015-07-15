@@ -46,7 +46,10 @@ namespace imhotep {
     template <typename term_t>
     class Operation {
     public:
-        Operation() : _op_code(INVALID) { }
+        Operation()
+            : _op_code(INVALID)
+            , _split_index(0)
+        { }
 
         int32_t            split_index() const { return _split_index; }
         OpCode                 op_code() const { return _op_code;     }
@@ -67,8 +70,8 @@ namespace imhotep {
         std::string to_string() const;
 
     private:
-        OpCode          _op_code     = INVALID;
-        int32_t         _split_index = 0;
+        OpCode          _op_code;
+        int32_t         _split_index;
         std::string     _field_name;
         TermSeq<term_t> _term_seq;
     };

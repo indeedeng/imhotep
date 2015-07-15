@@ -2,7 +2,14 @@
 
 namespace imhotep {
 
-    TaskIterator::TaskIterator() : _stream_ended(true) { }
+    TaskIterator::TaskIterator()
+        : _err(0)
+        , _worker(0)
+        , _session(0)
+        , _split(0)
+        , _worker_id(0)
+        , _stream_ended(true)
+    { }
 
     TaskIterator::TaskIterator(struct worker_desc*              worker,
                                struct session_desc*             session,
@@ -10,12 +17,14 @@ namespace imhotep {
                                size_t                           worker_id,
                                const TermProviders<IntTerm>&    int_providers,
                                const TermProviders<StringTerm>& str_providers)
-        : _worker(worker)
+        : _err(0)
+        , _worker(worker)
         , _session(session)
         , _split(split)
         , _worker_id(worker_id)
         , _int_current(int_providers, split)
-        , _str_current(str_providers, split) {
+        , _str_current(str_providers, split)
+        , _stream_ended(false) {
         increment();
     }
 
@@ -26,9 +35,7 @@ namespace imhotep {
     }
 
     bool TaskIterator::complete() const {
-        return _stream_ended
-            && _worker == nullptr
-            && _session == nullptr;
+        return _stream_ended && _worker == 0 && _session == 0;
     }
 
     template <>
@@ -36,7 +43,7 @@ namespace imhotep {
         return run_tgs_pass(_worker, _session,
                             op.field_type(),
                             op.term_seq().id(),
-                            nullptr, 0,
+                            0, 0,
                             op.term_seq().docid_addresses().data(),
                             op.term_seq().doc_freqs().data(),
                             op.term_seq().tables().data(),
@@ -89,8 +96,8 @@ namespace imhotep {
         }
         else {
             _err     = 0;
-            _worker  = nullptr;
-            _session = nullptr;
+            _worker  = 0;
+            _session = 0;
         }
     }
 

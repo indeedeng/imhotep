@@ -3,7 +3,7 @@
 #define EVALUATOR(x,y)  PASTER(x,y)
 #define NAME(prefix) EVALUATOR(prefix, TYPE)
 
-static int NAME(multi_remap_core)(packed_table_t* table,
+static int NAME(multi_remap_core)(packed_table_ptr table,
                                         TYPE*           results,
                                         uint32_t*       doc_ids,
                                         int             n_docs,
@@ -37,7 +37,7 @@ static int NAME(multi_remap_core)(packed_table_t* table,
   return 0;
 }
 
-int NAME(remap_docs_in_target_groups)(packed_table_t* table,
+int NAME(remap_docs_in_target_groups)(packed_table_ptr table,
                                              TYPE*           results,
                                              uint8_t*        delta_compressed_doc_ids,
                                              size_t          n_doc_ids,

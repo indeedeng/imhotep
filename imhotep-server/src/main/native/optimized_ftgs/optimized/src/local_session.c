@@ -18,7 +18,7 @@ int run_tgs_pass(struct worker_desc *worker,
                  const int string_term_len,
                  const char **addresses,
                  const int *docs_per_shard,
-                 const packed_table_t **shards,
+                 const packed_table_ptr *shards,
                  int num_shard,
                  int socket_num)
 {
@@ -65,10 +65,10 @@ int run_tgs_pass(struct worker_desc *worker,
 
 /* No need to share the group stats buffer, so just keep one per session*/
 /* Make sure the one we have is large enough */
-static unpacked_table_t *allocate_grp_stats(struct session_desc *session,
-                                            const packed_table_t *metric_desc)
+static unpacked_table_ptr allocate_grp_stats(struct session_desc *session,
+                                            const packed_table_ptr metric_desc)
 {
-	unpacked_table_t *grp_stats;
+	unpacked_table_ptr grp_stats;
 
 	grp_stats = unpacked_table_create(metric_desc, session->num_groups);
 	session->temp_buf = unpacked_table_copy_layout(grp_stats, PREFETCH_BUFFER_SIZE);
@@ -80,7 +80,7 @@ void session_init(struct session_desc *session,
                   const int n_groups,
                   const int n_stats,
                   const int only_binary_metrics,
-                  const packed_table_t *sample_table)
+                  const packed_table_ptr sample_table)
 {
     session->num_groups = n_groups;
     session->num_stats = n_stats;
