@@ -27,6 +27,8 @@ namespace imhotep {
             a C++ pointer idiom appropriate for such a case or I'd use it.) */
         typedef ::packed_table_ptr packed_table_ptr;
 
+        Shard() : _table(0) { }
+
         explicit Shard(const std::string&              dir,
                        const std::vector<std::string>& int_fields,
                        const std::vector<std::string>& str_fields,

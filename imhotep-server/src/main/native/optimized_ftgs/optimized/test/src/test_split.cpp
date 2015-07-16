@@ -16,14 +16,19 @@ void test_splitter(const vector<Shard>& shards,
 {
     vector<thread> threads;
     vector<Splitter<term_t>> splitters;
-    for (Shard shard: shards) {
+
+    for (vector<Shard>::const_iterator it(shards.begin()); it != shards.end(); ++it) {
+        const Shard& shard(*it);
         splitters.push_back(Splitter<term_t>(shard, field, split_dir, num_splits));
     }
-    for (Splitter<term_t>& splitter: splitters) {
-        threads.push_back(thread([&splitter]() { splitter.run(); } ));
+
+    for (typename vector<Splitter<term_t>>::iterator it(splitters.begin());
+         it != splitters.end(); ++it) {
+        Splitter<term_t>& splitter(*it);
+        threads.push_back(std::bind(&Splitter<term_t>::run, splitter));
     }
-    for (thread& th: threads) {
-        th.join();
+    for (vector<thread>::iterator it(threads.begin()); it != threads.end(); ++it) {
+        it->join();
     }
 }
 
@@ -47,20 +52,18 @@ int main(int argc, char *argv[])
 
     if (kind == "int") {
         int_terms.push_back(field);
-        std::transform(shard_names.begin(), shard_names.end(),
-                       std::back_inserter(shards),
-                       [&] (const std::string& name) {
-                           return Shard(name, int_terms, str_terms);
-                       });
+        for (vector<string>::const_iterator it(shard_names.begin());
+             it != shard_names.end(); ++it) {
+            shards.emplace_back(Shard(*it, int_terms, str_terms));
+        }
         test_splitter<IntTerm>(shards, field, split_dir, num_splits);
     }
     else if (kind == "string") {
         str_terms.push_back(field);
-        std::transform(shard_names.begin(), shard_names.end(),
-                       std::back_inserter(shards),
-                       [&] (const std::string& name) {
-                           return Shard(name, int_terms, str_terms);
-                       });
+        for (vector<string>::const_iterator it(shard_names.begin());
+             it != shard_names.end(); ++it) {
+            shards.emplace_back(Shard(*it, int_terms, str_terms));
+        }
         test_splitter<StringTerm>(shards, field, split_dir, num_splits);
     }
     else {

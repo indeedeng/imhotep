@@ -1,18 +1,18 @@
 MODE=opt
 
-CC=/usr/bin/gcc-4.9
-CPP=/usr/bin/g++-4.9
-BASE_CFLAGS=-Wall -Werror -I./include -I../include  -std=gnu11 -msse4.2 -fPIC -flax-vector-conversions -fno-omit-frame-pointer
-BASE_CPPFLAGS=-Wall -Werror -I./include -I../include -I/usr/include/boost -msse4.2 -std=c++11 -fPIC
+CC=/usr/bin/gcc-4.4
+CPP=/usr/bin/g++-4.4
+BASE_CFLAGS=-Wall -Werror -I./include -I../include  -std=gnu99 -msse4.2 -fPIC -flax-vector-conversions -fno-omit-frame-pointer
+BASE_CPPFLAGS=-Wall -Werror -I./include -I../include -I/usr/include/boost -msse4.2 -std=c++0x -fPIC
 
 DBG_CFLAGS= -g
-OPT_CFLAGS= -g -O3 -flto -funroll-loops
+OPT_CFLAGS= -g -O3 -funroll-loops
 
 DBG_CPPFLAGS= -g
-OPT_CPPFLAGS= -g -O3 -flto -funroll-loops -fno-omit-frame-pointer -fvisibility=hidden
+OPT_CPPFLAGS= -g -O3 -funroll-loops -fno-omit-frame-pointer -fvisibility=hidden
 
 DBG_LFLAGS= -g
-OPT_LFLAGS= -O3 -flto
+OPT_LFLAGS= -O3
 
 ifeq ($(MODE),opt)
 	CFLAGS=$(OPT_CFLAGS) $(BASE_CFLAGS)

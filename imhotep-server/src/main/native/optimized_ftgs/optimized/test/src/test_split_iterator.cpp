@@ -12,9 +12,9 @@ using namespace imhotep;
 
 template <typename term_t>
 void test_it(const vector<string>& splits) {
-    for (string split: splits) {
-        MMappedFile file(split);
-        SplitView view(file.begin(), file.end());
+    for (vector<string>::const_iterator it(splits.begin()); it != splits.end(); ++it) {
+        MMappedFile file(*it);
+        SplitView   view(file.begin(), file.end());
         SplitIterator<term_t> split_it(view);
         SplitIterator<term_t> end;
         while (split_it != end) {

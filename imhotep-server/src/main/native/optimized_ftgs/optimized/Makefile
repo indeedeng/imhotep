@@ -9,13 +9,13 @@ BASE_CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -s
 BASE_CPPFLAGS=-Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -I/usr/include/boost -msse4.2 -std=c++0x -fPIC
 BASE_LFLAGS= -shared  -fno-omit-frame-pointer
 
-DBG_CFLAGS= -g3 -fsanitize=address -fsanitize=undefined -fsanitize=null -fsanitize=bounds -fno-omit-frame-pointer #-fsanitize-undefined-trap-on-error -fno-sanitize-recover=undefined
+DBG_CFLAGS= -g3 -fno-omit-frame-pointer
 OPT_CFLAGS= -g -O3  -fvisibility=hidden
 
-DBG_CPPFLAGS= -g3 -fsanitize=address -fsanitize=undefined -fsanitize=null -fsanitize=bounds -fno-omit-frame-pointer #-fsanitize-undefined-trap-on-error -fno-sanitize-recover=undefined
+DBG_CPPFLAGS= -g3 -fno-omit-frame-pointer
 OPT_CPPFLAGS= -g -O3  -fvisibility=hidden 
 
-DBG_LFLAGS= -g3 -fsanitize=address -fsanitize=undefined -fsanitize=null -fsanitize=bounds -fno-omit-frame-pointer -lasan #-fsanitize-undefined-trap-on-error  -fno-sanitize-recover=undefined  
+DBG_LFLAGS= -g3 -fsanitize=address -fno-omit-frame-pointer
 OPT_LFLAGS= -g -O3 -static-libgcc 
 
 ifeq ($(MODE),opt)
@@ -33,7 +33,7 @@ CPPODIR=cppobj
 LDIR =../lib
 
 LIBS=\
-	-lpthread  \
+	-lpthread
 #	-lstdc++   \
 #	-lprofiler \
 

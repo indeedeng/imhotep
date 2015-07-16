@@ -15,8 +15,8 @@ void merge(const vector<string>& splits) {
     Shard::packed_table_ptr table(0);
     vector<MergeInput<term_t>> inputs;
     vector<shared_ptr<MMappedFile>> split_files;
-    for (string split: splits) {
-        split_files.push_back(make_shared<MMappedFile>(split));
+    for (vector<string>::const_iterator it(splits.begin()); it != splits.end(); ++it) {
+        split_files.push_back(make_shared<MMappedFile>(*it));
         SplitView view(split_files.back()->begin(), split_files.back()->end());
         inputs.push_back(MergeInput<term_t>(SplitIterator<term_t>(view), table, 0));
     }

@@ -135,9 +135,7 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_PackedTableView_nativeBind
     jclass   clazz          = (*env)->GetObjectClass(env, packedTableView);
     jfieldID tableDataPtrID = (*env)->GetFieldID(env, clazz, "tableDataPtr", "J");
     jfieldID rowSizeID      = (*env)->GetFieldID(env, clazz, "rowSizeBytes", "I");
-    (*env)->SetLongField(env, packedTableView, tableDataPtrID,
-                         (jlong) packed_table_get_row_addr(packed_table, 0));
-    (*env)->SetIntField(env, packedTableView, rowSizeID,
-                        (jint) packed_table_get_row_size(packed_table));
+    (*env)->SetLongField(env, packedTableView, tableDataPtrID, (jlong) packed_table->data);
+    (*env)->SetIntField(env, packedTableView, rowSizeID, (jint) packed_table->row_size_bytes);
 }
 

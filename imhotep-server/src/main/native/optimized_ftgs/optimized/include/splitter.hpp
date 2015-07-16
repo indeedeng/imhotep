@@ -61,10 +61,14 @@ namespace imhotep {
                                const std::string& field,
                                const std::string& splits_dir,
                                size_t             num_splits)
-        : Splitter(shard, field,
-                   term_iterator_t(shard, field),
-                   splits_dir, num_splits)
-    { }
+        : _shard(shard)
+        , _splits_dir(splits_dir)
+        , _field(field)
+        , _term_iterator(term_iterator_t(shard, field)) {
+        for (size_t split_num(0); split_num < num_splits; ++split_num) {
+            _splits[split_num] = field;
+        }
+    }
 
     template <typename term_t>
     Splitter<term_t>::Splitter(const Shard&       shard,
