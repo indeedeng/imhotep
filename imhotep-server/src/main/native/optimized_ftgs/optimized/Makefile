@@ -13,10 +13,10 @@ DBG_CFLAGS= -g3 -fno-omit-frame-pointer
 OPT_CFLAGS= -g -O3  -fvisibility=hidden
 
 DBG_CPPFLAGS= -g3 -fno-omit-frame-pointer
-OPT_CPPFLAGS= -g -O3  -fvisibility=hidden 
+OPT_CPPFLAGS= -g -O3  -fvisibility=hidden
 
 DBG_LFLAGS= -g3 -fsanitize=address -fno-omit-frame-pointer
-OPT_LFLAGS= -g -O3 -static-libgcc 
+OPT_LFLAGS= -g -O3
 
 ifeq ($(MODE),opt)
 	CFLAGS=$(OPT_CFLAGS) $(BASE_CFLAGS)
@@ -34,7 +34,6 @@ LDIR =../lib
 
 LIBS=\
 	-lpthread
-#	-lstdc++   \
 #	-lprofiler \
 
 C_FILES := $(wildcard src/*.c)
