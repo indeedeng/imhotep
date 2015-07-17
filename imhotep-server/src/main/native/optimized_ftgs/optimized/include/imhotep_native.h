@@ -43,7 +43,7 @@ struct buffered_socket {
     uint8_t* buffer;
     size_t buffer_ptr;
     size_t buffer_len;
-    struct runtime_err* err;
+    struct runtime_err err;
     int socket_fd;
 };
 

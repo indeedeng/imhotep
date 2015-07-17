@@ -10,10 +10,10 @@ BASE_CPPFLAGS=-Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -
 BASE_LFLAGS= -shared  -fno-omit-frame-pointer
 
 DBG_CFLAGS= -g3 -fno-omit-frame-pointer
-OPT_CFLAGS= -g -O3  -fvisibility=hidden
+OPT_CFLAGS= -g -O3
 
 DBG_CPPFLAGS= -g3 -fno-omit-frame-pointer
-OPT_CPPFLAGS= -g -O3  -fvisibility=hidden
+OPT_CPPFLAGS= -g -O3
 
 DBG_LFLAGS= -g3 -fsanitize=address -fno-omit-frame-pointer
 OPT_LFLAGS= -g -O3

@@ -47,8 +47,9 @@ int run_tgs_pass(struct worker_desc *worker,
     int err;
     err = tgs_execute_pass(worker, session, &desc);
     if (err != 0) {
-        if (desc.stream->socket.err) {
-            memcpy(&worker->error, desc.stream->socket.err, sizeof(struct runtime_err));
+        if (desc.stream->socket.err.code != 0) {
+            worker->error = desc.stream->socket.err;
+            /* memcpy(&worker->error, desc.stream->socket.err, sizeof(struct runtime_err)); */
         }
     }
 
@@ -120,8 +121,8 @@ int worker_start_field(struct worker_desc *worker,
     }
     err = write_field_start(&worker->out_streams[stream_num], field_name, len, term_type);
     if (err != 0) {
-        worker->error = *worker->out_streams[stream_num].socket.err;
-        free(worker->out_streams[stream_num].socket.err);
+        worker->error = worker->out_streams[stream_num].socket.err;
+        worker->out_streams[stream_num].socket.err.code = 0;
         return err;
     }
     return 0;
@@ -138,9 +139,8 @@ int worker_end_field(struct worker_desc *worker, int stream_num)
     }
     err = write_field_end(&worker->out_streams[stream_num]);
     if (err == -1) {
-        worker->error = *worker->out_streams[stream_num].socket.err;
-        free(worker->out_streams[stream_num].socket.err);
-        worker->out_streams[stream_num].socket.err = NULL;
+        worker->error = worker->out_streams[stream_num].socket.err;
+        worker->out_streams[stream_num].socket.err.code = 0;
         return -1;
     }
     return 0;
@@ -157,9 +157,8 @@ int worker_end_stream(struct worker_desc *worker, int stream_num)
     }
     err = write_stream_end(&worker->out_streams[stream_num]);
     if (err == -1) {
-        worker->error = *worker->out_streams[stream_num].socket.err;
-        free(worker->out_streams[stream_num].socket.err);
-        worker->out_streams[stream_num].socket.err = NULL;
+        worker->error = worker->out_streams[stream_num].socket.err;
+        worker->out_streams[stream_num].socket.err.code = 0;
         return -1;
     }
     return 0;

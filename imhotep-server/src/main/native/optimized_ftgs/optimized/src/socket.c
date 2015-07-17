@@ -11,7 +11,7 @@ void stream_init(struct ftgs_outstream *stream, uint32_t fd)
     stream->socket.buffer = calloc(DEFUALT_BUFFER_SIZE, sizeof(uint8_t));
     stream->socket.buffer_len = DEFUALT_BUFFER_SIZE;
     stream->socket.buffer_ptr = 0;
-    stream->socket.err = NULL;
+    stream->socket.err.code = 0;
     stream->term_type = TERM_TYPE_INT;
     stream->prev_term.int_term = -1;
     stream->prev_term.string_term.len = 0;
@@ -24,21 +24,12 @@ void stream_destroy(struct ftgs_outstream *stream)
     free(stream->socket.buffer);
     stream->socket.buffer_len = 0;
     stream->socket.buffer_ptr = 0;
-    if (stream->socket.err != NULL) {
-        free(stream->socket.err);
-    }
-    /* if (stream->prev_term.string_term.term != NULL) { */
-    /* 	free(stream->prev_term.string_term.term); */
-    /* } */
 }
 
 void socket_capture_error(struct buffered_socket *socket, const int code)
 {
-    if (!socket->err) {
-        socket->err = calloc(1, sizeof(struct runtime_err));
-    }
-    socket->err->code = code;
-    strerror_r(code, socket->err->str, SIZE_OF_ERRSTR);
+    socket->err.code = code;
+    strerror_r(code, socket->err.str, SIZE_OF_ERRSTR);
 }
 
 /* term_s functions. Note that string terms do not make copies of the strings
