@@ -1838,6 +1838,12 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
                 throw new IllegalArgumentException("invalid hasint metric: " + statName);
             }
             statLookup[numStats] = hasIntTermFilter(split[0], Integer.parseInt(split[1]));
+        } else if (statName.startsWith("hasstrfield ")) {
+            final String field = statName.substring("hasstrfield ".length()).trim();
+            statLookup[numStats] = hasStringFieldFilter(field);
+        } else if (statName.startsWith("hasintfield ")) {
+            final String field = statName.substring("hasintfield ".length()).trim();
+            statLookup[numStats] = hasIntFieldFilter(field);
         } else if (statName.startsWith("regex ")) {
             final String s = statName.substring(6).trim();
             final String[] split = s.split(":", 2);
@@ -2913,6 +2919,32 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
         return new BitSetIntValueLookup(
                                         FlamdexUtils.cacheHasStringTerm(field, term, flamdexReader),
                                         memoryUsage);
+    }
+
+    private IntValueLookup hasIntFieldFilter(final String field) throws ImhotepOutOfMemoryException {
+        final long memoryUsage = getBitSetMemoryUsage();
+
+        if (!memory.claimMemory(memoryUsage)) {
+            throw new ImhotepOutOfMemoryException();
+        }
+
+        return new BitSetIntValueLookup(
+                FlamdexUtils.cacheHasIntField(field, flamdexReader),
+                memoryUsage
+        );
+    }
+
+    private IntValueLookup hasStringFieldFilter(final String field) throws ImhotepOutOfMemoryException {
+        final long memoryUsage = getBitSetMemoryUsage();
+
+        if (!memory.claimMemory(memoryUsage)) {
+            throw new ImhotepOutOfMemoryException();
+        }
+
+        return new BitSetIntValueLookup(
+                FlamdexUtils.cacheHasStringField(field, flamdexReader),
+                memoryUsage
+        );
     }
 
     private IntValueLookup hasRegexFilter(String field, String regex) throws ImhotepOutOfMemoryException {
