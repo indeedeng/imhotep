@@ -13,10 +13,10 @@ namespace imhotep {
              it != field_names.end(); ++it) {
             const std::string& field(*it);
             std::vector<term_source_t> sources(term_sources(shards, field));
-            emplace_back(std::make_pair(field,
-                                        TermProvider<term_t>(sources, field,
-                                                             split_dir, num_splits,
-                                                             executor)));
+            this->emplace_back(std::make_pair(field,
+                                              TermProvider<term_t>(sources, field,
+                                                                   split_dir, num_splits,
+                                                                   executor)));
         }
     }
 

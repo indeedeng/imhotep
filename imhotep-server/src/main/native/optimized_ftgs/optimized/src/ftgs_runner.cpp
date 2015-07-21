@@ -57,12 +57,12 @@ namespace imhotep {
                const TermProviders<IntTerm>&    int_providers,
                const TermProviders<StringTerm>& str_providers)
             : _id(id) {
-            worker_init(&_worker, id, num_groups, num_metrics, socket_fds.data(), socket_fds.size());
+            worker_init(&_worker, socket_fds.data(), socket_fds.size());
             session_init(&_session, num_groups, num_metrics, only_binary_metrics, sample_table);
 
             const SplitRanges::Range splits(split_ranges.splits_for(id));
             for (size_t split(splits.first); split <= splits.second; ++split) {
-                _task_iterators.emplace_back(TaskIterator(&_worker, &_session, split, id,
+                _task_iterators.emplace_back(TaskIterator(&_worker, &_session, split,
                                                           int_providers, str_providers));
             }
         }

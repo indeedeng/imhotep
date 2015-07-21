@@ -29,7 +29,6 @@ namespace imhotep {
         TaskIterator(struct worker_desc*              worker,
                      struct session_desc*             session,
                      size_t                           split,
-                     size_t                           worker_id,
                      const TermProviders<IntTerm>&    int_providers,
                      const TermProviders<StringTerm>& str_providers);
     private:
@@ -41,15 +40,15 @@ namespace imhotep {
                                       op.field_name().c_str(),
                                       op.field_name().length(),
                                       op.field_type(),
-                                      _worker_id);
+                                      _split);
         }
 
         template <typename term_t>
         int tgs(const Operation<term_t>& op);
 
-        int end_field() { return worker_end_field(_worker, _worker_id); }
+        int end_field() { return worker_end_field(_worker, _split); }
 
-        int end_stream() { return worker_end_stream(_worker, _worker_id); }
+        int end_stream() { return worker_end_stream(_worker, _split); }
 
         void increment();
 
@@ -65,7 +64,6 @@ namespace imhotep {
         struct session_desc* _session;
 
         size_t _split;
-        size_t _worker_id;
 
         FieldOpIterator<IntTerm> _int_current;
         FieldOpIterator<IntTerm> _int_end;

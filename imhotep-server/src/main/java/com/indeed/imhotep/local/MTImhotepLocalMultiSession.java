@@ -347,8 +347,9 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             packedTablePtrs[index] = nativeCaches[index].getNativeAddress();
         }
 
-        final String splitsDir  = System.getProperty("java.io.tmpdir", "/dev/null");
-        final int    numWorkers = 8; // !@# FIX ME (read from a property?)
+        final String splitsDir     = System.getProperty("java.io.tmpdir", "/dev/null");
+        final String numWorkersStr = System.getProperty("imhotep.ftgs.num.workers", "8");
+        final int    numWorkers    = Integer.parseInt(numWorkersStr);
 
         java.util.ArrayList<Integer> socketFDArray = new java.util.ArrayList<Integer>();
         for (final Socket socket: sockets) {

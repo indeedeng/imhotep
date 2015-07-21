@@ -7,21 +7,18 @@ namespace imhotep {
         , _worker(0)
         , _session(0)
         , _split(0)
-        , _worker_id(0)
         , _stream_ended(true)
     { }
 
     TaskIterator::TaskIterator(struct worker_desc*              worker,
                                struct session_desc*             session,
                                size_t                           split,
-                               size_t                           worker_id,
                                const TermProviders<IntTerm>&    int_providers,
                                const TermProviders<StringTerm>& str_providers)
         : _err(0)
         , _worker(worker)
         , _session(session)
         , _split(split)
-        , _worker_id(worker_id)
         , _int_current(int_providers, split)
         , _str_current(str_providers, split)
         , _stream_ended(false) {
@@ -48,7 +45,7 @@ namespace imhotep {
                             op.term_seq().doc_freqs().data(),
                             op.term_seq().tables().data(),
                             op.term_seq().size(),
-                            _worker_id);
+                            _split);
     }
 
     template <>
@@ -62,7 +59,7 @@ namespace imhotep {
                             op.term_seq().doc_freqs().data(),
                             op.term_seq().tables().data(),
                             op.term_seq().size(),
-                            _worker_id);
+                            _split);
     }
 
     void TaskIterator::increment() {

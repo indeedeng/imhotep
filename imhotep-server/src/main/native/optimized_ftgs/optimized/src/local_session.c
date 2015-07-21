@@ -20,7 +20,7 @@ int run_tgs_pass(struct worker_desc *worker,
                  const int *docs_per_shard,
                  const packed_table_ptr *shards,
                  int num_shard,
-                 int socket_num)
+                 int stream_num)
 {
     struct tgs_desc desc;
     struct ftgs_outstream *stream;
@@ -30,7 +30,7 @@ int run_tgs_pass(struct worker_desc *worker,
     term_init(&desc.term, term_type, int_term, string_term, string_term_len);
 
     /* find the stream data struct by index */
-    stream = &worker->out_streams[socket_num];
+    stream = &worker->out_streams[stream_num];
 
     /* init the tsg struct */
     tgs_init(worker,
@@ -49,7 +49,6 @@ int run_tgs_pass(struct worker_desc *worker,
     if (err != 0) {
         if (desc.stream->socket.err.code != 0) {
             worker->error = desc.stream->socket.err;
-            /* memcpy(&worker->error, desc.stream->socket.err, sizeof(struct runtime_err)); */
         }
     }
 
@@ -165,9 +164,6 @@ int worker_end_stream(struct worker_desc *worker, int stream_num)
 }
 
 void worker_init(struct worker_desc *worker,
-                 int id,
-                 int num_groups,
-                 int n_metrics,
                  const int *socket_fds,
                  int num_sockets)
 {
