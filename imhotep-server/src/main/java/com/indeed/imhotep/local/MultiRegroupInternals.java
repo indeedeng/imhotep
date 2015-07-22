@@ -351,19 +351,87 @@ class MultiRegroupInternals {
         }
     }
 
-    static void performStringMultiEqualityRegroup(GroupLookup docIdToGroup, GroupLookup newLookup, int[] docIdBuf, DocIdStream docIdStream, StringTermIterator termIterator, int[] remappings, String term, int placeHolderGroup) throws IOException {
+    static void performStringMultiEqualityRegroup(GroupLookup docIdToGroup, GroupLookup newLookup,
+                                                  int[] docIdBuf, DocIdStream docIdStream,
+                                                  StringTermIterator termIterator,
+                                                  int[] remappings, String term, int placeHolderGroup)
+        throws IOException {
         termIterator.reset(term);
         if (termIterator.next() && termIterator.term().equals(term)) {
-            docIdStream.reset(termIterator);
-            remapDocsInTargetGroups(docIdToGroup, newLookup, docIdBuf, docIdStream, remappings, placeHolderGroup);
+            if (docIdToGroup instanceof MultiCache.MultiCacheGroupLookup &&
+                newLookup instanceof ArrayBasedGroupLookup &&
+                termIterator instanceof SimpleStringTermIterator) {
+                final long nativeShardDataPtr =
+                    ((MultiCache.MultiCacheGroupLookup) docIdToGroup).nativeShardDataPtr();
+                final SimpleStringTermIterator ssTermIterator = (SimpleStringTermIterator) termIterator;
+                final long docListAddress = ssTermIterator.getDocListAddress() + ssTermIterator.getOffset();
+                final int  nDocs          = ssTermIterator.docFreq();
+                if (newLookup instanceof ByteGroupLookup) {
+                    nativeRemapDocsInTargetGroups(nativeShardDataPtr,
+                                                  ((ByteGroupLookup) newLookup).getDocIdToGroup(),
+                                                  docListAddress, nDocs, remappings, placeHolderGroup);
+                }
+                else if (newLookup instanceof CharGroupLookup) {
+                    nativeRemapDocsInTargetGroups(nativeShardDataPtr,
+                                                  ((CharGroupLookup) newLookup).getDocIdToGroup(),
+                                                  docListAddress, nDocs, remappings, placeHolderGroup);
+                }
+                else if (newLookup instanceof IntGroupLookup) {
+                    nativeRemapDocsInTargetGroups(nativeShardDataPtr,
+                                                  ((IntGroupLookup) newLookup).getDocIdToGroup(),
+                                                  docListAddress, nDocs, remappings, placeHolderGroup);
+                }
+                else {
+                    throw new UnsupportedOperationException("software error: unsupported GroupLookup type!");
+                }
+            } else {
+                docIdStream.reset(termIterator);
+                remapDocsInTargetGroups(docIdToGroup, newLookup,
+                                        docIdBuf, docIdStream,
+                                        remappings, placeHolderGroup);
+            }
         }
     }
 
-    static void performIntMultiEqualityRegroup(GroupLookup docIdToGroup, GroupLookup newLookup, int[] docIdBuf, DocIdStream docIdStream, IntTermIterator termIterator, int[] remappings, long term, int placeHolderGroup) throws IOException {
+    static void performIntMultiEqualityRegroup(GroupLookup docIdToGroup, GroupLookup newLookup,
+                                               int[] docIdBuf, DocIdStream docIdStream,
+                                               IntTermIterator termIterator,
+                                               int[] remappings, long term, int placeHolderGroup)
+        throws IOException {
         termIterator.reset(term);
         if (termIterator.next() && termIterator.term() == term) {
-            docIdStream.reset(termIterator);
-            remapDocsInTargetGroups(docIdToGroup, newLookup, docIdBuf, docIdStream, remappings, placeHolderGroup);
+            if (docIdToGroup instanceof MultiCache.MultiCacheGroupLookup &&
+                newLookup instanceof ArrayBasedGroupLookup &&
+                termIterator instanceof SimpleIntTermIterator) {
+                final long nativeShardDataPtr =
+                    ((MultiCache.MultiCacheGroupLookup) docIdToGroup).nativeShardDataPtr();
+                final SimpleIntTermIterator ssTermIterator = (SimpleIntTermIterator) termIterator;
+                final long docListAddress = ssTermIterator.getDocListAddress() + ssTermIterator.getOffset();
+                final int  nDocs          = ssTermIterator.docFreq();
+                if (newLookup instanceof ByteGroupLookup) {
+                    nativeRemapDocsInTargetGroups(nativeShardDataPtr,
+                                                  ((ByteGroupLookup) newLookup).getDocIdToGroup(),
+                                                  docListAddress, nDocs, remappings, placeHolderGroup);
+                }
+                else if (newLookup instanceof CharGroupLookup) {
+                    nativeRemapDocsInTargetGroups(nativeShardDataPtr,
+                                                  ((CharGroupLookup) newLookup).getDocIdToGroup(),
+                                                  docListAddress, nDocs, remappings, placeHolderGroup);
+                }
+                else if (newLookup instanceof IntGroupLookup) {
+                    nativeRemapDocsInTargetGroups(nativeShardDataPtr,
+                                                  ((IntGroupLookup) newLookup).getDocIdToGroup(),
+                                                  docListAddress, nDocs, remappings, placeHolderGroup);
+                }
+                else {
+                    throw new UnsupportedOperationException("software error: unsupported GroupLookup type!");
+                }
+            } else {
+                docIdStream.reset(termIterator);
+                remapDocsInTargetGroups(docIdToGroup, newLookup,
+                                        docIdBuf, docIdStream,
+                                        remappings, placeHolderGroup);
+            }
         }
     }
 
