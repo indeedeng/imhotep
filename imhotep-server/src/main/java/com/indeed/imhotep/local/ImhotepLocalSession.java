@@ -429,26 +429,26 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             return docIdToGroup.getNumGroups();
         }
 
-        final int numConditions = MultiRegroupInternals.countRemapConditions(rules);
+        final int numConditions = GroupMultiRemapRules.countRemapConditions(rules);
         final int highestTarget;
         final int targetGroupBytes = Math.max(numRules * 4, numConditions * 8);
         if (!memory.claimMemory(targetGroupBytes)) {
             throw new ImhotepOutOfMemoryException();
         }
         try {
-            highestTarget = MultiRegroupInternals.validateTargets(rules);
-            MultiRegroupInternals.validateEqualitySplits(rules);
+            highestTarget = GroupMultiRemapRules.validateTargets(rules);
+            GroupMultiRemapRules.validateEqualitySplits(rules);
         } finally {
             memory.releaseMemory(targetGroupBytes);
         }
 
         final int maxIntermediateGroup = Math.max(docIdToGroup.getNumGroups(), highestTarget);
-        final int maxNewGroup = MultiRegroupInternals.findMaxGroup(rules);
+        final int maxNewGroup = GroupMultiRemapRules.findMaxGroup(rules);
         docIdToGroup = resizeGroupLookup(docIdToGroup, Math.max(maxIntermediateGroup, maxNewGroup), memory);
 
         MultiRegroupInternals.moveUntargeted(docIdToGroup, maxIntermediateGroup, rules);
 
-        final int maxConditionIndex = MultiRegroupInternals.findMaxIntermediateGroup(rules);
+        final int maxConditionIndex = GroupMultiRemapRules.findMaxIntermediateGroup(rules);
         final int placeholderGroup = maxConditionIndex + 1;
 
         final int parallelArrayBytes = 3 * 4 * numConditions + 8 * numConditions;
