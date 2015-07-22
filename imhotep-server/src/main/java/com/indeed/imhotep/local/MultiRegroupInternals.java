@@ -34,13 +34,14 @@ import java.util.Arrays;
  * @author jwolfe
  */
 class MultiRegroupInternals {
+
     static int countRemapConditions(GroupMultiRemapRule[] rules) {
-        int conditionCount = 0;
-        for (GroupMultiRemapRule rule : rules) {
-            conditionCount += rule.conditions.length;
+            int result = 0;
+            for (GroupMultiRemapRule rule : rules) {
+                result += rule.conditions.length;
+            }
+            return result;
         }
-        return conditionCount;
-    }
 
     static int findMaxGroup(GroupMultiRemapRule[] rules) {
         int maxGroup = 0;
@@ -54,7 +55,7 @@ class MultiRegroupInternals {
         return maxGroup;
     }
 
-    public static int findMaxIntermediateGroup(GroupMultiRemapRule[] rules) {
+    static int findMaxIntermediateGroup(GroupMultiRemapRule[] rules) {
         int max = 0;
         for (GroupMultiRemapRule rule : rules) {
             max = Math.max(max, rule.conditions.length);
@@ -62,56 +63,159 @@ class MultiRegroupInternals {
         return max;
     }
 
+    static final class SortedConditions { // !@# move to separate module
+        final GroupMultiRemapRule[] rules;
+        final RegroupCondition[] conditions;
+        final int[] internalIndices;
+        final int[] positiveGroups;
+        final int[] ruleIndices;
 
-    /*
-     * Reorders the variables prefixed with "sorted" by field, intType, inequality, targetGroup, and then position within their rule
-     */
-    static void reorderRegroupConditions(final GroupMultiRemapRule[] rules, int numConditions, final RegroupCondition[] sortedConditions, final int[] sortedPositiveGroups, final int[] sortedInternalIndices, final int[] sortedRuleIndices) {
-        Quicksortables.sort(new Quicksortable() {
-            @Override
-            public void swap(int i, int j) {
-                Quicksortables.swap(sortedConditions, i, j);
-                Quicksortables.swap(sortedPositiveGroups, i, j);
-                Quicksortables.swap(sortedInternalIndices, i, j);
-                Quicksortables.swap(sortedRuleIndices, i, j);
-            }
+        SortedConditions(final GroupMultiRemapRule[] rules) {
+            this.rules = rules;
 
-            @Override
-            public int compare(int i, int j) {
-                return ComparisonChain.start()
-                        .compare(sortedConditions[i].field, sortedConditions[j].field)
-                        .compareFalseFirst(sortedConditions[i].intType, sortedConditions[j].intType)
-                        .compareFalseFirst(sortedConditions[i].inequality, sortedConditions[j].inequality)
-                        .compare(rules[sortedRuleIndices[i]].targetGroup, rules[sortedRuleIndices[j]].targetGroup)
-                        .compare(sortedInternalIndices[i], sortedInternalIndices[j])
-                        .result();
-            }
-        }, numConditions);
-    }
+            final int length = countRemapConditions(rules);
+            conditions       = new RegroupCondition[length];
+            internalIndices  = new int[length];
+            positiveGroups   = new int[length];
+            ruleIndices      = new int[length];
 
-    static void reorderOnTerm(final int start, int end, final boolean intType, final RegroupCondition[] sortedConditions, final int[] sortedPositiveGroups, final int[] sortedInternalIndices, final int[] sortedRuleIndices) {
-        Quicksortables.sort(new Quicksortable() {
-            @Override
-            public void swap(int i, int j) {
-                Quicksortables.swap(sortedConditions, start + i, start + j);
-                Quicksortables.swap(sortedPositiveGroups, start + i, start + j);
-                Quicksortables.swap(sortedInternalIndices, start + i, start + j);
-                Quicksortables.swap(sortedRuleIndices, start + i, start + j);
-            }
-
-            @Override
-            public int compare(int i, int j) {
-                if (intType) {
-                    return ComparisonChain.start()
-                            .compare(sortedConditions[start + i].intTerm, sortedConditions[start + j].intTerm)
-                            .result();
-                } else {
-                    return ComparisonChain.start()
-                            .compare(sortedConditions[start + i].stringTerm, sortedConditions[start + j].stringTerm)
-                            .result();
+            int i = 0;
+            for (int iRule = 0; iRule < rules.length; iRule++) {
+                final GroupMultiRemapRule rule = rules[iRule];
+                for (int iCondition = 0; iCondition < rule.conditions.length; iCondition++) {
+                    final RegroupCondition condition = rule.conditions[iCondition];
+                    conditions[i]      = condition;
+                    positiveGroups[i]  = rule.positiveGroups[iCondition];
+                    internalIndices[i] = iCondition;
+                    ruleIndices[i]     = iRule;
+                    i++;
                 }
             }
-        }, end - start);
+            reorder();
+        }
+
+        int length() { return conditions.length; }
+
+
+        boolean matches(final int     index,
+                        final String  field,
+                        final boolean intType,
+                        final boolean inequality) {
+            return
+                conditions[index].field.equals(field)   &&
+                conditions[index].intType    == intType &&
+                conditions[index].inequality == inequality;
+        }
+
+        void reorder() {
+            Quicksortables.sort(new Quicksortable() {
+                    @Override public void swap(int i, int j) {
+                        Quicksortables.swap(conditions, i, j);
+                        Quicksortables.swap(positiveGroups, i, j);
+                        Quicksortables.swap(internalIndices, i, j);
+                        Quicksortables.swap(ruleIndices, i, j);
+                    }
+
+                    @Override public int compare(int i, int j) {
+                        return ComparisonChain.start()
+                            .compare(conditions[i].field, conditions[j].field)
+                            .compareFalseFirst(conditions[i].intType, conditions[j].intType)
+                            .compareFalseFirst(conditions[i].inequality, conditions[j].inequality)
+                            .compare(rules[ruleIndices[i]].targetGroup, rules[ruleIndices[j]].targetGroup)
+                            .compare(internalIndices[i], internalIndices[j])
+                            .result();
+                    }
+                }, length());
+        }
+
+        void reorderOnTerm(final int start, int end, final boolean intType) {
+            Quicksortables.sort(new Quicksortable() {
+                    @Override public void swap(int i, int j) {
+                        Quicksortables.swap(conditions, start + i, start + j);
+                        Quicksortables.swap(positiveGroups, start + i, start + j);
+                        Quicksortables.swap(internalIndices, start + i, start + j);
+                        Quicksortables.swap(ruleIndices, start + i, start + j);
+                    }
+
+                    @Override public int compare(int i, int j) {
+                        if (intType) {
+                            return ComparisonChain.start()
+                                .compare(conditions[start + i].intTerm, conditions[start + j].intTerm)
+                                .result();
+                        } else {
+                            return ComparisonChain.start()
+                                .compare(conditions[start + i].stringTerm, conditions[start + j].stringTerm)
+                                .result();
+                        }
+                    }
+                }, end - start);
+        }
+
+        /*
+         * Upon returning, barriers contains a sorted list of differentiation
+         * points for each targetGroup in this inequality split.
+         *
+         * @param resultingIndex is a parallel array saying, for each entry in barriers, what
+         * condition index it corresponds to.
+         *
+         * @param barrierLengths says to what extent the barriers for each group
+         * are full (i.e., the effective length)
+         */
+        void formIntDividers(final int fieldStartIndex, final int conditionIndex,
+                             int[] barrierLengths, long[][] barriers,
+                             int[][] resultingIndex) {
+            for (int ix = fieldStartIndex; ix < conditionIndex; ix++) {
+                final GroupMultiRemapRule rule         = rules[ruleIndices[ix]];
+                final int                 targetGroup  = rule.targetGroup;
+                final RegroupCondition    condition    = conditions[ix];
+                final int                 currentIndex = barrierLengths[targetGroup];
+                if (currentIndex == 0) {
+                    barriers[targetGroup] = new long[rule.conditions.length];
+                    resultingIndex[targetGroup] = new int[rule.conditions.length];
+                }
+                if (currentIndex == 0 ||
+                    condition.intTerm > barriers[targetGroup][currentIndex-1]) {
+                    barriers[targetGroup][currentIndex] = condition.intTerm;
+                    resultingIndex[targetGroup][currentIndex] = internalIndices[ix];
+                    barrierLengths[targetGroup]++;
+                } else {
+                    throw new IllegalArgumentException("int inequality conditions that can never be met.");
+                }
+            }
+        }
+
+        /*
+         * Upon returning, barriers contains a sorted list of differentiation
+         * points for each targetGroup in this inequality split.
+         *
+         * @param resultingIndex is a parallel array saying, for each entry in
+         * barriers, what condition index it corresponds to.
+         *
+         * @param barrierLengths says to what extent the barriers for each group
+         * are full (i.e., the effective length)
+         */
+        void formStringDividers(final int fieldStartIndex, final int conditionIndex,
+                                int[] barrierLengths, String[][] barriers,
+                                int[][] resultingIndex) {
+            for (int ix = fieldStartIndex; ix < conditionIndex; ix++) {
+                final GroupMultiRemapRule rule         = rules[ruleIndices[ix]];
+                final int                 targetGroup  = rule.targetGroup;
+                final RegroupCondition    condition    = conditions[ix];
+                final int                 currentIndex = barrierLengths[targetGroup];
+                if (currentIndex == 0) {
+                    barriers[targetGroup] = new String[rule.conditions.length];
+                    resultingIndex[targetGroup] = new int[rule.conditions.length];
+                }
+                if (currentIndex == 0 ||
+                    condition.stringTerm.compareTo(barriers[targetGroup][currentIndex-1]) > 0) {
+                    barriers[targetGroup][currentIndex] = condition.stringTerm;
+                    resultingIndex[targetGroup][currentIndex] = internalIndices[ix];
+                    barrierLengths[targetGroup]++;
+                } else {
+                    throw new IllegalArgumentException("String inequality conditions that can never be met.");
+                }
+            }
+        }
     }
 
     /*
@@ -201,56 +305,6 @@ class MultiRegroupInternals {
         }, sortedConditions.length);
     }
 
-    /*
-     * Upon returning, barriers contains a sorted list of differentiation points for each targetGroup in this inequality split.
-     * resultingIndex is a parallel array saying, for each entry in barriers, what condition index it corresponds to.
-     * barrierLengths says to what extent the barriers for each group are full (i.e., the effective length)
-     */
-    static void formStringDividers(GroupMultiRemapRule[] rules, RegroupCondition[] allConditions, int[] internalConditionIndices, int[] ruleIndices, int fieldStartIndex, int conditionIndex, int[] barrierLengths, String[][] barriers, int[][] resultingIndex) {
-        for (int ix = fieldStartIndex; ix < conditionIndex; ix++) {
-            final GroupMultiRemapRule rule = rules[ruleIndices[ix]];
-            final int targetGroup = rule.targetGroup;
-            final RegroupCondition condition = allConditions[ix];
-            final int currentIndex = barrierLengths[targetGroup];
-            if (currentIndex == 0) {
-                barriers[targetGroup] = new String[rule.conditions.length];
-                resultingIndex[targetGroup] = new int[rule.conditions.length];
-            }
-            if (currentIndex == 0 || condition.stringTerm.compareTo(barriers[targetGroup][currentIndex-1]) > 0) {
-                barriers[targetGroup][currentIndex] = condition.stringTerm;
-                resultingIndex[targetGroup][currentIndex] = internalConditionIndices[ix];
-                barrierLengths[targetGroup]++;
-            } else {
-                throw new IllegalArgumentException("String inequality conditions that can never be met.");
-            }
-        }
-    }
-
-    /*
-     * Upon returning, barriers contains a sorted list of differentiation points for each targetGroup in this inequality split.
-     * resultingIndex is a parallel array saying, for each entry in barriers, what condition index it corresponds to.
-     * barrierLengths says to what extent the barriers for each group are full (i.e., the effective length)
-     */
-    static void formIntDividers(GroupMultiRemapRule[] rules, RegroupCondition[] allConditions, int[] internalConditionIndices, int[] ruleIndices, int fieldStartIndex, int conditionIndex, int[] barrierLengths, long[][] barriers, int[][] resultingIndex) {
-        for (int ix = fieldStartIndex; ix < conditionIndex; ix++) {
-            final GroupMultiRemapRule rule = rules[ruleIndices[ix]];
-            final int targetGroup = rule.targetGroup;
-            final RegroupCondition condition = allConditions[ix];
-            final int currentIndex = barrierLengths[targetGroup];
-            if (currentIndex == 0) {
-                barriers[targetGroup] = new long[rule.conditions.length];
-                resultingIndex[targetGroup] = new int[rule.conditions.length];
-            }
-            if (currentIndex == 0 || condition.intTerm > barriers[targetGroup][currentIndex-1]) {
-                barriers[targetGroup][currentIndex] = condition.intTerm;
-                resultingIndex[targetGroup][currentIndex] = internalConditionIndices[ix];
-                barrierLengths[targetGroup]++;
-            } else {
-                throw new IllegalArgumentException("int inequality conditions that can never be met.");
-            }
-        }
-    }
-
     private native static void nativeRemapDocsInTargetGroups(long nativeShardDataPtr,
                                                              byte[] results,
                                                              long docListAddress,
@@ -313,44 +367,33 @@ class MultiRegroupInternals {
         }
     }
 
-    static void internalMultiRegroup(GroupLookup docIdToGroup, GroupLookup newDocIdToGroup, int[] docIdBuf, FlamdexReader flamdexReader, GroupMultiRemapRule[] rules, int highestTarget, int numConditions, int placeholderGroup, int maxGroup, boolean errorOnCollisions) throws IOException, ImhotepOutOfMemoryException {
+    static void internalMultiRegroup(GroupLookup docIdToGroup,
+                                     GroupLookup newDocIdToGroup,
+                                     int[] docIdBuf,
+                                     FlamdexReader flamdexReader,
+                                     GroupMultiRemapRule[] rules,
+                                     int highestTarget,
+                                     int numConditions,
+                                     int placeholderGroup,
+                                     int maxGroup,
+                                     boolean errorOnCollisions)
+        throws IOException, ImhotepOutOfMemoryException {
+
         // Make a bunch of parallel arrays so we can sort. Memory claimed in parallelArrayBytes.
-        final RegroupCondition[] sortedConditions = new RegroupCondition[numConditions];
-        final int[] sortedPositiveGroups = new int[numConditions];
-        final int[] sortedInternalIndices = new int[numConditions];
-        final int[] sortedRuleIndices = new int[numConditions];
-        {
-            int i = 0;
-            for (int ruleIndex = 0; ruleIndex < rules.length; ruleIndex++) {
-                final GroupMultiRemapRule rule = rules[ruleIndex];
-                for (int conditionIndex = 0; conditionIndex < rule.conditions.length; conditionIndex++) {
-                    final RegroupCondition condition = rule.conditions[conditionIndex];
-                    sortedConditions[i] = condition;
-                    sortedPositiveGroups[i] = rule.positiveGroups[conditionIndex];
-                    sortedInternalIndices[i] = conditionIndex;
-                    sortedRuleIndices[i] = ruleIndex;
-                    i++;
-                }
-            }
-        }
+        SortedConditions sorted = new SortedConditions(rules);
 
         // memory claimed in remappingBytes
         final int[] remappings = new int[maxGroup + 1];
         Arrays.fill(remappings, placeholderGroup);
         remappings[0] = 0;
 
-        // Arrange in order of field, and within field in order of field type;
-        reorderRegroupConditions(rules, numConditions, sortedConditions, sortedPositiveGroups, sortedInternalIndices, sortedRuleIndices);
-
         int fieldStartIndex = 0;
-        String field = sortedConditions[0].field;
-        boolean intType = sortedConditions[0].intType;
-        boolean inequality = sortedConditions[0].inequality;
-        for (int conditionIndex = 1; conditionIndex <= numConditions; conditionIndex++) {
-            if ((conditionIndex != numConditions)
-                    && sortedConditions[conditionIndex].field.equals(field)
-                    && (sortedConditions[conditionIndex].intType == intType)
-                    && (sortedConditions[conditionIndex].inequality == inequality)) {
+        String  field      = sorted.conditions[0].field;
+        boolean intType    = sorted.conditions[0].intType;
+        boolean inequality = sorted.conditions[0].inequality;
+        for (int iCondition = 1; iCondition <= numConditions; iCondition++) {
+            if ((iCondition != numConditions) &&
+                sorted.matches(iCondition, field, intType, inequality)) {
                 continue;
             }
 
@@ -364,86 +407,93 @@ class MultiRegroupInternals {
                 // in to, and reassigning if it is an earlier rule than the one it presently
                 // matches (or if it presently matches none at all).
 
+                // Memory for these claimed earlier (see maxInequalityBytes)
+                final int[]   barrierLengths = new int[highestTarget+1];
+                final int[][] resultingIndex = new int[highestTarget+1][];
                 if (intType) {
-                    // Memory for these claimed earlier (see maxInequalityBytes)
-                    final int[] barrierLengths = new int[highestTarget+1];
                     final long[][] barriers = new long[highestTarget+1][];
-                    final int[][] resultingIndex = new int[highestTarget+1][];
-                    formIntDividers(rules, sortedConditions, sortedInternalIndices, sortedRuleIndices, fieldStartIndex, conditionIndex, barrierLengths, barriers, resultingIndex);
+                    sorted.formIntDividers(fieldStartIndex, iCondition,
+                                           barrierLengths, barriers, resultingIndex);
 
                     final IntTermIterator termIterator = flamdexReader.getIntTermIterator(field);
-                    performIntMultiInequalityRegroup(docIdToGroup, newDocIdToGroup, docIdBuf, docIdStream, barrierLengths, barriers, resultingIndex, termIterator);
+                    performIntMultiInequalityRegroup(docIdToGroup, newDocIdToGroup, docIdBuf, docIdStream,
+                                                     barrierLengths, barriers, resultingIndex, termIterator);
                     termIterator.close();
                 } else {
-                    // Memory for these claimed earlier (see maxInequalityBytes)
-                    final int[] barrierLengths = new int[highestTarget+1];
                     final String[][] barriers = new String[highestTarget+1][];
-                    final int[][] resultingIndex = new int[highestTarget+1][];
-                    formStringDividers(rules, sortedConditions, sortedInternalIndices, sortedRuleIndices, fieldStartIndex, conditionIndex, barrierLengths, barriers, resultingIndex);
+                    sorted.formStringDividers(fieldStartIndex, iCondition,
+                                              barrierLengths, barriers, resultingIndex);
 
                     final StringTermIterator termIterator = flamdexReader.getStringTermIterator(field);
-                    performStringMultiInequalityRegroup(docIdToGroup, newDocIdToGroup, docIdBuf, docIdStream, barrierLengths, barriers, resultingIndex, termIterator);
+                    performStringMultiInequalityRegroup(docIdToGroup, newDocIdToGroup, docIdBuf, docIdStream,
+                                                        barrierLengths, barriers, resultingIndex, termIterator);
                     termIterator.close();
                 }
             } else {
                 // Handle term splits by going to the term directly and applying the rule.
-                reorderOnTerm(fieldStartIndex, conditionIndex, intType, sortedConditions, sortedPositiveGroups, sortedInternalIndices, sortedRuleIndices);
+                sorted.reorderOnTerm(fieldStartIndex, iCondition, intType);
                 if (intType) {
                     final IntTermIterator termIterator = flamdexReader.getIntTermIterator(field);
-                    long currentTerm = sortedConditions[fieldStartIndex].intTerm;
+                    long currentTerm = sorted.conditions[fieldStartIndex].intTerm;
                     int termStartIndex = fieldStartIndex;
-                    final int fieldEndIndex = conditionIndex;
+                    final int fieldEndIndex = iCondition;
                     for (int ix = fieldStartIndex; ix <= fieldEndIndex; ix++) {
                         if (ix != fieldEndIndex) {
-                            if (sortedConditions[ix].intTerm == currentTerm) {
-                                final int targetGroup = rules[sortedRuleIndices[ix]].targetGroup;
-                                remappings[targetGroup] = sortedInternalIndices[ix];
+                            if (sorted.conditions[ix].intTerm == currentTerm) {
+                                final int targetGroup = rules[sorted.ruleIndices[ix]].targetGroup;
+                                remappings[targetGroup] = sorted.internalIndices[ix];
                                 continue;
                             }
                         }
 
-                        performIntMultiEqualityRegroup(docIdToGroup, newDocIdToGroup, docIdBuf, docIdStream, termIterator, remappings, currentTerm, errorOnCollisions ? placeholderGroup: -1);
+                        performIntMultiEqualityRegroup(docIdToGroup, newDocIdToGroup,
+                                                       docIdBuf, docIdStream, termIterator,
+                                                       remappings, currentTerm,
+                                                       errorOnCollisions ? placeholderGroup: -1);
 
                         for (int ix2 = termStartIndex; ix2 < ix; ix2++) {
-                            final int targetGroup = rules[sortedRuleIndices[ix2]].targetGroup;
+                            final int targetGroup = rules[sorted.ruleIndices[ix2]].targetGroup;
                             remappings[targetGroup] = placeholderGroup;
                         }
 
                         if (ix != fieldEndIndex) {
                             termStartIndex = ix;
-                            currentTerm = sortedConditions[ix].intTerm;
-                            final int targetGroup = rules[sortedRuleIndices[ix]].targetGroup;
-                            remappings[targetGroup] = sortedInternalIndices[ix];
+                            currentTerm = sorted.conditions[ix].intTerm;
+                            final int targetGroup = rules[sorted.ruleIndices[ix]].targetGroup;
+                            remappings[targetGroup] = sorted.internalIndices[ix];
                         }
                     }
                     termIterator.close();
                 } else {
                     final StringTermIterator termIterator = flamdexReader.getStringTermIterator(field);
-                    String currentTerm = sortedConditions[fieldStartIndex].stringTerm;
+                    String currentTerm = sorted.conditions[fieldStartIndex].stringTerm;
                     int termStartIndex = fieldStartIndex;
-                    final int fieldEndIndex = conditionIndex;
+                    final int fieldEndIndex = iCondition;
                     for (int ix = fieldStartIndex; ix <= fieldEndIndex; ix++) {
                         if (ix != fieldEndIndex) {
-                            if (sortedConditions[ix].stringTerm.equals(currentTerm)) {
-                                final int targetGroup = rules[sortedRuleIndices[ix]].targetGroup;
-                                remappings[targetGroup] = sortedInternalIndices[ix];
+                            if (sorted.conditions[ix].stringTerm.equals(currentTerm)) {
+                                final int targetGroup = rules[sorted.ruleIndices[ix]].targetGroup;
+                                remappings[targetGroup] = sorted.internalIndices[ix];
                                 continue;
                             }
                         }
 
-                        performStringMultiEqualityRegroup(docIdToGroup, newDocIdToGroup, docIdBuf, docIdStream, termIterator, remappings, currentTerm, errorOnCollisions ? placeholderGroup : -1);
+                        performStringMultiEqualityRegroup(docIdToGroup, newDocIdToGroup,
+                                                          docIdBuf, docIdStream, termIterator,
+                                                          remappings, currentTerm,
+                                                          errorOnCollisions ? placeholderGroup : -1);
 
                         // Reset the remapping entries to placeholderGroup
                         for (int ix2 = termStartIndex; ix2 < ix; ix2++) {
-                            final int targetGroup = rules[sortedRuleIndices[ix2]].targetGroup;
+                            final int targetGroup = rules[sorted.ruleIndices[ix2]].targetGroup;
                             remappings[targetGroup] = placeholderGroup;
                         }
 
                         if (ix != fieldEndIndex) {
                             termStartIndex = ix;
-                            currentTerm = sortedConditions[ix].stringTerm;
-                            final int targetGroup = rules[sortedRuleIndices[ix]].targetGroup;
-                            remappings[targetGroup] = sortedInternalIndices[ix];
+                            currentTerm = sorted.conditions[ix].stringTerm;
+                            final int targetGroup = rules[sorted.ruleIndices[ix]].targetGroup;
+                            remappings[targetGroup] = sorted.internalIndices[ix];
                         }
                     }
                     termIterator.close();
@@ -452,12 +502,12 @@ class MultiRegroupInternals {
 
             docIdStream.close();
 
-            if (conditionIndex != numConditions) {
+            if (iCondition != numConditions) {
                 // Identify next clump
-                fieldStartIndex = conditionIndex;
-                field = sortedConditions[conditionIndex].field;
-                intType = sortedConditions[conditionIndex].intType;
-                inequality = sortedConditions[conditionIndex].inequality;
+                fieldStartIndex = iCondition;
+                field = sorted.conditions[iCondition].field;
+                intType = sorted.conditions[iCondition].intType;
+                inequality = sorted.conditions[iCondition].inequality;
             }
         }
     }
