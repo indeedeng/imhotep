@@ -438,9 +438,20 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
                                          int[] docIdBuf,
                                          long[] valBuf,
                                          int n) {
-        statLookup.lookup(docIdBuf, valBuf, n);
-        for (int i = 0; i < n; i++) {
-            results[docGrpBuffer[i]] += valBuf[i];
+        /* This is a hacky optimization, but probably worthwhile, since Count is
+         * such a common stat. Rather than have Count fill up an array with ones
+         * and then add each in turn to our results, we just increment the
+         * results directly. */
+        if (statLookup instanceof com.indeed.imhotep.metrics.Count) {
+            for (int i = 0; i < n; i++) {
+                results[docGrpBuffer[i]] += 1;
+            }
+        }
+        else {
+            statLookup.lookup(docIdBuf, valBuf, n);
+            for (int i = 0; i < n; i++) {
+                results[docGrpBuffer[i]] += valBuf[i];
+            }
         }
     }
 
