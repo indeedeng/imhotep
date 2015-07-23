@@ -1889,8 +1889,8 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
         } else if (statName.startsWith("ref ")) {
             final int depth = Integer.valueOf(statName.substring(4).trim());
             statLookup[numStats] = new DelegatingMetric(statLookup[numStats - depth - 1]);
-        } else if (is32BitInteger(statName)) {
-            final int constant = Integer.parseInt(statName); // guaranteed not
+        } else if (is64BitInteger(statName)) {
+            final long constant = Long.parseLong(statName); // guaranteed not
                                                              // to fail
             statLookup[numStats] = new Constant(constant);
         } else if (statName.startsWith("interleave ")) {
@@ -2107,9 +2107,9 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
         return numStats;
     }
 
-    private static boolean is32BitInteger(String s) {
+    private static boolean is64BitInteger(String s) {
         try {
-            Integer.parseInt(s);
+            Long.parseLong(s);
             return true;
         } catch (NumberFormatException e) {
             return false;
