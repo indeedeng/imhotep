@@ -33,7 +33,7 @@ class LuceneIntTermIterator implements IntTermIterator, LuceneTermIterator {
         temp.add("0");
         // TODO: support negative values
         for (int i = 1; i <= 9; i++) {
-            for (long m = 1; m*i > 0; m *= 10) {
+            for (long m = 1; m > 0 && m*i > 0; m *= 10) {
                 temp.add(""+(m*i));
             }
         }

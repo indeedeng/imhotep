@@ -107,13 +107,21 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader implements RawFla
 
     @Override
     public SimpleIntTermIterator getIntTermIterator(String field) {
+        return getIntTermIterator(field, false);
+    }
+
+    private SimpleIntTermIterator getIntTermIterator(String field, boolean unsorted) {
         final String termsFilename = CachedFile.buildPath(directory, SimpleIntFieldWriter.getTermsFilename(field));
         final String docsFilename = CachedFile.buildPath(directory, SimpleIntFieldWriter.getDocsFilename(field));
         if (CachedFile.create(termsFilename).length() == 0L) {
-            // try to read it as a String field and convert
+            // try to read it as a String field and convert to ints
             final SimpleStringTermIterator stringTermIterator = getStringTermIterator(field);
             if(!(stringTermIterator instanceof NullStringTermIterator)) {
-                return new StringToIntTermIterator(stringTermIterator);
+                if(unsorted) {
+                    return new UnsortedStringToIntTermIterator(stringTermIterator);
+                } else {
+                    return new StringToIntTermIterator(stringTermIterator, this, field);
+                }
             }
 
             // string field not found. return a null iterator
@@ -144,12 +152,16 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader implements RawFla
 
     @Override
     protected UnsortedIntTermDocIterator createUnsortedIntTermDocIterator(final String field) {
-        return getIntTermDocIterator(field);
+        return getIntTermDocIterator(field, true);
     }
 
     @Override
     public IntTermDocIterator getIntTermDocIterator(final String field) {
-        final SimpleIntTermIterator termIterator = getIntTermIterator(field);
+        return getIntTermDocIterator(field, false);
+    }
+
+    public IntTermDocIterator getIntTermDocIterator(final String field, final boolean unsorted) {
+        final SimpleIntTermIterator termIterator = getIntTermIterator(field, unsorted);
         if (useNativeDocIdStream && CachedFile.create(termIterator.getFilename()).length() > 0) {
             try {
                 return new NativeIntTermDocIterator(termIterator, mapCache);
