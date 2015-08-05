@@ -15,28 +15,22 @@ namespace imhotep {
         template <typename Key>
         class IndexBlock : public DataBlock<Key, Long> {
         public:
-            IndexBlock(const char* begin)
-                : DataBlock<Key, Long>(begin)
-            { }
+            IndexBlock(const char* begin) : DataBlock<Key, Long>(begin) { }
 
-            /** Search for an element in in the tree with a key not greater than
-                the one given. If no such element exists, return the first one
-                in the collection.
-            */
             template <typename Value>
             KeyValue<Key, Value>
-            floor_kv(const char* base_address, const Key& key, size_t level) const {
+            find(const char* base_address, const Key& key, size_t level) const {
                 const size_t child_index(this->floor(key));
                 const size_t child_offset(this->key_value(child_index).value()());
                 const char*  child_begin(base_address + child_offset);
                 const size_t child_level(level - 1);
                 if (child_level > 0) {
                     const IndexBlock<Key> child(child_begin);
-                    return child.floor_kv<Value>(base_address, key, child_level);
+                    return child.find<Value>(base_address, key, child_level);
                 }
                 else {
                     const DataBlock<Key, Value> child(child_begin);
-                    return child.key_value(child.floor(key));
+                    return child.find(key);
                 }
             }
         };

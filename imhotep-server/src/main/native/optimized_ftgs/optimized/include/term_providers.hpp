@@ -28,8 +28,9 @@ namespace imhotep {
             std::vector<term_source_t> result;
             for (std::vector<Shard>::const_iterator it(shards.begin());
                  it != shards.end(); ++it) {
-                const Shard& shard(*it);
-                result.emplace_back(std::make_pair(shard, term_it(shard, field)));
+                const Shard&      shard(*it);
+                const VarIntView& view(shard.term_view<term_t>(field));
+                result.emplace_back(std::make_pair(shard, term_it(view)));
             }
             return result;
         }

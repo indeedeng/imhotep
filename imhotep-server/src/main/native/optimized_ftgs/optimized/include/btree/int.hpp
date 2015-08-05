@@ -18,8 +18,8 @@ namespace imhotep {
                 return *reinterpret_cast<const int_t*>(_begin);
             }
 
-            bool operator<(const int_t& rhs) const {
-                return *this() < rhs();
+            bool operator<(const Int& rhs) const {
+                return (*this)() < rhs();
             }
 
             size_t length() const { return sizeof(int_t); }
@@ -30,7 +30,9 @@ namespace imhotep {
 
         typedef Int<int64_t> Long;
 
-        typedef Int<std::pair<int64_t, int64_t> > LongPair; // !@# fix operator< for this
+        // !@# Ideally fix operator< for this. We can get away without doing so
+        // for now since we don't use these as keys.
+        typedef Int<std::pair<int64_t, int64_t> > LongPair;
 
 } // namespace btree
 } // namespace imhotep

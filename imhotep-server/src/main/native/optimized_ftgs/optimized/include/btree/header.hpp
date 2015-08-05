@@ -1,6 +1,7 @@
 #ifndef BTREE_HEADER_HPP
 #define BTREE_HEADER_HPP
 
+#include <cassert>
 #include <cstdint>
 #include <iostream>
 
@@ -9,12 +10,9 @@ namespace imhotep {
 
         class Header {
         public:
-            Header(const char* begin, const char* end)
-                : _fields(*reinterpret_cast<const Fields*>(begin)) {
-                if (end - begin < sizeof(Fields)) {
-                    throw std::invalid_argument(__PRETTY_FUNCTION__);
-                }
-            }
+            Header(const char* begin)
+                : _fields(*reinterpret_cast<const Fields*>(begin))
+            { }
 
             static size_t length() { return sizeof(Fields); }
 

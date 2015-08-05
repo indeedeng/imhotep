@@ -25,26 +25,42 @@ namespace imhotep {
         }
     }
 
+    std::shared_ptr<MMappedFile>
+    Shard::mmapped_file(const std::string&  field,
+                        const std::string&  filename,
+                        FieldToMMappedFile& cache) const {
+        FieldToMMappedFile::iterator it(cache.find(field));
+        if (it == cache.end()) {
+            std::shared_ptr<MMappedFile> entry(std::make_shared<MMappedFile>(filename));
+            it = cache.insert(std::make_pair(field, entry)).first;
+        }
+        return it->second;
+    }
+
     template <typename term_t>
     VarIntView Shard::term_view(const std::string& field) const {
-        FieldToMMappedFile::iterator it(_term_views.find(field));
-        if (it == _term_views.end()) {
-            const std::string filename(term_filename<term_t>(field));
-            std::shared_ptr<MMappedFile> view(std::make_shared<MMappedFile>(filename));
-            it = _term_views.insert(std::make_pair(field, view)).first;
-        }
-        return VarIntView(it->second->begin(), it->second->end());
+        const std::string filename(term_filename<term_t>(field));
+        std::shared_ptr<MMappedFile> mmapped(mmapped_file(field, filename, _term_views));
+        return VarIntView(mmapped->begin(), mmapped->end());
     }
 
     template <typename term_t>
     VarIntView Shard::docid_view(const std::string& field) const {
-        FieldToMMappedFile::iterator it(_docid_views.find(field));
-        if (it == _docid_views.end()) {
-            const std::string filename(docid_filename<term_t>(field));
-            std::shared_ptr<MMappedFile> view(std::make_shared<MMappedFile>(filename));
-            it = _docid_views.insert(std::make_pair(field, view)).first;
-        }
-        return VarIntView(it->second->begin(), it->second->end());
+        const std::string filename(docid_filename<term_t>(field));
+        std::shared_ptr<MMappedFile> mmapped(mmapped_file(field, filename, _docid_views));
+        return VarIntView(mmapped->begin(), mmapped->end());
+    }
+
+    IntTermIndex Shard::int_term_index(const std::string& field) const {
+        const std::string filename(index_filename<IntTerm>(field));
+        std::shared_ptr<MMappedFile> mmapped(mmapped_file(field, filename, _int_term_indices));
+        return IntTermIndex(mmapped->begin(), mmapped->end(), term_view<IntTerm>(field));
+    }
+
+    StringTermIndex Shard::str_term_index(const std::string& field) const {
+        const std::string filename(index_filename<StringTerm>(field));
+        std::shared_ptr<MMappedFile> mmapped(mmapped_file(field, filename, _str_term_indices));
+        return StringTermIndex(mmapped->begin(), mmapped->end(), term_view<IntTerm>(field));
     }
 
     SplitView Shard::split_view(const std::string& filename) const {
@@ -60,6 +76,11 @@ namespace imhotep {
     template <typename term_t>
     std::string Shard::docid_filename(const std::string& field) const {
         return base_filename(field) + TermTraits<term_t>::docid_file_extension();
+    }
+
+    template <typename term_t>
+    std::string Shard::index_filename(const std::string& field) const {
+        return base_filename(field) + TermTraits<term_t>::index_file_extension();
     }
 
     std::string Shard::split_filename(const std::string& splits_dir,

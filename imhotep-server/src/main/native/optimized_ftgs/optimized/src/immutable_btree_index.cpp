@@ -42,7 +42,7 @@ void dump(size_t level, const char* begin, const IndexBlock<String>& block, size
 int main(int argc, char* argv[]) {
     std::string fname(argv[1]);
     const MMappedFile index(fname);
-    const Header header(index.end() - Header::length(), index.end());
+    const Header header(index.end() - Header::length());
     // !@# ulimately puke if has_deletions is true?
     std::cout << header << std::endl;
 
@@ -52,7 +52,7 @@ int main(int argc, char* argv[]) {
     const std::vector<char> encoded(String::encode(argv[2]));
     const String            key(encoded.data());
 
-    KeyValue<String, LongPair> result(root_block.floor_kv<LongPair>(index.begin(), key,
-                                                                    size_t(header.index_levels())));
+    KeyValue<String, LongPair> result(root_block.find<LongPair>(index.begin(), key,
+                                                                size_t(header.index_levels())));
     std::cout << "result: " << result << std::endl;
 }

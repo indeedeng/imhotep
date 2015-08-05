@@ -35,29 +35,10 @@ namespace imhotep {
 
             bool operator==(const DataBlock& rhs) const { return _begin == rhs._begin; }
 
-            size_t lower_bound(size_t first, size_t last, const Key& key) const {
-                size_t index(0);
-                size_t count(last - first);
-                size_t step(0);
-                while (count > 0) {
-                    index  = first;
-                    step   = count / 2;
-                    index += step;
-                    if (key_value(index).key() < key) {
-                        first = ++index;
-                        count -= step + 1;
-                    }
-                    else {
-                        count = step;
-                    }
-                }
-                return first;
-            }
+            size_t lower_bound(size_t first, size_t last, const Key& key) const;
+            size_t floor(const Key& key) const;
 
-            size_t floor(const Key& key) const {
-                const size_t result(lower_bound(0, length(), key));
-                return result > 0 && key < key_value(result).key() ? result - 1 : result;
-            }
+            KeyValue<Key, Value> find(const Key& key) const;
 
         private:
             const char* _begin;
@@ -77,6 +58,39 @@ namespace imhotep {
                 return as_int<Offset>(offset_begin() + index * sizeof(Offset));
             }
         };
+
+        template <typename Key, typename Value>
+        size_t DataBlock<Key, Value>::lower_bound(size_t first, size_t last, const Key& key) const {
+            size_t index(0);
+            size_t count(last - first);
+            size_t step(0);
+            while (count > 0) {
+                index  = first;
+                step   = count / 2;
+                index += step;
+                if (key_value(index).key() < key) {
+                    first = ++index;
+                    count -= step + 1;
+                }
+                else {
+                    count = step;
+                }
+            }
+            return first;
+        }
+
+        template <typename Key, typename Value>
+        size_t DataBlock<Key, Value>::floor(const Key& key) const {
+            const size_t result(lower_bound(0, length(), key));
+            return result > 0 && key < key_value(result).key() ? result - 1 : result;
+        }
+
+        template <typename Key, typename Value>
+        KeyValue<Key, Value> DataBlock<Key, Value>::find(const Key& key) const {
+            const size_t               index(lower_bound(0, length(), key));
+            const KeyValue<Key, Value> result(key_value(index));
+            return key < result.key() ? KeyValue<Key, Value>() : result;
+        }
 
     } // namespace btree
 } // namespace imhotep

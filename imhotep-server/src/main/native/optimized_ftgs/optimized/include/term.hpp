@@ -30,6 +30,7 @@ namespace imhotep {
     struct TermTraits {
         static std::string  term_file_extension();
         static std::string docid_file_extension();
+        static std::string index_file_extension();
     };
 
     template <typename id_type>
@@ -95,14 +96,16 @@ namespace imhotep {
 
     template <>
     struct TermTraits<IntTerm> {
-        static std::string  term_file_extension() { return "intterms"; }
-        static std::string docid_file_extension() { return "intdocs";  }
+        static std::string  term_file_extension() { return "intterms";   }
+        static std::string docid_file_extension() { return "intdocs";    }
+        static std::string index_file_extension() { return "intindex64"; }
     };
 
     template <>
     struct TermTraits<StringTerm> {
         static std::string  term_file_extension() { return "strterms"; }
         static std::string docid_file_extension() { return "strdocs";  }
+        static std::string index_file_extension() { return "strindex"; }
     };
 
     template <> inline

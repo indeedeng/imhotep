@@ -3,11 +3,40 @@
 namespace imhotep {
 
     template<>
+    TermIterator<IntTerm>::TermIterator(const VarIntView&    term_view,
+                                        const IntTerm::id_t& term_id,
+                                        int64_t              doc_offset)
+        : _term_view(term_view) {
+        if (!_term_view.empty()) {
+            const int64_t doc_freq(_term_view.read_varint<int64_t>(_term_view.read()));
+            _current = IntTerm(term_id, doc_offset, doc_freq);
+        }
+        else {
+            _current = IntTerm();
+        }
+    }
+
+    template<>
+    TermIterator<StringTerm>::TermIterator(const VarIntView&       term_view,
+                                           const StringTerm::id_t& term_id,
+                                           int64_t                 doc_offset)
+        : _term_view(term_view)
+        , _id_buffer(term_id.begin(), term_id.end()) {
+        if (!_term_view.empty()) {
+            const int64_t doc_freq(_term_view.read_varint<int64_t>(_term_view.read()));
+            _current = StringTerm(StringRange(_id_buffer), doc_offset, doc_freq);
+        }
+        else {
+            _current = StringTerm();
+        }
+    }
+
+    template<>
     void TermIterator<IntTerm>::increment() {
         if (!_term_view.empty()) {
             const int64_t id_delta(_term_view.read_varint<int64_t>(_term_view.read()));
             const int64_t offset_delta(_term_view.read_varint<int64_t>(_term_view.read()));
-            const int64_t doc_freq(_term_view.read_varint<int32_t>(_term_view.read()));
+            const int64_t doc_freq(_term_view.read_varint<int64_t>(_term_view.read()));
             _current = IntTerm(_current.id() + id_delta,
                                _current.doc_offset() + offset_delta,
                                doc_freq);

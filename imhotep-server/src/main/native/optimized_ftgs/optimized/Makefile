@@ -9,13 +9,13 @@ BASE_CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -s
 BASE_CPPFLAGS=-Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -I/usr/include/boost -msse4.2 -std=c++0x -fPIC
 BASE_LFLAGS= -shared  -fno-omit-frame-pointer
 
-DBG_CFLAGS= -g3 -fno-omit-frame-pointer
+DBG_CFLAGS= -g -fno-omit-frame-pointer
 OPT_CFLAGS= -g -O3
 
-DBG_CPPFLAGS= -g3 -fno-omit-frame-pointer
+DBG_CPPFLAGS= -g -fno-omit-frame-pointer
 OPT_CPPFLAGS= -g -O3
 
-DBG_LFLAGS= -g3 -fsanitize=address -fno-omit-frame-pointer
+DBG_LFLAGS= -g -fsanitize=address -fno-omit-frame-pointer
 OPT_LFLAGS= -g -O3
 
 ifeq ($(MODE),opt)

@@ -9,7 +9,6 @@
 
 #include <boost/iterator/iterator_facade.hpp>
 
-#include "shard.hpp"
 #include "term.hpp"
 #include "var_int_view.hpp"
 
@@ -27,12 +26,14 @@ namespace imhotep {
     public:
         TermIterator() { }
 
-        TermIterator(const Shard&       shard,
-                     const std::string& field)
-            : _term_view(shard.term_view<term_t>(field))
-            , _docid_view(shard.docid_view<term_t>(field)) {
+        TermIterator(const VarIntView& term_view)
+            : _term_view(term_view) {
             increment();
         }
+
+        TermIterator(const VarIntView&            term_view,
+                     const typename term_t::id_t& term_id,
+                     int64_t                      doc_offset);
 
     private:
         friend class boost::iterator_core_access;
@@ -46,9 +47,7 @@ namespace imhotep {
         const term_t& dereference() const { return _current; }
 
         VarIntView _term_view;
-        VarIntView _docid_view;
-
-        term_t _current;
+        term_t     _current;
 
         typename TermIteratorTraits<term_t>::buffer_t _id_buffer;
     };

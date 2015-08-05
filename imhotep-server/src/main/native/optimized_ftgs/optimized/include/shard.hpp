@@ -15,6 +15,7 @@ extern "C" {
 #include "mmapped_file.hpp"
 #include "split_view.hpp"
 #include "term.hpp"
+#include "term_index.hpp"
 #include "var_int_view.hpp"
 
 namespace imhotep {
@@ -48,6 +49,9 @@ namespace imhotep {
         template <typename term_t>
         VarIntView docid_view(const std::string& field) const;
 
+        IntTermIndex    int_term_index(const std::string& field) const;
+        StringTermIndex str_term_index(const std::string& field) const;
+
         // !@# ultimately this should probably be via (field, split_num)
         SplitView split_view(const std::string& filename) const;
 
@@ -57,6 +61,9 @@ namespace imhotep {
         template <typename term_t>
         std::string docid_filename(const std::string& field) const;
 
+        template <typename term_t>
+        std::string index_filename(const std::string& field) const;
+
         std::string split_filename(const std::string& splits_dir,
                                    const std::string& field,
                                    size_t split_num) const;
@@ -64,15 +71,23 @@ namespace imhotep {
         std::string name_of() const;
 
     private:
+        typedef std::map<std::string, std::shared_ptr<MMappedFile>> FieldToMMappedFile;
+        typedef std::map<std::string, std::shared_ptr<MMappedFile>> SplitFileMap;
+
         std::string base_filename(const std::string& field) const;
+
+        std::shared_ptr<MMappedFile>
+        mmapped_file(const std::string&  field,
+                     const std::string&  filename,
+                     FieldToMMappedFile& cache) const;
 
         std::shared_ptr<MMappedFile> split_file(const std::string& filename) const;
 
-        typedef std::map<std::string, std::shared_ptr<MMappedFile>> FieldToMMappedFile;
         mutable FieldToMMappedFile _term_views;
         mutable FieldToMMappedFile _docid_views;
+        mutable FieldToMMappedFile _int_term_indices;
+        mutable FieldToMMappedFile _str_term_indices;
 
-        typedef std::map<std::string, std::shared_ptr<MMappedFile>> SplitFileMap;
         mutable SplitFileMap _split_files;
 
         std::string      _dir;

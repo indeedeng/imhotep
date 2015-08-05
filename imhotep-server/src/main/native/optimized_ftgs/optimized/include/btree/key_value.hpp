@@ -12,6 +12,8 @@ namespace imhotep {
         public:
             KeyValue(const char* begin=0) : _begin(begin) { }
 
+            bool is_nil() const { return _begin == 0; }
+
             Key     key() const { return Key(_begin);          }
             Value value() const { return Value( key().end() ); }
         };
@@ -21,7 +23,12 @@ namespace imhotep {
 
 template <typename Key, typename Value>
 std::ostream& operator<<(std::ostream& os, const imhotep::btree::KeyValue<Key, Value>& kv) {
-    os << kv.key()() << ":" << kv.value();
+    if (!kv.is_nil()) {
+        os << kv.key()() << ":" << kv.value();
+    }
+    else {
+        os << "(nil)";
+    }
     return os;
 }
 
