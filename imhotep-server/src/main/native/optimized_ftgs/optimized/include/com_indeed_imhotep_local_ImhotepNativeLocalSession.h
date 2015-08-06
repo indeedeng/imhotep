@@ -11,13 +11,22 @@ extern "C" {
 #define com_indeed_imhotep_local_ImhotepNativeLocalSession_MAX_NUMBER_STATS 64L
 #undef com_indeed_imhotep_local_ImhotepNativeLocalSession_BUFFER_SIZE
 #define com_indeed_imhotep_local_ImhotepNativeLocalSession_BUFFER_SIZE 2048L
+
 /*
  * Class:     com_indeed_imhotep_local_ImhotepNativeLocalSession
- * Method:    nativeGetGroupStats
- * Signature: (I[J)V
+ * Method:    nativeGetRules
+ * Signature: ([Lcom/indeed/imhotep/GroupMultiRemapRule;)J
  */
-JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_ImhotepNativeLocalSession_nativeGetGroupStats
-  (JNIEnv *, jobject, jint, jlongArray);
+JNIEXPORT jlong JNICALL Java_com_indeed_imhotep_local_ImhotepNativeLocalSession_nativeGetRules
+  (JNIEnv *, jclass, jobjectArray);
+
+/*
+ * Class:     com_indeed_imhotep_local_ImhotepNativeLocalSession
+ * Method:    nativeReleaseRules
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_ImhotepNativeLocalSession_nativeReleaseRules
+  (JNIEnv *, jclass, jlong);
 
 #ifdef __cplusplus
 }

@@ -105,4 +105,7 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
         }
         super.tryClose();
     }
+
+    private native static long nativeGetRules(final GroupMultiRemapRule[] rules);
+    private native static void nativeReleaseRules(final long nativeRulesPtr);
 }
