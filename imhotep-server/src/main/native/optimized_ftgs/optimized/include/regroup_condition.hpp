@@ -2,6 +2,7 @@
 #define REGROUP_CONDITION
 
 #include <cstdint>
+#include <iostream>
 #include <string>
 
 namespace imhotep {
@@ -55,5 +56,17 @@ namespace imhotep {
     };
 
 } // namespace imhotep
+
+inline
+std::ostream& operator<<(std::ostream& os, const imhotep::RegroupCondition& condition) {
+    os << "[RegroupCondition "
+       << " field: "       << condition.field()
+       << " int_type: "    << condition.int_type()
+       << " int_term: "    << condition.int_term()
+       << " string_term: " << condition.string_term()
+       << " inequality: "  << condition.inequality()
+       << "]";
+    return os;
+}
 
 #endif

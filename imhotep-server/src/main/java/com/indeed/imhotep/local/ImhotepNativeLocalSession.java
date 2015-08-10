@@ -106,6 +106,20 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
         super.tryClose();
     }
 
+    @Override
+    public synchronized int regroup(final GroupMultiRemapRule[] rules, boolean errorOnCollisions)
+        throws ImhotepOutOfMemoryException {
+        int result = 0;
+        final long rulesPtr = nativeGetRules(rules);
+        try {
+            result = super.regroup(rules, errorOnCollisions);
+        }
+        finally {
+            nativeReleaseRules(rulesPtr);
+        }
+        return result;
+    }
+
     private native static long nativeGetRules(final GroupMultiRemapRule[] rules);
     private native static void nativeReleaseRules(final long nativeRulesPtr);
 }

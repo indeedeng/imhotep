@@ -9,6 +9,11 @@ namespace imhotep {
 
     class Binder {
     public:
+        Binder(JNIEnv* env, jclass clazz)
+            : _env(env)
+            , _class(clazz)
+        { }
+
         Binder(JNIEnv* env, const std::string& class_name)
             : _env(env)
             , _class(class_for(class_name))
@@ -33,16 +38,13 @@ namespace imhotep {
                 std::ostringstream os;
                 os << __FUNCTION__ << ": GetFieldID() failed for"
                    << " name: " << name
-                   << " sig: " << sig;
+                   << " sig: "  << sig;
                 throw imhotep_error(os.str());
             }
             return result;
         }
 
-        std::string string_field(jobject obj, jfieldID field) {
-            jstring value(reinterpret_cast<jstring>(env()->GetObjectField(obj, field)));
-            if (value == NULL) throw imhotep_error(__FUNCTION__);
-
+        std::string to_string(jstring value) {
             jsize       length(env()->GetStringUTFLength(value));
             const char* chars(env()->GetStringUTFChars(value, NULL));
             if (!chars) {
@@ -53,6 +55,24 @@ namespace imhotep {
                 env()->ReleaseStringUTFChars(value, chars);
                 return result;
             }
+        }
+
+        template <typename ResultType>
+        ResultType object_field(jobject obj, jfieldID field) {
+            jobject result(env()->GetObjectField(obj, field));
+            if (result == NULL) {
+                std::ostringstream os;
+                os << __FUNCTION__ << ": GetObjectField() failed for"
+                   << " obj: " << obj
+                   << " field: " << field;
+                throw imhotep_error(os.str());
+            }
+            return reinterpret_cast<ResultType>(result);
+        }
+
+        std::string string_field(jobject obj, jfieldID field) {
+            jstring value(object_field<jstring>(obj, field));
+            return to_string(value);
         }
 
     private:

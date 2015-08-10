@@ -2,6 +2,7 @@
 #define GROUP_MULTI_REMAP_RULE_HPP
 
 #include <cstdint>
+#include <iostream>
 #include <utility>
 #include <vector>
 
@@ -67,5 +68,27 @@ namespace imhotep {
 
 } // namespace imhotep
 
+inline
+std::ostream& operator<<(std::ostream& os, const imhotep::GroupMultiRemapRule::Rule& rule) {
+    os << "[Rule"
+       << " positive: "  << rule.positive()
+       << " condition: " << rule.condition()
+       << "]";
+    return os;
+}
+
+inline
+std::ostream& operator<<(std::ostream& os, const imhotep::GroupMultiRemapRule& gmrr) {
+    os << "[GroupMultiRemapRule"
+       << " target: "   << gmrr.target()
+       << " negative: " << gmrr.negative()
+       << " rules: { ";
+    for (imhotep::GroupMultiRemapRule::Rules::const_iterator it(gmrr.rules().begin());
+         it != gmrr.rules().end(); ++it) {
+        os << *it << " ";
+    }
+    os << "} ]";
+    return os;
+}
 
 #endif
