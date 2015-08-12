@@ -106,6 +106,11 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader implements RawFla
     }
 
     @Override
+    public SimpleIntTermIterator getUnsortedIntTermIterator(String field) {
+        return getIntTermIterator(field, true);
+    }
+
+    @Override
     public SimpleIntTermIterator getIntTermIterator(String field) {
         return getIntTermIterator(field, false);
     }

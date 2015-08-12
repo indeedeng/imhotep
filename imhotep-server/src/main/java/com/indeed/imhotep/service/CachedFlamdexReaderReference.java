@@ -82,6 +82,11 @@ public class CachedFlamdexReaderReference implements FlamdexReader, MetricCache 
     }
 
     @Override
+    public IntTermIterator getUnsortedIntTermIterator(final String field) {
+        return reader.getUnsortedIntTermIterator(field);
+    }
+
+    @Override
     public StringTermIterator getStringTermIterator(final String field) {
         return reader.getStringTermIterator(field);
     }

@@ -360,7 +360,7 @@ class MultiRegroupInternals {
                 // Handle term splits by going to the term directly and applying the rule.
                 reorderOnTerm(fieldStartIndex, conditionIndex, intType, sortedConditions, sortedPositiveGroups, sortedInternalIndices, sortedRuleIndices);
                 if (intType) {
-                    final IntTermIterator termIterator = flamdexReader.getIntTermIterator(field);
+                    final IntTermIterator termIterator = flamdexReader.getUnsortedIntTermIterator(field);
                     long currentTerm = sortedConditions[fieldStartIndex].intTerm;
                     int termStartIndex = fieldStartIndex;
                     final int fieldEndIndex = conditionIndex;

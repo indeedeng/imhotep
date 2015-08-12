@@ -95,6 +95,11 @@ public class RamsesFlamdexWrapper implements FlamdexReader {
     }
 
     @Override
+    public IntTermIterator getUnsortedIntTermIterator(String field) {
+        return wrapped.getUnsortedIntTermIterator(field);
+    }
+
+    @Override
     public StringTermIterator getStringTermIterator(String field) {
         return wrapped.getStringTermIterator(field);
     }

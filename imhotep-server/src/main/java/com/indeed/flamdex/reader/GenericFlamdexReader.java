@@ -192,6 +192,12 @@ public final class GenericFlamdexReader implements FlamdexReader {
     }
 
     @Override
+    public IntTermIterator getUnsortedIntTermIterator(String field) {
+        // TODO?
+        return getIntTermIterator(field);
+    }
+
+    @Override
     public StringTermIterator getStringTermIterator(String field) {
         final String termsFilename = Files.buildPath(directory, factory.getStringTermsFilename(field));
         final String docsFilename = Files.buildPath(directory, factory.getStringDocsFilename(field));
