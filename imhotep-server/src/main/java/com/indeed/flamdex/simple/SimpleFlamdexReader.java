@@ -13,6 +13,7 @@
  */
  package com.indeed.flamdex.simple;
 
+import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -30,7 +31,6 @@ import com.indeed.flamdex.utils.FlamdexUtils;
 import com.indeed.imhotep.io.caching.CachedFile;
 
 import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -110,7 +110,7 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader implements RawFla
         return getIntTermIterator(field, false);
     }
 
-    private SimpleIntTermIterator getIntTermIterator(String field, boolean unsorted) {
+    private SimpleIntTermIterator getIntTermIterator(final String field, boolean unsorted) {
         final String termsFilename = CachedFile.buildPath(directory, SimpleIntFieldWriter.getTermsFilename(field));
         final String docsFilename = CachedFile.buildPath(directory, SimpleIntFieldWriter.getDocsFilename(field));
         if (CachedFile.create(termsFilename).length() == 0L) {
@@ -120,7 +120,14 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader implements RawFla
                 if(unsorted) {
                     return new UnsortedStringToIntTermIterator(stringTermIterator);
                 } else {
-                    return new StringToIntTermIterator(stringTermIterator, this, field);
+                    final Supplier<SimpleStringTermIterator> stringTermIteratorSupplier =
+                        new Supplier<SimpleStringTermIterator>() {
+                            @Override
+                            public SimpleStringTermIterator get() {
+                                return getStringTermIterator(field);
+                            }
+                        };
+                    return new StringToIntTermIterator(stringTermIterator, stringTermIteratorSupplier);
                 }
             }
 

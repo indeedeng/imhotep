@@ -1,5 +1,7 @@
 package com.indeed.flamdex.simple;
 
+import com.google.common.base.Supplier;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -12,20 +14,17 @@ import java.util.PriorityQueue;
 
 public class StringToIntTermIterator implements SimpleIntTermIterator  {
     private final SimpleStringTermIterator stringTermIterator;
-    private final SimpleFlamdexReader simpleFlamdexReader;
-    private final String field;
+    private final Supplier<SimpleStringTermIterator> stringTermIteratorSupplier;
     private final String filename;
 
     /**
      * @param stringTermIterator initial iterator used for initialization
-     * @param simpleFlamdexReader used to create new SimpleStringTermIterator instances to have multiple iteration cursors in parallel
-     * @param field name of the field being iterated over
+     * @param stringTermIteratorSupplier used to create new SimpleStringTermIterator instances to have multiple iteration cursors in parallel
      */
     public StringToIntTermIterator(
-            SimpleStringTermIterator stringTermIterator, SimpleFlamdexReader simpleFlamdexReader, String field) {
+            SimpleStringTermIterator stringTermIterator, Supplier<SimpleStringTermIterator> stringTermIteratorSupplier) {
         this.stringTermIterator = stringTermIterator;
-        this.simpleFlamdexReader = simpleFlamdexReader;
-        this.field = field;
+        this.stringTermIteratorSupplier = stringTermIteratorSupplier;
         this.filename = stringTermIterator.getFilename();
     }
 
@@ -54,19 +53,17 @@ public class StringToIntTermIterator implements SimpleIntTermIterator  {
     }
 
     static class Prefix implements Comparable<Prefix> {
-        final SimpleFlamdexReader reader;
-        final String field;
         final String firstTerm;
         final int length;
         final char prefix;
+        private final Supplier<SimpleStringTermIterator> stringTermIteratorSupplier;
 
         SimpleStringTermIterator termEnum;
         boolean endOfStream = false;
         long val;
 
-        public Prefix(final SimpleFlamdexReader reader, final String field, final String firstTerm) {
-            this.reader = reader;
-            this.field = field;
+        public Prefix(final Supplier<SimpleStringTermIterator> stringTermIteratorSupplier, final String firstTerm) {
+            this.stringTermIteratorSupplier = stringTermIteratorSupplier;
             this.prefix = firstTerm.charAt(0);
             this.length = firstTerm.length();
             this.firstTerm = firstTerm;
@@ -85,7 +82,7 @@ public class StringToIntTermIterator implements SimpleIntTermIterator  {
         }
 
         private void initialize() {
-            termEnum = reader.getStringTermIterator(field);
+            termEnum = stringTermIteratorSupplier.get();
             termEnum.reset(firstTerm);
             if (!termEnum.next() || !firstTerm.equals(termEnum.term())) {
                 throw new RuntimeException("Serious bug detected, term was "+termEnum.term()+", expected "+firstTerm);
@@ -177,7 +174,7 @@ public class StringToIntTermIterator implements SimpleIntTermIterator  {
             final int x = intPrefix.length()-1;
             final int y = intPrefix.charAt(0)-'0';
             if (firstTerm[x][y] != null) {
-                ret.add(new Prefix(simpleFlamdexReader, field, firstTerm[x][y]));
+                ret.add(new Prefix(stringTermIteratorSupplier, firstTerm[x][y]));
                 firstTerm[x][y] = null;
             }
         }
