@@ -2,7 +2,7 @@
 #define GROUP_MULTI_REMAP_RULE_HPP
 
 #include <cstdint>
-#include <iostream>
+#include <ostream>
 #include <utility>
 #include <vector>
 

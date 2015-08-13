@@ -1,3 +1,5 @@
+#include "gcc_preinclude.h"
+
 #include <algorithm>
 #include <iostream>
 #include <limits>
@@ -21,7 +23,7 @@ int main(int argc, char *argv[])
     int_terms.push_back(field_name);
     const Shard shard(argv[1], int_terms, str_terms);
 
-    IntTermIterator it(shard, field_name);
+    IntTermIterator it(shard.term_view<IntTerm>(field_name));
     IntTermIterator end;
     cout << " *it = " << *it << endl;
     cout << "*end = " << *end << endl;

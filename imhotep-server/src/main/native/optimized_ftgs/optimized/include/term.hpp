@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <cstring>
 #include <functional>
-#include <iostream>
+#include <ostream>
 #include <iterator.hpp>
 #include <sstream>
 #include <string>

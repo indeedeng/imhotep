@@ -32,8 +32,6 @@ namespace imhotep {
 
     private:
         const std::vector<Shard>        _shards;
-        const std::vector<std::string>& _int_fieldnames;
-        const std::vector<std::string>& _string_fieldnames;
         const TermProviders<IntTerm>    _int_term_providers;
         const TermProviders<StringTerm> _string_term_providers;
         const size_t                    _num_splits;

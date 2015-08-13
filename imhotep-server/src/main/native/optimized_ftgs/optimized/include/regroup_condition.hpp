@@ -2,7 +2,7 @@
 #define REGROUP_CONDITION
 
 #include <cstdint>
-#include <iostream>
+#include <ostream>
 #include <string>
 
 namespace imhotep {

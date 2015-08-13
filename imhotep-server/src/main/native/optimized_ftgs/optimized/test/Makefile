@@ -1,18 +1,18 @@
 MODE=opt
 
-CC=/usr/bin/gcc-4.4
-CPP=/usr/bin/g++-4.4
-BASE_CFLAGS=-Wall -Werror -I./include -I../include  -std=gnu99 -msse4.2 -fPIC -flax-vector-conversions -fno-omit-frame-pointer
-BASE_CPPFLAGS=-Wall -Werror -I./include -I../include -I/usr/include/boost -msse4.2 -std=c++0x -fPIC
+CC=/usr/bin/gcc-4.9
+CPP=/usr/bin/g++-4.9
+BASE_CFLAGS=-Wall -Werror -I./include -I../include  -std=gnu99 -msse4.2 -fPIC -flax-vector-conversions -fno-omit-frame-pointer -flto
+BASE_CPPFLAGS=-Wall -Werror -I./include -I../include -I/usr/include/boost -msse4.2 -std=c++11 -fPIC -flto
 
 DBG_CFLAGS= -g
 OPT_CFLAGS= -g -O3 -funroll-loops
 
 DBG_CPPFLAGS= -g
-OPT_CPPFLAGS= -g -O3 -funroll-loops -fno-omit-frame-pointer -fvisibility=hidden
+OPT_CPPFLAGS= -g -std=c++11 -O3 -funroll-loops -fno-omit-frame-pointer -fvisibility=hidden
 
 DBG_LFLAGS= -g
-OPT_LFLAGS= -O3
+OPT_LFLAGS= -static-libgcc -static-libstdc++ -O3 -flto -flto-partition=none
 
 ifeq ($(MODE),opt)
 	CFLAGS=$(OPT_CFLAGS) $(BASE_CFLAGS)
@@ -30,7 +30,8 @@ LIBS=\
 	-lboost_system          \
 	-lprofiler              \
 	-lyaml-cpp              \
-	-lm -lstdc++
+	-lm                     \
+#	-lm -lstdc++
 
 TESTS := \
 	packed_tree_perf_test     \
@@ -77,7 +78,7 @@ test_split_iterator: obj/test_split_iterator.o ../cppobj/log.o
 	$(CPP) $(CPPFLAGS) $ -o test_split_iterator $(LIBS) $^
 
 test_int_term_iterator: obj/test_int_term_iterator.o ../cppobj/shard.o ../cppobj/term_iterator.o
-	$(CPP) $(CPPFLAGS) $ -o test_int_term_iterator $(LIBS) $^
+	$(CPP) $(CPPFLAGS) $ -o test_int_term_iterator $(LFLAGS) $(LIBS) $^
 
 test_string_term_iterator: obj/test_string_term_iterator.o ../cppobj/shard.o ../cppobj/term_iterator.o
 	$(CPP) $(CPPFLAGS) $ -o test_string_term_iterator $(LIBS) $^
