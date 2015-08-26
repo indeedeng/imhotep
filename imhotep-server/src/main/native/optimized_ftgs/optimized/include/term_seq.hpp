@@ -87,8 +87,6 @@ namespace imhotep {
 
     template <typename term_t>
     size_t TermSeq<term_t>::size() const {
-        assert(docid_addresses().size() == doc_freqs().size());
-        assert(docid_addresses().size() == tables().size());
         return docid_addresses().size();
     }
 

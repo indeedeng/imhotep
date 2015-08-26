@@ -2,11 +2,10 @@
 #define SPLITTER_HPP
 
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
-#include <fstream>
 #include <limits>
 #include <map>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 
@@ -46,7 +45,22 @@ namespace imhotep {
         void run();
 
     private:
-        void encode(std::ostream& os, const term_t& term);
+        void write_string(FILE* file, const char* data, size_t length) const {
+            if (fwrite(reinterpret_cast<const void*>(data),
+                       sizeof(char), length, file) != length) {
+                throw imhotep_error("write failed");
+            }
+        }
+
+        template <typename T>
+        void write_item(FILE* file, const T& item) const {
+            if (fwrite(reinterpret_cast<const void*>(&item),
+                       sizeof(T), 1, file) != 1) {
+                throw imhotep_error("write failed");
+            }
+        }
+
+        void encode(FILE* file, const term_t& term) const ;
 
         Shard           _shard;
         std::string     _splits_dir;
@@ -89,29 +103,34 @@ namespace imhotep {
     template <typename term_t>
     void Splitter<term_t>::run()
     {
-        std::vector<std::ofstream*> split_files;
+        std::vector<FILE*> split_files;
         for (SplitNumToField::const_iterator split_it(splits().begin());
              split_it != splits().end(); ++split_it) {
             const std::pair<size_t, std::string>& kv(*split_it);
             const std::string filename(_shard.split_filename(splits_dir(), kv.second, kv.first));
-            split_files.push_back(new std::ofstream(filename.c_str(),
-                                                    std::ios::binary | std::ios::out | std::ios::trunc));
+            FILE* file(fopen(filename.c_str(), "w"));
+            if (!file) {
+                throw imhotep_error("cannot create split file");
+            }
+            split_files.push_back(file);
         }
 
         term_iterator_t it(_term_iterator);
         term_iterator_t end;
         while (it != end) {
-            const size_t   hash_val(it->hash());
-            const size_t   split(hash_val % _splits.size());
-            std::ofstream& of(*split_files[split]);
-            const term_t&  term(*it);
-            encode(of, term);
+            const size_t  hash_val(it->hash());
+            const size_t  split(hash_val % _splits.size());
+            FILE*         file(split_files[split]);
+            const term_t& term(*it);
+            encode(file, term);
             ++it;
         }
 
-        for (std::vector<std::ofstream*>::iterator ofit(split_files.begin());
-             ofit != split_files.end(); ++ofit) {
-            delete *ofit;
+        for (std::vector<FILE*>::iterator file_it(split_files.begin());
+             file_it != split_files.end(); ++file_it) {
+            if (fclose(*file_it) == -1) {
+                throw imhotep_error("close() failed for split file"); // !@#
+            }
         }
     }
 

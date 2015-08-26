@@ -41,7 +41,7 @@ namespace imhotep {
 
         const std::string& dir() const { return _dir; }
 
-        const packed_table_ptr table() const { return _table; }
+        packed_table_ptr table() const { return _table; }
 
         template <typename term_t>
         VarIntView term_view(const std::string& field) const;

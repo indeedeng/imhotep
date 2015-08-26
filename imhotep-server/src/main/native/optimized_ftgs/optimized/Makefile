@@ -1,22 +1,22 @@
 MODE=opt
 
 IDIR=include
-CC=/usr/bin/gcc-4.9
-CPP=/usr/bin/g++-4.9
+CC=gcc
+CPP=g++
 JNI_HEADER_LOC=$(JAVA_HOME)/include
 JNI_HEADER_LOC2=$(JNI_HEADER_LOC)/linux
-BASE_CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu99 -msse4.2 -fPIC -flax-vector-conversions
-BASE_CPPFLAGS=-Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -I/usr/include/boost -msse4.2 -std=c++0x -fPIC
+BASE_CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu99 -msse4.2 -fPIC -flax-vector-conversions -fno-omit-frame-pointer
+BASE_CPPFLAGS=-Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -I/usr/include/boost -msse4.2 -std=c++11 -fPIC -fno-omit-frame-pointer
 BASE_LFLAGS= -shared  -fno-omit-frame-pointer
 
 DBG_CFLAGS= -g -fno-omit-frame-pointer
-OPT_CFLAGS= -g -O3  -flto
+OPT_CFLAGS= -g -O3  # -flto
 
 DBG_CPPFLAGS= -g -fno-omit-frame-pointer
-OPT_CPPFLAGS= -g -O3  -flto
+OPT_CPPFLAGS= -g -O3 # -flto
 
 DBG_LFLAGS= -g -fsanitize=address -fno-omit-frame-pointer
-OPT_LFLAGS= -g -O3  -flto -flto-partition=none
+OPT_LFLAGS= -g -O3 # -flto-partition=none -flto 
 
 ifeq ($(MODE),opt)
 	CFLAGS=$(OPT_CFLAGS) $(BASE_CFLAGS)

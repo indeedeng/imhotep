@@ -7,7 +7,6 @@
 #include <cstring>
 #include <functional>
 #include <ostream>
-#include <iterator.hpp>
 #include <sstream>
 #include <string>
 
@@ -33,25 +32,26 @@ namespace imhotep {
         static std::string index_file_extension();
     };
 
+#pragma pack(push, 1)
     template <typename id_type>
     class Term {
-        id_type _id;
         int64_t _doc_offset;
         int32_t _doc_freq;
+        id_type _id;
 
     public:
         typedef id_type id_t;
 
         Term()
-            : _id(IdTraits<id_type>::default_value())
-            , _doc_offset(0)
+            : _doc_offset(0)
             , _doc_freq(0)
+            , _id(IdTraits<id_type>::default_value())
         { }
 
         explicit Term(const id_type& id, int64_t doc_offset, int32_t doc_freq)
-            : _id(id)
-            , _doc_offset(doc_offset)
+            : _doc_offset(doc_offset)
             , _doc_freq(doc_freq)
+            , _id(id)
         { }
 
         const id_type& id() const { return _id; }
@@ -78,6 +78,7 @@ namespace imhotep {
 
         size_t hash() const { return 0; }
     };
+#pragma pack(pop)
 
     typedef Term<int64_t>     IntTerm;
     typedef Term<StringRange> StringTerm;

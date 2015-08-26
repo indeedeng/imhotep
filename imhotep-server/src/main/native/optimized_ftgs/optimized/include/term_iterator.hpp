@@ -1,7 +1,6 @@
 #ifndef TERM_ITERATOR_HPP
 #define TERM_ITERATOR_HPP
 
-#include <cassert>
 #include <cstring>
 #include <memory>
 #include <cstdint>

@@ -1,15 +1,12 @@
 #ifndef VAR_INT_VIEW_HPP
 #define VAR_INT_VIEW_HPP
 
-#include <cassert>
-
 #include "imhotep_error.hpp"
 #include "mmapped_file.hpp"
 
 namespace imhotep {
 
-    class VarIntView
-    {
+    class VarIntView {
     public:
         VarIntView(const char* begin=0, const char* end=0)
             : _begin(begin) , _end(end)
@@ -25,7 +22,6 @@ namespace imhotep {
         bool empty() const { return _begin >= _end; }
 
         uint8_t read() {
-            assert(!empty());
             const char result(empty() ? -1 : *_begin);
             ++_begin;
             return result;

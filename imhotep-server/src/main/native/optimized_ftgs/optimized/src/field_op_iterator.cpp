@@ -46,7 +46,6 @@ namespace imhotep {
             }
             break;
         case TGS:
-            //            ++_merge_current;   // !@# this seems dubious!!!
             if (_merge_current != _merge_end) {
                 _operation.tgs(_merge_current);
             }

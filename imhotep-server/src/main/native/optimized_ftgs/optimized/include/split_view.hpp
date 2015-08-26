@@ -31,42 +31,21 @@ namespace imhotep {
 
         template <typename T>
         T read() {
-
-            if (empty()) return T();
-            check_size(sizeof(T));
-
             const T* result(reinterpret_cast<const T*>(_begin));
             _begin += sizeof(T);
             return T(*result);
         }
 
         StringRange read_bytes(size_t length) {
-            check_size(length);
             const char* old_begin(_begin);
             _begin += length;
             return StringRange(old_begin, _begin);
         }
 
     private:
-        void check_size(size_t size) {
-            /* Note that this class maintains the invariant that _begin <= _end,
-               therefore we need not worry about negative distances below. */
-            if (_begin + size > _end) {
-                std::ostringstream os;
-                os << __FUNCTION__ << " error"
-                   << " _begin: " << (void*) _begin
-                   << " _end: " << (void*) _end
-                   << " (_end - _begin): " << (_end - _begin)
-                   << " size: " << size
-                   << " value: " << _begin;
-                throw imhotep_error(os.str());
-            }
-        }
-
         const char* _begin;
         const char* _end;
     };
-
 
     template<>
     inline
