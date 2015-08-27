@@ -61,7 +61,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class ImhotepDaemon {
+public class ImhotepDaemon implements Instrumentation.Provider {
     private static final Logger log = Logger.getLogger(ImhotepDaemon.class);
 
     private final ServerSocket ss;
@@ -74,6 +74,9 @@ public class ImhotepDaemon {
 
     private volatile boolean isStarted = false;
 
+    private Instrumentation.ProviderSupport instrumentation =
+        new Instrumentation.ProviderSupport();
+
     public ImhotepDaemon(ServerSocket ss, ImhotepServiceCore service, String zkNodes, String zkPath, String hostname, int port) {
         this.ss = ss;
         this.service = service;
@@ -85,6 +88,14 @@ public class ImhotepDaemon {
             }
         });
         zkWrapper = zkNodes != null ? new ServiceZooKeeperWrapper(zkNodes, hostname, port, zkPath) : null;
+    }
+
+    public void addObserver(final String event, final Instrumentation.Observer observer) {
+        instrumentation.addObserver(event, observer);
+    }
+
+    public void removeObserver(final String event, final Instrumentation.Observer observer) {
+        instrumentation.removeObserver(event, observer);
     }
 
     public void run() {
@@ -210,6 +221,7 @@ public class ImhotepDaemon {
                             NDC.push(sessionId);
                             responseBuilder.setSessionId(sessionId);
                             sendResponse(responseBuilder.build(), os);
+                            instrumentation.fire(new OpenSessionEvent(protoRequest));
                             break;
                         case CLOSE_SESSION:
                             service.handleCloseSession(protoRequest.getSessionId());
