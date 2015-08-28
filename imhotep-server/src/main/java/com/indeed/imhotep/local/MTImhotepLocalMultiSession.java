@@ -278,18 +278,6 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         }
     }
 
-    private native void nativeFTGS(final String[] shardDirs,
-                                   final long[]   packedTablePtrs,
-                                   final boolean  onlyBinaryMetrics,
-                                   final String[] intFields,
-                                   final String[] stringFields,
-                                   final String   splitsDir,
-                                   final int      numGroups,
-                                   final int      numStats,
-                                   final int      numSplits,
-                                   final int      numWorkers,
-                                   final int[]    socketFDs);
-
     private String[] getShardDirs(final FlamdexReader[] readers) {
         final String[] shardDirs = new String[readers.length];
 
@@ -331,6 +319,22 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         return shardDirs;
     }
 
+    private static class NativeFTGSRunnable {
+        String[] shardDirs;
+        long[]   packedTablePtrs;
+        boolean  onlyBinaryMetrics;
+        String[] intFields;
+        String[] stringFields;
+        String   splitsDir;
+        int      numGroups;
+        int      numStats;
+        int      numSplits;
+        int      numWorkers;
+        int[]    socketFDs;
+
+        native void run();
+    }
+
     private void runNativeFTGS(final FlamdexReader[] readers,
                                final MultiCache[]    nativeCaches,
                                final boolean         onlyBinaryMetrics,
@@ -340,16 +344,26 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                                final int             numStats,
                                final int             numSplits,
                                final Socket[]        sockets) {
-        String[] shardDirs = getShardDirs(readers);
+        final NativeFTGSRunnable context = new NativeFTGSRunnable();
 
-        long[] packedTablePtrs = new long[nativeCaches.length];
+        context.shardDirs = getShardDirs(readers);
+
+        context.packedTablePtrs = new long[nativeCaches.length];
         for (int index = 0; index < nativeCaches.length; ++index) {
-            packedTablePtrs[index] = nativeCaches[index].getNativeAddress();
+            context.packedTablePtrs[index] = nativeCaches[index].getNativeAddress();
         }
 
-        final String splitsDir     = System.getProperty("java.io.tmpdir", "/dev/null");
+        context.onlyBinaryMetrics = onlyBinaryMetrics;
+        context.intFields         = intFields;
+        context.stringFields      = stringFields;
+        context.splitsDir         = System.getProperty("java.io.tmpdir", "/dev/null");
+        context.numGroups         = numGroups;
+        context.numStats          = numStats;
+        context.numSplits         = numSplits;
+
         final String numWorkersStr = System.getProperty("imhotep.ftgs.num.workers", "8");
         final int    numWorkers    = Integer.parseInt(numWorkersStr);
+        context.numWorkers         = numWorkers;
 
         java.util.ArrayList<Integer> socketFDArray = new java.util.ArrayList<Integer>();
         for (final Socket socket: sockets) {
@@ -358,14 +372,11 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                 socketFDArray.add(fd);
             }
         }
-        int[] socketFDs = new int[socketFDArray.size()];
-        for (int index = 0; index < socketFDs.length; ++index) {
-            socketFDs[index] = socketFDArray.get(index);
+        context.socketFDs = new int[socketFDArray.size()];
+        for (int index = 0; index < context.socketFDs.length; ++index) {
+            context.socketFDs[index] = socketFDArray.get(index);
         }
 
-        nativeFTGS(shardDirs, packedTablePtrs, onlyBinaryMetrics,
-                   intFields, stringFields, splitsDir,
-                   numGroups, numStats, numSplits, numWorkers,
-                   socketFDs);
+        context.run();
     }
 }

@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "binder.hpp"
 #include "executor_service.hpp"
 #include "ftgs_runner.hpp"
 #include "log.hpp"
@@ -58,7 +59,8 @@ namespace imhotep {
         jsize                   valuesSize(env->GetArrayLength(values));
         std::vector<value_type> result(valuesSize);
         for (jsize index(0); index < valuesSize; ++index) {
-            result[index] = from_java<jobject, value_type>(env, env->GetObjectArrayElement(values, index));
+            result[index] =
+                from_java<jobject, value_type>(env, env->GetObjectArrayElement(values, index));
         }
         return result;
     }
@@ -99,56 +101,109 @@ namespace imhotep {
 
 using namespace imhotep;
 
-/*
- * Class:     com_indeed_imhotep_local_MTImhotepLocalMultiSession
- * Method:    nativeFTGS
- * Signature: ([Ljava/lang/String;[JZ[Ljava/lang/String;[Ljava/lang/String;Ljava/lang/String;IIII[I)V
- */
-JNIEXPORT void JNICALL
-Java_com_indeed_imhotep_local_MTImhotepLocalMultiSession_nativeFTGS(JNIEnv*      env,
-                                                                    jobject      mtImhotepLocalMultiSession,
-                                                                    jobjectArray shardDirs,
-                                                                    jlongArray   packedTablePtrs,
-                                                                    jboolean     onlyBinaryMetrics,
-                                                                    jobjectArray intFields,
-                                                                    jobjectArray strFields,
-                                                                    jstring      splitsDir,
-                                                                    jint         numGroups,
-                                                                    jint         numStats,
-                                                                    jint         numSplits,
-                                                                    jint         numWorkers,
-                                                                    jintArray    socketFDs)
-{
-    try {
-        const strvec_t shard_dirs(from_java_array<std::string>(env, shardDirs));
-        const strvec_t int_fields(from_java_array<std::string>(env, intFields));
-        const strvec_t str_fields(from_java_array<std::string>(env, strFields));
+class NativeFTGSRunnable : public Binder {
+public:
+    NativeFTGSRunnable(JNIEnv* env)
+        : Binder(env, "com/indeed/imhotep/local/MTImhotepLocalMultiSession$NativeFTGSRunnable")
+        , _shardDirs(field_id_for("shardDirs", "[Ljava/lang/String;"))
+        , _packedTablePtrs(field_id_for("packedTablePtrs", "[J"))
+        , _onlyBinaryMetrics(field_id_for("onlyBinaryMetrics", "Z"))
+        , _intFields(field_id_for("intFields", "[Ljava/lang/String;"))
+        , _stringFields(field_id_for("stringFields", "[Ljava/lang/String;"))
+        , _splitsDir(field_id_for("splitsDir", "Ljava/lang/String;"))
+        , _numGroups(field_id_for("numGroups", "I"))
+        , _numStats(field_id_for("numStats", "I"))
+        , _numSplits(field_id_for("numSplits", "I"))
+        , _numWorkers(field_id_for("numWorkers", "I"))
+        , _socketFDs(field_id_for("socketFDs", "[I"))
+    { }
 
-        const std::vector<table_ptr> table_ptrs(from_java_array<table_ptr>(env, packedTablePtrs));
-        die_if(shard_dirs.size() != table_ptrs.size(), "shard_dirs.size() != table_ptrs.size()");
+    void run(jobject obj) {
+        jobjectArray shardDirs(object_field<jobjectArray>(obj, _shardDirs));
+        jlongArray   packedTablePtrs(object_field<jlongArray>(obj, _packedTablePtrs));
+        jboolean     onlyBinaryMetrics(env()->GetBooleanField(obj, _onlyBinaryMetrics));
+        jobjectArray intFields(object_field<jobjectArray>(obj, _intFields));
+        jobjectArray stringFields(object_field<jobjectArray>(obj, _stringFields));
+        jstring      splitsDir(object_field<jstring>(obj, _splitsDir));
+        jint         numGroups(env()->GetIntField(obj, _numGroups));
+        jint         numStats(env()->GetIntField(obj, _numStats));
+        jint         numSplits(env()->GetIntField(obj, _numSplits));
+        jint         numWorkers(env()->GetIntField(obj, _numWorkers));
+        jintArray    socketFDs(object_field<jintArray>(obj, _socketFDs));
+        run(shardDirs, packedTablePtrs, onlyBinaryMetrics, intFields, stringFields,
+            splitsDir, numGroups, numStats, numSplits, numWorkers, socketFDs);
+    }
+
+private:
+    void run(jobjectArray shardDirs,
+             jlongArray   packedTablePtrs,
+             jboolean     onlyBinaryMetrics,
+             jobjectArray intFields,
+             jobjectArray strFields,
+             jstring      splitsDir,
+             jint         numGroups,
+             jint         numStats,
+             jint         numSplits,
+             jint         numWorkers,
+             jintArray    socketFDs) {
+
+        const strvec_t shard_dirs(from_java_array<std::string>(env(), shardDirs));
+        const strvec_t int_fields(from_java_array<std::string>(env(), intFields));
+        const strvec_t str_fields(from_java_array<std::string>(env(), strFields));
+
+        const std::vector<table_ptr> table_ptrs
+            (from_java_array<table_ptr>(env(), packedTablePtrs));
+        die_if(shard_dirs.size() != table_ptrs.size(),
+               "shard_dirs.size() != table_ptrs.size()");
 
         std::vector<Shard> shards;
         for (size_t index(0); index < shard_dirs.size(); ++index) {
-            shards.push_back(Shard(shard_dirs[index], int_fields, str_fields, table_ptrs[index]));
+            shards.push_back(Shard(shard_dirs[index],
+                                   int_fields, str_fields,
+                                   table_ptrs[index]));
         }
 
-        const std::string splits_dir(from_java<jstring, std::string>(env, splitsDir));
-        const size_t      num_splits(from_java<jint, size_t>(env, numSplits));
-        const size_t      num_workers(from_java<jint, size_t>(env, numWorkers));
+        const std::string splits_dir(from_java<jstring, std::string>(env(), splitsDir));
+        const size_t      num_splits(from_java<jint, size_t>(env(), numSplits));
+        const size_t      num_workers(from_java<jint, size_t>(env(), numWorkers));
 
         ExecutorService executor;
         FTGSRunner runner(shards, int_fields, str_fields, splits_dir,
                           num_splits, num_workers, executor);
 
-        const int        num_groups(from_java<jint, int>(env, numGroups));
-        const int        num_metrics(from_java<jint, int>(env, numStats));
-        std::vector<int> socket_fds(from_java_array<int>(env, socketFDs));
-        const bool       only_binary_metrics(from_java<jboolean, bool>(env, onlyBinaryMetrics));
+        const int        num_groups(from_java<jint, int>(env(), numGroups));
+        const int        num_metrics(from_java<jint, int>(env(), numStats));
+        std::vector<int> socket_fds(from_java_array<int>(env(), socketFDs));
 
-        runner.run(num_groups, num_metrics, only_binary_metrics, shards[0].table(), socket_fds);
+        const bool only_binary_metrics(from_java<jboolean, bool>(env(), onlyBinaryMetrics));
+
+        runner.run(num_groups, num_metrics, only_binary_metrics,
+                   shards[0].table(), socket_fds);
+    }
+
+    jfieldID _shardDirs, _packedTablePtrs, _onlyBinaryMetrics,
+        _intFields, _stringFields, _splitsDir,
+        _numGroups, _numStats, _numSplits, _numWorkers,
+        _socketFDs;
+};
+
+/*
+ * Class:     com_indeed_imhotep_local_MTImhotepLocalMultiSession_NativeFTGSRunnable
+ * Method:    run
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL
+Java_com_indeed_imhotep_local_MTImhotepLocalMultiSession_00024NativeFTGSRunnable_run
+(JNIEnv* env, jobject obj) {
+
+    try {
+        NativeFTGSRunnable runnable(env);
+        runnable.run(obj);
     }
     catch (const std::exception& ex) {
         jclass exClass = env->FindClass("java/lang/RuntimeException");
         env->ThrowNew(exClass, ex.what());
     }
+
 }
+
