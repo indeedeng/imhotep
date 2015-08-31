@@ -17,6 +17,7 @@ namespace imhotep {
 
     class OpenedFile {
     public:
+        /** Normal c-tor opens the file and optionally deletes it on close. */
         OpenedFile(const std::string& filename, bool delete_on_close=false)
             : _filename(filename)
             , _delete_on_close(delete_on_close)
@@ -28,7 +29,7 @@ namespace imhotep {
             }
 
             struct stat buf;
-            int rc(fstat(_fd, &buf));
+            const int rc(fstat(_fd, &buf));
             if (rc != 0) {
                 close(_fd);
                 if (_delete_on_close) {
@@ -39,10 +40,26 @@ namespace imhotep {
             _size = buf.st_size;
         }
 
+        /** For files already opened in Javaland, we just record the size. */
+        OpenedFile(const std::string& filename, int fd=-1)
+            : _filename(filename)
+            , _delete_on_close(false)
+            , _fd(fd)
+            , _size(0)  {
+            struct stat info;
+            if (stat(filename.c_str(), &info) != 0) {
+                throw imhotep_error("cannot stat file: " + filename +
+                                    " " + std::string(strerror(errno)));
+            }
+            _size = info.st_size;
+        }
+
         ~OpenedFile() {
-            close(_fd);
-            if (_delete_on_close) {
-                unlink(_filename.c_str());
+            if (_fd != -1) {
+                close(_fd);
+                if (_delete_on_close) {
+                    unlink(_filename.c_str());
+                }
             }
         }
 
@@ -64,7 +81,9 @@ namespace imhotep {
 
     class MMappedFile : public OpenedFile {
     public:
-        MMappedFile(const std::string& filename, bool delete_on_close=false)
+        MMappedFile(const std::string& filename,
+                    bool unmap_on_close=true,
+                    bool delete_on_close=false)
             : OpenedFile(filename, delete_on_close)
             , _address(mmap(0, size(), PROT_READ, MAP_PRIVATE | MAP_POPULATE, fd(), 0)) {
 
@@ -74,8 +93,13 @@ namespace imhotep {
             }
         }
 
+        MMappedFile(const std::string& filename, void* address)
+            : OpenedFile(filename, -1)
+            , _address(address)
+        { }
+
         ~MMappedFile() {
-            if (_address != reinterpret_cast<void*>(-1)) {
+            if (_unmap_on_close && _address != reinterpret_cast<void*>(-1)) {
                 munmap(_address, size());
             }
         }
@@ -88,8 +112,10 @@ namespace imhotep {
         }
 
         const char* end() const { return begin() + size(); }
+
     private:
-        void* _address;
+        void* _address        = 0;
+        bool  _unmap_on_close = false;
     };
 
 } // namespace imhotep

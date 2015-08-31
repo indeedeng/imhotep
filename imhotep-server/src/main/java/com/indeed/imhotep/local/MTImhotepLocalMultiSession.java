@@ -14,9 +14,11 @@
 package com.indeed.imhotep.local;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.io.ByteStreams;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.indeed.flamdex.api.FlamdexReader;
+import com.indeed.flamdex.simple.HasMapCache;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.MemoryReservationContext;
@@ -39,6 +41,8 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map.Entry;
+import java.util.Map;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CyclicBarrier;
@@ -190,9 +194,11 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                     for (int i = 0; i < sessions.length; i++) {
                         readers[i] = sessions[i].getReader();
                     }
-                    runNativeFTGS(readers, nativeCaches, onlyBinaryMetrics,
-                                  intFields, stringFields, getNumGroups(),
-                                  numStats, numSplits, ftgsOutputSockets);
+                    final NativeFTGSRunnable nativeRunnable =
+                        new NativeFTGSRunnable(readers, nativeCaches, onlyBinaryMetrics,
+                                               intFields, stringFields, getNumGroups(),
+                                               numStats, numSplits, ftgsOutputSockets);
+                    nativeRunnable.run();
                 }
         });
 
@@ -278,105 +284,133 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         }
     }
 
-    private String[] getShardDirs(final FlamdexReader[] readers) {
-        final String[] shardDirs = new String[readers.length];
-
-        class LoadDirThread extends Thread {
-            final int index;
-            LoadDirThread(final int index) { this.index = index; }
-            public void run() {
-                String shardDir = readers[index].getDirectory();
-                try {
-                    CachedFile cf        = CachedFile.create(shardDir);
-                    File       cachedDir = cf.loadDirectory();
-                    synchronized (shardDirs) {
-                        shardDirs[index] = cachedDir.getAbsolutePath();
-                    }
-                }
-                catch (IOException ex) {
-                    throw new RuntimeException(ex);
-                }
-            }
-        }
-
-        LoadDirThread[] threads = new LoadDirThread[readers.length];
-        try {
-            for (int index = 0; index < readers.length; ++index) {
-                threads[index] = new LoadDirThread(index);
-                threads[index].start();
-            }
-        }
-        finally {
-            for (int index = 0; index < readers.length; ++index) {
-                try {
-                    threads[index].join();
-                }
-                catch (InterruptedException ex) {
-                    // !@# handle more gracefully
-                }
-            }
-        }
-        return shardDirs;
-    }
-
     private static class NativeFTGSRunnable {
-        String[] shardDirs;
-        long[]   packedTablePtrs;
-        boolean  onlyBinaryMetrics;
-        String[] intFields;
-        String[] stringFields;
-        String   splitsDir;
-        int      numGroups;
-        int      numStats;
-        int      numSplits;
-        int      numWorkers;
-        int[]    socketFDs;
+
+        /* !@# Note that mappedFiles/mappedPtrs are maintained as parallel
+            arrays because accessing a map from within JNI would be painful to
+            say the least. */
+
+        final String[] shardDirs;
+        final String[] mappedFiles;
+        final long[]   mappedPtrs;
+        final long[]   packedTablePtrs;
+        final boolean  onlyBinaryMetrics;
+        final String[] intFields;
+        final String[] stringFields;
+        final String   splitsDir;
+        final int      numGroups;
+        final int      numStats;
+        final int      numSplits;
+        final int      numWorkers;
+        final int[]    socketFDs;
+
+        private Map<String, Long> combine(final FlamdexReader[] readers) {
+            final Map<String, Long> result = Maps.newHashMap();
+            for (final FlamdexReader reader: readers) {
+                if (reader instanceof HasMapCache) {
+                    ((HasMapCache) reader).getMapCache().getAddresses(result);
+                }
+            }
+            return result;
+        }
+
+        private void flatten(final Map<String, Long> mapCaches) {
+            int idx = 0;
+            for (Map.Entry<String, Long> entry: mapCaches.entrySet()) {
+                this.mappedFiles[idx] = entry.getKey();
+                this.mappedPtrs[idx]  = entry.getValue().longValue();
+                ++idx;
+            }
+        }
+
+        NativeFTGSRunnable(final FlamdexReader[] readers,
+                           final MultiCache[]    nativeCaches,
+                           final boolean         onlyBinaryMetrics,
+                           final String[]        intFields,
+                           final String[]        stringFields,
+                           final int             numGroups,
+                           final int             numStats,
+                           final int             numSplits,
+                           final Socket[]        sockets) {
+
+            this.shardDirs = getShardDirs(readers);
+
+            this.packedTablePtrs = new long[nativeCaches.length];
+            for (int index = 0; index < nativeCaches.length; ++index) {
+                this.packedTablePtrs[index] = nativeCaches[index].getNativeAddress();
+            }
+
+            Map<String, Long> mapCaches = combine(readers);
+            this.mappedFiles = new String[mapCaches.size()];
+            this.mappedPtrs  = new long[mapCaches.size()];
+            flatten(mapCaches);
+
+            this.onlyBinaryMetrics = onlyBinaryMetrics;
+            this.intFields         = intFields;
+            this.stringFields      = stringFields;
+            this.splitsDir         = System.getProperty("java.io.tmpdir", "/dev/null");
+            this.numGroups         = numGroups;
+            this.numStats          = numStats;
+            this.numSplits         = numSplits;
+
+            final String numWorkersStr = System.getProperty("imhotep.ftgs.num.workers", "8");
+            final int    numWorkers    = Integer.parseInt(numWorkersStr);
+            this.numWorkers         = numWorkers;
+
+            java.util.ArrayList<Integer> socketFDArray = new java.util.ArrayList<Integer>();
+            for (final Socket socket: sockets) {
+                final Integer fd = SocketUtils.getOutputDescriptor(socket);
+                if (fd >= 0) {
+                    socketFDArray.add(fd);
+                }
+            }
+            this.socketFDs = new int[socketFDArray.size()];
+            for (int index = 0; index < this.socketFDs.length; ++index) {
+                this.socketFDs[index] = socketFDArray.get(index);
+            }
+        }
 
         native void run();
-    }
 
-    private void runNativeFTGS(final FlamdexReader[] readers,
-                               final MultiCache[]    nativeCaches,
-                               final boolean         onlyBinaryMetrics,
-                               final String[]        intFields,
-                               final String[]        stringFields,
-                               final int             numGroups,
-                               final int             numStats,
-                               final int             numSplits,
-                               final Socket[]        sockets) {
-        final NativeFTGSRunnable context = new NativeFTGSRunnable();
+        private String[] getShardDirs(final FlamdexReader[] readers) {
+            final String[] shardDirs = new String[readers.length];
 
-        context.shardDirs = getShardDirs(readers);
-
-        context.packedTablePtrs = new long[nativeCaches.length];
-        for (int index = 0; index < nativeCaches.length; ++index) {
-            context.packedTablePtrs[index] = nativeCaches[index].getNativeAddress();
-        }
-
-        context.onlyBinaryMetrics = onlyBinaryMetrics;
-        context.intFields         = intFields;
-        context.stringFields      = stringFields;
-        context.splitsDir         = System.getProperty("java.io.tmpdir", "/dev/null");
-        context.numGroups         = numGroups;
-        context.numStats          = numStats;
-        context.numSplits         = numSplits;
-
-        final String numWorkersStr = System.getProperty("imhotep.ftgs.num.workers", "8");
-        final int    numWorkers    = Integer.parseInt(numWorkersStr);
-        context.numWorkers         = numWorkers;
-
-        java.util.ArrayList<Integer> socketFDArray = new java.util.ArrayList<Integer>();
-        for (final Socket socket: sockets) {
-            final Integer fd = SocketUtils.getOutputDescriptor(socket);
-            if (fd >= 0) {
-                socketFDArray.add(fd);
+            class LoadDirThread extends Thread {
+                final int index;
+                LoadDirThread(final int index) { this.index = index; }
+                public void run() {
+                    String shardDir = readers[index].getDirectory();
+                    try {
+                        CachedFile cf        = CachedFile.create(shardDir);
+                        File       cachedDir = cf.loadDirectory();
+                        synchronized (shardDirs) {
+                            shardDirs[index] = cachedDir.getAbsolutePath();
+                        }
+                    }
+                    catch (IOException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                }
             }
-        }
-        context.socketFDs = new int[socketFDArray.size()];
-        for (int index = 0; index < context.socketFDs.length; ++index) {
-            context.socketFDs[index] = socketFDArray.get(index);
-        }
 
-        context.run();
+            LoadDirThread[] threads = new LoadDirThread[readers.length];
+            try {
+                for (int index = 0; index < readers.length; ++index) {
+                    threads[index] = new LoadDirThread(index);
+                    threads[index].start();
+                }
+            }
+            finally {
+                for (int index = 0; index < readers.length; ++index) {
+                    try {
+                        threads[index].join();
+                    }
+                    catch (InterruptedException ex) {
+                        // !@# handle more gracefully
+                    }
+                }
+            }
+            return shardDirs;
+        }
     }
 }

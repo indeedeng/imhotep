@@ -10,9 +10,12 @@ namespace imhotep {
     Shard::Shard(const std::string&              dir,
                  const std::vector<std::string>& int_fields,
                  const std::vector<std::string>& str_fields,
-                 packed_table_ptr                table)
+                 packed_table_ptr                table,
+                 const MapCache&                 map_cache)
         : _dir(dir)
-        , _table(table) {
+        , _table(table)
+        , _map_cache(map_cache) {
+
         /* !@# force caching of views for now... */
         typedef std::vector<std::string>::const_iterator It;
         for (It it(int_fields.begin()); it != int_fields.end(); ++it) {
@@ -31,7 +34,11 @@ namespace imhotep {
                         FieldToMMappedFile& cache) const {
         FieldToMMappedFile::iterator it(cache.find(field));
         if (it == cache.end()) {
-            std::shared_ptr<MMappedFile> entry(std::make_shared<MMappedFile>(filename));
+            const MapCache::const_iterator mit(_map_cache.find(filename));
+            std::shared_ptr<MMappedFile> entry
+                (mit != _map_cache.end() ?
+                 std::make_shared<MMappedFile>(filename, mit->second) :
+                 std::make_shared<MMappedFile>(filename));
             it = cache.insert(std::make_pair(field, entry)).first;
         }
         return it->second;
