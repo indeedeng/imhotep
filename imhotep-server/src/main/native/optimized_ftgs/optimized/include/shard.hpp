@@ -4,6 +4,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #define restrict __restrict__
@@ -28,12 +29,20 @@ namespace imhotep {
             a C++ pointer idiom appropriate for such a case or I'd use it.) */
         typedef ::packed_table_ptr packed_table_ptr;
 
+        /** In Javaland, we maintain a cache of mmapped files, because according
+            to JeffP, mmapping the same file multiple times is inefficient. This
+            gets passed down to us through our JNI interface so that we can
+            leverage it in the native code. This should not be confused with the
+            per-field caches we maintain. */
+        typedef std::unordered_map<std::string, void*> MapCache;
+
         Shard() : _table(0) { }
 
         explicit Shard(const std::string&              dir,
                        const std::vector<std::string>& int_fields,
                        const std::vector<std::string>& str_fields,
-                       packed_table_ptr                table = packed_table_ptr());
+                       packed_table_ptr                table = packed_table_ptr(),
+                       const MapCache&                 map_cache=MapCache());
 
         Shard(const Shard& rhs) = default;
 
@@ -92,6 +101,7 @@ namespace imhotep {
 
         std::string      _dir;
         packed_table_ptr _table;
+        MapCache         _map_cache;
     };
 
 } // namespace imhotep

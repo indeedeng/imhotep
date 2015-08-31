@@ -106,6 +106,8 @@ public:
     NativeFTGSRunnable(JNIEnv* env)
         : Binder(env, "com/indeed/imhotep/local/MTImhotepLocalMultiSession$NativeFTGSRunnable")
         , _shardDirs(field_id_for("shardDirs", "[Ljava/lang/String;"))
+        , _mappedFiles(field_id_for("mappedFiles", "[Ljava/lang/String;"))
+        , _mappedPtrs(field_id_for("mappedPtrs", "[J"))
         , _packedTablePtrs(field_id_for("packedTablePtrs", "[J"))
         , _onlyBinaryMetrics(field_id_for("onlyBinaryMetrics", "Z"))
         , _intFields(field_id_for("intFields", "[Ljava/lang/String;"))
@@ -120,6 +122,8 @@ public:
 
     void run(jobject obj) {
         jobjectArray shardDirs(object_field<jobjectArray>(obj, _shardDirs));
+        jobjectArray mappedFiles(object_field<jobjectArray>(obj, _mappedFiles));
+        jlongArray   mappedPtrs(object_field<jlongArray>(obj, _mappedPtrs));
         jlongArray   packedTablePtrs(object_field<jlongArray>(obj, _packedTablePtrs));
         jboolean     onlyBinaryMetrics(env()->GetBooleanField(obj, _onlyBinaryMetrics));
         jobjectArray intFields(object_field<jobjectArray>(obj, _intFields));
@@ -130,12 +134,15 @@ public:
         jint         numSplits(env()->GetIntField(obj, _numSplits));
         jint         numWorkers(env()->GetIntField(obj, _numWorkers));
         jintArray    socketFDs(object_field<jintArray>(obj, _socketFDs));
-        run(shardDirs, packedTablePtrs, onlyBinaryMetrics, intFields, stringFields,
-            splitsDir, numGroups, numStats, numSplits, numWorkers, socketFDs);
+        run(shardDirs, mappedFiles, mappedPtrs, packedTablePtrs, onlyBinaryMetrics,
+            intFields, stringFields, splitsDir, numGroups, numStats, numSplits,
+            numWorkers, socketFDs);
     }
 
 private:
     void run(jobjectArray shardDirs,
+             jobjectArray mappedFiles,
+             jlongArray   mappedPtrs,
              jlongArray   packedTablePtrs,
              jboolean     onlyBinaryMetrics,
              jobjectArray intFields,
@@ -148,8 +155,19 @@ private:
              jintArray    socketFDs) {
 
         const strvec_t shard_dirs(from_java_array<std::string>(env(), shardDirs));
+        const strvec_t mapped_files(from_java_array<std::string>(env(), mappedFiles));
         const strvec_t int_fields(from_java_array<std::string>(env(), intFields));
         const strvec_t str_fields(from_java_array<std::string>(env(), strFields));
+
+        const std::vector<table_ptr> mapped_ptrs
+            (from_java_array<table_ptr>(env(), mappedPtrs));
+
+        die_if(mapped_files.size() != mapped_ptrs.size(),
+               "mapped_files.size() != mapped_ptrs.size()");
+        Shard::MapCache map_cache;
+        for (size_t idx(0); idx < mapped_files.size(); ++idx) {
+            map_cache[mapped_files[idx]] = reinterpret_cast<void*>(mapped_ptrs[idx]);
+        }
 
         const std::vector<table_ptr> table_ptrs
             (from_java_array<table_ptr>(env(), packedTablePtrs));
@@ -160,7 +178,7 @@ private:
         for (size_t index(0); index < shard_dirs.size(); ++index) {
             shards.push_back(Shard(shard_dirs[index],
                                    int_fields, str_fields,
-                                   table_ptrs[index]));
+                                   table_ptrs[index], map_cache));
         }
 
         const std::string splits_dir(from_java<jstring, std::string>(env(), splitsDir));
@@ -181,10 +199,9 @@ private:
                    shards[0].table(), socket_fds);
     }
 
-    jfieldID _shardDirs, _packedTablePtrs, _onlyBinaryMetrics,
-        _intFields, _stringFields, _splitsDir,
-        _numGroups, _numStats, _numSplits, _numWorkers,
-        _socketFDs;
+    jfieldID _shardDirs, _mappedFiles, _mappedPtrs, _packedTablePtrs,
+        _onlyBinaryMetrics, _intFields, _stringFields, _splitsDir,
+        _numGroups, _numStats, _numSplits, _numWorkers, _socketFDs;
 };
 
 /*
@@ -197,6 +214,11 @@ Java_com_indeed_imhotep_local_MTImhotepLocalMultiSession_00024NativeFTGSRunnable
 (JNIEnv* env, jobject obj) {
 
     try {
+        // !@# Consider a static unique_ptr to NativeFTGSRunnable that we
+        // initialize once. To do this, I believe we need to env->NewGlobalRef
+        // the jclass for NativeFTGSRunnable lest it get unloaded from under
+        // us. For now, this approach is simpler and one would hope not a
+        // serious bottleneck.
         NativeFTGSRunnable runnable(env);
         runnable.run(obj);
     }

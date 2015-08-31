@@ -47,7 +47,10 @@ import java.util.Set;
 /**
  * @author jsgroth
 */
-public class SimpleFlamdexReader extends AbstractFlamdexReader implements RawFlamdexReader {
+public class SimpleFlamdexReader
+    extends AbstractFlamdexReader
+    implements HasMapCache, RawFlamdexReader {
+
     private final Collection<String> intFields;
     private final Collection<String> stringFields;
     private final MapCache mapCache = new MapCache();
@@ -100,6 +103,8 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader implements RawFla
 
         return fields;
     }
+
+    public MapCache getMapCache() { return mapCache; }
 
     @Override
     public Collection<String> getIntFields() {
