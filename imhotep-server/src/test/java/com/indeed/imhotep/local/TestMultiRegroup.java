@@ -108,8 +108,9 @@ public class TestMultiRegroup extends TestCase {
 
     private int[] normalRegroup(GroupMultiRemapRule[] regroupRule)
         throws IOException, ImhotepOutOfMemoryException {
+        final SessionHistory history = new SessionHistory("normalRegroup");
         try (final SimpleFlamdexReader reader = SimpleFlamdexReader.open(shardDir.toString());
-             final ImhotepLocalSession session = new ImhotepJavaLocalSession(reader)) {
+             final ImhotepLocalSession session = new ImhotepJavaLocalSession(reader, history)) {
                 int[] result = new int[N_DOCS];
                 final FlamdexReader[]  readers = new FlamdexReader[] { reader };
                 session.regroup(regroupRule);
@@ -120,8 +121,10 @@ public class TestMultiRegroup extends TestCase {
 
     private int[] nativeRegroup(GroupMultiRemapRule[] regroupRule)
         throws IOException, ImhotepOutOfMemoryException {
+        final SessionHistory history = new SessionHistory("nativeRegroup");
         try (final SimpleFlamdexReader reader = SimpleFlamdexReader.open(shardDir.toString());
-             final ImhotepNativeLocalSession session = new ImhotepNativeLocalSession(reader)) {
+             final ImhotepNativeLocalSession session=
+             new ImhotepNativeLocalSession(reader, history)) {
                 int[] result                   = new int[N_DOCS];
                 final FlamdexReader[]  readers = new FlamdexReader[] { reader };
                 final MultiCacheConfig config  = new MultiCacheConfig();
@@ -133,7 +136,7 @@ public class TestMultiRegroup extends TestCase {
                 ImhotepLocalSession[] localSessions = new ImhotepLocalSession[] { session };
                 ImhotepMemoryPool memoryPool = new ImhotepMemoryPool(Long.MAX_VALUE);
                 final MTImhotepLocalMultiSession mtSession =
-                    new MTImhotepLocalMultiSession(localSessions,
+                    new MTImhotepLocalMultiSession(localSessions, history,
                                                    new MemoryReservationContext(memoryPool),
                                                    executor, theAtomicPunk, true);
                 mtSession.regroup(regroupRule);

@@ -26,6 +26,7 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.io.SocketUtils;
 import com.indeed.imhotep.io.caching.CachedFile;
+import com.indeed.imhotep.service.SessionHistoryIf;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 
@@ -94,6 +95,8 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     private final AtomicReference<CyclicBarrier> writeFTGSSplitBarrier = new AtomicReference<>();
     private Socket[] ftgsOutputSockets = new Socket[256];
 
+    private final  SessionHistoryIf sessionHistory;
+
     private final MemoryReservationContext memory;
 
     private final ExecutorService executor;
@@ -112,8 +115,21 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                                       final MemoryReservationContext memory,
                                       final ExecutorService executor,
                                       final AtomicLong tempFileSizeBytesLeft,
-                                      boolean useNativeFtgs) throws ImhotepOutOfMemoryException {
+                                      boolean useNativeFtgs)
+        throws ImhotepOutOfMemoryException {
+        this(sessions, new SessionHistory.Null(), memory, executor,
+             tempFileSizeBytesLeft, useNativeFtgs);
+    }
+
+    public MTImhotepLocalMultiSession(final ImhotepLocalSession[] sessions,
+                                      final SessionHistoryIf sessionHistory,
+                                      final MemoryReservationContext memory,
+                                      final ExecutorService executor,
+                                      final AtomicLong tempFileSizeBytesLeft,
+                                      boolean useNativeFtgs)
+        throws ImhotepOutOfMemoryException {
         super(sessions, tempFileSizeBytesLeft);
+        this.sessionHistory = sessionHistory;
         this.useNativeFtgs = useNativeFtgs;
         this.memory = memory;
         this.executor = executor;
@@ -178,6 +194,9 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                                        final int splitIndex,
                                        final int numSplits,
                                        final Socket socket) throws ImhotepOutOfMemoryException {
+
+        sessionHistory.onWriteFTGSIteratorSplit(intFields, stringFields);
+
         // save socket
         ftgsOutputSockets[splitIndex] = socket;
 

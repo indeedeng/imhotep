@@ -79,6 +79,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     protected FlamdexReader flamdexReader;
     protected SharedReference<FlamdexReader> flamdexReaderRef;
 
+    private final SessionHistoryIf sessionHistory;
+
     final MemoryReservationContext memory;
 
     GroupLookup docIdToGroup;
@@ -128,11 +130,15 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     private FTGSSplitter ftgsIteratorSplits;
-    public ImhotepLocalSession(final FlamdexReader flamdexReader) throws ImhotepOutOfMemoryException {
-        this(flamdexReader, new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), null);
+    public ImhotepLocalSession(final FlamdexReader flamdexReader,
+                               final SessionHistoryIf sessionHistory)
+        throws ImhotepOutOfMemoryException {
+        this(flamdexReader, sessionHistory,
+             new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), null);
     }
 
     public ImhotepLocalSession(final FlamdexReader flamdexReader,
+                               final SessionHistoryIf sessionHistory,
                                final MemoryReservationContext memory,
                                AtomicLong tempFileSizeBytesLeft)
         throws ImhotepOutOfMemoryException {
@@ -140,6 +146,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         constructorStackTrace = new Exception();
         flamdexReaderRef = SharedReference.create(flamdexReader);
         this.flamdexReader = flamdexReader;
+        this.sessionHistory = sessionHistory;
         this.memory = memory;
         this.numDocs = flamdexReader.getNumDocs();
 
@@ -155,6 +162,9 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         this.groupStats = new GroupStatCache(MAX_NUMBER_STATS, memory);
 
         this.statCommands = new ArrayList<String>();
+
+        this.sessionHistory.onCreate(flamdexReader);
+        // !@# Hook up statLookup to SessionHistory...
     }
 
     FlamdexReader getReader() {
@@ -201,6 +211,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     @Override
     public synchronized FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields) {
+        sessionHistory.onGetFTGSIterator(intFields, stringFields);
         return flamdexReader instanceof RawFlamdexReader ?
             new RawFlamdexFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields) :
             new FlamdexFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields);
@@ -365,6 +376,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     @Override
     public void writeFTGSIteratorSplit(String[] intFields, String[] stringFields,
                                        int splitIndex, int numSplits, Socket socket) {
+        sessionHistory.onWriteFTGSIteratorSplit(intFields, stringFields); // !@#
         throw new UnsupportedOperationException();
     }
 
@@ -1571,7 +1583,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             }
         } else {
             try {
-                // Temporary hack to allow transition from Lucene to Flamdex shards where the time metric has a different name
+                // Temporary hack to allow transition from Lucene to Flamdex
+                // shards where the time metric has a different name
                 if(statName.equals("time") && flamdexReader.getIntFields().contains("unixtime")) {
                     statName = "unixtime";
                 } else if(statName.equals("unixtime") && !flamdexReader.getIntFields().contains("unixtime")) {

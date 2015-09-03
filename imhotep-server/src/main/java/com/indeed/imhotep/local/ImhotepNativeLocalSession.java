@@ -16,6 +16,7 @@ package com.indeed.imhotep.local;
 import com.indeed.flamdex.api.*;
 import com.indeed.imhotep.*;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.service.SessionHistoryIf;
 
 import org.apache.log4j.Logger;
 
@@ -33,15 +34,30 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
 
     public ImhotepNativeLocalSession(final FlamdexReader flamdexReader)
         throws ImhotepOutOfMemoryException {
-        this(flamdexReader, new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), null);
+        this(flamdexReader, new SessionHistory.Null());
+    }
+
+    public ImhotepNativeLocalSession(final FlamdexReader flamdexReader,
+                                     final SessionHistoryIf sessionHistory)
+        throws ImhotepOutOfMemoryException {
+        this(flamdexReader, sessionHistory,
+             new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), null);
     }
 
     public ImhotepNativeLocalSession(final FlamdexReader flamdexReader,
                                      final MemoryReservationContext memory,
                                      AtomicLong tempFileSizeBytesLeft)
         throws ImhotepOutOfMemoryException {
+        this(flamdexReader, new SessionHistory.Null(), memory, tempFileSizeBytesLeft);
+    }
 
-        super(flamdexReader, memory, tempFileSizeBytesLeft);
+    public ImhotepNativeLocalSession(final FlamdexReader flamdexReader,
+                                     final SessionHistoryIf sessionHistory,
+                                     final MemoryReservationContext memory,
+                                     AtomicLong tempFileSizeBytesLeft)
+        throws ImhotepOutOfMemoryException {
+
+        super(flamdexReader, sessionHistory, memory, tempFileSizeBytesLeft);
 
         this.statLookup.addPropertyChangeListener(new PropertyChangeListener() {
                 public void propertyChange(PropertyChangeEvent e) {

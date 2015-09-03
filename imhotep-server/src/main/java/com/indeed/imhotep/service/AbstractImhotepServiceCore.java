@@ -15,6 +15,7 @@
 
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.util.core.Throwables2;
@@ -62,7 +63,13 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
 
     private final ExecutorService ftgsExecutor;
 
+    protected Map<String, SessionHistoryIf> sessionHistories = Maps.newHashMap();
+
     protected abstract SessionManager getSessionManager();
+
+    protected SessionHistoryIf getSessionHistory(String sessionId) {
+        return sessionHistories.get(sessionId);
+    }
 
     protected AbstractImhotepServiceCore() {
         ftgsExecutor = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setDaemon(true).setNameFormat("LocalImhotepServiceCore-FTGSWorker-%d").build());

@@ -11,7 +11,7 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.indeed.imhotep.service;
+package com.indeed.imhotep.service;
 
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
@@ -67,7 +67,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
     private final ServerSocket ss;
 
     private final ExecutorService executor;
-    private final ImhotepServiceCore service;
+    private final AbstractImhotepServiceCore service;
     private final ServiceZooKeeperWrapper zkWrapper;
 
     private final AtomicLong requestIdCounter = new AtomicLong(0);
@@ -77,7 +77,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
     private Instrumentation.ProviderSupport instrumentation =
         new Instrumentation.ProviderSupport();
 
-    public ImhotepDaemon(ServerSocket ss, ImhotepServiceCore service, String zkNodes, String zkPath, String hostname, int port) {
+    public ImhotepDaemon(ServerSocket ss, AbstractImhotepServiceCore service,
+                         String zkNodes, String zkPath, String hostname, int port) {
         this.ss = ss;
         this.service = service;
         executor = Executors.newCachedThreadPool(new ThreadFactory() {
@@ -221,7 +222,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                             NDC.push(sessionId);
                             responseBuilder.setSessionId(sessionId);
                             sendResponse(responseBuilder.build(), os);
-                            instrumentation.fire(new OpenSessionEvent(protoRequest));
+                            instrumentation.fire(new DaemonEvents.OpenSession(protoRequest));
                             break;
                         case CLOSE_SESSION:
                             service.handleCloseSession(protoRequest.getSessionId());
@@ -760,7 +761,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                           String cachingConfigFile,
                                           String zkNodes,
                                           String zkPath) throws IOException {
-        final ImhotepServiceCore localService;
+        final AbstractImhotepServiceCore localService;
 
         if (lazyLoadFiles) {
             CachedFile.initWithFile(cachingConfigFile, shardsDirectory.trim());
