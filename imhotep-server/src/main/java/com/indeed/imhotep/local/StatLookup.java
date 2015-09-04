@@ -15,45 +15,50 @@ package com.indeed.imhotep.local;
 
 import com.indeed.flamdex.api.IntValueLookup;
 
-import java.beans.PropertyChangeEvent;
-import java.beans.PropertyChangeListener;
-import java.beans.PropertyChangeSupport;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Intended exclusively for use by ImhotepLocalSession, hence package
- * private access for all operations. This is just a wrapper around an
- * array of IntValueLookups that fires a property change event
- * whenever a value it is changed. The event fired is always the same,
- * as more granular knowledge of changes is not useful in the context
- * of ImhotepLocalSession.
+ * Intended exclusively for use by ImhotepLocalSession, hence package private
+ * access for all operations. This is just a wrapper around an array of
+ * IntValueLookups that fires a property change event whenever a value it is
+ * changed. The event fired is always the same, as more granular knowledge of
+ * changes is not useful in the context of ImhotepLocalSession.
+ *
+ * To do: move numStats from ImhotepLocalSession to this class along with
+ * push()/pop() operations
  *
  * @author johnf
  */
 class StatLookup
 {
-    private final PropertyChangeSupport changeSupport = new PropertyChangeSupport(this);
-    private final PropertyChangeEvent   changeEvent   = new PropertyChangeEvent(this, "lookupChange", null, null);
+    interface Observer {
+        void onChange(final StatLookup statLookup, final int index);
+    }
 
+    private final List<Observer> observers = new ArrayList<Observer>();
+
+    private final String[]         names;
     private final IntValueLookup[] lookups;
 
     StatLookup(final int numLookups) {
+        this.names   = new String[numLookups];
         this.lookups = new IntValueLookup[numLookups];
     }
 
     int length() { return lookups.length; }
 
+    String getName(final int index) { return names[index]; }
     IntValueLookup get(final int index) { return lookups[index]; }
 
-    void set(final int index, final IntValueLookup lookup) {
+    void set(final int index, final String name, final IntValueLookup lookup) {
+        names[index]   = name;
         lookups[index] = lookup;
-        this.changeSupport.firePropertyChange(changeEvent);
+        for (Observer observer: observers) {
+            observer.onChange(this, index);
+        }
     }
 
-    void addPropertyChangeListener(PropertyChangeListener listener) {
-        this.changeSupport.addPropertyChangeListener(listener);
-    }
-
-    void removePropertyChangeListener(PropertyChangeListener listener) {
-        this.changeSupport.removePropertyChangeListener(listener);
-    }
+    void    addObserver(final Observer observer) { observers.add(observer);    }
+    void removeObserver(final Observer observer) { observers.remove(observer); }
 }

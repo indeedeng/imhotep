@@ -7,8 +7,6 @@ import java.util.Map;
 
 public class Instrumentation {
 
-    public static final String CLOSE_SESSION = "CLOSE_SESSION";
-
     static public class Event {
         private final String              type;
         private final Map<Object, Object> properties;

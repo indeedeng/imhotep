@@ -164,7 +164,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         this.statCommands = new ArrayList<String>();
 
         this.sessionHistory.onCreate(flamdexReader);
-        // !@# Hook up statLookup to SessionHistory...
+        this.statLookup.addObserver(new StatLookup.Observer() {
+                public void onChange(final StatLookup statLookup, final int index) {
+                    sessionHistory.onPushStat(statLookup.getName(index), statLookup.get(index));
+                }
+            });
     }
 
     FlamdexReader getReader() {
@@ -1345,27 +1349,27 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             if (split.length < 2) {
                 throw new IllegalArgumentException("invalid hasstr metric: " + statName);
             }
-            statLookup.set(numStats, hasStringTermFilter(split[0], split[1]));
+            statLookup.set(numStats, statName, hasStringTermFilter(split[0], split[1]));
         } else if (statName.startsWith("hasint ")) {
             final String s = statName.substring(7).trim();
             final String[] split = s.split(":", 2);
             if (split.length < 2) {
                 throw new IllegalArgumentException("invalid hasint metric: " + statName);
             }
-            statLookup.set(numStats, hasIntTermFilter(split[0], Integer.parseInt(split[1])));
+            statLookup.set(numStats, statName, hasIntTermFilter(split[0], Integer.parseInt(split[1])));
         } else if (statName.startsWith("regex ")) {
             final String s = statName.substring(6).trim();
             final String[] split = s.split(":", 2);
             if (split.length < 2) {
                 throw new IllegalArgumentException("invalid regex metric: " + statName);
             }
-            statLookup.set(numStats, hasRegexFilter(split[0], split[1]));
+            statLookup.set(numStats, statName, hasRegexFilter(split[0], split[1]));
         } else if (statName.startsWith("inttermcount ")) {
             final String field = statName.substring(13).trim();
-            statLookup.set(numStats, intTermCountLookup(field));
+            statLookup.set(numStats, statName, intTermCountLookup(field));
         } else if (statName.startsWith("strtermcount ")) {
             final String field = statName.substring(13).trim();
-            statLookup.set(numStats, stringTermCountLookup(field));
+            statLookup.set(numStats, statName, stringTermCountLookup(field));
         } else if (statName.startsWith("floatscale ")) {
             final Matcher matcher = floatScalePattern.matcher(statName);
             // accepted format is 'floatscale field*scale+offset' (or just look
@@ -1382,32 +1386,32 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 offset = Double.parseDouble(matcher.group(3));
             } catch (NumberFormatException e) {
                 throw new IllegalArgumentException("invalid offset or scale constant for metric: "
-                        + statName, e);
+                        + statName,  e);
             }
 
-            statLookup.set(numStats, scaledFloatLookup(field, scale, offset));
+            statLookup.set(numStats, statName, scaledFloatLookup(field, scale, offset));
         } else if (statName.startsWith("dynamic ")) {
             final String name = statName.substring(8).trim();
             final DynamicMetric metric = getDynamicMetrics().get(name);
             if (metric == null) {
                 throw new IllegalArgumentException("invalid dynamic metric: " + name);
             }
-            statLookup.set(numStats, metric);
+            statLookup.set(numStats, statName, metric);
         } else if (statName.startsWith("exp ")) {
             final int scaleFactor = Integer.valueOf(statName.substring(4).trim());
             final IntValueLookup operand = popLookup();
-            statLookup.set(numStats, new Exponential(operand, scaleFactor));
+            statLookup.set(numStats, statName, new Exponential(operand, scaleFactor));
         } else if (statName.startsWith("log ")) {
             final int scaleFactor = Integer.valueOf(statName.substring(4).trim());
             final IntValueLookup operand = popLookup();
-            statLookup.set(numStats, new Log(operand, scaleFactor));
+            statLookup.set(numStats, statName, new Log(operand, scaleFactor));
         } else if (statName.startsWith("ref ")) {
             final int depth = Integer.valueOf(statName.substring(4).trim());
-            statLookup.set(numStats, new DelegatingMetric(statLookup.get(numStats - depth - 1)));
+            statLookup.set(numStats, statName, new DelegatingMetric(statLookup.get(numStats - depth - 1)));
         } else if (is32BitInteger(statName)) {
             final int constant = Integer.parseInt(statName); // guaranteed not
                                                              // to fail
-            statLookup.set(numStats, new Constant(constant));
+            statLookup.set(numStats, statName, new Constant(constant));
         } else if (statName.startsWith("interleave ")) {
             final int count = Integer.valueOf(statName.substring(11).trim());
 
@@ -1426,7 +1430,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
             for (int i = 0; i < count; i++) {
                 statLookup.get(start + i).close();
-                statLookup.set(start + i, cached[i]);
+                statLookup.set(start + i, statName,  cached[i]);
             }
 
             /* this request is valid, so keep track of the command */
@@ -1441,7 +1445,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             }
             final IntValueLookup b = popLookup();
             final IntValueLookup a = popLookup();
-            statLookup.set(numStats, new ShiftRight(new Multiplication(a, b), shift));
+            statLookup.set(numStats, statName, new ShiftRight(new Multiplication(a, b), shift));
         } else if (statName.startsWith("shldiv ")) {
             final int shift = Integer.valueOf(statName.substring(7).trim());
             if (shift < 0 || shift > 31) {
@@ -1449,11 +1453,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             }
             final IntValueLookup b = popLookup();
             final IntValueLookup a = popLookup();
-            statLookup.set(numStats, new Division(new ShiftLeft(a, shift), b));
+            statLookup.set(numStats, statName, new Division(new ShiftLeft(a, shift), b));
         } else if (statName.startsWith("log1pexp ")) {
             final int scale = Integer.valueOf(statName.substring(9).trim());
             final IntValueLookup operand = popLookup();
-            statLookup.set(numStats, new Log1pExp(operand, scale));
+            statLookup.set(numStats, statName, new Log1pExp(operand, scale));
         } else if (statName.startsWith("logistic ")) {
             final String[] params = statName.substring(9).split(" ");
             if (params.length != 2) {
@@ -1466,10 +1470,10 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 scaleUp = Double.parseDouble(params[1]);
             } catch (NumberFormatException e) {
                 throw new IllegalArgumentException("invalid scale factor for metric: "
-                        + statName, e);
+                        + statName,  e);
             }
             final IntValueLookup operand = popLookup();
-            statLookup.set(numStats, new Logistic(operand, scaleDown, scaleUp));
+            statLookup.set(numStats, statName, new Logistic(operand, scaleDown, scaleUp));
         } else if (statName.startsWith("lucene ")) {
             final String queryBase64 = statName.substring(7);
             final byte[] queryBytes = Base64.decodeBase64(queryBase64.getBytes());
@@ -1488,7 +1492,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 final FastBitSetPooler bitSetPooler = new ImhotepBitSetPooler(memory);
                 final FlamdexSearcher searcher = new FlamdexSearcher(flamdexReader);
                 searcher.search(query, bitSet, bitSetPooler);
-                statLookup.set(numStats, new com.indeed.flamdex.fieldcache.BitSetIntValueLookup(bitSet));
+                statLookup.set(numStats, statName, new com.indeed.flamdex.fieldcache.BitSetIntValueLookup(bitSet));
             } catch (Throwable t) {
                 memory.releaseMemory(bitSetMemory);
                 if (t instanceof FlamdexOutOfMemoryException) throw new ImhotepOutOfMemoryException(t);
@@ -1499,12 +1503,12 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             final IntValueLookup b;
             switch (Metric.getMetric(statName)) {
             case COUNT:
-                statLookup.set(numStats, new Count());
+                statLookup.set(numStats, statName, new Count());
                 break;
             case CACHED:
                 a = popLookup();
                 try {
-                    statLookup.set(numStats, new CachedMetric(a, flamdexReader.getNumDocs(), memory));
+                    statLookup.set(numStats, statName, new CachedMetric(a, flamdexReader.getNumDocs(), memory));
                 } finally {
                     a.close();
                 }
@@ -1512,71 +1516,71 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             case ADD:
                 b = popLookup();
                 a = popLookup();
-                statLookup.set(numStats, new Addition(a, b));
+                statLookup.set(numStats, statName, new Addition(a, b));
                 break;
             case SUBTRACT:
                 b = popLookup();
                 a = popLookup();
-                statLookup.set(numStats, new Subtraction(a, b));
+                statLookup.set(numStats, statName, new Subtraction(a, b));
                 break;
             case MULTIPLY:
                 b = popLookup();
                 a = popLookup();
-                statLookup.set(numStats, new Multiplication(a, b));
+                statLookup.set(numStats, statName, new Multiplication(a, b));
                 break;
             case DIVIDE:
                 b = popLookup();
                 a = popLookup();
-                statLookup.set(numStats, new Division(a, b));
+                statLookup.set(numStats, statName, new Division(a, b));
                 break;
             case MODULUS:
                 b = popLookup();
                 a = popLookup();
-                statLookup.set(numStats, new Modulus(a, b));
+                statLookup.set(numStats, statName, new Modulus(a, b));
                 break;
             case ABSOLUTE_VALUE:
                 a = popLookup();
-                statLookup.set(numStats, new AbsoluteValue(a));
+                statLookup.set(numStats, statName, new AbsoluteValue(a));
                 break;
             case MIN:
                 b = popLookup();
                 a = popLookup();
-                statLookup.set(numStats, new Min(a, b));
+                statLookup.set(numStats, statName, new Min(a, b));
                 break;
             case MAX:
                 b = popLookup();
                 a = popLookup();
-                statLookup.set(numStats, new Max(a, b));
+                statLookup.set(numStats, statName, new Max(a, b));
                 break;
             case EQ:
                 b = popLookup();
                 a = popLookup();
-                statLookup.set(numStats, new Equal(a, b));
+                statLookup.set(numStats, statName, new Equal(a, b));
                 break;
             case NE:
                 b = popLookup();
                 a = popLookup();
-                statLookup.set(numStats, new NotEqual(a, b));
+                statLookup.set(numStats, statName, new NotEqual(a, b));
                 break;
             case LT:
                 b = popLookup();
                 a = popLookup();
-                statLookup.set(numStats, new LessThan(a, b));
+                statLookup.set(numStats, statName, new LessThan(a, b));
                 break;
             case LTE:
                 b = popLookup();
                 a = popLookup();
-                statLookup.set(numStats, new LessThanOrEqual(a, b));
+                statLookup.set(numStats, statName, new LessThanOrEqual(a, b));
                 break;
             case GT:
                 b = popLookup();
                 a = popLookup();
-                statLookup.set(numStats, new GreaterThan(a, b));
+                statLookup.set(numStats, statName, new GreaterThan(a, b));
                 break;
             case GTE:
                 b = popLookup();
                 a = popLookup();
-                statLookup.set(numStats, new GreaterThanOrEqual(a, b));
+                statLookup.set(numStats, statName, new GreaterThanOrEqual(a, b));
                 break;
             default:
                 throw new RuntimeException("this is a bug");
@@ -1591,7 +1595,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                     statName = "time";
                 }
 
-                statLookup.set(numStats, flamdexReader.getMetric(statName));
+                statLookup.set(numStats, statName, flamdexReader.getMetric(statName));
             } catch (FlamdexOutOfMemoryException e) {
                 throw new ImhotepOutOfMemoryException(e);
             }
@@ -1636,7 +1640,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         --numStats;
 
         final IntValueLookup ret = statLookup.get(numStats);
-        statLookup.set(numStats, null);
+        statLookup.set(numStats, null, null);
 
         groupStats.clearStat(numStats);
 

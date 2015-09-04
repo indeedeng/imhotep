@@ -22,7 +22,9 @@ import org.apache.log4j.Logger;
 /**
  * @author jplaisance
  */
-public final class RawCachedFlamdexReaderReference extends CachedFlamdexReaderReference implements RawFlamdexReader {
+public final class RawCachedFlamdexReaderReference
+    extends CachedFlamdexReaderReference
+    implements RawFlamdexReader {
 
     private static final Logger log = Logger.getLogger(RawCachedFlamdexReaderReference.class);
 

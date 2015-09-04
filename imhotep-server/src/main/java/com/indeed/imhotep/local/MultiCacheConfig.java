@@ -300,7 +300,7 @@ public final class MultiCacheConfig {
         };
         StatLookup sl = new StatLookup(iv.length);
         for (int i = 0; i < iv.length; i++) {
-            sl.set(i, iv[i]);
+            sl.set(i, Integer.toString(i), iv[i]);
         }
         multiCacher.calcOrdering(new StatLookup[] {sl}, iv.length);
 

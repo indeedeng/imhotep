@@ -59,8 +59,8 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
 
         super(flamdexReader, sessionHistory, memory, tempFileSizeBytesLeft);
 
-        this.statLookup.addPropertyChangeListener(new PropertyChangeListener() {
-                public void propertyChange(PropertyChangeEvent e) {
+        this.statLookup.addObserver(new StatLookup.Observer() {
+                public void onChange(final StatLookup statLookup, final int index) {
                     ImhotepNativeLocalSession.this.rebuildMultiCache = true;
                 }
             });

@@ -25,4 +25,17 @@ class DaemonEvents {
             getProperties().put(USE_NATIVE_FTGS,    protoRequest.getUseNativeFtgs());
         }
     }
+
+    static final class CloseSession extends Instrumentation.Event {
+
+        public static final String NAME = CloseSession.class.getSimpleName();
+
+        public CloseSession(final ImhotepRequest             protoRequest,
+                            final AbstractImhotepServiceCore serviceCore) {
+            super(NAME, new HashMap<Object, Object>());
+            final String sessionId = protoRequest.getSessionId();
+            getProperties().put(SESSION_ID, protoRequest.getSessionId());
+        }
+    }
+
 }

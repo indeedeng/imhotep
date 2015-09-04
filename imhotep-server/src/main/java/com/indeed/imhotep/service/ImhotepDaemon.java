@@ -225,8 +225,11 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                             instrumentation.fire(new DaemonEvents.OpenSession(protoRequest));
                             break;
                         case CLOSE_SESSION:
+                            final DaemonEvents.CloseSession closeSessionEvent =
+                                new DaemonEvents.CloseSession(protoRequest, service);
                             service.handleCloseSession(protoRequest.getSessionId());
                             sendResponse(responseBuilder.build(), os);
+                            instrumentation.fire(closeSessionEvent);
                             break;
                         case REGROUP:
                             numGroups = service.handleRegroup(protoRequest.getSessionId(), ImhotepDaemonMarshaller.marshalGroupRemapMessageList(protoRequest.getRemapRulesList()));
