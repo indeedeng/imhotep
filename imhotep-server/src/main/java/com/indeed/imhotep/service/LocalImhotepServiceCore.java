@@ -573,6 +573,9 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
             sessionId = generateSessionId();
         }
 
+        final SessionHistory sessionHistory = new SessionHistory(sessionId);
+        sessionHistories.put(sessionId, sessionHistory);
+
         final Map<String, AtomicSharedReference<Shard>> datasetShards = localShards.get(dataset);
         final Map<String, Pair<ShardId, CachedFlamdexReaderReference>> flamdexReaders = Maps.newHashMap();
         boolean allFlamdexReaders = true;
@@ -595,8 +598,7 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
                     final SharedReference<CachedFlamdexReader> reference = shard.getRef();
                     if (reference.get() instanceof RawCachedFlamdexReader) {
                         cachedFlamdexReaderReference =
-                                new RawCachedFlamdexReaderReference(
-                                                                    (SharedReference<RawCachedFlamdexReader>) (SharedReference) reference);
+                            new RawCachedFlamdexReaderReference((SharedReference<RawCachedFlamdexReader>) (SharedReference) reference);
                     } else {
                         allFlamdexReaders = false;
                         cachedFlamdexReaderReference = new CachedFlamdexReaderReference(reference);
@@ -613,8 +615,6 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
         final Map<ShardId, CachedFlamdexReaderReference> flamdexes = Maps.newHashMap();
         final ImhotepLocalSession[] localSessions;
         localSessions = new ImhotepLocalSession[shardRequestList.size()];
-        final SessionHistory sessionHistory = new SessionHistory(sessionId);
-        sessionHistories.put(sessionId, sessionHistory);
         try {
             for (int i = 0; i < shardRequestList.size(); ++i) {
                 final String shardId = shardRequestList.get(i);

@@ -35,4 +35,6 @@ public interface SessionHistoryIf {
     void onWriteFTGSIteratorSplit(String[] intFields, String[] stringFields);
 
     void onPushStat(String stat, IntValueLookup lookup);
+
+    FlamdexReader getFlamdexReader(FlamdexReader reader);
 }

@@ -144,8 +144,9 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         throws ImhotepOutOfMemoryException {
         this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
         constructorStackTrace = new Exception();
-        flamdexReaderRef = SharedReference.create(flamdexReader);
-        this.flamdexReader = flamdexReader;
+        this.flamdexReader = sessionHistory != null ?
+            sessionHistory.getFlamdexReader(flamdexReader) : flamdexReader;
+        this.flamdexReaderRef = SharedReference.create(this.flamdexReader);
         this.sessionHistory = sessionHistory;
         this.memory = memory;
         this.numDocs = flamdexReader.getNumDocs();
@@ -1975,8 +1976,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 memory.releaseMemory(dynamicMetricUsage);
             }
             if (memory.usedMemory() > 0) {
-                log.error("ImhotepLocalSession is leaking! memory reserved after all memory has been freed: "
-                          + memory.usedMemory());
+                log.error("ImhotepLocalSession is leaking! memory reserved after " +
+                          "all memory has been freed: " + memory.usedMemory());
             }
         } finally {
             Closeables2.closeQuietly(memory, log);

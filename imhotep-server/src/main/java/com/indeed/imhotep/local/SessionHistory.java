@@ -14,17 +14,22 @@
 
 package com.indeed.imhotep.local;
 
+import com.indeed.flamdex.api.DocIdStream;
+import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
+import com.indeed.flamdex.api.IntTermDocIterator;
+import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.IntValueLookup;
-import com.indeed.imhotep.client.ShardTimeUtils;
+import com.indeed.flamdex.api.IntValueLookup;
+import com.indeed.flamdex.api.StringTermDocIterator;
+import com.indeed.flamdex.api.StringTermIterator;
+import com.indeed.flamdex.api.StringValueLookup;
 import com.indeed.imhotep.service.SessionHistoryIf;
 
 import org.apache.log4j.Logger;
 
-import org.joda.time.DateTime;
-import org.joda.time.Interval;
-
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -41,24 +46,19 @@ public class SessionHistory implements SessionHistoryIf {
         public void onGetFTGSIterator(String[] intFields, String[] stringFields) { }
         public void onWriteFTGSIteratorSplit(String[] intFields, String[] stringFields) { }
         public void onPushStat(String stat, IntValueLookup lookup) { }
+        public FlamdexReader getFlamdexReader(FlamdexReader reader) { return reader; }
     }
 
-    private static class ShardInfo {
-        final DateTime date;
-        final long     sizeInBytes;
+    private final Map<String, FlamdexInfo.Abstract> flamdexInfoMap =
+        new TreeMap<String, FlamdexInfo.Abstract>();
 
-        public ShardInfo(final DateTime date, final long sizeInBytes) {
-            this.date        = date;
-            this.sizeInBytes = sizeInBytes;
-        }
-    }
-
-    private final Map<String, ShardInfo> shardInfoMap = new TreeMap<String, ShardInfo>();
-    private final Map<String, Integer>    statsPushed = new TreeMap<String, Integer>();
+    private final Map<String, Integer> statsPushed =
+        new TreeMap<String, Integer>();
 
     private final Set<String> datasetsUsed = new TreeSet<String>();
     private final Set<String> intFields    = new TreeSet<String>();
     private final Set<String> stringFields = new TreeSet<String>();
+    private final Set<String> metrics      = new TreeSet<String>();
 
     private final String sessionId;
 
@@ -71,23 +71,9 @@ public class SessionHistory implements SessionHistoryIf {
 
     @Override
     public void onCreate(FlamdexReader reader) {
-        /* Capture the date of this shard. */
         final String shardId = reader.getDirectory();
-        if (!shardInfoMap.containsKey(shardId)) {
-            try {
-                final Interval interval = ShardTimeUtils.parseInterval(shardId);
-                final DateTime start    = interval.getStart();
-                final DateTime date     = new DateTime(start.year().get(),
-                                                       start.monthOfYear().get(),
-                                                       start.dayOfMonth().get(),
-                                                       0, 0);
-                final long sizeInBytes = 0; // !@# compute shard size
-                shardInfoMap.put(shardId, new ShardInfo(date, sizeInBytes));
-            }
-            catch (Exception ex) {
-                // !@# not sure this even merits a warning...
-                log.warn("cannot extract date from shard directory", ex);
-            }
+        if (!flamdexInfoMap.containsKey(shardId)) {
+            flamdexInfoMap.put(shardId, FlamdexInfo.get(reader));
         }
     }
 
@@ -112,5 +98,76 @@ public class SessionHistory implements SessionHistoryIf {
         final Integer current = statsPushed.get(stat);
         statsPushed.put(stat, current != null ?
                         Math.max(sizeInBytes, current) : sizeInBytes);
+    }
+
+    @Override
+    public FlamdexReader getFlamdexReader(FlamdexReader reader) {
+        return new FlamdexReaderWrapper(reader);
+    }
+
+    private class FlamdexReaderWrapper implements FlamdexReader {
+
+        private final FlamdexReader wrapped;
+
+        FlamdexReaderWrapper(FlamdexReader reader) { wrapped = reader; }
+
+        private void    onIntField(String field)  { SessionHistory.this.intFields.add(field);    }
+        private void onStringField(String field)  { SessionHistory.this.stringFields.add(field); }
+        private void      onMetric(String metric) { SessionHistory.this.metrics.add(metric);     }
+
+        public void close() throws java.io.IOException { wrapped.close(); }
+
+        public Collection<String>    getIntFields() { return wrapped.getIntFields();    }
+        public Collection<String> getStringFields() { return wrapped.getStringFields(); }
+
+        public int             getNumDocs() { return wrapped.getNumDocs();     }
+        public String        getDirectory() { return wrapped.getDirectory();   }
+        public DocIdStream getDocIdStream() { return wrapped.getDocIdStream(); }
+
+        public IntTermIterator getIntTermIterator(String field) {
+            onIntField(field);
+            return wrapped.getIntTermIterator(field);
+        }
+
+        public StringTermIterator getStringTermIterator(String field) {
+            return wrapped.getStringTermIterator(field);
+        }
+
+        public IntTermDocIterator getIntTermDocIterator(String field) {
+            onIntField(field);
+            return wrapped.getIntTermDocIterator(field);
+        }
+
+        public StringTermDocIterator getStringTermDocIterator(String field) {
+            return wrapped.getStringTermDocIterator(field);
+        }
+
+        public long getIntTotalDocFreq(String field) {
+            onIntField(field);
+            return wrapped.getIntTotalDocFreq(field);
+        }
+
+        public long getStringTotalDocFreq(String field) {
+            onStringField(field);
+            return wrapped.getStringTotalDocFreq(field);
+        }
+
+        public Collection<String> getAvailableMetrics() {
+            return wrapped.getAvailableMetrics();
+        }
+
+        public IntValueLookup getMetric(String metric)
+            throws FlamdexOutOfMemoryException {
+            return wrapped.getMetric(metric);
+        }
+
+        public StringValueLookup getStringLookup(String field)
+            throws FlamdexOutOfMemoryException {
+            return wrapped.getStringLookup(field);
+        }
+
+        public long memoryRequired(String metric) {
+            return wrapped.memoryRequired(metric);
+        }
     }
 }
