@@ -20,7 +20,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
-import com.indeed.imhotep.local.SessionHistory;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.shell.PosixFileOperations;
 import com.indeed.util.core.Throwables2;
@@ -591,8 +590,6 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
         final Map<ShardId, CachedFlamdexReaderReference> flamdexes = Maps.newHashMap();
         final ImhotepLocalSession[] localSessions;
         localSessions = new ImhotepLocalSession[shardRequestList.size()];
-        final SessionHistory sessionHistory = new SessionHistory(sessionId);
-        sessionHistories.put(sessionId, sessionHistory);
         try {
             for (int i = 0; i < shardRequestList.size(); ++i) {
                 final String shardId = shardRequestList.get(i);
@@ -603,7 +600,6 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
                     flamdexes.put(pair.getFirst(), cachedFlamdexReaderReference);
                     localSessions[i] =
                             new ImhotepJavaLocalSession(cachedFlamdexReaderReference,
-                                                        sessionHistory,
                                                         this.shardTempDirectory,
                                                         new MemoryReservationContext(memory),
                                                         tempFileSizeBytesLeft);
@@ -620,7 +616,7 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
             final int maxSplits =
                     mergeThreadLimit > 0 ? mergeThreadLimit : DEFAULT_MERGE_THREAD_LIMIT;
             final ImhotepSession session =
-                new MTImhotepLocalMultiSession(localSessions, sessionHistory,
+                new MTImhotepLocalMultiSession(localSessions,
                                                new MemoryReservationContext(memory),
                                                executor,
                                                tempFileSizeBytesLeft,

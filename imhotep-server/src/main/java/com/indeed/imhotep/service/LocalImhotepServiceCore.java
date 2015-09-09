@@ -20,7 +20,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
-import com.indeed.imhotep.local.SessionHistory;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.shell.PosixFileOperations;
 import com.indeed.util.core.Throwables2;
@@ -573,9 +572,6 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
             sessionId = generateSessionId();
         }
 
-        final SessionHistory sessionHistory = new SessionHistory(sessionId);
-        sessionHistories.put(sessionId, sessionHistory);
-
         final Map<String, AtomicSharedReference<Shard>> datasetShards = localShards.get(dataset);
         final Map<String, Pair<ShardId, CachedFlamdexReaderReference>> flamdexReaders = Maps.newHashMap();
         boolean allFlamdexReaders = true;
@@ -621,30 +617,39 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
                 final Pair<ShardId, CachedFlamdexReaderReference> pair =
                         flamdexReaders.get(shardId);
                 final CachedFlamdexReaderReference cachedFlamdexReaderReference = pair.getSecond();
+                final InstrumentedFlamdexReader instrumentedFlamdexReader =
+                    new InstrumentedFlamdexReader(cachedFlamdexReaderReference,
+                                                  dataset, sessionId, username);
+                final Instrumentation.Observer observer =
+                    new Instrumentation.Observer() {
+                        public void onEvent(Instrumentation.Event event) {
+                            //                            log.info("*** inst event: " + event);
+                            System.err.println("*** inst event: " + event);
+                        } };
+                instrumentedFlamdexReader.addObserver(InstrumentedFlamdexReader.OPEN_EVENT, observer);
+                instrumentedFlamdexReader.addObserver(InstrumentedFlamdexReader.CLOSE_EVENT, observer);
                 try {
                     flamdexes.put(pair.getFirst(), cachedFlamdexReaderReference);
                     localSessions[i] = useNativeFtgs && allFlamdexReaders ?
-                        new ImhotepNativeLocalSession(cachedFlamdexReaderReference,
-                                                      sessionHistory,
+                        new ImhotepNativeLocalSession(instrumentedFlamdexReader,
                                                       new MemoryReservationContext(memory),
                                                       tempFileSizeBytesLeft) :
-                        new ImhotepJavaLocalSession(cachedFlamdexReaderReference,
-                                                    sessionHistory,
+                        new ImhotepJavaLocalSession(instrumentedFlamdexReader,
                                                     this.shardTempDirectory,
                                                     new MemoryReservationContext(memory),
                                                     tempFileSizeBytesLeft);
                 } catch (RuntimeException e) {
-                    Closeables2.closeQuietly(cachedFlamdexReaderReference, log);
+                    Closeables2.closeQuietly(instrumentedFlamdexReader, log);
                     localSessions[i] = null;
                     throw e;
                 } catch (ImhotepOutOfMemoryException e) {
-                    Closeables2.closeQuietly(cachedFlamdexReaderReference, log);
+                    Closeables2.closeQuietly(instrumentedFlamdexReader, log);
                     localSessions[i] = null;
                     throw e;
                 }
             }
             final ImhotepSession session =
-                new MTImhotepLocalMultiSession(localSessions, sessionHistory,
+                new MTImhotepLocalMultiSession(localSessions,
                                                new MemoryReservationContext(memory),
                                                executor,
                                                tempFileSizeBytesLeft,

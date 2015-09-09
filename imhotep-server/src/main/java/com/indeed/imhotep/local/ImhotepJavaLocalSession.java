@@ -43,14 +43,8 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
 
     public ImhotepJavaLocalSession(final FlamdexReader flamdexReader)
         throws ImhotepOutOfMemoryException {
-        this(flamdexReader, new SessionHistory.Null());
-    }
-
-    public ImhotepJavaLocalSession(final FlamdexReader flamdexReader,
-                                   final SessionHistoryIf sessionHistory)
-        throws ImhotepOutOfMemoryException {
-        this(flamdexReader, sessionHistory,
-             null, new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), null);
+        this(flamdexReader, null,
+             new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), null);
     }
 
     public ImhotepJavaLocalSession(final FlamdexReader flamdexReader,
@@ -58,18 +52,8 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
                                    final MemoryReservationContext memory,
                                    AtomicLong tempFileSizeBytesLeft)
         throws ImhotepOutOfMemoryException {
-        this(flamdexReader, new SessionHistory.Null(), optimizedIndexDirectory,
-             memory, tempFileSizeBytesLeft);
-    }
 
-    public ImhotepJavaLocalSession(final FlamdexReader flamdexReader,
-                                   final SessionHistoryIf sessionHistory,
-                                   String optimizedIndexDirectory,
-                                   final MemoryReservationContext memory,
-                                   AtomicLong tempFileSizeBytesLeft)
-        throws ImhotepOutOfMemoryException {
-
-        super(flamdexReader, sessionHistory, memory, tempFileSizeBytesLeft);
+        super(flamdexReader, memory, tempFileSizeBytesLeft);
 
         this.optimizedIndexesDir = optimizedIndexDirectory;
         this.optimizationLog =

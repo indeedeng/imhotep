@@ -79,7 +79,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     protected FlamdexReader flamdexReader;
     protected SharedReference<FlamdexReader> flamdexReaderRef;
 
-    private final SessionHistoryIf sessionHistory;
+    // !@# ugly temporary hack...
+    private InstrumentedFlamdexReader instrumentedFlamdexReader;
 
     final MemoryReservationContext memory;
 
@@ -130,24 +131,19 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     private FTGSSplitter ftgsIteratorSplits;
-    public ImhotepLocalSession(final FlamdexReader flamdexReader,
-                               final SessionHistoryIf sessionHistory)
+    public ImhotepLocalSession(final FlamdexReader flamdexReader)
         throws ImhotepOutOfMemoryException {
-        this(flamdexReader, sessionHistory,
-             new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), null);
+        this(flamdexReader, new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), null);
     }
 
     public ImhotepLocalSession(final FlamdexReader flamdexReader,
-                               final SessionHistoryIf sessionHistory,
                                final MemoryReservationContext memory,
                                AtomicLong tempFileSizeBytesLeft)
         throws ImhotepOutOfMemoryException {
         this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
         constructorStackTrace = new Exception();
-        this.flamdexReader = sessionHistory != null ?
-            sessionHistory.getFlamdexReader(flamdexReader) : flamdexReader;
+        this.flamdexReader = flamdexReader;
         this.flamdexReaderRef = SharedReference.create(this.flamdexReader);
-        this.sessionHistory = sessionHistory;
         this.memory = memory;
         this.numDocs = flamdexReader.getNumDocs();
 
@@ -164,12 +160,18 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
         this.statCommands = new ArrayList<String>();
 
-        this.sessionHistory.onCreate(flamdexReader);
-        this.statLookup.addObserver(new StatLookup.Observer() {
-                public void onChange(final StatLookup statLookup, final int index) {
-                    sessionHistory.onPushStat(statLookup.getName(index), statLookup.get(index));
-                }
-            });
+        this.instrumentedFlamdexReader =
+            this.flamdexReader instanceof InstrumentedFlamdexReader ?
+            (InstrumentedFlamdexReader) this.flamdexReader : null;
+        if (instrumentedFlamdexReader != null ) {
+            this.statLookup.addObserver(new StatLookup.Observer() {
+                    public void onChange(final StatLookup statLookup, final int index) {
+                        instrumentedFlamdexReader.onPushStat(statLookup.getName(index),
+                                                             statLookup.get(index));
+                    }
+                });
+            instrumentedFlamdexReader.onOpen();
+        }
     }
 
     FlamdexReader getReader() {
@@ -216,7 +218,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     @Override
     public synchronized FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields) {
-        sessionHistory.onGetFTGSIterator(intFields, stringFields);
         return flamdexReader instanceof RawFlamdexReader ?
             new RawFlamdexFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields) :
             new FlamdexFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields);
@@ -381,7 +382,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     @Override
     public void writeFTGSIteratorSplit(String[] intFields, String[] stringFields,
                                        int splitIndex, int numSplits, Socket socket) {
-        sessionHistory.onWriteFTGSIteratorSplit(intFields, stringFields); // !@#
         throw new UnsupportedOperationException();
     }
 
@@ -1978,6 +1978,9 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             if (memory.usedMemory() > 0) {
                 log.error("ImhotepLocalSession is leaking! memory reserved after " +
                           "all memory has been freed: " + memory.usedMemory());
+            }
+            if (instrumentedFlamdexReader != null ) {
+                instrumentedFlamdexReader.onClose();
             }
         } finally {
             Closeables2.closeQuietly(memory, log);

@@ -63,13 +63,7 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
 
     private final ExecutorService ftgsExecutor;
 
-    protected Map<String, SessionHistoryIf> sessionHistories = Maps.newHashMap();
-
     protected abstract SessionManager getSessionManager();
-
-    protected SessionHistoryIf getSessionHistory(String sessionId) {
-        return sessionHistories.get(sessionId);
-    }
 
     protected AbstractImhotepServiceCore() {
         ftgsExecutor = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setDaemon(true).setNameFormat("LocalImhotepServiceCore-FTGSWorker-%d").build());

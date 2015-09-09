@@ -37,5 +37,4 @@ class DaemonEvents {
             getProperties().put(SESSION_ID, protoRequest.getSessionId());
         }
     }
-
 }

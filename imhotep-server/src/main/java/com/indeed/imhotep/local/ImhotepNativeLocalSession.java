@@ -16,7 +16,6 @@ package com.indeed.imhotep.local;
 import com.indeed.flamdex.api.*;
 import com.indeed.imhotep.*;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
-import com.indeed.imhotep.service.SessionHistoryIf;
 
 import org.apache.log4j.Logger;
 
@@ -34,13 +33,7 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
 
     public ImhotepNativeLocalSession(final FlamdexReader flamdexReader)
         throws ImhotepOutOfMemoryException {
-        this(flamdexReader, new SessionHistory.Null());
-    }
-
-    public ImhotepNativeLocalSession(final FlamdexReader flamdexReader,
-                                     final SessionHistoryIf sessionHistory)
-        throws ImhotepOutOfMemoryException {
-        this(flamdexReader, sessionHistory,
+        this(flamdexReader,
              new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), null);
     }
 
@@ -48,16 +41,8 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
                                      final MemoryReservationContext memory,
                                      AtomicLong tempFileSizeBytesLeft)
         throws ImhotepOutOfMemoryException {
-        this(flamdexReader, new SessionHistory.Null(), memory, tempFileSizeBytesLeft);
-    }
 
-    public ImhotepNativeLocalSession(final FlamdexReader flamdexReader,
-                                     final SessionHistoryIf sessionHistory,
-                                     final MemoryReservationContext memory,
-                                     AtomicLong tempFileSizeBytesLeft)
-        throws ImhotepOutOfMemoryException {
-
-        super(flamdexReader, sessionHistory, memory, tempFileSizeBytesLeft);
+        super(flamdexReader, memory, tempFileSizeBytesLeft);
 
         this.statLookup.addObserver(new StatLookup.Observer() {
                 public void onChange(final StatLookup statLookup, final int index) {

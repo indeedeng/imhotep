@@ -3,7 +3,9 @@ package com.indeed.imhotep.service;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
 
 public class Instrumentation {
 
@@ -18,6 +20,34 @@ public class Instrumentation {
 
         public String                    getType() { return type;       }
         public Map<Object, Object> getProperties() { return properties; }
+
+        public String toString() {
+            StringBuilder result = new StringBuilder();
+            result.append('[');
+            result.append(getType());
+            result.append(' ');
+            result.append(toString(getProperties()));
+            result.append(']');
+            return result.toString();
+        }
+
+        private String toString(Object value) {
+            if (value instanceof Map) {
+                final StringBuilder result = new StringBuilder();
+                final Iterator<Map.Entry> it = ((Map) value).entrySet().iterator();
+                result.append("[");
+                while (it.hasNext()) {
+                    final Map.Entry entry = it.next();
+                    result.append(entry.getKey());
+                    result.append(':');
+                    result.append(toString(entry.getValue()));
+                    if (it.hasNext()) result.append(' ');
+                }
+                result.append("]");
+                return result.toString();
+            }
+            return value != null ? value.toString() : "null";
+        }
     }
 
     public interface Observer {
