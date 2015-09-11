@@ -432,15 +432,11 @@ public class TestFTGSPerf {
             localSessions[i] = localSession;
         }
 
-        final ExecutorService executor = Executors.newCachedThreadPool();
         AtomicLong foo = new AtomicLong(1000000000);
         final MTImhotepLocalMultiSession mtSession;
-        mtSession = new MTImhotepLocalMultiSession(localSessions,
-                                                   new MemoryReservationContext(new ImhotepMemoryPool(
-                                                           Long.MAX_VALUE)),
-                                                   executor,
-                                                   foo,
-                                                   useNativeFTGS);
+        final MemoryReservationContext mrc =
+            new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE));
+        mtSession = new MTImhotepLocalMultiSession(localSessions, mrc, foo, useNativeFTGS);
 
         mtSession.randomMultiRegroup(metricNames[0],
                                      true,

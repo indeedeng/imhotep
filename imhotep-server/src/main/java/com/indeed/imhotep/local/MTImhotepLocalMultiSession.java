@@ -96,8 +96,6 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
     private final MemoryReservationContext memory;
 
-    private final ExecutorService executor;
-
     private final ExecutorService ftgsExecutor;
 
     private final AtomicReference<Boolean> closed = new AtomicReference<>();
@@ -110,14 +108,12 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
     public MTImhotepLocalMultiSession(final ImhotepLocalSession[] sessions,
                                       final MemoryReservationContext memory,
-                                      final ExecutorService executor,
                                       final AtomicLong tempFileSizeBytesLeft,
                                       boolean useNativeFtgs)
         throws ImhotepOutOfMemoryException {
         super(sessions, tempFileSizeBytesLeft);
         this.useNativeFtgs = useNativeFtgs;
         this.memory = memory;
-        this.executor = executor;
         this.memoryClaimed = 0;
         this.closed.set(false);
 
@@ -248,6 +244,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             log.error("MTImhotepMultiSession is leaking! usedMemory = "+memory.usedMemory());
         }
         Closeables2.closeQuietly(memory, log);
+        super.postClose();
     }
 
     @Override
@@ -256,34 +253,6 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                                                               AtomicLong tempFileSizeBytesLeft) {
         return new ImhotepRemoteSession(address.getHostName(), address.getPort(),
                                         sessionId, tempFileSizeBytesLeft, useNativeFtgs);
-    }
-
-    @Override
-    protected <E, T> void execute(final T[] ret, E[] things,
-                                  final ThrowingFunction<? super E, ? extends T> function)
-        throws ExecutionException {
-        final List<Future<T>> futures = Lists.newArrayListWithCapacity(things.length);
-        for (final E thing : things) {
-            futures.add(executor.submit(new Callable<T>() {
-                @Override
-                public T call() throws Exception {
-                    return function.apply(thing);
-                }
-            }));
-        }
-
-        Throwable t = null;
-        for (int i = 0; i < futures.size(); ++i) {
-            try {
-                ret[i] = futures.get(i).get();
-            } catch (final Throwable t2) {
-                t = t2;
-            }
-            if (t != null) {
-                safeClose();
-                throw Throwables2.propagate(t, ExecutionException.class);
-            }
-        }
     }
 
     private static class NativeFTGSRunnable {

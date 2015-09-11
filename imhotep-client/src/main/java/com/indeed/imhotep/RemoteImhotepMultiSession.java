@@ -22,16 +22,8 @@ import com.indeed.util.core.Pair;
 import org.apache.log4j.Logger;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -40,37 +32,21 @@ import java.util.concurrent.atomic.AtomicLong;
 public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<ImhotepSession> {
     private static final Logger log = Logger.getLogger(RemoteImhotepMultiSession.class);
 
-    private final ExecutorService executor;
-
     private final String sessionId;
     private final InetSocketAddress[] nodes;
 
     private final long localTempFileSizeLimit;
-    private final boolean shutDownExecutorOnClose;
 
-    public RemoteImhotepMultiSession(ImhotepSession[] sessions, final String sessionId, final InetSocketAddress[] nodes,
-                                     long localTempFileSizeLimit, AtomicLong tempFileSizeBytesLeft) {
-        this(sessions, Executors.newCachedThreadPool(new ThreadFactory() {
-            int i = 0;
-
-            @Override
-            public Thread newThread(Runnable r) {
-                final Thread t = new Thread(r, "MultiSessionThread"+i++);
-                t.setDaemon(true);
-                return t;
-            }
-        }), sessionId, nodes, localTempFileSizeLimit, tempFileSizeBytesLeft, true);
-    }
-
-    public RemoteImhotepMultiSession(ImhotepSession[] sessions, ExecutorService executor, final String sessionId,
-                                     final InetSocketAddress[] nodes, long localTempFileSizeLimit, AtomicLong tempFileSizeBytesLeft, boolean shutDownExecutorOnClose) {
+    public RemoteImhotepMultiSession(ImhotepSession[] sessions,
+                                     final String sessionId,
+                                     final InetSocketAddress[] nodes,
+                                     long localTempFileSizeLimit,
+                                     AtomicLong tempFileSizeBytesLeft) {
         super(sessions, tempFileSizeBytesLeft);
-        
-        this.executor = executor;
+
         this.sessionId = sessionId;
         this.nodes = nodes;
         this.localTempFileSizeLimit = localTempFileSizeLimit;
-        this.shutDownExecutorOnClose = shutDownExecutorOnClose;
     }
 
     @Override
@@ -130,48 +106,6 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             throw Throwables.propagate(e);
         }
         return mergers;
-    }
-
-    @Override
-    protected void postClose() {
-        if (shutDownExecutorOnClose) {
-            executor.shutdownNow();
-            try {
-                if (!executor.awaitTermination(5L, TimeUnit.SECONDS)) {
-                    log.warn("executor did not shut down, continuing anyway");
-                }
-            } catch (InterruptedException e) {
-                log.warn(e);
-            }
-        }
-    }
-
-    @Override
-    protected <E, T> void execute(final T[] ret, E[] things, final ThrowingFunction<? super E, ? extends T> function) throws ExecutionException {
-        final List<Future<T>> futures = new ArrayList<Future<T>>(things.length);
-        for (final E thing : things) {
-            futures.add(executor.submit(new Callable<T>() {
-                @Override
-                public T call() throws Exception {
-                    return function.apply(thing);
-                }
-            }));
-        }
-
-        Throwable t = null;
-
-        for (int i = 0; i < futures.size(); ++i) {
-            try {
-                final Future<T> future = futures.get(i);
-                ret[i] = future.get();
-            } catch (Throwable t2) {
-                t = t2;
-            }
-        }
-        if (t != null) {
-            safeClose();
-            throw Throwables2.propagate(t, ExecutionException.class);
-        }
     }
 
     /**

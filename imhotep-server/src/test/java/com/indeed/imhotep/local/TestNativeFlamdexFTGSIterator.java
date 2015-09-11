@@ -519,13 +519,12 @@ public class TestNativeFlamdexFTGSIterator {
             localSessions[i] = localSession;
         }
 
-        final ExecutorService executor = Executors.newCachedThreadPool();
         AtomicLong foo = new AtomicLong(1000000000);
         final MTImhotepLocalMultiSession mtSession;
         mtSession = new MTImhotepLocalMultiSession(localSessions,
                                                    new MemoryReservationContext(new ImhotepMemoryPool(
                                                            Long.MAX_VALUE)),
-                                                   executor, foo, true);
+                                                   foo, true);
 
         String regroupField = (intFieldNames.length >= 1) ? intFieldNames[1] : strFieldNames[1];
         mtSession.randomMultiRegroup(regroupField,

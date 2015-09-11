@@ -82,8 +82,6 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
 
     private final LocalSessionManager sessionManager;
 
-    private final ExecutorService executor;
-
     private final ScheduledExecutorService shardReload;
     private final ScheduledExecutorService heartBeat;
     private final String shardsDirectory;
@@ -148,11 +146,6 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
             clearTempDir(shardTempDir);
         }
         updateShards();
-
-        executor =
-                Executors.newCachedThreadPool(new ThreadFactoryBuilder().setDaemon(true)
-                                                                        .setNameFormat("LocalImhotepServiceCore-Worker-%d")
-                                                                        .build());
 
         shardReload = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
             @Override
@@ -618,7 +611,6 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
             final ImhotepSession session =
                 new MTImhotepLocalMultiSession(localSessions,
                                                new MemoryReservationContext(memory),
-                                               executor,
                                                tempFileSizeBytesLeft,
                                                useNativeFtgs && allRawFlamdexReaders);
             getSessionManager().addSession(sessionId,
@@ -657,7 +649,6 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
     @Override
     public void close() {
         super.close();
-        executor.shutdownNow();
         shardReload.shutdown();
         heartBeat.shutdown();
     }

@@ -52,14 +52,18 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -86,24 +90,27 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession> exte
 
     protected final AtomicLong tempFileSizeBytesLeft;
 
-    private final ExecutorService getSplitBufferThreads = Executors.newCachedThreadPool(
-            new ThreadFactoryBuilder().setDaemon(true)
-                    .setNameFormat("FTGS-Buffer-Thread-getSplit-%d")
-                    .setUncaughtExceptionHandler(new LogOnUncaughtExceptionHandler(log))
-                    .build()
-    );
+    private final ExecutorService buildExecutorService(String nameFormat) {
+        final LogOnUncaughtExceptionHandler handler =
+            new LogOnUncaughtExceptionHandler(log);
+        return Executors.newCachedThreadPool(new ThreadFactoryBuilder().setDaemon(true)
+                                             .setNameFormat(nameFormat)
+                                             .setUncaughtExceptionHandler(handler)
+                                             .build());
+    }
 
-    private final ExecutorService mergeSplitBufferThreads = Executors.newCachedThreadPool(
-            new ThreadFactoryBuilder().setDaemon(true)
-                    .setNameFormat("FTGS-Buffer-Thread-mergeSplit-%d")
-                    .setUncaughtExceptionHandler(new LogOnUncaughtExceptionHandler(log))
-                    .build()
-    );
+    private final ExecutorService executor =
+        buildExecutorService("LocalImhotepServiceCore-Worker-%d"); // !@# name?
+
+    private final ExecutorService getSplitBufferThreads =
+        buildExecutorService("FTGS-Buffer-Thread-getSplit-%d");
+
+    private final ExecutorService mergeSplitBufferThreads =
+        buildExecutorService("FTGS-Buffer-Thread-mergeSplit-%d");
 
     protected int numStats = 0;
 
     private int numGroups = 2;
-
 
     protected AbstractImhotepMultiSession(T[] sessions) {
         this(sessions, null);
@@ -754,7 +761,16 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession> exte
         }
     }
 
-    protected abstract void postClose();
+    protected void postClose() {
+        executor.shutdownNow();
+        try {
+            if (!executor.awaitTermination(5L, TimeUnit.SECONDS)) {
+                log.warn("executor did not shut down, continuing anyway");
+            }
+        } catch (InterruptedException e) {
+            log.warn(e);
+        }
+    }
 
     protected <T> void executeRuntimeException(final T[] ret, final ThrowingFunction<? super ImhotepSession, ? extends T> function) {
         try {
@@ -778,9 +794,38 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession> exte
     }
 
     @Override
-    public abstract void writeFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, Socket socket) throws ImhotepOutOfMemoryException;
+    public abstract void writeFTGSIteratorSplit(String[] intFields, String[] stringFields,
+                                                int splitIndex, int numSplits, Socket socket)
+        throws ImhotepOutOfMemoryException;
 
-    protected abstract <E,T> void execute(final T[] ret, E[] things, final ThrowingFunction<? super E, ? extends T> function) throws ExecutionException;
+    protected final <E, T> void execute(final T[] ret, E[] things,
+                                        final ThrowingFunction<? super E, ? extends T> function)
+        throws ExecutionException {
+        final List<Future<T>> futures = new ArrayList<Future<T>>(things.length);
+        for (final E thing : things) {
+            futures.add(executor.submit(new Callable<T>() {
+                @Override
+                public T call() throws Exception {
+                    return function.apply(thing);
+                }
+            }));
+        }
+
+        Throwable t = null;
+
+        for (int i = 0; i < futures.size(); ++i) {
+            try {
+                final Future<T> future = futures.get(i);
+                ret[i] = future.get();
+            } catch (Throwable t2) {
+                t = t2;
+            }
+        }
+        if (t != null) {
+            safeClose();
+            throw Throwables2.propagate(t, ExecutionException.class);
+        }
+    }
 
     protected <T> void executeSessions(final T[] ret, final ThrowingFunction<? super ImhotepSession, ? extends T> function) throws ExecutionException {
         execute(ret, sessions, function);

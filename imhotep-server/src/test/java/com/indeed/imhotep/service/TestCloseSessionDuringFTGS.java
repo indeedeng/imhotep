@@ -77,20 +77,16 @@ public class TestCloseSessionDuringFTGS {
                     closed.set(true);
                 }
             };
-            final ExecutorService executor = Executors.newCachedThreadPool();
-            try {
-                final ImhotepSession session = new MTImhotepLocalMultiSession(new ImhotepLocalSession[] { new ImhotepJavaLocalSession(r) },
+            final ImhotepSession session =
+                new MTImhotepLocalMultiSession(new ImhotepLocalSession[] {
+                        new ImhotepJavaLocalSession(r) },
                         new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
-                        executor,
                         null,
                         false
                 );
 //                FTGSIterator iter = session.getFTGSIterator(new String[]{}, new String[]{"sf1"}); //TODO fix this
-                session.close();
-                assertTrue(closed.get());
-            } finally {
-                executor.shutdown();
-            }
+            session.close();
+            assertTrue(closed.get());
         } finally {
             Files.delete(tempDir);
         }

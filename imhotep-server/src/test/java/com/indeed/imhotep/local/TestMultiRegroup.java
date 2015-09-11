@@ -129,14 +129,13 @@ public class TestMultiRegroup extends TestCase {
                 config.calcOrdering(new StatLookup[] {session.statLookup}, session.numStats);
                 session.buildMultiCache(config);
 
-                final ExecutorService executor = Executors.newCachedThreadPool();
                 AtomicLong theAtomicPunk = new AtomicLong(100000);
                 ImhotepLocalSession[] localSessions = new ImhotepLocalSession[] { session };
                 ImhotepMemoryPool memoryPool = new ImhotepMemoryPool(Long.MAX_VALUE);
                 final MTImhotepLocalMultiSession mtSession =
                     new MTImhotepLocalMultiSession(localSessions,
                                                    new MemoryReservationContext(memoryPool),
-                                                   executor, theAtomicPunk, true);
+                                                   theAtomicPunk, true);
                 mtSession.regroup(regroupRule);
                 session.exportDocIdToGroupId(result);
                 return result;

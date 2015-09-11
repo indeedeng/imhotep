@@ -84,19 +84,15 @@ public class SimpleFlamdexTest {
             w.close();
 
             FlamdexReader r = new LuceneFlamdexReader(IndexReader.open(tempDir));
-            final ExecutorService executor = Executors.newCachedThreadPool();
-            try {
-                final ImhotepSession session = new MTImhotepLocalMultiSession(new ImhotepLocalSession[] { new ImhotepJavaLocalSession(r) },
+            final ImhotepSession session =
+                new MTImhotepLocalMultiSession(new ImhotepLocalSession[] {
+                        new ImhotepJavaLocalSession(r) },
                         new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
-                        executor,
                         null,
                         false
                 );
 
-                session.close();
-            } finally {
-                executor.shutdown();
-            }
+            session.close();
         } finally {
             Files.delete(tempDir);
         }
