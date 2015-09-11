@@ -22,11 +22,16 @@ public final class MemoryReservationContext extends MemoryReserver {
     private final MemoryReserver memoryReserver;
 
     private long reservationSize = 0;
+    private long maxUsedMemory = 0;
 
     private boolean closed = false;
 
     public MemoryReservationContext(MemoryReserver memoryReserver) {
         this.memoryReserver = memoryReserver;
+    }
+
+    public long maxUsedMemory() {
+        return maxUsedMemory;
     }
 
     public long usedMemory() {
@@ -41,6 +46,7 @@ public final class MemoryReservationContext extends MemoryReserver {
         if (closed) throw new IllegalStateException("cannot allocate memory after reservation context has been closed");
         if (memoryReserver.claimMemory(numBytes)) {
             reservationSize += numBytes;
+            maxUsedMemory = Math.max(maxUsedMemory, reservationSize);
             return true;
         }
         return false;
@@ -71,6 +77,7 @@ public final class MemoryReservationContext extends MemoryReserver {
     public synchronized void dehoist(long numBytes) {
         if (closed) throw new IllegalStateException("cannot dehoist memory after reservation context has been closed");
         reservationSize += numBytes;
+        maxUsedMemory = Math.max(maxUsedMemory, reservationSize);
     }
 
     @Override

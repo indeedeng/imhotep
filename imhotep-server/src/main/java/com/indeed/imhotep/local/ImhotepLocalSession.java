@@ -13,6 +13,8 @@
  */
 package com.indeed.imhotep.local;
 
+import java.lang.management.ThreadMXBean;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.*;
 import com.google.common.collect.*;
@@ -1980,7 +1982,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                           "all memory has been freed: " + memory.usedMemory());
             }
             if (instrumentedFlamdexReader != null ) {
-                instrumentedFlamdexReader.onClose();
+                instrumentedFlamdexReader.onClose(memory);
             }
         } finally {
             Closeables2.closeQuietly(memory, log);

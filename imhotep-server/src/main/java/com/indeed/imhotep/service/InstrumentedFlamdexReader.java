@@ -24,6 +24,7 @@ import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.StringValueLookup;
+import com.indeed.imhotep.MemoryReservationContext;
 
 import org.apache.log4j.Logger;
 
@@ -72,7 +73,13 @@ public class InstrumentedFlamdexReader
     }
 
     final class  OpenEvent extends Event { public  OpenEvent() { super(OPEN_EVENT);  } }
-    final class CloseEvent extends Event { public CloseEvent() { super(CLOSE_EVENT); } }
+
+    final class CloseEvent extends Event {
+        public CloseEvent(long maxUsedMemory) {
+            super(CLOSE_EVENT);
+            getProperties().put("maxUsedMemory", maxUsedMemory);
+        }
+    }
 
     public InstrumentedFlamdexReader(FlamdexReader reader,
                                      String        dataset,
@@ -93,8 +100,11 @@ public class InstrumentedFlamdexReader
         instrumentation.removeObserver(event, observer);
     }
 
-    public void  onOpen() { instrumentation.fire(new OpenEvent());  }
-    public void onClose() { instrumentation.fire(new CloseEvent()); }
+    public void onOpen() { instrumentation.fire(new OpenEvent());  }
+
+    public void onClose(MemoryReservationContext mrc) {
+        instrumentation.fire(new CloseEvent(mrc.maxUsedMemory()));
+    }
 
     public void onPushStat(String stat, IntValueLookup lookup) {
         if (stat != null) {
