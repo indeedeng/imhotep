@@ -69,7 +69,8 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * @author jsgroth
  */
-public abstract class AbstractImhotepMultiSession<T extends ImhotepSession> extends AbstractImhotepSession {
+public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
+    extends AbstractImhotepSession {
     private static final Logger log = Logger.getLogger(AbstractImhotepMultiSession.class);
 
     protected final T[] sessions;

@@ -1,4 +1,17 @@
-package com.indeed.imhotep.service;
+/*
+ * Copyright (C) 2015 Indeed Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the
+ * License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.indeed.imhotep;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -11,11 +24,11 @@ public class Instrumentation {
 
     static public class Event {
         private final String              type;
-        private final Map<Object, Object> properties;
+        private final Map<Object, Object> properties = new HashMap<Object, Object>();
 
-        public Event(final String type, final Map<Object, Object> properties) {
-            this.type       = type;
-            this.properties = properties;
+        // !@# One shouldn't have to pass in an external property map - just create one internally
+        public Event(final String type) {
+            this.type = type;
         }
 
         public String                    getType() { return type;       }
@@ -66,7 +79,7 @@ public class Instrumentation {
         void removeObserver(final String event, final Observer observer);
     }
 
-    static class ProviderSupport implements Provider {
+    public static class ProviderSupport implements Provider {
 
         private final HashMap<String, LinkedList<Observer>> observers
             = new HashMap<String, LinkedList<Observer>>();

@@ -38,6 +38,7 @@ import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.ImhotepMemoryCache;
 import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.ImhotepStatusDump;
+import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.MemoryReserver;
 import com.indeed.imhotep.MetricKey;

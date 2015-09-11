@@ -1,7 +1,6 @@
 package com.indeed.imhotep.service;
 
-import java.util.HashMap;
-
+import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 
 class DaemonEvents {
@@ -17,7 +16,7 @@ class DaemonEvents {
         public static final String NAME = OpenSession.class.getSimpleName();
 
         public OpenSession(final ImhotepRequest protoRequest) {
-            super(NAME, new HashMap<Object, Object>());
+            super(NAME);
             getProperties().put(DATASET,            protoRequest.getDataset());
             getProperties().put(SHARD_REQUEST_LIST, protoRequest.getShardRequestList());
             getProperties().put(SESSION_ID,         protoRequest.getSessionId());
@@ -32,7 +31,7 @@ class DaemonEvents {
 
         public CloseSession(final ImhotepRequest             protoRequest,
                             final AbstractImhotepServiceCore serviceCore) {
-            super(NAME, new HashMap<Object, Object>());
+            super(NAME);
             final String sessionId = protoRequest.getSessionId();
             getProperties().put(SESSION_ID, protoRequest.getSessionId());
         }

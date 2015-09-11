@@ -24,6 +24,7 @@ import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.StringValueLookup;
+import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.MemoryReservationContext;
 
 import org.apache.log4j.Logger;
@@ -60,7 +61,7 @@ public class InstrumentedFlamdexReader
 
     class Event extends Instrumentation.Event {
         protected Event(String name) {
-            super(CLOSE_EVENT, new HashMap<Object, Object>());
+            super(name);
             // !@# create common event property name constants somewhere...or use reflection?
             getProperties().put("dataset",     InstrumentedFlamdexReader.this.dataset);
             getProperties().put("shardId",     InstrumentedFlamdexReader.this.flamdexInfo.getShardId());
