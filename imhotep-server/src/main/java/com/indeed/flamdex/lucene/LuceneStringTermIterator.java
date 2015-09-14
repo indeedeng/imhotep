@@ -26,7 +26,7 @@ class LuceneStringTermIterator implements StringTermIterator, LuceneTermIterator
 
     private final IndexReader reader;
     private final String field;
-    private TermEnum termEnum; // if this is null it signal initialize needs to be called
+    private TermEnum termEnum; // if this is null it signals initialize needs to be called
     private boolean hasNext = false;
     private String firstTerm = "";
 
