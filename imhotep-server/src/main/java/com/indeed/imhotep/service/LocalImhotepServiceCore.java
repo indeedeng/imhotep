@@ -549,10 +549,22 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
     }
 
     private final class SessionObserver implements Instrumentation.Observer {
+        private final String dataset;
         private final String sessionId;
-        SessionObserver(String sessionId) { this.sessionId = sessionId; }
+        private final String username;
+
+        SessionObserver(String dataset,
+                        String sessionId,
+                        String username) {
+            this.dataset   = dataset;
+            this.sessionId = sessionId;
+            this.username  = username;
+        }
+
         public void onEvent(Instrumentation.Event event) {
+            event.getProperties().put("dataset",   dataset);
             event.getProperties().put("sessionId", sessionId);
+            event.getProperties().put("username",  username);
             System.err.println("=== session event: " + event);
         }
     }
@@ -615,15 +627,14 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
         final ImhotepLocalSession[] localSessions;
         localSessions = new ImhotepLocalSession[shardRequestList.size()];
         try {
-            final SessionObserver observer = new SessionObserver(sessionId);
+            final SessionObserver observer = new SessionObserver(dataset, sessionId, username);
             for (int i = 0; i < shardRequestList.size(); ++i) {
                 final String shardId = shardRequestList.get(i);
                 final Pair<ShardId, CachedFlamdexReaderReference> pair =
                         flamdexReaders.get(shardId);
                 final CachedFlamdexReaderReference cachedFlamdexReaderReference = pair.getSecond();
                 final InstrumentedFlamdexReader instrumentedFlamdexReader =
-                    new InstrumentedFlamdexReader(cachedFlamdexReaderReference,
-                                                  dataset, sessionId, username);
+                    new InstrumentedFlamdexReader(cachedFlamdexReaderReference);
                 instrumentedFlamdexReader.addObserver(observer);
                 try {
                     flamdexes.put(pair.getFirst(), cachedFlamdexReaderReference);

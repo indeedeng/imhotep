@@ -29,8 +29,10 @@ import com.indeed.imhotep.MemoryReservationContext;
 
 import org.apache.log4j.Logger;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -42,16 +44,14 @@ public class InstrumentedFlamdexReader
     private static final Logger log = Logger.getLogger(InstrumentedFlamdexReader.class);
 
     private final FlamdexReader wrapped;
-    private final String        dataset;
-    private final String        sessionId;
-    private final String        username;
     private final FlamdexInfo   flamdexInfo;
 
     private final Map<String, Integer> statsPushed = new TreeMap<String, Integer>();
 
     private final Set<String> intFields    = new TreeSet<String>();
     private final Set<String> stringFields = new TreeSet<String>();
-    private final Set<String> metrics      = new TreeSet<String>();
+
+    private final Map<String, Long> metricBytesRequired = new HashMap<String, Long>();
 
     private Instrumentation.ProviderSupport instrumentation =
         new Instrumentation.ProviderSupport();
@@ -62,14 +62,9 @@ public class InstrumentedFlamdexReader
     class Event extends Instrumentation.Event {
         protected Event(String name) {
             super(name);
-            // !@# create common event property name constants somewhere...or use reflection?
-            getProperties().put("dataset",     InstrumentedFlamdexReader.this.dataset);
-            getProperties().put("shardId",     InstrumentedFlamdexReader.this.flamdexInfo.getShardId());
-            getProperties().put("shardDate",   InstrumentedFlamdexReader.this.flamdexInfo.getDate());
-            getProperties().put("shardSize",   InstrumentedFlamdexReader.this.flamdexInfo.getSizeInBytes());
-            getProperties().put("sessionId",   InstrumentedFlamdexReader.this.sessionId);
-            getProperties().put("statsPushed", InstrumentedFlamdexReader.this.statsPushed);
-            getProperties().put("username",    InstrumentedFlamdexReader.this.username);
+            getProperties().put("shardId",     flamdexInfo.getShardId());
+            getProperties().put("shardDate",   flamdexInfo.getDate());
+            getProperties().put("shardSize",   flamdexInfo.getSizeInBytes());
         }
     }
 
@@ -78,18 +73,37 @@ public class InstrumentedFlamdexReader
     final class CloseEvent extends Event {
         public CloseEvent(long maxUsedMemory) {
             super(CLOSE_EVENT);
+            getProperties().put("statsPushed", statsPushed);
+            getProperties().put("int-metrics", commaDelimitted(intFields));
+            getProperties().put("int-metrics-bytes-required",
+                                commaDelimitted(bytesRequired(intFields)));
+            getProperties().put("string-fields", commaDelimitted(stringFields));
             getProperties().put("maxUsedMemory", maxUsedMemory);
+        }
+
+        private String commaDelimitted(Collection<String> items) {
+            StringBuilder    sb = new StringBuilder();
+            Iterator<String> it = items.iterator();
+            while (it.hasNext()) {
+                sb.append(it.next());
+                if (it.hasNext()) sb.append(", ");
+            }
+            return sb.toString();
+        }
+
+        private ArrayList<String> bytesRequired(Collection<String> metrics) {
+            final ArrayList<String> result = new ArrayList<String>();
+            Iterator<String> it = metrics.iterator();
+            while (it.hasNext()) {
+                final Long bytes = metricBytesRequired.get(it.next());
+                result.add(bytes != null ? bytes.toString() : "(unknown)");
+            }
+            return result;
         }
     }
 
-    public InstrumentedFlamdexReader(FlamdexReader reader,
-                                     String        dataset,
-                                     String        sessionId,
-                                     String        username) {
+    public InstrumentedFlamdexReader(FlamdexReader reader) {
         this.wrapped     = reader;
-        this.dataset     = dataset;
-        this.sessionId   = sessionId;
-        this.username    = username;
         this.flamdexInfo = new FlamdexInfo(reader);
     }
 
@@ -119,9 +133,19 @@ public class InstrumentedFlamdexReader
         }
     }
 
-    private void    onIntField(String field)  { intFields.add(field);    }
-    private void onStringField(String field)  { stringFields.add(field); }
-    private void      onMetric(String metric) { metrics.add(metric);     }
+    private void onIntField(String field) {
+        intFields.add(field);
+        try {
+            final Long bytesRequired = memoryRequired(field);
+            metricBytesRequired.put(field, bytesRequired);
+        }
+        catch (Exception ex) {
+            // Swallow this error. The upshot is that we just won't have a
+            // bytesRequired value for this field in our CloseEvent.
+        }
+    }
+
+    private void onStringField(String field) { stringFields.add(field); }
 
     public void close() throws java.io.IOException { wrapped.close(); }
 
@@ -138,6 +162,7 @@ public class InstrumentedFlamdexReader
     }
 
     public StringTermIterator getStringTermIterator(String field) {
+        onStringField(field);
         return wrapped.getStringTermIterator(field);
     }
 
@@ -147,6 +172,7 @@ public class InstrumentedFlamdexReader
     }
 
     public StringTermDocIterator getStringTermDocIterator(String field) {
+        onStringField(field);
         return wrapped.getStringTermDocIterator(field);
     }
 
@@ -166,11 +192,13 @@ public class InstrumentedFlamdexReader
 
     public IntValueLookup getMetric(String metric)
         throws FlamdexOutOfMemoryException {
+        onIntField(metric);
         return wrapped.getMetric(metric);
     }
 
     public StringValueLookup getStringLookup(String field)
         throws FlamdexOutOfMemoryException {
+        onStringField(field);
         return wrapped.getStringLookup(field);
     }
 
