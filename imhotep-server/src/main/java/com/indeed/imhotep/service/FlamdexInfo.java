@@ -23,10 +23,10 @@ import com.indeed.imhotep.client.ShardTimeUtils;
 import java.io.File;
 import java.io.FileFilter;
 
+import org.apache.commons.io.FilenameUtils;
 import org.apache.log4j.Logger;
 
 import org.joda.time.DateTime;
-import org.joda.time.Interval;
 
 class FlamdexInfo {
 
@@ -37,8 +37,7 @@ class FlamdexInfo {
     private final long     sizeInBytes;
 
     FlamdexInfo(FlamdexReader reader) {
-        final File dir = new File(reader.getDirectory());
-        this.shardId     = dir != null ? dir.getName() : "null";
+        this.shardId     = FilenameUtils.getName(reader.getDirectory());
         this.date        = dateOf();
         this.sizeInBytes = sizeInBytesOf(reader);
     }
@@ -49,15 +48,10 @@ class FlamdexInfo {
 
     private DateTime dateOf() {
         try {
-            final Interval interval = ShardTimeUtils.parseInterval(shardId);
-            final DateTime start    = interval.getStart();
-            return new DateTime(start.year().get(),
-                                start.monthOfYear().get(),
-                                start.dayOfMonth().get(),
-                                0, 0);
+            return ShardTimeUtils.parseStart(shardId);
         }
         catch (Exception ex) {
-            log.warn("cannot extract date from shard directory: " + shardId);
+            log.warn("cannot extract date from shard directory: '" + shardId + "'");
             return null;
         }
     }

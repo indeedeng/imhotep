@@ -93,12 +93,12 @@ public class InstrumentedFlamdexReader
         this.flamdexInfo = new FlamdexInfo(reader);
     }
 
-    public void addObserver(final String event, final Instrumentation.Observer observer) {
-        instrumentation.addObserver(event, observer);
+    public void addObserver(Instrumentation.Observer observer) {
+        instrumentation.addObserver(observer);
     }
 
-    public void removeObserver(final String event, final Instrumentation.Observer observer) {
-        instrumentation.removeObserver(event, observer);
+    public void removeObserver(Instrumentation.Observer observer) {
+        instrumentation.removeObserver(observer);
     }
 
     public void onOpen() { instrumentation.fire(new OpenEvent());  }

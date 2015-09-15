@@ -26,8 +26,20 @@ import org.joda.time.format.DateTimeFormatter;
 public final class ShardTimeUtils {
     private static final Logger log = Logger.getLogger(ShardTimeUtils.class);
     private static final DateTimeZone ZONE = DateTimeZone.forOffsetHours(-6);
-    private static final DateTimeFormatter yyyymmdd = DateTimeFormat.forPattern("yyyyMMdd").withZone(ZONE);
-    private static final DateTimeFormatter yyyymmddhh = DateTimeFormat.forPattern("yyyyMMdd.HH").withZone(ZONE);
+    private static final DateTimeFormatter yyyymmdd =
+        DateTimeFormat.forPattern("yyyyMMdd").withZone(ZONE);
+    private static final DateTimeFormatter yyyymmddhh =
+        DateTimeFormat.forPattern("yyyyMMdd.HH").withZone(ZONE);
+
+    public static DateTime parseStart(String shardId) {
+        if (shardId.length() > 16) {
+            return yyyymmddhh.parseDateTime(shardId.substring(5, 16));
+        } else if (shardId.length() > 13) {
+            return yyyymmddhh.parseDateTime(shardId.substring(5, 16));
+        } else {
+            return yyyymmdd.parseDateTime(shardId.substring(5, 13));
+        }
+    }
 
     public static Interval parseInterval(String shardId) {
         if (shardId.length() > 16) {

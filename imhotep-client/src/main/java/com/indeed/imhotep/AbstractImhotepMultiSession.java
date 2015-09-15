@@ -17,7 +17,6 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.google.common.primitives.Longs;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.indeed.imhotep.io.LimitedBufferedOutputStream;
 import com.indeed.imhotep.io.TempFileSizeLimitExceededException;
 import com.indeed.imhotep.io.WriteLimitExceededException;
@@ -26,6 +25,8 @@ import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.threads.LogOnUncaughtExceptionHandler;
 import com.indeed.flamdex.query.Term;
 import com.indeed.flamdex.utils.BlockingCopyableIterator;
+import com.indeed.imhotep.Instrumentation;
+import com.indeed.imhotep.InstrumentedThreadFactory;
 import com.indeed.imhotep.api.DocIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
@@ -70,8 +71,13 @@ import java.util.concurrent.atomic.AtomicLong;
  * @author jsgroth
  */
 public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
-    extends AbstractImhotepSession {
+    extends AbstractImhotepSession
+    implements Instrumentation.Provider {
+
     private static final Logger log = Logger.getLogger(AbstractImhotepMultiSession.class);
+
+    private Instrumentation.ProviderSupport instrumentation =
+        new Instrumentation.ProviderSupport();
 
     protected final T[] sessions;
 
@@ -91,23 +97,52 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
 
     protected final AtomicLong tempFileSizeBytesLeft;
 
-    private final ExecutorService buildExecutorService(String nameFormat) {
-        final LogOnUncaughtExceptionHandler handler =
-            new LogOnUncaughtExceptionHandler(log);
-        return Executors.newCachedThreadPool(new ThreadFactoryBuilder().setDaemon(true)
-                                             .setNameFormat(nameFormat)
-                                             .setUncaughtExceptionHandler(handler)
-                                             .build());
+    private final ArrayList<InstrumentedThreadFactory> threadFactories =
+        new ArrayList<InstrumentedThreadFactory>();
+
+    private final class SessionThreadFactory extends InstrumentedThreadFactory {
+
+        private final String namePrefix;
+
+        SessionThreadFactory(String namePrefix) {
+            super(Executors.defaultThreadFactory());
+            this.namePrefix = namePrefix;
+            AbstractImhotepMultiSession.this.threadFactories.add(this);
+            addObserver(new Observer());
+        }
+
+        public Thread newThread(Runnable runnable) {
+            final LogOnUncaughtExceptionHandler handler =
+                new LogOnUncaughtExceptionHandler(log);
+            final Thread result = super.newThread(runnable);
+            result.setDaemon(true);
+            result.setName(namePrefix + "-" + result.getId());
+            result.setUncaughtExceptionHandler(handler);
+            return result;
+        }
+
+        /* Forward any events from the thread factory to observers of the
+           multisession. */
+        private final class Observer implements Instrumentation.Observer {
+            public void onEvent(final Instrumentation.Event event) {
+                event.getProperties().put("threadFactory", namePrefix);
+                AbstractImhotepMultiSession.this.instrumentation.fire(event);
+            }
+        }
+    }
+
+    private final ExecutorService buildExecutorService(String namePrefix) {
+        return Executors.newCachedThreadPool(new SessionThreadFactory(namePrefix));
     }
 
     private final ExecutorService executor =
-        buildExecutorService("LocalImhotepServiceCore-Worker-%d"); // !@# name?
+        buildExecutorService("LocalImhotepServiceCore-Worker"); // !@# name?
 
     private final ExecutorService getSplitBufferThreads =
-        buildExecutorService("FTGS-Buffer-Thread-getSplit-%d");
+        buildExecutorService("FTGS-Buffer-Thread-getSplit");
 
     private final ExecutorService mergeSplitBufferThreads =
-        buildExecutorService("FTGS-Buffer-Thread-mergeSplit-%d");
+        buildExecutorService("FTGS-Buffer-Thread-mergeSplit");
 
     protected int numStats = 0;
 
@@ -132,6 +167,14 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
         nullBuf = new Object[sessions.length];
         groupStatsBuf = new long[sessions.length][];
         termCountListBuf = new List[sessions.length];
+    }
+
+    public void addObserver(Instrumentation.Observer observer) {
+        instrumentation.addObserver(observer);
+    }
+
+    public void removeObserver(Instrumentation.Observer observer) {
+        instrumentation.removeObserver(observer);
     }
 
     @Override
@@ -751,6 +794,14 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
     }
 
     protected void preClose() {
+        for (InstrumentedThreadFactory factory: threadFactories) {
+            try {
+                factory.close();
+            }
+            catch (IOException e) {
+                log.warn(e);
+            }
+        }
         try {
             if (lastIterator != null) {
                 Closeables2.closeQuietly(lastIterator, log);

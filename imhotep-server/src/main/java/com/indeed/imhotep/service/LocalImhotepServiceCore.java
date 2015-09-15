@@ -548,6 +548,15 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
         return getSessionManager().getShardIdsForSession(sessionId);
     }
 
+    private final class SessionObserver implements Instrumentation.Observer {
+        private final String sessionId;
+        SessionObserver(String sessionId) { this.sessionId = sessionId; }
+        public void onEvent(Instrumentation.Event event) {
+            event.getProperties().put("sessionId", sessionId);
+            System.err.println("=== session event: " + event);
+        }
+    }
+
     @Override
     public String handleOpenSession(final String dataset,
                                     final List<String> shardRequestList,
@@ -606,6 +615,7 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
         final ImhotepLocalSession[] localSessions;
         localSessions = new ImhotepLocalSession[shardRequestList.size()];
         try {
+            final SessionObserver observer = new SessionObserver(sessionId);
             for (int i = 0; i < shardRequestList.size(); ++i) {
                 final String shardId = shardRequestList.get(i);
                 final Pair<ShardId, CachedFlamdexReaderReference> pair =
@@ -614,14 +624,7 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
                 final InstrumentedFlamdexReader instrumentedFlamdexReader =
                     new InstrumentedFlamdexReader(cachedFlamdexReaderReference,
                                                   dataset, sessionId, username);
-                final Instrumentation.Observer observer =
-                    new Instrumentation.Observer() {
-                        public void onEvent(Instrumentation.Event event) {
-                            //                            log.info("*** inst event: " + event);
-                            System.err.println("*** inst event: " + event);
-                        } };
-                instrumentedFlamdexReader.addObserver(InstrumentedFlamdexReader.OPEN_EVENT, observer);
-                instrumentedFlamdexReader.addObserver(InstrumentedFlamdexReader.CLOSE_EVENT, observer);
+                instrumentedFlamdexReader.addObserver(observer);
                 try {
                     flamdexes.put(pair.getFirst(), cachedFlamdexReaderReference);
                     localSessions[i] = useNativeFtgs && allFlamdexReaders ?
@@ -642,13 +645,14 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
                     throw e;
                 }
             }
-            final ImhotepSession session =
+            final MTImhotepLocalMultiSession session =
                 new MTImhotepLocalMultiSession(localSessions,
                                                new MemoryReservationContext(memory),
                                                tempFileSizeBytesLeft,
                                                useNativeFtgs && allFlamdexReaders);
             getSessionManager().addSession(sessionId, session, flamdexes, username,
                                            ipAddress, clientVersion, dataset);
+            session.addObserver(observer);
         } catch (RuntimeException e) {
             closeNonNullSessions(localSessions);
             throw e;

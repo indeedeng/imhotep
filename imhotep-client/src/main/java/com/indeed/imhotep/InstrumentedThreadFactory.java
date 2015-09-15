@@ -25,7 +25,7 @@ import java.util.TreeSet;
 import java.util.concurrent.ThreadFactory;
 
 public class InstrumentedThreadFactory
-    implements Closeable, /* Instrumentation.Provider,*/ ThreadFactory {
+    implements Closeable, Instrumentation.Provider, ThreadFactory {
 
     private static final Logger log = Logger.getLogger(InstrumentedThreadFactory.class);
 
@@ -69,6 +69,14 @@ public class InstrumentedThreadFactory
         final Thread result = factory.newThread(runnable);
         ids.add(result.getId());
         return result;
+    }
+
+    public void addObserver(Instrumentation.Observer observer) {
+        instrumentation.addObserver(observer);
+    }
+
+    public void removeObserver(Instrumentation.Observer observer) {
+        instrumentation.removeObserver(observer);
     }
 
     public void close() throws IOException {
