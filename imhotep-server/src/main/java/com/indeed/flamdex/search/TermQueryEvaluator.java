@@ -36,7 +36,7 @@ class TermQueryEvaluator implements QueryEvaluator {
     public void and(FlamdexReader r, FastBitSet bitSet, FastBitSetPooler bitSetPooler) {
         final DocIdStream docIdStream = r.getDocIdStream();
         if (term.isIntField()) {
-            final IntTermIterator iterator = r.getIntTermIterator(term.getFieldName());
+            final IntTermIterator iterator = r.getUnsortedIntTermIterator(term.getFieldName());
             try {
                 intAnd(iterator, docIdStream, bitSet);
             } finally {
@@ -94,7 +94,7 @@ class TermQueryEvaluator implements QueryEvaluator {
     public void or(FlamdexReader r, FastBitSet bitSet, FastBitSetPooler bitSetPooler) {
         final DocIdStream docIdStream = r.getDocIdStream();
         if (term.isIntField()) {
-            final IntTermIterator iterator = r.getIntTermIterator(term.getFieldName());
+            final IntTermIterator iterator = r.getUnsortedIntTermIterator(term.getFieldName());
             try {
                 intOr(iterator, docIdStream, bitSet);
             } finally {
@@ -146,7 +146,7 @@ class TermQueryEvaluator implements QueryEvaluator {
     public void not(FlamdexReader r, FastBitSet bitSet, FastBitSetPooler bitSetPooler) {
         final DocIdStream docIdStream = r.getDocIdStream();
         if (term.isIntField()) {
-            final IntTermIterator iterator = r.getIntTermIterator(term.getFieldName());
+            final IntTermIterator iterator = r.getUnsortedIntTermIterator(term.getFieldName());
             try {
                 intNot(iterator, docIdStream, bitSet);
             } finally {

@@ -1266,7 +1266,7 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
         final ImhotepChooser chooser = new ImhotepChooser(salt, p);
         final DocIdStream docIdStream = flamdexReader.getDocIdStream();
         if (isIntField) {
-            final IntTermIterator iter = flamdexReader.getIntTermIterator(field);
+            final IntTermIterator iter = flamdexReader.getUnsortedIntTermIterator(field);
             while (iter.next()) {
                 final long term = iter.term();
                 final int newGroup =
@@ -1335,7 +1335,7 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
                                                                        // percentage
         final DocIdStream docIdStream = flamdexReader.getDocIdStream();
         if (isIntField) {
-            final IntTermIterator iter = flamdexReader.getIntTermIterator(field);
+            final IntTermIterator iter = flamdexReader.getUnsortedIntTermIterator(field);
             while (iter.next()) {
                 final long term = iter.term();
                 final int groupIndex =
@@ -1392,7 +1392,7 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
         if (isIntField) {
             final PriorityQueue<IntTermWithFreq> pq =
                     new ObjectHeapPriorityQueue<IntTermWithFreq>(k, INT_FREQ_COMPARATOR);
-            final IntTermIterator iter = flamdexReader.getIntTermIterator(field);
+            final IntTermIterator iter = flamdexReader.getUnsortedIntTermIterator(field);
             try {
                 while (iter.next()) {
                     final int docFreq = iter.docFreq();
@@ -2226,7 +2226,7 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
             });
             final DocIdStream docIdStream = flamdexReader.getDocIdStream();
             if (fieldIsIntType) {
-                final IntTermIterator termIterator = flamdexReader.getIntTermIterator(fieldName);
+                final IntTermIterator termIterator = flamdexReader.getUnsortedIntTermIterator(fieldName);
                 for (int index : indices) {
                     final long term = conditions[index].intTerm;
                     final int delta = deltas[index];
@@ -2937,7 +2937,7 @@ public final class ImhotepLocalSession extends AbstractImhotepSession {
 
         final byte[] array = new byte[flamdexReader.getNumDocs()];
 
-        final IntTermIterator iterator = flamdexReader.getIntTermIterator(field);
+        final IntTermIterator iterator = flamdexReader.getUnsortedIntTermIterator(field);
         try {
             final DocIdStream docIdStream = flamdexReader.getDocIdStream();
             try {
