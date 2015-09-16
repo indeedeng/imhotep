@@ -460,7 +460,7 @@ public class FlamdexUtils {
     }
 
     public static long[] getMinMaxTerm(String field, FlamdexReader r) {
-        final IntTermIterator iterator = r.getIntTermIterator(field);
+        final IntTermIterator iterator = r.getUnsortedIntTermIterator(field);
         long minTerm = Long.MAX_VALUE;
         long maxTerm = Long.MIN_VALUE;
         try {
@@ -498,7 +498,7 @@ public class FlamdexUtils {
 
     public static ThreadSafeBitSet cacheHasIntTerm(final String field, final long term, final FlamdexReader reader) {
         final ThreadSafeBitSet ret = new ThreadSafeBitSet(reader.getNumDocs());
-        final IntTermIterator iter = reader.getIntTermIterator(field);
+        final IntTermIterator iter = reader.getUnsortedIntTermIterator(field);
         try {
             iter.reset(term);
             if (iter.next() && iter.term() == term) {
@@ -556,7 +556,7 @@ public class FlamdexUtils {
     }
 
     private static void cacheIntFieldRegex(String field, FlamdexReader reader, Automaton automaton, ThreadSafeBitSet ret) {
-        try (final IntTermIterator iter = reader.getIntTermIterator(field);
+        try (final IntTermIterator iter = reader.getUnsortedIntTermIterator(field);
              final DocIdStream dis = reader.getDocIdStream()) {
             while (iter.next()) {
                 if (automaton.run(String.valueOf(iter.term()))) {
@@ -581,7 +581,7 @@ public class FlamdexUtils {
     }
 
     public static long getIntTotalDocFreq(final FlamdexReader r, final String field) {
-        final IntTermIterator iter = r.getIntTermIterator(field);
+        final IntTermIterator iter = r.getUnsortedIntTermIterator(field);
         long totalDocFreq = 0L;
         try {
             while (iter.next()) {
