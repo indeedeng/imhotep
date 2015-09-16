@@ -541,6 +541,46 @@ public class FlamdexUtils {
         return ret;
     }
 
+    public static ThreadSafeBitSet cacheHasIntField(final String field, final FlamdexReader reader) {
+        final ThreadSafeBitSet ret = new ThreadSafeBitSet(reader.getNumDocs());
+        final int[] docIdBuffer = new int[64]; // 64 instead of BUFFER_SIZE to be consistent with fillBitSet.
+        try (
+                final IntTermIterator iter = reader.getIntTermIterator(field);
+                final DocIdStream dis = reader.getDocIdStream();
+        ) {
+            while (iter.next()) {
+                dis.reset(iter);
+                fillBitSetUsingBuffer(dis, ret, docIdBuffer);
+            }
+        }
+        return ret;
+    }
+
+    public static ThreadSafeBitSet cacheHasStringField(final String field, final FlamdexReader reader) {
+        final ThreadSafeBitSet ret = new ThreadSafeBitSet(reader.getNumDocs());
+        final int[] docIdBuffer = new int[64]; // 64 instead of BUFFER_SIZE to be consistent with fillBitSet.
+        try (
+            final StringTermIterator iter = reader.getStringTermIterator(field);
+            final DocIdStream dis = reader.getDocIdStream();
+        ) {
+            while (iter.next()) {
+                dis.reset(iter);
+                fillBitSetUsingBuffer(dis, ret, docIdBuffer);
+            }
+        }
+        return ret;
+    }
+
+    private static void fillBitSetUsingBuffer(DocIdStream dis, ThreadSafeBitSet ret, int[] docIdBuffer) {
+        while (true) {
+            final int n = dis.fillDocIdBuffer(docIdBuffer);
+            for (int i = 0; i < n; ++i) {
+                ret.set(docIdBuffer[i]);
+            }
+            if (n < docIdBuffer.length) break;
+        }
+    }
+
     public static ThreadSafeBitSet cacheRegex(final String field, final String regex, final FlamdexReader reader) {
         final Automaton automaton = new RegExp(regex).toAutomaton();
         final ThreadSafeBitSet ret = new ThreadSafeBitSet(reader.getNumDocs());

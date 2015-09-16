@@ -79,4 +79,47 @@ public class FlamdexUtilsTest extends TestCase {
         expectedCopy.and(bitSet);
         Assert.assertEquals("post-AND cardinality mismatch", expectedCopy.cardinality(), bitSet.cardinality());
     }
+
+    public void testHasIntField() throws Exception {
+        final MockFlamdexReader reader = new MockFlamdexReader(Arrays.asList("fieldname"), Collections.<String>emptySet(), Collections.<String>emptySet(), 50);
+        reader.addIntTerm("fieldname", 0, 3);
+        reader.addIntTerm("fieldname", 151, 0, 1, 2);
+        reader.addIntTerm("fieldname", 283, 3, 5);
+        reader.addIntTerm("fieldname", 40005, 7, 9);
+        final ThreadSafeBitSet bitSet = FlamdexUtils.cacheHasIntField("fieldname", reader);
+        final ThreadSafeBitSet expected = new ThreadSafeBitSet(50);
+        expected.set(0);
+        expected.set(1);
+        expected.set(2);
+        expected.set(3);
+        expected.set(5);
+        expected.set(7);
+        expected.set(9);
+        assertBitsetEquality(expected, bitSet);
+    }
+
+    public void testHasIntFieldEmptyField() throws Exception {
+        final MockFlamdexReader reader = new MockFlamdexReader(Arrays.asList("fieldname"), Collections.<String>emptySet(), Collections.<String>emptySet(), 50);
+        final ThreadSafeBitSet bitSet = FlamdexUtils.cacheHasIntField("fieldname", reader);
+        final ThreadSafeBitSet expected = new ThreadSafeBitSet(50);
+        assertBitsetEquality(expected, bitSet);
+    }
+
+    public void testHasStringFieldEmptyField() throws Exception {
+        final MockFlamdexReader reader = new MockFlamdexReader(Collections.<String>emptySet(), Arrays.asList("fieldname"), Collections.<String>emptySet(), 50);
+        reader.addStringTerm("fieldname", "0", 3);
+        reader.addStringTerm("fieldname", "151", 0, 1, 2);
+        reader.addStringTerm("fieldname", "283", 3, 5);
+        reader.addStringTerm("fieldname", "40005", 7, 9);
+        final ThreadSafeBitSet bitSet = FlamdexUtils.cacheHasStringField("fieldname", reader);
+        final ThreadSafeBitSet expected = new ThreadSafeBitSet(50);
+        expected.set(0);
+        expected.set(1);
+        expected.set(2);
+        expected.set(3);
+        expected.set(5);
+        expected.set(7);
+        expected.set(9);
+        assertBitsetEquality(expected, bitSet);
+    }
 }
