@@ -545,7 +545,7 @@ public class FlamdexUtils {
         final ThreadSafeBitSet ret = new ThreadSafeBitSet(reader.getNumDocs());
         final int[] docIdBuffer = new int[64]; // 64 instead of BUFFER_SIZE to be consistent with fillBitSet.
         try (
-                final IntTermIterator iter = reader.getIntTermIterator(field);
+                final IntTermIterator iter = reader.getUnsortedIntTermIterator(field);
                 final DocIdStream dis = reader.getDocIdStream();
         ) {
             while (iter.next()) {
