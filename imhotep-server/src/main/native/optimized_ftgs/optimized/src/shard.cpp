@@ -114,7 +114,7 @@ namespace imhotep {
         SplitFileMap::iterator it(_split_files.find(filename));
         if (it == _split_files.end()) {
             // !@# Consider having Shard explicitly delete these in dtor.
-            result = std::make_shared<MMappedFile>(filename, true);
+            result = std::make_shared<MMappedFile>(filename, true, true);
             _split_files[filename] = result;
         }
         else {
