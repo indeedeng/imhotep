@@ -63,6 +63,8 @@ public final class FTGSSplitter implements Runnable, Closeable {
     private final int numStats;
     private final int largePrime;
 
+    private static final int BUFFER_SIZE = 65536;
+
     public FTGSSplitter(FTGSIterator ftgsIterator, final int numSplits, final int numStats,
                         final String threadNameSuffix, final int largePrime,
                         final AtomicLong tempFileSizeBytesLeft) throws IOException {
@@ -80,9 +82,13 @@ public final class FTGSSplitter implements Runnable, Closeable {
         try {
             for (int i = 0; i < numSplits; i++) {
                 files[i] = File.createTempFile("ftgsSplitter", ".tmp");
-                outputStreams[i] = new LimitedBufferedOutputStream(new FileOutputStream(files[i]), tempFileSizeBytesLeft, 65536);
-                outputs[i] = new FTGSOutputStreamWriter(outputStreams[i]);
-                ftgsIterators[i] = new SplitterRawFTGSIterator(i, numStats, doneCounter, numSplits);
+                final FileOutputStream fos = new FileOutputStream(files[i]);
+                outputStreams[i] =
+                    new LimitedBufferedOutputStream(fos, tempFileSizeBytesLeft, BUFFER_SIZE);
+                outputs[i] =
+                    new FTGSOutputStreamWriter(outputStreams[i]);
+                ftgsIterators[i] =
+                    new SplitterRawFTGSIterator(i, numStats, doneCounter, numSplits);
             }
         } catch (Throwable t) {
             try {
@@ -118,19 +124,24 @@ public final class FTGSSplitter implements Runnable, Closeable {
                     final int split;
                     if (fieldIsIntType) {
                         final long term = iterator.termIntVal();
-                        split = (int)((term*largePrime+12345 & Integer.MAX_VALUE) >> 16)  % numSplits;
+                        split = (int) ((term*largePrime+12345 & Integer.MAX_VALUE) >> 16) % numSplits;
                         output = outputs[split];
                         output.switchIntTerm(term, iterator.termDocFreq());
                     } else {
                         if (rawIterator != null) {
-                            split = hashStringTerm(rawIterator.termStringBytes(), rawIterator.termStringLength());
+                            split = hashStringTerm(rawIterator.termStringBytes(),
+                                                   rawIterator.termStringLength());
                             output = outputs[split];
-                            output.switchBytesTerm(rawIterator.termStringBytes(), rawIterator.termStringLength(), rawIterator.termDocFreq());
+                            output.switchBytesTerm(rawIterator.termStringBytes(),
+                                                   rawIterator.termStringLength(),
+                                                   rawIterator.termDocFreq());
                         } else {
-                            final byte[] termStringBytes = iterator.termStringVal().getBytes(Charsets.UTF_8);
+                            final byte[] termStringBytes =
+                                iterator.termStringVal().getBytes(Charsets.UTF_8);
                             split = hashStringTerm(termStringBytes, termStringBytes.length);
                             output = outputs[split];
-                            output.switchBytesTerm(termStringBytes, termStringBytes.length, iterator.termDocFreq());
+                            output.switchBytesTerm(termStringBytes, termStringBytes.length,
+                                                   iterator.termDocFreq());
                         }
                     }
                     while (iterator.nextGroup()) {
@@ -157,7 +168,8 @@ public final class FTGSSplitter implements Runnable, Closeable {
     }
 
     private int hashStringTerm(byte[] termStringBytes, int termStringLength) {
-        return ((MurmurHash.hash32(termStringBytes, 0, termStringLength)*largePrime+12345 & 0x7FFFFFFF) >> 16) % numSplits;
+        return ((MurmurHash.hash32(termStringBytes, 0, termStringLength) *
+                 largePrime+12345 & 0x7FFFFFFF) >> 16) % numSplits;
     }
 
     @Override
@@ -176,7 +188,8 @@ public final class FTGSSplitter implements Runnable, Closeable {
                     }
                 }
             } finally {
-                Closeables2.closeAll(log, iterator, Closeables2.forIterable(log, Iterables.transform(Arrays.asList(files), new Function<File, Closeable>() {
+                final Function deleteFunction =
+                    new Function<File, Closeable>() {
                     public Closeable apply(final File input) {
                         return new Closeable() {
                             public void close() throws IOException {
@@ -184,7 +197,15 @@ public final class FTGSSplitter implements Runnable, Closeable {
                             }
                         };
                     }
-                })), Closeables2.forArray(log, outputs), Closeables2.forArray(log, ftgsIterators), Closeables2.forArray(log, outputStreams));
+                };
+                final Closeable deleteInputs =
+                    Closeables2.forIterable(log, Iterables.transform(Arrays.asList(files),
+                                                                     deleteFunction));
+                final Closeable closeOutputs = Closeables2.forArray(log, outputs);
+                final Closeable closeIterators = Closeables2.forArray(log, ftgsIterators);
+                final Closeable closeOutputStreams = Closeables2.forArray(log, outputStreams);
+                Closeables2.closeAll(log, iterator, deleteInputs, closeOutputs,
+                                     closeIterators, closeOutputStreams);
             }
         }
     }
@@ -198,10 +219,14 @@ public final class FTGSSplitter implements Runnable, Closeable {
         private final InputStreamFTGSIterator delegate;
         private boolean initialized = false;
 
-        public SplitterRawFTGSIterator(int splitIndex, int numStats, final AtomicInteger doneCounter, final int numSplits) throws FileNotFoundException {
-            delegate = new InputStreamFTGSIterator(new BufferedInputStream(new FileInputStream(files[splitIndex]), 65536), numStats) {
+        public SplitterRawFTGSIterator(int splitIndex, int numStats,
+                                       final AtomicInteger doneCounter,
+                                       final int numSplits)
+            throws FileNotFoundException {
+            final BufferedInputStream bis =
+                new BufferedInputStream(new FileInputStream(files[splitIndex]), BUFFER_SIZE);
+            delegate = new InputStreamFTGSIterator(bis, numStats) {
                 boolean closed = false;
-
                 @Override
                 public void close() {
                     if (!closed) {
@@ -228,69 +253,18 @@ public final class FTGSSplitter implements Runnable, Closeable {
             return delegate;
         }
 
-        @Override
-        public boolean nextField() {
-            return getDelegate().nextField();
-        }
-
-        @Override
-        public String fieldName() {
-            return getDelegate().fieldName();
-        }
-
-        @Override
-        public boolean fieldIsIntType() {
-            return getDelegate().fieldIsIntType();
-        }
-
-        @Override
-        public boolean nextTerm() {
-            return getDelegate().nextTerm();
-        }
-
-        @Override
-        public long termDocFreq() {
-            return getDelegate().termDocFreq();
-        }
-
-        @Override
-        public long termIntVal() {
-            return getDelegate().termIntVal();
-        }
-
-        @Override
-        public String termStringVal() {
-            return getDelegate().termStringVal();
-        }
-
-        @Override
-        public byte[] termStringBytes() {
-            return getDelegate().termStringBytes();
-        }
-
-        @Override
-        public int termStringLength() {
-            return getDelegate().termStringLength();
-        }
-
-        @Override
-        public boolean nextGroup() {
-            return getDelegate().nextGroup();
-        }
-
-        @Override
-        public int group() {
-            return getDelegate().group();
-        }
-
-        @Override
-        public void groupStats(final long[] stats) {
-            getDelegate().groupStats(stats);
-        }
-
-        @Override
-        public void close() {
-            delegate.close();
-        }
+        @Override public boolean nextField() { return getDelegate().nextField(); }
+        @Override public String fieldName() { return getDelegate().fieldName(); }
+        @Override public boolean fieldIsIntType() { return getDelegate().fieldIsIntType(); }
+        @Override public boolean nextTerm() { return getDelegate().nextTerm(); }
+        @Override public long termDocFreq() { return getDelegate().termDocFreq(); }
+        @Override public long termIntVal() { return getDelegate().termIntVal(); }
+        @Override public String termStringVal() { return getDelegate().termStringVal(); }
+        @Override public byte[] termStringBytes() { return getDelegate().termStringBytes(); }
+        @Override public int termStringLength() { return getDelegate().termStringLength(); }
+        @Override public boolean nextGroup() { return getDelegate().nextGroup(); }
+        @Override public int group() { return getDelegate().group(); }
+        @Override public void groupStats(final long[] stats) { getDelegate().groupStats(stats); }
+        @Override public void close() { delegate.close(); }
     }
 }
