@@ -63,7 +63,9 @@ public final class FTGSSplitter implements Runnable, Closeable {
     private final int numStats;
     private final int largePrime;
 
-    public FTGSSplitter(FTGSIterator ftgsIterator, final int numSplits, final int numStats, final String threadNameSuffix, final int largePrime, final AtomicLong tempFileSizeBytesLeft) throws IOException {
+    public FTGSSplitter(FTGSIterator ftgsIterator, final int numSplits, final int numStats,
+                        final String threadNameSuffix, final int largePrime,
+                        final AtomicLong tempFileSizeBytesLeft) throws IOException {
         this.iterator = ftgsIterator;
         this.numSplits = numSplits;
         this.numStats = numStats;
