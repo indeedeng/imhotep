@@ -64,6 +64,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -97,17 +98,12 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
 
     protected final AtomicLong tempFileSizeBytesLeft;
 
-    private final ArrayList<InstrumentedThreadFactory> threadFactories =
-        new ArrayList<InstrumentedThreadFactory>();
-
     private final class SessionThreadFactory extends InstrumentedThreadFactory {
 
         private final String namePrefix;
 
         SessionThreadFactory(String namePrefix) {
-            super(Executors.defaultThreadFactory());
             this.namePrefix = namePrefix;
-            AbstractImhotepMultiSession.this.threadFactories.add(this);
             addObserver(new Observer());
         }
 
@@ -135,14 +131,24 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
         return Executors.newCachedThreadPool(new SessionThreadFactory(namePrefix));
     }
 
+    private final SessionThreadFactory localThreadFactory =
+        new SessionThreadFactory(AbstractImhotepMultiSession.class.getName() + "-localThreads");
+    private final SessionThreadFactory splitThreadFactory =
+        new SessionThreadFactory(AbstractImhotepMultiSession.class.getName() + "-splitThreads");
+    private final SessionThreadFactory mergeThreadFactory =
+        new SessionThreadFactory(AbstractImhotepMultiSession.class.getName() + "-mergeThreads");
+
+    private final ArrayList<InstrumentedThreadFactory> threadFactories =
+        new ArrayList<InstrumentedThreadFactory>(Arrays.asList(localThreadFactory,
+                                                               splitThreadFactory,
+                                                               mergeThreadFactory));
+
     private final ExecutorService executor =
-        buildExecutorService("LocalImhotepServiceCore-Worker"); // !@# name?
-
+        Executors.newCachedThreadPool(localThreadFactory);
     private final ExecutorService getSplitBufferThreads =
-        buildExecutorService("FTGS-Buffer-Thread-getSplit");
-
+        Executors.newCachedThreadPool(splitThreadFactory);
     private final ExecutorService mergeSplitBufferThreads =
-        buildExecutorService("FTGS-Buffer-Thread-mergeSplit");
+        Executors.newCachedThreadPool(mergeThreadFactory);
 
     protected int numStats = 0;
 
@@ -694,8 +700,8 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
             for (int i = 0; i < splits.length; i++) {
                 final FTGSSplitter splitter =
                     closer.register(new FTGSSplitter(splits[i], numSplits, numStats,
-                                                     "mergeFtgsSplit", 981044833,
-                                                     tempFileSizeBytesLeft));
+                                                     981044833, tempFileSizeBytesLeft,
+                                                     splitThreadFactory));
                 iteratorSplits[i] = splitter.getFtgsIterators();
             }
             final RawFTGSIterator[] mergers = new RawFTGSIterator[numSplits];

@@ -565,7 +565,7 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
             event.getProperties().put("dataset",   dataset);
             event.getProperties().put("sessionId", sessionId);
             event.getProperties().put("username",  username);
-            System.err.println("=== session event: " + event);
+            System.err.println("=== session event: " + event); // !@# remove me
         }
     }
 
@@ -633,25 +633,23 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
                 final Pair<ShardId, CachedFlamdexReaderReference> pair =
                         flamdexReaders.get(shardId);
                 final CachedFlamdexReaderReference cachedFlamdexReaderReference = pair.getSecond();
-                final InstrumentedFlamdexReader instrumentedFlamdexReader =
-                    new InstrumentedFlamdexReader(cachedFlamdexReaderReference);
-                instrumentedFlamdexReader.addObserver(observer);
                 try {
                     flamdexes.put(pair.getFirst(), cachedFlamdexReaderReference);
                     localSessions[i] = useNativeFtgs && allFlamdexReaders ?
-                        new ImhotepNativeLocalSession(instrumentedFlamdexReader,
+                        new ImhotepNativeLocalSession(cachedFlamdexReaderReference,
                                                       new MemoryReservationContext(memory),
                                                       tempFileSizeBytesLeft) :
-                        new ImhotepJavaLocalSession(instrumentedFlamdexReader,
+                        new ImhotepJavaLocalSession(cachedFlamdexReaderReference,
                                                     this.shardTempDirectory,
                                                     new MemoryReservationContext(memory),
                                                     tempFileSizeBytesLeft);
+                    localSessions[i].addObserver(observer);
                 } catch (RuntimeException e) {
-                    Closeables2.closeQuietly(instrumentedFlamdexReader, log);
+                    Closeables2.closeQuietly(cachedFlamdexReaderReference, log);
                     localSessions[i] = null;
                     throw e;
                 } catch (ImhotepOutOfMemoryException e) {
-                    Closeables2.closeQuietly(instrumentedFlamdexReader, log);
+                    Closeables2.closeQuietly(cachedFlamdexReaderReference, log);
                     localSessions[i] = null;
                     throw e;
                 }

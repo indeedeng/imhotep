@@ -37,6 +37,7 @@ import com.indeed.imhotep.service.*;
 import com.indeed.util.core.*;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
+import com.indeed.util.core.threads.LogOnUncaughtExceptionHandler;
 import com.indeed.util.core.threads.ThreadSafeBitSet;
 import dk.brics.automaton.*;
 import it.unimi.dsi.fastutil.PriorityQueue;
@@ -50,6 +51,8 @@ import javax.annotation.Nonnull;
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.*;
 
@@ -57,7 +60,10 @@ import java.util.regex.*;
  * This class isn't even close to remotely thread safe, do not use it
  * simultaneously from multiple threads
  */
-public abstract class ImhotepLocalSession extends AbstractImhotepSession {
+public abstract class ImhotepLocalSession
+    extends AbstractImhotepSession
+    implements Instrumentation.Provider {
+
     static final Logger log = Logger.getLogger(ImhotepLocalSession.class);
 
     static final boolean logTiming;
@@ -81,8 +87,9 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     protected FlamdexReader flamdexReader;
     protected SharedReference<FlamdexReader> flamdexReaderRef;
 
-    // !@# ugly temporary hack...
-    private InstrumentedFlamdexReader instrumentedFlamdexReader;
+    private final Instrumentation.ProviderSupport instrumentation =
+        new Instrumentation.ProviderSupport();
+    private final InstrumentedFlamdexReader instrumentedFlamdexReader;
 
     final MemoryReservationContext memory;
 
@@ -103,6 +110,54 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     protected Map<String, DynamicMetric> dynamicMetrics = Maps.newHashMap();
 
     private final Exception constructorStackTrace;
+
+    private final LocalSessionThreadFactory threadFactory =
+        new LocalSessionThreadFactory(ImhotepLocalSession.class.getSimpleName() + "-" +
+                                      FTGSSplitter.class.getSimpleName());
+
+    private final class LocalSessionThreadFactory extends InstrumentedThreadFactory {
+
+        private final String name;
+
+        LocalSessionThreadFactory(String name) {
+            this.name = name;
+            addObserver(new Observer());
+        }
+
+        public Thread newThread(Runnable runnable) {
+            final LogOnUncaughtExceptionHandler handler = new LogOnUncaughtExceptionHandler(log);
+            final Thread result = super.newThread(runnable);
+            result.setDaemon(true);
+            result.setName(name + "-" + result.getId());
+            result.setUncaughtExceptionHandler(handler);
+            return result;
+        }
+
+        private final class Observer implements Instrumentation.Observer {
+            public void onEvent(final Instrumentation.Event event) {
+                event.getProperties().put("threadFactory", name);
+                ImhotepLocalSession.this.instrumentation.fire(event);
+            }
+        }
+    }
+
+    class SessionCloseEvent extends Instrumentation.Event {
+        SessionCloseEvent() {
+            super(SessionCloseEvent.class.getSimpleName());
+            getProperties()
+                .putAll(ImhotepLocalSession.this.instrumentedFlamdexReader.sample().getProperties());
+            getProperties()
+                .put("maxUsedMemory", ImhotepLocalSession.this.memory.maxUsedMemory());
+        }
+    }
+
+    public void addObserver(Instrumentation.Observer observer) {
+        instrumentation.addObserver(observer);
+    }
+
+    public void removeObserver(Instrumentation.Observer observer) {
+        instrumentation.removeObserver(observer);
+    }
 
     private interface DocIdHandler {
         public void handle(final int[] docIdBuf, final int index);
@@ -162,18 +217,13 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
         this.statCommands = new ArrayList<String>();
 
-        this.instrumentedFlamdexReader =
-            this.flamdexReader instanceof InstrumentedFlamdexReader ?
-            (InstrumentedFlamdexReader) this.flamdexReader : null;
-        if (instrumentedFlamdexReader != null ) {
-            this.statLookup.addObserver(new StatLookup.Observer() {
-                    public void onChange(final StatLookup statLookup, final int index) {
-                        instrumentedFlamdexReader.onPushStat(statLookup.getName(index),
-                                                             statLookup.get(index));
-                    }
-                });
-            instrumentedFlamdexReader.onOpen();
-        }
+        this.instrumentedFlamdexReader = new InstrumentedFlamdexReader(this.flamdexReader);
+        this.statLookup.addObserver(new StatLookup.Observer() {
+                public void onChange(final StatLookup statLookup, final int index) {
+                    instrumentedFlamdexReader.onPushStat(statLookup.getName(index),
+                                                         statLookup.get(index));
+                }
+            });
     }
 
     FlamdexReader getReader() {
@@ -372,8 +422,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             try {
                 ftgsIteratorSplits = new FTGSSplitter(getFTGSIterator(intFields, stringFields),
                                                       numSplits, numStats,
-                                                      "getIteratorSplitsLocalSession",
-                                                      969168349, tempFileSizeBytesLeft);
+                                                      969168349, tempFileSizeBytesLeft,
+                                                      threadFactory);
             } catch (IOException e) {
                 throw Throwables.propagate(e);
             }
@@ -408,8 +458,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             try {
                 ftgsIteratorSplits = new FTGSSplitter(getSubsetFTGSIterator(intFields, stringFields),
                                                       numSplits, numStats,
-                                                      "getIteratorSplitsLocalSession",
-                                                      969168349, tempFileSizeBytesLeft);
+                                                      969168349, tempFileSizeBytesLeft,
+                                                      threadFactory);
             } catch (IOException e) {
                 throw Throwables.propagate(e);
             }
@@ -1963,6 +2013,10 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     protected void tryClose() {
         try {
+            instrumentation.fire(new SessionCloseEvent());
+
+            Closeables2.closeQuietly(threadFactory, log);
+
             Closeables2.closeQuietly(flamdexReaderRef, log);
             while (numStats > 0) {
                 popStat();
@@ -1980,9 +2034,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             if (memory.usedMemory() > 0) {
                 log.error("ImhotepLocalSession is leaking! memory reserved after " +
                           "all memory has been freed: " + memory.usedMemory());
-            }
-            if (instrumentedFlamdexReader != null ) {
-                instrumentedFlamdexReader.onClose(memory);
             }
         } finally {
             Closeables2.closeQuietly(memory, log);

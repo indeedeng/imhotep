@@ -37,6 +37,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -66,8 +67,8 @@ public final class FTGSSplitter implements Runnable, Closeable {
     private static final int BUFFER_SIZE = 65536;
 
     public FTGSSplitter(FTGSIterator ftgsIterator, final int numSplits, final int numStats,
-                        final String threadNameSuffix, final int largePrime,
-                        final AtomicLong tempFileSizeBytesLeft) throws IOException {
+                        final int largePrime, final AtomicLong tempFileSizeBytesLeft,
+                        final ThreadFactory threadFactory) throws IOException {
         this.iterator = ftgsIterator;
         this.numSplits = numSplits;
         this.numStats = numStats;
@@ -77,8 +78,7 @@ public final class FTGSSplitter implements Runnable, Closeable {
         outputStreams = new OutputStream[numSplits];
         ftgsIterators = new RawFTGSIterator[numSplits];
         final AtomicInteger doneCounter = new AtomicInteger();
-        runThread = new Thread(this, "FTGSSplitterThread-"+threadNameSuffix);
-        runThread.setDaemon(true);
+        runThread = threadFactory.newThread(this);
         try {
             for (int i = 0; i < numSplits; i++) {
                 files[i] = File.createTempFile("ftgsSplitter", ".tmp");

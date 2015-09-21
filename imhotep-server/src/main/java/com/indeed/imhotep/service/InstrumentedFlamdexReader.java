@@ -39,7 +39,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 public class InstrumentedFlamdexReader
-    implements FlamdexReader, Instrumentation.Provider {
+    implements FlamdexReader {
 
     private static final Logger log = Logger.getLogger(InstrumentedFlamdexReader.class);
 
@@ -53,32 +53,17 @@ public class InstrumentedFlamdexReader
 
     private final Map<String, Long> metricBytesRequired = new HashMap<String, Long>();
 
-    private Instrumentation.ProviderSupport instrumentation =
-        new Instrumentation.ProviderSupport();
-
-    public static final String  OPEN_EVENT = OpenEvent.class.getSimpleName();
-    public static final String CLOSE_EVENT = CloseEvent.class.getSimpleName();
-
-    class Event extends Instrumentation.Event {
-        protected Event(String name) {
-            super(name);
+    final public class Event extends Instrumentation.Event {
+        Event() {
+            super(Event.class.getSimpleName());
             getProperties().put("shardId",     flamdexInfo.getShardId());
             getProperties().put("shardDate",   flamdexInfo.getDate());
             getProperties().put("shardSize",   flamdexInfo.getSizeInBytes());
-        }
-    }
-
-    final class  OpenEvent extends Event { public  OpenEvent() { super(OPEN_EVENT);  } }
-
-    final class CloseEvent extends Event {
-        public CloseEvent(long maxUsedMemory) {
-            super(CLOSE_EVENT);
             getProperties().put("statsPushed", statsPushed);
             getProperties().put("int-metrics", commaDelimitted(intFields));
             getProperties().put("int-metrics-bytes-required",
                                 commaDelimitted(bytesRequired(intFields)));
             getProperties().put("string-fields", commaDelimitted(stringFields));
-            getProperties().put("maxUsedMemory", maxUsedMemory);
         }
 
         private String commaDelimitted(Collection<String> items) {
@@ -107,19 +92,7 @@ public class InstrumentedFlamdexReader
         this.flamdexInfo = new FlamdexInfo(reader);
     }
 
-    public void addObserver(Instrumentation.Observer observer) {
-        instrumentation.addObserver(observer);
-    }
-
-    public void removeObserver(Instrumentation.Observer observer) {
-        instrumentation.removeObserver(observer);
-    }
-
-    public void onOpen() { instrumentation.fire(new OpenEvent());  }
-
-    public void onClose(MemoryReservationContext mrc) {
-        instrumentation.fire(new CloseEvent(mrc.maxUsedMemory()));
-    }
+    public Event sample() { return new Event(); }
 
     public void onPushStat(String stat, IntValueLookup lookup) {
         if (stat != null) {
