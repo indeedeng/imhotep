@@ -134,6 +134,11 @@ public class InstrumentedFlamdexReader
         return wrapped.getIntTermIterator(field);
     }
 
+    public IntTermIterator getUnsortedIntTermIterator(String field) {
+        onIntField(field);
+        return wrapped.getUnsortedIntTermIterator(field);
+    }
+
     public StringTermIterator getStringTermIterator(String field) {
         onStringField(field);
         return wrapped.getStringTermIterator(field);

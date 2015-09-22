@@ -199,7 +199,8 @@ public abstract class ImhotepLocalSession
         throws ImhotepOutOfMemoryException {
         this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
         constructorStackTrace = new Exception();
-        this.flamdexReader = flamdexReader;
+        this.instrumentedFlamdexReader = new InstrumentedFlamdexReader(flamdexReader);
+        this.flamdexReader = this.instrumentedFlamdexReader; // !@# remove this alias
         this.flamdexReaderRef = SharedReference.create(this.flamdexReader);
         this.memory = memory;
         this.numDocs = flamdexReader.getNumDocs();
@@ -217,7 +218,6 @@ public abstract class ImhotepLocalSession
 
         this.statCommands = new ArrayList<String>();
 
-        this.instrumentedFlamdexReader = new InstrumentedFlamdexReader(this.flamdexReader);
         this.statLookup.addObserver(new StatLookup.Observer() {
                 public void onChange(final StatLookup statLookup, final int index) {
                     instrumentedFlamdexReader.onPushStat(statLookup.getName(index),
@@ -1683,6 +1683,15 @@ public abstract class ImhotepLocalSession
         }
 
         return numStats;
+    }
+
+    private static boolean is32BitInteger(String s) {
+        try {
+            Integer.parseInt(s);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     private static boolean is64BitInteger(String s) {

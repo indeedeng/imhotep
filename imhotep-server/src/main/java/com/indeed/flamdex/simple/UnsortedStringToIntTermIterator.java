@@ -49,4 +49,10 @@ public class UnsortedStringToIntTermIterator implements SimpleIntTermIterator  {
     public void close() {
         stringTermIterator.close();
     }
+
+    @Override
+    public long getDocListAddress()
+        throws java.io.IOException {
+        return stringTermIterator.getDocListAddress();
+    }
 }
