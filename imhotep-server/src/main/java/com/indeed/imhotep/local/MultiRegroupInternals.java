@@ -207,7 +207,7 @@ class MultiRegroupInternals {
                 // Handle term splits by going to the term directly and applying the rule.
                 flat.reorderOnTerm(fieldStartIndex, iCondition, intType);
                 if (intType) {
-                    final IntTermIterator termIterator = flamdexReader.getIntTermIterator(field);
+                    final IntTermIterator termIterator = flamdexReader.getUnsortedIntTermIterator(field);
                     long currentTerm = flat.conditions[fieldStartIndex].intTerm;
                     int termStartIndex = fieldStartIndex;
                     final int fieldEndIndex = iCondition;

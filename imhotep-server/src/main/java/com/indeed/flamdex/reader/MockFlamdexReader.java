@@ -378,6 +378,11 @@ public class MockFlamdexReader implements FlamdexReader {
     }
 
     @Override
+    public IntTermIterator getUnsortedIntTermIterator(String field) {
+        return getIntTermIterator(field);
+    }
+
+    @Override
     public StringTermIterator getStringTermIterator(String field) {
         return stringTerms.containsKey(field) ? new MockStringTermIterator(field) : new MockEmptyStringTermIterator();
     }

@@ -13,7 +13,7 @@
  */
  package com.indeed.flamdex.lucene;
 
-import com.indeed.flamdex.api.StringTermIterator;
+import com.indeed.flamdex.api.IntTermIterator;
 import org.apache.log4j.Logger;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
@@ -21,22 +21,25 @@ import org.apache.lucene.index.TermEnum;
 
 import java.io.IOException;
 
-class LuceneStringTermIterator implements StringTermIterator, LuceneTermIterator {
+/**
+ * @author jsgroth
+ */
+final class LuceneUnsortedIntTermIterator implements IntTermIterator, LuceneTermIterator {
     private static final Logger log = Logger.getLogger(LuceneStringTermIterator.class);
 
     private final IndexReader reader;
     private final String field;
     private TermEnum termEnum; // if this is null it signals initialize needs to be called
     private boolean hasNext = false;
-    private String firstTerm = "";
+    private long firstTerm = 0;
 
-    public LuceneStringTermIterator(final IndexReader reader, final String field) {
+    public LuceneUnsortedIntTermIterator(final IndexReader reader, final String field) {
         this.reader = reader;
         this.field = field;
     }
 
     @Override
-    public void reset(final String term) {
+    public void reset(final long term) {
         firstTerm = term;
         closeTermEnum();
     }
@@ -44,7 +47,7 @@ class LuceneStringTermIterator implements StringTermIterator, LuceneTermIterator
     private void closeTermEnum() {
         if (termEnum == null) return;
         try {
-           termEnum.close();
+            termEnum.close();
         } catch (IOException e) {
             throw LuceneUtils.ioRuntimeException(e);
         }
@@ -53,7 +56,7 @@ class LuceneStringTermIterator implements StringTermIterator, LuceneTermIterator
 
     private boolean initialize() {
         try {
-            termEnum = reader.terms(new Term(field, firstTerm));
+            termEnum = reader.terms(new Term(field, Long.toString(firstTerm)));
         } catch (IOException e) {
             throw LuceneUtils.ioRuntimeException(e);
         }
@@ -62,9 +65,13 @@ class LuceneStringTermIterator implements StringTermIterator, LuceneTermIterator
     }
 
     @Override
-    public String term() {
+    public long term() {
         sanityCheck();
-        return termEnum.term().text();
+        try {
+            return Long.parseLong(termEnum.term().text());
+        } catch(NumberFormatException ignored) {
+            return 0;
+        }
     }
 
     @Override

@@ -460,7 +460,7 @@ public class FlamdexUtils {
     }
 
     public static long[] getMinMaxTerm(String field, FlamdexReader r) {
-        final IntTermIterator iterator = r.getIntTermIterator(field);
+        final IntTermIterator iterator = r.getUnsortedIntTermIterator(field);
         /*
          * Docs with no term are defined to have a term of 0,
          * so the min - max range MUST include 0.
@@ -502,7 +502,7 @@ public class FlamdexUtils {
 
     public static ThreadSafeBitSet cacheHasIntTerm(final String field, final long term, final FlamdexReader reader) {
         final ThreadSafeBitSet ret = new ThreadSafeBitSet(reader.getNumDocs());
-        final IntTermIterator iter = reader.getIntTermIterator(field);
+        final IntTermIterator iter = reader.getUnsortedIntTermIterator(field);
         try {
             iter.reset(term);
             if (iter.next() && iter.term() == term) {
@@ -545,6 +545,46 @@ public class FlamdexUtils {
         return ret;
     }
 
+    public static ThreadSafeBitSet cacheHasIntField(final String field, final FlamdexReader reader) {
+        final ThreadSafeBitSet ret = new ThreadSafeBitSet(reader.getNumDocs());
+        final int[] docIdBuffer = new int[64]; // 64 instead of BUFFER_SIZE to be consistent with fillBitSet.
+        try (
+                final IntTermIterator iter = reader.getUnsortedIntTermIterator(field);
+                final DocIdStream dis = reader.getDocIdStream();
+        ) {
+            while (iter.next()) {
+                dis.reset(iter);
+                fillBitSetUsingBuffer(dis, ret, docIdBuffer);
+            }
+        }
+        return ret;
+    }
+
+    public static ThreadSafeBitSet cacheHasStringField(final String field, final FlamdexReader reader) {
+        final ThreadSafeBitSet ret = new ThreadSafeBitSet(reader.getNumDocs());
+        final int[] docIdBuffer = new int[64]; // 64 instead of BUFFER_SIZE to be consistent with fillBitSet.
+        try (
+            final StringTermIterator iter = reader.getStringTermIterator(field);
+            final DocIdStream dis = reader.getDocIdStream();
+        ) {
+            while (iter.next()) {
+                dis.reset(iter);
+                fillBitSetUsingBuffer(dis, ret, docIdBuffer);
+            }
+        }
+        return ret;
+    }
+
+    private static void fillBitSetUsingBuffer(DocIdStream dis, ThreadSafeBitSet ret, int[] docIdBuffer) {
+        while (true) {
+            final int n = dis.fillDocIdBuffer(docIdBuffer);
+            for (int i = 0; i < n; ++i) {
+                ret.set(docIdBuffer[i]);
+            }
+            if (n < docIdBuffer.length) break;
+        }
+    }
+
     public static ThreadSafeBitSet cacheRegex(final String field, final String regex, final FlamdexReader reader) {
         final Automaton automaton = new RegExp(regex).toAutomaton();
         final ThreadSafeBitSet ret = new ThreadSafeBitSet(reader.getNumDocs());
@@ -560,7 +600,7 @@ public class FlamdexUtils {
     }
 
     private static void cacheIntFieldRegex(String field, FlamdexReader reader, Automaton automaton, ThreadSafeBitSet ret) {
-        try (final IntTermIterator iter = reader.getIntTermIterator(field);
+        try (final IntTermIterator iter = reader.getUnsortedIntTermIterator(field);
              final DocIdStream dis = reader.getDocIdStream()) {
             while (iter.next()) {
                 if (automaton.run(String.valueOf(iter.term()))) {
@@ -585,7 +625,7 @@ public class FlamdexUtils {
     }
 
     public static long getIntTotalDocFreq(final FlamdexReader r, final String field) {
-        final IntTermIterator iter = r.getIntTermIterator(field);
+        final IntTermIterator iter = r.getUnsortedIntTermIterator(field);
         long totalDocFreq = 0L;
         try {
             while (iter.next()) {

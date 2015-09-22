@@ -150,6 +150,11 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
     }
 
     @Override
+    public IntTermIterator getUnsortedIntTermIterator(String field) {
+        return getIntTermIterator(field);
+    }
+
+    @Override
     public StringTermIterator getStringTermIterator(String field) {
         return new MemoryStringTermIterator(field);
     }
@@ -660,6 +665,11 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
                     public void close() {
                     }
                 };
+            }
+
+            @Override
+            public IntTermIterator getUnsortedIntTermIterator(String field) {
+                return getIntTermIterator(field);
             }
 
             @Override

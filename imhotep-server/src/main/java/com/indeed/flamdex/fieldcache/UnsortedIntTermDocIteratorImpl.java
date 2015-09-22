@@ -30,7 +30,7 @@ public class UnsortedIntTermDocIteratorImpl implements UnsortedIntTermDocIterato
     }
 
     public static UnsortedIntTermDocIteratorImpl create(final FlamdexReader r, final String field) {
-        final IntTermIterator iterator = r.getIntTermIterator(field);
+        final IntTermIterator iterator = r.getUnsortedIntTermIterator(field);
         final DocIdStream docIdStream;
         try {
             docIdStream = r.getDocIdStream();

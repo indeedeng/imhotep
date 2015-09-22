@@ -22,6 +22,7 @@ public interface FlamdexReader extends Closeable {
     int getNumDocs();
     String getDirectory();
     DocIdStream getDocIdStream();
+    IntTermIterator getUnsortedIntTermIterator(String field);
     IntTermIterator getIntTermIterator(String field);
     StringTermIterator getStringTermIterator(String field);
     IntTermDocIterator getIntTermDocIterator(String field);

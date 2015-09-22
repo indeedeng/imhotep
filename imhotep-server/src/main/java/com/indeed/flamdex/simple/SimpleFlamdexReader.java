@@ -14,6 +14,7 @@
  package com.indeed.flamdex.simple;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -122,14 +123,34 @@ public class SimpleFlamdexReader
     }
 
     @Override
+    public SimpleIntTermIterator getUnsortedIntTermIterator(String field) {
+        return getIntTermIterator(field, true);
+    }
+
+    @Override
     public SimpleIntTermIterator getIntTermIterator(String field) {
+        return getIntTermIterator(field, false);
+    }
+
+    private SimpleIntTermIterator getIntTermIterator(final String field, boolean unsorted) {
         final String termsFilename = CachedFile.buildPath(directory, SimpleIntFieldWriter.getTermsFilename(field));
         final String docsFilename = CachedFile.buildPath(directory, SimpleIntFieldWriter.getDocsFilename(field));
         if (CachedFile.create(termsFilename).length() == 0L) {
-            // try to read it as a String field and convert
+            // try to read it as a String field and convert to ints
             final SimpleStringTermIterator stringTermIterator = getStringTermIterator(field);
             if(!(stringTermIterator instanceof NullStringTermIterator)) {
-                return new StringToIntTermIterator(stringTermIterator);
+                if(unsorted) {
+                    return new UnsortedStringToIntTermIterator(stringTermIterator);
+                } else {
+                    final Supplier<SimpleStringTermIterator> stringTermIteratorSupplier =
+                        new Supplier<SimpleStringTermIterator>() {
+                            @Override
+                            public SimpleStringTermIterator get() {
+                                return getStringTermIterator(field);
+                            }
+                        };
+                    return new StringToIntTermIterator(stringTermIterator, stringTermIteratorSupplier);
+                }
             }
 
             // string field not found. return a null iterator
@@ -160,12 +181,16 @@ public class SimpleFlamdexReader
 
     @Override
     protected UnsortedIntTermDocIterator createUnsortedIntTermDocIterator(final String field) {
-        return getIntTermDocIterator(field);
+        return getIntTermDocIterator(field, true);
     }
 
     @Override
     public IntTermDocIterator getIntTermDocIterator(final String field) {
-        final SimpleIntTermIterator termIterator = getIntTermIterator(field);
+        return getIntTermDocIterator(field, false);
+    }
+
+    public IntTermDocIterator getIntTermDocIterator(final String field, final boolean unsorted) {
+        final SimpleIntTermIterator termIterator = getIntTermIterator(field, unsorted);
         if (useNativeDocIdStream && CachedFile.create(termIterator.getFilename()).length() > 0) {
             try {
                 return new NativeIntTermDocIterator(termIterator, mapCache);

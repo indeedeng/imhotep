@@ -94,6 +94,11 @@ public class LuceneFlamdexReader extends AbstractFlamdexReader {
     }
 
     @Override
+    public IntTermIterator getUnsortedIntTermIterator(final String field) {
+        return new LuceneUnsortedIntTermIterator(reader, field);
+    }
+
+    @Override
     public StringTermIterator getStringTermIterator(final String field) {
         return new LuceneStringTermIterator(reader, field);
     }

@@ -910,7 +910,7 @@ public abstract class ImhotepLocalSession
         final ImhotepChooser chooser = new ImhotepChooser(salt, p);
         final DocIdStream docIdStream = flamdexReader.getDocIdStream();
         if (isIntField) {
-            final IntTermIterator iter = flamdexReader.getIntTermIterator(field);
+            final IntTermIterator iter = flamdexReader.getUnsortedIntTermIterator(field);
             while (iter.next()) {
                 final long term = iter.term();
                 final int newGroup =
@@ -949,7 +949,7 @@ public abstract class ImhotepLocalSession
         final ImhotepChooser chooser = new ImhotepChooser(salt, -1.0);
         final DocIdStream docIdStream = flamdexReader.getDocIdStream();
         if (isIntField) {
-            final IntTermIterator iter = flamdexReader.getIntTermIterator(field);
+            final IntTermIterator iter = flamdexReader.getUnsortedIntTermIterator(field);
             while (iter.next()) {
                 final long term = iter.term();
                 final int groupIndex = indexOfFirstLessThan(chooser.getValue(Long.toString(term)), percentages);
@@ -981,7 +981,7 @@ public abstract class ImhotepLocalSession
         if (isIntField) {
             final PriorityQueue<IntTermWithFreq> pq =
                     new ObjectHeapPriorityQueue<IntTermWithFreq>(k, INT_FREQ_COMPARATOR);
-            final IntTermIterator iter = flamdexReader.getIntTermIterator(field);
+            final IntTermIterator iter = flamdexReader.getUnsortedIntTermIterator(field);
             try {
                 while (iter.next()) {
                     final int docFreq = iter.docFreq();
@@ -1410,6 +1410,12 @@ public abstract class ImhotepLocalSession
                 throw new IllegalArgumentException("invalid hasint metric: " + statName);
             }
             statLookup.set(numStats, statName, hasIntTermFilter(split[0], Integer.parseInt(split[1])));
+        } else if (statName.startsWith("hasstrfield ")) {
+            final String field = statName.substring("hasstrfield ".length()).trim();
+            statLookup.set(numStats, statName, hasStringFieldFilter(field));
+        } else if (statName.startsWith("hasintfield ")) {
+            final String field = statName.substring("hasintfield ".length()).trim();
+            statLookup.set(numStats, statName, hasIntFieldFilter(field));
         } else if (statName.startsWith("regex ")) {
             final String s = statName.substring(6).trim();
             final String[] split = s.split(":", 2);
@@ -1462,8 +1468,10 @@ public abstract class ImhotepLocalSession
             final int depth = Integer.valueOf(statName.substring(4).trim());
             statLookup.set(numStats, statName, new DelegatingMetric(statLookup.get(numStats - depth - 1)));
         } else if (is32BitInteger(statName)) {
-            final int constant = Integer.parseInt(statName); // guaranteed not
-                                                             // to fail
+            final int constant = Integer.parseInt(statName); // guaranteed not to fail
+            statLookup.set(numStats, statName, new Constant(constant));
+        } else if (is64BitInteger(statName)) {
+            final long constant = Long.parseLong(statName); // guaranteed notto fail
             statLookup.set(numStats, statName, new Constant(constant));
         } else if (statName.startsWith("interleave ")) {
             final int count = Integer.valueOf(statName.substring(11).trim());
@@ -1677,9 +1685,9 @@ public abstract class ImhotepLocalSession
         return numStats;
     }
 
-    private static boolean is32BitInteger(String s) {
+    private static boolean is64BitInteger(String s) {
         try {
-            Integer.parseInt(s);
+            Long.parseLong(s);
             return true;
         } catch (NumberFormatException e) {
             return false;
@@ -1806,7 +1814,7 @@ public abstract class ImhotepLocalSession
             });
             final DocIdStream docIdStream = flamdexReader.getDocIdStream();
             if (fieldIsIntType) {
-                final IntTermIterator termIterator = flamdexReader.getIntTermIterator(fieldName);
+                final IntTermIterator termIterator = flamdexReader.getUnsortedIntTermIterator(fieldName);
                 for (int index : indices) {
                     final long term = conditions[index].intTerm;
                     final int delta = deltas[index];
@@ -2450,6 +2458,32 @@ public abstract class ImhotepLocalSession
                                         memoryUsage);
     }
 
+    private IntValueLookup hasIntFieldFilter(final String field) throws ImhotepOutOfMemoryException {
+        final long memoryUsage = getBitSetMemoryUsage();
+
+        if (!memory.claimMemory(memoryUsage)) {
+            throw new ImhotepOutOfMemoryException();
+        }
+
+        return new BitSetIntValueLookup(
+                FlamdexUtils.cacheHasIntField(field, flamdexReader),
+                memoryUsage
+        );
+    }
+
+    private IntValueLookup hasStringFieldFilter(final String field) throws ImhotepOutOfMemoryException {
+        final long memoryUsage = getBitSetMemoryUsage();
+
+        if (!memory.claimMemory(memoryUsage)) {
+            throw new ImhotepOutOfMemoryException();
+        }
+
+        return new BitSetIntValueLookup(
+                FlamdexUtils.cacheHasStringField(field, flamdexReader),
+                memoryUsage
+        );
+    }
+
     private IntValueLookup hasRegexFilter(String field, String regex) throws ImhotepOutOfMemoryException {
         final long memoryUsage = getBitSetMemoryUsage();
 
@@ -2473,7 +2507,7 @@ public abstract class ImhotepLocalSession
 
         final byte[] array = new byte[flamdexReader.getNumDocs()];
 
-        final IntTermIterator iterator = flamdexReader.getIntTermIterator(field);
+        final IntTermIterator iterator = flamdexReader.getUnsortedIntTermIterator(field);
         try {
             final DocIdStream docIdStream = flamdexReader.getDocIdStream();
             try {
