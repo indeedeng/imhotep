@@ -14,8 +14,6 @@
  package com.indeed.flamdex.writer;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicates;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongList;
@@ -23,8 +21,6 @@ import it.unimi.dsi.fastutil.longs.LongList;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +53,14 @@ public final class FlamdexDocument {
         return stringFields;
     }
 
+    public void clearIntField(@Nonnull final String field) {
+        intFields.remove(field);
+    }
+
+    public void clearStringField(@Nonnull final String field) {
+        stringFields.remove(field);
+    }
+
     /**
      * Returns a list of the int terms for a given field.
      * If this field hasn't been added, null is returned.
@@ -75,111 +79,117 @@ public final class FlamdexDocument {
         return stringFields.get(field);
     }
 
-    public void setIntField(@Nonnull final String field, @Nonnull final LongList terms) {
-        Preconditions.checkNotNull(field, "field cannot be null");
-        Preconditions.checkNotNull(terms, "terms list cannot be null");
 
-        intFields.put(field, terms);
+
+    // Integer Field Setters
+
+    private LongList prepareIntField(final String field) {
+        Preconditions.checkNotNull(field, "field cannot be null");
+
+        LongList list = intFields.get(field);
+        if (list == null) {
+            list = new LongArrayList();
+            intFields.put(field, list);
+        }
+        return list;
     }
 
     public void setIntField(@Nonnull final String field, @Nonnull final long[] terms) {
-        Preconditions.checkNotNull(field, "field cannot be null");
+        clearIntField(field);
+        addIntTerms(field, terms);
+    }
+    public void addIntTerms(@Nonnull final String field, @Nonnull final long[] terms) {
+        final LongList list = prepareIntField(field);
         Preconditions.checkNotNull(terms, "terms list cannot be null");
-
-        intFields.put(field, new LongArrayList(terms));
+        for (long term : terms) {
+            list.add(term);
+        }
     }
 
     public void setIntField(@Nonnull final String field, final long term) {
-        Preconditions.checkNotNull(field, "field cannot be null");
-
-        intFields.put(field, new LongArrayList(new long[]{term}));
+        clearIntField(field);
+        addIntTerm(field, term);
+    }
+    public void addIntTerm(@Nonnull final String field, final long term) {
+        prepareIntField(field).add(term);
     }
 
     public void setIntField(@Nonnull final String field, final boolean b) {
-        Preconditions.checkNotNull(field, "field cannot be null");
-
-        intFields.put(field, new LongArrayList(new long[]{b ? 1 : 0}));
+        clearIntField(field);
+        addIntTerm(field, b);
+    }
+    public void addIntTerm(@Nonnull final String field, final boolean b) {
+        prepareIntField(field).add(b ? 1 : 0);
     }
 
-    public void setIntField(@Nonnull final String field, @Nonnull final List<Long> terms) {
-        Preconditions.checkNotNull(field, "field cannot be null");
+    public void setIntField(@Nonnull final String field, @Nonnull final Iterable<Long> terms) {
+        clearIntField(field);
+        addIntTerms(field, terms);
+    }
+    public void addIntTerms(@Nonnull final String field, @Nonnull final Iterable<Long> terms) {
+        final LongList list = prepareIntField(field);
         Preconditions.checkNotNull(terms, "terms list cannot be null");
-
-        intFields.put(field, new LongArrayList(terms));
-    }
-
-    public void addIntTerm(@Nonnull final String field, final long term) {
-        Preconditions.checkNotNull(field, "field cannot be null");
-
-        if (!intFields.containsKey(field)) {
-            intFields.put(field, new LongArrayList());
+        for (Long term : terms) {
+            Preconditions.checkNotNull(term, "null terms not allowed");
+            list.add(term);
         }
-        intFields.get(field).add(term);
     }
 
-    public void addIntTerms(@Nonnull final String field, @Nonnull final Collection<Long> terms) {
-        Preconditions.checkNotNull(field, "field cannot be null");
-        Preconditions.checkNotNull(terms, "terms list cannot be null");
-        Preconditions.checkArgument(Iterables.all(terms, Predicates.notNull()), "null terms not allowed");
 
-        if (!intFields.containsKey(field)) {
-            intFields.put(field, new LongArrayList());
+    // String Field Setters
+
+    private List<String> prepareStringField(final String field) {
+        Preconditions.checkNotNull(field, "field cannot be null");
+
+        List<String> list = stringFields.get(field);
+        if (list == null) {
+            list = new ArrayList<>();
+            stringFields.put(field, list);
         }
-        intFields.get(field).addAll(terms);
+        return list;
     }
 
-    public void setStringField(@Nonnull final String field, @Nonnull final List<String> terms) {
-        Preconditions.checkNotNull(field, "field cannot be null");
-        Preconditions.checkNotNull(terms, "terms list cannot be null");
-        Preconditions.checkArgument(Iterables.all(terms, Predicates.notNull()), "null terms not allowed");
-
-        stringFields.put(field, terms);
+    public void setStringField(@Nonnull final String field, @Nonnull final CharSequence term) {
+        clearStringField(field);
+        addStringTerm(field, term);
     }
-
-    public void setStringField(@Nonnull final String field, @Nonnull final String[] terms) {
-        Preconditions.checkNotNull(field, "field cannot be null");
-        Preconditions.checkNotNull(terms, "terms list cannot be null");
-
-        final List<String> termsList = Arrays.asList(terms);
-        Preconditions.checkArgument(Iterables.all(termsList, Predicates.notNull()), "null terms not allowed");
-
-        stringFields.put(field, termsList);
-    }
-
-    public void setStringField(@Nonnull final String field, @Nonnull final String term) {
-        Preconditions.checkNotNull(field, "field cannot be null");
+    public void addStringTerm(@Nonnull final String field, @Nonnull final CharSequence term) {
         Preconditions.checkNotNull(term, "term cannot be null");
-
-        stringFields.put(field, Arrays.asList(term));
+        prepareStringField(field).add(term.toString());
     }
 
-    public void addStringTerm(@Nonnull final String field, @Nonnull final String term) {
-        Preconditions.checkNotNull(field, "field cannot be null");
-        Preconditions.checkNotNull(term, "term cannot be null");
-
-        if (!stringFields.containsKey(field)) {
-            stringFields.put(field, new ArrayList<String>());
-        }
-        stringFields.get(field).add(term);
+    public void setStringField(@Nonnull final String field, @Nonnull final Iterable<? extends CharSequence> terms) {
+        clearStringField(field);
+        addStringTerms(field, terms);
     }
-
-    public void addStringTerms(@Nonnull final String field, @Nonnull final Collection<String> terms) {
-        Preconditions.checkNotNull(field, "field cannot be null");
+    public void addStringTerms(@Nonnull final String field, @Nonnull final Iterable<? extends CharSequence> terms) {
+        final List<String> list = prepareStringField(field);
         Preconditions.checkNotNull(terms, "terms list cannot be null");
-        Preconditions.checkArgument(Iterables.all(terms, Predicates.notNull()), "null terms not allowed");
-
-        if(!stringFields.containsKey(field)) {
-            stringFields.put(field, new ArrayList<String>());
+        for (CharSequence term : terms) {
+            Preconditions.checkNotNull(term, "null terms not allowed");
+            list.add(term.toString());
         }
-        stringFields.get(field).addAll(terms);
+    }
+
+    public void setStringField(@Nonnull final String field, @Nonnull final CharSequence[] terms) {
+        clearStringField(field);
+        addStringTerms(field, terms);
+    }
+    public void addStringTerms(@Nonnull final String field, @Nonnull final CharSequence[] terms) {
+        final List<String> list = prepareStringField(field);
+        Preconditions.checkNotNull(terms, "terms list cannot be null");
+        for (CharSequence term : terms) {
+            Preconditions.checkNotNull(term, "null terms not allowed");
+            list.add(term.toString());
+        }
     }
 
     public FlamdexDocument copy() {
-        final Map<String, LongList> intFieldsCopy = new HashMap<String, LongList>(2*intFields.size());
+        final Map<String, LongList> intFieldsCopy = new HashMap<>(2*intFields.size());
         for (final Map.Entry<String, LongList> e : intFields.entrySet()) {
             intFieldsCopy.put(e.getKey(), new LongArrayList(e.getValue()));
         }
-        final Map<String, List<String>> stringFieldsCopy = new HashMap<String, List<String>>(2*stringFields.size());
+        final Map<String, List<String>> stringFieldsCopy = new HashMap<>(2*stringFields.size());
         for (final Map.Entry<String, List<String>> e : stringFields.entrySet()) {
             stringFieldsCopy.put(e.getKey(), Lists.newArrayList(e.getValue()));
         }
