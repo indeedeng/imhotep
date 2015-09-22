@@ -75,8 +75,12 @@ public class InstrumentedThreadFactory
         }
 
         @Override public void run() {
-            super.run();
-            snapshot();
+            try {
+                super.run();
+            }
+            finally {
+                snapshot();
+            }
         }
 
         private void snapshot() {
