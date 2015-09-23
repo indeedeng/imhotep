@@ -584,6 +584,7 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
         final ImhotepLocalSession[] localSessions;
         localSessions = new ImhotepLocalSession[shardRequestList.size()];
         try {
+            final SessionObserver observer = new SessionObserver(dataset, sessionId, username);
             for (int i = 0; i < shardRequestList.size(); ++i) {
                 final String shardId = shardRequestList.get(i);
                 final Pair<ShardId, CachedFlamdexReaderReference> pair =
@@ -596,6 +597,7 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
                                                         this.shardTempDirectory,
                                                         new MemoryReservationContext(memory),
                                                         tempFileSizeBytesLeft);
+                    localSessions[i].addObserver(observer);
                 } catch (RuntimeException e) {
                     Closeables2.closeQuietly(cachedFlamdexReaderReference, log);
                     localSessions[i] = null;
@@ -608,7 +610,7 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
             }
             final int maxSplits =
                     mergeThreadLimit > 0 ? mergeThreadLimit : DEFAULT_MERGE_THREAD_LIMIT;
-            final ImhotepSession session =
+            final MTImhotepLocalMultiSession session =
                 new MTImhotepLocalMultiSession(localSessions,
                                                new MemoryReservationContext(memory),
                                                tempFileSizeBytesLeft,
@@ -620,6 +622,7 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
                                            ipAddress,
                                            clientVersion,
                                            dataset);
+            session.addObserver(observer);
         } catch (RuntimeException e) {
             closeNonNullSessions(localSessions);
             throw e;

@@ -78,6 +78,13 @@ public class ImhotepDaemon implements Instrumentation.Provider {
     private Instrumentation.ProviderSupport instrumentation =
         new Instrumentation.ProviderSupport();
 
+    /* Relays events to our observers. */
+    private final class ServiceCoreObserver implements Instrumentation.Observer {
+        public void onEvent(Instrumentation.Event event) {
+            instrumentation.fire(event);
+        }
+    }
+
     public ImhotepDaemon(ServerSocket ss, AbstractImhotepServiceCore service,
                          String zkNodes, String zkPath, String hostname, int port) {
         this.ss = ss;
@@ -748,6 +755,11 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                       cachingConfigFile,
                                       zkNodes,
                                       zkPath);
+            daemon.addObserver(new Instrumentation.Observer() {
+                    public void onEvent(Instrumentation.Event event) {
+                        System.err.println(event);
+                    }
+                });
             daemon.run();
         } finally {
             if (daemon != null) {
@@ -755,6 +767,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             }
         }
     }
+
+    private ServiceCoreObserver newServiceCoreObserver() { return new ServiceCoreObserver(); }
 
     static ImhotepDaemon newImhotepDaemon(String shardsDirectory,
                                           String shardTempDir,
@@ -776,14 +790,17 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                                        new LocalImhotepServiceConfig());
         } else {
             localService =
-                    new LocalImhotepServiceCore(shardsDirectory, shardTempDir,
-                                                memoryCapacityInMB * 1024 * 1024, useCache,
-                                                new GenericFlamdexReaderSource(),
-                                                new LocalImhotepServiceConfig());
+                new LocalImhotepServiceCore(shardsDirectory, shardTempDir,
+                                            memoryCapacityInMB * 1024 * 1024, useCache,
+                                            new GenericFlamdexReaderSource(),
+                                            new LocalImhotepServiceConfig());
         }
         final ServerSocket ss = new ServerSocket(port);
         final String myHostname = InetAddress.getLocalHost().getCanonicalHostName();
-        return new ImhotepDaemon(ss, localService, zkNodes, zkPath, myHostname, port);
+        final ImhotepDaemon result =
+            new ImhotepDaemon(ss, localService, zkNodes, zkPath, myHostname, port);
+        localService.addObserver(result.newServiceCoreObserver());
+        return result;
     }
 
     public ImhotepServiceCore getService() {

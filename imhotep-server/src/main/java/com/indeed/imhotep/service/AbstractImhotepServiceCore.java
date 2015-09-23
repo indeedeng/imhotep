@@ -25,6 +25,7 @@ import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.ImhotepStatusDump;
+import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.ShardInfo;
@@ -57,7 +58,8 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * @author jplaisance
  */
-public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
+public abstract class AbstractImhotepServiceCore
+    implements ImhotepServiceCore, Instrumentation.Provider {
 
     private static final Logger log = Logger.getLogger(AbstractImhotepServiceCore.class);
 
@@ -65,8 +67,40 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
 
     protected abstract SessionManager getSessionManager();
 
+    protected Instrumentation.ProviderSupport instrumentation =
+        new Instrumentation.ProviderSupport();
+
+    protected final class SessionObserver implements Instrumentation.Observer {
+        private final String dataset;
+        private final String sessionId;
+        private final String username;
+
+        SessionObserver(String dataset,
+                        String sessionId,
+                        String username) {
+            this.dataset   = dataset;
+            this.sessionId = sessionId;
+            this.username  = username;
+        }
+
+        public void onEvent(Instrumentation.Event event) {
+            event.getProperties().put("dataset",   dataset);
+            event.getProperties().put("sessionId", sessionId);
+            event.getProperties().put("username",  username);
+            instrumentation.fire(event);
+        }
+    }
+
     protected AbstractImhotepServiceCore() {
         ftgsExecutor = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setDaemon(true).setNameFormat("LocalImhotepServiceCore-FTGSWorker-%d").build());
+    }
+
+    public void addObserver(Instrumentation.Observer observer) {
+        instrumentation.addObserver(observer);
+    }
+
+    public void removeObserver(Instrumentation.Observer observer) {
+        instrumentation.removeObserver(observer);
     }
 
     @Override

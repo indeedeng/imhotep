@@ -78,7 +78,8 @@ import java.util.regex.Pattern;
 /**
  * @author jsgroth
  */
-public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
+public class LocalImhotepServiceCore
+    extends AbstractImhotepServiceCore {
     private static final Logger log = Logger.getLogger(LocalImhotepServiceCore.class);
 
     private static final Pattern VERSION_PATTERN = Pattern.compile("^(.+)\\.(\\d{14})$");
@@ -546,27 +547,6 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
     @Override
     public List<String> getShardIdsForSession(String sessionId) {
         return getSessionManager().getShardIdsForSession(sessionId);
-    }
-
-    private final class SessionObserver implements Instrumentation.Observer {
-        private final String dataset;
-        private final String sessionId;
-        private final String username;
-
-        SessionObserver(String dataset,
-                        String sessionId,
-                        String username) {
-            this.dataset   = dataset;
-            this.sessionId = sessionId;
-            this.username  = username;
-        }
-
-        public void onEvent(Instrumentation.Event event) {
-            event.getProperties().put("dataset",   dataset);
-            event.getProperties().put("sessionId", sessionId);
-            event.getProperties().put("username",  username);
-            System.err.println("=== session event: " + event); // !@# remove me
-        }
     }
 
     @Override

@@ -14,52 +14,65 @@
 package com.indeed.imhotep;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.TreeMap;
 
+/**
+    Intended for course-grained instrumentation of Imhotep components. Note that this class is built
+    for comfort, not for speed.
+ */
 public class Instrumentation {
 
-    static public class Event {
-        private final String type;
+    public static class Event {
+        private final String TYPE_KEY = "type"; // Note that this property key is reserved.
 
-        private final HashMap<Object, Object> properties = new HashMap<Object, Object>();
+        private final TreeMap<String, Object> properties = new TreeMap<String, Object>();
 
-        // !@# One shouldn't have to pass in an external property map - just create one internally
-        public Event(final String type) {
-            this.type = type;
-        }
+        public Event(final String type) { properties.put(TYPE_KEY, type); }
 
-        public String                    getType() { return type;       }
-        public Map<Object, Object> getProperties() { return properties; }
+        public String getType() { return properties.get(TYPE_KEY).toString(); }
 
-        public String toString() {
-            StringBuilder result = new StringBuilder();
-            result.append('[');
-            result.append(getType());
-            result.append(' ');
-            result.append(toString(getProperties()));
-            result.append(']');
-            return result.toString();
-        }
+        public Map<String, Object> getProperties() { return properties; }
 
-        private String toString(Object value) {
-            if (value instanceof Map) {
-                final StringBuilder result = new StringBuilder();
-                final Iterator<Map.Entry> it = ((Map) value).entrySet().iterator();
-                result.append("[");
-                while (it.hasNext()) {
-                    final Map.Entry entry = it.next();
-                    result.append(entry.getKey());
-                    result.append(':');
-                    result.append(toString(entry.getValue()));
-                    if (it.hasNext()) result.append(' ');
-                }
-                result.append("]");
+        public String toString() { return new JSON().format(getProperties()); }
+
+        private final static class JSON {
+
+            static final String BEGIN_OBJ    = "{ ";
+            static final String END_OBJ      = " }";
+            static final String QUOTE        = "\"";
+            static final String SEPARATOR    = ", ";
+            static final String KV_SEPARATOR = " : ";
+
+            String format(Object value) {
+                StringBuilder result = new StringBuilder();
+                result.append(QUOTE);
+                result.append(value != null ? value.toString() : "(null)");
+                result.append(QUOTE);
                 return result.toString();
             }
-            return value != null ? value.toString() : "null";
+
+            String format(Map.Entry<String, Object> entry) {
+                StringBuilder result = new StringBuilder();
+                result.append(format(entry.getKey()));
+                result.append(KV_SEPARATOR);
+                result.append(format(entry.getValue()));
+                return result.toString();
+            }
+
+            String format(Map<String, Object> map) {
+                StringBuilder result = new StringBuilder();
+                result.append(BEGIN_OBJ);
+                final Iterator<Map.Entry<String, Object>> it = map.entrySet().iterator();
+                while (it.hasNext()) {
+                    result.append(format(it.next()));
+                    if (it.hasNext()) result.append(SEPARATOR);
+                }
+                result.append(END_OBJ);
+                return result.toString();
+            }
         }
     }
 
@@ -83,10 +96,10 @@ public class Instrumentation {
 
         private final ArrayList<Observer> observers = new ArrayList<Observer>();
 
-        public void    addObserver(Observer observer) { observers.add(observer);    }
-        public void removeObserver(Observer observer) { observers.remove(observer); }
+        public synchronized void    addObserver(Observer observer) { observers.add(observer);    }
+        public synchronized void removeObserver(Observer observer) { observers.remove(observer); }
 
-        public void fire(final Event event) {
+        public synchronized void fire(final Event event) {
             for (Observer observer: observers) {
                 observer.onEvent(event);
             }
