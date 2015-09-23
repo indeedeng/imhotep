@@ -26,7 +26,7 @@ import java.util.TreeMap;
 public class Instrumentation {
 
     public static class Event {
-        private final String TYPE_KEY = "type"; // Note that this property key is reserved.
+        private final String TYPE_KEY = "event-type"; // Note that this property key is reserved.
 
         private final TreeMap<String, Object> properties = new TreeMap<String, Object>();
 
