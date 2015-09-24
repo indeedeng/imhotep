@@ -93,7 +93,7 @@ public class TestLocalImhotepServiceCore {
                     }
                     return r;
                 }
-            }, new LocalImhotepServiceConfig());
+            }, new LocalImhotepServiceConfig(), null);
 
             final String sessionId = service.handleOpenSession("dataset", Arrays.asList("shard"), "", "", 0, 0, false, "", null);
             service.handlePushStat(sessionId, "count()");
@@ -157,7 +157,7 @@ public class TestLocalImhotepServiceCore {
                 public FlamdexReader openReader(String directory) throws IOException {
                     return new MockFlamdexReader(Arrays.asList("if1"), Arrays.asList("sf1"), Arrays.asList("if1"), 5);
                 }
-            }, new LocalImhotepServiceConfig());
+            }, new LocalImhotepServiceConfig(), null);
             List<ShardInfo> shards = service.handleGetShardList();
             assertEquals(3, shards.size());
             Collections.sort(shards, new Comparator<ShardInfo>() {

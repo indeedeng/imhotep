@@ -103,6 +103,8 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
 
     private final Map<File, RandomAccessFile> lockFileMap = Maps.newHashMap();
 
+    private final ShardUpdateListenerIf shardUpdateListener;
+
     /**
      * @param shardsDirectory
      *            root directory from which to read shards
@@ -121,8 +123,11 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
                                    long memoryCapacity,
                                    boolean useCache,
                                    FlamdexReaderSource flamdexReaderFactory,
-                                   LocalImhotepServiceConfig config) throws IOException {
+                                   LocalImhotepServiceConfig config,
+                                   ShardUpdateListenerIf shardUpdateListener)
+        throws IOException {
         this.shardsDirectory = shardsDirectory;
+        this.shardUpdateListener = shardUpdateListener;
 
         /* check if the temp dir exists, try to create it if it does not */
         final File tempDir = new File(shardTempDir);
@@ -419,12 +424,18 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
         final List<ShardInfo> oldShardList = this.shardList;
         if (oldShardList == null || !oldShardList.equals(shardList)) {
             this.shardList = shardList;
+            if (shardUpdateListener != null) {
+                shardUpdateListener.onShardUpdate(shardList);
+            }
         }
 
         final List<DatasetInfo> datasetList = buildDatasetList();
         final List<DatasetInfo> oldDatasetList = this.datasetList;
         if (oldDatasetList == null || !oldDatasetList.equals(datasetList)) {
             this.datasetList = datasetList;
+            if (shardUpdateListener != null) {
+                shardUpdateListener.onDatasetUpdate(datasetList);
+            }
         }
     }
 

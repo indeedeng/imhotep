@@ -65,8 +65,9 @@ public class ImhotepDaemonRunner {
                                   new LocalImhotepServiceCore(dir, tempDir,
                                                               1024L * 1024 * 1024 * 1024, false,
                                                               flamdexFactory,
-                                                              new LocalImhotepServiceConfig()),
-                                  null, null, "localhost", port);
+                                                              new LocalImhotepServiceConfig(),
+                                                              null),
+                                  null, null, "localhost", port, null);
         new Thread(new Runnable() {
             @Override
             public void run() {
