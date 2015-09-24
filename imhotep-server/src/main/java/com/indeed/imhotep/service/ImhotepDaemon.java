@@ -376,18 +376,48 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                             sendResponse(responseBuilder.build(), os);
                             break;
                         case GET_SHARD_LIST:
+                            {
+                            final long beginTm = System.nanoTime();
                             shards = service.handleGetShardList();
                             for (final ShardInfo shard : shards) {
                                 responseBuilder.addShardInfo(shard.toProto());
                             }
-                            sendResponse(responseBuilder.build(), os);
+                            final ImhotepResponse response = responseBuilder.build();
+                            final long composeTm = System.nanoTime();
+                            sendResponse(response, os);
+                            final long endTm = System.nanoTime();
+                            final long length = response.toByteArray().length;
+                            final double composeElapsed = (composeTm - beginTm) / 1000000000.0;
+                            final double xmitElapsed = (endTm - composeTm) / 1000000000.0;
+                            final String message = "GET_SHARD_LIST response" +
+                                " length: " + length +
+                                " compose: " + composeElapsed +
+                                " xmitElapsed: " + xmitElapsed;
+                            System.err.println(message);
+                            log.info(message);
+                            }
                             break;
                         case GET_SHARD_INFO_LIST:
+                            {
+                            final long beginTm = System.nanoTime();
                             datasets = service.handleGetDatasetList();
                             for (final DatasetInfo dataset : datasets) {
                                 responseBuilder.addDatasetInfo(dataset.toProto());
                             }
-                            sendResponse(responseBuilder.build(), os);
+                            final ImhotepResponse response = responseBuilder.build();
+                            final long composeTm = System.nanoTime();
+                            sendResponse(response, os);
+                            final long endTm = System.nanoTime();
+                            final long length = response.toByteArray().length;
+                            final double composeElapsed = (composeTm - beginTm) / 1000000000.0;
+                            final double xmitElapsed = (endTm - composeTm) / 1000000000.0;
+                            final String message = "GET_SHARD_INFO_LIST response" +
+                                " length: " + length +
+                                " compose: " + composeElapsed +
+                                " xmitElapsed: " + xmitElapsed;
+                            System.err.println(message);
+                            log.info(message);
+                            }
                             break;
                         case GET_STATUS_DUMP:
                             statusDump = service.handleGetStatusDump();
