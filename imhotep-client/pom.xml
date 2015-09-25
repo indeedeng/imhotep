@@ -4,7 +4,7 @@
     <parent>
         <groupId>com.indeed</groupId>
         <artifactId>imhotep</artifactId>
-        <version>1.0.41-SNAPSHOT</version>
+        <version>1.0.41</version>
     </parent>
 
 	<groupId>com.indeed</groupId>
