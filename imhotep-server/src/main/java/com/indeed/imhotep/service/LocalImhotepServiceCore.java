@@ -54,8 +54,10 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -471,7 +473,10 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
     }
 
     private List<DatasetInfo> buildDatasetList() throws IOException {
-        final Map<String, Map<String, AtomicSharedReference<Shard>>> localShards = shards;
+        return buildDatasetList(shards);
+    }
+
+    static List<DatasetInfo> buildDatasetList(Map<String, Map<String, AtomicSharedReference<Shard>>> localShards) throws IOException {
         final List<DatasetInfo> ret = Lists.newArrayList();
         for (final Map.Entry<String, Map<String, AtomicSharedReference<Shard>>> e : localShards.entrySet()) {
             final String dataset = e.getKey();
@@ -480,6 +485,9 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
             final Set<String> intFields = Sets.newHashSet();
             final Set<String> stringFields = Sets.newHashSet();
             final Set<String> metrics = Sets.newHashSet();
+            Collection<String> newestShardIntFields = null;
+            Collection<String> newestShardStringFields = null;
+            long newestShardVersion = 0;
             for (final String shardName : map.keySet()) {
                 final SharedReference<Shard> ref = map.get(shardName).getCopy();
                 try {
@@ -491,9 +499,25 @@ public class LocalImhotepServiceCore extends AbstractImhotepServiceCore {
                         intFields.addAll(shard.getIntFields());
                         stringFields.addAll(shard.getStringFields());
                         metrics.addAll(shard.getAvailableMetrics());
+
+                        if(shard.getShardVersion() > newestShardVersion) {
+                            newestShardVersion = shard.getShardVersion();
+                            newestShardIntFields = shard.getIntFields();
+                            newestShardStringFields = shard.getStringFields();
+                        }
                     }
                 } finally {
                     Closeables2.closeQuietly(ref, log);
+                }
+                // use the newest shard to disambiguate fields that have both String and Int types
+                if (newestShardIntFields != null) {
+                    stringFields.removeAll(newestShardIntFields);
+                    intFields.removeAll(newestShardStringFields);
+
+                    // for the fields that still conflict in the newest shard, let the clients decide
+                    final Set<String> lastShardConflictingFields = Sets.intersection(new HashSet<>(newestShardIntFields), new HashSet<>(newestShardStringFields));
+                    stringFields.addAll(lastShardConflictingFields);
+                    intFields.addAll(lastShardConflictingFields);
                 }
             }
             ret.add(new DatasetInfo(dataset, shardList, intFields, stringFields, metrics));

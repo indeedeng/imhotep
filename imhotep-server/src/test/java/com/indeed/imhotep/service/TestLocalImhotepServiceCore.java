@@ -13,12 +13,17 @@
  */
  package com.indeed.imhotep.service;
 
-import com.indeed.util.io.Files;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Maps;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.reader.MockFlamdexReader;
+import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
-
+import com.indeed.imhotep.io.MockShard;
+import com.indeed.imhotep.io.Shard;
+import com.indeed.util.core.reference.AtomicSharedReference;
+import com.indeed.util.io.Files;
 import org.apache.log4j.Appender;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.ConsoleAppender;
@@ -37,6 +42,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -178,4 +185,63 @@ public class TestLocalImhotepServiceCore {
             Files.delete(directory);
         }
     }
+
+    @Test
+    public void testBuildDatasetList() throws IOException {
+        final String dataset = "sponsored";
+        final Map<String, Map<String, AtomicSharedReference<Shard>>> localShards = Maps.newHashMap();
+        final Map<String, AtomicSharedReference<Shard>> datasetShards = Maps.newHashMap();
+        localShards.put(dataset, datasetShards);
+        Set<String> expectedIntFields;
+        Set<String> expectedStringFields;
+
+        datasetShards.clear();
+        addShard(datasetShards, dataset, 20150101000000L, ImmutableSet.of("int1"), ImmutableSet.of("str1"));
+        addShard(datasetShards, dataset, 20150102000000L, ImmutableSet.of("int1", "int2"), ImmutableSet.of("str1", "str2"));
+        addShard(datasetShards, dataset, 20150103000000L, ImmutableSet.of("int1", "int2"), ImmutableSet.of("str1", "str2"));
+        expectedIntFields = ImmutableSet.of("int1", "int2");
+        expectedStringFields = ImmutableSet.of("str1", "str2");
+        checkExpectedFields(localShards, expectedIntFields, expectedStringFields);
+
+        datasetShards.clear();
+        addShard(datasetShards, dataset, 20150101000000L, ImmutableSet.of("int1", "int2", "conflict"), ImmutableSet.of("str1", "str2", "conflict"));
+        addShard(datasetShards, dataset, 20150102000000L, ImmutableSet.of("int1", "int2", "conflict"), ImmutableSet.of("str1", "str2", "conflict"));
+        addShard(datasetShards, dataset, 20150103000000L, ImmutableSet.of("int1", "int2", "conflict"), ImmutableSet.of("str1", "str2"));
+        expectedIntFields = ImmutableSet.of("int1", "int2", "conflict");
+        expectedStringFields = ImmutableSet.of("str1", "str2");
+        checkExpectedFields(localShards, expectedIntFields, expectedStringFields);
+
+        datasetShards.clear();
+        addShard(datasetShards, dataset, 20150103000000L, ImmutableSet.of("conflict", "int1", "int2"), ImmutableSet.of("str1", "str2"));
+        addShard(datasetShards, dataset, 20150101000000L, ImmutableSet.of("conflict", "int1", "int2"), ImmutableSet.of("str1", "str2", "conflict"));
+        addShard(datasetShards, dataset, 20150102000000L, ImmutableSet.of("conflict", "int1", "int2"), ImmutableSet.of("str1", "str2", "conflict"));
+        expectedIntFields = ImmutableSet.of("int1", "int2", "conflict");
+        expectedStringFields = ImmutableSet.of("str1", "str2");
+        checkExpectedFields(localShards, expectedIntFields, expectedStringFields);
+
+        datasetShards.clear();
+        addShard(datasetShards, dataset, 20150103000000L, ImmutableSet.of("conflict", "int1", "int2"), ImmutableSet.of("str1", "str2", "conflict"));
+        addShard(datasetShards, dataset, 20150101000000L, ImmutableSet.of("conflict", "int1", "int2"), ImmutableSet.of("str1", "str2", "conflict"));
+        addShard(datasetShards, dataset, 20150102000000L, ImmutableSet.of("conflict", "int1", "int2"), ImmutableSet.of("str1", "str2", "conflict"));
+        expectedIntFields = ImmutableSet.of("int1", "int2", "conflict");
+        expectedStringFields = ImmutableSet.of("str1", "str2", "conflict");
+        checkExpectedFields(localShards, expectedIntFields, expectedStringFields);
+    }
+
+    private void checkExpectedFields(Map<String, Map<String, AtomicSharedReference<Shard>>> localShards, Set<String> expectedIntFields, Set<String> expectedStringFields) throws IOException {
+        List<DatasetInfo> datasetInfos = LocalImhotepServiceCore.buildDatasetList(localShards);
+        assertEquals(1, datasetInfos.size());
+
+        DatasetInfo datasetInfo = datasetInfos.get(0);
+        assertEquals(expectedIntFields, datasetInfo.getIntFields());
+        assertEquals(expectedStringFields, datasetInfo.getStringFields());
+    }
+
+    private void addShard(Map<String, AtomicSharedReference<Shard>> datasetShards, String dataset, long version, ImmutableSet<String> intFields, ImmutableSet<String> stringFields) throws IOException {
+        String shardId = "index" + Long.toString(version).substring(0, 8);
+        Shard shard = new MockShard(new ShardId(dataset, shardId, version, null), 0, intFields, stringFields, Collections.<String>emptyList());
+        datasetShards.put(shardId, AtomicSharedReference.create(shard));
+    }
+
+
 }
