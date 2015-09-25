@@ -61,6 +61,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class ImhotepDaemon implements Instrumentation.Provider {
     private static final Logger log = Logger.getLogger(ImhotepDaemon.class);
@@ -75,8 +76,40 @@ public class ImhotepDaemon implements Instrumentation.Provider {
 
     private volatile boolean isStarted = false;
 
-    private Instrumentation.ProviderSupport instrumentation =
+    private final ShardUpdateListener shardUpdateListener;
+
+    private final Instrumentation.ProviderSupport instrumentation =
         new Instrumentation.ProviderSupport();
+
+    private static final class ShardUpdateListener implements ShardUpdateListenerIf {
+
+        private final AtomicReference<ImhotepResponse> shardListResponse =
+            new AtomicReference<ImhotepResponse>();
+
+        private final AtomicReference<ImhotepResponse> datasetListResponse =
+            new AtomicReference<ImhotepResponse>();
+
+        public void onShardUpdate(final List<ShardInfo> shardList) {
+            final ImhotepResponse.Builder builder = ImhotepResponse.newBuilder();
+            for (final ShardInfo shard : shardList) {
+                builder.addShardInfo(shard.toProto());
+            }
+            final ImhotepResponse response = builder.build();
+            shardListResponse.set(response);
+        }
+
+        public void onDatasetUpdate(final List<DatasetInfo> datasetList) {
+            final ImhotepResponse.Builder builder = ImhotepResponse.newBuilder();
+            for (final DatasetInfo dataset : datasetList) {
+                builder.addDatasetInfo(dataset.toProto());
+            }
+            final ImhotepResponse response = builder.build();
+            datasetListResponse.set(response);
+        }
+
+        public ImhotepResponse   getShardListResponse() { return shardListResponse.get();   }
+        public ImhotepResponse getDatasetListResponse() { return datasetListResponse.get(); }
+    }
 
     /* Relays events to our observers. */
     private final class ServiceCoreObserver implements Instrumentation.Observer {
@@ -86,9 +119,11 @@ public class ImhotepDaemon implements Instrumentation.Provider {
     }
 
     public ImhotepDaemon(ServerSocket ss, AbstractImhotepServiceCore service,
-                         String zkNodes, String zkPath, String hostname, int port) {
+                         String zkNodes, String zkPath, String hostname, int port,
+                         ShardUpdateListener shardUpdateListener) {
         this.ss = ss;
         this.service = service;
+        this.shardUpdateListener = shardUpdateListener;
         executor = Executors.newCachedThreadPool(new ThreadFactory() {
             int i = 0;
             @Override
@@ -97,6 +132,12 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             }
         });
         zkWrapper = zkNodes != null ? new ServiceZooKeeperWrapper(zkNodes, hostname, port, zkPath) : null;
+    }
+
+    /** Intended for tests that create their own ImhotepDaemons. */
+    public ImhotepDaemon(ServerSocket ss, AbstractImhotepServiceCore service,
+                         String zkNodes, String zkPath, String hostname, int port) {
+        this(ss, service, zkNodes, zkPath, hostname, port, new ShardUpdateListener());
     }
 
     public void addObserver(Instrumentation.Observer observer) {
@@ -377,46 +418,30 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                             break;
                         case GET_SHARD_LIST:
                             {
-                            final long beginTm = System.nanoTime();
-                            shards = service.handleGetShardList();
-                            for (final ShardInfo shard : shards) {
-                                responseBuilder.addShardInfo(shard.toProto());
-                            }
-                            final ImhotepResponse response = responseBuilder.build();
-                            final long composeTm = System.nanoTime();
-                            sendResponse(response, os);
-                            final long endTm = System.nanoTime();
-                            final long length = response.toByteArray().length;
-                            final double composeElapsed = (composeTm - beginTm) / 1000000000.0;
-                            final double xmitElapsed = (endTm - composeTm) / 1000000000.0;
-                            final String message = "GET_SHARD_LIST response" +
-                                " length: " + length +
-                                " compose: " + composeElapsed +
-                                " xmitElapsed: " + xmitElapsed;
-                            System.err.println(message);
-                            log.info(message);
+                                ImhotepResponse response =
+                                    shardUpdateListener.getShardListResponse();
+                                if (response == null) {
+                                    shards = service.handleGetShardList();
+                                    for (final ShardInfo shard : shards) {
+                                        responseBuilder.addShardInfo(shard.toProto());
+                                    }
+                                    response = responseBuilder.build();
+                                }
+                                sendResponse(response, os);
                             }
                             break;
                         case GET_SHARD_INFO_LIST:
                             {
-                            final long beginTm = System.nanoTime();
-                            datasets = service.handleGetDatasetList();
-                            for (final DatasetInfo dataset : datasets) {
-                                responseBuilder.addDatasetInfo(dataset.toProto());
-                            }
-                            final ImhotepResponse response = responseBuilder.build();
-                            final long composeTm = System.nanoTime();
-                            sendResponse(response, os);
-                            final long endTm = System.nanoTime();
-                            final long length = response.toByteArray().length;
-                            final double composeElapsed = (composeTm - beginTm) / 1000000000.0;
-                            final double xmitElapsed = (endTm - composeTm) / 1000000000.0;
-                            final String message = "GET_SHARD_INFO_LIST response" +
-                                " length: " + length +
-                                " compose: " + composeElapsed +
-                                " xmitElapsed: " + xmitElapsed;
-                            System.err.println(message);
-                            log.info(message);
+                                ImhotepResponse response =
+                                    shardUpdateListener.getDatasetListResponse();
+                                if (response == null) {
+                                    datasets = service.handleGetDatasetList();
+                                    for (final DatasetInfo dataset : datasets) {
+                                        responseBuilder.addDatasetInfo(dataset.toProto());
+                                    }
+                                    response = responseBuilder.build();
+                                }
+                                sendResponse(response, os);
                             }
                             break;
                         case GET_STATUS_DUMP:
@@ -810,6 +835,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                           String zkNodes,
                                           String zkPath) throws IOException {
         final AbstractImhotepServiceCore localService;
+        final ShardUpdateListener shardUpdateListener = new ShardUpdateListener();
 
         if (lazyLoadFiles) {
             CachedFile.initWithFile(cachingConfigFile, shardsDirectory.trim());
@@ -823,12 +849,14 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 new LocalImhotepServiceCore(shardsDirectory, shardTempDir,
                                             memoryCapacityInMB * 1024 * 1024, useCache,
                                             new GenericFlamdexReaderSource(),
-                                            new LocalImhotepServiceConfig());
+                                            new LocalImhotepServiceConfig(),
+                                            shardUpdateListener);
         }
         final ServerSocket ss = new ServerSocket(port);
         final String myHostname = InetAddress.getLocalHost().getCanonicalHostName();
         final ImhotepDaemon result =
-            new ImhotepDaemon(ss, localService, zkNodes, zkPath, myHostname, port);
+            new ImhotepDaemon(ss, localService, zkNodes, zkPath,
+                              myHostname, port, shardUpdateListener);
         localService.addObserver(result.newServiceCoreObserver());
         return result;
     }

@@ -98,6 +98,8 @@ public class LocalImhotepServiceCore
 
     private final FlamdexReaderSource flamdexReaderFactory;
 
+    private final ShardUpdateListenerIf shardUpdateListener;
+
     // these maps will not be modified but the references will periodically be
     // swapped
     private volatile Map<String, Map<String, AtomicSharedReference<Shard>>> shards;
@@ -116,6 +118,8 @@ public class LocalImhotepServiceCore
      *            the factory to use for opening FlamdexReaders
      * @param config
      *            additional config parameters
+     * @param shardUpdateListener
+     *            provides notification when shard/dataset lists change
      * @throws IOException
      *             if something bad happens
      */
@@ -124,8 +128,11 @@ public class LocalImhotepServiceCore
                                    long memoryCapacity,
                                    boolean useCache,
                                    FlamdexReaderSource flamdexReaderFactory,
-                                   LocalImhotepServiceConfig config) throws IOException {
+                                   LocalImhotepServiceConfig config,
+                                   ShardUpdateListenerIf shardUpdateListener)
+        throws IOException {
         this.shardsDirectory = shardsDirectory;
+        this.shardUpdateListener = shardUpdateListener;
 
         /* check if the temp dir exists, try to create it if it does not */
         final File tempDir = new File(shardTempDir);
@@ -180,6 +187,22 @@ public class LocalImhotepServiceCore
                                       TimeUnit.SECONDS);
 
         VarExporter.forNamespace(getClass().getSimpleName()).includeInGlobal().export(this, "");
+    }
+
+    /** Intended for tests that create their own LocalImhotepServiceCores. */
+    public LocalImhotepServiceCore(String shardsDirectory,
+                                   String shardTempDir,
+                                   long memoryCapacity,
+                                   boolean useCache,
+                                   FlamdexReaderSource flamdexReaderFactory,
+                                   LocalImhotepServiceConfig config)
+        throws IOException {
+        this(shardsDirectory, shardTempDir, memoryCapacity,
+             useCache, flamdexReaderFactory, config,
+             new ShardUpdateListenerIf() {
+                 public void onShardUpdate(final List<ShardInfo> shardList) { }
+                 public void onDatasetUpdate(final List<DatasetInfo> datasetList) { }
+             });
     }
 
     private class ShardReloader implements Runnable {
@@ -417,12 +440,14 @@ public class LocalImhotepServiceCore
         final List<ShardInfo> oldShardList = this.shardList;
         if (oldShardList == null || !oldShardList.equals(shardList)) {
             this.shardList = shardList;
+            shardUpdateListener.onShardUpdate(shardList);
         }
 
         final List<DatasetInfo> datasetList = buildDatasetList();
         final List<DatasetInfo> oldDatasetList = this.datasetList;
         if (oldDatasetList == null || !oldDatasetList.equals(datasetList)) {
             this.datasetList = datasetList;
+            shardUpdateListener.onDatasetUpdate(datasetList);
         }
     }
 
@@ -710,5 +735,4 @@ public class LocalImhotepServiceCore
         }
         return sb.toString();
     }
-
 }
