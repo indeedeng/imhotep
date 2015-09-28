@@ -29,8 +29,7 @@ class DaemonEvents {
 
         public static final String NAME = CloseSession.class.getSimpleName();
 
-        public CloseSession(final ImhotepRequest             protoRequest,
-                            final AbstractImhotepServiceCore serviceCore) {
+        public CloseSession(final ImhotepRequest protoRequest) {
             super(NAME);
             final String sessionId = protoRequest.getSessionId();
             getProperties().put(SESSION_ID, protoRequest.getSessionId());
