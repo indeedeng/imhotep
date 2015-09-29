@@ -26,6 +26,7 @@ import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.Instrumentation;
+import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
@@ -37,6 +38,7 @@ import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
+import com.indeed.imhotep.protobuf.RegroupConditionMessage;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.Streams;
 import com.indeed.imhotep.io.caching.CachedFile;
@@ -456,16 +458,18 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                           final OutputStream            os)
             throws IOException, ImhotepOutOfMemoryException {
             checkSessionValidity(request);
+            final InetSocketAddress[] nodes =
+                Lists.transform(request.getNodesList(),
+                                new Function<HostAndPort, InetSocketAddress>() {
+                                    public InetSocketAddress apply(final HostAndPort input) {
+                                        return new InetSocketAddress(input.getHost(),
+                                                                     input.getPort());
+                                    }
+                                }).toArray(new InetSocketAddress[request.getNodesCount()]);
             service.handleMergeFTGSIteratorSplit(request.getSessionId(),
                                                  getIntFields(request),
                                                  getStringFields(request),
-                                                 os,
-                                                 Lists.transform(request.getNodesList(),
-                                                                 new Function<HostAndPort, InetSocketAddress>() {
-                                                                     public InetSocketAddress apply(final HostAndPort input) {
-                                                                         return new InetSocketAddress(input.getHost(), input.getPort());
-                                                                     }
-                                                                 }).toArray(new InetSocketAddress[request.getNodesCount()]), request.getSplitIndex());
+                                                 os, nodes, request.getSplitIndex());
         }
 
         private final void mergeSubsetFTGSSplit(final ImhotepRequest          request,
@@ -473,16 +477,18 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                                 final OutputStream            os)
             throws IOException, ImhotepOutOfMemoryException {
             checkSessionValidity(request);
+            final InetSocketAddress[] nodes =
+                Lists.transform(request.getNodesList(),
+                                new Function<HostAndPort, InetSocketAddress>() {
+                                    public InetSocketAddress apply(final HostAndPort input) {
+                                        return new InetSocketAddress(input.getHost(),
+                                                                     input.getPort());
+                                    }
+                                }).toArray(new InetSocketAddress[request.getNodesCount()]);
             service.handleMergeSubsetFTGSIteratorSplit(request.getSessionId(),
                                                        getIntFieldsToTerms(request),
                                                        getStringFieldsToTerms(request),
-                                                       os,
-                                                       Lists.transform(request.getNodesList(),
-                                                                       new Function<HostAndPort, InetSocketAddress>() {
-                                                                           public InetSocketAddress apply(final HostAndPort input) {
-                                                                               return new InetSocketAddress(input.getHost(), input.getPort());
-                                                                           }
-                                                                       }).toArray(new InetSocketAddress[request.getNodesCount()]), request.getSplitIndex());
+                                                       os, nodes, request.getSplitIndex());
         }
 
         private final void getDocIterator(final ImhotepRequest          request,
@@ -614,25 +620,32 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             return builder.build();
         }
 
-        private final ImhotepResponse conditionalUpdateDynamicMetric(final ImhotepRequest          request,
-                                                                     final ImhotepResponse.Builder builder)
+        private final ImhotepResponse
+        conditionalUpdateDynamicMetric(final ImhotepRequest          request,
+                                       final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
+            final List<RegroupConditionMessage> conditionsList = request.getConditionsList();
+            final RegroupCondition[] conditions =
+                ImhotepDaemonMarshaller.marshalRegroupConditionMessageList(conditionsList);
+            final int[] deltas = Ints.toArray(request.getDynamicMetricDeltasList());
             service.handleConditionalUpdateDynamicMetric(request.getSessionId(),
                                                          request.getDynamicMetricName(),
-                                                         ImhotepDaemonMarshaller.marshalRegroupConditionMessageList(request.getConditionsList()),
-                                                         Ints.toArray(request.getDynamicMetricDeltasList()));
+                                                         conditions, deltas);
             return builder.build();
         }
 
-        private final ImhotepResponse groupConditionalUpdateDynamicMetric(final ImhotepRequest          request,
-                                                                          final ImhotepResponse.Builder builder)
+        private final ImhotepResponse
+        groupConditionalUpdateDynamicMetric(final ImhotepRequest          request,
+                                            final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
-
+            final List<RegroupConditionMessage> conditionsList = request.getConditionsList();
+            final RegroupCondition[] conditions =
+                ImhotepDaemonMarshaller.marshalRegroupConditionMessageList(conditionsList);
+            final int[] deltas = Ints.toArray(request.getDynamicMetricDeltasList());
             service.handleGroupConditionalUpdateDynamicMetric(request.getSessionId(),
                                                               request.getDynamicMetricName(),
                                                               Ints.toArray(request.getGroupsList()),
-                                                              ImhotepDaemonMarshaller.marshalRegroupConditionMessageList(request.getConditionsList()),
-                                                              Ints.toArray(request.getDynamicMetricDeltasList()));
+                                                              conditions, deltas);
             return builder.build();
         }
 
@@ -655,42 +668,50 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         private final ImhotepResponse multisplitRegroup(final ImhotepRequest          request,
                                                         final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
+            final List<GroupMultiRemapMessage> ruleList = request.getMultisplitRemapRuleList();
+            final GroupMultiRemapRule[] remapRules =
+                ImhotepDaemonMarshaller.marshalGroupMultiRemapMessageList(ruleList);
             final int numGroups =
                 service.handleMultisplitRegroup(request.getSessionId(),
-                                                ImhotepDaemonMarshaller.marshalGroupMultiRemapMessageList(request.getMultisplitRemapRuleList()),
+                                                remapRules,
                                                 request.getErrorOnCollisions());
             builder.setNumGroups(numGroups);
             return builder.build();
         }
 
-        private final ImhotepResponse explodedMultisplitRegroup(final ImhotepRequest          request,
-                                                                final ImhotepResponse.Builder builder,
-                                                                final InputStream             is)
+        private final ImhotepResponse
+            explodedMultisplitRegroup(final ImhotepRequest          request,
+                                      final ImhotepResponse.Builder builder,
+                                      final InputStream             is)
             throws ImhotepOutOfMemoryException {
             final int numRules = request.getLength();
+            final UnmodifiableIterator<GroupMultiRemapRule> it =
+                new UnmodifiableIterator<GroupMultiRemapRule>() {
+                  private int i = 0;
+
+                  @Override
+                  public boolean hasNext() {
+                      return i < numRules;
+                  }
+
+                  @Override
+                  public GroupMultiRemapRule next() {
+                      try {
+                          final GroupMultiRemapMessage message =
+                            ImhotepProtobufShipping.readGroupMultiRemapMessage(is);
+                          final GroupMultiRemapRule rule =
+                            ImhotepDaemonMarshaller.marshal(message);
+                          i++;
+                          return rule;
+                      } catch (IOException e) {
+                          throw Throwables.propagate(e);
+                      }
+                  }
+            };
             final int numGroups =
                 service.handleMultisplitRegroup(request.getSessionId(),
                                                 numRules,
-                                                new UnmodifiableIterator<GroupMultiRemapRule>() {
-                                                    private int i = 0;
-
-                                                    @Override
-                                                    public boolean hasNext() {
-                                                        return i < numRules;
-                                                    }
-
-                                                    @Override
-                                                    public GroupMultiRemapRule next() {
-                                                        try {
-                                                            final GroupMultiRemapMessage message = ImhotepProtobufShipping.readGroupMultiRemapMessage(is);
-                                                            final GroupMultiRemapRule rule = ImhotepDaemonMarshaller.marshal(message);
-                                                            i++;
-                                                            return rule;
-                                                        } catch (IOException e) {
-                                                            throw Throwables.propagate(e);
-                                                        }
-                                                    }
-                                                },
+                                                it,
                                                 request.getErrorOnCollisions());
             builder.setNumGroups(numGroups);
             return builder.build();
@@ -723,6 +744,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         private void internalRun() {
             ImhotepRequest request = null;
             try {
+                final long beginTm = System.nanoTime();
+
                 final InputStream  is = Streams.newBufferedInputStream(socket.getInputStream());
                 final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
 
@@ -887,6 +910,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     sendResponse(newErrorResponse(e), os);
                     throw e;
                 } finally {
+                    final long endTm = System.nanoTime();
+                    instrumentation.fire(new DaemonEvents.HandleRequest(request, endTm - beginTm));
                     NDC.setMaxDepth(ndcDepth);
                     close(socket, is, os);
                 }
