@@ -75,7 +75,9 @@ import static com.indeed.imhotep.protobuf.ImhotepRequest.RequestType.GET_FTGS_SP
  *
  * an ImhotepSession for talking to a remote ImhotepDaemon over a Socket using protobufs
  */
-public class ImhotepRemoteSession extends AbstractImhotepSession {
+public class ImhotepRemoteSession
+    extends AbstractImhotepSession
+    implements Instrumentation.Provider {
     private static final Logger log = Logger.getLogger(ImhotepRemoteSession.class);
 
     public static final int DEFAULT_MERGE_THREAD_LIMIT = ImhotepRequest.getDefaultInstance().getMergeThreadLimit();
@@ -93,10 +95,32 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
     private int numStats = 0;
 
+    private final Instrumentation.ProviderSupport instrumentation =
+        new Instrumentation.ProviderSupport();
+
+    // !@# reconsider name
+    private final class ClientEvent extends Instrumentation.Event {
+
+        public ClientEvent(final ImhotepRequest request,
+                           final long           elapsed_tm_nanos) {
+            this(request.getRequestType(), elapsed_tm_nanos);
+        }
+
+        public ClientEvent(final ImhotepRequest.RequestType requestType,
+                           final long                       elapsed_tm_nanos) {
+            super(ClientEvent.class.getSimpleName());
+            // !@# fix camel-case vs underscore property names
+            // !@# create shared property name definitions
+            getProperties().put("sessionId",        ImhotepRemoteSession.this.sessionId);
+            getProperties().put("request_type",     requestType.toString());
+            getProperties().put("elapsed_tm_nanos", elapsed_tm_nanos);
+        }
+    }
+
     public ImhotepRemoteSession(String host, int port, String sessionId, AtomicLong tempFileSizeBytesLeft, boolean useNativeFtgs) {
         this(host, port, sessionId, tempFileSizeBytesLeft, DEFAULT_SOCKET_TIMEOUT, useNativeFtgs);
     }
-    
+
     public ImhotepRemoteSession(String host, int port, String sessionId, @Nullable AtomicLong tempFileSizeBytesLeft, int socketTimeout, boolean useNativeFtgs) {
         this.host = host;
         this.port = port;
@@ -179,7 +203,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
                     .build();
             try {
                 ImhotepProtobufShipping.sendProtobuf(openSessionRequest, os);
-    
+
                 log.trace("waiting for confirmation from "+host+":"+port);
                 final ImhotepResponse response = ImhotepProtobufShipping.readResponse(is);
                 if (response.getResponseCode() == ImhotepResponse.ResponseCode.OUT_OF_MEMORY) {
@@ -188,7 +212,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
                     throw buildExceptionFromResponse(response, host, port);
                 }
                 if (sessionId == null) sessionId = response.getSessionId();
-    
+
                 log.trace("session created, id "+sessionId);
                 return new ImhotepRemoteSession(host, port, sessionId, tempFileSizeBytesLeft, socketTimeout, useNativeFtgs);
             } catch (SocketTimeoutException e) {
@@ -205,6 +229,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
     @Override
     public long getTotalDocFreq(String[] intFields, String[] stringFields) {
+        final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_TOTAL_DOC_FREQ)
                 .setSessionId(sessionId)
                 .addAllIntFields(Arrays.asList(intFields))
@@ -213,7 +238,9 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
         try {
             final ImhotepResponse response = sendRequest(request, host, port, socketTimeout);
-            return response.getTotalDocFreq();
+            final long result = response.getTotalDocFreq();
+            timer.complete(request);
+            return result;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -221,6 +248,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
     @Override
     public long[] getGroupStats(int stat) {
+        final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_GROUP_STATS)
                 .setSessionId(sessionId)
                 .setStat(stat)
@@ -237,26 +265,34 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
         for (int i = 0; i < ret.length; ++i) {
             ret[i] = groupStats.get(i);
         }
+        timer.complete(request);
         return ret;
     }
 
     @Override
     public FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields) {
+        final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_FTGS_ITERATOR)
                 .setSessionId(sessionId)
                 .addAllIntFields(Arrays.asList(intFields))
                 .addAllStringFields(Arrays.asList(stringFields))
                 .build();
 
-        return fileBufferedFTGSRequest(request);
+        final FTGSIterator result = fileBufferedFTGSRequest(request);
+        timer.complete(request);
+        return result;
     }
 
     @Override
     public FTGSIterator getSubsetFTGSIterator(Map<String, long[]> intFields, Map<String, String[]> stringFields) {
+        final Timer timer = new Timer();
         final ImhotepRequest.Builder requestBuilder = getBuilderForType(ImhotepRequest.RequestType.GET_SUBSET_FTGS_ITERATOR)
                 .setSessionId(sessionId);
         addSubsetFieldsAndTermsToBuilder(intFields, stringFields, requestBuilder);
-        return fileBufferedFTGSRequest(requestBuilder.build());
+        final ImhotepRequest request = requestBuilder.build();
+        final FTGSIterator result = fileBufferedFTGSRequest(request);
+        timer.complete(request);
+        return result;
     }
 
     private void addSubsetFieldsAndTermsToBuilder(Map<String, long[]> intFields, Map<String, String[]> stringFields, ImhotepRequest.Builder requestBuilder) {
@@ -277,6 +313,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
     }
 
     public DocIterator getDocIterator(final String[] intFields, final String[] stringFields) throws ImhotepOutOfMemoryException {
+        final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_DOC_ITERATOR)
                 .setSessionId(sessionId)
                 .addAllIntFields(Arrays.asList(intFields))
@@ -292,7 +329,10 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
                 closeSocket(socket, is, os);
                 throw e;
             }
-            return new InputStreamDocIterator(is, intFields.length, stringFields.length);
+            final DocIterator result = 
+                new InputStreamDocIterator(is, intFields.length, stringFields.length);
+            timer.complete(request);
+            return result;
         } catch (IOException e) {
             throw Throwables.propagate(e);
         }
@@ -303,6 +343,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
     }
 
     public RawFTGSIterator getFTGSIteratorSplit(final String[] intFields, final String[] stringFields, final int splitIndex, final int numSplits) {
+        final Timer timer = new Timer();
         final ImhotepRequest.RequestType requestType = useNativeFtgs ? GET_FTGS_SPLIT_NATIVE : GET_FTGS_SPLIT;
         final ImhotepRequest request = getBuilderForType(requestType)
                 .setSessionId(sessionId)
@@ -311,7 +352,9 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
                 .setSplitIndex(splitIndex)
                 .setNumSplits(numSplits)
                 .build();
-        return sendGetFTGSIteratorSplit(request);
+        final RawFTGSIterator result = sendGetFTGSIteratorSplit(request);
+        timer.complete(request);
+        return result;
     }
 
     @Override
@@ -321,12 +364,16 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
     @Override
     public RawFTGSIterator getSubsetFTGSIteratorSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, int splitIndex, int numSplits) {
+        final Timer timer = new Timer();
         final ImhotepRequest.Builder requestBuilder = getBuilderForType(ImhotepRequest.RequestType.GET_SUBSET_FTGS_SPLIT)
                 .setSessionId(sessionId)
                 .setSplitIndex(splitIndex)
                 .setNumSplits(numSplits);
         addSubsetFieldsAndTermsToBuilder(intFields, stringFields, requestBuilder);
-        return sendGetFTGSIteratorSplit(requestBuilder.build());
+        final ImhotepRequest request = requestBuilder.build();
+        final RawFTGSIterator result = sendGetFTGSIteratorSplit(request);
+        timer.complete(request);
+        return result;
     }
 
     private RawFTGSIterator sendGetFTGSIteratorSplit(ImhotepRequest request) {
@@ -347,6 +394,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
     }
 
     public RawFTGSIterator mergeFTGSSplit(final String[] intFields, final String[] stringFields, final String sessionId, final InetSocketAddress[] nodes, final int splitIndex) {
+        final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.MERGE_FTGS_SPLIT)
                 .setSessionId(sessionId)
                 .addAllIntFields(Arrays.asList(intFields))
@@ -359,11 +407,14 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
                 }))
                 .build();
 
-        return fileBufferedFTGSRequest(request);
+        final RawFTGSIterator result = fileBufferedFTGSRequest(request);
+        timer.complete(request);
+        return result;
     }
 
     @Override
     public RawFTGSIterator mergeSubsetFTGSSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, String sessionId, InetSocketAddress[] nodes, int splitIndex) {
+        final Timer timer = new Timer();
         final ImhotepRequest.Builder requestBuilder = getBuilderForType(ImhotepRequest.RequestType.MERGE_SUBSET_FTGS_SPLIT)
                 .setSessionId(sessionId)
                 .setSplitIndex(splitIndex)
@@ -373,7 +424,10 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
                     }
                 }));
         addSubsetFieldsAndTermsToBuilder(intFields, stringFields, requestBuilder);
-        return fileBufferedFTGSRequest(requestBuilder.build());
+        final ImhotepRequest request = requestBuilder.build();
+        final RawFTGSIterator result = fileBufferedFTGSRequest(request);
+        timer.complete(request);
+        return result;
     }
 
     private RawFTGSIterator fileBufferedFTGSRequest(ImhotepRequest request) {
@@ -428,20 +482,31 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
     }
 
     @Override
-    public int regroup(GroupMultiRemapRule[] rawRules, boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
+    public int regroup(GroupMultiRemapRule[] rawRules,
+                       boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
+        final Timer timer = new Timer();
         try {
-            final ImhotepResponse response = sendMultisplitRegroupRequest(rawRules, sessionId, errorOnCollisions);
-            return response.getNumGroups();
+            final ImhotepResponse response =
+                sendMultisplitRegroupRequest(rawRules, sessionId, errorOnCollisions);
+            final int result = response.getNumGroups();
+            timer.complete(ImhotepRequest.RequestType.EXPLODED_MULTISPLIT_REGROUP);
+            return result;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
     @Override
-    public int regroup(int numRawRules, Iterator<GroupMultiRemapRule> rawRules, boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
+    public int regroup(int numRawRules, Iterator<GroupMultiRemapRule> rawRules,
+                       boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
+        final Timer timer = new Timer();
         try {
-            final ImhotepResponse response = sendMultisplitRegroupRequest(numRawRules, rawRules, sessionId, errorOnCollisions);
-            return response.getNumGroups();
+            final ImhotepResponse response =
+                sendMultisplitRegroupRequest(numRawRules, rawRules, sessionId,
+                                             errorOnCollisions);
+            final int result = response.getNumGroups();
+            timer.complete(ImhotepRequest.RequestType.EXPLODED_MULTISPLIT_REGROUP);
+            return result;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -449,6 +514,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
     @Override
     public int regroup(GroupRemapRule[] rawRules) throws ImhotepOutOfMemoryException {
+        final Timer timer = new Timer();
         final List<GroupRemapMessage> protoRules = ImhotepClientMarshaller.marshal(rawRules);
 
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.REGROUP)
@@ -458,7 +524,9 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
         try {
             final ImhotepResponse response = sendRequestWithMemoryException(request, host, port, socketTimeout);
-            return response.getNumGroups();
+            final int result = response.getNumGroups();
+            timer.complete(request);
+            return result;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -466,6 +534,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
     @Override
     public int regroup(QueryRemapRule rule) throws ImhotepOutOfMemoryException {
+        final Timer timer = new Timer();
         final QueryRemapMessage protoRule = ImhotepClientMarshaller.marshal(rule);
 
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.QUERY_REGROUP)
@@ -475,7 +544,9 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
         try {
             final ImhotepResponse response = sendRequestWithMemoryException(request, host, port, socketTimeout);
-            return response.getNumGroups();
+            final int result = response.getNumGroups();
+            timer.complete(request);
+            return result;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -483,6 +554,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
     @Override
     public void intOrRegroup(String field, long[] terms, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException {
+        final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.INT_OR_REGROUP)
                 .setSessionId(sessionId)
                 .setField(field)
@@ -494,6 +566,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
         try {
             sendRequestWithMemoryException(request, host, port, socketTimeout);
+            timer.complete(request);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -501,6 +574,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
     @Override
     public void stringOrRegroup(String field, String[] terms, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException {
+        final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.STRING_OR_REGROUP)
                 .setSessionId(sessionId)
                 .setField(field)
@@ -512,6 +586,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
         try {
             sendRequestWithMemoryException(request, host, port, socketTimeout);
+            timer.complete(request);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -519,6 +594,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
     @Override
     public void regexRegroup(String field, String regex, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException {
+        final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.REGEX_REGROUP)
                 .setSessionId(sessionId)
                 .setField(field)
@@ -530,6 +606,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
         try {
             sendRequestWithMemoryException(request, host, port, socketTimeout);
+            timer.complete(request);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -538,6 +615,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
     @Override
     public void randomRegroup(String field, boolean isIntField, String salt, double p, int targetGroup, int negativeGroup,
                               int positiveGroup) throws ImhotepOutOfMemoryException {
+        final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.RANDOM_REGROUP)
                 .setSessionId(sessionId)
                 .setField(field)
@@ -551,6 +629,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
         try {
             sendRequestWithMemoryException(request, host, port, socketTimeout);
+            timer.complete(request);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -559,6 +638,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
     @Override
     public void randomMultiRegroup(String field, boolean isIntField, String salt, int targetGroup, double[] percentages,
                                    int[] resultGroups) throws ImhotepOutOfMemoryException {
+        final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.RANDOM_MULTI_REGROUP)
                 .setSessionId(sessionId)
                 .setField(field)
@@ -571,6 +651,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
         try {
             sendRequestWithMemoryException(request, host, port, socketTimeout);
+            timer.complete(request);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -578,6 +659,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
     @Override
     public int metricRegroup(int stat, long min, long max, long intervalSize, boolean noGutters) throws ImhotepOutOfMemoryException {
+        final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.METRIC_REGROUP)
                 .setSessionId(sessionId)
                 .setXStat(stat)
@@ -589,7 +671,9 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
         try {
             final ImhotepResponse response = sendRequestWithMemoryException(request, host, port, socketTimeout);
-            return response.getNumGroups();
+            final int result = response.getNumGroups();
+            timer.complete(request);
+            return result;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -597,6 +681,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
     @Override
     public int metricRegroup2D(int xStat, long xMin, long xMax, long xIntervalSize, int yStat, long yMin, long yMax, long yIntervalSize) throws ImhotepOutOfMemoryException {
+        final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.METRIC_REGROUP_2D)
                 .setSessionId(sessionId)
                 .setXStat(xStat)
@@ -611,13 +696,16 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
         try {
             final ImhotepResponse response = sendRequestWithMemoryException(request, host, port, socketTimeout);
-            return response.getNumGroups();
+            final int result = response.getNumGroups();
+            timer.complete(request);
+            return result;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
     public int metricFilter(int stat, long min, long max, boolean negate) throws ImhotepOutOfMemoryException {
+        final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.METRIC_FILTER)
                 .setSessionId(sessionId)
                 .setXStat(stat)
@@ -627,7 +715,9 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
                 .build();
         try {
             final ImhotepResponse response = sendRequestWithMemoryException(request, host, port, socketTimeout);
-            return response.getNumGroups();
+            final int result = response.getNumGroups();
+            timer.complete(request);
+            return result;
         } catch (IOException e) {
             throw Throwables.propagate(e);
         }
@@ -635,6 +725,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
     @Override
     public List<TermCount> approximateTopTerms(String field, boolean isIntField, int k) {
+        final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.APPROXIMATE_TOP_TERMS)
                 .setSessionId(sessionId)
                 .setField(field)
@@ -644,7 +735,10 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
         try {
             final ImhotepResponse response = sendRequest(request, host, port, socketTimeout);
-            return ImhotepClientMarshaller.marshal(response.getTopTermsList());
+            final List<TermCount> result =
+                ImhotepClientMarshaller.marshal(response.getTopTermsList());
+            timer.complete(request);
+            return result;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -652,6 +746,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
     @Override
     public int pushStat(String statName) throws ImhotepOutOfMemoryException {
+        final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.PUSH_STAT)
                 .setSessionId(sessionId)
                 .setMetric(statName)
@@ -660,6 +755,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
         try {
             final ImhotepResponse response = sendRequestWithMemoryException(request, host, port, socketTimeout);
             numStats = response.getNumStats();
+            timer.complete(request);
             return numStats;
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -677,6 +773,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
     @Override
     public int popStat() {
+        final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.POP_STAT)
                 .setSessionId(sessionId)
                 .build();
@@ -684,6 +781,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
         try {
             final ImhotepResponse response = sendRequest(request, host, port, socketTimeout);
             numStats = response.getNumStats();
+            timer.complete(request);
             return numStats;
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -698,12 +796,15 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
     @Override
     public int getNumGroups() {
+        final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_NUM_GROUPS)
                 .setSessionId(sessionId)
                 .build();
         try {
             final ImhotepResponse response = sendRequest(request, host, port, socketTimeout);
-            return response.getNumGroups();
+            final int result = response.getNumGroups();
+            timer.complete(request);
+            return result;
         } catch (IOException e) {
             throw Throwables.propagate(e);
         }
@@ -720,6 +821,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
     @Override
     public void createDynamicMetric(String name) throws ImhotepOutOfMemoryException {
+        final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.CREATE_DYNAMIC_METRIC)
                 .setSessionId(sessionId)
                 .setDynamicMetricName(name)
@@ -727,6 +829,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
         try {
             sendRequestWithMemoryException(request, host, port, socketTimeout);
+            timer.complete(request);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -734,6 +837,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
     @Override
     public void updateDynamicMetric(String name, int[] deltas) {
+        final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.UPDATE_DYNAMIC_METRIC)
                 .setSessionId(sessionId)
                 .setDynamicMetricName(name)
@@ -742,6 +846,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
         try {
             sendRequest(request, host, port);
+            timer.complete(request);
         } catch (SocketTimeoutException e) {
             throw new RuntimeException(buildExceptionAfterSocketTimeout(e, host, port));
         } catch (IOException e) {
@@ -751,6 +856,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
     @Override
     public void conditionalUpdateDynamicMetric(String name, RegroupCondition[] conditions, int[] deltas) {
+        final Timer timer = new Timer();
         List<RegroupConditionMessage> conditionMessages = ImhotepClientMarshaller.marshal(conditions);
 
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.CONDITIONAL_UPDATE_DYNAMIC_METRIC)
@@ -761,6 +867,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
                 .build();
         try {
             sendRequest(request, host, port, socketTimeout);
+            timer.complete(request);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -768,6 +875,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
     @Override
     public void groupConditionalUpdateDynamicMetric(String name, int[] groups, RegroupCondition[] conditions, int[] deltas) {
+        final Timer timer = new Timer();
         List<RegroupConditionMessage> conditionMessages = ImhotepClientMarshaller.marshal(conditions);
 
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GROUP_CONDITIONAL_UPDATE_DYNAMIC_METRIC)
@@ -779,6 +887,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
                 .build();
         try {
             sendRequest(request, host, port, socketTimeout);
+            timer.complete(request);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -786,6 +895,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
     @Override
     public void rebuildAndFilterIndexes(List<String> intFields, List<String> stringFields) throws ImhotepOutOfMemoryException {
+        final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.OPTIMIZE_SESSION)
                 .setSessionId(sessionId)
                 .addAllIntFields(intFields)
@@ -794,6 +904,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
         try {
             sendRequest(request, host, port, socketTimeout);
+            timer.complete(request);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -801,12 +912,14 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
     @Override
     public void close() {
+        final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.CLOSE_SESSION)
                 .setSessionId(sessionId)
                 .build();
 
         try {
             sendRequest(request, host, port, socketTimeout);
+            timer.complete(request);
         } catch (IOException e) {
             log.error("error closing session", e);
         }
@@ -814,12 +927,14 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
 
     @Override
     public void resetGroups() {
+        final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.RESET_GROUPS)
                 .setSessionId(sessionId)
                 .build();
 
         try {
             sendRequest(request, host, port, socketTimeout);
+            timer.complete(request);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -836,7 +951,7 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
     private static ImhotepResponse sendRequest(ImhotepRequest request, String host, int port) throws IOException {
         return sendRequest(request, host, port, -1);
     }
-    
+
     private static ImhotepResponse sendRequest(ImhotepRequest request, String host, int port, int socketTimeout) throws IOException {
         final Socket socket = newSocket(host, port, socketTimeout);
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
@@ -926,12 +1041,12 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
                 .append(response.getExceptionStackTrace()); // stack trace string includes the type and message
         return new IOException(msg.toString());
     }
-    
+
     private static IOException buildExceptionAfterSocketTimeout(SocketTimeoutException e, String host, int port) {
         final StringBuilder msg = new StringBuilder();
         msg.append("imhotep daemon ").append(host).append(":").append(port)
                 .append(" socket timed out: ").append(e.getMessage());
-        
+
         return new IOException(msg.toString());
     }
 
@@ -980,5 +1095,28 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
     @Override
     public void writeFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, Socket socket) {
         throw new UnsupportedOperationException("operation is unsupported!");
+    }
+
+    public void addObserver(Instrumentation.Observer observer) {
+        instrumentation.addObserver(observer);
+    }
+
+    public void removeObserver(Instrumentation.Observer observer) {
+        instrumentation.removeObserver(observer);
+    }
+
+    private final class Timer {
+
+        final long beginTmNanos = System.nanoTime();
+
+        final void complete(final ImhotepRequest request) {
+            final long elapsedTmNanos = System.nanoTime() - beginTmNanos;
+            instrumentation.fire(new ClientEvent(request, elapsedTmNanos));
+        }
+
+        final void complete(final ImhotepRequest.RequestType requestType) {
+            final long elapsedTmNanos = System.nanoTime() - beginTmNanos;
+            instrumentation.fire(new ClientEvent(requestType, elapsedTmNanos));
+        }
     }
 }
