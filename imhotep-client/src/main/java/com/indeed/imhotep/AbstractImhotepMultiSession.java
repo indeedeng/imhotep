@@ -121,7 +121,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
            multisession. */
         private final class Observer implements Instrumentation.Observer {
             public void onEvent(final Instrumentation.Event event) {
-                event.getProperties().put("threadFactory", namePrefix);
+                event.getProperties().put(Instrumentation.Keys.THREAD_FACTORY, namePrefix);
                 AbstractImhotepMultiSession.this.instrumentation.fire(event);
             }
         }

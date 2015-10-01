@@ -26,6 +26,7 @@ import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.Instrumentation;
+import com.indeed.imhotep.Instrumentation.Keys;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.ShardInfo;
@@ -84,9 +85,9 @@ public abstract class AbstractImhotepServiceCore
         }
 
         public void onEvent(Instrumentation.Event event) {
-            event.getProperties().put("dataset",   dataset);
-            event.getProperties().put("sessionId", sessionId);
-            event.getProperties().put("username",  username);
+            event.getProperties().put(Keys.DATASET,    dataset);
+            event.getProperties().put(Keys.SESSION_ID, sessionId);
+            event.getProperties().put(Keys.USERNAME,   username);
             instrumentation.fire(event);
         }
     }

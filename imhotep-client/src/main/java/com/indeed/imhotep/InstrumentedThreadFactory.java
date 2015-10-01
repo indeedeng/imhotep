@@ -37,29 +37,25 @@ public class InstrumentedThreadFactory
     private final Hashtable<Long, Long> threadToCPUUser  = new Hashtable<Long, Long>();
     private final Hashtable<Long, Long> threadToCPUTotal = new Hashtable<Long, Long>();
 
-    public static final String CPU_USER  = "cpuUserNanos";
-    public static final String CPU_TOTAL = "cpuTotalNanos";
-    public static final String THREAD_ID = "threadId";
-
-    public static class CPU extends Instrumentation.Event {
-        protected CPU(String name, long user, long total) {
+    public static class CPUEvent extends Instrumentation.Event {
+        protected CPUEvent(String name, long user, long total) {
             super(name);
-            getProperties().put(CPU_USER,   user);
-            getProperties().put(CPU_TOTAL, total);
+            getProperties().put(Instrumentation.Keys.CPU_USER,   user);
+            getProperties().put(Instrumentation.Keys.CPU_TOTAL, total);
         }
     }
 
-    public static final class PerThreadCPU extends CPU {
-        public static final String NAME = PerThreadCPU.class.getSimpleName();
-        public PerThreadCPU(long id, long user, long total) {
+    public static final class PerThreadCPUEvent extends CPUEvent {
+        public static final String NAME = PerThreadCPUEvent.class.getSimpleName();
+        public PerThreadCPUEvent(long id, long user, long total) {
             super(NAME, user, total);
-            getProperties().put(THREAD_ID, id);
+            getProperties().put(Instrumentation.Keys.THREAD_ID, id);
         }
     }
 
-    public static final class TotalCPU extends CPU {
-        public static final String NAME = TotalCPU.class.getSimpleName();
-        public TotalCPU(long user, long total) { super(NAME, user, total); }
+    public static final class TotalCPUEvent extends CPUEvent {
+        public static final String NAME = TotalCPUEvent.class.getSimpleName();
+        public TotalCPUEvent(long user, long total) { super(NAME, user, total); }
     }
 
     private final ArrayList<Long> ids = new ArrayList<Long>();
@@ -144,10 +140,10 @@ public class InstrumentedThreadFactory
                 totalUserTime       += userTime;
                 totalCpuTime        += cpuTime;
 
-                final PerThreadCPU ptcpu = new PerThreadCPU(id, userTime, cpuTime);
+                final PerThreadCPUEvent ptcpu = new PerThreadCPUEvent(id, userTime, cpuTime);
                 instrumentation.fire(ptcpu);
             }
-            final TotalCPU tcpu = new TotalCPU(totalUserTime, totalCpuTime);
+            final TotalCPUEvent tcpu = new TotalCPUEvent(totalUserTime, totalCpuTime);
             instrumentation.fire(tcpu);
         }
         catch (Exception ex) {

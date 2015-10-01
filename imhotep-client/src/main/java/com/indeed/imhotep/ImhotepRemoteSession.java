@@ -21,6 +21,7 @@ import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
+import com.indeed.imhotep.Instrumentation.Keys;
 import com.indeed.imhotep.api.DocIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
@@ -98,22 +99,19 @@ public class ImhotepRemoteSession
     private final Instrumentation.ProviderSupport instrumentation =
         new Instrumentation.ProviderSupport();
 
-    // !@# reconsider name
-    private final class ClientEvent extends Instrumentation.Event {
+    private final class SubmitRequestEvent extends Instrumentation.Event {
 
-        public ClientEvent(final ImhotepRequest request,
+        public SubmitRequestEvent(final ImhotepRequest request,
                            final long           elapsed_tm_nanos) {
             this(request.getRequestType(), elapsed_tm_nanos);
         }
 
-        public ClientEvent(final ImhotepRequest.RequestType requestType,
+        public SubmitRequestEvent(final ImhotepRequest.RequestType requestType,
                            final long                       elapsed_tm_nanos) {
-            super(ClientEvent.class.getSimpleName());
-            // !@# fix camel-case vs underscore property names
-            // !@# create shared property name definitions
-            getProperties().put("sessionId",        ImhotepRemoteSession.this.sessionId);
-            getProperties().put("request_type",     requestType.toString());
-            getProperties().put("elapsed_tm_nanos", elapsed_tm_nanos);
+            super(SubmitRequestEvent.class.getSimpleName());
+            getProperties().put(Keys.SESSION_ID,       ImhotepRemoteSession.this.sessionId);
+            getProperties().put(Keys.REQUEST_TYPE,     requestType.toString());
+            getProperties().put(Keys.ELAPSED_TM_NANOS, elapsed_tm_nanos);
         }
     }
 
@@ -1111,12 +1109,12 @@ public class ImhotepRemoteSession
 
         final void complete(final ImhotepRequest request) {
             final long elapsedTmNanos = System.nanoTime() - beginTmNanos;
-            instrumentation.fire(new ClientEvent(request, elapsedTmNanos));
+            instrumentation.fire(new SubmitRequestEvent(request, elapsedTmNanos));
         }
 
         final void complete(final ImhotepRequest.RequestType requestType) {
             final long elapsedTmNanos = System.nanoTime() - beginTmNanos;
-            instrumentation.fire(new ClientEvent(requestType, elapsedTmNanos));
+            instrumentation.fire(new SubmitRequestEvent(requestType, elapsedTmNanos));
         }
     }
 }

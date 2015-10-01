@@ -25,6 +25,7 @@ import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.StringValueLookup;
 import com.indeed.imhotep.Instrumentation;
+import com.indeed.imhotep.Instrumentation.Keys;
 import com.indeed.imhotep.MemoryReservationContext;
 
 import org.apache.log4j.Logger;
@@ -53,17 +54,16 @@ public class InstrumentedFlamdexReader
 
     private final Map<String, Long> metricBytesRequired = new HashMap<String, Long>();
 
-    final public class Event extends Instrumentation.Event {
-        Event() {
-            super(Event.class.getSimpleName());
-            getProperties().put("shardId",     flamdexInfo.getShardId());
-            getProperties().put("shardDate",   flamdexInfo.getDate());
-            getProperties().put("shardSize",   flamdexInfo.getSizeInBytes());
-            getProperties().put("statsPushed", statsPushed);
-            getProperties().put("int-metrics", commaDelimitted(intFields));
-            getProperties().put("int-metrics-bytes-required",
-                                commaDelimitted(bytesRequired(intFields)));
-            getProperties().put("string-fields", commaDelimitted(stringFields));
+    final public class FlamdexReaderEvent extends Instrumentation.Event {
+        FlamdexReaderEvent() {
+            super(FlamdexReaderEvent.class.getSimpleName());
+            getProperties().put(Keys.SHARD_ID,         flamdexInfo.getShardId());
+            getProperties().put(Keys.SHARD_DATE,       flamdexInfo.getDate());
+            getProperties().put(Keys.SHARD_SIZE,       flamdexInfo.getSizeInBytes());
+            getProperties().put(Keys.STATS_PUSHED,     statsPushed);
+            getProperties().put(Keys.INT_METRICS,      commaDelimitted(intFields));
+            getProperties().put(Keys.INT_METRIC_BYTES, commaDelimitted(bytesRequired(intFields)));
+            getProperties().put(Keys.STRING_FIELDS,    commaDelimitted(stringFields));
         }
 
         private String commaDelimitted(Collection<String> items) {
@@ -92,7 +92,7 @@ public class InstrumentedFlamdexReader
         this.flamdexInfo = new FlamdexInfo(reader);
     }
 
-    public Event sample() { return new Event(); }
+    public Instrumentation.Event sample() { return new FlamdexReaderEvent(); }
 
     public void onPushStat(String stat, IntValueLookup lookup) {
         if (stat != null) {

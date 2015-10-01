@@ -135,19 +135,19 @@ public abstract class ImhotepLocalSession
 
         private final class Observer implements Instrumentation.Observer {
             public void onEvent(final Instrumentation.Event event) {
-                event.getProperties().put("threadFactory", name);
+                event.getProperties().put(Instrumentation.Keys.THREAD_FACTORY, name);
                 ImhotepLocalSession.this.instrumentation.fire(event);
             }
         }
     }
 
-    class SessionCloseEvent extends Instrumentation.Event {
-        SessionCloseEvent() {
-            super(SessionCloseEvent.class.getSimpleName());
+    class CloseLocalSessionEvent extends Instrumentation.Event {
+        CloseLocalSessionEvent() {
+            super(CloseLocalSessionEvent.class.getSimpleName());
             getProperties()
                 .putAll(ImhotepLocalSession.this.instrumentedFlamdexReader.sample().getProperties());
-            getProperties()
-                .put("maxUsedMemory", ImhotepLocalSession.this.memory.maxUsedMemory());
+            getProperties().put(Instrumentation.Keys.MAX_USED_MEMORY,
+                                ImhotepLocalSession.this.memory.maxUsedMemory());
         }
     }
 
@@ -2030,7 +2030,7 @@ public abstract class ImhotepLocalSession
 
     protected void tryClose() {
         try {
-            instrumentation.fire(new SessionCloseEvent());
+            instrumentation.fire(new CloseLocalSessionEvent());
 
             Closeables2.closeQuietly(threadFactory, log);
 

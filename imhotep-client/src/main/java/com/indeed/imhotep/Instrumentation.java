@@ -20,19 +20,41 @@ import java.util.Map.Entry;
 import java.util.TreeMap;
 
 /**
-    Intended for course-grained instrumentation of Imhotep components. Note that this class is built
-    for comfort, not for speed.
+    Intended for course-grained instrumentation of Imhotep components. Note that
+    this class is built for comfort, not for speed.
  */
 public class Instrumentation {
 
-    public static class Event {
-        private final String TYPE_KEY = "event-type"; // Note that this property key is reserved.
+    public interface Keys {
+        public static final String EVENT_TYPE = "eventtype"; // reserved by Instrumentation.Event
 
+        public static final String CPU_USER           = "cpuuser";
+        public static final String CPU_TOTAL          = "cputotal";
+        public static final String DATASET            = "dataset";
+        public static final String ELAPSED_TM_NANOS   = "elapsedtmnanos";
+        public static final String INT_METRICS        = "intmetrics";
+        public static final String INT_METRIC_BYTES   = "intmetricbytes";
+        public static final String MAX_USED_MEMORY    = "maxusedmemory";
+        public static final String REQUEST_TYPE       = "requesttype";
+        public static final String SESSION_ID         = "sessionid";
+        public static final String SHARD_DATE         = "sharddate";
+        public static final String SHARD_ID           = "shardid";
+        public static final String SHARD_REQUEST_LIST = "shardrequestlist";
+        public static final String SHARD_SIZE         = "shardsize";
+        public static final String STATS_PUSHED       = "statspushed";
+        public static final String STRING_FIELDS      = "stringfields";
+        public static final String THREAD_FACTORY     = "threadfactory";
+        public static final String THREAD_ID          = "threadid";
+        public static final String USERNAME           = "username";
+        public static final String USE_NATIVE_FTGS    = "usenativeftgs";
+    }
+
+    public static class Event {
         private final TreeMap<String, Object> properties = new TreeMap<String, Object>();
 
-        public Event(final String type) { properties.put(TYPE_KEY, type); }
+        public Event(final String type) { properties.put(Keys.EVENT_TYPE, type); }
 
-        public String getType() { return properties.get(TYPE_KEY).toString(); }
+        public String getType() { return properties.get(Keys.EVENT_TYPE).toString(); }
 
         public Map<String, Object> getProperties() { return properties; }
 

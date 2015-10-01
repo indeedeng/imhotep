@@ -771,12 +771,12 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                         case OPEN_SESSION:
                             response = openSession(request, builder);
                             // !@# move after response call at end of switch
-                            instrumentation.fire(new DaemonEvents.OpenSession(request));
+                            instrumentation.fire(new DaemonEvents.OpenSessionEvent(request));
                             break;
                         case CLOSE_SESSION:
                             response = closeSession(request, builder);
                             // !@# move after response call at end of switch
-                            instrumentation.fire(new DaemonEvents.CloseSession(request));
+                            instrumentation.fire(new DaemonEvents.CloseSessionEvent(request));
                             break;
                         case REGROUP:
                             response = regroup(request, builder);
@@ -911,7 +911,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     throw e;
                 } finally {
                     final long endTm = System.nanoTime();
-                    instrumentation.fire(new DaemonEvents.HandleRequest(request, endTm - beginTm));
+                    instrumentation.fire(new DaemonEvents.HandleRequestEvent(request, endTm - beginTm));
                     NDC.setMaxDepth(ndcDepth);
                     close(socket, is, os);
                 }
