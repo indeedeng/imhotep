@@ -746,11 +746,15 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             try {
                 final long beginTm = System.nanoTime();
 
+                final String remoteAddr = socket.getInetAddress().getHostAddress();
+
                 final InputStream  is = Streams.newBufferedInputStream(socket.getInputStream());
                 final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
 
                 final int  ndcDepth  = NDC.getDepth();
                 final long requestId = requestIdCounter.incrementAndGet();
+
+                ImhotepResponse response = null;
 
                 NDC.push("#" + requestId);
 
@@ -766,17 +770,16 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     log.info("received request of type " + request.getRequestType() +
                              ", building response");
                     final ImhotepResponse.Builder builder = ImhotepResponse.newBuilder();
-                    ImhotepResponse response = null;
                     switch (request.getRequestType()) {
                         case OPEN_SESSION:
                             response = openSession(request, builder);
                             // !@# move after response call at end of switch
-                            instrumentation.fire(new DaemonEvents.OpenSessionEvent(request));
+                            instrumentation.fire(new DaemonEvents.OpenSessionEvent(request, remoteAddr));
                             break;
                         case CLOSE_SESSION:
                             response = closeSession(request, builder);
                             // !@# move after response call at end of switch
-                            instrumentation.fire(new DaemonEvents.CloseSessionEvent(request));
+                            instrumentation.fire(new DaemonEvents.CloseSessionEvent(request, remoteAddr));
                             break;
                         case REGROUP:
                             response = regroup(request, builder);
@@ -911,7 +914,10 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     throw e;
                 } finally {
                     final long endTm = System.nanoTime();
-                    instrumentation.fire(new DaemonEvents.HandleRequestEvent(request, endTm - beginTm));
+                    instrumentation.fire(new DaemonEvents.HandleRequestEvent(request,
+                                                                             response,
+                                                                             remoteAddr,
+                                                                             endTm - beginTm));
                     NDC.setMaxDepth(ndcDepth);
                     close(socket, is, os);
                 }

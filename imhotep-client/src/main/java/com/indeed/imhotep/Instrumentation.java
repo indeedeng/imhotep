@@ -35,7 +35,10 @@ public class Instrumentation {
         public static final String INT_METRICS        = "intmetrics";
         public static final String INT_METRIC_BYTES   = "intmetricbytes";
         public static final String MAX_USED_MEMORY    = "maxusedmemory";
+        public static final String REMOTE_ADDR        = "remoteaddr";
         public static final String REQUEST_TYPE       = "requesttype";
+        public static final String REQUEST_SIZE       = "requestsize";
+        public static final String RESPONSE_SIZE      = "responsesize";
         public static final String SESSION_ID         = "sessionid";
         public static final String SHARD_DATE         = "sharddate";
         public static final String SHARD_ID           = "shardid";
