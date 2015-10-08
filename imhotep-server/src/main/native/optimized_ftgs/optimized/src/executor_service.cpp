@@ -1,10 +1,5 @@
 #include "executor_service.hpp"
 
-#include <unistd.h>
-
-#include <cstring>
-#include <sstream>
-
 #include "imhotep_error.hpp"
 #include "log.hpp"
 
@@ -83,19 +78,10 @@ namespace imhotep {
     }
 
     size_t ExecutorService::num_processors() {
-        // Ideally we should just return std::thread::hardware_concurrency(),
-        // however that call is not available in libstdc++ on all the platforms
-        // we target.
-        const long result(sysconf(_SC_NPROCESSORS_ONLN));
-        if (result < 1) {
-            const long fallback(8);
-            std::ostringstream os;
-            os << __FUNCTION__ << ": error querying the number of processors available,"
-               << " falling back to " << fallback
-               << " errno: " << errno << ": " << strerror(errno);
-            Log::error(os.str());
-        }
-        return result;
+        static constexpr size_t fallback(8);
+        const size_t            result(std::thread::hardware_concurrency());
+
+        return result != 0 ? result : fallback;
     }
 
 } // namespace imhotep
