@@ -28,28 +28,33 @@ public class Instrumentation {
     public interface Keys {
         public static final String EVENT_TYPE = "eventtype"; // reserved by Instrumentation.Event
 
-        public static final String CPU_USER           = "cpuuser";
-        public static final String CPU_TOTAL          = "cputotal";
-        public static final String DATASET            = "dataset";
-        public static final String ELAPSED_TM_NANOS   = "elapsedtmnanos";
-        public static final String INT_METRICS        = "intmetrics";
-        public static final String INT_METRIC_BYTES   = "intmetricbytes";
-        public static final String MAX_USED_MEMORY    = "maxusedmemory";
-        public static final String REMOTE_ADDR        = "remoteaddr";
-        public static final String REQUEST_TYPE       = "requesttype";
-        public static final String REQUEST_SIZE       = "requestsize";
-        public static final String RESPONSE_SIZE      = "responsesize";
-        public static final String SESSION_ID         = "sessionid";
-        public static final String SHARD_DATE         = "sharddate";
-        public static final String SHARD_ID           = "shardid";
-        public static final String SHARD_REQUEST_LIST = "shardrequestlist";
-        public static final String SHARD_SIZE         = "shardsize";
-        public static final String STATS_PUSHED       = "statspushed";
-        public static final String STRING_FIELDS      = "stringfields";
-        public static final String THREAD_FACTORY     = "threadfactory";
-        public static final String THREAD_ID          = "threadid";
-        public static final String USERNAME           = "username";
-        public static final String USE_NATIVE_FTGS    = "usenativeftgs";
+        public static final String CPU_TOTAL           = "cputotal";
+        public static final String CPU_USER            = "cpuuser";
+        public static final String DAEMON_THREAD_COUNT = "daemonthreadcount";
+        public static final String DATASET             = "dataset";
+        public static final String ELAPSED_TM_NANOS    = "elapsedtmnanos";
+        public static final String FREE_MEMORY         = "freememory";
+        public static final String INT_METRICS         = "intmetrics";
+        public static final String INT_METRIC_BYTES    = "intmetricbytes";
+        public static final String MAX_USED_MEMORY     = "maxusedmemory";
+        public static final String PEAK_THREAD_COUNT   = "peakthreadcount";
+        public static final String REMOTE_ADDR         = "remoteaddr";
+        public static final String REQUEST_SIZE        = "requestsize";
+        public static final String REQUEST_TYPE        = "requesttype";
+        public static final String RESPONSE_SIZE       = "responsesize";
+        public static final String SESSION_ID          = "sessionid";
+        public static final String SHARD_DATE          = "sharddate";
+        public static final String SHARD_ID            = "shardid";
+        public static final String SHARD_REQUEST_LIST  = "shardrequestlist";
+        public static final String SHARD_SIZE          = "shardsize";
+        public static final String STATS_PUSHED        = "statspushed";
+        public static final String STRING_FIELDS       = "stringfields";
+        public static final String TOTAL_MEMORY        = "totalmemory";
+        public static final String THREAD_COUNT        = "threadcount";
+        public static final String THREAD_FACTORY      = "threadfactory";
+        public static final String THREAD_ID           = "threadid";
+        public static final String USERNAME            = "username";
+        public static final String USE_NATIVE_FTGS     = "usenativeftgs";
     }
 
     public static class Event {

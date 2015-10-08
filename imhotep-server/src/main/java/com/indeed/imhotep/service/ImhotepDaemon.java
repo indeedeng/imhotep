@@ -26,6 +26,7 @@ import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.Instrumentation;
+import com.indeed.imhotep.Instrumentation.Keys;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.TermCount;
@@ -51,6 +52,8 @@ import org.apache.log4j.NDC;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadMXBean;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -81,10 +84,34 @@ public class ImhotepDaemon implements Instrumentation.Provider {
 
     private final ShardUpdateListener shardUpdateListener;
 
-    private final Instrumentation.ProviderSupport instrumentation =
-        new Instrumentation.ProviderSupport();
+    private final InstrumentationProvider instrumentation =
+        new InstrumentationProvider();
 
-    private static final class ShardUpdateListener implements ShardUpdateListenerIf {
+    private ServiceCoreObserver serviceCoreObserver;
+
+    private static final class InstrumentationProvider
+        extends Instrumentation.ProviderSupport {
+
+        private final ThreadMXBean mxb     = ManagementFactory.getThreadMXBean();
+        private final Runtime      runtime = Runtime.getRuntime();
+
+        @Override
+        public synchronized void fire(final Instrumentation.Event event) {
+            try {
+                event.getProperties().put(Keys.FREE_MEMORY, runtime.freeMemory());
+                event.getProperties().put(Keys.TOTAL_MEMORY, runtime.totalMemory());
+                event.getProperties().put(Keys.DAEMON_THREAD_COUNT, mxb.getDaemonThreadCount());
+                event.getProperties().put(Keys.PEAK_THREAD_COUNT, mxb.getPeakThreadCount());
+                event.getProperties().put(Keys.THREAD_COUNT, mxb.getThreadCount());
+            }
+            finally {
+                super.fire(event);
+            }
+        }
+    }
+
+    private static final class ShardUpdateListener
+        implements ShardUpdateListenerIf {
 
         private final AtomicReference<ImhotepResponse> shardListResponse =
             new AtomicReference<ImhotepResponse>();
@@ -134,7 +161,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 return new Thread(r, "ImhotepDaemonRemoteServiceThread"+i++);
             }
         });
-        zkWrapper = zkNodes != null ? new ServiceZooKeeperWrapper(zkNodes, hostname, port, zkPath) : null;
+        zkWrapper = zkNodes != null ?
+            new ServiceZooKeeperWrapper(zkNodes, hostname, port, zkPath) : null;
     }
 
     /** Intended for tests that create their own ImhotepDaemons. */
@@ -1142,7 +1170,12 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         }
     }
 
-    private ServiceCoreObserver newServiceCoreObserver() { return new ServiceCoreObserver(); }
+    private ServiceCoreObserver getServiceCoreObserver() {
+        if (serviceCoreObserver == null) {
+            serviceCoreObserver = new ServiceCoreObserver();
+        }
+        return serviceCoreObserver;
+    }
 
     static ImhotepDaemon newImhotepDaemon(String shardsDirectory,
                                           String shardTempDir,
@@ -1176,7 +1209,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         final ImhotepDaemon result =
             new ImhotepDaemon(ss, localService, zkNodes, zkPath,
                               myHostname, port, shardUpdateListener);
-        localService.addObserver(result.newServiceCoreObserver());
+        localService.addObserver(result.getServiceCoreObserver());
         return result;
     }
 
