@@ -76,9 +76,7 @@ import static com.indeed.imhotep.protobuf.ImhotepRequest.RequestType.GET_FTGS_SP
  *
  * an ImhotepSession for talking to a remote ImhotepDaemon over a Socket using protobufs
  */
-public class ImhotepRemoteSession
-    extends AbstractImhotepSession
-    implements Instrumentation.Provider {
+public class ImhotepRemoteSession extends AbstractImhotepSession {
     private static final Logger log = Logger.getLogger(ImhotepRemoteSession.class);
 
     public static final int DEFAULT_MERGE_THREAD_LIMIT = ImhotepRequest.getDefaultInstance().getMergeThreadLimit();
@@ -95,9 +93,6 @@ public class ImhotepRemoteSession
     private final boolean useNativeFtgs;
 
     private int numStats = 0;
-
-    private final Instrumentation.ProviderSupport instrumentation =
-        new Instrumentation.ProviderSupport();
 
     private final class SubmitRequestEvent extends Instrumentation.Event {
 
@@ -1093,14 +1088,6 @@ public class ImhotepRemoteSession
     @Override
     public void writeFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, Socket socket) {
         throw new UnsupportedOperationException("operation is unsupported!");
-    }
-
-    public void addObserver(Instrumentation.Observer observer) {
-        instrumentation.addObserver(observer);
-    }
-
-    public void removeObserver(Instrumentation.Observer observer) {
-        instrumentation.removeObserver(observer);
     }
 
     private final class Timer {

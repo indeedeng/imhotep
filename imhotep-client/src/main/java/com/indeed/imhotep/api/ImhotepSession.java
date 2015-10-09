@@ -15,6 +15,7 @@
 
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupRemapRule;
+import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.TermCount;
@@ -28,7 +29,9 @@ import java.util.List;
 import java.util.Map;
 
 @NotThreadSafe
-public interface ImhotepSession extends Closeable {
+public interface ImhotepSession
+    extends Closeable, Instrumentation.Provider {
+
     /**
      * get the sum of the docFreq of all terms in all of the given fields
      * @param intFields int fields to iterate over

@@ -60,9 +60,7 @@ import java.util.regex.*;
  * This class isn't even close to remotely thread safe, do not use it
  * simultaneously from multiple threads
  */
-public abstract class ImhotepLocalSession
-    extends AbstractImhotepSession
-    implements Instrumentation.Provider {
+public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     static final Logger log = Logger.getLogger(ImhotepLocalSession.class);
 
@@ -87,8 +85,6 @@ public abstract class ImhotepLocalSession
     protected FlamdexReader flamdexReader;
     protected SharedReference<FlamdexReader> flamdexReaderRef;
 
-    private final Instrumentation.ProviderSupport instrumentation =
-        new Instrumentation.ProviderSupport();
     private final InstrumentedFlamdexReader instrumentedFlamdexReader;
 
     final MemoryReservationContext memory;
@@ -149,14 +145,6 @@ public abstract class ImhotepLocalSession
             getProperties().put(Instrumentation.Keys.MAX_USED_MEMORY,
                                 ImhotepLocalSession.this.memory.maxUsedMemory());
         }
-    }
-
-    public void addObserver(Instrumentation.Observer observer) {
-        instrumentation.addObserver(observer);
-    }
-
-    public void removeObserver(Instrumentation.Observer observer) {
-        instrumentation.removeObserver(observer);
     }
 
     private interface DocIdHandler {
