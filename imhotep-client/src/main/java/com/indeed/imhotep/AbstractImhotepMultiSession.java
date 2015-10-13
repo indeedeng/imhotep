@@ -98,6 +98,12 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
 
     protected final AtomicLong tempFileSizeBytesLeft;
 
+    private final class RelayObserver implements Instrumentation.Observer {
+        public synchronized void onEvent(final Instrumentation.Event event) {
+            instrumentation.fire(event);
+        }
+    }
+
     private final class SessionThreadFactory extends InstrumentedThreadFactory {
 
         private final String namePrefix;
@@ -659,6 +665,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
                 public RawFTGSIterator apply(final InetSocketAddress node) throws Exception {
                     final ImhotepRemoteSession remoteSession = createImhotepRemoteSession(node, sessionId, tempFileSizeBytesLeft);
                     remoteSession.setNumStats(numStats);
+                    remoteSession.addObserver(new RelayObserver());
                     return remoteSession.getFTGSIteratorSplit(intFields, stringFields, splitIndex, nodes.length);
                 }
             });
@@ -678,6 +685,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
                 public RawFTGSIterator apply(final InetSocketAddress node) throws Exception {
                     final ImhotepRemoteSession remoteSession = createImhotepRemoteSession(node, sessionId, tempFileSizeBytesLeft);
                     remoteSession.setNumStats(numStats);
+                    remoteSession.addObserver(new RelayObserver());
                     return remoteSession.getSubsetFTGSIteratorSplit(intFields, stringFields, splitIndex, nodes.length);
                 }
             });
