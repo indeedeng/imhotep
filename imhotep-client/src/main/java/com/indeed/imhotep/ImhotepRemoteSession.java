@@ -24,6 +24,7 @@ import com.google.common.primitives.Longs;
 import com.indeed.imhotep.Instrumentation.Keys;
 import com.indeed.imhotep.api.DocIterator;
 import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.api.HasSessionId;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
@@ -76,7 +77,9 @@ import static com.indeed.imhotep.protobuf.ImhotepRequest.RequestType.GET_FTGS_SP
  *
  * an ImhotepSession for talking to a remote ImhotepDaemon over a Socket using protobufs
  */
-public class ImhotepRemoteSession extends AbstractImhotepSession {
+public class ImhotepRemoteSession
+    extends AbstractImhotepSession
+    implements HasSessionId {
     private static final Logger log = Logger.getLogger(ImhotepRemoteSession.class);
 
     public static final int DEFAULT_MERGE_THREAD_LIMIT = ImhotepRequest.getDefaultInstance().getMergeThreadLimit();
@@ -122,6 +125,8 @@ public class ImhotepRemoteSession extends AbstractImhotepSession {
         this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
         this.useNativeFtgs = useNativeFtgs;
     }
+
+    public String getSessionId() { return sessionId; }
 
     @Deprecated
     public static List<ShardInfo> getShardList(final String host, final int port) throws IOException {
