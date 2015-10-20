@@ -45,7 +45,11 @@ public class InputStreamFTGSIterator implements RawFTGSIterator {
                 refillBuffer();
             }
             final int toCopy = Math.min(len, bufferLen - bufferPtr);
-            System.arraycopy(buffer, bufferPtr, b, off, toCopy);
+            try {
+                System.arraycopy(buffer, bufferPtr, b, off, toCopy);
+            } catch(ArrayIndexOutOfBoundsException e) {
+                e.printStackTrace();
+            }
             bufferPtr += toCopy;
             off += toCopy;
             len -= toCopy;

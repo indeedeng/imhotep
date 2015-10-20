@@ -63,7 +63,7 @@ public class TestIndexReWriter {
 
         r1.addStringTerm("sf1", "☃", Arrays.asList(1, 4, 5, 6, 7));
 
-        ImhotepLocalSession session1 = new ImhotepLocalSession(r1);
+        ImhotepJavaLocalSession session1 = new ImhotepJavaLocalSession(r1);
 
         /* make session 2 */
         MockFlamdexReader r2 =
@@ -83,7 +83,7 @@ public class TestIndexReWriter {
 
         r2.addStringTerm("sf1", "☃", Arrays.asList(1, 4, 5, 6, 7));
 
-        ImhotepLocalSession session2 = new ImhotepLocalSession(r2);
+        ImhotepJavaLocalSession session2 = new ImhotepJavaLocalSession(r2);
 
         /* make session 3 */
         MockFlamdexReader r3 =
@@ -97,7 +97,7 @@ public class TestIndexReWriter {
 
         r2.addStringTerm("sf1", "☃", Arrays.asList(1, 4, 5, 6, 7));
 
-        ImhotepLocalSession session3 = new ImhotepLocalSession(r3);
+        ImhotepJavaLocalSession session3 = new ImhotepJavaLocalSession(r3);
 
         /* merge sessions */
         MockFlamdexWriter w = new MockFlamdexWriter("foo");
@@ -107,7 +107,7 @@ public class TestIndexReWriter {
                                   session1,
                                   new MemoryReservationContext(
                                                                new ImhotepMemoryPool(Long.MAX_VALUE)));
-        irw.optimizeIndecies(Arrays.asList("if1", "if2"), new ArrayList<String>(), w);
+        irw.optimizeIndices(Arrays.asList("if1", "if2"), new ArrayList<String>(), w);
 
         assertEquals("Merged Int Fields are wrong", Arrays.asList("if1", "if2"), w.getIntFields());
         assertEquals("Merged Int Terms are wrong", Arrays.asList(5, 20), w.getIntTerms().get("if1")
@@ -174,7 +174,7 @@ public class TestIndexReWriter {
 
         r1.addIntTerm("if1", 3, Arrays.asList(1, 4, 5, 6, 7));
 
-        ImhotepLocalSession session1 = new ImhotepLocalSession(r1);
+        ImhotepJavaLocalSession session1 = new ImhotepJavaLocalSession(r1);
 
         /* make session 2 */
         MockFlamdexReader r2 =
@@ -194,7 +194,7 @@ public class TestIndexReWriter {
 
         r2.addIntTerm("if1", 3, Arrays.asList(1, 4, 5, 6, 7));
 
-        ImhotepLocalSession session2 = new ImhotepLocalSession(r2);
+        ImhotepJavaLocalSession session2 = new ImhotepJavaLocalSession(r2);
 
         /* make session 3 */
         MockFlamdexReader r3 =
@@ -208,7 +208,7 @@ public class TestIndexReWriter {
 
         r2.addIntTerm("if1", 3, Arrays.asList(1, 4, 5, 6, 7));
 
-        ImhotepLocalSession session3 = new ImhotepLocalSession(r3);
+        ImhotepJavaLocalSession session3 = new ImhotepJavaLocalSession(r3);
 
         /* merge sessions */
         MockFlamdexWriter w = new MockFlamdexWriter("foo");
@@ -218,7 +218,7 @@ public class TestIndexReWriter {
                                   session1,
                                   new MemoryReservationContext(
                                                                new ImhotepMemoryPool(Long.MAX_VALUE)));
-        irw.optimizeIndecies(new ArrayList<String>(), Arrays.asList("sf1", "sf2"), w);
+        irw.optimizeIndices(new ArrayList<String>(), Arrays.asList("sf1", "sf2"), w);
 
         assertEquals("Merged String Fields are wrong",
                      Arrays.asList("sf1", "sf2"),
@@ -264,7 +264,7 @@ public class TestIndexReWriter {
     public void testGroupMerging() throws ImhotepOutOfMemoryException, IOException {
         /* make session 1 */
         final FlamdexReader r1 = MakeAFlamdex.make();
-        final ImhotepLocalSession session1 = new ImhotepLocalSession(r1);
+        final ImhotepJavaLocalSession session1 = new ImhotepJavaLocalSession(r1);
         session1.pushStat("count()");
         session1.createDynamicMetric("foo");
         session1.createDynamicMetric("bar");
@@ -297,7 +297,7 @@ public class TestIndexReWriter {
 
         /* make session 2 */
         final FlamdexReader r2 = MakeAFlamdex.make();
-        final ImhotepLocalSession session2 = new ImhotepLocalSession(r2);
+        final ImhotepJavaLocalSession session2 = new ImhotepJavaLocalSession(r2);
         session2.pushStat("count()");
         session2.createDynamicMetric("foo");
         session2.createDynamicMetric("cat");
@@ -336,7 +336,7 @@ public class TestIndexReWriter {
                                   session1,
                                   new MemoryReservationContext(
                                                                new ImhotepMemoryPool(Long.MAX_VALUE)));
-        irw.optimizeIndecies(Arrays.asList("if1", "if3"), Arrays.asList("sf1", "sf3", "sf4"), w);
+        irw.optimizeIndices(Arrays.asList("if1", "if3"), Arrays.asList("sf1", "sf3", "sf4"), w);
         GroupLookup gl = irw.getNewGroupLookup();
         gl.recalculateNumGroups();
         assertEquals(5, gl.getNumGroups());
@@ -441,7 +441,7 @@ public class TestIndexReWriter {
     public void testGroup0Filtering() throws ImhotepOutOfMemoryException, IOException {
         /* make session 1 */
         final FlamdexReader r1 = MakeAFlamdex.make();
-        final ImhotepLocalSession session1 = new ImhotepLocalSession(r1);
+        final ImhotepJavaLocalSession session1 = new ImhotepJavaLocalSession(r1);
         session1.pushStat("count()");
         session1.createDynamicMetric("foo");
         session1.createDynamicMetric("bar");
@@ -475,7 +475,7 @@ public class TestIndexReWriter {
 
         /* make session 2 */
         final FlamdexReader r2 = MakeAFlamdex.make();
-        final ImhotepLocalSession session2 = new ImhotepLocalSession(r2);
+        final ImhotepJavaLocalSession session2 = new ImhotepJavaLocalSession(r2);
         session2.pushStat("count()");
         session2.createDynamicMetric("foo");
         session2.createDynamicMetric("cat");
@@ -514,7 +514,7 @@ public class TestIndexReWriter {
                                   session1,
                                   new MemoryReservationContext(
                                                                new ImhotepMemoryPool(Long.MAX_VALUE)));
-        irw.optimizeIndecies(Arrays.asList("if1", "if3"), Arrays.asList("sf1", "sf3", "sf4"), w);
+        irw.optimizeIndices(Arrays.asList("if1", "if3"), Arrays.asList("sf1", "sf3", "sf4"), w);
         GroupLookup gl = irw.getNewGroupLookup();
         gl.recalculateNumGroups();
         assertEquals(5, gl.getNumGroups());

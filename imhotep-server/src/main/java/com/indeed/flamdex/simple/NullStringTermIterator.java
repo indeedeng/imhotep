@@ -13,6 +13,8 @@
  */
  package com.indeed.flamdex.simple;
 
+import java.io.IOException;
+
 /**
  * @author jsgroth
  */
@@ -33,6 +35,11 @@ final class NullStringTermIterator implements SimpleStringTermIterator {
 
     @Override
     public long getOffset() {
+        return 0L;
+    }
+
+    @Override
+    public long getDocListAddress() throws IOException {
         return 0L;
     }
 

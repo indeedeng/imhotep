@@ -55,7 +55,7 @@ public class TestImhotepLocalSession {
         // This test doesn't really specifically need the 2d test setup,
         // but that setup is good enoguh for this too.
         FlamdexReader r = new2DMetricRegroupTestReader();
-        ImhotepLocalSession session = new ImhotepLocalSession(r);
+        ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         assertEquals(0, session.getNumStats());
         int numStats = session.pushStat("if1");
         assertEquals(1, numStats);
@@ -90,7 +90,7 @@ public class TestImhotepLocalSession {
         r.addIntTerm("if1", 4, 4, 5, 6, 7, 12, 13, 14, 15); // 2nd bit
         r.addIntTerm("if1", 8, 8, 9, 10, 11, 12, 13, 14, 15); // 2nd bit
         // 0000, 0001, 0010, 0011, 0100, 0101, 0110, 0111, 1000, 1001, ...
-        ImhotepLocalSession session = new ImhotepLocalSession(r);
+        ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         session.regroup(new GroupMultiRemapRule[] { new GroupMultiRemapRule(
                                                                             1,
                                                                             0,
@@ -134,7 +134,7 @@ public class TestImhotepLocalSession {
         r.addIntTerm("if1", 0, 1, 3, 5, 7, 9);
         r.addIntTerm("if1", 5, 0, 2, 4, 6, 8);
 
-        ImhotepLocalSession session = new ImhotepLocalSession(r);
+        ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         session.regroup(new GroupRemapRule[] { new GroupRemapRule(
                                                                   1,
                                                                   new RegroupCondition("if1", true,
@@ -159,7 +159,7 @@ public class TestImhotepLocalSession {
     public void testMetricRegroup() throws ImhotepOutOfMemoryException {
         MockFlamdexReader r = newMetricRegroupTestReader();
 
-        ImhotepLocalSession session = new ImhotepLocalSession(r);
+        ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         session.pushStat("if1");
         int numGroups = session.metricRegroup(0, 0, 20, 5);
         assertEquals(7, numGroups); // 4 buckets, 2 gutters, group 0
@@ -173,7 +173,7 @@ public class TestImhotepLocalSession {
     public void testMetricRegroup2() throws ImhotepOutOfMemoryException {
         MockFlamdexReader r = newMetricRegroupTestReader();
 
-        ImhotepLocalSession session = new ImhotepLocalSession(r);
+        ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         assertEquals(2,
                      session.regroup(new GroupRemapRule[] { new GroupRemapRule(
                                                                                1,
@@ -209,7 +209,7 @@ public class TestImhotepLocalSession {
     @Test
     public void test2DMetricRegroup() throws ImhotepOutOfMemoryException {
         MockFlamdexReader r = new2DMetricRegroupTestReader();
-        ImhotepLocalSession session = new ImhotepLocalSession(r);
+        ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         session.pushStat("if1");
         session.pushStat("if2");
         session.metricRegroup2D(0, 1, 8, 3, 1, 4, 12, 2);
@@ -267,7 +267,7 @@ public class TestImhotepLocalSession {
     @Test
     public void test2DMetricRegroup2() throws ImhotepOutOfMemoryException {
         FlamdexReader r = new2DMetricRegroupTestReader();
-        ImhotepLocalSession session = new ImhotepLocalSession(r);
+        ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         session.pushStat("if1");
         session.pushStat("if2");
 
@@ -305,7 +305,7 @@ public class TestImhotepLocalSession {
     @Test
     public void test2DMetricRegroup3() throws ImhotepOutOfMemoryException {
         FlamdexReader r = new2DMetricRegroupTestReader();
-        ImhotepLocalSession session = new ImhotepLocalSession(r);
+        ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         session.pushStat("if1");
         session.pushStat("if2");
 
@@ -379,7 +379,7 @@ public class TestImhotepLocalSession {
     @Test
     public void testOrRegroup() throws ImhotepOutOfMemoryException {
         final FlamdexReader r = MakeAFlamdex.make();
-        final ImhotepLocalSession session = new ImhotepLocalSession(r);
+        final ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         session.stringOrRegroup("sf4",
                                 new String[] { "asdf", "cdef" },
                                 (char) 1,
@@ -394,7 +394,7 @@ public class TestImhotepLocalSession {
     @Test
     public void testStuff() throws ImhotepOutOfMemoryException {
         final FlamdexReader r = MakeAFlamdex.make();
-        final ImhotepLocalSession session = new ImhotepLocalSession(r);
+        final ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         session.pushStat("count()");
         session.regroup(new GroupRemapRule[] { new GroupRemapRule(1, new RegroupCondition("if3",
                                                                                           true,
@@ -424,7 +424,7 @@ public class TestImhotepLocalSession {
     @Test
     public void testDynamicMetric() throws ImhotepOutOfMemoryException {
         final FlamdexReader r = MakeAFlamdex.make();
-        final ImhotepLocalSession session = new ImhotepLocalSession(r);
+        final ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         session.createDynamicMetric("foo");
         session.pushStat("dynamic foo");
 
@@ -461,7 +461,7 @@ public class TestImhotepLocalSession {
     @Test
     public void testRandomMultiRegroup_firstIndexLessThan() throws ImhotepOutOfMemoryException {
         final FlamdexReader r = MakeAFlamdex.make();
-        final ImhotepLocalSession session = new ImhotepLocalSession(r);
+        final ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
 
         // normal case -- 0.5 falls in the [0.4, 0.7) bucket, which is the
         // fourth (index == 3) in the list of:
@@ -492,7 +492,7 @@ public class TestImhotepLocalSession {
     @Test
     public void testRandomMultiRegroup_ensureValidMultiRegroupArrays() throws ImhotepOutOfMemoryException {
         final FlamdexReader r = MakeAFlamdex.make();
-        final ImhotepLocalSession session = new ImhotepLocalSession(r);
+        final ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
 
         // ******************************** Stuff that's OK:
         // normal case
@@ -547,7 +547,7 @@ public class TestImhotepLocalSession {
     @Test
     public void testRandomMultiRegroup() throws ImhotepOutOfMemoryException {
         final FlamdexReader r = MakeAFlamdex.make();
-        final ImhotepLocalSession session = new ImhotepLocalSession(r);
+        final ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
 
         // Expected
         // ( @see MakeAFlamdex.make() )
@@ -618,7 +618,7 @@ public class TestImhotepLocalSession {
             }
             r.addIntTerm("if1", i, l);
         }
-        ImhotepLocalSession session = new ImhotepLocalSession(r);
+        ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         final RegroupCondition[] conditions = new RegroupCondition[10];
         final int[] positiveGroups = new int[10];
         for (int i = 1; i <= 10; i++) {
@@ -649,7 +649,7 @@ public class TestImhotepLocalSession {
             }
             r.addStringTerm("sf1", "" + i, l);
         }
-        ImhotepLocalSession session = new ImhotepLocalSession(r);
+        ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         final RegroupCondition[] conditions = new RegroupCondition[10];
         final int[] positiveGroups = new int[10];
         for (int i = 1; i <= 10; i++) {
@@ -689,7 +689,7 @@ public class TestImhotepLocalSession {
         }
         r.addIntTerm("if2", 0, l);
 
-        ImhotepLocalSession session = new ImhotepLocalSession(r);
+        ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         session.regroup(new QueryRemapRule(1, Query.newTermQuery(new Term("if2", true, 0, null)),
                                            1, 2));
         final int[] positiveGroups = new int[10];
@@ -736,7 +736,7 @@ public class TestImhotepLocalSession {
         }
         r.addStringTerm("sf2", "0", l);
 
-        ImhotepLocalSession session = new ImhotepLocalSession(r);
+        ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         session.regroup(new QueryRemapRule(1, Query.newTermQuery(new Term("sf2", false, 0, "0")),
                                            1, 2));
         final int[] positiveGroups = new int[10];
@@ -767,7 +767,7 @@ public class TestImhotepLocalSession {
         MockFlamdexReader r =
                 new MockFlamdexReader(Arrays.asList("if1"), Arrays.<String> asList(),
                                       Arrays.<String> asList(), 11);
-        ImhotepLocalSession session = new ImhotepLocalSession(r);
+        ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         session.regroup(new GroupMultiRemapRule[] { new GroupMultiRemapRule(
                                                                             1000,
                                                                             1234,
@@ -789,7 +789,7 @@ public class TestImhotepLocalSession {
             r.addIntTerm("if1", i, i);
             r.addIntTerm("if2", i, i);
         }
-        ImhotepLocalSession session = new ImhotepLocalSession(r);
+        ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         session.regroup(new GroupMultiRemapRule[] { new GroupMultiRemapRule(
                                                                             1,
                                                                             5,
@@ -838,7 +838,7 @@ public class TestImhotepLocalSession {
             MockFlamdexReader r =
                     new MockFlamdexReader(Arrays.asList("if1"), Arrays.<String> asList(),
                                           Arrays.<String> asList(), 10);
-            ImhotepLocalSession session = new ImhotepLocalSession(r);
+            ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
             try {
                 session.regroup(new GroupMultiRemapRule[] { new GroupMultiRemapRule(
                                                                                     1,
@@ -867,7 +867,7 @@ public class TestImhotepLocalSession {
             MockFlamdexReader r =
                     new MockFlamdexReader(Arrays.asList("if1"), Arrays.<String> asList(),
                                           Arrays.<String> asList(), 10);
-            ImhotepLocalSession session = new ImhotepLocalSession(r);
+            ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
             try {
                 session.regroup(new GroupMultiRemapRule[] { new GroupMultiRemapRule(
                                                                                     1,
@@ -892,7 +892,7 @@ public class TestImhotepLocalSession {
         MockFlamdexReader r =
                 new MockFlamdexReader(Arrays.asList("if1"), Arrays.<String> asList(),
                                       Arrays.<String> asList(), 10);
-        ImhotepLocalSession session = new ImhotepLocalSession(r);
+        ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         try {
             session.regroup(new GroupMultiRemapRule[] { new GroupMultiRemapRule(
                                                                                 1,
@@ -921,7 +921,7 @@ public class TestImhotepLocalSession {
         final List<String> fields = Arrays.asList("sf1");
         final List<String> emptyList = Arrays.<String> asList();
         MockFlamdexReader r = new MockFlamdexReader(emptyList, fields, emptyList, 10);
-        ImhotepLocalSession session = new ImhotepLocalSession(r);
+        ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         try {
             session.regroup(new GroupMultiRemapRule[] { new GroupMultiRemapRule(
                                                                                 1,
@@ -950,7 +950,7 @@ public class TestImhotepLocalSession {
         final List<String> fields = Arrays.asList("sf1");
         final List<String> emptyList = Arrays.<String> asList();
         MockFlamdexReader r = new MockFlamdexReader(emptyList, fields, emptyList, 10);
-        ImhotepLocalSession session = new ImhotepLocalSession(r);
+        ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         // verify doesn't fail
         session.regroup(new GroupMultiRemapRule[] { new GroupMultiRemapRule(
                                                                             1,
@@ -999,7 +999,7 @@ public class TestImhotepLocalSession {
         final List<String> fields = Arrays.asList("if1");
         final List<String> emptyList = Arrays.<String> asList();
         MockFlamdexReader r = new MockFlamdexReader(fields, emptyList, emptyList, 10);
-        ImhotepLocalSession session = new ImhotepLocalSession(r);
+        ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         // verify doesn't fail
         session.regroup(new GroupMultiRemapRule[] { new GroupMultiRemapRule(
                                                                             1,
@@ -1054,7 +1054,7 @@ public class TestImhotepLocalSession {
         for (int i = 0; i < 10; i++) {
             r.addIntTerm("if2", 1, Arrays.asList(10, 11, 12, 13, 14, 15, 16, 17, 18, 19));
         }
-        ImhotepLocalSession session = new ImhotepLocalSession(r);
+        ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         session.regroup(new GroupMultiRemapRule[] { new GroupMultiRemapRule(
                                                                             1,
                                                                             1,
@@ -1140,7 +1140,7 @@ public class TestImhotepLocalSession {
             r.addStringTerm("sf1", "" + i, i);
             r.addStringTerm("sf2", "" + i, i);
         }
-        ImhotepLocalSession session = new ImhotepLocalSession(r);
+        ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         session.regroup(new GroupMultiRemapRule[] { new GroupMultiRemapRule(
                                                                             1,
                                                                             5,
@@ -1190,7 +1190,7 @@ public class TestImhotepLocalSession {
         for (int i = 0; i < 10; i++) {
             r.addStringTerm("sf2", "1", Arrays.asList(10, 11, 12, 13, 14, 15, 16, 17, 18, 19));
         }
-        ImhotepLocalSession session = new ImhotepLocalSession(r);
+        ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         session.regroup(new GroupMultiRemapRule[] { new GroupMultiRemapRule(
                                                                             1,
                                                                             1,
@@ -1283,7 +1283,7 @@ public class TestImhotepLocalSession {
         addStringField(r, "sf1", s1terms);
         addStringField(r, "sf2", s2terms);
 
-        ImhotepLocalSession session = new ImhotepLocalSession(r);
+        ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         testAllInequalitySplits(numDocs, "if1", i1terms, session);
         testAllInequalitySplits(numDocs, "if2", i2terms, session);
         testAllInequalitySplits(numDocs, "sf1", s1terms, session);
@@ -1363,7 +1363,7 @@ public class TestImhotepLocalSession {
         for (int i = 0; i < 10; i++) {
             r.addIntTerm("if1", i, i);
         }
-        ImhotepLocalSession session = new ImhotepLocalSession(r);
+        ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         session.regroup(new GroupMultiRemapRule[] { new GroupMultiRemapRule(
                                                                             1,
                                                                             2,
@@ -1391,7 +1391,7 @@ public class TestImhotepLocalSession {
         for (int i = 0; i < 10; i++) {
             r.addIntTerm("if1", i, i);
         }
-        ImhotepLocalSession session = new ImhotepLocalSession(r);
+        ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         session.regroup(new GroupMultiRemapRule[] { new GroupMultiRemapRule(
                                                                             2,
                                                                             3,
@@ -1539,7 +1539,7 @@ public class TestImhotepLocalSession {
         r.addIntTerm("if1", 1, 1, 3, 5, 7, 9);
         r.addStringTerm("sf1", "even", 0, 2, 4, 6, 8);
         r.addStringTerm("sf1", "odd", 1, 3, 5, 7, 9);
-        final ImhotepLocalSession session = new ImhotepLocalSession(r);
+        final ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         final String METRIC_NAME = "test metric!";
         session.createDynamicMetric(METRIC_NAME);
         final long[] exported = new long[10];
@@ -1575,7 +1575,7 @@ public class TestImhotepLocalSession {
     @Test
     public void testPushStatFloatScale() throws ImhotepOutOfMemoryException {
         final FlamdexReader r = MakeAFlamdex.make();
-        final ImhotepLocalSession session = new ImhotepLocalSession(r);
+        final ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         session.pushStat("floatscale floatfield*100+9000"); // like iplat
         long[] stats = session.getGroupStats(0);
         long scaledSum = stats[1];
@@ -1591,10 +1591,9 @@ public class TestImhotepLocalSession {
         /* make session 1 */
         final FlamdexReader r1 = MakeAFlamdex.make();
         final ImhotepLocalSession session1 =
-                new ImhotepLocalSession(r1,
-                                        "/tmp/imhotep.test",
+            new ImhotepJavaLocalSession(r1, "/tmp/imhotep.test",
                                         new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
-                                        false, null);
+                                        null);
         session1.pushStat("count()");
         session1.createDynamicMetric("foo");
         session1.createDynamicMetric("bar");
@@ -1768,10 +1767,10 @@ public class TestImhotepLocalSession {
         /* make session 1 */
         final FlamdexReader r1 = MakeAFlamdex.make();
         final ImhotepLocalSession session1 =
-                new ImhotepLocalSession(r1,
+                new ImhotepJavaLocalSession(r1,
                                         "/tmp/imhotep.test",
                                         new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
-                                        false, null);
+                                        null);
         session1.pushStat("count()");
         session1.createDynamicMetric("foo");
         session1.createDynamicMetric("bar");
@@ -1916,10 +1915,10 @@ public class TestImhotepLocalSession {
     public void testRegexMetric() throws ImhotepOutOfMemoryException {
         final FlamdexReader r = MakeAFlamdex.make();
         final ImhotepLocalSession session =
-                new ImhotepLocalSession(r,
+                new ImhotepJavaLocalSession(r,
                         "/tmp/imhotep.test",
                         new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
-                        false, null);
+                        null);
 
         session.pushStat("regex if1:9000");
         Assert.assertArrayEquals(new long[]{0, 3}, session.getGroupStats(0));

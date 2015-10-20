@@ -17,7 +17,6 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.google.common.primitives.Longs;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.indeed.imhotep.io.LimitedBufferedOutputStream;
 import com.indeed.imhotep.io.TempFileSizeLimitExceededException;
 import com.indeed.imhotep.io.WriteLimitExceededException;
@@ -26,6 +25,8 @@ import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.threads.LogOnUncaughtExceptionHandler;
 import com.indeed.flamdex.query.Term;
 import com.indeed.flamdex.utils.BlockingCopyableIterator;
+import com.indeed.imhotep.Instrumentation;
+import com.indeed.imhotep.InstrumentedThreadFactory;
 import com.indeed.imhotep.api.DocIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
@@ -51,27 +52,41 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author jsgroth
  */
-public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession {
+public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
+    extends AbstractImhotepSession
+    implements Instrumentation.Provider {
+
     private static final Logger log = Logger.getLogger(AbstractImhotepMultiSession.class);
 
-    protected final ImhotepSession[] sessions;
+    private Instrumentation.ProviderSupport instrumentation =
+        new Instrumentation.ProviderSupport();
+
+    protected final T[] sessions;
 
     private final Long[] totalDocFreqBuf;
 
     private final Integer[] integerBuf;
+
+    private final Long[] longBuf;
 
     private final Object[] nullBuf;
 
@@ -83,30 +98,74 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
 
     protected final AtomicLong tempFileSizeBytesLeft;
 
-    private final ExecutorService getSplitBufferThreads = Executors.newCachedThreadPool(
-            new ThreadFactoryBuilder().setDaemon(true)
-                    .setNameFormat("FTGS-Buffer-Thread-getSplit-%d")
-                    .setUncaughtExceptionHandler(new LogOnUncaughtExceptionHandler(log))
-                    .build()
-    );
+    private final class RelayObserver implements Instrumentation.Observer {
+        public synchronized void onEvent(final Instrumentation.Event event) {
+            instrumentation.fire(event);
+        }
+    }
 
-    private final ExecutorService mergeSplitBufferThreads = Executors.newCachedThreadPool(
-            new ThreadFactoryBuilder().setDaemon(true)
-                    .setNameFormat("FTGS-Buffer-Thread-mergeSplit-%d")
-                    .setUncaughtExceptionHandler(new LogOnUncaughtExceptionHandler(log))
-                    .build()
-    );
+    private final class SessionThreadFactory extends InstrumentedThreadFactory {
+
+        private final String namePrefix;
+
+        SessionThreadFactory(String namePrefix) {
+            this.namePrefix = namePrefix;
+            addObserver(new Observer());
+        }
+
+        public Thread newThread(Runnable runnable) {
+            final LogOnUncaughtExceptionHandler handler =
+                new LogOnUncaughtExceptionHandler(log);
+            final Thread result = super.newThread(runnable);
+            result.setDaemon(true);
+            result.setName(namePrefix + "-" + result.getId());
+            result.setUncaughtExceptionHandler(handler);
+            return result;
+        }
+
+        /* Forward any events from the thread factory to observers of the
+           multisession. */
+        private final class Observer implements Instrumentation.Observer {
+            public void onEvent(final Instrumentation.Event event) {
+                event.getProperties().put(Instrumentation.Keys.THREAD_FACTORY, namePrefix);
+                AbstractImhotepMultiSession.this.instrumentation.fire(event);
+            }
+        }
+    }
+
+    private final ExecutorService buildExecutorService(String namePrefix) {
+        return Executors.newCachedThreadPool(new SessionThreadFactory(namePrefix));
+    }
+
+    private final SessionThreadFactory localThreadFactory =
+        new SessionThreadFactory(AbstractImhotepMultiSession.class.getName() + "-localThreads");
+    private final SessionThreadFactory splitThreadFactory =
+        new SessionThreadFactory(AbstractImhotepMultiSession.class.getName() + "-splitThreads");
+    private final SessionThreadFactory mergeThreadFactory =
+        new SessionThreadFactory(AbstractImhotepMultiSession.class.getName() + "-mergeThreads");
+
+    private final ArrayList<InstrumentedThreadFactory> threadFactories =
+        new ArrayList<InstrumentedThreadFactory>(Arrays.asList(localThreadFactory,
+                                                               splitThreadFactory,
+                                                               mergeThreadFactory));
+
+    private final ExecutorService executor =
+        Executors.newCachedThreadPool(localThreadFactory);
+    private final ExecutorService getSplitBufferThreads =
+        Executors.newCachedThreadPool(splitThreadFactory);
+    private final ExecutorService mergeSplitBufferThreads =
+        Executors.newCachedThreadPool(mergeThreadFactory);
 
     protected int numStats = 0;
 
     private int numGroups = 2;
 
-    protected AbstractImhotepMultiSession(ImhotepSession[] sessions) {
+    protected AbstractImhotepMultiSession(T[] sessions) {
         this(sessions, null);
     }
 
     @SuppressWarnings({"unchecked"})
-    protected AbstractImhotepMultiSession(ImhotepSession[] sessions, AtomicLong tempFileSizeBytesLeft) {
+    protected AbstractImhotepMultiSession(T[] sessions, AtomicLong tempFileSizeBytesLeft) {
         this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
         if (sessions == null || sessions.length == 0) {
             throw new IllegalArgumentException("at least one session is required");
@@ -116,9 +175,18 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
 
         totalDocFreqBuf = new Long[sessions.length];
         integerBuf = new Integer[sessions.length];
+        longBuf = new Long[sessions.length];
         nullBuf = new Object[sessions.length];
         groupStatsBuf = new long[sessions.length][];
         termCountListBuf = new List[sessions.length];
+    }
+
+    public void addObserver(Instrumentation.Observer observer) {
+        instrumentation.addObserver(observer);
+    }
+
+    public void removeObserver(Instrumentation.Observer observer) {
+        instrumentation.removeObserver(observer);
     }
 
     @Override
@@ -438,6 +506,27 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
         return Collections.max(Arrays.asList(integerBuf));
     }
 
+    public long getLowerBound(final int stat) {
+        executeRuntimeException(longBuf, new ThrowingFunction<ImhotepSession, Long>() {
+            @Override
+            public Long apply(ImhotepSession session) throws Exception {
+                return session.getLowerBound(stat);
+            }
+        });
+        return Collections.min(Arrays.asList(longBuf));
+    }
+
+    @Override
+    public long getUpperBound(final int stat) {
+        executeRuntimeException(longBuf, new ThrowingFunction<ImhotepSession, Long>() {
+            @Override
+            public Long apply(ImhotepSession session) throws Exception {
+                return session.getUpperBound(stat);
+            }
+        });
+        return Collections.max(Arrays.asList(longBuf));
+    }
+
     @Override
     public void createDynamicMetric(final String name) throws ImhotepOutOfMemoryException {
         executeRuntimeException(nullBuf, new ThrowingFunction<ImhotepSession, Object>() {
@@ -533,7 +622,8 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
     public RawFTGSIterator getFTGSIteratorSplit(final String[] intFields, final String[] stringFields, final int splitIndex, final int numSplits) {
         final RawFTGSIterator[] splits = new RawFTGSIterator[sessions.length];
         try {
-            executeSessions(splits, new ThrowingFunction<ImhotepSession, RawFTGSIterator>() {
+            executeSessions(getSplitBufferThreads, splits,
+                            new ThrowingFunction<ImhotepSession, RawFTGSIterator>() {
                 public RawFTGSIterator apply(final ImhotepSession imhotepSession) throws Exception {
                     return imhotepSession.getFTGSIteratorSplit(intFields, stringFields, splitIndex, numSplits);
                 }
@@ -549,7 +639,8 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
     public RawFTGSIterator getSubsetFTGSIteratorSplit(final Map<String, long[]> intFields, final Map<String, String[]> stringFields, final int splitIndex, final int numSplits) {
         final RawFTGSIterator[] splits = new RawFTGSIterator[sessions.length];
         try {
-            executeSessions(splits, new ThrowingFunction<ImhotepSession, RawFTGSIterator>() {
+            executeSessions(getSplitBufferThreads, splits,
+                            new ThrowingFunction<ImhotepSession, RawFTGSIterator>() {
                 public RawFTGSIterator apply(final ImhotepSession imhotepSession) throws Exception {
                     return imhotepSession.getSubsetFTGSIteratorSplit(intFields, stringFields, splitIndex, numSplits);
                 }
@@ -569,10 +660,12 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
     public RawFTGSIterator mergeFTGSSplit(final String[] intFields, final String[] stringFields, final String sessionId, final InetSocketAddress[] nodes, final int splitIndex) {
         final RawFTGSIterator[] splits = new RawFTGSIterator[nodes.length];
         try {
-            execute(splits, nodes, new ThrowingFunction<InetSocketAddress, RawFTGSIterator>() {
+            execute(mergeSplitBufferThreads, splits, nodes,
+                    new ThrowingFunction<InetSocketAddress, RawFTGSIterator>() {
                 public RawFTGSIterator apply(final InetSocketAddress node) throws Exception {
-                    final ImhotepRemoteSession remoteSession = new ImhotepRemoteSession(node.getHostName(), node.getPort(), sessionId, tempFileSizeBytesLeft);
+                    final ImhotepRemoteSession remoteSession = createImhotepRemoteSession(node, sessionId, tempFileSizeBytesLeft);
                     remoteSession.setNumStats(numStats);
+                    remoteSession.addObserver(new RelayObserver());
                     return remoteSession.getFTGSIteratorSplit(intFields, stringFields, splitIndex, nodes.length);
                 }
             });
@@ -587,10 +680,12 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
     public RawFTGSIterator mergeSubsetFTGSSplit(final Map<String, long[]> intFields, final Map<String, String[]> stringFields, final String sessionId, final InetSocketAddress[] nodes, final int splitIndex) {
         final RawFTGSIterator[] splits = new RawFTGSIterator[nodes.length];
         try {
-            execute(splits, nodes, new ThrowingFunction<InetSocketAddress, RawFTGSIterator>() {
+            execute(mergeSplitBufferThreads, splits, nodes,
+                    new ThrowingFunction<InetSocketAddress, RawFTGSIterator>() {
                 public RawFTGSIterator apply(final InetSocketAddress node) throws Exception {
-                    final ImhotepRemoteSession remoteSession = new ImhotepRemoteSession(node.getHostName(), node.getPort(), sessionId, tempFileSizeBytesLeft);
+                    final ImhotepRemoteSession remoteSession = createImhotepRemoteSession(node, sessionId, tempFileSizeBytesLeft);
                     remoteSession.setNumStats(numStats);
+                    remoteSession.addObserver(new RelayObserver());
                     return remoteSession.getSubsetFTGSIteratorSplit(intFields, stringFields, splitIndex, nodes.length);
                 }
             });
@@ -601,13 +696,20 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
         return mergeFTGSSplits(splits);
     }
 
+    protected abstract ImhotepRemoteSession createImhotepRemoteSession(InetSocketAddress address,
+                                                                       String sessionId,
+                                                                       AtomicLong tempFileSizeBytesLeft);
+
     private RawFTGSIterator mergeFTGSSplits(RawFTGSIterator[] splits) {
         final Closer closer = Closer.create();
         try {
             final RawFTGSIterator[][] iteratorSplits = new RawFTGSIterator[splits.length][];
             final int numSplits = Math.max(1, Runtime.getRuntime().availableProcessors()/2);
             for (int i = 0; i < splits.length; i++) {
-                final FTGSSplitter splitter = closer.register(new FTGSSplitter(splits[i], numSplits, numStats, "mergeFtgsSplit", 981044833, tempFileSizeBytesLeft));
+                final FTGSSplitter splitter =
+                    closer.register(new FTGSSplitter(splits[i], numSplits, numStats,
+                                                     981044833, tempFileSizeBytesLeft,
+                                                     splitThreadFactory));
                 iteratorSplits[i] = splitter.getFtgsIterators();
             }
             final RawFTGSIterator[] mergers = new RawFTGSIterator[numSplits];
@@ -619,13 +721,13 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
                 mergers[j] = closer.register(new RawFTGSMerger(iterators, numStats, null));
             }
             final RawFTGSIterator[] iterators = new RawFTGSIterator[numSplits];
-            execute(iterators, mergers, new ThrowingFunction<RawFTGSIterator, RawFTGSIterator>() {
+            execute(mergeSplitBufferThreads, iterators, mergers,
+                    new ThrowingFunction<RawFTGSIterator, RawFTGSIterator>() {
                 public RawFTGSIterator apply(final RawFTGSIterator iterator) throws Exception {
                     return persist(iterator);
                 }
             });
             return new FTGSInterleaver(iterators);
-//            return new RawFTGSMerger(Arrays.asList(splits), numStats, null);
         } catch (Throwable t) {
             Closeables2.closeQuietly(closer, log);
             throw Throwables.propagate(t);
@@ -640,7 +742,9 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
             out = new LimitedBufferedOutputStream(new FileOutputStream(tmp), tempFileSizeBytesLeft);
             FTGSOutputStreamWriter.write(iterator, numStats, out);
             if(log.isDebugEnabled()) {
-                log.debug("time to merge splits to file: " + (System.currentTimeMillis() - start) + " ms, file length: " + tmp.length());
+                log.debug("time to merge splits to file: " +
+                          (System.currentTimeMillis() - start) +
+                          " ms, file length: " + tmp.length());
             }
         } catch (Throwable t) {
             tmp.delete();
@@ -668,13 +772,15 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
         return new InputStreamFTGSIterator(in, numStats);
     }
 
-    public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields) {
+    public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields,
+                                                   final String[] stringFields) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public void rebuildAndFilterIndexes(final List<String> intFields, 
-                                final List<String> stringFields) throws ImhotepOutOfMemoryException {
+    public void rebuildAndFilterIndexes(final List<String> intFields,
+                                final List<String> stringFields)
+        throws ImhotepOutOfMemoryException {
         executeMemoryException(nullBuf, new ThrowingFunction<ImhotepSession, Object>() {
             @Override
             public Object apply(ImhotepSession imhotepSession) throws Exception {
@@ -683,7 +789,7 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
           }
         });
     }
-    
+
     @Override
     public final void close() {
         try {
@@ -715,6 +821,14 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
     }
 
     protected void preClose() {
+        for (InstrumentedThreadFactory factory: threadFactories) {
+            try {
+                factory.close();
+            }
+            catch (IOException e) {
+                log.warn(e);
+            }
+        }
         try {
             if (lastIterator != null) {
                 Closeables2.closeQuietly(lastIterator, log);
@@ -726,7 +840,16 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
         }
     }
 
-    protected abstract void postClose();
+    protected void postClose() {
+        executor.shutdownNow();
+        try {
+            if (!executor.awaitTermination(5L, TimeUnit.SECONDS)) {
+                log.warn("executor did not shut down, continuing anyway");
+            }
+        } catch (InterruptedException e) {
+            log.warn(e);
+        }
+    }
 
     protected <T> void executeRuntimeException(final T[] ret, final ThrowingFunction<? super ImhotepSession, ? extends T> function) {
         try {
@@ -749,10 +872,58 @@ public abstract class AbstractImhotepMultiSession extends AbstractImhotepSession
         }
     }
 
-    protected abstract <E,T> void execute(final T[] ret, E[] things, final ThrowingFunction<? super E, ? extends T> function) throws ExecutionException;
+    @Override
+    public abstract void writeFTGSIteratorSplit(String[] intFields, String[] stringFields,
+                                                int splitIndex, int numSplits, Socket socket)
+        throws ImhotepOutOfMemoryException;
 
-    protected <T> void executeSessions(final T[] ret, final ThrowingFunction<? super ImhotepSession, ? extends T> function) throws ExecutionException {
-        execute(ret, sessions, function);
+    protected final <E, T> void execute(final ExecutorService es,
+                                        final T[] ret, E[] things,
+                                        final ThrowingFunction<? super E, ? extends T> function)
+        throws ExecutionException {
+        final List<Future<T>> futures = new ArrayList<Future<T>>(things.length);
+        for (final E thing : things) {
+            futures.add(es.submit(new Callable<T>() {
+                @Override
+                public T call() throws Exception {
+                    return function.apply(thing);
+                }
+            }));
+        }
+
+        Throwable t = null;
+
+        for (int i = 0; i < futures.size(); ++i) {
+            try {
+                final Future<T> future = futures.get(i);
+                ret[i] = future.get();
+            } catch (Throwable t2) {
+                t = t2;
+            }
+        }
+        if (t != null) {
+            safeClose();
+            throw Throwables2.propagate(t, ExecutionException.class);
+        }
+    }
+
+    protected final <E, T> void execute(final T[] ret, E[] things,
+                                        final ThrowingFunction<? super E, ? extends T> function)
+        throws ExecutionException {
+        execute(executor, ret, things, function);
+    }
+
+    protected <T> void executeSessions(final ExecutorService es,
+                                       final T[] ret,
+                                       final ThrowingFunction<? super ImhotepSession, ? extends T> function)
+        throws ExecutionException {
+        execute(es, ret, sessions, function);
+    }
+
+    protected <T> void executeSessions(final T[] ret,
+                                       final ThrowingFunction<? super ImhotepSession, ? extends T> function)
+        throws ExecutionException {
+        execute(executor, ret, sessions, function);
     }
 
     protected static interface ThrowingFunction<K, V> {

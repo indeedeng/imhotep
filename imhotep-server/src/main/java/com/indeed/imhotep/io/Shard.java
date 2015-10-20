@@ -22,6 +22,7 @@ import java.util.Set;
 
 import javax.annotation.Nullable;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.log4j.Logger;
 
 import com.indeed.imhotep.ImhotepStatusDump;
@@ -59,6 +60,17 @@ public class Shard implements Closeable {
         stringFields = copy.get().getStringFields();
         availableMetrics = copy.get().getAvailableMetrics();
         copy.close();
+    }
+
+    @VisibleForTesting
+    Shard(ShardId shardId, int numDocs, Collection<String> intFields, Collection<String> stringFields, Collection<String> availableMetrics) {
+        this.shardId = shardId;
+        this.numDocs = numDocs;
+        this.intFields = intFields;
+        this.stringFields = stringFields;
+        this.availableMetrics = availableMetrics;
+        ref = null;
+        readLock = null;
     }
 
     public synchronized @Nullable

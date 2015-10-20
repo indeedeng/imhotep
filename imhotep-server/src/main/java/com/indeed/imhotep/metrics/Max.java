@@ -24,6 +24,16 @@ public class Max extends AbstractBinaryOperator {
     }
 
     @Override
+    public long getMin() {
+        return Math.max(a.getMin(), b.getMin());
+    }
+
+    @Override
+    public long getMax() {
+        return Math.max(a.getMax(), b.getMax());
+    }
+
+    @Override
     protected void combine(long[] values, long[] buffer, int n) {
         for (int i = 0; i < n; ++i) {
             values[i] = Math.max(values[i], buffer[i]);

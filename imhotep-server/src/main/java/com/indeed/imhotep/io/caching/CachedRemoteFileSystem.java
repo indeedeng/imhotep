@@ -17,9 +17,11 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.commons.io.FileUtils;
@@ -32,8 +34,11 @@ import com.google.common.cache.RemovalCause;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 import com.google.common.cache.Weigher;
+import org.apache.log4j.Logger;
 
 public class CachedRemoteFileSystem extends RemoteFileSystem {
+    private static final Logger log = Logger.getLogger(CachedRemoteFileSystem.class);
+
     private RemoteFileSystem parentFS;
     private String mountPoint;
     private RemoteFileSystemMounter mounter;
@@ -70,8 +75,10 @@ public class CachedRemoteFileSystem extends RemoteFileSystem {
                             .maximumWeight(cacheSize * 1024)
                             .weigher(new Weigher<String, File>() {
                                 public int weigh(String path, File cachedFile) {
-                                    int kb;
-                                    kb = (int)(cachedFile.length() / 1024);
+                                    if (!cachedFile.isFile()) {
+                                        return 1;
+                                    }
+                                    int kb = (int)(cachedFile.length() / 1024);
                                     /* don't return weights of 0 */
                                     if (kb == 0) {
                                         kb = 1;
@@ -90,11 +97,17 @@ public class CachedRemoteFileSystem extends RemoteFileSystem {
                             })
                             .build(new CacheLoader<String, File>() {
                                 public File load(String path) throws Exception {
+                                    if (isAlias(path)) {
+                                        throw new UnsupportedOperationException(
+                                                "Cache cannot handle directory and file aliases");
+                                    }
+
                                     return downloadFile(path);
                                 }
                             });
 
-        scanExistingFiles();
+//        scanExistingFiles();
+        removeExistingFiles();
     }
     
     private void scanExistingFiles() throws IOException {
@@ -112,7 +125,12 @@ public class CachedRemoteFileSystem extends RemoteFileSystem {
             cache.put(cachePath, cachedFile);
         }
     }
-    
+
+    private void removeExistingFiles() throws IOException {
+        FileUtils.deleteDirectory(localCacheDir);
+        localCacheDir.mkdir();
+    }
+
     private void removeFile(File cachedFile) {
         cachedFile.delete();
     }
@@ -171,12 +189,32 @@ public class CachedRemoteFileSystem extends RemoteFileSystem {
         final String relativePath = mounter.getMountRelativePath(fullPath, mountPoint);
         final Map<String,File> files;
         final File localDir;
+        final File cachedDir;
         
         if (location != null) {
             throw new UnsupportedOperationException("CachedRemoteFileSystem does not "
                     + "support copying a directory.");
         }
         
+        cachedDir = cache.getIfPresent(fullPath);
+        if (cachedDir != null) {
+            if (cachedDir.isDirectory()) {
+                final Map<String, File> results = new HashMap<String,File>();
+                results.put(fullPath, cachedDir);
+                log.info("Return cached Directory");
+                return results;
+            } else {
+                throw new IOException(fullPath + " is not a directory.");
+            }
+        }
+
+        // TODO: search for aliasing
+        if (isAlias(fullPath)) {
+            throw new UnsupportedOperationException("Cache cannot handle directory and file aliases");
+        }
+
+        log.info("Loading and caching directory");
+
         localDir = new File(localCacheDir, relativePath);
         /* create all the directories on the path to the file */
         localDir.getParentFile().mkdirs();
@@ -185,12 +223,28 @@ public class CachedRemoteFileSystem extends RemoteFileSystem {
         if (files == null) {
             return null;
         }
+        cache.put(fullPath, localDir);
         
         for (Map.Entry<String, File> entry : files.entrySet()) {
             cache.put(entry.getKey(), entry.getValue());
         }
         files.put(fullPath, localDir);
         return files;
+    }
+
+    private boolean isAlias(String fullPath) {
+        File parent = new File(fullPath);
+        final ConcurrentMap<String, File> pathMap = this.cache.asMap();
+
+        do {
+            final String path = parent.getPath();
+            if (pathMap.containsKey(path)) {
+                return true;
+            }
+            parent = parent.getParentFile();
+        } while(parent != null);
+
+        return false;
     }
 
     @Override

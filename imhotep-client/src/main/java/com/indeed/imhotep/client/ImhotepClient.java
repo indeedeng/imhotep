@@ -26,6 +26,7 @@ import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.RemoteImhotepMultiSession;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.ImhotepStatusDump;
+import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.api.ImhotepSession;
 import org.apache.log4j.Logger;
@@ -63,13 +64,17 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * @author jsgroth
  */
-public class ImhotepClient implements Closeable {
+public class ImhotepClient
+    implements Closeable, Instrumentation.Provider {
     private static final Logger log = Logger.getLogger(ImhotepClient.class);
 
     private final HostsReloader hostsSource;
     private final ExecutorService rpcExecutor;
     private final ScheduledExecutorService reloader;
     private final ImhotepClientShardListReloader shardListReloader;
+
+    private final Instrumentation.ProviderSupport instrumentation =
+        new Instrumentation.ProviderSupport();
 
     /**
      * create an imhotep client that will periodically reload its list of hosts from a text file
@@ -160,7 +165,7 @@ public class ImhotepClient implements Closeable {
                 }
             }
         }
-        return new ArrayList<String>(set);
+        return Lists.newArrayList(set);
     }
 
     public List<ShardIdWithVersion> getShardListWithVersion(final String dataset, final ShardFilter filterFunc) {
@@ -284,6 +289,7 @@ public class ImhotepClient implements Closeable {
 
         private List<ShardIdWithVersion> chosenShards = null;
         private List<String> shardsOverride = null;
+        private boolean useNativeFTGS;
 
         public SessionBuilder(final String dataset, final DateTime start, final DateTime end) {
             this.dataset = dataset;
@@ -327,8 +333,13 @@ public class ImhotepClient implements Closeable {
             return this;
         }
 
-        public SessionBuilder shardsOverride(List<String> requiredShards) {
+        public SessionBuilder shardsOverride(Collection<String> requiredShards) {
             this.shardsOverride = Lists.newArrayList(requiredShards);
+            return this;
+        }
+
+        public SessionBuilder useNativeFtgs() {
+            useNativeFTGS = true;
             return this;
         }
 
@@ -381,7 +392,7 @@ public class ImhotepClient implements Closeable {
             }
             List<String> chosenShardIDs = shardsOverride != null ? shardsOverride : ShardIdWithVersion.keepShardIds(getChosenShards());
             return getSessionForShards(dataset, chosenShardIDs, requestedMetrics, mergeThreadLimit, username,
-                    optimizeGroupZeroLookups, socketTimeout, localTempFileSizeLimit, daemonTempFileSizeLimit);
+                    optimizeGroupZeroLookups, socketTimeout, localTempFileSizeLimit, daemonTempFileSizeLimit, useNativeFTGS);
         }
 
     }
@@ -463,13 +474,14 @@ public class ImhotepClient implements Closeable {
                                      final int mergeThreadLimit, final int priority, final String username,
                                      final boolean optimizeGroupZeroLookups, final int socketTimeout) {
 
-        return getSessionForShards(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout, -1, -1);
+        return getSessionForShards(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout, -1, -1, false);
     }
 
     private ImhotepSession getSessionForShards(final String dataset, final Collection<String> requestedShards, final Collection<String> requestedMetrics,
                                                final int mergeThreadLimit, final String username,
                                                final boolean optimizeGroupZeroLookups, final int socketTimeout,
-                                               long localTempFileSizeLimit, long daemonTempFileSizeLimit) {
+                                               long localTempFileSizeLimit, long daemonTempFileSizeLimit,
+                                               final boolean useNativeFtgs) {
 
         if(requestedShards == null || requestedShards.size() == 0) {
             throw new IllegalArgumentException("No shards");
@@ -478,7 +490,7 @@ public class ImhotepClient implements Closeable {
         final AtomicLong localTempFileSizeBytesLeft = localTempFileSizeLimit > 0 ? new AtomicLong(localTempFileSizeLimit) : null;
         while (retries > 0) {
             final String sessionId = UUID.randomUUID().toString();
-            final ImhotepRemoteSession[] remoteSessions = internalGetSession(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout, sessionId, daemonTempFileSizeLimit, localTempFileSizeBytesLeft);
+            final ImhotepRemoteSession[] remoteSessions = internalGetSession(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout, sessionId, daemonTempFileSizeLimit, localTempFileSizeBytesLeft, useNativeFtgs);
             if (remoteSessions == null) {
                 --retries;
                 if (retries > 0) {
@@ -620,18 +632,31 @@ public class ImhotepClient implements Closeable {
     }
 
     // returns null on error
-    private ImhotepRemoteSession[] internalGetSession(final String dataset, Collection<String> requestedShards, Collection<String> requestedMetrics, final int mergeThreadLimit,
-                                                      final String username, final boolean optimizeGroupZeroLookups, final int socketTimeout, @Nullable final String sessionId, final long tempFileSizeLimit, @Nullable final AtomicLong tempFileSizeBytesLeft) {
+    private ImhotepRemoteSession[]
+        internalGetSession(final String dataset,
+                           Collection<String> requestedShards,
+                           Collection<String> requestedMetrics,
+                           final int mergeThreadLimit,
+                           final String username,
+                           final boolean optimizeGroupZeroLookups,
+                           final int socketTimeout,
+                           @Nullable final String sessionId,
+                           final long tempFileSizeLimit,
+                           @Nullable final AtomicLong tempFileSizeBytesLeft,
+                           final boolean useNativeFtgs) {
 
-        final Map<Host, List<String>> shardRequestMap = buildShardRequestMap(dataset, requestedShards, requestedMetrics);
+        final Map<Host, List<String>> shardRequestMap =
+            buildShardRequestMap(dataset, requestedShards, requestedMetrics);
 
         if (shardRequestMap.isEmpty()) {
-            log.error("unable to find all of the requested shards in dataset " + dataset + " (shard list = " + requestedShards + ")");
+            log.error("unable to find all of the requested shards in dataset " + dataset +
+                      " (shard list = " + requestedShards + ")");
             return null;
         }
 
         final ExecutorService executor = Executors.newCachedThreadPool();
-        final List<Future<ImhotepRemoteSession>> futures = new ArrayList<Future<ImhotepRemoteSession>>(shardRequestMap.size());
+        final List<Future<ImhotepRemoteSession>> futures =
+            new ArrayList<Future<ImhotepRemoteSession>>(shardRequestMap.size());
         try {
             for (final Map.Entry<Host, List<String>> entry : shardRequestMap.entrySet()) {
                 final Host host = entry.getKey();
@@ -640,7 +665,16 @@ public class ImhotepClient implements Closeable {
                 futures.add(executor.submit(new Callable<ImhotepRemoteSession>() {
                     @Override
                     public ImhotepRemoteSession call() throws Exception {
-                        return ImhotepRemoteSession.openSession(host.hostname, host.port, dataset, shardList, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout, sessionId, tempFileSizeLimit, tempFileSizeBytesLeft);
+                        return ImhotepRemoteSession.openSession(host.hostname, host.port,
+                                                                dataset, shardList,
+                                                                mergeThreadLimit,
+                                                                username,
+                                                                optimizeGroupZeroLookups,
+                                                                socketTimeout,
+                                                                sessionId,
+                                                                tempFileSizeLimit,
+                                                                tempFileSizeBytesLeft,
+                                                                useNativeFtgs);
                     }
                 }));
             }
@@ -648,11 +682,18 @@ public class ImhotepClient implements Closeable {
             executor.shutdown();
         }
 
-        final ImhotepRemoteSession[] remoteSessions = new ImhotepRemoteSession[shardRequestMap.size()];
+        final ImhotepRemoteSession[] remoteSessions =
+            new ImhotepRemoteSession[shardRequestMap.size()];
         boolean error = false;
         for (int i = 0; i < futures.size(); ++i) {
             try {
                 remoteSessions[i] = futures.get(i).get();
+                remoteSessions[i].addObserver(new Instrumentation.Observer() {
+                        // Just relay to our observers.
+                        public void onEvent(final Instrumentation.Event event) {
+                            instrumentation.fire(event);
+                        }
+                    });
             } catch (ExecutionException e) {
                 log.error("exception while opening session", e);
                 error = true;
@@ -674,7 +715,6 @@ public class ImhotepClient implements Closeable {
             }
             return null;
         }
-        
         return remoteSessions;
     }
 
@@ -819,5 +859,13 @@ public class ImhotepClient implements Closeable {
 
     public boolean isConnectionHealthy() {
         return hostsSource.isLoadedDataSuccessfullyRecently() && shardListReloader.isLoadedDataSuccessfullyRecently();
+    }
+
+    public void addObserver(Instrumentation.Observer observer) {
+        instrumentation.addObserver(observer);
+    }
+
+    public void removeObserver(Instrumentation.Observer observer) {
+        instrumentation.removeObserver(observer);
     }
 }

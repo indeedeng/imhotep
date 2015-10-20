@@ -28,12 +28,12 @@ public class AbsoluteValue implements IntValueLookup {
 
     @Override
     public long getMin() {
-        return Long.MIN_VALUE;
+        return Math.min(Math.abs(operand.getMin()), Math.abs(operand.getMax()));
     }
 
     @Override
     public long getMax() {
-        return Long.MAX_VALUE;
+        return Math.max(Math.abs(operand.getMin()), Math.abs(operand.getMax()));
     }
 
     @Override

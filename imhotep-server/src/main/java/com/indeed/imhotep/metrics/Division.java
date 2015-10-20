@@ -24,9 +24,39 @@ public class Division extends AbstractBinaryOperator {
     }
 
     @Override
+    public long getMin() {
+        if (b.getMin() >= 0) {
+            return Math.min(eval(a.getMin(), b.getMin()), eval(a.getMin(), b.getMax()));
+        }
+        else if (b.getMax() <= 0) {
+            return Math.max(eval(a.getMax(), b.getMax()), eval(a.getMax(), b.getMin()));
+        }
+        else {
+            return Math.min(-Math.abs(a.getMax()), -Math.abs(a.getMin()));
+        }
+    }
+
+    @Override
+    public long getMax() {
+        if (b.getMin() >= 0) {
+            return Math.max(eval(a.getMax(), b.getMax()), eval(a.getMax(), b.getMin()));
+        }
+        else if (b.getMax() <= 0) {
+            return Math.min(eval(a.getMin(), b.getMin()), eval(a.getMin(), b.getMax()));
+        }
+        else {
+            return Math.max(Math.abs(a.getMax()), Math.abs(a.getMin()));
+        }
+    }
+
+    @Override
     protected void combine(long[] values, long[] buffer, int n) {
         for (int i = 0; i < n; ++i) {
-            values[i] = buffer[i] != 0 ? values[i] / buffer[i] : 0;
+            values[i] = eval(values[i], buffer[i]);
         }
+    }
+
+    private long eval(long a, long b) {
+        return b != 0 ? a / b : 0;
     }
 }

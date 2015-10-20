@@ -2,6 +2,7 @@ package com.indeed.flamdex.simple;
 
 import com.google.common.base.Supplier;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -259,5 +260,10 @@ public class StringToIntTermIterator implements SimpleIntTermIterator  {
         if (prefixQueue == null || prefixQueue.isEmpty()) {
             throw new IllegalArgumentException("Invalid operation given iterators current state");
         }
+    }
+
+    @Override
+    public long getDocListAddress() throws IOException {
+        return stringTermIterator.getDocListAddress();
     }
 }

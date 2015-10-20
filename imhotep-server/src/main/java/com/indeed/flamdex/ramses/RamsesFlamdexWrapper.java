@@ -23,7 +23,7 @@ import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.StringValueLookup;
-import com.indeed.flamdex.fieldcache.FieldCacher;
+import com.indeed.flamdex.fieldcache.FieldCacherUtil;
 import com.indeed.imhotep.io.caching.CachedFile;
 import com.indeed.imhotep.metrics.Count;
 
@@ -140,7 +140,7 @@ public class RamsesFlamdexWrapper implements FlamdexReader {
 
     public StringValueLookup getStringLookup(final String field) throws FlamdexOutOfMemoryException {
         try {
-            return FieldCacher.newStringValueLookup(field, this, directory);
+            return FieldCacherUtil.newStringValueLookup(field, this, directory);
         } catch (IOException e) {
             throw Throwables.propagate(e);
         }

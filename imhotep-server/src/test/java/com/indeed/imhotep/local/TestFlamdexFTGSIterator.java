@@ -80,7 +80,7 @@ public class TestFlamdexFTGSIterator {
             MockFlamdexReader r = new MockFlamdexReader();
             r.addIntTerm("if1", 0, 1, 2);
             r.addIntTerm("if1", 1, 3, 4);
-            ImhotepLocalSession session = new ImhotepLocalSession(r, level == BitsetOptimizationLevel.OPTIMIZE);
+            ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
             session.pushStat("count()");
             FTGSIterator ftgsIterator = session.getFTGSIterator(new String[]{"if1"}, new String[]{});
 
@@ -107,7 +107,7 @@ public class TestFlamdexFTGSIterator {
     public void testEmptyField() throws ImhotepOutOfMemoryException {
         for (BitsetOptimizationLevel level : BitsetOptimizationLevel.values()) {
             MockFlamdexReader r = new MockFlamdexReader();
-            ImhotepLocalSession session = new ImhotepLocalSession(r, level == BitsetOptimizationLevel.OPTIMIZE);
+            ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
             FTGSIterator ftgsIterator = session.getFTGSIterator(new String[]{"if1"}, new String[]{"sf1"});
             try {
                 assertEquals(true, ftgsIterator.nextField());
@@ -128,7 +128,7 @@ public class TestFlamdexFTGSIterator {
         for (BitsetOptimizationLevel level : BitsetOptimizationLevel.values()) {
             MockFlamdexReader r = new MockFlamdexReader();
             r.addIntTerm("if1", 1, 0, 1, 2);
-            ImhotepLocalSession session = new ImhotepLocalSession(r, level == BitsetOptimizationLevel.OPTIMIZE);
+            ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
             FTGSIterator ftgsIterator = session.getFTGSIterator(new String[]{"if1"}, new String[]{});
 
             try {
@@ -169,7 +169,7 @@ public class TestFlamdexFTGSIterator {
 
     private ImhotepLocalSession makeTestSession(BitsetOptimizationLevel level) throws ImhotepOutOfMemoryException {
         MockFlamdexReader r = makeTestFlamdexReader();
-        ImhotepLocalSession session = new ImhotepLocalSession(r, level == BitsetOptimizationLevel.OPTIMIZE);
+        ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         session.regroup(new GroupRemapRule[]{new GroupRemapRule(1, new RegroupCondition(DOCID_FIELD, true, 4, null, true), 2, 1)});
         session.pushStat(METRIC_FIELD);
         return session;

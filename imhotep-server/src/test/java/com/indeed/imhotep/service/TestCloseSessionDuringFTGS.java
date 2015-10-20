@@ -14,14 +14,15 @@
  package com.indeed.imhotep.service;
 
 //import com.indeed.common.search.directory.MMapBufferDirectory;
+import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
 import com.indeed.util.io.Files;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.lucene.LuceneFlamdexReader;
 import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.MemoryReservationContext;
-import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.local.ImhotepJavaLocalSession;
 import com.indeed.imhotep.local.ImhotepLocalSession;
 import org.apache.lucene.analysis.WhitespaceAnalyzer;
 import org.apache.lucene.document.Document;
@@ -76,20 +77,16 @@ public class TestCloseSessionDuringFTGS {
                     closed.set(true);
                 }
             };
-            final ExecutorService executor = Executors.newCachedThreadPool();
-            try {
-                ImhotepSession session =
-                        new MTImhotepMultiSession(new ImhotepLocalSession[] { new ImhotepLocalSession(r) },
-                                                  new MemoryReservationContext(
-                                                                               new ImhotepMemoryPool(
-                                                                                                     Long.MAX_VALUE)),
-                                                  executor, null);
+            final ImhotepSession session =
+                new MTImhotepLocalMultiSession(new ImhotepLocalSession[] {
+                        new ImhotepJavaLocalSession(r) },
+                        new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
+                        null,
+                        false
+                );
 //                FTGSIterator iter = session.getFTGSIterator(new String[]{}, new String[]{"sf1"}); //TODO fix this
-                session.close();
-                assertTrue(closed.get());
-            } finally {
-                executor.shutdown();
-            }
+            session.close();
+            assertTrue(closed.get());
         } finally {
             Files.delete(tempDir);
         }

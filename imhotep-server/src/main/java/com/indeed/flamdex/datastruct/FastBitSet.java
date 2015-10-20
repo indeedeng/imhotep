@@ -27,6 +27,11 @@ public final class FastBitSet {
         bits = new long[(size + 64) >> 6];
     }
 
+    @Deprecated
+    public long[] getBackingArray() {
+        return this.bits;
+    }
+
     public final boolean get(final int i) {
         return (bits[i >> 6] & (1L << (i & 0x3F))) != 0;
     }

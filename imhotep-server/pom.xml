@@ -4,12 +4,12 @@
 	<parent>
 		<groupId>com.indeed</groupId>
 		<artifactId>imhotep</artifactId>
-		<version>1.0.40-SNAPSHOT</version>
+		<version>1.0.48-SNAPSHOT</version>
 	</parent>
 
 	<groupId>com.indeed</groupId>
 	<artifactId>imhotep-server</artifactId>
-	<version>1.0.40-SNAPSHOT</version>
+	<version>1.0.41</version>
 	<packaging>jar</packaging>
 
 	<licenses>
@@ -48,6 +48,15 @@
                         </configuration>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-compiler-plugin</artifactId>
+              <version>3.2</version>
+              <configuration>
+                <source>1.7</source>
+                <target>1.7</target>
+              </configuration>
             </plugin>
 		</plugins>
 	</build>
@@ -185,7 +194,7 @@
 
 		<!-- releases of our own projects to use -->
 		<!-- these should only be SNAPSHOTs when no release is available -->
-		<indeed-util.version>1.0.12</indeed-util.version>
+		<indeed-util.version>[1.0.14,)</indeed-util.version>
 	</properties>
 
 </project>

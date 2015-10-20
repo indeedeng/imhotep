@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -59,6 +60,18 @@ public final class MapCache implements Closeable {
     public synchronized void close() throws IOException {
         for (Map.Entry<String, SharedReference<MMapBuffer>> entry : mappingCache.entrySet()) {
             Closeables2.closeQuietly(entry.getValue(), log);
+        }
+    }
+
+    /** !@# This is something of a temporary hack. We need to pass the addresses
+        of mmapped files down through JNI code, so that we don't have to mmap
+        them redundantly there. This pokes something of a hole in the MapCache
+        abstraction, but it's a tiny leak. */
+    public synchronized void getAddresses(final Map<String, Long> result) {
+        for (final Map.Entry<String,
+                 SharedReference<MMapBuffer>> entry: mappingCache.entrySet()) {
+            final Long address = entry.getValue().get().memory().getAddress();
+            result.put(entry.getKey(), address);
         }
     }
 }

@@ -461,8 +461,12 @@ public class FlamdexUtils {
 
     public static long[] getMinMaxTerm(String field, FlamdexReader r) {
         final IntTermIterator iterator = r.getUnsortedIntTermIterator(field);
-        long minTerm = Long.MAX_VALUE;
-        long maxTerm = Long.MIN_VALUE;
+        /*
+         * Docs with no term are defined to have a term of 0,
+         * so the min - max range MUST include 0.
+         */
+        long minTerm = 0;
+        long maxTerm = 0;
         try {
             while (iterator.next()) {
                 maxTerm = Math.max(maxTerm, iterator.term());

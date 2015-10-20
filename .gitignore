@@ -12,3 +12,4 @@ web-build/
 dist/
 build.properties
 out/
+.DS_store

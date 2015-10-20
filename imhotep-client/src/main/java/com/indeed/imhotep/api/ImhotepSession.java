@@ -15,20 +15,23 @@
 
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupRemapRule;
+import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.TermCount;
 
 import javax.annotation.concurrent.NotThreadSafe;
-
 import java.io.Closeable;
 import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 @NotThreadSafe
-public interface ImhotepSession extends Closeable {
+public interface ImhotepSession
+    extends Closeable, Instrumentation.Provider {
+
     /**
      * get the sum of the docFreq of all terms in all of the given fields
      * @param intFields int fields to iterate over
@@ -76,6 +79,14 @@ public interface ImhotepSession extends Closeable {
      * @return iterator
      */
     RawFTGSIterator getFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits);
+
+    /**
+     * write the ftgs split identified by <code>splitIndex</code> to the socket.
+     * @param splitIndex index of the split
+     * @param numSplits total number of splits
+     * @param socket the socket to which split <code>splitIndex</code> will be written to
+     */
+    void writeFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, Socket socket) throws ImhotepOutOfMemoryException;
 
     RawFTGSIterator getSubsetFTGSIteratorSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, int splitIndex, int numSplits);
 
@@ -291,6 +302,20 @@ public interface ImhotepSession extends Closeable {
      * @return number of groups including zero group (maxGroup+1)
      */
     int getNumGroups();
+
+    /*
+     * get a lower bound for a stat
+     * @param stat index of stat
+     * @return lower bound for stat, can be less than min
+     */
+    long getLowerBound(int stat);
+
+    /**
+     * get an upper bound for a stat
+     * @param stat index of stat
+     * @return upper bound for stat, can be greater than max
+     */
+    long getUpperBound(int stat);
 
     /**
      * create a per-document dynamic metric

@@ -39,12 +39,15 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
 
     private static final int BUFFER_SIZE = 8192;
 
+    private final MapCache mapCache;
+
     private final byte[] buffer;
+    private long docListAddress = 0L;
     private int bufferLen;
     private long bufferOffset;
     private int bufferPtr;
 
-    private final String docsFilename;
+    private final String docListFilename;
     private ImmutableBTreeIndex.Reader<String, LongPair> index;
     private final File indexFile;
 
@@ -52,6 +55,8 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
 
     private final SharedReference<MMapBuffer> file;
     private final DirectMemory memory;
+
+    private SharedReference<MMapBuffer> docListFile = null;
 
     private byte[] lastTermBytes = new byte[100];
     private ByteBuffer lastTermByteBuffer = ByteBuffer.wrap(lastTermBytes);
@@ -64,10 +69,12 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
     private boolean bufferNext = false;
     private boolean closed = false;
 
-    SimpleStringTermIteratorImpl(MapCache mapCache, String filename, String docsFilename, String indexFilename) throws IOException {
+    SimpleStringTermIteratorImpl(MapCache mapCache, String filename, String docListFilename, String indexFilename) throws IOException {
+        this.mapCache = mapCache;
+
         buffer = new byte[BUFFER_SIZE];
 
-        this.docsFilename = docsFilename;
+        this.docListFilename = docListFilename;
         final CachedFile cf = CachedFile.create(indexFilename);
         if (cf.exists()) {
             indexFile = cf.loadDirectory();
@@ -225,18 +232,35 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
             } catch (IOException e) {
                 log.error("error closing file", e);
             }
+            try {
+                if (docListFile != null) {
+                    docListFile.close();
+                }
+            } catch (IOException e) {
+                log.error("error closing docListFile", e);
+            }
             closed = true;
         }
     }
 
     @Override
     public String getFilename() {
-        return docsFilename;
+        return docListFilename;
     }
 
     @Override
     public long getOffset() {
         return lastTermOffset;
+    }
+
+    @Override
+    public long getDocListAddress()
+        throws IOException {
+        if (docListFile == null) {
+            docListFile = mapCache.copyOrOpen(docListFilename);
+            docListAddress = docListFile.get().memory().getAddress();
+        }
+        return this.docListAddress;
     }
 
     private int read() throws IOException {

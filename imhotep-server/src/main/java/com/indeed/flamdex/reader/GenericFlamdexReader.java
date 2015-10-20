@@ -14,6 +14,7 @@
  package com.indeed.flamdex.reader;
 
 import com.google.common.base.Throwables;
+import com.indeed.flamdex.fieldcache.FieldCacherUtil;
 import com.indeed.util.io.Files;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
@@ -27,7 +28,6 @@ import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.StringValueLookup;
-import com.indeed.flamdex.fieldcache.FieldCacher;
 import com.indeed.flamdex.fieldcache.IntArrayIntValueLookup;
 import com.indeed.flamdex.lucene.LuceneFlamdexReader;
 import com.indeed.flamdex.ramses.RamsesFlamdexWrapper;
@@ -72,9 +72,7 @@ public final class GenericFlamdexReader implements FlamdexReader {
         this.stringFields = stringFields;
     }
 
-    public static FlamdexReader open(
-            String directory
-    ) throws IOException {
+    public static FlamdexReader open(String directory) throws IOException {
         final FlamdexReader r = internalOpen(directory);
         if (RamsesFlamdexWrapper.ramsesFilesExist(directory)) {
             return new RamsesFlamdexWrapper(r, directory);
@@ -240,7 +238,7 @@ public final class GenericFlamdexReader implements FlamdexReader {
 
     public StringValueLookup getStringLookup(final String field) throws FlamdexOutOfMemoryException {
         try {
-            return FieldCacher.newStringValueLookup(field, this, directory);
+            return FieldCacherUtil.newStringValueLookup(field, this, directory);
         } catch (IOException e) {
             throw Throwables.propagate(e);
         }

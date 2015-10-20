@@ -11,7 +11,7 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.indeed.imhotep.local;
+package com.indeed.imhotep.local;
 
 import java.util.Arrays;
 
@@ -20,7 +20,7 @@ import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.imhotep.BitTree;
 import com.indeed.imhotep.GroupRemapRule;
 
-final class CharGroupLookup extends GroupLookup {
+final class CharGroupLookup extends GroupLookup implements ArrayBasedGroupLookup {
     /**
      *
      */
@@ -31,6 +31,8 @@ final class CharGroupLookup extends GroupLookup {
         session = imhotepLocalSession;
         docIdToGroup = new char[size];
     }
+
+    char[] getDocIdToGroup() { return docIdToGroup; }
 
     @Override
     public void nextGroupCallback(int n, long[][] termGrpStats, BitTree groupsSeen) {
@@ -49,7 +51,7 @@ final class CharGroupLookup extends GroupLookup {
 
         if (rewriteHead > 0) {
             for (int statIndex = 0; statIndex < session.numStats; statIndex++) {
-                ImhotepLocalSession.updateGroupStatsDocIdBuf(session.statLookup[statIndex], termGrpStats[statIndex], session.docGroupBuffer, session.docIdBuf, session.valBuf, rewriteHead);
+                ImhotepJavaLocalSession.updateGroupStatsDocIdBuf(session.statLookup.get(statIndex), termGrpStats[statIndex], session.docGroupBuffer, session.docIdBuf, session.valBuf, rewriteHead);
             }
         }
     }

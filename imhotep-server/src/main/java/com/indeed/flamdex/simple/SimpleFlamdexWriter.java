@@ -63,7 +63,7 @@ import java.util.UUID;
 /**
  * @author jsgroth
  */
-public class SimpleFlamdexWriter implements FlamdexWriter {
+public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
     private static final Logger log = Logger.getLogger(SimpleFlamdexWriter.class);
 
     public static final int FORMAT_VERSION = 0;

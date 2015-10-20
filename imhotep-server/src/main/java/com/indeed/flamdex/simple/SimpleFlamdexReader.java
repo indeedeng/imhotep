@@ -13,10 +13,18 @@
  */
  package com.indeed.flamdex.simple;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.indeed.flamdex.AbstractFlamdexReader.MinMax;
+import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
+import com.indeed.flamdex.api.IntValueLookup;
+import com.indeed.flamdex.fieldcache.FieldCacher;
+import com.indeed.flamdex.fieldcache.FieldCacherUtil;
+import com.indeed.flamdex.fieldcache.NativeFlamdexFieldCacher;
 import com.indeed.util.io.Files;
 import com.indeed.flamdex.AbstractFlamdexReader;
 import com.indeed.flamdex.api.DocIdStream;
@@ -34,12 +42,16 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
  * @author jsgroth
 */
-public class SimpleFlamdexReader extends AbstractFlamdexReader implements RawFlamdexReader {
+public class SimpleFlamdexReader
+    extends AbstractFlamdexReader
+    implements HasMapCache, RawFlamdexReader {
+
     private final Collection<String> intFields;
     private final Collection<String> stringFields;
     private final MapCache mapCache = new MapCache();
@@ -51,6 +63,8 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader implements RawFla
         useNativeDocIdStream = "true".equalsIgnoreCase(useNative);
     }
 
+    private final Map<String, NativeFlamdexFieldCacher> intFieldCachers;
+
     protected SimpleFlamdexReader(String directory,
                                   int numDocs,
                                   Collection<String> intFields,
@@ -60,6 +74,7 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader implements RawFla
 
         this.intFields = intFields;
         this.stringFields = stringFields;
+        this.intFieldCachers = Maps.newHashMap();
     }
 
     public static SimpleFlamdexReader open(String directory) throws IOException {
@@ -89,6 +104,8 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader implements RawFla
 
         return fields;
     }
+
+    public MapCache getMapCache() { return mapCache; }
 
     @Override
     public Collection<String> getIntFields() {
@@ -212,6 +229,57 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader implements RawFla
     @Override
     public Collection<String> getAvailableMetrics() {
         return intFields;
+    }
+
+    @Override
+    public final IntValueLookup getMetric(String metric) throws FlamdexOutOfMemoryException {
+        final NativeFlamdexFieldCacher fieldCacher = getMetricCacher(metric);
+        final SimpleIntTermIterator iterator = getIntTermIterator(metric);
+        try {
+            return cacheField(iterator, metric, fieldCacher);
+        } finally {
+            iterator.close();
+        }
+    }
+
+    @VisibleForTesting
+    public final IntValueLookup getMetricJava(String metric) throws FlamdexOutOfMemoryException {
+        return super.getMetric(metric);
+    }
+
+    private IntValueLookup cacheField(SimpleIntTermIterator iterator,
+                                      String metric,
+                                      NativeFlamdexFieldCacher fieldCacher) {
+        final MinMax minMax = metricMinMaxes.get(metric);
+        try {
+            return useMMapMetrics ?
+                fieldCacher.newMMapFieldCache(iterator, numDocs, metric, directory, minMax.min, minMax.max) :
+                fieldCacher.newFieldCache(iterator, numDocs, minMax.min, minMax.max);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public final long memoryRequired(String metric) {
+        if (useMMapMetrics)
+            return 0;
+
+        final NativeFlamdexFieldCacher fieldCacher = getMetricCacher(metric);
+        return fieldCacher.memoryRequired(numDocs);
+    }
+
+    private NativeFlamdexFieldCacher getMetricCacher(String metric) {
+        synchronized (intFieldCachers) {
+            if (!intFieldCachers.containsKey(metric)) {
+                final MinMax minMax = new MinMax();
+                final NativeFlamdexFieldCacher cacher =
+                        FieldCacherUtil.getNativeCacherForField(metric, this, minMax);
+                intFieldCachers.put(metric, cacher);
+                metricMinMaxes.put(metric, minMax);
+            }
+            return intFieldCachers.get(metric);
+        }
     }
 
     @Override

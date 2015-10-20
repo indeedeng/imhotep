@@ -15,6 +15,7 @@
 
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.util.core.Throwables2;
@@ -24,6 +25,8 @@ import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.ImhotepStatusDump;
+import com.indeed.imhotep.Instrumentation;
+import com.indeed.imhotep.Instrumentation.Keys;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.ShardInfo;
@@ -39,6 +42,7 @@ import org.apache.log4j.Logger;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -55,7 +59,8 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * @author jplaisance
  */
-public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
+public abstract class AbstractImhotepServiceCore
+    implements ImhotepServiceCore, Instrumentation.Provider {
 
     private static final Logger log = Logger.getLogger(AbstractImhotepServiceCore.class);
 
@@ -63,8 +68,40 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
 
     protected abstract SessionManager getSessionManager();
 
+    protected Instrumentation.ProviderSupport instrumentation =
+        new Instrumentation.ProviderSupport();
+
+    protected final class SessionObserver implements Instrumentation.Observer {
+        private final String dataset;
+        private final String sessionId;
+        private final String username;
+
+        SessionObserver(String dataset,
+                        String sessionId,
+                        String username) {
+            this.dataset   = dataset;
+            this.sessionId = sessionId;
+            this.username  = username;
+        }
+
+        public void onEvent(Instrumentation.Event event) {
+            event.getProperties().put(Keys.DATASET,    dataset);
+            event.getProperties().put(Keys.SESSION_ID, sessionId);
+            event.getProperties().put(Keys.USERNAME,   username);
+            instrumentation.fire(event);
+        }
+    }
+
     protected AbstractImhotepServiceCore() {
         ftgsExecutor = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setDaemon(true).setNameFormat("LocalImhotepServiceCore-FTGSWorker-%d").build());
+    }
+
+    public void addObserver(Instrumentation.Observer observer) {
+        instrumentation.addObserver(observer);
+    }
+
+    public void removeObserver(Instrumentation.Observer observer) {
+        instrumentation.removeObserver(observer);
     }
 
     @Override
@@ -163,6 +200,23 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
                 final FTGSIterator merger = session.getFTGSIteratorSplit(intFields, stringFields, splitIndex, numSplits);
                 sendSuccessResponse(os);
                 return writeFTGSIteratorToOutputStream(numStats, merger, os);
+            }
+        });
+    }
+
+    @Override
+    public void handleGetFTGSIteratorSplitNative(final String sessionId, final String[] intFields, final String[] stringFields, final OutputStream os, final int splitIndex, final int numSplits, final Socket socket) throws IOException {
+        doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Void, IOException>() {
+            @Override
+            public Void apply(ImhotepSession imhotepSession) throws IOException {
+                try {
+                    sendSuccessResponse(os);
+                    os.flush();
+                    imhotepSession.writeFTGSIteratorSplit(intFields, stringFields, splitIndex, numSplits, socket);
+                } catch (ImhotepOutOfMemoryException e) {
+                    throw new RuntimeException(e);
+                }
+                return null;//returns Void
             }
         });
     }
@@ -506,7 +560,8 @@ public abstract class AbstractImhotepServiceCore implements ImhotepServiceCore {
             int mergeThreadLimit,
             boolean optimizeGroupZeroLookups,
             String sessionId,
-            AtomicLong tempFileSizeBytesLeft
+            AtomicLong tempFileSizeBytesLeft,
+            boolean useNativeFtgs
     ) throws ImhotepOutOfMemoryException;
 
     @Override

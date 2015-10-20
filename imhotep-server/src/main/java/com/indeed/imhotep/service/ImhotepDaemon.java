@@ -11,7 +11,7 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.indeed.imhotep.service;
+package com.indeed.imhotep.service;
 
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
@@ -25,6 +25,9 @@ import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.ImhotepStatusDump;
+import com.indeed.imhotep.Instrumentation;
+import com.indeed.imhotep.Instrumentation.Keys;
+import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
@@ -35,6 +38,8 @@ import com.indeed.imhotep.protobuf.GroupRemapMessage;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
+import com.indeed.imhotep.protobuf.QueryRemapMessage;
+import com.indeed.imhotep.protobuf.RegroupConditionMessage;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.Streams;
 import com.indeed.imhotep.io.caching.CachedFile;
@@ -47,6 +52,8 @@ import org.apache.log4j.NDC;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadMXBean;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -60,23 +67,93 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
-public class ImhotepDaemon {
+public class ImhotepDaemon implements Instrumentation.Provider {
     private static final Logger log = Logger.getLogger(ImhotepDaemon.class);
 
     private final ServerSocket ss;
 
     private final ExecutorService executor;
-    private final ImhotepServiceCore service;
+    private final AbstractImhotepServiceCore service;
     private final ServiceZooKeeperWrapper zkWrapper;
 
     private final AtomicLong requestIdCounter = new AtomicLong(0);
 
     private volatile boolean isStarted = false;
 
-    public ImhotepDaemon(ServerSocket ss, ImhotepServiceCore service, String zkNodes, String zkPath, String hostname, int port) {
+    private final ShardUpdateListener shardUpdateListener;
+
+    private final InstrumentationProvider instrumentation =
+        new InstrumentationProvider();
+
+    private ServiceCoreObserver serviceCoreObserver;
+
+    private static final class InstrumentationProvider
+        extends Instrumentation.ProviderSupport {
+
+        private final ThreadMXBean mxb     = ManagementFactory.getThreadMXBean();
+        private final Runtime      runtime = Runtime.getRuntime();
+
+        @Override
+        public synchronized void fire(final Instrumentation.Event event) {
+            try {
+                event.getProperties().put(Keys.FREE_MEMORY, runtime.freeMemory());
+                event.getProperties().put(Keys.TOTAL_MEMORY, runtime.totalMemory());
+                event.getProperties().put(Keys.DAEMON_THREAD_COUNT, mxb.getDaemonThreadCount());
+                event.getProperties().put(Keys.PEAK_THREAD_COUNT, mxb.getPeakThreadCount());
+                event.getProperties().put(Keys.THREAD_COUNT, mxb.getThreadCount());
+            }
+            finally {
+                super.fire(event);
+            }
+        }
+    }
+
+    private static final class ShardUpdateListener
+        implements ShardUpdateListenerIf {
+
+        private final AtomicReference<ImhotepResponse> shardListResponse =
+            new AtomicReference<ImhotepResponse>();
+
+        private final AtomicReference<ImhotepResponse> datasetListResponse =
+            new AtomicReference<ImhotepResponse>();
+
+        public void onShardUpdate(final List<ShardInfo> shardList) {
+            final ImhotepResponse.Builder builder = ImhotepResponse.newBuilder();
+            for (final ShardInfo shard : shardList) {
+                builder.addShardInfo(shard.toProto());
+            }
+            final ImhotepResponse response = builder.build();
+            shardListResponse.set(response);
+        }
+
+        public void onDatasetUpdate(final List<DatasetInfo> datasetList) {
+            final ImhotepResponse.Builder builder = ImhotepResponse.newBuilder();
+            for (final DatasetInfo dataset : datasetList) {
+                builder.addDatasetInfo(dataset.toProto());
+            }
+            final ImhotepResponse response = builder.build();
+            datasetListResponse.set(response);
+        }
+
+        public ImhotepResponse   getShardListResponse() { return shardListResponse.get();   }
+        public ImhotepResponse getDatasetListResponse() { return datasetListResponse.get(); }
+    }
+
+    /* Relays events to our observers. */
+    private final class ServiceCoreObserver implements Instrumentation.Observer {
+        public void onEvent(Instrumentation.Event event) {
+            instrumentation.fire(event);
+        }
+    }
+
+    public ImhotepDaemon(ServerSocket ss, AbstractImhotepServiceCore service,
+                         String zkNodes, String zkPath, String hostname, int port,
+                         ShardUpdateListener shardUpdateListener) {
         this.ss = ss;
         this.service = service;
+        this.shardUpdateListener = shardUpdateListener;
         executor = Executors.newCachedThreadPool(new ThreadFactory() {
             int i = 0;
             @Override
@@ -84,7 +161,22 @@ public class ImhotepDaemon {
                 return new Thread(r, "ImhotepDaemonRemoteServiceThread"+i++);
             }
         });
-        zkWrapper = zkNodes != null ? new ServiceZooKeeperWrapper(zkNodes, hostname, port, zkPath) : null;
+        zkWrapper = zkNodes != null ?
+            new ServiceZooKeeperWrapper(zkNodes, hostname, port, zkPath) : null;
+    }
+
+    /** Intended for tests that create their own ImhotepDaemons. */
+    public ImhotepDaemon(ServerSocket ss, AbstractImhotepServiceCore service,
+                         String zkNodes, String zkPath, String hostname, int port) {
+        this(ss, service, zkNodes, zkPath, hostname, port, new ShardUpdateListener());
+    }
+
+    public void addObserver(Instrumentation.Observer observer) {
+        instrumentation.addObserver(observer);
+    }
+
+    public void removeObserver(Instrumentation.Observer observer) {
+        instrumentation.removeObserver(observer);
     }
 
     public void run() {
@@ -157,390 +249,721 @@ public class ImhotepDaemon {
             }
         }
 
+        private final ImhotepResponse openSession(final ImhotepRequest          request,
+                                                  final ImhotepResponse.Builder builder)
+            throws ImhotepOutOfMemoryException {
+            final InetAddress inetAddress = socket.getInetAddress();
+            final AtomicLong tempFileSizeBytesLeft =
+                request.getTempFileSizeLimit() > 0 ?
+                new AtomicLong(request.getTempFileSizeLimit()) : null;
+            final String sessionId =
+                service.handleOpenSession(request.getDataset(),
+                                          request.getShardRequestList(),
+                                          request.getUsername(),
+                                          inetAddress.getHostAddress(),
+                                          request.getClientVersion(),
+                                          request.getMergeThreadLimit(),
+                                          request.getOptimizeGroupZeroLookups(),
+                                          request.getSessionId(),
+                                          tempFileSizeBytesLeft,
+                                          request.getUseNativeFtgs());
+            NDC.push(sessionId);
+            builder.setSessionId(sessionId);
+            return builder.build();
+        }
+
+        private final ImhotepResponse closeSession(final ImhotepRequest          request,
+                                                   final ImhotepResponse.Builder builder) {
+            service.handleCloseSession(request.getSessionId());
+            return builder.build();
+        }
+
+        private final ImhotepResponse regroup(final ImhotepRequest          request,
+                                              final ImhotepResponse.Builder builder)
+            throws ImhotepOutOfMemoryException {
+            final List<GroupRemapMessage> remapRulesList = request.getRemapRulesList();
+            final GroupRemapRule[] groupRemapMessageList =
+                ImhotepDaemonMarshaller.marshalGroupRemapMessageList(remapRulesList);
+            final int numGroups =
+                service.handleRegroup(request.getSessionId(), groupRemapMessageList);
+            builder.setNumGroups(numGroups);
+            return builder.build();
+        }
+
+        private final ImhotepResponse explodedRegroup(final ImhotepRequest          request,
+                                                      final ImhotepResponse.Builder builder,
+                                                      final InputStream             is)
+            throws ImhotepOutOfMemoryException {
+            final int numRules = request.getLength();
+            final int numGroups =
+                service.handleRegroup(request.getSessionId(),
+                                      numRules,
+                                      new UnmodifiableIterator<GroupRemapRule>() {
+                                          private int i = 0;
+
+                                          @Override
+                                          public boolean hasNext() {
+                                              return i < numRules;
+                                          }
+
+                                          @Override
+                                          public GroupRemapRule next() {
+                                              try {
+                                                  final GroupRemapMessage message =
+                                                  ImhotepProtobufShipping.readGroupRemapMessage(is);
+                                                  final GroupRemapRule rule =
+                                                  ImhotepDaemonMarshaller.marshal(message);
+                                                  i++;
+                                                  return rule;
+                                              } catch (IOException e) {
+                                                  throw Throwables.propagate(e);
+                                              }
+                                          }
+                                      });
+            return builder.setNumGroups(numGroups).build();
+        }
+
+        private final ImhotepResponse queryRegroup(final ImhotepRequest          request,
+                                                   final ImhotepResponse.Builder builder)
+            throws ImhotepOutOfMemoryException {
+            final QueryRemapMessage remapMessage = request.getQueryRemapRule();
+            final int numGroups =
+                service.handleQueryRegroup(request.getSessionId(),
+                                           ImhotepDaemonMarshaller.marshal(remapMessage));
+            return builder.setNumGroups(numGroups).build();
+        }
+
+        private final ImhotepResponse intOrRegroup(final ImhotepRequest          request,
+                                                   final ImhotepResponse.Builder builder)
+            throws ImhotepOutOfMemoryException {
+            service.handleIntOrRegroup(request.getSessionId(),
+                                       request.getField(),
+                                       Longs.toArray(request.getIntTermList()),
+                                       request.getTargetGroup(),
+                                       request.getNegativeGroup(),
+                                       request.getPositiveGroup());
+            return builder.build();
+        }
+
+        private final ImhotepResponse stringOrRegroup(final ImhotepRequest          request,
+                                                      final ImhotepResponse.Builder builder)
+            throws ImhotepOutOfMemoryException {
+            final String[] termList = new String[request.getStringTermCount()];
+            service.handleStringOrRegroup(request.getSessionId(),
+                                          request.getField(),
+                                          request.getStringTermList().toArray(termList),
+                                          request.getTargetGroup(),
+                                          request.getNegativeGroup(),
+                                          request.getPositiveGroup());
+            return builder.build();
+        }
+
+        private final ImhotepResponse randomRegroup(final ImhotepRequest          request,
+                                                    final ImhotepResponse.Builder builder)
+            throws ImhotepOutOfMemoryException {
+            service.handleRandomRegroup(request.getSessionId(),
+                                        request.getField(),
+                                        request.getIsIntField(),
+                                        request.getSalt(),
+                                        request.getP(),
+                                        request.getTargetGroup(),
+                                        request.getNegativeGroup(),
+                                        request.getPositiveGroup());
+            return builder.build();
+        }
+
+        private final ImhotepResponse randomMultiRegroup(final ImhotepRequest          request,
+                                                         final ImhotepResponse.Builder builder)
+            throws ImhotepOutOfMemoryException {
+            service.handleRandomMultiRegroup(request.getSessionId(),
+                                             request.getField(),
+                                             request.getIsIntField(),
+                                             request.getSalt(),
+                                             request.getTargetGroup(),
+                                             Doubles.toArray(request.getPercentagesList()),
+                                             Ints.toArray(request.getResultGroupsList()));
+            return builder.build();
+        }
+
+        private final ImhotepResponse regexRegroup(final ImhotepRequest          request,
+                                                   final ImhotepResponse.Builder builder)
+            throws ImhotepOutOfMemoryException {
+            service.handleRegexRegroup(request.getSessionId(),
+                                       request.getField(),
+                                       request.getRegex(),
+                                       request.getTargetGroup(),
+                                       request.getNegativeGroup(),
+                                       request.getPositiveGroup());
+            return builder.build();
+        }
+
+        private final ImhotepResponse getTotalDocFreq(final ImhotepRequest          request,
+                                                      final ImhotepResponse.Builder builder)
+            throws ImhotepOutOfMemoryException {
+            final long totalDocFreq =
+                service.handleGetTotalDocFreq(request.getSessionId(),
+                                              getIntFields(request),
+                                              getStringFields(request));
+            builder.setTotalDocFreq(totalDocFreq);
+            return builder.build();
+        }
+
+        private final ImhotepResponse getGroupStats(final ImhotepRequest          request,
+                                                    final ImhotepResponse.Builder builder)
+            throws ImhotepOutOfMemoryException {
+            long[] groupStats =
+                service.handleGetGroupStats(request.getSessionId(),
+                                            request.getStat());
+            for (final long groupStat : groupStats) {
+                builder.addGroupStat(groupStat);
+            }
+            return builder.build();
+        }
+
+        private final void getFTGSIterator(final ImhotepRequest          request,
+                                           final ImhotepResponse.Builder builder,
+                                           final OutputStream            os)
+            throws IOException, ImhotepOutOfMemoryException {
+            checkSessionValidity(request);
+            service.handleGetFTGSIterator(request.getSessionId(),
+                                          getIntFields(request),
+                                          getStringFields(request), os);
+        }
+
+        private final void getSubsetFTGSIterator(final ImhotepRequest          request,
+                                                 final ImhotepResponse.Builder builder,
+                                                 final OutputStream            os)
+            throws IOException, ImhotepOutOfMemoryException {
+            checkSessionValidity(request);
+            service.handleGetSubsetFTGSIterator(request.getSessionId(),
+                                                getIntFieldsToTerms(request),
+                                                getStringFieldsToTerms(request),
+                                                os);
+        }
+
+        private final void getFTGSSplit(final ImhotepRequest          request,
+                                        final ImhotepResponse.Builder builder,
+                                        final OutputStream            os)
+            throws IOException, ImhotepOutOfMemoryException {
+            checkSessionValidity(request);
+            service.handleGetFTGSIteratorSplit(request.getSessionId(),
+                                               getIntFields(request),
+                                               getStringFields(request),
+                                               os,
+                                               request.getSplitIndex(),
+                                               request.getNumSplits());
+        }
+
+        private final void getFTGSSplitNative(final ImhotepRequest          request,
+                                              final ImhotepResponse.Builder builder,
+                                              final OutputStream            os)
+            throws IOException, ImhotepOutOfMemoryException {
+            checkSessionValidity(request);
+            service.handleGetFTGSIteratorSplitNative(request.getSessionId(),
+                                                     getIntFields(request),
+                                                     getStringFields(request),
+                                                     os,
+                                                     request.getSplitIndex(),
+                                                     request.getNumSplits(),
+                                                     socket);
+        }
+
+        private final void getSubsetFTGSSplit(final ImhotepRequest          request,
+                                              final ImhotepResponse.Builder builder,
+                                              final OutputStream            os)
+            throws IOException, ImhotepOutOfMemoryException {
+            checkSessionValidity(request);
+            service.handleGetSubsetFTGSIteratorSplit(request.getSessionId(),
+                                                     getIntFieldsToTerms(request),
+                                                     getStringFieldsToTerms(request),
+                                                     os,
+                                                     request.getSplitIndex(),
+                                                     request.getNumSplits());
+        }
+
+        private final void mergeFTGSSplit(final ImhotepRequest          request,
+                                          final ImhotepResponse.Builder builder,
+                                          final OutputStream            os)
+            throws IOException, ImhotepOutOfMemoryException {
+            checkSessionValidity(request);
+            final InetSocketAddress[] nodes =
+                Lists.transform(request.getNodesList(),
+                                new Function<HostAndPort, InetSocketAddress>() {
+                                    public InetSocketAddress apply(final HostAndPort input) {
+                                        return new InetSocketAddress(input.getHost(),
+                                                                     input.getPort());
+                                    }
+                                }).toArray(new InetSocketAddress[request.getNodesCount()]);
+            service.handleMergeFTGSIteratorSplit(request.getSessionId(),
+                                                 getIntFields(request),
+                                                 getStringFields(request),
+                                                 os, nodes, request.getSplitIndex());
+        }
+
+        private final void mergeSubsetFTGSSplit(final ImhotepRequest          request,
+                                                final ImhotepResponse.Builder builder,
+                                                final OutputStream            os)
+            throws IOException, ImhotepOutOfMemoryException {
+            checkSessionValidity(request);
+            final InetSocketAddress[] nodes =
+                Lists.transform(request.getNodesList(),
+                                new Function<HostAndPort, InetSocketAddress>() {
+                                    public InetSocketAddress apply(final HostAndPort input) {
+                                        return new InetSocketAddress(input.getHost(),
+                                                                     input.getPort());
+                                    }
+                                }).toArray(new InetSocketAddress[request.getNodesCount()]);
+            service.handleMergeSubsetFTGSIteratorSplit(request.getSessionId(),
+                                                       getIntFieldsToTerms(request),
+                                                       getStringFieldsToTerms(request),
+                                                       os, nodes, request.getSplitIndex());
+        }
+
+        private final void getDocIterator(final ImhotepRequest          request,
+                                          final ImhotepResponse.Builder builder,
+                                          final OutputStream            os)
+            throws IOException, ImhotepOutOfMemoryException {
+            checkSessionValidity(request);
+            service.handleGetDocIterator(request.getSessionId(),
+                                         getIntFields(request),
+                                         getStringFields(request), os);
+        }
+
+        private final ImhotepResponse pushStat(final ImhotepRequest          request,
+                                               final ImhotepResponse.Builder builder)
+            throws ImhotepOutOfMemoryException {
+            final int numStats = service.handlePushStat(request.getSessionId(),
+                                                        request.getMetric());
+            builder.setNumStats(numStats);
+            return builder.build();
+        }
+
+        private final ImhotepResponse popStat(final ImhotepRequest          request,
+                                              final ImhotepResponse.Builder builder)
+            throws ImhotepOutOfMemoryException {
+            final int numStats = service.handlePopStat(request.getSessionId());
+            builder.setNumStats(numStats);
+            return builder.build();
+        }
+
+        private final ImhotepResponse getNumGroups(final ImhotepRequest          request,
+                                                   final ImhotepResponse.Builder builder)
+            throws ImhotepOutOfMemoryException {
+            final int numGroups = service.handleGetNumGroups(request.getSessionId());
+            builder.setNumGroups(numGroups);
+            return builder.build();
+        }
+
+        private final ImhotepResponse getShardList(final ImhotepRequest          request,
+                                                   final ImhotepResponse.Builder builder)
+            throws ImhotepOutOfMemoryException {
+            ImhotepResponse response = shardUpdateListener.getShardListResponse();
+            if (response == null) {
+                final List<ShardInfo> shards = service.handleGetShardList();
+                for (final ShardInfo shard : shards) {
+                    builder.addShardInfo(shard.toProto());
+                }
+                response = builder.build();
+            }
+            return response;
+        }
+
+        private final ImhotepResponse getShardInfoList(final ImhotepRequest          request,
+                                                       final ImhotepResponse.Builder builder)
+            throws ImhotepOutOfMemoryException {
+            ImhotepResponse response = shardUpdateListener.getDatasetListResponse();
+            if (response == null) {
+                final List<DatasetInfo> datasets = service.handleGetDatasetList();
+                for (final DatasetInfo dataset : datasets) {
+                    builder.addDatasetInfo(dataset.toProto());
+                }
+                response = builder.build();
+            }
+            return response;
+        }
+
+        private final ImhotepResponse getStatusDump(final ImhotepRequest          request,
+                                                    final ImhotepResponse.Builder builder)
+            throws ImhotepOutOfMemoryException {
+            final ImhotepStatusDump statusDump = service.handleGetStatusDump();
+            builder.setStatusDump(statusDump.toProto());
+            return builder.build();
+        }
+
+        private final ImhotepResponse metricRegroup(final ImhotepRequest          request,
+                                                    final ImhotepResponse.Builder builder)
+            throws ImhotepOutOfMemoryException {
+            final int numGroups = service.handleMetricRegroup(request.getSessionId(),
+                                                              request.getXStat(),
+                                                              request.getXMin(),
+                                                              request.getXMax(),
+                                                              request.getXIntervalSize(),
+                                                              request.getNoGutters());
+            builder.setNumGroups(numGroups);
+            return builder.build();
+        }
+
+        private final ImhotepResponse metricRegroup2D(final ImhotepRequest          request,
+                                                      final ImhotepResponse.Builder builder)
+            throws ImhotepOutOfMemoryException {
+            final int numGroups = service.handleMetricRegroup2D(request.getSessionId(),
+                                                                request.getXStat(),
+                                                                request.getXMin(),
+                                                                request.getXMax(),
+                                                                request.getXIntervalSize(),
+                                                                request.getYStat(),
+                                                                request.getYMin(),
+                                                                request.getYMax(),
+                                                                request.getYIntervalSize());
+            builder.setNumGroups(numGroups);
+            return builder.build();
+        }
+
+        private final ImhotepResponse metricFilter(final ImhotepRequest          request,
+                                                   final ImhotepResponse.Builder builder)
+            throws ImhotepOutOfMemoryException {
+            final int numGroups = service.handleMetricFilter(request.getSessionId(),
+                                                             request.getXStat(),
+                                                             request.getXMin(),
+                                                             request.getXMax(),
+                                                             request.getNegate());
+            builder.setNumGroups(numGroups);
+            return builder.build();
+        }
+
+        private final ImhotepResponse createDynamicMetric(final ImhotepRequest          request,
+                                                          final ImhotepResponse.Builder builder)
+            throws ImhotepOutOfMemoryException {
+            service.handleCreateDynamicMetric(request.getSessionId(),
+                                              request.getDynamicMetricName());
+            return builder.build();
+        }
+
+        private final ImhotepResponse updateDynamicMetric(final ImhotepRequest          request,
+                                                          final ImhotepResponse.Builder builder)
+            throws ImhotepOutOfMemoryException {
+            service.handleUpdateDynamicMetric(request.getSessionId(),
+                                              request.getDynamicMetricName(),
+                                              Ints.toArray(request.getDynamicMetricDeltasList()));
+            return builder.build();
+        }
+
+        private final ImhotepResponse
+        conditionalUpdateDynamicMetric(final ImhotepRequest          request,
+                                       final ImhotepResponse.Builder builder)
+            throws ImhotepOutOfMemoryException {
+            final List<RegroupConditionMessage> conditionsList = request.getConditionsList();
+            final RegroupCondition[] conditions =
+                ImhotepDaemonMarshaller.marshalRegroupConditionMessageList(conditionsList);
+            final int[] deltas = Ints.toArray(request.getDynamicMetricDeltasList());
+            service.handleConditionalUpdateDynamicMetric(request.getSessionId(),
+                                                         request.getDynamicMetricName(),
+                                                         conditions, deltas);
+            return builder.build();
+        }
+
+        private final ImhotepResponse
+        groupConditionalUpdateDynamicMetric(final ImhotepRequest          request,
+                                            final ImhotepResponse.Builder builder)
+            throws ImhotepOutOfMemoryException {
+            final List<RegroupConditionMessage> conditionsList = request.getConditionsList();
+            final RegroupCondition[] conditions =
+                ImhotepDaemonMarshaller.marshalRegroupConditionMessageList(conditionsList);
+            final int[] deltas = Ints.toArray(request.getDynamicMetricDeltasList());
+            service.handleGroupConditionalUpdateDynamicMetric(request.getSessionId(),
+                                                              request.getDynamicMetricName(),
+                                                              Ints.toArray(request.getGroupsList()),
+                                                              conditions, deltas);
+            return builder.build();
+        }
+
+        private final ImhotepResponse optimizeSession(final ImhotepRequest          request,
+                                                      final ImhotepResponse.Builder builder)
+            throws ImhotepOutOfMemoryException {
+            service.handleRebuildAndFilterIndexes(request.getSessionId(),
+                                                  getIntFields(request),
+                                                  getStringFields(request));
+            return builder.build();
+        }
+
+        private final ImhotepResponse resetGroups(final ImhotepRequest          request,
+                                                  final ImhotepResponse.Builder builder)
+            throws ImhotepOutOfMemoryException {
+            service.handleResetGroups(request.getSessionId());
+            return builder.build();
+        }
+
+        private final ImhotepResponse multisplitRegroup(final ImhotepRequest          request,
+                                                        final ImhotepResponse.Builder builder)
+            throws ImhotepOutOfMemoryException {
+            final List<GroupMultiRemapMessage> ruleList = request.getMultisplitRemapRuleList();
+            final GroupMultiRemapRule[] remapRules =
+                ImhotepDaemonMarshaller.marshalGroupMultiRemapMessageList(ruleList);
+            final int numGroups =
+                service.handleMultisplitRegroup(request.getSessionId(),
+                                                remapRules,
+                                                request.getErrorOnCollisions());
+            builder.setNumGroups(numGroups);
+            return builder.build();
+        }
+
+        private final ImhotepResponse
+            explodedMultisplitRegroup(final ImhotepRequest          request,
+                                      final ImhotepResponse.Builder builder,
+                                      final InputStream             is)
+            throws ImhotepOutOfMemoryException {
+            final int numRules = request.getLength();
+            final UnmodifiableIterator<GroupMultiRemapRule> it =
+                new UnmodifiableIterator<GroupMultiRemapRule>() {
+                  private int i = 0;
+
+                  @Override
+                  public boolean hasNext() {
+                      return i < numRules;
+                  }
+
+                  @Override
+                  public GroupMultiRemapRule next() {
+                      try {
+                          final GroupMultiRemapMessage message =
+                            ImhotepProtobufShipping.readGroupMultiRemapMessage(is);
+                          final GroupMultiRemapRule rule =
+                            ImhotepDaemonMarshaller.marshal(message);
+                          i++;
+                          return rule;
+                      } catch (IOException e) {
+                          throw Throwables.propagate(e);
+                      }
+                  }
+            };
+            final int numGroups =
+                service.handleMultisplitRegroup(request.getSessionId(),
+                                                numRules,
+                                                it,
+                                                request.getErrorOnCollisions());
+            builder.setNumGroups(numGroups);
+            return builder.build();
+        }
+
+        private final ImhotepResponse approximateTopTerms(final ImhotepRequest          request,
+                                                          final ImhotepResponse.Builder builder)
+            throws ImhotepOutOfMemoryException {
+            final List<TermCount> topTerms =
+                service.handleApproximateTopTerms(request.getSessionId(),
+                                                  request.getField(),
+                                                  request.getIsIntField(),
+                                                  request.getK());
+            builder.addAllTopTerms(ImhotepDaemonMarshaller.marshalTermCountList(topTerms));
+            return builder.build();
+        }
+
+        private final void shutdown(final ImhotepRequest request,
+                                    final InputStream    is,
+                                    final OutputStream   os)
+            throws IOException {
+            if (request.hasSessionId() &&
+                "magicshutdownid".equals(request.getSessionId())) {
+                log.info("shutdown signal received, shutting down the JVM");
+                close(socket, is, os);
+                ImhotepDaemon.this.shutdown(true);
+            }
+        }
+
         private void internalRun() {
-            ImhotepRequest protoRequest = null;
+            ImhotepRequest request = null;
             try {
-                final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
+                final long beginTm = System.nanoTime();
+
+                final String remoteAddr = socket.getInetAddress().getHostAddress();
+
+                final InputStream  is = Streams.newBufferedInputStream(socket.getInputStream());
                 final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
 
-                final int ndcDepth = NDC.getDepth();
-
+                final int  ndcDepth  = NDC.getDepth();
                 final long requestId = requestIdCounter.incrementAndGet();
+
+                ImhotepResponse response = null;
+
                 NDC.push("#" + requestId);
 
                 try {
                     log.info("getting request");
                     // TODO TODO TODO validate request
-                    protoRequest = ImhotepProtobufShipping.readRequest(is);
+                    request = ImhotepProtobufShipping.readRequest(is);
 
-                    if (protoRequest.hasSessionId()) {
-                        NDC.push(protoRequest.getSessionId());
+                    if (request.hasSessionId()) {
+                        NDC.push(request.getSessionId());
                     }
 
-                    log.info("received request of type "+protoRequest.getRequestType()+", building response");
-                    final ImhotepResponse.Builder responseBuilder = ImhotepResponse.newBuilder();
-
-                    InetAddress inetAddress;
-                    String sessionId;
-                    int numStats;
-                    int numGroups;
-                    List<ShardInfo> shards;
-                    List<DatasetInfo> datasets;
-                    long totalDocFreq;
-                    long[] groupStats;
-                    ImhotepStatusDump statusDump;
-                    List<TermCount> topTerms;
-                    switch (protoRequest.getRequestType()) {
+                    log.info("received request of type " + request.getRequestType() +
+                             ", building response");
+                    final ImhotepResponse.Builder builder = ImhotepResponse.newBuilder();
+                    switch (request.getRequestType()) {
                         case OPEN_SESSION:
-                            inetAddress = socket.getInetAddress();
-                            final AtomicLong tempFileSizeBytesLeft = protoRequest.getTempFileSizeLimit() > 0 ?
-                                    new AtomicLong(protoRequest.getTempFileSizeLimit()) : null;
-                            sessionId = service.handleOpenSession(
-                                    protoRequest.getDataset(),
-                                    protoRequest.getShardRequestList(),
-                                    protoRequest.getUsername(),
-                                    inetAddress.getHostAddress(),
-                                    protoRequest.getClientVersion(),
-                                    protoRequest.getMergeThreadLimit(),
-                                    protoRequest.getOptimizeGroupZeroLookups(),
-                                    protoRequest.getSessionId(),
-                                    tempFileSizeBytesLeft
-                            );
-                            NDC.push(sessionId);
-                            responseBuilder.setSessionId(sessionId);
-                            sendResponse(responseBuilder.build(), os);
+                            response = openSession(request, builder);
+                            // !@# move after response call at end of switch
+                            instrumentation.fire(new DaemonEvents.OpenSessionEvent(request, remoteAddr));
                             break;
                         case CLOSE_SESSION:
-                            service.handleCloseSession(protoRequest.getSessionId());
-                            sendResponse(responseBuilder.build(), os);
+                            response = closeSession(request, builder);
+                            // !@# move after response call at end of switch
+                            instrumentation.fire(new DaemonEvents.CloseSessionEvent(request, remoteAddr));
                             break;
                         case REGROUP:
-                            numGroups = service.handleRegroup(protoRequest.getSessionId(), ImhotepDaemonMarshaller.marshalGroupRemapMessageList(protoRequest.getRemapRulesList()));
-                            responseBuilder.setNumGroups(numGroups);
-                            sendResponse(responseBuilder.build(), os);
+                            response = regroup(request, builder);
                             break;
-                        case EXPLODED_REGROUP: {
-                                final int numRules = protoRequest.getLength();
-                                numGroups = service.handleRegroup(protoRequest.getSessionId(), numRules, new UnmodifiableIterator<GroupRemapRule>() {
-                                    private int i = 0;
-
-                                    @Override
-                                    public boolean hasNext() {
-                                        return i < numRules;
-                                    }
-
-                                    @Override
-                                    public GroupRemapRule next() {
-                                        try {
-                                            final GroupRemapMessage message = ImhotepProtobufShipping.readGroupRemapMessage(is);
-                                            final GroupRemapRule rule = ImhotepDaemonMarshaller.marshal(message);
-                                            i++;
-                                            return rule;
-                                        } catch (IOException e) {
-                                            throw Throwables.propagate(e);
-                                        }
-                                    }
-                                });
-                                sendResponse(responseBuilder.setNumGroups(numGroups).build(), os);
-                                break;
-                            }
+                        case EXPLODED_REGROUP:
+                            response = explodedRegroup(request, builder, is);
+                            break;
                         case QUERY_REGROUP:
-                            numGroups = service.handleQueryRegroup(protoRequest.getSessionId(), ImhotepDaemonMarshaller.marshal(protoRequest.getQueryRemapRule()));
-                            responseBuilder.setNumGroups(numGroups);
-                            sendResponse(responseBuilder.build(), os);
+                            response = queryRegroup(request, builder);
                             break;
                         case INT_OR_REGROUP:
-                            service.handleIntOrRegroup(protoRequest.getSessionId(), protoRequest.getField(), Longs.toArray(protoRequest.getIntTermList()),
-                                    protoRequest.getTargetGroup(), protoRequest.getNegativeGroup(), protoRequest.getPositiveGroup());
-                            sendResponse(responseBuilder.build(), os);
+                            response = intOrRegroup(request, builder);
                             break;
                         case STRING_OR_REGROUP:
-                            service.handleStringOrRegroup(protoRequest.getSessionId(), protoRequest.getField(), protoRequest.getStringTermList().toArray(new String[protoRequest.getStringTermCount()]),
-                                    protoRequest.getTargetGroup(), protoRequest.getNegativeGroup(), protoRequest.getPositiveGroup());
-                            sendResponse(responseBuilder.build(), os);
+                            response = stringOrRegroup(request, builder);
                             break;
                         case RANDOM_REGROUP:
-                            service.handleRandomRegroup(protoRequest.getSessionId(), protoRequest.getField(), protoRequest.getIsIntField(),
-                                    protoRequest.getSalt(), protoRequest.getP(), protoRequest.getTargetGroup(), protoRequest.getNegativeGroup(),
-                                    protoRequest.getPositiveGroup());
-                            sendResponse(responseBuilder.build(), os);
+                            response = randomRegroup(request, builder);
                             break;
                         case RANDOM_MULTI_REGROUP:
-                            service.handleRandomMultiRegroup(protoRequest.getSessionId(), protoRequest.getField(),
-                                    protoRequest.getIsIntField(), protoRequest.getSalt(), protoRequest.getTargetGroup(),
-                                    Doubles.toArray(protoRequest.getPercentagesList()),
-                                    Ints.toArray(protoRequest.getResultGroupsList()));
-                            sendResponse(responseBuilder.build(), os);
+                            response = randomMultiRegroup(request, builder);
                             break;
                         case REGEX_REGROUP:
-                            service.handleRegexRegroup(protoRequest.getSessionId(), protoRequest.getField(), protoRequest.getRegex(),
-                                    protoRequest.getTargetGroup(), protoRequest.getNegativeGroup(), protoRequest.getPositiveGroup());
-                            sendResponse(responseBuilder.build(), os);
+                            response = regexRegroup(request, builder);
                             break;
                         case GET_TOTAL_DOC_FREQ:
-                            totalDocFreq = service.handleGetTotalDocFreq(
-                                    protoRequest.getSessionId(),
-                                    getIntFields(protoRequest),
-                                    getStringFields(protoRequest)
-                            );
-                            responseBuilder.setTotalDocFreq(totalDocFreq);
-                            sendResponse(responseBuilder.build(), os);
+                            response = getTotalDocFreq(request, builder);
                             break;
                         case GET_GROUP_STATS:
-                            groupStats = service.handleGetGroupStats(protoRequest.getSessionId(), protoRequest.getStat());
-                            for (final long groupStat : groupStats) {
-                                responseBuilder.addGroupStat(groupStat);
-                            }
-                            sendResponse(responseBuilder.build(), os);
+                            response = getGroupStats(request, builder);
                             break;
                         case GET_FTGS_ITERATOR:
-                            if (!service.sessionIsValid(protoRequest.getSessionId())) {
-                                throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
-                            }
-                            service.handleGetFTGSIterator(protoRequest.getSessionId(), getIntFields(protoRequest), getStringFields(protoRequest), os);
+                            getFTGSIterator(request, builder, os);
                             break;
                         case GET_SUBSET_FTGS_ITERATOR:
-                            if (!service.sessionIsValid(protoRequest.getSessionId())) {
-                                throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
-                            }
-                            service.handleGetSubsetFTGSIterator(protoRequest.getSessionId(), getIntFieldsToTerms(protoRequest), getStringFieldsToTerms(protoRequest), os);
+                            getSubsetFTGSIterator(request, builder, os);
                             break;
                         case GET_FTGS_SPLIT:
-                            if (!service.sessionIsValid(protoRequest.getSessionId())) {
-                                throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
-                            }
-                            service.handleGetFTGSIteratorSplit(protoRequest.getSessionId(), getIntFields(protoRequest), getStringFields(protoRequest), os, protoRequest.getSplitIndex(), protoRequest.getNumSplits());
+                            getFTGSSplit(request, builder, os);
+                            break;
+                        case GET_FTGS_SPLIT_NATIVE:
+                            getFTGSSplitNative(request, builder, os);
                             break;
                         case GET_SUBSET_FTGS_SPLIT:
-                            if (!service.sessionIsValid(protoRequest.getSessionId())) {
-                                throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
-                            }
-                            service.handleGetSubsetFTGSIteratorSplit(protoRequest.getSessionId(), getIntFieldsToTerms(protoRequest), getStringFieldsToTerms(protoRequest), os, protoRequest.getSplitIndex(), protoRequest.getNumSplits());
+                            getSubsetFTGSSplit(request, builder, os);
                             break;
                         case MERGE_FTGS_SPLIT:
-                            if (!service.sessionIsValid(protoRequest.getSessionId())) {
-                                throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
-                            }
-                            service.handleMergeFTGSIteratorSplit(protoRequest.getSessionId(), getIntFields(protoRequest), getStringFields(protoRequest), os,
-                                    Lists.transform(protoRequest.getNodesList(), new Function<HostAndPort, InetSocketAddress>() {
-                                        public InetSocketAddress apply(final HostAndPort input) {
-                                            return new InetSocketAddress(input.getHost(), input.getPort());
-                                        }
-                                    }).toArray(new InetSocketAddress[protoRequest.getNodesCount()]), protoRequest.getSplitIndex());
+                            mergeFTGSSplit(request, builder, os);
                             break;
                         case MERGE_SUBSET_FTGS_SPLIT:
-                            if (!service.sessionIsValid(protoRequest.getSessionId())) {
-                                throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
-                            }
-                            service.handleMergeSubsetFTGSIteratorSplit(protoRequest.getSessionId(), getIntFieldsToTerms(protoRequest), getStringFieldsToTerms(protoRequest), os,
-                                    Lists.transform(protoRequest.getNodesList(), new Function<HostAndPort, InetSocketAddress>() {
-                                        public InetSocketAddress apply(final HostAndPort input) {
-                                            return new InetSocketAddress(input.getHost(), input.getPort());
-                                        }
-                                    }).toArray(new InetSocketAddress[protoRequest.getNodesCount()]), protoRequest.getSplitIndex());
+                            mergeSubsetFTGSSplit(request, builder, os);
                             break;
                         case GET_DOC_ITERATOR:
-                            if (!service.sessionIsValid(protoRequest.getSessionId())) {
-                                throw new IllegalArgumentException("invalid session: " + protoRequest.getSessionId());
-                            }
-                            service.handleGetDocIterator(protoRequest.getSessionId(), getIntFields(protoRequest), getStringFields(protoRequest), os);
+                            getDocIterator(request, builder, os);
                             break;
                         case PUSH_STAT:
-                            numStats = service.handlePushStat(protoRequest.getSessionId(), protoRequest.getMetric());
-                            responseBuilder.setNumStats(numStats);
-                            sendResponse(responseBuilder.build(), os);
+                            response = pushStat(request, builder);
                             break;
                         case POP_STAT:
-                            numStats = service.handlePopStat(protoRequest.getSessionId());
-                            responseBuilder.setNumStats(numStats);
-                            sendResponse(responseBuilder.build(), os);
+                            response = popStat(request, builder);
                             break;
                         case GET_NUM_GROUPS:
-                            numGroups = service.handleGetNumGroups(protoRequest.getSessionId());
-                            responseBuilder.setNumGroups(numGroups);
-                            sendResponse(responseBuilder.build(), os);
+                            response = getNumGroups(request, builder);
                             break;
                         case GET_SHARD_LIST:
-                            shards = service.handleGetShardList();
-                            for (final ShardInfo shard : shards) {
-                                responseBuilder.addShardInfo(shard.toProto());
-                            }
-                            sendResponse(responseBuilder.build(), os);
+                            response = getShardList(request, builder);
                             break;
                         case GET_SHARD_INFO_LIST:
-                            datasets = service.handleGetDatasetList();
-                            for (final DatasetInfo dataset : datasets) {
-                                responseBuilder.addDatasetInfo(dataset.toProto());
-                            }
-                            sendResponse(responseBuilder.build(), os);
+                            response = getShardInfoList(request, builder);
                             break;
                         case GET_STATUS_DUMP:
-                            statusDump = service.handleGetStatusDump();
-                            responseBuilder.setStatusDump(statusDump.toProto());
-                            sendResponse(responseBuilder.build(), os);
+                            response = getStatusDump(request, builder);
                             break;
                         case METRIC_REGROUP:
-                            numGroups = service.handleMetricRegroup(
-                                    protoRequest.getSessionId(),
-                                    protoRequest.getXStat(),
-                                    protoRequest.getXMin(),
-                                    protoRequest.getXMax(),
-                                    protoRequest.getXIntervalSize(),
-                                    protoRequest.getNoGutters()
-                            );
-                            responseBuilder.setNumGroups(numGroups);
-                            sendResponse(responseBuilder.build(), os);
+                            response = metricRegroup(request, builder);
                             break;
                         case METRIC_REGROUP_2D:
-                            numGroups = service.handleMetricRegroup2D(
-                                    protoRequest.getSessionId(),
-                                    protoRequest.getXStat(),
-                                    protoRequest.getXMin(),
-                                    protoRequest.getXMax(),
-                                    protoRequest.getXIntervalSize(),
-                                    protoRequest.getYStat(),
-                                    protoRequest.getYMin(),
-                                    protoRequest.getYMax(),
-                                    protoRequest.getYIntervalSize()
-                            );
-                            responseBuilder.setNumGroups(numGroups);
-                            sendResponse(responseBuilder.build(), os);
+                            response = metricRegroup2D(request, builder);
                             break;
                         case METRIC_FILTER:
-                            numGroups = service.handleMetricFilter(
-                                    protoRequest.getSessionId(),
-                                    protoRequest.getXStat(),
-                                    protoRequest.getXMin(),
-                                    protoRequest.getXMax(),
-                                    protoRequest.getNegate()
-                            );
-                            responseBuilder.setNumGroups(numGroups);
-                            sendResponse(responseBuilder.build(), os);
+                            response = metricFilter(request, builder);
                             break;
                         case CREATE_DYNAMIC_METRIC:
-                            service.handleCreateDynamicMetric(
-                                    protoRequest.getSessionId(),
-                                    protoRequest.getDynamicMetricName()
-                            );
-                            sendResponse(responseBuilder.build(), os);
+                            response = createDynamicMetric(request, builder);
                             break;
                         case UPDATE_DYNAMIC_METRIC:
-                            service.handleUpdateDynamicMetric(
-                                    protoRequest.getSessionId(),
-                                    protoRequest.getDynamicMetricName(),
-                                    Ints.toArray(protoRequest.getDynamicMetricDeltasList())
-                            );
-                            sendResponse(responseBuilder.build(), os);
+                            response = updateDynamicMetric(request, builder);
                             break;
                         case CONDITIONAL_UPDATE_DYNAMIC_METRIC:
-                            service.handleConditionalUpdateDynamicMetric(
-                                    protoRequest.getSessionId(),
-                                    protoRequest.getDynamicMetricName(),
-                                    ImhotepDaemonMarshaller.marshalRegroupConditionMessageList(protoRequest.getConditionsList()),
-                                    Ints.toArray(protoRequest.getDynamicMetricDeltasList())
-                            );
-                            sendResponse(responseBuilder.build(), os);
+                            response = conditionalUpdateDynamicMetric(request, builder);
                             break;
                         case GROUP_CONDITIONAL_UPDATE_DYNAMIC_METRIC:
-                            service.handleGroupConditionalUpdateDynamicMetric(
-                                    protoRequest.getSessionId(),
-                                    protoRequest.getDynamicMetricName(),
-                                    Ints.toArray(protoRequest.getGroupsList()),
-                                    ImhotepDaemonMarshaller.marshalRegroupConditionMessageList(protoRequest.getConditionsList()),
-                                    Ints.toArray(protoRequest.getDynamicMetricDeltasList())
-                            );
-                            sendResponse(responseBuilder.build(), os);
+                            response = groupConditionalUpdateDynamicMetric(request, builder);
                             break;
                         case OPTIMIZE_SESSION:
-                            service.handleRebuildAndFilterIndexes(
-                                    protoRequest.getSessionId(),
-                                    getIntFields(protoRequest),
-                                    getStringFields(protoRequest)
-                            );
-                            sendResponse(responseBuilder.build(), os);
+                            response = optimizeSession(request, builder);
                             break;
                         case RESET_GROUPS:
-                            service.handleResetGroups(
-                                    protoRequest.getSessionId()
-                            );
-                            sendResponse(responseBuilder.build(), os);
+                            response = resetGroups(request, builder);
                             break;
                         case MULTISPLIT_REGROUP:
-                            numGroups = service.handleMultisplitRegroup(
-                                    protoRequest.getSessionId(),
-                                    ImhotepDaemonMarshaller.marshalGroupMultiRemapMessageList(protoRequest.getMultisplitRemapRuleList()),
-                                    protoRequest.getErrorOnCollisions()
-                            );
-                            sendResponse(responseBuilder.setNumGroups(numGroups).build(), os);
+                            response = multisplitRegroup(request, builder);
                             break;
-                        case EXPLODED_MULTISPLIT_REGROUP: {
-                                final int numRules = protoRequest.getLength();
-                                numGroups = service.handleMultisplitRegroup(protoRequest.getSessionId(), numRules, new UnmodifiableIterator<GroupMultiRemapRule>() {
-                                    private int i = 0;
-
-                                    @Override
-                                    public boolean hasNext() {
-                                        return i < numRules;
-                                    }
-
-                                    @Override
-                                    public GroupMultiRemapRule next() {
-                                        try {
-                                            final GroupMultiRemapMessage message = ImhotepProtobufShipping.readGroupMultiRemapMessage(is);
-                                            final GroupMultiRemapRule rule = ImhotepDaemonMarshaller.marshal(message);
-                                            i++;
-                                            return rule;
-                                        } catch (IOException e) {
-                                            throw Throwables.propagate(e);
-                                        }
-                                    }
-                                },
-                                protoRequest.getErrorOnCollisions());
-                                sendResponse(responseBuilder.setNumGroups(numGroups).build(), os);
-                                break;
-                            }
+                        case EXPLODED_MULTISPLIT_REGROUP:
+                            response = explodedMultisplitRegroup(request, builder, is);
+                            break;
                         case APPROXIMATE_TOP_TERMS:
-                            topTerms = service.handleApproximateTopTerms(
-                                    protoRequest.getSessionId(),
-                                    protoRequest.getField(),
-                                    protoRequest.getIsIntField(),
-                                    protoRequest.getK()
-                            );
-                            sendResponse(responseBuilder.addAllTopTerms(ImhotepDaemonMarshaller.marshalTermCountList(topTerms)).build(), os);
+                            response = approximateTopTerms(request, builder);
                             break;
                         case SHUTDOWN:
-                            if (protoRequest.hasSessionId() && "magicshutdownid".equals(protoRequest.getSessionId())) {
-                                log.info("shutdown signal received, shutting down the JVM");
-                                close(socket, is, os);
-                                shutdown(true);
-                            }
+                            shutdown(request, is, os);
                             break;
                         default:
-                            throw new IllegalArgumentException("unsupported request type: "+protoRequest.getRequestType());
+                            throw new IllegalArgumentException("unsupported request type: " +
+                                                               request.getRequestType());
+                    }
+                    if (response != null) {
+                        sendResponse(response, os);
                     }
                 } catch (ImhotepOutOfMemoryException e) {
-                    expireSession(protoRequest, e);
-                    sendResponse(ImhotepResponse.newBuilder().setResponseCode(ImhotepResponse.ResponseCode.OUT_OF_MEMORY).build(), os);
+                    expireSession(request, e);
+                    final ImhotepResponse.ResponseCode oom =
+                        ImhotepResponse.ResponseCode.OUT_OF_MEMORY;
+                    sendResponse(ImhotepResponse.newBuilder().setResponseCode(oom).build(), os);
                     log.warn("ImhotepOutOfMemoryException while servicing request", e);
                 } catch (IOException e) {
                     sendResponse(newErrorResponse(e), os);
                     throw e;
                 } catch (RuntimeException e) {
-                    expireSession(protoRequest, e);
+                    expireSession(request, e);
                     sendResponse(newErrorResponse(e), os);
                     throw e;
                 } finally {
+                    final long endTm = System.nanoTime();
+                    instrumentation.fire(new DaemonEvents.HandleRequestEvent(request,
+                                                                             response,
+                                                                             remoteAddr,
+                                                                             endTm - beginTm));
                     NDC.setMaxDepth(ndcDepth);
                     close(socket, is, os);
                 }
             } catch (IOException e) {
-                expireSession(protoRequest,e );
+                expireSession(request,e );
                 if (e instanceof SocketException) {
                     log.warn("IOException while servicing request", e);
                 } else {
                     log.error("IOException while servicing request", e);
                 }
                 throw new RuntimeException(e);
+            }
+        }
+
+        private void checkSessionValidity(ImhotepRequest protoRequest) {
+            if (!service.sessionIsValid(protoRequest.getSessionId())) {
+                throw new IllegalArgumentException("invalid session: " +
+                                                   protoRequest.getSessionId());
             }
         }
 
@@ -734,12 +1157,24 @@ public class ImhotepDaemon {
                                       cachingConfigFile,
                                       zkNodes,
                                       zkPath);
+            daemon.addObserver(new Instrumentation.Observer() {
+                    public void onEvent(Instrumentation.Event event) {
+                        System.err.println(event);
+                    }
+                });
             daemon.run();
         } finally {
             if (daemon != null) {
                 daemon.shutdown(false);
             }
         }
+    }
+
+    private ServiceCoreObserver getServiceCoreObserver() {
+        if (serviceCoreObserver == null) {
+            serviceCoreObserver = new ServiceCoreObserver();
+        }
+        return serviceCoreObserver;
     }
 
     static ImhotepDaemon newImhotepDaemon(String shardsDirectory,
@@ -751,7 +1186,8 @@ public class ImhotepDaemon {
                                           String cachingConfigFile,
                                           String zkNodes,
                                           String zkPath) throws IOException {
-        final ImhotepServiceCore localService;
+        final AbstractImhotepServiceCore localService;
+        final ShardUpdateListener shardUpdateListener = new ShardUpdateListener();
 
         if (lazyLoadFiles) {
             CachedFile.initWithFile(cachingConfigFile, shardsDirectory.trim());
@@ -762,14 +1198,19 @@ public class ImhotepDaemon {
                                                        new LocalImhotepServiceConfig());
         } else {
             localService =
-                    new LocalImhotepServiceCore(shardsDirectory, shardTempDir,
-                                                memoryCapacityInMB * 1024 * 1024, useCache,
-                                                new GenericFlamdexReaderSource(),
-                                                new LocalImhotepServiceConfig());
+                new LocalImhotepServiceCore(shardsDirectory, shardTempDir,
+                                            memoryCapacityInMB * 1024 * 1024, useCache,
+                                            new GenericFlamdexReaderSource(),
+                                            new LocalImhotepServiceConfig(),
+                                            shardUpdateListener);
         }
         final ServerSocket ss = new ServerSocket(port);
         final String myHostname = InetAddress.getLocalHost().getCanonicalHostName();
-        return new ImhotepDaemon(ss, localService, zkNodes, zkPath, myHostname, port);
+        final ImhotepDaemon result =
+            new ImhotepDaemon(ss, localService, zkNodes, zkPath,
+                              myHostname, port, shardUpdateListener);
+        localService.addObserver(result.getServiceCoreObserver());
+        return result;
     }
 
     public ImhotepServiceCore getService() {

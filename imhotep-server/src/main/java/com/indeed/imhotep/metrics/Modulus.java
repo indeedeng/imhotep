@@ -24,6 +24,16 @@ public class Modulus extends AbstractBinaryOperator {
     }
 
     @Override
+    public long getMin() {
+        return a.getMin() >= 0 && b.getMin() >= 0 ? 0 : Math.min(a.getMin(), b.getMin()) / 2;
+    }
+
+    @Override
+    public long getMax() {
+        return a.getMin() >= 0 && b.getMin() >= 0 ? Math.max(a.getMax(), b.getMax()) / 2 : 0;
+     }
+
+    @Override
     protected void combine(long[] values, long[] buffer, int n) {
         for (int i = 0; i < n; ++i) {
             values[i] %= buffer[i];

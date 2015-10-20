@@ -24,6 +24,16 @@ public class Min extends AbstractBinaryOperator {
     }
 
     @Override
+    public long getMin() {
+        return Math.min(a.getMin(), b.getMin());
+    }
+
+    @Override
+    public long getMax() {
+        return Math.min(a.getMax(), b.getMax());
+    }
+
+    @Override
     protected void combine(long[] values, long[] buffer, int n) {
         for (int i = 0; i < n; ++i) {
             values[i] = Math.min(values[i], buffer[i]);

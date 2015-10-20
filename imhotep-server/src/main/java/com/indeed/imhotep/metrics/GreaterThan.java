@@ -14,6 +14,16 @@ public final class GreaterThan extends AbstractBinaryOperator {
     }
 
     @Override
+    public long getMin() {
+        return 0;
+    }
+
+    @Override
+    public long getMax() {
+        return 1;
+    }
+
+    @Override
     protected void combine(long[] values, long[] buffer, int n) {
         for (int i = 0; i < n; i++) {
             values[i] = (values[i] > buffer[i]) ? 1 : 0;

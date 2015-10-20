@@ -19,6 +19,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.shell.PosixFileOperations;
 import com.indeed.util.core.Throwables2;
@@ -45,6 +46,7 @@ import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.io.Shard;
 import com.indeed.imhotep.io.caching.CachedFile;
 import com.indeed.imhotep.local.ImhotepLocalSession;
+import com.indeed.imhotep.local.ImhotepJavaLocalSession;
 
 import org.apache.log4j.Logger;
 
@@ -79,8 +81,6 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
     private static final long SESSION_EXPIRATION_TIME_MILLIS = 30L * 60 * 1000;
 
     private final LocalSessionManager sessionManager;
-
-    private final ExecutorService executor;
 
     private final ScheduledExecutorService shardReload;
     private final ScheduledExecutorService heartBeat;
@@ -146,11 +146,6 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
             clearTempDir(shardTempDir);
         }
         updateShards();
-
-        executor =
-                Executors.newCachedThreadPool(new ThreadFactoryBuilder().setDaemon(true)
-                                                                        .setNameFormat("LocalImhotepServiceCore-Worker-%d")
-                                                                        .build());
 
         shardReload = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
             @Override
@@ -291,17 +286,15 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
                             shard = newDatasetShards.get(shardId);
                             final SharedReference<Shard> current = shard.get();
                             try {
-                                if (current == null
-                                        || shardVersion > current.get().getShardVersion()) {
-                                    log.info("loading shard " + shardId + " from "
-                                            + shardDir);
+                                if (current == null || shardVersion > current.get()
+                                                                             .getShardVersion()) {
+                                    log.info("loading shard " + shardId + " from " + shardDir);
                                     final Shard newShard;
-                                    newShard =
-                                            createNewShard(datasetName,
-                                                           shardDir.getName(),
-                                                           shardVersion,
-                                                           shardId,
-                                                           canonicalShardDir);
+                                    newShard = createNewShard(datasetName,
+                                                              shardDir.getName(),
+                                                              shardVersion,
+                                                              shardId,
+                                                              canonicalShardDir);
                                     shard.set(newShard);
                                 }
                             } finally {
@@ -312,15 +305,13 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
                             final SharedReference<Shard> oldShard = shard.get();
                             try {
                                 if (shouldReloadShard(oldShard, canonicalShardDir, shardVersion)) {
-                                    log.info("loading shard " + shardId + " from "
-                                            + canonicalShardDir);
+                                    log.info("loading shard " + shardId + " from " + canonicalShardDir);
                                     final Shard newShard;
-                                    newShard =
-                                            createNewShard(datasetName,
-                                                           shardDir.getName(),
-                                                           shardVersion,
-                                                           shardId,
-                                                           canonicalShardDir);
+                                    newShard = createNewShard(datasetName,
+                                                              shardDir.getName(),
+                                                              shardVersion,
+                                                              shardId,
+                                                              canonicalShardDir);
                                     shard.set(newShard);
                                 }
                             } finally {
@@ -328,17 +319,17 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
                             }
                         } else {
                             final Shard newShard;
-                            newShard =
-                                    createNewShard(datasetName,
-                                                   shardDir.getName(),
-                                                   shardVersion,
-                                                   shardId,
-                                                   canonicalShardDir);
+                            newShard = createNewShard(datasetName,
+                                                      shardDir.getName(),
+                                                      shardVersion,
+                                                      shardId,
+                                                      canonicalShardDir);
                             shard = AtomicSharedReference.create(newShard);
                             log.info("loading shard " + shardId + " from " + canonicalShardDir);
                         }
-                        if (shard != null)
+                        if (shard != null) {
                             newDatasetShards.put(shardId, shard);
+                        }
                     } catch (Throwable t) {
                         throw Throwables2.propagate(t, IOException.class);
                     }
@@ -385,22 +376,29 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
                                  final String canonicalShardDir) throws IOException {
         final Shard newShard;
         final ReloadableSharedReference.Loader<CachedFlamdexReader, IOException> loader;
-        
+
         loader = new ReloadableSharedReference.Loader<CachedFlamdexReader, IOException>() {
             @Override
             public CachedFlamdexReader load() throws IOException {
                 final FlamdexReader flamdex = flamdexReaderFactory.openReader(canonicalShardDir);
                 if (flamdex instanceof RawFlamdexReader) {
                     return new RawCachedFlamdexReader(new MemoryReservationContext(memory),
-                                                      (RawFlamdexReader) flamdex, null, datasetName,
-                                                      shardName, freeCache);
+                                                      (RawFlamdexReader) flamdex,
+                                                      null,
+                                                      datasetName,
+                                                      shardName,
+                                                      freeCache);
                 } else {
-                    return new CachedFlamdexReader(new MemoryReservationContext(memory), flamdex,
-                                                   null, datasetName, shardName, freeCache);
+                    return new CachedFlamdexReader(new MemoryReservationContext(memory),
+                                                   flamdex,
+                                                   null,
+                                                   datasetName,
+                                                   shardName,
+                                                   freeCache);
                 }
             }
         };
-        
+
         newShard = new Shard(ReloadableSharedReference.create(loader), null, shardVersion,
                              canonicalShardDir, datasetName, shardId);
 
@@ -537,7 +535,8 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
                                     final int mergeThreadLimit,
                                     final boolean optimizeGroupZeroLookups,
                                     String sessionId,
-                                    AtomicLong tempFileSizeBytesLeft) throws ImhotepOutOfMemoryException {
+                                    AtomicLong tempFileSizeBytesLeft,
+                                    final boolean useNativeFtgs) throws ImhotepOutOfMemoryException {
         final Map<String, Map<String, AtomicSharedReference<Shard>>> localShards = this.shards;
         checkDatasetExists(localShards, dataset);
 
@@ -545,8 +544,8 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
             sessionId = generateSessionId();
 
         final Map<String, AtomicSharedReference<Shard>> datasetShards = localShards.get(dataset);
-        final Map<String, Pair<ShardId, CachedFlamdexReaderReference>> flamdexReaders =
-                Maps.newHashMap();
+        final Map<String, Pair<ShardId, CachedFlamdexReaderReference>> flamdexReaders = Maps.newHashMap();
+        boolean allRawFlamdexReaders = true;
         for (final String shardName : shardRequestList) {
             if (!datasetShards.containsKey(shardName)) {
                 throw new IllegalArgumentException("this service does not have shard " + shardName
@@ -569,6 +568,7 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
                                 new RawCachedFlamdexReaderReference(
                                                                     (SharedReference<RawCachedFlamdexReader>) (SharedReference) reference);
                     } else {
+                        allRawFlamdexReaders = false;
                         cachedFlamdexReaderReference = new CachedFlamdexReaderReference(reference);
                     }
                 } catch (IOException e) {
@@ -584,6 +584,7 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
         final ImhotepLocalSession[] localSessions;
         localSessions = new ImhotepLocalSession[shardRequestList.size()];
         try {
+            final SessionObserver observer = new SessionObserver(dataset, sessionId, username);
             for (int i = 0; i < shardRequestList.size(); ++i) {
                 final String shardId = shardRequestList.get(i);
                 final Pair<ShardId, CachedFlamdexReaderReference> pair =
@@ -592,10 +593,11 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
                 try {
                     flamdexes.put(pair.getFirst(), cachedFlamdexReaderReference);
                     localSessions[i] =
-                            new ImhotepLocalSession(cachedFlamdexReaderReference,
-                                                    this.shardTempDirectory,
-                                                    new MemoryReservationContext(memory),
-                                                    optimizeGroupZeroLookups, tempFileSizeBytesLeft);
+                            new ImhotepJavaLocalSession(cachedFlamdexReaderReference,
+                                                        this.shardTempDirectory,
+                                                        new MemoryReservationContext(memory),
+                                                        tempFileSizeBytesLeft);
+                    localSessions[i].addObserver(observer);
                 } catch (RuntimeException e) {
                     Closeables2.closeQuietly(cachedFlamdexReaderReference, log);
                     localSessions[i] = null;
@@ -608,9 +610,11 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
             }
             final int maxSplits =
                     mergeThreadLimit > 0 ? mergeThreadLimit : DEFAULT_MERGE_THREAD_LIMIT;
-            final ImhotepSession session =
-                    new MTImhotepMultiSession(localSessions, new MemoryReservationContext(memory),
-                                              executor, tempFileSizeBytesLeft);
+            final MTImhotepLocalMultiSession session =
+                new MTImhotepLocalMultiSession(localSessions,
+                                               new MemoryReservationContext(memory),
+                                               tempFileSizeBytesLeft,
+                                               useNativeFtgs && allRawFlamdexReaders);
             getSessionManager().addSession(sessionId,
                                            session,
                                            flamdexes,
@@ -618,6 +622,7 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
                                            ipAddress,
                                            clientVersion,
                                            dataset);
+            session.addObserver(observer);
         } catch (RuntimeException e) {
             closeNonNullSessions(localSessions);
             throw e;
@@ -647,7 +652,6 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
     @Override
     public void close() {
         super.close();
-        executor.shutdownNow();
         shardReload.shutdown();
         heartBeat.shutdown();
     }

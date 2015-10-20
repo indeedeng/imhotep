@@ -15,6 +15,7 @@
 
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.Instrumentation;
 
 import java.util.Iterator;
 
@@ -22,6 +23,9 @@ import java.util.Iterator;
  * @author jsadun
  */
 public abstract class AbstractImhotepSession implements ImhotepSession {
+
+    protected final Instrumentation.ProviderSupport instrumentation =
+        new Instrumentation.ProviderSupport();
 
     public int regroup(final int numRawRules, final Iterator<GroupMultiRemapRule> rawRules) throws ImhotepOutOfMemoryException {
         return regroup(numRawRules, rawRules, false);
@@ -53,5 +57,13 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
     @Override
     public int metricRegroup(int stat, long min, long max, long intervalSize) throws ImhotepOutOfMemoryException {
         return metricRegroup(stat, min, max, intervalSize, false);
+    }
+
+    public void addObserver(Instrumentation.Observer observer) {
+        instrumentation.addObserver(observer);
+    }
+
+    public void removeObserver(Instrumentation.Observer observer) {
+        instrumentation.removeObserver(observer);
     }
 }

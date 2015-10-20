@@ -14,7 +14,6 @@
  package com.indeed.imhotep.local;
 
 import com.indeed.flamdex.api.FlamdexReader;
-import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.imhotep.BitTree;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.util.core.Pair;
@@ -50,7 +49,6 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
     private int groupPointer;
     private int groupsSeenCount;
     protected boolean resetGroupStats = false;
-    protected FastBitSet fieldZeroDocBitset;
     protected int termIndex;
 
     public AbstractFlamdexFTGSIterator(ImhotepLocalSession imhotepLocalSession, SharedReference<FlamdexReader> flamdexReader) {
@@ -104,13 +102,6 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
         for (final long[] x : termGrpStats) ImhotepLocalSession.clear(x, groupsSeen, groupsSeenCount);
         groupsSeenCount = 0;
 
-        if (fieldZeroDocBitset != null) {
-            if (termIndex == fieldZeroDocBitset.size()) expandFieldNonZeroDocBitset();
-            final boolean skip = fieldZeroDocBitset.get(termIndex);
-            termIndex++;
-            if (skip) return false;
-        }
-
         // this is the critical loop of all of imhotep, making this loop faster is very good....
 
         synchronized (session) {
@@ -132,35 +123,12 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
         }
         groupsSeenCount = bitTree.dump(groupsSeen);
 
-        if (fieldZeroDocBitset != null && groupsSeenCount == 0) {
-            fieldZeroDocBitset.set(termIndex - 1);
-        }
-
         groupPointer = 0;
         resetGroupStats = false;
         return groupsSeenCount > 0;
     }
 
     protected abstract int fillDocIdBuffer();
-
-    private void expandFieldNonZeroDocBitset() {
-        synchronized (session) {
-            if (fieldZeroDocBitset == null) return;
-            if(session.memory.claimMemory(FastBitSet.calculateMemoryUsage(fieldZeroDocBitset.size() * 2))) {
-                final FastBitSet tmpBitset = new FastBitSet(fieldZeroDocBitset.size() * 2);
-                tmpBitset.or(fieldZeroDocBitset);
-                final long oldSize = fieldZeroDocBitset.memoryUsage();
-                fieldZeroDocBitset = tmpBitset;
-                session.fieldZeroDocBitsets.put(Pair.of(currentField, currentFieldIsIntType), fieldZeroDocBitset);
-                session.memory.releaseMemory(oldSize);
-            } else {
-                ImhotepLocalSession.log.warn("Insufficient expansion memory, disabling ftgs zero group bitset optimization");
-                session.clearZeroDocBitsets();
-                fieldZeroDocBitset = null;
-                session.fieldZeroDocBitsets = null;
-            }
-        }
-    }
 
     @Override
     public final int group() {

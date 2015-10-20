@@ -11,7 +11,9 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.indeed.flamdex.simple;
+package com.indeed.flamdex.simple;
+
+import static org.junit.Assert.*;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -19,13 +21,30 @@ import com.google.common.primitives.Longs;
 import com.indeed.util.io.Files;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
+import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.api.RawStringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
+import com.indeed.flamdex.lucene.LuceneFlamdexReader;
 import com.indeed.flamdex.writer.IntFieldWriter;
 import com.indeed.flamdex.writer.StringFieldWriter;
-import junit.framework.TestCase;
+import com.indeed.imhotep.ImhotepMemoryPool;
+import com.indeed.imhotep.MemoryReservationContext;
+import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.local.ImhotepJavaLocalSession;
+import com.indeed.imhotep.local.ImhotepLocalSession;
+import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
+
+import org.apache.log4j.Logger;
+import org.apache.lucene.analysis.WhitespaceAnalyzer;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
+import org.apache.lucene.index.CorruptIndexException;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.IndexWriter;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -33,13 +52,52 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * @author jsgroth
  */
-public class SimpleFlamdexTest extends TestCase {
-    private final Random rand = new Random();
+public class SimpleFlamdexTest {
+    private static final Logger log = Logger.getLogger(SimpleFlamdexTest.class);
+    
+    /*
+     * Need this to force the native library to be loaded - which happens in MTImhotepLocalMultiSession
+     */
+    @BeforeClass
+    public static void loadLibrary() throws ImhotepOutOfMemoryException, CorruptIndexException, IOException {
+        String tempDir = Files.getTempDirectory("asdf", "");
+        try {
+            IndexWriter w = new IndexWriter(tempDir, new WhitespaceAnalyzer(), true, IndexWriter.MaxFieldLength.LIMITED);
 
+            Random rand = new Random();
+            for (int i = 0; i < 10; ++i) {
+                int numTerms = rand.nextInt(5) + 5;
+                Document doc = new Document();
+                for (int t = 0; t < numTerms; ++t) {
+                    doc.add(new Field("sf1", Integer.toString(rand.nextInt(10)), Field.Store.NO, Field.Index.NOT_ANALYZED_NO_NORMS));
+                }
+                w.addDocument(doc);
+            }
+
+            w.close();
+
+            FlamdexReader r = new LuceneFlamdexReader(IndexReader.open(tempDir));
+            final ImhotepSession session =
+                new MTImhotepLocalMultiSession(new ImhotepLocalSession[] {
+                        new ImhotepJavaLocalSession(r) },
+                        new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
+                        null,
+                        false
+                );
+
+            session.close();
+        } finally {
+            Files.delete(tempDir);
+        }
+    }
+    
     @Test
     public void testEmptyFields() throws IOException {
         final String dir = Files.getTempDirectory("flamdex-test", "foo");
@@ -61,6 +119,7 @@ public class SimpleFlamdexTest extends TestCase {
             Files.delete(dir);
         }
     }
+    private final Random rand = new Random();
 
     @Test
     public void testIt() throws IOException {
@@ -73,7 +132,7 @@ public class SimpleFlamdexTest extends TestCase {
     }
 
     @Test
-    public void testGetMetric() throws IOException, FlamdexOutOfMemoryException {
+    public void testGetMetric() throws IOException, FlamdexOutOfMemoryException, ImhotepOutOfMemoryException {
         final String dir = Files.getTempDirectory("flamdex-test", "foo");
         try {
             internalTestGetMetric(dir);
@@ -90,7 +149,7 @@ public class SimpleFlamdexTest extends TestCase {
     }
 
     private void getMetricCase(String dir, int maxTermVal) throws IOException, FlamdexOutOfMemoryException {
-        for (int i = 0; i < 10; ++i) {
+        for (int i = 0; i < 20; ++i) {
             long[] cache = writeGetMetricIndex(dir, maxTermVal);
             SimpleFlamdexReader r = SimpleFlamdexReader.open(dir);
             // do it multiple times because these methods update internal state, make sure nothing unexpectedly weird happens
@@ -108,10 +167,13 @@ public class SimpleFlamdexTest extends TestCase {
     }
 
     private long[] writeGetMetricIndex(String dir, int maxTermVal) throws IOException {
-        SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, 10L, true);
+        SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, 20000L, true);
         IntFieldWriter ifw = w.getIntFieldWriter("if1");
-        List<Integer> docs = Lists.newArrayList(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
-        long[] cache = new long[10];
+        List<Integer> docs = Lists.newArrayListWithCapacity(20000);
+        for (int i = 0; i < 20000; i++) {
+            docs.add(i);
+        }
+        long[] cache = new long[20000];
         if (maxTermVal < docs.size()) {
             int term = rand.nextInt(maxTermVal);
             ifw.nextTerm(term);

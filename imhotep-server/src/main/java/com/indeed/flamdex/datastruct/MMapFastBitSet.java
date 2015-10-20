@@ -13,6 +13,7 @@
  */
  package com.indeed.flamdex.datastruct;
 
+import com.indeed.util.mmap.DirectMemory;
 import com.indeed.util.mmap.LongArray;
 import com.indeed.util.mmap.MMapBuffer;
 
@@ -41,6 +42,11 @@ public final class MMapFastBitSet implements Closeable {
         this.bufferLength = arraySize * 8;
         this.buffer = new MMapBuffer(file, 0, bufferLength, mapMode, ByteOrder.LITTLE_ENDIAN);
         this.bits = buffer.memory().longArray(0, arraySize);
+    }
+
+    @Deprecated
+    public DirectMemory getBackingMemory() {
+        return this.buffer.memory();
     }
 
     public final boolean get(final int i) {

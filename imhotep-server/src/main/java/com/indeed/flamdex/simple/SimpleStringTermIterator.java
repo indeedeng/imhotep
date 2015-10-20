@@ -15,7 +15,12 @@
 
 import com.indeed.flamdex.api.RawStringTermIterator;
 
+import java.io.IOException;
+
 /**
  * @author jplaisance
  */
-public interface SimpleStringTermIterator extends SimpleTermIterator, RawStringTermIterator {}
+public interface SimpleStringTermIterator extends SimpleTermIterator, RawStringTermIterator {
+    @Deprecated
+    public long getDocListAddress() throws IOException;
+}

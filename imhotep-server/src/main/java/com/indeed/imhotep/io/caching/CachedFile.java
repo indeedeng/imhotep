@@ -152,6 +152,10 @@ public class CachedFile {
     
     public File loadDirectory() throws IOException {
         final Map<String,File> data;
+
+        if (!fullPath.endsWith(DELIMITER)) {
+            fullPath = fullPath + DELIMITER;
+        }
         
         data = topFS.loadDirectory(fullPath, null);
         if (data == null) {
