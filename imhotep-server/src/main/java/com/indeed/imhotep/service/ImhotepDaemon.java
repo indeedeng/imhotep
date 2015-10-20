@@ -222,9 +222,20 @@ public class ImhotepDaemon implements Instrumentation.Provider {
 
     private class DaemonWorker implements Runnable {
         private final Socket socket;
+        private final String localAddr;
 
         private DaemonWorker(Socket socket) {
             this.socket = socket;
+
+            String tmpAddr;
+            try {
+                tmpAddr = InetAddress.getLocalHost().toString();
+            }
+            catch (Exception ex) {
+                tmpAddr = "";
+                log.warn("cannot initialize localAddr", ex);
+            }
+            this.localAddr = tmpAddr;
         }
 
         @Override
@@ -802,12 +813,16 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                         case OPEN_SESSION:
                             response = openSession(request, builder);
                             // !@# move after response call at end of switch
-                            instrumentation.fire(new DaemonEvents.OpenSessionEvent(request, remoteAddr));
+                            instrumentation.fire(new DaemonEvents.OpenSessionEvent(request,
+                                                                                   remoteAddr,
+                                                                                   localAddr));
                             break;
                         case CLOSE_SESSION:
                             response = closeSession(request, builder);
                             // !@# move after response call at end of switch
-                            instrumentation.fire(new DaemonEvents.CloseSessionEvent(request, remoteAddr));
+                            instrumentation.fire(new DaemonEvents.CloseSessionEvent(request,
+                                                                                    remoteAddr,
+                                                                                    localAddr));
                             break;
                         case REGROUP:
                             response = regroup(request, builder);
@@ -945,6 +960,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     instrumentation.fire(new DaemonEvents.HandleRequestEvent(request,
                                                                              response,
                                                                              remoteAddr,
+                                                                             localAddr,
                                                                              endTm - beginTm));
                     NDC.setMaxDepth(ndcDepth);
                     close(socket, is, os);

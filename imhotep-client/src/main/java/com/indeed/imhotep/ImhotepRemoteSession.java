@@ -58,6 +58,7 @@ import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
@@ -82,7 +83,8 @@ public class ImhotepRemoteSession
     implements HasSessionId {
     private static final Logger log = Logger.getLogger(ImhotepRemoteSession.class);
 
-    public static final int DEFAULT_MERGE_THREAD_LIMIT = ImhotepRequest.getDefaultInstance().getMergeThreadLimit();
+    public static final int DEFAULT_MERGE_THREAD_LIMIT =
+        ImhotepRequest.getDefaultInstance().getMergeThreadLimit();
 
     private static final int DEFAULT_SOCKET_TIMEOUT = (int)TimeUnit.MINUTES.toMillis(30);
 
@@ -97,33 +99,61 @@ public class ImhotepRemoteSession
 
     private int numStats = 0;
 
+    // cached for use by SubmitRequestEvent
+    private final String sourceAddr;
+    private final String targetAddr;
+
     private final class SubmitRequestEvent extends Instrumentation.Event {
 
         public SubmitRequestEvent(final ImhotepRequest request,
-                           final long           elapsed_tm_nanos) {
+                                  final long           elapsed_tm_nanos) {
             this(request.getRequestType(), elapsed_tm_nanos);
         }
 
         public SubmitRequestEvent(final ImhotepRequest.RequestType requestType,
-                           final long                       elapsed_tm_nanos) {
+                                  final long                       elapsed_tm_nanos) {
             super(SubmitRequestEvent.class.getSimpleName());
             getProperties().put(Keys.SESSION_ID,       ImhotepRemoteSession.this.sessionId);
             getProperties().put(Keys.REQUEST_TYPE,     requestType.toString());
             getProperties().put(Keys.ELAPSED_TM_NANOS, elapsed_tm_nanos);
+            getProperties().put(Keys.SOURCE_ADDR,      ImhotepRemoteSession.this.sourceAddr);
+            getProperties().put(Keys.TARGET_ADDR,      ImhotepRemoteSession.this.targetAddr);
         }
     }
 
-    public ImhotepRemoteSession(String host, int port, String sessionId, AtomicLong tempFileSizeBytesLeft, boolean useNativeFtgs) {
+    public ImhotepRemoteSession(String host, int port, String sessionId,
+                                AtomicLong tempFileSizeBytesLeft, boolean useNativeFtgs) {
         this(host, port, sessionId, tempFileSizeBytesLeft, DEFAULT_SOCKET_TIMEOUT, useNativeFtgs);
     }
 
-    public ImhotepRemoteSession(String host, int port, String sessionId, @Nullable AtomicLong tempFileSizeBytesLeft, int socketTimeout, boolean useNativeFtgs) {
+    public ImhotepRemoteSession(String host, int port, String sessionId,
+                                @Nullable AtomicLong tempFileSizeBytesLeft,
+                                int socketTimeout, boolean useNativeFtgs) {
         this.host = host;
         this.port = port;
         this.sessionId = sessionId;
         this.socketTimeout = socketTimeout;
         this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
         this.useNativeFtgs = useNativeFtgs;
+
+        String tmpAddr;
+        try {
+            tmpAddr = InetAddress.getLocalHost().toString();
+        }
+        catch (Exception ex) {
+            tmpAddr = "";
+            log.warn("cannot initialize sourceAddr", ex);
+        }
+        this.sourceAddr = tmpAddr;
+
+        try {
+            tmpAddr = InetAddress.getByName(host).toString();
+        }
+        catch (Exception ex) {
+            tmpAddr = host;
+            log.warn("cannot initialize targetAddr", ex);
+        }
+        this.targetAddr = tmpAddr;
     }
 
     public String getSessionId() { return sessionId; }
