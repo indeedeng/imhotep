@@ -959,7 +959,7 @@ size_t masked_vbyte_read_loop_delta(const uint8_t* in, uint32_t* out,
 		nextSig |= lowSig;
 		scanned += 48;
 
-		while (count + 96 < length) {  // 96 == 48 + 48 ahead for scanning
+		do {
 			uint64_t thisSig = nextSig;
 
 #ifdef __AVX2__
@@ -1000,13 +1000,12 @@ size_t masked_vbyte_read_loop_delta(const uint8_t* in, uint32_t* out,
 				consumed += bytes;
 				count += ints_read;
 			}
-		}
+		} while (count + 112 < length);   // IMTEPD-170
+
 		sig = (nextSig << (scanned - consumed - 48)) | sig;
 		availablebytes = scanned - consumed;
 	}
 	while (availablebytes + count < length) {
-		if (availablebytes < 16) break;
-
 		if (availablebytes < 16) {
 			if (availablebytes + count + 31 < length) {
 #ifdef __AVX2__
