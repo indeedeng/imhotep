@@ -15,6 +15,7 @@
 
 import com.google.common.base.Throwables;
 import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.api.HasSessionId;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.util.core.Throwables2;
@@ -29,7 +30,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * @author jsgroth
  */
-public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<ImhotepSession> {
+public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<ImhotepSession> implements HasSessionId {
     private static final Logger log = Logger.getLogger(RemoteImhotepMultiSession.class);
 
     private final String sessionId;
@@ -127,5 +128,10 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     @Override
     protected ImhotepRemoteSession createImhotepRemoteSession(InetSocketAddress address, String sessionId, AtomicLong tempFileSizeBytesLeft) {
         throw new UnsupportedOperationException("RemoteImhotepMultiSession doesn't open any remote imhotep connections!");
+    }
+
+    @Override
+    public String getSessionId() {
+        return sessionId;
     }
 }
