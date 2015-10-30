@@ -783,7 +783,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         private void internalRun() {
             ImhotepRequest request = null;
             try {
-                final long beginTm = System.nanoTime();
+                final long beginTm = System.currentTimeMillis();
 
                 final String remoteAddr = socket.getInetAddress().getHostAddress();
 
@@ -812,17 +812,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     switch (request.getRequestType()) {
                         case OPEN_SESSION:
                             response = openSession(request, builder);
-                            // !@# move after response call at end of switch
-                            instrumentation.fire(new DaemonEvents.OpenSessionEvent(request,
-                                                                                   remoteAddr,
-                                                                                   localAddr));
                             break;
                         case CLOSE_SESSION:
                             response = closeSession(request, builder);
-                            // !@# move after response call at end of switch
-                            instrumentation.fire(new DaemonEvents.CloseSessionEvent(request,
-                                                                                    remoteAddr,
-                                                                                    localAddr));
                             break;
                         case REGROUP:
                             response = regroup(request, builder);
@@ -956,12 +948,17 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     sendResponse(newErrorResponse(e), os);
                     throw e;
                 } finally {
-                    final long endTm = System.nanoTime();
-                    instrumentation.fire(new DaemonEvents.HandleRequestEvent(request,
-                                                                             response,
-                                                                             remoteAddr,
-                                                                             localAddr,
-                                                                             endTm - beginTm));
+                    final long endTm = System.currentTimeMillis();
+                    final long elapsedTm = endTm - beginTm;
+                    DaemonEvents.HandleRequestEvent instEvent =
+                        request.getRequestType().equals(ImhotepRequest.RequestType.OPEN_SESSION) ?
+                        new DaemonEvents.OpenSessionEvent(request, response,
+                                                          remoteAddr, localAddr,
+                                                          beginTm, elapsedTm) :
+                        new DaemonEvents.HandleRequestEvent(request, response,
+                                                            remoteAddr, localAddr,
+                                                            beginTm, elapsedTm);
+                    instrumentation.fire(instEvent);
                     NDC.setMaxDepth(ndcDepth);
                     close(socket, is, os);
                 }

@@ -106,16 +106,19 @@ public class ImhotepRemoteSession
     private final class SubmitRequestEvent extends Instrumentation.Event {
 
         public SubmitRequestEvent(final ImhotepRequest request,
-                                  final long           elapsed_tm_nanos) {
-            this(request.getRequestType(), elapsed_tm_nanos);
+                                  final long           beginTmMillis,
+                                  final long           elapsedTmMillis) {
+            this(request.getRequestType(), beginTmMillis, elapsedTmMillis);
         }
 
         public SubmitRequestEvent(final ImhotepRequest.RequestType requestType,
-                                  final long                       elapsed_tm_nanos) {
+                                  final long                       beginTmMillis,
+                                  final long                       elapsedTmMillis) {
             super(SubmitRequestEvent.class.getSimpleName());
             getProperties().put(Keys.SESSION_ID,       ImhotepRemoteSession.this.sessionId);
             getProperties().put(Keys.REQUEST_TYPE,     requestType.toString());
-            getProperties().put(Keys.ELAPSED_TM_NANOS, elapsed_tm_nanos);
+            getProperties().put(Keys.BEGIN_TM_MILLIS,   beginTmMillis);
+            getProperties().put(Keys.ELAPSED_TM_MILLIS, elapsedTmMillis);
             getProperties().put(Keys.SOURCE_ADDR,      ImhotepRemoteSession.this.sourceAddr);
             getProperties().put(Keys.TARGET_ADDR,      ImhotepRemoteSession.this.targetAddr);
         }
@@ -1121,22 +1124,23 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public void writeFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, Socket socket) {
+    public void writeFTGSIteratorSplit(String[] intFields, String[] stringFields,
+                                       int splitIndex, int numSplits, Socket socket) {
         throw new UnsupportedOperationException("operation is unsupported!");
     }
 
     private final class Timer {
 
-        final long beginTmNanos = System.nanoTime();
+        final long beginTmMillis = System.currentTimeMillis();
 
         final void complete(final ImhotepRequest request) {
-            final long elapsedTmNanos = System.nanoTime() - beginTmNanos;
-            instrumentation.fire(new SubmitRequestEvent(request, elapsedTmNanos));
+            final long elapsedTmMillis = System.currentTimeMillis() - beginTmMillis;
+            instrumentation.fire(new SubmitRequestEvent(request, beginTmMillis, elapsedTmMillis));
         }
 
         final void complete(final ImhotepRequest.RequestType requestType) {
-            final long elapsedTmNanos = System.nanoTime() - beginTmNanos;
-            instrumentation.fire(new SubmitRequestEvent(requestType, elapsedTmNanos));
+            final long elapsedTmMillis = System.currentTimeMillis() - beginTmMillis;
+            instrumentation.fire(new SubmitRequestEvent(requestType, beginTmMillis, elapsedTmMillis));
         }
     }
 }

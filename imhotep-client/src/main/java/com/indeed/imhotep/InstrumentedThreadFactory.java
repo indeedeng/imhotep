@@ -19,10 +19,10 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
-import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.TreeSet;
+import java.util.Vector;
 import java.util.concurrent.ThreadFactory;
 
 public class InstrumentedThreadFactory
@@ -58,7 +58,7 @@ public class InstrumentedThreadFactory
         public TotalCPUEvent(long user, long total) { super(NAME, user, total); }
     }
 
-    private final ArrayList<Long> ids = new ArrayList<Long>();
+    private final Vector<Long> ids = new Vector<Long>();
 
     class InstrumentedThread extends Thread {
         public InstrumentedThread(Runnable runnable) {
