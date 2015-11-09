@@ -106,21 +106,21 @@ public class ImhotepRemoteSession
     private final class SubmitRequestEvent extends Instrumentation.Event {
 
         public SubmitRequestEvent(final ImhotepRequest request,
-                                  final long           beginTmMillis,
-                                  final long           elapsedTmMillis) {
-            this(request.getRequestType(), beginTmMillis, elapsedTmMillis);
+                                  final long           beginTimeMillis,
+                                  final long           elapsedTimeMillis) {
+            this(request.getRequestType(), beginTimeMillis, elapsedTimeMillis);
         }
 
         public SubmitRequestEvent(final ImhotepRequest.RequestType requestType,
-                                  final long                       beginTmMillis,
-                                  final long                       elapsedTmMillis) {
+                                  final long                       beginTimeMillis,
+                                  final long                       elapsedTimeMillis) {
             super(SubmitRequestEvent.class.getSimpleName());
-            getProperties().put(Keys.SESSION_ID,       ImhotepRemoteSession.this.sessionId);
-            getProperties().put(Keys.REQUEST_TYPE,     requestType.toString());
-            getProperties().put(Keys.BEGIN_TM_MILLIS,   beginTmMillis);
-            getProperties().put(Keys.ELAPSED_TM_MILLIS, elapsedTmMillis);
-            getProperties().put(Keys.SOURCE_ADDR,      ImhotepRemoteSession.this.sourceAddr);
-            getProperties().put(Keys.TARGET_ADDR,      ImhotepRemoteSession.this.targetAddr);
+            getProperties().put(Keys.SESSION_ID,          ImhotepRemoteSession.this.sessionId);
+            getProperties().put(Keys.REQUEST_TYPE,        requestType.toString());
+            getProperties().put(Keys.BEGIN_TIME_MILLIS,   beginTimeMillis);
+            getProperties().put(Keys.ELAPSED_TIME_MILLIS, elapsedTimeMillis);
+            getProperties().put(Keys.SOURCE_ADDR,         ImhotepRemoteSession.this.sourceAddr);
+            getProperties().put(Keys.TARGET_ADDR,         ImhotepRemoteSession.this.targetAddr);
         }
     }
 
@@ -1131,16 +1131,16 @@ public class ImhotepRemoteSession
 
     private final class Timer {
 
-        final long beginTmMillis = System.currentTimeMillis();
+        final long beginTimeMillis = System.currentTimeMillis();
 
         final void complete(final ImhotepRequest request) {
-            final long elapsedTmMillis = System.currentTimeMillis() - beginTmMillis;
-            instrumentation.fire(new SubmitRequestEvent(request, beginTmMillis, elapsedTmMillis));
+            final long elapsedTimeMillis = System.currentTimeMillis() - beginTimeMillis;
+            instrumentation.fire(new SubmitRequestEvent(request, beginTimeMillis, elapsedTimeMillis));
         }
 
         final void complete(final ImhotepRequest.RequestType requestType) {
-            final long elapsedTmMillis = System.currentTimeMillis() - beginTmMillis;
-            instrumentation.fire(new SubmitRequestEvent(requestType, beginTmMillis, elapsedTmMillis));
+            final long elapsedTimeMillis = System.currentTimeMillis() - beginTimeMillis;
+            instrumentation.fire(new SubmitRequestEvent(requestType, beginTimeMillis, elapsedTimeMillis));
         }
     }
 }

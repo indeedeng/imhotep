@@ -29,12 +29,12 @@ public class Instrumentation {
     public interface Keys {
         public static final String EVENT_TYPE = "eventtype"; // reserved by Instrumentation.Event
 
-        public static final String BEGIN_TM_MILLIS     = "begintmmillis";
+        public static final String BEGIN_TIME_MILLIS   = "begintimemillis";
         public static final String CPU_TOTAL           = "cputotal";
         public static final String CPU_USER            = "cpuuser";
         public static final String DAEMON_THREAD_COUNT = "daemonthreadcount";
         public static final String DATASET             = "dataset";
-        public static final String ELAPSED_TM_MILLIS   = "elapsedtmmillis";
+        public static final String ELAPSED_TIME_MILLIS = "elapsedtimemillis";
         public static final String FREE_MEMORY         = "freememory";
         public static final String INT_METRICS         = "intmetrics";
         public static final String INT_METRIC_BYTES    = "intmetricbytes";

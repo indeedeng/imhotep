@@ -20,13 +20,13 @@ class DaemonEvents {
                                   final long            elapsedTmMillis) {
             super(name);
             final String sessionId = protoRequest.getSessionId();
-            getProperties().put(Keys.BEGIN_TM_MILLIS,   beginTmMillis);
-            getProperties().put(Keys.ELAPSED_TM_MILLIS, elapsedTmMillis);
-            getProperties().put(Keys.REQUEST_SIZE,      protoRequest.getSerializedSize());
-            getProperties().put(Keys.REQUEST_TYPE,      protoRequest.getRequestType().toString());
-            getProperties().put(Keys.SESSION_ID,        protoRequest.getSessionId());
-            getProperties().put(Keys.SOURCE_ADDR,       sourceAddr);
-            getProperties().put(Keys.TARGET_ADDR,       targetAddr);
+            getProperties().put(Keys.BEGIN_TIME_MILLIS,   beginTmMillis);
+            getProperties().put(Keys.ELAPSED_TIME_MILLIS, elapsedTmMillis);
+            getProperties().put(Keys.REQUEST_SIZE,        protoRequest.getSerializedSize());
+            getProperties().put(Keys.REQUEST_TYPE,        protoRequest.getRequestType().toString());
+            getProperties().put(Keys.SESSION_ID,          protoRequest.getSessionId());
+            getProperties().put(Keys.SOURCE_ADDR,         sourceAddr);
+            getProperties().put(Keys.TARGET_ADDR,         targetAddr);
             if (protoResponse != null) {
                 getProperties().put(Keys.RESPONSE_SIZE, protoResponse.getSerializedSize());
             }
