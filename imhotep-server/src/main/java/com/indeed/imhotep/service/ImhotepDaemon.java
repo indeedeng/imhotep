@@ -1170,11 +1170,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                       cachingConfigFile,
                                       zkNodes,
                                       zkPath);
-            daemon.addObserver(new Instrumentation.Observer() {
-                    public void onEvent(Instrumentation.Event event) {
-                        System.err.println(event);
-                    }
-                });
             daemon.run();
         } finally {
             if (daemon != null) {
