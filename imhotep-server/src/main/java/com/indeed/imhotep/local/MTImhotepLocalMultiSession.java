@@ -67,7 +67,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                          + "this process will fail with SIGILL)");
     }
 
-    static void loadNativeLibrary() {
+    public static void loadNativeLibrary() {
         try {
             final String osName = System.getProperty("os.name");
             final String arch = System.getProperty("os.arch");

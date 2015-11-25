@@ -156,6 +156,17 @@ public class ImhotepDaemon implements Instrumentation.Provider {
     public ImhotepDaemon(ServerSocket ss, AbstractImhotepServiceCore service,
                          String zkNodes, String zkPath, String hostname, int port,
                          ShardUpdateListener shardUpdateListener) {
+        /* !@# HACK ALERT
+
+           This idea is speculative. In service of expediency, the
+           native code required by PinnedThreadFactory has been
+           packaged up into libftgs. If it proves useful, then it
+           should be migrated to a util lib either within this project
+           or perhaps opensource/util.
+
+           !@# HACK ALERT */
+        com.indeed.imhotep.local.MTImhotepLocalMultiSession.loadNativeLibrary();
+
         this.ss = ss;
         this.service = service;
         this.shardUpdateListener = shardUpdateListener;
@@ -166,12 +177,10 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 return new Thread(r, "ImhotepDaemonRemoteServiceThread"+i++);
             }
         });
-        lowPriorityExecutor = Executors.newFixedThreadPool(1, new ThreadFactory() {
-            @Override
-            public Thread newThread(Runnable r) {
-                return new Thread(r, "ImhotepDaemonRemoteServiceThread-low-priority");
-            }
-        });
+
+
+        lowPriorityExecutor = Executors.newCachedThreadPool(new PinnedThreadFactory(0));
+
         zkWrapper = zkNodes != null ?
             new ServiceZooKeeperWrapper(zkNodes, hostname, port, zkPath) : null;
     }
