@@ -335,7 +335,7 @@ public class CachingLocalImhotepServiceCore extends AbstractImhotepServiceCore {
                     }
 
                 } catch (IOException e) {
-                    log.error("error loading shard at " + shardDir.getCanonicalPath(), e);
+                    log.warn("error loading shard at " + shardDir.getCanonicalPath(), e);
                 }
             }
 

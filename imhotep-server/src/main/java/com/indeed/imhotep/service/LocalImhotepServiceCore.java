@@ -417,7 +417,7 @@ public class LocalImhotepServiceCore
                     }
 
                 } catch (IOException e) {
-                    log.error("error loading shard at " + shardDir.getAbsolutePath(), e);
+                    log.warn("error loading shard at " + shardDir.getAbsolutePath(), e);
                 }
             }
 
