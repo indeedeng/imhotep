@@ -64,7 +64,7 @@ public final class FTGSSplitter implements Runnable, Closeable {
     private final int numStats;
     private final int largePrime;
 
-    private static final int BUFFER_SIZE = 65536;
+    private static final int BUFFER_SIZE = 8192;
 
     public FTGSSplitter(FTGSIterator ftgsIterator, final int numSplits, final int numStats,
                         final int largePrime, final AtomicLong tempFileSizeBytesLeft,
