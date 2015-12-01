@@ -234,7 +234,7 @@ public class SimpleFlamdexReader
     @Override
     public final IntValueLookup getMetric(String metric) throws FlamdexOutOfMemoryException {
         final NativeFlamdexFieldCacher fieldCacher = getMetricCacher(metric);
-        final SimpleIntTermIterator iterator = getIntTermIterator(metric);
+        final SimpleIntTermIterator iterator = getUnsortedIntTermIterator(metric);
         try {
             return cacheField(iterator, metric, fieldCacher);
         } finally {

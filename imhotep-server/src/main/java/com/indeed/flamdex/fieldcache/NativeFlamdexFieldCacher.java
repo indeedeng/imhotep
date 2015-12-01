@@ -870,7 +870,7 @@ public enum NativeFlamdexFieldCacher {
                                                FlamdexReader r,
                                                long min,
                                                long max) throws IOException {
-        final IntTermIterator iterator = r.getIntTermIterator(field);
+        final IntTermIterator iterator = r.getUnsortedIntTermIterator(field);
         try {
             return newFieldCache(iterator, r.getNumDocs(), min, max);
         } finally {
@@ -884,7 +884,7 @@ public enum NativeFlamdexFieldCacher {
                                                    String directory,
                                                    long min,
                                                    long max) throws IOException {
-        final IntTermIterator iterator = r.getIntTermIterator(field);
+        final IntTermIterator iterator = r.getUnsortedIntTermIterator(field);
         try {
             return newMMapFieldCache(iterator, r.getNumDocs(), field, directory, min, max);
         } finally {
