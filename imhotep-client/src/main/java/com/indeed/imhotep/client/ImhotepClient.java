@@ -131,9 +131,9 @@ public class ImhotepClient
     }
 
     private static class DatasetNewestShardMetadata {
-        long newestShardVersion = 0;
-        Collection<String> intFields;
-        Collection<String> stringFields;
+        long newestShardVersion = Long.MIN_VALUE;
+        Collection<String> intFields = Collections.emptyList();
+        Collection<String> stringFields = Collections.emptyList();
     }
 
     // convenience methods
