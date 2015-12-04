@@ -1206,8 +1206,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         int port = 9000;
         long memoryCapacityInMB = 1024;
         boolean useCache = false;
-        boolean lazyLoadFiles = false;
-        String cachingConfigFile = null;
         boolean shutdown = false;
         String zkNodes = null;
         String zkPath = null;
@@ -1224,10 +1222,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 zkPath = args[++i];
             } else if (args[i].equals("--cache")) {
                 useCache = true;
-            } else if (args[i].equals("--lazyLoadProps")) {
-                ++i;
-                cachingConfigFile = args[i];
-                lazyLoadFiles = true;
             } else {
                 throw new RuntimeException("unrecognized arg: "+args[i]);
             }
@@ -1241,8 +1235,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                  port,
                  memoryCapacityInMB,
                  useCache,
-                 lazyLoadFiles,
-                 cachingConfigFile,
                  zkNodes,
                  zkPath);
         }
@@ -1264,8 +1256,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                             int port,
                             long memoryCapacityInMB,
                             boolean useCache,
-                            boolean lazyLoadFiles,
-                            String cachingConfigFile,
                             String zkNodes,
                             String zkPath) throws IOException {
         ImhotepDaemon daemon = null;
@@ -1275,8 +1265,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                       port,
                                       memoryCapacityInMB,
                                       useCache,
-                                      lazyLoadFiles,
-                                      cachingConfigFile,
                                       zkNodes,
                                       zkPath);
             daemon.run();
@@ -1299,28 +1287,17 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                           int port,
                                           long memoryCapacityInMB,
                                           boolean useCache,
-                                          boolean lazyLoadFiles,
-                                          String cachingConfigFile,
                                           String zkNodes,
                                           String zkPath) throws IOException {
         final AbstractImhotepServiceCore localService;
         final ShardUpdateListener shardUpdateListener = new ShardUpdateListener();
 
-        if (lazyLoadFiles) {
-            CachedFile.initWithFile(cachingConfigFile, shardsDirectory.trim());
-            localService =
-                    new CachingLocalImhotepServiceCore(shardsDirectory, shardTempDir,
-                                                       memoryCapacityInMB * 1024 * 1024, useCache,
-                                                       new GenericFlamdexReaderSource(),
-                                                       new LocalImhotepServiceConfig());
-        } else {
-            localService =
-                new LocalImhotepServiceCore(shardsDirectory, shardTempDir,
-                                            memoryCapacityInMB * 1024 * 1024, useCache,
-                                            new GenericFlamdexReaderSource(),
-                                            new LocalImhotepServiceConfig(),
-                                            shardUpdateListener);
-        }
+        localService =
+            new LocalImhotepServiceCore(shardsDirectory, shardTempDir,
+                                        memoryCapacityInMB * 1024 * 1024, useCache,
+                                        new GenericFlamdexReaderSource(),
+                                        new LocalImhotepServiceConfig(),
+                                        shardUpdateListener);
         final ServerSocket ss = new ServerSocket(port);
         final String myHostname = InetAddress.getLocalHost().getCanonicalHostName();
         final ImhotepDaemon result =
