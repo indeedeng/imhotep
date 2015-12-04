@@ -35,10 +35,12 @@ public class Instrumentation {
         public static final String DAEMON_THREAD_COUNT = "daemonthreadcount";
         public static final String DATASET             = "dataset";
         public static final String ELAPSED_TIME_MILLIS = "elapsedtimemillis";
+        public static final String FIELDS              = "fields";
+        public static final String FIELD_BYTES         = "fieldbytes";
         public static final String FREE_MEMORY         = "freememory";
-        public static final String INT_METRICS         = "intmetrics";
-        public static final String INT_METRIC_BYTES    = "intmetricbytes";
         public static final String MAX_USED_MEMORY     = "maxusedmemory";
+        public static final String METRICS             = "metrics";
+        public static final String METRIC_BYTES        = "metricbytes";
         public static final String PEAK_THREAD_COUNT   = "peakthreadcount";
         public static final String REQUEST_SIZE        = "requestsize";
         public static final String REQUEST_TYPE        = "requesttype";
@@ -51,6 +53,7 @@ public class Instrumentation {
         public static final String SHARD_SIZE          = "shardsize";
         public static final String SOURCE_ADDR         = "sourceaddr";
         public static final String STATS_PUSHED        = "statspushed";
+        public static final String STATS_PUSHED_BYTES  = "statspushedbytes";
         public static final String STRING_FIELDS       = "stringfields";
         public static final String TARGET_ADDR         = "targetaddr";
         public static final String THREAD_COUNT        = "threadcount";

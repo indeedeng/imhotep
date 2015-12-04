@@ -20,8 +20,14 @@ import com.indeed.flamdex.simple.SimpleFlamdexFileFilter;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.imhotep.client.ShardTimeUtils;
 
+import it.unimi.dsi.fastutil.objects.Object2LongArrayMap;
+import it.unimi.dsi.fastutil.objects.ObjectArraySet;
+
 import java.io.File;
 import java.io.FileFilter;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.Set;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.log4j.Logger;
@@ -36,15 +42,34 @@ class FlamdexInfo {
     private final DateTime date;
     private final long     sizeInBytes;
 
+    private final Object2LongArrayMap<String> fieldSizesInBytes =
+        new Object2LongArrayMap<String>(16);
+
+    private static final String FIELD_PREFIX = "fld-";
+    private static final String[] FIELD_EXTENSIONS = {
+        "intdocs", "intterms", "strdocs", "strterms"
+    };
+
+    private static final Set<String> fieldExtensions =
+        new ObjectArraySet<String>(FIELD_EXTENSIONS);
+
     FlamdexInfo(FlamdexReader reader) {
         this.shardId     = FilenameUtils.getName(reader.getDirectory());
         this.date        = dateOf();
-        this.sizeInBytes = sizeInBytesOf(reader);
+        this.sizeInBytes = initFieldSizes(reader);
     }
 
     String       getShardId() { return shardId;     }
     DateTime        getDate() { return date;        }
     long     getSizeInBytes() { return sizeInBytes; }
+
+    /**
+       Return the size of a field, i.e. the sum of the sizes of its term and
+       doc files. Return zero if the field is unknown or from a Lucene index.
+     */
+    long getFieldSizeInBytes(final String fieldName) {
+        return fieldSizesInBytes.getLong(fieldName);
+    }
 
     private DateTime dateOf() {
         try {
@@ -57,28 +82,63 @@ class FlamdexInfo {
     }
 
     /**
-       Add up all the relevant files in a shard's directory to compute its
-       size. Because the FlamdexReader we're passed might be a wrapper, such as
+       Examine the field files in a shard, populating fieldSizesInBytes as we
+       go. Because the FlamdexReader we're passed might be a wrapper, such as
        CachedFlamdexReaderReference, it might not be easy to determine whether
        we're dealing with an Indeed Flamdex or a Lucene index. The simplistic
        approach here is to first look for Flamdex files and in the face of no
        results just fall back to looking at all files in the directory.
 
-       @return sum of sizes of all relevant files in the shard's directory.
+       Since we don't have a good way of sizing fields in a Lucene index we'll
+       end up with an empty fieldSizesInBytes map and the returned size will
+       just be the sum of all file sizes.
+
+       For Flamdex fields, we just sum the sizes of the doc and term files.
+
+       @return sum of sizes of all field files in the shard's directory.
      */
-    private long sizeInBytesOf(FlamdexReader reader) {
+    private long initFieldSizes(FlamdexReader reader) {
         long result = 0;
         final File dir = new File(reader.getDirectory());
         File[] children = dir.listFiles(new SimpleFlamdexFileFilter());
-        children = children.length > 0 ? children : dir.listFiles();
-        if (children != null) {
+        if (children != null && children.length > 0) {
+            /* flamdex */
             for (File child: children) {
-                result += child.length();
+                final String fieldName = fieldNameOf(child);
+                if (fieldName != null) {
+                    long size = fieldSizesInBytes.getLong(fieldName);
+                    size += child.length();
+                    fieldSizesInBytes.put(fieldName, size);
+                    result += child.length();
+                }
             }
         }
         else {
-            log.warn("cannot list files in " + reader.getDirectory());
+            /* lucene */
+            children = dir.listFiles();
+            if (children != null) {
+                for (File child: children) {
+                    result += child.length();
+                }
+            }
         }
         return result;
+    }
+
+    /**
+       Extract a field's name from one of its constituent files.
+
+       @return The field's name or null if the file is not part of a field.
+     */
+    private static final String fieldNameOf(final File file) {
+        final String name = file.getName();
+        if (name.startsWith(FIELD_PREFIX)) {
+            final int begin = FIELD_PREFIX.length();
+            final int end = name.lastIndexOf('.');
+            if (end != -1 && fieldExtensions.contains(name.substring(end + 1))) {
+                return name.substring(begin, end);
+            }
+        }
+        return null;
     }
 }
