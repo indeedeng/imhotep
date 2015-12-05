@@ -237,12 +237,12 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
             if (flamdex instanceof RawFlamdexReader) {
                 this.flamdexReader =
                         new RawCachedFlamdexReader(new MemoryReservationContext(memory),
-                                                   (RawFlamdexReader) flamdex, null, null, null,
+                                                   (RawFlamdexReader) flamdex, null, null,
                                                    null);
             } else {
                 this.flamdexReader =
                         new CachedFlamdexReader(new MemoryReservationContext(memory), flamdex,
-                                                null, null, null, null);
+                                                null, null, null);
             }
             this.flamdexReaderRef = SharedReference.create(this.flamdexReader);
 

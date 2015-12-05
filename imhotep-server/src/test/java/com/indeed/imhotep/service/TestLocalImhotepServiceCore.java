@@ -22,7 +22,6 @@ import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.io.MockShard;
 import com.indeed.imhotep.io.Shard;
-import com.indeed.util.core.reference.AtomicSharedReference;
 import com.indeed.util.io.Files;
 import org.apache.log4j.Appender;
 import org.apache.log4j.BasicConfigurator;
@@ -189,8 +188,8 @@ public class TestLocalImhotepServiceCore {
     @Test
     public void testBuildDatasetList() throws IOException {
         final String dataset = "sponsored";
-        final Map<String, Map<String, AtomicSharedReference<Shard>>> localShards = Maps.newHashMap();
-        final Map<String, AtomicSharedReference<Shard>> datasetShards = Maps.newHashMap();
+        final Map<String, Map<String, Shard>> localShards = Maps.newHashMap();
+        final Map<String, Shard> datasetShards = Maps.newHashMap();
         localShards.put(dataset, datasetShards);
         Set<String> expectedIntFields;
         Set<String> expectedStringFields;
@@ -228,7 +227,7 @@ public class TestLocalImhotepServiceCore {
         checkExpectedFields(localShards, expectedIntFields, expectedStringFields);
     }
 
-    private void checkExpectedFields(Map<String, Map<String, AtomicSharedReference<Shard>>> localShards, Set<String> expectedIntFields, Set<String> expectedStringFields) throws IOException {
+    private void checkExpectedFields(Map<String, Map<String, Shard>> localShards, Set<String> expectedIntFields, Set<String> expectedStringFields) throws IOException {
         List<DatasetInfo> datasetInfos = LocalImhotepServiceCore.buildDatasetList(localShards);
         assertEquals(1, datasetInfos.size());
 
@@ -237,10 +236,10 @@ public class TestLocalImhotepServiceCore {
         assertEquals(expectedStringFields, datasetInfo.getStringFields());
     }
 
-    private void addShard(Map<String, AtomicSharedReference<Shard>> datasetShards, String dataset, long version, ImmutableSet<String> intFields, ImmutableSet<String> stringFields) throws IOException {
+    private void addShard(Map<String, Shard> datasetShards, String dataset, long version, ImmutableSet<String> intFields, ImmutableSet<String> stringFields) throws IOException {
         String shardId = "index" + Long.toString(version).substring(0, 8);
         Shard shard = new MockShard(new ShardId(dataset, shardId, version, null), 0, intFields, stringFields, Collections.<String>emptyList());
-        datasetShards.put(shardId, AtomicSharedReference.create(shard));
+        datasetShards.put(shardId, shard);
     }
 
 
