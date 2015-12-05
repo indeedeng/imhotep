@@ -22,9 +22,6 @@ import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.MetricKey;
 import org.apache.log4j.Logger;
 
-import javax.annotation.Nullable;
-import java.io.Closeable;
-
 /**
  * @author jplaisance
  */
@@ -35,12 +32,11 @@ public final class RawCachedFlamdexReader extends CachedFlamdexReader implements
     public RawCachedFlamdexReader(
             final MemoryReservationContext memory,
             final RawFlamdexReader wrapped,
-            final @Nullable Closeable readLockRef,
             final String indexName,
             final String shardName,
             final ImhotepMemoryCache<MetricKey, IntValueLookup> freeCache
     ) {
-        super(memory, wrapped, readLockRef, indexName, shardName, freeCache);
+        super(memory, wrapped, indexName, shardName, freeCache);
     }
 
     @Override

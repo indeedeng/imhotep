@@ -33,7 +33,6 @@ import com.indeed.imhotep.MetricKey;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
-import java.io.Closeable;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -52,8 +51,6 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
 
     private final @Nullable MemoryReservationContext memory;
 
-    private final @Nullable Closeable readLockRef;
-
     private final FlamdexReader wrapped;
 
     private final MetricCache metricCache;
@@ -63,13 +60,11 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
 
     public CachedFlamdexReader(final MemoryReservationContext memory,
                                   final FlamdexReader wrapped,
-                                  final @Nullable Closeable readLockRef,
                                   final @Nullable String indexName,
                                   final @Nullable String shardName,
                                   final @Nullable ImhotepMemoryCache<MetricKey, IntValueLookup> freeCache) {
         //closer will free these in the opposite order that they are added
         this.memory = memory;
-        this.readLockRef = readLockRef;
         this.wrapped = wrapped;
         metricCache = new MetricCacheImpl(
                 new Function<String, Either<FlamdexOutOfMemoryException, IntValueLookup>>() {
@@ -224,11 +219,7 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
     @Override
     public void close() {
         try {
-            if (readLockRef == null) {
                 Closeables2.closeAll(log, metricCache, wrapped);
-            } else {
-                Closeables2.closeAll(log, metricCache, wrapped, readLockRef);                
-            }
         } finally {
             if (memory == null) {
                 return;

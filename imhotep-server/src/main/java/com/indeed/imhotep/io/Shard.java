@@ -33,26 +33,22 @@ import com.indeed.util.core.reference.ReloadableSharedReference;
 import com.indeed.util.core.reference.SharedReference;
 
 
-public class Shard implements Closeable {
+public class Shard {
     private static final Logger log = Logger.getLogger(Shard.class);
 
     private final ReloadableSharedReference<CachedFlamdexReader, IOException> ref;
-    private final SharedReference<ReadLock> readLock;
     private final ShardId shardId;
     private final int numDocs;
     private final Collection<String> intFields;
     private final Collection<String> stringFields;
     private final Collection<String> availableMetrics;
-    private boolean closed = false;
 
     public Shard(final ReloadableSharedReference<CachedFlamdexReader, IOException> ref,
-                  final SharedReference<ReadLock> readLock,
                   final long shardVersion,
                   final String indexDir,
                   final String dataset,
                   final String shardId) throws IOException {
         this.ref = ref;
-        this.readLock = readLock;
         this.shardId = new ShardId(dataset, shardId, shardVersion, indexDir);
         final SharedReference<CachedFlamdexReader> copy = ref.copy();
         numDocs = copy.get().getNumDocs();
@@ -70,13 +66,10 @@ public class Shard implements Closeable {
         this.stringFields = stringFields;
         this.availableMetrics = availableMetrics;
         ref = null;
-        readLock = null;
     }
 
     public synchronized @Nullable
     SharedReference<CachedFlamdexReader> getRef() throws IOException {
-        if (closed)
-            return null;
         return ref.copy();
     }
 
@@ -134,13 +127,5 @@ public class Shard implements Closeable {
             }
         }
         return Collections.emptyList();
-    }
-
-    @Override
-    public synchronized void close() throws IOException {
-        if (!closed) {
-            closed = true;
-            readLock.close();
-        }
     }
 }
