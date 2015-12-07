@@ -86,7 +86,9 @@ public class TestImhotepClient extends TestCase {
             daemon2.stop();
         }
         Files.delete(tempDir1);
+        Files.delete(tempOptDir1);
         Files.delete(tempDir2);
+        Files.delete(tempOptDir2);
     }
 
     @Test
