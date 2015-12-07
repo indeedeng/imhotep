@@ -127,6 +127,7 @@ public class TestLocalImhotepServiceCore {
             service.close();
         } finally {
             Files.delete(directory);
+            Files.delete(tempDir);
         }
     }
 
@@ -183,6 +184,7 @@ public class TestLocalImhotepServiceCore {
             service.close();
         } finally {
             Files.delete(directory);
+            Files.delete(tempDir);
         }
     }
 

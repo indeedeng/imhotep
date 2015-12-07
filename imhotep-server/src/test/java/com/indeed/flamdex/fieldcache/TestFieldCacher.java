@@ -93,20 +93,24 @@ public class TestFieldCacher {
             verifyCache(cache, ivl);
 
             String tempDir = Files.getTempDirectory("asdf", "");
-            for (int x = 0; x < 5; ++x) {
-                if (x > 0) {
+            try {
+                for (int x = 0; x < 5; ++x) {
+                    if (x > 0) {
+                        assertTrue(new File(tempDir, fieldCacher.getMMapFileName("f")).exists());
+                    } else {
+                        assertFalse(new File(tempDir, fieldCacher.getMMapFileName("f")).exists());
+                    }
+                    IntValueLookup mmivl = fieldCacher.newMMapFieldCache("f", r, tempDir, minMax.min,
+                                                                         minMax.max);
+                    verifyCache(cache, mmivl);
                     assertTrue(new File(tempDir, fieldCacher.getMMapFileName("f")).exists());
-                } else {
-                    assertFalse(new File(tempDir, fieldCacher.getMMapFileName("f")).exists());
+                    mmivl.close();
+                    assertTrue(new File(tempDir, fieldCacher.getMMapFileName("f")).exists());
                 }
-                IntValueLookup mmivl = fieldCacher.newMMapFieldCache("f", r, tempDir, minMax.min,
-                                                                     minMax.max);
-                verifyCache(cache, mmivl);
-                assertTrue(new File(tempDir, fieldCacher.getMMapFileName("f")).exists());
-                mmivl.close();
-                assertTrue(new File(tempDir, fieldCacher.getMMapFileName("f")).exists());
             }
-            Files.delete(tempDir);
+            finally {
+                Files.delete(tempDir);
+            }
         }
     }
 
