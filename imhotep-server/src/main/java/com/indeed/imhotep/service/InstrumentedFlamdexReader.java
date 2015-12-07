@@ -91,10 +91,7 @@ public class InstrumentedFlamdexReader
     }
 
     private void onField(String field) {
-        /* Note that Object2LongArrayMap returns 0 as a default value. */
-        long size = fields.getLong(field);
-        size += flamdexInfo.getFieldSizeInBytes(field);
-        fields.put(field, size);
+        fields.put(field, fields.getLong(field));
     }
 
     public void close() throws java.io.IOException { wrapped.close(); }
