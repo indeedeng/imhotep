@@ -28,16 +28,13 @@ import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.Instrumentation.Keys;
 import com.indeed.imhotep.MemoryReservationContext;
 
+import it.unimi.dsi.fastutil.objects.Object2LongArrayMap;
+
 import org.apache.log4j.Logger;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
 
 public class InstrumentedFlamdexReader
     implements FlamdexReader {
@@ -47,43 +44,32 @@ public class InstrumentedFlamdexReader
     private final FlamdexReader wrapped;
     private final FlamdexInfo   flamdexInfo;
 
-    private final Map<String, Integer> statsPushed = new TreeMap<String, Integer>();
-
-    private final Set<String> intFields    = new TreeSet<String>();
-    private final Set<String> stringFields = new TreeSet<String>();
-
-    private final Map<String, Long> metricBytesRequired = new HashMap<String, Long>();
+    private final Object2LongArrayMap<String> statsPushed = new Object2LongArrayMap<String>(16);
+    private final Object2LongArrayMap<String> fields      = new Object2LongArrayMap<String>(16);
+    private final Object2LongArrayMap<String> metrics     = new Object2LongArrayMap<String>(16);
 
     final public class FlamdexReaderEvent extends Instrumentation.Event {
         FlamdexReaderEvent() {
             super(FlamdexReaderEvent.class.getSimpleName());
-            getProperties().put(Keys.SHARD_ID,         flamdexInfo.getShardId());
-            getProperties().put(Keys.SHARD_DATE,       flamdexInfo.getDate());
-            getProperties().put(Keys.SHARD_SIZE,       flamdexInfo.getSizeInBytes());
-            getProperties().put(Keys.STATS_PUSHED,     statsPushed);
-            getProperties().put(Keys.INT_METRICS,      commaDelimitted(intFields));
-            getProperties().put(Keys.INT_METRIC_BYTES, commaDelimitted(bytesRequired(intFields)));
-            getProperties().put(Keys.STRING_FIELDS,    commaDelimitted(stringFields));
+            getProperties().put(Keys.FIELDS,             commaDelimitted(fields.keySet()));
+            getProperties().put(Keys.FIELD_BYTES,        commaDelimitted(fields.values()));
+            getProperties().put(Keys.METRICS,            commaDelimitted(metrics.keySet()));
+            getProperties().put(Keys.METRIC_BYTES,       commaDelimitted(metrics.values()));
+            getProperties().put(Keys.SHARD_DATE,         flamdexInfo.getDate());
+            getProperties().put(Keys.SHARD_ID,           flamdexInfo.getShardId());
+            getProperties().put(Keys.SHARD_SIZE,         flamdexInfo.getSizeInBytes());
+            getProperties().put(Keys.STATS_PUSHED,       commaDelimitted(statsPushed.keySet()));
+            getProperties().put(Keys.STATS_PUSHED_BYTES, commaDelimitted(statsPushed.values()));
         }
 
-        private String commaDelimitted(Collection<String> items) {
-            StringBuilder    sb = new StringBuilder();
-            Iterator<String> it = items.iterator();
+        private <T> String commaDelimitted(Collection<T> items) {
+            StringBuilder sb = new StringBuilder();
+            Iterator<T>   it = items.iterator();
             while (it.hasNext()) {
-                sb.append(it.next());
+                sb.append(it.next().toString());
                 if (it.hasNext()) sb.append(", ");
             }
             return sb.toString();
-        }
-
-        private ArrayList<String> bytesRequired(Collection<String> metrics) {
-            final ArrayList<String> result = new ArrayList<String>();
-            Iterator<String> it = metrics.iterator();
-            while (it.hasNext()) {
-                final Long bytes = metricBytesRequired.get(it.next());
-                result.add(bytes != null ? bytes.toString() : "(unknown)");
-            }
-            return result;
         }
     }
 
@@ -96,29 +82,17 @@ public class InstrumentedFlamdexReader
 
     public void onPushStat(String stat, IntValueLookup lookup) {
         if (stat != null) {
-            final long    range        = lookup != null ? lookup.getMax() - lookup.getMin() : 0;
-            final int     leadingZeros = 64 - Long.numberOfLeadingZeros(range);
-            final Integer sizeInBytes  = (leadingZeros + 7) / 8;
-
-            final Integer current = statsPushed.get(stat);
-            statsPushed.put(stat, current != null ?
-                            Math.max(sizeInBytes, current) : sizeInBytes);
+            statsPushed.put(stat, lookup != null ? lookup.memoryUsed() : 0L);
         }
     }
 
-    private void onIntField(String field) {
-        intFields.add(field);
-        try {
-            final Long bytesRequired = memoryRequired(field);
-            metricBytesRequired.put(field, bytesRequired);
-        }
-        catch (Exception ex) {
-            // Swallow this error. The upshot is that we just won't have a
-            // bytesRequired value for this field in our CloseEvent.
-        }
+    private void onMetric(String metric) {
+        metrics.put(metric, memoryRequired(metric));
     }
 
-    private void onStringField(String field) { stringFields.add(field); }
+    private void onField(String field) {
+        fields.put(field, fields.getLong(field));
+    }
 
     public void close() throws java.io.IOException { wrapped.close(); }
 
@@ -130,37 +104,33 @@ public class InstrumentedFlamdexReader
     public DocIdStream getDocIdStream() { return wrapped.getDocIdStream(); }
 
     public IntTermIterator getIntTermIterator(String field) {
-        onIntField(field);
+        onField(field);
         return wrapped.getIntTermIterator(field);
     }
 
     public IntTermIterator getUnsortedIntTermIterator(String field) {
-        onIntField(field);
+        onField(field);
         return wrapped.getUnsortedIntTermIterator(field);
     }
 
     public StringTermIterator getStringTermIterator(String field) {
-        onStringField(field);
+        onField(field);
         return wrapped.getStringTermIterator(field);
     }
 
     public IntTermDocIterator getIntTermDocIterator(String field) {
-        onIntField(field);
         return wrapped.getIntTermDocIterator(field);
     }
 
     public StringTermDocIterator getStringTermDocIterator(String field) {
-        onStringField(field);
         return wrapped.getStringTermDocIterator(field);
     }
 
     public long getIntTotalDocFreq(String field) {
-        onIntField(field);
         return wrapped.getIntTotalDocFreq(field);
     }
 
     public long getStringTotalDocFreq(String field) {
-        onStringField(field);
         return wrapped.getStringTotalDocFreq(field);
     }
 
@@ -170,13 +140,12 @@ public class InstrumentedFlamdexReader
 
     public IntValueLookup getMetric(String metric)
         throws FlamdexOutOfMemoryException {
-        onIntField(metric);
+        onMetric(metric);
         return wrapped.getMetric(metric);
     }
 
     public StringValueLookup getStringLookup(String field)
         throws FlamdexOutOfMemoryException {
-        onStringField(field);
         return wrapped.getStringLookup(field);
     }
 

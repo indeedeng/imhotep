@@ -13,11 +13,12 @@
  */
 package com.indeed.imhotep;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
+import it.unimi.dsi.fastutil.objects.ObjectArraySet;
+
 import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -35,10 +36,12 @@ public class Instrumentation {
         public static final String DAEMON_THREAD_COUNT = "daemonthreadcount";
         public static final String DATASET             = "dataset";
         public static final String ELAPSED_TIME_MILLIS = "elapsedtimemillis";
+        public static final String FIELDS              = "fields";
+        public static final String FIELD_BYTES         = "fieldbytes";
         public static final String FREE_MEMORY         = "freememory";
-        public static final String INT_METRICS         = "intmetrics";
-        public static final String INT_METRIC_BYTES    = "intmetricbytes";
         public static final String MAX_USED_MEMORY     = "maxusedmemory";
+        public static final String METRICS             = "metrics";
+        public static final String METRIC_BYTES        = "metricbytes";
         public static final String PEAK_THREAD_COUNT   = "peakthreadcount";
         public static final String REQUEST_SIZE        = "requestsize";
         public static final String REQUEST_TYPE        = "requesttype";
@@ -51,12 +54,14 @@ public class Instrumentation {
         public static final String SHARD_SIZE          = "shardsize";
         public static final String SOURCE_ADDR         = "sourceaddr";
         public static final String STATS_PUSHED        = "statspushed";
+        public static final String STATS_PUSHED_BYTES  = "statspushedbytes";
         public static final String STRING_FIELDS       = "stringfields";
         public static final String TARGET_ADDR         = "targetaddr";
         public static final String THREAD_COUNT        = "threadcount";
         public static final String THREAD_FACTORY      = "threadfactory";
         public static final String THREAD_ID           = "threadid";
         public static final String TOTAL_MEMORY        = "totalmemory";
+        public static final String TOTAL_THREADS       = "totalthreads";
         public static final String USERNAME            = "username";
         public static final String USE_NATIVE_FTGS     = "usenativeftgs";
     }
@@ -64,7 +69,8 @@ public class Instrumentation {
     public static class Event {
         private static final AtomicLong seqNum = new AtomicLong();
 
-        private final TreeMap<String, Object> properties = new TreeMap<String, Object>();
+        private final Object2ObjectArrayMap<String, Object> properties =
+            new Object2ObjectArrayMap<String, Object>(16);
 
         public Event(final String type) {
             properties.put(Keys.EVENT_TYPE, type);
@@ -120,20 +126,13 @@ public class Instrumentation {
     }
 
     public interface Provider {
-        /** Note: You can add the same observer multiple times, but
-            you will receive multiple events when they fire. */
         void addObserver(final Observer observer);
-
-        /** Note: Attempting to remove a non-existent observer will fail
-            silently.
-            Note: Removing a multiply registered observer will only eliminate
-            one copy. */
         void removeObserver(final Observer observer);
     }
 
     public static class ProviderSupport implements Provider {
 
-        private final ArrayList<Observer> observers = new ArrayList<Observer>();
+        private final ObjectArraySet<Observer> observers = new ObjectArraySet<Observer>();
 
         public synchronized void    addObserver(Observer observer) { observers.add(observer);    }
         public synchronized void removeObserver(Observer observer) { observers.remove(observer); }

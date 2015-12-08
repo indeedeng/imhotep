@@ -30,24 +30,29 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * @author jsgroth
  *
- * some of these tests are reliant on the implementation of {@link LocalImhotepServiceCore#updateShards()}}
- * if that method changes significantly then these tests will very likely break
+ * some of these tests are reliant on the implementation of {@link
+ * LocalImhotepServiceCore#updateShards()}} if that method changes significantly
+ * then these tests will very likely break
  */
 public class TestLocalImhotepServiceCoreSharedResource extends TestCase {
     private static final long TIMEOUT = 5000L;
 
+    private File tempDir;
     private String directory;
     private String optDirectory;
 
     @Override
     protected void setUp() throws Exception {
-        File tempDir = Files.createTempDir();
+        tempDir = Files.createTempDir();
         File datasetDir = new File(tempDir, "dataset");
-        if (!datasetDir.mkdir()) throw new IOException("couldn't make " + datasetDir.getAbsolutePath() + " :(");
+        if (!datasetDir.mkdir())
+            throw new IOException("couldn't make " + datasetDir.getAbsolutePath() + " :(");
         File shardDir = new File(datasetDir, "shard");
-        if (!shardDir.mkdir()) throw new IOException("couldn't make " + shardDir.getAbsolutePath() + " :(");
+        if (!shardDir.mkdir())
+            throw new IOException("couldn't make " + shardDir.getAbsolutePath() + " :(");
         File optDir = new File(tempDir, "temp");
-        if (!optDir.mkdir()) throw new IOException("couldn't make " + optDir.getAbsolutePath() + " :(");
+        if (!optDir.mkdir())
+            throw new IOException("couldn't make " + optDir.getAbsolutePath() + " :(");
 
         directory = tempDir.getAbsolutePath();
         optDirectory = optDir.getAbsolutePath();
@@ -56,9 +61,7 @@ public class TestLocalImhotepServiceCoreSharedResource extends TestCase {
     @SuppressWarnings("ResultOfMethodCallIgnored")
     @Override
     protected void tearDown() throws Exception {
-        new File(new File(directory, "dataset"), "shard").delete();
-        new File(directory, "dataset").delete();
-        new File(directory).delete();
+        com.indeed.util.io.Files.delete(tempDir.getAbsolutePath());
     }
 
     @Test
@@ -66,7 +69,9 @@ public class TestLocalImhotepServiceCoreSharedResource extends TestCase {
         FlamdexReaderSource factory = new FlamdexReaderSource() {
             @Override
             public FlamdexReader openReader(String directory) throws IOException {
-                return new MockFlamdexReader(Arrays.asList("if1"), Arrays.asList("sf1"), Arrays.asList("if1"), 10) {
+                return new MockFlamdexReader(Arrays.asList("if1"),
+                                             Arrays.asList("sf1"),
+                                             Arrays.asList("if1"), 10) {
                     @Override
                     public long memoryRequired(String metric) {
                         return Long.MAX_VALUE;
