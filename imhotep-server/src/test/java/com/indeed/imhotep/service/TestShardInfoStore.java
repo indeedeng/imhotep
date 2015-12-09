@@ -31,18 +31,31 @@ public class TestShardInfoStore {
                                          null, rng.nextInt(), rng.nextLong()));
             }
 
-            ShardInfoStore store = new ShardInfoStore(new File(tmp));
-            for (ShardInfo shardInfo: before) {
-                store.put(shardInfo);
-            }
+            /* Create the store and verify that it has everything in it. */
+            try (ShardInfoStore store = new ShardInfoStore(new File(tmp))) {
+                    for (ShardInfo shardInfo: before) {
+                        store.put(shardInfo);
+                    }
 
-            HashSet<ShardInfo> after = new HashSet<ShardInfo>();
-            Iterator<ShardInfo> it = store.iterator();
-            while (it.hasNext()) {
-                after.add(it.next());
-            }
+                    HashSet<ShardInfo> after = new HashSet<ShardInfo>();
+                    Iterator<ShardInfo> it = store.iterator();
+                    while (it.hasNext()) {
+                        after.add(it.next());
+                    }
 
-            assertEquals(before.size(), after.size());
+                    assertEquals(before, after);
+                }
+
+            /* Reopen the store and verify that it has everything in it. */
+            try (ShardInfoStore store = new ShardInfoStore(new File(tmp))) {
+                    HashSet<ShardInfo> after = new HashSet<ShardInfo>();
+                    Iterator<ShardInfo> it = store.iterator();
+                    while (it.hasNext()) {
+                        after.add(it.next());
+                    }
+
+                    assertEquals(before, after);
+                }
         }
         catch (IOException ex) {
             fail(ex.toString());
