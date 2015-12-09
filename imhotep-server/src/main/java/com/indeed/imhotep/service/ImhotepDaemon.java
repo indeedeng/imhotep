@@ -124,7 +124,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         private final AtomicReference<ImhotepResponse> datasetListResponse =
             new AtomicReference<ImhotepResponse>();
 
-        public void onShardUpdate(final List<ShardInfo> shardList) {
+        public void onShardUpdate(final List<ShardInfo> shardList,
+                                  final Source unusedSource) {
             final ImhotepResponse.Builder builder = ImhotepResponse.newBuilder();
             for (final ShardInfo shard : shardList) {
                 builder.addShardInfo(shard.toProto());
@@ -133,7 +134,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             shardListResponse.set(response);
         }
 
-        public void onDatasetUpdate(final List<DatasetInfo> datasetList) {
+        public void onDatasetUpdate(final List<DatasetInfo> datasetList,
+                                    final Source unusedSource) {
             final ImhotepResponse.Builder builder = ImhotepResponse.newBuilder();
             for (final DatasetInfo dataset : datasetList) {
                 builder.addDatasetInfo(dataset.toProto());
@@ -156,17 +158,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
     public ImhotepDaemon(ServerSocket ss, AbstractImhotepServiceCore service,
                          String zkNodes, String zkPath, String hostname, int port,
                          ShardUpdateListener shardUpdateListener) {
-        /* !@# HACK ALERT
-
-           This idea is speculative. In service of expediency, the
-           native code required by PinnedThreadFactory has been
-           packaged up into libftgs. If it proves useful, then it
-           should be migrated to a util lib either within this project
-           or perhaps opensource/util.
-
-           !@# HACK ALERT */
-        com.indeed.imhotep.local.MTImhotepLocalMultiSession.loadNativeLibrary();
-
         this.ss = ss;
         this.service = service;
         this.shardUpdateListener = shardUpdateListener;
@@ -1289,6 +1280,17 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                           boolean useCache,
                                           String zkNodes,
                                           String zkPath) throws IOException {
+        /* !@# HACK ALERT
+
+           This idea is speculative. In service of expediency, the
+           native code required by PinnedThreadFactory has been
+           packaged up into libftgs. If it proves useful, then it
+           should be migrated to a util lib either within this project
+           or perhaps opensource/util.
+
+           !@# HACK ALERT */
+        com.indeed.imhotep.local.MTImhotepLocalMultiSession.loadNativeLibrary();
+
         final AbstractImhotepServiceCore localService;
         final ShardUpdateListener shardUpdateListener = new ShardUpdateListener();
 

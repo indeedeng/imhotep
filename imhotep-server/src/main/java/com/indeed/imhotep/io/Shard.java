@@ -58,14 +58,26 @@ public class Shard {
         copy.close();
     }
 
-    @VisibleForTesting
-    Shard(ShardId shardId, int numDocs, Collection<String> intFields, Collection<String> stringFields, Collection<String> availableMetrics) {
+    public Shard(ReloadableSharedReference<CachedFlamdexReader, IOException> ref,
+                 ShardId shardId,
+                 int numDocs,
+                 Collection<String> intFields,
+                 Collection<String> stringFields,
+                 Collection<String> availableMetrics) {
+        this.ref = ref;
         this.shardId = shardId;
         this.numDocs = numDocs;
         this.intFields = intFields;
         this.stringFields = stringFields;
         this.availableMetrics = availableMetrics;
-        ref = null;
+    }
+
+    @VisibleForTesting
+    Shard(ShardId shardId, int numDocs,
+          Collection<String> intFields,
+          Collection<String> stringFields,
+          Collection<String> availableMetrics) {
+        this(null, shardId, numDocs, intFields, stringFields, availableMetrics);
     }
 
     public synchronized @Nullable
@@ -89,7 +101,7 @@ public class Shard {
         return shardId.getDataset();
     }
 
-    public int getNumDocs() throws IOException {
+    public int getNumDocs() {
         return numDocs;
     }
 
@@ -105,15 +117,15 @@ public class Shard {
         return Collections.emptySet();
     }
 
-    public Collection<String> getIntFields() throws IOException {
+    public Collection<String> getIntFields() {
         return intFields;
     }
 
-    public Collection<String> getStringFields() throws IOException {
+    public Collection<String> getStringFields() {
         return stringFields;
     }
 
-    public Collection<String> getAvailableMetrics() throws IOException {
+    public Collection<String> getAvailableMetrics() {
         return availableMetrics;
     }
 
@@ -127,5 +139,10 @@ public class Shard {
             }
         }
         return Collections.emptyList();
+    }
+
+    public boolean isNewerThan(final Shard otherShard) {
+        if (otherShard == null) return true;
+        return getShardVersion() > otherShard.getShardVersion();
     }
 }

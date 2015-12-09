@@ -15,21 +15,15 @@
 
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.shell.PosixFileOperations;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.io.Files;
-import com.indeed.util.core.reference.ReloadableSharedReference;
-import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.varexport.Export;
 import com.indeed.util.varexport.VarExporter;
-import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntValueLookup;
-import com.indeed.flamdex.api.RawFlamdexReader;
 import com.indeed.imhotep.CachedMemoryReserver;
 import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.ImhotepMemoryCache;
@@ -41,7 +35,6 @@ import com.indeed.imhotep.MetricKey;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
-import com.indeed.imhotep.io.Shard;
 import com.indeed.imhotep.local.ImhotepLocalSession;
 import com.indeed.imhotep.local.ImhotepJavaLocalSession;
 import com.indeed.imhotep.local.ImhotepNativeLocalSession;
@@ -52,14 +45,9 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
@@ -67,8 +55,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * @author jsgroth
@@ -77,16 +64,18 @@ public class LocalImhotepServiceCore
     extends AbstractImhotepServiceCore {
     private static final Logger log = Logger.getLogger(LocalImhotepServiceCore.class);
 
-    private static final Pattern VERSION_PATTERN = Pattern.compile("^(.+)\\.(\\d{14})$");
-
     private static final long SESSION_EXPIRATION_TIME_MILLIS = 30L * 60 * 1000;
 
     private final LocalSessionManager sessionManager;
 
     private final ScheduledExecutorService shardReload;
+    private final ScheduledExecutorService shardStoreSync;
     private final ScheduledExecutorService heartBeat;
-    private final String shardsDirectory;
-    private final String shardTempDirectory;
+    private final String shardsDir;
+    private final String shardTempDir;
+    private final String shardStoreDir;
+
+    private boolean cleanupShardStoreDir = false; // 'true' only in test codepaths
 
     private final MemoryReserver memory;
     private final ImhotepMemoryCache<MetricKey, IntValueLookup> freeCache;
@@ -95,15 +84,17 @@ public class LocalImhotepServiceCore
 
     private final ShardUpdateListenerIf shardUpdateListener;
 
-    // these maps will not be modified but the references will periodically be
-    // swapped
-    private volatile Map<String, Map<String, Shard>> shards;
-    private volatile List<ShardInfo> shardList;
-    private volatile List<DatasetInfo> datasetList;
+    private final ShardStore shardStore;
+
+    private final AtomicReference<ShardMap>        shardMap    = new AtomicReference<>();
+    private final AtomicReference<ShardInfoList>   shardList   = new AtomicReference<>();
+    private final AtomicReference<DatasetInfoList> datasetList = new AtomicReference<>();
 
     /**
-     * @param shardsDirectory
+     * @param shardsDir
      *            root directory from which to read shards
+     * @param shardStoreDir
+     *            root directory of the [Shard|Dataset]Info cache (ShardStore).
      * @param memoryCapacity
      *            the capacity in bytes allowed to be allocated for large
      *            int/long arrays
@@ -116,15 +107,16 @@ public class LocalImhotepServiceCore
      * @throws IOException
      *             if something bad happens
      */
-    public LocalImhotepServiceCore(String shardsDirectory,
+    public LocalImhotepServiceCore(String shardsDir,
                                    String shardTempDir,
+                                   String shardStoreDir,
                                    long memoryCapacity,
                                    boolean useCache,
                                    FlamdexReaderSource flamdexReaderFactory,
                                    LocalImhotepServiceConfig config,
                                    ShardUpdateListenerIf shardUpdateListener)
         throws IOException {
-        this.shardsDirectory = shardsDirectory;
+        this.shardsDir = shardsDir;
         this.shardUpdateListener = shardUpdateListener;
 
         /* check if the temp dir exists, try to create it if it does not */
@@ -135,7 +127,7 @@ public class LocalImhotepServiceCore
         if (!tempDir.exists()) {
             tempDir.mkdirs();
         }
-        this.shardTempDirectory = shardTempDir;
+        this.shardTempDir = shardTempDir;
 
         this.flamdexReaderFactory = flamdexReaderFactory;
         if (useCache) {
@@ -151,62 +143,122 @@ public class LocalImhotepServiceCore
         if (shardTempDir != null) {
             clearTempDir(shardTempDir);
         }
-        updateShards();
 
-        shardReload = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
-            @Override
-            public Thread newThread(Runnable r) {
-                final Thread thread = new Thread(r, "ShardReloaderThread");
-                thread.setDaemon(true);
-                return thread;
-            }
-        });
+        this.shardStoreDir = shardStoreDir;
+        this.shardStore    = loadOrCreateShardStore(shardStoreDir);
 
-        heartBeat = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
-            @Override
-            public Thread newThread(Runnable r) {
-                final Thread thread = new Thread(r, "HeartBeatCheckerThread");
-                thread.setDaemon(true);
-                return thread;
+        final String canonicalShardsDir = Files.getCanonicalPath(shardsDir);
+        if (canonicalShardsDir != null) {
+            final File localShardsPath = new File(canonicalShardsDir);
+            ShardMap newShardMap = shardStore != null ?
+                new ShardMap(shardStore, localShardsPath, memory, flamdexReaderFactory, freeCache) :
+                new ShardMap(memory, flamdexReaderFactory, freeCache);
+
+            /* An empty ShardMap suggests that ShardStore had not been
+             * initialized, so fallback to a synchronous directory scan. */
+            if (newShardMap.size() == 0) {
+                log.info("Could not load ShardMap from cache: " + shardStoreDir + ". " +
+                         "Scanning shard path instead.");
+                newShardMap = new ShardMap(newShardMap, localShardsPath);
+                newShardMap.sync(shardStore);
+                setShardMap(newShardMap, ShardUpdateListenerIf.Source.FILESYSTEM);
+                log.info("Loaded ShardMap from filesystem: " + canonicalShardsDir);
             }
-        });
-        shardReload.scheduleAtFixedRate(new ShardReloader(),
-                                        config.getUpdateShardsFrequencySeconds(),
-                                        config.getUpdateShardsFrequencySeconds(),
-                                        TimeUnit.SECONDS);
-        heartBeat.scheduleAtFixedRate(new HeartBeatChecker(),
-                                      config.getHeartBeatCheckFrequencySeconds(),
-                                      config.getHeartBeatCheckFrequencySeconds(),
-                                      TimeUnit.SECONDS);
+            else {
+                setShardMap(newShardMap, ShardUpdateListenerIf.Source.CACHE);
+                log.info("Loaded ShardMap from cache: " + shardStoreDir);
+            }
+        }
+
+        /* TODO(johnf): consider pinning these threads... */
+        this.shardReload =
+            newFixedRateExecutor(new ShardReloader(), config.getUpdateShardsFrequencySeconds());
+        this.shardStoreSync =
+            newFixedRateExecutor(new ShardStoreSyncer(), config.getSyncShardStoreFrequencySeconds());
+        this.heartBeat
+            = newFixedRateExecutor(new HeartBeatChecker(), config.getHeartBeatCheckFrequencySeconds());
 
         VarExporter.forNamespace(getClass().getSimpleName()).includeInGlobal().export(this, "");
     }
 
+    public LocalImhotepServiceCore(String shardsDir,
+                                   String shardTempDir,
+                                   long memoryCapacity,
+                                   boolean useCache,
+                                   FlamdexReaderSource flamdexReaderFactory,
+                                   LocalImhotepServiceConfig config,
+                                   ShardUpdateListenerIf shardUpdateListener)
+        throws IOException {
+        this(shardsDir, shardTempDir, System.getProperty("imhotep.shard.store"),
+             memoryCapacity, useCache, flamdexReaderFactory, config, shardUpdateListener);
+    }
+
     /** Intended for tests that create their own LocalImhotepServiceCores. */
-    public LocalImhotepServiceCore(String shardsDirectory,
+    public LocalImhotepServiceCore(String shardsDir,
                                    String shardTempDir,
                                    long memoryCapacity,
                                    boolean useCache,
                                    FlamdexReaderSource flamdexReaderFactory,
                                    LocalImhotepServiceConfig config)
         throws IOException {
-        this(shardsDirectory, shardTempDir, memoryCapacity,
-             useCache, flamdexReaderFactory, config,
+        this(shardsDir, shardTempDir, Files.getTempDirectory("imhotep.shard.store", "delete.me"),
+             memoryCapacity, useCache, flamdexReaderFactory, config,
              new ShardUpdateListenerIf() {
-                 public void onShardUpdate(final List<ShardInfo> shardList) { }
-                 public void onDatasetUpdate(final List<DatasetInfo> datasetList) { }
+                 public void onShardUpdate(final List<ShardInfo> shardList,
+                                           final ShardUpdateListenerIf.Source source)
+                 { }
+                 public void onDatasetUpdate(final List<DatasetInfo> datasetList,
+                                             final ShardUpdateListenerIf.Source source)
+                 { }
              });
+        cleanupShardStoreDir = true;
+    }
+
+    private ScheduledExecutorService newFixedRateExecutor(final Runnable runnable,
+                                                          final int      freqSeconds) {
+        final String name = runnable.getClass().getSimpleName() + "Thread";
+        ScheduledExecutorService result =
+            Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
+                    @Override
+                    public Thread newThread(Runnable r) {
+                        final Thread thread = new Thread(r, name);
+                        thread.setDaemon(true);
+                        return thread;
+                    }
+                });
+        result.scheduleAtFixedRate(runnable, freqSeconds, freqSeconds, TimeUnit.SECONDS);
+        return result;
     }
 
     private class ShardReloader implements Runnable {
         @Override
         public void run() {
             try {
-                updateShards();
-            } catch (RuntimeException e) {
+                final ShardMap newShardMap =
+                    new ShardMap(shardMap.get(), new File(shardsDir));
+                setShardMap(newShardMap, ShardUpdateListenerIf.Source.FILESYSTEM);
+            }
+            catch (IOException e) {
                 log.error("error updating shards", e);
-            } catch (IOException e) {
+            }
+            catch (RuntimeException e) {
                 log.error("error updating shards", e);
+            }
+        }
+    }
+
+    private class ShardStoreSyncer implements Runnable {
+        @Override
+        public void run() {
+            try {
+                final ShardMap currentShardMap = shardMap.get();
+                currentShardMap.sync(shardStore);
+            }
+            catch (IOException e) {
+                log.warn("error syncing shard store", e);
+            }
+            catch (RuntimeException e) {
+                log.warn("error syncing shard store", e);
             }
         }
     }
@@ -224,7 +276,7 @@ public class LocalImhotepServiceCore
                 }
             }
             for (final String sessionId : sessionsToClose) {
-                getSessionManager().removeAndCloseIfExists(sessionId, 
+                getSessionManager().removeAndCloseIfExists(sessionId,
                                                            new TimeoutException("Session timed out."));
             }
         }
@@ -233,6 +285,48 @@ public class LocalImhotepServiceCore
     @Override
     protected LocalSessionManager getSessionManager() {
         return sessionManager;
+    }
+
+    private void setShardMap(final ShardMap                     newShardMap,
+                             final ShardUpdateListenerIf.Source source) {
+        shardMap.set(newShardMap);
+        try {
+            shardList.set(new ShardInfoList(this.shardMap.get()));
+            shardUpdateListener.onShardUpdate(this.shardList.get(), source);
+        }
+        catch (IOException ex) {
+            log.error("could not build ShardInfoList", ex);
+        }
+        datasetList.set(new DatasetInfoList(this.shardMap.get()));
+        shardUpdateListener.onDatasetUpdate(this.datasetList.get(), source);
+    }
+
+    private static ShardStore loadOrCreateShardStore(final String shardStoreDir) {
+
+        ShardStore result = null;
+
+        if (shardStoreDir == null) {
+            log.error("shardStoreDir is null; did you set imhotep.shard.store?");
+            return result;
+        }
+
+        final File storeDir = new File(shardStoreDir);
+        try {
+            result = new ShardStore(storeDir);
+        }
+        catch (Exception ex1) {
+            log.error("unable to create/load ShardStore: " + shardStoreDir +
+                      " will attempt to repair", ex1);
+            try {
+                ShardStore.deleteExisting(shardStoreDir);
+                result = new ShardStore(storeDir);
+            }
+            catch (Exception ex2) {
+                log.error("failed to cleanup and recreate ShardStore: " + shardStoreDir +
+                          " operator assistance is required", ex2);
+            }
+        }
+        return result;
     }
 
     private void clearTempDir(String directory) throws IOException {
@@ -255,266 +349,26 @@ public class LocalImhotepServiceCore
                 f.delete();
             }
         }
-
     }
 
-    private void updateShards() throws IOException {
-        final String canonicalShardsDirectory = Files.getCanonicalPath(shardsDirectory);
-        if (canonicalShardsDirectory == null) {
-            shards = Maps.newHashMap();
-            shardList = Lists.newArrayList();
-            datasetList = Lists.newArrayList();
-            return;
-        }
-
-        Map<String, Map<String, Shard>> oldShards = shards;
-        if (oldShards == null) {
-            oldShards = Maps.newHashMap();
-        }
-
-        final Map<String, Map<String, Shard>> newShards = Maps.newHashMap();
-        for (final File datasetDir : new File(canonicalShardsDirectory).listFiles()) {
-            if (!datasetDir.isDirectory()) {
-                continue;
-            }
-
-            final String dataset = datasetDir.getName();
-            Map<String, Shard> oldDatasetShards = oldShards.get(dataset);
-            if (oldDatasetShards == null) {
-                oldDatasetShards = Maps.newHashMap();
-            }
-
-            final Map<String, Shard> newDatasetShards = Maps.newHashMap();
-
-            for (final File shardDir : datasetDir.listFiles()) {
-                if (!shardDir.isDirectory()) {
-                    continue;
-                }
-
-                try {
-                    final String shardId;
-                    final long shardVersion;
-                    final Matcher matcher = VERSION_PATTERN.matcher(shardDir.getName());
-                    if (matcher.matches()) {
-                        shardId = matcher.group(1);
-                        shardVersion = Long.parseLong(matcher.group(2));
-                    } else {
-                        shardId = shardDir.getName();
-                        shardVersion = 0L;
-                    }
-                    final String canonicalShardDir = shardDir.getCanonicalPath();
-
-                    if(oldDatasetShards.containsKey(shardId)) {
-                        final Shard oldShard = oldDatasetShards.get(shardId);
-                        if (oldShard.getShardVersion() == shardVersion && oldShard.getIndexDir().equals(canonicalShardDir)) {
-                            // already loaded
-                            if (!newDatasetShards.containsKey(shardId)) {
-                                newDatasetShards.put(shardId, oldDatasetShards.get(shardId));
-                            }
-                            continue;
-                        }
-                    }
-
-                    final Shard newShard;
-
-                    final ReloadableSharedReference.Loader<CachedFlamdexReader, IOException> loader =
-                            new ReloadableSharedReference.Loader<CachedFlamdexReader, IOException>() {
-                                @Override
-                                public CachedFlamdexReader load() throws IOException {
-                                    final FlamdexReader flamdex =
-                                            flamdexReaderFactory.openReader(canonicalShardDir);
-                                    if (flamdex instanceof RawFlamdexReader) {
-                                        return new RawCachedFlamdexReader(
-                                                                          new MemoryReservationContext(
-                                                                                                       memory),
-                                                                          (RawFlamdexReader) flamdex,
-                                                                          dataset,
-                                                                          shardDir.getName(),
-                                                                          freeCache);
-                                    } else {
-                                        return new CachedFlamdexReader(
-                                                                       new MemoryReservationContext(
-                                                                                                    memory),
-                                                                       flamdex, dataset,
-                                                                       shardDir.getName(),
-                                                                       freeCache);
-                                    }
-                                }
-                            };
-                    newShard =
-                            new Shard(ReloadableSharedReference.create(loader),
-                                      shardVersion, canonicalShardDir, dataset, shardId);
-
-                    Shard shard;
-                    if (newDatasetShards.containsKey(shardId)) {
-                        shard = newDatasetShards.get(shardId);
-                        final Shard current = shard;
-                        if (current == null
-                                || shardVersion > current.getShardVersion()) {
-                            log.debug("loading shard " + shardId + " from " + canonicalShardDir);
-                            shard = newShard;
-                        }
-                    } else if (oldDatasetShards.containsKey(shardId)) {
-                        shard = oldDatasetShards.get(shardId);
-                        final Shard oldShard = shard;
-                        if (shouldReloadShard(oldShard, canonicalShardDir, shardVersion)) {
-                            log.debug("loading shard " + shardId + " from " + canonicalShardDir);
-                            shard = newShard;
-                        }
-                    } else {
-                        log.debug("loading shard " + shardId + " from " + canonicalShardDir);
-                        shard = newShard;
-                    }
-                    newDatasetShards.put(shardId, shard);
-
-                } catch (IOException e) {
-                    log.warn("error loading shard at " + shardDir.getAbsolutePath(), e);
-                }
-            }
-
-            if (newDatasetShards.size() > 0) {
-                newShards.put(dataset, newDatasetShards);
-            }
-        }
-
-        this.shards = newShards;
-
-        final List<ShardInfo> shardList = buildShardList();
-        final List<ShardInfo> oldShardList = this.shardList;
-        if (oldShardList == null || !oldShardList.equals(shardList)) {
-            this.shardList = shardList;
-            shardUpdateListener.onShardUpdate(shardList);
-        }
-
-        final List<DatasetInfo> datasetList = buildDatasetList();
-        final List<DatasetInfo> oldDatasetList = this.datasetList;
-        if (oldDatasetList == null || !oldDatasetList.equals(datasetList)) {
-            this.datasetList = datasetList;
-            shardUpdateListener.onDatasetUpdate(datasetList);
-        }
-    }
-
-    private static boolean shouldReloadShard(Shard oldShard,
-                                             String canonicalShardDir,
-                                             long shardVersion) {
-        if (oldShard == null) {
-            return true;
-        }
-        return shardVersion > oldShard.getShardVersion()
-                || (shardVersion == oldShard.getShardVersion() && (!canonicalShardDir.equals(oldShard.getIndexDir())));
-    }
-
-    private List<ShardInfo> buildShardList() throws IOException {
-        final Map<String, Map<String, Shard>> localShards = shards;
-        final List<ShardInfo> ret = new ArrayList<ShardInfo>();
-        for (final Map<String, Shard> map : localShards.values()) {
-            for (final String shardName : map.keySet()) {
-                final Shard shard = map.get(shardName);
-                if (shard != null) {
-                    ret.add(new ShardInfo(shard.getDataset(), shardName,
-                                          shard.getLoadedMetrics(), shard.getNumDocs(),
-                                          shard.getShardVersion()));
-                }
-            }
-        }
-        Collections.sort(ret, new Comparator<ShardInfo>() {
-            @Override
-            public int compare(ShardInfo o1, ShardInfo o2) {
-                final int c = o1.dataset.compareTo(o2.dataset);
-                if (c != 0) {
-                    return c;
-                }
-                return o1.shardId.compareTo(o2.shardId);
-            }
-        });
-        return ret;
-    }
-
-    private List<DatasetInfo> buildDatasetList() throws IOException {
-        return buildDatasetList(shards);
-    }
-
-    static List<DatasetInfo> buildDatasetList(Map<String, Map<String, Shard>> localShards) throws IOException {
-        final List<DatasetInfo> ret = Lists.newArrayList();
-        for (final Map.Entry<String, Map<String, Shard>> e : localShards.entrySet()) {
-            final String dataset = e.getKey();
-            final Map<String, Shard> map = e.getValue();
-            final List<ShardInfo> shardList = Lists.newArrayList();
-            final Set<String> intFields = Sets.newHashSet();
-            final Set<String> stringFields = Sets.newHashSet();
-            final Set<String> metrics = Sets.newHashSet();
-            Collection<String> newestShardIntFields = null;
-            Collection<String> newestShardStringFields = null;
-            long newestShardVersion = 0;
-            for (final String shardName : map.keySet()) {
-                final Shard shard = map.get(shardName);
-                if (shard != null) {
-                    shardList.add(new ShardInfo(shard.getDataset(), shardName,
-                                                shard.getLoadedMetrics(), shard.getNumDocs(),
-                                                shard.getShardVersion()));
-                    intFields.addAll(shard.getIntFields());
-                    stringFields.addAll(shard.getStringFields());
-                    metrics.addAll(shard.getAvailableMetrics());
-
-                    if(shard.getShardVersion() > newestShardVersion) {
-                        newestShardVersion = shard.getShardVersion();
-                        newestShardIntFields = shard.getIntFields();
-                        newestShardStringFields = shard.getStringFields();
-                    }
-                }
-                // use the newest shard to disambiguate fields that have both String and Int types
-                if (newestShardIntFields != null) {
-                    stringFields.removeAll(newestShardIntFields);
-                    intFields.removeAll(newestShardStringFields);
-
-                    // for the fields that still conflict in the newest shard, let the clients decide
-                    final Set<String> lastShardConflictingFields = Sets.intersection(new HashSet<>(newestShardIntFields), new HashSet<>(newestShardStringFields));
-                    stringFields.addAll(lastShardConflictingFields);
-                    intFields.addAll(lastShardConflictingFields);
-                }
-            }
-            ret.add(new DatasetInfo(dataset, shardList, intFields, stringFields, metrics));
-        }
-        return ret;
-    }
-
-    @Override
-    public List<ShardInfo> handleGetShardList() {
-        return shardList;
-    }
-
-    @Override
-    public List<DatasetInfo> handleGetDatasetList() {
-        return datasetList;
-    }
+    @Override public List<ShardInfo>     handleGetShardList() { return shardList.get();   }
+    @Override public List<DatasetInfo> handleGetDatasetList() { return datasetList.get(); }
 
     @Override
     public ImhotepStatusDump handleGetStatusDump() {
-        final Map<String, Map<String, Shard>> localShards = shards;
-
         final long usedMemory = memory.usedMemory();
         final long totalMemory = memory.totalMemory();
 
         final List<ImhotepStatusDump.SessionDump> openSessions =
                 getSessionManager().getSessionDump();
 
-        final List<ImhotepStatusDump.ShardDump> shards =
-                new ArrayList<ImhotepStatusDump.ShardDump>();
-        for (final String dataset : localShards.keySet()) {
-            for (final String shardId : localShards.get(dataset).keySet()) {
-                final Shard shard = localShards.get(dataset).get(shardId);
-                if (shard != null) {
-                    try {
-                        shards.add(new ImhotepStatusDump.ShardDump(shardId, dataset,
-                                                                   shard.getNumDocs(),
-                                                                   shard.getMetricDump()));
-                    } catch (IOException e) {
-                        throw Throwables.propagate(e);
-                    }
-                }
-            }
+        final List<ImhotepStatusDump.ShardDump> shards;
+        try {
+            shards = shardMap.get().getShardDump();
         }
-
+        catch (IOException e) {
+            throw Throwables.propagate(e);
+        }
         return new ImhotepStatusDump(usedMemory, totalMemory, openSessions, shards);
     }
 
@@ -533,63 +387,37 @@ public class LocalImhotepServiceCore
                                     final boolean optimizeGroupZeroLookups,
                                     String sessionId,
                                     AtomicLong tempFileSizeBytesLeft,
-                                    final boolean useNativeFtgs) throws ImhotepOutOfMemoryException {
-        final Map<String, Map<String, Shard>> localShards = this.shards;
-        checkDatasetExists(localShards, dataset);
+                                    final boolean useNativeFtgs)
+        throws ImhotepOutOfMemoryException {
 
         if (Strings.isNullOrEmpty(sessionId)) {
             sessionId = generateSessionId();
         }
 
-        final Map<String, Shard> datasetShards = localShards.get(dataset);
-        final Map<String, Pair<ShardId, CachedFlamdexReaderReference>> flamdexReaders = Maps.newHashMap();
-        boolean allFlamdexReaders = true;
-        for (final String shardName : shardRequestList) {
-            if (!datasetShards.containsKey(shardName)) {
-                throw new IllegalArgumentException("this service does not have shard " + shardName
-                        + " in dataset " + dataset);
-            }
-            final Shard shard = datasetShards.get(shardName);
-            if (shard == null) {
-                throw new IllegalArgumentException("this service does not have shard "
-                        + shardName + " in dataset " + dataset);
-            }
-            final CachedFlamdexReaderReference cachedFlamdexReaderReference;
-            final ShardId shardId;
-            try {
-                shardId = shard.getShardId();
-                final SharedReference<CachedFlamdexReader> reference = shard.getRef();
-                if (reference.get() instanceof RawCachedFlamdexReader) {
-                    cachedFlamdexReaderReference =
-                        new RawCachedFlamdexReaderReference((SharedReference<RawCachedFlamdexReader>) (SharedReference) reference);
-                } else {
-                    allFlamdexReaders = false;
-                    cachedFlamdexReaderReference = new CachedFlamdexReaderReference(reference);
-                }
-            } catch (IOException e) {
-                throw Throwables.propagate(e);
-            }
-            flamdexReaders.put(shardName, Pair.of(shardId, cachedFlamdexReaderReference));
-        }
+        final ImhotepLocalSession[] localSessions =
+            new ImhotepLocalSession[shardRequestList.size()];
 
-        final Map<ShardId, CachedFlamdexReaderReference> flamdexes = Maps.newHashMap();
-        final ImhotepLocalSession[] localSessions;
-        localSessions = new ImhotepLocalSession[shardRequestList.size()];
         try {
-            final SessionObserver observer = new SessionObserver(dataset, sessionId, username);
+            final ShardMap.FlamdexReaderMap flamdexReaders =
+                shardMap.get().getFlamdexReaders(dataset, shardRequestList);
+
+            final Map<ShardId, CachedFlamdexReaderReference> flamdexes = Maps.newHashMap();
+            final SessionObserver observer =
+                new SessionObserver(dataset, sessionId, username);
             for (int i = 0; i < shardRequestList.size(); ++i) {
                 final String shardId = shardRequestList.get(i);
                 final Pair<ShardId, CachedFlamdexReaderReference> pair =
                         flamdexReaders.get(shardId);
-                final CachedFlamdexReaderReference cachedFlamdexReaderReference = pair.getSecond();
+                final CachedFlamdexReaderReference cachedFlamdexReaderReference =
+                    pair.getSecond();
                 try {
                     flamdexes.put(pair.getFirst(), cachedFlamdexReaderReference);
-                    localSessions[i] = useNativeFtgs && allFlamdexReaders ?
+                    localSessions[i] = useNativeFtgs && flamdexReaders.allFlamdexReaders ?
                         new ImhotepNativeLocalSession(cachedFlamdexReaderReference,
                                                       new MemoryReservationContext(memory),
                                                       tempFileSizeBytesLeft) :
                         new ImhotepJavaLocalSession(cachedFlamdexReaderReference,
-                                                    this.shardTempDirectory,
+                                                    this.shardTempDir,
                                                     new MemoryReservationContext(memory),
                                                     tempFileSizeBytesLeft);
                     localSessions[i].addObserver(observer);
@@ -607,26 +435,24 @@ public class LocalImhotepServiceCore
                 new MTImhotepLocalMultiSession(localSessions,
                                                new MemoryReservationContext(memory),
                                                tempFileSizeBytesLeft,
-                                               useNativeFtgs && allFlamdexReaders);
+                                               useNativeFtgs && flamdexReaders.allFlamdexReaders);
             getSessionManager().addSession(sessionId, session, flamdexes, username,
                                            ipAddress, clientVersion, dataset);
             session.addObserver(observer);
-        } catch (RuntimeException e) {
+        }
+        catch (IOException ex) {
+            Throwables.propagate(ex);
+        }
+        catch (RuntimeException ex) {
             closeNonNullSessions(localSessions);
-            throw e;
-        } catch (ImhotepOutOfMemoryException e) {
+            throw ex;
+        }
+        catch (ImhotepOutOfMemoryException ex) {
             closeNonNullSessions(localSessions);
-            throw e;
+            throw ex;
         }
 
         return sessionId;
-    }
-
-    private static void checkDatasetExists(Map<String, Map<String, Shard>> shards,
-                                           String dataset) {
-        if (!shards.containsKey(dataset)) {
-            throw new IllegalArgumentException("this service does not have dataset " + dataset);
-        }
     }
 
     private static void closeNonNullSessions(final ImhotepSession[] sessions) {
@@ -641,17 +467,31 @@ public class LocalImhotepServiceCore
     public void close() {
         super.close();
         shardReload.shutdown();
+        shardStoreSync.shutdown();
         heartBeat.shutdown();
+        if (shardStore != null) {
+            try {
+                shardStore.close();
+            }
+            catch (IOException ex) {
+                log.warn("failed to close ShardStore", ex);
+            }
+        }
+        if (cleanupShardStoreDir) {
+            try {
+                ShardStore.deleteExisting(shardStoreDir);
+            }
+            catch (IOException ex) {
+                log.warn("failed to clean up ShardStore: " + shardStoreDir, ex);
+            }
+        }
     }
 
-    @Export(name = "loaded-shard-count", doc = "number of loaded shards for each dataset", expand = true)
+    @Export(name = "loaded-shard-count",
+            doc = "number of loaded shards for each dataset",
+            expand = true)
     public Map<String, Integer> getLoadedShardCount() {
-        final Map<String, Map<String, Shard>> shards = this.shards;
-        final Map<String, Integer> ret = Maps.newTreeMap();
-        for (final String dataset : shards.keySet()) {
-            ret.put(dataset, shards.get(dataset).size());
-        }
-        return ret;
+        return shardMap.get().getShardCounts();
     }
 
     private final AtomicInteger counter = new AtomicInteger(new Random().nextInt());

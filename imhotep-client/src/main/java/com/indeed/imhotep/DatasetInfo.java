@@ -18,8 +18,10 @@ import com.google.common.collect.Collections2;
 import com.google.common.collect.Lists;
 import com.indeed.imhotep.protobuf.DatasetInfoMessage;
 import com.indeed.imhotep.protobuf.ShardInfoMessage;
+import it.unimi.dsi.fastutil.objects.ObjectRBTreeSet;
 
 import java.util.Collection;
+import java.util.Collections;
 
 /**
  * @author jsgroth
@@ -31,7 +33,11 @@ public class DatasetInfo {
     private final Collection<String> stringFields;
     private final Collection<String> metrics;
 
-    public DatasetInfo(String dataset, Collection<ShardInfo> shardList, Collection<String> intFields, Collection<String> stringFields, Collection<String> metrics) {
+    public DatasetInfo(String                dataset,
+                       Collection<ShardInfo> shardList,
+                       Collection<String>    intFields,
+                       Collection<String>    stringFields,
+                       Collection<String>    metrics) {
         this.dataset = dataset;
         this.shardList = shardList;
         this.intFields = intFields;
