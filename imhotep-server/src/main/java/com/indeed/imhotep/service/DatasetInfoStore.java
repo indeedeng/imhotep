@@ -59,15 +59,13 @@ class DatasetInfoStore implements AutoCloseable {
     }
 
     static private final class It implements Iterator<DatasetInfo> {
-        private static final ObjectArrayList<ShardInfo> emptyShardInfo =
-            new ObjectArrayList<ShardInfo>(0);
         final Iterator<Store.Entry<String, Value>> it;
         It(Store<String, Value> store) throws IOException { it = store.iterator(); }
         @Override public boolean hasNext() { return it.hasNext(); }
         @Override public DatasetInfo next() {
             Store.Entry<String, Value> entry = it.next();
             return new DatasetInfo(entry.getKey(),
-                                   emptyShardInfo,
+                                   new ObjectArrayList<ShardInfo>(128),
                                    entry.getValue().intFields,
                                    entry.getValue().strFields,
                                    entry.getValue().intFields);

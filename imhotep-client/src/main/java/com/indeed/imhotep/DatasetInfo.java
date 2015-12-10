@@ -33,7 +33,11 @@ public class DatasetInfo {
     private final Collection<String> stringFields;
     private final Collection<String> metrics;
 
-    public DatasetInfo(String dataset, Collection<ShardInfo> shardList, Collection<String> intFields, Collection<String> stringFields, Collection<String> metrics) {
+    public DatasetInfo(String                dataset,
+                       Collection<ShardInfo> shardList,
+                       Collection<String>    intFields,
+                       Collection<String>    stringFields,
+                       Collection<String>    metrics) {
         this.dataset = dataset;
         this.shardList = shardList;
         this.intFields = intFields;
