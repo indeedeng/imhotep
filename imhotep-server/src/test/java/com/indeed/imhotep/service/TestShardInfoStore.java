@@ -26,7 +26,7 @@ public class TestShardInfoStore {
 
             HashSet<ShardInfo> before = new HashSet<ShardInfo>();
             for (int count = 0; count < 4096; ++count) {
-                before.add(new ShardInfo(RandomStringUtils.randomAlphanumeric(rng.nextInt(256)),
+                before.add(new ShardInfo(RandomStringUtils.randomAlphanumeric(32),
                                          RandomStringUtils.randomAlphanumeric(rng.nextInt(256)),
                                          null, rng.nextInt(), rng.nextLong()));
             }
