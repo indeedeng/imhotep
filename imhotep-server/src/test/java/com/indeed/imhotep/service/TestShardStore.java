@@ -55,7 +55,7 @@ public class TestShardStore {
             /* !@# There's currently a bug in LSMTree close() that can cause
                this test to fail if we try to reopen too soon. Until the fix
                for it gets merged, we need this ugly workaround. */
-            //            Thread.sleep(1000);
+            Thread.sleep(1000);
 
             /* Reopen the store and verify that it has everything in it. */
             try (ShardStore store = new ShardStore(new File(storeDir))) {
@@ -69,6 +69,71 @@ public class TestShardStore {
                }
                assertEquals(before, after);
             }
+        }
+        catch (Exception ex) {
+            fail(ex.toString());
+        }
+    }
+
+    @Test public void testShardInfoList() {
+        try {
+            RandomEntries entries = new RandomEntries(64, 1024);
+
+            List<ShardInfo> expected = new ObjectArrayList<ShardInfo>(entries.size());
+            for (Map.Entry<ShardStore.Key, ShardStore.Value> entry: entries.entrySet()) {
+                final ShardStore.Key   key   = entry.getKey();
+                final ShardStore.Value value = entry.getValue();
+                final ShardInfo shardInfo =
+                    new ShardInfo(key.getDataset(), key.getShardId(),
+                                  new ObjectArrayList<String>(0),
+                                  value.getNumDocs(),
+                                  value.getVersion());
+                expected.add(shardInfo);
+            }
+            Collections.sort(expected, ShardInfoList.comparator);
+
+            try (ShardStore store = new ShardStore(new File(storeDir))) {
+               for (Map.Entry<ShardStore.Key, ShardStore.Value> entry: entries.entrySet()) {
+                   store.put(entry.getKey(), entry.getValue());
+               }
+            }
+
+            /* !@# There's currently a bug in LSMTree close() that can cause
+               this test to fail if we try to reopen too soon. Until the fix
+               for it gets merged, we need this ugly workaround. */
+            Thread.sleep(1000);
+
+            /* Reopen the store and verify that it has everything in it. */
+            try (ShardStore store = new ShardStore(new File(storeDir))) {
+               ShardInfoList actual = new ShardInfoList(store);
+               assertEquals(expected, actual);
+         }
+        }
+        catch (Exception ex) {
+            fail(ex.toString());
+        }
+    }
+
+    @Test public void testDatasetInfoList() {
+        try {
+            RandomEntries entries = new RandomEntries(64, 1024);
+
+            try (ShardStore store = new ShardStore(new File(storeDir))) {
+               for (Map.Entry<ShardStore.Key, ShardStore.Value> entry: entries.entrySet()) {
+                   store.put(entry.getKey(), entry.getValue());
+               }
+            }
+
+            Thread.sleep(1000);
+
+            /* Reopen the store and verify that it has everything in it. */
+            try (ShardStore store = new ShardStore(new File(storeDir))) {
+
+               DatasetInfoList actual = new DatasetInfoList(store);
+
+               /* !@# TODO(johnf): add some substance to this test beyond
+                   sanity-checking that we don't crash. */
+         }
         }
         catch (Exception ex) {
             fail(ex.toString());

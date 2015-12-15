@@ -43,7 +43,7 @@ import java.util.Map;
  */
 class ShardStore implements AutoCloseable {
 
-    private static final Logger log = Logger.getLogger(ShardInfoStore.class);
+    private static final Logger log = Logger.getLogger(ShardStore.class);
 
     private static final IntSerializer        intSerializer     = new IntSerializer();
     private static final KeySerializer        keySerializer     = new KeySerializer();
@@ -64,8 +64,7 @@ class ShardStore implements AutoCloseable {
         store.close();
     }
 
-    Iterator<Store.Entry<Key, Value>> iterator()
-        throws IOException  {
+    Iterator<Store.Entry<Key, Value>> iterator() throws IOException  {
         return store.iterator();
     }
 
