@@ -26,6 +26,7 @@ import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
@@ -33,6 +34,12 @@ import java.util.Set;
 class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
 
     private static final Logger log = Logger.getLogger(DatasetInfoList.class);
+
+    static final Comparator<DatasetInfo> comparator = new Comparator<DatasetInfo>() {
+        @Override public int compare(DatasetInfo thing1, DatasetInfo thing2) {
+            return thing1.getDataset().compareTo(thing2.getDataset());
+        }
+    };
 
     private static final class LatestShardVersions
         extends Object2ObjectOpenHashMap<String, ShardStore.Value> {
@@ -98,6 +105,7 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
             /* TODO(johnf): consider allowing partial failure */
             log.error("failed to populate DatasetInfoList from ShardStore", ex);
         }
+        Collections.sort(this, comparator);
     }
 
     private static DatasetInfo findOrCreate(Map<String, DatasetInfo> datasetInfos,
