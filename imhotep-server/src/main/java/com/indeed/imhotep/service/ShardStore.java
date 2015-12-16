@@ -35,8 +35,8 @@ import java.util.Map;
 /**
  * A persistent map of Shards backed by an LSM tree.
  *
- * key: (dataset, shard id)
- * value: (numDocs, version, [int fields], [str fields])
+ * key: (dataset, shardId)
+ * value: (shardDir, numDocs, version, [int fields], [str fields])
  *
  * We don't stash loaded metrics away since those are presumably
  * ephemeral.
@@ -113,15 +113,18 @@ class ShardStore implements AutoCloseable {
 
     static public final class Value {
 
+        private final String       shardDir; // relative to cannonical shard dir
         private final int          numDocs;
         private final long         version;
         private final List<String> intFields;
         private final List<String> strFields;
 
-        Value(Integer      numDocs,
+        Value(String       shardDir,
+              Integer      numDocs,
               Long         version,
               List<String> intFields,
               List<String> strFields) {
+            this.shardDir  = shardDir;
             this.numDocs   = numDocs;
             this.version   = version;
             this.intFields = intFields;
@@ -130,14 +133,16 @@ class ShardStore implements AutoCloseable {
             Collections.sort(strFields);
         }
 
-        public int  getNumDocs() { return numDocs; }
-        public long getVersion() { return version; }
+        public String getShardDir() { return shardDir; }
+        public int     getNumDocs() { return numDocs;  }
+        public long    getVersion() { return version;  }
 
         public List<String> getIntFields() { return intFields; }
         public List<String> getStrFields() { return strFields; }
 
         @Override public int hashCode() {
             int result = 1;
+            result = result * 31 + shardDir.hashCode();
             result = result * 31 + numDocs;
             result = result * 31 + Long.valueOf(version).hashCode();
             return result;
@@ -146,6 +151,7 @@ class ShardStore implements AutoCloseable {
         @Override public boolean equals(Object otherObject) {
             if (this == otherObject) return true;
             final Value other = (Value) otherObject;
+            if (!shardDir.equals(shardDir)) return false;
             if (numDocs != other.numDocs) return false;
             if (version != other.version) return false;
             if (!intFields.equals(other.intFields)) return false;
@@ -156,6 +162,7 @@ class ShardStore implements AutoCloseable {
         @Override public String toString() {
             StringBuilder sb = new StringBuilder();
             sb.append("{");
+            sb.append(" shardDir: " + shardDir + ", ");
             sb.append(" numDocs: " + numDocs + ", ");
             sb.append(" version: " + version + ", ");
             sb.append(" intFields: [ ");
@@ -192,6 +199,7 @@ class ShardStore implements AutoCloseable {
     private static final class ValueSerializer implements Serializer<Value> {
 
         public void write(Value value, DataOutput out) throws IOException {
+            strSerializer.write(value.getShardDir(), out);
             intSerializer.write(value.getNumDocs(), out);
             longSerializer.write(value.getVersion(), out);
             strListSerializer.write(value.getIntFields(), out);
@@ -199,11 +207,12 @@ class ShardStore implements AutoCloseable {
         }
 
         public Value read(DataInput in) throws IOException {
-            final int  numDocs = intSerializer.read(in);
-            final long version = longSerializer.read(in);
+            final String shardDir = strSerializer.read(in);
+            final int    numDocs  = intSerializer.read(in);
+            final long   version  = longSerializer.read(in);
             final List<String> intFields = strListSerializer.read(in);
             final List<String> strFields = strListSerializer.read(in);
-            return new Value(numDocs, version, intFields, strFields);
+            return new Value(shardDir, numDocs, version, intFields, strFields);
         }
     }
 

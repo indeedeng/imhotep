@@ -59,7 +59,8 @@ public class Shard {
     }
 
     public Shard(ReloadableSharedReference<CachedFlamdexReader, IOException> ref,
-                 ShardId shardId, int numDocs,
+                 ShardId shardId,
+                 int numDocs,
                  Collection<String> intFields,
                  Collection<String> stringFields,
                  Collection<String> availableMetrics) {

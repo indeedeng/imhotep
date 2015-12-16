@@ -33,7 +33,7 @@ public class TestShardStore {
 
     @Test public void testShardStore() {
         try {
-            RandomEntries before = new RandomEntries(64, 1024);
+            RandomEntries before = new RandomEntries(64, 512);
 
             /* Create the store and verify that it has everything in it. */
             try (ShardStore store = new ShardStore(new File(storeDir))) {
@@ -77,7 +77,7 @@ public class TestShardStore {
 
     @Test public void testShardInfoList() {
         try {
-            RandomEntries entries = new RandomEntries(64, 1024);
+            RandomEntries entries = new RandomEntries(64, 512);
 
             List<ShardInfo> expected = new ObjectArrayList<ShardInfo>(entries.size());
             for (Map.Entry<ShardStore.Key, ShardStore.Value> entry: entries.entrySet()) {
@@ -116,7 +116,7 @@ public class TestShardStore {
 
     @Test public void testDatasetInfoList() {
         try {
-            RandomEntries entries = new RandomEntries(64, 1024);
+            RandomEntries entries = new RandomEntries(64, 512);
 
             try (ShardStore store = new ShardStore(new File(storeDir))) {
                for (Map.Entry<ShardStore.Key, ShardStore.Value> entry: entries.entrySet()) {
@@ -164,9 +164,11 @@ public class TestShardStore {
                     final long version = 1 + rng.nextInt(3);
                     final ObjectArrayList<String> intFields = newRandomFieldList();
                     final ObjectArrayList<String> strFields = newRandomFieldList();
+                    final String shardDir =
+                        "/var/shards/" + shardId + Long.valueOf(version).toString();
                     final ShardStore.Key key = new ShardStore.Key(dataset, shardId);
                     final ShardStore.Value value =
-                        new ShardStore.Value(numDocs, version, intFields, strFields);
+                        new ShardStore.Value(shardDir, numDocs, version, intFields, strFields);
                     put(key, value);
                 }
             }
