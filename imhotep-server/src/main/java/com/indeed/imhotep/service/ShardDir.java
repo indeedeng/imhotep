@@ -44,6 +44,8 @@ class ShardDir {
         }
     }
 
+    ShardDir(String path) throws IOException { this(new File(path)); }
+
     String       getId() { return id;       }
     long    getVersion() { return version;  }
     String     getName() { return name;     }

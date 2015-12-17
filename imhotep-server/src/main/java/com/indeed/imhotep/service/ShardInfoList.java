@@ -14,8 +14,10 @@
 package com.indeed.imhotep.service;
 
 import com.indeed.imhotep.ShardInfo;
+import com.indeed.imhotep.io.Shard;
 import com.indeed.lsmtree.core.Store;
 
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.apache.log4j.Logger;
 
@@ -24,10 +26,10 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
-/** TODO(johnf): figure out synchronization needs
- */
 class ShardInfoList extends ObjectArrayList<ShardInfo> {
+
     private static final Logger log = Logger.getLogger(ShardInfoList.class);
 
     static final Comparator<ShardInfo> comparator = new Comparator<ShardInfo>() {
@@ -37,17 +39,38 @@ class ShardInfoList extends ObjectArrayList<ShardInfo> {
         }
     };
 
+    ShardInfoList(ShardMap shardMap) {
+        for (Map.Entry<String, Object2ObjectOpenHashMap<String, Shard>>
+                 datasetToShard : shardMap.entrySet()) {
+            final String dataset = datasetToShard.getKey();
+            for (Map.Entry<String, Shard>
+                     idToShard : datasetToShard.getValue().entrySet()) {
+                final String id    = idToShard.getKey();
+                final Shard  shard = idToShard.getValue();
+                try {
+                    final ShardInfo shardInfo =
+                        new ShardInfo(dataset, id, shard.getLoadedMetrics(),
+                                      shard.getNumDocs(), shard.getShardVersion());
+                    add(shardInfo);
+                }
+                catch (IOException ex) {
+                    log.error("could not create Shard Info for dataset: "+ dataset +
+                              " id: " + id, ex);
+                }
+            }
+        }
+    }
+
     ShardInfoList(ShardStore store) {
-        super(4096);            // TODO(johnf) figure out a better way to size this...
         try {
-            final Iterator<Store.Entry<ShardStore.Key, ShardStore.Value>> it = store.iterator();
+            final Iterator<Store.Entry<ShardStore.Key, ShardStore.Value>> it =
+                store.iterator();
             while (it.hasNext()) {
                 final Store.Entry<ShardStore.Key, ShardStore.Value> entry = it.next();
                 final ShardStore.Key   key   = entry.getKey();
                 final ShardStore.Value value = entry.getValue();
                 final ShardInfo shardInfo =
                     new ShardInfo(key.getDataset(), key.getShardId(),
-                                  // !@# figure out how to populate this...
                                   new ObjectArrayList<String>(0),
                                   value.getNumDocs(),
                                   value.getVersion());

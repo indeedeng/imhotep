@@ -13,11 +13,12 @@
  */
 package com.indeed.imhotep.service;
 
-import com.google.common.collect.Sets;
 import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.ShardInfo;
+import com.indeed.imhotep.io.Shard;
 import com.indeed.lsmtree.core.Store;
 
+import com.google.common.collect.Sets;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -25,6 +26,7 @@ import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -35,69 +37,67 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
 
     private static final Logger log = Logger.getLogger(DatasetInfoList.class);
 
-    static final Comparator<DatasetInfo> comparator = new Comparator<DatasetInfo>() {
+    private static final Comparator<DatasetInfo> comparator =
+        new Comparator<DatasetInfo>() {
         @Override public int compare(DatasetInfo thing1, DatasetInfo thing2) {
             return thing1.getDataset().compareTo(thing2.getDataset());
         }
     };
 
-    private static final class LatestShardVersions
-        extends Object2ObjectOpenHashMap<String, ShardStore.Value> {
-
-        void track(ShardStore.Key key, ShardStore.Value current) {
-            final String           dataset  = key.getDataset();
-            final ShardStore.Value existing = get(dataset);
-            if (existing == null || existing.getVersion() < current.getVersion()) {
-                put(dataset, current);
+    DatasetInfoList(ShardMap shardMap) {
+        for (Map.Entry<String, Object2ObjectOpenHashMap<String, Shard>>
+                 datasetToShard : shardMap.entrySet()) {
+            final String dataset = datasetToShard.getKey();
+            final Element datasetInfo = new Element(dataset);
+            for (Map.Entry<String, Shard>
+                     idToShard : datasetToShard.getValue().entrySet()) {
+                final String id    = idToShard.getKey();
+                final Shard  shard = idToShard.getValue();
+                try {
+                    final ShardInfo shardInfo =
+                        new ShardInfo(dataset, id, shard.getLoadedMetrics(),
+                                      shard.getNumDocs(), shard.getShardVersion());
+                    datasetInfo.add(shardInfo, shard);
+                }
+                catch (IOException ex) {
+                    log.error("could not create Shard Info for dataset: "+ dataset +
+                              " id: " + id, ex);
+                }
             }
+            datasetInfo.filter();
+            add(datasetInfo);
         }
-
-        void filterFields(DatasetInfo info) {
-            final ShardStore.Value value = get(info.getDataset());
-            info.getIntFields().removeAll(value.getStrFields());
-            info.getStringFields().removeAll(value.getIntFields());
-
-            // for the fields that still conflict in the newest shard,
-            // let the clients decide
-            final Set<String> conflicts =
-                Sets.intersection(new ObjectOpenHashSet<String>(value.getIntFields()),
-                                  new ObjectOpenHashSet<String>(value.getStrFields()));
-            info.getIntFields().addAll(conflicts);
-            info.getStringFields().addAll(conflicts);
-        }
+        Collections.sort(this, comparator);
     }
 
     DatasetInfoList(ShardStore store) {
-        super(1024);            // TODO(johnf) figure out a better way to size this...
         try {
-            final Map<String, DatasetInfo> datasetInfos =
-                new Object2ObjectOpenHashMap<String, DatasetInfo>();
-            final LatestShardVersions versions =
-                new LatestShardVersions();
+            final Map<String, Element> datasetInfos =
+                new Object2ObjectOpenHashMap<String, Element>();
             final Iterator<Store.Entry<ShardStore.Key, ShardStore.Value>> it =
                 store.iterator();
 
             while (it.hasNext()) {
                 final Store.Entry<ShardStore.Key, ShardStore.Value> entry = it.next();
-                final ShardStore.Key   key   = entry.getKey();
-                final ShardStore.Value value = entry.getValue();
-                versions.track(key, value);
+                final ShardStore.Key   key     = entry.getKey();
+                final ShardStore.Value value   = entry.getValue();
+                final String           dataset = key.getDataset();
 
                 final ShardInfo shardInfo =
-                    new ShardInfo(key.getDataset(), key.getShardId(),
-                                  // !@# figure out how to populate this...
+                    new ShardInfo(dataset, key.getShardId(),
                                   new ObjectArrayList<String>(0),
-                                  value.getNumDocs(),
-                                  value.getVersion());
-                final DatasetInfo datasetInfo = findOrCreate(datasetInfos, key.getDataset());
-                datasetInfo.getShardList().add(shardInfo);
-                datasetInfo.getIntFields().addAll(value.getIntFields());
-                datasetInfo.getStringFields().addAll(value.getStrFields());
-                datasetInfo.getMetrics().addAll(value.getIntFields());
+                                  value.getNumDocs(), value.getVersion());
+
+                Element datasetInfo = datasetInfos.get(dataset);
+                if (datasetInfo == null) {
+                    datasetInfo = new Element(dataset);
+                    datasetInfos.put(dataset, datasetInfo);
+                }
+                datasetInfo.add(shardInfo, value);
             }
 
-            for (DatasetInfo info: datasetInfos.values()) {
-                versions.filterFields(info);
+            for (Element info: datasetInfos.values()) {
+                info.filter();
             }
             addAll(datasetInfos.values());
         }
@@ -108,18 +108,58 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
         Collections.sort(this, comparator);
     }
 
-    private static DatasetInfo findOrCreate(Map<String, DatasetInfo> datasetInfos,
-                                            String dataset) {
-        DatasetInfo result = datasetInfos.get(dataset);
-        if (result == null) {
-            result =
-                new DatasetInfo(dataset,
-                                new ObjectArrayList<ShardInfo>(),
-                                new ObjectOpenHashSet<String>(),
-                                new ObjectOpenHashSet<String>(),
-                                new ObjectOpenHashSet<String>());
-            datasetInfos.put(dataset, result);
+    private static final class Element extends DatasetInfo {
+
+        private long newestVersion = -1;
+        private ObjectOpenHashSet<String> newestIntFields = new ObjectOpenHashSet<String>();
+        private ObjectOpenHashSet<String> newestStrFields = new ObjectOpenHashSet<String>();
+
+        Element(String dataset) {
+            super(dataset,
+                  new ObjectArrayList<ShardInfo>(),
+                  new ObjectOpenHashSet<String>(),
+                  new ObjectOpenHashSet<String>(),
+                  new ObjectOpenHashSet<String>());
         }
-        return result;
+
+        void add(ShardInfo shardInfo, ShardStore.Value value) {
+            getShardList().add(shardInfo);
+            getIntFields().addAll(value.getIntFields());
+            getStringFields().addAll(value.getStrFields());
+            getMetrics().addAll(value.getIntFields());
+            track(shardInfo.getVersion(), value.getIntFields(), value.getStrFields());
+        }
+
+        void add(ShardInfo shardInfo, Shard shard) throws IOException {
+            getShardList().add(shardInfo);
+            getIntFields().addAll(shard.getIntFields());
+            getStringFields().addAll(shard.getStringFields());
+            getMetrics().addAll(shard.getIntFields());
+            track(shardInfo.getVersion(), shard.getIntFields(), shard.getStringFields());
+        }
+
+        private void track(long version,
+                           Collection<String> intFields,
+                           Collection<String> strFields) {
+            if (version > newestVersion) {
+                newestVersion = version;
+                newestIntFields = new ObjectOpenHashSet<String>(intFields);
+                newestStrFields = new ObjectOpenHashSet<String>(strFields);
+            }
+            else if (version == newestVersion) {
+                newestIntFields.addAll(intFields);
+                newestStrFields.addAll(strFields);
+            }
+        }
+
+        private void filter() {
+            getIntFields().removeAll(newestStrFields);
+            getStringFields().removeAll(newestIntFields);
+
+            final Set<String> conflicts =
+                Sets.intersection(newestIntFields, newestStrFields);
+            getIntFields().addAll(conflicts);
+            getStringFields().addAll(conflicts);
+        }
     }
 }

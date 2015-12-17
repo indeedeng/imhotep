@@ -38,8 +38,7 @@ import java.util.Map;
  * key: (dataset, shardId)
  * value: (shardDir, numDocs, version, [int fields], [str fields])
  *
- * We don't stash loaded metrics away since those are presumably
- * ephemeral.
+ * We don't stash loaded metrics away since those are ephemeral.
  */
 class ShardStore implements AutoCloseable {
 
@@ -68,7 +67,11 @@ class ShardStore implements AutoCloseable {
         return store.iterator();
     }
 
+    boolean containsKey(Key key) throws IOException { return store.containsKey(key); }
+
     void put(Key key, Value value) throws IOException { store.put(key, value); }
+
+    void delete(Key key) throws IOException { store.delete(key); }
 
     static public final class Key
         implements Comparable<Key> {

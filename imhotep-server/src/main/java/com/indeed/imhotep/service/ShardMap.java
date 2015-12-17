@@ -25,31 +25,22 @@ import com.indeed.imhotep.io.Shard;
 import com.indeed.lsmtree.core.Store;
 import com.indeed.util.core.reference.ReloadableSharedReference;
 
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.apache.log4j.Logger;
 
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
-/* (dataset->(shardid->shard))
-
-   TODO: figure out how to properly synchronize this
-*/
+/* (dataset->(shardid->shard)) */
 class ShardMap
     extends Object2ObjectOpenHashMap<String, Object2ObjectOpenHashMap<String, Shard>> {
 
     private static final Logger log = Logger.getLogger(ShardMap.class);
-
-    private static final class OnlyDirs implements FilenameFilter {
-        public boolean accept(File dir, String name) {
-            final File file = new File(dir, name);
-            return file.exists() && file.isDirectory();
-        }
-    }
 
     final MemoryReserver      memory;
     final FlamdexReaderSource flamdexReaderSource;
@@ -87,47 +78,51 @@ class ShardMap
                           shardId, value.getNumDocs(),
                           value.getIntFields(), value.getStrFields(),
                           value.getIntFields());
-            getShardMap(key.getDataset()).put(key.getShardId(), shard);
+            putShard(key.getDataset(), shard);
         }
     }
 
-    ShardMap(ShardMap reference, String shardsPath)
+    ShardMap(final ShardMap   reference,
+             final String     shardsPath,
+             final MemoryReserver memory,
+             final FlamdexReaderSource flamdexReaderSource,
+             final ImhotepMemoryCache<MetricKey, IntValueLookup> freeCache)
         throws IOException {
-        boolean dirty = false;
+
+        this.memory              = memory;
+        this.flamdexReaderSource = flamdexReaderSource;
+        this.freeCache           = freeCache;
+
         final OnlyDirs onlyDirs = new OnlyDirs();
         for (final File datasetDir : new File(shardsPath).listFiles(onlyDirs)) {
             final String dataset = datasetDir.getName();
             for (final File file : datasetDir.listFiles(onlyDirs)) {
                 final ShardDir shardDir = new ShardDir(file);
-                if (shardMap.track(reference, dataset, shardDir)) {
-                    dirty = true;
-                }
+                track(reference, dataset, shardDir);
             }
         }
-        if (prune(store)) {
-            dirty = true;
-        }
     }
 
-    private Map<String, Shard> getShardMap(String dataset) {
-        Object2ObjectOpenHashMap<String, Shard> result = get(dataset);
-        if (result == null) {
-            result = new Object2ObjectOpenHashMap<String, Shard>();
-            put(dataset, result);
-        }
-        return result;
+    public void sync(ShardStore store) {
+        saveTo(store);
+        prune(store);
     }
 
-    // !@# blech - this shouldn't create a dataset entry as a side-effect
     private Shard getShard(String dataset, String shardId) {
-        return getShardMap(dataset).get(shardId);
+        final Object2ObjectOpenHashMap<String, Shard> idToShard = get(dataset);
+        return idToShard != null ? idToShard.get(shardId) : null;
     }
 
-    private Shard putShard(String dataset, Shard shard) {
-        return getShardMap(dataset).put(shard.getShardId().getId(), shard);
+    private void putShard(String dataset, Shard shard) {
+        Object2ObjectOpenHashMap<String, Shard> idToShard = get(dataset);
+        if (idToShard == null) {
+            idToShard = new Object2ObjectOpenHashMap<String, Shard>();
+            put(dataset, idToShard);
+        }
+        idToShard.put(shard.getShardId().getId(), shard);
     }
 
-    private boolean track(ShardStore store, ShardMap reference, String dataset, ShardDir shardDir) {
+    private boolean track(ShardMap reference, String dataset, ShardDir shardDir) {
         final Shard knownShard = reference.getShard(dataset, shardDir.getId());
         if (shardDir.isNewerThan(knownShard)) {
             final ReloadableSharedReference.Loader<CachedFlamdexReader, IOException>
@@ -139,20 +134,13 @@ class ShardMap
                               shardDir.getIndexDir(),
                               dataset,
                               shardDir.getId());
-                final ShardStore.Key key = new ShardStore.Key(dataset, shardDir.getId());
-                final ShardStore.Value value =
-                    new ShardStore.Value(shardDir.getName(),
-                                         shard.getNumDocs(),
-                                         shard.getShardVersion(),
-                                         new ObjectArrayList(shard.getIntFields()),
-                                         new ObjectArrayList(shard.getStringFields()));
-                store.put(key, value);
                 putShard(dataset, shard);
-                // !@# log a "loaded shard ..." message
+                log.debug("loading shard " + shardDir.getId() +
+                          " from " + shardDir.getIndexDir());
                 return true;
             }
-            catch (IOException exception) {
-                // !@# log an error...
+            catch (IOException ex) {
+                log.warn("error loading shard at " + shardDir.getIndexDir(), ex);
                 return false;
             }
         }
@@ -162,28 +150,57 @@ class ShardMap
         return false;
     }
 
-    /** @return true if we pruned something */
-    private boolean prune(ShardStore store) {
-        final List<ShardStore.Key> keysToDelete = new ObjectArrayList<ShardStore.Key>();
-
-        final Iterator<Store.Entry<ShardStore.Key, ShardStore.Value>> it =
-            store.iterator();
-
-        while (it.hasNext()) {
-            final Store.Entry<ShardStore.Key, ShardStore.Value> entry = it.next();
-            final ShardStore.Key key = entry.getKey();
-            final Shard shard = getShard(key.getDataset(), key.getShardId());
-            if (shard == null) {
-                keysToDelete.add(key);
+    private void saveTo(ShardStore store) {
+        for (Map.Entry<String, Object2ObjectOpenHashMap<String, Shard>>
+                 datasetToShard : entrySet()) {
+            final String dataset = datasetToShard.getKey();
+            for (Map.Entry<String, Shard>
+                     idToShard : datasetToShard.getValue().entrySet()) {
+                final Shard shard = idToShard.getValue();
+                final ShardStore.Key key =
+                    new ShardStore.Key(dataset, shard.getShardId().getId());
+                try {
+                    if (!store.containsKey(key)) {
+                        final ShardDir shardDir = new ShardDir(shard.getIndexDir());
+                        final ShardStore.Value value =
+                            new ShardStore.Value(shardDir.getName(),
+                                                 shard.getNumDocs(),
+                                                 shard.getShardVersion(),
+                                                 new ObjectArrayList(shard.getIntFields()),
+                                                 new ObjectArrayList(shard.getStringFields()));
+                        store.put(key, value);
+                    }
+                }
+                catch (IOException ex) {
+                    log.error("failed to sync shard: " + key.toString(), ex);
+                }
             }
         }
+    }
 
-        // !@# TODO(johnf): do we need to delete after the fact or are
-        // !LSMTree iterators valid in the face of deletions?
-        for (ShardStore key : keysToDelete) {
-            store.delete(key);
+    private void prune(ShardStore store) {
+        try {
+            final Iterator<Store.Entry<ShardStore.Key, ShardStore.Value>> it =
+                store.iterator();
+
+            while (it.hasNext()) {
+                final Store.Entry<ShardStore.Key, ShardStore.Value> entry = it.next();
+                final ShardStore.Key key = entry.getKey();
+                final Shard shard = getShard(key.getDataset(), key.getShardId());
+                if (shard == null) {
+                    try {
+                        store.delete(key);
+                    }
+                    catch (IOException ex) {
+                        log.warn("failed to prune ShardStore item key: " +
+                                 key.toString(), ex);
+                    }
+                }
+            }
         }
-        return keysToDelete.size() > 0;
+        catch (IOException ex) {
+            log.warn("iteration over ShardStore failed during prune operation", ex);
+        }
     }
 
     private ReloadableSharedReference.Loader<CachedFlamdexReader, IOException>
@@ -206,5 +223,12 @@ class ShardMap
                 }
             }
         };
+    }
+
+    private static final class OnlyDirs implements FilenameFilter {
+        public boolean accept(File dir, String name) {
+            final File file = new File(dir, name);
+            return file.exists() && file.isDirectory();
+        }
     }
 }
