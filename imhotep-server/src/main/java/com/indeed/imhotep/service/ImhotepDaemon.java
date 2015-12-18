@@ -156,17 +156,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
     public ImhotepDaemon(ServerSocket ss, AbstractImhotepServiceCore service,
                          String zkNodes, String zkPath, String hostname, int port,
                          ShardUpdateListener shardUpdateListener) {
-        /* !@# HACK ALERT
-
-           This idea is speculative. In service of expediency, the
-           native code required by PinnedThreadFactory has been
-           packaged up into libftgs. If it proves useful, then it
-           should be migrated to a util lib either within this project
-           or perhaps opensource/util.
-
-           !@# HACK ALERT */
-        com.indeed.imhotep.local.MTImhotepLocalMultiSession.loadNativeLibrary();
-
         this.ss = ss;
         this.service = service;
         this.shardUpdateListener = shardUpdateListener;
@@ -1289,6 +1278,17 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                           boolean useCache,
                                           String zkNodes,
                                           String zkPath) throws IOException {
+        /* !@# HACK ALERT
+
+           This idea is speculative. In service of expediency, the
+           native code required by PinnedThreadFactory has been
+           packaged up into libftgs. If it proves useful, then it
+           should be migrated to a util lib either within this project
+           or perhaps opensource/util.
+
+           !@# HACK ALERT */
+        com.indeed.imhotep.local.MTImhotepLocalMultiSession.loadNativeLibrary();
+
         final AbstractImhotepServiceCore localService;
         final ShardUpdateListener shardUpdateListener = new ShardUpdateListener();
 

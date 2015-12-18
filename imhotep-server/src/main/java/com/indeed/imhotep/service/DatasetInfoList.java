@@ -19,7 +19,6 @@ import com.indeed.imhotep.io.Shard;
 import com.indeed.lsmtree.core.Store;
 
 import com.google.common.collect.Sets;
-import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -72,8 +71,7 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
 
     DatasetInfoList(ShardStore store) {
         try {
-            final Map<String, Element> datasetInfos =
-                new Object2ObjectOpenHashMap<String, Element>();
+            final Map<String, Element> datasetInfos = new Object2ObjectOpenHashMap<>();
             final Iterator<Store.Entry<ShardStore.Key, ShardStore.Value>> it =
                 store.iterator();
 
@@ -111,8 +109,8 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
     private static final class Element extends DatasetInfo {
 
         private long newestVersion = -1;
-        private ObjectOpenHashSet<String> newestIntFields = new ObjectOpenHashSet<String>();
-        private ObjectOpenHashSet<String> newestStrFields = new ObjectOpenHashSet<String>();
+        private ObjectOpenHashSet<String> newestIntFields = new ObjectOpenHashSet<>();
+        private ObjectOpenHashSet<String> newestStrFields = new ObjectOpenHashSet<>();
 
         Element(String dataset) {
             super(dataset,
@@ -143,8 +141,8 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
                            Collection<String> strFields) {
             if (version > newestVersion) {
                 newestVersion = version;
-                newestIntFields = new ObjectOpenHashSet<String>(intFields);
-                newestStrFields = new ObjectOpenHashSet<String>(strFields);
+                newestIntFields = new ObjectOpenHashSet<>(intFields);
+                newestStrFields = new ObjectOpenHashSet<>(strFields);
             }
             else if (version == newestVersion) {
                 newestIntFields.addAll(intFields);

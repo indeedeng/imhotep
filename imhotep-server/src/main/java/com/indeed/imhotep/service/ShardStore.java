@@ -21,7 +21,6 @@ import com.indeed.util.serialization.Serializer;
 import com.indeed.util.serialization.StringSerializer;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import org.apache.log4j.Logger;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -30,7 +29,6 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 /**
  * A persistent map of Shards backed by an LSM tree.
@@ -42,8 +40,6 @@ import java.util.Map;
  */
 class ShardStore implements AutoCloseable {
 
-    private static final Logger log = Logger.getLogger(ShardStore.class);
-
     private static final IntSerializer        intSerializer     = new IntSerializer();
     private static final KeySerializer        keySerializer     = new KeySerializer();
     private static final LongSerializer       longSerializer    = new LongSerializer();
@@ -51,11 +47,11 @@ class ShardStore implements AutoCloseable {
     private static final StringSerializer     strSerializer     = new StringSerializer();
     private static final ValueSerializer      valueSerializer   = new ValueSerializer();
 
-    private final Store<Key, Value> store;
+    private final Store store;
 
     ShardStore(File root) throws IOException {
         StoreBuilder<Key, Value> builder =
-            new StoreBuilder<Key, Value>(root, keySerializer, valueSerializer);
+            new StoreBuilder<>(root, keySerializer, valueSerializer);
         store = builder.build();
     }
 
@@ -96,6 +92,7 @@ class ShardStore implements AutoCloseable {
 
         @Override public boolean equals(Object otherObject) {
             if (this == otherObject) return true;
+            if (this.getClass() != otherObject.getClass()) return false;
             final Key other = (Key) otherObject;
             if (!getDataset().equals(other.getDataset())) return false;
             if (!getShardId().equals(other.getShardId())) return false;
@@ -154,7 +151,7 @@ class ShardStore implements AutoCloseable {
         @Override public boolean equals(Object otherObject) {
             if (this == otherObject) return true;
             final Value other = (Value) otherObject;
-            if (!shardDir.equals(shardDir)) return false;
+            if (!shardDir.equals(other.shardDir)) return false;
             if (numDocs != other.numDocs) return false;
             if (version != other.version) return false;
             if (!intFields.equals(other.intFields)) return false;
@@ -233,8 +230,7 @@ class ShardStore implements AutoCloseable {
         public final List<String> read(DataInput in)
             throws IOException {
             final int numValues = intSerializer.read(in);
-            final ObjectArrayList<String> result =
-                new ObjectArrayList<String>(numValues);
+            final List<String> result = new ObjectArrayList<>(numValues);
             for (int count = 0; count < numValues; ++count) {
                 final String field = strSerializer.read(in);
                 result.add(field);
