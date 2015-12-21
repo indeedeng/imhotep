@@ -159,10 +159,14 @@ public class TestLocalImhotepServiceCore {
             new File(datasetDir, "shard1.20120101123456").mkdir();
             new File(datasetDir, "shard2.20120102000000").mkdir();
 
-            LocalImhotepServiceCore service = new LocalImhotepServiceCore(directory, tempDir, Long.MAX_VALUE, false, new FlamdexReaderSource() {
+            LocalImhotepServiceCore service =
+                new LocalImhotepServiceCore(directory, tempDir, Long.MAX_VALUE,
+                                            false, new FlamdexReaderSource() {
                 @Override
                 public FlamdexReader openReader(String directory) throws IOException {
-                    return new MockFlamdexReader(Arrays.asList("if1"), Arrays.asList("sf1"), Arrays.asList("if1"), 5);
+                    return new MockFlamdexReader(Arrays.asList("if1"),
+                                                 Arrays.asList("sf1"),
+                                                 Arrays.asList("if1"), 5);
                 }
             }, new LocalImhotepServiceConfig());
             List<ShardInfo> shards = service.handleGetShardList();
@@ -190,47 +194,67 @@ public class TestLocalImhotepServiceCore {
     @Test
     public void testBuildDatasetList() throws IOException {
         final String dataset = "sponsored";
-        final Map<String, Map<String, Shard>> localShards = Maps.newHashMap();
-        final Map<String, Shard> datasetShards = Maps.newHashMap();
-        localShards.put(dataset, datasetShards);
         Set<String> expectedIntFields;
         Set<String> expectedStringFields;
 
-        datasetShards.clear();
-        addShard(datasetShards, dataset, 20150101000000L, ImmutableSet.of("int1"), ImmutableSet.of("str1"));
-        addShard(datasetShards, dataset, 20150102000000L, ImmutableSet.of("int1", "int2"), ImmutableSet.of("str1", "str2"));
-        addShard(datasetShards, dataset, 20150103000000L, ImmutableSet.of("int1", "int2"), ImmutableSet.of("str1", "str2"));
+        ShardMap localShards = new ShardMap(null, null, null);
+        addShard(localShards, dataset, 20150101000000L,
+                 ImmutableSet.of("int1"), ImmutableSet.of("str1"));
+        addShard(localShards, dataset, 20150102000000L,
+                 ImmutableSet.of("int1", "int2"), ImmutableSet.of("str1", "str2"));
+        addShard(localShards, dataset, 20150103000000L,
+                 ImmutableSet.of("int1", "int2"), ImmutableSet.of("str1", "str2"));
         expectedIntFields = ImmutableSet.of("int1", "int2");
         expectedStringFields = ImmutableSet.of("str1", "str2");
         checkExpectedFields(localShards, expectedIntFields, expectedStringFields);
 
-        datasetShards.clear();
-        addShard(datasetShards, dataset, 20150101000000L, ImmutableSet.of("int1", "int2", "conflict"), ImmutableSet.of("str1", "str2", "conflict"));
-        addShard(datasetShards, dataset, 20150102000000L, ImmutableSet.of("int1", "int2", "conflict"), ImmutableSet.of("str1", "str2", "conflict"));
-        addShard(datasetShards, dataset, 20150103000000L, ImmutableSet.of("int1", "int2", "conflict"), ImmutableSet.of("str1", "str2"));
+        localShards = new ShardMap(null, null, null);
+        addShard(localShards, dataset, 20150101000000L,
+                 ImmutableSet.of("int1", "int2", "conflict"),
+                 ImmutableSet.of("str1", "str2", "conflict"));
+        addShard(localShards, dataset, 20150102000000L,
+                 ImmutableSet.of("int1", "int2", "conflict"),
+                 ImmutableSet.of("str1", "str2", "conflict"));
+        addShard(localShards, dataset, 20150103000000L,
+                 ImmutableSet.of("int1", "int2", "conflict"),
+                 ImmutableSet.of("str1", "str2"));
         expectedIntFields = ImmutableSet.of("int1", "int2", "conflict");
         expectedStringFields = ImmutableSet.of("str1", "str2");
         checkExpectedFields(localShards, expectedIntFields, expectedStringFields);
 
-        datasetShards.clear();
-        addShard(datasetShards, dataset, 20150103000000L, ImmutableSet.of("conflict", "int1", "int2"), ImmutableSet.of("str1", "str2"));
-        addShard(datasetShards, dataset, 20150101000000L, ImmutableSet.of("conflict", "int1", "int2"), ImmutableSet.of("str1", "str2", "conflict"));
-        addShard(datasetShards, dataset, 20150102000000L, ImmutableSet.of("conflict", "int1", "int2"), ImmutableSet.of("str1", "str2", "conflict"));
+        localShards = new ShardMap(null, null, null);
+        addShard(localShards, dataset, 20150103000000L,
+                 ImmutableSet.of("conflict", "int1", "int2"),
+                 ImmutableSet.of("str1", "str2"));
+        addShard(localShards, dataset, 20150101000000L,
+                 ImmutableSet.of("conflict", "int1", "int2"),
+                 ImmutableSet.of("str1", "str2", "conflict"));
+        addShard(localShards, dataset, 20150102000000L,
+                 ImmutableSet.of("conflict", "int1", "int2"),
+                 ImmutableSet.of("str1", "str2", "conflict"));
         expectedIntFields = ImmutableSet.of("int1", "int2", "conflict");
         expectedStringFields = ImmutableSet.of("str1", "str2");
         checkExpectedFields(localShards, expectedIntFields, expectedStringFields);
 
-        datasetShards.clear();
-        addShard(datasetShards, dataset, 20150103000000L, ImmutableSet.of("conflict", "int1", "int2"), ImmutableSet.of("str1", "str2", "conflict"));
-        addShard(datasetShards, dataset, 20150101000000L, ImmutableSet.of("conflict", "int1", "int2"), ImmutableSet.of("str1", "str2", "conflict"));
-        addShard(datasetShards, dataset, 20150102000000L, ImmutableSet.of("conflict", "int1", "int2"), ImmutableSet.of("str1", "str2", "conflict"));
+        localShards = new ShardMap(null, null, null);
+        addShard(localShards, dataset, 20150103000000L,
+                 ImmutableSet.of("conflict", "int1", "int2"),
+                 ImmutableSet.of("str1", "str2", "conflict"));
+        addShard(localShards, dataset, 20150101000000L,
+                 ImmutableSet.of("conflict", "int1", "int2"),
+                 ImmutableSet.of("str1", "str2", "conflict"));
+        addShard(localShards, dataset, 20150102000000L,
+                 ImmutableSet.of("conflict", "int1", "int2"),
+                 ImmutableSet.of("str1", "str2", "conflict"));
         expectedIntFields = ImmutableSet.of("int1", "int2", "conflict");
         expectedStringFields = ImmutableSet.of("str1", "str2", "conflict");
         checkExpectedFields(localShards, expectedIntFields, expectedStringFields);
     }
 
-    private void checkExpectedFields(Map<String, Map<String, Shard>> localShards, Set<String> expectedIntFields, Set<String> expectedStringFields) throws IOException {
-        List<DatasetInfo> datasetInfos = LocalImhotepServiceCore.buildDatasetList(localShards);
+    private void checkExpectedFields(ShardMap localShards,
+                                     Set<String> expectedIntFields,
+                                     Set<String> expectedStringFields) throws IOException {
+        final DatasetInfoList datasetInfos = new DatasetInfoList(localShards);
         assertEquals(1, datasetInfos.size());
 
         DatasetInfo datasetInfo = datasetInfos.get(0);
@@ -238,11 +262,14 @@ public class TestLocalImhotepServiceCore {
         assertEquals(expectedStringFields, datasetInfo.getStringFields());
     }
 
-    private void addShard(Map<String, Shard> datasetShards, String dataset, long version, ImmutableSet<String> intFields, ImmutableSet<String> stringFields) throws IOException {
+    private void addShard(ShardMap localShards,
+                          String dataset,
+                          long version,
+                          ImmutableSet<String> intFields,
+                          ImmutableSet<String> stringFields) throws IOException {
         String shardId = "index" + Long.toString(version).substring(0, 8);
-        Shard shard = new MockShard(new ShardId(dataset, shardId, version, null), 0, intFields, stringFields, Collections.<String>emptyList());
-        datasetShards.put(shardId, shard);
+        Shard shard = new MockShard(new ShardId(dataset, shardId, version, null),
+                                    0, intFields, stringFields, Collections.<String>emptyList());
+        localShards.putShard(dataset, shard);
     }
-
-
 }

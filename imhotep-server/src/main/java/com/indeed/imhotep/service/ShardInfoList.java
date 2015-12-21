@@ -58,6 +58,7 @@ class ShardInfoList extends ObjectArrayList<ShardInfo> {
                 }
             }
         }
+        Collections.sort(this, comparator);
     }
 
     ShardInfoList(ShardStore store) {

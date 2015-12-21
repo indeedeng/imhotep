@@ -56,6 +56,14 @@ class ShardMap
                        final Shard  shard) throws E;
     }
 
+    ShardMap(final MemoryReserver      memory,
+             final FlamdexReaderSource flamdexReaderSource,
+             final ImhotepMemoryCache<MetricKey, IntValueLookup> freeCache) {
+        this.memory              = memory;
+        this.flamdexReaderSource = flamdexReaderSource;
+        this.freeCache           = freeCache;
+    }
+
     ShardMap(final ShardStore          store,
              final File                localShardsPath,
              final MemoryReserver      memory,
@@ -63,9 +71,7 @@ class ShardMap
              final ImhotepMemoryCache<MetricKey, IntValueLookup> freeCache)
         throws IOException {
 
-        this.memory              = memory;
-        this.flamdexReaderSource = flamdexReaderSource;
-        this.freeCache           = freeCache;
+        this(memory, flamdexReaderSource, freeCache);
 
         final Iterator<Store.Entry<ShardStore.Key, ShardStore.Value>> it =
             store.iterator();
@@ -92,19 +98,14 @@ class ShardMap
         }
     }
 
-    ShardMap(final ShardMap   reference,
-             final String     shardsPath,
-             final MemoryReserver memory,
-             final FlamdexReaderSource flamdexReaderSource,
-             final ImhotepMemoryCache<MetricKey, IntValueLookup> freeCache)
+    ShardMap(final ShardMap reference,
+             final File     localShardsPath)
         throws IOException {
 
-        this.memory              = memory;
-        this.flamdexReaderSource = flamdexReaderSource;
-        this.freeCache           = freeCache;
+        this(reference.memory, reference.flamdexReaderSource, reference.freeCache);
 
         final OnlyDirs onlyDirs = new OnlyDirs();
-        for (final File datasetDir : new File(shardsPath).listFiles(onlyDirs)) {
+        for (final File datasetDir : localShardsPath.listFiles(onlyDirs)) {
             final String dataset = datasetDir.getName();
             for (final File file : datasetDir.listFiles(onlyDirs)) {
                 final ShardDir shardDir = new ShardDir(file);
@@ -194,12 +195,12 @@ class ShardMap
         return result;
     }
 
-    private Shard getShard(String dataset, String shardId) {
+    public Shard getShard(String dataset, String shardId) {
         final Object2ObjectOpenHashMap<String, Shard> idToShard = get(dataset);
         return idToShard != null ? idToShard.get(shardId) : null;
     }
 
-    private void putShard(String dataset, Shard shard) {
+    public void putShard(String dataset, Shard shard) {
         Object2ObjectOpenHashMap<String, Shard> idToShard = get(dataset);
         if (idToShard == null) {
             idToShard = new Object2ObjectOpenHashMap<>();
@@ -209,8 +210,9 @@ class ShardMap
     }
 
     private boolean track(ShardMap reference, String dataset, ShardDir shardDir) {
-        final Shard knownShard = reference.getShard(dataset, shardDir.getId());
-        if (shardDir.isNewerThan(knownShard)) {
+        final Shard referenceShard = reference.getShard(dataset, shardDir.getId());
+        final Shard currentShard   = getShard(dataset, shardDir.getId());
+        if (shardDir.isNewerThan(referenceShard) && shardDir.isNewerThan(currentShard)) {
             final ReloadableSharedReference.Loader<CachedFlamdexReader, IOException>
                 loader = newLoader(new File(shardDir.getIndexDir()), dataset, shardDir.getName());
             try {
@@ -230,8 +232,11 @@ class ShardMap
                 return false;
             }
         }
+        else if (currentShard.isNewerThan(referenceShard)) {
+            putShard(dataset, currentShard);
+        }
         else {
-            putShard(dataset, knownShard);
+            putShard(dataset, referenceShard);
         }
         return false;
     }

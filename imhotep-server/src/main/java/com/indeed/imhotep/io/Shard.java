@@ -140,4 +140,9 @@ public class Shard {
         }
         return Collections.emptyList();
     }
+
+    public boolean isNewerThan(final Shard otherShard) {
+        if (otherShard == null) return true;
+        return getShardVersion() > otherShard.getShardVersion();
+    }
 }

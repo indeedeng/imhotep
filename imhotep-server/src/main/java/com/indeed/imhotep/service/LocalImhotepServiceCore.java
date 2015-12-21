@@ -21,13 +21,9 @@ import com.indeed.util.core.Pair;
 import com.indeed.util.core.shell.PosixFileOperations;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.io.Files;
-import com.indeed.util.core.reference.ReloadableSharedReference;
-import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.varexport.Export;
 import com.indeed.util.varexport.VarExporter;
-import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntValueLookup;
-import com.indeed.flamdex.api.RawFlamdexReader;
 import com.indeed.imhotep.CachedMemoryReserver;
 import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.ImhotepMemoryCache;
@@ -39,7 +35,6 @@ import com.indeed.imhotep.MetricKey;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
-import com.indeed.imhotep.io.Shard;
 import com.indeed.imhotep.local.ImhotepLocalSession;
 import com.indeed.imhotep.local.ImhotepJavaLocalSession;
 import com.indeed.imhotep.local.ImhotepNativeLocalSession;
@@ -53,7 +48,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
@@ -77,8 +71,11 @@ public class LocalImhotepServiceCore
     private final ScheduledExecutorService shardReload;
     private final ScheduledExecutorService shardStoreSync;
     private final ScheduledExecutorService heartBeat;
-    private final String shardsDirectory;
-    private final String shardTempDirectory;
+    private final String shardsDir;
+    private final String shardTempDir;
+    private final String shardStoreDir;
+
+    private boolean cleanupShardStoreDir = false; // 'true' only in test codepaths
 
     private final MemoryReserver memory;
     private final ImhotepMemoryCache<MetricKey, IntValueLookup> freeCache;
@@ -89,13 +86,15 @@ public class LocalImhotepServiceCore
 
     private final ShardStore shardStore;
 
-    private final AtomicReference<ShardMap>        shardMap    = new AtomicReference<ShardMap>();
-    private final AtomicReference<ShardInfoList>   shardList   = new AtomicReference<ShardInfoList>();
-    private final AtomicReference<DatasetInfoList> datasetList = new AtomicReference<DatasetInfoList>();
+    private final AtomicReference<ShardMap>        shardMap    = new AtomicReference<>();
+    private final AtomicReference<ShardInfoList>   shardList   = new AtomicReference<>();
+    private final AtomicReference<DatasetInfoList> datasetList = new AtomicReference<>();
 
     /**
-     * @param shardsDirectory
+     * @param shardsDir
      *            root directory from which to read shards
+     * @param shardStoreDir
+     *            root directory of the [Shard|Dataset]Info cache (ShardStore).
      * @param memoryCapacity
      *            the capacity in bytes allowed to be allocated for large
      *            int/long arrays
@@ -108,15 +107,16 @@ public class LocalImhotepServiceCore
      * @throws IOException
      *             if something bad happens
      */
-    public LocalImhotepServiceCore(String shardsDirectory,
+    public LocalImhotepServiceCore(String shardsDir,
                                    String shardTempDir,
+                                   String shardStoreDir,
                                    long memoryCapacity,
                                    boolean useCache,
                                    FlamdexReaderSource flamdexReaderFactory,
                                    LocalImhotepServiceConfig config,
                                    ShardUpdateListenerIf shardUpdateListener)
         throws IOException {
-        this.shardsDirectory = shardsDirectory;
+        this.shardsDir = shardsDir;
         this.shardUpdateListener = shardUpdateListener;
 
         /* check if the temp dir exists, try to create it if it does not */
@@ -127,7 +127,7 @@ public class LocalImhotepServiceCore
         if (!tempDir.exists()) {
             tempDir.mkdirs();
         }
-        this.shardTempDirectory = shardTempDir;
+        this.shardTempDir = shardTempDir;
 
         this.flamdexReaderFactory = flamdexReaderFactory;
         if (useCache) {
@@ -144,17 +144,28 @@ public class LocalImhotepServiceCore
             clearTempDir(shardTempDir);
         }
 
-        final String imhotepShardStore =
-            System.getProperty("imhotep.shard.store",
-                               "/tmp/imhotep.shard.store." +
-                               Long.toString(System.currentTimeMillis()));
-        this.shardStore = new ShardStore(new File(imhotepShardStore));
-        final String canonicalShardsDirectory = Files.getCanonicalPath(shardsDirectory);
-        if (canonicalShardsDirectory != null) {
-            final File localShardsPath = new File(canonicalShardsDirectory);
-            this.shardMap.set(new ShardMap(shardStore, localShardsPath,
-                                           memory, flamdexReaderFactory, freeCache));
+        if (shardStoreDir == null) {
+            throw new IOException("shardStoreDir is null; did you set imhotep.shard.store?");
         }
+        this.shardStoreDir = shardStoreDir;
+
+        this.shardStore = new ShardStore(new File(shardStoreDir));
+        final String canonicalShardsDir = Files.getCanonicalPath(shardsDir);
+        if (canonicalShardsDir != null) {
+            final File localShardsPath = new File(canonicalShardsDir);
+            ShardMap newShardMap = new ShardMap(shardStore, localShardsPath,
+                                                memory, flamdexReaderFactory, freeCache);
+            /* An empty ShardMap suggests that ShardStore had not been
+             * initialized, so fallback to a synchronous directory scan. */
+            if (newShardMap.size() == 0) {
+                final ShardMap emptyShardMap =
+                    new ShardMap(memory, flamdexReaderFactory, freeCache);
+                newShardMap = new ShardMap(emptyShardMap, localShardsPath);
+            }
+
+            this.shardMap.set(newShardMap);
+        }
+
         this.shardList.set(new ShardInfoList(this.shardMap.get()));
         this.shardUpdateListener.onShardUpdate(this.shardList.get());
         this.datasetList.set(new DatasetInfoList(this.shardMap.get()));
@@ -201,24 +212,33 @@ public class LocalImhotepServiceCore
         VarExporter.forNamespace(getClass().getSimpleName()).includeInGlobal().export(this, "");
     }
 
+    public LocalImhotepServiceCore(String shardsDir,
+                                   String shardTempDir,
+                                   long memoryCapacity,
+                                   boolean useCache,
+                                   FlamdexReaderSource flamdexReaderFactory,
+                                   LocalImhotepServiceConfig config,
+                                   ShardUpdateListenerIf shardUpdateListener)
+        throws IOException {
+        this(shardsDir, shardTempDir, System.getProperty("imhotep.shard.store"),
+             memoryCapacity, useCache, flamdexReaderFactory, config, shardUpdateListener);
+    }
+
     /** Intended for tests that create their own LocalImhotepServiceCores. */
-    public LocalImhotepServiceCore(String shardsDirectory,
+    public LocalImhotepServiceCore(String shardsDir,
                                    String shardTempDir,
                                    long memoryCapacity,
                                    boolean useCache,
                                    FlamdexReaderSource flamdexReaderFactory,
                                    LocalImhotepServiceConfig config)
         throws IOException {
-        this(shardsDirectory, shardTempDir, memoryCapacity,
-             useCache, flamdexReaderFactory, config,
+        this(shardsDir, shardTempDir, Files.getTempDirectory("imhotep.shard.store", "delete.me"),
+             memoryCapacity, useCache, flamdexReaderFactory, config,
              new ShardUpdateListenerIf() {
                  public void onShardUpdate(final List<ShardInfo> shardList) { }
                  public void onDatasetUpdate(final List<DatasetInfo> datasetList) { }
              });
-
-        /* Unit tests rely on the filesystem-based ShardMap having
-         * been synchronously constructed, so force that here. */
-        new ShardReloader().run();
+        cleanupShardStoreDir = true;
     }
 
     private class ShardReloader implements Runnable {
@@ -226,8 +246,7 @@ public class LocalImhotepServiceCore
         public void run() {
             try {
                 final ShardMap newShardMap =
-                    new ShardMap(shardMap.get(), shardsDirectory,
-                                 memory, flamdexReaderFactory, freeCache);
+                    new ShardMap(shardMap.get(), new File(shardsDir));
                 shardMap.set(newShardMap);
                 shardList.set(new ShardInfoList(shardMap.get()));
                 shardUpdateListener.onShardUpdate(shardList.get());
@@ -300,7 +319,6 @@ public class LocalImhotepServiceCore
                 f.delete();
             }
         }
-
     }
 
     @Override public List<ShardInfo>     handleGetShardList() { return shardList.get();   }
@@ -369,7 +387,7 @@ public class LocalImhotepServiceCore
                                                       new MemoryReservationContext(memory),
                                                       tempFileSizeBytesLeft) :
                         new ImhotepJavaLocalSession(cachedFlamdexReaderReference,
-                                                    this.shardTempDirectory,
+                                                    this.shardTempDir,
                                                     new MemoryReservationContext(memory),
                                                     tempFileSizeBytesLeft);
                     localSessions[i].addObserver(observer);
@@ -426,6 +444,9 @@ public class LocalImhotepServiceCore
         }
         catch (IOException ex) {
             log.warn("failed to close ShardStore", ex);
+        }
+        if (cleanupShardStoreDir) {
+            Files.delete(shardStoreDir);
         }
     }
 
