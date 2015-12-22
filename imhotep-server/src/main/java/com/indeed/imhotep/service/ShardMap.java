@@ -40,22 +40,40 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-/* (dataset->(shardid->shard)) */
+/** ShardMap is the data structure used by LocalImhotepServiceCore to keep track
+    of which shards reside on the host on which it is running. It's an unordered
+    map of unordered maps, (dataset->(shardid->shard)).
+
+    Conceptually, instances of this class are immutable, however nothing in
+    practice prevents them from being modified, a property which is useful in
+    the context of unit tests.
+
+    WRT to its Map heritage, inheritence was chosen over composition in light
+    of consumers such as DatasetInfoList, which need to iterate in specialized
+    ways. I.e. wrapping a Map would provide better encapsulation, but
+    necessitate more boilerplate wrapping code.
+*/
 class ShardMap
     extends Object2ObjectOpenHashMap<String, Object2ObjectOpenHashMap<String, Shard>> {
 
     private static final Logger log = Logger.getLogger(ShardMap.class);
 
-    final MemoryReserver      memory;
-    final FlamdexReaderSource flamdexReaderSource;
-    final ImhotepMemoryCache<MetricKey, IntValueLookup> freeCache;
+    /** This class serves as a factory for FlamdexReaders, albeit in a
+        roundabout fashion. In order to do so, it needs access to these
+        resources (owned by LocalImhotepServiceCore). */
+    private final MemoryReserver      memory;
+    private final FlamdexReaderSource flamdexReaderSource;
+    private final ImhotepMemoryCache<MetricKey, IntValueLookup> freeCache;
 
+    /** The general scheme for iterating over this collection is to pass an
+        implementation of ElementHandler to the map() method. */
     interface ElementHandler<E extends Throwable> {
         void onElement(final String dataset,
                        final String shardId,
                        final Shard  shard) throws E;
     }
 
+    /** Construct an empty ShardMap */
     ShardMap(final MemoryReserver      memory,
              final FlamdexReaderSource flamdexReaderSource,
              final ImhotepMemoryCache<MetricKey, IntValueLookup> freeCache) {
@@ -64,6 +82,8 @@ class ShardMap
         this.freeCache           = freeCache;
     }
 
+    /** Construct a ShardMap containing the content of a ShardStore. I.e.,
+        reconstitute it from its serialized form. */
     ShardMap(final ShardStore          store,
              final File                localShardsPath,
              final MemoryReserver      memory,
@@ -98,6 +118,10 @@ class ShardMap
         }
     }
 
+    /** Construct a ShardMap by examining the shards stored on the local
+        filesystem. This is the authoritative version of ShardMap. A reference
+        ShardMap is required primarily so that we can internally reuse Shards
+        which have already been loaded. */
     ShardMap(final ShardMap reference,
              final File     localShardsPath)
         throws IOException {
@@ -114,7 +138,9 @@ class ShardMap
         }
     }
 
-    public <E extends Throwable> void map(ElementHandler<E> handler) throws E {
+    /** This is the preferred way to iterate over a ShardMap. ElementHandler's
+        onElement() method will be invoked with each item in the collection. */
+    <E extends Throwable> void map(ElementHandler<E> handler) throws E {
         for (Map.Entry<String, Object2ObjectOpenHashMap<String, Shard>>
                  datasetToShard : entrySet()) {
             final String dataset = datasetToShard.getKey();
@@ -125,12 +151,15 @@ class ShardMap
         }
     }
 
-    public void sync(ShardStore store) {
+    /** This method synchronizes a ShardMap with its serialized form, a
+        ShardStore. */
+    void sync(ShardStore store) {
         saveTo(store);
         prune(store);
     }
 
-    public List<ShardDump> getShardDump() throws IOException {
+    /** Produce a ShardDump containing the content of a ShardMap. */
+    List<ShardDump> getShardDump() throws IOException {
         final List<ShardDump> result = new ObjectArrayList<>();
         map(new ElementHandler<IOException>() {
                 public void onElement(final String dataset,
@@ -144,7 +173,8 @@ class ShardMap
         return result;
     }
 
-    public Map<String, Integer> getShardCounts() {
+    /** Produce a map of (dataset->number of shards). */
+    Map<String, Integer> getShardCounts() {
         final Map<String, Integer> result = new Object2IntAVLTreeMap<>();
         for (Map.Entry<String, Object2ObjectOpenHashMap<String, Shard>>
                  datasetToShard : entrySet()) {
@@ -153,16 +183,17 @@ class ShardMap
         return result;
     }
 
-    /* !@# This is a bit of a hack propagated from the old version of
-       LocalImhotepServiceCore, which whilst opening sessions would note whether
-       or not all shards referenced were Flamdexes. Why? Because that is a
-       precondition to enabling native FTGS. */
+    /** !@# This is a bit of a hack propagated from the old version of
+        LocalImhotepServiceCore, which whilst opening sessions would note whether
+        or not all shards referenced were Flamdexes. Why? Because that is a
+        precondition to enabling native FTGS. */
     static final class FlamdexReaderMap
         extends Object2ObjectOpenHashMap<String, Pair<ShardId, CachedFlamdexReaderReference>> {
         public boolean allFlamdexReaders = true;
     }
 
-    public FlamdexReaderMap getFlamdexReaders(String dataset, List<String> requestedShardIds)
+    /** For each requested shard, return an id and a CachedFlamdexReaderReference. */
+    FlamdexReaderMap getFlamdexReaders(String dataset, List<String> requestedShardIds)
         throws IOException {
 
         final Map<String, Shard> idToShard = get(dataset);
@@ -195,12 +226,16 @@ class ShardMap
         return result;
     }
 
-    public Shard getShard(String dataset, String shardId) {
+    /** Return the Shard for a given (dataset, shardId) or null of the map
+        doesn't contain it. */
+    Shard getShard(String dataset, String shardId) {
         final Object2ObjectOpenHashMap<String, Shard> idToShard = get(dataset);
         return idToShard != null ? idToShard.get(shardId) : null;
     }
 
-    public void putShard(String dataset, Shard shard) {
+    /** Insert a Shard into the map for a given (dataset, shardId), replacing an
+        existing one if present. */
+    void putShard(String dataset, Shard shard) {
         Object2ObjectOpenHashMap<String, Shard> idToShard = get(dataset);
         if (idToShard == null) {
             idToShard = new Object2ObjectOpenHashMap<>();

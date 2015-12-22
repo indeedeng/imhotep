@@ -101,7 +101,7 @@ public class Shard {
         return shardId.getDataset();
     }
 
-    public int getNumDocs() throws IOException {
+    public int getNumDocs() {
         return numDocs;
     }
 
@@ -117,15 +117,15 @@ public class Shard {
         return Collections.emptySet();
     }
 
-    public Collection<String> getIntFields() throws IOException {
+    public Collection<String> getIntFields() {
         return intFields;
     }
 
-    public Collection<String> getStringFields() throws IOException {
+    public Collection<String> getStringFields() {
         return stringFields;
     }
 
-    public Collection<String> getAvailableMetrics() throws IOException {
+    public Collection<String> getAvailableMetrics() {
         return availableMetrics;
     }
 

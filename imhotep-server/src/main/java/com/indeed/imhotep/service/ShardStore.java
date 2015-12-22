@@ -31,12 +31,10 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * A persistent map of Shards backed by an LSM tree.
+ * ShardStore provides a way to serialize a ShardMap to an LSMTree.
  *
  * key: (dataset, shardId)
  * value: (shardDir, numDocs, version, [int fields], [str fields])
- *
- * We don't stash loaded metrics away since those are ephemeral.
  */
 class ShardStore implements AutoCloseable {
 
@@ -94,9 +92,7 @@ class ShardStore implements AutoCloseable {
             if (this == otherObject) return true;
             if (this.getClass() != otherObject.getClass()) return false;
             final Key other = (Key) otherObject;
-            if (!getDataset().equals(other.getDataset())) return false;
-            if (!getShardId().equals(other.getShardId())) return false;
-            return true;
+            return getDataset().equals(other.getDataset()) && getShardId().equals(other.getShardId());
         }
 
         @Override public int compareTo(Key other) {
@@ -150,21 +146,21 @@ class ShardStore implements AutoCloseable {
 
         @Override public boolean equals(Object otherObject) {
             if (this == otherObject) return true;
+            if (otherObject.getClass() != Value.class) return false;
             final Value other = (Value) otherObject;
-            if (!shardDir.equals(other.shardDir)) return false;
-            if (numDocs != other.numDocs) return false;
-            if (version != other.version) return false;
-            if (!intFields.equals(other.intFields)) return false;
-            if (!strFields.equals(other.strFields)) return false;
-            return true;
+            return shardDir.equals(other.shardDir) &&
+                    numDocs == other.numDocs &&
+                    version == other.version &&
+                    intFields.equals(other.intFields) &&
+                    strFields.equals(other.strFields);
         }
 
         @Override public String toString() {
             StringBuilder sb = new StringBuilder();
             sb.append("{");
-            sb.append(" shardDir: " + shardDir + ", ");
-            sb.append(" numDocs: " + numDocs + ", ");
-            sb.append(" version: " + version + ", ");
+            sb.append(" shardDir: ").append(shardDir).append(", ");
+            sb.append(" numDocs: ").append(numDocs).append(", ");
+            sb.append(" version: ").append(version).append(", ");
             sb.append(" intFields: [ ");
             append(sb, intFields);
             sb.append(" ] strFields: [ ");

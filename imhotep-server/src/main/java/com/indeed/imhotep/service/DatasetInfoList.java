@@ -22,7 +22,6 @@ import com.google.common.collect.Sets;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
-import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -32,9 +31,10 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
+/** DatasetInfoList is an intermediate data structure used by
+    LocalImhotepServiceCore to service GET_SHARD_INFO_LIST
+    requests. Think of it as a specialized view of a ShardMap. */
 class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
-
-    private static final Logger log = Logger.getLogger(DatasetInfoList.class);
 
     private static final Comparator<DatasetInfo> comparator =
         new Comparator<DatasetInfo>() {
@@ -43,6 +43,7 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
         }
     };
 
+    /** Build a list of DatasetInfo objects from a ShardMap, sorted by dataset. */
     DatasetInfoList(ShardMap shardMap) {
         for (Map.Entry<String, Object2ObjectOpenHashMap<String, Shard>>
                  datasetToShard : shardMap.entrySet()) {
@@ -52,16 +53,10 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
                      idToShard : datasetToShard.getValue().entrySet()) {
                 final String id    = idToShard.getKey();
                 final Shard  shard = idToShard.getValue();
-                try {
-                    final ShardInfo shardInfo =
-                        new ShardInfo(dataset, id, shard.getLoadedMetrics(),
-                                      shard.getNumDocs(), shard.getShardVersion());
-                    datasetInfo.add(shardInfo, shard);
-                }
-                catch (IOException ex) {
-                    log.error("could not create Shard Info for dataset: "+ dataset +
-                              " id: " + id, ex);
-                }
+                final ShardInfo shardInfo =
+                    new ShardInfo(dataset, id, shard.getLoadedMetrics(),
+                                  shard.getNumDocs(), shard.getShardVersion());
+                datasetInfo.add(shardInfo, shard);
             }
             datasetInfo.filter();
             add(datasetInfo);
@@ -69,40 +64,37 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
         Collections.sort(this, comparator);
     }
 
-    DatasetInfoList(ShardStore store) {
-        try {
-            final Map<String, Element> datasetInfos = new Object2ObjectOpenHashMap<>();
-            final Iterator<Store.Entry<ShardStore.Key, ShardStore.Value>> it =
-                store.iterator();
+    /** Build a list of DatasetInfo objects from a ShardStore, sorted by
+        dataset. This method is intended for use by tests, not
+        LocalImhotepServiceCore proper. */
+    DatasetInfoList(ShardStore store) throws IOException {
+        final Map<String, Element> datasetInfos = new Object2ObjectOpenHashMap<>();
+        final Iterator<Store.Entry<ShardStore.Key, ShardStore.Value>> it =
+            store.iterator();
 
-            while (it.hasNext()) {
-                final Store.Entry<ShardStore.Key, ShardStore.Value> entry = it.next();
-                final ShardStore.Key   key     = entry.getKey();
-                final ShardStore.Value value   = entry.getValue();
-                final String           dataset = key.getDataset();
+        while (it.hasNext()) {
+            final Store.Entry<ShardStore.Key, ShardStore.Value> entry = it.next();
+            final ShardStore.Key   key     = entry.getKey();
+            final ShardStore.Value value   = entry.getValue();
+            final String           dataset = key.getDataset();
 
-                final ShardInfo shardInfo =
-                    new ShardInfo(dataset, key.getShardId(),
-                                  new ObjectArrayList<String>(0),
-                                  value.getNumDocs(), value.getVersion());
+            final ShardInfo shardInfo =
+                new ShardInfo(dataset, key.getShardId(),
+                              new ObjectArrayList<String>(0),
+                              value.getNumDocs(), value.getVersion());
 
-                Element datasetInfo = datasetInfos.get(dataset);
-                if (datasetInfo == null) {
-                    datasetInfo = new Element(dataset);
-                    datasetInfos.put(dataset, datasetInfo);
-                }
-                datasetInfo.add(shardInfo, value);
+            Element datasetInfo = datasetInfos.get(dataset);
+            if (datasetInfo == null) {
+                datasetInfo = new Element(dataset);
+                datasetInfos.put(dataset, datasetInfo);
             }
+            datasetInfo.add(shardInfo, value);
+        }
 
-            for (Element info: datasetInfos.values()) {
-                info.filter();
-            }
-            addAll(datasetInfos.values());
+        for (Element info: datasetInfos.values()) {
+            info.filter();
         }
-        catch (IOException ex) {
-            /* TODO(johnf): consider allowing partial failure */
-            log.error("failed to populate DatasetInfoList from ShardStore", ex);
-        }
+        addAll(datasetInfos.values());
         Collections.sort(this, comparator);
     }
 
@@ -128,7 +120,7 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
             track(shardInfo.getVersion(), value.getIntFields(), value.getStrFields());
         }
 
-        void add(ShardInfo shardInfo, Shard shard) throws IOException {
+        void add(ShardInfo shardInfo, Shard shard) {
             getShardList().add(shardInfo);
             getIntFields().addAll(shard.getIntFields());
             getStringFields().addAll(shard.getStringFields());

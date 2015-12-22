@@ -17,19 +17,17 @@ import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.io.Shard;
 import com.indeed.lsmtree.core.Store;
 
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
-import java.util.Map;
 
+/** ShardInfoList is an intermediate data structure used by
+    LocalImhotepServiceCore to service GET_SHARD_LIST requests. Think of it as a
+    specialized view of a ShardMap. */
 class ShardInfoList extends ObjectArrayList<ShardInfo> {
-
-    private static final Logger log = Logger.getLogger(ShardInfoList.class);
 
     static final Comparator<ShardInfo> comparator = new Comparator<ShardInfo>() {
         @Override public int compare(ShardInfo thing1, ShardInfo thing2) {
@@ -38,48 +36,39 @@ class ShardInfoList extends ObjectArrayList<ShardInfo> {
         }
     };
 
-    ShardInfoList(ShardMap shardMap) {
-        for (Map.Entry<String, Object2ObjectOpenHashMap<String, Shard>>
-                 datasetToShard : shardMap.entrySet()) {
-            final String dataset = datasetToShard.getKey();
-            for (Map.Entry<String, Shard>
-                     idToShard : datasetToShard.getValue().entrySet()) {
-                final String id    = idToShard.getKey();
-                final Shard  shard = idToShard.getValue();
-                try {
+    /** Build a list of ShardInfo objects from a ShardMap, sorted by shardId. */
+    ShardInfoList(ShardMap shardMap) throws IOException {
+        shardMap.map(new ShardMap.ElementHandler<IOException>() {
+                public void onElement(final String dataset,
+                                      final String shardId,
+                                      final Shard  shard) throws IOException {
                     final ShardInfo shardInfo =
-                        new ShardInfo(dataset, id, shard.getLoadedMetrics(),
-                                      shard.getNumDocs(), shard.getShardVersion());
+                        new ShardInfo(dataset, shardId,
+                                      shard.getLoadedMetrics(),
+                                      shard.getNumDocs(),
+                                      shard.getShardVersion());
                     add(shardInfo);
                 }
-                catch (IOException ex) {
-                    log.error("could not create Shard Info for dataset: "+ dataset +
-                              " id: " + id, ex);
-                }
-            }
-        }
+            });
         Collections.sort(this, comparator);
     }
 
-    ShardInfoList(ShardStore store) {
-        try {
-            final Iterator<Store.Entry<ShardStore.Key, ShardStore.Value>> it =
-                store.iterator();
-            while (it.hasNext()) {
-                final Store.Entry<ShardStore.Key, ShardStore.Value> entry = it.next();
-                final ShardStore.Key   key   = entry.getKey();
-                final ShardStore.Value value = entry.getValue();
-                final ShardInfo shardInfo =
-                    new ShardInfo(key.getDataset(), key.getShardId(),
-                                  new ObjectArrayList<String>(0),
-                                  value.getNumDocs(),
-                                  value.getVersion());
-                add(shardInfo);
-            }
-        }
-        catch (IOException ex) {
-            /* TODO(johnf): consider allowing partial failure */
-            log.error("failed to populate ShardInfoList from ShardStore", ex);
+    /** Build a list of ShardInfo objects from a ShardStore, sorted by
+        shardId. This method is intended for use by tests, not
+        LocalImhotepServiceCore proper. */
+    ShardInfoList(ShardStore store) throws IOException {
+        final Iterator<Store.Entry<ShardStore.Key, ShardStore.Value>> it =
+            store.iterator();
+        while (it.hasNext()) {
+            final Store.Entry<ShardStore.Key, ShardStore.Value> entry = it.next();
+            final ShardStore.Key   key   = entry.getKey();
+            final ShardStore.Value value = entry.getValue();
+            final ShardInfo shardInfo =
+                new ShardInfo(key.getDataset(), key.getShardId(),
+                              new ObjectArrayList<String>(0),
+                              value.getNumDocs(),
+                              value.getVersion());
+            add(shardInfo);
         }
         Collections.sort(this, comparator);
     }
