@@ -200,13 +200,13 @@ public class ImhotepRemoteSession
         return ImhotepStatusDump.fromProto(response.getStatusDump());
     }
 
-    public static ImhotepRemoteSession openSession(final String host, final int port, final String dataset, final List<String> shards, @Nullable String sessionId) throws ImhotepOutOfMemoryException, IOException {
-        return openSession(host, port, dataset, shards, DEFAULT_MERGE_THREAD_LIMIT, getUsername(), false, -1, sessionId, -1, null, false);
+    public static ImhotepRemoteSession openSession(final String host, final int port, final String dataset, final List<String> shards, @Nullable String sessionId, final long sessionTimeout) throws ImhotepOutOfMemoryException, IOException {
+        return openSession(host, port, dataset, shards, DEFAULT_MERGE_THREAD_LIMIT, getUsername(), false, -1, sessionId, -1, null, false, sessionTimeout);
     }
 
     public static ImhotepRemoteSession openSession(final String host, final int port, final String dataset, final List<String> shards,
-                                                   final int mergeThreadLimit, @Nullable String sessionId) throws ImhotepOutOfMemoryException, IOException {
-        return openSession(host, port, dataset, shards, mergeThreadLimit, getUsername(), false, -1, sessionId, -1, null, false);
+                                                   final int mergeThreadLimit, @Nullable String sessionId, final long sessionTimeout) throws ImhotepOutOfMemoryException, IOException {
+        return openSession(host, port, dataset, shards, mergeThreadLimit, getUsername(), false, -1, sessionId, -1, null, false, sessionTimeout);
     }
 
     public static ImhotepRemoteSession openSession(final String host, final int port, final String dataset, final List<String> shards,
@@ -214,7 +214,7 @@ public class ImhotepRemoteSession
                                                    final boolean optimizeGroupZeroLookups, final int socketTimeout,
                                                    @Nullable String sessionId, final long tempFileSizeLimit,
                                                    @Nullable final AtomicLong tempFileSizeBytesLeft,
-                                                   final boolean useNativeFtgs) throws ImhotepOutOfMemoryException, IOException {
+                                                   final boolean useNativeFtgs, final long sessionTimeout) throws ImhotepOutOfMemoryException, IOException {
         final Socket socket = newSocket(host, port, socketTimeout);
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
@@ -231,6 +231,7 @@ public class ImhotepRemoteSession
                     .setSessionId(sessionId == null ? "" : sessionId)
                     .setTempFileSizeLimit(tempFileSizeLimit)
                     .setUseNativeFtgs(useNativeFtgs)
+                    .setSessionTimeout(sessionTimeout)
                     .build();
             try {
                 ImhotepProtobufShipping.sendProtobuf(openSessionRequest, os);

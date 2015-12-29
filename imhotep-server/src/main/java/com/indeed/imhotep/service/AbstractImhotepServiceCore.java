@@ -62,6 +62,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public abstract class AbstractImhotepServiceCore
     implements ImhotepServiceCore, Instrumentation.Provider {
 
+
     private static final Logger log = Logger.getLogger(AbstractImhotepServiceCore.class);
 
     private final ExecutorService ftgsExecutor;
@@ -561,7 +562,8 @@ public abstract class AbstractImhotepServiceCore
             boolean optimizeGroupZeroLookups,
             String sessionId,
             AtomicLong tempFileSizeBytesLeft,
-            boolean useNativeFtgs
+            boolean useNativeFtgs,
+            final long sessionTimeout
     ) throws ImhotepOutOfMemoryException;
 
     @Override

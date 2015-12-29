@@ -30,7 +30,8 @@ public interface SessionManager<E> {
             String username,
             String ipAddress,
             int clientVersion,
-            String dataset
+            String dataset,
+            long sessionTimeout
     );
 
     SharedReference<ImhotepSession> getSession(String sessionId);
@@ -44,6 +45,25 @@ public interface SessionManager<E> {
 
     int getNumStats(String sessionId);
 
-    Map<String, Long> getLastActionTimes();
+    Map<String, LastActionTimeLimit> getLastActionTimes();
+
+    public class LastActionTimeLimit {
+        final private long lastActionTime;
+        final private long sessionTimeoutDuration;
+
+        public LastActionTimeLimit(long lastActionTime, long sessionTimeoutDuration) {
+            this.lastActionTime = lastActionTime;
+            this.sessionTimeoutDuration = sessionTimeoutDuration;
+        }
+
+        public long getLastActionTime() {
+            return lastActionTime;
+        }
+
+        public long getSessionTimeoutDuration() {
+            return sessionTimeoutDuration;
+        }
+    }
+
 
 }

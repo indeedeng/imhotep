@@ -96,12 +96,12 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
     }
 
     @Override
-    public Map<String, Long> getLastActionTimes() {
+    public Map<String, LastActionTimeLimit> getLastActionTimes() {
         final Map<String, Session<E>> sessionMap = cloneSessionMap();
 
-        final Map<String, Long> ret = new HashMap<String, Long>();
+        final Map<String, LastActionTimeLimit> ret = new HashMap<String, LastActionTimeLimit>();
         for (final Map.Entry<String, Session<E>> e : sessionMap.entrySet()) {
-            ret.put(e.getKey(), e.getValue().lastActionTime);
+            ret.put(e.getKey(), new LastActionTimeLimit(e.getValue().lastActionTime, e.getValue().getTimeout()));
         }
         return ret;
     }
@@ -139,6 +139,8 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
         protected final String ipAddress;
         protected final int clientVersion;
         protected final String dataset;
+        protected final long timeout;
+        protected final long SESSION_TIMEOUT_DEFAULT = 30L * 60 * 1000;
 
         private volatile int numStats;
         private volatile long lastActionTime;
@@ -149,7 +151,8 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
                 String username,
                 String ipAddress,
                 int clientVersion,
-                String dataset
+                String dataset,
+                long timeout
         ) {
             this.imhotepSession = SharedReference.create(imhotepSession);
             this.sessionState = sessionState;
@@ -157,8 +160,18 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
             this.ipAddress = ipAddress;
             this.clientVersion = clientVersion;
             this.dataset = dataset;
+            if(timeout < 1) {
+                this.timeout = SESSION_TIMEOUT_DEFAULT;
+            } else {
+                this.timeout = timeout;
+            }
+
 
             lastActionTime = System.currentTimeMillis();
+        }
+
+        public long getTimeout() {
+            return timeout;
         }
     }
 

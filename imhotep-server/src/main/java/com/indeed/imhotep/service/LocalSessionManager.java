@@ -40,9 +40,10 @@ public final class LocalSessionManager extends AbstractSessionManager<Map<ShardI
             final String username,
             final String ipAddress,
             final int clientVersion,
-            final String dataset
+            final String dataset,
+            final long sessionTimeout
     ) {
-        final Session<Map<ShardId, CachedFlamdexReaderReference>> session = new Session(imhotepSession, flamdexes, username, ipAddress, clientVersion, dataset);
+        final Session<Map<ShardId, CachedFlamdexReaderReference>> session = new Session(imhotepSession, flamdexes, username, ipAddress, clientVersion, dataset, sessionTimeout);
         addSession(sessionId, session);
     }
 

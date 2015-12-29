@@ -75,7 +75,7 @@ public interface ImhotepServiceCore {
     int handleGetNumGroups(String sessionId);
 
     // open session methods return session id
-    String handleOpenSession(String dataset, List<String> shardRequestList, String username, String ipAddress, int clientVersion, int mergeThreadLimit, boolean optimizeGroupZeroLookups, String sessionId, AtomicLong tempFileSizeBytesLeft, boolean useNativeFtgs) throws ImhotepOutOfMemoryException;
+    String handleOpenSession(String dataset, List<String> shardRequestList, String username, String ipAddress, int clientVersion, int mergeThreadLimit, boolean optimizeGroupZeroLookups, String sessionId, AtomicLong tempFileSizeBytesLeft, boolean useNativeFtgs, long sessionTimeout) throws ImhotepOutOfMemoryException;
 
     // non-session-based methods
     @Deprecated List<ShardInfo> handleGetShardList();
