@@ -174,6 +174,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                                        final String[] stringFields,
                                        final int splitIndex,
                                        final int numSplits,
+                                       final long termLimit,
                                        final Socket socket) throws ImhotepOutOfMemoryException {
 
         // save socket

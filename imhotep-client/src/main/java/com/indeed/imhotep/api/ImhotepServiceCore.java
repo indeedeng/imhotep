@@ -52,12 +52,12 @@ public interface ImhotepServiceCore {
     List<TermCount> handleApproximateTopTerms(String sessionId, String field, boolean isIntField, int k);
     int handlePushStat(String sessionId, String metric) throws ImhotepOutOfMemoryException;
     int handlePopStat(String sessionId);
-    void handleGetFTGSIterator(String sessionId, String[] intFields, String[] stringFields, OutputStream os) throws IOException;
+    void handleGetFTGSIterator(String sessionId, String[] intFields, String[] stringFields, long termLimit, OutputStream os) throws IOException;
     void handleGetSubsetFTGSIterator(String sessionId, Map<String, long[]> intFields, Map<String, String[]> stringFields, OutputStream os) throws IOException;
-    void handleGetFTGSIteratorSplit(String sessionId, String[] intFields, String[] stringFields, OutputStream os, int splitIndex, int numSplits) throws IOException;
-    void handleGetFTGSIteratorSplitNative(String sessionId, String[] intFields, String[] stringFields, final OutputStream os, int splitIndex, int numSplits, Socket socket) throws IOException;
+    void handleGetFTGSIteratorSplit(String sessionId, String[] intFields, String[] stringFields, OutputStream os, int splitIndex, int numSplits, long termLimit) throws IOException;
+    void handleGetFTGSIteratorSplitNative(String sessionId, String[] intFields, String[] stringFields, final OutputStream os, int splitIndex, int numSplits, long termLimit, Socket socket) throws IOException;
     void handleGetSubsetFTGSIteratorSplit(String sessionId, Map<String, long[]> intFields, Map<String, String[]> stringFields, OutputStream os, int splitIndex, int numSplits) throws IOException;
-    void handleMergeFTGSIteratorSplit(String sessionId, String[] intFields, String[] stringFields, OutputStream os, InetSocketAddress[] nodes, int splitIndex) throws IOException;
+    void handleMergeFTGSIteratorSplit(String sessionId, String[] intFields, String[] stringFields, OutputStream os, InetSocketAddress[] nodes, int splitIndex, long termLimit) throws IOException;
     void handleMergeSubsetFTGSIteratorSplit(String sessionId, Map<String, long[]> intFields, Map<String, String[]> stringFields, OutputStream os, InetSocketAddress[] nodes, int splitIndex) throws IOException;
     void handleGetDocIterator(String sessionId, String[] intFields, String[] stringFields, OutputStream os) throws ImhotepOutOfMemoryException, IOException;
     long handleGetTotalDocFreq(String sessionId, String[] intFields, String[] stringFields);

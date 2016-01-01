@@ -496,7 +496,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             checkSessionValidity(request);
             service.handleGetFTGSIterator(request.getSessionId(),
                                           getIntFields(request),
-                                          getStringFields(request), os);
+                                          getStringFields(request),
+                                          request.getTermLimit(),
+                                          os);
         }
 
         private final void getSubsetFTGSIterator(final ImhotepRequest          request,
@@ -520,7 +522,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                                getStringFields(request),
                                                os,
                                                request.getSplitIndex(),
-                                               request.getNumSplits());
+                                               request.getNumSplits(),
+                                               request.getTermLimit());
         }
 
         private final void getFTGSSplitNative(final ImhotepRequest          request,
@@ -534,6 +537,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                                      os,
                                                      request.getSplitIndex(),
                                                      request.getNumSplits(),
+                                                     request.getTermLimit(),
                                                      socket);
         }
 
@@ -566,7 +570,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             service.handleMergeFTGSIteratorSplit(request.getSessionId(),
                                                  getIntFields(request),
                                                  getStringFields(request),
-                                                 os, nodes, request.getSplitIndex());
+                                                 os, nodes, request.getSplitIndex(), request.getTermLimit());
         }
 
         private final void mergeSubsetFTGSSplit(final ImhotepRequest          request,

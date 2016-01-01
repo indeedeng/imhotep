@@ -230,6 +230,9 @@ message ImhotepRequest {
   optional int64 temp_file_size_limit = 51 [default = -1];
 
   optional bool useNativeFtgs = 52;
+
+  // for getFTGSIterator
+  optional int64 termLimit = 53 [default = 0];
 }
 
 message ImhotepResponse {

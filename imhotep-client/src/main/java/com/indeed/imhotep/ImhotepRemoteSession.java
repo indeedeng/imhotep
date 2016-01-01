@@ -302,11 +302,17 @@ public class ImhotepRemoteSession
 
     @Override
     public FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields) {
+        return getFTGSIterator(intFields, stringFields, 0);
+    }
+
+    @Override
+    public FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, long termLimit) {
         final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_FTGS_ITERATOR)
                 .setSessionId(sessionId)
                 .addAllIntFields(Arrays.asList(intFields))
                 .addAllStringFields(Arrays.asList(stringFields))
+                .setTermLimit(termLimit)
                 .build();
 
         final FTGSIterator result = fileBufferedFTGSRequest(request);
@@ -369,11 +375,11 @@ public class ImhotepRemoteSession
         }
     }
 
-    public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields) {
+    public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields, long termLimit) {
         throw new UnsupportedOperationException();
     }
 
-    public RawFTGSIterator getFTGSIteratorSplit(final String[] intFields, final String[] stringFields, final int splitIndex, final int numSplits) {
+    public RawFTGSIterator getFTGSIteratorSplit(final String[] intFields, final String[] stringFields, final int splitIndex, final int numSplits, final long termLimit) {
         final Timer timer = new Timer();
         final ImhotepRequest.RequestType requestType = useNativeFtgs ? GET_FTGS_SPLIT_NATIVE : GET_FTGS_SPLIT;
         final ImhotepRequest request = getBuilderForType(requestType)
@@ -382,6 +388,7 @@ public class ImhotepRemoteSession
                 .addAllStringFields(Arrays.asList(stringFields))
                 .setSplitIndex(splitIndex)
                 .setNumSplits(numSplits)
+                .setTermLimit(termLimit)
                 .build();
         final RawFTGSIterator result = sendGetFTGSIteratorSplit(request);
         timer.complete(request);
@@ -424,13 +431,14 @@ public class ImhotepRemoteSession
         }
     }
 
-    public RawFTGSIterator mergeFTGSSplit(final String[] intFields, final String[] stringFields, final String sessionId, final InetSocketAddress[] nodes, final int splitIndex) {
+    public RawFTGSIterator mergeFTGSSplit(final String[] intFields, final String[] stringFields, final String sessionId, final InetSocketAddress[] nodes, final int splitIndex, long termLimit) {
         final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.MERGE_FTGS_SPLIT)
                 .setSessionId(sessionId)
                 .addAllIntFields(Arrays.asList(intFields))
                 .addAllStringFields(Arrays.asList(stringFields))
                 .setSplitIndex(splitIndex)
+                .setTermLimit(termLimit)
                 .addAllNodes(Iterables.transform(Arrays.asList(nodes), new Function<InetSocketAddress, HostAndPort>() {
                     public HostAndPort apply(final InetSocketAddress input) {
                         return HostAndPort.newBuilder().setHost(input.getHostName()).setPort(input.getPort()).build();
@@ -1125,7 +1133,7 @@ public class ImhotepRemoteSession
 
     @Override
     public void writeFTGSIteratorSplit(String[] intFields, String[] stringFields,
-                                       int splitIndex, int numSplits, Socket socket) {
+                                       int splitIndex, int numSplits, long termLimit, Socket socket) {
         throw new UnsupportedOperationException("operation is unsupported!");
     }
 

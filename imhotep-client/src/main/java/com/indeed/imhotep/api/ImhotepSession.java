@@ -56,13 +56,22 @@ public interface ImhotepSession
      */
     FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields);
 
+    /**
+     * get an iterator over up to termLimit (field, term, group, stat) tuples for the given fields
+     * @param intFields list of int fields
+     * @param stringFields list of string fields
+     * @param termLimit maximum number of terms that can be returned. 0 means no limit
+     * @return an iterator
+     */
+    FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, long termLimit);
+
     FTGSIterator getSubsetFTGSIterator(Map<String, long[]> intFields, Map<String, String[]> stringFields);
 
     RawFTGSIterator[] getSubsetFTGSIteratorSplits(Map<String, long[]> intFields, Map<String, String[]> stringFields);
 
     DocIterator getDocIterator(String[] intFields, String[] stringFields) throws ImhotepOutOfMemoryException;
 
-    RawFTGSIterator[] getFTGSIteratorSplits(String[] intFields, String[] stringFields);
+    RawFTGSIterator[] getFTGSIteratorSplits(String[] intFields, String[] stringFields, long termLimit);
 
     /**
      * note: this call is weird.
@@ -76,9 +85,10 @@ public interface ImhotepSession
      * @param stringFields list of string fields
      * @param splitIndex index of the split you want
      * @param numSplits total number of splits
+     * @param termLimit maximum number of terms that will be allowed to iterate through. 0 means no limit
      * @return iterator
      */
-    RawFTGSIterator getFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits);
+    RawFTGSIterator getFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, long termLimit);
 
     /**
      * write the ftgs split identified by <code>splitIndex</code> to the socket.
@@ -86,14 +96,14 @@ public interface ImhotepSession
      * @param numSplits total number of splits
      * @param socket the socket to which split <code>splitIndex</code> will be written to
      */
-    void writeFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, Socket socket) throws ImhotepOutOfMemoryException;
+    void writeFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, long termLimit, Socket socket) throws ImhotepOutOfMemoryException;
 
     RawFTGSIterator getSubsetFTGSIteratorSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, int splitIndex, int numSplits);
 
     /**
      * this is only really here to be called on ImhotepRemoteSession by RemoteImhotepMultiSession
      */
-    RawFTGSIterator mergeFTGSSplit(String[] intFields, String[] stringFields, String sessionId, InetSocketAddress[] nodes, int splitIndex);
+    RawFTGSIterator mergeFTGSSplit(String[] intFields, String[] stringFields, String sessionId, InetSocketAddress[] nodes, int splitIndex, long termLimit);
 
     RawFTGSIterator mergeSubsetFTGSSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, String sessionId, InetSocketAddress[] nodes, int splitIndex);
 

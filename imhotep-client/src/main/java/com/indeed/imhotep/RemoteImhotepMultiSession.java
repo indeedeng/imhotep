@@ -18,7 +18,6 @@ import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.HasSessionId;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.RawFTGSIterator;
-import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.Pair;
 import org.apache.log4j.Logger;
 import java.net.InetSocketAddress;
@@ -52,14 +51,23 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
 
     @Override
     public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields) {
-        if (sessions.length == 1) {
-            return sessions[0].getFTGSIterator(intFields, stringFields);
-        }
-        final RawFTGSIterator[] mergers = getFTGSIteratorSplits(intFields, stringFields);
-        return new FTGSInterleaver(mergers);
+        return getFTGSIterator(intFields, stringFields, 0);
     }
 
-    public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields) {
+    @Override
+    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, long termLimit) {
+        if (sessions.length == 1) {
+            return sessions[0].getFTGSIterator(intFields, stringFields, termLimit);
+        }
+        final RawFTGSIterator[] mergers = getFTGSIteratorSplits(intFields, stringFields, termLimit);
+        RawFTGSIterator interleaver = new FTGSInterleaver(mergers);
+        if(termLimit > 0) {
+            interleaver = new TermLimitedRawFTGSIterator(interleaver, termLimit);
+        }
+        return interleaver;
+    }
+
+    public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields, final long termLimit) {
         final Pair<Integer, ImhotepSession>[] indexesAndSessions = new Pair[sessions.length];
         for (int i = 0; i < sessions.length; i++) {
             indexesAndSessions[i] = Pair.of(i, sessions[i]);
@@ -70,7 +78,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 public RawFTGSIterator apply(final Pair<Integer, ImhotepSession> indexSessionPair) throws Exception {
                     final ImhotepSession session = indexSessionPair.getSecond();
                     final int index = indexSessionPair.getFirst();
-                    return session.mergeFTGSSplit(intFields, stringFields, sessionId, nodes, index);
+                    return session.mergeFTGSSplit(intFields, stringFields, sessionId, nodes, index, termLimit);
                 }
             });
         } catch (ExecutionException e) {
@@ -121,7 +129,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     @Override
-    public void writeFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, final Socket socket) {
+    public void writeFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, long termLimit, final Socket socket) {
         throw new UnsupportedOperationException("");
     }
 
