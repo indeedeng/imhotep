@@ -29,15 +29,15 @@ import static com.indeed.imhotep.archive.compression.SquallArchiveCompressor.NON
 public class TestFileMetadata extends TestCase {
     @Test
     public void testEqualsHashCode() {
-        FileMetadata fm = new FileMetadata("a", 0, 0, "a", 0, NONE, "a");
+        FileMetadata fm = new FileMetadata("a", 0, 0, "abcdef0123456789abcdef0123456789", 0, NONE, "a");
         assertTrue(fm.equals(fm));
         assertFalse(fm.equals(new Object()));
-        assertFalse(fm.equals(new FileMetadata("a", 0, 0, "a", 0, NONE, "b")));
+        assertFalse(fm.equals(new FileMetadata("a", 0, 0, "abcdef0123456789abcdef0123456789", 0, NONE, "b")));
 
         assertEquals(fm.hashCode(), fm.hashCode());
         assertEquals(fm.toString(), fm.toString());
 
-        FileMetadata fm3 = new FileMetadata("a", 0, 0, "a", 0, NONE, "a");
+        FileMetadata fm3 = new FileMetadata("a", 0, 0, "abcdef0123456789abcdef0123456789", 0, NONE, "a");
         assertTrue(fm3.equals(fm));
     }
 }
