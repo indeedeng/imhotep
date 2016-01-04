@@ -98,6 +98,8 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
         Collections.sort(this, comparator);
     }
 
+    /** This internal specialization of DatasetInfo handles the case
+        of fields which have changed type between shard versions. */
     private static final class Element extends DatasetInfo {
 
         private long newestVersion = -1;
@@ -135,10 +137,6 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
                 newestVersion = version;
                 newestIntFields = new ObjectOpenHashSet<>(intFields);
                 newestStrFields = new ObjectOpenHashSet<>(strFields);
-            }
-            else if (version == newestVersion) {
-                newestIntFields.addAll(intFields);
-                newestStrFields.addAll(strFields);
             }
         }
 

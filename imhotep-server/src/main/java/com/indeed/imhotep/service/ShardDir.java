@@ -52,10 +52,6 @@ class ShardDir {
     String getIndexDir() { return indexDir; }
 
     boolean isNewerThan(Shard shard) {
-        if (shard == null) return true;
-        if (getVersion() > shard.getShardVersion()) return true;
-        final File thisFile = new File(getIndexDir());
-        final File thatFile = new File(shard.getIndexDir());
-        return thisFile.lastModified() > thatFile.lastModified();
+        return shard ==  null || getVersion() > shard.getShardVersion();
     }
 }

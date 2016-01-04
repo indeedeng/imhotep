@@ -131,11 +131,9 @@ public class TestShardStore {
 
             /* Reopen the store and verify that it has everything in it. */
             try (ShardStore store = new ShardStore(new File(storeDir))) {
-
-               DatasetInfoList actual = new DatasetInfoList(store);
-
-               /* !@# TODO(johnf): add some substance to this test beyond
-                   sanity-checking that we don't crash. */
+                DatasetInfoList actual = new DatasetInfoList(store);
+                /* TODO(johnf): test the content in some meaningful way (without
+                 just recreating the DatasetInfoList logic in this test. */
          }
         }
         catch (Exception ex) {

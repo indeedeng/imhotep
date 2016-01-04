@@ -65,44 +65,6 @@ public class DatasetInfo {
         return metrics;
     }
 
-    /** Warning! This is really slow and memory expensive. It's really just
-     * designed to be used in unit tests. */
-    @Override
-    public boolean equals(Object other) {
-        if (this == other) return true;
-        DatasetInfo otherDI = (DatasetInfo) other;
-        if (!getDataset().equals(otherDI.getDataset())) return false;
-        if (!equals(getShardList(), otherDI.getShardList())) return false;
-        if (!equals(getIntFields(), otherDI.getIntFields())) return false;
-        if (!equals(getStringFields(), otherDI.getStringFields())) return false;
-        if (!equals(getMetrics(), otherDI.getMetrics())) return false;
-        return true;
-    }
-
-    private static final <V> boolean equals(Collection<V> x, Collection<V> y) {
-        final ObjectRBTreeSet<V> xOrdered = new ObjectRBTreeSet<V>(x);
-        final ObjectRBTreeSet<V> yOrdered = new ObjectRBTreeSet<V>(y);
-        return xOrdered.equals(yOrdered);
-    }
-
-    /** Warning! This is really slow and memory expensive. It's really just
-     * designed to be used in unit tests. */
-    @Override
-    public int hashCode() {
-        int result = 1;
-        result = result * 31 + getDataset().hashCode();
-        result = result * 31 + hashCode(getShardList());
-        result = result * 31 + hashCode(getIntFields());
-        result = result * 31 + hashCode(getStringFields());
-        result = result * 31 + hashCode(getMetrics());
-        return result;
-    }
-
-    private static final <V> int hashCode(Collection<V> x) {
-        final ObjectRBTreeSet<V> ordered = new ObjectRBTreeSet<V>(x);
-        return ordered.hashCode();
-    }
-
     public DatasetInfoMessage toProto() {
         return DatasetInfoMessage.newBuilder()
                 .setDataset(dataset)
