@@ -153,9 +153,10 @@ class ShardMap
 
     /** This method synchronizes a ShardMap with its serialized form, a
         ShardStore. */
-    void sync(ShardStore store) {
+    void sync(ShardStore store) throws IOException {
         saveTo(store);
         prune(store);
+        store.sync();
     }
 
     /** Produce a ShardDump containing the content of a ShardMap. */
@@ -262,12 +263,12 @@ class ShardMap
                           " from " + shardDir.getIndexDir());
                 return true;
             }
-            catch (IOException ex) {
+            catch (Exception ex) {
                 log.warn("error loading shard at " + shardDir.getIndexDir(), ex);
                 return false;
             }
         }
-        else if (currentShard.isNewerThan(referenceShard)) {
+        else if (currentShard != null && currentShard.isNewerThan(referenceShard)) {
             putShard(dataset, currentShard);
         }
         else {

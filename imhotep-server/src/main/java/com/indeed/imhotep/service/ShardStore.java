@@ -67,6 +67,8 @@ class ShardStore implements AutoCloseable {
 
     void delete(Key key) throws IOException { store.delete(key); }
 
+    void sync() throws IOException { store.sync(); }
+
     static public final class Key
         implements Comparable<Key> {
 

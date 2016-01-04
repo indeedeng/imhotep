@@ -158,9 +158,14 @@ public class LocalImhotepServiceCore
             /* An empty ShardMap suggests that ShardStore had not been
              * initialized, so fallback to a synchronous directory scan. */
             if (newShardMap.size() == 0) {
+                log.info("Could not load ShardMap from cache: " + shardStoreDir + ". " +
+                         "Scanning shard path instead.");
                 final ShardMap emptyShardMap =
                     new ShardMap(memory, flamdexReaderFactory, freeCache);
                 newShardMap = new ShardMap(emptyShardMap, localShardsPath);
+            }
+            else {
+                log.info("Loaded ShardMap from cache: " + shardStoreDir);
             }
 
             this.shardMap.set(newShardMap);
@@ -203,7 +208,7 @@ public class LocalImhotepServiceCore
                                         config.getUpdateShardsFrequencySeconds(),
                                         config.getUpdateShardsFrequencySeconds(),
                                         TimeUnit.SECONDS);
-        shardStoreSync.scheduleAtFixedRate(new ShardReloader(), 1, 60, TimeUnit.MINUTES);
+        shardStoreSync.scheduleAtFixedRate(new ShardStoreSyncer(), 1, 60, TimeUnit.MINUTES);
         heartBeat.scheduleAtFixedRate(new HeartBeatChecker(),
                                       config.getHeartBeatCheckFrequencySeconds(),
                                       config.getHeartBeatCheckFrequencySeconds(),
@@ -268,6 +273,9 @@ public class LocalImhotepServiceCore
             try {
                 final ShardMap currentShardMap = shardMap.get();
                 currentShardMap.sync(shardStore);
+            }
+            catch (IOException e) {
+                log.warn("error syncing shard store", e);
             }
             catch (RuntimeException e) {
                 log.warn("error syncing shard store", e);
