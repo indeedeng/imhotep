@@ -129,11 +129,17 @@ class ShardMap
         this(reference.memory, reference.flamdexReaderSource, reference.freeCache);
 
         final OnlyDirs onlyDirs = new OnlyDirs();
-        for (final File datasetDir : localShardsPath.listFiles(onlyDirs)) {
-            final String dataset = datasetDir.getName();
-            for (final File file : datasetDir.listFiles(onlyDirs)) {
-                final ShardDir shardDir = new ShardDir(file);
-                track(reference, dataset, shardDir);
+        final File[] datasetDirs = localShardsPath.listFiles(onlyDirs);
+        if (datasetDirs != null) {
+            for (final File datasetDir : datasetDirs) {
+                final String dataset = datasetDir.getName();
+                final File[] shardDirs = datasetDir.listFiles(onlyDirs);
+                if (shardDirs != null) {
+                    for (final File file : shardDirs) {
+                        final ShardDir shardDir = new ShardDir(file);
+                        track(reference, dataset, shardDir);
+                    }
+                }
             }
         }
     }

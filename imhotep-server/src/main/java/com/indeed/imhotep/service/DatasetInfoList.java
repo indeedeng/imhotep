@@ -91,9 +91,6 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
             datasetInfo.add(shardInfo, value);
         }
 
-        for (Element info: datasetInfos.values()) {
-            info.filter();
-        }
         addAll(datasetInfos.values());
         Collections.sort(this, comparator);
     }
@@ -120,6 +117,7 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
             getStringFields().addAll(value.getStrFields());
             getMetrics().addAll(value.getIntFields());
             track(shardInfo.getVersion(), value.getIntFields(), value.getStrFields());
+            filter();
         }
 
         void add(ShardInfo shardInfo, Shard shard) {
@@ -128,6 +126,7 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
             getStringFields().addAll(shard.getStringFields());
             getMetrics().addAll(shard.getIntFields());
             track(shardInfo.getVersion(), shard.getIntFields(), shard.getStringFields());
+            filter();
         }
 
         private void track(long version,
