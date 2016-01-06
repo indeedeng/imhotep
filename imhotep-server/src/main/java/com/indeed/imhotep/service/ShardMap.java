@@ -154,6 +154,7 @@ class ShardMap
     /** This method synchronizes a ShardMap with its serialized form, a
         ShardStore. */
     void sync(ShardStore store) throws IOException {
+        if (store == null) return;
         saveTo(store);
         prune(store);
         store.sync();

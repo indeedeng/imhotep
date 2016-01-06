@@ -124,7 +124,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         private final AtomicReference<ImhotepResponse> datasetListResponse =
             new AtomicReference<ImhotepResponse>();
 
-        public void onShardUpdate(final List<ShardInfo> shardList) {
+        public void onShardUpdate(final List<ShardInfo> shardList,
+                                  final Source unusedSource) {
             final ImhotepResponse.Builder builder = ImhotepResponse.newBuilder();
             for (final ShardInfo shard : shardList) {
                 builder.addShardInfo(shard.toProto());
@@ -133,7 +134,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             shardListResponse.set(response);
         }
 
-        public void onDatasetUpdate(final List<DatasetInfo> datasetList) {
+        public void onDatasetUpdate(final List<DatasetInfo> datasetList,
+                                    final Source unusedSource) {
             final ImhotepResponse.Builder builder = ImhotepResponse.newBuilder();
             for (final DatasetInfo dataset : datasetList) {
                 builder.addDatasetInfo(dataset.toProto());

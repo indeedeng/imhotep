@@ -20,6 +20,12 @@ import com.indeed.imhotep.ShardInfo;
 import java.util.List;
 
 public interface ShardUpdateListenerIf {
-    void onShardUpdate(final List<ShardInfo> shardList);
-    void onDatasetUpdate(final List<DatasetInfo> datasetList);
+
+    /** Largely intended for testing purposes, Source allows listeners to
+     * determine whether the provided shard info came from filesystem
+     * examination or was loaded from a ShardStore cache. */
+    public enum Source { FILESYSTEM, CACHE }
+
+    void onShardUpdate(final List<ShardInfo> shardList, final Source source);
+    void onDatasetUpdate(final List<DatasetInfo> datasetList, final Source source);
 }

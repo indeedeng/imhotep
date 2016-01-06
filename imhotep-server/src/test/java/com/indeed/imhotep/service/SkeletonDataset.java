@@ -32,12 +32,12 @@ class SkeletonDataset {
         this.datasetDir    = Files.getTempDirectory("TestDataset.", ".delete.me", rootDir);
         this.intFieldNames = randomFieldNames(maxNumFields);
         this.strFieldNames = randomFieldNames(maxNumFields);
-        this.numShards     = rng.nextInt(maxNumShards) + 1;
+        this.numShards     = Math.max(rng.nextInt(maxNumShards), 1);
 
         for (int numShard = 0; numShard < numShards; ++numShard) {
             final String shardName = String.format("index.xx.%14d", numShard);
             final File shardDir = new File(datasetDir, shardName);
-            final int numDocs = rng.nextInt(maxNumDocs - 1) + 1;
+            final int numDocs = Math.max(rng.nextInt(maxNumDocs), 1);
             makeShard(shardDir, numDocs);
         }
     }
@@ -49,7 +49,7 @@ class SkeletonDataset {
 
     private void makeShard(File shardDir, int maxNumDocs)
         throws IOException {
-        final int numDocs = rng.nextInt(maxNumDocs - 1) + 1;
+        final int numDocs = Math.max(rng.nextInt(maxNumDocs), 1);
         try (SimpleFlamdexWriter sflw = new SimpleFlamdexWriter(shardDir.getCanonicalPath(), numDocs)) {
                 for (String field: intFieldNames) {
                     IntFieldWriter ifw = null;
@@ -73,7 +73,7 @@ class SkeletonDataset {
     }
 
     private String[] randomFieldNames(int maxNumFields) {
-        final int numFields       = rng.nextInt(maxNumFields) + 1;
+        final int numFields       = Math.max(rng.nextInt(maxNumFields), 1);
         final     String[] result = new String[numFields];
         for (int idx = 0; idx < result.length; ++idx) {
             result[idx] = randomFieldName();
@@ -82,7 +82,6 @@ class SkeletonDataset {
     }
 
     private String randomFieldName() {
-        final int length = rng.nextInt(64) + 1;
-        return RandomStringUtils.random(length, 0, 0, true, false, null, rng);
+        return RandomStringUtils.random(16, 0, 0, true, false, null, rng);
     }
 }
