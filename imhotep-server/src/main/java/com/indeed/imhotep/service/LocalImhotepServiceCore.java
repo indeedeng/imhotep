@@ -316,16 +316,14 @@ public class LocalImhotepServiceCore
         }
         catch (Exception ex1) {
             log.error("unable to create/load ShardStore: " + shardStoreDir +
-                      " will attempt to cleanup and try again", ex1);
-            if (storeDir.exists() && storeDir.isDirectory()) {
-                try {
-                    Files.delete(shardStoreDir);
-                    result = new ShardStore(storeDir);
-                }
-                catch (Exception ex2) {
-                    log.error("failed to cleanup and recreate ShardStore: " + shardStoreDir +
-                              " operator assistance is required", ex2);
-                }
+                      " will attempt to repair", ex1);
+            try {
+                ShardStore.deleteExisting(shardStoreDir);
+                result = new ShardStore(storeDir);
+            }
+            catch (Exception ex2) {
+                log.error("failed to cleanup and recreate ShardStore: " + shardStoreDir +
+                          " operator assistance is required", ex2);
             }
         }
         return result;
@@ -480,7 +478,12 @@ public class LocalImhotepServiceCore
             }
         }
         if (cleanupShardStoreDir) {
-            Files.delete(shardStoreDir);
+            try {
+                ShardStore.deleteExisting(shardStoreDir);
+            }
+            catch (IOException ex) {
+                log.warn("failed to clean up ShardStore: " + shardStoreDir, ex);
+            }
         }
     }
 

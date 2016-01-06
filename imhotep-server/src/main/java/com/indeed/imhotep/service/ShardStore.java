@@ -15,6 +15,7 @@ package com.indeed.imhotep.service;
 
 import com.indeed.lsmtree.core.Store;
 import com.indeed.lsmtree.core.StoreBuilder;
+import com.indeed.util.io.Files;
 import com.indeed.util.serialization.IntSerializer;
 import com.indeed.util.serialization.LongSerializer;
 import com.indeed.util.serialization.Serializer;
@@ -68,6 +69,29 @@ class ShardStore implements AutoCloseable {
     void delete(Key key) throws IOException { store.delete(key); }
 
     void sync() throws IOException { store.sync(); }
+
+    /** Attempt to safely delete a ShardStore. Since the failure mode for
+     * deleting the wrong directory can be extreme, this code tries to
+     * heuristically confirm that storeDir contains an LSM tree by looking for
+     * telltale files within it.
+     */
+    static void deleteExisting(String shardStoreDir) throws IOException {
+        if (shardStoreDir == null) return;
+
+        final File storeDir = new File(shardStoreDir);
+        if (!storeDir.exists()) return;
+        if (!storeDir.isDirectory()) return;
+
+        boolean foundLatest = false;
+        boolean foundData = false;
+        for (File child : storeDir.listFiles()) {
+            if (child.getName().equals("latest")) foundLatest = true;
+            if (child.getName().equals("data")) foundData = true;
+        }
+        if (foundLatest && foundData) {
+            Files.delete(shardStoreDir);
+        }
+    }
 
     static public final class Key
         implements Comparable<Key> {
