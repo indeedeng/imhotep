@@ -16,19 +16,26 @@ import static org.junit.Assert.*;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TestShardStore {
 
     private static final Random rng = new Random(0xdeadbeef);
 
-    private String storeDir = null;
+    private String datasetDir = null;
+    private String storeDir   = null;
+    private String tmpDir     = null;
 
     @Before public void setUp() throws Exception {
-        storeDir = Files.getTempDirectory("ShardStore.", ".delete.me");
+        datasetDir = Files.getTempDirectory("Datasets.", ".delete.me");
+        storeDir   = Files.getTempDirectory("ShardStore.", ".delete.me");
+        tmpDir     = Files.getTempDirectory("TmpDir.", ".delete.me");
     }
 
     @After public void tearDown() throws Exception {
+        Files.delete(datasetDir);
         Files.delete(storeDir);
+        Files.delete(tmpDir);
     }
 
     @Test public void testShardStore() {
@@ -139,6 +146,119 @@ public class TestShardStore {
         catch (Exception ex) {
             fail(ex.toString());
         }
+    }
+
+    private static class CheckDatasetUpdate implements ShardUpdateListenerIf {
+
+        public final AtomicBoolean checkedDataset = new AtomicBoolean(false);
+
+        private final List<SkeletonDataset> expected;
+
+        public CheckDatasetUpdate(List<SkeletonDataset> expected) {
+            this.expected = expected;
+        }
+
+        public void onShardUpdate(final List<ShardInfo> shardList) { }
+        public void onDatasetUpdate(final List<DatasetInfo> datasetList) {
+            checkedDataset.set(compare(expected, datasetList));
+        }
+
+        private static boolean compare(Collection<String> thing1, Collection<String> thing2) {
+            if (thing1.size() != thing2.size()) return false;
+            List<String> list1 = new ArrayList<>(thing1);
+            List<String> list2 = new ArrayList<>(thing2);
+            Collections.sort(list1);
+            Collections.sort(list2);
+            return list1.equals(list2);
+        }
+
+        private static boolean compare(List<SkeletonDataset> expected, List<DatasetInfo> actual) {
+
+            if (expected.size() != actual.size()) return false;
+
+            Collections.sort(expected, new Comparator<SkeletonDataset>() {
+                    public int compare(SkeletonDataset thing1, SkeletonDataset thing2) {
+                        return thing1.getDatasetDir().compareTo(thing2.getDatasetDir());
+                    }
+                    public boolean equals(SkeletonDataset thing1, SkeletonDataset thing2) {
+                        return thing1.getDatasetDir().equals(thing2.getDatasetDir());
+                    }
+                });
+
+
+            Collections.sort(actual, new Comparator<DatasetInfo>() {
+                    public int compare(DatasetInfo thing1, DatasetInfo thing2) {
+                        return thing1.getDataset().compareTo(thing2.getDataset());
+                    }
+                    public boolean equals(DatasetInfo thing1, DatasetInfo thing2) {
+                        return thing1.getDataset().equals(thing2.getDataset());
+                    }
+                });
+
+            Iterator<SkeletonDataset> expectedIt = expected.iterator();
+            Iterator<DatasetInfo>     actualIt   = actual.iterator();
+            while (expectedIt.hasNext() && actualIt.hasNext()) {
+                final SkeletonDataset sd = expectedIt.next();
+                final DatasetInfo     di = actualIt.next();
+                if (! new File(sd.getDatasetDir()).getName().equals(di.getDataset())) return false;
+                if (sd.getNumShards() != di.getShardList().size()) return false;
+                if (! compare(Arrays.asList(sd.getIntFieldNames()), di.getIntFields())) return false;
+                if (! compare(Arrays.asList(sd.getStrFieldNames()), di.getStringFields())) return false;
+            }
+            return true;
+        }
+    }
+
+    @Test public void testService() throws Exception {
+        final int delaySeconds = 3000;
+
+        final List<SkeletonDataset> sds = generateDatasets(10);
+
+        LocalImhotepServiceConfig config = new LocalImhotepServiceConfig();
+        config.setUpdateShardsFrequencySeconds(delaySeconds);
+        config.setSyncShardStoreFrequencySeconds(1);
+
+        LocalImhotepServiceCore svcCore = null;
+        try {
+            final CheckDatasetUpdate listener = new CheckDatasetUpdate(sds);
+            svcCore = new LocalImhotepServiceCore(datasetDir, tmpDir, storeDir, 500, false,
+                                                  new GenericFlamdexReaderSource(), config, listener);
+            assertTrue("scraped DatasetInfo from filesystem", listener.checkedDataset.get());
+        }
+        finally {
+            if (svcCore != null) svcCore.close();
+        }
+
+        // !@# TODO(johnf): instrument LocalImhotepServiceCore such
+        // !that we can deterministically tell whether we loaded info
+        // !list from cache or from filesystem...
+        try {
+            final CheckDatasetUpdate listener = new CheckDatasetUpdate(sds);
+            svcCore = new LocalImhotepServiceCore(datasetDir, tmpDir, storeDir, 500, false,
+                                                  new GenericFlamdexReaderSource(), config, listener);
+            assertTrue("restored DatasetInfo from cache", listener.checkedDataset.get());
+        }
+        finally {
+            if (svcCore != null) svcCore.close();
+        }
+    }
+
+    private List<SkeletonDataset> generateDatasets(int numDatasets)
+        throws Exception {
+        List<SkeletonDataset> result = new ArrayList<SkeletonDataset>(numDatasets);
+        while (--numDatasets >= 0) {
+            final int maxNumShards = rng.nextInt(100) + 1;
+            final int maxNumDocs   = rng.nextInt(1000000) + 1;
+            final int maxNumFields = rng.nextInt(50) + 1;
+            final SkeletonDataset sd =
+                new SkeletonDataset(rng, new File(datasetDir),
+                                    maxNumShards, maxNumDocs, maxNumFields);
+            System.err.println("created dataset: " + sd.getDatasetDir() +
+                               " numIntFields: " + sd.getIntFieldNames().length +
+                               " numStrFields: " + sd.getStrFieldNames().length);
+            result.add(sd);
+        }
+        return result;
     }
 
     private ObjectArrayList<String> newRandomFieldList() {

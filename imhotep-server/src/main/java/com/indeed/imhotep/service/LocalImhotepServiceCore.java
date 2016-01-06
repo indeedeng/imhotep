@@ -163,6 +163,7 @@ public class LocalImhotepServiceCore
                 final ShardMap emptyShardMap =
                     new ShardMap(memory, flamdexReaderFactory, freeCache);
                 newShardMap = new ShardMap(emptyShardMap, localShardsPath);
+                newShardMap.sync(shardStore);
             }
             else {
                 log.info("Loaded ShardMap from cache: " + shardStoreDir);
@@ -177,42 +178,12 @@ public class LocalImhotepServiceCore
         this.shardUpdateListener.onDatasetUpdate(this.datasetList.get());
 
         /* TODO(johnf): consider pinning these threads... */
-
-        shardReload = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
-            @Override
-            public Thread newThread(Runnable r) {
-                final Thread thread = new Thread(r, "ShardReloaderThread");
-                thread.setDaemon(true);
-                return thread;
-            }
-        });
-
-        shardStoreSync = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
-            @Override
-            public Thread newThread(Runnable r) {
-                final Thread thread = new Thread(r, "ShardStoreSyncThread");
-                thread.setDaemon(true);
-                return thread;
-            }
-        });
-
-        heartBeat = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
-            @Override
-            public Thread newThread(Runnable r) {
-                final Thread thread = new Thread(r, "HeartBeatCheckerThread");
-                thread.setDaemon(true);
-                return thread;
-            }
-        });
-        shardReload.scheduleAtFixedRate(new ShardReloader(),
-                                        config.getUpdateShardsFrequencySeconds(),
-                                        config.getUpdateShardsFrequencySeconds(),
-                                        TimeUnit.SECONDS);
-        shardStoreSync.scheduleAtFixedRate(new ShardStoreSyncer(), 1, 60, TimeUnit.MINUTES);
-        heartBeat.scheduleAtFixedRate(new HeartBeatChecker(),
-                                      config.getHeartBeatCheckFrequencySeconds(),
-                                      config.getHeartBeatCheckFrequencySeconds(),
-                                      TimeUnit.SECONDS);
+        this.shardReload =
+            newFixedRateExecutor(new ShardReloader(), config.getUpdateShardsFrequencySeconds());
+        this.shardStoreSync =
+            newFixedRateExecutor(new ShardStoreSyncer(), config.getSyncShardStoreFrequencySeconds());
+        this.heartBeat
+            = newFixedRateExecutor(new HeartBeatChecker(), config.getHeartBeatCheckFrequencySeconds());
 
         VarExporter.forNamespace(getClass().getSimpleName()).includeInGlobal().export(this, "");
     }
@@ -244,6 +215,22 @@ public class LocalImhotepServiceCore
                  public void onDatasetUpdate(final List<DatasetInfo> datasetList) { }
              });
         cleanupShardStoreDir = true;
+    }
+
+    private ScheduledExecutorService newFixedRateExecutor(final Runnable runnable,
+                                                          final int      freqSeconds) {
+        final String name = runnable.getClass().getSimpleName() + "Thread";
+        ScheduledExecutorService result =
+            Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
+                    @Override
+                    public Thread newThread(Runnable r) {
+                        final Thread thread = new Thread(r, name);
+                        thread.setDaemon(true);
+                        return thread;
+                    }
+                });
+        result.scheduleAtFixedRate(runnable, freqSeconds, freqSeconds, TimeUnit.SECONDS);
+        return result;
     }
 
     private class ShardReloader implements Runnable {

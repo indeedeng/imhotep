@@ -19,8 +19,9 @@
  * additional config parameters for LocalImhotepServiceCore with provided defaults
 */
 public final class LocalImhotepServiceConfig {
-    private int updateShardsFrequencySeconds = 120;
+    private int updateShardsFrequencySeconds   = 120;
     private int heartBeatCheckFrequencySeconds = 60;
+    private int syncShardStoreFrequencySeconds = 1200;
 
     public int getUpdateShardsFrequencySeconds() {
         return updateShardsFrequencySeconds;
@@ -28,6 +29,10 @@ public final class LocalImhotepServiceConfig {
 
     public int getHeartBeatCheckFrequencySeconds() {
         return heartBeatCheckFrequencySeconds;
+    }
+
+    public int getSyncShardStoreFrequencySeconds() {
+        return syncShardStoreFrequencySeconds;
     }
 
     public LocalImhotepServiceConfig setUpdateShardsFrequencySeconds(int updateShardsFrequencySeconds) {
@@ -39,4 +44,10 @@ public final class LocalImhotepServiceConfig {
         this.heartBeatCheckFrequencySeconds = heartBeatCheckFrequencySeconds;
         return this;
     }
+
+    public LocalImhotepServiceConfig setSyncShardStoreFrequencySeconds(int syncShardStoreFrequencySeconds) {
+        this.syncShardStoreFrequencySeconds = syncShardStoreFrequencySeconds;
+        return this;
+    }
+
 }
