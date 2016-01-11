@@ -61,6 +61,7 @@
     </modules>
 
     <properties>
+        <protobuf-java.version>3.0.0-beta-1</protobuf-java.version>
     </properties>
 
 </project>
