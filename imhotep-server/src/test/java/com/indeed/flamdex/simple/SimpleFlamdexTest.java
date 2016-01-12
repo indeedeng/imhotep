@@ -82,6 +82,32 @@ public class SimpleFlamdexTest extends TestCase {
         }
     }
 
+    @Test
+    public void testValidFieldName() throws IOException, FlamdexOutOfMemoryException {
+        final String dir = Files.getTempDirectory("flamdex-test", "foo");
+        try {
+            SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, 5L, true);
+            w.getIntFieldWriter("if1").close();
+            w.getStringFieldWriter("sf1").close();
+
+            try {
+                w.getIntFieldWriter("[A-Za-z_][A-Za-z0-9_]* what's a string that doesn't match this david.");
+                assertFalse(true);
+            } catch (final IllegalArgumentException e) {
+                assertTrue(true);
+            }
+            try {
+                w.getStringFieldWriter("[A-Za-z_][A-Za-z0-9_]* what's a string that doesn't match this david.");
+                assertFalse(true);
+            } catch (final IllegalArgumentException e) {
+                assertTrue(true);
+            }
+            w.close();
+        } finally {
+            Files.delete(dir);
+        }
+    }
+
     private void internalTestGetMetric(String dir) throws IOException, FlamdexOutOfMemoryException {
         getMetricCase(dir, 2);
         getMetricCase(dir, 256);
