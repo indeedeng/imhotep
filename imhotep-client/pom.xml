@@ -43,7 +43,7 @@
 				<artifactId>maven-protoc-plugin</artifactId>
 				<version>0.3.2</version>
 				<configuration>
-					<protocExecutable>/home/mswarthout/projects/javadev/bin/protoc</protocExecutable>
+					<protocExecutable>/usr/bin/protoc</protocExecutable>
 				</configuration>
 				<executions>
 					<execution>
