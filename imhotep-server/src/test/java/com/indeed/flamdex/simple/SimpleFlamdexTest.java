@@ -92,13 +92,13 @@ public class SimpleFlamdexTest extends TestCase {
 
             try {
                 w.getIntFieldWriter("[A-Za-z_][A-Za-z0-9_]* what's a string that doesn't match this david.");
-                assertFalse(true);
+                fail();
             } catch (final IllegalArgumentException e) {
                 assertTrue(true);
             }
             try {
                 w.getStringFieldWriter("[A-Za-z_][A-Za-z0-9_]* what's a string that doesn't match this david.");
-                assertFalse(true);
+                fail();
             } catch (final IllegalArgumentException e) {
                 assertTrue(true);
             }
