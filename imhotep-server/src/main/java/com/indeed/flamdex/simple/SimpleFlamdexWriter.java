@@ -125,6 +125,9 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
     }
 
     public IntFieldWriter getIntFieldWriter(String field, boolean blowAway) throws FileNotFoundException {
+        if (!field.matches("[A-Za-z_][A-Za-z0-9_]*")) {
+            throw new IllegalArgumentException("Error: field name must match regex [A-Za-z_][A-Za-z0-9_]*: invalid field: " + field);
+        }
         if (!blowAway && intFields.contains(field)) {
             throw new IllegalArgumentException("already added int field "+field);
         }
@@ -138,6 +141,9 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
     }
 
     public StringFieldWriter getStringFieldWriter(String field, boolean blowAway) throws FileNotFoundException {
+        if (!field.matches("[A-Za-z_][A-Za-z0-9_]*")) {
+            throw new IllegalArgumentException("Error: field name must match regex [A-Za-z_][A-Za-z0-9_]*: invalid field: " + field);
+        }
         if (!blowAway && stringFields.contains(field)) {
             throw new IllegalArgumentException("already added string field "+field);
         }
