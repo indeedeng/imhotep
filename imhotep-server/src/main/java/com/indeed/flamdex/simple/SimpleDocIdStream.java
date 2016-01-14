@@ -13,44 +13,35 @@
  */
  package com.indeed.flamdex.simple;
 
-import com.indeed.util.core.reference.SharedReference;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.TermIterator;
-import com.indeed.util.mmap.DirectMemory;
-import com.indeed.util.mmap.MMapBuffer;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 /**
  * @author jsgroth
  */
-final class SimpleDocIdStream implements DocIdStream {
+abstract class SimpleDocIdStream implements DocIdStream {
     private static final Logger log = Logger.getLogger(SimpleDocIdStream.class);
 
-    public static final int BUFFER_SIZE = 8192;
+    protected final byte[] buffer;
+    protected final ByteBuffer wrappedBuffer;
+    protected int bufferLen;
 
-    private final MapCache mapCache;
-
-    private final byte[] buffer;
     private long bufferOffset;
-    private int bufferLen;
     private int bufferPtr;
 
-    private DirectMemory memory;
-    private SharedReference<MMapBuffer> file;
     private int docsRemaining;
     private int lastDoc;
 
     private String currentFileOpen;
 
-    SimpleDocIdStream(MapCache mapCache) {
-        this(mapCache, new byte[BUFFER_SIZE]);
-    }
-
-    SimpleDocIdStream(MapCache mapCache, byte[] buffer) {
-        this.mapCache = mapCache;
+    public SimpleDocIdStream(byte[] buffer) {
         this.buffer = buffer;
+        this.wrappedBuffer = ByteBuffer.wrap(buffer);
+
         bufferOffset = 0L;
         bufferLen = 0;
         bufferPtr = 0;
@@ -72,10 +63,8 @@ final class SimpleDocIdStream implements DocIdStream {
         final String filename = term.getFilename();
         if (!filename.equals(currentFileOpen)) {
 
-            if (file != null) file.close();
-            file = mapCache.copyOrOpen(filename);
+            openFile(filename);
 
-            memory = file.get().memory();
             currentFileOpen = filename;
             // to force a refill
             bufferOffset = 0L;
@@ -113,18 +102,6 @@ final class SimpleDocIdStream implements DocIdStream {
         }
     }
 
-    @Override
-    public void close() {
-        try {
-            if (file != null) {
-                file.close();
-                file = null;
-            }
-        } catch (IOException e) {
-            log.error("error closing file", e);
-        }
-    }
-
     private int readVInt() throws IOException {
         int ret = 0;
         int shift = 0;
@@ -138,11 +115,16 @@ final class SimpleDocIdStream implements DocIdStream {
     }
 
     private void refillBuffer(long offset) throws IOException {
-        bufferLen = (int)Math.min(buffer.length, memory.length() - offset);
+        bufferLen = (int)Math.min(buffer.length, getLength() - offset);
         if (bufferLen > 0) {
-            memory.getBytes(offset, buffer, 0, bufferLen);
+            readBytes(offset);
         }
         bufferOffset = offset;
         bufferPtr = 0;
     }
+
+    protected abstract void openFile(String filename) throws IOException;
+    protected abstract long getLength();
+    protected abstract void readBytes(long offset);
+    public abstract void close();
 }
