@@ -64,8 +64,6 @@ public class LocalImhotepServiceCore
     extends AbstractImhotepServiceCore {
     private static final Logger log = Logger.getLogger(LocalImhotepServiceCore.class);
 
-    private static final long SESSION_EXPIRATION_TIME_MILLIS = 30L * 60 * 1000;
-
     private final LocalSessionManager sessionManager;
 
     private final ScheduledExecutorService shardReload;
@@ -266,12 +264,12 @@ public class LocalImhotepServiceCore
     private class HeartBeatChecker implements Runnable {
         @Override
         public void run() {
-            final long minTime = System.currentTimeMillis() - SESSION_EXPIRATION_TIME_MILLIS;
-            final Map<String, Long> lastActionTimes = getSessionManager().getLastActionTimes();
+            final long currentTime = System.currentTimeMillis();
+            final Map<String, SessionManager.LastActionTimeLimit> lastActionTimes = getSessionManager().getLastActionTimes();
             final List<String> sessionsToClose = new ArrayList<String>();
             for (final String sessionId : lastActionTimes.keySet()) {
-                final long lastActionTime = lastActionTimes.get(sessionId);
-                if (lastActionTime < minTime) {
+                final SessionManager.LastActionTimeLimit lastActionTimeLimit = lastActionTimes.get(sessionId);
+                if (lastActionTimeLimit.getLastActionTime() < currentTime - lastActionTimeLimit.getSessionTimeoutDuration()) {
                     sessionsToClose.add(sessionId);
                 }
             }
@@ -387,7 +385,8 @@ public class LocalImhotepServiceCore
                                     final boolean optimizeGroupZeroLookups,
                                     String sessionId,
                                     AtomicLong tempFileSizeBytesLeft,
-                                    final boolean useNativeFtgs)
+                                    final boolean useNativeFtgs,
+                                    final long sessionTimeout)
         throws ImhotepOutOfMemoryException {
 
         if (Strings.isNullOrEmpty(sessionId)) {
@@ -437,7 +436,7 @@ public class LocalImhotepServiceCore
                                                tempFileSizeBytesLeft,
                                                useNativeFtgs && flamdexReaders.allFlamdexReaders);
             getSessionManager().addSession(sessionId, session, flamdexes, username,
-                                           ipAddress, clientVersion, dataset);
+                                           ipAddress, clientVersion, dataset, sessionTimeout);
             session.addObserver(observer);
         }
         catch (IOException ex) {

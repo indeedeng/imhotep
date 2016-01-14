@@ -331,6 +331,7 @@ public class ImhotepClient
         private int socketTimeout = -1;
         private long localTempFileSizeLimit = -1;
         private long daemonTempFileSizeLimit = -1;
+        private long sessionTimeout = -1;
 
         private List<ShardIdWithVersion> chosenShards = null;
         private List<String> shardsOverride = null;
@@ -388,6 +389,20 @@ public class ImhotepClient
             return this;
         }
 
+        /*
+            @return session timeout in milliseconds
+         */
+        public long getSessionTimeout() {
+            return sessionTimeout;
+        }
+
+        /*
+            @param sessionTimeout session timeout in milliseconds, the default is 30 minutes
+         */
+        public void setSessionTimeout(long sessionTimeout) {
+            this.sessionTimeout = sessionTimeout;
+        }
+
         /**
          * Returns shards that were selected for the time range requested in the constructor.
          * Shards in the list are sorted chronologically.
@@ -437,9 +452,8 @@ public class ImhotepClient
             }
             List<String> chosenShardIDs = shardsOverride != null ? shardsOverride : ShardIdWithVersion.keepShardIds(getChosenShards());
             return getSessionForShards(dataset, chosenShardIDs, requestedMetrics, mergeThreadLimit, username,
-                    optimizeGroupZeroLookups, socketTimeout, localTempFileSizeLimit, daemonTempFileSizeLimit, useNativeFTGS);
+                    optimizeGroupZeroLookups, socketTimeout, localTempFileSizeLimit, daemonTempFileSizeLimit, useNativeFTGS, sessionTimeout);
         }
-
     }
 
     /**
@@ -519,14 +533,14 @@ public class ImhotepClient
                                      final int mergeThreadLimit, final int priority, final String username,
                                      final boolean optimizeGroupZeroLookups, final int socketTimeout) {
 
-        return getSessionForShards(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout, -1, -1, false);
+        return getSessionForShards(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout, -1, -1, false, 0);
     }
 
     private ImhotepSession getSessionForShards(final String dataset, final Collection<String> requestedShards, final Collection<String> requestedMetrics,
                                                final int mergeThreadLimit, final String username,
                                                final boolean optimizeGroupZeroLookups, final int socketTimeout,
                                                long localTempFileSizeLimit, long daemonTempFileSizeLimit,
-                                               final boolean useNativeFtgs) {
+                                               final boolean useNativeFtgs, long sessionTimeout) {
 
         if(requestedShards == null || requestedShards.size() == 0) {
             throw new IllegalArgumentException("No shards");
@@ -535,7 +549,7 @@ public class ImhotepClient
         final AtomicLong localTempFileSizeBytesLeft = localTempFileSizeLimit > 0 ? new AtomicLong(localTempFileSizeLimit) : null;
         while (retries > 0) {
             final String sessionId = UUID.randomUUID().toString();
-            final ImhotepRemoteSession[] remoteSessions = internalGetSession(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout, sessionId, daemonTempFileSizeLimit, localTempFileSizeBytesLeft, useNativeFtgs);
+            final ImhotepRemoteSession[] remoteSessions = internalGetSession(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout, sessionId, daemonTempFileSizeLimit, localTempFileSizeBytesLeft, useNativeFtgs, sessionTimeout);
             if (remoteSessions == null) {
                 --retries;
                 if (retries > 0) {
@@ -635,7 +649,7 @@ public class ImhotepClient
                             log.info("Processing " + shards.size() + " for " + host);
 
                             ImhotepRemoteSession session = ImhotepRemoteSession.openSession(host.getHostname(),
-                                    host.getPort(), dataset, shards, sessionId);
+                                    host.getPort(), dataset, shards, sessionId, 0);
                             callback.handle(session);
                         }
                         return null;
@@ -688,7 +702,8 @@ public class ImhotepClient
                            @Nullable final String sessionId,
                            final long tempFileSizeLimit,
                            @Nullable final AtomicLong tempFileSizeBytesLeft,
-                           final boolean useNativeFtgs) {
+                           final boolean useNativeFtgs,
+                           final long sessionTimeout) {
 
         final Map<Host, List<String>> shardRequestMap =
             buildShardRequestMap(dataset, requestedShards, requestedMetrics);
@@ -719,7 +734,8 @@ public class ImhotepClient
                                                                 sessionId,
                                                                 tempFileSizeLimit,
                                                                 tempFileSizeBytesLeft,
-                                                                useNativeFtgs);
+                                                                useNativeFtgs,
+                                                                sessionTimeout);
                     }
                 }));
             }
