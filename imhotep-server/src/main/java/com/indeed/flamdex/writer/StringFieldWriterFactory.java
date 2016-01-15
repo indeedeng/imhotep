@@ -14,10 +14,11 @@
  package com.indeed.flamdex.writer;
 
 import java.io.IOException;
+import java.nio.file.Path;
 
 /**
  * @author jplaisance
  */
 public interface StringFieldWriterFactory {
-    public StringFieldWriter create(String outputDirectory, String field, long numDocs) throws IOException;
+    public StringFieldWriter create(Path outputDirectory, String field, long numDocs) throws IOException;
 }

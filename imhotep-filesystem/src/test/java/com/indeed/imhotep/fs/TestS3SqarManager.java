@@ -75,7 +75,7 @@ public class TestS3SqarManager {
             cred = new BasicAWSCredentials(s3key, s3secret);
             client = new AmazonS3Client(cred);
         }
-        
+
         testSettings = new HashMap<>();
 
         testSettings.put("sqlite-max-mem", "50");

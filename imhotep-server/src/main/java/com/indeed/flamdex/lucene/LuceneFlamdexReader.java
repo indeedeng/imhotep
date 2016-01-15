@@ -13,6 +13,7 @@
  */
  package com.indeed.flamdex.lucene;
 
+import com.google.common.collect.ArrayListMultimap;
 import com.indeed.flamdex.AbstractFlamdexReader;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.IntTermIterator;
@@ -21,11 +22,19 @@ import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIterator;
 import com.indeed.flamdex.utils.FlamdexUtils;
 import org.apache.log4j.Logger;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.ParallelReader;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 
 public class LuceneFlamdexReader extends AbstractFlamdexReader {
     private static final Logger log = Logger.getLogger(LuceneFlamdexReader.class);
@@ -34,25 +43,113 @@ public class LuceneFlamdexReader extends AbstractFlamdexReader {
 
     protected final Collection<String> intFields;
     protected final Collection<String> stringFields;
+    private ArrayListMultimap<Path, InputStream> trackingObjects = ArrayListMultimap.create();
 
-    public LuceneFlamdexReader(IndexReader reader) {
-        this(reader, Collections.<String>emptyList(), getStringFieldsFromIndex(reader));
+    public LuceneFlamdexReader(Path directory) throws IOException {
+        this(directory, null, null);
     }
 
-    public LuceneFlamdexReader(IndexReader reader, String directory) {
-        this(reader, directory, Collections.<String>emptyList(), getStringFieldsFromIndex(reader));
+    public LuceneFlamdexReader(Path directory,
+                               Collection<String> intFields,
+                               Collection<String> stringFields) throws IOException {
+        super(directory);
+
+        /* verify the directory is valid */
+        final File indexDir = directory.toFile();
+        trackDirectory(directory);
+        if (! IndexReader.indexExists(indexDir)) {
+            throw new IOException("directory " + directory + " is not a lucene index");
+        }
+
+        this.reader = buildLuceneIndexReader(directory, indexDir);
+        this.intFields = (intFields != null) ? intFields : Collections.<String>emptyList();
+        this.stringFields = (stringFields != null)
+                ? stringFields
+                : getStringFieldsFromIndex(this.reader);
     }
 
-    public LuceneFlamdexReader(IndexReader reader, Collection<String> intFields, Collection<String> stringFields) {
-        this(reader, System.getProperty("java.io.tmpdir"), intFields, stringFields);
+    private IndexReader buildLuceneIndexReader(Path directory, File indexDir) throws IOException {
+        final ParallelReader parallelReader = new ParallelReader();
+
+        final IndexReader topIndex = IndexReader.open(indexDir);
+        final int maxDoc = topIndex.maxDoc();
+
+        // try finding and loading subindexes
+        boolean foundSubIndexes = false;
+        final DirectoryStream<Path> entries = Files.newDirectoryStream(directory);
+        for (Path path : entries) {
+            if (!Files.isDirectory(path)) {
+                continue; // only interested in Lucene indexes in subdirectories
+            }
+
+            trackDirectory(path);
+            if (!IndexReader.indexExists(path.toFile())){
+                untrackDirectory(path);
+                continue; // only interested in Lucene indexes in subdirectories
+            }
+
+            try {
+                final boolean indexValid = addSubIndex(parallelReader, maxDoc, path);
+                if (indexValid)
+                    foundSubIndexes = true;
+                else
+                    untrackDirectory(path);
+            } catch (IOException e) {
+                untrackDirectory(path);
+                log.warn("unable to open subindex: " + path.toString());
+            }
+        }
+        entries.close();
+
+        this.setNumDocs(maxDoc);
+
+        if (foundSubIndexes) {
+            parallelReader.add(topIndex);
+            return parallelReader;
+        } else {
+            parallelReader.close();
+            return topIndex;
+        }
     }
 
-    public LuceneFlamdexReader(IndexReader reader, String directory, Collection<String> intFields, Collection<String> stringFields) {
-        super(directory, reader.maxDoc());
+    private boolean addSubIndex(ParallelReader parallelReader, int maxDoc, Path directory) throws
+            IOException {
+        final IndexReader subIndexReader = IndexReader.open(directory.toFile());
+        final int siMaxDoc = subIndexReader.maxDoc();
+        if (siMaxDoc != maxDoc) {
+            log.warn("unable to load subindex. "
+                             + "(maxDoc) do not match index (" + siMaxDoc + ") "
+                             + "!= (" + maxDoc + ") "
+                             + "for " + directory.toString());
+            subIndexReader.close();
+            return false;
+        }
+        parallelReader.add(subIndexReader, true);
+        return true;
+    }
 
-        this.reader = reader;
-        this.intFields = intFields;
-        this.stringFields = stringFields;
+    /*
+     * Necessary for caching, since lucene uses the File interface (java.io)
+     * instead of the Path (java.nio.file) interface
+     */
+    private void trackDirectory(Path dir) throws IOException {
+        final DirectoryStream<Path> entries = Files.newDirectoryStream(dir);
+        for (Path path : entries) {
+            if (Files.isDirectory(path)) {
+                continue; // only interested files
+            }
+            final InputStream is = Files.newInputStream(path, StandardOpenOption.READ);
+            trackingObjects.put(dir, is);
+        }
+        entries.close();
+    }
+
+    private void untrackDirectory(Path dir) throws IOException {
+        final List<InputStream> streams = trackingObjects.get(dir);
+        for (InputStream is : streams) {
+            is.close();
+        }
+        trackingObjects.removeAll(dir);
     }
 
     @Override
@@ -67,7 +164,9 @@ public class LuceneFlamdexReader extends AbstractFlamdexReader {
 
     private static Collection<String> getStringFieldsFromIndex(final IndexReader reader) {
         final Collection<String> ret = new HashSet<String>();
-        // don't like having to use Object and downcast, but in Lucene versions prior to 3 getFieldNames() returns an un-genericized Collection instead of a Collection<String>
+        // don't like having to use Object and downcast,
+        // but in Lucene versions prior to 3 getFieldNames()
+        // returns an un-genericized Collection instead of a Collection<String>
         for (final Object o : reader.getFieldNames(IndexReader.FieldOption.INDEXED)) {
             ret.add((String)o);
         }
@@ -129,6 +228,9 @@ public class LuceneFlamdexReader extends AbstractFlamdexReader {
 
     @Override
     public void close() throws IOException {
+        for (InputStream is : trackingObjects.values()) {
+            is.close();
+        }
         reader.close();
     }
 }

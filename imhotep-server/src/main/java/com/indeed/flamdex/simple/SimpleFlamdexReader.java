@@ -19,13 +19,10 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.indeed.flamdex.AbstractFlamdexReader.MinMax;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.IntValueLookup;
-import com.indeed.flamdex.fieldcache.FieldCacher;
 import com.indeed.flamdex.fieldcache.FieldCacherUtil;
 import com.indeed.flamdex.fieldcache.NativeFlamdexFieldCacher;
-import com.indeed.util.io.Files;
 import com.indeed.flamdex.AbstractFlamdexReader;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.GenericIntTermDocIterator;
@@ -36,10 +33,13 @@ import com.indeed.flamdex.api.RawStringTermDocIterator;
 import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIterator;
 import com.indeed.flamdex.reader.FlamdexMetadata;
 import com.indeed.flamdex.utils.FlamdexUtils;
-import com.indeed.imhotep.io.caching.CachedFile;
+import org.apache.log4j.Logger;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -50,13 +50,14 @@ import java.util.Set;
 */
 public class SimpleFlamdexReader
     extends AbstractFlamdexReader
-    implements HasMapCache, RawFlamdexReader {
+    implements RawFlamdexReader {
+    private static final Logger log = Logger.getLogger(SimpleFlamdexReader.class);
+    private static final boolean useNativeDocIdStream;
 
     private final Collection<String> intFields;
     private final Collection<String> stringFields;
     private final MapCache mapCache = new MapCache();
 
-    private static final boolean useNativeDocIdStream;
 
     static {
         final String useNative = System.getProperties().getProperty("com.indeed.flamdex.simple.useNative");
@@ -64,8 +65,10 @@ public class SimpleFlamdexReader
     }
 
     private final Map<String, NativeFlamdexFieldCacher> intFieldCachers;
+    private final String creationStackTrace;
+    private boolean closed = false;
 
-    protected SimpleFlamdexReader(String directory,
+    protected SimpleFlamdexReader(Path directory,
                                   int numDocs,
                                   Collection<String> intFields,
                                   Collection<String> stringFields,
@@ -75,13 +78,14 @@ public class SimpleFlamdexReader
         this.intFields = intFields;
         this.stringFields = stringFields;
         this.intFieldCachers = Maps.newHashMap();
+        this.creationStackTrace = Arrays.toString((new Throwable()).getStackTrace());
     }
 
-    public static SimpleFlamdexReader open(String directory) throws IOException {
+    public static SimpleFlamdexReader open(Path directory) throws IOException {
         return open(directory, new Config());
     }
 
-    public static SimpleFlamdexReader open(String directory, Config config) throws IOException {
+    public static SimpleFlamdexReader open(Path directory, Config config) throws IOException {
         final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(directory);
         final Collection<String> intFields = scan(directory, ".intterms");
         final Collection<String> stringFields = scan(directory, ".strterms");
@@ -92,13 +96,15 @@ public class SimpleFlamdexReader
         return new SimpleFlamdexReader(directory, metadata.numDocs, intFields, stringFields, config.useMMapMetrics);
     }
 
-    protected static Collection<String> scan(final String directory, final String ending) throws IOException {
+    protected static Collection<String> scan(final Path directory, final String ending) throws IOException {
         final Set<String> fields = Sets.newTreeSet();
-        final CachedFile dir = CachedFile.create(directory);
-        
-        for (final String name : dir.list()) {
-            if (name.startsWith("fld-") && name.endsWith(ending)) {
-                fields.add(name.substring(4, name.length() - ending.length()));
+
+        try (final DirectoryStream<Path> dirStream = Files.newDirectoryStream(directory)) {
+            for (final Path file : dirStream) {
+                final String name = file.getFileName().toString();
+                if (name.startsWith("fld-") && name.endsWith(ending)) {
+                    fields.add(name.substring(4, name.length() - ending.length()));
+                }
             }
         }
 
@@ -133,32 +139,43 @@ public class SimpleFlamdexReader
     }
 
     private SimpleIntTermIterator getIntTermIterator(final String field, boolean unsorted) {
-        final String termsFilename = CachedFile.buildPath(directory, SimpleIntFieldWriter.getTermsFilename(field));
-        final String docsFilename = CachedFile.buildPath(directory, SimpleIntFieldWriter.getDocsFilename(field));
-        if (CachedFile.create(termsFilename).length() == 0L) {
-            // try to read it as a String field and convert to ints
-            final SimpleStringTermIterator stringTermIterator = getStringTermIterator(field);
-            if(!(stringTermIterator instanceof NullStringTermIterator)) {
-                if(unsorted) {
-                    return new UnsortedStringToIntTermIterator(stringTermIterator);
-                } else {
-                    final Supplier<SimpleStringTermIterator> stringTermIteratorSupplier =
-                        new Supplier<SimpleStringTermIterator>() {
-                            @Override
-                            public SimpleStringTermIterator get() {
-                                return getStringTermIterator(field);
-                            }
-                        };
-                    return new StringToIntTermIterator(stringTermIterator, stringTermIteratorSupplier);
-                }
-            }
+        final Path termsPath = directory.resolve(SimpleIntFieldWriter.getTermsFilename(field));
+        final Path docsPath = directory.resolve(SimpleIntFieldWriter.getDocsFilename(field));
 
-            // string field not found. return a null iterator
-            return new NullIntTermIterator(docsFilename);
-        }
-        final String indexFilename = CachedFile.buildPath(directory, "fld-"+field);
         try {
-            return new SimpleIntTermIteratorImpl(mapCache, termsFilename, docsFilename, indexFilename);
+            if (Files.notExists(termsPath) || Files.size(termsPath) == 0L) {
+                // try to read it as a String field and convert to ints
+                final SimpleStringTermIterator stringTermIterator = getStringTermIterator(field);
+                if (!(stringTermIterator instanceof NullStringTermIterator)) {
+                    if (unsorted) {
+                        return new UnsortedStringToIntTermIterator(stringTermIterator);
+                    } else {
+                        final Supplier<SimpleStringTermIterator> stringTermIteratorSupplier =
+                                new Supplier<SimpleStringTermIterator>() {
+                                    @Override
+                                    public SimpleStringTermIterator get() {
+                                        return getStringTermIterator(field);
+                                    }
+                                };
+                        return new StringToIntTermIterator(stringTermIterator,
+                                                           stringTermIteratorSupplier);
+                    }
+                }
+
+                // string field not found. return a null iterator
+                return new NullIntTermIterator(docsPath);
+            }
+            final Path indexPath;
+            final Path intIndex = directory.resolve("fld-" + field + ".intindex");
+            final Path intIndex64 = directory.resolve("fld-" + field + ".intindex64");
+            if (Files.exists(intIndex64)) {
+                indexPath = intIndex64;
+            } else if (Files.exists(intIndex)) {
+                indexPath = intIndex;
+            } else {
+                indexPath = null;
+            }
+            return new SimpleIntTermIteratorImpl(mapCache, termsPath, docsPath, indexPath);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -166,14 +183,15 @@ public class SimpleFlamdexReader
 
     @Override
     public SimpleStringTermIterator getStringTermIterator(String field) {
-        final String termsFilename = CachedFile.buildPath(directory, SimpleStringFieldWriter.getTermsFilename(field));
-        final String docsFilename = CachedFile.buildPath(directory, SimpleStringFieldWriter.getDocsFilename(field));
-        if (CachedFile.create(termsFilename).length() == 0L) {
-            return new NullStringTermIterator(docsFilename);
-        }
-        final String indexFilename = CachedFile.buildPath(directory, "fld-"+field+".strindex");
+        final Path termsPath = directory.resolve(SimpleStringFieldWriter.getTermsFilename(field));
+        final Path docsPath = directory.resolve(SimpleStringFieldWriter.getDocsFilename(field));
+
         try {
-            return new SimpleStringTermIteratorImpl(mapCache, termsFilename, docsFilename, indexFilename);
+            if (Files.notExists(termsPath) || Files.size(termsPath) == 0L) {
+                return new NullStringTermIterator(docsPath);
+            }
+            final Path indexPath = directory.resolve("fld-" + field + ".strindex");
+            return new SimpleStringTermIteratorImpl(mapCache, termsPath, docsPath, indexPath);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -191,28 +209,32 @@ public class SimpleFlamdexReader
 
     public IntTermDocIterator getIntTermDocIterator(final String field, final boolean unsorted) {
         final SimpleIntTermIterator termIterator = getIntTermIterator(field, unsorted);
-        if (useNativeDocIdStream && CachedFile.create(termIterator.getFilename()).length() > 0) {
-            try {
+        final Path termsPath = termIterator.getFilename();
+
+        try {
+            if (useNativeDocIdStream && (Files.notExists(termsPath) || Files.size(termsPath) > 0)) {
                 return new NativeIntTermDocIterator(termIterator, mapCache);
-            } catch (IOException e) {
-                throw Throwables.propagate(e);
+            } else {
+                return new GenericIntTermDocIterator(termIterator, getDocIdStream());
             }
-        } else {
-            return new GenericIntTermDocIterator(termIterator, getDocIdStream());
+        } catch (IOException e) {
+            throw Throwables.propagate(e);
         }
     }
 
     @Override
     public RawStringTermDocIterator getStringTermDocIterator(final String field) {
         final SimpleStringTermIterator termIterator = getStringTermIterator(field);
-        if (useNativeDocIdStream && CachedFile.create(termIterator.getFilename()).length() > 0) {
-            try {
+        final Path termsPath = termIterator.getFilename();
+
+        try {
+            if (useNativeDocIdStream && (Files.notExists(termsPath) || Files.size(termsPath) > 0)) {
                 return new NativeStringTermDocIterator(termIterator, mapCache);
-            } catch (IOException e) {
-                throw Throwables.propagate(e);
+            } else {
+                return new GenericRawStringTermDocIterator(termIterator, getDocIdStream());
             }
-        } else {
-            return new GenericRawStringTermDocIterator(termIterator, getDocIdStream());
+        } catch (IOException e) {
+            throw Throwables.propagate(e);
         }
     }
 
@@ -284,23 +306,36 @@ public class SimpleFlamdexReader
 
     @Override
     public void close() throws IOException {
+        if (closed)
+            return;
         mapCache.close();
+        this.closed = true;
     }
 
-    protected static void buildIntBTrees(final String directory, final List<String> intFields) throws IOException {
+    @Override
+    protected void finalize() throws Throwable {
+        if (!closed) {
+            log.error("SimpleFlamdexReader was not closed properly! Stack trace at creation:\n"
+                              + this.creationStackTrace);
+        }
+        this.close();
+        super.finalize();
+    }
+
+    protected static void buildIntBTrees(final Path directory, final List<String> intFields) throws IOException {
         for (final String intField : intFields) {
-            final File btreeDir = new File(Files.buildPath(directory, "fld-" + intField + ".intindex"));
-            final File btreeDir64 = new File(Files.buildPath(directory, "fld-" + intField + ".intindex64"));
-            if (!btreeDir.exists() && !btreeDir64.exists()) {
+            final Path btreeDir = directory.resolve("fld-" + intField + ".intindex");
+            final Path btreeDir64 = directory.resolve("fld-" + intField + ".intindex64");
+            if (Files.notExists(btreeDir) && Files.notExists(btreeDir64)) {
                 SimpleFlamdexWriter.writeIntBTree(directory, intField, btreeDir64);
             }
         }
     }
 
-    protected static void buildStringBTrees(final String directory, final List<String> stringFields) throws IOException {
+    protected static void buildStringBTrees(final Path directory, final List<String> stringFields) throws IOException {
         for (final String stringField : stringFields) {
-            final File btreeDir = new File(Files.buildPath(directory, "fld-" + stringField + ".strindex"));
-            if (!btreeDir.exists()) {
+            final Path btreeDir = directory.resolve("fld-" + stringField + ".strindex");
+            if (Files.notExists(btreeDir)) {
                 SimpleFlamdexWriter.writeStringBTree(directory, stringField, btreeDir);
             }
         }

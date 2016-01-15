@@ -14,16 +14,16 @@
  package com.indeed.flamdex.reader;
 
 import com.google.common.base.Charsets;
-import com.google.common.io.Files;
-import com.indeed.imhotep.io.caching.CachedFile;
 
 import org.yaml.snakeyaml.JavaBeanDumper;
 import org.yaml.snakeyaml.JavaBeanLoader;
 
-import java.io.File;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 /**
 * @author jplaisance
@@ -76,16 +76,25 @@ public class FlamdexMetadata {
         this.formatVersion = formatVersion;
     }
 
-    public static FlamdexMetadata readMetadata(final String directory) throws IOException {
+    public static FlamdexMetadata readMetadata(final Path directory) throws IOException {
         JavaBeanLoader<FlamdexMetadata> loader = new JavaBeanLoader<FlamdexMetadata>(FlamdexMetadata.class);
-        File metadataFile;
-        metadataFile = CachedFile.create(CachedFile.buildPath(directory, "metadata.txt")).loadFile();
-        String metadata = Files.toString(metadataFile, Charsets.UTF_8);
-        return loader.load(metadata);
+        final Path metadataPath = directory.resolve("metadata.txt");
+        final BufferedReader metadataReader;
+        final FlamdexMetadata results;
+
+        metadataReader = Files.newBufferedReader(metadataPath, Charsets.UTF_8);
+        results = loader.load(metadataReader);
+        metadataReader.close();
+        return results;
     }
 
-    public static void writeMetadata(final String directory, FlamdexMetadata metadata) throws IOException {
+    public static void writeMetadata(final Path directory, FlamdexMetadata metadata) throws IOException {
         JavaBeanDumper dumper = new JavaBeanDumper(false);
-        Files.write(dumper.dump(metadata).getBytes(Charsets.UTF_8), new File(directory, "metadata.txt"));
+
+        Files.write(directory.resolve("metadata.txt"),
+                    dumper.dump(metadata).getBytes(Charsets.UTF_8),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.WRITE,
+                    StandardOpenOption.TRUNCATE_EXISTING);
     }
 }

@@ -13,7 +13,6 @@
  */
 package com.indeed.imhotep.local;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.ByteStreams;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -25,8 +24,6 @@ import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.io.SocketUtils;
-import com.indeed.imhotep.io.caching.CachedFile;
-import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 
 import org.apache.log4j.Logger;
@@ -34,22 +31,18 @@ import org.apache.log4j.Logger;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.List;
-import java.util.Map.Entry;
 import java.util.Map;
 import java.util.concurrent.BrokenBarrierException;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CyclicBarrier;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -268,21 +261,21 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             say the least. */
 
         final String[] shardDirs;
-        final String[] mappedFiles;
+        final Path[]   mappedFiles;
         final long[]   mappedPtrs;
         final long[]   packedTablePtrs;
         final boolean  onlyBinaryMetrics;
         final String[] intFields;
         final String[] stringFields;
-        final String   splitsDir;
+        final Path     splitsDir;
         final int      numGroups;
         final int      numStats;
         final int      numSplits;
         final int      numWorkers;
         final int[]    socketFDs;
 
-        private Map<String, Long> combine(final FlamdexReader[] readers) {
-            final Map<String, Long> result = Maps.newHashMap();
+        private Map<Path, Long> combine(final FlamdexReader[] readers) {
+            final Map<Path, Long> result = Maps.newHashMap();
             for (final FlamdexReader reader: readers) {
                 if (reader instanceof HasMapCache) {
                     ((HasMapCache) reader).getMapCache().getAddresses(result);
@@ -291,9 +284,9 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             return result;
         }
 
-        private void flatten(final Map<String, Long> mapCaches) {
+        private void flatten(final Map<Path, Long> mapCaches) {
             int idx = 0;
-            for (Map.Entry<String, Long> entry: mapCaches.entrySet()) {
+            for (Map.Entry<Path, Long> entry: mapCaches.entrySet()) {
                 this.mappedFiles[idx] = entry.getKey();
                 this.mappedPtrs[idx]  = entry.getValue().longValue();
                 ++idx;
@@ -317,18 +310,18 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                 this.packedTablePtrs[index] = nativeCaches[index].getNativeAddress();
             }
 
-            Map<String, Long> mapCaches = combine(readers);
-            this.mappedFiles = new String[mapCaches.size()];
+            Map<Path, Long> mapCaches = combine(readers);
+            this.mappedFiles = new Path[mapCaches.size()];
             this.mappedPtrs  = new long[mapCaches.size()];
             flatten(mapCaches);
 
             this.onlyBinaryMetrics = onlyBinaryMetrics;
             this.intFields         = intFields;
             this.stringFields      = stringFields;
-            this.splitsDir         = System.getProperty("java.io.tmpdir", "/dev/null");
             this.numGroups         = numGroups;
             this.numStats          = numStats;
             this.numSplits         = numSplits;
+            this.splitsDir         = Paths.get(System.getProperty("java.io.tmpdir", "/dev/null"));
 
             final String numWorkersStr = System.getProperty("imhotep.ftgs.num.workers", "8");
             final int    numWorkers    = Integer.parseInt(numWorkersStr);
@@ -352,42 +345,12 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         private String[] getShardDirs(final FlamdexReader[] readers) {
             final String[] shardDirs = new String[readers.length];
 
-            class LoadDirThread extends Thread {
-                final int index;
-                LoadDirThread(final int index) { this.index = index; }
-                public void run() {
-                    String shardDir = readers[index].getDirectory();
-                    try {
-                        CachedFile cf        = CachedFile.create(shardDir);
-                        File       cachedDir = cf.loadDirectory();
-                        synchronized (shardDirs) {
-                            shardDirs[index] = cachedDir.getAbsolutePath();
-                        }
-                    }
-                    catch (IOException ex) {
-                        throw new RuntimeException(ex);
-                    }
-                }
-            }
-
-            LoadDirThread[] threads = new LoadDirThread[readers.length];
-            try {
-                for (int index = 0; index < readers.length; ++index) {
-                    threads[index] = new LoadDirThread(index);
-                    threads[index].start();
-                }
-            }
-            finally {
-                for (int index = 0; index < readers.length; ++index) {
-                    try {
-                        threads[index].join();
-                    }
-                    catch (InterruptedException ex) {
-                        // !@# handle more gracefully
-                    }
-                }
+            for (int index = 0; index < readers.length; ++index) {
+                Path shardDir = readers[index].getDirectory();
+                shardDirs[index] = shardDir.toUri().toString();
             }
             return shardDirs;
         }
+
     }
 }

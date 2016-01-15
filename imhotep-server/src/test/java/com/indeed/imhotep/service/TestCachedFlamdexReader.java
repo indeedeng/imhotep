@@ -153,6 +153,9 @@ public class TestCachedFlamdexReader {
         assertEquals(5L, memory.usedMemory());
         l2.close();
         assertEquals(0L, memory.usedMemory());
+        cfr2.close();
+        cfr1.close();
+        cfr.close();
     }
 
     @Test

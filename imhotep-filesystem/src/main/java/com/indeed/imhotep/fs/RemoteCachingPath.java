@@ -1,10 +1,14 @@
 package com.indeed.imhotep.fs;
 
 import org.apache.commons.io.FilenameUtils;
+import org.apache.log4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.ObjectStreamException;
+import java.io.Serializable;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.FileSystem;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
@@ -17,7 +21,8 @@ import java.util.Iterator;
 /**
  * Created by darren on 12/15/15.
  */
-public class RemoteCachingPath implements Path {
+public class RemoteCachingPath implements Path, Serializable {
+    private static final Logger log = Logger.getLogger(RemoteCachingPath.class);
     public static final char PATH_SEPARATOR = '/';
     public static final String PATH_SEPARATOR_STR = "/";
 
@@ -215,6 +220,7 @@ public class RemoteCachingPath implements Path {
 
     @Override
     public Path relativize(Path other) {
+        // TODO: make work in the general case
         final RemoteCachingPath o = RemoteCachingFileSystemProvider.toRCP(other);
 
         if (this.getRoot().equals(o)) {
@@ -229,7 +235,12 @@ public class RemoteCachingPath implements Path {
 
     @Override
     public URI toUri() {
-        return null;
+        try {
+            return new URI(this.fileSystem.provider().getScheme(), null, path, null, null);
+        } catch (URISyntaxException e) {
+            log.error(e.getMessage());
+            return null;
+        }
     }
 
     @Override
@@ -244,7 +255,12 @@ public class RemoteCachingPath implements Path {
 
     @Override
     public File toFile() {
-        throw new UnsupportedOperationException("Use Path instead.");
+        try {
+            return fileSystem.getCacheFile(this);
+        } catch (IOException e) {
+            log.error("Could not load Path " + path, e);
+            return new File("/INVALID/INVALID/INVALID");
+        }
     }
 
     @Override
@@ -355,6 +371,10 @@ public class RemoteCachingPath implements Path {
         } else {
             return path;
         }
+    }
+
+    private Object writeReplace() throws ObjectStreamException {
+        return new PathProxy(this);
     }
 
     @Override

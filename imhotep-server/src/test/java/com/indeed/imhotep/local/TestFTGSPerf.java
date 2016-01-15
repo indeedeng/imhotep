@@ -20,6 +20,7 @@ import static org.junit.Assert.*;
 
 import java.io.*;
 import java.net.*;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -161,7 +162,7 @@ public class TestFTGSPerf {
     private String[] metricNames;
     private String[] stringFields;
     private String[] intFields;
-    private List<String> shardNames = new ArrayList<>();
+    private List<Path> shardNames = new ArrayList<>();
     private List<String> shardCopies = new ArrayList<>();
 
     private long[] validStats;
@@ -294,7 +295,7 @@ public class TestFTGSPerf {
         sfw.close();
     }
 
-    private void generateShard(final String dir, List<FieldDesc> fieldDescs) throws IOException {
+    private void generateShard(final Path dir, List<FieldDesc> fieldDescs) throws IOException {
         // find max # of docs
         long nDocs = 0;
         for (FieldDesc fd : fieldDescs) {
@@ -420,13 +421,13 @@ public class TestFTGSPerf {
 
     private static final int MAX_N_METRICS = 64;
 
-    private MTImhotepLocalMultiSession createMultisession(List<String> shardDirs,
+    private MTImhotepLocalMultiSession createMultisession(List<Path> shardDirs,
                                                           String[] metricNames,
                                                           boolean useNativeFTGS)
         throws ImhotepOutOfMemoryException, IOException {
         ImhotepLocalSession[] localSessions = new ImhotepLocalSession[shardDirs.size()];
         for (int i = 0; i < shardDirs.size(); i++) {
-            final String dir = shardDirs.get(i);
+            final Path dir = shardDirs.get(i);
             final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir);
             final ImhotepLocalSession localSession = new ImhotepJavaLocalSession(r);
             localSessions[i] = localSession;
@@ -478,8 +479,8 @@ public class TestFTGSPerf {
         for (int i = 0; i < 5; i++) {
             final File shard     = new File(shardDir, "native-ftgs-test-" + i);
             final File shardCopy = new File(shardDir, "native-ftgs-verify-" + i);
-            generateShard(shard.getAbsolutePath(), fieldDescs);
-            shardNames.add(shard.getAbsolutePath());
+            generateShard(shard.toPath(), fieldDescs);
+            shardNames.add(shard.toPath());
             FileUtils.copyDirectory(shard, shardCopy);
             shardCopies.add(shardCopy.getAbsolutePath());
         }
@@ -496,12 +497,12 @@ public class TestFTGSPerf {
             final File shard     = new File(shardDir, "native-ftgs-test-" + i);
             final File shardCopy = new File(shardDir, "native-ftgs-verify-" + i);
             if (i == 0) {
-                final SimpleFlamdexReader reader = SimpleFlamdexReader.open(shard.getAbsolutePath());
+                final SimpleFlamdexReader reader = SimpleFlamdexReader.open(shard.toPath());
                 metricNames  = reader.getAvailableMetrics().toArray(metricNames);
                 stringFields = reader.getStringFields().toArray(stringFields);
                 //                intFields    = reader.getIntFields().toArray(intFields);
             }
-            shardNames.add(shard.getAbsolutePath());
+            shardNames.add(shard.toPath());
             shardCopies.add(shardCopy.getAbsolutePath());
         }
         System.err.println("complete");

@@ -13,22 +13,21 @@
  */
  package com.indeed.flamdex.simple;
 
-import com.indeed.util.io.Files;
 import com.indeed.flamdex.utils.FlamdexUtils;
 import com.indeed.flamdex.writer.IntFieldWriter;
 
 import java.io.BufferedOutputStream;
-import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 /**
  * @author jsgroth
  */
 final class SimpleIntFieldWriter extends SimpleFieldWriter implements IntFieldWriter {
-    private final String outputDirectory;
+    private final Path outputDirectory;
     private final String field;
     private final boolean writeBTreesOnClose;
 
@@ -36,7 +35,12 @@ final class SimpleIntFieldWriter extends SimpleFieldWriter implements IntFieldWr
     private boolean hasCurrentTerm = false;
     private long currentTerm;
 
-    private SimpleIntFieldWriter(String outputDirectory, String field, boolean writeBTreesOnClose, OutputStream termsOutput, OutputStream docsOutput, long numDocs) {
+    private SimpleIntFieldWriter(Path outputDirectory,
+                                 String field,
+                                 boolean writeBTreesOnClose,
+                                 OutputStream termsOutput,
+                                 OutputStream docsOutput,
+                                 long numDocs) {
         super(termsOutput, docsOutput, numDocs);
         this.outputDirectory = outputDirectory;
         this.field = field;
@@ -51,10 +55,23 @@ final class SimpleIntFieldWriter extends SimpleFieldWriter implements IntFieldWr
         return "fld-"+field+".intdocs";
     }
 
-    public static SimpleIntFieldWriter open(String outputDirectory, String field, long numDocs, boolean writeBTreesOnClose) throws FileNotFoundException {
-        final OutputStream termsOutput = new BufferedOutputStream(new FileOutputStream(Files.buildPath(outputDirectory, getTermsFilename(field))), 65536);
-        final OutputStream docsOutput = new BufferedOutputStream(new FileOutputStream(Files.buildPath(outputDirectory, getDocsFilename(field))), 65536);
-        return new SimpleIntFieldWriter(outputDirectory, field, writeBTreesOnClose, termsOutput, docsOutput, numDocs);
+    public static SimpleIntFieldWriter open(Path outputDirectory,
+                                            String field,
+                                            long numDocs,
+                                            boolean writeBTreesOnClose) throws
+            IOException {
+        final OutputStream termsOutput;
+        final OutputStream docsOutput;
+
+        termsOutput = Files.newOutputStream(outputDirectory.resolve(getTermsFilename(field)));
+        docsOutput = Files.newOutputStream(outputDirectory.resolve(getDocsFilename(field)));
+
+        return new SimpleIntFieldWriter(outputDirectory,
+                                        field,
+                                        writeBTreesOnClose,
+                                        new BufferedOutputStream(termsOutput, 65536),
+                                        new BufferedOutputStream(docsOutput, 65536),
+                                        numDocs);
     }
 
     /**
@@ -66,7 +83,11 @@ final class SimpleIntFieldWriter extends SimpleFieldWriter implements IntFieldWr
      */
     @Override
     public void nextTerm(long term) throws IOException {
-        if (hasCurrentTerm && term <= currentTerm) throw new IllegalArgumentException("terms must be in sorted order: "+term+" is not greater than "+currentTerm);
+        if (hasCurrentTerm && term <= currentTerm) {
+            throw new IllegalArgumentException(
+                    "terms must be in sorted order: " + term + " is not greater than "
+                            + currentTerm);
+        }
 
         internalNextTerm();
         hasCurrentTerm = true;
@@ -83,7 +104,10 @@ final class SimpleIntFieldWriter extends SimpleFieldWriter implements IntFieldWr
     @Override
     protected void writeBTreeIndex() throws IOException {
         if (writeBTreesOnClose) {
-            SimpleFlamdexWriter.writeIntBTree(outputDirectory, field, new File(outputDirectory, "fld-" + field + ".intindex64"));
+            final Path indexDir = outputDirectory.resolve("fld-" + field + ".intindex64");
+            SimpleFlamdexWriter.writeIntBTree(outputDirectory,
+                                              field,
+                                              indexDir);
         }
     }
 }

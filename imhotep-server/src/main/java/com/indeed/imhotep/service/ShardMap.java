@@ -33,9 +33,10 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.apache.log4j.Logger;
 
-import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -85,7 +86,7 @@ class ShardMap
     /** Construct a ShardMap containing the content of a ShardStore. I.e.,
         reconstitute it from its serialized form. */
     ShardMap(final ShardStore          store,
-             final File                localShardsPath,
+             final Path localShardsPath,
              final MemoryReserver      memory,
              final FlamdexReaderSource flamdexReaderSource,
              final ImhotepMemoryCache<MetricKey, IntValueLookup> freeCache)
@@ -100,11 +101,12 @@ class ShardMap
             final Store.Entry<ShardStore.Key, ShardStore.Value> entry = it.next();
             final ShardStore.Key   key   = entry.getKey();
             final ShardStore.Value value = entry.getValue();
-            final File    datasetDir = new File(localShardsPath, key.getDataset());
-            final File    indexDir   = new File(datasetDir, value.getShardDir());
-            final ShardId shardId    = new ShardId(key.getDataset(), key.getShardId(),
-                                                   value.getVersion(),
-                                                   indexDir.getCanonicalPath());
+            final Path    datasetDir = localShardsPath.resolve(key.getDataset());
+            final Path    indexDir   = datasetDir.resolve(value.getShardDir());
+            final ShardId shardId = new ShardId(key.getDataset(),
+                                                key.getShardId(),
+                                                value.getVersion(),
+                                                indexDir);
 
             final ReloadableSharedReference.Loader<CachedFlamdexReader, IOException>
                 loader = newLoader(indexDir, key.getDataset(), value.getShardDir());
@@ -123,23 +125,18 @@ class ShardMap
         ShardMap is required primarily so that we can internally reuse Shards
         which have already been loaded. */
     ShardMap(final ShardMap reference,
-             final File     localShardsPath)
+             final Path     localShardsPath)
         throws IOException {
 
         this(reference.memory, reference.flamdexReaderSource, reference.freeCache);
 
         final OnlyDirs onlyDirs = new OnlyDirs();
-        final File[] datasetDirs = localShardsPath.listFiles(onlyDirs);
-        if (datasetDirs != null) {
-            for (final File datasetDir : datasetDirs) {
-                final String dataset = datasetDir.getName();
-                final File[] shardDirs = datasetDir.listFiles(onlyDirs);
-                if (shardDirs != null) {
-                    for (final File file : shardDirs) {
-                        final ShardDir shardDir = new ShardDir(file);
-                        track(reference, dataset, shardDir);
-                    }
-                }
+        for (Path datasetDir : Files.newDirectoryStream(localShardsPath, onlyDirs)) {
+            final String dataset = datasetDir.getFileName().toString();
+
+            for (Path path : Files.newDirectoryStream(datasetDir, onlyDirs)) {
+                final ShardDir shardDir = new ShardDir(path);
+                track(reference, dataset, shardDir);
             }
         }
     }
@@ -255,9 +252,10 @@ class ShardMap
     private boolean track(ShardMap reference, String dataset, ShardDir shardDir) {
         final Shard referenceShard = reference.getShard(dataset, shardDir.getId());
         final Shard currentShard   = getShard(dataset, shardDir.getId());
+
         if (shardDir.isNewerThan(referenceShard) && shardDir.isNewerThan(currentShard)) {
             final ReloadableSharedReference.Loader<CachedFlamdexReader, IOException>
-                loader = newLoader(new File(shardDir.getIndexDir()), dataset, shardDir.getName());
+                loader = newLoader(shardDir.getIndexDir(), dataset, shardDir.getName());
             try {
                 final Shard shard =
                     new Shard(ReloadableSharedReference.create(loader),
@@ -272,6 +270,7 @@ class ShardMap
             }
             catch (Exception ex) {
                 log.warn("error loading shard at " + shardDir.getIndexDir(), ex);
+                ex.printStackTrace();
                 return false;
             }
         }
@@ -335,14 +334,13 @@ class ShardMap
     }
 
     private ReloadableSharedReference.Loader<CachedFlamdexReader, IOException>
-        newLoader(final File   indexDir,
+        newLoader(final Path   indexDir,
                   final String dataset,
                   final String shardDir) {
         return new ReloadableSharedReference.Loader<CachedFlamdexReader, IOException>() {
             @Override
                 public CachedFlamdexReader load() throws IOException {
-                final FlamdexReader flamdex =
-                    flamdexReaderSource.openReader(indexDir.getCanonicalPath());
+                final FlamdexReader flamdex = flamdexReaderSource.openReader(indexDir);
                 if (flamdex instanceof RawFlamdexReader) {
                     return new RawCachedFlamdexReader(new MemoryReservationContext(memory),
                                                       (RawFlamdexReader) flamdex,
@@ -356,10 +354,10 @@ class ShardMap
         };
     }
 
-    private static final class OnlyDirs implements FilenameFilter {
-        public boolean accept(File dir, String name) {
-            final File file = new File(dir, name);
-            return file.exists() && file.isDirectory();
+    private static final class OnlyDirs implements DirectoryStream.Filter<Path> {
+        @Override
+        public boolean accept(Path path) throws IOException {
+            return Files.exists(path) && Files.isDirectory(path);
         }
     }
 }

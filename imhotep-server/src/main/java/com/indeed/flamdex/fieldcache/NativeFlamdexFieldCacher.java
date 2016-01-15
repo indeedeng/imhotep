@@ -35,6 +35,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 
 /**
@@ -97,12 +100,12 @@ public enum NativeFlamdexFieldCacher {
         protected IntValueLookup newMMapFieldCacheInternal(SimpleIntTermIterator iter,
                                                            int numDocs,
                                                            String field,
-                                                           String directory, long min, long max)
+                                                           Path directory, long min, long max)
             throws IOException {
-            final File cacheFile = new File(directory, getMMapFileName(field));
+            final Path cachePath = directory.resolve(getMMapFileName(field));
             MMapBuffer buffer;
             try {
-                buffer = new MMapBuffer(cacheFile,
+                buffer = new MMapBuffer(cachePath,
                                         FileChannel.MapMode.READ_ONLY,
                                         ByteOrder.LITTLE_ENDIAN);
             } catch (FileNotFoundException e) {
@@ -110,7 +113,7 @@ public enum NativeFlamdexFieldCacher {
                                                numDocs,
                                                field,
                                                directory,
-                                               cacheFile,
+                                               cachePath,
                                                new MMapLongFieldCacherOp());
             }
             return new MMapLongArrayIntValueLookup(buffer, numDocs, min, max);
@@ -126,10 +129,10 @@ public enum NativeFlamdexFieldCacher {
             @Override
             public MMapBuffer execute(SimpleIntTermIterator iter,
                                       int numDocs,
-                                      File f) throws IOException {
+                                      Path p) throws IOException {
                 final int length = numDocs * 8;
                 final MMapBuffer mmapBuffer =
-                    new MMapBuffer(f, 0L, length,
+                    new MMapBuffer(p, 0L, length,
                                    FileChannel.MapMode.READ_WRITE,
                                    ByteOrder.LITTLE_ENDIAN);
 
@@ -206,12 +209,12 @@ public enum NativeFlamdexFieldCacher {
         protected IntValueLookup newMMapFieldCacheInternal(SimpleIntTermIterator iter,
                                                            int numDocs,
                                                            String field,
-                                                           String directory, long min, long max)
+                                                           Path directory, long min, long max)
             throws IOException {
-            final File cacheFile = new File(directory, getMMapFileName(field));
+            final Path cachePath = directory.resolve(getMMapFileName(field));
             MMapBuffer buffer;
             try {
-                buffer = new MMapBuffer(cacheFile,
+                buffer = new MMapBuffer(cachePath,
                                         FileChannel.MapMode.READ_ONLY,
                                         ByteOrder.LITTLE_ENDIAN);
             } catch (FileNotFoundException e) {
@@ -219,7 +222,7 @@ public enum NativeFlamdexFieldCacher {
                                                numDocs,
                                                field,
                                                directory,
-                                               cacheFile,
+                                               cachePath,
                                                new MMapIntFieldCacherOp());
             }
             return new MMapIntArrayIntValueLookup(buffer, numDocs, min, max);
@@ -234,10 +237,10 @@ public enum NativeFlamdexFieldCacher {
             @Override
             public MMapBuffer execute(SimpleIntTermIterator iter,
                                       int numDocs,
-                                      File f) throws IOException {
+                                      Path p) throws IOException {
                 final int length = numDocs * 8;
                 final MMapBuffer mmapBuffer =
-                    new MMapBuffer(f, 0L, length,
+                    new MMapBuffer(p, 0L, length,
                                    FileChannel.MapMode.READ_WRITE,
                                    ByteOrder.LITTLE_ENDIAN);
 
@@ -313,12 +316,12 @@ public enum NativeFlamdexFieldCacher {
         protected IntValueLookup newMMapFieldCacheInternal(SimpleIntTermIterator iter,
                                                            int numDocs,
                                                            String field,
-                                                           String directory, long min, long max)
+                                                           Path directory, long min, long max)
             throws IOException {
-            final File cacheFile = new File(directory, getMMapFileName(field));
+            final Path cachePath = directory.resolve(getMMapFileName(field));
             MMapBuffer buffer;
             try {
-                buffer = new MMapBuffer(cacheFile,
+                buffer = new MMapBuffer(cachePath,
                                         FileChannel.MapMode.READ_ONLY,
                                         ByteOrder.LITTLE_ENDIAN);
             } catch (FileNotFoundException e) {
@@ -326,7 +329,7 @@ public enum NativeFlamdexFieldCacher {
                                                numDocs,
                                                field,
                                                directory,
-                                               cacheFile,
+                                               cachePath,
                                                new MMapShortFieldCacherOp());
             }
             return new MMapShortArrayIntValueLookup(buffer, numDocs, min, max);
@@ -341,10 +344,10 @@ public enum NativeFlamdexFieldCacher {
             @Override
                 public MMapBuffer execute(SimpleIntTermIterator iter,
                                           int numDocs,
-                                          File f) throws IOException {
+                                          Path p) throws IOException {
                 final int length = numDocs * 8;
                 final MMapBuffer mmapBuffer =
-                    new MMapBuffer(f, 0L, length,
+                    new MMapBuffer(p, 0L, length,
                                    FileChannel.MapMode.READ_WRITE,
                                    ByteOrder.LITTLE_ENDIAN);
 
@@ -420,12 +423,12 @@ public enum NativeFlamdexFieldCacher {
         protected IntValueLookup newMMapFieldCacheInternal(SimpleIntTermIterator iter,
                                                            int numDocs,
                                                            String field,
-                                                           String directory, long min, long max)
+                                                           Path directory, long min, long max)
             throws IOException {
-            final File cacheFile = new File(directory, getMMapFileName(field));
+            final Path cachePath = directory.resolve(getMMapFileName(field));
             MMapBuffer buffer;
             try {
-                buffer = new MMapBuffer(cacheFile,
+                buffer = new MMapBuffer(cachePath,
                                         FileChannel.MapMode.READ_ONLY,
                                         ByteOrder.LITTLE_ENDIAN);
             } catch (FileNotFoundException e) {
@@ -433,7 +436,7 @@ public enum NativeFlamdexFieldCacher {
                                                numDocs,
                                                field,
                                                directory,
-                                               cacheFile,
+                                               cachePath,
                                                new MMapCharFieldCacherOp());
             }
             return new MMapCharArrayIntValueLookup(buffer, numDocs, min, max);
@@ -448,10 +451,10 @@ public enum NativeFlamdexFieldCacher {
             @Override
                 public MMapBuffer execute(SimpleIntTermIterator iter,
                                           int numDocs,
-                                          File f) throws IOException {
+                                          Path p) throws IOException {
                 final int length = numDocs * 8;
                 final MMapBuffer mmapBuffer =
-                    new MMapBuffer(f, 0L, length,
+                    new MMapBuffer(p, 0L, length,
                                    FileChannel.MapMode.READ_WRITE,
                                    ByteOrder.LITTLE_ENDIAN);
 
@@ -527,12 +530,12 @@ public enum NativeFlamdexFieldCacher {
         protected IntValueLookup newMMapFieldCacheInternal(SimpleIntTermIterator iter,
                                                            int numDocs,
                                                            String field,
-                                                           String directory, long min, long max)
+                                                           Path directory, long min, long max)
             throws IOException {
-            final File cacheFile = new File(directory, getMMapFileName(field));
+            final Path cachePath = directory.resolve(getMMapFileName(field));
             MMapBuffer buffer;
             try {
-                buffer = new MMapBuffer(cacheFile,
+                buffer = new MMapBuffer(cachePath,
                                         FileChannel.MapMode.READ_ONLY,
                                         ByteOrder.LITTLE_ENDIAN);
             } catch (FileNotFoundException e) {
@@ -540,7 +543,7 @@ public enum NativeFlamdexFieldCacher {
                                                numDocs,
                                                field,
                                                directory,
-                                               cacheFile,
+                                               cachePath,
                                                new MMapByteFieldCacherOp());
             }
             return new MMapSignedByteArrayIntValueLookup(buffer, numDocs, min, max);
@@ -555,10 +558,10 @@ public enum NativeFlamdexFieldCacher {
             @Override
                 public MMapBuffer execute(SimpleIntTermIterator iter,
                                           int numDocs,
-                                          File f) throws IOException {
+                                          Path p) throws IOException {
                 final int length = numDocs * 8;
                 final MMapBuffer mmapBuffer =
-                    new MMapBuffer(f, 0L, length,
+                    new MMapBuffer(p, 0L, length,
                                    FileChannel.MapMode.READ_WRITE,
                                    ByteOrder.LITTLE_ENDIAN);
 
@@ -634,12 +637,12 @@ public enum NativeFlamdexFieldCacher {
         protected IntValueLookup newMMapFieldCacheInternal(SimpleIntTermIterator iter,
                                                            int numDocs,
                                                            String field,
-                                                           String directory, long min, long max)
+                                                           Path directory, long min, long max)
             throws IOException {
-            final File cacheFile = new File(directory, getMMapFileName(field));
+            final Path cachePath = directory.resolve(getMMapFileName(field));
             MMapBuffer buffer;
             try {
-                buffer = new MMapBuffer(cacheFile,
+                buffer = new MMapBuffer(cachePath,
                                         FileChannel.MapMode.READ_ONLY,
                                         ByteOrder.LITTLE_ENDIAN);
             } catch (FileNotFoundException e) {
@@ -647,7 +650,7 @@ public enum NativeFlamdexFieldCacher {
                                                numDocs,
                                                field,
                                                directory,
-                                               cacheFile,
+                                               cachePath,
                                                new MMapByteFieldCacherOp());
             }
             return new MMapByteArrayIntValueLookup(buffer, numDocs, min, max);
@@ -662,10 +665,10 @@ public enum NativeFlamdexFieldCacher {
             @Override
                 public MMapBuffer execute(SimpleIntTermIterator iter,
                                           int numDocs,
-                                          File f) throws IOException {
+                                          Path p) throws IOException {
                 final int length = numDocs * 8;
                 final MMapBuffer mmapBuffer =
-                    new MMapBuffer(f, 0L, length,
+                    new MMapBuffer(p, 0L, length,
                                    FileChannel.MapMode.READ_WRITE,
                                    ByteOrder.LITTLE_ENDIAN);
 
@@ -728,18 +731,18 @@ public enum NativeFlamdexFieldCacher {
         protected IntValueLookup newMMapFieldCacheInternal(SimpleIntTermIterator iter,
                                                            int numDocs,
                                                            String field,
-                                                           String directory, long min, long max)
+                                                           Path directory, long min, long max)
             throws IOException {
-            final File cacheFile = new File(directory, getMMapFileName(field));
+            final Path cachePath = directory.resolve(getMMapFileName(field));
             try {
-                return new MMapBitSetIntValueLookup(cacheFile, numDocs);
+                return new MMapBitSetIntValueLookup(cachePath, numDocs);
             } catch (FileNotFoundException e) {
                 final MMapFastBitSet bitset;
                 bitset = cacheToFileAtomically(iter,
                                                numDocs,
                                                field,
                                                directory,
-                                               cacheFile,
+                                               cachePath,
                                                new MMapBitsetFieldCacherOp());
                 return new MMapBitSetIntValueLookup(bitset);
             }
@@ -755,9 +758,9 @@ public enum NativeFlamdexFieldCacher {
             @Override
             public MMapFastBitSet execute(SimpleIntTermIterator iter,
                                           int numDocs,
-                                          File f) throws IOException {
+                                          Path p) throws IOException {
                 final MMapFastBitSet bitset =
-                        new MMapFastBitSet(f, numDocs, FileChannel.MapMode.READ_WRITE);
+                        new MMapFastBitSet(p, numDocs, FileChannel.MapMode.READ_WRITE);
 
                 if (numDocs == 0) {
                     return bitset;
@@ -833,7 +836,7 @@ public enum NativeFlamdexFieldCacher {
     protected abstract IntValueLookup newMMapFieldCacheInternal(SimpleIntTermIterator iter,
                                                                 int numDocs,
                                                                 String field,
-                                                                String directory,
+                                                                Path directory,
                                                                 long min,
                                                                 long max) throws IOException;
 
@@ -852,7 +855,7 @@ public enum NativeFlamdexFieldCacher {
     public IntValueLookup newMMapFieldCache(IntTermIterator iterator,
                                             int numDocs,
                                             String field,
-                                            String directory,
+                                            Path directory,
                                             long min,
                                             long max) throws IOException {
         if (!(iterator instanceof SimpleIntTermIterator)) {
@@ -881,7 +884,7 @@ public enum NativeFlamdexFieldCacher {
     @VisibleForTesting
     private final IntValueLookup newMMapFieldCache(String field,
                                                    FlamdexReader r,
-                                                   String directory,
+                                                   Path directory,
                                                    long min,
                                                    long max) throws IOException {
         final IntTermIterator iterator = r.getUnsortedIntTermIterator(field);
@@ -895,20 +898,22 @@ public enum NativeFlamdexFieldCacher {
     @VisibleForTesting
     abstract String getMMapFileName(String field);
 
-    private static void delete(File f) {
-        if (!f.delete()) {
-            log.error("unable to delete file " + f);
+    private static void delete(Path p) {
+        try {
+            Files.delete(p);
+        } catch (IOException e){
+            log.error("unable to delete file " + p);
         }
     }
 
     private static <T extends Closeable> T cacheToFileAtomically(SimpleIntTermIterator iterator,
                                                                  int numDocs,
                                                                  String field,
-                                                                 String directory,
-                                                                 File cacheFile,
+                                                                 Path directory,
+                                                                 Path cachePath,
                                                                  CacheToFileOperation<T> op)
     throws IOException {
-        final File tmp = new File(directory, "fld-" + field + ".intcache." + UUID.randomUUID());
+        final Path tmp = directory.resolve("fld-" + field + ".intcache." + UUID.randomUUID());
         final T ret;
         try {
             ret = op.execute(iterator, numDocs, tmp);
@@ -919,16 +924,21 @@ public enum NativeFlamdexFieldCacher {
             delete(tmp);
             throw e;
         }
-        if (!tmp.renameTo(cacheFile)) {
+        try {
+            Files.move(tmp,
+                       cachePath,
+                       StandardCopyOption.ATOMIC_MOVE,
+                       StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e) {
             delete(tmp);
             Closeables2.closeQuietly(ret, log);
-            throw new IOException("unable to rename " + tmp + " to " + cacheFile);
+            throw new IOException("unable to rename " + tmp + " to " + cachePath, e);
         }
         return ret;
     }
 
     private static interface CacheToFileOperation<T> {
-        T execute(SimpleIntTermIterator iterator, int numDocs, File f) throws IOException;
+        T execute(SimpleIntTermIterator iterator, int numDocs, Path p) throws IOException;
     }
 
 

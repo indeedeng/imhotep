@@ -18,38 +18,60 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import java.io.*;
-import java.net.*;
-import java.util.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.nio.file.Path;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Random;
+import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.indeed.flamdex.api.*;
+import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
+import com.indeed.flamdex.api.IntValueLookup;
+import com.indeed.flamdex.simple.SimpleFlamdexReader;
+import com.indeed.flamdex.simple.SimpleFlamdexWriter;
+import com.indeed.flamdex.writer.IntFieldWriter;
+import com.indeed.flamdex.writer.StringFieldWriter;
+import com.indeed.imhotep.ImhotepMemoryPool;
+import com.indeed.imhotep.InputStreamFTGSIterator;
+import com.indeed.imhotep.MemoryReservationContext;
+import com.indeed.imhotep.RawFTGSMerger;
+import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.api.RawFTGSIterator;
+import com.indeed.imhotep.io.TestFileUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.RandomStringUtils;
-import org.junit.*;
-import org.junit.rules.*;
-
-import com.indeed.flamdex.simple.*;
-import com.indeed.flamdex.writer.*;
-import com.indeed.imhotep.*;
-import com.indeed.imhotep.api.*;
-import com.indeed.util.io.Files;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.Timeout;
 
 /**
  * @author darren
  */
 public class TestNativeFlamdexFTGSIterator {
 
-    @Rule public Timeout globalTimeout = new Timeout(120000);
+//    @Rule
+//    public Timeout globalTimeout = new Timeout(120000);
 
-    private static String rootTestDir;
+    private static Path rootTestDir;
 
-    @BeforeClass public static void setUp() throws IOException {
-        rootTestDir = Files.getTempDirectory("rootTestDir.", ".delete.me");
+    @BeforeClass
+    public static void setUp() throws IOException {
+        rootTestDir = Files.createTempDirectory("rootTestDir-delete.me");
     }
 
-    @AfterClass public static void tearDown() {
-        Files.delete(rootTestDir);
+    @AfterClass
+    public static void tearDown() throws IOException {
+        TestFileUtils.deleteDirTree(rootTestDir);
     }
 
     public static class ClusterSimulator {
@@ -193,7 +215,8 @@ public class TestNativeFlamdexFTGSIterator {
     private void createFlamdexIntField(final String intFieldName,
                                        final MetricMaxSizes termGenerator,
                                        final int size,
-                                       SimpleFlamdexWriter w) throws IOException {
+                                       SimpleFlamdexWriter w,
+                                       final long maxDocs) throws IOException {
         final int maxTermDocs = (size < 2000) ? size : size / 1000;
         final int maxUnassignedDocs = (size < 100) ? 10 : 100;
         IntFieldWriter ifw = w.getIntFieldWriter(intFieldName);
@@ -224,6 +247,9 @@ public class TestNativeFlamdexFTGSIterator {
         for (Long term : map.keySet()) {
             ifw.nextTerm(term);
             for (int doc : map.get(term)) {
+                if (doc >= maxDocs) {
+                    throw new RuntimeException("WTF!");
+                }
                 ifw.nextDoc(doc);
             }
         }
@@ -233,7 +259,8 @@ public class TestNativeFlamdexFTGSIterator {
     private void createFlamdexStringField(final String stringFieldName,
                                           final int size,
                                           SimpleFlamdexWriter w,
-                                          List<String> termsList) throws IOException {
+                                          List<String> termsList,
+                                          final long maxDocs) throws IOException {
         final int maxTermDocs = (size < 2000) ? size : size / 1000;
         final int maxUnassignedDocs = (size < 100) ? 10 : 100;
         StringFieldWriter sfw = w.getStringFieldWriter(stringFieldName);
@@ -255,14 +282,17 @@ public class TestNativeFlamdexFTGSIterator {
         for (String term : map.keySet()) {
             sfw.nextTerm(term);
             for (int doc : map.get(term)) {
+                if (doc >= maxDocs) {
+                    throw new RuntimeException("WTF!");
+                }
                 sfw.nextDoc(doc);
             }
         }
         sfw.close();
     }
 
-    private String generateShard(List<FieldDesc> fieldDescs) throws IOException {
-        final String dir = Files.getTempDirectory("native-ftgs-test", "test", rootTestDir);
+    private Path generateShard(List<FieldDesc> fieldDescs) throws IOException {
+        final Path dir = Files.createTempDirectory(rootTestDir, "native-ftgs-test.test-dir.");
 
         // find max # of docs
         long nDocs = 0;
@@ -270,13 +300,15 @@ public class TestNativeFlamdexFTGSIterator {
             nDocs = (fd.numDocs > nDocs) ? fd.numDocs : nDocs;
         }
 
+//        System.out.println("numdocs: " + nDocs);
+
         final SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, nDocs, true);
 
         for (FieldDesc fd : fieldDescs) {
             if (fd.isIntfield) {
-                createFlamdexIntField(fd.name, fd.termGenerator, fd.numDocs, w);
+                createFlamdexIntField(fd.name, fd.termGenerator, fd.numDocs, w, nDocs);
             } else {
-                createFlamdexStringField(fd.name, fd.numDocs, w, fd.terms);
+                createFlamdexStringField(fd.name, fd.numDocs, w, fd.terms, nDocs);
             }
         }
 
@@ -284,10 +316,10 @@ public class TestNativeFlamdexFTGSIterator {
         return dir;
     }
 
-    private String copyShard(String dir) throws IOException {
-        final String new_dir = Files.getTempDirectory("native-ftgs-test", "verify-copy", rootTestDir);
+    private Path copyShard(Path dir) throws IOException {
+        final Path new_dir = Files.createTempDirectory(rootTestDir, "native-ftgs-test.verify-dir.");
 
-        FileUtils.copyDirectory(new File(dir), new File(new_dir));
+        FileUtils.copyDirectory(dir.toFile(), new_dir.toFile());
 
         return new_dir;
     }
@@ -342,7 +374,7 @@ public class TestNativeFlamdexFTGSIterator {
         }
     }
 
-    private MTImhotepLocalMultiSession createMultisession(List<String> shardDirs,
+    private MTImhotepLocalMultiSession createMultisession(List<Path> shardDirs,
                                                           String[] intFieldNames,
                                                           String[] strFieldNames,
                                                           String[] metricNames,
@@ -350,7 +382,7 @@ public class TestNativeFlamdexFTGSIterator {
         throws ImhotepOutOfMemoryException, IOException {
         ImhotepLocalSession[] localSessions = new ImhotepLocalSession[shardDirs.size()];
         for (int i = 0; i < shardDirs.size(); i++) {
-            final String dir = shardDirs.get(i);
+            final Path dir = shardDirs.get(i);
             final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir);
             final ImhotepLocalSession localSession;
             localSession = factory.create(r);
@@ -474,12 +506,12 @@ public class TestNativeFlamdexFTGSIterator {
                                                               metricNames,
                                                               true);
 
-        List<String> shardNames = new ArrayList<>();
-        List<String> shardCopies = new ArrayList<>();
+        List<Path> shardNames = new ArrayList<>();
+        List<Path> shardCopies = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
-            final String shard = generateShard(fieldDescs);
+            final Path shard = generateShard(fieldDescs);
             shardNames.add(shard);
-            System.out.println(shard);
+//            System.out.println(shard);
             shardCopies.add(copyShard(shard));
         }
 //        List<String> shardCopies =
@@ -528,6 +560,9 @@ public class TestNativeFlamdexFTGSIterator {
 
         simulator.close();
         verificationIter.close();
+
+        testSession.close();
+        verificationSession.close();
     }
 
     @Test
@@ -564,9 +599,9 @@ public class TestNativeFlamdexFTGSIterator {
                                    intFieldNames,
                                    metricNames,
                                    false);
-        final String shardname = generateShard(fieldDescs);
+        final Path shardname = generateShard(fieldDescs);
         System.out.println(shardname);
-        String shardCopy = copyShard(shardname);
+        Path shardCopy = copyShard(shardname);
         System.out.println(shardCopy);
 //        final String shardname = "/tmp/native-ftgs-test8719739701043085471test";
 //        final String shardCopy = "/tmp/native-ftgs-test536071247070284384verify-copy";
@@ -604,6 +639,8 @@ public class TestNativeFlamdexFTGSIterator {
 
         simulator.close();
         verificationIter.close();
+        verificationSession.close();
+        testSession.close();
     }
 
     @Test
@@ -653,8 +690,8 @@ public class TestNativeFlamdexFTGSIterator {
 //                                           "/tmp/native-ftgs-test4175013008290753425test",
 //                                           "/tmp/native-ftgs-test3900578412908250666test",
 //                                           "/tmp/native-ftgs-test3495740989105538049test" });
-        List<String> shardNames = new ArrayList<>();
-        List<String> shardCopies = new ArrayList<>();
+        List<Path> shardNames = new ArrayList<>();
+        List<Path> shardCopies = new ArrayList<>();
         final List<FieldDesc> fieldDescs =
                 createShardProfile(numDocs,
                                    nMetrics,
@@ -666,7 +703,7 @@ public class TestNativeFlamdexFTGSIterator {
                                    false);
 
         for (int i = 0; i < 10; i++) {
-            final String shard = generateShard(fieldDescs);
+            final Path shard = generateShard(fieldDescs);
             shardNames.add(shard);
             System.out.println(shard);
             shardCopies.add(copyShard(shard));
@@ -750,9 +787,9 @@ public class TestNativeFlamdexFTGSIterator {
             fieldDescs.add(fd);
         }
 
-        final String shardName = generateShard(fieldDescs);
+        final Path shardName = generateShard(fieldDescs);
         System.out.println(shardName);
-        final String shardCopy = copyShard(shardName);
+        final Path shardCopy = copyShard(shardName);
 
         final SimpleFlamdexReader verificationShard = SimpleFlamdexReader.open(shardCopy);
         final SimpleFlamdexReader testShard = SimpleFlamdexReader.open(shardName);
@@ -802,7 +839,7 @@ public class TestNativeFlamdexFTGSIterator {
             } while(offset < nDocs);
         }
 
-
+        System.gc();
     }
 
     private void compareIterators(FTGSIterator test, FTGSIterator valid, int numStats) {

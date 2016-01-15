@@ -52,6 +52,7 @@ public class LocalFileStore extends RemoteFileStore {
             }
         });
         results = IteratorUtils.toList(iterable.iterator());
+        dirStream.close();
         if (results instanceof ArrayList)
             return (ArrayList)results;
         else

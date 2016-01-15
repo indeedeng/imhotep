@@ -51,9 +51,6 @@ import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
 import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -62,6 +59,8 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -481,19 +480,20 @@ public class ImhotepRemoteSession
                 closeSocket(socket, is, os);
                 throw e;
             }
-            File tmp = null;
+            Path tmp = null;
             try {
-                tmp = File.createTempFile("ftgs", ".tmp");
+                tmp = Files.createTempFile("ftgs", ".tmp");
                 OutputStream out = null;
                 try {
                     final long start = System.currentTimeMillis();
-                    out = new LimitedBufferedOutputStream(new FileOutputStream(tmp), tempFileSizeBytesLeft);
+                    out = new LimitedBufferedOutputStream(Files.newOutputStream(tmp), tempFileSizeBytesLeft);
                     ByteStreams.copy(is, out);
                     if(log.isDebugEnabled()) {
-                        log.debug("time to copy split data to file: " + (System.currentTimeMillis() - start) + " ms, file length: " + tmp.length());
+                        log.debug("time to copy split data to file: " + (System.currentTimeMillis()
+                                - start) + " ms, file length: " + Files.size(tmp));
                     }
                 } catch (Throwable t) {
-                    tmp.delete();
+                    Files.delete(tmp);
                     if(t instanceof WriteLimitExceededException) {
                         throw new TempFileSizeLimitExceededException(t);
                     }
@@ -503,7 +503,8 @@ public class ImhotepRemoteSession
                         out.close();
                     }
                 }
-                final BufferedInputStream bufferedInputStream = new BufferedInputStream(new FileInputStream(tmp));
+                final BufferedInputStream bufferedInputStream;
+                bufferedInputStream = new BufferedInputStream(Files.newInputStream(tmp));
                 final InputStream in = new FilterInputStream(bufferedInputStream) {
                     public void close() throws IOException {
                         bufferedInputStream.close();
@@ -512,7 +513,7 @@ public class ImhotepRemoteSession
                 return new InputStreamFTGSIterator(in, numStats);
             } finally {
                 if (tmp != null) {
-                    tmp.delete();
+                    Files.delete(tmp);
                 }
                 closeSocket(socket, is, os);
             }

@@ -14,7 +14,6 @@
  package com.indeed.imhotep.service;
 
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Maps;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.reader.MockFlamdexReader;
 import com.indeed.imhotep.DatasetInfo;
@@ -22,7 +21,7 @@ import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.io.MockShard;
 import com.indeed.imhotep.io.Shard;
-import com.indeed.util.io.Files;
+import com.indeed.imhotep.io.TestFileUtils;
 import org.apache.log4j.Appender;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.ConsoleAppender;
@@ -34,14 +33,14 @@ import org.apache.log4j.varia.LevelRangeFilter;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.Path;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
@@ -82,15 +81,15 @@ public class TestLocalImhotepServiceCore {
 
     @Test
     public void testCleanupOnFTGSFailure() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
-        String directory = Files.getTempDirectory("asdf", "");
-        String tempDir = Files.getTempDirectory("asdf", "");
-        File datasetDir = new File(directory, "dataset");
-        datasetDir.mkdir();
-        new File(datasetDir, "shard").mkdir();
+        Path directory = Files.createTempDirectory("asdf");
+        Path tempDir = Files.createTempDirectory("asdf");
+        Path datasetDir = directory.resolve("dataset");
+        Files.createDirectories(datasetDir);
+        Files.createDirectories(datasetDir.resolve("shard"));
         try {
             final LocalImhotepServiceCore service = new LocalImhotepServiceCore(directory, tempDir, 9999999999999L, false, new FlamdexReaderSource() {
                 @Override
-                public FlamdexReader openReader(String directory) throws IOException {
+                public FlamdexReader openReader(Path directory) throws IOException {
                     MockFlamdexReader r = new MockFlamdexReader(Arrays.asList("if1"), Collections.<String>emptyList(), Collections.<String>emptyList(), 10000);
                     for (int i = 0; i < 1000; ++i) {
                         for (int j = 0; j < 1000; ++j) {
@@ -125,8 +124,8 @@ public class TestLocalImhotepServiceCore {
             service.handleCloseSession(sessionId);
             service.close();
         } finally {
-            Files.delete(directory);
-            Files.delete(tempDir);
+            TestFileUtils.deleteDirTree(directory);
+            TestFileUtils.deleteDirTree(tempDir);
         }
     }
 
@@ -147,23 +146,23 @@ public class TestLocalImhotepServiceCore {
     @Test
     @SuppressWarnings({"ResultOfMethodCallIgnored"})
     public void testVersionization() throws IOException {
-        String directory = Files.getTempDirectory("imhotep", "test");
-        String tempDir = Files.getTempDirectory("imhotep", "temp");
+        Path directory = Files.createTempDirectory("imhotep-test");
+        Path tempDir = Files.createTempDirectory("imhotep-temp");
         try {
-            File datasetDir = new File(directory, "dataset");
-            datasetDir.mkdir();
-            new File(datasetDir, "shard0").mkdir();
-            new File(datasetDir, "shard0.20120101000000").mkdir();
-            new File(datasetDir, "shard0.20111231000000").mkdir();
-            new File(datasetDir, "shard1.20120101000000").mkdir();
-            new File(datasetDir, "shard1.20120101123456").mkdir();
-            new File(datasetDir, "shard2.20120102000000").mkdir();
+            Path datasetDir = directory.resolve("dataset");
+            Files.createDirectory(datasetDir);
+            Files.createDirectory(datasetDir.resolve("shard0"));
+            Files.createDirectory(datasetDir.resolve("shard0.20120101000000"));
+            Files.createDirectory(datasetDir.resolve("shard0.20111231000000"));
+            Files.createDirectory(datasetDir.resolve("shard1.20120101000000"));
+            Files.createDirectory(datasetDir.resolve("shard1.20120101123456"));
+            Files.createDirectory(datasetDir.resolve("shard2.20120102000000"));
 
             LocalImhotepServiceCore service =
                 new LocalImhotepServiceCore(directory, tempDir, Long.MAX_VALUE,
                                             false, new FlamdexReaderSource() {
                 @Override
-                public FlamdexReader openReader(String directory) throws IOException {
+                public FlamdexReader openReader(Path directory) throws IOException {
                     return new MockFlamdexReader(Arrays.asList("if1"),
                                                  Arrays.asList("sf1"),
                                                  Arrays.asList("if1"), 5);
@@ -186,8 +185,8 @@ public class TestLocalImhotepServiceCore {
 
             service.close();
         } finally {
-            Files.delete(directory);
-            Files.delete(tempDir);
+            TestFileUtils.deleteDirTree(directory);
+            TestFileUtils.deleteDirTree(tempDir);
         }
     }
 

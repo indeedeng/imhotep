@@ -18,10 +18,10 @@ import com.indeed.util.mmap.LongArray;
 import com.indeed.util.mmap.MMapBuffer;
 
 import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
+import java.nio.file.Path;
 
 /**
  * @author jsgroth
@@ -36,11 +36,11 @@ public final class MMapFastBitSet implements Closeable {
     private final int bufferLength;
     private final LongArray bits;
 
-    public MMapFastBitSet(File file, int size, FileChannel.MapMode mapMode) throws IOException {
+    public MMapFastBitSet(Path path, int size, FileChannel.MapMode mapMode) throws IOException {
         this.size = size;
         this.arraySize = (size + 64) >> 6;
         this.bufferLength = arraySize * 8;
-        this.buffer = new MMapBuffer(file, 0, bufferLength, mapMode, ByteOrder.LITTLE_ENDIAN);
+        this.buffer = new MMapBuffer(path, 0, bufferLength, mapMode, ByteOrder.LITTLE_ENDIAN);
         this.bits = buffer.memory().longArray(0, arraySize);
     }
 

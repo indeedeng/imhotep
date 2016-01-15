@@ -14,17 +14,18 @@
  package com.indeed.flamdex.api;
 
 import java.io.IOException;
+import java.nio.file.Path;
 
 /**
  * @author jsgroth
  */
 
 public interface GenericFlamdexFactory {
-    IntTermIterator createIntTermIterator(String termsFilePath, String docsFilePath) throws IOException;
+    IntTermIterator createIntTermIterator(Path termsFilePath, Path docsFilePath) throws IOException;
     String getIntTermsFilename(String field);
     String getIntDocsFilename(String field);
 
-    StringTermIterator createStringTermIterator(String termsFilePath, String docsFilePath) throws IOException;
+    StringTermIterator createStringTermIterator(Path termsFilePath, Path docsFilePath) throws IOException;
     String getStringTermsFilename(String field);
     String getStringDocsFilename(String field);
 

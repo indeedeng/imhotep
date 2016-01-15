@@ -21,6 +21,7 @@ import com.indeed.util.mmap.MMapBuffer;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
+import java.nio.file.Path;
 
 /**
  * @author jsgroth
@@ -42,7 +43,7 @@ final class SimpleDocIdStream implements DocIdStream {
     private int docsRemaining;
     private int lastDoc;
 
-    private String currentFileOpen;
+    private Path currentFileOpen;
 
     SimpleDocIdStream(MapCache mapCache) {
         this(mapCache, new byte[BUFFER_SIZE]);
@@ -69,7 +70,7 @@ final class SimpleDocIdStream implements DocIdStream {
     }
 
     private void internalReset(SimpleTermIterator term) throws IOException {
-        final String filename = term.getFilename();
+        final Path filename = term.getFilename();
         if (!filename.equals(currentFileOpen)) {
 
             if (file != null) file.close();

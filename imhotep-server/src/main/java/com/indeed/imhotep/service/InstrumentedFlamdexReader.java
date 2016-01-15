@@ -20,21 +20,19 @@ import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermDocIterator;
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.IntValueLookup;
-import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.StringValueLookup;
 import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.Instrumentation.Keys;
-import com.indeed.imhotep.MemoryReservationContext;
 
 import it.unimi.dsi.fastutil.objects.Object2LongArrayMap;
 
 import org.apache.log4j.Logger;
 
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.Map;
 
 public class InstrumentedFlamdexReader
     implements FlamdexReader {
@@ -100,7 +98,7 @@ public class InstrumentedFlamdexReader
     public Collection<String> getStringFields() { return wrapped.getStringFields(); }
 
     public int             getNumDocs() { return wrapped.getNumDocs();     }
-    public String        getDirectory() { return wrapped.getDirectory();   }
+    public Path getDirectory() { return wrapped.getDirectory();   }
     public DocIdStream getDocIdStream() { return wrapped.getDocIdStream(); }
 
     public IntTermIterator getIntTermIterator(String field) {

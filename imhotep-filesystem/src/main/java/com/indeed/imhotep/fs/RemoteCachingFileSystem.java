@@ -4,6 +4,7 @@ import com.almworks.sqlite4java.SQLiteException;
 import com.google.common.collect.ImmutableSet;
 import com.sun.istack.NotNull;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -48,14 +49,12 @@ public class RemoteCachingFileSystem extends FileSystem
     private final SqarRemoteFileStore sqarFileStore;
     private final LruCache lruCache;
     private final FileTracker localOnlyFiles;
-    private final String fsName;
 
     public RemoteCachingFileSystem(final RemoteCachingFileSystemProvider provider,
                                    String name,
                                    Map<String, String> env) throws SQLiteException,
                                                                    URISyntaxException {
         this.provider = provider;
-        this.fsName = name;
         this.fileStore = loadFileStore(env.get("remote-type"), env);
         this.sqarFileStore = new SqarRemoteFileStore(fileStore, env);
         this.localOnlyFiles = new FileTracker(Paths.get(new URI(env.get("local-tracking-root-uri"))));
@@ -213,8 +212,7 @@ public class RemoteCachingFileSystem extends FileSystem
             case SHARD:
             case FILE:
                 if (SqarManager.isSqar(new RemoteCachingPath(this, dir.getShardPath()),
-                                       this.fileStore)
-                        ) {
+                                       this.fileStore)) {
                     infos = sqarFileStore.listDir(dir);
                 } else {
                     infos = fileStore.listDir(dir);
@@ -225,8 +223,18 @@ public class RemoteCachingFileSystem extends FileSystem
         }
 
         for (RemoteFileStore.RemoteFileInfo info : infos) {
-            if (filter.accept(dir)) {
-                results.add(new RemoteCachingPath(this, info.path));
+            final RemoteCachingPath path = new RemoteCachingPath(this, info.path);
+            if (filter.accept(path)) {
+                results.add(path);
+            }
+        }
+
+        // add local files and directories
+        final Iterator<RemoteCachingPath> iter = localOnlyFiles.listDirectory(dir);
+        while (iter.hasNext()) {
+            final RemoteCachingPath path = iter.next();
+            if (filter.accept(path)) {
+                results.add(path);
             }
         }
 
@@ -341,6 +349,14 @@ public class RemoteCachingFileSystem extends FileSystem
                 lruCache.markFileClosed(path);
             }
         });
+    }
+
+    File getCacheFile(final RemoteCachingPath path) throws IOException {
+        final Path cachePath;
+
+        cachePath = lruCache.getAndOpenForRead(path);
+        lruCache.markFileClosed(path);   // unable to track closes on a file, so don't try
+        return cachePath.toFile();
     }
 
     @Override

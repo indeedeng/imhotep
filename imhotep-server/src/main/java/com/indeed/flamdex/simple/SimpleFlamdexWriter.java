@@ -19,9 +19,9 @@ import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingInputStream;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
+import com.indeed.util.core.shell.PosixFileOperations;
 import com.indeed.util.core.sort.Quicksortable;
 import com.indeed.util.core.sort.Quicksortables;
-import com.indeed.util.io.Files;
 import com.indeed.util.serialization.LongSerializer;
 import com.indeed.util.serialization.StringSerializer;
 import com.indeed.flamdex.api.DocIdStream;
@@ -44,12 +44,14 @@ import org.apache.log4j.Logger;
 
 import java.io.BufferedInputStream;
 import java.io.EOFException;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -72,7 +74,7 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
 
     private static final int BLOCK_SIZE = 64;    
 
-    private final String outputDirectory;
+    private final Path outputDirectory;
     private long maxDocs;
 
     private final boolean writeBTreesOnClose;
@@ -80,30 +82,35 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
     private final Set<String> intFields;
     private final Set<String> stringFields;
 
-    public SimpleFlamdexWriter(String outputDirectory, long numDocs) throws IOException {
+    public SimpleFlamdexWriter(Path outputDirectory, long numDocs) throws IOException {
         this(outputDirectory, numDocs, true, true);
     }
 
-    public SimpleFlamdexWriter(String outputDirectory, long numDocs, boolean create) throws IOException {
+    public SimpleFlamdexWriter(Path outputDirectory, long numDocs, boolean create) throws IOException {
         this(outputDirectory, numDocs, create, true);
     }
 
-    public SimpleFlamdexWriter(String outputDirectory, long numDocs, boolean create, boolean writeBTreesOnClose) throws IOException {
+    public SimpleFlamdexWriter(Path outputDirectory,
+                               long numDocs,
+                               boolean create,
+                               boolean writeBTreesOnClose) throws IOException {
         this.outputDirectory = outputDirectory;
         this.maxDocs = numDocs;
         this.writeBTreesOnClose = writeBTreesOnClose;
         if (create) {
-            if (new File(outputDirectory).exists()) {
+            if (Files.exists(outputDirectory)) {
                 deleteIndex(outputDirectory);
-            } else if (!new File(outputDirectory).mkdirs()) {
-                throw new IOException("unable to create directory at " + outputDirectory);
+            } else {
+                Files.createDirectories(outputDirectory);
             }
             intFields = new HashSet<String>();
             stringFields = new HashSet<String>();
         } else {
             final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(outputDirectory);
             if (metadata.numDocs != numDocs) {
-                throw new IllegalArgumentException("numDocs (" + numDocs + ") does not match numDocs in existing index (" + metadata.numDocs + ")");
+                throw new IllegalArgumentException(
+                        "numDocs (" + numDocs + ") does not match numDocs in "
+                                + "existing index (" + metadata.numDocs + ")");
             }
             intFields = new HashSet<String>(metadata.intFields);
             stringFields = new HashSet<String>(metadata.stringFields);
@@ -111,7 +118,7 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
     }
     
     @Override
-    public String getOutputDirectory() {
+    public Path getOutputDirectory() {
         return this.outputDirectory;
     }
     
@@ -120,11 +127,11 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
     }
 
     @Override
-    public IntFieldWriter getIntFieldWriter(String field) throws FileNotFoundException {
+    public IntFieldWriter getIntFieldWriter(String field) throws IOException {
         return getIntFieldWriter(field, false);
     }
 
-    public IntFieldWriter getIntFieldWriter(String field, boolean blowAway) throws FileNotFoundException {
+    public IntFieldWriter getIntFieldWriter(String field, boolean blowAway) throws IOException {
         if (!field.matches("[A-Za-z_][A-Za-z0-9_]*")) {
             throw new IllegalArgumentException("Error: field name must match regex [A-Za-z_][A-Za-z0-9_]*: invalid field: " + field);
         }
@@ -136,11 +143,11 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
     }
 
     @Override
-    public StringFieldWriter getStringFieldWriter(String field) throws FileNotFoundException {
+    public StringFieldWriter getStringFieldWriter(String field) throws IOException {
         return getStringFieldWriter(field, false);
     }
 
-    public StringFieldWriter getStringFieldWriter(String field, boolean blowAway) throws FileNotFoundException {
+    public StringFieldWriter getStringFieldWriter(String field, boolean blowAway) throws IOException {
         if (!field.matches("[A-Za-z_][A-Za-z0-9_]*")) {
             throw new IllegalArgumentException("Error: field name must match regex [A-Za-z_][A-Za-z0-9_]*: invalid field: " + field);
         }
@@ -159,15 +166,21 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
         final List<String> stringFieldsList = new ArrayList<String>(stringFields);
         Collections.sort(stringFieldsList);
 
-        final FlamdexMetadata metadata = new FlamdexMetadata((int)maxDocs, intFieldsList, stringFieldsList, FORMAT_VERSION);
+        final FlamdexMetadata metadata = new FlamdexMetadata((int) maxDocs,
+                                                             intFieldsList,
+                                                             stringFieldsList,
+                                                             FORMAT_VERSION);
         FlamdexMetadata.writeMetadata(outputDirectory, metadata);
     }
 
-    public static void writeIntBTree(String directory, String intField, File btreeDir) throws IOException {
-        final String termsFilename = Files.buildPath(directory, SimpleIntFieldWriter.getTermsFilename(intField));
-        if (!new File(termsFilename).exists() || new File(termsFilename).length() == 0L) return;
-        final CountingInputStream termsList = new CountingInputStream(new BufferedInputStream(new FileInputStream(termsFilename), 65536));
-        try {
+    public static void writeIntBTree(Path directory, String intField, Path btreeDir) throws IOException {
+        final Path termsPath = directory.resolve(SimpleStringFieldWriter.getTermsFilename(intField));
+        if (Files.notExists(termsPath) || Files.size(termsPath) == 0L)
+            return;
+
+        final BufferedInputStream buff;
+        buff = new BufferedInputStream(Files.newInputStream(termsPath), 65536);
+        try (CountingInputStream termsList = new CountingInputStream(buff)) {
             ImmutableBTreeIndex.Writer.write(btreeDir, new AbstractIterator<Generation.Entry<Long, LongPair>>() {
                 private long lastTerm = 0;
                 private long lastTermDocOffset = 0L;
@@ -217,16 +230,16 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
                     return true;
                 }
             }, new LongSerializer(), new LongPairSerializer(), 65536, false);
-        } finally {
-            termsList.close();
         }
     }
 
-    public static void writeStringBTree(String directory, String stringField, File btreeDir) throws IOException {
-        final String termsFilename = Files.buildPath(directory, SimpleStringFieldWriter.getTermsFilename(stringField));        
-        if (!new File(termsFilename).exists() || new File(termsFilename).length() == 0L) return;
-        final CountingInputStream termsList = new CountingInputStream(new BufferedInputStream(new FileInputStream(termsFilename), 65536));
-        try {
+    public static void writeStringBTree(Path directory, String stringField, Path btreeDir) throws IOException {
+        final Path termsPath = directory.resolve(SimpleStringFieldWriter.getTermsFilename(stringField));
+        if (Files.notExists(termsPath) || Files.size(termsPath) == 0L) return;
+
+        final BufferedInputStream buff;
+        buff = new BufferedInputStream(Files.newInputStream(termsPath), 65536);
+        try(CountingInputStream termsList = new CountingInputStream(buff)) {
             ImmutableBTreeIndex.Writer.write(btreeDir, new AbstractIterator<Generation.Entry<String, LongPair>>() {
                 private String key;
                 private LongPair value;
@@ -281,8 +294,6 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
                     return true;
                 }
             }, new StringSerializer(), new LongPairSerializer(), 65536, false);
-        } finally {
-            termsList.close();
         }
     }
 
@@ -510,10 +521,15 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
         }
     }
 
-    public static void addField(String dir, String fieldName, FlamdexReader r, final long[] cache) throws IOException {
-        final File tempFile = new File(dir, "temp-" + fieldName + "-" + UUID.randomUUID() + ".intarray.bin");
+    public static void addField(Path dir, String fieldName, FlamdexReader r, final long[] cache) throws IOException {
+        final Path tempPath = dir.resolve(
+                "temp-" + fieldName + "-" + UUID.randomUUID() + ".intarray.bin");
         try {
-            final MMapBuffer buffer = new MMapBuffer(tempFile, 0, 4 * cache.length, FileChannel.MapMode.READ_WRITE, ByteOrder.nativeOrder());
+            final MMapBuffer buffer = new MMapBuffer(tempPath,
+                                                     0,
+                                                     4 * cache.length,
+                                                     FileChannel.MapMode.READ_WRITE,
+                                                     ByteOrder.nativeOrder());
             try {
                 final IntArray indices = buffer.memory().intArray(0, cache.length);
                 for (int i = 0; i < cache.length; ++i) {
@@ -532,7 +548,13 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
                     public int compare(int i, int j) {
                         final long ii = cache[indices.get(i)];
                         final long ij = cache[indices.get(j)];
-                        return ii < ij ? -1 : ii > ij ? 1 : indices.get(i) < indices.get(j) ? -1 : indices.get(i) > indices.get(j) ? 1 : 0;
+                        return ii < ij
+                                ? -1
+                                : ii > ij
+                                        ? 1
+                                        : indices.get(i) < indices.get(j)
+                                                ? -1
+                                                : indices.get(i) > indices.get(j) ? 1 : 0;
                     }
                 }, cache.length);
 
@@ -561,13 +583,16 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
                 }
             }
         } finally {
-            if (!tempFile.delete()) {
-                log.warn("unable to delete temp file " + tempFile);
+            if (Files.deleteIfExists(tempPath)) {
+                log.warn("unable to delete temp file " + tempPath.toString());
             }
         }
     }
 
-    public static void addField(String indexDir, String newFieldName, FlamdexReader docReader, final String[] values)  throws IOException {
+    public static void addField(Path indexDir,
+                                String newFieldName,
+                                FlamdexReader docReader,
+                                final String[] values) throws IOException {
         final int[] indices = new int[docReader.getNumDocs()];
         for (int i = 0; i < indices.length; i++) {
             indices[i] = i;
@@ -628,21 +653,41 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
         w.close();
     }
 
-    public static void deleteIndex(final String dir) throws IOException {
-        final File[] files = new File(dir).listFiles(new SimpleFlamdexFileFilter());
-        if (files != null) {
-            for (final File f : files) {
-                if (f.isDirectory()) {
-                    for (final File sub : f.listFiles()) {
-                        if (!sub.delete()) {
-                            throw new IOException("unable to delete file in index sub directory: " + sub.getAbsolutePath());
-                        }
-                    }
+    public static void deleteIndex(final Path dir) throws IOException {
+        final SimpleFlamdexFileFilter filter = new SimpleFlamdexFileFilter();
+
+        Files.walkFileTree(dir, new SimpleFileVisitor<Path>() {
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws
+                    IOException {
+                if (filter.accept(file)) {
+                    Files.delete(file);
                 }
-                if (!f.delete()) {
-                    throw new IOException("unable to delete file in index directory: " + f.getAbsolutePath());
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws
+                    IOException {
+                if (filter.accept(dir)) {
+                    return FileVisitResult.CONTINUE;
+                } else {
+                    return FileVisitResult.SKIP_SUBTREE;
                 }
             }
-        }
+
+            @Override
+            public FileVisitResult postVisitDirectory(Path dir, IOException e) throws IOException {
+                if (e == null) {
+                    if (filter.accept(dir)) {
+                        PosixFileOperations.rmrf(dir);
+                    }
+                    return FileVisitResult.CONTINUE;
+                } else {
+                    // directory iteration failed
+                    throw e;
+                }
+            }
+        });
     }
 }

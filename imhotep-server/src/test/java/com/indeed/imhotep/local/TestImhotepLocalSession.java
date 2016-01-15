@@ -78,6 +78,7 @@ public class TestImhotepLocalSession {
         numStats = session.pushStats(Arrays.asList("if1", "if2", "if3"));
         assertEquals(4, numStats);
         assertEquals(4, session.getNumStats());
+        session.close();
     }
 
     @Test
@@ -90,40 +91,22 @@ public class TestImhotepLocalSession {
         r.addIntTerm("if1", 4, 4, 5, 6, 7, 12, 13, 14, 15); // 2nd bit
         r.addIntTerm("if1", 8, 8, 9, 10, 11, 12, 13, 14, 15); // 2nd bit
         // 0000, 0001, 0010, 0011, 0100, 0101, 0110, 0111, 1000, 1001, ...
-        ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
-        session.regroup(new GroupMultiRemapRule[] { new GroupMultiRemapRule(
-                                                                            1,
-                                                                            0,
-                                                                            new int[] { 1, 1, 1, 1 },
-                                                                            new RegroupCondition[] {
-                                                                                                    new RegroupCondition(
-                                                                                                                         "if1",
-                                                                                                                         true,
-                                                                                                                         1,
-                                                                                                                         null,
-                                                                                                                         false),
-                                                                                                    new RegroupCondition(
-                                                                                                                         "if1",
-                                                                                                                         true,
-                                                                                                                         2,
-                                                                                                                         null,
-                                                                                                                         false),
-                                                                                                    new RegroupCondition(
-                                                                                                                         "if1",
-                                                                                                                         true,
-                                                                                                                         4,
-                                                                                                                         null,
-                                                                                                                         false),
-                                                                                                    new RegroupCondition(
-                                                                                                                         "if1",
-                                                                                                                         true,
-                                                                                                                         8,
-                                                                                                                         null,
-                                                                                                                         false), }) });
+        final ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
+        final GroupMultiRemapRule gmrr;
+        gmrr = new GroupMultiRemapRule(1,
+                                       0,
+                                       new int[]{1, 1, 1, 1},
+                                       new RegroupCondition[]{
+                                               new RegroupCondition("if1", true, 1, null, false),
+                                               new RegroupCondition("if1", true, 2, null, false),
+                                               new RegroupCondition("if1", true, 4, null, false),
+                                               new RegroupCondition("if1", true, 8, null, false),});
+        session.regroup(new GroupMultiRemapRule[]{gmrr});
         int[] arr = new int[16];
         session.exportDocIdToGroupId(arr);
         System.out.println(Arrays.toString(arr));
         assertArrayEquals(new int[] { 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, arr);
+        session.close();
     }
 
     @Test
@@ -153,6 +136,7 @@ public class TestImhotepLocalSession {
                                                                                                false),
                                                                           1, 1) });
         assertEquals(1, numGroups);
+        session.close();
     }
 
     @Test
@@ -167,6 +151,7 @@ public class TestImhotepLocalSession {
         int[] docIdToGroup = new int[10];
         session.exportDocIdToGroupId(docIdToGroup);
         assertEquals(Arrays.asList(2, 3, 2, 4, 2, 4, 2, 3, 2, 6), Ints.asList(docIdToGroup));
+        session.close();
     }
 
     @Test
@@ -192,6 +177,7 @@ public class TestImhotepLocalSession {
         int[] docIdToGroup = new int[10];
         session.exportDocIdToGroupId(docIdToGroup);
         assertEquals(Arrays.asList(3, 1, 3, 0, 0, 2, 3, 1, 0, 4), Ints.asList(docIdToGroup));
+        session.close();
     }
 
     private static MockFlamdexReader newMetricRegroupTestReader() {
@@ -262,6 +248,7 @@ public class TestImhotepLocalSession {
         for (int y = 0; y < 3; ++y) {
             assertEquals(0, bs.getXOverflow(y));
         }
+        session.close();
     }
 
     @Test
@@ -300,6 +287,7 @@ public class TestImhotepLocalSession {
         assertEquals(0, bs.getXOverflowYUnderflow());
         assertEquals(0, bs.get(0, 0));
         assertEquals(0, bs.get(1, 0));
+        session.close();
     }
 
     @Test
@@ -336,6 +324,7 @@ public class TestImhotepLocalSession {
         assertEquals(0, bs.getXUnderflowYOverflow());
         assertEquals(0, bs.getYOverflow(0));
         assertEquals(181, bs.getXYOverflow());
+        session.close();
     }
 
     private static MockFlamdexReader new2DMetricRegroupTestReader() {
@@ -456,6 +445,7 @@ public class TestImhotepLocalSession {
                                                                                          false), 1,
                                                                  1) });
         assertEquals(Longs.asList(0, 10), Longs.asList(session.getGroupStats(0)).subList(0, 2));
+        session.close();
     }
 
     @Test
@@ -487,6 +477,7 @@ public class TestImhotepLocalSession {
 
         // equal to last (at index 4)
         assertEquals(4, session.indexOfFirstLessThan(0.9, new double[] { 0.1, 0.4, 0.5, 0.9 }));
+        session.close();
     }
 
     @Test
@@ -542,6 +533,8 @@ public class TestImhotepLocalSession {
             fail("ensureValidMultiRegroupArrays didn't throw IllegalArgumentException");
         } catch (IllegalArgumentException e) {
         } // expected
+
+        session.close();
     }
 
     @Test
@@ -604,6 +597,8 @@ public class TestImhotepLocalSession {
             final int expectedGroup = termToGroup.get(docIdToTerm[docId]);
             assertEquals("doc id #" + docId + " was misgrouped", expectedGroup, actualGroup);
         }
+
+        session.close();
     }
 
     @Test
@@ -635,6 +630,7 @@ public class TestImhotepLocalSession {
             assertEquals("doc id #" + docId + " was misgrouped;", expectedGroup, actualGroup);
         }
         assertEquals("doc id #10 should be in no group", 0, docIdToGroup[10]);
+        session.close();
     }
 
     @Test
@@ -666,6 +662,7 @@ public class TestImhotepLocalSession {
             assertEquals("doc id #" + docId + " was misgrouped;", expectedGroup, actualGroup);
         }
         assertEquals("doc id #10 should be in no group", 0, docIdToGroup[10]);
+    session.close();
     }
 
     @Test
@@ -713,6 +710,7 @@ public class TestImhotepLocalSession {
         }
         assertEquals("doc id #20 should be in no group", 0, docIdToGroup[20]);
         assertEquals("doc id #21 should be in no group", 0, docIdToGroup[21]);
+        session.close();
     }
 
     @Test
@@ -760,6 +758,7 @@ public class TestImhotepLocalSession {
         }
         assertEquals("doc id #20 should be in no group", 0, docIdToGroup[20]);
         assertEquals("doc id #21 should be in no group", 0, docIdToGroup[21]);
+        session.close();
     }
 
     @Test
@@ -778,6 +777,7 @@ public class TestImhotepLocalSession {
                                                                                                                           1,
                                                                                                                           null,
                                                                                                                           false) }) });
+        session.close();
     }
 
     @Test
@@ -829,6 +829,7 @@ public class TestImhotepLocalSession {
                 assertEquals(5, docIdToGroup[i]);
             }
         }
+        session.close();
     }
 
     @Test
@@ -860,6 +861,7 @@ public class TestImhotepLocalSession {
                 fail("Improperly handles having more conditions than positive groups");
             } catch (IllegalArgumentException e) {
             }
+            session.close();
         }
 
         // count mismatch #2
@@ -883,6 +885,7 @@ public class TestImhotepLocalSession {
                 fail("Improperly handles having fewer conditions than positive groups");
             } catch (IllegalArgumentException e) {
             }
+            session.close();
         }
 
     }
@@ -914,6 +917,7 @@ public class TestImhotepLocalSession {
             fail("Improperly handles unreachable inequality splits");
         } catch (IllegalArgumentException e) {
         }
+        session.close();
     }
 
     @Test
@@ -943,6 +947,7 @@ public class TestImhotepLocalSession {
             fail("Improperly handles unreachable inequality splits");
         } catch (IllegalArgumentException e) {
         }
+        session.close();
     }
 
     @Test
@@ -992,6 +997,7 @@ public class TestImhotepLocalSession {
             fail("Improperly handles unreachable equality splits");
         } catch (IllegalArgumentException e) {
         }
+        session.close();
     }
 
     @Test
@@ -1041,6 +1047,7 @@ public class TestImhotepLocalSession {
             fail("Improperly handles unreachable equality splits");
         } catch (IllegalArgumentException e) {
         }
+        session.close();
     }
 
     @Test
@@ -1129,6 +1136,7 @@ public class TestImhotepLocalSession {
                 assertEquals(10, docIdToGroup[i + 10]);
             }
         }
+        session.close();
     }
 
     @Test
@@ -1177,6 +1185,7 @@ public class TestImhotepLocalSession {
                 assertEquals(5, docIdToGroup[i]);
             }
         }
+        session.close();
     }
 
     @Test
@@ -1265,6 +1274,7 @@ public class TestImhotepLocalSession {
                 assertEquals(10, docIdToGroup[i + 10]);
             }
         }
+        session.close();
     }
 
     @Test
@@ -1353,6 +1363,7 @@ public class TestImhotepLocalSession {
         for (int i = s1terms.length; i < numDocs; i++) {
             assertEquals(2, docIdToGroup[i]);
         }
+        session.close();
     }
 
     @Test
@@ -1407,6 +1418,7 @@ public class TestImhotepLocalSession {
         for (int group : docIdToGroup) {
             assertEquals(0, group);
         }
+        session.close();
     }
 
     private void testAllInequalitySplits(int numDocs,
@@ -1570,6 +1582,7 @@ public class TestImhotepLocalSession {
                                                new int[] { 10 });
         metric.lookup(iCanCount, exported, 10);
         Assert.assertArrayEquals(new long[] { 0, 10, 0, 10, 0, 10, 0, 10, 0, 10 }, exported);
+        session.close();
     }
 
     @Test
@@ -1947,5 +1960,6 @@ public class TestImhotepLocalSession {
         session.pushStat("regex nonexistent:anything");
         Assert.assertArrayEquals(new long[]{0, 0}, session.getGroupStats(0));
         session.popStat();
+        session.close();
     }
 }

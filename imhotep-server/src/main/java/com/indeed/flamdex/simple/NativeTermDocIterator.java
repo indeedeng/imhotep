@@ -21,6 +21,7 @@ import com.indeed.util.mmap.MMapBuffer;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
+import java.nio.file.Path;
 
 /**
  * @author jplaisance
@@ -51,7 +52,7 @@ public abstract class NativeTermDocIterator implements TermDocIterator {
 
     private boolean closed = false;
 
-    NativeTermDocIterator(String filename, MapCache mapCache) throws IOException {
+    NativeTermDocIterator(Path filename, MapCache mapCache) throws IOException {
         file = mapCache.copyOrOpen(filename);
         memory = file.get().memory();
     }

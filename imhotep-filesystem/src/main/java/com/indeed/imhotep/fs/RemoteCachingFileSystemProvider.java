@@ -196,6 +196,17 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
     }
 
     @Override
+    public void createSymbolicLink(Path link, Path target, FileAttribute<?>... attrs) throws
+            IOException {
+        // TODO: complete me
+    }
+
+    @Override
+    public void createLink(Path link, Path existing) throws IOException {
+        // TODO: complete me
+    }
+
+    @Override
     public void delete(Path path) throws IOException {
         throw new IOException("File Deletion is not supported.");
     }

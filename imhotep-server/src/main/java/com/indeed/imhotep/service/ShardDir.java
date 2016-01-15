@@ -17,6 +17,7 @@ import com.indeed.imhotep.io.Shard;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -24,14 +25,14 @@ class ShardDir {
     private static final Pattern VERSION_PATTERN = Pattern.compile("^(.+)\\.(\\d{14})$");
 
     private final String name;
-    private final String indexDir;
+    private final Path indexDir;
     private final String id;
     private final long   version;
 
-    ShardDir(File file) throws IOException {
+    ShardDir(Path path) throws IOException {
 
-        this.name     = file.getName();
-        this.indexDir = file.getCanonicalPath();
+        this.name     = path.getFileName().toString();
+        this.indexDir = path;
 
         final Matcher matcher = VERSION_PATTERN.matcher(name);
         if (matcher.matches()) {
@@ -44,12 +45,12 @@ class ShardDir {
         }
     }
 
-    ShardDir(String path) throws IOException { this(new File(path)); }
+//    ShardDir(String path) throws IOException { this(new File(path)); }
 
     String       getId() { return id;       }
     long    getVersion() { return version;  }
     String     getName() { return name;     }
-    String getIndexDir() { return indexDir; }
+    Path   getIndexDir() { return indexDir; }
 
     boolean isNewerThan(Shard shard) {
         return shard ==  null || getVersion() > shard.getShardVersion();

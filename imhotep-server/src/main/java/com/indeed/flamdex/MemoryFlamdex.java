@@ -57,6 +57,8 @@ import java.nio.CharBuffer;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.CodingErrorAction;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -107,25 +109,17 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
      * Does nothing
      */
     @Override
-    public String getDirectory() {
-        String dir = null;
-        File tempDir;
-        
+    public Path getDirectory() {
+        final File tempDir;
         tempDir = Files.createTempDir();
-        
-        try {
-            dir = tempDir.getCanonicalPath();
-        } catch (IOException e) {
-        }
-        
-        return dir;
+        return tempDir.toPath();
     }
 
     /*
      * Does nothing
      */
     @Override
-    public String getOutputDirectory() {
+    public Path getOutputDirectory() {
         return null;
     }
 
@@ -575,8 +569,8 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
              * Does nothing
              */
             @Override
-            public String getDirectory() {
-                return ".";
+            public Path getDirectory() {
+                return Paths.get(".");
             }
 
             @Override

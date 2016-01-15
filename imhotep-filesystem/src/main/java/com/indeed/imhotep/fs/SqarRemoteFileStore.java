@@ -128,7 +128,7 @@ public class SqarRemoteFileStore extends RemoteFileStore {
                                                 md.getStartOffset(),
                                                 md.getCompressedSize());
         try {
-            sqarManager.copyDecompressed(archiveIS, tmpPath.toFile(), md, path.toString());
+            sqarManager.copyDecompressed(archiveIS, tmpPath, md, path.toString());
         } catch (IOException e) {
             Files.delete(tmpPath);
             throw e;

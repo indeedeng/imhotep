@@ -17,7 +17,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
-import com.indeed.util.io.Files;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermIterator;
@@ -25,6 +24,7 @@ import com.indeed.flamdex.utils.FlamdexReinverter;
 import com.indeed.flamdex.writer.FlamdexDocWriter;
 import com.indeed.flamdex.writer.FlamdexDocument;
 
+import com.indeed.imhotep.io.TestFileUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Appender;
 import org.apache.log4j.BasicConfigurator;
@@ -39,8 +39,9 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -54,7 +55,7 @@ import static org.junit.Assert.assertTrue;
  * @author jsgroth
  */
 public class TestSimpleFlamdexDocWriter {
-    private String tempDir;
+    private Path tempDir;
 
     @BeforeClass
     public static void initLog4j() {
@@ -86,12 +87,12 @@ public class TestSimpleFlamdexDocWriter {
 
     @Before
     public void setUp() throws Exception {
-        tempDir = Files.getTempDirectory("flamdex-test", "dir");
+        tempDir = Files.createTempDirectory("flamdex-test");
     }
 
     @After
     public void tearDown() throws Exception {
-        Files.delete(tempDir);
+        TestFileUtils.deleteDirTree(tempDir);
     }
 
     @Test
@@ -135,7 +136,7 @@ public class TestSimpleFlamdexDocWriter {
 
         w.close();
 
-        final long size = FileUtils.sizeOfDirectory(new File(tempDir));
+        final long size = FileUtils.sizeOfDirectory(tempDir.toFile());
         elapsed += System.currentTimeMillis();
         System.out.println("time for writing " + size + " byte index with " + numDocs + " documents: " + elapsed + " ms");
 
@@ -192,6 +193,8 @@ public class TestSimpleFlamdexDocWriter {
         assertEquals(1, dis.fillDocIdBuffer(docIdBuffer));
         assertEquals(Ints.asList(0), Ints.asList(docIdBuffer).subList(0, 1));
         iter.close();
+        dis.close();
+        r.close();
     }
 
     @Test
@@ -199,9 +202,10 @@ public class TestSimpleFlamdexDocWriter {
         new SimpleFlamdexDocWriter(tempDir, new SimpleFlamdexDocWriter.Config()).close();
         FlamdexReader r = SimpleFlamdexReader.open(tempDir);
         assertEquals(0, r.getNumDocs());
+        r.close();
     }
 
-    private void writeFlamdex(String dir, SimpleFlamdexDocWriter.Config config) throws IOException {
+    private void writeFlamdex(Path dir, SimpleFlamdexDocWriter.Config config) throws IOException {
         final FlamdexDocWriter w = new SimpleFlamdexDocWriter(dir, config);
 
         final FlamdexDocument doc0 = new FlamdexDocument();

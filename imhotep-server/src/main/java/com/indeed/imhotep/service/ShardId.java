@@ -15,6 +15,8 @@
 
 import org.apache.log4j.Logger;
 
+import java.nio.file.Path;
+
 /**
  * @author jplaisance
  */
@@ -28,9 +30,9 @@ public final class ShardId {
 
     private final long shardVersion;
 
-    private final String indexDir;
+    private final Path indexDir;
 
-    public ShardId(final String dataset, final String shardId, final long shardVersion, final String indexDir) {
+    public ShardId(final String dataset, final String shardId, final long shardVersion, final Path indexDir) {
         this.dataset = dataset;
         this.id = shardId;
         this.shardVersion = shardVersion;
@@ -49,7 +51,7 @@ public final class ShardId {
         return shardVersion;
     }
 
-    public String getIndexDir() {
+    public Path getIndexDir() {
         return indexDir;
     }
 

@@ -35,6 +35,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.DigestInputStream;
 import java.util.*;
 
@@ -261,7 +263,7 @@ public class SqarManager {
     }
 
     public void copyDecompressed(InputStream is,
-                                 File localFile,
+                                 Path localFile,
                                  FileMetadata metadata,
                                  String fullPath) throws IOException {
         final SquallArchiveCompressor compressor = metadata.getCompressor();
@@ -271,7 +273,7 @@ public class SqarManager {
 
         digestStream = new DigestInputStream(compressor.newInputStream(is),
                                              ArchiveUtils.getMD5Digest());
-        os = new BufferedOutputStream(new FileOutputStream(localFile));
+        os = new BufferedOutputStream(Files.newOutputStream(localFile));
         ArchiveUtils.streamCopy(digestStream, os, originalSize);
         os.close();
 

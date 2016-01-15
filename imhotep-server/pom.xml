@@ -78,7 +78,7 @@
 		<dependency>
 			<groupId>com.indeed</groupId>
 			<artifactId>lsmtree-core</artifactId>
-			<version>1.0.4</version>
+			<version>1.0.5-SNAPSHOT</version>
 		</dependency>
 
 		<dependency>
@@ -190,10 +190,6 @@
 		<snakeyaml.version>1.10</snakeyaml.version>
 		<zookeeper.version>3.4.5-cdh4.4.0</zookeeper.version>
 		<automaton.version>1.11-8</automaton.version>
-
-		<!-- releases of our own projects to use -->
-		<!-- these should only be SNAPSHOTs when no release is available -->
-		<indeed-util.version>[1.0.15,)</indeed-util.version>
 	</properties>
 
 </project>

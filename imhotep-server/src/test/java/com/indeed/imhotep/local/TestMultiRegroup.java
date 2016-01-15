@@ -16,20 +16,25 @@
 import com.google.common.collect.SortedSetMultimap;
 import com.google.common.collect.TreeMultimap;
 
-import com.indeed.flamdex.api.*;
-import com.indeed.flamdex.simple.*;
-import com.indeed.flamdex.writer.*;
-import com.indeed.imhotep.api.*;
-import com.indeed.imhotep.*;
-import com.indeed.util.io.Files;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Random;
+import java.util.SortedSet;
+import java.util.concurrent.atomic.AtomicLong;
 
-import java.io.*;
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.*;
-
+import com.indeed.flamdex.api.FlamdexReader;
+import com.indeed.flamdex.simple.SimpleFlamdexReader;
+import com.indeed.flamdex.simple.SimpleFlamdexWriter;
+import com.indeed.flamdex.writer.IntFieldWriter;
+import com.indeed.imhotep.GroupMultiRemapRule;
+import com.indeed.imhotep.ImhotepMemoryPool;
+import com.indeed.imhotep.MemoryReservationContext;
+import com.indeed.imhotep.RegroupCondition;
+import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import junit.framework.TestCase;
-import org.junit.Test;
 import static org.junit.Assert.assertArrayEquals;
 
 /**
@@ -41,8 +46,8 @@ public class TestMultiRegroup extends TestCase {
     private static final int N_FIELDS    = 7;
     private static final int MAX_N_TERMS = 1024;
 
-    File           shardDir;
-    Random         random;
+    Path              shardDir;
+    Random            random;
     ArrayList<String> fields;
 
     private void setUpFields() {
@@ -60,10 +65,9 @@ public class TestMultiRegroup extends TestCase {
 
         random = new Random(42);
 
-        final String shardName = Files.getTempDirectory(this.getClass().getSimpleName(), "");
-        shardDir = new File(shardName);
+        shardDir = Files.createTempDirectory(this.getClass().getSimpleName());
 
-        try (final SimpleFlamdexWriter shardWriter = new SimpleFlamdexWriter(shardName, N_DOCS)) {
+        try (final SimpleFlamdexWriter shardWriter = new SimpleFlamdexWriter(shardDir, N_DOCS)) {
                 setUpFields();
                 for (final String field : fields) {
                     final IntFieldWriter ifw = shardWriter.getIntFieldWriter(field);
@@ -85,7 +89,7 @@ public class TestMultiRegroup extends TestCase {
     @Override
     protected void tearDown() throws Exception {
         super.tearDown();
-        Files.deleteOrDie(shardDir.toString());
+//        Files.deleteOrDie(shardDir.toString());
     }
 
     private SortedSetMultimap<Long, Integer> generateTermsToDocIds(final long[] terms) {
@@ -108,7 +112,7 @@ public class TestMultiRegroup extends TestCase {
 
     private int[] normalRegroup(GroupMultiRemapRule[] regroupRule)
         throws IOException, ImhotepOutOfMemoryException {
-        try (final SimpleFlamdexReader reader = SimpleFlamdexReader.open(shardDir.toString());
+        try (final SimpleFlamdexReader reader = SimpleFlamdexReader.open(shardDir);
              final ImhotepLocalSession session = new ImhotepJavaLocalSession(reader)) {
                 int[] result = new int[N_DOCS];
                 final FlamdexReader[]  readers = new FlamdexReader[] { reader };
@@ -120,7 +124,7 @@ public class TestMultiRegroup extends TestCase {
 
     private int[] nativeRegroup(GroupMultiRemapRule[] regroupRule)
         throws IOException, ImhotepOutOfMemoryException {
-        try (final SimpleFlamdexReader reader = SimpleFlamdexReader.open(shardDir.toString());
+        try (final SimpleFlamdexReader reader = SimpleFlamdexReader.open(shardDir);
              final ImhotepNativeLocalSession session=
              new ImhotepNativeLocalSession(reader)) {
                 int[] result                   = new int[N_DOCS];

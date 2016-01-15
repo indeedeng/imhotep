@@ -33,14 +33,13 @@ import java.util.UUID;
 public class FieldCacherUtil {
     private static final Logger log = Logger.getLogger(FieldCacherUtil.class);
 
-    public static StringValueLookup newStringValueLookup(String field, FlamdexReader r, String directory) throws IOException {
-        final Pair<? extends BufferResource, ? extends BufferResource> pair = buildStringValueLookup(field, r, directory);
+    public static StringValueLookup newStringValueLookup(String field, FlamdexReader r) throws IOException {
+        final Pair<? extends BufferResource, ? extends BufferResource> pair = buildStringValueLookup(field, r);
         return new MMapStringValueLookup(pair.getFirst(), pair.getSecond());
     }
 
     private static Pair<? extends BufferResource, ? extends BufferResource> buildStringValueLookup(final String field,
-                                                                                                   final FlamdexReader r,
-                                                                                                   final String directory) throws IOException {
+                                                                                                   final FlamdexReader r) throws IOException {
         final Closer closer = Closer.create();
         StringTermDocIterator stringTermDocIterator = null;
 

@@ -21,6 +21,7 @@ import com.indeed.flamdex.lucene.LuceneFlamdexReader;
 import org.apache.lucene.index.IndexReader;
 
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.Collection;
 
 /**
@@ -31,8 +32,8 @@ public class Benchmark {
         final String luceneDir = args[0];
         final String simpleDir = args[1];
 
-        final FlamdexReader reader1 = new LuceneFlamdexReader(IndexReader.open(luceneDir));
-        final FlamdexReader reader2 = SimpleFlamdexReader.open(simpleDir);
+        final FlamdexReader reader1 = new LuceneFlamdexReader(Paths.get(luceneDir));
+        final FlamdexReader reader2 = SimpleFlamdexReader.open(Paths.get(simpleDir));
 
         benchmark(reader1, reader2);
     }
@@ -56,7 +57,9 @@ public class Benchmark {
         }
     }
 
-    private static void doIt(final FlamdexReader reader, final Collection<String> intFields, final Collection<String> stringFields) {
+    private static void doIt(final FlamdexReader reader,
+                             final Collection<String> intFields,
+                             final Collection<String> stringFields) {
         final int[] docIdBuf = new int[32];
 
         long elapsed = -System.currentTimeMillis();

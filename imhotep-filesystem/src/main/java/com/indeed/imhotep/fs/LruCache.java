@@ -137,7 +137,10 @@ public class LruCache {
         if (Files.exists(cachePath)) {
             return false;
         }
-        Files.move(tmpPath, cachePath, StandardCopyOption.ATOMIC_MOVE);
+        Files.move(tmpPath,
+                   cachePath,
+                   StandardCopyOption.ATOMIC_MOVE,
+                   StandardCopyOption.REPLACE_EXISTING);
         return true;
     }
 

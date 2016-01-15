@@ -3,54 +3,54 @@ package com.indeed.imhotep.service;
 import com.indeed.flamdex.simple.SimpleFlamdexWriter;
 import com.indeed.flamdex.writer.IntFieldWriter;
 import com.indeed.flamdex.writer.StringFieldWriter;
-import com.indeed.util.io.Files;
 
 import org.apache.commons.lang.RandomStringUtils;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Files;
 import java.util.Random;
 
 /** For use by tests that need to generate random datasets */
 class SkeletonDataset {
 
     private final Random rng;
-    private final String datasetDir;
+    private final Path datasetDir;
 
     private final String[] intFieldNames;
     private final String[] strFieldNames;
     private final int      numShards;
 
     SkeletonDataset(Random rng,
-                    File rootDir,
+                    Path rootDir,
                     int maxNumShards,
                     int maxNumDocs,
                     int maxNumFields)
         throws IOException {
 
         this.rng           = rng;
-        this.datasetDir    = Files.getTempDirectory("TestDataset.", ".delete.me", rootDir);
+        this.datasetDir    = Files.createTempDirectory(rootDir, "TestDataset-delete.me");
         this.intFieldNames = randomFieldNames(maxNumFields);
         this.strFieldNames = randomFieldNames(maxNumFields);
         this.numShards     = Math.max(rng.nextInt(maxNumShards), 1);
 
         for (int numShard = 0; numShard < numShards; ++numShard) {
             final String shardName = String.format("index.xx.%14d", numShard);
-            final File shardDir = new File(datasetDir, shardName);
+            final Path shardDir = datasetDir.resolve(shardName);
             final int numDocs = Math.max(rng.nextInt(maxNumDocs), 1);
             makeShard(shardDir, numDocs);
         }
     }
 
-    String      getDatasetDir() { return datasetDir;    }
+    Path        getDatasetDir() { return datasetDir;    }
     String[] getIntFieldNames() { return intFieldNames; }
     String[] getStrFieldNames() { return strFieldNames; }
     int          getNumShards() { return numShards;     }
 
-    private void makeShard(File shardDir, int maxNumDocs)
+    private void makeShard(Path shardDir, int maxNumDocs)
         throws IOException {
         final int numDocs = Math.max(rng.nextInt(maxNumDocs), 1);
-        try (SimpleFlamdexWriter sflw = new SimpleFlamdexWriter(shardDir.getCanonicalPath(), numDocs)) {
+        try (SimpleFlamdexWriter sflw = new SimpleFlamdexWriter(shardDir, numDocs)) {
                 for (String field: intFieldNames) {
                     IntFieldWriter ifw = null;
                     try {

@@ -14,12 +14,13 @@
  package com.indeed.flamdex.writer;
 
 import java.io.IOException;
+import java.nio.file.Path;
 
 /**
  * @author jsgroth
  */
 public interface FlamdexWriter {
-    String getOutputDirectory();
+    Path getOutputDirectory();
     void resetMaxDocs(long maxDocs);
     IntFieldWriter getIntFieldWriter(String field) throws IOException;
     StringFieldWriter getStringFieldWriter(String field) throws IOException;

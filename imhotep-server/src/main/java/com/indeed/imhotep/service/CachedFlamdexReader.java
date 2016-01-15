@@ -33,6 +33,7 @@ import com.indeed.imhotep.MetricKey;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -132,7 +133,7 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
     }
     
     @Override
-    public String getDirectory() {
+    public Path getDirectory() {
         return wrapped.getDirectory();
     }
     

@@ -15,7 +15,7 @@ package com.indeed.imhotep.service;
 
 import com.indeed.lsmtree.core.Store;
 import com.indeed.lsmtree.core.StoreBuilder;
-import com.indeed.util.io.Files;
+import com.indeed.util.core.shell.PosixFileOperations;
 import com.indeed.util.serialization.IntSerializer;
 import com.indeed.util.serialization.LongSerializer;
 import com.indeed.util.serialization.Serializer;
@@ -25,8 +25,10 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import java.io.DataInput;
 import java.io.DataOutput;
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -48,9 +50,9 @@ class ShardStore implements AutoCloseable {
 
     private final Store store;
 
-    ShardStore(File root) throws IOException {
+    ShardStore(Path root) throws IOException {
         StoreBuilder<Key, Value> builder =
-            new StoreBuilder<>(root, keySerializer, valueSerializer);
+            new StoreBuilder<>(root.toFile(), keySerializer, valueSerializer);
         store = builder.build();
     }
 
@@ -75,21 +77,22 @@ class ShardStore implements AutoCloseable {
      * heuristically confirm that storeDir contains an LSM tree by looking for
      * telltale files within it.
      */
-    static void deleteExisting(String shardStoreDir) throws IOException {
+    static void deleteExisting(Path shardStoreDir) throws IOException {
         if (shardStoreDir == null) return;
 
-        final File storeDir = new File(shardStoreDir);
-        if (!storeDir.exists()) return;
-        if (!storeDir.isDirectory()) return;
+        if (Files.notExists(shardStoreDir)) return;
+        if (!Files.isDirectory(shardStoreDir)) return;
 
         boolean foundLatest = false;
         boolean foundData = false;
-        for (File child : storeDir.listFiles()) {
-            if (child.getName().equals("latest")) foundLatest = true;
-            if (child.getName().equals("data")) foundData = true;
+        final DirectoryStream<Path> dirStream = Files.newDirectoryStream(shardStoreDir);
+        for (Path child : dirStream) {
+            if (child.getFileName().toString().equals("latest")) foundLatest = true;
+            if (child.getFileName().toString().equals("data")) foundData = true;
         }
+        dirStream.close();
         if (foundLatest && foundData) {
-            Files.delete(shardStoreDir);
+            PosixFileOperations.rmrf(shardStoreDir);
         }
     }
 

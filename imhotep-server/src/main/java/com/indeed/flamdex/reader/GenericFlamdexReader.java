@@ -15,7 +15,6 @@
 
 import com.google.common.base.Throwables;
 import com.indeed.flamdex.fieldcache.FieldCacherUtil;
-import com.indeed.util.io.Files;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
@@ -33,7 +32,6 @@ import com.indeed.flamdex.lucene.LuceneFlamdexReader;
 import com.indeed.flamdex.ramses.RamsesFlamdexWrapper;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.flamdex.utils.FlamdexUtils;
-import com.indeed.imhotep.io.caching.CachedFile;
 
 import org.apache.log4j.Logger;
 import org.apache.lucene.index.IndexReader;
@@ -42,6 +40,9 @@ import org.apache.lucene.index.ParallelReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Path;
+import java.nio.file.Files;
 import java.util.Collection;
 
 /**
@@ -50,7 +51,7 @@ import java.util.Collection;
 public final class GenericFlamdexReader implements FlamdexReader {
     private static final Logger log = Logger.getLogger(GenericFlamdexReader.class);
 
-    private final String directory;
+    private final Path directory;
 
     private final GenericFlamdexFactory factory;
 
@@ -59,7 +60,7 @@ public final class GenericFlamdexReader implements FlamdexReader {
     private final Collection<String> stringFields;
 
     private GenericFlamdexReader(
-            String directory,
+            Path directory,
             GenericFlamdexFactory factory,
             int numDocs,
             Collection<String> intFields,
@@ -72,7 +73,7 @@ public final class GenericFlamdexReader implements FlamdexReader {
         this.stringFields = stringFields;
     }
 
-    public static FlamdexReader open(String directory) throws IOException {
+    public static FlamdexReader open(Path directory) throws IOException {
         final FlamdexReader r = internalOpen(directory);
         if (RamsesFlamdexWrapper.ramsesFilesExist(directory)) {
             return new RamsesFlamdexWrapper(r, directory);
@@ -80,77 +81,48 @@ public final class GenericFlamdexReader implements FlamdexReader {
         return r;
     }
 
-    private static FlamdexReader internalOpen(String directory) throws IOException {
-        final CachedFile dir = CachedFile.create(directory);
-        final String metadataPath = CachedFile.buildPath(directory, "metadata.txt");
-        final CachedFile metadataFile = CachedFile.create(metadataPath);
-        
-        if (! dir.exists()) {
+    private static FlamdexReader internalOpen(Path directory) throws IOException {
+        final Path metadataPath = directory.resolve("metadata.txt");
+
+        if (Files.notExists(directory)) {
             throw new FileNotFoundException(directory + " does not exist");
         }
 
-        if (! dir.isDirectory()) {
+        if (!Files.isDirectory(directory)) {
             throw new FileNotFoundException(directory + " is not a directory");
         }
 
-        if (! metadataFile.exists()) {
-            final IndexReader luceneIndex;
-            final File indexDir = dir.loadDirectory();
-            
-            if (IndexReader.indexExists(indexDir)) {
-                luceneIndex = IndexReader.open(indexDir);
-            } else {
-                throw new IOException("directory " + directory + " does not have a metadata.txt and is not a lucene index");
-            }
-
-            // try finding and loading subindexes
-            final ParallelReader pReader = new ParallelReader();
-            pReader.add(luceneIndex);
-            final int maxDoc = luceneIndex.maxDoc();
-            final File[] files = indexDir.listFiles();
-            if (files != null) {
-                for (final File file : files) {
-                    if (!file.isDirectory() || !IndexReader.indexExists(file)) {
-                        continue; // only interested in Lucene indexes in subdirectories
-                    }
-
-                    try {
-                        final IndexReader subIndexReader = IndexReader.open(file);
-                        final int siMaxDoc = subIndexReader.maxDoc();
-                        if (siMaxDoc != maxDoc) {
-                            log.warn("unable to load subindex. (maxDoc) do not match index (" + siMaxDoc + ") != (" + maxDoc + ") for " + file.getAbsolutePath());
-                            continue;
-                        }
-                        pReader.add(subIndexReader, true);
-                    } catch (IOException e) {
-                        log.warn("unable to open subindex: " + file.getAbsolutePath());
-                    }
-                }
-            }
-
-            return new LuceneFlamdexReader(pReader, directory);
+        if (Files.notExists(metadataPath)) {
+            return new LuceneFlamdexReader(directory);
         }
 
         final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(directory);
         switch (metadata.getFormatVersion()) {
-            case 0 : return SimpleFlamdexReader.open(directory);
-            case 1 : throw new UnsupportedOperationException("pfordelta is no longer supported");
+            case 0 :
+                return SimpleFlamdexReader.open(directory);
+            case 1 :
+                throw new UnsupportedOperationException("pfordelta is no longer supported");
             case 2 : 
-                final File indexDir = dir.loadDirectory();
-                return new LuceneFlamdexReader(IndexReader.open(indexDir), 
-                                               metadata.getIntFields(), 
+                return new LuceneFlamdexReader(directory,
+                                               metadata.getIntFields(),
                                                metadata.getStringFields());
+            default:
+                throw new IllegalArgumentException(
+                        "index format version " + metadata.getFormatVersion() + " not supported");
         }
-        throw new IllegalArgumentException("index format version "+metadata.getFormatVersion()+" not supported");
     }
 
 
     public static GenericFlamdexReader open(
-            String directory,
+            Path directory,
             GenericFlamdexFactory factory
             ) throws IOException {
         final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(directory);
-        return new GenericFlamdexReader(directory, factory, metadata.numDocs, metadata.intFields, metadata.stringFields);
+        return new GenericFlamdexReader(directory,
+                                        factory,
+                                        metadata.numDocs,
+                                        metadata.intFields,
+                                        metadata.stringFields);
     }
 
     @Override
@@ -169,7 +141,7 @@ public final class GenericFlamdexReader implements FlamdexReader {
     }
 
     @Override
-    public String getDirectory() {
+    public Path getDirectory() {
         return directory;
     }
 
@@ -180,10 +152,10 @@ public final class GenericFlamdexReader implements FlamdexReader {
 
     @Override
     public IntTermIterator getIntTermIterator(String field) {
-        final String termsFilename = Files.buildPath(directory, factory.getIntTermsFilename(field));
-        final String docsFilename = Files.buildPath(directory, factory.getIntDocsFilename(field));
+        final Path termsPath = directory.resolve(factory.getIntTermsFilename(field));
+        final Path docsPath = directory.resolve(factory.getIntDocsFilename(field));
         try {
-            return factory.createIntTermIterator(termsFilename, docsFilename);
+            return factory.createIntTermIterator(termsPath, docsPath);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -197,10 +169,10 @@ public final class GenericFlamdexReader implements FlamdexReader {
 
     @Override
     public StringTermIterator getStringTermIterator(String field) {
-        final String termsFilename = Files.buildPath(directory, factory.getStringTermsFilename(field));
-        final String docsFilename = Files.buildPath(directory, factory.getStringDocsFilename(field));
+        final Path termsPath = directory.resolve(factory.getStringTermsFilename(field));
+        final Path docsPath = directory.resolve(factory.getStringDocsFilename(field));
         try {
-            return factory.createStringTermIterator(termsFilename, docsFilename);
+            return factory.createStringTermIterator(termsPath, docsPath);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -238,7 +210,7 @@ public final class GenericFlamdexReader implements FlamdexReader {
 
     public StringValueLookup getStringLookup(final String field) throws FlamdexOutOfMemoryException {
         try {
-            return FieldCacherUtil.newStringValueLookup(field, this, directory);
+            return FieldCacherUtil.newStringValueLookup(field, this);
         } catch (IOException e) {
             throw Throwables.propagate(e);
         }

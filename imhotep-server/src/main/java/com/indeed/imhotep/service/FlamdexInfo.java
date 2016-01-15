@@ -15,21 +15,19 @@
 package com.indeed.imhotep.service;
 
 import com.indeed.flamdex.api.FlamdexReader;
-import com.indeed.flamdex.lucene.LuceneFlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexFileFilter;
-import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.imhotep.client.ShardTimeUtils;
 
 import it.unimi.dsi.fastutil.objects.Object2LongArrayMap;
 import it.unimi.dsi.fastutil.objects.ObjectArraySet;
 
-import java.io.File;
-import java.io.FileFilter;
-import java.util.Arrays;
-import java.util.Map;
+import java.io.IOException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Path;
+import java.nio.file.Files;
+import java.util.Iterator;
 import java.util.Set;
 
-import org.apache.commons.io.FilenameUtils;
 import org.apache.log4j.Logger;
 
 import org.joda.time.DateTime;
@@ -54,7 +52,7 @@ class FlamdexInfo {
         new ObjectArraySet<String>(FIELD_EXTENSIONS);
 
     FlamdexInfo(FlamdexReader reader) {
-        this.shardId     = FilenameUtils.getName(reader.getDirectory());
+        this.shardId     = reader.getDirectory().getFileName().toString();
         this.date        = dateOf();
         this.sizeInBytes = initFieldSizes(reader);
     }
@@ -99,29 +97,42 @@ class FlamdexInfo {
      */
     private long initFieldSizes(FlamdexReader reader) {
         long result = 0;
-        final File dir = new File(reader.getDirectory());
-        File[] children = dir.listFiles(new SimpleFlamdexFileFilter());
-        if (children != null && children.length > 0) {
+        final Path dir = reader.getDirectory();
+        final SimpleFlamdexFileFilter filter = new SimpleFlamdexFileFilter();
+
+        try (DirectoryStream<Path> children = Files.newDirectoryStream(dir, filter)) {
             /* flamdex */
-            for (File child: children) {
-                final String fieldName = fieldNameOf(child);
-                if (fieldName != null) {
-                    long size = fieldSizesInBytes.getLong(fieldName);
-                    size += child.length();
-                    fieldSizesInBytes.put(fieldName, size);
-                    result += child.length();
+            final Iterator<Path> iter = children.iterator();
+            /*
+             * If the directory has no flamdex files in it,
+             * then it is a lucene index
+             */
+            if (iter.hasNext()) {
+                while (iter.hasNext()) {
+                    final Path child = iter.next();
+                    final String fieldName = fieldNameOf(child);
+                    if (fieldName != null) {
+                        long size = fieldSizesInBytes.getLong(fieldName);
+                        size += Files.size(child);
+                        fieldSizesInBytes.put(fieldName, size);
+                        result += Files.size(child);
+                    }
                 }
+                return result;
             }
+        } catch (IOException e) {
+            return result;
         }
-        else {
+
+        try (DirectoryStream<Path> children = Files.newDirectoryStream(dir)) {
             /* lucene */
-            children = dir.listFiles();
-            if (children != null) {
-                for (File child: children) {
-                    result += child.length();
-                }
+            for (Path child : children) {
+                result += Files.size(child);
             }
+        } catch (IOException e) {
+            return result;
         }
+
         return result;
     }
 
@@ -130,8 +141,8 @@ class FlamdexInfo {
 
        @return The field's name or null if the file is not part of a field.
      */
-    private static final String fieldNameOf(final File file) {
-        final String name = file.getName();
+    private static final String fieldNameOf(final Path path) {
+        final String name = path.getFileName().toString();
         if (name.startsWith(FIELD_PREFIX)) {
             final int begin = FIELD_PREFIX.length();
             final int end = name.lastIndexOf('.');

@@ -42,7 +42,6 @@ import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.Streams;
-import com.indeed.imhotep.io.caching.CachedFile;
 
 import com.indeed.imhotep.protobuf.IntFieldAndTerms;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
@@ -59,6 +58,10 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -1190,7 +1193,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         }
     }
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, URISyntaxException {
         if (args.length < 1) {
             System.err.println("ARGS: shardDir tempDir [--port port] [--memory memory] "
                     + "[--zknodes zknodes] [--zkport zkport] [--lazyLoadProps <properties file>]");
@@ -1253,7 +1256,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                             long memoryCapacityInMB,
                             boolean useCache,
                             String zkNodes,
-                            String zkPath) throws IOException {
+                            String zkPath) throws IOException, URISyntaxException {
         ImhotepDaemon daemon = null;
         try {
             daemon = newImhotepDaemon(shardsDirectory,
@@ -1284,7 +1287,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                           long memoryCapacityInMB,
                                           boolean useCache,
                                           String zkNodes,
-                                          String zkPath) throws IOException {
+                                          String zkPath) throws IOException, URISyntaxException {
         /* !@# HACK ALERT
 
            This idea is speculative. In service of expediency, the
@@ -1299,12 +1302,16 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         final AbstractImhotepServiceCore localService;
         final ShardUpdateListener shardUpdateListener = new ShardUpdateListener();
 
-        localService =
-            new LocalImhotepServiceCore(shardsDirectory, shardTempDir,
-                                        memoryCapacityInMB * 1024 * 1024, useCache,
-                                        new GenericFlamdexReaderSource(),
-                                        new LocalImhotepServiceConfig(),
-                                        shardUpdateListener);
+        final Path shardsDir = Paths.get(new URI(shardsDirectory));
+        final Path tmpDir = Paths.get(new URI(shardTempDir));
+
+        localService = new LocalImhotepServiceCore(shardsDir,
+                                                   tmpDir,
+                                                   memoryCapacityInMB * 1024 * 1024,
+                                                   useCache,
+                                                   new GenericFlamdexReaderSource(),
+                                                   new LocalImhotepServiceConfig(),
+                                                   shardUpdateListener);
         final ServerSocket ss = new ServerSocket(port);
         final String myHostname = InetAddress.getLocalHost().getCanonicalHostName();
         final ImhotepDaemon result =

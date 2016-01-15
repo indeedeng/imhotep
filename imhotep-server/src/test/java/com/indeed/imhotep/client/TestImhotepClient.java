@@ -15,6 +15,7 @@
 
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.indeed.imhotep.io.TestFileUtils;
 import com.indeed.util.io.Files;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.service.ImhotepDaemonRunner;
@@ -26,6 +27,7 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 

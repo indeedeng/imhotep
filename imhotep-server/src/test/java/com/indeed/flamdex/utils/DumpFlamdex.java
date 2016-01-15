@@ -21,13 +21,14 @@ import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
 import java.io.FileOutputStream;
+import java.nio.file.Paths;
 
 /**
  * @author dwahler
  */
 public class DumpFlamdex {
     public static void main(String[] args) throws Exception {
-        final SimpleFlamdexReader reader = SimpleFlamdexReader.open("/tmp/organicshard");
+        final SimpleFlamdexReader reader = SimpleFlamdexReader.open(Paths.get("/tmp/organicshard"));
         final DataOutputStream dos = new DataOutputStream(new BufferedOutputStream(new FileOutputStream("/tmp/shard.dat")));
 
         dos.writeInt(reader.getNumDocs());

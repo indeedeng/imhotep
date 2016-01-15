@@ -14,6 +14,7 @@
  package com.indeed.flamdex.simple;
 
 import java.io.IOException;
+import java.nio.file.Path;
 
 /**
  * @author jsgroth
@@ -22,14 +23,14 @@ final class NullStringTermIterator implements SimpleStringTermIterator {
 
     private static final byte[] EMPTY = new byte[0];
 
-    private final String docsFilename;
+    private final Path docsFilename;
 
-    NullStringTermIterator(String docsFilename) {
+    NullStringTermIterator(Path docsFilename) {
         this.docsFilename = docsFilename;
     }
 
     @Override
-    public String getFilename() {
+    public Path getFilename() {
         return docsFilename;
     }
 

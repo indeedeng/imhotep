@@ -17,13 +17,14 @@ import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.reader.GenericFlamdexReader;
 
 import java.io.IOException;
+import java.nio.file.Path;
 
 /**
  * @author jsgroth
  */
 public class GenericFlamdexReaderSource implements FlamdexReaderSource {
     @Override
-    public FlamdexReader openReader(String directory) throws IOException {
+    public FlamdexReader openReader(Path directory) throws IOException {
         return GenericFlamdexReader.open(directory);
     }
 }

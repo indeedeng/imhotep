@@ -1,5 +1,7 @@
 package com.indeed.flamdex.simple;
 
+import java.nio.file.Path;
+
 /**
  * @author vladimir
  */
@@ -26,7 +28,7 @@ public class UnsortedStringToIntTermIterator implements SimpleIntTermIterator  {
     }
 
     @Override
-    public String getFilename() {
+    public Path getFilename() {
         return stringTermIterator.getFilename();
     }
 
