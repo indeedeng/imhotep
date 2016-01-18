@@ -108,7 +108,7 @@ public class TestLocalImhotepServiceCore {
                 @Override
                 public void run() {
                     try {
-                        service.handleGetFTGSIterator(sessionId, new String[]{"if1"}, new String[0], os);
+                        service.handleGetFTGSIterator(sessionId, new String[]{"if1"}, new String[0], 0, os);
                         fail();
                     } catch (Exception e) {
                         e.printStackTrace();
