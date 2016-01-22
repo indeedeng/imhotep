@@ -14,10 +14,8 @@
  package com.indeed.flamdex.simple;
 
 import com.indeed.util.core.io.Closeables2;
-import com.indeed.util.core.reference.SharedReference;
 import com.indeed.flamdex.api.TermDocIterator;
 import com.indeed.util.mmap.DirectMemory;
-import com.indeed.util.mmap.MMapBuffer;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
@@ -38,7 +36,6 @@ public abstract class NativeTermDocIterator implements TermDocIterator {
 
     protected abstract void poll();
 
-    private final SharedReference<MMapBuffer> file;
     private final DirectMemory memory;
 
     private int bufferedTerms = 0;
@@ -52,9 +49,8 @@ public abstract class NativeTermDocIterator implements TermDocIterator {
 
     private boolean closed = false;
 
-    NativeTermDocIterator(Path filename, MapCache mapCache) throws IOException {
-        file = mapCache.copyOrOpen(filename);
-        memory = file.get().memory();
+    NativeTermDocIterator(Path filename, MapCache.Pool mapPool) throws IOException {
+        memory = mapPool.getDirectMemory(filename);
     }
 
     @Override
@@ -107,7 +103,6 @@ public abstract class NativeTermDocIterator implements TermDocIterator {
     public void close() {
         if (!closed) {
             closed = true;
-            Closeables2.closeQuietly(file, log);
             Closeables2.closeQuietly(buffer, log);
         }
     }

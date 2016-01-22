@@ -13,11 +13,9 @@
  */
  package com.indeed.flamdex.simple;
 
-import com.indeed.util.core.reference.SharedReference;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.TermIterator;
 import com.indeed.util.mmap.DirectMemory;
-import com.indeed.util.mmap.MMapBuffer;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
@@ -31,7 +29,7 @@ final class SimpleDocIdStream implements DocIdStream {
 
     public static final int BUFFER_SIZE = 8192;
 
-    private final MapCache mapCache;
+    private final MapCache.Pool mapPool;
 
     private final byte[] buffer;
     private long bufferOffset;
@@ -39,18 +37,17 @@ final class SimpleDocIdStream implements DocIdStream {
     private int bufferPtr;
 
     private DirectMemory memory;
-    private SharedReference<MMapBuffer> file;
     private int docsRemaining;
     private int lastDoc;
 
     private Path currentFileOpen;
 
-    SimpleDocIdStream(MapCache mapCache) {
-        this(mapCache, new byte[BUFFER_SIZE]);
+    SimpleDocIdStream(MapCache.Pool mapPool) {
+        this(mapPool, new byte[BUFFER_SIZE]);
     }
 
-    SimpleDocIdStream(MapCache mapCache, byte[] buffer) {
-        this.mapCache = mapCache;
+    SimpleDocIdStream(MapCache.Pool mapPool, byte[] buffer) {
+        this.mapPool = mapPool;
         this.buffer = buffer;
         bufferOffset = 0L;
         bufferLen = 0;
@@ -73,10 +70,7 @@ final class SimpleDocIdStream implements DocIdStream {
         final Path filename = term.getFilename();
         if (!filename.equals(currentFileOpen)) {
 
-            if (file != null) file.close();
-            file = mapCache.copyOrOpen(filename);
-
-            memory = file.get().memory();
+            memory = mapPool.getDirectMemory(filename);
             currentFileOpen = filename;
             // to force a refill
             bufferOffset = 0L;
@@ -116,14 +110,6 @@ final class SimpleDocIdStream implements DocIdStream {
 
     @Override
     public void close() {
-        try {
-            if (file != null) {
-                file.close();
-                file = null;
-            }
-        } catch (IOException e) {
-            log.error("error closing file", e);
-        }
     }
 
     private int readVInt() throws IOException {

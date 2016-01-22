@@ -1,3 +1,4 @@
+#pragma once
 #include <jni.h>
 
 #include <sstream>
@@ -44,6 +45,18 @@ namespace imhotep {
             return result;
         }
 
+        jmethodID method_id_for(const std::string& name, const std::string& sig) {
+            const jmethodID result(env()->GetMethodID(clazz(), name.c_str(), sig.c_str()));
+            if (result == NULL) {
+                std::ostringstream os;
+                os << __FUNCTION__ << ": GetMethodID() failed for"
+                   << " name: " << name
+                   << " sig: "  << sig;
+                throw imhotep_error(os.str());
+            }
+            return result;
+        }
+
         std::string to_string(jstring value) {
             jsize       length(env()->GetStringUTFLength(value));
             const char* chars(env()->GetStringUTFChars(value, NULL));
@@ -74,8 +87,8 @@ namespace imhotep {
             jstring value(object_field<jstring>(obj, field));
             return to_string(value);
         }
-
-    private:
+        
+    protected:
         JNIEnv* _env;
         jclass  _class;
     };

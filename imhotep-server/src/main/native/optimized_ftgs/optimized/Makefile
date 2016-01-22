@@ -1,21 +1,25 @@
-MODE=opt
+# one of "opt", "debug", or "sanitize"
+MODE=debug
 
 IDIR=include
-CC=gcc
-CPP=g++
+CC=gcc-5
+CPP=g++-5
 JNI_HEADER_LOC=$(JAVA_HOME)/include
 JNI_HEADER_LOC2=$(JNI_HEADER_LOC)/linux
 BASE_CFLAGS= -Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -std=gnu99 -msse4.2 -fPIC -flax-vector-conversions -fno-omit-frame-pointer
 BASE_CPPFLAGS=-Wall -Werror -I$(IDIR) -I$(JNI_HEADER_LOC) -I$(JNI_HEADER_LOC2) -I/usr/include/boost -msse4.2 -std=c++11 -fPIC -fno-omit-frame-pointer
-BASE_LFLAGS= -shared  -fno-omit-frame-pointer
+BASE_LFLAGS= -shared -fno-omit-frame-pointer
 
+SANITIZE_CFLAGS= -g -fsanitize=address -fno-omit-frame-pointer
 DBG_CFLAGS= -g -fno-omit-frame-pointer
 OPT_CFLAGS= -g -O3  # -flto
 
+SANITIZE_CPPFLAGS= -g -fsanitize=address -fno-omit-frame-pointer
 DBG_CPPFLAGS= -g -fno-omit-frame-pointer
 OPT_CPPFLAGS= -g -O3 # -flto
 
-DBG_LFLAGS= -g -fsanitize=address -fno-omit-frame-pointer
+SANITIZE_LFLAGS= -g -fsanitize=address -fno-omit-frame-pointer
+DBG_LFLAGS= -g -fno-omit-frame-pointer
 OPT_LFLAGS= -g -O3 # -flto-partition=none -flto 
 
 ifeq ($(MODE),opt)
@@ -23,9 +27,22 @@ ifeq ($(MODE),opt)
 	CPPFLAGS=$(OPT_CPPFLAGS) $(BASE_CPPFLAGS)
 	LFLAGS=$(OPT_LFLAGS) $(BASE_LFLAGS)
 else
-	CFLAGS= $(DBG_CFLAGS) $(BASE_CFLAGS)
-	CPPFLAGS= $(DBG_CPPFLAGS) $(BASE_CPPFLAGS)
-	LFLAGS= $(DBG_LFLAGS) $(BASE_LFLAGS)
+    ifeq ($(MODE),debug)
+    	CFLAGS= $(DBG_CFLAGS) $(BASE_CFLAGS)
+    	CPPFLAGS= $(DBG_CPPFLAGS) $(BASE_CPPFLAGS)
+    	LFLAGS= $(DBG_LFLAGS) $(BASE_LFLAGS)
+    else
+        ifeq ($(MODE),sanitize)
+        	CFLAGS= $(SANITIZE_CFLAGS) $(BASE_CFLAGS)
+        	CPPFLAGS= $(SANITIZE_CPPFLAGS) $(BASE_CPPFLAGS)
+        	LFLAGS= $(SANITIZE_LFLAGS) $(BASE_LFLAGS)
+        else
+        	CFLAGS= $(DBG_CFLAGS) $(BASE_CFLAGS)
+        	CPPFLAGS= $(DBG_CPPFLAGS) $(BASE_CPPFLAGS)
+        	LFLAGS= $(DBG_LFLAGS) $(BASE_LFLAGS)
+        	MODE=debug
+    	endif
+	endif
 endif
 
 ODIR=obj
@@ -69,6 +86,7 @@ $(CPPODIR)/%.o: src/%.cpp $(HPP_FILES) include/imhotep_native.h include/local_se
 all: ftgs_lib multicache_lib fieldcache_lib
 
 ftgs_lib: $(NATIVE_FTGS_OBJ_FILES) $(CPP_OBJ_FILES)
+	echo $(MODE) build
 	$(CPP) $(LFLAGS) -Wl,-export-dynamic -Wl,-soname,libftgs.so.1 -o libftgs.so.1.0.1 $^ $(LIBS)
 	cp  libftgs.so.1.0.1 ../../../resources/native/Linux-amd64
 

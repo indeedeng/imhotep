@@ -13,13 +13,11 @@
  */
  package com.indeed.flamdex.simple;
 
-import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.serialization.IntSerializer;
 import com.indeed.util.serialization.LongSerializer;
 import com.indeed.lsmtree.core.Generation;
 import com.indeed.lsmtree.core.ImmutableBTreeIndex;
 import com.indeed.util.mmap.DirectMemory;
-import com.indeed.util.mmap.MMapBuffer;
 
 import org.apache.log4j.Logger;
 
@@ -34,7 +32,7 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
 
     private static final int BUFFER_SIZE = 8192;
 
-    private final MapCache mapCache;
+    private final MapCache.Pool mapPool;
 
     private final byte[] buffer;
     private long docListAddress = 0L;
@@ -49,10 +47,8 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
     private final Path indexPath;
     private final boolean use64BitIndex;
 
-    private final SharedReference<MMapBuffer> file;
     private final DirectMemory memory;
-
-    private SharedReference<MMapBuffer> docListFile = null;
+    private DirectMemory docListMem = null;
 
     private long lastTerm = 0;
     private long lastTermOffset = 0L;
@@ -62,10 +58,10 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
     private boolean bufferNext = false;
     private boolean closed = false;
 
-    SimpleIntTermIteratorImpl(MapCache mapCache, Path filename, Path docListPath, Path indexPath)
+    SimpleIntTermIteratorImpl(MapCache.Pool mapPool, Path filename, Path docListPath, Path indexPath)
         throws IOException {
 
-        this.mapCache = mapCache;
+        this.mapPool = mapPool;
 
         buffer = new byte[BUFFER_SIZE];
 
@@ -86,8 +82,7 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
             this.use64BitIndex = true;
         }
 
-        file = mapCache.copyOrOpen(filename);
-        memory = file.get().memory();
+        memory = mapPool.getDirectMemory(filename);
 
         done = false;
         bufferLen = 0;
@@ -222,18 +217,6 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
             } catch (IOException e) {
                 log.error("error closing index", e);
             }
-            try {
-                file.close();
-            } catch (IOException e) {
-                log.error("error closing file", e);
-            }
-            try {
-                if (docListFile != null) {
-                    docListFile.close();
-                }
-            } catch (IOException e) {
-                log.error("error closing docListFile", e);
-            }
             closed = true;
         }
     }
@@ -249,11 +232,10 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
     }
 
     @Override
-    public long getDocListAddress()
-        throws IOException {
-        if (docListFile == null) {
-            docListFile = mapCache.copyOrOpen(docListPath);
-            docListAddress = docListFile.get().memory().getAddress();
+    public long getDocListAddress() throws IOException {
+        if (docListMem == null) {
+            docListMem = mapPool.getDirectMemory(docListPath);
+            docListAddress = docListMem.getAddress();
         }
         return this.docListAddress;
     }

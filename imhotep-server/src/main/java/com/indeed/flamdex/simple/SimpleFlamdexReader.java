@@ -19,17 +19,17 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
-import com.indeed.flamdex.api.IntValueLookup;
-import com.indeed.flamdex.fieldcache.FieldCacherUtil;
-import com.indeed.flamdex.fieldcache.NativeFlamdexFieldCacher;
 import com.indeed.flamdex.AbstractFlamdexReader;
 import com.indeed.flamdex.api.DocIdStream;
+import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.GenericIntTermDocIterator;
 import com.indeed.flamdex.api.GenericRawStringTermDocIterator;
 import com.indeed.flamdex.api.IntTermDocIterator;
+import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.api.RawFlamdexReader;
 import com.indeed.flamdex.api.RawStringTermDocIterator;
+import com.indeed.flamdex.fieldcache.FieldCacherUtil;
+import com.indeed.flamdex.fieldcache.NativeFlamdexFieldCacher;
 import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIterator;
 import com.indeed.flamdex.reader.FlamdexMetadata;
 import com.indeed.flamdex.utils.FlamdexUtils;
@@ -56,7 +56,7 @@ public class SimpleFlamdexReader
 
     private final Collection<String> intFields;
     private final Collection<String> stringFields;
-    private final MapCache mapCache = new MapCache();
+    private final MapCache.Pool mapPool = MapCache.getPool();
 
 
     static {
@@ -111,7 +111,7 @@ public class SimpleFlamdexReader
         return fields;
     }
 
-    public MapCache getMapCache() { return mapCache; }
+    public MapCache.Pool getMapCache() { return mapPool; }
 
     @Override
     public Collection<String> getIntFields() {
@@ -125,7 +125,7 @@ public class SimpleFlamdexReader
 
     @Override
     public DocIdStream getDocIdStream() {
-        return useNativeDocIdStream ? new NativeDocIdStream(mapCache) : new SimpleDocIdStream(mapCache);
+        return useNativeDocIdStream ? new NativeDocIdStream(mapPool) : new SimpleDocIdStream(mapPool);
     }
 
     @Override
@@ -175,7 +175,7 @@ public class SimpleFlamdexReader
             } else {
                 indexPath = null;
             }
-            return new SimpleIntTermIteratorImpl(mapCache, termsPath, docsPath, indexPath);
+            return new SimpleIntTermIteratorImpl(mapPool, termsPath, docsPath, indexPath);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -191,7 +191,7 @@ public class SimpleFlamdexReader
                 return new NullStringTermIterator(docsPath);
             }
             final Path indexPath = directory.resolve("fld-" + field + ".strindex");
-            return new SimpleStringTermIteratorImpl(mapCache, termsPath, docsPath, indexPath);
+            return new SimpleStringTermIteratorImpl(mapPool, termsPath, docsPath, indexPath);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -213,7 +213,7 @@ public class SimpleFlamdexReader
 
         try {
             if (useNativeDocIdStream && (Files.notExists(termsPath) || Files.size(termsPath) > 0)) {
-                return new NativeIntTermDocIterator(termIterator, mapCache);
+                return new NativeIntTermDocIterator(termIterator, mapPool);
             } else {
                 return new GenericIntTermDocIterator(termIterator, getDocIdStream());
             }
@@ -229,7 +229,7 @@ public class SimpleFlamdexReader
 
         try {
             if (useNativeDocIdStream && (Files.notExists(termsPath) || Files.size(termsPath) > 0)) {
-                return new NativeStringTermDocIterator(termIterator, mapCache);
+                return new NativeStringTermDocIterator(termIterator, mapPool);
             } else {
                 return new GenericRawStringTermDocIterator(termIterator, getDocIdStream());
             }
@@ -308,7 +308,7 @@ public class SimpleFlamdexReader
     public void close() throws IOException {
         if (closed)
             return;
-        mapCache.close();
+        mapPool.close();
         this.closed = true;
     }
 

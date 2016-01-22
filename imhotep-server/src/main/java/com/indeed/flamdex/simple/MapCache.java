@@ -13,59 +13,163 @@
  */
  package com.indeed.flamdex.simple;
 
-import com.google.common.collect.Maps;
-import com.indeed.util.core.io.Closeables2;
-import com.indeed.util.core.reference.SharedReference;
+import com.indeed.util.mmap.DirectMemory;
 import com.indeed.util.mmap.MMapBuffer;
 
 import org.apache.log4j.Logger;
 
-import java.io.Closeable;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
  * @author jplaisance
  */
-public final class MapCache implements Closeable {
-
+public final class MapCache {
     private static final Logger log = Logger.getLogger(MapCache.class);
+    private static MapCache cacheSingleton;
 
-    private final Map<Path, SharedReference<MMapBuffer>> mappingCache = Maps.newHashMap();
+    private static MapCache getCache() {
+        if (MapCache.cacheSingleton == null) {
+            synchronized (MapCache.class) {
+                MapCache.cacheSingleton = new MapCache();
+            }
+        }
+        return MapCache.cacheSingleton;
+    }
 
-    public MapCache() {}
+    public static Pool getPool() {
+        final MapCache cache = getCache();
+        return new Pool(cache);
+    }
 
-    public synchronized SharedReference<MMapBuffer> copyOrOpen(Path path) throws IOException {
-        SharedReference<MMapBuffer> reference = mappingCache.get(path);
-        if (reference == null) {
+
+    private static final class CountedRef {
+        final Path path;
+        final MMapBuffer buffer;
+        int count;
+
+        private CountedRef(Path p, MMapBuffer buf) {
+            this.path = p;
+            this.buffer = buf;
+            this.count = 0;
+        }
+
+        public synchronized void incrementRefCount() {
+            this.count++;
+        }
+
+        public synchronized int decrementRefCount() {
+            assert count > 0;
+            this.count--;
+            return this.count;
+        }
+    }
+
+    private final Map<Path, CountedRef> mappingCache;
+
+    private MapCache() {
+        this.mappingCache = new HashMap<>();
+    }
+
+    private synchronized CountedRef internalGet(Path path) throws IOException {
+        CountedRef ref = mappingCache.get(path);
+        if (ref == null) {
             final MMapBuffer mmapBuf;
 
             mmapBuf = new MMapBuffer(path, FileChannel.MapMode.READ_ONLY, ByteOrder.LITTLE_ENDIAN);
-            reference = SharedReference.create(mmapBuf);
-            mappingCache.put(path, reference);
+            ref = new CountedRef(path, mmapBuf);
+            mappingCache.put(path, ref);
         }
-        return reference.copy();
+        ref.incrementRefCount();
+        return ref;
     }
 
-    @Override
-    public synchronized void close() throws IOException {
-        for (Map.Entry<Path, SharedReference<MMapBuffer>> entry : mappingCache.entrySet()) {
-            Closeables2.closeQuietly(entry.getValue(), log);
-        }
+    private synchronized void internalRemove(CountedRef ref) throws IOException {
+        ref.buffer.close();
+        this.mappingCache.remove(ref.path);
     }
 
-    /** !@# This is something of a temporary hack. We need to pass the addresses
-        of mmapped files down through JNI code, so that we don't have to mmap
-        them redundantly there. This pokes something of a hole in the MapCache
-        abstraction, but it's a tiny leak. */
-    public synchronized void getAddresses(final Map<Path, Long> result) {
-        for (final Map.Entry<Path,
-                 SharedReference<MMapBuffer>> entry: mappingCache.entrySet()) {
-            final Long address = entry.getValue().get().memory().getAddress();
-            result.put(entry.getKey(), address);
+
+    /*
+     * Pool class used to access mmappings
+     */
+    public static class Pool implements AutoCloseable {
+        private final MapCache cache;
+        private final ArrayList<CountedRef> trackingList;
+        private final String creationStackTrace;
+        private boolean closed = false;
+
+        private Pool(MapCache cache) {
+            this.cache = cache;
+            this.trackingList = new ArrayList<>(40);
+            this.creationStackTrace = Arrays.toString((new Throwable()).getStackTrace());
+        }
+
+        public DirectMemory getDirectMemory(Path path) throws IOException {
+            final CountedRef ref;
+
+            ref = cache.internalGet(path);
+            track(ref);
+            return ref.buffer.memory();
+        }
+
+        public long[] getMappedAddressAndLen(String path) throws IOException, URISyntaxException {
+            final long[] results =  getMappedAddressAndLen(Paths.get(new URI(path)));
+            return results;
+        }
+
+        public long[] getMappedAddressAndLen(Path path) throws IOException {
+            final CountedRef ref;
+
+            ref = cache.internalGet(path);
+            track(ref);
+            final DirectMemory memory = ref.buffer.memory();
+            final long[] results = new long[]{memory.getAddress(), memory.length()};
+            return results;
+        }
+
+        private synchronized void track(CountedRef ref) {
+            this.trackingList.add(ref);
+        }
+
+        @Override
+        public synchronized void close() throws IOException {
+            if (closed) {
+                return;
+            }
+
+            for (CountedRef ref : trackingList) {
+                final int newRefCount = ref.decrementRefCount();
+                if (newRefCount == 0) {
+                    try {
+                        cache.internalRemove(ref);
+                    } catch(IOException e) {
+                        e.printStackTrace();
+                        throw e;
+                    }
+                }
+            }
+
+            closed = true;
+        }
+
+        @Override
+        protected void finalize() throws Throwable {
+            if (! closed) {
+                log.error("MapPool was not closed properly! Stack trace at creation: \n"
+                                  + this.creationStackTrace);
+            }
+            this.close();
+            super.finalize();
         }
     }
 }

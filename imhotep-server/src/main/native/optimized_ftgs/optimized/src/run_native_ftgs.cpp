@@ -41,8 +41,9 @@ namespace imhotep {
     std::string from_java<jstring, std::string>(JNIEnv* env, jstring value)
     {
         jboolean    unused(false);
+        jsize       len(env->GetStringUTFLength(value));
         const char* content(env->GetStringUTFChars(value, &unused));
-        std::string result(content);
+        std::string result(content, len);
         env->ReleaseStringUTFChars(value, content);
         return result;
     }
@@ -106,8 +107,6 @@ public:
     NativeFTGSRunnable(JNIEnv* env)
         : Binder(env, "com/indeed/imhotep/local/MTImhotepLocalMultiSession$NativeFTGSRunnable")
         , _shardDirs(field_id_for("shardDirs", "[Ljava/lang/String;"))
-        , _mappedFiles(field_id_for("mappedFiles", "[Ljava/lang/String;"))
-        , _mappedPtrs(field_id_for("mappedPtrs", "[J"))
         , _packedTablePtrs(field_id_for("packedTablePtrs", "[J"))
         , _onlyBinaryMetrics(field_id_for("onlyBinaryMetrics", "Z"))
         , _intFields(field_id_for("intFields", "[Ljava/lang/String;"))
@@ -118,12 +117,11 @@ public:
         , _numSplits(field_id_for("numSplits", "I"))
         , _numWorkers(field_id_for("numWorkers", "I"))
         , _socketFDs(field_id_for("socketFDs", "[I"))
+        , _mapPool(field_id_for("mapPool", "Lcom/indeed/flamdex/simple/MapCache$Pool;"))
     { }
 
     void run(jobject obj) {
         jobjectArray shardDirs(object_field<jobjectArray>(obj, _shardDirs));
-        jobjectArray mappedFiles(object_field<jobjectArray>(obj, _mappedFiles));
-        jlongArray   mappedPtrs(object_field<jlongArray>(obj, _mappedPtrs));
         jlongArray   packedTablePtrs(object_field<jlongArray>(obj, _packedTablePtrs));
         jboolean     onlyBinaryMetrics(env()->GetBooleanField(obj, _onlyBinaryMetrics));
         jobjectArray intFields(object_field<jobjectArray>(obj, _intFields));
@@ -134,15 +132,23 @@ public:
         jint         numSplits(env()->GetIntField(obj, _numSplits));
         jint         numWorkers(env()->GetIntField(obj, _numWorkers));
         jintArray    socketFDs(object_field<jintArray>(obj, _socketFDs));
-        run(shardDirs, mappedFiles, mappedPtrs, packedTablePtrs, onlyBinaryMetrics,
-            intFields, stringFields, splitsDir, numGroups, numStats, numSplits,
-            numWorkers, socketFDs);
+        jobject      javaMapPoolRef(object_field<jobject>(obj, _mapPool));
+        run(shardDirs,
+            packedTablePtrs,
+            onlyBinaryMetrics,
+            intFields,
+            stringFields,
+            splitsDir,
+            numGroups,
+            numStats,
+            numSplits,
+            numWorkers,
+            socketFDs,
+            javaMapPoolRef);
     }
 
 private:
     void run(jobjectArray shardDirs,
-             jobjectArray mappedFiles,
-             jlongArray   mappedPtrs,
              jlongArray   packedTablePtrs,
              jboolean     onlyBinaryMetrics,
              jobjectArray intFields,
@@ -152,33 +158,26 @@ private:
              jint         numStats,
              jint         numSplits,
              jint         numWorkers,
-             jintArray    socketFDs) {
+             jintArray    socketFDs,
+             jobject      javaMapPoolRef) {
 
-        const strvec_t shard_dirs(from_java_array<std::string>(env(), shardDirs));
-        const strvec_t mapped_files(from_java_array<std::string>(env(), mappedFiles));
+        const strvec_t shard_dir_uris(from_java_array<std::string>(env(), shardDirs));
         const strvec_t int_fields(from_java_array<std::string>(env(), intFields));
         const strvec_t str_fields(from_java_array<std::string>(env(), strFields));
 
-        const std::vector<table_ptr> mapped_ptrs
-            (from_java_array<table_ptr>(env(), mappedPtrs));
-
-        die_if(mapped_files.size() != mapped_ptrs.size(),
-               "mapped_files.size() != mapped_ptrs.size()");
-        Shard::MapCache map_cache;
-        for (size_t idx(0); idx < mapped_files.size(); ++idx) {
-            map_cache[mapped_files[idx]] = reinterpret_cast<void*>(mapped_ptrs[idx]);
-        }
+        auto map_pool = std::make_shared<MapPool>(_env, javaMapPoolRef);
 
         const std::vector<table_ptr> table_ptrs
             (from_java_array<table_ptr>(env(), packedTablePtrs));
-        die_if(shard_dirs.size() != table_ptrs.size(),
+        die_if(shard_dir_uris.size() != table_ptrs.size(),
                "shard_dirs.size() != table_ptrs.size()");
 
         std::vector<Shard> shards;
-        for (size_t index(0); index < shard_dirs.size(); ++index) {
-            shards.push_back(Shard(shard_dirs[index],
+        for (size_t index(0); index < shard_dir_uris.size(); ++index) {
+            shards.push_back(Shard(shard_dir_uris[index],
                                    int_fields, str_fields,
-                                   table_ptrs[index], map_cache));
+                                   map_pool,
+                                   table_ptrs[index]));
         }
 
         const std::string splits_dir(from_java<jstring, std::string>(env(), splitsDir));
@@ -199,9 +198,9 @@ private:
                    shards[0].table(), socket_fds);
     }
 
-    jfieldID _shardDirs, _mappedFiles, _mappedPtrs, _packedTablePtrs,
-        _onlyBinaryMetrics, _intFields, _stringFields, _splitsDir,
-        _numGroups, _numStats, _numSplits, _numWorkers, _socketFDs;
+    jfieldID _shardDirs, _packedTablePtrs, _onlyBinaryMetrics, _intFields,
+             _stringFields, _splitsDir, _numGroups, _numStats, _numSplits,
+             _numWorkers, _socketFDs, _mapPool;
 };
 
 /*

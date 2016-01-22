@@ -2,19 +2,20 @@
 
 #include <sys/types.h>
 #include <unistd.h>
-
+#include <cassert>
 #include <sstream>
+#include <iostream>
 
 namespace imhotep {
 
-    Shard::Shard(const std::string&              dir,
+    Shard::Shard(const std::string&              directory_uri,
                  const std::vector<std::string>& int_fields,
                  const std::vector<std::string>& str_fields,
-                 packed_table_ptr                table,
-                 const MapCache&                 map_cache)
-        : _dir(dir)
-        , _table(table)
-        , _map_cache(map_cache) {
+                 std::shared_ptr<MapPool>        map_pool,
+                 packed_table_ptr                table)
+        : _directory_uri(directory_uri)
+        , _map_pool(map_pool)
+        , _table(table) {
 
         /* !@# force caching of views for now... */
         typedef std::vector<std::string>::const_iterator It;
@@ -34,11 +35,8 @@ namespace imhotep {
                         FieldToMMappedFile& cache) const {
         FieldToMMappedFile::iterator it(cache.find(field));
         if (it == cache.end()) {
-            const MapCache::const_iterator mit(_map_cache.find(filename));
-            std::shared_ptr<MMappedFile> entry
-                (mit != _map_cache.end() ?
-                 std::make_shared<MMappedFile>(filename, mit->second) :
-                 std::make_shared<MMappedFile>(filename));
+            const AddrAndLen data(_map_pool->get_mapping(filename));
+            auto entry = std::make_shared<MMappedFile>(data.addr, data.len, filename);
             it = cache.insert(std::make_pair(field, entry)).first;
         }
         return it->second;
@@ -101,12 +99,16 @@ namespace imhotep {
     }
 
     std::string Shard::name_of() const {
-        const std::string::size_type pos(dir().find_last_of('/'));
-        return pos == std::string::npos ? dir() : dir().substr(pos + 1);
+        std::string::size_type len(dir_uri().length());
+        if (dir_uri().at(len - 1) == '/') {
+            len = len - 1;
+        }
+        std::string::size_type pos(dir_uri().find_last_of('/', len - 1));
+        return pos == std::string::npos ? dir_uri() : dir_uri().substr(pos + 1, len - (pos + 1));
     }
 
     std::string Shard::base_filename(const std::string& field) const {
-        return dir() + "/fld-" + field + ".";
+        return dir_uri() + "fld-" + field + ".";
     }
 
     std::shared_ptr<MMappedFile> Shard::split_file(const std::string& filename) const {

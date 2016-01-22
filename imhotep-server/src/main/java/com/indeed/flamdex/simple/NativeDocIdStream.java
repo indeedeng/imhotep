@@ -32,7 +32,6 @@ public final class NativeDocIdStream implements DocIdStream {
     private static final Logger log = Logger.getLogger(NativeDocIdStream.class);
 
     private DirectMemory memory;
-    private SharedReference<MMapBuffer> file;
 
     private final NativeDocIdBuffer buffer = new NativeDocIdBuffer();
 
@@ -42,10 +41,10 @@ public final class NativeDocIdStream implements DocIdStream {
 
     private int lastDoc = 0;
 
-    private final MapCache mapCache;
+    private final MapCache.Pool mapPool;
 
-    NativeDocIdStream(MapCache mapCache) {
-        this.mapCache = mapCache;
+    NativeDocIdStream(MapCache.Pool mapPool) {
+        this.mapPool = mapPool;
     }
 
     @Override
@@ -64,10 +63,7 @@ public final class NativeDocIdStream implements DocIdStream {
         final Path filename = term.getFilename();
         if (!filename.equals(currentFileOpen)) {
 
-            if (file != null) file.close();
-            file = mapCache.copyOrOpen(filename);
-
-            memory = file.get().memory();
+            memory = mapPool.getDirectMemory(filename);
             currentFileOpen = filename;
         }
         buffer.reset(memory.getAddress()+term.getOffset(), term.docFreq());
@@ -90,7 +86,6 @@ public final class NativeDocIdStream implements DocIdStream {
         if (!closed) {
             closed = true;
             Closeables2.closeQuietly(buffer, log);
-            Closeables2.closeQuietly(file, log);
         }
     }
 }

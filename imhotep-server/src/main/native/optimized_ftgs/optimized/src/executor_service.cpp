@@ -45,7 +45,7 @@ namespace imhotep {
                     std::unique_lock<std::mutex> lock(_mutex);
 
                     _stop = true;
-                    if (!_failure_cause.empty()) {
+                    if (_failure_cause.empty()) {
                         _failure_cause = ex.what();
                     }
                 }

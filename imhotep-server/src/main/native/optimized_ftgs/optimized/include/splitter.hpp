@@ -110,7 +110,7 @@ namespace imhotep {
             const std::string filename(_shard.split_filename(splits_dir(), kv.second, kv.first));
             FILE* file(fopen(filename.c_str(), "w"));
             if (!file) {
-                throw imhotep_error("cannot create split file");
+                throw imhotep_error("cannot create split file " + filename);
             }
             split_files.push_back(file);
         }

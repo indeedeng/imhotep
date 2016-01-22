@@ -36,9 +36,9 @@ public final class NativeStringTermDocIterator extends NativeTermDocIterator imp
 
     private byte[] currentTermBuffer = new byte[128];
 
-    public NativeStringTermDocIterator(SimpleStringTermIterator termIterator, MapCache mapCache)
+    public NativeStringTermDocIterator(SimpleStringTermIterator termIterator, MapCache.Pool mapPool)
             throws IOException {
-        super(termIterator.getFilename(), mapCache);
+        super(termIterator.getFilename(), mapPool);
         this.termIterator = termIterator;
     }
 

@@ -13,11 +13,10 @@
  */
 package com.indeed.imhotep.local;
 
-import com.google.common.collect.Maps;
 import com.google.common.io.ByteStreams;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.indeed.flamdex.api.FlamdexReader;
-import com.indeed.flamdex.simple.HasMapCache;
+import com.indeed.flamdex.simple.MapCache;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.MemoryReservationContext;
@@ -31,14 +30,16 @@ import org.apache.log4j.Logger;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.Map;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
@@ -196,6 +197,12 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                                                intFields, stringFields, getNumGroups(),
                                                numStats, numSplits, ftgsOutputSockets);
                     nativeRunnable.run();
+                    try {
+                        nativeRunnable.close();
+                    } catch (IOException e) {
+                        // ignore
+                        log.error(e);
+                    }
                 }
         });
 
@@ -254,44 +261,24 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                                         sessionId, tempFileSizeBytesLeft, useNativeFtgs);
     }
 
-    private static class NativeFTGSRunnable {
+    private static class NativeFTGSRunnable implements AutoCloseable {
 
         /* !@# Note that mappedFiles/mappedPtrs are maintained as parallel
             arrays because accessing a map from within JNI would be painful to
             say the least. */
 
         final String[] shardDirs;
-        final Path[]   mappedFiles;
-        final long[]   mappedPtrs;
         final long[]   packedTablePtrs;
         final boolean  onlyBinaryMetrics;
         final String[] intFields;
         final String[] stringFields;
-        final Path     splitsDir;
+        final String   splitsDir;
         final int      numGroups;
         final int      numStats;
         final int      numSplits;
         final int      numWorkers;
         final int[]    socketFDs;
-
-        private Map<Path, Long> combine(final FlamdexReader[] readers) {
-            final Map<Path, Long> result = Maps.newHashMap();
-            for (final FlamdexReader reader: readers) {
-                if (reader instanceof HasMapCache) {
-                    ((HasMapCache) reader).getMapCache().getAddresses(result);
-                }
-            }
-            return result;
-        }
-
-        private void flatten(final Map<Path, Long> mapCaches) {
-            int idx = 0;
-            for (Map.Entry<Path, Long> entry: mapCaches.entrySet()) {
-                this.mappedFiles[idx] = entry.getKey();
-                this.mappedPtrs[idx]  = entry.getValue().longValue();
-                ++idx;
-            }
-        }
+        final MapCache.Pool mapPool;
 
         NativeFTGSRunnable(final FlamdexReader[] readers,
                            final MultiCache[]    nativeCaches,
@@ -310,10 +297,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                 this.packedTablePtrs[index] = nativeCaches[index].getNativeAddress();
             }
 
-            Map<Path, Long> mapCaches = combine(readers);
-            this.mappedFiles = new Path[mapCaches.size()];
-            this.mappedPtrs  = new long[mapCaches.size()];
-            flatten(mapCaches);
+            this.mapPool = MapCache.getPool();
 
             this.onlyBinaryMetrics = onlyBinaryMetrics;
             this.intFields         = intFields;
@@ -321,11 +305,11 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             this.numGroups         = numGroups;
             this.numStats          = numStats;
             this.numSplits         = numSplits;
-            this.splitsDir         = Paths.get(System.getProperty("java.io.tmpdir", "/dev/null"));
+            this.splitsDir         = System.getProperty("java.io.tmpdir", "/dev/null");
 
             final String numWorkersStr = System.getProperty("imhotep.ftgs.num.workers", "8");
             final int    numWorkers    = Integer.parseInt(numWorkersStr);
-            this.numWorkers         = numWorkers;
+            this.numWorkers            = numWorkers;
 
             java.util.ArrayList<Integer> socketFDArray = new java.util.ArrayList<Integer>();
             for (final Socket socket: sockets) {
@@ -342,6 +326,14 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
         native void run();
 
+        private long[] getMMapBufferAddrAndLen(String path) {
+            try {
+                return mapPool.getMappedAddressAndLen(Paths.get(new URI(path)));
+            } catch (IOException | URISyntaxException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
         private String[] getShardDirs(final FlamdexReader[] readers) {
             final String[] shardDirs = new String[readers.length];
 
@@ -352,5 +344,9 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             return shardDirs;
         }
 
+        @Override
+        public void close() throws IOException {
+            this.mapPool.close();
+        }
     }
 }

@@ -1,5 +1,4 @@
-#ifndef SHARD_HPP
-#define SHARD_HPP
+#pragma once
 
 #include <map>
 #include <memory>
@@ -18,6 +17,7 @@ extern "C" {
 #include "term.hpp"
 #include "term_index.hpp"
 #include "var_int_view.hpp"
+#include "map_pool.hpp"
 
 namespace imhotep {
 
@@ -29,26 +29,19 @@ namespace imhotep {
             a C++ pointer idiom appropriate for such a case or I'd use it.) */
         typedef ::packed_table_ptr packed_table_ptr;
 
-        /** In Javaland, we maintain a cache of mmapped files, because according
-            to JeffP, mmapping the same file multiple times is inefficient. This
-            gets passed down to us through our JNI interface so that we can
-            leverage it in the native code. This should not be confused with the
-            per-field caches we maintain. */
-        typedef std::unordered_map<std::string, void*> MapCache;
-
         Shard() : _table(0) { }
 
         explicit Shard(const std::string&              dir,
                        const std::vector<std::string>& int_fields,
                        const std::vector<std::string>& str_fields,
-                       packed_table_ptr                table = packed_table_ptr(),
-                       const MapCache&                 map_cache=MapCache());
+                       std::shared_ptr<MapPool>        map_pool,
+                       packed_table_ptr                table = packed_table_ptr());
 
         Shard(const Shard& rhs) = default;
 
         Shard& operator=(const Shard& rhs) = default;
 
-        const std::string& dir() const { return _dir; }
+        const std::string& dir_uri() const { return _directory_uri; }
 
         packed_table_ptr table() const { return _table; }
 
@@ -99,11 +92,9 @@ namespace imhotep {
 
         mutable SplitFileMap _split_files;
 
-        std::string      _dir;
-        packed_table_ptr _table;
-        MapCache         _map_cache;
+        std::string              _directory_uri;
+        std::shared_ptr<MapPool> _map_pool;
+        packed_table_ptr         _table;
     };
 
 } // namespace imhotep
-
-#endif
