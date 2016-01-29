@@ -4,7 +4,8 @@ import com.indeed.imhotep.api.RawFTGSIterator;
 
 
 /**
- * Wrapper for a RawFTGSIterator that will only return up to 'termLimit' terms.
+ * Wrapper for a RawFTGSIterator that will only return up to 'termLimit' terms that have at least 1 group.
+ * Terms that don't have at least 1 non-0 group are not counted.
  * @author vladimir
  */
 

@@ -4,7 +4,8 @@ import com.indeed.imhotep.api.FTGSIterator;
 
 
 /**
- * Wrapper for an FTGSIterator that will only return up to 'termLimit' terms.
+ * Wrapper for an FTGSIterator that will only return up to 'termLimit' terms that have at least 1 group.
+ * Terms that don't have at least 1 non-0 group are not counted.
  * @author vladimir
  */
 
@@ -12,6 +13,7 @@ public class TermLimitedFTGSIterator implements FTGSIterator {
     private final FTGSIterator wrapped;
     private final long termLimit;
     private long termsIterated = 0;
+    private boolean firstTermGroupConsumed = false;
 
     /**
      * @param wrapped The iterator to use
@@ -44,7 +46,10 @@ public class TermLimitedFTGSIterator implements FTGSIterator {
         }
         boolean hasNext = wrapped.nextTerm();
         if (hasNext) {
-            termsIterated++;
+            firstTermGroupConsumed = nextGroup();
+            if(firstTermGroupConsumed) {
+                termsIterated++;
+            }
         }
         return hasNext;
     }
@@ -66,6 +71,10 @@ public class TermLimitedFTGSIterator implements FTGSIterator {
 
     @Override
     public boolean nextGroup() {
+        if(firstTermGroupConsumed) {
+            firstTermGroupConsumed = false;
+            return true;
+        }
         return wrapped.nextGroup();
     }
 
