@@ -36,9 +36,15 @@ import org.apache.log4j.Logger;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 /** ShardMap is the data structure used by LocalImhotepServiceCore to keep track
     of which shards reside on the host on which it is running. It's an unordered
@@ -64,6 +70,8 @@ class ShardMap
     private final MemoryReserver      memory;
     private final FlamdexReaderSource flamdexReaderSource;
     private final ImhotepMemoryCache<MetricKey, IntValueLookup> freeCache;
+
+    private final ExecutorService threadPool = Executors.newCachedThreadPool();
 
     /** The general scheme for iterating over this collection is to pass an
         implementation of ElementHandler to the map() method. */
@@ -200,6 +208,45 @@ class ShardMap
         public boolean allFlamdexReaders = true;
     }
 
+    static final class CreateReader implements Callable<Boolean> {
+        final String           request;
+        final Shard            shard;
+        final FlamdexReaderMap result;
+
+        public CreateReader(String request, Shard shard, FlamdexReaderMap result) {
+            this.request = request;
+            this.shard   = shard;
+            this.result  = result;
+        }
+
+        public Boolean call() throws IOException, InterruptedException {
+            final CachedFlamdexReaderReference reader;
+            final ShardId shardId = shard.getShardId();
+            final SharedReference<CachedFlamdexReader> reference = shard.getRef();
+            boolean allFlamdexReaders = true;
+            try {
+                if (reference.get() instanceof RawCachedFlamdexReader) {
+                    final SharedReference<RawCachedFlamdexReader> sharedReference =
+                        (SharedReference<RawCachedFlamdexReader>) (SharedReference) reference;
+                    reader = new RawCachedFlamdexReaderReference(sharedReference);
+                    allFlamdexReaders = false;
+                }
+                else {
+                    reader = new CachedFlamdexReaderReference(reference);
+                }
+            }
+            catch (final NullPointerException ex) {
+                log.warn("unable to create reader for shardId: " + shardId, ex);
+                return Boolean.FALSE;
+            }
+            synchronized (result) {
+                result.put(request, Pair.of(shardId, reader));
+                result.allFlamdexReaders = allFlamdexReaders;
+            }
+            return Boolean.TRUE;
+        }
+    }
+
     /** For each requested shard, return an id and a CachedFlamdexReaderReference. */
     FlamdexReaderMap getFlamdexReaders(String dataset, List<String> requestedShardIds)
         throws IOException {
@@ -211,25 +258,32 @@ class ShardMap
 
         final FlamdexReaderMap result = new FlamdexReaderMap();
 
+        final List<CreateReader> createReaders = new ArrayList<>();
+
         for (String request : requestedShardIds) {
             final Shard shard = idToShard.get(request);
             if (shard == null) {
                 throw new IllegalArgumentException("this service does not have shard " +
                                                    request + " in dataset " + dataset);
             }
-            final CachedFlamdexReaderReference reader;
-            final ShardId shardId = shard.getShardId();
-            final SharedReference<CachedFlamdexReader> reference = shard.getRef();
-            if (reference.get() instanceof RawCachedFlamdexReader) {
-                final SharedReference<RawCachedFlamdexReader> sharedReference =
-                    (SharedReference<RawCachedFlamdexReader>) (SharedReference) reference;
-                reader = new RawCachedFlamdexReaderReference(sharedReference);
-                result.allFlamdexReaders = false;
+            createReaders.add(new CreateReader(request, shard, result));
+        }
+
+        /* Creating readers can actually be a bit expensive, since it can
+           involve opening and reading metadata.txt files within shards. Do this
+           in parallel, per IMTEPD-188. */
+        try {
+            List<Future<Boolean>> outcomes =
+                threadPool.invokeAll(createReaders, 5, TimeUnit.MINUTES);
+            for (Future<Boolean> outcome: outcomes) {
+                if (outcome.get() == Boolean.FALSE) {
+                    throw new IOException("unable to create all requested FlamdexReaders");
+                }
             }
-            else {
-                reader = new CachedFlamdexReaderReference(reference);
-            }
-            result.put(request, Pair.of(shardId, reader));
+        }
+        catch (final Throwable ex) {
+            throw new IOException("unable to create all requested FlamdexReaders " +
+                                  "in a timely fashion", ex);
         }
         return result;
     }
