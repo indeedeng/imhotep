@@ -1,7 +1,7 @@
 MODE=dbg
 
-CC=/usr/bin/gcc-4.9
-CPP=/usr/bin/g++-4.9
+CC=/usr/bin/gcc-5
+CPP=/usr/bin/g++-5
 BASE_CFLAGS=-Wall -Werror -I./include -I../include  -std=gnu99 -msse4.2 -fPIC -flax-vector-conversions -fno-omit-frame-pointer -flto
 BASE_CPPFLAGS=-Wall -Werror -I./include -I../include -I/usr/include/boost -msse4.2 -std=c++11 -fPIC -flto
 
@@ -28,9 +28,9 @@ LIBS=\
 	-lboost_filesystem      \
 	-lboost_program_options \
 	-lboost_system          \
-	-lprofiler              \
 	-lyaml-cpp              \
 	-lm                     \
+#	-lprofiler              \
 #	-lm -lstdc++
 
 TESTS := \
@@ -148,7 +148,7 @@ TGS_OBJS = \
     ../obj/packed_table.o     \
     ../obj/remote_output.o    \
     ../obj/socket.o           \
-    ../obj/binary_table_accumulate.o \
+    ../obj/table_accumulate.o \
     ../obj/table_accumulate.o \
     ../obj/tgs.o              \
     ../obj/unpacked_table.o   \
@@ -162,7 +162,8 @@ test_varintdecode: obj/test_varintdecode.o ../obj/varintdecode.o
 	$(CPP) $ -o test_varintdecode $(LIBS) $^
 
 dump_term: obj/dump_term.o $(TGS_OBJS)
-	$(CPP) $(LFLAGS) $ -o dump_term $(LIBS) $^ -L/usr/lib/x86_64-linux-gnu -lboost_system -lpthread #-lasan
+#	$(CPP) $(LFLAGS) $ -o dump_term $(LIBS) $^ -L/usr/lib/x86_64-linux-gnu -lboost_system -lpthread -lasan
+	$(CPP) $(LFLAGS) $ -o dump_term $(LIBS) $^ -L/usr/lib/x86_64-linux-gnu -lboost_system -lpthread
 
 packed_tree_perf_test: obj/packed_tree_perf_test.o ../obj/packed_table.o
 	$(CC) $ -flto -funroll-loops -O3 -o packed_tree_perf_test $^ -L/usr/lib/x86_64-linux-gnu -lrt
