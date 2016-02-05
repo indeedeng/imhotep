@@ -1,6 +1,7 @@
 package com.indeed.imhotep.fs;
 
 import com.almworks.sqlite4java.SQLiteException;
+import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
@@ -32,6 +33,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertFalse;
@@ -44,38 +46,53 @@ import static org.junit.Assert.assertTrue;
  */
 public class TestS3SqarManager {
     private static Map<String, String> testSettings;
-    private static final AmazonS3Client client = new AmazonS3Client();
+    private static AmazonS3Client client;
 
     @BeforeClass
     public static void init() throws IOException, SQLiteException, URISyntaxException {
         final String s3bucket;
         final String s3prefix;
+        final String s3key;
+        final String s3secret;
 
         Files.createDirectories(Paths.get(new URI("file:/tmp/cache")));
         Files.createDirectories(Paths.get(new URI("file:/tmp/tracking")));
 
+        {
+            final Properties properties;
+            final InputStream in;
+            final BasicAWSCredentials cred;
+
+            properties = new Properties();
+            in = ClassLoader.getSystemResourceAsStream("s3-test.properties");
+            properties.load(in);
+            in.close();
+
+            s3bucket = properties.getProperty("s3-bucket");
+            s3key = properties.getProperty("s3-key");
+            s3secret = properties.getProperty("s3-secret");
+            s3prefix = "";
+            cred = new BasicAWSCredentials(s3key, s3secret);
+            client = new AmazonS3Client(cred);
+        }
+        
         testSettings = new HashMap<>();
 
         testSettings.put("sqlite-max-mem", "50");
         testSettings.put("database-location", "/tmp/sqlite");
 
-        s3bucket = "foo";
-        s3prefix = "";
         testSettings.put("s3-bucket", s3bucket);
         testSettings.put("s3-prefix", s3prefix);
-        testSettings.put("s3-key", "");
-        testSettings.put("s3-secret", "");
+        testSettings.put("s3-key", s3key);
+        testSettings.put("s3-secret", s3secret);
 
-
-        testSettings.put("local-filestore-root-uri", "file:///tmp/data");
-
-        testSettings.put("remote-type", "local");
+        testSettings.put("remote-type", "s3");
         testSettings.put("local-tracking-root-uri", "file:///tmp/tracking");
         testSettings.put("cache-root-uri", "file:///tmp/cache");
         testSettings.put("reservationSize", "16000");
         testSettings.put("cacheSize", Long.toString(100 * 1024 * 1024));
 
-        createTestData(s3bucket, s3prefix);
+//        createTestData(s3bucket, s3prefix);
 
         FileSystems.newFileSystem(new URI("rcfs:/foo/"), testSettings);
     }
