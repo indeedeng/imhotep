@@ -1,4 +1,4 @@
-package com.indeed.imhotep.io.caching.RemoteCaching;
+package com.indeed.imhotep.fs;
 
 import org.apache.commons.io.FilenameUtils;
 
@@ -217,8 +217,12 @@ public class RemoteCachingPath implements Path {
     public Path relativize(Path other) {
         final RemoteCachingPath o = RemoteCachingFileSystemProvider.toRCP(other);
 
-        if (this.equals(this.getRoot())) {
-            return new RemoteCachingPath(this.fileSystem, o.path.substring(1));
+        if (this.getRoot().equals(o)) {
+            if (this.equals(o)) {
+                /* both are root */
+                return new RemoteCachingPath(this.fileSystem, ".");
+            }
+            return new RemoteCachingPath(this.fileSystem, makeRelative(this.path));
         }
         throw new UnsupportedOperationException();
     }
@@ -293,21 +297,21 @@ public class RemoteCachingPath implements Path {
         if (offsets.length < 1) {
             return null;
         }
-        return subpath(0, 1).toString();
+        return makeRelative(subpath(0, 1).toString());
     }
 
     public String getShardPath() {
         if (offsets.length < 2) {
             return null;
         }
-        return subpath(0, 2).toString();
+        return makeRelative(subpath(0, 2).toString());
     }
 
     public String getFilePath() {
         if (offsets.length < 3) {
             return null;
         }
-        return normalizedPath;
+        return makeRelative(subpath(2, getNameCount()).toString());
     }
 
     public ImhotepPathType getType() {
@@ -343,5 +347,18 @@ public class RemoteCachingPath implements Path {
 
     void setLocalOnly(boolean localOnly) {
         this.attrLocalOnly = localOnly;
+    }
+
+    private static String makeRelative(String path) {
+        if (path.startsWith(PATH_SEPARATOR_STR)) {
+            return path.substring(1);
+        } else {
+            return path;
+        }
+    }
+
+    @Override
+    public String toString() {
+        return normalizedPath;
     }
 }

@@ -1,4 +1,4 @@
-package com.indeed.imhotep.io.caching.RemoteCaching;
+package com.indeed.imhotep.fs;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
@@ -10,11 +10,13 @@ import java.io.InputStream;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileAttributeView;
 import java.nio.file.attribute.FileStoreAttributeView;
 import java.util.ArrayList;
 import java.util.List;
+
 
 /**
  * Created by darren on 12/29/15.
@@ -41,7 +43,7 @@ public class LocalFileStore extends RemoteFileStore {
 
                 try {
                     attributes = Files.readAttributes(input, BasicFileAttributes.class);
-                    return new RemoteFileInfo(input.toString(),
+                    return new RemoteFileInfo(input.getFileName().toString(),
                                               attributes.size(),
                                               !attributes.isDirectory());
                 } catch (IOException e) {
@@ -93,18 +95,22 @@ public class LocalFileStore extends RemoteFileStore {
 
     @Override
     public RemoteFileInfo readInfo(String shardPath) throws IOException {
-        final Path localPath = getLocalPath(shardPath);
-        final BasicFileAttributes attributes = Files.readAttributes(localPath,
-                                                                    BasicFileAttributes.class);
+        try {
+            final Path localPath = getLocalPath(shardPath);
+            final BasicFileAttributes attributes;
 
-        return new RemoteFileInfo(shardPath, attributes.size(), !attributes.isDirectory());
+            attributes = Files.readAttributes(localPath, BasicFileAttributes.class);
+            return new RemoteFileInfo(shardPath, attributes.size(), !attributes.isDirectory());
+        } catch (IOException e) {
+            return null;
+        }
     }
 
     @Override
     public void downloadFile(RemoteCachingPath path, Path tmpPath) throws IOException {
         final Path localPath = getLocalPath(path);
 
-        Files.copy(localPath, tmpPath);
+        Files.copy(localPath, tmpPath, StandardCopyOption.REPLACE_EXISTING);
     }
 
     @Override
@@ -117,7 +123,12 @@ public class LocalFileStore extends RemoteFileStore {
     }
 
     private Path getLocalPath(String path) {
-        final String relPath = path.substring(RemoteCachingPath.PATH_SEPARATOR_STR.length());
+        final String relPath;
+
+        if (path.startsWith(RemoteCachingPath.PATH_SEPARATOR_STR))
+            relPath = path.substring(RemoteCachingPath.PATH_SEPARATOR_STR.length());
+        else
+            relPath = path;
 
         return root.resolve(relPath);
     }

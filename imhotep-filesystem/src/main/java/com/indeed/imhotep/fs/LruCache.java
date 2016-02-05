@@ -1,4 +1,4 @@
-package com.indeed.imhotep.io.caching.RemoteCaching;
+package com.indeed.imhotep.fs;
 
 import gnu.trove.map.hash.TObjectIntHashMap;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -29,8 +29,10 @@ public class LruCache {
 
     public LruCache(Path cacheDirectory,
                     int defaultReservation,
+                    long cacheSize,
                     FileTracker fileTracker,
                     Loader loader) {
+        this.spaceRemaining = cacheSize;
         this.loader = loader;
         this.cacheDirectory = cacheDirectory;
         this.defaultReservation = defaultReservation;
@@ -43,7 +45,7 @@ public class LruCache {
             final long fileSize = loader.getFileLen(path);
             if (fileSize == -1) {
                 /* file not present remotely */
-                return null;
+                throw new FileNotFoundException(path.toString());
             }
             loadFile(path, cachePath, fileSize);
         } else {
@@ -113,6 +115,8 @@ public class LruCache {
         try {
             final Path tmpPath = generateTmpPath();
             loader.load(path, tmpPath);
+            /* make sure the directories exist */
+            Files.createDirectories(cachePath.getParent());
             if (! tryMove(tmpPath, cachePath)) {
                 /* file has already been loaded */
                 Files.delete(tmpPath);

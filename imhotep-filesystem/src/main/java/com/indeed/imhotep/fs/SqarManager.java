@@ -11,22 +11,25 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.indeed.imhotep.io.caching.RemoteCaching;
+ package com.indeed.imhotep.fs;
 
 import com.almworks.sqlite4java.*;
 import com.google.common.base.Charsets;
+import com.google.common.io.ByteStreams;
 import com.indeed.imhotep.archive.ArchiveUtils;
 import com.indeed.imhotep.archive.FileMetadata;
 import com.indeed.imhotep.archive.compression.SquallArchiveCompressor;
-import com.indeed.imhotep.io.caching.RemoteCaching.sqlite.AddNewSqarJob;
-import com.indeed.imhotep.io.caching.RemoteCaching.sqlite.LookupSqarIdJob;
-import com.indeed.imhotep.io.caching.RemoteCaching.sqlite.ReadPathInfoJob;
-import com.indeed.imhotep.io.caching.RemoteCaching.sqlite.ScanSqarDirJob;
+import com.indeed.imhotep.fs.sqlite.AddNewSqarJob;
+import com.indeed.imhotep.fs.sqlite.InitDBJob;
+import com.indeed.imhotep.fs.sqlite.LookupSqarIdJob;
+import com.indeed.imhotep.fs.sqlite.ReadPathInfoJob;
+import com.indeed.imhotep.fs.sqlite.ScanSqarDirJob;
 import org.apache.log4j.Logger;
 
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -42,29 +45,68 @@ public class SqarManager {
 
     private final SQLiteQueue queue;
 
+    static {
+        try {
+            final String osName = System.getProperty("os.name");
+            final String arch = System.getProperty("os.arch");
+            final String libname = "libsqlite4java"
+                    + "-" + osName.toLowerCase()
+                    + "-" + arch.toLowerCase()
+                    + "-1.0.392.so";
+            final String resourcePath = "/native/" + osName + "-" + arch + "/" + libname;
+            final InputStream is = SqarManager.class.getResourceAsStream(resourcePath);
+            if (is == null) {
+                throw new FileNotFoundException(
+                        "unable to find sqlite4java-linux-amd64-1.0.392 "
+                                + "at resource path " + resourcePath);
+            }
+            final File tempFile = File.createTempFile("libsqlite", ".so");
+            final File libFile = new File(tempFile.getParent(), libname);
+            tempFile.delete();
+            final OutputStream os = new FileOutputStream(libFile);
+            ByteStreams.copy(is, os);
+            os.close();
+            is.close();
+            SQLite.setLibraryPath(libFile.getParent());
+            libFile.deleteOnExit();
+        } catch (Throwable e) {
+            e.printStackTrace();
+            log.warn("Unable to copy libsqlite to tmp file, "
+                             + "will look in java.library.path", e);
+        }
+    }
+
+
     public SqarManager(Map<String, String> settings) throws SQLiteException {
         final int maxMemUsage;
-        final String maxMem = settings.get("sqllite-max-mem");
+        final String maxMem = settings.get("sqlite-max-mem");
 
         if (maxMem != null) {
-            maxMemUsage = Integer.getInteger(maxMem);
+            maxMemUsage = Integer.parseInt(maxMem);
         } else {
             maxMemUsage = DEFAULT_MAX_MEM_USAGE;
         }
         SQLite.setSoftHeapLimit(maxMemUsage);
 
-        final String dbFile = settings.get("database-location");
-        this.queue = new SQLiteQueue(new File(dbFile));
+        final File dbFile = new File(settings.get("database-location"));
+
+        this.queue = new SQLiteQueue(dbFile);
+        this.queue.start();
+
+        /* initialized DB */
+        final InitDBJob initJob = new InitDBJob();
+        queue.execute(initJob).complete();
     }
 
     public static boolean isSqar(RemoteCachingPath path, RemoteFileStore fs) throws IOException {
-        if (ImhotepPathType.FILE.equals(path.getType())
-                || ImhotepPathType.SHARD.equals(path.getType())) {
-            final SqarPathInfo info = new SqarPathInfo(path);
-            final RemoteFileStore.RemoteFileInfo rfi = fs.readInfo(info.sqarDir);
-            return rfi != null && rfi.isFile;
+        final SqarPathInfo info = new SqarPathInfo(path);
+        final RemoteFileStore.RemoteFileInfo rfi;
+
+        if (info.sqarDir == null) {
+            return false;
         }
-        return false;
+        rfi = fs.readInfo(info.sqarDir, false);
+        return rfi != null && !rfi.isFile;
     }
 
     public static boolean isSqarDir(String dirName) throws IOException {
@@ -156,6 +198,11 @@ public class SqarManager {
                  */
                 continue;
             }
+            for (int i = 0; i < loc; i++) {
+                if (fname.charAt(i) == DELIMITER) {
+                    dirList.add(fname.substring(0, i));
+                }
+            }
             dirList.add(fname.substring(0, loc));
         }
         /* add directories */
@@ -168,19 +215,43 @@ public class SqarManager {
         return queue.execute(addNewSqarJob).complete();
     }
 
-    public FileMetadata getPathInfo(RemoteCachingPath path) throws IOException {
-        final SqarPathInfo pathInfo = new SqarPathInfo(path);
+    public PathInfoResult getPathInfo(RemoteCachingPath path) throws IOException {
+        final FileMetadata resultMetadata;
 
         /* check to see if the sqar's metadata has been downloaded before */
-        final LookupSqarIdJob lookupSqarIdJob = new LookupSqarIdJob(pathInfo.sqarDir);
+        final LookupSqarIdJob lookupSqarIdJob = new LookupSqarIdJob(path.getShardPath());
         final int sqarId = queue.execute(lookupSqarIdJob).complete();
         if (sqarId == -1) {
-            return null;
+            return PathInfoResult.ARCHIVE_MISSING;
+        }
+
+        /* top level shard directory is not listed in db,
+         * so we need to check for that case special
+         */
+        if (ImhotepPathType.SHARD.equals(path.getType())) {
+            resultMetadata = new FileMetadata("", false);
+            return new PathInfoResult(resultMetadata);
         }
 
         /* find the info about this compressed file */
         final ReadPathInfoJob readPathInfoJob = new ReadPathInfoJob(sqarId, path.getFilePath());
-        return queue.execute(readPathInfoJob).complete();
+        resultMetadata = queue.execute(readPathInfoJob).complete();
+        if (resultMetadata == null) {
+            return PathInfoResult.FILE_MISSING;
+        } else {
+            return new PathInfoResult(resultMetadata);
+        }
+    }
+
+    public static final class PathInfoResult {
+        public static final PathInfoResult ARCHIVE_MISSING = new PathInfoResult(null);
+        public static final PathInfoResult FILE_MISSING = new PathInfoResult(null);
+
+        public final FileMetadata metadata;
+
+        public PathInfoResult(FileMetadata metadata) {
+            this.metadata = metadata;
+        }
     }
 
     public String getFullArchivePath(RemoteCachingPath path, String archiveFile) {
@@ -213,10 +284,8 @@ public class SqarManager {
     }
 
     public ArrayList<RemoteFileStore.RemoteFileInfo> readDir(RemoteCachingPath path) {
-        final SqarPathInfo pathInfo = new SqarPathInfo(path);
-
         /* check to see if the sqar's metadata has been downloaded before */
-        final LookupSqarIdJob lookupSqarIdJob = new LookupSqarIdJob(pathInfo.sqarDir);
+        final LookupSqarIdJob lookupSqarIdJob = new LookupSqarIdJob(path.getShardPath());
         final int sqarId = queue.execute(lookupSqarIdJob).complete();
         if (sqarId == -1) {
             return null;

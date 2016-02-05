@@ -1,7 +1,8 @@
-package com.indeed.imhotep.io.caching.RemoteCaching;
+package com.indeed.imhotep.fs;
 
 import com.almworks.sqlite4java.SQLiteException;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -235,7 +236,10 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
 
     @Override
     public void checkAccess(Path path, AccessMode... modes) throws IOException {
-        // TODO: something?
+        final RemoteCachingPath rcPath = toRCP(path);
+        if (fileSystem.lookupAttributes(rcPath) == null) {
+            throw new FileNotFoundException(path.toString());
+        }
     }
 
     @Override
@@ -271,6 +275,9 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
 
         final RemoteCachingPath rcPath = toRCP(path);
         final ImhotepFileAttributes attrs = fileSystem.lookupAttributes(rcPath);
+        if (attrs == null) {
+            throw new FileNotFoundException(path.toString());
+        }
         return (A) attrs;
     }
 

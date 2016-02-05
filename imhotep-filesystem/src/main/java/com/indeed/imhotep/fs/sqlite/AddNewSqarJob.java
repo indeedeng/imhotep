@@ -1,4 +1,4 @@
-package com.indeed.imhotep.io.caching.RemoteCaching.sqlite;
+package com.indeed.imhotep.fs.sqlite;
 
 import com.almworks.sqlite4java.SQLiteConnection;
 import com.almworks.sqlite4java.SQLiteException;
@@ -15,24 +15,25 @@ import java.util.List;
 public class AddNewSqarJob extends SQLiteJob<Integer> {
     private static final String BEGIN_TRANSACTION = "Begin transaction;";
     private static final String INSERT_SHARD_NAME =
-            "insert or ignore into shard_names (name) values (?);";
-    private static final String SELECT_SHARD_ID = "select id from shard_names where name = ?;";
+            "INSERT OR IGNORE INTO sqar_names (name) VALUES (?);";
+    private static final String SELECT_SHARD_ID = "SELECT id FROM sqar_names WHERE name = ?;";
     private static final String INSERT_FILE_NAME =
-            "insert or ignore into file_names (name) values (?);";
+            "INSERT OR IGNORE INTO file_names (name) VALUES (?);";
     private static final String SELECT_FILE_NAME_ID =
-            "select id from file_names where name = ?;";
+            "SELECT id FROM file_names WHERE name = ?;";
     private static final String INSERT_FILE_JOIN_VALUE =
-            "insert or ignore into file_ids (sqar_id, file_name_id) values (?, ?);";
+            "INSERT OR IGNORE INTO file_ids (sqar_id, file_name_id, type) VALUES (?, ?, ?);";
     private static final String SELECT_FILE_ID =
-            "select id from file_ids where sqar_id = ? AND file_name_id = ?;";
+            "SELECT id FROM file_ids WHERE sqar_id = ? AND file_name_id = ?;";
     private static final String INSERT_ARCHIVE_NAME =
-            "insert or ignore into archive_names (name) values (?);";
+            "INSERT OR IGNORE INTO archive_names (name) VALUES (?);";
     private static final String SELECT_ARCHIVE_ID =
-            "select id from archive_names where name = ?;";
-    private static final String INSERT_FILE_INFO = "insert or replace into file_info " +
-            "(file_id, archive_id, archive_offset, " +
-            "unpacked_size, packed_size, timestamp, sig_hi, sig_low) " +
-            "values (?, ?, ?, ?, ?, ?, ?, ?);";
+            "SELECT id FROM archive_names WHERE name = ?;";
+    private static final String INSERT_FILE_INFO = "INSERT or replace into file_info "
+            + "(file_id, archive_id, archive_offset, "
+            + "unpacked_size, packed_size, timestamp, sig_hi, sig_low,"
+            + "compressor_type, is_file) " +
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
     private static final String END_TRANSACTION = "End transaction;";
 
     private final String shardName;
@@ -56,10 +57,16 @@ public class AddNewSqarJob extends SQLiteJob<Integer> {
                                               INSERT_FILE_NAME,
                                               md.getFilename(),
                                               connection);
-                final int fileId = getFileId(sqarId, filenameId, connection);
-                final int archiveId = getXId(SELECT_ARCHIVE_ID, INSERT_ARCHIVE_NAME,
-                                             md.getArchiveFilename(),
-                                             connection);
+                final int fileId = getFileId(sqarId, filenameId, md.isFile(), connection);
+                final int archiveId;
+                if (md.isFile()) {
+                    archiveId = getXId(SELECT_ARCHIVE_ID,
+                                       INSERT_ARCHIVE_NAME,
+                                       md.getArchiveFilename(),
+                                       connection);
+                } else {
+                    archiveId = -1;
+                }
                 insertIntoFileInfo(fileId,
                                    archiveId,
                                    md.getStartOffset(),
@@ -107,7 +114,10 @@ public class AddNewSqarJob extends SQLiteJob<Integer> {
         }
     }
 
-    private static int getFileId(int sqarId, int filenameId, SQLiteConnection connection) throws
+    private static int getFileId(int sqarId,
+                                 int filenameId,
+                                 boolean isFile,
+                                 SQLiteConnection connection) throws
             Exception {
         SQLiteStatement selectStatement = connection.prepare(SELECT_FILE_ID, true);
         SQLiteStatement insertStatement = connection.prepare(INSERT_FILE_JOIN_VALUE, true);
@@ -120,6 +130,7 @@ public class AddNewSqarJob extends SQLiteJob<Integer> {
             } else {
                 insertStatement.bind(1, sqarId);
                 insertStatement.bind(2, filenameId);
+                insertStatement.bind(3, isFile ? 1 : 0);
                 insertStatement.stepThrough();
                 selectStatement.reset(false);
                 if (selectStatement.step()) {

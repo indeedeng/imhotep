@@ -11,7 +11,7 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.indeed.imhotep.io.caching.RemoteCaching;
+package com.indeed.imhotep.fs;
 
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.BasicAWSCredentials;
@@ -31,6 +31,7 @@ import java.nio.file.Path;
 import java.nio.file.attribute.FileAttributeView;
 import java.nio.file.attribute.FileStoreAttributeView;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 public class S3RemoteFileStore extends RemoteFileStore {
@@ -57,45 +58,6 @@ public class S3RemoteFileStore extends RemoteFileStore {
         client = new AmazonS3Client(cred);
     }
 
-    private ArrayList<String> getCommonPrefixFromListing(ObjectListing listing, String prefix) {
-        ArrayList<String> results = new ArrayList<>(100);
-
-        for (String commonPrefix : listing.getCommonPrefixes()) {
-            final String dirname;
-
-            /* remove prefix and trailing delimiter */
-            dirname = commonPrefix
-                    .substring(prefix.length(), commonPrefix.length() - DELIMITER.length());
-            if (dirname.length() == 0 || dirname.contains(DELIMITER)) {
-                log.error("Error parsing S3 object prefix.  Prefix: " + commonPrefix);
-                continue;
-            }
-            results.add(dirname);
-        }
-
-        return results;
-    }
-
-    private void getFilenamesFromListing(ObjectListing listing,
-                                         String prefix,
-                                         ArrayList<String> filenames,
-                                         ArrayList<Long> sizes) {
-        for (S3ObjectSummary summary : listing.getObjectSummaries()) {
-            final String key = summary.getKey();
-            final String filename;
-            final long size;
-
-            filename = key.substring(prefix.length());
-            size = summary.getSize();
-            if (filename.length() == 0 || filename.contains(DELIMITER)) {
-                log.error("Error parsing S3 object Key.  Key: " + key);
-                continue;
-            }
-            filenames.add(filename);
-            sizes.add(size);
-        }
-    }
-
     private ObjectListing getListing(String s3path, int maxResults, boolean recursive) {
         final ListObjectsRequest reqParams;
         final ObjectListing listing;
@@ -115,22 +77,13 @@ public class S3RemoteFileStore extends RemoteFileStore {
         return listing;
     }
 
-    private ObjectMetadata getMetadata(RemoteCachingPath path) {
-        final String s3path = getS3path(path);
-        final ObjectMetadata metadata;
-
-        try {
-            metadata = client.getObjectMetadata(s3bucket, s3path);
-        } catch (AmazonServiceException e) {
-            return null;
-        }
-
-        return metadata;
-    }
-
     private String getS3path(RemoteCachingPath path) {
         if (s3prefix != null && !s3prefix.isEmpty()) {
             return s3prefix + path.normalize().toString();
+        }
+
+        if (path.isAbsolute()) {
+            return path.toString().substring(1);
         }
         return path.toString();
     }
@@ -139,29 +92,31 @@ public class S3RemoteFileStore extends RemoteFileStore {
         if (s3prefix != null && !s3prefix.isEmpty()) {
             return s3prefix + pathStr;
         }
+
+        if (pathStr.charAt(0) == '/') {
+            return pathStr.substring(1);
+        }
         return pathStr;
     }
 
     @Override
     public ArrayList<RemoteFileInfo> listDir(RemoteCachingPath path) {
-        String s3path = getS3path(path);
+        final String s3path = getS3path(path);
+        final String s3DirPath = (s3path.endsWith(DELIMITER)) ? s3path : s3path + DELIMITER;
         final ArrayList<RemoteFileInfo> results = new ArrayList<>(100);
-        final ArrayList<String> filenames = new ArrayList<>(100);
-        final ArrayList<Long> fileSizes = new ArrayList<>(100);
         ObjectListing listing;
 
-        if (!s3path.isEmpty()) {
-            s3path += DELIMITER;
-        }
-
         /* grab first set of keys for the object we found */
-        listing = getListing(s3path, -1, false);
-        getFilenamesFromListing(listing, s3path, filenames, fileSizes);
-        for (int i = 0; i < filenames.size(); i++) {
-            results.add(new RemoteFileInfo(filenames.get(i), fileSizes.get(i), true));
+        listing = getListing(s3DirPath, -1, false);
+        for (S3ObjectSummary summary : listing.getObjectSummaries()) {
+            /* remove prefix */
+            final String filename = summary.getKey().substring(s3DirPath.length());
+            results.add(new RemoteFileInfo(filename, summary.getSize(), true));
         }
         /* add the common prefixes */
-        for (String dirname : getCommonPrefixFromListing(listing, s3path)) {
+        for (String prefix : listing.getCommonPrefixes()) {
+                /* remove prefix and trailing delimiter */
+            final String dirname = prefix.substring(s3DirPath.length(), prefix.length() - 1);
             results.add(new RemoteFileInfo(dirname, -1, false));
         }
 
@@ -170,12 +125,15 @@ public class S3RemoteFileStore extends RemoteFileStore {
         while (listing.isTruncated()) {
             listing = client.listNextBatchOfObjects(listing);
 
-            getFilenamesFromListing(listing, s3path, filenames, fileSizes);
-            for (int i = 0; i < filenames.size(); i++) {
-                results.add(new RemoteFileInfo(filenames.get(i), fileSizes.get(i), true));
+            for (S3ObjectSummary summary : listing.getObjectSummaries()) {
+            /* remove prefix */
+                final String filename = summary.getKey().substring(s3DirPath.length());
+                results.add(new RemoteFileInfo(filename, summary.getSize(), true));
             }
             /* add the common prefixes */
-            for (String dirname : getCommonPrefixFromListing(listing, s3path)) {
+            for (String prefix : listing.getCommonPrefixes()) {
+                /* remove prefix and trailing delimiter */
+                final String dirname = prefix.substring(s3DirPath.length(), prefix.length() - 1);
                 results.add(new RemoteFileInfo(dirname, -1, false));
             }
         }
@@ -187,26 +145,60 @@ public class S3RemoteFileStore extends RemoteFileStore {
         return results;
     }
 
+
     @Override
     public RemoteFileInfo readInfo(String pathStr) {
-        final String s3path = getS3path(pathStr);
+        final RemoteFileInfo result;
 
-        final ObjectListing listing = getListing(s3path, 1, true);
-        if (listing.getObjectSummaries().size() == 0) {
-            return null;
-        }
-
-        final S3ObjectSummary summary = listing.getObjectSummaries().get(0);
-        final String key = summary.getKey();
-        if (key.equals(s3path)) {
-            return new RemoteFileInfo(pathStr, summary.getSize(), true);
-        } else if (s3path.isEmpty()) {
-            return new RemoteFileInfo(pathStr, -1, false);
-        } else if (key.startsWith(s3path + DELIMITER)) {
-            return new RemoteFileInfo(pathStr, -1, false);
+        result = readFileInfo(pathStr);
+        if (result != null) {
+            return result;
         } else {
-            return null;
+            return readDirInfo(pathStr);
         }
+    }
+
+    @Override
+    public RemoteFileInfo readInfo(String pathStr, boolean isFile) {
+        if (isFile) {
+            return readFileInfo(pathStr);
+        } else {
+            return readDirInfo(pathStr);
+        }
+    }
+
+    private RemoteFileInfo readFileInfo(String pathStr) {
+        final String s3path = getS3path(pathStr);
+        final ObjectListing listing = getListing(s3path, 1, true);
+
+        final List<S3ObjectSummary> summaries = listing.getObjectSummaries();
+        if (summaries.size() > 0) {
+            final S3ObjectSummary summary = summaries.get(0);
+            final String key = summary.getKey();
+            if (key.equals(s3path)) {
+                /* found a file matching the path */
+                return new RemoteFileInfo(pathStr, summary.getSize(), true);
+            }
+        }
+        return null;
+    }
+
+    private RemoteFileInfo readDirInfo(String pathStr) {
+        final String s3path = getS3path(pathStr);
+        final String s3DirPath = (s3path.endsWith(DELIMITER)) ? s3path : s3path + DELIMITER;
+
+        final ObjectListing listing = getListing(s3DirPath, 1, true);
+
+        final List<S3ObjectSummary> summaries = listing.getObjectSummaries();
+        if (summaries.size() > 0) {
+            final S3ObjectSummary summary = summaries.get(0);
+            final String key = summary.getKey();
+            if (key.startsWith(s3DirPath)) {
+                /* found a directory matching the path */
+                return new RemoteFileInfo(pathStr, -1, false);
+            }
+        }
+        return null;
     }
 
     @Override

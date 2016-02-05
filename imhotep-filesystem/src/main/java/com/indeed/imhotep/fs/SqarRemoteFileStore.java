@@ -1,4 +1,4 @@
-package com.indeed.imhotep.io.caching.RemoteCaching;
+package com.indeed.imhotep.fs;
 
 import com.almworks.sqlite4java.SQLiteException;
 import com.indeed.imhotep.archive.FileMetadata;
@@ -7,6 +7,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.FileAttributeView;
@@ -94,6 +95,17 @@ public class SqarRemoteFileStore extends RemoteFileStore {
     }
 
     @Override
+    public RemoteFileInfo readInfo(RemoteCachingPath path, boolean isFile) throws IOException {
+        final RemoteFileInfo result = readInfo(path);
+
+        if (result != null && result.isFile == isFile) {
+            return result;
+        } else {
+            return null;
+        }
+    }
+
+    @Override
     public RemoteFileInfo readInfo(String path) throws IOException {
         throw new UnsupportedOperationException();
     }
@@ -106,6 +118,9 @@ public class SqarRemoteFileStore extends RemoteFileStore {
 
         if (md == null) {
             throw new FileNotFoundException("Cannot find shard for " + path);
+        }
+        if (!md.isFile()) {
+            throw new NoSuchFileException(path.toString() + " is not a file");
         }
 
         archivePath = sqarManager.getFullArchivePath(path, md.getArchiveFilename());
@@ -129,12 +144,17 @@ public class SqarRemoteFileStore extends RemoteFileStore {
     }
 
     private FileMetadata getMetadata(RemoteCachingPath path) throws IOException {
-        FileMetadata md = sqarManager.getPathInfo(path);
-        if (md == null) {
+        SqarManager.PathInfoResult pathInfoResult = sqarManager.getPathInfo(path);
+
+        if (pathInfoResult == SqarManager.PathInfoResult.ARCHIVE_MISSING) {
             loadMetadataForSqar(path);
-            md = sqarManager.getPathInfo(path);
+            pathInfoResult = sqarManager.getPathInfo(path);
         }
-        return md;
+        if (pathInfoResult == SqarManager.PathInfoResult.FILE_MISSING) {
+            return null;
+        }
+
+        return pathInfoResult.metadata;
     }
 
     private void loadMetadataForSqar(RemoteCachingPath path) throws IOException {

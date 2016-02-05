@@ -1,4 +1,4 @@
-package com.indeed.imhotep.io.caching.RemoteCaching;
+package com.indeed.imhotep.fs;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,7 +33,21 @@ public abstract class RemoteFileStore extends FileStore {
         return readInfo(path.toString());
     }
 
+    public RemoteFileInfo readInfo(RemoteCachingPath path, boolean isFile) throws IOException {
+        return readInfo(path.toString(), isFile);
+    }
+
     public abstract RemoteFileInfo readInfo(String shardPath) throws IOException;
+
+    public RemoteFileInfo readInfo(String shardPath, boolean isFile) throws IOException {
+        final RemoteFileInfo result = readInfo(shardPath);
+
+        if (result != null && result.isFile == isFile) {
+            return result;
+        } else {
+            return null;
+        }
+    }
 
     public abstract void downloadFile(RemoteCachingPath path, Path tmpPath) throws IOException;
 

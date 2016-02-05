@@ -1,4 +1,4 @@
-package com.indeed.imhotep.io.caching.RemoteCaching;
+package com.indeed.imhotep.fs;
 
 import com.almworks.sqlite4java.SQLiteException;
 import com.google.common.base.Function;
@@ -16,9 +16,14 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystems;
+import java.nio.file.FileVisitResult;
+import java.nio.file.FileVisitor;
 import java.nio.file.Files;
+import java.nio.file.NotDirectoryException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -41,9 +46,12 @@ public class TestSqarManager {
     @BeforeClass
     public static void init() throws IOException, SQLiteException, URISyntaxException {
 
+        Files.createDirectories(Paths.get(new URI("file:/tmp/cache")));
+        Files.createDirectories(Paths.get(new URI("file:/tmp/tracking")));
+
         testSettings = new HashMap<>();
 
-        testSettings.put("sqllite-max-mem", "50");
+        testSettings.put("sqlite-max-mem", "50");
         testSettings.put("database-location", "/tmp/sqlite");
 
         testSettings.put("s3-bucket", "");
@@ -58,12 +66,32 @@ public class TestSqarManager {
         testSettings.put("local-tracking-root-uri", "file:///tmp/tracking");
         testSettings.put("cache-root-uri", "file:///tmp/cache");
         testSettings.put("reservationSize", "16000");
+        testSettings.put("cacheSize", Long.toString(100 * 1024 * 1024));
 
         FileSystems.newFileSystem(new URI("rcfs:/foo/"), testSettings);
     }
 
     @AfterClass
-    public static void cleanup() throws IOException {
+    public static void cleanup() throws IOException, URISyntaxException {
+        final RemovalVistor removalVistor = new RemovalVistor();
+
+        Files.walkFileTree(Paths.get(new URI("file:/tmp/cache")), removalVistor);
+        Files.walkFileTree(Paths.get(new URI("file:/tmp/tracking")), removalVistor);
+        Files.delete(Paths.get(new URI("file:/tmp/sqlite")));
+    }
+
+    static class RemovalVistor extends SimpleFileVisitor<Path> {
+        @Override
+        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+            Files.delete(file);
+            return FileVisitResult.CONTINUE;
+        }
+
+        @Override
+        public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+            Files.delete(dir);
+            return FileVisitResult.CONTINUE;
+        }
 
     }
 
@@ -191,10 +219,11 @@ public class TestSqarManager {
     public void testSqarListDirectory() throws IOException, URISyntaxException {
         DirectoryStream<Path> result;
         Path target;
-        String[] dir0 = {"1", "2", "3", "4", "5", "test-archive"};
-        String[] dir123 = {"4", "123.file"};
-        String[] dir1 = {"1", "2", "1.file"};
+        final String[] dir0 = {"1", "2", "3", "4", "5", "test-archive"};
+        final String[] dir123 = {"4", "123.file"};
+        final String[] dir1 = {"1", "2", "1.file"};
         String[] dir11 = new String[2502];
+        boolean success;
 
         for (int i = 0; i < 2500; i++) {
             dir11[i] = Integer.toString(i) + ".file";
@@ -224,25 +253,49 @@ public class TestSqarManager {
         verifyIterator(result, dir1);
 
         target = Paths.get(new URI("rcfs:/testData/test-archive/1/2/3/4/5/12345.file"));
-        result = Files.newDirectoryStream(target);
-        assertFalse(result.iterator().hasNext());
+        try{
+            result = Files.newDirectoryStream(target);
+            success = false;
+        } catch (NotDirectoryException e) {
+            success = true;
+        }
+        assertTrue(success);
         target = Paths.get(new URI("rcfs:/testData/test-archive/1/2/3/4/1234.file"));
-        result = Files.newDirectoryStream(target);
-        assertFalse(result.iterator().hasNext());
+        try {
+            result = Files.newDirectoryStream(target);
+            success = false;
+        } catch (NotDirectoryException e) {
+            success = true;
+        }
+        assertTrue(success);
         target = Paths.get(new URI("rcfs:/testData/test-archive/3/4/5/345.file"));
-        result = Files.newDirectoryStream(target);
-        assertFalse(result.iterator().hasNext());
+        try {
+            result = Files.newDirectoryStream(target);
+            success = false;
+        } catch (NotDirectoryException e) {
+            success = true;
+        }
+        assertTrue(success);
         target = Paths.get(new URI("rcfs:/testData/test-archive/4/5/45.file"));
-        result = Files.newDirectoryStream(target);
-        assertFalse(result.iterator().hasNext());
+        try {
+            result = Files.newDirectoryStream(target);
+            success = false;
+        } catch (NotDirectoryException e) {
+            success = true;
+        }
+        assertTrue(success);
         target = Paths.get(new URI("rcfs:/testData/test-archive/6"));
-        result = Files.newDirectoryStream(target);
-        assertFalse(result.iterator().hasNext());
+        try {
+            result = Files.newDirectoryStream(target);
+            success = false;
+        } catch (NotDirectoryException e) {
+            success = true;
+        }
+        assertTrue(success);
 
         target = Paths.get(new URI("rcfs:/testData/test-archive/1/1/"));
         result = Files.newDirectoryStream(target);
         verifyIterator(result, dir11);
-
     }
 
     private void verifyIterator(Iterable<Path> iterable, String[] validData) {
@@ -308,121 +361,10 @@ public class TestSqarManager {
         assertNull(result);
         assertTrue(sawException);
 
-        sawException = false;
-        result = null;
-        try {
-            target = Paths.get(new URI("rcfs:/testData/test-archive/1/2/3/4/5/12345.file"));
-            result = Files.newInputStream(target);
-
-            int data;
-            InputStreamReader fis = null;
-            String expected = "";
-            try {
-                for (int i = 0; i < 12345; i++) {
-                    expected += "foo!";
-                }
-
-                fis = new InputStreamReader(result);
-                for (int i = 0; i < expected.length(); i++) {
-                    data = fis.read();
-                    assert (data == expected.charAt(i));
-                }
-                assert (fis.read() == -1);
-            } finally {
-                fis.close();
-            }
-        } catch (IOException e) {
-            sawException = true;
-        }
-        assertNotNull(result);
-        assertFalse(sawException);
-
-        sawException = false;
-        result = null;
-        try {
-            target = Paths.get(new URI("rcfs:/testData/test-archive/1/2/3/4/1234.file"));
-            result = Files.newInputStream(target);
-
-            int data;
-            InputStreamReader fis = null;
-            String expected = "";
-            try {
-                for (int i = 0; i < 1234; i++) {
-                    expected += "foo!";
-                }
-
-                fis = new InputStreamReader(result);
-                for (int i = 0; i < expected.length(); i++) {
-                    data = fis.read();
-                    assert (data == expected.charAt(i));
-                }
-                assert (fis.read() == -1);
-            } finally {
-                fis.close();
-            }
-        } catch (IOException e) {
-            sawException = true;
-        }
-        assertNotNull(result);
-        assertFalse(sawException);
-
-        sawException = false;
-        result = null;
-        try {
-            target = Paths.get(new URI("rcfs:/testData/test-archive/3/4/5/345.file"));
-            result = Files.newInputStream(target);
-
-            int data;
-            InputStreamReader fis = null;
-            String expected = "";
-            try {
-                for (int i = 0; i < 345; i++) {
-                    expected += "foo!";
-                }
-
-                fis = new InputStreamReader(result);
-                for (int i = 0; i < expected.length(); i++) {
-                    data = fis.read();
-                    assert (data == expected.charAt(i));
-                }
-                assert (fis.read() == -1);
-            } finally {
-                fis.close();
-            }
-        } catch (IOException e) {
-            sawException = true;
-        }
-        assertNotNull(result);
-        assertFalse(sawException);
-
-        sawException = false;
-        result = null;
-        try {
-            target = Paths.get(new URI("rcfs:/testData/test-archive/4/5/45.file"));
-            result = Files.newInputStream(target);
-
-            int data;
-            InputStreamReader fis = null;
-            String expected = "";
-            try {
-                for (int i = 0; i < 45; i++) {
-                    expected += "foo!";
-                }
-
-                fis = new InputStreamReader(result);
-                for (int i = 0; i < expected.length(); i++) {
-                    data = fis.read();
-                    assert (data == expected.charAt(i));
-                }
-                assert (fis.read() == -1);
-            } finally {
-                fis.close();
-            }
-        } catch (IOException e) {
-            sawException = true;
-        }
-        assertNotNull(result);
-        assertFalse(sawException);
+        testInputStream("rcfs:/testData/test-archive/1/2/3/4/5/12345.file", 12345);
+        testInputStream("rcfs:/testData/test-archive/1/2/3/4/1234.file", 1234);
+        testInputStream("rcfs:/testData/test-archive/3/4/5/345.file", 345);
+        testInputStream("rcfs:/testData/test-archive/4/5/45.file", 45);
     }
 
     @Test
@@ -551,104 +493,27 @@ public class TestSqarManager {
         assertNull(result);
         assertTrue(sawException);
 
+        testInputStream("rcfs:/testData/1/2/3/4/5/12345.file", 12345);
+        testInputStream("rcfs:/testData/1/2/3/4/1234.file", 1234);
+        testInputStream("rcfs:/testData/3/4/5/345.file", 345);
+        testInputStream("rcfs:/testData/4/5/45.file", 45);
+    }
+
+    private void testInputStream(String uri, int len) throws URISyntaxException {
+        boolean sawException;
+        InputStream result;
+        Path target;
         sawException = false;
         result = null;
         try {
-            target = Paths.get(new URI("rcfs:/testData/1/2/3/4/5/12345.file"));
+            target = Paths.get(new URI(uri));
             result = Files.newInputStream(target);
 
             int data;
             InputStreamReader fis = null;
             String expected = "";
             try {
-                for (int i = 0; i < 12345; i++) {
-                    expected += "foo!";
-                }
-
-                fis = new InputStreamReader(result);
-                for (int i = 0; i < expected.length(); i++) {
-                    data = fis.read();
-                    assert (data == expected.charAt(i));
-                }
-                assert (fis.read() == -1);
-            } finally {
-                fis.close();
-            }
-        } catch (IOException e) {
-            sawException = true;
-        }
-        assertNotNull(result);
-        assertFalse(sawException);
-
-        sawException = false;
-        result = null;
-        try {
-            target = Paths.get(new URI("rcfs:/testData/1/2/3/4/1234.file"));
-            result = Files.newInputStream(target);
-
-            int data;
-            InputStreamReader fis = null;
-            String expected = "";
-            try {
-                for (int i = 0; i < 1234; i++) {
-                    expected += "foo!";
-                }
-
-                fis = new InputStreamReader(result);
-                for (int i = 0; i < expected.length(); i++) {
-                    data = fis.read();
-                    assert (data == expected.charAt(i));
-                }
-                assert (fis.read() == -1);
-            } finally {
-                fis.close();
-            }
-        } catch (IOException e) {
-            sawException = true;
-        }
-        assertNotNull(result);
-        assertFalse(sawException);
-
-        sawException = false;
-        result = null;
-        try {
-            target = Paths.get(new URI("rcfs:/testData/3/4/5/345.file"));
-            result = Files.newInputStream(target);
-
-            int data;
-            InputStreamReader fis = null;
-            String expected = "";
-            try {
-                for (int i = 0; i < 345; i++) {
-                    expected += "foo!";
-                }
-
-                fis = new InputStreamReader(result);
-                for (int i = 0; i < expected.length(); i++) {
-                    data = fis.read();
-                    assert (data == expected.charAt(i));
-                }
-                assert (fis.read() == -1);
-            } finally {
-                fis.close();
-            }
-        } catch (IOException e) {
-            sawException = true;
-        }
-        assertNotNull(result);
-        assertFalse(sawException);
-
-        sawException = false;
-        result = null;
-        try {
-            target = Paths.get(new URI("rcfs:/testData/4/5/45.file"));
-            result = Files.newInputStream(target);
-
-            int data;
-            InputStreamReader fis = null;
-            String expected = "";
-            try {
-                for (int i = 0; i < 45; i++) {
+                for (int i = 0; i < len; i++) {
                     expected += "foo!";
                 }
 
@@ -675,6 +540,7 @@ public class TestSqarManager {
         String[] dir123 = {"4", "123.file"};
         String[] dir1 = {"1", "2", "1.file"};
         String[] dir11 = new String[2502];
+        boolean success;
 
         for (int i = 0; i < 2500; i++) {
             dir11[i] = Integer.toString(i) + ".file";
@@ -700,74 +566,50 @@ public class TestSqarManager {
         verifyIterator(result, dir1);
 
         target = Paths.get(new URI("rcfs:/testData/1/2/3/4/5/12345.file"));
-        result = Files.newDirectoryStream(target);
-        assertFalse(result.iterator().hasNext());
-        target = Paths.get(new URI("rcfs:/testData/1/2/3/4/1234.file"));
-        result = Files.newDirectoryStream(target);
-        assertFalse(result.iterator().hasNext());
-        target = Paths.get(new URI("rcfs:/testData/3/4/5/345.file"));
-        result = Files.newDirectoryStream(target);
-        assertFalse(result.iterator().hasNext());
-        target = Paths.get(new URI("rcfs:/testData/4/5/45.file"));
-        result = Files.newDirectoryStream(target);
-        assertFalse(result.iterator().hasNext());
-        target = Paths.get(new URI("rcfs:/testData/6"));
-        result = Files.newDirectoryStream(target);
-        assertFalse(result.iterator().hasNext());
-
-        target = Paths.get(new URI("rcfs:/testData/1/1/"));
-        result = Files.newDirectoryStream(target);
-        verifyIterator(result, dir11);
-
-    }
-
-
-    @Test
-    public void testListFiles() throws IOException, URISyntaxException {
-        DirectoryStream<Path> result;
-        Path target;
-        String[] dir123 = {"testData/1/2/3/4", "testData/1/2/3/123.file"};
-        String[] dir1 = {"testData/1/1", "testData/1/2", "testData/1/1.file"};
-        String[] dir11 = new String[2502];
-
-        for (int i = 0; i < 2500; i++) {
-            dir11[i] = "testData/1/1/" + Integer.toString(i) + ".file";
+        try {
+            result = Files.newDirectoryStream(target);
+            success = false;
+        } catch (NotDirectoryException e) {
+            success = true;
         }
-        dir11[2500] = "testData/1/1/2";
-        dir11[2501] = "testData/1/1/3";
+        assertTrue(success);
 
-        Arrays.sort(dir123);
-        Arrays.sort(dir1);
-        Arrays.sort(dir11);
-
-        target = Paths.get(new URI("rcfs:/testData/1/2/3"));
-        result = Files.newDirectoryStream(target);
-        verifyIterator(result, dir123);
-        target = Paths.get(new URI("rcfs:/testData/1/2/3/"));
-        result = Files.newDirectoryStream(target);
-        verifyIterator(result, dir123);
-        target = Paths.get(new URI("rcfs:/testData/1"));
-        result = Files.newDirectoryStream(target);
-        verifyIterator(result, dir1);
-        target = Paths.get(new URI("rcfs:/testData/1/"));
-        result = Files.newDirectoryStream(target);
-        verifyIterator(result, dir1);
-
-        target = Paths.get(new URI("rcfs:/testData/1/2/3/4/5/12345.file"));
-        result = Files.newDirectoryStream(target);
-        assertFalse(result.iterator().hasNext());
         target = Paths.get(new URI("rcfs:/testData/1/2/3/4/1234.file"));
-        result = Files.newDirectoryStream(target);
-        assertFalse(result.iterator().hasNext());
+        try {
+            result = Files.newDirectoryStream(target);
+            success = false;
+        } catch (NotDirectoryException e) {
+            success = true;
+        }
+        assertTrue(success);
+
         target = Paths.get(new URI("rcfs:/testData/3/4/5/345.file"));
-        result = Files.newDirectoryStream(target);
-        assertFalse(result.iterator().hasNext());
+        try {
+            result = Files.newDirectoryStream(target);
+            success = false;
+        } catch (NotDirectoryException e) {
+            success = true;
+        }
+        assertTrue(success);
+
         target = Paths.get(new URI("rcfs:/testData/4/5/45.file"));
-        result = Files.newDirectoryStream(target);
-        assertFalse(result.iterator().hasNext());
+        try {
+            result = Files.newDirectoryStream(target);
+            success = false;
+        } catch (NotDirectoryException e) {
+            success = true;
+        }
+        assertTrue(success);
+
         target = Paths.get(new URI("rcfs:/testData/6"));
-        result = Files.newDirectoryStream(target);
-        assertFalse(result.iterator().hasNext());
+        try {
+            result = Files.newDirectoryStream(target);
+            success = false;
+        } catch (NotDirectoryException e) {
+            success = true;
+        }
+        assertTrue(success);
+
 
         target = Paths.get(new URI("rcfs:/testData/1/1/"));
         result = Files.newDirectoryStream(target);

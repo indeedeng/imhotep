@@ -1,4 +1,4 @@
-package com.indeed.imhotep.io.caching.RemoteCaching.sqlite;
+package com.indeed.imhotep.fs.sqlite;
 
 import com.almworks.sqlite4java.SQLiteConnection;
 import com.almworks.sqlite4java.SQLiteJob;

@@ -1,4 +1,4 @@
-package com.indeed.imhotep.io.caching.RemoteCaching.sqlite;
+package com.indeed.imhotep.fs.sqlite;
 
 import com.almworks.sqlite4java.SQLiteConnection;
 import com.almworks.sqlite4java.SQLiteJob;
@@ -11,17 +11,19 @@ import com.indeed.imhotep.archive.compression.SquallArchiveCompressor;
  */
 public class ReadPathInfoJob extends SQLiteJob<FileMetadata> {
     private static final String SELECT_FILE_INFO = "select " +
-            "file_infos.archive_id, " +
-            "file_infos.archive_offset, " +
-            "file_infos.unpacked_size " +
-            "file_infos.packed_size, " +
-            "file_infos.timestamp, " +
-            "file_infos.sig_hi, " +
-            "file_infos.sig_low " +
-            "from file_name_to_id" +
-            "inner join file_infos " +
-            "on file_name_to_id.id = file_infos.file_id " +
-            "where file_name_to_id.sqar_id = ? AND file_name_to_id.file_name = ?;";
+            "file_info.archive_id, " +
+            "file_info.archive_offset, " +
+            "file_info.unpacked_size, " +
+            "file_info.packed_size, " +
+            "file_info.timestamp, " +
+            "file_info.sig_hi, " +
+            "file_info.sig_low, " +
+            "file_info.compressor_type, " +
+            "file_info.is_file " +
+            "from file_name_to_id " +
+            "inner join file_info " +
+            "on file_name_to_id.id = file_info.file_id " +
+            "where file_name_to_id.sqar_id = ? AND file_name_to_id.name = ?;";
     private static final String SELECT_ARCHIVE_FILE_NAME =
             "select name from archive_names where id = ?;";
 
@@ -40,8 +42,6 @@ public class ReadPathInfoJob extends SQLiteJob<FileMetadata> {
                 connection.prepare(SELECT_ARCHIVE_FILE_NAME, true);
 
         try {
-            final FileMetadata result;
-
             /* bind file names select statement */
             fileInfoSelectStatement.bind(1, sqarId);
             fileInfoSelectStatement.bind(2, fileName);
@@ -54,30 +54,40 @@ public class ReadPathInfoJob extends SQLiteJob<FileMetadata> {
                 final long timestamp = fileInfoSelectStatement.columnLong(4);
                 final long sigHi = fileInfoSelectStatement.columnLong(5);
                 final long sigLow = fileInfoSelectStatement.columnLong(6);
+                final SquallArchiveCompressor compType = SquallArchiveCompressor.fromKey(
+                        fileInfoSelectStatement.columnString(7)
+                );
+                final boolean isFile = fileInfoSelectStatement.columnInt(8) != 0;
+
                 fileInfoSelectStatement.stepThrough();
 
-                final String archiveFileName;
-                archiveNameSelectStatement.bind(1, archiveId);
-                if (archiveNameSelectStatement.step()) {
-                    archiveFileName = archiveNameSelectStatement.columnString(0);
+                if (isFile) {
+                    final String archiveFileName;
+                    archiveNameSelectStatement.bind(1, archiveId);
+                    if (archiveNameSelectStatement.step()) {
+                        archiveFileName = archiveNameSelectStatement.columnString(0);
+                    } else {
+                        throw new Exception("Archive name missing. id: " + archiveId);
+                    }
+
+                    return new FileMetadata(fileName,
+                                            unpackedSize,
+                                            packedSize,
+                                            timestamp,
+                                            sigHi,
+                                            sigLow,
+                                            archiveOffset,
+                                            compType,
+                                            archiveFileName,
+                                            isFile);
                 } else {
-                    throw new Exception("Archive name missing. id: " + archiveId);
+                    /* path is a directory */
+                    return new FileMetadata(fileName, isFile);
                 }
-
-                result = new FileMetadata(fileName,
-                                          unpackedSize,
-                                          packedSize,
-                                          timestamp,
-                                          sigHi,
-                                          sigLow,
-                                          archiveOffset,
-                                          SquallArchiveCompressor.GZIP,
-                                          archiveFileName);
             } else {
-                throw new Exception("File Info missing. sqar name: " + sqarId + " file name: " + fileName);
+                /* no file found */
+                return null;
             }
-
-            return result;
         } finally {
             fileInfoSelectStatement.dispose();
             archiveNameSelectStatement.dispose();

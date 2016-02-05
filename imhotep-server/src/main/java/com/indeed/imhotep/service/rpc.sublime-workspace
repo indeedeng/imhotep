@@ -1,0 +1,471 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+			[
+				"err",
+				"error_on_collisions"
+			],
+			[
+				"Op",
+				"OptimizeSession"
+			],
+			[
+				"co",
+				"color_2_not_default"
+			],
+			[
+				"col",
+				"color2_ok"
+			],
+			[
+				"im",
+				"img_good"
+			],
+			[
+				"no",
+				"no_img"
+			],
+			[
+				"image",
+				"image_url"
+			],
+			[
+				"ve",
+				"validate_url"
+			],
+			[
+				"img",
+				"img_url"
+			],
+			[
+				"package",
+				"packageName"
+			],
+			[
+				"pa",
+				"package"
+			],
+			[
+				"ser",
+				"servletContext"
+			],
+			[
+				"com",
+				"common"
+			],
+			[
+				"v",
+				"void"
+			]
+		]
+	},
+	"buffers":
+	[
+		{
+			"file": "/Users/darren/indeed/imhotep/imhotep-client/src/main/proto/imhotep/Imhotep-v2.proto",
+			"settings":
+			{
+				"buffer_size": 8884,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "ImhotepDaemon.java",
+			"settings":
+			{
+				"buffer_size": 59462,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"contents": "java:\n    - coordinator\n    - local coordinator?\n        - manages local resources and limits\n            - caches files and mmappings\n        - give ftgs fields and shards to ftgs processors?\n    - regroup?\n    - other ops:\n        - group stats\n        - push/pop stats\n        - doc freq\n        - top terms\n        - doc iterator\n        - dynamic metric ops\n\nc++:\n    - ftgs daemon\n    - regroup daemon?\n\n\n-------------------------------------------------------------\n\ncoordinator:\n    - receive API calls\n    - start sessions\n    - identify machines/instances for sessions\n        - tell machines to precache files\n    - publish commands\n\nlocal coordinator:\n    - recieve prefetch commands from cluster coordinator\n        - cache files\n    - load and cache files required by local instances\n\nftgs daemon:\n    - receives session start command\n    - listens for ftgs commands\n    - broadcasts TGS stream advertisements\n\nother daemaons:\n    - receive session start commands\n    - listen for action commands\n    - broadcasts results\n\n",
+			"settings":
+			{
+				"buffer_size": 1037,
+				"line_ending": "Unix",
+				"name": "java:"
+			}
+		}
+	],
+	"build_system": "",
+	"build_system_choices":
+	[
+		[
+			[
+				[
+					"Packages/Python/Python.sublime-build",
+					""
+				],
+				[
+					"Packages/Python/Python.sublime-build",
+					"Syntax Check"
+				]
+			],
+			[
+				"Packages/Python/Python.sublime-build",
+				""
+			]
+		]
+	],
+	"build_varint": "",
+	"command_palette":
+	{
+		"height": 367.0,
+		"last_filter": "Package Control: ",
+		"selected_items":
+		[
+			[
+				"Package Control: ",
+				"Package Control: Install Package"
+			]
+		],
+		"width": 449.0
+	},
+	"console":
+	{
+		"height": 126.0,
+		"history":
+		[
+			"import urllib.request,os,hashlib; h = '2915d1851351e5ee549c20394736b442' + '8bc59f460fa1548d1514676163dafc88'; pf = 'Package Control.sublime-package'; ipp = sublime.installed_packages_path(); urllib.request.install_opener( urllib.request.build_opener( urllib.request.ProxyHandler()) ); by = urllib.request.urlopen( 'http://packagecontrol.io/' + pf.replace(' ', '%20')).read(); dh = hashlib.sha256(by).hexdigest(); print('Error validating download (got %s instead of %s), please try manual install' % (dh, h)) if dh != h else open(os.path.join( ipp, pf), 'wb' ).write(by)"
+		]
+	},
+	"distraction_free":
+	{
+		"menu_visible": true,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"file_history":
+	[
+		"/Users/darren/src/jdk8/src/main/java/openjdk/jdk/src/share/demo/nio/zipfs/src/com/sun/nio/zipfs/ZipFileSystem.java",
+		"/Users/darren/src/jdk8/src/main/java/openjdk/jdk/src/share/demo/nio/zipfs/src/com/sun/nio/zipfs/ZipFileSystemProvider.java",
+		"/Users/darren/src/jdk8/src/main/java/openjdk/jdk/src/share/demo/nio/zipfs/src/com/sun/nio/zipfs/ZipPath.java",
+		"/Users/darren/src/jdk8/src/main/java/openjdk/jdk/src/share/demo/nio/zipfs/src/com/sun/nio/zipfs/ZipFileAttributes.java",
+		"/Users/darren/src/jdk8/src/main/java/openjdk/jdk/src/share/demo/nio/zipfs/src/com/sun/nio/zipfs/ZipFileAttributeView.java",
+		"/Users/darren/src/jdk8/src/main/java/openjdk/jdk/src/share/demo/nio/zipfs/src/com/sun/nio/zipfs/ZipDirectoryStream.java",
+		"/Users/darren/pub-sub-investigation/iad",
+		"/Users/darren/pub-sub-investigation/ord",
+		"/Users/darren/pub-sub-investigation/sjc",
+		"/Users/darren/pub-sub-investigation/out",
+		"/Users/darren/pub-sub-investigation/aus",
+		"/Users/darren/pub-sub-investigation/dal",
+		"/Users/darren/Library/Application Support/Sublime Text 3/Packages/User/Preferences.sublime-settings",
+		"/Users/darren/indeed/design",
+		"/Users/darren/src/universities_data.csv",
+		"/Users/darren/Downloads/input.csv",
+		"/Users/darren/src/out.csv",
+		"/Users/darren/src/usa_universities.csv",
+		"/Users/darren/indeed/indeedmobile/src/resources/proctor/indeedmobile-proctor-specification.json",
+		"/Users/darren/indeed/indeedmobile/web/_iphone/results.jsp",
+		"/Users/darren/indeed/indeedmobile/web/_iphone/index.jsp",
+		"/Users/darren/indeed/indeedmobile/web/_iphone/job.jsp",
+		"/Users/darren/indeed/jasx/libraries.properties.release",
+		"/Users/darren/src/run-dev.sh",
+		"/Users/darren/indeed/skeleton-webapp/setup",
+		"/Users/darren/indeed/webapp-common/src/java/com/indeed/webapp/common/filters/AppNameFilter.java",
+		"/Users/darren/indeed/webapp-common/src/java/com/indeed/webapp/common/AbstractWebAppInitializer.java",
+		"/Users/darren/indeed/webapp-common/src/java/com/indeed/webapp/common/listeners/JettyDBStatusManagerListener.java",
+		"/Users/darren/indeed/webapp-common/src/java/com/indeed/webapp/common/listeners/MesosWebappDBStatusManagerListener.java",
+		"/Users/darren/indeed/jetty-runner/src/java/com/indeed/jettyrunner/Runner.java",
+		"/Users/darren/indeed/javadev/build/common-build.xml",
+		"/Users/darren/indeed/skeleton-webapp/.idea/ant.xml",
+		"/etc/paths",
+		"/etc/launchd.conf",
+		"/etc/shells",
+		"/Users/darren/indeed/imhotep/imhotep-server/src/main/java/com/indeed/imhotep/local/MultiRegroupInternals.java",
+		"/Users/darren/indeed/imhotep/imhotep-server/src/main/java/com/indeed/imhotep/local/ImhotepLocalSession.java",
+		"/Users/darren/.bash_profile",
+		"/Users/darren/INDEED_PROJECT_DIR=/Users/darren/indeed",
+		"/Users/darren/export",
+		"/Users/darren/.bashrc",
+		"/Users/darren/Library/Application Support/Sublime Text 3/Packages/User/open_file.py",
+		"/Users/darren/Library/Application Support/Sublime Text 3/Packages/User/Main.sublime-menu",
+		"/Users/darren/indeed/imhotep/imhotep-server/src/test/java/com/indeed/imhotep/local/TestNativeFlamdexFTGSIterator.java",
+		"/Users/darren/indeed/imhotep/imhotep-server/src/test/java/com/indeed/flamdex/utils/DumpFlamdex2.java",
+		"/Users/darren/.ssh/known_hosts",
+		"/Users/darren/indeed/imhotep/imhotep-server/target/imhotep-server-1.0.10-SNAPSHOT/shard.dat",
+		"/Users/darren/addressSanitizer.out",
+		"/Users/darren/indeed/imhotep-oss/out",
+		"/Users/darren/indeed/imhotep_native/out",
+		"/Users/darren/eclipse/configuration/config.ini",
+		"/Users/darren/Library/Preferences/IdeaIC14/idea.properties",
+		"/Users/darren/Library/Preferences/IdeaIC14/idea.vmoptions",
+		"/Users/darren/Downloads/eclipse/configuration/config.ini"
+	],
+	"find":
+	{
+		"height": 35.0
+	},
+	"find_in_files":
+	{
+		"height": 93.0,
+		"where_history":
+		[
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": true,
+		"find_history":
+		[
+			"GroupMultiRemapMessage",
+			"request",
+			"message ([a-z]\\w+)",
+			"([A-Z])([A-Z]+)([A-Z][a-z])",
+			"([A-Z])([A-Z]+)(([A-Z])([a-z]))?",
+			"_([A-Z])([A-Z]+)",
+			"(\\S+)\\(\\)",
+			"checkPath",
+			"checkName",
+			"resolveSibling",
+			"resolve",
+			"readAttributes",
+			"checkAcc",
+			"readAtt",
+			"directoryStrea",
+			"directoryStre",
+			"documentById",
+			"(.*)\\t(.*)",
+			".*,.*,.*,",
+			"&amp;",
+			";",
+			".*\"web_page\": \"([^\"]*)\".*\"domain\": \"([^\"]*)\".*\"name\": \"([^\"]*)\".*",
+			".*\"web_page\": \"([^\"]*)\".*\"name\": \"([^\"]*)\".*",
+			"<input",
+			"label",
+			"crashtest",
+			"cmd",
+			"performIntMultiEqualityRegroup",
+			"remapDocsInTargetGroups",
+			"updateGroupStatsAllDocs"
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": true,
+		"replace_history":
+		[
+			"message \\u$1",
+			"$1\\L$2\\E$3",
+			"$1\\L$2$3",
+			"$1(\\L$2)$3",
+			"$1\\L$2$3",
+			"$1\\L$2",
+			"\\L$1\\(\\)",
+			"document.getElementById",
+			"\"\\1\",\"\\2\"",
+			"&",
+			"\"\\1\",\"\\2\",\"\\3\"",
+			"\\1,\\2",
+			"<td><input",
+			"td"
+		],
+		"reverse": false,
+		"show_context": true,
+		"use_buffer2": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"selected": 0,
+			"sheets":
+			[
+				{
+					"buffer": 0,
+					"file": "/Users/darren/indeed/imhotep/imhotep-client/src/main/proto/imhotep/Imhotep-v2.proto",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 8884,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								3311,
+								3311
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Protocol Buffer Syntax/Protobuf.tmLanguage",
+							"tab_size": 2,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 1198.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 2,
+					"type": "text"
+				}
+			]
+		},
+		{
+			"selected": 1,
+			"sheets":
+			[
+				{
+					"buffer": 1,
+					"file": "ImhotepDaemon.java",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 59462,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								36564,
+								36572
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Java/Java.tmLanguage",
+							"tab_size": 2,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 21.0,
+						"translation.y": 10555.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 1,
+					"type": "text"
+				},
+				{
+					"buffer": 2,
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 1037,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								473,
+								473
+							]
+						],
+						"settings":
+						{
+							"auto_name": "java:",
+							"syntax": "Packages/Text/Plain text.tmLanguage",
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 0,
+					"type": "text"
+				}
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 23.0
+	},
+	"input":
+	{
+		"height": 0.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			],
+			[
+				1,
+				0,
+				2,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			0.429666868398,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"output.exec":
+	{
+		"height": 100.0
+	},
+	"output.find_results":
+	{
+		"height": 0.0
+	},
+	"pinned_build_system": "",
+	"project": "",
+	"replace":
+	{
+		"height": 64.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_symbol":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"selected_group": 1,
+	"settings":
+	{
+	},
+	"show_minimap": true,
+	"show_open_files": false,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 150.0,
+	"status_bar_visible": true,
+	"template_settings":
+	{
+	}
+}

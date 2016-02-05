@@ -1,4 +1,4 @@
-package com.indeed.imhotep.io.caching.RemoteCaching;
+package com.indeed.imhotep.fs;
 
 import com.almworks.sqlite4java.SQLiteException;
 import com.google.common.collect.ImmutableSet;
@@ -61,6 +61,7 @@ public class RemoteCachingFileSystem extends FileSystem
         this.localOnlyFiles = new FileTracker(Paths.get(new URI(env.get("local-tracking-root-uri"))));
         this.lruCache = new LruCache(Paths.get(new URI(env.get("cache-root-uri"))),
                                      Integer.parseInt(env.get("reservationSize")),
+                                     Long.parseLong(env.get("cacheSize")),
                                      localOnlyFiles,
                                      new LruCache.Loader() {
                                          @Override
@@ -76,11 +77,18 @@ public class RemoteCachingFileSystem extends FileSystem
                                          @Override
                                          public long getFileLen(RemoteCachingPath path) throws
                                                                                         IOException {
+                                             final RemoteFileStore.RemoteFileInfo rfi;
+
                                              if (SqarManager.isSqar(path, fileStore)) {
-                                                 return sqarFileStore.readInfo(path).size;
+                                                 rfi = sqarFileStore.readInfo(path, true);
                                              } else {
-                                                 return fileStore.readInfo(path).size;
+                                                 rfi = fileStore.readInfo(path, true);
                                              }
+
+                                             if (rfi != null && rfi.isFile)
+                                                 return rfi.size;
+                                             else
+                                                 return -1;
                                          }
                                      });
     }
@@ -179,7 +187,7 @@ public class RemoteCachingFileSystem extends FileSystem
     }
 
     boolean isDirectory(RemoteCachingPath path) throws IOException {
-        final ImhotepFileAttributes attrs = lookupAttributes(path);
+        final ImhotepFileAttributes attrs = lookupAttributes(path, true);
 
         return attrs != null && attrs.isDirectory();
     }
@@ -203,10 +211,14 @@ public class RemoteCachingFileSystem extends FileSystem
                 }
                 break;
             case SHARD:
-                infos = sqarFileStore.listDir(dir);
-                break;
             case FILE:
-                infos = sqarFileStore.listDir(dir);
+                if (SqarManager.isSqar(new RemoteCachingPath(this, dir.getShardPath()),
+                                       this.fileStore)
+                        ) {
+                    infos = sqarFileStore.listDir(dir);
+                } else {
+                    infos = fileStore.listDir(dir);
+                }
                 break;
             default:
                 throw new IllegalArgumentException();
@@ -222,15 +234,32 @@ public class RemoteCachingFileSystem extends FileSystem
     }
 
     ImhotepFileAttributes lookupAttributes(RemoteCachingPath path) throws IOException {
+        return lookupAttributes(path, false);
+    }
+
+    ImhotepFileAttributes lookupAttributes(RemoteCachingPath path, boolean onlyDirectories) throws
+            IOException {
         if (localOnlyFiles.contains(path)) {
             return localOnlyFiles.getAttributes(path);
         }
 
         final RemoteFileStore.RemoteFileInfo info;
         if (SqarManager.isSqar(path, fileStore)) {
-            info = sqarFileStore.readInfo(path);
+            if (onlyDirectories) {
+                info = sqarFileStore.readInfo(path, false);
+            } else {
+                info = sqarFileStore.readInfo(path);
+            }
         } else {
-            info = fileStore.readInfo(path);
+            if (onlyDirectories) {
+                info = fileStore.readInfo(path, false);
+            } else {
+                info = fileStore.readInfo(path);
+            }
+        }
+
+        if (info == null) {
+            return null;
         }
 
         path.initAttributes(info.size, info.isFile, false);
