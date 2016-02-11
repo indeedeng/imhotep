@@ -87,12 +87,20 @@ public class ServiceZooKeeperWrapper implements Closeable, Runnable, Watcher {
     }
 
     public void run() {
+        final String location = ServiceZooKeeperWrapper.class.getSimpleName();
+        final int maxAttemptsBeforeReconnect = 5;
+        int     attempt   = 0;
         boolean connected = false;
-        boolean created = false;
+        boolean created   = false;
         while (!created && !closed.get()) {
+            ++attempt;
+            log.info(location + " run()" +
+                     " attempt: " + attempt + "/" + maxAttemptsBeforeReconnect +
+                     " created: " + created + " closed: " + closed.get());
             try {
                 try {
-                    if (!connected) {
+                    if (!connected || (attempt % maxAttemptsBeforeReconnect == 0)) {
+                        log.info(location + " reconnecting connected: " + connected);
                         /* Note that ZooKeeperConnection blocks until it sees a
                            SyncConnected state (unlike ZooKeeper::connect(), which is
                            asynchronous. */
@@ -103,29 +111,36 @@ public class ServiceZooKeeperWrapper implements Closeable, Runnable, Watcher {
                     /* Note that ZooKeeperConnection only creates these if they do
                        not already exist. So there's no harm in executing these
                        multiple times in the face of transient failures. */
+                    log.info(location + " creating paths attempt: " + attempt);
                     zkConnection.createFullPath(rootPath, new byte[0], CreateMode.PERSISTENT, true);
                     zkConnection.create(rootPath + "/" + nodeName, data,
                                         ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
                     created = true;
                 }
                 catch (Exception ex) {
-                    log.error("failed to create ZooKeeper entries", ex);
+                    log.error("failed to create ZooKeeper entries attempt: " + attempt, ex);
                     Thread.sleep(TIMEOUT);
                 }
             }
             catch (InterruptedException ex) {
-                log.error("interrupted whilst creating ZooKeeper entries", ex);
+                log.error("interrupted whilst creating ZooKeeper entries attempt: " + attempt, ex);
             }
         }
     }
 
     public void process(WatchedEvent watchedEvent) {
 
+        final String location = ServiceZooKeeperWrapper.class.getSimpleName();
+        log.info(location + " process() closed: " + closed.get() +
+                 " watchedEvent.getType(): " + watchedEvent.getType() +
+                 " watchedEvent.getState(): " + watchedEvent.getState());
+
         if (closed.get()) return;
 
         if (watchedEvent.getType() == Event.EventType.None &&
             watchedEvent.getState() == Event.KeeperState.Expired) {
             try {
+                log.info(location + " process() closing ZooKeeper connection");
                 zkConnection.close();
             } catch (InterruptedException ex) {
                 log.error("failed to close connection", ex);
