@@ -229,9 +229,9 @@ class ShardMap
                     final SharedReference<RawCachedFlamdexReader> sharedReference =
                         (SharedReference<RawCachedFlamdexReader>) (SharedReference) reference;
                     reader = new RawCachedFlamdexReaderReference(sharedReference);
-                    allFlamdexReaders = false;
                 }
                 else {
+                    allFlamdexReaders = false;
                     reader = new CachedFlamdexReaderReference(reference);
                 }
             }
@@ -241,7 +241,7 @@ class ShardMap
             }
             synchronized (result) {
                 result.put(request, Pair.of(shardId, reader));
-                result.allFlamdexReaders = allFlamdexReaders;
+                result.allFlamdexReaders &= allFlamdexReaders;
             }
             return Boolean.TRUE;
         }
