@@ -30,12 +30,21 @@ namespace imhotep {
         }
 
         RegroupCondition operator()(jobject obj) {
-            jboolean int_type(env()->GetBooleanField(obj, _int_type));
-            return RegroupCondition(string_field(obj, _field),
-                                    int_type,
-                                    env()->GetLongField(obj, _int_term),
-                                    int_type ? "" : string_field(obj, _string_term),
-                                    env()->GetBooleanField(obj, _inequality));
+            const std::string field(string_field(obj, _field));
+            const jboolean    int_type(env()->GetBooleanField(obj, _int_type));
+            const jboolean    inequality(env()->GetBooleanField(obj, _inequality));
+            if (int_type) {
+                const int64_t term(env()->GetLongField(obj, _int_term));
+                return inequality ?
+                    RegroupCondition(IntInequality(field, term)) :
+                    RegroupCondition(IntEquality(field, term));
+            }
+            else {
+                const std::string term(string_field(obj, _string_term));
+                return inequality ?
+                    RegroupCondition(StrInequality(field, term)) :
+                    RegroupCondition(StrEquality(field, term));
+            }
         }
 
     private:
@@ -86,7 +95,8 @@ namespace imhotep {
                         os << __FUNCTION__ << ": could not retrieve 'condition' object array element";
                         throw imhotep_error(os.str());
                     }
-                    rules.emplace_back(GroupMultiRemapRule::Rule(positive, _condition_binder(condition)));
+                    rules.emplace_back(GroupMultiRemapRule::Rule(positive,
+                                                                 _condition_binder(condition)));
                 }
             }
             catch (...) {
@@ -125,8 +135,7 @@ Java_com_indeed_imhotep_local_ImhotepNativeLocalSession_nativeGetRules(JNIEnv* e
             rule_vector->reserve(num_rules);
             for (jsize index(0); index < num_rules; ++index) {
                 jobject rule(env->GetObjectArrayElement(rules, index));
-                // !@# check for NULL
-                if (rule == NULL) throw imhotep_error("rule is null!!!!!!!!!!!!!!!!");
+                if (rule == NULL) throw imhotep_error("rule is null");
                 rule_vector->emplace_back(binder(rule));
             }
             result = reinterpret_cast<jlong>(rule_vector);
