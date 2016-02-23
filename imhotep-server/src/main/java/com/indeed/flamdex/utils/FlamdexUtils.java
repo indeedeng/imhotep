@@ -13,16 +13,17 @@
  */
  package com.indeed.flamdex.utils;
 
-import com.indeed.util.core.threads.ThreadSafeBitSet;
-import com.indeed.util.core.io.Closeables2;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.flamdex.datastruct.MMapFastBitSet;
+import com.indeed.flamdex.fieldcache.LongArrayIntValueLookup;
 import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIterator;
 import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIteratorImpl;
+import com.indeed.util.core.io.Closeables2;
+import com.indeed.util.core.threads.ThreadSafeBitSet;
 import com.indeed.util.io.VIntUtils;
 import com.indeed.util.mmap.ByteArray;
 import com.indeed.util.mmap.CharArray;
@@ -41,6 +42,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * @author jsgroth
@@ -622,6 +625,48 @@ public class FlamdexUtils {
                 }
             }
         }
+    }
+
+    private static void setLongMetricsForDocs(final long[] array, final DocIdStream dis, final long metric) {
+        final int[] docIdBuf = new int[BUFFER_SIZE];
+
+        while (true) {
+            final int n = dis.fillDocIdBuffer(docIdBuf);
+            for (int i = 0; i < n; ++i) {
+                array[docIdBuf[i]] = metric;
+            }
+
+            if (n < BUFFER_SIZE) {
+                break;
+            }
+        }
+    }
+
+    public static LongArrayIntValueLookup cacheRegExpCapturedLong(final String field, final FlamdexReader reader, final Pattern regexPattern, final int matchIndex) {
+        final long[] array = new long[reader.getNumDocs()];
+        long min = Long.MAX_VALUE;
+        long max = Long.MIN_VALUE;
+
+        try (final StringTermIterator iter = reader.getStringTermIterator(field);
+             final DocIdStream dis = reader.getDocIdStream()) {
+            while (iter.next()) {
+                final Matcher matcher = regexPattern.matcher(iter.term());
+                if (matcher.matches()) {
+                    long metric;
+                    try {
+                        metric = Long.parseLong(matcher.group(matchIndex));
+                    } catch (final NumberFormatException e) {
+                        metric = 0L;
+                    }
+                    dis.reset(iter);
+                    setLongMetricsForDocs(array, dis, metric);
+                    min = Math.min(min, metric);
+                    max = Math.max(max, metric);
+                }
+            }
+        }
+
+        return new LongArrayIntValueLookup(array, min, max);
     }
 
     public static long getIntTotalDocFreq(final FlamdexReader r, final String field) {
