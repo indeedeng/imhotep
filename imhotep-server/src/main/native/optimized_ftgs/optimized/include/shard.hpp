@@ -42,7 +42,7 @@ namespace imhotep {
                        const std::vector<std::string>& int_fields,
                        const std::vector<std::string>& str_fields,
                        packed_table_ptr                table = packed_table_ptr(),
-                       const MapCache&                 map_cache=MapCache());
+                       const MapCache&                 map_cache = MapCache());
 
         Shard(const Shard& rhs) = default;
 

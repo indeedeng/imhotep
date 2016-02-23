@@ -1,11 +1,9 @@
-#include "com_indeed_imhotep_local_ImhotepNativeLocalSession.h"
-
 #include <jni.h>
 
 #undef  JNIEXPORT
 #define JNIEXPORT __attribute__((visibility("default")))
 
-#include "com_indeed_imhotep_local_ImhotepNativeLocalSession.h"
+#include "jni/com_indeed_imhotep_local_ImhotepNativeLocalSession.h"
 
 #include <iostream>             // !@# debugging
 #include <mutex>

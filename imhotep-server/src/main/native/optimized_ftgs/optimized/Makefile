@@ -37,7 +37,7 @@ LIBS=\
 #	-lprofiler \
 
 C_FILES := $(wildcard src/*.c)
-H_FILES := $(wildcard include/*.h)
+H_FILES := $(wildcard include/*.h) $(wildcard include/jni/*.h)
 OBJ_FILES := $(addprefix obj/,$(notdir $(C_FILES:.c=.o)))
 
 CPP_FILES := $(wildcard src/*.cpp)

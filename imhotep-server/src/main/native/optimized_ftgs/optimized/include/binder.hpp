@@ -1,3 +1,6 @@
+#ifndef BINDER_HPP
+#define BINDER_HPP
+
 #include <jni.h>
 
 #include <sstream>
@@ -81,3 +84,5 @@ namespace imhotep {
     };
 
 } // namespace imhotep
+
+#endif

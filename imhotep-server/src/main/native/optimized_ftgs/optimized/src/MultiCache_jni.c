@@ -5,9 +5,9 @@
 #undef  JNIEXPORT
 #define JNIEXPORT               __attribute__((visibility("default")))
 
-#include "com_indeed_imhotep_local_MultiCache.h"
-#include "com_indeed_imhotep_local_MultiCache_MultiCacheGroupLookup.h"
-#include "com_indeed_imhotep_local_MultiCache_MultiCacheIntValueLookup.h"
+#include "jni/com_indeed_imhotep_local_MultiCache.h"
+#include "jni/com_indeed_imhotep_local_MultiCache_MultiCacheGroupLookup.h"
+#include "jni/com_indeed_imhotep_local_MultiCache_MultiCacheIntValueLookup.h"
 
 #undef com_indeed_imhotep_local_MultiCache_BLOCK_COPY_SIZE
 #define com_indeed_imhotep_local_MultiCache_BLOCK_COPY_SIZE 8192L
