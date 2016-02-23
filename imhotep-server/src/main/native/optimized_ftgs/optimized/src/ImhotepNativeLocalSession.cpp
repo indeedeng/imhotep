@@ -7,6 +7,8 @@
 
 #include "com_indeed_imhotep_local_ImhotepNativeLocalSession.h"
 
+#include <iostream>             // !@# debugging
+#include <mutex>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -30,12 +32,21 @@ namespace imhotep {
         }
 
         RegroupCondition operator()(jobject obj) {
-            jboolean int_type(env()->GetBooleanField(obj, _int_type));
-            return RegroupCondition(string_field(obj, _field),
-                                    int_type,
-                                    env()->GetLongField(obj, _int_term),
-                                    int_type ? "" : string_field(obj, _string_term),
-                                    env()->GetBooleanField(obj, _inequality));
+            const std::string field(string_field(obj, _field));
+            const jboolean    int_type(env()->GetBooleanField(obj, _int_type));
+            const jboolean    inequality(env()->GetBooleanField(obj, _inequality));
+            if (int_type) {
+                const int64_t term(env()->GetLongField(obj, _int_term));
+                return inequality ?
+                    RegroupCondition(IntInequality(field, term)) :
+                    RegroupCondition(IntEquality(field, term));
+            }
+            else {
+                const std::string term(string_field(obj, _string_term));
+                return inequality ?
+                    RegroupCondition(StrInequality(field, term)) :
+                    RegroupCondition(StrEquality(field, term));
+            }
         }
 
     private:
@@ -86,7 +97,8 @@ namespace imhotep {
                         os << __FUNCTION__ << ": could not retrieve 'condition' object array element";
                         throw imhotep_error(os.str());
                     }
-                    rules.emplace_back(GroupMultiRemapRule::Rule(positive, _condition_binder(condition)));
+                    rules.emplace_back(GroupMultiRemapRule::Rule(positive,
+                                                                 _condition_binder(condition)));
                 }
             }
             catch (...) {
@@ -116,6 +128,15 @@ Java_com_indeed_imhotep_local_ImhotepNativeLocalSession_nativeGetRules(JNIEnv* e
                                                                        jclass unusedClass,
                                                                        jobjectArray rules)
 {
+    // !@# TODO(johnf): Make binder instances static, so that we don't
+    // pay the penalty for FindClass, etc. on each call.
+    // http://www.ibm.com/developerworks/library/j-jni/
+
+    static std::mutex bh; {
+        std::lock_guard<std::mutex> guard(bh);
+        std::cerr << "rules: " << rules << std::endl;
+    }
+
     jlong result(0);
     try {
         GroupMultiRemapRuleBinder         binder(env);
@@ -125,8 +146,7 @@ Java_com_indeed_imhotep_local_ImhotepNativeLocalSession_nativeGetRules(JNIEnv* e
             rule_vector->reserve(num_rules);
             for (jsize index(0); index < num_rules; ++index) {
                 jobject rule(env->GetObjectArrayElement(rules, index));
-                // !@# check for NULL
-                if (rule == NULL) throw imhotep_error("rule is null!!!!!!!!!!!!!!!!");
+                if (rule == NULL) throw imhotep_error("rule is null");
                 rule_vector->emplace_back(binder(rule));
             }
             result = reinterpret_cast<jlong>(rule_vector);
@@ -156,3 +176,31 @@ Java_com_indeed_imhotep_local_ImhotepNativeLocalSession_nativeReleaseRules(JNIEn
     std::vector<GroupMultiRemapRule>* rules(reinterpret_cast<std::vector<GroupMultiRemapRule>*>(nativeRulesPtr));
     if (rules) delete rules;
 }
+
+/*
+ * Class:     com_indeed_imhotep_local_ImhotepNativeLocalSession
+ * Method:    nativeRegroup
+ * Signature: (JZ)I
+ */
+JNIEXPORT jint JNICALL
+Java_com_indeed_imhotep_local_ImhotepNativeLocalSession_nativeRegroup(JNIEnv *env,
+                                                                      jclass unusedClass,
+                                                                      jlong nativeRulesPtr,
+                                                                      jboolean errorOnCollisions)
+{
+    jint result = 0;
+    std::vector<GroupMultiRemapRule>* rulesPtr(reinterpret_cast<std::vector<GroupMultiRemapRule>*>(nativeRulesPtr));
+    try {
+        if (!rulesPtr) {
+            std::ostringstream message;
+            message << __PRETTY_FUNCTION__ << " null 'rules' argument";
+            throw imhotep_error(message.str());
+        }
+    }
+    catch (const std::exception& ex) {
+        jclass exClass = env->FindClass("java/lang/RuntimeException");
+        env->ThrowNew(exClass, ex.what());
+    }
+    return result;
+}
+

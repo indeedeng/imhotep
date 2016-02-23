@@ -63,6 +63,17 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
         return multiCache;
     }
 
+    private MultiCache bindMultiCache() {
+        if (multiCache == null) {
+            final MultiCacheConfig config = new MultiCacheConfig();
+            final StatLookup[] statLookups = new StatLookup[1];
+            statLookups[0] = statLookup;
+            config.calcOrdering(statLookups, numStats);
+            buildMultiCache(config);
+        }
+        return multiCache;
+    }
+
     @Override
     public synchronized void rebuildAndFilterIndexes(@Nonnull final List<String> intFields,
                                                      @Nonnull final List<String> stringFields) {
@@ -72,13 +83,7 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
     @Override
     public synchronized long[] getGroupStats(int stat) {
 
-        if (multiCache == null) {
-            final MultiCacheConfig config = new MultiCacheConfig();
-            final StatLookup[] statLookups = new StatLookup[1];
-            statLookups[0] = statLookup;
-            config.calcOrdering(statLookups, numStats);
-            buildMultiCache(config);
-        }
+        bindMultiCache();
 
         long[] result = groupStats.get(stat);
         if (groupStats.isDirty(stat)) {
@@ -111,8 +116,15 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
     public synchronized int regroup(final GroupMultiRemapRule[] rules, boolean errorOnCollisions)
         throws ImhotepOutOfMemoryException {
         int result = 0;
+
+        /* !@# TODO(johnf): looks like we're unnecessarily creating
+            one copy of these rules per local session/shard...until we
+            fix that, we might consider trying to reuse rulesPtr for
+            each set of 'rules' that hashes to the same value...for
+            now though, just make the duplicates... */
         final long rulesPtr = nativeGetRules(rules);
         try {
+            nativeRegroup(rulesPtr, bindMultiCache().getNativeAddress(), errorOnCollisions);
             result = super.regroup(rules, errorOnCollisions);
         }
         finally {
@@ -123,4 +135,7 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
 
     private native static long nativeGetRules(final GroupMultiRemapRule[] rules);
     private native static void nativeReleaseRules(final long nativeRulesPtr);
+    private native static int  nativeRegroup(final long nativeRulesPtr,
+                                             final long nativeShardDataPtr,
+                                             final boolean errorOnCollisions);
 }

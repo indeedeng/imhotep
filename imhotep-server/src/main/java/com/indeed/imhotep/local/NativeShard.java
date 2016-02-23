@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Indeed Inc.
+ * Copyright (C) 2016 Indeed Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -11,10 +11,21 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.indeed.flamdex.simple;
+package com.indeed.imhotep.local;
 
-import com.indeed.flamdex.api.FlamdexReader;
+import com.indeed.flamdex.simple.HasMapCache;
 
-public interface HasMapCache extends FlamdexReader {
-    MapCache getMapCache();
+class NativeShard implements AutoCloseable {
+    private final long shardPtr;
+
+    public NativeShard(final HasMapCache flamdexReader) {
+        shardPtr = nativeGetShard();
+    }
+
+    public void close() {
+        nativeReleaseShard(shardPtr);
+    }
+
+    private native static long nativeGetShard();
+    private native static void nativeReleaseShard(long shardPtr);
 }

@@ -12,7 +12,6 @@ namespace imhotep {
 
     class GroupMultiRemapRule {
     public:
-        // !@# This could use a better name...
         class Rule {
         public:
             Rule(int32_t                 positive,
@@ -65,6 +64,8 @@ namespace imhotep {
         int32_t _negative;
         Rules   _rules;
     };
+
+    
 
 } // namespace imhotep
 
