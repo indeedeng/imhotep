@@ -13,6 +13,8 @@
  */
 package com.indeed.flamdex.simple;
 
-public interface HasMapCache {
+import com.indeed.flamdex.api.FlamdexReader;
+
+public interface HasMapCache extends FlamdexReader {
     MapCache getMapCache();
 }

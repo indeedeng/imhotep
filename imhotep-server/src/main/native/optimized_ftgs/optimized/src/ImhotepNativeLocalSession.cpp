@@ -7,6 +7,8 @@
 
 #include "com_indeed_imhotep_local_ImhotepNativeLocalSession.h"
 
+#include <iostream>             // !@# debugging
+#include <mutex>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -126,6 +128,15 @@ Java_com_indeed_imhotep_local_ImhotepNativeLocalSession_nativeGetRules(JNIEnv* e
                                                                        jclass unusedClass,
                                                                        jobjectArray rules)
 {
+    // !@# TODO(johnf): Make binder instances static, so that we don't
+    // pay the penalty for FindClass, etc. on each call.
+    // http://www.ibm.com/developerworks/library/j-jni/
+
+    static std::mutex bh; {
+        std::lock_guard<std::mutex> guard(bh);
+        std::cerr << "rules: " << rules << std::endl;
+    }
+
     jlong result(0);
     try {
         GroupMultiRemapRuleBinder         binder(env);
@@ -165,3 +176,31 @@ Java_com_indeed_imhotep_local_ImhotepNativeLocalSession_nativeReleaseRules(JNIEn
     std::vector<GroupMultiRemapRule>* rules(reinterpret_cast<std::vector<GroupMultiRemapRule>*>(nativeRulesPtr));
     if (rules) delete rules;
 }
+
+/*
+ * Class:     com_indeed_imhotep_local_ImhotepNativeLocalSession
+ * Method:    nativeRegroup
+ * Signature: (JZ)I
+ */
+JNIEXPORT jint JNICALL
+Java_com_indeed_imhotep_local_ImhotepNativeLocalSession_nativeRegroup(JNIEnv *env,
+                                                                      jclass unusedClass,
+                                                                      jlong nativeRulesPtr,
+                                                                      jboolean errorOnCollisions)
+{
+    jint result = 0;
+    std::vector<GroupMultiRemapRule>* rulesPtr(reinterpret_cast<std::vector<GroupMultiRemapRule>*>(nativeRulesPtr));
+    try {
+        if (!rulesPtr) {
+            std::ostringstream message;
+            message << __PRETTY_FUNCTION__ << " null 'rules' argument";
+            throw imhotep_error(message.str());
+        }
+    }
+    catch (const std::exception& ex) {
+        jclass exClass = env->FindClass("java/lang/RuntimeException");
+        env->ThrowNew(exClass, ex.what());
+    }
+    return result;
+}
+
