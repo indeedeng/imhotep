@@ -23,6 +23,14 @@ JNIEXPORT jlong JNICALL Java_com_indeed_imhotep_local_NativeShard_nativeGetShard
 JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_NativeShard_nativeReleaseShard
   (JNIEnv *, jclass, jlong);
 
+/*
+ * Class:     com_indeed_imhotep_local_NativeShard
+ * Method:    nativeToString
+ * Signature: (J)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_com_indeed_imhotep_local_NativeShard_nativeToString
+  (JNIEnv *, jclass, jlong);
+
 #ifdef __cplusplus
 }
 #endif

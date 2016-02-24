@@ -21,18 +21,20 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 
-/** A fair bit of our native code makes use of a Shard object, which manages
- *  term files, doc files and pointers to fields that have already been inverted
- *  in Javaland. To build one of these critters, you need a FlamdexReader that
- *  implements HasMapCache. This class does two basic things:
+/**
+ * A fair bit of our native code makes use of a Shard object, which
+ * manages term files, doc files and pointers to fields that have
+ * already been inverted in Javaland. To build one of these critters,
+ * you need a FlamdexReader that implements HasMapCache. This class
+ * does two basic things:
  *
- *    - it expresses lifecycle management of a native Shard object in Java
- *      Closeable fashion
+ *   - it expresses lifecycle management of a native Shard object in
+ *     Java Closeable fashion
  *
- *    - it converts relevant members of the FlamdexReader into a form that's
- *      convenient for purposes of constructing a native Shard object,
- *      elminating the need for elaborate JNI field access gymnastics inside the
- *      native code
+ *   - it converts relevant members of the FlamdexReader into a form
+ *     convenient for purposes of constructing a native Shard object,
+ *     elminating the need for elaborate JNI field access gymnastics
+ *     inside the native code
  */
 class NativeShard implements AutoCloseable {
 
@@ -62,21 +64,26 @@ class NativeShard implements AutoCloseable {
             ++idx;
         }
 
-        shardPtr = nativeGetShard(shardDir, intFields, strFields, packedTablePtr,
-                                  mappedFiles, mappedPtrs);
+        try {
+            shardPtr = nativeGetShard(shardDir, intFields, strFields, packedTablePtr,
+                                      mappedFiles, mappedPtrs);
+        }
+        catch (Throwable th) {
+            throw new IOException("unable to create native shard for dir:" + shardDir, th);
+        }
     }
 
-    public void close() {
-        nativeReleaseShard(shardPtr);
-    }
+    public void close() { nativeReleaseShard(shardPtr); }
 
-    public long getPtr() {
-        return shardPtr;
-    }
+    public long getPtr() { return shardPtr; }
 
-    /** In some cases, FlamdexReaders contain references to paths that don't
-     * exist until CachedFile does its thing. So we need to force cache
-     * population before we actually do anything with the shard dir.
+    public String toString() { return nativeToString(shardPtr); }
+
+    /**
+     * In some cases, FlamdexReaders contain references to paths that
+     * don't exist until CachedFile does its thing. So we need to
+     * force cache population before we actually do anything with the
+     * shard dir.
      */
     private String getDirectory(final HasMapCache reader)
         throws IOException {
@@ -93,4 +100,6 @@ class NativeShard implements AutoCloseable {
                                               final long[]   mappedPtrs);
 
     private native static void nativeReleaseShard(long shardPtr);
+
+    private native static String nativeToString(long shardPtr);
 }

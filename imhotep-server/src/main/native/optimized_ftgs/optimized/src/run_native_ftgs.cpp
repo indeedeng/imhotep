@@ -87,10 +87,7 @@ private:
         const strvec_t int_fields(from_java_array<std::string>(env(), intFields));
         const strvec_t str_fields(from_java_array<std::string>(env(), strFields));
 
-        typedef imhotep::Shard::packed_table_ptr table_ptr;
-
-        const std::vector<table_ptr> mapped_ptrs
-            (from_java_array<table_ptr>(env(), mappedPtrs));
+        const std::vector<long> mapped_ptrs(from_java_array<long>(env(), mappedPtrs));
 
         die_if(mapped_files.size() != mapped_ptrs.size(),
                "mapped_files.size() != mapped_ptrs.size()");
@@ -98,6 +95,8 @@ private:
         for (size_t idx(0); idx < mapped_files.size(); ++idx) {
             map_cache[mapped_files[idx]] = reinterpret_cast<void*>(mapped_ptrs[idx]);
         }
+
+        typedef imhotep::Shard::packed_table_ptr table_ptr;
 
         const std::vector<table_ptr> table_ptrs
             (from_java_array<table_ptr>(env(), packedTablePtrs));

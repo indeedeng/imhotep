@@ -79,6 +79,8 @@ namespace imhotep {
 
         std::string name_of() const;
 
+        std::string to_string() const;
+
     private:
         typedef std::map<std::string, std::shared_ptr<MMappedFile>> FieldToMMappedFile;
         typedef std::map<std::string, std::shared_ptr<MMappedFile>> SplitFileMap;

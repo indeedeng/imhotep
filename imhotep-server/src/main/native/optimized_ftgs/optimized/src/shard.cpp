@@ -123,6 +123,25 @@ namespace imhotep {
         return result;
     }
 
+    std::string Shard::to_string() const {
+        std::ostringstream os;
+        os << "{ name_of: " << name_of()
+           << ", dir: "     << dir()
+           << ", table: "   << table()
+           << ", map_cache: [";
+        bool first_entry = true;
+        for (auto entry: _map_cache) {
+            if (!first_entry) {
+                os << ", ";
+                first_entry = false;
+            }
+            os << "{ name: "  << entry.first
+               << ", value: " << reinterpret_cast<long>(entry.second)
+               << " }";
+        }
+        os << "] }";
+        return os.str();
+    }
 
     /* template instantiations */
     template VarIntView Shard::term_view<IntTerm>(const std::string& field) const;
