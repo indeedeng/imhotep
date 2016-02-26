@@ -13,7 +13,7 @@
  */
 package com.indeed.imhotep.local;
 
-import com.indeed.flamdex.simple.HasMapCache;
+import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.imhotep.io.caching.CachedFile;
 import it.unimi.dsi.fastutil.objects.Object2LongArrayMap;
 
@@ -35,13 +35,22 @@ import java.util.Map;
  *     convenient for purposes of constructing a native Shard object,
  *     elminating the need for elaborate JNI field access gymnastics
  *     inside the native code
+ *
+ * !@# TODO(johnf): Unfortunately getting to the MapCache buried
+    within wrappers of wrappers of FlamdexReaders is non-trivial from
+    the context in which we require this
+    (ImhotepNativeLocalSession). Ultimately, some of that gorp will be
+    replaced with Darren's new shard caching constructs. For now,
+    we'll pass an empty MapCache, which will result in redundantly
+    mapped files within native code, but that should suffice for our
+    immediate testing needs.
  */
 class NativeShard implements AutoCloseable {
 
     private final long shardPtr;
 
-    public NativeShard(final HasMapCache reader,
-                       final long        packedTablePtr)
+    public NativeShard(final FlamdexReader reader,
+                       final long          packedTablePtr)
         throws IOException {
 
         final String shardDir = getDirectory(reader);
@@ -53,7 +62,9 @@ class NativeShard implements AutoCloseable {
         final String[] strFields = reader.getStringFields().toArray(new String[numStrFields]);
 
         final Map<String, Long> cached = new Object2LongArrayMap<String>();
+        /* !@# TODO(johnf): see comment in class header wrt MapCache.
         reader.getMapCache().getAddresses(cached);
+        */
 
         final String[] mappedFiles = new String[cached.size()];
         final long[]   mappedPtrs  = new long[cached.size()];
@@ -85,7 +96,7 @@ class NativeShard implements AutoCloseable {
      * force cache population before we actually do anything with the
      * shard dir.
      */
-    private String getDirectory(final HasMapCache reader)
+    private String getDirectory(final FlamdexReader reader)
         throws IOException {
         final CachedFile cachedFile = CachedFile.create(reader.getDirectory());
         final File       cachedDir  = cachedFile.loadDirectory();

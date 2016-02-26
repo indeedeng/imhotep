@@ -14,12 +14,14 @@
 package com.indeed.imhotep.local;
 
 import com.indeed.flamdex.api.*;
+import com.indeed.flamdex.simple.HasMapCache;
 import com.indeed.imhotep.*;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 
 import org.apache.log4j.Logger;
 
 import java.beans.*;
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nonnull;
@@ -30,6 +32,8 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
 
     private MultiCache multiCache;
     private boolean    rebuildMultiCache = true;
+
+    private NativeShard nativeShard = null;
 
     public ImhotepNativeLocalSession(final FlamdexReader flamdexReader)
         throws ImhotepOutOfMemoryException {
@@ -63,15 +67,36 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
         return multiCache;
     }
 
-    private MultiCache bindMultiCache() {
+
+    /* !@# This is a temporary hack that needs to go away. Some
+        operations, namely regroup, require both a proper multicache
+        (and the packed table within it) and a NativeShard. Since the
+        native shard class currently owns the packed table reference,
+        which is dubious, we have to reconstruct both multicache and
+        native shard in tandem.
+     */
+    private void bindNativeReferences() {
         if (multiCache == null) {
             final MultiCacheConfig config = new MultiCacheConfig();
             final StatLookup[] statLookups = new StatLookup[1];
             statLookups[0] = statLookup;
             config.calcOrdering(statLookups, numStats);
             buildMultiCache(config);
+            if (nativeShard != null) {
+                nativeShard.close();
+                nativeShard = null;
+            }
         }
-        return multiCache;
+        if (nativeShard == null) {
+            try {
+                nativeShard = new NativeShard(getReader(), multiCache.getNativeAddress());
+                System.err.println("native shard ***************");
+                System.err.println(nativeShard);
+            }
+            catch (IOException ex) {
+                throw new RuntimeException("failed to create nativeShard", ex);
+            }
+        }
     }
 
     @Override
@@ -83,7 +108,7 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
     @Override
     public synchronized long[] getGroupStats(int stat) {
 
-        bindMultiCache();
+        bindNativeReferences();
 
         long[] result = groupStats.get(stat);
         if (groupStats.isDirty(stat)) {
@@ -109,6 +134,9 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
             multiCache.close();
             // TODO: free memory?
         }
+        if (nativeShard != null) {
+            nativeShard.close();
+        }
         super.tryClose();
     }
 
@@ -116,7 +144,7 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
     public synchronized int regroup(final GroupMultiRemapRule[] rules, boolean errorOnCollisions)
         throws ImhotepOutOfMemoryException {
         int result = 0;
-
+        bindNativeReferences();
         /* !@# TODO(johnf): looks like we're unnecessarily creating
             one copy of these rules per local session/shard...until we
             fix that, we might consider trying to reuse rulesPtr for
@@ -124,7 +152,7 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
             now though, just make the duplicates... */
         final long rulesPtr = nativeGetRules(rules);
         try {
-            nativeRegroup(rulesPtr, bindMultiCache().getNativeAddress(), errorOnCollisions);
+            nativeRegroup(rulesPtr, multiCache.getNativeAddress(), errorOnCollisions);
             result = super.regroup(rules, errorOnCollisions);
         }
         finally {
