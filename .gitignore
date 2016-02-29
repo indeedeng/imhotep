@@ -13,3 +13,7 @@ dist/
 build.properties
 out/
 .DS_store
+imhotep-server/src/main/native/optimized_ftgs/optimized/libfieldcache.so.1.0.1
+imhotep-server/src/main/native/optimized_ftgs/optimized/libftgs.so.1.0.1
+imhotep-server/src/main/native/optimized_ftgs/optimized/libmulticache.so.1.0.1
+
