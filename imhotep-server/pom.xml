@@ -4,12 +4,12 @@
 	<parent>
 		<groupId>com.indeed</groupId>
 		<artifactId>imhotep</artifactId>
-		<version>1.0.74</version>
+		<version>1.0.75-SNAPSHOT</version>
 	</parent>
 
 	<groupId>com.indeed</groupId>
 	<artifactId>imhotep-server</artifactId>
-	<version>1.0.74</version>
+	<version>1.0.75-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
 	<licenses>
