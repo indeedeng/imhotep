@@ -17,6 +17,7 @@ import com.google.common.base.Charsets;
 import com.indeed.util.zookeeper.ZooKeeperConnection;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooDefs;
@@ -30,10 +31,17 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static java.util.concurrent.TimeUnit.*;
+import static org.apache.zookeeper.KeeperException.Code.*;
 
 /**
-   All real activity happens in run() thread. Other threads can just
-   change state and kick that one.
+   Previous versions of this class suffered from instability due to the
+   eccentricities of the ZooKeeper API. So this version takes the simplest
+   approach I can think of. We periodically check the ZK connection and the
+   existence of our entry in it. If we encounter a problem, we tear down the
+   whole shooting match and start over. All direct interaction with ZK happens
+   in our single work thread and should thus be serialized. If we receive events
+   through the ZK watcher interface, we just kick the work thread and let it
+   do its thing.
  */
 public class ServiceZooKeeperWrapper implements Closeable, Runnable, Watcher {
 
@@ -50,6 +58,9 @@ public class ServiceZooKeeperWrapper implements Closeable, Runnable, Watcher {
 
     private final ScheduledExecutorService scheduler;
 
+    /**
+       Cache the info necessary to populate ZK and start our single work thread.
+    */
     public ServiceZooKeeperWrapper(final String zkNodes,
                                    final String hostname,
                                    final int    port,
@@ -69,7 +80,11 @@ public class ServiceZooKeeperWrapper implements Closeable, Runnable, Watcher {
         }
     }
 
-    /** Return true iff we have a connection and our expected path exists. */
+    /**
+       Check that we have a connection and that our expected entry exists.
+
+       @return true if all is well
+    */
     public boolean isAlive() {
         boolean             result = true;
         ZooKeeperConnection zkConn = zkRef.get();
@@ -88,41 +103,56 @@ public class ServiceZooKeeperWrapper implements Closeable, Runnable, Watcher {
                 result = false;
             }
         }
-        log.debug("isAlive(): " + result);
         return result;
     }
 
-    private boolean zkClose(ZooKeeperConnection zkConn) {
-        log.debug("zkClose(" + zkConn + ")");
+    /**
+       Close our ZK connection.
+    */
+    private void zkClose(ZooKeeperConnection zkConn) {
         try {
             if (zkConn != null) {
                 zkConn.close();
             }
         } catch (InterruptedException ex) {
             log.error("failed to close ZooKeeper connection", ex);
-            return false;
         }
-        log.debug("zkClose() succeeded");
-        return true;
     }
 
+    /**
+       Check the status of our ZK connection; tear it down and rebuild it as
+       necessary.
+     */
     public void run() {
         if (isAlive()) return;
 
         ZooKeeperConnection zkConn = zkRef.getAndSet(null);
-        zkClose(zkConn);
+        if (zkConn != null) {
+            zkClose(zkConn);
+        }
 
         zkConn = new ZooKeeperConnection(zkNodes, SESSION_TIMEOUT_MILLIS);
         try {
             log.info("connecting zkConn: " + zkConn);
             zkConn.connect();
-            log.debug("registering watcher: " + this);
             zkConn.register(this);
 
+            /* Note that createFullPath() swallows harmless KeeperExceptions */
             log.info("creating rootPath: " + rootPath);
             zkConn.createFullPath(rootPath, new byte[0], CreateMode.PERSISTENT, true);
+
             log.info("creating fullPath: " + fullPath);
-            zkConn.create(fullPath, data, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
+            try {
+                zkConn.create(fullPath, data, ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                              CreateMode.EPHEMERAL);
+            }
+            catch (KeeperException ex) {
+                /* Filter out harmless "node exists" errors. */
+                if (ex.code() != NODEEXISTS) {
+                    throw ex;
+                }
+            }
+
             zkRef.set(zkConn);
         }
         catch (Exception ex) {
@@ -130,6 +160,9 @@ public class ServiceZooKeeperWrapper implements Closeable, Runnable, Watcher {
         }
     }
 
+    /**
+       Shutdown our work thread and clean up our ZK connection.
+    */
     @Override public void close() throws IOException {
         try {
             scheduler.shutdownNow();
@@ -137,10 +170,17 @@ public class ServiceZooKeeperWrapper implements Closeable, Runnable, Watcher {
         catch (RuntimeException ex) {
             log.error("failed to shutdown scheduler in an orderly fashion", ex);
         }
+
         ZooKeeperConnection zkConn = zkRef.getAndSet(null);
-        zkClose(zkConn);
+        if (zkConn != null) {
+            zkClose(zkConn);
+        }
     }
 
+    /**
+       Respond to ZK events that suggest something might be amiss with our
+       connection (session timeout, etc.) by kicking our work thread.
+     */
     @Override public void process(WatchedEvent watchedEvent) {
         log.debug("received watchedEvent" +
                   " type: " + watchedEvent.getType() +
