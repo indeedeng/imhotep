@@ -115,7 +115,6 @@
 		<gnu-trove.version>3.0.3</gnu-trove.version>
 		<lucene.version>2.4.1</lucene.version>
 		<joda-time.version>2.0</joda-time.version>
-                <protoc.path>/usr/bin/protoc</protoc.path>
 		<protobuf-java.version>2.5.0</protobuf-java.version>
 		<snakeyaml.version>1.10</snakeyaml.version>
 		<zookeeper.version>3.4.5-cdh4.4.0</zookeeper.version>
