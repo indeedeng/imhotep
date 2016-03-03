@@ -83,6 +83,8 @@ public class DatasetInfo {
     public static DatasetInfo fromProto(final DatasetInfoMessage proto) {
         return new DatasetInfo(
                 proto.getDataset(),
+                // TODO: this transform is lazy.
+                // if many sessions are created we could get a speed up by offering an option to deserialize on update
                 Lists.transform(proto.getShardInfoList(), new Function<ShardInfoMessage, ShardInfo>() {
                     @Override
                     public ShardInfo apply(ShardInfoMessage input) {

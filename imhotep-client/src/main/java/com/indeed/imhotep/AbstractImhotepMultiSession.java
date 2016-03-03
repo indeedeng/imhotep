@@ -24,7 +24,6 @@ import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.threads.LogOnUncaughtExceptionHandler;
 import com.indeed.flamdex.query.Term;
-import com.indeed.flamdex.utils.BlockingCopyableIterator;
 import com.indeed.imhotep.api.DocIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
@@ -241,12 +240,14 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
 
     @Override
     public int regroup(final int numRawRules, final Iterator<GroupMultiRemapRule> rawRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
-        final BlockingCopyableIterator<GroupMultiRemapRule> copyableIterator = new BlockingCopyableIterator<GroupMultiRemapRule>(rawRules, sessions.length, 256);
+
+        final GroupMultiRemapRuleArray rulesArray =
+            new GroupMultiRemapRuleArray(numRawRules, rawRules);
 
         executeMemoryException(integerBuf, new ThrowingFunction<ImhotepSession, Integer>() {
             @Override
             public Integer apply(ImhotepSession session) throws Exception {
-                return session.regroup(numRawRules, copyableIterator.iterator(), errorOnCollisions);
+                return session.regroup(rulesArray.elements(), errorOnCollisions);
             }
         });
 
@@ -268,11 +269,11 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
     }
 
     public int regroup2(final int numRules, final Iterator<GroupRemapRule> rules) throws ImhotepOutOfMemoryException {
-        final BlockingCopyableIterator<GroupRemapRule> copyableIterator = new BlockingCopyableIterator<GroupRemapRule>(rules, sessions.length, 256);
+        final GroupRemapRuleArray rulesArray = new GroupRemapRuleArray(numRules, rules);
         executeMemoryException(integerBuf, new ThrowingFunction<ImhotepSession, Integer>() {
             @Override
             public Integer apply(ImhotepSession session) throws Exception {
-                return session.regroup2(numRules, copyableIterator.iterator());
+                return session.regroup(rulesArray.elements());
             }
         });
 

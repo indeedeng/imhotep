@@ -87,6 +87,7 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
                 nativeShard = null;
             }
         }
+        /*
         if (nativeShard == null) {
             try {
                 nativeShard = new NativeShard(getReader(), multiCache.getNativeAddress());
@@ -97,6 +98,7 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
                 throw new RuntimeException("failed to create nativeShard", ex);
             }
         }
+        */
     }
 
     @Override
@@ -145,11 +147,7 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
         throws ImhotepOutOfMemoryException {
         int result = 0;
         bindNativeReferences();
-        /* !@# TODO(johnf): looks like we're unnecessarily creating
-            one copy of these rules per local session/shard...until we
-            fix that, we might consider trying to reuse rulesPtr for
-            each set of 'rules' that hashes to the same value...for
-            now though, just make the duplicates... */
+        /*
         final long rulesPtr = nativeGetRules(rules);
         try {
             nativeRegroup(rulesPtr, multiCache.getNativeAddress(), errorOnCollisions);
@@ -159,6 +157,8 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
             nativeReleaseRules(rulesPtr);
         }
         return result;
+        */
+        return super.regroup(rules, errorOnCollisions);
     }
 
     private native static long nativeGetRules(final GroupMultiRemapRule[] rules);
