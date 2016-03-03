@@ -174,7 +174,13 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                                        final String[] stringFields,
                                        final int splitIndex,
                                        final int numSplits,
+                                       final long termLimit,
                                        final Socket socket) throws ImhotepOutOfMemoryException {
+
+        // TODO: implement the FTGS term limit in native code
+        if (termLimit > 0) {
+            throw new IllegalArgumentException("FTGS termLimit is not supported in native mode yet");
+        }
 
         // save socket
         ftgsOutputSockets[splitIndex] = socket;

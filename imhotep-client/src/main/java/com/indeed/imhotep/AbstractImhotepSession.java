@@ -33,21 +33,13 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
 
     @Override
     public int regroup(int numRules, Iterator<GroupMultiRemapRule> rules, boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
-        final GroupMultiRemapRule[] rulesArray = new GroupMultiRemapRule[numRules];
-        for (int i = 0; i < rulesArray.length; i++) {
-            if (!rules.hasNext()) throw new IllegalArgumentException("numRules is "+numRules+" but iterator only had "+i+" rules");
-            rulesArray[i] = rules.next();
-        }
-        return regroup(rulesArray, errorOnCollisions);
+        final GroupMultiRemapRuleArray rulesArray = new GroupMultiRemapRuleArray(numRules, rules);
+        return regroup(rulesArray.elements(), errorOnCollisions);
     }
 
     public int regroup2(final int numRules, final Iterator<GroupRemapRule> rules) throws ImhotepOutOfMemoryException {
-        final GroupRemapRule[] rulesArray = new GroupRemapRule[numRules];
-        for (int i = 0; i < rulesArray.length; i++) {
-            if (!rules.hasNext()) throw new IllegalArgumentException("numRules is "+numRules+" but iterator only had "+i+" rules");
-            rulesArray[i] = rules.next();
-        }
-        return regroup(rulesArray);
+        final GroupRemapRuleArray rulesArray = new GroupRemapRuleArray(numRules, rules);
+        return regroup(rulesArray.elements());
     }
 
     public int regroup(final GroupMultiRemapRule[] rawRules) throws ImhotepOutOfMemoryException {

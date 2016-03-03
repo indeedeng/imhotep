@@ -132,7 +132,7 @@ public class TestFTGSPerf {
                 @Override
                 public void run() {
                     try {
-                        session.writeFTGSIteratorSplit(intFields, stringFields, i, numSplits, socket);
+                        session.writeFTGSIteratorSplit(intFields, stringFields, i, numSplits, 0, socket);
                         socket.close();
                     } catch (IOException e) {
                         throw new RuntimeException(e);

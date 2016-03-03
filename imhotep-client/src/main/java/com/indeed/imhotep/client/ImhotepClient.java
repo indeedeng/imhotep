@@ -219,8 +219,11 @@ public class ImhotepClient
         final Map<String,Long> latestVersionMap = new HashMap<String, Long>();
         for (final List<DatasetInfo> datasetList : shardListMap.values()) {
             for (final DatasetInfo datasetInfo : datasetList) {
+                if (!dataset.equals(datasetInfo.getDataset())) {
+                    continue;
+                }
                 for (final ShardInfo shard : datasetInfo.getShardList()) {
-                    if (dataset.equals(shard.dataset) && filterFunc.accept(shard)) {
+                    if (filterFunc.accept(shard)) {
                         //is in time range, check version
                         if(!latestVersionMap.containsKey(shard.shardId) || latestVersionMap.get(shard.shardId) < shard.version) {
                             latestVersionMap.put(shard.shardId, shard.version);

@@ -233,6 +233,9 @@ message ImhotepRequest {
 
   // session timeout in milliseconds
   optional int64 sessionTimeout = 53 [default = 0];
+
+  // for getFTGSIterator
+  optional int64 termLimit = 54 [default = 0];
 }
 
 message ImhotepResponse {

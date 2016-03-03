@@ -13,48 +13,113 @@
  */
 package com.indeed.imhotep.local;
 
-import java.lang.management.ThreadMXBean;
-
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.*;
-import com.google.common.collect.*;
-import com.google.common.primitives.*;
+import com.google.common.base.Function;
+import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableListMultimap;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Multimaps;
+import com.google.common.primitives.Ints;
+import com.google.common.primitives.Longs;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.indeed.flamdex.api.*;
-import com.indeed.flamdex.datastruct.*;
-import com.indeed.flamdex.fieldcache.*;
-import com.indeed.flamdex.query.*;
-import com.indeed.flamdex.reader.FlamdexMetadata;
+import com.indeed.flamdex.api.DocIdStream;
+import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
+import com.indeed.flamdex.api.FlamdexReader;
+import com.indeed.flamdex.api.IntTermIterator;
+import com.indeed.flamdex.api.IntValueLookup;
+import com.indeed.flamdex.api.RawFlamdexReader;
+import com.indeed.flamdex.api.StringTermDocIterator;
+import com.indeed.flamdex.api.StringTermIterator;
+import com.indeed.flamdex.api.StringValueLookup;
+import com.indeed.flamdex.api.TermDocIterator;
+import com.indeed.flamdex.datastruct.FastBitSet;
+import com.indeed.flamdex.datastruct.FastBitSetPooler;
+import com.indeed.flamdex.fieldcache.ByteArrayIntValueLookup;
+import com.indeed.flamdex.fieldcache.IntArrayIntValueLookup;
+import com.indeed.flamdex.query.Query;
+import com.indeed.flamdex.query.Term;
 import com.indeed.flamdex.search.FlamdexSearcher;
 import com.indeed.flamdex.utils.FlamdexUtils;
-import com.indeed.imhotep.*;
-import com.indeed.imhotep.api.*;
+import com.indeed.imhotep.AbstractImhotepSession;
+import com.indeed.imhotep.FTGSSplitter;
+import com.indeed.imhotep.GroupMultiRemapRule;
+import com.indeed.imhotep.GroupRemapRule;
+import com.indeed.imhotep.ImhotepMemoryPool;
+import com.indeed.imhotep.Instrumentation;
+import com.indeed.imhotep.InstrumentedThreadFactory;
+import com.indeed.imhotep.MemoryReservationContext;
+import com.indeed.imhotep.MemoryReserver;
+import com.indeed.imhotep.QueryRemapRule;
+import com.indeed.imhotep.RegroupCondition;
+import com.indeed.imhotep.TermCount;
+import com.indeed.imhotep.TermLimitedFTGSIterator;
+import com.indeed.imhotep.TermLimitedRawFTGSIterator;
+import com.indeed.imhotep.api.DocIterator;
+import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.imhotep.group.ImhotepChooser;
 import com.indeed.imhotep.marshal.ImhotepDaemonMarshaller;
-import com.indeed.imhotep.metrics.*;
+import com.indeed.imhotep.metrics.AbsoluteValue;
+import com.indeed.imhotep.metrics.Addition;
+import com.indeed.imhotep.metrics.CachedInterleavedMetrics;
+import com.indeed.imhotep.metrics.CachedMetric;
+import com.indeed.imhotep.metrics.Constant;
+import com.indeed.imhotep.metrics.Count;
+import com.indeed.imhotep.metrics.DelegatingMetric;
+import com.indeed.imhotep.metrics.Division;
+import com.indeed.imhotep.metrics.Equal;
+import com.indeed.imhotep.metrics.Exponential;
+import com.indeed.imhotep.metrics.GreaterThan;
+import com.indeed.imhotep.metrics.GreaterThanOrEqual;
+import com.indeed.imhotep.metrics.LessThan;
+import com.indeed.imhotep.metrics.LessThanOrEqual;
+import com.indeed.imhotep.metrics.Log;
+import com.indeed.imhotep.metrics.Log1pExp;
+import com.indeed.imhotep.metrics.Logistic;
+import com.indeed.imhotep.metrics.Max;
+import com.indeed.imhotep.metrics.Min;
+import com.indeed.imhotep.metrics.Modulus;
+import com.indeed.imhotep.metrics.Multiplication;
+import com.indeed.imhotep.metrics.NotEqual;
+import com.indeed.imhotep.metrics.ShiftLeft;
+import com.indeed.imhotep.metrics.ShiftRight;
+import com.indeed.imhotep.metrics.Subtraction;
 import com.indeed.imhotep.protobuf.QueryMessage;
-import com.indeed.imhotep.service.*;
-import com.indeed.util.core.*;
+import com.indeed.imhotep.service.InstrumentedFlamdexReader;
+import com.indeed.util.core.Pair;
+import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.core.threads.LogOnUncaughtExceptionHandler;
 import com.indeed.util.core.threads.ThreadSafeBitSet;
-import dk.brics.automaton.*;
+import dk.brics.automaton.Automaton;
+import dk.brics.automaton.RegExp;
 import it.unimi.dsi.fastutil.PriorityQueue;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.longs.*;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.log4j.Logger;
 
-import javax.annotation.Nonnull;
-import java.io.*;
-import java.net.*;
-import java.util.*;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.regex.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * This class isn't even close to remotely thread safe, do not use it
@@ -258,9 +323,22 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     @Override
     public synchronized FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields) {
-        return flamdexReader instanceof RawFlamdexReader ?
-            new RawFlamdexFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields) :
-            new FlamdexFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields);
+        return getFTGSIterator(intFields, stringFields, 0);
+    }
+
+    @Override
+    public synchronized FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, long termLimit) {
+        FTGSIterator iterator =  flamdexReader instanceof RawFlamdexReader ?
+                new RawFlamdexFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields) :
+                new FlamdexFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields);
+        if (termLimit > 0 ) {
+            if(iterator instanceof RawFlamdexFTGSIterator) {
+                iterator = new TermLimitedRawFTGSIterator((RawFlamdexFTGSIterator) iterator, termLimit);
+            } else {
+                iterator = new TermLimitedFTGSIterator(iterator, termLimit);
+            }
+        }
+        return iterator;
     }
 
     @Override
@@ -391,12 +469,12 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         };
     }
 
-    public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields) {
+    public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields, final long termLimit) {
         final int numSplits = 16;
 
         final RawFTGSIterator[] ret = new RawFTGSIterator[numSplits];
         for (int i = 0; i < numSplits; i++) {
-            ret[i] = getFTGSIteratorSplit(intFields, stringFields, i, numSplits);
+            ret[i] = getFTGSIteratorSplit(intFields, stringFields, i, numSplits, termLimit);
         }
 
         return ret;
@@ -405,10 +483,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     public synchronized RawFTGSIterator getFTGSIteratorSplit(final String[] intFields,
                                                              final String[] stringFields,
                                                              final int splitIndex,
-                                                             final int numSplits) {
+                                                             final int numSplits,
+                                                             final long termLimit) {
         if (ftgsIteratorSplits == null || ftgsIteratorSplits.isClosed()) {
             try {
-                ftgsIteratorSplits = new FTGSSplitter(getFTGSIterator(intFields, stringFields),
+                ftgsIteratorSplits = new FTGSSplitter(getFTGSIterator(intFields, stringFields, termLimit),
                                                       numSplits, numStats,
                                                       969168349, tempFileSizeBytesLeft,
                                                       threadFactory);
@@ -421,7 +500,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     @Override
     public void writeFTGSIteratorSplit(String[] intFields, String[] stringFields,
-                                       int splitIndex, int numSplits, Socket socket) {
+                                       int splitIndex, int numSplits, long termLimit, Socket socket) {
         throw new UnsupportedOperationException();
     }
 
@@ -459,7 +538,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                                           final String[] stringFields,
                                           final String sessionId,
                                           final InetSocketAddress[] nodes,
-                                          final int splitIndex) {
+                                          final int splitIndex, long termLimit) {
         throw new UnsupportedOperationException();
     }
 
@@ -1377,6 +1456,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             Pattern.compile("floatscale\\s+(\\w+)\\s*\\*\\s*(" + decimalPattern + ")\\s*\\+\\s*("
                     + decimalPattern + ")");
 
+    private static final Pattern REGEXPMATCH_COMMAND = Pattern.compile("regexmatch\\s+(\\w+)\\s+\"(.+)\"(\\s+([0-9]+))?");
+
     @Override
     public synchronized int pushStat(String statName)
         throws ImhotepOutOfMemoryException {
@@ -1411,6 +1492,20 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 throw new IllegalArgumentException("invalid regex metric: " + statName);
             }
             statLookup.set(numStats, statName, hasRegexFilter(split[0], split[1]));
+        } else if (statName.startsWith("regexmatch ")) {
+            final Matcher matcher = REGEXPMATCH_COMMAND.matcher(statName);
+            if (!matcher.matches()) {
+                throw new IllegalArgumentException("invalid regexmatch metric: " + statName);
+            }
+            final String fieldName = matcher.group(1);
+            final String regexp = matcher.group(2);
+            final int matchIndex = (matcher.group(4) == null) ? 1 : Integer.parseInt(matcher.group(4));
+
+            if (matchIndex < 1) {
+                throw new IllegalArgumentException("invalid regexmatch index: " + statName);
+            }
+
+            statLookup.set(numStats, statName, matchByRegex(fieldName, regexp, matchIndex));
         } else if (statName.startsWith("inttermcount ")) {
             final String field = statName.substring(13).trim();
             statLookup.set(numStats, statName, intTermCountLookup(field));
@@ -2492,6 +2587,16 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 FlamdexUtils.cacheRegex(field, regex, flamdexReader),
                 memoryUsage
         );
+    }
+
+    private IntValueLookup matchByRegex(final String field, final String regex, final int matchIndex) throws ImhotepOutOfMemoryException {
+        final long memoryUsage = 8 * flamdexReader.getNumDocs();
+
+        if (!memory.claimMemory(memoryUsage)) {
+            throw new ImhotepOutOfMemoryException();
+        }
+
+        return new MemoryReservingIntValueLookupWrapper(FlamdexUtils.cacheRegExpCapturedLong(field, flamdexReader, Pattern.compile(regex), matchIndex));
     }
 
     private IntValueLookup intTermCountLookup(final String field)
