@@ -14,6 +14,7 @@ extern "C" {
 }
 
 #include "mmapped_file.hpp"
+#include "split_file_cache.hpp"
 #include "split_view.hpp"
 #include "term.hpp"
 #include "term_index.hpp"
@@ -61,8 +62,8 @@ namespace imhotep {
         IntTermIndex    int_term_index(const std::string& field) const;
         StringTermIndex str_term_index(const std::string& field) const;
 
-        // !@# ultimately this should probably be via (field, split_num)
         SplitView split_view(const std::string& filename) const;
+        std::shared_ptr<SplitFile> split_file(const std::string& filename) const;
 
         template <typename term_t>
         std::string term_filename(const std::string& field) const;
@@ -81,7 +82,6 @@ namespace imhotep {
 
     private:
         typedef std::map<std::string, std::shared_ptr<MMappedFile>> FieldToMMappedFile;
-        typedef std::map<std::string, std::shared_ptr<MMappedFile>> SplitFileMap;
 
         std::string base_filename(const std::string& field) const;
 
@@ -90,18 +90,16 @@ namespace imhotep {
                      const std::string&  filename,
                      FieldToMMappedFile& cache) const;
 
-        std::shared_ptr<MMappedFile> split_file(const std::string& filename) const;
-
         mutable FieldToMMappedFile _term_views;
         mutable FieldToMMappedFile _docid_views;
         mutable FieldToMMappedFile _int_term_indices;
         mutable FieldToMMappedFile _str_term_indices;
 
-        mutable SplitFileMap _split_files;
-
         std::string      _dir;
         packed_table_ptr _table;
         MapCache         _map_cache;
+
+        std::shared_ptr<SplitFileCache> _split_file_cache = std::make_shared<SplitFileCache>();
     };
 
 } // namespace imhotep

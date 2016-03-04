@@ -10,6 +10,7 @@
 #include <string>
 
 #include "shard.hpp"
+#include "split_file.hpp"
 #include "term_iterator.hpp"
 
 namespace imhotep {
@@ -78,7 +79,8 @@ namespace imhotep {
         : _shard(shard)
         , _splits_dir(splits_dir)
         , _field(field)
-        , _term_iterator(term_iterator_t(shard, field)) {
+        , _term_iterator(term_iterator_t(shard, field))
+    {
         for (size_t split_num(0); split_num < num_splits; ++split_num) {
             _splits[split_num] = field;
         }
@@ -103,16 +105,19 @@ namespace imhotep {
     template <typename term_t>
     void Splitter<term_t>::run()
     {
-        std::vector<FILE*> split_files;
+        std::vector<FILE*> files;
         for (SplitNumToField::const_iterator split_it(splits().begin());
              split_it != splits().end(); ++split_it) {
             const std::pair<size_t, std::string>& kv(*split_it);
             const std::string filename(_shard.split_filename(splits_dir(), kv.second, kv.first));
-            FILE* file(fopen(filename.c_str(), "w"));
+            const std::shared_ptr<SplitFile> split_file(_shard.split_file(filename));
+            FILE* file(fdopen(split_file->fd(), "a"));
             if (!file) {
-                throw imhotep_error("cannot create split file");
+                throw imhotep_error(std::string(__FUNCTION__) +
+                                    " failed to open split file " +
+                                    split_file->to_string());
             }
-            split_files.push_back(file);
+            files.push_back(file);
         }
 
         term_iterator_t it(_term_iterator);
@@ -120,16 +125,17 @@ namespace imhotep {
         while (it != end) {
             const size_t  hash_val(it->hash());
             const size_t  split(hash_val % _splits.size());
-            FILE*         file(split_files[split]);
+            FILE*         file(files[split]);
             const term_t& term(*it);
             encode(file, term);
             ++it;
         }
 
-        for (std::vector<FILE*>::iterator file_it(split_files.begin());
-             file_it != split_files.end(); ++file_it) {
-            if (fclose(*file_it) == -1) {
-                throw imhotep_error("close() failed for split file"); // !@#
+        for (auto file: files) {
+            if (fflush(file) != 0) {
+                std::cerr << __FUNCTION__ << " failed to fflush split file "
+                          << std::string(strerror(errno))
+                          << std::endl;
             }
         }
     }

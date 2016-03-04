@@ -71,8 +71,7 @@ namespace imhotep {
     }
 
     SplitView Shard::split_view(const std::string& filename) const {
-        const MMappedFile& file(*split_file(filename));
-        return SplitView(file.begin(), file.end());
+        return split_file(filename)->split_view();
     }
 
     template <typename term_t>
@@ -94,8 +93,7 @@ namespace imhotep {
                                       const std::string& field,
                                       size_t split_num) const {
         std::ostringstream os;
-        os << splits_dir << '/' << name_of() << '.'
-            //           << field << '.' << getpid() << '.' << split_num;
+        os << splits_dir << "/native-split." << name_of() << '.'
            << field << '.' << split_num;
         return os.str();
     }
@@ -109,20 +107,9 @@ namespace imhotep {
         return dir() + "/fld-" + field + ".";
     }
 
-    std::shared_ptr<MMappedFile> Shard::split_file(const std::string& filename) const {
-        std::shared_ptr<MMappedFile> result;
-        SplitFileMap::iterator it(_split_files.find(filename));
-        if (it == _split_files.end()) {
-            // !@# Consider having Shard explicitly delete these in dtor.
-            result = std::make_shared<MMappedFile>(filename, true, true);
-            _split_files[filename] = result;
-        }
-        else {
-            result = it->second;
-        }
-        return result;
+    std::shared_ptr<SplitFile> Shard::split_file(const std::string& filename) const {
+        return _split_file_cache->get(filename);
     }
-
 
     /* template instantiations */
     template VarIntView Shard::term_view<IntTerm>(const std::string& field) const;
