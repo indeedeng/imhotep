@@ -195,4 +195,54 @@ public final class FlamdexDocument {
         }
         return new FlamdexDocument(intFieldsCopy, stringFieldsCopy);
     }
+
+    public static class Builder {
+        private final FlamdexDocument document;
+        public Builder() {
+            document = new FlamdexDocument();
+        }
+
+        public Builder(final FlamdexDocument that) {
+            document = that;
+        }
+
+        public Builder addStringTerm(final String field, final CharSequence term) {
+            document.addStringTerm(field, term);
+            return this;
+        }
+
+        public Builder addStringTerms(final String field, final CharSequence... terms) {
+            document.addStringTerms(field, terms);
+            return this;
+        }
+
+        public Builder addStringTerms(final String field, final Iterable<? extends CharSequence> terms) {
+            document.addStringTerms(field, terms);
+            return this;
+        }
+
+        public Builder addIntTerm(final String field, final boolean term) {
+            document.addIntTerm(field, term);
+            return this;
+        }
+
+        public Builder addIntTerm(final String field, final long term) {
+            document.addIntTerm(field, term);
+            return this;
+        }
+
+        public Builder addIntTerms(final String field, final long... terms) {
+            document.addIntTerms(field, terms);
+            return this;
+        }
+
+        public Builder addIntTerms(final String field, final Iterable<Long> terms) {
+            document.addIntTerms(field, terms);
+            return this;
+        }
+
+        public FlamdexDocument build() {
+            return document;
+        }
+    }
 }

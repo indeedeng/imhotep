@@ -14,7 +14,6 @@
  package com.indeed.imhotep.service;
 
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Maps;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.reader.MockFlamdexReader;
 import com.indeed.imhotep.DatasetInfo;
@@ -41,7 +40,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
@@ -108,7 +106,7 @@ public class TestLocalImhotepServiceCore {
                 @Override
                 public void run() {
                     try {
-                        service.handleGetFTGSIterator(sessionId, new String[]{"if1"}, new String[0], 0, os);
+                        service.handleGetFTGSIterator(sessionId, new String[]{"if1"}, new String[0], 0, -1, os);
                         fail();
                     } catch (Exception e) {
                         e.printStackTrace();
