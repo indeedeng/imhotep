@@ -346,6 +346,15 @@ public class LocalImhotepServiceCore
                 /* an optimization log */
                 f.delete();
             }
+            if (!f.isDirectory() && f.getName().startsWith("ftgs") && f.getName().endsWith(".tmp")) {
+                /* created by AbstractImhotepMultisession::persist() */
+                f.delete();
+            }
+            if (!f.isDirectory() && f.getName().startsWith("native-split")) {
+                /* a temporary split file created by native code (see
+                 * shard.cpp, Shard::split_filename()) */
+                f.delete();
+            }
         }
     }
 

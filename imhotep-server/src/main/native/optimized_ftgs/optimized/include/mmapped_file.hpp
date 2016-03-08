@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <cstdio>
 #include <cstring>
 #include <stdexcept>
 #include <string>
@@ -27,13 +28,19 @@ namespace imhotep {
                 throw imhotep_error("cannot open file: " + filename +
                                     " " + std::string(strerror(errno)));
             }
+            else if (_delete_on_close) {
+                /* Unix unlink()/remove() semantics are that a file is not
+                   really removed until it is closed. We unlink immediately so
+                   the file will be cleaned in a crash scenario. (IMTEPD-199) */
+                remove(filename.c_str()); // TODO(johnf): Figure out how to warn here...
+            }
 
             struct stat buf;
             const int rc(fstat(_fd, &buf));
             if (rc != 0) {
                 close(_fd);
                 if (_delete_on_close) {
-                    unlink(_filename.c_str());
+                    remove(_filename.c_str());
                 }
                 throw imhotep_error(strerror(errno));
             }
@@ -58,7 +65,7 @@ namespace imhotep {
             if (_fd != -1) {
                 close(_fd);
                 if (_delete_on_close) {
-                    unlink(_filename.c_str());
+                    remove(_filename.c_str());
                 }
             }
         }
