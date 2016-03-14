@@ -3,8 +3,8 @@
 #undef  JNIEXPORT
 #define JNIEXPORT               __attribute__((visibility("default")))
 
-#include "com_indeed_imhotep_local_MultiRegroupInternals.h"
-#include "com_indeed_imhotep_local_MTImhotepLocalMultiSession.h"
+#include "jni/com_indeed_imhotep_local_MultiRegroupInternals.h"
+#include "jni/com_indeed_imhotep_local_MTImhotepLocalMultiSession.h"
 #include "imhotep_native.h"
 #include "local_session.h"
 #include "remote_output.h"

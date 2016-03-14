@@ -9,7 +9,7 @@
 #undef  JNIEXPORT
 #define JNIEXPORT __attribute__((visibility("default")))
 
-#include "com_indeed_imhotep_service_PinnedThreadFactory.h"
+#include "jni/com_indeed_imhotep_service_PinnedThreadFactory.h"
 
 /*
  * Class:     com_indeed_imhotep_service_PinnedThreadFactory_PinnedThread

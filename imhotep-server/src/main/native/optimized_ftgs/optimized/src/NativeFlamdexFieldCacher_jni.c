@@ -3,7 +3,7 @@
 #undef  JNIEXPORT
 #define JNIEXPORT               __attribute__((visibility("default")))
 
-#include "com_indeed_flamdex_fieldcache_NativeFlamdexFieldCacher.h"
+#include "jni/com_indeed_flamdex_fieldcache_NativeFlamdexFieldCacher.h"
 #include "metrics_inverter.h"
 
 #undef com_indeed_flamdex_fieldcache_NativeFlamdexFieldCacher_BUFFER_SIZE

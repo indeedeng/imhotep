@@ -43,7 +43,7 @@ namespace imhotep {
                        const std::vector<std::string>& int_fields,
                        const std::vector<std::string>& str_fields,
                        packed_table_ptr                table = packed_table_ptr(),
-                       const MapCache&                 map_cache=MapCache());
+                       const MapCache&                 map_cache = MapCache());
 
         Shard(const Shard& rhs) = default;
 
@@ -79,6 +79,8 @@ namespace imhotep {
                                    size_t split_num) const;
 
         std::string name_of() const;
+
+        std::string to_string() const;
 
     private:
         typedef std::map<std::string, std::shared_ptr<MMappedFile>> FieldToMMappedFile;

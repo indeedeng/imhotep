@@ -5,6 +5,8 @@
 
 #include <sstream>
 
+#include <iostream>             // !@# debugging...
+
 namespace imhotep {
 
     Shard::Shard(const std::string&              dir,
@@ -14,18 +16,12 @@ namespace imhotep {
                  const MapCache&                 map_cache)
         : _dir(dir)
         , _table(table)
-        , _map_cache(map_cache) {
-
-        /* !@# force caching of views for now... */
-        typedef std::vector<std::string>::const_iterator It;
-        for (It it(int_fields.begin()); it != int_fields.end(); ++it) {
-            term_view<IntTerm>(*it);
-            docid_view<IntTerm>(*it);
-        }
-        for (It it(str_fields.begin()); it != str_fields.end(); ++it) {
-            term_view<StringTerm>(*it);
-            docid_view<StringTerm>(*it);
-        }
+        , _map_cache(map_cache)
+    {
+        /* Note to self: during development, we forced caching of
+           views as an optimization, but that shouldn't be necessary
+           given the advent of MapCache. If performance degrades we
+           should reexamine. */
     }
 
     std::shared_ptr<MMappedFile>
@@ -109,6 +105,26 @@ namespace imhotep {
 
     std::shared_ptr<SplitFile> Shard::split_file(const std::string& filename) const {
         return _split_file_cache->get(filename);
+    }
+
+    std::string Shard::to_string() const {
+        std::ostringstream os;
+        os << "{ name_of: " << name_of()
+           << ", dir: "     << dir()
+           << ", table: "   << table()
+           << ", map_cache: [";
+        bool first_entry = true;
+        for (auto entry: _map_cache) {
+            if (!first_entry) {
+                os << ", ";
+                first_entry = false;
+            }
+            os << "{ name: "  << entry.first
+               << ", value: " << reinterpret_cast<long>(entry.second)
+               << " }";
+        }
+        os << "] }";
+        return os.str();
     }
 
     /* template instantiations */
