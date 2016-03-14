@@ -42,6 +42,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import static com.indeed.util.core.Either.Left;
 import static com.indeed.util.core.Either.Right;
 
+import com.indeed.flamdex.simple.SimpleFlamdexReader; // !@# egregious hack!
 
 /**
  * @author jsgroth
@@ -229,5 +230,9 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
             }
             Closeables2.closeQuietly(memory, log);
         }
+    }
+
+    public SimpleFlamdexReader getWrapped() {
+        return (SimpleFlamdexReader) wrapped;
     }
 }

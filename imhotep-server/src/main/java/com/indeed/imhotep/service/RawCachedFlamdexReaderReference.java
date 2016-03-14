@@ -44,4 +44,9 @@ public final class RawCachedFlamdexReaderReference
     public RawStringTermDocIterator getStringTermDocIterator(final String field) {
         return reader.getStringTermDocIterator(field);
     }
+
+    // !@# Egregious hack to export wrapped SimpleFlamdexReader...
+    public CachedFlamdexReader getWrapped() {
+        return (CachedFlamdexReader) reader;
+    }
 }

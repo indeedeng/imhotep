@@ -26,6 +26,9 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nonnull;
 
+import com.indeed.imhotep.service.RawCachedFlamdexReaderReference;
+import com.indeed.flamdex.simple.SimpleFlamdexReader; // !@# egregious hack!
+
 public class ImhotepNativeLocalSession extends ImhotepLocalSession {
 
     static final Logger log = Logger.getLogger(ImhotepNativeLocalSession.class);
@@ -34,6 +37,10 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
     private boolean    rebuildMultiCache = true;
 
     private NativeShard nativeShard = null;
+
+    /* !@# Blech! Egregious hack to access actual SFR wrapped within
+        FlamdexReader passed in. */
+    private SimpleFlamdexReader simpleFlamdexReader;
 
     public ImhotepNativeLocalSession(final FlamdexReader flamdexReader)
         throws ImhotepOutOfMemoryException {
@@ -47,6 +54,9 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
         throws ImhotepOutOfMemoryException {
 
         super(flamdexReader, memory, tempFileSizeBytesLeft);
+
+        this.simpleFlamdexReader =
+            ((RawCachedFlamdexReaderReference) flamdexReader).getWrapped().getWrapped();
 
         this.statLookup.addObserver(new StatLookup.Observer() {
                 public void onChange(final StatLookup statLookup, final int index) {
@@ -87,10 +97,10 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
                 nativeShard = null;
             }
         }
-        /*
+
         if (nativeShard == null) {
             try {
-                nativeShard = new NativeShard(getReader(), multiCache.getNativeAddress());
+                nativeShard = new NativeShard(simpleFlamdexReader, multiCache.getNativeAddress());
                 System.err.println("native shard ***************");
                 System.err.println(nativeShard);
             }
@@ -98,7 +108,6 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
                 throw new RuntimeException("failed to create nativeShard", ex);
             }
         }
-        */
     }
 
     @Override
@@ -147,18 +156,15 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
         throws ImhotepOutOfMemoryException {
         int result = 0;
         bindNativeReferences();
-        /*
         final long rulesPtr = nativeGetRules(rules);
         try {
-            nativeRegroup(rulesPtr, multiCache.getNativeAddress(), errorOnCollisions);
+            nativeRegroup(rulesPtr, nativeShard.getPtr(), errorOnCollisions);
             result = super.regroup(rules, errorOnCollisions);
         }
         finally {
             nativeReleaseRules(rulesPtr);
         }
         return result;
-        */
-        return super.regroup(rules, errorOnCollisions);
     }
 
     private native static long nativeGetRules(final GroupMultiRemapRule[] rules);
