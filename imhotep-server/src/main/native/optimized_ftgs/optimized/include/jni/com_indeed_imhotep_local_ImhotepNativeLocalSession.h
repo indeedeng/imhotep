@@ -31,10 +31,10 @@ JNIEXPORT void JNICALL Java_com_indeed_imhotep_local_ImhotepNativeLocalSession_n
 /*
  * Class:     com_indeed_imhotep_local_ImhotepNativeLocalSession
  * Method:    nativeRegroup
- * Signature: (JZ)I
+ * Signature: (JJZ)I
  */
 JNIEXPORT jint JNICALL Java_com_indeed_imhotep_local_ImhotepNativeLocalSession_nativeRegroup
-  (JNIEnv *, jclass, jlong, jboolean);
+  (JNIEnv *, jclass, jlong, jlong, jboolean);
 
 #ifdef __cplusplus
 }

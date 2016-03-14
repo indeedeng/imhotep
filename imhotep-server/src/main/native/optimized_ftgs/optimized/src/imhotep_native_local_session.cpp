@@ -178,22 +178,30 @@ Java_com_indeed_imhotep_local_ImhotepNativeLocalSession_nativeReleaseRules(JNIEn
 /*
  * Class:     com_indeed_imhotep_local_ImhotepNativeLocalSession
  * Method:    nativeRegroup
- * Signature: (JZ)I
+ * Signature: (JJZ)I
  */
 JNIEXPORT jint JNICALL
 Java_com_indeed_imhotep_local_ImhotepNativeLocalSession_nativeRegroup(JNIEnv *env,
                                                                       jclass unusedClass,
                                                                       jlong nativeRulesPtr,
+                                                                      jlong nativeShardDataPtr,
                                                                       jboolean errorOnCollisions)
 {
     jint result = 0;
-    std::vector<GroupMultiRemapRule>* rulesPtr(reinterpret_cast<std::vector<GroupMultiRemapRule>*>(nativeRulesPtr));
+    std::vector<GroupMultiRemapRule>* rulesPtr =
+        reinterpret_cast<std::vector<GroupMultiRemapRule>*>(nativeRulesPtr);
     try {
         if (!rulesPtr) {
             std::ostringstream message;
             message << __PRETTY_FUNCTION__ << " null 'rules' argument";
             throw imhotep_error(message.str());
         }
+        if (!nativeShardDataPtr) {
+            std::ostringstream message;
+            message << __PRETTY_FUNCTION__ << " null 'shard' argument";
+            throw imhotep_error(message.str());
+        }
+        std::cerr << __PRETTY_FUNCTION__ << " excelsior!" << std::endl;
     }
     catch (const std::exception& ex) {
         jclass exClass = env->FindClass("java/lang/RuntimeException");
