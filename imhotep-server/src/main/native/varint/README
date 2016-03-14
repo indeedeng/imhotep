@@ -1,0 +1,3 @@
+Original version of libvarint.so. This is the version used by
+NativeDocIdBuffer.java. Ultimately, it should be replaced with the one
+in libftgs.so

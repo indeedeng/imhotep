@@ -1,8 +1,0 @@
-*.o
-
-/obj
-/native_lib
-/test_circ_buf
-/test_packed_shard
-/test_tgs
-/test_varintdecode
