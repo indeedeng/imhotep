@@ -104,8 +104,9 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
                                   int numDocs,
                                   Collection<String> intFields,
                                   Collection<String> stringFields,
-                                  boolean useMMapMetrics) {
-            super(directory, numDocs, intFields, stringFields, useMMapMetrics);
+                                  boolean useMMapMetrics,
+                                  boolean useMMapDocIdStream) {
+            super(directory, numDocs, intFields, stringFields, useMMapMetrics, useMMapDocIdStream);
         }
 
         public static AutoDeletingReader open(String directory) throws IOException {
@@ -121,7 +122,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
                 buildStringBTrees(directory, Lists.newArrayList(stringFields));
             }
             return new AutoDeletingReader(directory, metadata.numDocs, intFields, stringFields,
-                                          config.isUseMMapMetrics());
+                                          config.isUseMMapMetrics(), config.isUseMMapDocIdStream());
         }
 
         @Override
