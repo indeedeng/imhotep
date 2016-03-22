@@ -586,7 +586,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
 
     @Override
     public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit) {
-        if (sessions.length == 1) return sessions[0].getFTGSIterator(intFields, stringFields);
+        if (sessions.length == 1) return sessions[0].getFTGSIterator(intFields, stringFields, termLimit);
         final RawFTGSIterator[] iterators = new RawFTGSIterator[sessions.length];
         executeRuntimeException(iterators, new ThrowingFunction<ImhotepSession, RawFTGSIterator>() {
             public RawFTGSIterator apply(final ImhotepSession imhotepSession) throws Exception {
