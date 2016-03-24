@@ -219,9 +219,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
     }
 
     static void sendResponse(ImhotepResponse response, OutputStream os) throws IOException {
-        log.info("sending response");
+        log.debug("sending response");
         ImhotepProtobufShipping.sendProtobuf(response, os);
-        log.info("response sent");
+        log.debug("response sent");
     }
 
     private class DaemonWorker implements Runnable {
@@ -807,7 +807,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 NDC.push("#" + requestId);
 
                 try {
-                    log.info("getting request");
+                    log.debug("getting request");
                     // TODO TODO TODO validate request
                     request = ImhotepProtobufShipping.readRequest(is);
 
@@ -815,7 +815,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                         NDC.push(request.getSessionId());
                     }
 
-                    log.info("received request of type " + request.getRequestType() +
+                    log.debug("received request of type " + request.getRequestType() +
                              ", building response");
                     final ImhotepResponse.Builder builder = ImhotepResponse.newBuilder();
                     switch (request.getRequestType()) {
