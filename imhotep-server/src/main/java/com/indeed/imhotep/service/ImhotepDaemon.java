@@ -195,7 +195,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     final Socket socket = ss.accept();
                     socket.setSoTimeout(60000);
                     socket.setTcpNoDelay(true);
-                    log.info("received connection, running");
+                    log.debug("received connection, running");
                     executor.execute(new DaemonWorker(socket));
                 } catch (IOException e) {
                     log.warn("server socket error", e);
