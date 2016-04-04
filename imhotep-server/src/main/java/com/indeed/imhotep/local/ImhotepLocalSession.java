@@ -1456,7 +1456,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             Pattern.compile("floatscale\\s+(\\w+)\\s*\\*\\s*(" + decimalPattern + ")\\s*\\+\\s*("
                     + decimalPattern + ")");
 
-    private static final Pattern REGEXPMATCH_COMMAND = Pattern.compile("regexmatch\\s+(\\w+)\\s+([0-9]+)\\s+(.+)");
+    private static final Pattern REGEXPMATCH_COMMAND = Pattern.compile("regexmatch\\s+(\\w+)\\s+([0-9]+)\\s(.+)");
 
     @Override
     public synchronized int pushStat(String statName)
