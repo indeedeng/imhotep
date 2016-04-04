@@ -1456,7 +1456,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             Pattern.compile("floatscale\\s+(\\w+)\\s*\\*\\s*(" + decimalPattern + ")\\s*\\+\\s*("
                     + decimalPattern + ")");
 
-    private static final Pattern REGEXPMATCH_COMMAND = Pattern.compile("regexmatch\\s+(\\w+)\\s+\"(.+)\"(\\s+([0-9]+))?");
+    private static final Pattern REGEXPMATCH_COMMAND = Pattern.compile("regexmatch\\s+(\\w+)\\s+([0-9]+)\\s+(.+)");
 
     @Override
     public synchronized int pushStat(String statName)
@@ -1498,8 +1498,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 throw new IllegalArgumentException("invalid regexmatch metric: " + statName);
             }
             final String fieldName = matcher.group(1);
-            final String regexp = matcher.group(2);
-            final int matchIndex = (matcher.group(4) == null) ? 1 : Integer.parseInt(matcher.group(4));
+            final int matchIndex = Integer.parseInt(matcher.group(2));;
+            final String regexp = matcher.group(3);
 
             if (matchIndex < 1) {
                 throw new IllegalArgumentException("invalid regexmatch index: " + statName);
