@@ -230,4 +230,6 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
             Closeables2.closeQuietly(memory, log);
         }
     }
+
+    public FlamdexReader getWrapped() { return this.wrapped; }
 }

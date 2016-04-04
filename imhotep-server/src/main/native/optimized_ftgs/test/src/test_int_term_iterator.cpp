@@ -34,8 +34,8 @@ int main(int argc, char *argv[])
     IntTermIterator end;
     while (it != end) {
         cout << *it << endl;
-        DocIdIterator<IntTerm> dit(docid_view, it->doc_offset(), it->doc_freq());
-        DocIdIterator<IntTerm> dend;
+        DocIdIterator dit(docid_view, it->doc_offset(), it->doc_freq());
+        DocIdIterator dend;
         while (dit != dend) {
             cout << "   " << *dit << endl;
             ++dit;

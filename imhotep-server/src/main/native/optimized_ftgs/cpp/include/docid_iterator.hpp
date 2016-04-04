@@ -9,7 +9,6 @@
 #ifndef DOCID_ITERATOR_HPP
 #define DOCID_ITERATOR_HPP
 
-#include "term.hpp"
 #include "var_int_view.hpp"
 #include "varintdecode.h"
 
@@ -21,9 +20,8 @@ namespace imhotep {
 
     typedef uint32_t docid_t;   // !@# promote to term.hpp?
 
-    template <typename term_t, size_t buffer_size=1024>
     class DocIdIterator
-        : public boost::iterator_facade<DocIdIterator<term_t>,
+        : public boost::iterator_facade<DocIdIterator,
                                         docid_t const,
                                         boost::forward_traversal_tag> {
     public:
@@ -32,8 +30,8 @@ namespace imhotep {
         DocIdIterator(const VarIntView& docid_view,
                       int64_t           doc_offset,
                       int32_t           doc_freq)
-            : _docid_view(docid_view.begin() + doc_offset, docid_view.end())
-            , _remaining(doc_freq) {
+            : _remaining(doc_freq)
+            , _docid_view(docid_view.begin() + doc_offset, docid_view.end()) {
             refill();
         }
 
@@ -62,13 +60,14 @@ namespace imhotep {
 
         const docid_t& dereference() const { return _buffer[_current_idx]; }
 
-        VarIntView _docid_view;
-        size_t _remaining = 0;
+        size_t _current_idx = 0;
+        size_t _end_idx     = 0;
+        size_t _remaining   = 0;
 
-        std::array<docid_t, buffer_size> _buffer;
-        size_t  _current_idx = 0;
-        size_t  _end_idx     = 0;
-        docid_t _last_value  = 0;
+        std::array<docid_t, 16> _buffer;
+
+        docid_t    _last_value  = 0;
+        VarIntView _docid_view;
 
         size_t buffer_count() const { return _end_idx - _current_idx; }
 
@@ -76,7 +75,7 @@ namespace imhotep {
             if (_remaining <= 0) return;
 
             const uint8_t* begin(reinterpret_cast<const uint8_t*>(_docid_view.begin()));
-            const size_t   count(std::min(_remaining, buffer_size));
+            const size_t   count(std::min(_remaining, _buffer.size()));
             const size_t   bytes_read(masked_vbyte_read_loop_delta(begin, _buffer.data(),
                                                                    count, _last_value));
             _remaining -= count;

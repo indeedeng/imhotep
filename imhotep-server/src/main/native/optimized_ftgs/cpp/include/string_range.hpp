@@ -49,6 +49,10 @@ namespace imhotep {
         bool operator>(const StringRange& rhs)  const = delete;
         bool operator<=(const StringRange& rhs) const = delete;
         bool operator>=(const StringRange& rhs) const = delete;
+
+        explicit operator std::string() const {
+            return std::string(begin(), end());
+        }
     };
 
 } // namespace imhotep

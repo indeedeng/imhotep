@@ -5,16 +5,16 @@
 
 #include "jni/com_indeed_imhotep_local_ImhotepNativeLocalSession.h"
 
-#include <iostream>             // !@# debugging
-#include <mutex>
 #include <sstream>
 #include <string>
 #include <vector>
 
 #include "binder.hpp"
+#include "doc_to_group.hpp"
 #include "group_multi_remap_rule.hpp"
 #include "imhotep_error.hpp"
 #include "regroup_condition.hpp"
+#include "regroup.hpp"
 
 namespace imhotep {
 
@@ -31,6 +31,7 @@ namespace imhotep {
 
         RegroupCondition operator()(jobject obj) {
             const std::string field(string_field(obj, _field));
+
             const jboolean    int_type(env()->GetBooleanField(obj, _int_type));
             const jboolean    inequality(env()->GetBooleanField(obj, _inequality));
             if (int_type) {
@@ -62,7 +63,7 @@ namespace imhotep {
             , _conditions(field_id_for("conditions", "[Lcom/indeed/imhotep/RegroupCondition;"))
         { }
 
-        GroupMultiRemapRule operator()(jobject obj) {
+        std::pair<int32_t, GroupMultiRemapRule> operator()(jobject obj) {
             const int32_t target(env()->GetIntField(obj, _target));
             const int32_t negative(env()->GetIntField(obj, _negative));
             jintArray     positives(object_field<jintArray>(obj, _positive));
@@ -82,7 +83,8 @@ namespace imhotep {
             jint* positive_values(env()->GetIntArrayElements(positives, NULL));
             if (positive_values == NULL) {
                 std::ostringstream os;
-                os << __FUNCTION__ << ": could not retrieve 'positive' int array elements";
+                os << __FUNCTION__
+                   << ": could not retrieve 'positive' int array elements";
                 throw imhotep_error(os.str());
             }
 
@@ -92,7 +94,8 @@ namespace imhotep {
                     jobject       condition(env()->GetObjectArrayElement(conditions, index));
                     if (condition == NULL) {
                         std::ostringstream os;
-                        os << __FUNCTION__ << ": could not retrieve 'condition' object array element";
+                        os << __FUNCTION__ <<
+                            ": could not retrieve 'condition' object array element";
                         throw imhotep_error(os.str());
                     }
                     rules.emplace_back(GroupMultiRemapRule::Rule(positive,
@@ -103,7 +106,7 @@ namespace imhotep {
                 env()->ReleaseIntArrayElements(positives, positive_values, JNI_ABORT);
                 throw;
             }
-            return GroupMultiRemapRule(target, negative, rules);
+            return std::make_pair(target, GroupMultiRemapRule(negative, rules));
         }
 
     private:
@@ -130,27 +133,26 @@ Java_com_indeed_imhotep_local_ImhotepNativeLocalSession_nativeGetRules(JNIEnv* e
     // pay the penalty for FindClass, etc. on each call.
     // http://www.ibm.com/developerworks/library/j-jni/
 
-    static std::mutex bh; {
-        std::lock_guard<std::mutex> guard(bh);
-        std::cerr << "rules: " << rules << std::endl;
-    }
-
     jlong result(0);
     try {
-        GroupMultiRemapRuleBinder         binder(env);
-        jsize                             num_rules(env->GetArrayLength(rules));
-        std::vector<GroupMultiRemapRule>* rule_vector(new std::vector<GroupMultiRemapRule>());
+        GroupMultiRemapRuleBinder binder(env);
+        jsize                     num_rules(env->GetArrayLength(rules));
+        GroupMultiRemapRules*     rule_map(new GroupMultiRemapRules());
         try {
-            rule_vector->reserve(num_rules);
             for (jsize index(0); index < num_rules; ++index) {
                 jobject rule(env->GetObjectArrayElement(rules, index));
                 if (rule == NULL) throw imhotep_error("rule is null");
-                rule_vector->emplace_back(binder(rule));
+
+                /* !@# TODO(johnf): this code assumes that we've
+                    checked for duplicate targets in Javaland, but
+                    perhaps we should validate here as well. */
+                rule_map->emplace_back(binder(rule));
             }
-            result = reinterpret_cast<jlong>(rule_vector);
+            rule_map->sort();
+            result = reinterpret_cast<jlong>(rule_map);
         }
         catch (...) {
-            delete rule_vector;
+            delete rule_map;
             throw;
         }
     }
@@ -171,7 +173,7 @@ Java_com_indeed_imhotep_local_ImhotepNativeLocalSession_nativeReleaseRules(JNIEn
                                                                            jclass  unusedClass,
                                                                            jlong   nativeRulesPtr)
 {
-    std::vector<GroupMultiRemapRule>* rules(reinterpret_cast<std::vector<GroupMultiRemapRule>*>(nativeRulesPtr));
+    GroupMultiRemapRules* rules(reinterpret_cast<GroupMultiRemapRules*>(nativeRulesPtr));
     if (rules) delete rules;
 }
 
@@ -188,20 +190,25 @@ Java_com_indeed_imhotep_local_ImhotepNativeLocalSession_nativeRegroup(JNIEnv *en
                                                                       jboolean errorOnCollisions)
 {
     jint result = 0;
-    std::vector<GroupMultiRemapRule>* rulesPtr =
-        reinterpret_cast<std::vector<GroupMultiRemapRule>*>(nativeRulesPtr);
+    GroupMultiRemapRules* rulesPtr(reinterpret_cast<GroupMultiRemapRules*>(nativeRulesPtr));
     try {
         if (!rulesPtr) {
             std::ostringstream message;
             message << __PRETTY_FUNCTION__ << " null 'rules' argument";
             throw imhotep_error(message.str());
         }
+
         if (!nativeShardDataPtr) {
             std::ostringstream message;
             message << __PRETTY_FUNCTION__ << " null 'shard' argument";
             throw imhotep_error(message.str());
         }
-        std::cerr << __PRETTY_FUNCTION__ << " excelsior!" << std::endl;
+
+        Shard&     shard(*reinterpret_cast<Shard*>(nativeShardDataPtr));
+        DocToGroup dtgs(shard.table());
+        Regroup    regroup(*rulesPtr, shard, dtgs);
+        regroup();
+        result = dtgs.num_groups();
     }
     catch (const std::exception& ex) {
         jclass exClass = env->FindClass("java/lang/RuntimeException");

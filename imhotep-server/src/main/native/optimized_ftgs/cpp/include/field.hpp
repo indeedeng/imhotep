@@ -50,8 +50,8 @@ namespace imhotep {
             }
             while (tit != tend ) {
                 const value_t value(tit->id());
-                DocIdIterator<IntTerm> dit(docid_view, tit->doc_offset(), tit->doc_freq());
-                DocIdIterator<IntTerm> dend;
+                DocIdIterator dit(docid_view, tit->doc_offset(), tit->doc_freq());
+                DocIdIterator dend;
                 while (dit != dend) {
                     const size_t docid(*dit);
                     if (_values.size() < docid + 1) {

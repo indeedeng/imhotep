@@ -20,7 +20,14 @@ namespace imhotep {
             template <typename Value>
             KeyValue<Key, Value>
             find(const char* base_address, const Key& key, size_t level) const {
-                const size_t child_index(this->floor(key));
+
+                /* Find highest index for which key <= block[index].key */
+                const ssize_t child_index(this->floor(key));
+                if (child_index < 0) {
+                    static const KeyValue<Key, Value> nil;
+                    return nil;
+                }
+
                 const size_t child_offset(this->key_value(child_index).value()());
                 const char*  child_begin(base_address + child_offset);
                 const size_t child_level(level - 1);

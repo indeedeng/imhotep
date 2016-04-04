@@ -22,6 +22,14 @@ namespace imhotep {
                 return (*this)() < rhs();
             }
 
+            bool operator>(const Int& rhs) const {
+                return (*this)() > rhs();
+            }
+
+            bool operator==(const Int& rhs) const {
+                return (*this)() == rhs();
+            }
+
             size_t length() const { return sizeof(int_t); }
 
             const char* begin() const { return _begin;             }

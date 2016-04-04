@@ -11,7 +11,7 @@ namespace imhotep {
     namespace btree {
 
         /** A random access iterator over the KeyValue pairs within a DataBlock.
-        */
+         */
         template <typename Key, typename Value>
         class DataBlockIterator
             : public boost::iterator_facade<DataBlockIterator<Key, Value>,
@@ -39,7 +39,6 @@ namespace imhotep {
             }
 
             size_t distance_to(const DataBlockIterator& rhs) const {
-                // !@# check for *this == rhs?
                 return std::distance(_index, rhs._index);
             }
 

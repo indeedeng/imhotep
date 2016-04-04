@@ -5,8 +5,6 @@
 
 #include <sstream>
 
-#include <iostream>             // !@# debugging...
-
 namespace imhotep {
 
     Shard::Shard(const std::string&              dir,
@@ -54,6 +52,7 @@ namespace imhotep {
         return VarIntView(mmapped->begin(), mmapped->end());
     }
 
+    /******************** !@# fix these to use templates... ********************/
     IntTermIndex Shard::int_term_index(const std::string& field) const {
         const std::string filename(index_filename<IntTerm>(field));
         std::shared_ptr<MMappedFile> mmapped(mmapped_file(field, filename, _int_term_indices));
@@ -63,8 +62,9 @@ namespace imhotep {
     StringTermIndex Shard::str_term_index(const std::string& field) const {
         const std::string filename(index_filename<StringTerm>(field));
         std::shared_ptr<MMappedFile> mmapped(mmapped_file(field, filename, _str_term_indices));
-        return StringTermIndex(mmapped->begin(), mmapped->end(), term_view<IntTerm>(field));
+        return StringTermIndex(mmapped->begin(), mmapped->end(), term_view<StringTerm>(field));
     }
+    /******************** !@# fix these to use templates... ********************/
 
     SplitView Shard::split_view(const std::string& filename) const {
         return split_file(filename)->split_view();
@@ -82,7 +82,8 @@ namespace imhotep {
 
     template <typename term_t>
     std::string Shard::index_filename(const std::string& field) const {
-        return base_filename(field) + TermTraits<term_t>::index_file_extension();
+        return base_filename(field) + TermTraits<term_t>::index_file_extension() +
+            "/index.bin";
     }
 
     std::string Shard::split_filename(const std::string& splits_dir,

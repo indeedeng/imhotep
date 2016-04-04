@@ -12,7 +12,7 @@ CPP_INCLUDES=\
 	-I$(JAVA_HOME)/include/linux \
 	-I/usr/include/boost
 
-BASE_CPPFLAGS=-Wall -Werror $(CPP_INCLUDES) -msse4.2 -std=c++11 -fPIC -fno-omit-frame-pointer
+BASE_CPPFLAGS=-MMD -Wall -Werror $(CPP_INCLUDES) -msse4.2 -std=c++11 -fPIC -fno-omit-frame-pointer
 BASE_LFLAGS= -shared  -fno-omit-frame-pointer
 
 DBG_CPPFLAGS= -g -fno-omit-frame-pointer
@@ -32,8 +32,8 @@ CPPOBJ_DIR=$(BUILD_DIR)/cppobj
 CPP_FILES := $(wildcard cpp/src/*.cpp)
 HPP_FILES := $(wildcard cpp/include/*.hpp)
 CPP_OBJ_FILES += $(addprefix $(CPPOBJ_DIR)/,$(notdir $(CPP_FILES:.cpp=.o)))
+CPP_DEPS := $(srcs: .cpp=.d)
 
 $(CPPOBJ_DIR)/%.o: cpp/src/%.cpp $(HPP_FILES) include/imhotep_native.h include/local_session.h
 	$(CPP) $(CPPFLAGS) -include include/gcc_preinclude.h -c -o $@ $<
-
 

@@ -96,7 +96,8 @@ namespace imhotep {
 
             if (_address == reinterpret_cast<void*>(-1) && size() != 0) {
                 throw imhotep_error(std::string(__PRETTY_FUNCTION__)
-                                    + std::string(": ") + std::string(strerror(errno)));
+                                    + std::string(" filename: ") + filename
+                                    + std::string(" strerror: ") + std::string(strerror(errno)));
             }
         }
 

@@ -154,4 +154,6 @@ public class CachedFlamdexReaderReference implements FlamdexReader, MetricCache 
             close();
         }
     }
+
+    public CachedFlamdexReader getReader() { return this.reader; }
 }

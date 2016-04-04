@@ -3,7 +3,7 @@ MODE=dbg
 CC=/usr/bin/gcc-4.9
 CPP=/usr/bin/g++-4.9
 BASE_CFLAGS=-Wall -Werror -I./include -I../include  -std=gnu99 -msse4.2 -fPIC -flax-vector-conversions -fno-omit-frame-pointer -flto
-BASE_CPPFLAGS=-Wall -Werror -I./include -I../include -I/usr/include/boost -msse4.2 -std=c++11 -fPIC -flto
+BASE_CPPFLAGS=-Wall -Werror -I./include -I../include -I../cpp/include -I/usr/include/boost -msse4.2 -std=c++11 -fPIC -flto
 
 DBG_CFLAGS= -g -fvar-tracking -fvar-tracking-assignments
 OPT_CFLAGS= -g -O3 -funroll-loops
@@ -70,19 +70,19 @@ test_bit_tree: obj/test_bit_tree.o ../obj/bit_tree.o
 test_circ_buf: obj/test_circ_buf.o ../obj/circ_buf.o
 	$(CPP) $ -o test_circ_buf $(LIBS) $^
 
-test_split: obj/test_split.o ../cppobj/shard.o ../cppobj/splitter.o ../cppobj/term_iterator.o
+test_split: obj/test_split.o ../build/cppobj/shard.o ../build/cppobj/splitter.o ../build/cppobj/term_iterator.o
 	$(CPP) -pthread $(CPPFLAGS) $ -o test_split $(LIBS) $^
 
-test_merge_iterator: obj/test_merge_iterator.o ../cppobj/log.o
+test_merge_iterator: obj/test_merge_iterator.o ../build/cppobj/log.o
 	$(CPP) $(CPPFLAGS) $ -o test_merge_iterator $(LIBS) $^
 
-test_split_iterator: obj/test_split_iterator.o ../cppobj/log.o
+test_split_iterator: obj/test_split_iterator.o ../build/cppobj/log.o
 	$(CPP) $(CPPFLAGS) $ -o test_split_iterator $(LIBS) $^
 
 TEST_IT_OBJS =                \
-	../cppobj/shard.o         \
-	../cppobj/term_index.o    \
-	../cppobj/term_iterator.o \
+	../build/cppobj/shard.o         \
+	../build/cppobj/term_index.o    \
+	../build/cppobj/term_iterator.o \
 	../obj/varintdecode.o
 
 test_int_term_iterator: obj/test_int_term_iterator.o $(TEST_IT_OBJS)
@@ -95,15 +95,15 @@ test_field: obj/test_field.o $(TEST_IT_OBJS)
 	$(CPP) $(CPPFLAGS) $ -o test_field $(LFLAGS) $(LIBS) $^
 
 TERM_PROVIDER_OBJS = \
-	../cppobj/executor_service.o \
-	../cppobj/field_op_iterator.o \
-	../cppobj/log.o \
-	../cppobj/operation.o \
-	../cppobj/shard.o \
-	../cppobj/splitter.o \
-	../cppobj/term_iterator.o \
-	../cppobj/term_provider.o \
-	../cppobj/term_providers.o
+	../build/cppobj/executor_service.o \
+	../build/cppobj/field_op_iterator.o \
+	../build/cppobj/log.o \
+	../build/cppobj/operation.o \
+	../build/cppobj/shard.o \
+	../build/cppobj/splitter.o \
+	../build/cppobj/term_iterator.o \
+	../build/cppobj/term_provider.o \
+	../build/cppobj/term_providers.o
 
 test_term_provider: obj/test_term_provider.o $(TERM_PROVIDER_OBJS)
 	$(CPP) -pthread $(CPPFLAGS) $ -o test_term_provider $^ $(LIBS)
@@ -113,11 +113,11 @@ test_field_op_iterator: obj/test_field_op_iterator.o $(TERM_PROVIDER_OBJS)
 
 FTGS_RUNNER_OBJS =\
 	$(TERM_PROVIDER_OBJS) \
-	../cppobj/ftgs_runner.o	\
-	../cppobj/log.o \
-	../cppobj/shard.o \
-	../cppobj/task_iterator.o \
-	../cppobj/term_providers.o \
+	../build/cppobj/ftgs_runner.o	\
+	../build/cppobj/log.o \
+	../build/cppobj/shard.o \
+	../build/cppobj/task_iterator.o \
+	../build/cppobj/term_providers.o \
 	../obj/binary_table_accumulate.o \
 	../obj/bit_tree.o \
 	../obj/circ_buf.o \
@@ -167,8 +167,8 @@ dump_term: obj/dump_term.o $(TGS_OBJS)
 packed_tree_perf_test: obj/packed_tree_perf_test.o ../obj/packed_table.o
 	$(CC) $ -flto -funroll-loops -O3 -o packed_tree_perf_test $^ -L/usr/lib/x86_64-linux-gnu -lrt
 
-test_memory: src/test_memory.cpp ../cppobj/memory.o
-	$(CPP) $ -O3 -I ../include -o test_memory src/test_memory.cpp ../cppobj/memory.o -L/usr/lib/x86_64-linux-gnu -lrt
+test_memory: src/test_memory.cpp ../build/cppobj/memory.o
+	$(CPP) $ -O3 -I ../include -o test_memory src/test_memory.cpp ../build/cppobj/memory.o -L/usr/lib/x86_64-linux-gnu -lrt
 
 clean:
 	rm -f obj/*.o *~ core $(INCDIR)/*~

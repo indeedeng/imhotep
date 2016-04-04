@@ -64,19 +64,21 @@ $(OBJ_DIR)/%.o: src/%.c $(H_FILES)
 
 .PHONY: clean
 
+#	$(CPP) $(LFLAGS) -Wl,-export-dynamic -Wl,-soname,libftgs.so.1 -o $(LIB_FTGS) $^ $(LIBS)
 ftgs_lib: $(NATIVE_FTGS_OBJ_FILES) $(CPP_OBJ_FILES)
-	$(CPP) $(LFLAGS) -Wl,-export-dynamic -Wl,-soname,libftgs.so.1 -o $(LIB_FTGS) $^ $(LIBS)
-	$(CP)  $(LIB_FTGS) $(LIB_TARGET_DIR)
+	$(CPP) $(LFLAGS) -Wl,-export-dynamic -Wl,-soname,libftgs.so -o $(LIB_FTGS) $^ $(LIBS)
+	cp build/libftgs.so.1.0.1 build/libftgs.so
+	cp  $(LIB_FTGS) $(LIB_TARGET_DIR)
 
 multicache_lib: $(MULTICACHE_OBJ_FILES)
 	$(CC) $(LFLAGS) -Wl,-export-dynamic -Wl,-soname,libmulticache.so.1 -o $(LIB_MULTI_CACHE) $^ $(LIBS)
-	$(CP)  $(LIB_MULTI_CACHE) $(LIB_TARGET_DIR)
+	cp  $(LIB_MULTI_CACHE) $(LIB_TARGET_DIR)
 
 fieldcache_lib: $(NATIVE_FIELD_CACHER_OBJ_FILES)
 	$(CC) $(LFLAGS) -Wl,-export-dynamic -Wl,-soname,libfieldcache.so.1 -o $(LIB_FIELD_CACHE) $^ $(LIBS)
-	$(CP)  $(LIB_FIELD_CACHE) $(LIB_TARGET_DIR)
+	cp  $(LIB_FIELD_CACHE) $(LIB_TARGET_DIR)
 
 clean:
-	$(RM) -rf $(BUILD_DIR)
+	rm -rf $(BUILD_DIR)
 
-
+-include $(CPP_DEPS)

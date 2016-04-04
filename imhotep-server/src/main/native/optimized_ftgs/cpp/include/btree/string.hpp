@@ -30,7 +30,17 @@ namespace imhotep {
             std::string operator()() const { return std::string(begin(), end()); }
 
             bool operator<(const String& rhs) const {
-                return std::lexicographical_compare(begin(), end(), rhs.begin(), rhs.end());
+                return std::lexicographical_compare(as_bytes(begin()), as_bytes(end()),
+                                                    as_bytes(rhs.begin()), as_bytes(rhs.end()));
+            }
+
+            bool operator>(const String& rhs) const {
+                return std::lexicographical_compare(as_bytes(rhs.begin()), as_bytes(rhs.end()),
+                                                    as_bytes(begin()), as_bytes(end()));
+            }
+
+            bool operator==(const String& rhs) const {
+                return std::equal(begin(), end(), rhs.begin());
             }
 
             bool has_short_length() const { return short_length_t(*_begin) < 0xffL; }
@@ -70,6 +80,11 @@ namespace imhotep {
                 copy(value.begin(), value.end(), std::back_inserter(result));
 
                 return result;
+            }
+
+        private:
+            const uint8_t* as_bytes(const char* chars) const {
+                return reinterpret_cast<const uint8_t*>(chars);
             }
         };
 
