@@ -73,11 +73,11 @@ public final class MultiFile {
         }
     }
 
-    OutputStream getOutputStream(int split) {
+    public OutputStream getOutputStream(int split) {
         return splits[split].out;
     }
 
-    InputStream getInputStream(int split) {
+    public InputStream getInputStream(int split) {
         return splits[split].in;
     }
 

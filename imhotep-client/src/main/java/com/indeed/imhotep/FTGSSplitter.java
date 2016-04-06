@@ -14,10 +14,8 @@
  package com.indeed.imhotep;
 
 import com.google.common.base.Charsets;
-import com.google.common.base.Function;
 import com.google.common.base.Throwables;
-import com.google.common.collect.Iterables;
-import com.indeed.imhotep.io.LimitedBufferedOutputStream;
+import com.indeed.imhotep.io.MultiFile;
 import com.indeed.imhotep.io.TempFileSizeLimitExceededException;
 import com.indeed.imhotep.io.WriteLimitExceededException;
 import com.indeed.util.core.Throwables2;
@@ -28,15 +26,12 @@ import com.indeed.imhotep.service.FTGSOutputStreamWriter;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
-import java.io.BufferedInputStream;
 import java.io.Closeable;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Arrays;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -45,7 +40,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
 * @author jplaisance
 */
-public final class FTGSSplitter implements Runnable, Closeable {
+public final class FTGSSplitter implements Runnable {
     private static final Logger log = Logger.getLogger(FTGSSplitter.class);
 
     private final FTGSIterator iterator;
@@ -53,7 +48,6 @@ public final class FTGSSplitter implements Runnable, Closeable {
     private final int numSplits;
 
     private final FTGSOutputStreamWriter[] outputs;
-    private final File[] files;
     private final OutputStream[] outputStreams;
     private final RawFTGSIterator[] ftgsIterators;
 
@@ -64,8 +58,6 @@ public final class FTGSSplitter implements Runnable, Closeable {
     private final int numStats;
     private final int largePrime;
 
-    private static final int BUFFER_SIZE = 8192;
-
     public FTGSSplitter(FTGSIterator ftgsIterator, final int numSplits, final int numStats,
                         final int largePrime, final AtomicLong tempFileSizeBytesLeft,
                         final ThreadFactory threadFactory) throws IOException {
@@ -74,21 +66,17 @@ public final class FTGSSplitter implements Runnable, Closeable {
         this.numStats = numStats;
         this.largePrime = largePrime;
         outputs = new FTGSOutputStreamWriter[numSplits];
-        files = new File[numSplits];
         outputStreams = new OutputStream[numSplits];
         ftgsIterators = new RawFTGSIterator[numSplits];
         final AtomicInteger doneCounter = new AtomicInteger();
         runThread = threadFactory.newThread(this);
+        final File file = File.createTempFile("ftgsSplitter", ".tmp");
         try {
+            final MultiFile multiFile = MultiFile.create(file, numSplits, 256 * 1024, tempFileSizeBytesLeft);
             for (int i = 0; i < numSplits; i++) {
-                files[i] = File.createTempFile("ftgsSplitter", ".tmp");
-                final FileOutputStream fos = new FileOutputStream(files[i]);
-                outputStreams[i] =
-                    new LimitedBufferedOutputStream(fos, tempFileSizeBytesLeft, BUFFER_SIZE);
-                outputs[i] =
-                    new FTGSOutputStreamWriter(outputStreams[i]);
-                ftgsIterators[i] =
-                    new SplitterRawFTGSIterator(i, numStats, doneCounter, numSplits);
+                outputStreams[i] = multiFile.getOutputStream(i);
+                outputs[i] = new FTGSOutputStreamWriter(outputStreams[i]);
+                ftgsIterators[i] = new SplitterRawFTGSIterator(multiFile.getInputStream(i), numStats, doneCounter, numSplits);
             }
         } catch (Throwable t) {
             try {
@@ -96,6 +84,8 @@ public final class FTGSSplitter implements Runnable, Closeable {
             } finally {
                 throw Throwables2.propagate(t, IOException.class);
             }
+        } finally {
+            file.delete();
         }
         runThread.start();
     }
@@ -172,8 +162,7 @@ public final class FTGSSplitter implements Runnable, Closeable {
                  largePrime+12345 & 0x7FFFFFFF) >> 16) % numSplits;
     }
 
-    @Override
-    public void close() {
+    private void close() {
         if (done.compareAndSet(false, true)) {
             try {
                 if (Thread.currentThread() != runThread) {
@@ -188,23 +177,10 @@ public final class FTGSSplitter implements Runnable, Closeable {
                     }
                 }
             } finally {
-                final Function deleteFunction =
-                    new Function<File, Closeable>() {
-                    public Closeable apply(final File input) {
-                        return new Closeable() {
-                            public void close() throws IOException {
-                                input.delete();
-                            }
-                        };
-                    }
-                };
-                final Closeable deleteInputs =
-                    Closeables2.forIterable(log, Iterables.transform(Arrays.asList(files),
-                                                                     deleteFunction));
                 final Closeable closeOutputs = Closeables2.forArray(log, outputs);
                 final Closeable closeIterators = Closeables2.forArray(log, ftgsIterators);
                 final Closeable closeOutputStreams = Closeables2.forArray(log, outputStreams);
-                Closeables2.closeAll(log, iterator, deleteInputs, closeOutputs,
+                Closeables2.closeAll(log, iterator, closeOutputs,
                                      closeIterators, closeOutputStreams);
             }
         }
@@ -219,13 +195,11 @@ public final class FTGSSplitter implements Runnable, Closeable {
         private final InputStreamFTGSIterator delegate;
         private boolean initialized = false;
 
-        public SplitterRawFTGSIterator(int splitIndex, int numStats,
+        public SplitterRawFTGSIterator(InputStream in, int numStats,
                                        final AtomicInteger doneCounter,
                                        final int numSplits)
             throws FileNotFoundException {
-            final BufferedInputStream bis =
-                new BufferedInputStream(new FileInputStream(files[splitIndex]), BUFFER_SIZE);
-            delegate = new InputStreamFTGSIterator(bis, numStats) {
+            delegate = new InputStreamFTGSIterator(in, numStats) {
                 boolean closed = false;
                 @Override
                 public void close() {
@@ -238,7 +212,6 @@ public final class FTGSSplitter implements Runnable, Closeable {
                     }
                 }
             };
-            files[splitIndex].delete();
         }
 
         private InputStreamFTGSIterator getDelegate() {
