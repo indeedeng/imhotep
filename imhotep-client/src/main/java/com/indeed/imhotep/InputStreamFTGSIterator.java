@@ -28,7 +28,7 @@ public class InputStreamFTGSIterator implements RawFTGSIterator {
 
     private static final Logger log = Logger.getLogger(RawFTGSIterator.class);
 
-    private final byte[] buffer = new byte[32768];
+    private final byte[] buffer = new byte[8192];
     private int bufferPtr = 0;
     private int bufferLen = 0;
 
