@@ -9,6 +9,7 @@ import com.indeed.util.mmap.DirectMemory;
 import com.indeed.util.mmap.MMapBuffer;
 import org.apache.log4j.Logger;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -22,7 +23,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 /**
  * @author jplaisance
  */
-public final class MultiFile {
+public final class MultiFile implements Closeable {
     private static final Logger log = Logger.getLogger(MultiFile.class);
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private final RandomAccessFile raf;
@@ -41,7 +42,7 @@ public final class MultiFile {
 
     private MultiFile(File path, int splits, int blockSize) throws IOException {
         if (blockSize <= 0 || blockSize % 4096 != 0) {
-            throw new IllegalArgumentException("block size is "+blockSize+", it must be a positive multiple of 4096");
+            throw new IllegalArgumentException("block size cannot be "+blockSize+", it must be a positive multiple of 4096");
         }
         this.path = path;
         this.blockSize = blockSize;
@@ -65,6 +66,11 @@ public final class MultiFile {
 
     InputStream getInputStream(int split) {
         return splits[split].in;
+    }
+
+    @Override
+    public void close() throws IOException {
+        Closeables2.closeAll(log, buffer, raf);
     }
 
     private final class Split {
@@ -146,6 +152,7 @@ public final class MultiFile {
                 final SharedReference<MMapBuffer> ref = buffer.copy();
                 try {
                     if (limit <= ref.get().memory().length()) {
+                        Closeables2.closeQuietly(currentBuffer, log);
                         currentBuffer = ref;
                         memory = currentBuffer.get().memory();
                         return;
@@ -159,7 +166,9 @@ public final class MultiFile {
                     raf.setLength(raf.length()*2);
                     final SharedReference<MMapBuffer> old = buffer;
                     buffer = SharedReference.create(new MMapBuffer(raf, path, 0, raf.length(), FileChannel.MapMode.READ_WRITE, ByteOrder.LITTLE_ENDIAN));
-                    old.close();
+                    Closeables2.closeAll(log, old, currentBuffer);
+                    currentBuffer = buffer.copy();
+                    memory = currentBuffer.get().memory();
                 } else {
                     lock.readLock().unlock();
                     currentLock = lock.writeLock();
@@ -195,7 +204,9 @@ public final class MultiFile {
                     //i don't think this check is necessary but it doesn't hurt that much
                     if (position >= writePosition) return -1;
                 }
-                return memory.getByte(position)&0xFF;
+                final int ret = memory.getByte(position) & 0xFF;
+                position++;
+                return ret;
             }
 
             private void seekToNextBlock() throws IOException {
@@ -203,7 +214,7 @@ public final class MultiFile {
                 if (memory == null || newLimit > memory.length()) {
                     lock.readLock().lock();
                     try {
-                        currentBuffer.close();
+                        Closeables2.closeQuietly(currentBuffer, log);
                         currentBuffer = buffer.copy();
                         memory = currentBuffer.get().memory();
                         if (newLimit > memory.length()) throw new IllegalStateException();
@@ -247,7 +258,9 @@ public final class MultiFile {
 
             @Override
             public void close() throws IOException {
-                super.close();
+                if (currentBuffer != null) {
+                    currentBuffer.close();
+                }
             }
         }
     }
