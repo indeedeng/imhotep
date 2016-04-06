@@ -9,7 +9,7 @@ import com.indeed.util.mmap.DirectMemory;
 import com.indeed.util.mmap.MMapBuffer;
 import org.apache.log4j.Logger;
 
-import java.io.Closeable;
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,43 +17,56 @@ import java.io.OutputStream;
 import java.io.RandomAccessFile;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * @author jplaisance
  */
-public final class MultiFile implements Closeable {
+public final class MultiFile {
     private static final Logger log = Logger.getLogger(MultiFile.class);
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
-    private final RandomAccessFile raf;
     private SharedReference<MMapBuffer> buffer;
     private final File path;
     private final int blockSize;
     private final Split[] splits;
+    private final @Nullable AtomicLong bytesAvailable;
 
     public static MultiFile create(File path, int splits) throws IOException {
         return create(path, splits, 1024 * 1024);
     }
 
     public static MultiFile create(File path, int splits, int blockSize) throws IOException {
-        return new MultiFile(path, splits, blockSize);
+        return new MultiFile(path, splits, blockSize, null);
     }
 
-    private MultiFile(File path, int splits, int blockSize) throws IOException {
+    public static MultiFile create(File path, int splits, int blockSize, @Nullable AtomicLong bytesAvailable) throws IOException {
+        return new MultiFile(path, splits, blockSize, bytesAvailable);
+    }
+
+    private MultiFile(File path, int splits, int blockSize, @Nullable AtomicLong bytesAvailable) throws IOException {
         if (blockSize <= 0 || blockSize % 4096 != 0) {
             throw new IllegalArgumentException("block size cannot be "+blockSize+", it must be a positive multiple of 4096");
         }
+        if (splits <= 0) {
+            throw new IllegalArgumentException("splits cannot be "+splits+", it must be > 0");
+        }
+        this.bytesAvailable = bytesAvailable;
         this.path = path;
         this.blockSize = blockSize;
         final Closer closer = Closer.create();
         try {
-            raf = closer.register(new RandomAccessFile(path, "rw"));
+            final RandomAccessFile raf = new RandomAccessFile(path, "rw");
+            final SharedReference<RandomAccessFile> rafRef = closer.register(SharedReference.create(raf));
             buffer = closer.register(SharedReference.create(new MMapBuffer(raf, path, 0, blockSize * splits, FileChannel.MapMode.READ_WRITE, ByteOrder.LITTLE_ENDIAN)));
             this.splits = new Split[splits];
+            final AtomicInteger openInputs = new AtomicInteger(splits);
             for (int i = 0; i < splits; i++) {
-                this.splits[i] = new Split(i);
+                this.splits[i] = new Split(i, rafRef, openInputs);
             }
+            rafRef.close();
         } catch (Throwable t) {
             Closeables2.closeQuietly(closer, log);
             throw Throwables2.propagate(t, IOException.class);
@@ -68,23 +81,18 @@ public final class MultiFile implements Closeable {
         return splits[split].in;
     }
 
-    @Override
-    public void close() throws IOException {
-        Closeables2.closeAll(log, buffer, raf);
-    }
-
     private final class Split {
         private final OutputStream out;
         private final InputStream in;
         private long writePosition;
 
-        private Split(int split) {
-            out = new MultiFileOutputStream(split);
-            in = new MultiFileInputStream(split);
+        private Split(int split, SharedReference<RandomAccessFile> raf, AtomicInteger openInputs) {
+            out = new MultiFileOutputStream(split, raf);
+            in = new MultiFileInputStream(split, openInputs);
         }
 
         private final class MultiFileOutputStream extends OutputStream {
-
+            private final SharedReference<RandomAccessFile> raf;
             private SharedReference<MMapBuffer> currentBuffer;
             private DirectMemory memory;
             private final int split;
@@ -92,12 +100,13 @@ public final class MultiFile implements Closeable {
             long limit;
             Lock currentLock;
 
-            private MultiFileOutputStream(int split) {
+            private MultiFileOutputStream(int split, SharedReference<RandomAccessFile> raf) {
                 this.split = split;
                 writePosition = blockSize*split;
                 this.limit = writePosition+blockSize;
                 currentBuffer = buffer.copy();
                 memory = currentBuffer.get().memory();
+                this.raf = raf.copy();
             }
 
             @Override
@@ -133,6 +142,9 @@ public final class MultiFile implements Closeable {
             }
 
             private void seekToNextBlock() throws IOException {
+                if (bytesAvailable != null && bytesAvailable.addAndGet(-blockSize) < 0) {
+                    throw new WriteLimitExceededException();
+                }
                 block++;
                 writePosition = blockSize*(block*splits.length+split);
                 limit = writePosition+blockSize;
@@ -163,9 +175,10 @@ public final class MultiFile implements Closeable {
                 }
                 ref.close();
                 if (writeLocked) {
-                    raf.setLength(raf.length()*2);
+                    final RandomAccessFile file = raf.get();
+                    file.setLength(file.length() * 2);
                     final SharedReference<MMapBuffer> old = buffer;
-                    buffer = SharedReference.create(new MMapBuffer(raf, path, 0, raf.length(), FileChannel.MapMode.READ_WRITE, ByteOrder.LITTLE_ENDIAN));
+                    buffer = SharedReference.create(new MMapBuffer(file, path, 0, file.length(), FileChannel.MapMode.READ_WRITE, ByteOrder.LITTLE_ENDIAN));
                     Closeables2.closeAll(log, old, currentBuffer);
                     currentBuffer = buffer.copy();
                     memory = currentBuffer.get().memory();
@@ -179,21 +192,27 @@ public final class MultiFile implements Closeable {
 
             @Override
             public void close() throws IOException {
-                currentBuffer.close();
+                try {
+                    currentBuffer.close();
+                } finally {
+                    raf.close();
+                }
             }
         }
 
         private final class MultiFileInputStream extends InputStream {
 
             private final int split;
+            private final AtomicInteger openInputs;
             private long position = 0;
             private long limit = 0;
             private long block = -1;
             private SharedReference<MMapBuffer> currentBuffer = null;
             private DirectMemory memory = null;
 
-            public MultiFileInputStream(int split) {
+            private MultiFileInputStream(int split, AtomicInteger openInputs) {
                 this.split = split;
+                this.openInputs = openInputs;
             }
 
             @Override
@@ -258,8 +277,19 @@ public final class MultiFile implements Closeable {
 
             @Override
             public void close() throws IOException {
-                if (currentBuffer != null) {
-                    currentBuffer.close();
+                try {
+                    if (currentBuffer != null) {
+                        currentBuffer.close();
+                    }
+                } finally {
+                    if (openInputs.decrementAndGet() == 0) {
+                        lock.writeLock().lock();
+                        try {
+                            buffer.close();
+                        } finally {
+                            lock.writeLock().unlock();
+                        }
+                    }
                 }
             }
         }

@@ -37,11 +37,11 @@ public final class TestMultiFile extends TestCase {
     public void testStuff() throws IOException, InterruptedException {
 
         final int splits = 17;
-        for (int i = 1; i <= 4096*1024; i*=2) {
+        for (int i = 1; i <= 256*1024; i*=2) {
             System.out.println("running test with read/write size of "+i+" bytes");
             runTest(splits, createData(splits), i, false);
         }
-        for (int i = 1; i <= 4096*1024; i*=2) {
+        for (int i = 1; i <= 256*1024; i*=2) {
             System.out.println("running test with read/write size of 1-"+i+" bytes, randomized");
             runTest(splits, createData(splits), i, true);
         }
@@ -51,7 +51,7 @@ public final class TestMultiFile extends TestCase {
         final byte[][] splitData = new byte[splits][];
         for (int i = 0; i < splits; i++) {
             final Random r = new Random();
-            final int size = r.nextInt(4096*1024)+1;
+            final int size = r.nextInt(256*1024)+1;
             final ByteArrayOutputStream out = new ByteArrayOutputStream();
             for (int j = 0; j < size; j++) {
                 out.write(r.nextInt() & 0xFF);
@@ -140,6 +140,5 @@ public final class TestMultiFile extends TestCase {
             }).start();
         }
         latch2.await();
-        multiFile.close();
     }
 }
