@@ -99,6 +99,8 @@ public class ImhotepRemoteSession
 
     private int numStats = 0;
 
+    private final long numDocs;
+
     // cached for use by SubmitRequestEvent
     private final String sourceAddr;
     private final String targetAddr;
@@ -132,12 +134,19 @@ public class ImhotepRemoteSession
     public ImhotepRemoteSession(String host, int port, String sessionId,
                                 @Nullable AtomicLong tempFileSizeBytesLeft,
                                 int socketTimeout, boolean useNativeFtgs) {
+        this(host, port, sessionId, tempFileSizeBytesLeft, socketTimeout, useNativeFtgs, 0);
+    }
+
+    public ImhotepRemoteSession(String host, int port, String sessionId,
+                                @Nullable AtomicLong tempFileSizeBytesLeft,
+                                int socketTimeout, boolean useNativeFtgs, long numDocs) {
         this.host = host;
         this.port = port;
         this.sessionId = sessionId;
         this.socketTimeout = socketTimeout;
         this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
         this.useNativeFtgs = useNativeFtgs;
+        this.numDocs = numDocs;
 
         String tmpAddr;
         try {
@@ -215,6 +224,15 @@ public class ImhotepRemoteSession
                                                    @Nullable String sessionId, final long tempFileSizeLimit,
                                                    @Nullable final AtomicLong tempFileSizeBytesLeft,
                                                    final boolean useNativeFtgs, final long sessionTimeout) throws ImhotepOutOfMemoryException, IOException {
+        return openSession(host, port, dataset, shards, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout, sessionId, tempFileSizeLimit, tempFileSizeBytesLeft, useNativeFtgs, sessionTimeout, 0);
+    }
+
+    public static ImhotepRemoteSession openSession(final String host, final int port, final String dataset, final List<String> shards,
+                                                   final int mergeThreadLimit, final String username,
+                                                   final boolean optimizeGroupZeroLookups, final int socketTimeout,
+                                                   @Nullable String sessionId, final long tempFileSizeLimit,
+                                                   @Nullable final AtomicLong tempFileSizeBytesLeft,
+                                                   final boolean useNativeFtgs, final long sessionTimeout, final long numDocs) throws ImhotepOutOfMemoryException, IOException {
         final Socket socket = newSocket(host, port, socketTimeout);
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
@@ -246,7 +264,7 @@ public class ImhotepRemoteSession
                 if (sessionId == null) sessionId = response.getSessionId();
 
                 log.trace("session created, id "+sessionId);
-                return new ImhotepRemoteSession(host, port, sessionId, tempFileSizeBytesLeft, socketTimeout, useNativeFtgs);
+                return new ImhotepRemoteSession(host, port, sessionId, tempFileSizeBytesLeft, socketTimeout, useNativeFtgs, numDocs);
             } catch (SocketTimeoutException e) {
                 throw buildExceptionAfterSocketTimeout(e, host, port);
             }
@@ -978,6 +996,11 @@ public class ImhotepRemoteSession
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public long getNumDocs() {
+        return numDocs;
     }
 
     public String getHost() {

@@ -176,7 +176,7 @@ public class IndexReWriter {
 
         for (int i = 0; i < this.sessions.size(); i++) {
             int offset = this.sessionDocIdOffsets[i];
-            int nDocs = this.sessions.get(i).getNumDocs();
+            int nDocs = (int)this.sessions.get(i).getNumDocs();
             if (!memory.claimMemory(nDocs * 4L))
                 throw new ImhotepOutOfMemoryException();
             int[] mapping = new int[nDocs];

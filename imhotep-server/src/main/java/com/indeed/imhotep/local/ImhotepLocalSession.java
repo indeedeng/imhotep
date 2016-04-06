@@ -287,7 +287,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         return dynamicMetrics;
     }
 
-    int getNumDocs() {
+    public long getNumDocs() {
         return this.numDocs;
     }
 
