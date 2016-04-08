@@ -39,15 +39,13 @@ namespace imhotep {
 
         Shard() : _table(0) { }
 
-        explicit Shard(const std::string&              dir,
-                       const std::vector<std::string>& int_fields,
-                       const std::vector<std::string>& str_fields,
-                       packed_table_ptr                table = packed_table_ptr(),
-                       const MapCache&                 map_cache = MapCache());
+        explicit Shard(const std::string& dir,
+                       packed_table_ptr   table     = packed_table_ptr(),
+                       const MapCache&    map_cache = MapCache());
 
-        Shard(const Shard& rhs) = default;
+        Shard(const Shard& rhs) = delete;
 
-        Shard& operator=(const Shard& rhs) = default;
+        Shard& operator=(const Shard& rhs) = delete;
 
         const std::string& dir() const { return _dir; }
 

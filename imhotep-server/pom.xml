@@ -31,6 +31,7 @@
 
 	<build>
 		<plugins>
+
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
                 <version>2.2.1</version>
@@ -58,6 +59,50 @@
                 <target>1.7</target>
               </configuration>
             </plugin>
+
+            <!--
+                As things stand now, we don't build native code with Maven; it's
+                still a manual process for a variety of reasons. But a step in
+                the right direction is to at least generate JNI stubs with the
+                following plugin.
+            -->
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-antrun-plugin</artifactId>
+              <version>1.7</version>
+              <executions>
+                <execution>
+                  <phase>process-classes</phase>
+                  <goals>
+                    <goal>run</goal>
+                  </goals>
+                  <configuration>
+                    <exportAntProperties>true</exportAntProperties>
+                    <target>
+                      <property name="runtime_classpath" refid="maven.compile.classpath"/>
+                      <exec executable="javah">
+                        <arg value="-cp"/>
+                        <arg value="${runtime_classpath}"/>
+                        <arg value="-d"/>
+                        <arg value="${project.build.directory}/jni"/>
+                        <arg value="com.indeed.flamdex.fieldcache.NativeFlamdexFieldCacher"/>
+                        <arg value="com.indeed.flamdex.simple.NativeDocIdBuffer"/>
+                        <arg value="com.indeed.imhotep.local.ImhotepNativeLocalSession"/>
+                        <arg value="com.indeed.imhotep.local.MTImhotepLocalMultiSession"/>
+                        <arg value="com.indeed.imhotep.local.MTImhotepLocalMultiSession"/>
+                        <arg value="com.indeed.imhotep.local.MultiCache"/>
+                        <arg value="com.indeed.imhotep.local.MultiRegroupInternals"/>
+                        <arg value="com.indeed.imhotep.local.NativeMetricRegroupInternals"/>
+                        <arg value="com.indeed.imhotep.local.NativeShard"/>
+                        <arg value="com.indeed.imhotep.local.PackedTableView"/>
+                        <arg value="com.indeed.imhotep.service.PinnedThreadFactory"/>
+                      </exec>
+                    </target>
+                  </configuration>
+                </execution>
+              </executions>
+            </plugin>
+
 		</plugins>
 	</build>
 

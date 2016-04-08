@@ -47,12 +47,6 @@ class NativeShard implements AutoCloseable {
 
         final String shardDir = getDirectory(reader);
 
-        final int numIntFields = reader.getIntFields().size();
-        final int numStrFields = reader.getStringFields().size();
-
-        final String[] intFields = reader.getIntFields().toArray(new String[numIntFields]);
-        final String[] strFields = reader.getStringFields().toArray(new String[numStrFields]);
-
         final Map<String, Long> cached = new Object2LongArrayMap<String>();
         reader.getMapCache().getAddresses(cached);
 
@@ -66,8 +60,7 @@ class NativeShard implements AutoCloseable {
         }
 
         try {
-            shardPtr = nativeGetShard(shardDir, intFields, strFields, packedTablePtr,
-                                      mappedFiles, mappedPtrs);
+            shardPtr = nativeGetShard(shardDir, packedTablePtr, mappedFiles, mappedPtrs);
         }
         catch (Throwable th) {
             throw new IOException("unable to create native shard for dir:" + shardDir, th);
@@ -94,8 +87,6 @@ class NativeShard implements AutoCloseable {
     }
 
     private native static long nativeGetShard(final String   shardDir,
-                                              final String[] intFields,
-                                              final String[] strFields,
                                               final long     packedTablePtr,
                                               final String[] mappedFiles,
                                               final long[]   mappedPtrs);

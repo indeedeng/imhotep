@@ -1,13 +1,13 @@
 #ifndef GROUP_MULTI_REMAP_RULE_HPP
 #define GROUP_MULTI_REMAP_RULE_HPP
 
+#include "regroup_condition.hpp"
+
 #include <algorithm>
 #include <cstdint>
 #include <ostream>
 #include <utility>
 #include <vector>
-
-#include "regroup_condition.hpp"
 
 namespace imhotep {
 
@@ -36,19 +36,27 @@ namespace imhotep {
             }
 
             void reset(const Reset& visitor) {
+                const char* DUMMY_FIELD = "dummyField";
+                const std::string field(boost::apply_visitor(FieldOf(), _condition));
+
+                /* !@# Temporary hack to treat 'dummyField' as a special case,
+                   since we know that ctrmodel (ab)uses it. In fact, it tends to
+                   send large groups of rules with dummy field conditions; we
+                   don't want to pay the cost of looking it up in Shard for each
+                   and every one. */
+                if (field == DUMMY_FIELD) {
+                    _condition = IntNull("", 0);
+                    return;
+                }
+
                 try {
                     boost::apply_visitor(visitor, _condition);
                 }
                 catch (const imhotep_error& ex) {
-                    /* !@# Some clients, such as ctrmodel, deliberately send
-                       conditions with bogus fields in order to create
-                       conditions that are never true. In order to support them
-                       for now, we replace any rule we can't properly reset with
-                       a null condition. */
-                    /* !@# whether/how to report this...
-                       std::cerr << ex.what() << std::endl;
-                    */
-                    const std::string field(boost::apply_visitor(FieldOf(), _condition));
+                    /* !@# Some clients deliberately send conditions with bogus
+                       fields in order to create conditions that are never
+                       true. In order to support them for now, we replace any
+                       rule we can't properly reset with a null condition. */
                     _condition = IntNull(field, 0);
                 }
             }

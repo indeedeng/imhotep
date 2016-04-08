@@ -3,24 +3,15 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <sstream>
-
 namespace imhotep {
 
-    Shard::Shard(const std::string&              dir,
-                 const std::vector<std::string>& int_fields,
-                 const std::vector<std::string>& str_fields,
-                 packed_table_ptr                table,
-                 const MapCache&                 map_cache)
+    Shard::Shard(const std::string& dir,
+                 packed_table_ptr   table,
+                 const MapCache&    map_cache)
         : _dir(dir)
         , _table(table)
         , _map_cache(map_cache)
-    {
-        /* Note to self: during development, we forced caching of
-           views as an optimization, but that shouldn't be necessary
-           given the advent of MapCache. If performance degrades we
-           should reexamine. */
-    }
+    { }
 
     std::shared_ptr<MMappedFile>
     Shard::mmapped_file(const std::string&  field,

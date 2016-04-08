@@ -33,10 +33,7 @@ class NativeFTGSRunnable : public Binder {
 public:
     NativeFTGSRunnable(JNIEnv* env)
         : Binder(env, "com/indeed/imhotep/local/MTImhotepLocalMultiSession$NativeFTGSRunnable")
-        , _shardDirs(field_id_for("shardDirs", "[Ljava/lang/String;"))
-        , _mappedFiles(field_id_for("mappedFiles", "[Ljava/lang/String;"))
-        , _mappedPtrs(field_id_for("mappedPtrs", "[J"))
-        , _packedTablePtrs(field_id_for("packedTablePtrs", "[J"))
+        , _shardPtrs(field_id_for("shardPtrs", "[J"))
         , _onlyBinaryMetrics(field_id_for("onlyBinaryMetrics", "Z"))
         , _intFields(field_id_for("intFields", "[Ljava/lang/String;"))
         , _stringFields(field_id_for("stringFields", "[Ljava/lang/String;"))
@@ -49,10 +46,7 @@ public:
     { }
 
     void run(jobject obj) {
-        jobjectArray shardDirs(object_field<jobjectArray>(obj, _shardDirs));
-        jobjectArray mappedFiles(object_field<jobjectArray>(obj, _mappedFiles));
-        jlongArray   mappedPtrs(object_field<jlongArray>(obj, _mappedPtrs));
-        jlongArray   packedTablePtrs(object_field<jlongArray>(obj, _packedTablePtrs));
+        jlongArray   shardPtrs(object_field<jlongArray>(obj, _shardPtrs));
         jboolean     onlyBinaryMetrics(env()->GetBooleanField(obj, _onlyBinaryMetrics));
         jobjectArray intFields(object_field<jobjectArray>(obj, _intFields));
         jobjectArray stringFields(object_field<jobjectArray>(obj, _stringFields));
@@ -62,16 +56,12 @@ public:
         jint         numSplits(env()->GetIntField(obj, _numSplits));
         jint         numWorkers(env()->GetIntField(obj, _numWorkers));
         jintArray    socketFDs(object_field<jintArray>(obj, _socketFDs));
-        run(shardDirs, mappedFiles, mappedPtrs, packedTablePtrs, onlyBinaryMetrics,
-            intFields, stringFields, splitsDir, numGroups, numStats, numSplits,
-            numWorkers, socketFDs);
+        run(shardPtrs,onlyBinaryMetrics, intFields, stringFields, splitsDir,
+            numGroups, numStats, numSplits, numWorkers, socketFDs);
     }
 
 private:
-    void run(jobjectArray shardDirs,
-             jobjectArray mappedFiles,
-             jlongArray   mappedPtrs,
-             jlongArray   packedTablePtrs,
+    void run(jlongArray   shardPtrs,
              jboolean     onlyBinaryMetrics,
              jobjectArray intFields,
              jobjectArray strFields,
@@ -82,33 +72,15 @@ private:
              jint         numWorkers,
              jintArray    socketFDs) {
 
-        const strvec_t shard_dirs(from_java_array<std::string>(env(), shardDirs));
-        const strvec_t mapped_files(from_java_array<std::string>(env(), mappedFiles));
+        const std::vector<long> shard_ptrs(from_java_array<long>(env(), shardPtrs));
+        std::vector<Shard*> shards;
+        for (size_t index(0); index < shard_ptrs.size(); ++index) {
+            Shard* shard(reinterpret_cast<Shard*>(shard_ptrs[index]));
+            shards.push_back(shard);
+        }
+
         const strvec_t int_fields(from_java_array<std::string>(env(), intFields));
         const strvec_t str_fields(from_java_array<std::string>(env(), strFields));
-
-        const std::vector<long> mapped_ptrs(from_java_array<long>(env(), mappedPtrs));
-
-        die_if(mapped_files.size() != mapped_ptrs.size(),
-               "mapped_files.size() != mapped_ptrs.size()");
-        Shard::MapCache map_cache;
-        for (size_t idx(0); idx < mapped_files.size(); ++idx) {
-            map_cache[mapped_files[idx]] = reinterpret_cast<void*>(mapped_ptrs[idx]);
-        }
-
-        typedef imhotep::Shard::packed_table_ptr table_ptr;
-
-        const std::vector<table_ptr> table_ptrs
-            (from_java_array<table_ptr>(env(), packedTablePtrs));
-        die_if(shard_dirs.size() != table_ptrs.size(),
-               "shard_dirs.size() != table_ptrs.size()");
-
-        std::vector<Shard> shards;
-        for (size_t index(0); index < shard_dirs.size(); ++index) {
-            shards.push_back(Shard(shard_dirs[index],
-                                   int_fields, str_fields,
-                                   table_ptrs[index], map_cache));
-        }
 
         const std::string splits_dir(from_java<jstring, std::string>(env(), splitsDir));
         const size_t      num_splits(from_java<jint, size_t>(env(), numSplits));
@@ -125,11 +97,10 @@ private:
         const bool only_binary_metrics(from_java<jboolean, bool>(env(), onlyBinaryMetrics));
 
         runner.run(num_groups, num_metrics, only_binary_metrics,
-                   shards[0].table(), socket_fds);
+                   shards[0]->table(), socket_fds);
     }
 
-    jfieldID _shardDirs, _mappedFiles, _mappedPtrs, _packedTablePtrs,
-        _onlyBinaryMetrics, _intFields, _stringFields, _splitsDir,
+    jfieldID _shardPtrs, _onlyBinaryMetrics, _intFields, _stringFields, _splitsDir,
         _numGroups, _numStats, _numSplits, _numWorkers, _socketFDs;
 };
 

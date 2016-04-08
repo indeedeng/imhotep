@@ -105,7 +105,7 @@ namespace imhotep {
         std::vector<TaskIterator> _task_iterators;
     };
 
-    FTGSRunner::FTGSRunner(const std::vector<Shard>&       shards,
+    FTGSRunner::FTGSRunner(const std::vector<Shard*>&      shards,
                            const std::vector<std::string>& int_fieldnames,
                            const std::vector<std::string>& string_fieldnames,
                            const std::string&              split_dir,

@@ -10,10 +10,10 @@ extern "C" {
 /*
  * Class:     com_indeed_imhotep_local_NativeShard
  * Method:    nativeGetShard
- * Signature: (Ljava/lang/String;[Ljava/lang/String;[Ljava/lang/String;J[Ljava/lang/String;[J)J
+ * Signature: (Ljava/lang/String;J[Ljava/lang/String;[J)J
  */
 JNIEXPORT jlong JNICALL Java_com_indeed_imhotep_local_NativeShard_nativeGetShard
-  (JNIEnv *, jclass, jstring, jobjectArray, jobjectArray, jlong, jobjectArray, jlongArray);
+  (JNIEnv *, jclass, jstring, jlong, jobjectArray, jlongArray);
 
 /*
  * Class:     com_indeed_imhotep_local_NativeShard

@@ -104,13 +104,11 @@ int main(int argc, char* argv[])
     }
 
     const string        dir(vm["shard"].as<string>());
-    const Shard         proto_shard(dir, empty, empty);
-    const ShardMetadata smd(proto_shard);
+    Shard               shard(dir);
+    const ShardMetadata smd(shard);
 
     auto int_fields(smd.int_fields());
     auto str_fields(smd.str_fields());
-
-    Shard shard(dir, int_fields, str_fields);
 
     cerr << "int fields:" << endl;
     for (auto field: int_fields) {

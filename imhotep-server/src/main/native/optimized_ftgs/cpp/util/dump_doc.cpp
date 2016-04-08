@@ -73,13 +73,11 @@ int main(int argc, char* argv[])
 
     const string        dir(vm["shard"].as<string>());
     const int64_t       docid(vm["docid"].as<int64_t>());
-    const Shard         proto_shard(dir, empty, empty);
-    const ShardMetadata smd(proto_shard);
+    Shard               shard(dir);
+    const ShardMetadata smd(shard);
 
     auto int_fields(smd.int_fields());
     auto str_fields(smd.str_fields());
-
-    Shard shard(dir, int_fields, str_fields);
 
     for (auto field: int_fields) {
         dump_field<IntTerm>(shard, field, docid);

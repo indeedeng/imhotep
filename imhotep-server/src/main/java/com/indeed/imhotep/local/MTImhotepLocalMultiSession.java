@@ -148,10 +148,19 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         Closeables2.closeAll(Arrays.asList(ftgsOutputSockets), log);
     }
 
-    public MultiCache[] updateMulticaches() throws ImhotepOutOfMemoryException {
-        final MultiCache[] multiCaches = new MultiCache[sessions.length];
-        final MultiCacheConfig config = new MultiCacheConfig();
-        final StatLookup[] sessionsStats = new StatLookup[sessions.length];
+    /* !@# Blech! This is kludgy as all get out, but it's what we have for now.
+
+       PreConditions:
+       - All contained sessions are ImhotepNativeLocalSessions
+
+       PostConditions:
+       - Sessions will have valid multicaches (aka packed tables) within.
+       - Sessions will have valid NativeShards within.
+    */
+    public NativeShard[] updateMulticaches() throws ImhotepOutOfMemoryException {
+        final NativeShard[]    result        = new NativeShard[sessions.length];
+        final MultiCacheConfig config        = new MultiCacheConfig();
+        final StatLookup[]     sessionsStats = new StatLookup[sessions.length];
 
         for (int i = 0; i < sessions.length; i++) {
             sessionsStats[i] = sessions[i].statLookup;
@@ -159,14 +168,16 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         config.calcOrdering(sessionsStats, sessions[0].numStats);
         this.onlyBinaryMetrics = config.isOnlyBinaryMetrics();
 
-        executeMemoryException(multiCaches, new ThrowingFunction<ImhotepSession, MultiCache>() {
+        executeMemoryException(result, new ThrowingFunction<ImhotepSession, NativeShard>() {
             @Override
-            public MultiCache apply(ImhotepSession session) throws Exception {
-                return ((ImhotepNativeLocalSession)session).buildMultiCache(config);
+            public NativeShard apply(ImhotepSession session) throws Exception {
+                final ImhotepNativeLocalSession inls = (ImhotepNativeLocalSession) session;
+                inls.buildMultiCache(config);
+                inls.bindNativeReferences(); // !@# blech!!!
+                return inls.getNativeShard();
             }
         });
-
-        return multiCaches;
+        return result;
     }
 
     @Override
@@ -188,18 +199,16 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         final CyclicBarrier newBarrier = new CyclicBarrier(numSplits, new Runnable() {
                 @Override
                 public void run() {
-                    MultiCache[] nativeCaches;
+                    NativeShard[] shards;
                     try {
-                        nativeCaches = updateMulticaches();
-                    } catch (ImhotepOutOfMemoryException e) {
+                        shards = updateMulticaches();
+                    }
+                    catch (ImhotepOutOfMemoryException e) {
                         throw new RuntimeException(e);
                     }
-                    final FlamdexReader[] readers = new FlamdexReader[sessions.length];
-                    for (int i = 0; i < sessions.length; i++) {
-                        readers[i] = sessions[i].getReader();
-                    }
+
                     final NativeFTGSRunnable nativeRunnable =
-                        new NativeFTGSRunnable(readers, nativeCaches, onlyBinaryMetrics,
+                        new NativeFTGSRunnable(shards, onlyBinaryMetrics,
                                                intFields, stringFields, getNumGroups(),
                                                numStats, numSplits, ftgsOutputSockets);
                     nativeRunnable.run();
@@ -263,14 +272,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
     private static class NativeFTGSRunnable {
 
-        /* !@# Note that mappedFiles/mappedPtrs are maintained as parallel
-            arrays because accessing a map from within JNI would be painful to
-            say the least. */
-
-        final String[] shardDirs;
-        final String[] mappedFiles;
-        final long[]   mappedPtrs;
-        final long[]   packedTablePtrs;
+        final long[]   shardPtrs;
         final boolean  onlyBinaryMetrics;
         final String[] intFields;
         final String[] stringFields;
@@ -281,46 +283,19 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         final int      numWorkers;
         final int[]    socketFDs;
 
-        private Map<String, Long> combine(final FlamdexReader[] readers) {
-            final Map<String, Long> result = Maps.newHashMap();
-            for (final FlamdexReader reader: readers) {
-                if (reader instanceof HasMapCache) {
-                    ((HasMapCache) reader).getMapCache().getAddresses(result);
-                }
+        NativeFTGSRunnable(final NativeShard[] nativeShards,
+                           final boolean       onlyBinaryMetrics,
+                           final String[]      intFields,
+                           final String[]      stringFields,
+                           final int           numGroups,
+                           final int           numStats,
+                           final int           numSplits,
+                           final Socket[]      sockets) {
+
+            this.shardPtrs = new long[nativeShards.length];
+            for (int idx = 0; idx < nativeShards.length; ++idx) {
+                this.shardPtrs[idx] = nativeShards[idx].getPtr();
             }
-            return result;
-        }
-
-        private void flatten(final Map<String, Long> mapCaches) {
-            int idx = 0;
-            for (Map.Entry<String, Long> entry: mapCaches.entrySet()) {
-                this.mappedFiles[idx] = entry.getKey();
-                this.mappedPtrs[idx]  = entry.getValue().longValue();
-                ++idx;
-            }
-        }
-
-        NativeFTGSRunnable(final FlamdexReader[] readers,
-                           final MultiCache[]    nativeCaches,
-                           final boolean         onlyBinaryMetrics,
-                           final String[]        intFields,
-                           final String[]        stringFields,
-                           final int             numGroups,
-                           final int             numStats,
-                           final int             numSplits,
-                           final Socket[]        sockets) {
-
-            this.shardDirs = getShardDirs(readers);
-
-            this.packedTablePtrs = new long[nativeCaches.length];
-            for (int index = 0; index < nativeCaches.length; ++index) {
-                this.packedTablePtrs[index] = nativeCaches[index].getNativeAddress();
-            }
-
-            Map<String, Long> mapCaches = combine(readers);
-            this.mappedFiles = new String[mapCaches.size()];
-            this.mappedPtrs  = new long[mapCaches.size()];
-            flatten(mapCaches);
 
             this.onlyBinaryMetrics = onlyBinaryMetrics;
             this.intFields         = intFields;
@@ -332,7 +307,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
             final String numWorkersStr = System.getProperty("imhotep.ftgs.num.workers", "8");
             final int    numWorkers    = Integer.parseInt(numWorkersStr);
-            this.numWorkers         = numWorkers;
+            this.numWorkers = numWorkers;
 
             java.util.ArrayList<Integer> socketFDArray = new java.util.ArrayList<Integer>();
             for (final Socket socket: sockets) {
@@ -348,46 +323,5 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         }
 
         native void run();
-
-        private String[] getShardDirs(final FlamdexReader[] readers) {
-            final String[] shardDirs = new String[readers.length];
-
-            class LoadDirThread extends Thread {
-                final int index;
-                LoadDirThread(final int index) { this.index = index; }
-                public void run() {
-                    String shardDir = readers[index].getDirectory();
-                    try {
-                        CachedFile cf        = CachedFile.create(shardDir);
-                        File       cachedDir = cf.loadDirectory();
-                        synchronized (shardDirs) {
-                            shardDirs[index] = cachedDir.getAbsolutePath();
-                        }
-                    }
-                    catch (IOException ex) {
-                        throw new RuntimeException(ex);
-                    }
-                }
-            }
-
-            LoadDirThread[] threads = new LoadDirThread[readers.length];
-            try {
-                for (int index = 0; index < readers.length; ++index) {
-                    threads[index] = new LoadDirThread(index);
-                    threads[index].start();
-                }
-            }
-            finally {
-                for (int index = 0; index < readers.length; ++index) {
-                    try {
-                        threads[index].join();
-                    }
-                    catch (InterruptedException ex) {
-                        // !@# handle more gracefully
-                    }
-                }
-            }
-            return shardDirs;
-        }
     }
 }

@@ -3,7 +3,7 @@
 namespace imhotep {
 
     template <typename term_t>
-    TermProviders<term_t>::TermProviders(const std::vector<Shard>&       shards,
+    TermProviders<term_t>::TermProviders(const std::vector<Shard*>&      shards,
                                          const std::vector<std::string>& field_names,
                                          const std::string&              split_dir,
                                          size_t                          num_splits,
@@ -21,14 +21,14 @@ namespace imhotep {
     }
 
     template
-    TermProviders<IntTerm>::TermProviders(const std::vector<Shard>&       shards,
+    TermProviders<IntTerm>::TermProviders(const std::vector<Shard*>&      shards,
                                           const std::vector<std::string>& field_names,
                                           const std::string&              split_dir,
                                           size_t                          num_splits,
                                           ExecutorService&                executor);
 
     template
-    TermProviders<StringTerm>::TermProviders(const std::vector<Shard>&       shards,
+    TermProviders<StringTerm>::TermProviders(const std::vector<Shard*>&      shards,
                                              const std::vector<std::string>& field_names,
                                              const std::string&              split_dir,
                                              size_t                          num_splits,

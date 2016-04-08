@@ -22,7 +22,7 @@ void dump_docs(VarIntView docid_view, TermIterator<term_t> it)
     DocIdIterator docid_it(docid_view, it->doc_offset(), it->doc_freq());
     DocIdIterator docid_end;
     while (docid_it != docid_end) {
-        cout << " " << *docid_it;
+        //        cout << " " << *docid_it;
         ++docid_it;
     }
 }
@@ -34,11 +34,10 @@ void dump_field(Shard& shard, const string& field)
     TermIterator<term_t> it(shard.term_view<term_t>(field));
     TermIterator<term_t> end;
 
-    vector<id_t> terms;
     while (it != end) {
-        cout << (*it).id() << ":";
+        //                cout << (*it).id() << ":";
         dump_docs(docid_view, it);
-        cout << endl;
+        //                cout << endl;
          ++it;
     }
 }
@@ -48,8 +47,6 @@ int main(int argc, char* argv[])
     simdvbyteinit();
 
     namespace po = boost::program_options;
-
-    const vector<string> empty;
 
     po::options_description desc("TermIndex tests");
     desc.add_options()
@@ -69,23 +66,23 @@ int main(int argc, char* argv[])
 
     const string        dir(vm["shard"].as<string>());
     const string        field(vm["field"].as<string>());
-    const Shard         proto_shard(dir, empty, empty);
-    const ShardMetadata smd(proto_shard);
+    Shard               shard(dir);
+    const ShardMetadata smd(shard);
 
     auto int_fields(smd.int_fields());
     auto str_fields(smd.str_fields());
 
-    Shard shard(dir, int_fields, str_fields);
+    const bool dump_all(field == "ALL");
 
     for (auto int_field: int_fields) {
-        if (field == int_field) {
-            dump_field<IntTerm>(shard, field);
+        if (dump_all || field == int_field) {
+            dump_field<IntTerm>(shard, int_field);
         }
     }
 
     for (auto str_field: str_fields) {
-        if (field == str_field) {
-            dump_field<StringTerm>(shard, field);
+        if (dump_all || field == str_field) {
+            dump_field<StringTerm>(shard, str_field);
         }
     }
 }
