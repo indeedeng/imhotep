@@ -253,34 +253,6 @@ int unpacked_table_get_cols(const unpacked_table_ptr table);
 unpacked_table_ptr unpacked_table_copy_layout(const unpacked_table_ptr src_table, const int num_rows);
 struct bit_tree* unpacked_table_get_non_zero_rows(const unpacked_table_ptr table);
 
-int remap_docs_in_target_groups_int8_t(packed_table_ptr packed_table,
-                                       int8_t*         results,
-                                       uint8_t*        doc_id_stream,
-                                       size_t          n_doc_ids,
-                                       int*            remappings,
-                                       long            placeholder_group);
-
-int remap_docs_in_target_groups_uint16_t(packed_table_ptr packed_table,
-                                        uint16_t*       results,
-                                        uint8_t*        doc_id_stream,
-                                        size_t          n_doc_ids,
-                                        int*            remappings,
-                                        long            placeholder_group);
-
-int remap_docs_in_target_groups_int16_t(packed_table_ptr packed_table,
-                                        int16_t*       results,
-                                        uint8_t*        doc_id_stream,
-                                        size_t          n_doc_ids,
-                                        int*            remappings,
-                                        long            placeholder_group);
-
-int remap_docs_in_target_groups_int32_t(packed_table_ptr packed_table,
-                                        int32_t*        results,
-                                        uint8_t*        doc_id_stream,
-                                        size_t          n_doc_ids,
-                                        int*            remappings,
-                                        long            placeholder_group);
-
 long unpacked_table_get_cell(
         const unpacked_table_ptr  restrict table,
         const int row,
