@@ -32,19 +32,17 @@ import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepServiceCore;
+import com.indeed.imhotep.io.ImhotepProtobufShipping;
+import com.indeed.imhotep.io.Streams;
 import com.indeed.imhotep.marshal.ImhotepDaemonMarshaller;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.GroupRemapMessage;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
+import com.indeed.imhotep.protobuf.IntFieldAndTerms;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
-import com.indeed.imhotep.io.ImhotepProtobufShipping;
-import com.indeed.imhotep.io.Streams;
-import com.indeed.imhotep.io.caching.CachedFile;
-
-import com.indeed.imhotep.protobuf.IntFieldAndTerms;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
 import org.apache.log4j.Logger;
 import org.apache.log4j.NDC;
@@ -445,6 +443,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                           getIntFields(request),
                                           getStringFields(request),
                                           request.getTermLimit(),
+                                          request.getSortStat(),
                                           os);
         }
 
@@ -517,7 +516,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             service.handleMergeFTGSIteratorSplit(request.getSessionId(),
                                                  getIntFields(request),
                                                  getStringFields(request),
-                                                 os, nodes, request.getSplitIndex(), request.getTermLimit());
+                                                 os, nodes, request.getSplitIndex(), request.getTermLimit(), request.getSortStat());
         }
 
         private final void mergeSubsetFTGSSplit(final ImhotepRequest          request,
@@ -1213,5 +1212,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
 
     public ServiceZooKeeperWrapper getZkWrapper() {
         return zkWrapper;
+    }
+
+    public int getPort() {
+        return ss.getLocalPort();
     }
 }

@@ -123,12 +123,12 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public void handleGetFTGSIterator(final String sessionId, final String[] intFields, final String[] stringFields, final long termLimit, final OutputStream os) throws
+    public void handleGetFTGSIterator(final String sessionId, final String[] intFields, final String[] stringFields, final long termLimit, final int sortStat, final OutputStream os) throws
             IOException {
         doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Void, IOException>() {
             public Void apply(final ImhotepSession session) throws IOException {
                 final int numStats = getSessionManager().getNumStats(sessionId);
-                final FTGSIterator merger = session.getFTGSIterator(intFields, stringFields, termLimit);
+                final FTGSIterator merger = session.getFTGSIterator(intFields, stringFields, termLimit, sortStat);
                 sendSuccessResponse(os);
                 return writeFTGSIteratorToOutputStream(numStats, merger, os);
             }
@@ -233,17 +233,19 @@ public abstract class AbstractImhotepServiceCore
         });
     }
 
+    @Override
     public void handleMergeFTGSIteratorSplit(final String sessionId,
                                              final String[] intFields,
                                              final String[] stringFields,
                                              final OutputStream os,
                                              final InetSocketAddress[] nodes,
                                              final int splitIndex,
-                                             final long termLimit) throws IOException {
+                                             final long termLimit,
+                                             final int sortStat) throws IOException {
         doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Void, IOException>() {
             public Void apply(final ImhotepSession session) throws IOException {
                 final int numStats = getSessionManager().getNumStats(sessionId);
-                final FTGSIterator merger = session.mergeFTGSSplit(intFields, stringFields, sessionId, nodes, splitIndex, termLimit);
+                final FTGSIterator merger = session.mergeFTGSSplit(intFields, stringFields, sessionId, nodes, splitIndex, termLimit, sortStat);
                 sendSuccessResponse(os);
                 return writeFTGSIteratorToOutputStream(numStats, merger, os);
             }

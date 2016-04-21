@@ -14,8 +14,8 @@
  package com.indeed.imhotep;
 
 import com.google.common.base.Charsets;
-import com.indeed.util.core.io.Closeables2;
 import com.indeed.imhotep.api.RawFTGSIterator;
+import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
@@ -166,7 +166,7 @@ public class InputStreamFTGSIterator implements RawFTGSIterator {
     }
 
     @Override
-    public final boolean nextTerm() {
+    public boolean nextTerm() {
         if (iteratorStatus < 2) return false;
         while (nextGroup()) {
             // skip until end of current term

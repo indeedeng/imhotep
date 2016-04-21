@@ -13,15 +13,55 @@
  */
  package com.indeed.imhotep;
 
+import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.service.FTGSOutputStreamWriter;
 import junit.framework.TestCase;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 
 public class InputStreamFTGSIteratorTest extends TestCase {
+    private void expectIntField(final FTGSIterator iter, final String field) {
+        Assert.assertTrue(iter.nextField());
+        Assert.assertEquals(field, iter.fieldName());
+        Assert.assertTrue(iter.fieldIsIntType());
+    }
+
+    private void expectIntTerm(final FTGSIterator iter, final long term, final long termDocFreq) {
+        Assert.assertTrue(iter.nextTerm());
+        Assert.assertEquals(term, iter.termIntVal());
+        Assert.assertEquals(termDocFreq, iter.termDocFreq());
+    }
+
+    private void expectEnd(final FTGSIterator iter) {
+        expectFieldEnd(iter);
+        Assert.assertFalse(iter.nextField());
+    }
+
+    private void expectFieldEnd(final FTGSIterator iter) {
+        expectTermEnd(iter);
+        Assert.assertFalse(iter.nextTerm());
+    }
+
+    private void expectGroup(final FTGSIterator iter, final long group, final long[] groupStats) {
+        Assert.assertTrue(iter.nextGroup());
+        Assert.assertEquals(group, iter.group());
+
+        final long[] stats = new long[groupStats.length];
+        iter.groupStats(stats);
+
+        Assert.assertArrayEquals(groupStats, stats);
+    }
+
+    private void expectTermEnd(final FTGSIterator iter) {
+        Assert.assertFalse(iter.nextGroup());
+    }
+
     @Test
     public void testNegative() throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -262,6 +302,66 @@ public class InputStreamFTGSIteratorTest extends TestCase {
             assertEquals("xyz", input.fieldName());
             assertEquals(false, input.fieldIsIntType());
             assertFalse(input.nextField());
+        }
+    }
+
+    @Test
+    public void testFileInputStreamIterators() throws IOException {
+        final File tmp = File.createTempFile("ftgs", ".tmp");
+        try {
+            final FTGSOutputStreamWriter w = new FTGSOutputStreamWriter(new FileOutputStream(tmp));
+            w.switchField("a", true);
+            w.switchIntTerm(1, 5);
+            w.switchGroup(1);
+            w.addStat(15);
+            w.addStat(10);
+
+            w.switchField("b", true);
+
+            w.switchIntTerm(2, 10);
+            w.switchGroup(1);
+            w.addStat(5);
+            w.addStat(999999);
+
+            w.switchIntTerm(3, 15);
+            w.switchGroup(1);
+            w.addStat(55);
+            w.addStat(66);
+
+            w.switchField("c", true);
+
+            w.switchIntTerm(4, 20);
+            w.switchGroup(1);
+            w.addStat(1);
+            w.addStat(2);
+
+            w.close();
+
+            {
+                final InputStreamFTGSIterator iter = InputStreamFTGSIterators.create(tmp, 2);
+
+                expectIntField(iter, "a");
+                expectIntTerm(iter, 1, 5);
+                expectGroup(iter, 1, new long[]{15, 10});
+                expectFieldEnd(iter);
+
+                expectIntField(iter, "b");
+                expectIntTerm(iter, 2, 10);
+                expectGroup(iter, 1, new long[]{5, 999999});
+                expectIntTerm(iter, 3, 15);
+                expectGroup(iter, 1, new long[]{55, 66});
+                expectFieldEnd(iter);
+
+                expectIntField(iter, "c");
+                expectIntTerm(iter, 4, 20);
+                expectGroup(iter, 1, new long[]{1, 2});
+                expectFieldEnd(iter);
+
+                expectEnd(iter);
+            }
+
+        } finally {
+            tmp.delete();
         }
     }
 }

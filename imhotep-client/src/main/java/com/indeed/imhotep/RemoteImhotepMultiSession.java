@@ -56,18 +56,27 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
 
     @Override
     public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, long termLimit) {
+        return getFTGSIterator(intFields, stringFields, termLimit, -1);
+    }
+
+    @Override
+    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, long termLimit, int sortStat) {
         if (sessions.length == 1) {
-            return sessions[0].getFTGSIterator(intFields, stringFields, termLimit);
+            return sessions[0].getFTGSIterator(intFields, stringFields, termLimit, sortStat);
         }
-        final RawFTGSIterator[] mergers = getFTGSIteratorSplits(intFields, stringFields, termLimit);
+        final RawFTGSIterator[] mergers = getFTGSIteratorSplits(intFields, stringFields, termLimit, sortStat);
         RawFTGSIterator interleaver = new FTGSInterleaver(mergers);
         if(termLimit > 0) {
-            interleaver = new TermLimitedRawFTGSIterator(interleaver, termLimit);
+            if (sortStat >= 0) {
+                interleaver = FTGSIteratorUtil.getTopTermsFTGSIterator(interleaver, termLimit, numStats, sortStat);
+            } else {
+                interleaver = new TermLimitedRawFTGSIterator(interleaver, termLimit);
+            }
         }
         return interleaver;
     }
 
-    public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields, final long termLimit) {
+    public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields, final long termLimit, final int sortStat) {
         final Pair<Integer, ImhotepSession>[] indexesAndSessions = new Pair[sessions.length];
         for (int i = 0; i < sessions.length; i++) {
             indexesAndSessions[i] = Pair.of(i, sessions[i]);
@@ -78,7 +87,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 public RawFTGSIterator apply(final Pair<Integer, ImhotepSession> indexSessionPair) throws Exception {
                     final ImhotepSession session = indexSessionPair.getSecond();
                     final int index = indexSessionPair.getFirst();
-                    return session.mergeFTGSSplit(intFields, stringFields, sessionId, nodes, index, termLimit);
+                    return session.mergeFTGSSplit(intFields, stringFields, sessionId, nodes, index, termLimit, sortStat);
                 }
             });
         } catch (ExecutionException e) {

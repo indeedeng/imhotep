@@ -65,6 +65,16 @@ public interface ImhotepSession
      */
     FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, long termLimit);
 
+    /**
+     * get an iterator over (field, term, group, stat) tuples for the top termLimit terms sorted by stats in sortStat for the given fields
+     * @param intFields list of int fields
+     * @param stringFields list of string fields
+     * @param termLimit maximum number of terms that can be returned. 0 means no limit
+     * @param sortStat the index of stats to get the top terms. No sorting is done if the value is negative
+     * @return an iterator
+     */
+    FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, long termLimit, int sortStat);
+
     FTGSIterator getSubsetFTGSIterator(Map<String, long[]> intFields, Map<String, String[]> stringFields);
 
     RawFTGSIterator[] getSubsetFTGSIteratorSplits(Map<String, long[]> intFields, Map<String, String[]> stringFields);
@@ -103,7 +113,7 @@ public interface ImhotepSession
     /**
      * this is only really here to be called on ImhotepRemoteSession by RemoteImhotepMultiSession
      */
-    RawFTGSIterator mergeFTGSSplit(String[] intFields, String[] stringFields, String sessionId, InetSocketAddress[] nodes, int splitIndex, long termLimit);
+    RawFTGSIterator mergeFTGSSplit(String[] intFields, String[] stringFields, String sessionId, InetSocketAddress[] nodes, int splitIndex, long termLimit, int sortStat);
 
     RawFTGSIterator mergeSubsetFTGSSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, String sessionId, InetSocketAddress[] nodes, int splitIndex);
 
