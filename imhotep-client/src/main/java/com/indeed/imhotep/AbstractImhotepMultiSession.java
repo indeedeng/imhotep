@@ -741,11 +741,18 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
 
         final int numSplits = Math.max(1, Runtime.getRuntime().availableProcessors()/2);
         for (int i = 0; i < splits.length; i++) {
-            final FTGSSplitter splitter =
-                    closer.register(new FTGSSplitter(splits[i], numSplits, numStats,
-                            981044833, tempFileSizeBytesLeft,
-                            splitThreadFactory));
+            final FTGSSplitter splitter = new FTGSSplitter(
+                    splits[i],
+                    numSplits,
+                    numStats,
+                    981044833,
+                    tempFileSizeBytesLeft,
+                    splitThreadFactory
+            );
             iteratorSplits[i] = splitter.getFtgsIterators();
+            for (RawFTGSIterator split : iteratorSplits[i]) {
+                closer.register(split);
+            }
         }
 
         final RawFTGSIterator[] mergers = new RawFTGSIterator[numSplits];
