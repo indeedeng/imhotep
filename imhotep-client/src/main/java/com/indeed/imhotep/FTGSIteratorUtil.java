@@ -10,8 +10,10 @@ import com.indeed.imhotep.io.WriteLimitExceededException;
 import com.indeed.imhotep.service.FTGSOutputStreamWriter;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
-import gnu.trove.map.hash.TIntObjectHashMap;
-import gnu.trove.procedure.TIntObjectProcedure;
+import gnu.trove.TIntObjectHashMap;
+import gnu.trove.TIntObjectProcedure;
+import gnu.trove.TObjectProcedure;
+import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.log4j.Logger;
 
 import java.io.File;
@@ -108,12 +110,16 @@ public class FTGSIteratorUtil {
                 }
             }
 
-            int termsAndGroups = 0;
-            for (final PriorityQueue<TermStat> topTerms : topTermsByGroup.valueCollection()) {
-                termsAndGroups += topTerms.size();
-            }
+            final MutableInt termsAndGroups = new MutableInt(0);
+            topTermsByGroup.forEachValue(new TObjectProcedure<PriorityQueue<TermStat>>() {
+                @Override
+                public boolean execute(final PriorityQueue<TermStat> topTerms) {
+                    termsAndGroups.add(topTerms.size());
+                    return true;
+                }
+            });
 
-            final TermStat[] topTermsArray = new TermStat[termsAndGroups];
+            final TermStat[] topTermsArray = new TermStat[termsAndGroups.intValue()];
 
             topTermsByGroup.forEachEntry(new TIntObjectProcedure<PriorityQueue<TermStat>>() {
                 private int i = 0;
