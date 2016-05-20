@@ -142,6 +142,23 @@ public class ImhotepClient
         return getDatasetToShardList(shardListMap.values());
     }
 
+    public DatasetInfo getDatasetShardInfo(String dataset) {
+        final List<List<DatasetInfo>> restrictedDatasetInfos = new ArrayList<>();
+        outer: for (final List<DatasetInfo> hostDatasetInfo : getShardList().values()) {
+            for (final DatasetInfo datasetInfo : hostDatasetInfo) {
+                if (datasetInfo.getDataset().equals(dataset)) {
+                    restrictedDatasetInfos.add(Collections.singletonList(datasetInfo));
+                    // Making the assumption that a given dataset only shows up once for a given host.
+                    continue outer;
+                }
+            }
+        }
+        if (restrictedDatasetInfos.isEmpty()) {
+            throw new IllegalArgumentException("Dataset not present in shard lists: " + dataset);
+        }
+        return getDatasetToShardList(restrictedDatasetInfos).get(dataset);
+    }
+
     static Map<String, DatasetInfo> getDatasetToShardList(Collection<List<DatasetInfo>> hostsDatasets) {
         final Map<String, DatasetInfo> ret = Maps.newHashMap();
         final Map<String, DatasetNewestShardMetadata> datasetNameToMetadata = Maps.newHashMap();
