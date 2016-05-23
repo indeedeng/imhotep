@@ -122,6 +122,8 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<autoVersionSubmodules>true</autoVersionSubmodules>
 
+		<protoc.path>/home/jwolfe/indeed/javadev/tools/protobuf/2.5.0/bin/protoc-linux-x86_64</protoc.path>
+
 		<colt.version>1.2.0</colt.version>
 		<fastutil.version>6.2.2</fastutil.version>
 		<gnu-trove.version>2.0.2</gnu-trove.version>
