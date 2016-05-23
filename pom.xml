@@ -9,7 +9,7 @@
 
     <groupId>com.indeed</groupId>
     <artifactId>imhotep</artifactId>
-    <version>3.1.14-SNAPSHOT</version>
+    <version>3.1.14</version>
     <packaging>pom</packaging>
 
     <name>Imhotep Metapackage</name>
