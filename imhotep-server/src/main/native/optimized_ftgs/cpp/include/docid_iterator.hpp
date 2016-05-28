@@ -64,7 +64,7 @@ namespace imhotep {
         size_t _end_idx     = 0;
         size_t _remaining   = 0;
 
-        std::array<docid_t, 16> _buffer;
+        std::array<docid_t, 64> _buffer;
 
         docid_t    _last_value  = 0;
         VarIntView _docid_view;

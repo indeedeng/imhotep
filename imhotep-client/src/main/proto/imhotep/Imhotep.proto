@@ -236,6 +236,9 @@ message ImhotepRequest {
 
   // for getFTGSIterator
   optional int64 termLimit = 54 [default = 0];
+
+  // for getFTGSIterator and mergeFTGSSplit
+  optional int32 sortStat = 55 [default = -1];
 }
 
 message ImhotepResponse {

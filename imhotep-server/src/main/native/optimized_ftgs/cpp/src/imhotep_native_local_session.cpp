@@ -100,6 +100,7 @@ namespace imhotep {
                     }
                     rules.emplace_back(GroupMultiRemapRule::Rule(positive,
                                                                  _condition_binder(condition)));
+                    env()->DeleteLocalRef(condition);
                 }
             }
             catch (...) {

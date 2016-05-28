@@ -139,7 +139,7 @@ class ShardStore implements AutoCloseable {
 
     static public final class Value {
 
-        private final String       shardDir; // relative to cannonical shard dir
+        private final String       shardDir; // relative to canonical shard dir
         private final int          numDocs;
         private final long         version;
         private final List<String> intFields;

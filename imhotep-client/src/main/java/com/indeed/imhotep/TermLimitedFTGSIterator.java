@@ -14,6 +14,7 @@ public class TermLimitedFTGSIterator implements FTGSIterator {
     private final long termLimit;
     private long termsIterated = 0;
     private boolean firstTermGroupConsumed = false;
+    private long termDocFreq = 0;
 
     /**
      * @param wrapped The iterator to use
@@ -46,6 +47,7 @@ public class TermLimitedFTGSIterator implements FTGSIterator {
         }
         boolean hasNext = wrapped.nextTerm();
         if (hasNext) {
+            termDocFreq = wrapped.termDocFreq();
             firstTermGroupConsumed = nextGroup();
             if(firstTermGroupConsumed) {
                 termsIterated++;
@@ -56,7 +58,7 @@ public class TermLimitedFTGSIterator implements FTGSIterator {
 
     @Override
     public long termDocFreq() {
-        return wrapped.termDocFreq();
+        return termDocFreq;
     }
 
     @Override

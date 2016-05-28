@@ -17,7 +17,7 @@ namespace imhotep {
         for (typename std::vector<term_source_t>::const_iterator it(sources.begin());
              it != sources.end(); ++it) {
             const term_source_t& source(*it);
-            const Shard&         shard(source.first);
+            const Shard*         shard(source.first);
             TermIterator<term_t> term_iterator(source.second);
             splitters.push_back(Splitter<term_t>(shard, field, term_iterator,
                                                  _split_dir, num_splits));

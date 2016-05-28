@@ -1,5 +1,25 @@
+/** @file group_multi_rmap_rule.hpp - C++ analog to com.indeed.imhotep.GroupMultiRemapRule
+
+    GroupMultiRemapRule represents the same information as its Java peer in a
+    marinally less clumsy fashion. (The Java version has to maintain parallel
+    arrays of things given that there's no struct available.)
+
+    Conceptually these classes comprise:
+      - a map from target group to GroupMultiRemapRule (GMRR)
+      - for each GroupMultiRemapRule a negative group and a list of rules
+      - for each rule a positive group and a list of RegroupConditions
+
+    See Regroup for the semantics of applying these rules.
+    See RegroupCondition for descriptions of the various condition types.
+
+    RegroupConditions maintain state that changes throughout a regroup
+    operation, so they're not immutable and thus neither are their containers,
+    Rule and GroupMultiRemapRule.
+ */
 #ifndef GROUP_MULTI_REMAP_RULE_HPP
 #define GROUP_MULTI_REMAP_RULE_HPP
+
+#include "regroup_condition.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -7,12 +27,13 @@
 #include <utility>
 #include <vector>
 
-#include "regroup_condition.hpp"
-
 namespace imhotep {
 
+    /** GroupMultiRemapRule associates a negative group with a list of Rules. */
     class GroupMultiRemapRule {
     public:
+
+        /** Rule associates a positive group with a list of RegroupConditions */
         class Rule {
         public:
             Rule() : _positive(0), _condition(IntNull()) { }
@@ -36,19 +57,27 @@ namespace imhotep {
             }
 
             void reset(const Reset& visitor) {
+                const char* DUMMY_FIELD = "dummyField";
+                const std::string field(boost::apply_visitor(FieldOf(), _condition));
+                /* !@# Temporary hack to treat 'dummyField' as a special case,
+                   since we know that ctrmodel (ab)uses it. In fact, it tends to
+                   send large groups of rules with dummy field conditions; we
+                   don't want to pay the cost of looking it up in Shard for each
+                   and every one. */
+                if (field == DUMMY_FIELD) {
+                    _condition = IntNull("", 0);
+                    return;
+                }
+
                 try {
                     boost::apply_visitor(visitor, _condition);
                 }
                 catch (const imhotep_error& ex) {
-                    /* !@# Some clients, such as ctrmodel, deliberately send
-                       conditions with bogus fields in order to create
-                       conditions that are never true. In order to support them
-                       for now, we replace any rule we can't properly reset with
-                       a null condition. */
-                    /* !@# whether/how to report this...
-                       std::cerr << ex.what() << std::endl;
-                    */
-                    const std::string field(boost::apply_visitor(FieldOf(), _condition));
+                    /* !@# Some clients deliberately send conditions with bogus
+                       fields in order to create conditions that are never
+                       true. In order to support them for now, we replace any
+                       rule we can't properly reset with a null condition. (This
+                       is the general case of the 'dummyField' hack above. */
                     _condition = IntNull(field, 0);
                 }
             }
@@ -94,6 +123,14 @@ namespace imhotep {
         Rules   _rules;
     };
 
+    /** GroupMultiRemapRules maintains a map of target group to GMRR using the
+        good ol' sorted vector of pairs scheme. The tradeoff here is O(log n)
+        lookup time vs. an extra pointer hop (stl::unordered_map stores pointers
+        to chains internally). Generally this collection is small, so the
+        vector-based solution should win. In my ad hoc tests it appeared to beat
+        std::unordered_map. It's certainly easy enough to toggle between
+        implementations should looking up GMRRs ever show up as a hot spot.
+     */
     typedef std::pair<int32_t, GroupMultiRemapRule> GMRREntry; // !@# fix int32_t -- use group_t
     class GroupMultiRemapRules : public std::vector<GMRREntry> {
     public:

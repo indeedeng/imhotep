@@ -23,7 +23,9 @@ struct Eval : public boost::static_visitor<bool> {
     Eval(docid_t doc) : _doc(doc) { }
 
     template <typename Cond>
-    bool operator()(Cond& cond) const { return cond.matches(_doc); }
+    bool operator()(Cond& cond) const {
+        return cond.matches(_doc);
+    }
 
 private:
     docid_t _doc;
@@ -72,6 +74,7 @@ void check_field(Shard& shard, const string& field)
         const id_t            id(term.id());
         const vector<docid_t> docids(docids_for(shard, field, term));
         RegroupCondition&     cond(terms_to_conds[id]);
+
         for (auto docid: docids) {
             const Eval eval(docid);
             const bool result(boost::apply_visitor(eval, cond));
@@ -105,15 +108,12 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    const vector<string> empty;
     const string         dir(vm["shard"].as<string>());
-    const Shard          proto_shard(dir, empty, empty);
-    const ShardMetadata  smd(proto_shard);
+    Shard                shard(dir);
+    const ShardMetadata  smd(shard);
 
     auto int_fields(smd.int_fields());
     auto str_fields(smd.str_fields());
-
-    Shard shard(dir, int_fields, str_fields);
 
     cerr << "int fields:" << endl;
     for (auto field: int_fields) {

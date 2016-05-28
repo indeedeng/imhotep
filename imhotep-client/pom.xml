@@ -4,12 +4,12 @@
     <parent>
         <groupId>com.indeed</groupId>
         <artifactId>imhotep</artifactId>
-        <version>3.1.9-SNAPSHOT</version>
+        <version>3.1.14-SNAPSHOT</version>
     </parent>
 
 	<groupId>com.indeed</groupId>
 	<artifactId>imhotep-client</artifactId>
-	<version>3.1.9-SNAPSHOT</version>
+	<version>3.1.14-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
 	<licenses>
@@ -58,6 +58,12 @@
 			<version>${indeed-util.version}</version>
 		</dependency>
 
+        <dependency>
+            <groupId>com.indeed</groupId>
+            <artifactId>util-mmap</artifactId>
+            <version>${indeed-util.version}</version>
+        </dependency>
+
 		<dependency>
 			<groupId>log4j</groupId>
 			<artifactId>log4j</artifactId>
@@ -99,6 +105,12 @@
         </dependency>
 
 		<dependency>
+			<groupId>net.sf.trove4j</groupId>
+			<artifactId>trove4j</artifactId>
+			<version>${gnu-trove.version}</version>
+		</dependency>
+
+		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit-dep</artifactId>
 			<scope>test</scope>
@@ -112,7 +124,7 @@
 
 		<colt.version>1.2.0</colt.version>
 		<fastutil.version>6.2.2</fastutil.version>
-		<gnu-trove.version>3.0.3</gnu-trove.version>
+		<gnu-trove.version>2.0.2</gnu-trove.version>
 		<lucene.version>2.4.1</lucene.version>
 		<joda-time.version>2.0</joda-time.version>
 		<protobuf-java.version>2.5.0</protobuf-java.version>

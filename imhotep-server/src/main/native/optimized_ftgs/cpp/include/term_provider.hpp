@@ -21,7 +21,7 @@ namespace imhotep {
 
     class SplitDesc {
     public:
-        SplitDesc(size_t split_num, const std::string& field, const Shard& shard)
+        SplitDesc(size_t split_num, const std::string& field, const Shard* shard)
             : _split_num(split_num)
             , _field(field)
             , _shard(shard)
@@ -31,26 +31,26 @@ namespace imhotep {
 
         const std::string& field() const { return _field; }
 
-        const Shard& shard() const { return _shard; }
+        const Shard& shard() const { return *_shard; }
 
-        const Shard::packed_table_ptr table() const { return _shard.table(); }
+        const Shard::packed_table_ptr table() const { return _shard->table(); }
 
         SplitView view(const std::string& split_dir) const {
-            return _shard.split_view(_shard.split_filename(split_dir, _field, _split_num));
+            return _shard->split_view(_shard->split_filename(split_dir, _field, _split_num));
         }
 
     private:
         const size_t      _split_num;
         const std::string _field;
-        const Shard       _shard;
+        const Shard*      _shard;
     };
 
 
     template <typename term_t>
     class TermProvider {
     public:
-        typedef std::pair<Shard, TermIterator<term_t>> term_source_t;
-        typedef std::multimap<size_t, SplitDesc>       split_map_t;
+        typedef std::pair<Shard*, TermIterator<term_t>> term_source_t;
+        typedef std::multimap<size_t, SplitDesc>        split_map_t;
 
         TermProvider()                    = delete;
         TermProvider(const TermProvider&) = default;

@@ -85,6 +85,7 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
         return multiCache;
     }
 
+    public NativeShard getNativeShard() { return nativeShard; }
 
     /* !@# This is a temporary hack that needs to go away. Some
         operations, namely regroup, require both a proper multicache
@@ -93,7 +94,7 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
         which is dubious, we have to reconstruct both multicache and
         native shard in tandem.
      */
-    private void bindNativeReferences() {
+    public void bindNativeReferences() {
         if (multiCache == null) {
             final MultiCacheConfig config = new MultiCacheConfig();
             final StatLookup[] statLookups = new StatLookup[1];
@@ -167,7 +168,6 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
         final long rulesPtr = nativeGetRules(rules);
         try {
             result = nativeRegroup(rulesPtr, nativeShard.getPtr(), errorOnCollisions);
-
             docIdToGroup.recalculateNumGroups();
             groupStats.reset(numStats, result);
         }

@@ -326,12 +326,18 @@ public class ImhotepRemoteSession
 
     @Override
     public FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, long termLimit) {
+        return getFTGSIterator(intFields, stringFields, termLimit, -1);
+    }
+
+    @Override
+    public FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, long termLimit, int sortStat) {
         final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_FTGS_ITERATOR)
                 .setSessionId(sessionId)
                 .addAllIntFields(Arrays.asList(intFields))
                 .addAllStringFields(Arrays.asList(stringFields))
                 .setTermLimit(termLimit)
+                .setSortStat(sortStat)
                 .build();
 
         final FTGSIterator result = fileBufferedFTGSRequest(request);
@@ -450,7 +456,8 @@ public class ImhotepRemoteSession
         }
     }
 
-    public RawFTGSIterator mergeFTGSSplit(final String[] intFields, final String[] stringFields, final String sessionId, final InetSocketAddress[] nodes, final int splitIndex, long termLimit) {
+    @Override
+    public RawFTGSIterator mergeFTGSSplit(final String[] intFields, final String[] stringFields, final String sessionId, final InetSocketAddress[] nodes, final int splitIndex, long termLimit, int sortStat) {
         final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.MERGE_FTGS_SPLIT)
                 .setSessionId(sessionId)
@@ -458,6 +465,7 @@ public class ImhotepRemoteSession
                 .addAllStringFields(Arrays.asList(stringFields))
                 .setSplitIndex(splitIndex)
                 .setTermLimit(termLimit)
+                .setSortStat(sortStat)
                 .addAllNodes(Iterables.transform(Arrays.asList(nodes), new Function<InetSocketAddress, HostAndPort>() {
                     public HostAndPort apply(final InetSocketAddress input) {
                         return HostAndPort.newBuilder().setHost(input.getHostName()).setPort(input.getPort()).build();

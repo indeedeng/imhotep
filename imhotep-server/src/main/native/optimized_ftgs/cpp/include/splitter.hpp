@@ -26,18 +26,18 @@ namespace imhotep {
 
         typedef typename SplitterTraits<term_t>::iterator_t term_iterator_t;
 
-        Splitter(const Shard&       shard,
+        Splitter(const Shard*       shard,
                  const std::string& field,
                  const std::string& splits_dir,
                  size_t num_splits);
 
-        Splitter(const Shard&       shard,
+        Splitter(const Shard*       shard,
                  const std::string& field,
                  term_iterator_t    term_iterator,
                  const std::string& splits_dir,
                  size_t num_splits);
 
-        const Shard& shard() const { return _shard; }
+        const Shard& shard() const { return *_shard; }
 
         const std::string& splits_dir() const { return _splits_dir; }
 
@@ -63,7 +63,7 @@ namespace imhotep {
 
         void encode(FILE* file, const term_t& term) const ;
 
-        Shard           _shard;
+        const Shard*    _shard;
         std::string     _splits_dir;
         std::string     _field;
         term_iterator_t _term_iterator;
@@ -72,7 +72,7 @@ namespace imhotep {
     };
 
     template <typename term_t>
-    Splitter<term_t>::Splitter(const Shard&       shard,
+    Splitter<term_t>::Splitter(const Shard*       shard,
                                const std::string& field,
                                const std::string& splits_dir,
                                size_t             num_splits)
@@ -87,7 +87,7 @@ namespace imhotep {
     }
 
     template <typename term_t>
-    Splitter<term_t>::Splitter(const Shard&       shard,
+    Splitter<term_t>::Splitter(const Shard*       shard,
                                const std::string& field,
                                term_iterator_t    term_iterator,
                                const std::string& splits_dir,
@@ -109,8 +109,8 @@ namespace imhotep {
         for (SplitNumToField::const_iterator split_it(splits().begin());
              split_it != splits().end(); ++split_it) {
             const std::pair<size_t, std::string>& kv(*split_it);
-            const std::string filename(_shard.split_filename(splits_dir(), kv.second, kv.first));
-            const std::shared_ptr<SplitFile> split_file(_shard.split_file(filename));
+            const std::string filename(_shard->split_filename(splits_dir(), kv.second, kv.first));
+            const std::shared_ptr<SplitFile> split_file(_shard->split_file(filename));
             FILE* file(fdopen(split_file->fd(), "a"));
             if (!file) {
                 throw imhotep_error(std::string(__FUNCTION__) +

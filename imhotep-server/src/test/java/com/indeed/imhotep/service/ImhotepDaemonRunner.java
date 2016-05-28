@@ -27,6 +27,7 @@ public class ImhotepDaemonRunner {
     private final String dir;
     private final String tempDir;
     private final int port;
+    private int actualPort;
     private final FlamdexReaderSource flamdexFactory;
 
     private ImhotepDaemon currentlyRunning;
@@ -56,6 +57,10 @@ public class ImhotepDaemonRunner {
         return port;
     }
 
+    public int getActualPort() {
+        return actualPort;
+    }
+
     public void start() throws IOException, TimeoutException {
         if (currentlyRunning != null) {
             currentlyRunning.shutdown(false);
@@ -67,6 +72,8 @@ public class ImhotepDaemonRunner {
                                                               flamdexFactory,
                                                               new LocalImhotepServiceConfig()),
                                   null, null, "localhost", port);
+        actualPort = currentlyRunning.getPort();
+
         new Thread(new Runnable() {
             @Override
             public void run() {

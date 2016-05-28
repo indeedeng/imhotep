@@ -43,6 +43,7 @@ import com.indeed.flamdex.query.Term;
 import com.indeed.flamdex.search.FlamdexSearcher;
 import com.indeed.flamdex.utils.FlamdexUtils;
 import com.indeed.imhotep.AbstractImhotepSession;
+import com.indeed.imhotep.FTGSIteratorUtil;
 import com.indeed.imhotep.FTGSSplitter;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupRemapRule;
@@ -213,7 +214,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     private interface DocIdHandler {
-        public void handle(final int[] docIdBuf, final int index);
+        void handle(final int[] docIdBuf, final int index);
     }
 
     private static void streamDocIds(final DocIdStream  docIdStream,
@@ -322,12 +323,15 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     @Override
-    public synchronized FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields) {
+    public synchronized FTGSIterator getFTGSIterator(String[] intFields,
+                                                     String[] stringFields) {
         return getFTGSIterator(intFields, stringFields, 0);
     }
 
     @Override
-    public synchronized FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, long termLimit) {
+    public synchronized FTGSIterator getFTGSIterator(String[] intFields,
+                                                     String[] stringFields,
+                                                     long termLimit) {
         FTGSIterator iterator =  flamdexReader instanceof RawFlamdexReader ?
                 new RawFlamdexFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields) :
                 new FlamdexFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields);
@@ -339,6 +343,20 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             }
         }
         return iterator;
+    }
+
+    @Override
+    public synchronized FTGSIterator getFTGSIterator(final String[] intFields,
+                                                     final String[] stringFields,
+                                                     final long termLimit,
+                                                     final int sortStat) {
+        if (sortStat >= 0) {
+            return FTGSIteratorUtil.getTopTermsFTGSIterator(
+                    getFTGSIterator(intFields, stringFields), termLimit, numStats, sortStat
+            );
+        } else {
+            return getFTGSIterator(intFields, stringFields, termLimit);
+        }
     }
 
     @Override
@@ -358,7 +376,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         return true;
     }
 
-    public DocIterator getDocIterator(final String[] intFields, final String[] stringFields)
+    public DocIterator getDocIterator(final String[] intFields,
+                                      final String[] stringFields)
         throws ImhotepOutOfMemoryException {
 
         if (shardOnlyContainsGroupZero()) {
@@ -469,7 +488,9 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         };
     }
 
-    public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields, final long termLimit) {
+    public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields,
+                                                   final String[] stringFields,
+                                                   final long termLimit) {
         final int numSplits = 16;
 
         final RawFTGSIterator[] ret = new RawFTGSIterator[numSplits];
@@ -499,8 +520,12 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     @Override
-    public void writeFTGSIteratorSplit(String[] intFields, String[] stringFields,
-                                       int splitIndex, int numSplits, long termLimit, Socket socket) {
+    public void writeFTGSIteratorSplit(String[] intFields,
+                                       String[] stringFields,
+                                       int splitIndex,
+                                       int numSplits,
+                                       long termLimit,
+                                       Socket socket) {
         throw new UnsupportedOperationException();
     }
 
@@ -520,7 +545,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     @Override
     public synchronized RawFTGSIterator getSubsetFTGSIteratorSplit(Map<String, long[]> intFields,
                                                                    Map<String, String[]> stringFields,
-                                                                   int splitIndex, int numSplits) {
+                                                                   int splitIndex,
+                                                                   int numSplits) {
         if (ftgsIteratorSplits == null || ftgsIteratorSplits.isClosed()) {
             try {
                 ftgsIteratorSplits = new FTGSSplitter(getSubsetFTGSIterator(intFields, stringFields),
@@ -534,11 +560,14 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         return ftgsIteratorSplits.getFtgsIterators()[splitIndex];
     }
 
+    @Override
     public RawFTGSIterator mergeFTGSSplit(final String[] intFields,
                                           final String[] stringFields,
                                           final String sessionId,
                                           final InetSocketAddress[] nodes,
-                                          final int splitIndex, long termLimit) {
+                                          final int splitIndex,
+                                          final long termLimit,
+                                          final int sortStat) {
         throw new UnsupportedOperationException();
     }
 
@@ -546,18 +575,21 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     public RawFTGSIterator mergeSubsetFTGSSplit(Map<String, long[]> intFields,
                                                 Map<String, String[]> stringFields,
                                                 String sessionId,
-                                                InetSocketAddress[] nodes, int splitIndex) {
+                                                InetSocketAddress[] nodes,
+                                                int splitIndex) {
         throw new UnsupportedOperationException();
     }
 
-    protected GroupLookup resizeGroupLookup(GroupLookup lookup, final int size,
+    protected GroupLookup resizeGroupLookup(GroupLookup lookup,
+                                            final int size,
                                             final MemoryReservationContext memory)
         throws ImhotepOutOfMemoryException  {
         return GroupLookupFactory.resize(lookup, size, memory);
     }
 
     @Override
-    public synchronized int regroup(final GroupMultiRemapRule[] rules, boolean errorOnCollisions)
+    public synchronized int regroup(final GroupMultiRemapRule[] rules,
+                                    boolean errorOnCollisions)
         throws ImhotepOutOfMemoryException {
         final int numRules = rules.length;
         if (numRules == 0) {
@@ -881,7 +913,9 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     @Override
     public void regexRegroup(String field, String regex,
-                             int targetGroup, int negativeGroup, int positiveGroup)
+                             int targetGroup,
+                             int negativeGroup,
+                             int positiveGroup)
         throws ImhotepOutOfMemoryException {
         if (getNumGroups() > 2) {
             throw new IllegalStateException("regexRegroup should be applied as a filter when you have only one group");
@@ -922,7 +956,9 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         finalizeRegroup();
     }
 
-    private void remapNegativeDocs(FastBitSet docRemapped, int targetGroup, int negativeGroup) {
+    private void remapNegativeDocs(FastBitSet docRemapped,
+                                   int targetGroup,
+                                   int negativeGroup) {
         for (int doc = 0; doc < numDocs; ++doc) {
             if (!docRemapped.get(doc) && docIdToGroup.get(doc) == targetGroup) {
                 docIdToGroup.set(doc, negativeGroup);
@@ -1042,7 +1078,9 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     @Override
-    public List<TermCount> approximateTopTerms(String field, boolean isIntField, int k) {
+    public List<TermCount> approximateTopTerms(String field,
+                                               boolean isIntField,
+                                               int k) {
         k = Math.min(k, 1000);
 
         if (isIntField) {
@@ -1148,7 +1186,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
      * Essentially, a wrapper around binarySearch to return an index in all
      * cases.
      */
-    protected int indexOfFirstLessThan(double value, double[] array) {
+    protected int indexOfFirstLessThan(double value,
+                                       double[] array) {
         int pos = Arrays.binarySearch(array, value);
         if (pos > 0) { // if pos > 0, then value == array[pos] --> continue
                        // until we find a greater element & break
@@ -1175,7 +1214,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
      * @see ImhotepLocalSession#randomMultiRegroup(String, boolean, String, int,
      *      double[], int[])
      */
-    protected void ensureValidMultiRegroupArrays(double[] percentages, int[] resultGroups)
+    protected void ensureValidMultiRegroupArrays(double[] percentages,
+                                                 int[] resultGroups)
         throws IllegalArgumentException {
         // Ensure non-null inputs
         if (null == percentages || null == resultGroups) {
@@ -1456,7 +1496,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             Pattern.compile("floatscale\\s+(\\w+)\\s*\\*\\s*(" + decimalPattern + ")\\s*\\+\\s*("
                     + decimalPattern + ")");
 
-    private static final Pattern REGEXPMATCH_COMMAND = Pattern.compile("regexmatch\\s+(\\w+)\\s+\"(.+)\"(\\s+([0-9]+))?");
+    private static final Pattern REGEXPMATCH_COMMAND = Pattern.compile("regexmatch\\s+(\\w+)\\s+([0-9]+)\\s(.+)");
 
     @Override
     public synchronized int pushStat(String statName)
@@ -1498,8 +1538,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 throw new IllegalArgumentException("invalid regexmatch metric: " + statName);
             }
             final String fieldName = matcher.group(1);
-            final String regexp = matcher.group(2);
-            final int matchIndex = (matcher.group(4) == null) ? 1 : Integer.parseInt(matcher.group(4));
+            final int matchIndex = Integer.parseInt(matcher.group(2));;
+            final String regexp = matcher.group(3);
 
             if (matchIndex < 1) {
                 throw new IllegalArgumentException("invalid regexmatch index: " + statName);
