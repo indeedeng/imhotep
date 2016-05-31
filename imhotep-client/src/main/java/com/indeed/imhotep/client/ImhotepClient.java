@@ -708,8 +708,10 @@ public class ImhotepClient
                            final boolean useNativeFtgs,
                            final long sessionTimeout) {
 
-        final Map<Host, List<String>> shardRequestMap =
-            buildShardRequestMap(dataset, requestedShards, requestedMetrics);
+        final ShardsAndDocCounts shardsAndDocCounts = buildShardRequestMap(dataset, requestedShards, requestedMetrics);
+        final Map<Host, List<String>> shardRequestMap = shardsAndDocCounts.shardRequestMap;
+        final Map<Host, Integer> hostsToDocCounts = shardsAndDocCounts.hostDocCounts;
+
 
         if (shardRequestMap.isEmpty()) {
             log.error("unable to find all of the requested shards in dataset " + dataset +
@@ -724,6 +726,7 @@ public class ImhotepClient
             for (final Map.Entry<Host, List<String>> entry : shardRequestMap.entrySet()) {
                 final Host host = entry.getKey();
                 final List<String> shardList = entry.getValue();
+                final long numDocs = hostsToDocCounts.get(host);
 
                 futures.add(executor.submit(new Callable<ImhotepRemoteSession>() {
                     @Override
@@ -738,7 +741,8 @@ public class ImhotepClient
                                                                 tempFileSizeLimit,
                                                                 tempFileSizeBytesLeft,
                                                                 useNativeFtgs,
-                                                                sessionTimeout);
+                                                                sessionTimeout,
+                                                                numDocs);
                     }
                 }));
             }
@@ -781,8 +785,17 @@ public class ImhotepClient
         }
         return remoteSessions;
     }
+    private static class ShardsAndDocCounts {
+        final Map<Host, Integer> hostDocCounts;
+        final Map<Host, List<String>> shardRequestMap;
 
-    private Map<Host, List<String>> buildShardRequestMap(String dataset, Collection<String> requestedShards, Collection<String> requestedMetrics) {
+        public ShardsAndDocCounts(Map<Host, List<String>> shardRequestMap, Map<Host, Integer> hostDocCounts) {
+            this.hostDocCounts = hostDocCounts;
+            this.shardRequestMap = shardRequestMap;
+        }
+    }
+
+    private ShardsAndDocCounts buildShardRequestMap(String dataset, Collection<String> requestedShards, Collection<String> requestedMetrics) {
         final Set<String> requestedMetricsSet = new HashSet<String>(requestedMetrics);
         final Map<String, ShardData> shardMap = constructPotentialShardMap(dataset, requestedMetricsSet);
 
@@ -795,7 +808,7 @@ public class ImhotepClient
         }
 
         if (error) {
-            return Maps.newHashMap();
+            return new ShardsAndDocCounts(Maps.<Host, List<String>>newHashMap(), Maps.<Host, Integer>newHashMap());
         }
 
         final List<String> sortedShards = new ArrayList<String>(requestedShards);
@@ -834,7 +847,7 @@ public class ImhotepClient
             shardRequestMap.get(minHost).add(shard);
             hostDocCounts.put(minHost, hostDocCounts.get(minHost) + shardMap.get(shard).numDocs);
         }
-        return shardRequestMap;
+        return new ShardsAndDocCounts(shardRequestMap, hostDocCounts);
     }
 
     /**
