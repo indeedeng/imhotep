@@ -381,4 +381,7 @@ public interface ImhotepSession
      * @throws ImhotepOutOfMemoryException 
      */
     void rebuildAndFilterIndexes(List<String> intFields, List<String> stringFields) throws ImhotepOutOfMemoryException;
+
+    /** Returns the number of docs in the shards handled by this session */
+    long getNumDocs();
 }

@@ -78,7 +78,7 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
             if (multiCache != null) {
                 multiCache.close();
             }
-            multiCache = new MultiCache(this, getNumDocs(), config, statLookup, docIdToGroup);
+            multiCache = new MultiCache(this, (int)getNumDocs(), config, statLookup, docIdToGroup);
             docIdToGroup = multiCache.getGroupLookup();
             rebuildMultiCache = false;
         }

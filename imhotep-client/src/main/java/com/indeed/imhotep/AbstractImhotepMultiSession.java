@@ -866,6 +866,15 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
         });
     }
 
+    @Override
+    public long getNumDocs() {
+        long numDocs = 0;
+        for(ImhotepSession session: sessions) {
+            numDocs += session.getNumDocs();
+        }
+        return numDocs;
+    }
+
     protected void preClose() {
         for (InstrumentedThreadFactory factory: threadFactories) {
             try {
