@@ -34,6 +34,8 @@ public final class FlamdexDocument {
     @Nonnull
     private final Map<String, List<String>> stringFields;
 
+    public static final int STRING_TERM_LENGTH_LIMIT = 8092;
+
     public FlamdexDocument() {
         this(new HashMap<String, LongList>(), new HashMap<String, List<String>>());
     }
@@ -149,12 +151,20 @@ public final class FlamdexDocument {
         return list;
     }
 
+    private void checkStringTerm(String field, final CharSequence term) {
+        Preconditions.checkNotNull(term, "null terms not allowed");
+        if (term.length() > STRING_TERM_LENGTH_LIMIT) {
+            throw new IllegalArgumentException("Can't add a term string longer than the limit " + term.length() +
+                    " > " + STRING_TERM_LENGTH_LIMIT + " in field " + field + ": " + term);
+        }
+    }
+
     public void setStringField(@Nonnull final String field, @Nonnull final CharSequence term) {
         clearStringField(field);
         addStringTerm(field, term);
     }
     public void addStringTerm(@Nonnull final String field, @Nonnull final CharSequence term) {
-        Preconditions.checkNotNull(term, "term cannot be null");
+        checkStringTerm(field, term);
         prepareStringField(field).add(term.toString());
     }
 
@@ -166,7 +176,7 @@ public final class FlamdexDocument {
         final List<String> list = prepareStringField(field);
         Preconditions.checkNotNull(terms, "terms list cannot be null");
         for (CharSequence term : terms) {
-            Preconditions.checkNotNull(term, "null terms not allowed");
+            checkStringTerm(field, term);
             list.add(term.toString());
         }
     }
@@ -179,7 +189,7 @@ public final class FlamdexDocument {
         final List<String> list = prepareStringField(field);
         Preconditions.checkNotNull(terms, "terms list cannot be null");
         for (CharSequence term : terms) {
-            Preconditions.checkNotNull(term, "null terms not allowed");
+            checkStringTerm(field, term);
             list.add(term.toString());
         }
     }
