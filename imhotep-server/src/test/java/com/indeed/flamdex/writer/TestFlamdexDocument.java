@@ -23,7 +23,7 @@ public class TestFlamdexDocument {
         doc.addStringTerm("field", longString);
     }
 
-    @Test//(expected = IllegalArgumentException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testStringTermLimitsTooLong() {
         FlamdexDocument doc = new FlamdexDocument();
         String tooLongString = longString + "A";
