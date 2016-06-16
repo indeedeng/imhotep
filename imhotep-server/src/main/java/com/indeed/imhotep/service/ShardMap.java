@@ -25,6 +25,7 @@ import com.indeed.imhotep.MetricKey;
 import com.indeed.imhotep.io.Shard;
 import com.indeed.lsmtree.core.Store;
 import com.indeed.util.core.Pair;
+import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.ReloadableSharedReference;
 import com.indeed.util.core.reference.SharedReference;
 
@@ -282,6 +283,10 @@ class ShardMap
             }
         }
         catch (final Throwable ex) {
+            for (Pair<ShardId, CachedFlamdexReaderReference> pair : result.values()) {
+                final CachedFlamdexReaderReference cachedFlamdexReaderReference = pair.getSecond();
+                Closeables2.closeQuietly(cachedFlamdexReaderReference, log);
+            }
             throw new IOException("unable to create all requested FlamdexReaders " +
                                   "in a timely fashion", ex);
         }
