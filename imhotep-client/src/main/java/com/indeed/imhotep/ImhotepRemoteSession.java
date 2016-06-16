@@ -1029,9 +1029,6 @@ public class ImhotepRemoteSession
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
         try {
             return sendRequest(request, is, os, host, port);
-        } catch (IOException e) {
-            log.error("error sending " + request.getRequestType() + " request to " + host + ":" + port, e);
-            throw e;
         } finally {
             closeSocket(socket, is, os);
         }
@@ -1087,6 +1084,10 @@ public class ImhotepRemoteSession
             return response;
         } catch (SocketTimeoutException e) {
             throw buildExceptionAfterSocketTimeout(e, host, port);
+        } catch (IOException e) {
+            final String errorMessage = "IO error with " + request.getRequestType() + " request to " + host + ":" + port;
+            log.error(errorMessage, e);
+            throw new IOException(errorMessage, e);
         }
     }
 
