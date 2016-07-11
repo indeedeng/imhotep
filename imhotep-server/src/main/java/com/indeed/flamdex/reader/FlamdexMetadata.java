@@ -16,14 +16,14 @@
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 import com.indeed.imhotep.io.caching.CachedFile;
-
-import org.yaml.snakeyaml.JavaBeanDumper;
-import org.yaml.snakeyaml.JavaBeanLoader;
+import org.yaml.snakeyaml.DumperOptions;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.Constructor;
+import org.yaml.snakeyaml.nodes.Tag;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 /**
 * @author jplaisance
@@ -77,15 +77,16 @@ public class FlamdexMetadata {
     }
 
     public static FlamdexMetadata readMetadata(final String directory) throws IOException {
-        JavaBeanLoader<FlamdexMetadata> loader = new JavaBeanLoader<FlamdexMetadata>(FlamdexMetadata.class);
-        File metadataFile;
-        metadataFile = CachedFile.create(CachedFile.buildPath(directory, "metadata.txt")).loadFile();
-        String metadata = Files.toString(metadataFile, Charsets.UTF_8);
-        return loader.load(metadata);
+        final Yaml loader = new Yaml(new Constructor(FlamdexMetadata.class));
+
+        final File metadataFile = CachedFile.create(CachedFile.buildPath(directory, "metadata.txt")).loadFile();
+        final String metadata = Files.toString(metadataFile, Charsets.UTF_8);
+        return loader.loadAs(metadata, FlamdexMetadata.class);
     }
 
-    public static void writeMetadata(final String directory, FlamdexMetadata metadata) throws IOException {
-        JavaBeanDumper dumper = new JavaBeanDumper(false);
-        Files.write(dumper.dump(metadata).getBytes(Charsets.UTF_8), new File(directory, "metadata.txt"));
+    public static void writeMetadata(final String directory, final FlamdexMetadata metadata) throws IOException {
+        final Yaml dumper = new Yaml();
+        final String s = dumper.dumpAs(metadata, Tag.MAP, DumperOptions.FlowStyle.BLOCK);
+        Files.write(s.getBytes(Charsets.UTF_8), new File(directory, "metadata.txt"));
     }
 }
