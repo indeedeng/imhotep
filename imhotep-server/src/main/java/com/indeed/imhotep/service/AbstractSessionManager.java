@@ -18,6 +18,7 @@ import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.varexport.Export;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.service.ImhotepTooManySessionsException;
 
 import org.apache.log4j.Logger;
 
@@ -31,6 +32,9 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
 
     private static final Logger log = Logger.getLogger(AbstractSessionManager.class);
 
+    private static int MAX_SESSION_COUNT = 30;
+    private static int MAX_SESSION_COUNT_PER_USER = 4;
+
     private final Map<String, Session<E>> sessionMap = new HashMap<String, Session<E>>();
     private final Map<String, Exception> failureCauseMap = CacheBuilder.newBuilder().maximumSize(200).<String, Exception>build().asMap();
 
@@ -38,7 +42,19 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
         synchronized (sessionMap) {
             if (sessionMap.containsKey(sessionId)) {
                 throw new IllegalArgumentException("there already exists a session with id "+sessionId);
+            } else if (sessionMap.size() >= MAX_SESSION_COUNT) {
+                throw new ImhotepTooManySessionsException("This daemon has reached the maximum number of concurrent sessions: "+sessionMap.size());
             }
+            int userSessionCount = 0;
+            for (final Map.Entry<String, Session<E>> e : sessionMap.entrySet()) {
+                if (e.getValue().getUsername().equals(session.getUsername())) {
+                    userSessionCount += 1;
+                }
+            }
+            if (userSessionCount >= MAX_SESSION_COUNT_PER_USER) {
+                throw new ImhotepTooManySessionsException("This daemon has reached the maximum number of concurrent sessions per user: "+userSessionCount);
+            }
+
             sessionMap.put(sessionId, session);
         }
     }
@@ -172,6 +188,10 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
 
         public long getTimeout() {
             return timeout;
+        }
+
+        public String getUsername() {
+            return username;
         }
     }
 
