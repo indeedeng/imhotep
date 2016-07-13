@@ -13,6 +13,7 @@
  */
  package com.indeed.imhotep.service;
 
+import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.util.core.io.Closeables2;
@@ -46,14 +47,17 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
             } else if (sessionMap.size() >= MAX_SESSION_COUNT) {
                 throw new ImhotepTooManySessionsException("This daemon has reached the maximum number of concurrent sessions: "+sessionMap.size());
             }
-            int userSessionCount = 0;
-            for (final Map.Entry<String, Session<E>> e : sessionMap.entrySet()) {
-                if (e.getValue().getUsername().equals(session.getUsername())) {
-                    userSessionCount += 1;
+
+            if (!Strings.isNullOrEmpty(session.username) && !session.username.equals(session.clientName)) {
+                int userSessionCount = 0;
+                for (final Map.Entry<String, Session<E>> e : sessionMap.entrySet()) {
+                    if (e.getValue().getUsername().equals(session.getUsername())) {
+                        userSessionCount += 1;
+                    }
                 }
-            }
-            if (userSessionCount >= MAX_SESSION_COUNT_PER_USER) {
-                throw new ImhotepTooManySessionsException("This daemon has reached the maximum number of concurrent sessions per user: "+userSessionCount);
+                if (userSessionCount >= MAX_SESSION_COUNT_PER_USER) {
+                    throw new ImhotepTooManySessionsException("This daemon has reached the maximum number of concurrent sessions per user: " + userSessionCount);
+                }
             }
 
             sessionMap.put(sessionId, session);
