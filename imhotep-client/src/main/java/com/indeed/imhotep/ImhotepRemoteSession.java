@@ -233,6 +233,17 @@ public class ImhotepRemoteSession
                                                    @Nullable String sessionId, final long tempFileSizeLimit,
                                                    @Nullable final AtomicLong tempFileSizeBytesLeft,
                                                    final boolean useNativeFtgs, final long sessionTimeout, final long numDocs) throws ImhotepOutOfMemoryException, IOException {
+
+        return openSession(host, port, dataset, shards, mergeThreadLimit, username, "", optimizeGroupZeroLookups, socketTimeout, sessionId, tempFileSizeLimit, tempFileSizeBytesLeft, useNativeFtgs, sessionTimeout, numDocs);
+    }
+
+
+    public static ImhotepRemoteSession openSession(final String host, final int port, final String dataset, final List<String> shards,
+                                                   final int mergeThreadLimit, final String username, final String clientName,
+                                                   final boolean optimizeGroupZeroLookups, final int socketTimeout,
+                                                   @Nullable String sessionId, final long tempFileSizeLimit,
+                                                   @Nullable final AtomicLong tempFileSizeBytesLeft,
+                                                   final boolean useNativeFtgs, final long sessionTimeout, final long numDocs) throws ImhotepOutOfMemoryException, IOException {
         final Socket socket = newSocket(host, port, socketTimeout);
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
@@ -241,6 +252,7 @@ public class ImhotepRemoteSession
             log.trace("sending open request to "+host+":"+port+" for shards "+shards);
             final ImhotepRequest openSessionRequest = getBuilderForType(ImhotepRequest.RequestType.OPEN_SESSION)
                     .setUsername(username)
+                    .setClientName(clientName)
                     .setDataset(dataset)
                     .setMergeThreadLimit(mergeThreadLimit)
                     .addAllShardRequest(shards)

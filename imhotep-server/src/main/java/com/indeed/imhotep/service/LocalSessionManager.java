@@ -13,6 +13,7 @@
  */
  package com.indeed.imhotep.service;
 
+import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.util.varexport.VarExporter;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.api.ImhotepSession;
@@ -38,12 +39,13 @@ public final class LocalSessionManager extends AbstractSessionManager<Map<ShardI
             final ImhotepSession imhotepSession,
             final Map<ShardId, CachedFlamdexReaderReference> flamdexes,
             final String username,
+            final String clientName,
             final String ipAddress,
             final int clientVersion,
             final String dataset,
-            final long sessionTimeout
-    ) {
-        final Session<Map<ShardId, CachedFlamdexReaderReference>> session = new Session(imhotepSession, flamdexes, username, ipAddress, clientVersion, dataset, sessionTimeout);
+            final long sessionTimeout,
+            MemoryReservationContext sessionMemoryContext) {
+        final Session<Map<ShardId, CachedFlamdexReaderReference>> session = new Session(imhotepSession, flamdexes, username, clientName, ipAddress, clientVersion, dataset, sessionTimeout, sessionMemoryContext);
         addSession(sessionId, session);
     }
 
@@ -66,7 +68,9 @@ public final class LocalSessionManager extends AbstractSessionManager<Map<ShardI
             for (Map.Entry<ShardId, CachedFlamdexReaderReference> entry : session.sessionState.entrySet()) {
                 openShards.add(new ImhotepStatusDump.ShardDump(entry.getKey().getId(), entry.getKey().getDataset(), entry.getValue().getNumDocs(), entry.getValue().getMetricDump()));
             }
-            openSessions.add(new ImhotepStatusDump.SessionDump(sessionId, session.dataset, "", session.username, session.ipAddress, session.clientVersion, openShards));
+            openSessions.add(new ImhotepStatusDump.SessionDump(sessionId, session.dataset, "", session.username, session.clientName,
+                    session.ipAddress, session.clientVersion, session.creationTime, openShards,
+                    session.sessionMemoryContext.usedMemory(), session.sessionMemoryContext.maxUsedMemory()));
         }
         return openSessions;
     }

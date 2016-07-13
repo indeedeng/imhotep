@@ -13,6 +13,7 @@
  */
  package com.indeed.imhotep.service;
 
+import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.imhotep.api.ImhotepSession;
 
@@ -28,11 +29,12 @@ public interface SessionManager<E> {
             ImhotepSession imhotepSession,
             E sessionState,
             String username,
+            String clientName,
             String ipAddress,
             int clientVersion,
             String dataset,
-            long sessionTimeout
-    );
+            long sessionTimeout,
+            MemoryReservationContext sessionMemoryContext);
 
     SharedReference<ImhotepSession> getSession(String sessionId);
 
