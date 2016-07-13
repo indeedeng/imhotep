@@ -76,6 +76,10 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         return interleaver;
     }
 
+    public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields, final long termLimit) {
+        return getFTGSIteratorSplits(intFields, stringFields, termLimit, -1);
+    }
+
     public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields, final long termLimit, final int sortStat) {
         final Pair<Integer, ImhotepSession>[] indexesAndSessions = new Pair[sessions.length];
         for (int i = 0; i < sessions.length; i++) {
