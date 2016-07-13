@@ -16,8 +16,8 @@
 /**
  * @author cvoss
  */
-public class ImhotepTooManySessionsException extends Exception {
-    public ImhotepOutOfMemoryException(String message) {
+public class ImhotepTooManySessionsException extends RuntimeException {
+    public ImhotepTooManySessionsException(String message) {
         super(message);
     }
 }
