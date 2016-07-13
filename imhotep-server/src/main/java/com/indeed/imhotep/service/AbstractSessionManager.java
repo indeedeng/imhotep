@@ -14,6 +14,7 @@
  package com.indeed.imhotep.service;
 
 import com.google.common.cache.CacheBuilder;
+import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.varexport.Export;
@@ -152,10 +153,13 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
         protected final SharedReference<ImhotepSession> imhotepSession;
         protected final E sessionState;
         protected final String username;
+        protected final String clientName;
         protected final String ipAddress;
         protected final int clientVersion;
         protected final String dataset;
+        protected final MemoryReservationContext sessionMemoryContext;
         protected final long timeout;
+        protected final long creationTime;
         protected final long SESSION_TIMEOUT_DEFAULT = 30L * 60 * 1000;
 
         private volatile int numStats;
@@ -165,25 +169,29 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
                 ImhotepSession imhotepSession,
                 E sessionState,
                 String username,
+                String clientName,
                 String ipAddress,
                 int clientVersion,
                 String dataset,
-                long timeout
-        ) {
+                long timeout,
+                MemoryReservationContext sessionMemoryContext) {
             this.imhotepSession = SharedReference.create(imhotepSession);
             this.sessionState = sessionState;
             this.username = username;
+            this.clientName = clientName;
             this.ipAddress = ipAddress;
             this.clientVersion = clientVersion;
             this.dataset = dataset;
+            this.sessionMemoryContext = sessionMemoryContext;
             if(timeout < 1) {
                 this.timeout = SESSION_TIMEOUT_DEFAULT;
             } else {
                 this.timeout = timeout;
             }
 
+            creationTime = System.currentTimeMillis();
 
-            lastActionTime = System.currentTimeMillis();
+            lastActionTime = creationTime;
         }
 
         public long getTimeout() {

@@ -387,7 +387,8 @@ public class LocalImhotepServiceCore
     @Override
     public String handleOpenSession(final String dataset,
                                     final List<String> shardRequestList,
-                                    final String username,
+                                    String username,
+                                    String clientName,
                                     final String ipAddress,
                                     final int clientVersion,
                                     final int mergeThreadLimit,
@@ -400,6 +401,17 @@ public class LocalImhotepServiceCore
 
         if (Strings.isNullOrEmpty(sessionId)) {
             sessionId = generateSessionId();
+        }
+
+        if (Strings.isNullOrEmpty(clientName)) {
+            // infer clientName from username for old clients
+            if (username.indexOf(':') > 0) {
+                final String[] usernameParts = username.split(":");
+                clientName = usernameParts[0];
+                username = usernameParts[1];
+            } else {
+                clientName = username;
+            }
         }
 
         final ImhotepLocalSession[] localSessions =
@@ -439,13 +451,15 @@ public class LocalImhotepServiceCore
                     throw e;
                 }
             }
+            final MemoryReservationContext sessionMemoryContext = new MemoryReservationContext(memory);
+
             final MTImhotepLocalMultiSession session =
                 new MTImhotepLocalMultiSession(localSessions,
-                                               new MemoryReservationContext(memory),
+                                               sessionMemoryContext,
                                                tempFileSizeBytesLeft,
                                                useNativeFtgs && flamdexReaders.allFlamdexReaders);
-            getSessionManager().addSession(sessionId, session, flamdexes, username,
-                                           ipAddress, clientVersion, dataset, sessionTimeout);
+            getSessionManager().addSession(sessionId, session, flamdexes, username, clientName,
+                                           ipAddress, clientVersion, dataset, sessionTimeout, sessionMemoryContext);
             session.addObserver(observer);
         }
         catch (IOException ex) {

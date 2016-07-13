@@ -269,10 +269,12 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             final AtomicLong tempFileSizeBytesLeft =
                 request.getTempFileSizeLimit() > 0 ?
                 new AtomicLong(request.getTempFileSizeLimit()) : null;
+
             final String sessionId =
                 service.handleOpenSession(request.getDataset(),
                                           request.getShardRequestList(),
                                           request.getUsername(),
+                                          request.getClientName(),
                                           inetAddress.getHostAddress(),
                                           request.getClientVersion(),
                                           request.getMergeThreadLimit(),

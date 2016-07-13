@@ -558,6 +558,7 @@ public abstract class AbstractImhotepServiceCore
             String dataset,
             List<String> shardRequestList,
             String username,
+            String clientName,
             String ipAddress,
             int clientVersion,
             int mergeThreadLimit,

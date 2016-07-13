@@ -13,6 +13,7 @@
  */
  package com.indeed.imhotep.service;
 
+import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.api.ImhotepSession;
 import org.apache.log4j.Logger;
 
@@ -31,12 +32,13 @@ public final class RemoteSessionManager extends AbstractSessionManager<List<Stri
             final ImhotepSession imhotepSession,
             final List<String> sessionShardIds,
             final String username,
+            final String clientName,
             final String ipAddress,
             final int clientVersion,
             final String dataset,
-            final long sessionTimeout
-    ) {
-        final Session<List<String>> session = new Session<List<String>>(imhotepSession, sessionShardIds, username, ipAddress, clientVersion, dataset, sessionTimeout);
+            final long sessionTimeout,
+            MemoryReservationContext sessionMemoryContext) {
+        final Session<List<String>> session = new Session<List<String>>(imhotepSession, sessionShardIds, username, clientName, ipAddress, clientVersion, dataset, sessionTimeout, sessionMemoryContext);
         addSession(sessionId, session);
     }
 

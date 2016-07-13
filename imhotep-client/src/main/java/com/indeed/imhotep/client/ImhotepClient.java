@@ -346,7 +346,8 @@ public class ImhotepClient
 
         private Collection<String> requestedMetrics = Collections.emptyList();
         private int mergeThreadLimit = ImhotepRemoteSession.DEFAULT_MERGE_THREAD_LIMIT;
-        private String username;
+        private String username = "";
+        private String clientName = "";
         private boolean optimizeGroupZeroLookups = false;
         private int socketTimeout = -1;
         private long localTempFileSizeLimit = -1;
@@ -382,6 +383,10 @@ public class ImhotepClient
         }
         public SessionBuilder username(String username) {
             this.username = username;
+            return this;
+        }
+        public SessionBuilder clientName(String clientName) {
+            this.clientName = clientName;
             return this;
         }
         public SessionBuilder optimizeGroupZeroLookups(boolean optimizeGroupZeroLookups) {
@@ -471,7 +476,7 @@ public class ImhotepClient
                 username = ImhotepRemoteSession.getUsername();
             }
             List<String> chosenShardIDs = shardsOverride != null ? shardsOverride : ShardIdWithVersion.keepShardIds(getChosenShards());
-            return getSessionForShards(dataset, chosenShardIDs, requestedMetrics, mergeThreadLimit, username,
+            return getSessionForShards(dataset, chosenShardIDs, requestedMetrics, mergeThreadLimit, username, clientName,
                     optimizeGroupZeroLookups, socketTimeout, localTempFileSizeLimit, daemonTempFileSizeLimit, useNativeFTGS, sessionTimeout);
         }
     }
@@ -553,11 +558,11 @@ public class ImhotepClient
                                      final int mergeThreadLimit, final int priority, final String username,
                                      final boolean optimizeGroupZeroLookups, final int socketTimeout) {
 
-        return getSessionForShards(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout, -1, -1, false, 0);
+        return getSessionForShards(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, "", optimizeGroupZeroLookups, socketTimeout, -1, -1, false, 0);
     }
 
     private ImhotepSession getSessionForShards(final String dataset, final Collection<String> requestedShards, final Collection<String> requestedMetrics,
-                                               final int mergeThreadLimit, final String username,
+                                               final int mergeThreadLimit, final String username, final String clientName,
                                                final boolean optimizeGroupZeroLookups, final int socketTimeout,
                                                long localTempFileSizeLimit, long daemonTempFileSizeLimit,
                                                final boolean useNativeFtgs, long sessionTimeout) {
@@ -569,7 +574,7 @@ public class ImhotepClient
         final AtomicLong localTempFileSizeBytesLeft = localTempFileSizeLimit > 0 ? new AtomicLong(localTempFileSizeLimit) : null;
         while (retries > 0) {
             final String sessionId = UUID.randomUUID().toString();
-            final ImhotepRemoteSession[] remoteSessions = internalGetSession(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout, sessionId, daemonTempFileSizeLimit, localTempFileSizeBytesLeft, useNativeFtgs, sessionTimeout);
+            final ImhotepRemoteSession[] remoteSessions = internalGetSession(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, clientName, optimizeGroupZeroLookups, socketTimeout, sessionId, daemonTempFileSizeLimit, localTempFileSizeBytesLeft, useNativeFtgs, sessionTimeout);
             if (remoteSessions == null) {
                 --retries;
                 if (retries > 0) {
@@ -717,6 +722,7 @@ public class ImhotepClient
                            Collection<String> requestedMetrics,
                            final int mergeThreadLimit,
                            final String username,
+                           final String clientName,
                            final boolean optimizeGroupZeroLookups,
                            final int socketTimeout,
                            @Nullable final String sessionId,
@@ -752,6 +758,7 @@ public class ImhotepClient
                                                                 dataset, shardList,
                                                                 mergeThreadLimit,
                                                                 username,
+                                                                clientName,
                                                                 optimizeGroupZeroLookups,
                                                                 socketTimeout,
                                                                 sessionId,

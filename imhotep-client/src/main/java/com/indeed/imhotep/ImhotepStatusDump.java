@@ -88,18 +88,27 @@ public class ImhotepStatusDump {
         public final String dataset;
         public final String hostname;
         public final String username;
+        public final String clientName;
         public final String ipAddress;
         public final int clientVersion;
+        public final long creationTime;
         public final List<ShardDump> openShards;
+        public final long usedMemory;
+        public final long maxUsedMemory;
 
-        public SessionDump(String sessionId, String dataset, String hostname, String username, String ipAddress, int clientVersion, List<ShardDump> openShards) {
+        public SessionDump(String sessionId, String dataset, String hostname, String username, String clientName, String ipAddress,
+                           int clientVersion, long creationTime, List<ShardDump> openShards, long usedMemory, long maxUsedMemory) {
             this.sessionId = sessionId;
             this.dataset = dataset;
             this.hostname = hostname;
             this.username = username;
+            this.clientName = clientName;
             this.ipAddress = ipAddress;
             this.clientVersion = clientVersion;
+            this.creationTime = creationTime;
             this.openShards = openShards;
+            this.usedMemory = usedMemory;
+            this.maxUsedMemory = maxUsedMemory;
         }
 
         public String getSessionId() {
@@ -127,6 +136,22 @@ public class ImhotepStatusDump {
             return clientVersion;
         }
 
+        public long getCreationTime() {
+            return creationTime;
+        }
+
+        public String getClientName() {
+            return clientName;
+        }
+
+        public long getUsedMemory() {
+            return usedMemory;
+        }
+
+        public long getMaxUsedMemory() {
+            return maxUsedMemory;
+        }
+
         public List<ShardDump> getOpenShards() {
             return openShards;
         }
@@ -138,7 +163,11 @@ public class ImhotepStatusDump {
                     .setHostname(hostname)
                     .setUsername(username)
                     .setIpAddress(ipAddress)
-                    .setClientVersion(clientVersion);
+                    .setClientVersion(clientVersion)
+                    .setCreationTime(creationTime)
+                    .setClientName(clientName)
+                    .setUsedMemory(usedMemory)
+                    .setMaxUsedMemory(maxUsedMemory);
 
             for (final ShardDump shardDump : openShards) {
                 builder.addOpenShard(shardDump.toProto());
@@ -153,7 +182,8 @@ public class ImhotepStatusDump {
                 openShards.add(ShardDump.fromProto(shardDump));
             }
             return new SessionDump(protoDump.getSessionId(), protoDump.getDataset(), protoDump.getHostname(),
-                    protoDump.getUsername(), protoDump.getIpAddress(), protoDump.getClientVersion(), openShards);
+                    protoDump.getUsername(), protoDump.getClientName(), protoDump.getIpAddress(), protoDump.getClientVersion(),
+                    protoDump.getCreationTime(), openShards, protoDump.getUsedMemory(), protoDump.getMaxUsedMemory());
         }
     }
 
