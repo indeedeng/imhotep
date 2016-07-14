@@ -20,7 +20,6 @@ import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.varexport.Export;
 import com.indeed.imhotep.api.ImhotepSession;
-import com.indeed.imhotep.service.ImhotepTooManySessionsException;
 
 import org.apache.log4j.Logger;
 
@@ -45,7 +44,7 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
             if (sessionMap.containsKey(sessionId)) {
                 throw new IllegalArgumentException("there already exists a session with id "+sessionId);
             } else if (sessionMap.size() >= MAX_SESSION_COUNT) {
-                throw new ImhotepTooManySessionsException("This daemon has reached the maximum number of concurrent sessions: "+sessionMap.size());
+                throw new ImhotepTooManySessionsException("Imhotep daemon has reached the maximum number of concurrent sessions: "+sessionMap.size());
             }
 
             if (!Strings.isNullOrEmpty(session.username) && !session.username.equals(session.clientName)) {
@@ -56,7 +55,7 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
                     }
                 }
                 if (userSessionCount >= MAX_SESSION_COUNT_PER_USER) {
-                    throw new ImhotepTooManySessionsException("This daemon has reached the maximum number of concurrent sessions per user: " + userSessionCount);
+                    throw new UserSessionCountLimitExceededException("Imhotep daemon has reached the maximum number of concurrent sessions per user: " + userSessionCount);
                 }
             }
 
