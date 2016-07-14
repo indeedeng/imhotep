@@ -14,6 +14,7 @@
  package com.indeed.imhotep.client;
 
 import com.google.common.base.Predicates;
+import com.google.common.base.Throwables;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -570,11 +571,17 @@ public class ImhotepClient
         if(requestedShards == null || requestedShards.size() == 0) {
             throw new IllegalArgumentException("No shards");
         }
-        int retries = 3;
+        int retries = 2;
         final AtomicLong localTempFileSizeBytesLeft = localTempFileSizeLimit > 0 ? new AtomicLong(localTempFileSizeLimit) : null;
+        Exception error = null;
         while (retries > 0) {
             final String sessionId = UUID.randomUUID().toString();
-            final ImhotepRemoteSession[] remoteSessions = internalGetSession(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, clientName, optimizeGroupZeroLookups, socketTimeout, sessionId, daemonTempFileSizeLimit, localTempFileSizeBytesLeft, useNativeFtgs, sessionTimeout);
+            ImhotepRemoteSession[] remoteSessions = null;
+            try {
+                remoteSessions = internalGetSession(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, clientName, optimizeGroupZeroLookups, socketTimeout, sessionId, daemonTempFileSizeLimit, localTempFileSizeBytesLeft, useNativeFtgs, sessionTimeout);
+            } catch (Exception e) {
+                error = e;
+            }
             if (remoteSessions == null) {
                 --retries;
                 if (retries > 0) {
@@ -588,7 +595,7 @@ public class ImhotepClient
             }
             return new RemoteImhotepMultiSession(remoteSessions, sessionId, nodes, localTempFileSizeLimit, localTempFileSizeBytesLeft);
         }
-        throw new RuntimeException("unable to open session");
+        throw new RuntimeException("unable to open session", error);
     }
 
     private static class IncrementalEvaluationState {
@@ -776,7 +783,7 @@ public class ImhotepClient
 
         final ImhotepRemoteSession[] remoteSessions =
             new ImhotepRemoteSession[shardRequestMap.size()];
-        boolean error = false;
+        Throwable error = null;
         for (int i = 0; i < futures.size(); ++i) {
             try {
                 remoteSessions[i] = futures.get(i).get();
@@ -788,14 +795,14 @@ public class ImhotepClient
                     });
             } catch (ExecutionException e) {
                 log.error("exception while opening session", e);
-                error = true;
+                error = e.getCause();
             } catch (InterruptedException e) {
                 log.error("interrupted while opening session", e);
-                error = true;
+                error = e;
             }
         }
 
-        if (error) {
+        if (error != null) {
             for (final ImhotepRemoteSession session : remoteSessions) {
                 if (session != null) {
                     try {
@@ -805,7 +812,7 @@ public class ImhotepClient
                     }
                 }
             }
-            return null;
+            Throwables.propagate(error);
         }
         return remoteSessions;
     }
