@@ -11,13 +11,22 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.indeed.imhotep.service;
+package com.indeed.imhotep.exceptions;
 
 /**
- * @author cvoss
+ * @author vladimir
  */
-public class UserSessionCountLimitExceededException extends RuntimeException {
-    public UserSessionCountLimitExceededException(String message) {
-        super(message);
+
+public abstract class LimitExceededException extends RuntimeException {
+    public LimitExceededException() {
+        super();
+    }
+
+    public LimitExceededException(String s) {
+        super(s);
+    }
+
+    public LimitExceededException(String message, Throwable cause) {
+        super(message, cause);
     }
 }

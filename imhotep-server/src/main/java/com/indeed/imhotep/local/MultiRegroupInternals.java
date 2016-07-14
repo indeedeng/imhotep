@@ -18,11 +18,9 @@ import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.datastruct.FastBitSet;
-import com.indeed.flamdex.simple.SimpleIntTermIterator;
-import com.indeed.flamdex.simple.SimpleStringTermIterator;
 import com.indeed.imhotep.GroupMultiRemapRule;
-import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.exceptions.MultiValuedFieldRegroupException;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -47,7 +45,7 @@ class MultiRegroupInternals {
                             final String message =
                                 "Regrouping on a multi-valued field " +
                                 "doesn't work correctly so the operation is rejected.";
-                            throw new IllegalArgumentException(message);
+                            throw new MultiValuedFieldRegroupException(message);
                         }
                     }
                     newLookup.set(docId, Math.min(currentGroup, remappings[oldGroup]));
