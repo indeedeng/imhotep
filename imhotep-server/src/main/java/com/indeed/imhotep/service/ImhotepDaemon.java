@@ -606,7 +606,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         private final ImhotepResponse getStatusDump(final ImhotepRequest          request,
                                                     final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
-            final ImhotepStatusDump statusDump = service.handleGetStatusDump();
+            final ImhotepStatusDump statusDump = service.handleGetStatusDump(request.getIncludeShardList());
             builder.setStatusDump(statusDump.toProto());
             return builder.build();
         }

@@ -246,6 +246,9 @@ message ImhotepRequest {
 
   // for openSession
   optional string clientName = 56 [default = ""];
+
+  // for getStatusDump
+  optional bool includeShardList = 57 [default = false];
 }
 
 message ImhotepResponse {

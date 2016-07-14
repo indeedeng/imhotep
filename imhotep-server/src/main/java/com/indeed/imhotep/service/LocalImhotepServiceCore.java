@@ -45,6 +45,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -362,7 +363,7 @@ public class LocalImhotepServiceCore
     @Override public List<DatasetInfo> handleGetDatasetList() { return datasetList.get(); }
 
     @Override
-    public ImhotepStatusDump handleGetStatusDump() {
+    public ImhotepStatusDump handleGetStatusDump(boolean includeShardList) {
         final long usedMemory = memory.usedMemory();
         final long totalMemory = memory.totalMemory();
 
@@ -370,11 +371,14 @@ public class LocalImhotepServiceCore
                 getSessionManager().getSessionDump();
 
         final List<ImhotepStatusDump.ShardDump> shards;
-        try {
-            shards = shardMap.get().getShardDump();
-        }
-        catch (IOException e) {
-            throw Throwables.propagate(e);
+        if (includeShardList) {
+            try {
+                shards = shardMap.get().getShardDump();
+            } catch (IOException e) {
+                throw Throwables.propagate(e);
+            }
+        } else {
+            shards = Collections.emptyList();
         }
         return new ImhotepStatusDump(usedMemory, totalMemory, openSessions, shards);
     }
@@ -417,6 +421,9 @@ public class LocalImhotepServiceCore
         final ImhotepLocalSession[] localSessions =
             new ImhotepLocalSession[shardRequestList.size()];
 
+        final MemoryReservationContext multiSessionMemoryContext = new MemoryReservationContext(memory);
+
+
         try {
             final ShardMap.FlamdexReaderMap flamdexReaders =
                 shardMap.get().getFlamdexReaders(dataset, shardRequestList);
@@ -434,32 +441,27 @@ public class LocalImhotepServiceCore
                     flamdexes.put(pair.getFirst(), cachedFlamdexReaderReference);
                     localSessions[i] = useNativeFtgs && flamdexReaders.allFlamdexReaders ?
                         new ImhotepNativeLocalSession(cachedFlamdexReaderReference,
-                                                      new MemoryReservationContext(memory),
+                                                      new MemoryReservationContext(multiSessionMemoryContext),
                                                       tempFileSizeBytesLeft) :
                         new ImhotepJavaLocalSession(cachedFlamdexReaderReference,
                                                     this.shardTempDir,
-                                                    new MemoryReservationContext(memory),
+                                                    new MemoryReservationContext(multiSessionMemoryContext),
                                                     tempFileSizeBytesLeft);
                     localSessions[i].addObserver(observer);
-                } catch (RuntimeException e) {
-                    Closeables2.closeQuietly(cachedFlamdexReaderReference, log);
-                    localSessions[i] = null;
-                    throw e;
-                } catch (ImhotepOutOfMemoryException e) {
+                } catch (RuntimeException | ImhotepOutOfMemoryException e) {
                     Closeables2.closeQuietly(cachedFlamdexReaderReference, log);
                     localSessions[i] = null;
                     throw e;
                 }
             }
-            final MemoryReservationContext sessionMemoryContext = new MemoryReservationContext(memory);
 
             final MTImhotepLocalMultiSession session =
                 new MTImhotepLocalMultiSession(localSessions,
-                                               sessionMemoryContext,
+                                               new MemoryReservationContext(multiSessionMemoryContext),
                                                tempFileSizeBytesLeft,
                                                useNativeFtgs && flamdexReaders.allFlamdexReaders);
             getSessionManager().addSession(sessionId, session, flamdexes, username, clientName,
-                                           ipAddress, clientVersion, dataset, sessionTimeout, sessionMemoryContext);
+                                           ipAddress, clientVersion, dataset, sessionTimeout, multiSessionMemoryContext);
             session.addObserver(observer);
         }
         catch (IOException ex) {

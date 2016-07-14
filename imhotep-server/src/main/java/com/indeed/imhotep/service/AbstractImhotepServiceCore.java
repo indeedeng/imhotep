@@ -306,7 +306,7 @@ public abstract class AbstractImhotepServiceCore
     public abstract List<DatasetInfo> handleGetDatasetList();
 
     @Override
-    public abstract ImhotepStatusDump handleGetStatusDump();
+    public abstract ImhotepStatusDump handleGetStatusDump(boolean includeShards);
 
     private static interface ThrowingFunction<A, B, T extends Throwable> {
         B apply(A a) throws T;

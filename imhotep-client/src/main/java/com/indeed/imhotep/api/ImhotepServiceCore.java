@@ -80,7 +80,7 @@ public interface ImhotepServiceCore {
     // non-session-based methods
     @Deprecated List<ShardInfo> handleGetShardList();
     List<DatasetInfo> handleGetDatasetList();
-    ImhotepStatusDump handleGetStatusDump();
+    ImhotepStatusDump handleGetStatusDump(boolean includeShardList);
 
     void close();
 }
