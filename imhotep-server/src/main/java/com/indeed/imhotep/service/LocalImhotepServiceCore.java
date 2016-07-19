@@ -380,7 +380,8 @@ public class LocalImhotepServiceCore
         } else {
             shards = Collections.emptyList();
         }
-        return new ImhotepStatusDump(usedMemory, totalMemory, openSessions, shards);
+        final int shardCount = shardMap.get().size();
+        return new ImhotepStatusDump(usedMemory, totalMemory, openSessions, shards, shardCount);
     }
 
     @Override

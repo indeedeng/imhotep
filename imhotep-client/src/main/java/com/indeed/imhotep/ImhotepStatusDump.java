@@ -29,12 +29,14 @@ public class ImhotepStatusDump {
     public final long totalMemory;
     public final List<SessionDump> openSessions;
     public final List<ShardDump> shards;
+    public final int shardCount;
 
-    public ImhotepStatusDump(long usedMemory, long totalMemory, List<SessionDump> openSessions, List<ShardDump> shards) {
+    public ImhotepStatusDump(long usedMemory, long totalMemory, List<SessionDump> openSessions, List<ShardDump> shards, int shardCount) {
         this.usedMemory = usedMemory;
         this.totalMemory = totalMemory;
         this.openSessions = openSessions;
         this.shards = shards;
+        this.shardCount = shardCount;
     }
 
     public long getUsedMemory() {
@@ -53,10 +55,15 @@ public class ImhotepStatusDump {
         return shards;
     }
 
+    public int getShardCount() {
+        return shardCount;
+    }
+
     public StatusDumpMessage toProto() {
         final StatusDumpMessage.Builder builder = StatusDumpMessage.newBuilder()
                 .setUsedMemory(usedMemory)
-                .setTotalMemory(totalMemory);
+                .setTotalMemory(totalMemory)
+                .setShardCount(shardCount);
 
         for (final SessionDump sessionDump : openSessions) {
             builder.addOpenSession(sessionDump.toProto());
@@ -72,6 +79,7 @@ public class ImhotepStatusDump {
     public static ImhotepStatusDump fromProto(StatusDumpMessage protoDump) {
         final long usedMemory = protoDump.getUsedMemory();
         final long totalMemory = protoDump.getTotalMemory();
+        final int shardCount = protoDump.getShardCount();
         final List<SessionDump> openSessions = new ArrayList<SessionDump>(protoDump.getOpenSessionCount());
         for (final SessionDumpMessage protoSessionDump : protoDump.getOpenSessionList()) {
             openSessions.add(SessionDump.fromProto(protoSessionDump));
@@ -80,7 +88,7 @@ public class ImhotepStatusDump {
         for (final ShardDumpMessage shardDump : protoDump.getLoadedShardList()) {
             shards.add(ShardDump.fromProto(shardDump));
         }
-        return new ImhotepStatusDump(usedMemory, totalMemory, openSessions, shards);
+        return new ImhotepStatusDump(usedMemory, totalMemory, openSessions, shards, shardCount);
     }
 
     public static class SessionDump {
