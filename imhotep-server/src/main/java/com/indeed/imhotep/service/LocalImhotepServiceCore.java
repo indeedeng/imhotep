@@ -411,7 +411,7 @@ public class LocalImhotepServiceCore
         if (Strings.isNullOrEmpty(clientName)) {
             // infer clientName from username for old clients
             if (username.indexOf(':') > 0) {
-                final String[] usernameParts = username.split(":");
+                final String[] usernameParts = username.split(":", -1);
                 clientName = usernameParts[0];
                 username = usernameParts[1];
             } else {
