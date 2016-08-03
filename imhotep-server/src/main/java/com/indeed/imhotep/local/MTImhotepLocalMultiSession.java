@@ -27,6 +27,7 @@ import com.indeed.util.core.io.Closeables2;
 
 import org.apache.log4j.Logger;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -185,21 +186,19 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                     MultiCache[] nativeCaches;
                     try {
                         nativeCaches = updateMulticaches();
-                    } catch (ImhotepOutOfMemoryException e) {
+                    } catch (final ImhotepOutOfMemoryException e) {
                         throw new RuntimeException(e);
                     }
                     final FlamdexReader[] readers = new FlamdexReader[sessions.length];
                     for (int i = 0; i < sessions.length; i++) {
                         readers[i] = sessions[i].getReader();
                     }
-                    final NativeFTGSRunnable nativeRunnable =
+                    try(final NativeFTGSRunnable nativeRunnable =
                         new NativeFTGSRunnable(readers, nativeCaches, onlyBinaryMetrics,
                                                intFields, stringFields, getNumGroups(),
-                                               numStats, numSplits, ftgsOutputSockets);
-                    nativeRunnable.run();
-                    try {
-                        nativeRunnable.close();
-                    } catch (IOException e) {
+                                               numStats, numSplits, ftgsOutputSockets)) {
+                        nativeRunnable.run();
+                    } catch (final IOException e) {
                         // ignore
                         log.error(e);
                     }
@@ -261,7 +260,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                                         sessionId, tempFileSizeBytesLeft, useNativeFtgs);
     }
 
-    private static class NativeFTGSRunnable implements AutoCloseable {
+    private static class NativeFTGSRunnable implements Closeable {
 
         /* !@# Note that mappedFiles/mappedPtrs are maintained as parallel
             arrays because accessing a map from within JNI would be painful to

@@ -166,8 +166,8 @@ public class SimpleFlamdexReader
                 return new NullIntTermIterator(docsPath);
             }
             final Path indexPath;
-            final Path intIndex = directory.resolve("fld-" + field + ".intindex");
-            final Path intIndex64 = directory.resolve("fld-" + field + ".intindex64");
+            final Path intIndex = directory.resolve(SimpleIntFieldWriter.get32IndexFilename(field));
+            final Path intIndex64 = directory.resolve(SimpleIntFieldWriter.get64IndexFilename(field));
             if (Files.exists(intIndex64)) {
                 indexPath = intIndex64;
             } else if (Files.exists(intIndex)) {
@@ -190,7 +190,7 @@ public class SimpleFlamdexReader
             if (Files.notExists(termsPath) || Files.size(termsPath) == 0L) {
                 return new NullStringTermIterator(docsPath);
             }
-            final Path indexPath = directory.resolve("fld-" + field + ".strindex");
+            final Path indexPath = directory.resolve(SimpleStringFieldWriter.getIndexFilename(field));
             return new SimpleStringTermIteratorImpl(mapPool, termsPath, docsPath, indexPath);
         } catch (IOException e) {
             throw new RuntimeException(e);

@@ -45,6 +45,10 @@ class SimpleStringFieldWriter extends SimpleFieldWriter implements StringFieldWr
         return "fld-"+field+".strterms";
     }
 
+    public static String getIndexFilename(String field) {
+        return "fld-"+field+".strindex";
+    }
+
     public static String getDocsFilename(String field) {
         return "fld-"+field+".strdocs";
     }
@@ -104,7 +108,7 @@ class SimpleStringFieldWriter extends SimpleFieldWriter implements StringFieldWr
     @Override
     protected void writeBTreeIndex() throws IOException {
         if (writeBTreesOnClose) {
-            final Path btreeDir = outputDirectory.resolve("fld-" + field + ".strindex");
+            final Path btreeDir = outputDirectory.resolve(getIndexFilename(field));
             SimpleFlamdexWriter.writeStringBTree(outputDirectory,
                                                  field,
                                                  btreeDir);

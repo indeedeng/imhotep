@@ -11,7 +11,7 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.indeed.flamdex.simple;
+package com.indeed.flamdex.simple;
 
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -80,7 +80,9 @@ public final class SimpleFlamdexDocWriter implements FlamdexDocWriter {
     }
 
     private void flush() throws IOException {
-        if (currentBuffer.getNumDocs() == 0) return;
+        if (currentBuffer.getNumDocs() == 0) {
+            return;
+        }
 
         final Path outFile = outputDirectory.resolve(currentSegment);
         final BufferedFileDataOutputStream out;
@@ -100,16 +102,13 @@ public final class SimpleFlamdexDocWriter implements FlamdexDocWriter {
             for (final Path segment : segments) {
                 final FlamdexReader reader;
                 if (i == 0) {
-                    final BufferedFileDataInputStream dataInputStream;
-
-                    dataInputStream = new BufferedFileDataInputStream(segment,
-                                                                      ByteOrder.nativeOrder(),
-                                                                      65536);
+                    final BufferedFileDataInputStream dataInputStream = new BufferedFileDataInputStream(segment,
+                            ByteOrder.nativeOrder(),
+                            65536);
                     reader = MemoryFlamdex.streamer(dataInputStream);
                 } else {
-                    final SimpleFlamdexReader.Config config;
-                    config = new SimpleFlamdexReader.Config().setWriteBTreesIfNotExisting(false);
-                    reader = SimpleFlamdexReader.open(segment.normalize(), config);
+                    reader = SimpleFlamdexReader.open(segment,
+                            new SimpleFlamdexReader.Config().setWriteBTreesIfNotExisting(false));
                 }
                 readers.add(reader);
                 numDocs += reader.getNumDocs();
@@ -117,7 +116,7 @@ public final class SimpleFlamdexDocWriter implements FlamdexDocWriter {
 
             final Path mergeDir = outputDirectory.resolve(currentSegment);
             currentSegment = nextSegmentDirectory(currentSegment);
-            final FlamdexWriter w = new SimpleFlamdexWriter(mergeDir.normalize(), numDocs, true, false);
+            final FlamdexWriter w = new SimpleFlamdexWriter(mergeDir, numDocs, true, false);
             SimpleFlamdexWriter.merge(readers, w);
             w.close();
 
@@ -145,10 +144,8 @@ public final class SimpleFlamdexDocWriter implements FlamdexDocWriter {
         long numDocs = 0;
         final List<FlamdexReader> allReaders = Lists.newArrayList();
         for (final Path file : Iterables.concat(Lists.reverse(segmentsOnDisk.subList(1, segmentsOnDisk.size())))) {
-            final SimpleFlamdexReader reader;
-            final SimpleFlamdexReader.Config config;
-            config = new SimpleFlamdexReader.Config().setWriteBTreesIfNotExisting(false);
-            reader = SimpleFlamdexReader.open(file.normalize(), config);
+            final SimpleFlamdexReader reader = SimpleFlamdexReader.open(file.normalize(),
+                    new SimpleFlamdexReader.Config().setWriteBTreesIfNotExisting(false));
             allReaders.add(reader);
             numDocs += reader.getNumDocs();
         }
@@ -186,7 +183,7 @@ public final class SimpleFlamdexDocWriter implements FlamdexDocWriter {
         if (i == 0) {
             sb.append("_0");
         } else {
-            sb.append(s.charAt(i) == '9' ? 'a' : (char)(s.charAt(i) + 1));
+            sb.append(s.charAt(i) == '9' ? 'a' : (char) (s.charAt(i) + 1));
         }
         for (int j = i + 1; j < s.length(); ++j) {
             sb.append('0');

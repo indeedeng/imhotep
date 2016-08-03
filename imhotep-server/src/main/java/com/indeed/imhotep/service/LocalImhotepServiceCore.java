@@ -13,6 +13,7 @@
  */
  package com.indeed.imhotep.service;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
@@ -40,6 +41,7 @@ import com.indeed.imhotep.local.ImhotepNativeLocalSession;
 
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nullable;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
@@ -107,9 +109,9 @@ public class LocalImhotepServiceCore
      * @throws IOException
      *             if something bad happens
      */
-    public LocalImhotepServiceCore(Path shardsDir,
-                                   Path shardTempDir,
-                                   Path shardStoreDir,
+    public LocalImhotepServiceCore(@Nullable Path shardsDir,
+                                   @Nullable Path shardTempDir,
+                                   @Nullable Path shardStoreDir,
                                    long memoryCapacity,
                                    boolean useCache,
                                    FlamdexReaderSource flamdexReaderFactory,
@@ -120,6 +122,8 @@ public class LocalImhotepServiceCore
         this.shardUpdateListener = shardUpdateListener;
 
         /* check if the temp dir exists, try to create it if it does not */
+        Preconditions.checkNotNull(shardTempDir, "shardTempDir is invalid");
+
         if (Files.exists(shardTempDir) && !Files.isDirectory(shardTempDir)) {
             throw new FileNotFoundException(shardTempDir + " is not a directory.");
         }
@@ -138,22 +142,20 @@ public class LocalImhotepServiceCore
         }
 
         sessionManager = new LocalSessionManager();
-        /* allow temp dir to be null for testing */
-        if (shardTempDir != null) {
-            clearTempDir(shardTempDir);
-        }
+
+        clearTempDir(shardTempDir);
 
         this.shardStoreDir = shardStoreDir;
         this.shardStore    = loadOrCreateShardStore(shardStoreDir);
 
         if (shardsDir != null) {
-            ShardMap newShardMap = shardStore != null ?
-                new ShardMap(shardStore, shardsDir, memory, flamdexReaderFactory, freeCache) :
-                new ShardMap(memory, flamdexReaderFactory, freeCache);
+            ShardMap newShardMap = (shardStore != null) ?
+                    new ShardMap(shardStore, shardsDir, memory, flamdexReaderFactory, freeCache) :
+                    new ShardMap(memory, flamdexReaderFactory, freeCache);
 
             /* An empty ShardMap suggests that ShardStore had not been
              * initialized, so fallback to a synchronous directory scan. */
-            if (newShardMap.size() == 0) {
+            if (newShardMap.isEmpty()) {
                 log.info("Could not load ShardMap from cache: " + shardStoreDir + ". " +
                          "Scanning shard path instead.");
                 newShardMap = new ShardMap(newShardMap, shardsDir);
@@ -178,8 +180,8 @@ public class LocalImhotepServiceCore
         VarExporter.forNamespace(getClass().getSimpleName()).includeInGlobal().export(this, "");
     }
 
-    public LocalImhotepServiceCore(Path shardsDir,
-                                   Path shardTempDir,
+    public LocalImhotepServiceCore(@Nullable Path shardsDir,
+                                   @Nullable Path shardTempDir,
                                    long memoryCapacity,
                                    boolean useCache,
                                    FlamdexReaderSource flamdexReaderFactory,
@@ -191,8 +193,8 @@ public class LocalImhotepServiceCore
     }
 
     /** Intended for tests that create their own LocalImhotepServiceCores. */
-    public LocalImhotepServiceCore(Path shardsDir,
-                                   Path shardTempDir,
+    public LocalImhotepServiceCore(@Nullable Path shardsDir,
+                                   @Nullable Path shardTempDir,
                                    long memoryCapacity,
                                    boolean useCache,
                                    FlamdexReaderSource flamdexReaderFactory,

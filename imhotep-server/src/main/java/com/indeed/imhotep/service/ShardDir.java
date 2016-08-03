@@ -15,7 +15,6 @@ package com.indeed.imhotep.service;
 
 import com.indeed.imhotep.io.Shard;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.regex.Matcher;
@@ -27,32 +26,40 @@ class ShardDir {
     private final String name;
     private final Path indexDir;
     private final String id;
-    private final long   version;
+    private final long version;
 
-    ShardDir(Path path) throws IOException {
+    ShardDir(final Path path) throws IOException {
 
-        this.name     = path.getFileName().toString();
+        this.name = path.getFileName().toString();
         this.indexDir = path;
 
         final Matcher matcher = VERSION_PATTERN.matcher(name);
         if (matcher.matches()) {
-            this.id      = matcher.group(1);
+            this.id = matcher.group(1);
             this.version = Long.parseLong(matcher.group(2));
-        }
-        else {
-            this.id      = name;
+        } else {
+            this.id = name;
             this.version = 0L;
         }
     }
 
-//    ShardDir(String path) throws IOException { this(new File(path)); }
+    String getId() {
+        return id;
+    }
 
-    String       getId() { return id;       }
-    long    getVersion() { return version;  }
-    String     getName() { return name;     }
-    Path   getIndexDir() { return indexDir; }
+    long getVersion() {
+        return version;
+    }
 
-    boolean isNewerThan(Shard shard) {
-        return shard ==  null || getVersion() > shard.getShardVersion();
+    String getName() {
+        return name;
+    }
+
+    Path getIndexDir() {
+        return indexDir;
+    }
+
+    boolean isNewerThan(final Shard shard) {
+        return (shard == null) || (version > shard.getShardVersion());
     }
 }

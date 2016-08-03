@@ -17,7 +17,6 @@ import com.indeed.flamdex.utils.FlamdexUtils;
 import com.indeed.flamdex.writer.IntFieldWriter;
 
 import java.io.BufferedOutputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
@@ -49,6 +48,14 @@ final class SimpleIntFieldWriter extends SimpleFieldWriter implements IntFieldWr
 
     public static String getTermsFilename(String field) {
         return "fld-"+field+".intterms";
+    }
+
+    public static String get32IndexFilename(String field) {
+        return "fld-"+field+".intindex";
+    }
+
+    public static String get64IndexFilename(String field) {
+        return "fld-"+field+".intindex64";
     }
 
     public static String getDocsFilename(String field) {

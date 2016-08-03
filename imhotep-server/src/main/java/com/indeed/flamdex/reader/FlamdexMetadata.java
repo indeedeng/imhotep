@@ -79,13 +79,11 @@ public class FlamdexMetadata {
     public static FlamdexMetadata readMetadata(final Path directory) throws IOException {
         JavaBeanLoader<FlamdexMetadata> loader = new JavaBeanLoader<FlamdexMetadata>(FlamdexMetadata.class);
         final Path metadataPath = directory.resolve("metadata.txt");
-        final BufferedReader metadataReader;
-        final FlamdexMetadata results;
 
-        metadataReader = Files.newBufferedReader(metadataPath, Charsets.UTF_8);
-        results = loader.load(metadataReader);
-        metadataReader.close();
-        return results;
+        try (final BufferedReader metadataReader = Files.newBufferedReader(metadataPath, Charsets.UTF_8)) {
+            final FlamdexMetadata results = loader.load(metadataReader);
+            return results;
+        }
     }
 
     public static void writeMetadata(final Path directory, FlamdexMetadata metadata) throws IOException {

@@ -270,7 +270,6 @@ class ShardMap
             }
             catch (Exception ex) {
                 log.warn("error loading shard at " + shardDir.getIndexDir(), ex);
-                ex.printStackTrace();
                 return false;
             }
         }
