@@ -1,7 +1,9 @@
 package com.indeed.imhotep.fs;
 
+import com.google.common.base.Throwables;
 import gnu.trove.map.hash.TObjectIntHashMap;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.log4j.Logger;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -13,9 +15,10 @@ import java.security.AccessControlException;
 import java.util.LinkedList;
 
 /**
- * Created by darren on 11/24/15.
+ * @author darren
  */
-public class LruCache {
+class LruCache {
+    private static final Logger LOGGER = Logger.getLogger(LruCache.class);
     private static final String FILE_SUFFIX = ".cached_file";
     private static final String DIRECTORY_PREFIX = "cache_directory_";
 
@@ -27,25 +30,24 @@ public class LruCache {
     private final FileTracker localOnlyFileTracker;
     private final Loader loader;
 
-    public LruCache(Path cacheDirectory,
-                    int defaultReservation,
-                    long cacheSize,
-                    FileTracker fileTracker,
-                    Loader loader) {
-        this.spaceRemaining = cacheSize;
+    LruCache(final Path cacheDirectory,
+             final int defaultReservation,
+             final long cacheSize,
+             final FileTracker fileTracker,
+             final Loader loader) {
+        spaceRemaining = cacheSize;
         this.loader = loader;
         this.cacheDirectory = cacheDirectory;
         this.defaultReservation = defaultReservation;
-        this.localOnlyFileTracker = fileTracker;
+        localOnlyFileTracker = fileTracker;
     }
 
-    public Path getAndOpenForRead(RemoteCachingPath path) throws IOException {
-        final Path cachePath = getCachePath(cacheDirectory, path);
+    Path getAndOpenForRead(final RemoteCachingPath path) throws IOException {
+        final Path cachePath = getCachePath(path);
         if (Files.notExists(cachePath)) {
-            final long fileSize = loader.getFileLen(path);
+            final long fileSize = loader.getFileSize(path);
             if (fileSize == -1) {
-                /* file not present remotely */
-                throw new FileNotFoundException(path.toString());
+                throw new FileNotFoundException(path + " does not exist");
             }
             loadFile(path, cachePath, fileSize);
         } else {
@@ -54,9 +56,10 @@ public class LruCache {
         return cachePath;
     }
 
-    public FileSizeWatcher getAndOpenForWrite(RemoteCachingPath path) throws IOException {
-        final Path cachePath = getCachePath(cacheDirectory, path);
+    FileSizeWatcher getAndOpenForWrite(final RemoteCachingPath path) throws IOException {
+        final Path cachePath = getCachePath(path);
 
+        // TODO: this is some seriously buggy code
         // Check if is present in the cache
         // -> fail if not present
         // Check if local only
@@ -64,36 +67,51 @@ public class LruCache {
 
         if (Files.notExists(cachePath)) {
             /* file not present remotely */
-            throw new FileNotFoundException("File does not exist: " + path.toString());
+            throw new FileNotFoundException("File does not exist: " + path);
         }
 
         if (!localOnlyFileTracker.contains(path)) {
             /* Must be a remote file */
-            throw new AccessControlException("Remote files are read only. Path " + path.toString());
+            throw new AccessControlException("Remote files are read only. Path " + path);
         }
 
         markFileOpen(path);
         return new FileSizeWatcher(Files.size(cachePath), 0, cachePath);
     }
 
-    public FileSizeWatcher addNewFile(RemoteCachingPath path, boolean failOnExists) throws
+    /**
+     *
+     * @param path
+     * @param failOnExists
+     * @return
+     * @throws IOExceptionk
+     */
+    FileSizeWatcher addNewFile(final RemoteCachingPath path, final boolean failOnExists) throws
             IOException {
-        final Path cachePath = getCachePath(cacheDirectory, path);
-        if (Files.exists(cachePath)) {
+        final Path cachePath = getCachePath(path);
+
+        if (Files.exists(path)) {
+            // if it already exists, it can either be
             if (failOnExists) {
-                throw new FileAlreadyExistsException("File " + path.toString() + " already exists");
+                throw new FileAlreadyExistsException("File or directory already exist for " + path);
+            } else if (Files.isDirectory(path)) {
+                // 1. a local or remote directory
+                throw new FileAlreadyExistsException("Directory already exist for " + path);
+            } else if (!localOnlyFileTracker.contains(path)) {
+                // 2. a remote file
+                throw new AccessControlException("Cannot create non-local file at path " + path);
             } else {
+                // 3. a local file
+                path.setLocalOnly(true);
                 markFileOpen(path);
                 return new FileSizeWatcher(Files.size(cachePath), 0, cachePath);
             }
-        } else if (localOnlyFileTracker.contains(path)) {
-            /* a directory */
-            throw new FileAlreadyExistsException("Directory exists with path " + path.toString());
+        } else {
+            Files.createFile(cachePath);
+            path.setLocalOnly(true);
+            trackFile(path);
+            return new FileSizeWatcher(0, defaultReservation, cachePath);
         }
-        Files.createFile(cachePath);
-        path.setLocalOnly(true);
-        trackFile(path);
-        return new FileSizeWatcher(0, defaultReservation, cachePath);
     }
 
     synchronized void markFileOpen(RemoteCachingPath path) {
@@ -104,28 +122,25 @@ public class LruCache {
     synchronized void markFileClosed(RemoteCachingPath path) {
         final int openCount = openFiles.get(path) - 1;
         if (openCount == 0) {
-            openFiles.put(path, openCount);
+            openFiles.remove(path);
             lruList.addFirst(path);
+        } else {
+            openFiles.put(path, openCount);
         }
     }
 
-    private Path loadFile(RemoteCachingPath path, Path cachePath, long fileSize) throws
-            IOException {
+    private Path loadFile(final RemoteCachingPath path, final Path cachePath, final long fileSize)
+            throws IOException {
         reserveSpace(fileSize);
         try {
             final Path tmpPath = generateTmpPath();
             loader.load(path, tmpPath);
-            /* make sure the directories exist */
+
             Files.createDirectories(cachePath.getParent());
-            if (! tryMove(tmpPath, cachePath)) {
-                /* file has already been loaded */
-                Files.delete(tmpPath);
-                releaseSpace(fileSize);
-                return cachePath;
-            }
-        } catch(Exception e) {
+            tryMove(tmpPath, cachePath);
+        } catch (final Throwable e) {
             releaseSpace(fileSize);
-            throw e;
+            throw Throwables.propagate(e);
         }
 
         path.setLocalOnly(false);
@@ -133,91 +148,92 @@ public class LruCache {
         return cachePath;
     }
 
-    private synchronized boolean tryMove(Path tmpPath, Path cachePath) throws IOException {
-        if (Files.exists(cachePath)) {
-            return false;
-        }
+    private void tryMove(final Path tmpPath, final Path cachePath) throws IOException {
         Files.move(tmpPath,
-                   cachePath,
-                   StandardCopyOption.ATOMIC_MOVE,
-                   StandardCopyOption.REPLACE_EXISTING);
-        return true;
+                cachePath,
+                StandardCopyOption.ATOMIC_MOVE,
+                StandardCopyOption.REPLACE_EXISTING);
     }
 
     private Path generateTmpPath() throws IOException {
-        return Files.createTempFile(cacheDirectory, null, null);
+        return Files.createTempFile(cacheDirectory, "cache", null);
     }
 
-    private Path getCachePath(Path topDirectory, RemoteCachingPath remotePath) {
+    private Path getCachePath(final RemoteCachingPath remotePath) {
         /* find a directory with room */
         final String hash = DigestUtils.md5Hex(remotePath.normalize().toString());
 
-        Path directory = topDirectory.resolve(DIRECTORY_PREFIX + hash.substring(0,2));
+        Path directory = cacheDirectory.resolve(DIRECTORY_PREFIX + hash.substring(0, 2));
         directory = directory.resolve(DIRECTORY_PREFIX + hash.substring(2, 4));
         return directory.resolve(hash.substring(4) + FILE_SUFFIX);
     }
 
-    private synchronized void releaseSpace(long amt) {
+    private synchronized void releaseSpace(final long amt) {
         spaceRemaining += amt;
     }
 
-    private synchronized void reserveSpace(long fileSize) throws IOException {
+    /**
+     * try to ensure that there is enough space for the specified file size
+     *
+     * @param fileSize the file size to ensure
+     * @throws IOException
+     */
+    private synchronized void reserveSpace(final long fileSize) throws IOException {
         if (spaceRemaining >= fileSize) {
             spaceRemaining -= fileSize;
             return;
         }
 
-        /* delete one or more files */
         final long evicted = evictFiles(fileSize - spaceRemaining);
         spaceRemaining -= evicted;
         if (spaceRemaining >= fileSize) {
             spaceRemaining -= fileSize;
-            return;
         } else {
             throw new IOException("Not enough free space available");
         }
     }
 
-    private long evictFiles(long numBytes) {
+    private long evictFiles(final long numBytes) {
         long bytesEvicted = 0;
 
-        while (bytesEvicted < numBytes && !lruList.isEmpty()) {
+        while ((bytesEvicted < numBytes) && !lruList.isEmpty()) {
+            final RemoteCachingPath victimPath = lruList.removeLast();
             try {
-                final RemoteCachingPath victimPath = lruList.removeLast();
-                openFiles.remove(victimPath);
-
-                final long size = Files.size(getCachePath(cacheDirectory, victimPath));
-                evictFile(victimPath);
-                bytesEvicted += size;
-            } catch (IOException e) {
-                /* just ignore */
-                e.printStackTrace();
+                if (openFiles.get(victimPath) == 0) {
+                    final Path cachePath = getCachePath(victimPath);
+                    if (Files.exists(cachePath)) {
+                        final long size = Files.size(cachePath);
+                        evictFile(victimPath);
+                        bytesEvicted += size;
+                    }
+                }
+            } catch (final IOException e) {
+                LOGGER.warn("Failed to evict cache file for " + victimPath, e);
             }
         }
 
         return bytesEvicted;
     }
 
-    private void evictFile(RemoteCachingPath victimPath) throws IOException {
-        /* delete the file first, in case there are any problems */
-        Files.delete(getCachePath(cacheDirectory, victimPath));
-
-        if (victimPath.isLocalOnly()) {
-            localOnlyFileTracker.removeFile(victimPath);
+    private void evictFile(final RemoteCachingPath path) throws IOException {
+        Files.delete(getCachePath(path));
+        if (path.isLocalOnly()) {
+            localOnlyFileTracker.removeFile(path);
         }
     }
 
     private synchronized void trackFile(RemoteCachingPath remotePath) throws IOException {
         openFiles.put(remotePath, 1);
         if (remotePath.isLocalOnly()) {
-            localOnlyFileTracker.addFile(remotePath, getCachePath(cacheDirectory, remotePath));
+            localOnlyFileTracker.addFile(remotePath, getCachePath(remotePath));
         }
     }
 
-    public synchronized boolean isPresent(RemoteCachingPath path) {
-        final Path cachePath = getCachePath(cacheDirectory, path);
-        if (cachePath != null && Files.exists(cachePath))
+    synchronized boolean isPresent(RemoteCachingPath path) {
+        final Path cachePath = getCachePath(path);
+        if (cachePath != null && Files.exists(cachePath)) {
             return true;
+        }
         return false;
     }
 
@@ -226,7 +242,7 @@ public class LruCache {
         private int reservation;
         private final Path path;
 
-        public FileSizeWatcher(long size, int initialReservation, Path path) throws IOException {
+        FileSizeWatcher(long size, int initialReservation, Path path) throws IOException {
             this.size = size;
             this.reservation = initialReservation;
             this.path = path;
@@ -236,24 +252,24 @@ public class LruCache {
             }
         }
 
-        public Path getPath() {
+        Path getPath() {
             return path;
         }
 
-        public void trackAppend(long amt) throws IOException {
-            reservation -= amt;
+        void trackAppend(final long amount) throws IOException {
+            reservation -= amount;
             if (reservation < 0) {
                 reserveSpace(-reservation);
                 reservation = 0;
             }
-            this.size += amt;
+            this.size += amount;
         }
 
-        public void trackClose() throws IOException {
+        void trackClose() throws IOException {
             final long finalSize = Files.size(path);
             if (finalSize > size) {
                 reserveSpace(finalSize - size);
-            } else if (finalSize < size){
+            } else if (finalSize < size) {
                 releaseSpace(size - finalSize);
             }
         }
@@ -262,6 +278,13 @@ public class LruCache {
     interface Loader {
         void load(RemoteCachingPath path, Path tmpPath) throws IOException;
 
-        long getFileLen(RemoteCachingPath path) throws IOException;
+        /**
+         * Get the file size of the corresponding resource
+         *
+         * @param path
+         * @return the file size. -1 if it does not exist
+         * @throws IOException
+         */
+        long getFileSize(RemoteCachingPath path) throws IOException;
     }
 }

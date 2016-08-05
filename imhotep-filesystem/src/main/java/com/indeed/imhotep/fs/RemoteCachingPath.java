@@ -9,7 +9,6 @@ import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.file.FileSystem;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.WatchEvent;
@@ -30,22 +29,13 @@ public class RemoteCachingPath implements Path, Serializable {
     private final String path;
     private final int[] offsets;
     private final String normalizedPath;
-    private final int[] npOffsets;
-    private boolean attributesValid;
     private boolean attrLocalOnly = false;
-    private boolean attrIsFile;
-    private long attrSize;
 
-    RemoteCachingPath(FileSystem fs, String path) {
-        this((RemoteCachingFileSystem) fs, path);
-    }
-
-    RemoteCachingPath(RemoteCachingFileSystem fs, String path) {
+    RemoteCachingPath(final RemoteCachingFileSystem fs, final String path) {
         this.fileSystem = fs;
         this.path = cleanPath(path);
         this.offsets = calcOffsets(this.path);
         this.normalizedPath = FilenameUtils.normalizeNoEndSeparator(path);
-        this.npOffsets = calcOffsets(this.normalizedPath);
     }
 
     private static String cleanPath(String path) {
@@ -72,7 +62,7 @@ public class RemoteCachingPath implements Path, Serializable {
     }
 
     @Override
-    public FileSystem getFileSystem() {
+    public RemoteCachingFileSystem getFileSystem() {
         return this.fileSystem;
     }
 
@@ -180,9 +170,7 @@ public class RemoteCachingPath implements Path, Serializable {
 
     @Override
     public Path resolve(String other) {
-        final RemoteCachingPath otherPath;
-
-        otherPath = new RemoteCachingPath(this.fileSystem, other);
+        final RemoteCachingPath otherPath = new RemoteCachingPath(fileSystem, other);
         if (otherPath.isAbsolute()) {
             return otherPath;
         }
@@ -214,8 +202,8 @@ public class RemoteCachingPath implements Path, Serializable {
 
         final Path parent = getParent();
         return (parent == null) ?
-               new RemoteCachingPath(this.fileSystem, other) :
-               parent.resolve(other);
+                new RemoteCachingPath(this.fileSystem, other) :
+                parent.resolve(other);
     }
 
     @Override
@@ -272,7 +260,7 @@ public class RemoteCachingPath implements Path, Serializable {
 
     @Override
     public WatchKey register(WatchService watcher, WatchEvent.Kind<?>... events) throws
-                                                                                 IOException {
+            IOException {
         throw new UnsupportedOperationException();
     }
 
@@ -343,26 +331,12 @@ public class RemoteCachingPath implements Path, Serializable {
         }
     }
 
-    void initAttributes(long size, boolean isFile, boolean localOnly) {
-        this.attrIsFile = isFile;
-        this.attrSize = size;
-        this.attrLocalOnly = localOnly;
-        this.attributesValid = true;
-    }
-
-    ImhotepFileAttributes getAttributes() {
-        if (attributesValid) {
-            return new ImhotepFileAttributes(this.attrSize, this.attrIsFile);
-        }
-        return null;
-    }
-
     boolean isLocalOnly() {
         return attrLocalOnly;
     }
 
     void setLocalOnly(boolean localOnly) {
-        this.attrLocalOnly = localOnly;
+        attrLocalOnly = localOnly;
     }
 
     private static String makeRelative(String path) {

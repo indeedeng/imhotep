@@ -1,89 +1,68 @@
 package com.indeed.imhotep.fs;
 
+import com.google.common.base.Function;
+import com.google.common.collect.FluentIterable;
+
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.nio.file.attribute.FileAttribute;
-import java.util.Iterator;
 
 /**
- * Created by darren on 11/30/15.
+ * Track collection of {@link RemoteCachingPath} by mirroring to a root {@link Path}
+ *
+ * @author darren
  */
-public class FileTracker {
+class FileTracker {
     private final Path root;
 
-    public FileTracker(Path root) {
+    FileTracker(final Path root) {
         this.root = root;
     }
 
-
-    public void addDirectory(RemoteCachingPath path, FileAttribute<?>[] attrs) throws IOException {
+    void addDirectory(final RemoteCachingPath path) throws IOException {
         final Path trackingPath = createTrackingPath(path);
         Files.createDirectory(trackingPath);
     }
 
-    private Path createTrackingPath(RemoteCachingPath path) throws InvalidPathException {
+    private Path createTrackingPath(final RemoteCachingPath path) throws InvalidPathException {
         if (!path.isAbsolute()) {
-            throw new InvalidPathException(path.toString(), "Path must be absolute", 0);
+            throw new InvalidPathException(path.toString(), "Path must be absolute");
         }
-        final String pathStr;
-        pathStr = path.normalize().toString().substring(1);  /* PATH_SEPARATOR length = 1 */
-        return root.resolve(pathStr);
+        return root.resolve(path.normalize().toString().substring(RemoteCachingPath.PATH_SEPARATOR_STR.length()));
     }
 
-    public Iterator<RemoteCachingPath> listDirectory(final RemoteCachingPath dirPath) throws IOException {
-        final Path trackingPath = createTrackingPath(dirPath);
-        final Iterator<Path> iter = Files.newDirectoryStream(trackingPath).iterator();
-
-        return new Iterator<RemoteCachingPath>() {
-            @Override
-            public boolean hasNext() {
-                return iter.hasNext();
-            }
-
-            @Override
-            public RemoteCachingPath next() {
-                final Path nextPath = iter.next();
-                final Path relPath = nextPath.relativize(root);
-                final Path absolutePath;
-
-                absolutePath  = dirPath.getRoot().resolve(relPath.toString());
-                return new RemoteCachingPath(dirPath.getFileSystem(), absolutePath.toString());
-            }
-
-            @Override
-            public void remove() {
-                throw new UnsupportedOperationException();
-            }
-        };
+    Iterable<RemoteCachingPath> listDirectory(final RemoteCachingPath dir) throws IOException {
+        try (final DirectoryStream<Path> directoryStream = Files.newDirectoryStream(createTrackingPath(dir))) {
+            return FluentIterable.from(directoryStream)
+                    .transform(new Function<Path, RemoteCachingPath>() {
+                        @Override
+                        public RemoteCachingPath apply(final Path trackingPath) {
+                            return new RemoteCachingPath(dir.getFileSystem(), dir.getRoot().resolve(trackingPath.relativize(root)).toString());
+                        }
+                    });
+        }
     }
 
-    public ImhotepFileAttributes getAttributes(RemoteCachingPath remotePath) throws IOException {
-        final Path trackingPath = createTrackingPath(remotePath);
+    ImhotepFileAttributes getAttributes(final RemoteCachingPath path) throws IOException {
+        final Path trackingPath = createTrackingPath(path);
         final BasicFileAttributes basicAttrs = Files.readAttributes(trackingPath,
-                                                                    BasicFileAttributes.class);
+                BasicFileAttributes.class);
 
-        remotePath.initAttributes(basicAttrs.size(), !basicAttrs.isDirectory(), true);
-        return remotePath.getAttributes();
+        return new ImhotepFileAttributes(basicAttrs.size(), basicAttrs.isDirectory());
     }
 
-    public boolean contains(RemoteCachingPath path) {
-        final Path trackingPath = createTrackingPath(path);
-        return Files.exists(trackingPath);
+    boolean contains(final RemoteCachingPath path) {
+        return Files.exists(createTrackingPath(path));
     }
 
-    public void addFile(RemoteCachingPath path, Path cachePath) throws IOException {
-        final Path trackingPath = createTrackingPath(path);
-
-        Files.createLink(trackingPath, cachePath);
+    void addFile(final RemoteCachingPath path, final Path cachePath) throws IOException {
+        Files.createLink(createTrackingPath(path), cachePath);
     }
 
-    public void removeFile(RemoteCachingPath path) throws IOException {
-        final Path trackingPath = createTrackingPath(path);
-
-        Files.delete(trackingPath);
+    void removeFile(final RemoteCachingPath path) throws IOException {
+        Files.delete(createTrackingPath(path));
     }
-
 }

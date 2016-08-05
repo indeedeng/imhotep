@@ -1,72 +1,58 @@
 package com.indeed.imhotep.fs;
 
 import com.google.common.base.Function;
-import com.google.common.collect.Iterables;
-import org.apache.commons.collections.IteratorUtils;
+import com.google.common.collect.FluentIterable;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.nio.file.attribute.FileAttributeView;
-import java.nio.file.attribute.FileStoreAttributeView;
-import java.util.ArrayList;
 import java.util.List;
-
+import java.util.Map;
 
 /**
- * Created by darren on 12/29/15.
+ * @author darren
  */
-public class LocalFileStore extends RemoteFileStore {
+class LocalFileStore extends RemoteFileStore {
     private final Path root;
 
-    public LocalFileStore(Path root) {
+    LocalFileStore(final Path root) {
         this.root = root;
     }
 
+    private LocalFileStore(final Map<String, String> configuration) throws URISyntaxException {
+        this(Paths.get(new URI(configuration.get("local-filestore.root-uri"))));
+    }
+
     @Override
-    public ArrayList<RemoteFileInfo> listDir(RemoteCachingPath path) throws IOException {
-        final Path localPath = getLocalPath(path);
-        final DirectoryStream<Path> dirStream = Files.newDirectoryStream(localPath);
-        final Iterable<RemoteFileInfo> iterable;
-        final List<RemoteFileInfo> results;
+    public List<RemoteFileInfo> listDir(final RemoteCachingPath path) throws IOException {
+        try (final DirectoryStream<Path> dirStream = Files.newDirectoryStream(getLocalPath(path))) {
 
-        iterable = Iterables.transform(dirStream, new Function<Path, RemoteFileInfo>() {
-            @Nullable
-            @Override
-            public RemoteFileInfo apply(@Nullable Path input) {
-                final BasicFileAttributes attributes;
-
-                try {
-                    attributes = Files.readAttributes(input, BasicFileAttributes.class);
-                    return new RemoteFileInfo(input.getFileName().toString(),
-                                              attributes.size(),
-                                              !attributes.isDirectory());
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
+            return FluentIterable.from(dirStream).transform(new Function<Path, RemoteFileInfo>() {
+                @Override
+                public RemoteFileInfo apply(final Path localPath) {
+                    try {
+                        final BasicFileAttributes attributes = Files.readAttributes(localPath, BasicFileAttributes.class);
+                        return new RemoteFileInfo(localPath.relativize(root).toString(),
+                                attributes.size(),
+                                !attributes.isDirectory());
+                    } catch (final IOException e) {
+                        throw new RuntimeException("Failed to get attributes for " + localPath, e);
+                    }
                 }
-            }
-        });
-        results = IteratorUtils.toList(iterable.iterator());
-        dirStream.close();
-        if (results instanceof ArrayList)
-            return (ArrayList)results;
-        else
-            return new ArrayList<>(results);
+            }).toList();
+        }
     }
 
     @Override
     public String name() {
-        return "Local File Store";
-    }
-
-    @Override
-    public String type() {
-        return "Remote File Store";
+        return root.toString();
     }
 
     @Override
@@ -75,69 +61,52 @@ public class LocalFileStore extends RemoteFileStore {
     }
 
     @Override
-    public boolean supportsFileAttributeView(Class<? extends FileAttributeView> type) {
-        return false;
+    public RemoteFileInfo readInfo(final String shardPath) throws IOException {
+        final Path localPath = getLocalPath(shardPath);
+        final BasicFileAttributes attributes = Files.readAttributes(localPath, BasicFileAttributes.class);
+        return new RemoteFileInfo(shardPath, attributes.size(), !attributes.isDirectory());
     }
 
     @Override
-    public boolean supportsFileAttributeView(String name) {
-        return false;
+    public void downloadFile(final RemoteCachingPath srcPath, final Path destPath) throws IOException {
+        Files.copy(getLocalPath(srcPath), destPath, StandardCopyOption.REPLACE_EXISTING);
     }
 
     @Override
-    public <V extends FileStoreAttributeView> V getFileStoreAttributeView(Class<V> type) {
-        return null;
-    }
-
-    @Override
-    public Object getAttribute(String attribute) throws IOException {
-        return null;
-    }
-
-    @Override
-    public RemoteFileInfo readInfo(String shardPath) throws IOException {
-        try {
-            final Path localPath = getLocalPath(shardPath);
-            final BasicFileAttributes attributes;
-
-            attributes = Files.readAttributes(localPath, BasicFileAttributes.class);
-            return new RemoteFileInfo(shardPath, attributes.size(), !attributes.isDirectory());
-        } catch (IOException e) {
-            return null;
-        }
-    }
-
-    @Override
-    public void downloadFile(RemoteCachingPath path, Path tmpPath) throws IOException {
-        final Path localPath = getLocalPath(path);
-
-        Files.copy(localPath, tmpPath, StandardCopyOption.REPLACE_EXISTING);
-    }
-
-    @Override
-    public InputStream getInputStream(String path, long startOffset, long length) throws
-                                                                                  IOException {
+    public InputStream getInputStream(final String path, final long startOffset, final long length) throws
+            IOException {
         final Path localPath = getLocalPath(path);
         final InputStream is = Files.newInputStream(localPath);
-        is.skip(startOffset);
+        if (is.skip(startOffset) != startOffset) {
+            throw new IOException("Could not move offset for path " + path + " by " + startOffset);
+        }
         return is;
     }
 
-    private Path getLocalPath(String path) {
+    private Path getLocalPath(final String path) {
         final String relPath;
 
-        if (path.startsWith(RemoteCachingPath.PATH_SEPARATOR_STR))
+        if (path.startsWith(RemoteCachingPath.PATH_SEPARATOR_STR)) {
             relPath = path.substring(RemoteCachingPath.PATH_SEPARATOR_STR.length());
-        else
+        } else {
             relPath = path;
+        }
 
         return root.resolve(relPath);
     }
 
-    private Path getLocalPath(RemoteCachingPath path) {
-        final Path relPath = path.relativize(path.getRoot());
-
-        return root.resolve(relPath.toString());
+    private Path getLocalPath(final RemoteCachingPath path) {
+        return root.resolve(path.relativize(path.getRoot()).toString());
     }
 
+    static class Builder implements RemoteFileStore.Builder {
+        @Override
+        public RemoteFileStore build(final Map<String, String> configuration) {
+            try {
+                return new LocalFileStore(configuration);
+            } catch (final URISyntaxException e) {
+                throw new IllegalArgumentException("Failed to initialize local file store", e);
+            }
+        }
+    }
 }

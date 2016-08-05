@@ -16,16 +16,16 @@ import java.util.ArrayList;
 import java.util.Map;
 
 /**
- * Created by darren on 12/11/15.
+ * @author darren
  */
 public class SqarRemoteFileStore extends RemoteFileStore {
     private final SqarManager sqarManager;
     private final RemoteFileStore backingStore;
 
-    public SqarRemoteFileStore(RemoteFileStore backingStore,
-                               Map<String, String> options) throws SQLiteException {
+    public SqarRemoteFileStore(final RemoteFileStore backingStore,
+                               final Map<String, String> configuration) throws SQLiteException {
         this.backingStore = backingStore;
-        sqarManager = new SqarManager(options);
+        sqarManager = new SqarManager(configuration);
     }
 
     @Override
@@ -34,35 +34,8 @@ public class SqarRemoteFileStore extends RemoteFileStore {
     }
 
     @Override
-    public String type() {
-        return null;
-    }
-
-    @Override
     public boolean isReadOnly() {
         return true;
-    }
-
-    @Override
-    public boolean supportsFileAttributeView(Class<? extends FileAttributeView> type) {
-        return type == BasicFileAttributeView.class;
-    }
-
-    @Override
-    public boolean supportsFileAttributeView(String name) {
-        return name.equals("basic");
-    }
-
-    @Override
-    public <V extends FileStoreAttributeView> V getFileStoreAttributeView(Class<V> type) {
-        if (type == null)
-            throw new NullPointerException();
-        return null;
-    }
-
-    @Override
-    public Object getAttribute(String attribute) throws IOException {
-        throw new UnsupportedOperationException("does not support the given attribute");
     }
 
     @Override
@@ -89,8 +62,9 @@ public class SqarRemoteFileStore extends RemoteFileStore {
     public RemoteFileInfo readInfo(RemoteCachingPath path) throws IOException {
         final FileMetadata md = getMetadata(path);
 
-        if (md == null)
+        if (md == null) {
             return null;
+        }
         return new RemoteFileInfo(path.toString(), md.getSize(), md.isFile());
     }
 
@@ -111,26 +85,26 @@ public class SqarRemoteFileStore extends RemoteFileStore {
     }
 
     @Override
-    public void downloadFile(RemoteCachingPath path, Path tmpPath) throws IOException {
+    public void downloadFile(RemoteCachingPath srcPath, Path destPath) throws IOException {
         final String archivePath;
         final InputStream archiveIS;
-        final FileMetadata md = getMetadata(path);
+        final FileMetadata md = getMetadata(srcPath);
 
         if (md == null) {
-            throw new FileNotFoundException("Cannot find shard for " + path);
+            throw new FileNotFoundException("Cannot find shard for " + srcPath);
         }
         if (!md.isFile()) {
-            throw new NoSuchFileException(path.toString() + " is not a file");
+            throw new NoSuchFileException(srcPath.toString() + " is not a file");
         }
 
-        archivePath = sqarManager.getFullArchivePath(path, md.getArchiveFilename());
+        archivePath = sqarManager.getFullArchivePath(srcPath, md.getArchiveFilename());
         archiveIS = backingStore.getInputStream(archivePath,
-                                                md.getStartOffset(),
-                                                md.getCompressedSize());
+                md.getStartOffset(),
+                md.getCompressedSize());
         try {
-            sqarManager.copyDecompressed(archiveIS, tmpPath, md, path.toString());
+            sqarManager.copyDecompressed(archiveIS, destPath, md, srcPath.toString());
         } catch (IOException e) {
-            Files.delete(tmpPath);
+            Files.delete(destPath);
             throw e;
         } finally {
             archiveIS.close();
@@ -139,7 +113,7 @@ public class SqarRemoteFileStore extends RemoteFileStore {
 
     @Override
     public InputStream getInputStream(String path, long startOffset, long length) throws
-                                                                                  IOException {
+            IOException {
         throw new UnsupportedOperationException();
     }
 

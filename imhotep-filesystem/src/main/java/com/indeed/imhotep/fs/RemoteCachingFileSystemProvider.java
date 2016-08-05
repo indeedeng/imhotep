@@ -41,7 +41,6 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
     private RemoteCachingFileSystem fileSystem;
 
     public RemoteCachingFileSystemProvider() {
-        /* Read in config options */
     }
 
     protected static final String getFSname(URI uri) {
@@ -69,7 +68,7 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
 
     @Override
     public synchronized RemoteCachingFileSystem newFileSystem(URI uri, Map<String, ?> env) throws
-                                                                                           IOException {
+            IOException {
         final String name = getFSname(uri);
         if (fileSystem != null) {
             throw new FileSystemAlreadyExistsException();
@@ -117,7 +116,7 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
     @Override
     public DirectoryStream<Path> newDirectoryStream(final Path dir,
                                                     final DirectoryStream.Filter<? super Path> filter) throws
-                                                                                                       IOException {
+            IOException {
         return new DirectoryStream<Path>() {
             public Iterator<Path> itr;
             public boolean isClosed;
@@ -279,7 +278,7 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
     public <A extends BasicFileAttributes> A readAttributes(Path path,
                                                             Class<A> type,
                                                             LinkOption... options) throws
-                                                                                   IOException {
+            IOException {
         if (type != BasicFileAttributes.class && type != ImhotepFileAttributes.class) {
             return null;
         }

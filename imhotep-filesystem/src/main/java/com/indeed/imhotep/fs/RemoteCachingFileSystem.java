@@ -34,17 +34,19 @@ import java.nio.file.spi.FileSystemProvider;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
 /**
- * Created by darren on 10/12/15.
+ * @author darren
  */
 public class RemoteCachingFileSystem extends FileSystem
         implements Comparable<RemoteCachingFileSystem> {
 
     private final RemoteCachingFileSystemProvider provider;
+    private final String name;
     private final RemoteFileStore fileStore;
     private final SqarRemoteFileStore sqarFileStore;
     private final LruCache lruCache;
@@ -52,64 +54,52 @@ public class RemoteCachingFileSystem extends FileSystem
 
     public RemoteCachingFileSystem(final RemoteCachingFileSystemProvider provider,
                                    String name,
-                                   Map<String, String> env) throws SQLiteException,
-                                                                   URISyntaxException {
+                                   Map<String, String> configuration) throws SQLiteException,
+            URISyntaxException {
         this.provider = provider;
-        this.fileStore = loadFileStore(env.get("remote-type"), env);
-        this.sqarFileStore = new SqarRemoteFileStore(fileStore, env);
-        this.localOnlyFiles = new FileTracker(Paths.get(new URI(env.get("local-tracking-root-uri"))));
-        this.lruCache = new LruCache(Paths.get(new URI(env.get("cache-root-uri"))),
-                                     Integer.parseInt(env.get("reservationSize")),
-                                     Long.parseLong(env.get("cacheSize")),
-                                     localOnlyFiles,
-                                     new LruCache.Loader() {
-                                         @Override
-                                         public void load(RemoteCachingPath path,
-                                                          Path tmpPath) throws IOException {
-                                             if (SqarManager.isSqar(path, fileStore)) {
-                                                 sqarFileStore.downloadFile(path, tmpPath);
-                                             } else {
-                                                 fileStore.downloadFile(path, tmpPath);
-                                             }
-                                         }
+        this.name = name;
+        fileStore = RemoteFileStoreType.fromName(configuration.get("remote-type"))
+                .getBuilder().build(configuration);
 
-                                         @Override
-                                         public long getFileLen(RemoteCachingPath path) throws
-                                                                                        IOException {
-                                             final RemoteFileStore.RemoteFileInfo rfi;
+        this.sqarFileStore = new SqarRemoteFileStore(fileStore, configuration);
+        this.localOnlyFiles = new FileTracker(Paths.get(new URI(configuration.get("local-tracking.root-uri"))));
+        this.lruCache = new LruCache(Paths.get(new URI(configuration.get("cache.root-uri"))),
+                Integer.parseInt(configuration.get("cache.reservation-size")),
+                Long.parseLong(configuration.get("cache.size")),
+                localOnlyFiles,
+                new LruCache.Loader() {
+                    @Override
+                    public void load(RemoteCachingPath path,
+                                     Path tmpPath) throws IOException {
+                        if (SqarManager.isSqar(path, fileStore)) {
+                            sqarFileStore.downloadFile(path, tmpPath);
+                        } else {
+                            fileStore.downloadFile(path, tmpPath);
+                        }
+                    }
 
-                                             if (SqarManager.isSqar(path, fileStore)) {
-                                                 rfi = sqarFileStore.readInfo(path, true);
-                                             } else {
-                                                 rfi = fileStore.readInfo(path, true);
-                                             }
+                    @Override
+                    public long getFileSize(RemoteCachingPath path) throws
+                            IOException {
+                        final RemoteFileStore.RemoteFileInfo rfi;
 
-                                             if (rfi != null && rfi.isFile)
-                                                 return rfi.size;
-                                             else
-                                                 return -1;
-                                         }
-                                     });
+                        if (SqarManager.isSqar(path, fileStore)) {
+                            rfi = sqarFileStore.readInfo(path, true);
+                        } else {
+                            rfi = fileStore.readInfo(path, true);
+                        }
+
+                        if (rfi != null && rfi.isFile) {
+                            return rfi.size;
+                        } else {
+                            return -1;
+                        }
+                    }
+                });
     }
 
     private static FileSystemProvider getFileProvider(Path path) {
         return path.getFileSystem().provider();
-    }
-
-    private static RemoteFileStore loadFileStore(String type, Map<String, String> env) throws
-                                                                                       URISyntaxException {
-        if ("s3".equals(type)) {
-            return new S3RemoteFileStore(env);
-        }
-//        if ("hdfs".equals(type)) {
-//            return new HdfsRemoteFileStore();
-//        }
-        if ("local".equals(type)) {
-            final URI root = new URI(env.get("local-filestore-root-uri"));
-            return new LocalFileStore(Paths.get(root));
-        }
-
-        throw new RuntimeException("Unknown file store type: " + type);
     }
 
     @Override
@@ -119,7 +109,7 @@ public class RemoteCachingFileSystem extends FileSystem
 
     void createDirectory(RemoteCachingPath path, FileAttribute<?>[] attrs) throws IOException {
         if (lruCache.isPresent(path)) {
-                throw new FileAlreadyExistsException("Already exists: " + path.toString());
+            throw new FileAlreadyExistsException("Already exists: " + path.toString());
         } else {
             /* check if a file exists remotely */
             final RemoteFileStore.RemoteFileInfo info = fileStore.readInfo(path);
@@ -127,22 +117,22 @@ public class RemoteCachingFileSystem extends FileSystem
                 if (info.isFile) {
                     /* file exists remotely */
                     throw new FileAlreadyExistsException("File with same name exists remotely: "
-                                                                 + path.toString());
+                            + path.toString());
                 } else {
                     /* directory exists remotely. */
                     throw new FileAlreadyExistsException("Directory exists remotely: "
-                                                                 + path.toString());
+                            + path.toString());
                 }
             }
 
             /* track directory locally */
-            localOnlyFiles.addDirectory(path, attrs);
+            localOnlyFiles.addDirectory(path);
         }
     }
 
     private LruCache.FileSizeWatcher getFileSizeWatcher(RemoteCachingPath path,
                                                         Set<? extends OpenOption> options) throws
-                                                                                           IOException {
+            IOException {
         final LruCache.FileSizeWatcher watcher;
 
         /* check if the file is local only */
@@ -170,7 +160,7 @@ public class RemoteCachingFileSystem extends FileSystem
 
     private WatcherAndCachePath getWatcherAndCachePath(RemoteCachingPath path,
                                                        Set<? extends OpenOption> options) throws
-                                                                                          IOException {
+            IOException {
         final WatcherAndCachePath results = new WatcherAndCachePath();
 
         if (options.contains(StandardOpenOption.WRITE) || options
@@ -193,8 +183,8 @@ public class RemoteCachingFileSystem extends FileSystem
 
     Iterator<Path> iteratorOf(RemoteCachingPath dir,
                               DirectoryStream.Filter<? super Path> filter) throws IOException {
-        final ArrayList<Path> results = new ArrayList<>();
-        final ArrayList<RemoteFileStore.RemoteFileInfo> infos;
+        final List<Path> results = new ArrayList<>();
+        final List<RemoteFileStore.RemoteFileInfo> infos;
 
         switch (dir.getType()) {
             case ROOT:
@@ -212,14 +202,14 @@ public class RemoteCachingFileSystem extends FileSystem
             case SHARD:
             case FILE:
                 if (SqarManager.isSqar(new RemoteCachingPath(this, dir.getShardPath()),
-                                       this.fileStore)) {
+                        this.fileStore)) {
                     infos = sqarFileStore.listDir(dir);
                 } else {
                     infos = fileStore.listDir(dir);
                 }
                 break;
             default:
-                throw new IllegalArgumentException();
+                throw new IllegalArgumentException("Unexpected directory path type" + dir);
         }
 
         for (RemoteFileStore.RemoteFileInfo info : infos) {
@@ -270,8 +260,7 @@ public class RemoteCachingFileSystem extends FileSystem
             return null;
         }
 
-        path.initAttributes(info.size, info.isFile, false);
-        return path.getAttributes();
+        return new ImhotepFileAttributes(info.size, !info.isFile);
     }
 
     SeekableByteChannel newByteChannel(final RemoteCachingPath path,
@@ -329,7 +318,7 @@ public class RemoteCachingFileSystem extends FileSystem
     }
 
     OutputStream newOutputStream(final RemoteCachingPath path, OpenOption... optionsArr) throws
-                                                                                         IOException {
+            IOException {
         final OutputStream outputStream;
         final WatcherAndCachePath watcherAndCachePath;
         final LruCache.FileSizeWatcher watcher;
@@ -567,13 +556,13 @@ public class RemoteCachingFileSystem extends FileSystem
 
         @Override
         public long transferTo(long position, long count, WritableByteChannel target) throws
-                                                                                      IOException {
+                IOException {
             return source.transferTo(position, count, target);
         }
 
         @Override
         public long transferFrom(ReadableByteChannel src, long position, long count) throws
-                                                                                     IOException {
+                IOException {
             return source.transferFrom(src, position, count);
         }
 

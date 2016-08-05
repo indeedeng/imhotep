@@ -4,15 +4,15 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 
 /**
- * Created by darren on 12/21/15.
+ * @author darren
  */
-public class ImhotepFileAttributes implements BasicFileAttributes {
+class ImhotepFileAttributes implements BasicFileAttributes {
     private final long size;
-    private final boolean isFile;
+    private final boolean isDirectory;
 
-    public ImhotepFileAttributes(long size, boolean isFile) {
+    ImhotepFileAttributes(final long size, final boolean isDirectory) {
         this.size = size;
-        this.isFile = isFile;
+        this.isDirectory = isDirectory;
     }
 
     @Override
@@ -32,12 +32,12 @@ public class ImhotepFileAttributes implements BasicFileAttributes {
 
     @Override
     public boolean isRegularFile() {
-        return this.isFile;
+        return !isDirectory;
     }
 
     @Override
     public boolean isDirectory() {
-        return ! this.isFile;
+        return isDirectory;
     }
 
     @Override
@@ -52,7 +52,7 @@ public class ImhotepFileAttributes implements BasicFileAttributes {
 
     @Override
     public long size() {
-        return this.size;
+        return size;
     }
 
     @Override

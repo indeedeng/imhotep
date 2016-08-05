@@ -13,7 +13,6 @@
  */
 package com.indeed.imhotep.fs;
 
-import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
@@ -23,34 +22,31 @@ import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
+import com.google.common.base.Strings;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
-import java.nio.file.attribute.FileAttributeView;
-import java.nio.file.attribute.FileStoreAttributeView;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class S3RemoteFileStore extends RemoteFileStore {
+class S3RemoteFileStore extends RemoteFileStore {
+    private static final String DELIMITER = "/";
     private static final Logger log = Logger.getLogger(S3RemoteFileStore.class);
 
-    private String s3bucket;
-    private String s3prefix;
-    private AmazonS3Client client;
+    private final String s3bucket;
+    private final String s3prefix;
+    private final AmazonS3Client client;
 
-    public S3RemoteFileStore(Map<String, String> settings) {
+    S3RemoteFileStore(final Map<String, String> settings) {
         final String s3key;
         final String s3secret;
         final BasicAWSCredentials cred;
 
         s3bucket = settings.get("s3-bucket");
-        s3prefix = settings.get("s3-prefix");
-        if (s3prefix != null) {
-            s3prefix = s3prefix.trim();
-        }
+        s3prefix = Strings.nullToEmpty(settings.get("s3-prefix")).trim();
         s3key = settings.get("s3-key");
         s3secret = settings.get("s3-secret");
         cred = new BasicAWSCredentials(s3key, s3secret);
@@ -78,7 +74,7 @@ public class S3RemoteFileStore extends RemoteFileStore {
     }
 
     private String getS3path(RemoteCachingPath path) {
-        if (s3prefix != null && !s3prefix.isEmpty()) {
+        if (!s3prefix.isEmpty()) {
             return s3prefix + path.normalize().toString();
         }
 
@@ -89,7 +85,7 @@ public class S3RemoteFileStore extends RemoteFileStore {
     }
 
     private String getS3path(String pathStr) {
-        if (s3prefix != null && !s3prefix.isEmpty()) {
+        if (!s3prefix.isEmpty()) {
             return s3prefix + pathStr;
         }
 
@@ -100,10 +96,10 @@ public class S3RemoteFileStore extends RemoteFileStore {
     }
 
     @Override
-    public ArrayList<RemoteFileInfo> listDir(RemoteCachingPath path) {
+    public List<RemoteFileInfo> listDir(RemoteCachingPath path) {
         final String s3path = getS3path(path);
         final String s3DirPath = (s3path.endsWith(DELIMITER)) ? s3path : s3path + DELIMITER;
-        final ArrayList<RemoteFileInfo> results = new ArrayList<>(100);
+        final List<RemoteFileInfo> results = new ArrayList<>(100);
         ObjectListing listing;
 
         /* grab first set of keys for the object we found */
@@ -202,12 +198,12 @@ public class S3RemoteFileStore extends RemoteFileStore {
     }
 
     @Override
-    public void downloadFile(RemoteCachingPath path, Path tmpPath) throws IOException {
-        final String s3path = getS3path(path);
+    public void downloadFile(final RemoteCachingPath srcPath, final Path destPath) throws IOException {
+        final String s3path = getS3path(srcPath);
         final ObjectMetadata metadata;
 
         try {
-            metadata = client.getObject(new GetObjectRequest(s3bucket, s3path), tmpPath.toFile());
+            metadata = client.getObject(new GetObjectRequest(s3bucket, s3path), destPath.toFile());
         } catch (AmazonS3Exception e) {
             throw new IOException(e);
         }
@@ -237,12 +233,7 @@ public class S3RemoteFileStore extends RemoteFileStore {
 
     @Override
     public String name() {
-        return "S3 File Store";
-    }
-
-    @Override
-    public String type() {
-        return "Remote File Store";
+        return s3bucket + ":" + s3prefix;
     }
 
     @Override
@@ -250,23 +241,10 @@ public class S3RemoteFileStore extends RemoteFileStore {
         return true;
     }
 
-    @Override
-    public boolean supportsFileAttributeView(Class<? extends FileAttributeView> type) {
-        return false;
-    }
-
-    @Override
-    public boolean supportsFileAttributeView(String name) {
-        return false;
-    }
-
-    @Override
-    public <V extends FileStoreAttributeView> V getFileStoreAttributeView(Class<V> type) {
-        return null;
-    }
-
-    @Override
-    public Object getAttribute(String attribute) throws IOException {
-        return null;
+    public static class Builder implements RemoteFileStore.Builder {
+        @Override
+        public RemoteFileStore build(final Map<String, String> configuration) {
+            return new S3RemoteFileStore(configuration);
+        }
     }
 }
