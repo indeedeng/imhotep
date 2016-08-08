@@ -1,22 +1,22 @@
 package com.indeed.imhotep.fs;
 
+import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
- * Created by darren on 2/2/16.
+ * @author darren
  */
-public class PathProxy implements Serializable {
-    public PathProxy(Path path) {
-        this.data = path.toUri();
+class PathProxy implements Serializable {
+    PathProxy(final Path path) {
+        data = path.toUri();
     }
 
-    public URI data;
+    private final URI data;
 
-    private Object readResolve() throws java.io.ObjectStreamException {
-        Path result = Paths.get(data);
-        return result;
+    Object readResolve() throws ObjectStreamException {
+        return Paths.get(data);
     }
 }

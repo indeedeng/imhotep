@@ -1,7 +1,5 @@
 package com.indeed.imhotep.fs;
 
-import com.almworks.sqlite4java.SQLiteException;
-
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,25 +31,25 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 
 /**
- * Created by darren on 10/12/15.
+ * @author darren
  */
 public class RemoteCachingFileSystemProvider extends FileSystemProvider {
-    private final static String URI_SCHEME = "rcfs";
+    private static final String URI_SCHEME = "rcfs";
 
-    private RemoteCachingFileSystem fileSystem;
+    private static RemoteCachingFileSystem fileSystem;
 
     public RemoteCachingFileSystemProvider() {
     }
 
-    protected static final String getFSname(URI uri) {
-        String scheme = uri.getScheme();
+    protected static String getFSname(URI uri) {
+        final String scheme = uri.getScheme();
         if ((scheme == null) || !URI_SCHEME.equalsIgnoreCase(scheme)) {
             throw new IllegalArgumentException("URI scheme is not '" + URI_SCHEME + "'");
         }
         return uri.getHost();
     }
 
-    static final RemoteCachingPath toRCP(Path path) {
+    static RemoteCachingPath toRCP(Path path) {
         if (path == null) {
             throw new NullPointerException();
         }
@@ -76,8 +74,6 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
 
         try {
             this.fileSystem = new RemoteCachingFileSystem(this, name, (Map<String, String>) env);
-        } catch (SQLiteException e) {
-            throw new IOException(e);
         } catch (URISyntaxException e) {
             throw new IOException(e);
         }

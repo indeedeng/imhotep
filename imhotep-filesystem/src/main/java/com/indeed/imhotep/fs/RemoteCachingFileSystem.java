@@ -1,6 +1,5 @@
 package com.indeed.imhotep.fs;
 
-import com.almworks.sqlite4java.SQLiteException;
 import com.google.common.collect.ImmutableSet;
 import com.sun.istack.NotNull;
 
@@ -54,8 +53,7 @@ public class RemoteCachingFileSystem extends FileSystem
 
     public RemoteCachingFileSystem(final RemoteCachingFileSystemProvider provider,
                                    String name,
-                                   Map<String, String> configuration) throws SQLiteException,
-            URISyntaxException {
+                                   Map<String, String> configuration) throws URISyntaxException {
         this.provider = provider;
         this.name = name;
         fileStore = RemoteFileStoreType.fromName(configuration.get("remote-type"))
@@ -98,7 +96,7 @@ public class RemoteCachingFileSystem extends FileSystem
                 });
     }
 
-    private static FileSystemProvider getFileProvider(Path path) {
+    private static FileSystemProvider getFileProvider(final Path path) {
         return path.getFileSystem().provider();
     }
 

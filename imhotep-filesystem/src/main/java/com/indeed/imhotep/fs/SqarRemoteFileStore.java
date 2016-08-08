@@ -1,6 +1,5 @@
 package com.indeed.imhotep.fs;
 
-import com.almworks.sqlite4java.SQLiteException;
 import com.indeed.imhotep.archive.FileMetadata;
 
 import java.io.FileNotFoundException;
@@ -20,7 +19,7 @@ public class SqarRemoteFileStore extends RemoteFileStore {
     private final RemoteFileStore backingStore;
 
     public SqarRemoteFileStore(final RemoteFileStore backingStore,
-                               final Map<String, String> configuration) throws SQLiteException {
+                               final Map<String, String> configuration) {
         this.backingStore = backingStore;
         sqarManager = new SqarManager(configuration);
     }

@@ -79,7 +79,7 @@ public class SqarManager {
     }
 
 
-    public SqarManager(Map<String, String> settings) throws SQLiteException {
+    public SqarManager(Map<String, String> settings) {
         final int maxMemUsage;
         final String maxMem = settings.get("sqlite-max-mem");
 
@@ -88,7 +88,12 @@ public class SqarManager {
         } else {
             maxMemUsage = DEFAULT_MAX_MEM_USAGE;
         }
-        SQLite.setSoftHeapLimit(maxMemUsage);
+
+        try {
+            SQLite.setSoftHeapLimit(maxMemUsage);
+        } catch (final SQLiteException e) {
+            throw new IllegalArgumentException("Failed to set SQLite softHeapLimit to " + maxMemUsage, e);
+        }
 
         final File dbFile = new File(settings.get("database-location"));
 

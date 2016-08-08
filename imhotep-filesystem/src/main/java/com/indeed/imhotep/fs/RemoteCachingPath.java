@@ -18,7 +18,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 
 /**
- * Created by darren on 12/15/15.
+ * @author darren
  */
 public class RemoteCachingPath implements Path, Serializable {
     private static final Logger log = Logger.getLogger(RemoteCachingPath.class);
@@ -63,12 +63,12 @@ public class RemoteCachingPath implements Path, Serializable {
 
     @Override
     public RemoteCachingFileSystem getFileSystem() {
-        return this.fileSystem;
+        return fileSystem;
     }
 
     @Override
     public boolean isAbsolute() {
-        return (this.path.length() > 0 && path.charAt(0) == PATH_SEPARATOR);
+        return ((!path.isEmpty()) && (path.charAt(0) == PATH_SEPARATOR));
     }
 
     @Override
@@ -104,10 +104,10 @@ public class RemoteCachingPath implements Path, Serializable {
 
     @Override
     public Path subpath(int beginIndex, int endIndex) {
-        if (beginIndex < 0 ||
-                beginIndex >= offsets.length ||
-                endIndex > offsets.length ||
-                beginIndex >= endIndex) {
+        if ((beginIndex < 0) ||
+                (beginIndex >= offsets.length) ||
+                (endIndex > offsets.length) ||
+                (beginIndex >= endIndex)) {
             throw new IllegalArgumentException();
         }
 
