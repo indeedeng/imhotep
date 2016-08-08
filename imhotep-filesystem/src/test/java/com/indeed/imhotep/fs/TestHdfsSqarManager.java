@@ -1,7 +1,5 @@
 package com.indeed.imhotep.fs;
 
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.services.s3.AmazonS3Client;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import org.apache.commons.collections.IteratorUtils;
@@ -10,8 +8,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -32,7 +28,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertFalse;
@@ -43,150 +38,38 @@ import static org.junit.Assert.assertTrue;
 /**
  * Created by darren on 12/11/15.
  */
-public class TestS3SqarManager {
+public class TestHdfsSqarManager {
     private static Map<String, String> testSettings;
-    private static AmazonS3Client client;
 
     @BeforeClass
     public static void init() throws IOException, URISyntaxException {
-        final String s3bucket;
-        final String s3prefix;
-        final String s3key;
-        final String s3secret;
 
-        Files.createDirectories(Paths.get(new URI("file:/tmp/cache")));
-        Files.createDirectories(Paths.get(new URI("file:/tmp/tracking")));
-
-        {
-            final Properties properties;
-            final InputStream in;
-            final BasicAWSCredentials cred;
-
-            properties = new Properties();
-            in = ClassLoader.getSystemResourceAsStream("s3-test.properties");
-            properties.load(in);
-            in.close();
-
-            s3bucket = properties.getProperty("s3-bucket");
-            s3key = properties.getProperty("s3-key");
-            s3secret = properties.getProperty("s3-secret");
-            s3prefix = "";
-            cred = new BasicAWSCredentials(s3key, s3secret);
-            client = new AmazonS3Client(cred);
-        }
+        Files.createDirectories(Paths.get(new URI("file:///tmp/cache")));
+        Files.createDirectories(Paths.get(new URI("file:///tmp/tracking")));
 
         testSettings = new HashMap<>();
 
         testSettings.put("sqlite-max-mem", "50");
-        testSettings.put("database-location", "/tmp/sqlite");
+        testSettings.put("database-location", "/tmp/h2");
 
-        testSettings.put("s3-bucket", s3bucket);
-        testSettings.put("s3-prefix", s3prefix);
-        testSettings.put("s3-key", s3key);
-        testSettings.put("s3-secret", s3secret);
+        testSettings.put("hdfs-base-path", "/user/darren/");
 
-        testSettings.put("remote-type", "s3");
+        testSettings.put("remote-type", "hdfs");
         testSettings.put("local-tracking-root-uri", "file:///tmp/tracking");
         testSettings.put("cache-root-uri", "file:///tmp/cache");
         testSettings.put("reservationSize", "16000");
         testSettings.put("cacheSize", Long.toString(100 * 1024 * 1024));
 
-//        createTestData(s3bucket, s3prefix);
-
         FileSystems.newFileSystem(new URI("rcfs:/foo/"), testSettings);
-    }
-
-
-    public static void createTestData(String s3bucket, String s3prefix) throws IOException {
-        final String data = "foobar?!";
-        File dataFile;
-        FileWriter os;
-
-        for (int i = 5; i >= 1; i--) {
-            String key;
-            String path = "";
-            String filename = "";
-            for (int j = 1; j <= i; j++) {
-                path += Integer.toString(j) + "/";
-                filename += Integer.toString(j);
-            }
-
-            /* write data to file */
-            dataFile = File.createTempFile("S3Test", null);
-            os = new FileWriter(dataFile);
-            for (int j = 0; j < Integer.parseInt(filename); j++) {
-                os.write(data);
-            }
-            os.close();
-
-            /* write data to s3 */
-            key = path + filename + ".file";
-            client.putObject(s3bucket, s3prefix + key, dataFile);
-            dataFile.delete();
-        }
-
-        /* write data to file */
-        dataFile = File.createTempFile("S3Test", null);
-        os = new FileWriter(dataFile);
-        for (int j = 0; j < 4; j++) {
-            os.write(data);
-        }
-        os.close();
-        /* to test directory lookups */
-        client.putObject(s3bucket, s3prefix + "1/2/31/1231.file", dataFile);
-        client.putObject(s3bucket, s3prefix + "1/2/31/1232.file", dataFile);
-        dataFile.delete();
-
-        for (int i = 2; i <= 5; i++) {
-            String key;
-            String path = "";
-            String filename = "";
-            for (int j = i; j <= 5; j++) {
-                path += Integer.toString(j) + "/";
-                filename += Integer.toString(j);
-            }
-            /* write data to file */
-            dataFile = File.createTempFile("S3Test", null);
-            os = new FileWriter(dataFile);
-            for (int j = 0; j < Integer.parseInt(filename); j++) {
-                os.write(data);
-            }
-            os.close();
-
-            /* write data to s3 */
-            key = path + filename + ".file";
-            client.putObject(s3bucket, s3prefix + key, dataFile);
-            dataFile.delete();
-        }
-
-        /* write data to file */
-        dataFile = File.createTempFile("S3Test", null);
-        os = new FileWriter(dataFile);
-        for (int j = 0; j < 4; j++) {
-            os.write(data);
-        }
-        os.close();
-
-        /* populate an path beginning with 1 to test list chunking */
-        String path = "1/1/";
-        for (int i = 0; i < 2500; i++) {
-            String key;
-            String filename = Integer.toString(i);
-            key = path + filename + ".file";
-            client.putObject(s3bucket, s3prefix + key, dataFile);
-        }
-        client.putObject(s3bucket, s3prefix + "1/1/2/112.file", dataFile);
-        client.putObject(s3bucket, s3prefix + "1/1/3/113.file", dataFile);
-        dataFile.delete();
     }
 
     @AfterClass
     public static void cleanup() throws IOException, URISyntaxException {
         final RemovalVistor removalVistor = new RemovalVistor();
 
-        Files.walkFileTree(Paths.get(new URI("file:/tmp/cache")), removalVistor);
-        Files.walkFileTree(Paths.get(new URI("file:/tmp/tracking")), removalVistor);
-        Files.delete(Paths.get(new URI("file:/tmp/sqlite")));
+        Files.walkFileTree(Paths.get(new URI("file:///tmp/cache")), removalVistor);
+        Files.walkFileTree(Paths.get(new URI("file:///tmp/tracking")), removalVistor);
+        Files.delete(Paths.get(new URI("file:///tmp/h2.mv.db")));
     }
 
     static class RemovalVistor extends SimpleFileVisitor<Path> {
@@ -362,7 +245,7 @@ public class TestS3SqarManager {
         verifyIterator(result, dir1);
 
         target = Paths.get(new URI("rcfs:/testData/test-archive/1/2/3/4/5/12345.file"));
-        try{
+        try {
             result = Files.newDirectoryStream(target);
             success = false;
         } catch (NotDirectoryException e) {
@@ -420,11 +303,11 @@ public class TestS3SqarManager {
             }
         });
         iter = stringIterable.iterator();
-        if (validData.length > 0) 
+        if (validData.length > 0)
             assertTrue(iter.hasNext());
         else
             assertFalse(iter.hasNext());
-        
+
         iterData = IteratorUtils.toList(iter);
         Arrays.sort(validData);
         Collections.sort(iterData);
@@ -731,6 +614,5 @@ public class TestS3SqarManager {
 //        client.putObject(s3bucket, "1/1/2/112.file", dataFile);
 //        client.putObject(s3bucket, "1/1/3/113.file", dataFile);
     }
-
 
 }

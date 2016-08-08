@@ -40,7 +40,9 @@ public final class MapCache {
     private static MapCache getCache() {
         if (MapCache.cacheSingleton == null) {
             synchronized (MapCache.class) {
-                MapCache.cacheSingleton = new MapCache();
+                if (MapCache.cacheSingleton == null) {
+                    MapCache.cacheSingleton = new MapCache();
+                }
             }
         }
         return MapCache.cacheSingleton;

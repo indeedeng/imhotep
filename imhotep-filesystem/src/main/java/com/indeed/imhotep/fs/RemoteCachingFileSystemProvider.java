@@ -1,7 +1,5 @@
 package com.indeed.imhotep.fs;
 
-import com.almworks.sqlite4java.SQLiteException;
-
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,6 +25,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.FileAttributeView;
 import java.nio.file.spi.FileSystemProvider;
+import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -77,9 +76,7 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
 
         try {
             this.fileSystem = new RemoteCachingFileSystem(this, name, (Map<String, String>) env);
-        } catch (SQLiteException e) {
-            throw new IOException(e);
-        } catch (URISyntaxException e) {
+        } catch (URISyntaxException | ClassNotFoundException| SQLException e) {
             throw new IOException(e);
         }
         return this.fileSystem;

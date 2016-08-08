@@ -29,23 +29,19 @@
         <developerConnection>${project.parent.scm.developerConnection}</developerConnection>
     </scm>
 
-	<pluginRepositories>
-        <pluginRepository>
-            <releases>
-                <updatePolicy>never</updatePolicy>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-            <id>central</id>
-            <name>Central Repository</name>
-            <url>https://repo.maven.apache.org/maven2</url>
-        </pluginRepository>
-        <pluginRepository>
-            <id>protoc-plugin</id>
-            <url>https://dl.bintray.com/sergei-ivanov/maven/</url>
-        </pluginRepository>
-	</pluginRepositories>
+	<!--<pluginRepositories>-->
+        <!--<pluginRepository>-->
+            <!--<releases>-->
+                <!--<updatePolicy>never</updatePolicy>-->
+            <!--</releases>-->
+            <!--<snapshots>-->
+                <!--<enabled>false</enabled>-->
+            <!--</snapshots>-->
+            <!--<id>central</id>-->
+            <!--<name>Central Repository</name>-->
+            <!--<url>https://repo.maven.apache.org/maven2</url>-->
+        <!--</pluginRepository>-->
+	<!--</pluginRepositories>-->
 
 	<build>
         <extensions>
@@ -57,9 +53,9 @@
         </extensions>
         <plugins>
             <plugin>
-                <groupId>com.google.protobuf.tools</groupId>
-                <artifactId>maven-protoc-plugin</artifactId>
-                <version>0.4.2</version>
+                <groupId>org.xolstice.maven.plugins</groupId>
+                <artifactId>protobuf-maven-plugin</artifactId>
+                <version>0.5.0</version>
                 <configuration>
                     <!--
                       The version of protoc must match protobuf-java. If you don't depend on
@@ -78,7 +74,7 @@
                     <execution>
                         <goals>
                             <goal>compile</goal>
-                            <goal>testCompile</goal>
+                            <goal>test-compile</goal>
                         </goals>
                     </execution>
                 </executions>

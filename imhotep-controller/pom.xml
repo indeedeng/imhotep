@@ -8,7 +8,7 @@
 	</parent>
 
 	<groupId>com.indeed</groupId>
-	<artifactId>imhotep-filesystem</artifactId>
+	<artifactId>imhotep-controller</artifactId>
     <version>1.0.69-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
@@ -20,7 +20,7 @@
 		</license>
 	</licenses>
 
-	<name>Imhotep Remote Sqar Caching Filesystem</name>
+	<name>Imhotep Cluster Controller</name>
 	<url>http://indeedeng.github.io/imhotep/</url>
 
     <scm> <!-- prevent Maven from trying to override with subproject suffix -->
@@ -29,7 +29,14 @@
         <developerConnection>${project.parent.scm.developerConnection}</developerConnection>
     </scm>
 
-	<build>
+    <repositories>
+        <repository>
+            <id>cloudera</id>
+            <url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
+        </repository>
+    </repositories>
+
+    <build>
 		<plugins>
             <plugin>
               <groupId>org.apache.maven.plugins</groupId>
@@ -40,7 +47,29 @@
                 <target>1.7</target>
               </configuration>
             </plugin>
-		</plugins>
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>1.3</version>
+                <executions>
+                    <execution>
+                        <id>add-test-resource</id>
+                        <phase>generate-test-sources</phase>
+                        <goals>
+                            <goal>add-test-resource</goal>
+                        </goals>
+                        <configuration>
+                            <resources>
+                                <resource>
+                                    <directory>/etc/hadoop/conf</directory>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
 	</build>
 
 	<dependencies>
@@ -48,6 +77,12 @@
         <dependency>
             <groupId>com.indeed</groupId>
             <artifactId>imhotep-archive</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.indeed</groupId>
+            <artifactId>imhotep-client</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -61,11 +96,11 @@
 			<artifactId>jsr305</artifactId>
 		</dependency>
 
-		<dependency>
-			<groupId>com.amazonaws</groupId>
-			<artifactId>aws-java-sdk</artifactId>
-			<version>1.7.11</version>
-		</dependency>
+		<!--<dependency>-->
+			<!--<groupId>com.amazonaws</groupId>-->
+			<!--<artifactId>aws-java-sdk</artifactId>-->
+			<!--<version>1.7.11</version>-->
+		<!--</dependency>-->
 
         <dependency>
             <groupId>net.sf.trove4j</groupId>
@@ -73,12 +108,17 @@
             <version>${gnu-trove.version}</version>
         </dependency>
 
-
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <version>1.4.191</version>
         </dependency>
+
+        <dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit-dep</artifactId>
+			<scope>test</scope>
+		</dependency>
 
         <!-- Hadoop for caching -->
         <dependency>
@@ -94,12 +134,16 @@
         </dependency>
 
         <dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit-dep</artifactId>
-			<scope>test</scope>
-		</dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+         </dependency>
 
-	</dependencies>
+        <dependency>
+            <groupId>com.indeed</groupId>
+            <artifactId>imhotep-filesystem</artifactId>
+            <version>1.0.69-SNAPSHOT</version>
+        </dependency>
+    </dependencies>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

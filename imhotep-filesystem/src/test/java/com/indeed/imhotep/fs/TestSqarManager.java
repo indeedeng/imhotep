@@ -1,6 +1,5 @@
 package com.indeed.imhotep.fs;
 
-import com.almworks.sqlite4java.SQLiteException;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import org.apache.commons.collections.IteratorUtils;
@@ -17,7 +16,6 @@ import java.net.URISyntaxException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
-import java.nio.file.FileVisitor;
 import java.nio.file.Files;
 import java.nio.file.NotDirectoryException;
 import java.nio.file.Path;
@@ -44,15 +42,15 @@ public class TestSqarManager {
     private static Map<String, String> testSettings;
 
     @BeforeClass
-    public static void init() throws IOException, SQLiteException, URISyntaxException {
+    public static void init() throws IOException, URISyntaxException {
 
-        Files.createDirectories(Paths.get(new URI("file:/tmp/cache")));
-        Files.createDirectories(Paths.get(new URI("file:/tmp/tracking")));
+        Files.createDirectories(Paths.get(new URI("file:///tmp/cache")));
+        Files.createDirectories(Paths.get(new URI("file:///tmp/tracking")));
 
         testSettings = new HashMap<>();
 
         testSettings.put("sqlite-max-mem", "50");
-        testSettings.put("database-location", "/tmp/sqlite");
+        testSettings.put("database-location", "/tmp/h2");
 
         testSettings.put("s3-bucket", "");
         testSettings.put("s3-prefix", "");
@@ -75,9 +73,9 @@ public class TestSqarManager {
     public static void cleanup() throws IOException, URISyntaxException {
         final RemovalVistor removalVistor = new RemovalVistor();
 
-        Files.walkFileTree(Paths.get(new URI("file:/tmp/cache")), removalVistor);
-        Files.walkFileTree(Paths.get(new URI("file:/tmp/tracking")), removalVistor);
-        Files.delete(Paths.get(new URI("file:/tmp/sqlite")));
+        Files.walkFileTree(Paths.get(new URI("file:///tmp/cache")), removalVistor);
+        Files.walkFileTree(Paths.get(new URI("file:///tmp/tracking")), removalVistor);
+        Files.delete(Paths.get(new URI("file:///tmp/h2.mv.db")));
     }
 
     static class RemovalVistor extends SimpleFileVisitor<Path> {

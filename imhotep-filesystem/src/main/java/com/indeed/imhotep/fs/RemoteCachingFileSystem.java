@@ -1,6 +1,5 @@
 package com.indeed.imhotep.fs;
 
-import com.almworks.sqlite4java.SQLiteException;
 import com.google.common.collect.ImmutableSet;
 import com.sun.istack.NotNull;
 
@@ -31,6 +30,7 @@ import java.nio.file.WatchService;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.UserPrincipalLookupService;
 import java.nio.file.spi.FileSystemProvider;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -52,8 +52,11 @@ public class RemoteCachingFileSystem extends FileSystem
 
     public RemoteCachingFileSystem(final RemoteCachingFileSystemProvider provider,
                                    String name,
-                                   Map<String, String> env) throws SQLiteException,
-                                                                   URISyntaxException {
+                                   Map<String, String> env) throws
+            URISyntaxException,
+            SQLException,
+            ClassNotFoundException,
+            IOException {
         this.provider = provider;
         this.fileStore = loadFileStore(env.get("remote-type"), env);
         this.sqarFileStore = new SqarRemoteFileStore(fileStore, env);
@@ -97,13 +100,14 @@ public class RemoteCachingFileSystem extends FileSystem
     }
 
     private static RemoteFileStore loadFileStore(String type, Map<String, String> env) throws
-                                                                                       URISyntaxException {
+            URISyntaxException,
+            IOException {
         if ("s3".equals(type)) {
             return new S3RemoteFileStore(env);
         }
-//        if ("hdfs".equals(type)) {
-//            return new HdfsRemoteFileStore();
-//        }
+        if ("hdfs".equals(type)) {
+            return new HdfsRemoteFileStore(env);
+        }
         if ("local".equals(type)) {
             final URI root = new URI(env.get("local-filestore-root-uri"));
             return new LocalFileStore(Paths.get(root));
@@ -230,12 +234,17 @@ public class RemoteCachingFileSystem extends FileSystem
         }
 
         // add local files and directories
-        final Iterator<RemoteCachingPath> iter = localOnlyFiles.listDirectory(dir);
+        final CloseableIterator<RemoteCachingPath> iter = localOnlyFiles.listDirectory(dir);
         while (iter.hasNext()) {
             final RemoteCachingPath path = iter.next();
             if (filter.accept(path)) {
                 results.add(path);
             }
+        }
+        try {
+            iter.close();
+        } catch (IOException e) {
+            // ignore
         }
 
         return results.iterator();
