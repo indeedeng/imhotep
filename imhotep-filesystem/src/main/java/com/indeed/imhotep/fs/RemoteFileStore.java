@@ -94,6 +94,26 @@ public abstract class RemoteFileStore extends FileStore {
             this.size = size;
             this.isFile = isFile;
         }
+
+        public String getPath() {
+            return path;
+        }
+
+        public void setPath(final String path) {
+            this.path = path;
+        }
+
+        public long getSize() {
+            return size;
+        }
+
+        public boolean isFile() {
+            return isFile;
+        }
+
+        public boolean isDirectory() {
+            return !isFile;
+        }
     }
 
     public interface Builder {

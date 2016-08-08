@@ -89,8 +89,8 @@ public class RemoteCachingFileSystem extends FileSystem
                             rfi = fileStore.readInfo(path, true);
                         }
 
-                        if (rfi != null && rfi.isFile) {
-                            return rfi.size;
+                        if (rfi != null && rfi.isFile()) {
+                            return rfi.getSize();
                         } else {
                             return -1;
                         }
@@ -114,7 +114,7 @@ public class RemoteCachingFileSystem extends FileSystem
             /* check if a file exists remotely */
             final RemoteFileStore.RemoteFileInfo info = fileStore.readInfo(path);
             if (info != null) {
-                if (info.isFile) {
+                if (info.isFile()) {
                     /* file exists remotely */
                     throw new FileAlreadyExistsException("File with same name exists remotely: "
                             + path.toString());
@@ -145,7 +145,7 @@ public class RemoteCachingFileSystem extends FileSystem
         } else {
             final RemoteFileStore.RemoteFileInfo info = fileStore.readInfo(path);
             if (info != null) {
-                if (info.isFile) {
+                if (info.isFile()) {
                     /* remote files are read only */
                     throw new IOException("File " + path.toString() + " is read only");
                 } else {
@@ -182,7 +182,7 @@ public class RemoteCachingFileSystem extends FileSystem
     }
 
     Iterator<Path> iteratorOf(RemoteCachingPath dir,
-                              DirectoryStream.Filter<? super Path> filter) throws IOException {
+                              final DirectoryStream.Filter<? super Path> filter) throws IOException {
         final List<Path> results = new ArrayList<>();
         final List<RemoteFileStore.RemoteFileInfo> infos;
 
@@ -192,10 +192,10 @@ public class RemoteCachingFileSystem extends FileSystem
                 break;
             case INDEX:
                 infos = fileStore.listDir(dir);
-                /* remove .sqar from directories */
-                for (RemoteFileStore.RemoteFileInfo info : infos) {
-                    if (!info.isFile && SqarManager.isSqarDir(info.path)) {
-                        info.path = SqarManager.decodeShardName(info.path);
+                // remove .sqar from directories
+                for (final RemoteFileStore.RemoteFileInfo info : infos) {
+                    if (!info.isFile() && SqarManager.isSqarDir(info.getPath())) {
+                        info.setPath(SqarManager.decodeShardName(info.getPath()));
                     }
                 }
                 break;
@@ -213,16 +213,14 @@ public class RemoteCachingFileSystem extends FileSystem
         }
 
         for (RemoteFileStore.RemoteFileInfo info : infos) {
-            final RemoteCachingPath path = new RemoteCachingPath(this, info.path);
+            final RemoteCachingPath path = new RemoteCachingPath(this, info.getPath());
             if (filter.accept(path)) {
                 results.add(path);
             }
         }
 
         // add local files and directories
-        final Iterator<RemoteCachingPath> iter = localOnlyFiles.listDirectory(dir);
-        while (iter.hasNext()) {
-            final RemoteCachingPath path = iter.next();
+        for (final RemoteCachingPath path : localOnlyFiles.listDirectory(dir)) {
             if (filter.accept(path)) {
                 results.add(path);
             }
@@ -260,7 +258,7 @@ public class RemoteCachingFileSystem extends FileSystem
             return null;
         }
 
-        return new ImhotepFileAttributes(info.size, !info.isFile);
+        return new ImhotepFileAttributes(info.getSize(), !info.isFile());
     }
 
     SeekableByteChannel newByteChannel(final RemoteCachingPath path,

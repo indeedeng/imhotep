@@ -9,9 +9,6 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.nio.file.attribute.BasicFileAttributeView;
-import java.nio.file.attribute.FileAttributeView;
-import java.nio.file.attribute.FileStoreAttributeView;
 import java.util.ArrayList;
 import java.util.Map;
 
@@ -72,7 +69,7 @@ public class SqarRemoteFileStore extends RemoteFileStore {
     public RemoteFileInfo readInfo(RemoteCachingPath path, boolean isFile) throws IOException {
         final RemoteFileInfo result = readInfo(path);
 
-        if (result != null && result.isFile == isFile) {
+        if ((result != null) && (result.isFile() == isFile)) {
             return result;
         } else {
             return null;

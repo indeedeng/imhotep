@@ -108,7 +108,7 @@ public class SqarManager {
             return false;
         }
         rfi = fs.readInfo(info.sqarDir, false);
-        return rfi != null && !rfi.isFile;
+        return rfi != null && rfi.isDirectory();
     }
 
     public static boolean isSqarDir(String dirName) throws IOException {

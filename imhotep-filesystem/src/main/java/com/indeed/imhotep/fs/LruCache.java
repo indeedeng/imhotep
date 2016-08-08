@@ -84,7 +84,7 @@ class LruCache {
      * @param path
      * @param failOnExists
      * @return
-     * @throws IOExceptionk
+     * @throws IOException
      */
     FileSizeWatcher addNewFile(final RemoteCachingPath path, final boolean failOnExists) throws
             IOException {
