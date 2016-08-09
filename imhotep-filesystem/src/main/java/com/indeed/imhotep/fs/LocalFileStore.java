@@ -26,8 +26,8 @@ class LocalFileStore extends RemoteFileStore {
         this.root = root;
     }
 
-    private LocalFileStore(final Map<String, String> configuration) throws URISyntaxException {
-        this(Paths.get(new URI(configuration.get("local-filestore.root-uri"))));
+    private LocalFileStore(final Map<String, ?> configuration) throws URISyntaxException {
+        this(Paths.get(new URI((String) configuration.get("local-filestore.root-uri"))));
     }
 
     @Override
@@ -101,7 +101,7 @@ class LocalFileStore extends RemoteFileStore {
 
     static class Builder implements RemoteFileStore.Builder {
         @Override
-        public RemoteFileStore build(final Map<String, String> configuration) {
+        public RemoteFileStore build(final Map<String, ?> configuration) {
             try {
                 return new LocalFileStore(configuration);
             } catch (final URISyntaxException e) {

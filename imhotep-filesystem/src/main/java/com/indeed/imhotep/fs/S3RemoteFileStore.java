@@ -40,15 +40,15 @@ class S3RemoteFileStore extends RemoteFileStore {
     private final String s3prefix;
     private final AmazonS3Client client;
 
-    S3RemoteFileStore(final Map<String, String> settings) {
+    S3RemoteFileStore(final Map<String, ?> settings) {
         final String s3key;
         final String s3secret;
         final BasicAWSCredentials cred;
 
-        s3bucket = settings.get("s3-bucket");
-        s3prefix = Strings.nullToEmpty(settings.get("s3-prefix")).trim();
-        s3key = settings.get("s3-key");
-        s3secret = settings.get("s3-secret");
+        s3bucket = (String) settings.get("s3-bucket");
+        s3prefix = Strings.nullToEmpty((String) settings.get("s3-prefix")).trim();
+        s3key = (String) settings.get("s3-key");
+        s3secret = (String) settings.get("s3-secret");
         cred = new BasicAWSCredentials(s3key, s3secret);
 
         client = new AmazonS3Client(cred);
@@ -243,7 +243,7 @@ class S3RemoteFileStore extends RemoteFileStore {
 
     public static class Builder implements RemoteFileStore.Builder {
         @Override
-        public RemoteFileStore build(final Map<String, String> configuration) {
+        public RemoteFileStore build(final Map<String, ?> configuration) {
             return new S3RemoteFileStore(configuration);
         }
     }

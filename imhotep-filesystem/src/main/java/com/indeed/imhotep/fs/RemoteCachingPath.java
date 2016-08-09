@@ -38,6 +38,14 @@ public class RemoteCachingPath implements Path, Serializable {
         this.normalizedPath = FilenameUtils.normalizeNoEndSeparator(path);
     }
 
+    // TODO: will address this later
+    RemoteCachingPath(final RemoteCachingFileSystem2 fs, final String path) {
+        this.fileSystem = null;
+        this.path = cleanPath(path);
+        this.offsets = calcOffsets(this.path);
+        this.normalizedPath = FilenameUtils.normalizeNoEndSeparator(path);
+    }
+
     private static String cleanPath(String path) {
         if (path.charAt(path.length() - 1) == PATH_SEPARATOR) {
             return path.substring(0, path.length() - 1);

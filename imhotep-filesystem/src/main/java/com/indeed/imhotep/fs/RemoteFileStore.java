@@ -117,6 +117,6 @@ public abstract class RemoteFileStore extends FileStore {
     }
 
     public interface Builder {
-        RemoteFileStore build(Map<String, String> configuration);
+        RemoteFileStore build(Map<String, ?> configuration);
     }
 }
