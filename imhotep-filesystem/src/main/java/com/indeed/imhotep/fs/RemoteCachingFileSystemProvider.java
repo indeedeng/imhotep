@@ -25,6 +25,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.FileAttributeView;
 import java.nio.file.spi.FileSystemProvider;
+import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;

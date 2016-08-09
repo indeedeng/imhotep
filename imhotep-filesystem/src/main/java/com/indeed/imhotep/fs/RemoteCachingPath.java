@@ -169,9 +169,9 @@ public class RemoteCachingPath implements Path, Serializable {
 
         final String newPath;
         if (this.path.endsWith(PATH_SEPARATOR_STR)) {
-            newPath = this.path + PATH_SEPARATOR_STR + otherPath.path;
-        } else {
             newPath = this.path + otherPath.path;
+        } else {
+            newPath = this.path + PATH_SEPARATOR_STR + otherPath.path;
         }
         return new RemoteCachingPath(this.fileSystem, newPath);
     }
@@ -185,9 +185,9 @@ public class RemoteCachingPath implements Path, Serializable {
 
         final String newPath;
         if (this.path.endsWith(PATH_SEPARATOR_STR)) {
-            newPath = this.path + PATH_SEPARATOR_STR + otherPath.path;
-        } else {
             newPath = this.path + otherPath.path;
+        } else {
+            newPath = this.path + PATH_SEPARATOR_STR + otherPath.path;
         }
         return new RemoteCachingPath(this.fileSystem, newPath);
     }

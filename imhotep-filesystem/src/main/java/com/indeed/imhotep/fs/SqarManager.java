@@ -13,24 +13,15 @@
  */
  package com.indeed.imhotep.fs;
 
-import com.almworks.sqlite4java.*;
 import com.google.common.base.Charsets;
-import com.google.common.io.ByteStreams;
 import com.indeed.imhotep.archive.ArchiveUtils;
 import com.indeed.imhotep.archive.FileMetadata;
 import com.indeed.imhotep.archive.compression.SquallArchiveCompressor;
-import com.indeed.imhotep.fs.sqlite.AddNewSqarJob;
-import com.indeed.imhotep.fs.sqlite.InitDBJob;
-import com.indeed.imhotep.fs.sqlite.LookupSqarIdJob;
-import com.indeed.imhotep.fs.sqlite.ReadPathInfoJob;
-import com.indeed.imhotep.fs.sqlite.ScanSqarDirJob;
 import org.apache.log4j.Logger;
 
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -38,48 +29,20 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.DigestInputStream;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.util.*;
 
 public class SqarManager {
     private static final Logger log = Logger.getLogger(SqarManager.class);
-    public static final char DELIMITER = '/';
     private static final int DEFAULT_MAX_MEM_USAGE = 10 * 1024 * 1024;  // 10MB
+    public static final char DELIMITER = '/';
 
-    private final SQLiteQueue queue;
+    private final Connection connection;
+    private final SqlStatements sqlStatements;
 
-    static {
-        try {
-            final String osName = System.getProperty("os.name");
-            final String arch = System.getProperty("os.arch");
-            final String libname = "libsqlite4java"
-                    + "-" + osName.toLowerCase()
-                    + "-" + arch.toLowerCase()
-                    + "-1.0.392.so";
-            final String resourcePath = "/native/" + osName + "-" + arch + "/" + libname;
-            final InputStream is = SqarManager.class.getResourceAsStream(resourcePath);
-            if (is == null) {
-                throw new FileNotFoundException(
-                        "unable to find sqlite4java-linux-amd64-1.0.392 "
-                                + "at resource path " + resourcePath);
-            }
-            final File tempFile = File.createTempFile("libsqlite", ".so");
-            final File libFile = new File(tempFile.getParent(), libname);
-            tempFile.delete();
-            final OutputStream os = new FileOutputStream(libFile);
-            ByteStreams.copy(is, os);
-            os.close();
-            is.close();
-            SQLite.setLibraryPath(libFile.getParent());
-            libFile.deleteOnExit();
-        } catch (Throwable e) {
-            e.printStackTrace();
-            log.warn("Unable to copy libsqlite to tmp file, "
-                             + "will look in java.library.path", e);
-        }
-    }
-
-
-    public SqarManager(Map<String, String> settings) {
+    public SqarManager(Map<String, String> settings) throws  ClassNotFoundException, SQLException {
         final int maxMemUsage;
         final String maxMem = settings.get("sqlite-max-mem");
 
@@ -89,20 +52,27 @@ public class SqarManager {
             maxMemUsage = DEFAULT_MAX_MEM_USAGE;
         }
 
-        try {
-            SQLite.setSoftHeapLimit(maxMemUsage);
-        } catch (final SQLiteException e) {
-            throw new IllegalArgumentException("Failed to set SQLite softHeapLimit to " + maxMemUsage, e);
-        }
-
         final File dbFile = new File(settings.get("database-location"));
 
-        this.queue = new SQLiteQueue(dbFile);
-        this.queue.start();
+        /* initialize DB */
+        Class.forName("org.h2.Driver");
+        final String dbSettings = ";CACHE_SIZE=" + maxMemUsage;
+        this.connection = DriverManager.getConnection("jdbc:h2:" + dbFile + dbSettings);
 
-        /* initialized DB */
-        final InitDBJob initJob = new InitDBJob();
-        queue.execute(initJob).complete();
+        /* initialize DB */
+        SqlStatements.execute_CREATE_SQAR_TBL(connection);
+        SqlStatements.execute_CREATE_SQAR_IDX(connection);
+        SqlStatements.execute_CREATE_FILE_NAMES_TBL(connection);
+        SqlStatements.execute_CREATE_FILE_NAMES_IDX(connection);
+        SqlStatements.execute_CREATE_FILE_IDS_TBL(connection);
+        SqlStatements.execute_CREATE_FILE_IDS_IDX(connection);
+        SqlStatements.execute_CREATE_FILENAME_2_ID_VIEW(connection);
+        SqlStatements.execute_CREATE_ARCHIVE_TBL(connection);
+        SqlStatements.execute_CREATE_ARCHIVE_IDX(connection);
+        SqlStatements.execute_CREATE_FILE_INFO_TBL(connection);
+//        SqlStatements.execute_CREATE_FILE_INFO_IDX(connection);
+        this.sqlStatements = new SqlStatements(connection);
+
     }
 
     public static boolean isSqar(RemoteCachingPath path, RemoteFileStore fs) throws IOException {
@@ -189,8 +159,16 @@ public class SqarManager {
         return fileList;
     }
 
-    public Integer cacheMetadata(RemoteCachingPath shard, InputStream metadataIS) throws
-                                                                                  IOException {
+    public void cacheMetadata(RemoteCachingPath shard, InputStream metadataIS) throws IOException {
+        try {
+            final int sqarId = getShardId(shard.getShardPath());
+            cacheMetadataInternal(sqarId, metadataIS);
+        } catch (SQLException e) {
+            throw new IOException(e);
+        }
+    }
+
+    public void cacheMetadataInternal(int shardId, InputStream metadataIS) throws IOException {
         final ArrayList<FileMetadata> fileList = parseMetadataFile(metadataIS);
         final HashSet<String> dirList = new HashSet<>();
 
@@ -218,35 +196,42 @@ public class SqarManager {
             fileList.add(md);
         }
 
-        final AddNewSqarJob addNewSqarJob = new AddNewSqarJob(shard.getShardPath(), fileList);
-        return queue.execute(addNewSqarJob).complete();
+        try {
+            addFilesFromSqar(shardId, fileList);
+        } catch (SQLException e) {
+            throw new IOException(e);
+        }
     }
 
     public PathInfoResult getPathInfo(RemoteCachingPath path) throws IOException {
-        final FileMetadata resultMetadata;
+        try {
+            final FileMetadata resultMetadata;
 
         /* check to see if the sqar's metadata has been downloaded before */
-        final LookupSqarIdJob lookupSqarIdJob = new LookupSqarIdJob(path.getShardPath());
-        final int sqarId = queue.execute(lookupSqarIdJob).complete();
-        if (sqarId == -1) {
-            return PathInfoResult.ARCHIVE_MISSING;
-        }
+            final int sqarId;
+            sqarId = this.sqlStatements.execute_SELECT_SQAR_ID_STATEMENT(path.getShardPath());
+            if (sqarId == -1) {
+                return PathInfoResult.ARCHIVE_MISSING;
+            }
 
         /* top level shard directory is not listed in db,
          * so we need to check for that case special
          */
-        if (ImhotepPathType.SHARD.equals(path.getType())) {
-            resultMetadata = new FileMetadata("", false);
-            return new PathInfoResult(resultMetadata);
-        }
+            if (ImhotepPathType.SHARD.equals(path.getType())) {
+                resultMetadata = new FileMetadata("", false);
+                return new PathInfoResult(resultMetadata);
+            }
 
         /* find the info about this compressed file */
-        final ReadPathInfoJob readPathInfoJob = new ReadPathInfoJob(sqarId, path.getFilePath());
-        resultMetadata = queue.execute(readPathInfoJob).complete();
-        if (resultMetadata == null) {
-            return PathInfoResult.FILE_MISSING;
-        } else {
-            return new PathInfoResult(resultMetadata);
+            resultMetadata = this.sqlStatements.execute_SELECT_FILE_INFO_STATEMENT(sqarId,
+                                                                                   path.getFilePath());
+            if (resultMetadata == null) {
+                return PathInfoResult.FILE_MISSING;
+            } else {
+                return new PathInfoResult(resultMetadata);
+            }
+        } catch (SQLException e) {
+            throw new IOException(e);
         }
     }
 
@@ -290,17 +275,25 @@ public class SqarManager {
         }
     }
 
-    public ArrayList<RemoteFileStore.RemoteFileInfo> readDir(RemoteCachingPath path) {
-        /* check to see if the sqar's metadata has been downloaded before */
-        final LookupSqarIdJob lookupSqarIdJob = new LookupSqarIdJob(path.getShardPath());
-        final int sqarId = queue.execute(lookupSqarIdJob).complete();
-        if (sqarId == -1) {
-            return null;
-        }
+    public ArrayList<RemoteFileStore.RemoteFileInfo>
+    readDir(RemoteCachingPath path) throws IOException {
+        try {
+            /* check to see if the sqar's metadata has been downloaded before */
+            final int sqarId = this.sqlStatements.execute_SELECT_SQAR_ID_STATEMENT(path.getShardPath());
+            if (sqarId == -1) {
+                return null;
+            }
 
-        /* find the info about this compressed file */
-        final ScanSqarDirJob sqarDirJob = new ScanSqarDirJob(sqarId, path.getFilePath());
-        return queue.execute(sqarDirJob).complete();
+            /* find the info about this compressed file */
+            ArrayList<SqlStatements.FileOrDir> foo = listFilesAndDirsUnderPrefix(sqarId, path.getFilePath());
+            ArrayList<RemoteFileStore.RemoteFileInfo> results = new ArrayList<>(foo.size());
+            for (SqlStatements.FileOrDir f : foo) {
+                results.add(new RemoteFileStore.RemoteFileInfo(f.name, -1, f.isFile));
+            }
+            return results;
+        } catch (SQLException e) {
+            throw new IOException(e);
+        }
     }
 
     public static String getMetadataLoc(RemoteCachingPath path) {
@@ -320,5 +313,187 @@ public class SqarManager {
                 metadataPath = sqarDir + DELIMITER + METADATA_FILE;
             }
         }
+    }
+
+    private void addFilesFromSqar(int sqarId, List<FileMetadata> metadata) throws
+            IOException,
+            SQLException {
+
+        for (FileMetadata md : metadata) {
+            final int filenameId = getFilenameId(md.getFilename());
+            final int fileId = getFileId(sqarId, filenameId, md.isFile());
+            final int archiveId;
+            if (md.isFile()) {
+                archiveId = getArchiveId(md.getArchiveFilename());
+            } else {
+                archiveId = -1;
+            }
+            insertIntoFileInfo(fileId,
+                               archiveId,
+                               md.getStartOffset(),
+                               md.getSize(),
+                               md.getCompressedSize(),
+                               md.getTimestamp(),
+                               md.getChecksumHi(),
+                               md.getChecksumLow(),
+                               md.getCompressor(),
+                               md.isFile());
+        }
+    }
+
+    private int getArchiveId(String name) throws IOException, SQLException {
+        int id;
+        SQLException savedException = null;
+
+        for (int i = 0; i < 3; i++) {
+            id = this.sqlStatements.execute_SELECT_ARCHIVE_ID_STATEMENT(name);
+            if (id != -1) {
+                return id;
+            } else {
+                try {
+                    id = this.sqlStatements.execute_INSERT_ARCHIVE_NAME_STATEMENT(name);
+                } catch (SQLException e) {
+                    savedException = e;
+                    continue;
+                }
+                if (id != -1) {
+                    return id;
+                } else {
+                    throw new IOException("Shard missing after insert.");
+                }
+            }
+        }
+        /* if we get here, this should be true */
+        if (savedException != null) {
+            throw savedException;
+        }
+        return -1;
+    }
+
+    private int getShardId(String name) throws IOException, SQLException {
+        int id;
+        SQLException savedException = null;
+
+        for (int i = 0; i < 3; i++) {
+            id = this.sqlStatements.execute_SELECT_SHARD_ID_STATEMENT(name);
+            if (id != -1) {
+                return id;
+            } else {
+                try {
+                    id = this.sqlStatements.execute_INSERT_SHARD_NAME_STATEMENT(name);
+                } catch (SQLException e) {
+                    savedException = e;
+                    continue;
+                }
+                if (id != -1) {
+                    return id;
+                } else {
+                    throw new IOException("Shard missing after insert.");
+                }
+            }
+        }
+        /* if we get here, this should be true */
+        if (savedException != null) {
+            throw new RuntimeException(savedException);
+        }
+        return -1;
+    }
+
+    private int getFilenameId(String filename) throws IOException, SQLException {
+        int id;
+        SQLException savedException = null;
+
+        for (int i = 0; i < 3; i++) {
+            id = this.sqlStatements.execute_SELECT_FILE_NAME_ID_STATEMENT(filename);
+            if (id != -1) {
+                return id;
+            } else {
+                try {
+                    id = this.sqlStatements.execute_INSERT_FILE_NAME_STATEMENT(filename);
+                } catch (SQLException e) {
+                    savedException = e;
+                    continue;
+                }
+                if (id != -1) {
+                    return id;
+                } else {
+                    throw new IOException("Shard missing after insert.");
+                }
+            }
+        }
+        /* if we get here, this should be true */
+        if (savedException != null) {
+            throw new RuntimeException(savedException);
+        }
+        return -1;
+    }
+
+    private int getFileId(int sqarId, int filenameId, boolean isFile) throws
+            IOException,
+            SQLException {
+        int id;
+        SQLException savedException = null;
+
+        for (int i = 0; i < 3; i++) {
+            id = this.sqlStatements.execute_SELECT_FILE_ID_STATEMENT(sqarId, filenameId);
+            if (id != -1) {
+                return id;
+            } else {
+                try {
+                    id = this.sqlStatements.execute_INSERT_FILE_JOIN_VALUE_STATEMENT(sqarId,
+                                                                                     filenameId,
+                                                                                     isFile);
+                } catch (SQLException e) {
+                    savedException = e;
+                    continue;
+                }
+                if (id != -1) {
+                    return id;
+                } else {
+                    throw new IOException("Shard missing after insert.");
+                }
+            }
+        }
+        /* if we get here, this should be true */
+        if (savedException != null) {
+            throw new RuntimeException(savedException);
+        }
+        return -1;
+    }
+
+    private void insertIntoFileInfo(int fileId,
+                                    int archiveId,
+                                    long archiveOffset,
+                                    long unpackedSize,
+                                    long packedSize,
+                                    long timestamp,
+                                    long sigHi,
+                                    long sigLow,
+                                    SquallArchiveCompressor compressor,
+                                    boolean isFile) throws SQLException {
+        this.sqlStatements.execute_INSERT_FILE_INFO_STATEMENT(fileId,
+                                                         archiveId,
+                                                         archiveOffset,
+                                                         unpackedSize,
+                                                         packedSize,
+                                                         timestamp,
+                                                         sigHi,
+                                                         sigLow,
+                                                         compressor.getKey(),
+                                                         isFile);
+    }
+
+    /* basically list a directory, where the "prefix" is the directory to list */
+    private ArrayList<SqlStatements.FileOrDir>
+    listFilesAndDirsUnderPrefix(int sqarId, String prefix) throws SQLException {
+        if (prefix == null || prefix.isEmpty()) {
+            return this.sqlStatements.execute_SELECT_FILE_NAMES_NO_PREFIX_STATEMENT(sqarId);
+        }
+
+        // add delimiter to end of prefix if it is not already there
+        if (prefix.charAt(prefix.length() - 1) != SqarManager.DELIMITER) {
+            prefix = prefix + SqarManager.DELIMITER;
+        }
+        return this.sqlStatements.execute_SELECT_FILE_NAMES_WITH_PREFIX_STATEMENT(sqarId, prefix);
     }
 }

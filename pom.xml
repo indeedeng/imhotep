@@ -54,10 +54,11 @@
     </repositories>
 
     <modules>
-        <module>imhotep-server</module>
-        <module>imhotep-client</module>
-        <module>imhotep-filesystem</module>
         <module>imhotep-archive</module>
+        <module>imhotep-filesystem</module>
+        <module>imhotep-controller</module>
+        <module>imhotep-client</module>
+        <module>imhotep-server</module>
     </modules>
 
     <properties>

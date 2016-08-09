@@ -30,6 +30,7 @@ import java.nio.file.WatchService;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.UserPrincipalLookupService;
 import java.nio.file.spi.FileSystemProvider;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -98,6 +99,23 @@ public class RemoteCachingFileSystem extends FileSystem
 
     private static FileSystemProvider getFileProvider(final Path path) {
         return path.getFileSystem().provider();
+    }
+
+    private static RemoteFileStore loadFileStore(String type, Map<String, String> env) throws
+            URISyntaxException,
+            IOException {
+        if ("s3".equals(type)) {
+            return new S3RemoteFileStore(env);
+        }
+        if ("hdfs".equals(type)) {
+            return new HdfsRemoteFileStore(env);
+        }
+        if ("local".equals(type)) {
+            final URI root = new URI(env.get("local-filestore-root-uri"));
+            return new LocalFileStore(Paths.get(root));
+        }
+
+        throw new RuntimeException("Unknown file store type: " + type);
     }
 
     @Override
