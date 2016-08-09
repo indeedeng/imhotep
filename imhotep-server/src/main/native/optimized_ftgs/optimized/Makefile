@@ -53,7 +53,6 @@ LIBS=\
 	-lpthread
 #	-lprofiler \
 
-
 C_FILES := $(wildcard src/*.c)
 H_FILES := $(wildcard include/*.h)
 OBJ_FILES := $(addprefix obj/,$(notdir $(C_FILES:.c=.o)))

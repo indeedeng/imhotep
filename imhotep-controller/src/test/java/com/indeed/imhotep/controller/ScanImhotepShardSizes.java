@@ -1,12 +1,9 @@
 package com.indeed.imhotep.controller;
 
-import com.google.common.collect.ImmutableMap;
-import com.indeed.imhotep.fs.SqarManager;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.FileSystems;

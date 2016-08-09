@@ -19,14 +19,13 @@ import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.ListObjectsRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.google.common.base.Strings;
-import org.apache.log4j.Logger;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,31 +33,23 @@ import java.util.Map;
 
 class S3RemoteFileStore extends RemoteFileStore {
     private static final String DELIMITER = "/";
-    private static final Logger log = Logger.getLogger(S3RemoteFileStore.class);
 
     private final String s3bucket;
     private final String s3prefix;
     private final AmazonS3Client client;
 
-    S3RemoteFileStore(final Map<String, ?> settings) {
-        final String s3key;
-        final String s3secret;
-        final BasicAWSCredentials cred;
-
-        s3bucket = (String) settings.get("s3-bucket");
-        s3prefix = Strings.nullToEmpty((String) settings.get("s3-prefix")).trim();
-        s3key = (String) settings.get("s3-key");
-        s3secret = (String) settings.get("s3-secret");
-        cred = new BasicAWSCredentials(s3key, s3secret);
+    private S3RemoteFileStore(final Map<String, ?> settings) {
+        s3bucket = (String) settings.get("imhotep.fs.filestore.s3.bucket");
+        s3prefix = Strings.nullToEmpty((String) settings.get("imhotep.fs.filestore.s3.prefix")).trim();
+        final String s3key = (String) settings.get("imhotep.fs.filestore.s3.key");
+        final String s3secret = (String) settings.get("imhotep.fs.filestore.s3.secret");
+        final BasicAWSCredentials cred = new BasicAWSCredentials(s3key, s3secret);
 
         client = new AmazonS3Client(cred);
     }
 
-    private ObjectListing getListing(String s3path, int maxResults, boolean recursive) {
-        final ListObjectsRequest reqParams;
-        final ObjectListing listing;
-
-        reqParams = new ListObjectsRequest();
+    private ObjectListing getListing(final String s3path, final int maxResults, final boolean recursive) {
+        final ListObjectsRequest reqParams = new ListObjectsRequest();
         reqParams.setBucketName(s3bucket);
         reqParams.setPrefix(s3path);
         if (maxResults > 0) {
@@ -68,130 +59,96 @@ class S3RemoteFileStore extends RemoteFileStore {
             reqParams.setDelimiter(DELIMITER);
         }
 
-        listing = client.listObjects(reqParams);
-
-        return listing;
+        return client.listObjects(reqParams);
     }
 
-    private String getS3path(RemoteCachingPath path) {
-        if (!s3prefix.isEmpty()) {
-            return s3prefix + path.normalize().toString();
+    private String getS3path(final RemoteCachingPath path) {
+        final StringBuilder result = new StringBuilder(s3prefix);
+        for (final Path component : path.normalize()) {
+            if (result.length() > 0) {
+                result.append(DELIMITER);
+            }
+            result.append(component.toString());
         }
-
-        if (path.isAbsolute()) {
-            return path.toString().substring(1);
-        }
-        return path.toString();
-    }
-
-    private String getS3path(String pathStr) {
-        if (!s3prefix.isEmpty()) {
-            return s3prefix + pathStr;
-        }
-
-        if (pathStr.charAt(0) == '/') {
-            return pathStr.substring(1);
-        }
-        return pathStr;
+        return result.toString();
     }
 
     @Override
-    public List<RemoteFileInfo> listDir(RemoteCachingPath path) {
-        final String s3path = getS3path(path);
-        final String s3DirPath = (s3path.endsWith(DELIMITER)) ? s3path : s3path + DELIMITER;
-        final List<RemoteFileInfo> results = new ArrayList<>(100);
-        ObjectListing listing;
+    public List<RemoteFileAttributes> listDir(final RemoteCachingPath path) throws IOException {
+        final String s3DirPath = getS3path(path) + DELIMITER;
+        final List<RemoteFileAttributes> results = new ArrayList<>();
 
-        /* grab first set of keys for the object we found */
-        listing = getListing(s3DirPath, -1, false);
-        for (S3ObjectSummary summary : listing.getObjectSummaries()) {
-            /* remove prefix */
-            final String filename = summary.getKey().substring(s3DirPath.length());
-            results.add(new RemoteFileInfo(filename, summary.getSize(), true));
-        }
-        /* add the common prefixes */
-        for (String prefix : listing.getCommonPrefixes()) {
-                /* remove prefix and trailing delimiter */
-            final String dirname = prefix.substring(s3DirPath.length(), prefix.length() - 1);
-            results.add(new RemoteFileInfo(dirname, -1, false));
-        }
-
-
-        /* loop until all the keys have been read */
-        while (listing.isTruncated()) {
-            listing = client.listNextBatchOfObjects(listing);
-
-            for (S3ObjectSummary summary : listing.getObjectSummaries()) {
-            /* remove prefix */
+        ObjectListing listing = getListing(s3DirPath, -1, false);
+        do {
+            // grab first set of keys for the object we found
+            for (final S3ObjectSummary summary : listing.getObjectSummaries()) {
                 final String filename = summary.getKey().substring(s3DirPath.length());
-                results.add(new RemoteFileInfo(filename, summary.getSize(), true));
+                results.add(new RemoteFileAttributes(path.resolve(filename), summary.getSize(), true));
             }
-            /* add the common prefixes */
-            for (String prefix : listing.getCommonPrefixes()) {
-                /* remove prefix and trailing delimiter */
+            // add the common prefixes
+            for (final String prefix : listing.getCommonPrefixes()) {
                 final String dirname = prefix.substring(s3DirPath.length(), prefix.length() - 1);
-                results.add(new RemoteFileInfo(dirname, -1, false));
+                results.add(new RemoteFileAttributes(path.resolve(dirname), -1, false));
             }
-        }
-
-        if (results.size() == 0) {
-            return null;
-        }
+            listing = getListing(s3DirPath, -1, false);
+        } while (listing.isTruncated());
 
         return results;
     }
 
-
     @Override
-    public RemoteFileInfo readInfo(String pathStr) {
-        final RemoteFileInfo result;
-
-        result = readFileInfo(pathStr);
-        if (result != null) {
-            return result;
-        } else {
-            return readDirInfo(pathStr);
+    public RemoteFileAttributes getRemoteAttributes(final RemoteCachingPath path) throws IOException {
+        RemoteFileAttributes result = readFileInfo(path);
+        if (result == null) {
+            result = readDirInfo(path);
+            if (result == null) {
+                throw new NoSuchFileException(path + " not found");
+            }
         }
+        return result;
     }
 
     @Override
-    public RemoteFileInfo readInfo(String pathStr, boolean isFile) {
+    public RemoteFileAttributes getRemoteAttributes(final RemoteCachingPath path, final boolean isFile) throws IOException {
+        final RemoteFileAttributes result;
         if (isFile) {
-            return readFileInfo(pathStr);
+            result = readFileInfo(path);
         } else {
-            return readDirInfo(pathStr);
+            result = readDirInfo(path);
         }
+
+        if (result == null) {
+            throw new NoSuchFileException(path + "not found");
+        }
+        return result;
     }
 
-    private RemoteFileInfo readFileInfo(String pathStr) {
-        final String s3path = getS3path(pathStr);
+    @Nullable
+    private RemoteFileAttributes readFileInfo(final RemoteCachingPath path) {
+        final String s3path = getS3path(path);
         final ObjectListing listing = getListing(s3path, 1, true);
 
         final List<S3ObjectSummary> summaries = listing.getObjectSummaries();
-        if (summaries.size() > 0) {
-            final S3ObjectSummary summary = summaries.get(0);
+        for (final S3ObjectSummary summary : summaries) {
             final String key = summary.getKey();
             if (key.equals(s3path)) {
-                /* found a file matching the path */
-                return new RemoteFileInfo(pathStr, summary.getSize(), true);
+                return new RemoteFileAttributes(path, summary.getSize(), true);
             }
         }
         return null;
     }
 
-    private RemoteFileInfo readDirInfo(String pathStr) {
-        final String s3path = getS3path(pathStr);
-        final String s3DirPath = (s3path.endsWith(DELIMITER)) ? s3path : s3path + DELIMITER;
+    @Nullable
+    private RemoteFileAttributes readDirInfo(final RemoteCachingPath path) {
+        final String s3DirPath = getS3path(path) + DELIMITER;
 
         final ObjectListing listing = getListing(s3DirPath, 1, true);
 
         final List<S3ObjectSummary> summaries = listing.getObjectSummaries();
-        if (summaries.size() > 0) {
-            final S3ObjectSummary summary = summaries.get(0);
+        for (final S3ObjectSummary summary : summaries) {
             final String key = summary.getKey();
             if (key.startsWith(s3DirPath)) {
-                /* found a directory matching the path */
-                return new RemoteFileInfo(pathStr, -1, false);
+                return new RemoteFileAttributes(path, -1, false);
             }
         }
         return null;
@@ -200,23 +157,20 @@ class S3RemoteFileStore extends RemoteFileStore {
     @Override
     public void downloadFile(final RemoteCachingPath srcPath, final Path destPath) throws IOException {
         final String s3path = getS3path(srcPath);
-        final ObjectMetadata metadata;
 
         try {
-            metadata = client.getObject(new GetObjectRequest(s3bucket, s3path), destPath.toFile());
-        } catch (AmazonS3Exception e) {
-            throw new IOException(e);
+            client.getObject(new GetObjectRequest(s3bucket, s3path), destPath.toFile());
+        } catch (final AmazonS3Exception e) {
+            throw new IOException("Failed to download file " + srcPath, e);
         }
     }
 
     @Override
-    public InputStream getInputStream(String path, long startOffset, long length) throws
+    public InputStream newInputStream(final RemoteCachingPath path, final long startOffset, final long length) throws
                                                                                   IOException {
-        final String s3path = (s3prefix != null && !s3prefix.isEmpty()) ? s3prefix + path : path;
-        final S3Object s3obj;
-        final GetObjectRequest request;
+        final String s3path = getS3path(path);
 
-        request = new GetObjectRequest(s3bucket, s3path);
+        final GetObjectRequest request = new GetObjectRequest(s3bucket, s3path);
         if (length == -1) {
             request.setRange(startOffset, Long.MAX_VALUE);
         } else {
@@ -224,10 +178,9 @@ class S3RemoteFileStore extends RemoteFileStore {
         }
 
         try {
-            s3obj = client.getObject(request);
-            return s3obj.getObjectContent();
-        } catch (AmazonS3Exception e) {
-            throw new IOException(e);
+            return client.getObject(request).getObjectContent();
+        } catch (final AmazonS3Exception e) {
+            throw new IOException("Failed to open input stream for " + path, e);
         }
     }
 
@@ -236,12 +189,7 @@ class S3RemoteFileStore extends RemoteFileStore {
         return s3bucket + ":" + s3prefix;
     }
 
-    @Override
-    public boolean isReadOnly() {
-        return true;
-    }
-
-    public static class Builder implements RemoteFileStore.Builder {
+    static class Builder implements RemoteFileStore.Builder {
         @Override
         public RemoteFileStore build(final Map<String, ?> configuration) {
             return new S3RemoteFileStore(configuration);

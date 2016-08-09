@@ -1,56 +1,69 @@
 package com.indeed.imhotep.fs;
 
-import java.io.FileNotFoundException;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
+import com.google.common.collect.FluentIterable;
+import com.google.common.collect.Iterables;
+import org.apache.log4j.Logger;
+
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.channels.FileChannel;
 import java.nio.channels.SeekableByteChannel;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.AccessMode;
-import java.nio.file.ClosedDirectoryStreamException;
 import java.nio.file.CopyOption;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileStore;
+import java.nio.file.FileSystem;
 import java.nio.file.FileSystemAlreadyExistsException;
-import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.LinkOption;
-import java.nio.file.NotDirectoryException;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.ProviderMismatchException;
-import java.nio.file.attribute.BasicFileAttributeView;
+import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.FileAttributeView;
 import java.nio.file.spi.FileSystemProvider;
-import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Set;
 
 /**
- * @author darren
+ * @author kenh
  */
+
 public class RemoteCachingFileSystemProvider extends FileSystemProvider {
-    private static final String URI_SCHEME = "rcfs";
+    private static final Logger LOGGER = Logger.getLogger(RemoteCachingFileSystemProvider.class);
+    private static final String URI_SCHEME = "imhtpfs";
 
-    private static RemoteCachingFileSystem fileSystem;
+    private static class FileSystemHolder {
+        private static RemoteCachingFileSystem fileSystem;
 
-    public RemoteCachingFileSystemProvider() {
-    }
-
-    protected static String getFSname(URI uri) {
-        final String scheme = uri.getScheme();
-        if ((scheme == null) || !URI_SCHEME.equalsIgnoreCase(scheme)) {
-            throw new IllegalArgumentException("URI scheme is not '" + URI_SCHEME + "'");
+        synchronized RemoteCachingFileSystem create(final RemoteCachingFileSystemProvider fileSystemProvider, final Map<String, ?> env) throws IOException {
+            if (fileSystem != null) {
+                throw new FileSystemAlreadyExistsException("Multiple file systems not supported");
+            }
+            fileSystem = new RemoteCachingFileSystem(fileSystemProvider, env);
+            return fileSystem;
         }
-        return uri.getHost();
+
+        synchronized RemoteCachingFileSystem get() {
+            Preconditions.checkNotNull(fileSystem, "File system must be first created by Files.newFileSystem()");
+            return fileSystem;
+        }
+
+        synchronized void clear() {
+            fileSystem = null;
+        }
     }
 
-    static RemoteCachingPath toRCP(Path path) {
+    private static final FileSystemHolder FILE_SYSTEM_HOLDER = new FileSystemHolder();
+
+    static RemoteCachingPath toRemoteCachePath(final Path path) {
         if (path == null) {
             throw new NullPointerException();
         }
@@ -65,241 +78,191 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
         return URI_SCHEME;
     }
 
-    @Override
-    public synchronized RemoteCachingFileSystem newFileSystem(URI uri, Map<String, ?> env) throws
-            IOException {
-        final String name = getFSname(uri);
-        if (fileSystem != null) {
-            throw new FileSystemAlreadyExistsException();
-        }
-
-        try {
-            this.fileSystem = new RemoteCachingFileSystem(this, name, (Map<String, String>) env);
-        } catch (URISyntaxException e) {
-            throw new IOException(e);
-        }
-        return this.fileSystem;
+    private void checkUri(final URI uri) {
+        Preconditions.checkArgument(URI_SCHEME.equals(uri.getScheme()), "URI scheme does not match");
+        Preconditions.checkArgument(uri.getPath() != null, "URI path must be present");
+        Preconditions.checkArgument(uri.getQuery() == null, "URI query must be absent");
+        Preconditions.checkArgument(uri.getFragment() == null, "URI fragment must be absent");
     }
 
     @Override
-    public synchronized RemoteCachingFileSystem getFileSystem(URI uri) {
-        if (this.fileSystem == null) {
-            throw new FileSystemNotFoundException();
-        }
-        return this.fileSystem;
+    public FileSystem newFileSystem(final URI uri, final Map<String, ?> env) throws IOException {
+        checkUri(uri);
+        return FILE_SYSTEM_HOLDER.create(this, env);
     }
 
     @Override
-    public Path getPath(URI uri) {
+    public FileSystem getFileSystem(final URI uri) {
+        checkUri(uri);
+        return FILE_SYSTEM_HOLDER.get();
+    }
+
+    @VisibleForTesting
+    void clearFileSystem() {
+        FILE_SYSTEM_HOLDER.clear();
+    }
+
+    @Override
+    public Path getPath(final URI uri) {
         return getFileSystem(uri).getPath(uri.getPath());
     }
 
-    @Override
-    public SeekableByteChannel newByteChannel(Path path,
-                                              Set<? extends OpenOption> options,
-                                              FileAttribute<?>... attrs) throws IOException {
-        final RemoteCachingPath rcPath = toRCP(path);
-        return fileSystem.newByteChannel(rcPath, options, attrs);
+    private void checkOpenOptions(final OpenOption openOption) {
+        if (openOption == StandardOpenOption.READ) {
+            return;
+        }
+        throw new UnsupportedOperationException("Unsupported open option " + openOption);
     }
 
     @Override
-    public FileChannel newFileChannel(Path path,
-                                      Set<? extends OpenOption> options,
-                                      FileAttribute<?>... attrs) throws IOException {
-        final RemoteCachingPath rcPath = toRCP(path);
-        return fileSystem.newFileChannel(rcPath, options, attrs);
+    public SeekableByteChannel newByteChannel(final Path path, final Set<? extends OpenOption> options, final FileAttribute<?>... attrs) throws IOException {
+        for (final OpenOption option : options) {
+            checkOpenOptions(option);
+        }
+        return FILE_SYSTEM_HOLDER.get().newByteChannel(toRemoteCachePath(path));
+    }
+
+    /**
+     * this is a read-only file system so output stream is unsupported
+     */
+    @Override
+    public OutputStream newOutputStream(final Path path, final OpenOption... options) throws IOException {
+        throw new UnsupportedOperationException();
     }
 
     @Override
-    public DirectoryStream<Path> newDirectoryStream(final Path dir,
-                                                    final DirectoryStream.Filter<? super Path> filter) throws
-            IOException {
-        return new DirectoryStream<Path>() {
-            public Iterator<Path> itr;
-            public boolean isClosed;
-
-            {
-                // sanity check
-                if (!fileSystem.isDirectory(toRCP(dir))) {
-                    throw new NotDirectoryException(dir.toString());
-                }
-            }
-
-            @Override
-            public synchronized Iterator<Path> iterator() {
-                if (isClosed) {
-                    throw new ClosedDirectoryStreamException();
-                }
-                if (itr != null) {
-                    throw new IllegalStateException("Iterator has already been returned");
-                }
-
-                try {
-                    final RemoteCachingPath path = toRCP(dir);
-                    itr = fileSystem.iteratorOf(path, filter);
-                } catch (IOException e) {
-                    throw new IllegalStateException(e);
-                }
-                return new Iterator<Path>() {
-
+    public DirectoryStream<Path> newDirectoryStream(final Path dir, final DirectoryStream.Filter<? super Path> filter) throws IOException {
+        final FluentIterable<? extends Path> filteredPaths = FluentIterable.from(FILE_SYSTEM_HOLDER.get().listDir(toRemoteCachePath(dir)))
+                .filter(new Predicate<RemoteCachingPath>() {
                     @Override
-                    public boolean hasNext() {
-                        if (isClosed) {
+                    public boolean apply(final RemoteCachingPath path) {
+                        try {
+                            return filter.accept(path);
+                        } catch (final IOException e) {
+                            LOGGER.warn("Failed to apply directory stream filtering on " + path + ". It will be ignored", e);
                             return false;
                         }
-                        return itr.hasNext();
                     }
+                });
 
-                    @Override
-                    public synchronized Path next() {
-                        if (isClosed) {
-                            throw new NoSuchElementException();
-                        }
-                        return itr.next();
-                    }
+        return new DirectoryStream<Path>() {
+            private boolean closed = false;
 
-                    @Override
-                    public void remove() {
-                        throw new UnsupportedOperationException();
-                    }
-                };
+            @Override
+            public Iterator<Path> iterator() {
+                if (closed) {
+                    throw new IllegalStateException("DirectoryStream already closed");
+                }
+                return (Iterator<Path>) filteredPaths.iterator();
             }
 
             @Override
-            public synchronized void close() throws IOException {
-                isClosed = true;
+            public void close() throws IOException {
+                closed = true;
             }
-
         };
     }
 
     @Override
-    public InputStream newInputStream(Path path, OpenOption... options) throws IOException {
-        final RemoteCachingPath rcPath = toRCP(path);
-        return fileSystem.newInputStream(rcPath);
+    public void createDirectory(final Path dir, final FileAttribute<?>... attrs) throws IOException {
+        throw new UnsupportedOperationException();
     }
 
     @Override
-    public OutputStream newOutputStream(Path path, OpenOption... options) throws IOException {
-        final RemoteCachingPath rcPath = toRCP(path);
-        return fileSystem.newOutputStream(rcPath, options);
+    public void delete(final Path path) throws IOException {
+        throw new UnsupportedOperationException();
     }
 
     @Override
-    public void createDirectory(Path dir, FileAttribute<?>... attrs) throws IOException {
-        final RemoteCachingPath rcPath = toRCP(dir);
-        fileSystem.createDirectory(rcPath, attrs);
+    public void copy(final Path source, final Path target, final CopyOption... options) throws IOException {
+        throw new UnsupportedOperationException();
     }
 
     @Override
-    public void createSymbolicLink(Path link, Path target, FileAttribute<?>... attrs) throws
-            IOException {
-        // TODO: complete me
+    public void move(final Path source, final Path target, final CopyOption... options) throws IOException {
+        throw new UnsupportedOperationException();
     }
 
     @Override
-    public void createLink(Path link, Path existing) throws IOException {
-        // TODO: complete me
-    }
-
-    @Override
-    public void delete(Path path) throws IOException {
-        throw new IOException("File Deletion is not supported.");
-    }
-
-    @Override
-    public void copy(Path source, Path target, CopyOption... options) throws IOException {
-
-    }
-
-    @Override
-    public void move(Path source, Path target, CopyOption... options) throws IOException {
-
-    }
-
-    @Override
-    public boolean isSameFile(Path path, Path path2) throws IOException {
-        if (path == null || path2 == null) {
-            return false;
+    public boolean isSameFile(final Path path, final Path path2) throws IOException {
+        if (path == null) {
+            return path2 == null;
+        } else {
+            return path.equals(path2);
         }
-        if (path.equals(path2)) {
-            return true;
-        }
-        if (path.getFileSystem() != path2.getFileSystem()) {
-            return false;
-        }
-        return path.normalize().equals(path2.normalize());
     }
 
     @Override
-    public boolean isHidden(Path path) throws IOException {
+    public boolean isHidden(final Path path) throws IOException {
         return false;
     }
 
     @Override
-    public FileStore getFileStore(Path path) throws IOException {
-        return null;
+    public FileStore getFileStore(final Path path) throws IOException {
+        // TODO: currently we only support a single configured file store per file system
+        return Iterables.getFirst(FILE_SYSTEM_HOLDER.get().getFileStores(), null);
     }
 
     @Override
-    public void checkAccess(Path path, AccessMode... modes) throws IOException {
-        final RemoteCachingPath rcPath = toRCP(path);
-        if (fileSystem.lookupAttributes(rcPath) == null) {
-            throw new FileNotFoundException(path.toString());
-        }
-    }
-
-    @Override
-    public <V extends FileAttributeView> V getFileAttributeView(Path path,
-                                                                Class<V> type,
-                                                                LinkOption... options) {
-        if (type != BasicFileAttributeView.class && type != ImhotepFileAttributeView.class) {
-            return null;
+    public void checkAccess(final Path path, final AccessMode... modes) throws IOException {
+        final RemoteCachingPath remotePath = toRemoteCachePath(path);
+        final ImhotepFileAttributes attributes = remotePath.getFileSystem().getFileAttributes(remotePath);
+        if (attributes == null) {
+            throw new NoSuchFileException("No entity at " + path);
         }
 
-        final RemoteCachingPath rcPath = toRCP(path);
-        try {
-            final ImhotepFileAttributes attrs;
-            attrs = fileSystem.lookupAttributes(rcPath);
-            if (attrs == null) {
-                return null;
-            } else {
-                return (V) (new ImhotepFileAttributeView());
+        for (final AccessMode mode : modes) {
+            switch (mode) {
+                case READ:
+                    break;
+                case EXECUTE:
+                    if (!attributes.isDirectory()) {
+                        throw new AccessDeniedException("Execute not supported for " + path);
+                    }
+                    break;
+                case WRITE:
+                    throw new AccessDeniedException("Write not supported for " + path);
+                default:
+                    throw new IllegalArgumentException("Unexpected mode for entity " + path);
             }
-        } catch (IOException e) {
-            return null;
         }
     }
 
     @Override
-    public <A extends BasicFileAttributes> A readAttributes(Path path,
-                                                            Class<A> type,
-                                                            LinkOption... options) throws
-            IOException {
-        if (type != BasicFileAttributes.class && type != ImhotepFileAttributes.class) {
-            return null;
+    public <V extends FileAttributeView> V getFileAttributeView(final Path path, final Class<V> type, final LinkOption... options) {
+        final RemoteCachingPath rcPath = toRemoteCachePath(path);
+        if (type == RemoteCachingFileAttributeViews.Imhotep.class) {
+            return (V) new RemoteCachingFileAttributeViews.Imhotep(rcPath);
+        } else if (type == RemoteCachingFileAttributeViews.Basic.class) {
+            return (V) new RemoteCachingFileAttributeViews.Basic(rcPath);
         }
 
-        final RemoteCachingPath rcPath = toRCP(path);
-        final ImhotepFileAttributes attrs = fileSystem.lookupAttributes(rcPath);
-        if (attrs == null) {
-            throw new FileNotFoundException(path.toString());
-        }
-        return (A) attrs;
-    }
-
-    @Override
-    public Map<String, Object> readAttributes(Path path,
-                                              String attributes,
-                                              LinkOption... options) throws IOException {
         return null;
     }
 
     @Override
-    public void setAttribute(Path path,
-                             String attribute,
-                             Object value,
-                             LinkOption... options) throws IOException {
+    public <A extends BasicFileAttributes> A readAttributes(final Path path, final Class<A> type, final LinkOption... options) throws IOException {
+        RemoteCachingFileAttributeViews.Basic fileAttributeView = null;
+        if (type == ImhotepFileAttributes.class) {
+            fileAttributeView = getFileAttributeView(path, RemoteCachingFileAttributeViews.Imhotep.class, options);
+        } else if (type == BasicFileAttributes.class) {
+            fileAttributeView = getFileAttributeView(path, RemoteCachingFileAttributeViews.Basic.class, options);
+        }
+
+        if (fileAttributeView == null) {
+            throw new UnsupportedOperationException();
+        }
+
+        return (A) fileAttributeView.readAttributes();
+    }
+
+    @Override
+    public Map<String, Object> readAttributes(final Path path, final String attributes, final LinkOption... options) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void setAttribute(final Path path, final String attribute, final Object value, final LinkOption... options) throws IOException {
         throw new UnsupportedOperationException();
     }
 }

@@ -1,15 +1,13 @@
 package com.indeed.imhotep.controller;
 
 import com.google.common.collect.ImmutableMap;
-import com.indeed.imhotep.fs.SqarManager;
-import org.apache.hadoop.fs.FileStatus;
+import com.indeed.imhotep.fs.SqarMetaDataManager;
 import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.log4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URISyntaxException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -198,11 +196,11 @@ public class RemoteFileScanner {
                                                                   "500",
                                                                   "database-location",
                                                                   "/tmp/3ndTry");
-        private static final ThreadLocal<SqarManager> sqarManager = new ThreadLocal<SqarManager>() {
+        private static final ThreadLocal<SqarMetaDataManager> sqarManager = new ThreadLocal<SqarMetaDataManager>() {
             @Override
-            protected SqarManager initialValue() {
+            protected SqarMetaDataManager initialValue() {
                 try {
-                    return new SqarManager(config);
+                    return new SqarMetaDataManager(config);
                 } catch (ClassNotFoundException | SQLException e) {
                     e.printStackTrace();
                     return null;
@@ -221,7 +219,7 @@ public class RemoteFileScanner {
         @Override
         public void run() {
             try {
-                sqarManager.get().cacheMetadataInternal(sqarId, meatadata);
+                sqarManager.get().cacheMetadata(sqarId, meatadata);
             } catch (IOException e) {
                 e.printStackTrace();
             }

@@ -6,7 +6,8 @@ package com.indeed.imhotep.fs;
 
 public enum RemoteFileStoreType {
     LOCAL("local", new LocalFileStore.Builder()),
-    S3("s3", new S3RemoteFileStore.Builder());
+    S3("s3", new S3RemoteFileStore.Builder()),
+    HDFS("hdfs", new HdfsRemoteFileStore.Builder());
 
     private final String name;
     private final RemoteFileStore.Builder builder;

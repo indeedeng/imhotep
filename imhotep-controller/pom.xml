@@ -96,12 +96,6 @@
 			<artifactId>jsr305</artifactId>
 		</dependency>
 
-		<!--<dependency>-->
-			<!--<groupId>com.amazonaws</groupId>-->
-			<!--<artifactId>aws-java-sdk</artifactId>-->
-			<!--<version>1.7.11</version>-->
-		<!--</dependency>-->
-
         <dependency>
             <groupId>net.sf.trove4j</groupId>
             <artifactId>trove4j</artifactId>

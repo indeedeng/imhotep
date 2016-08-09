@@ -1,8 +1,10 @@
 package com.indeed.imhotep.fs;
 
+import com.google.common.base.Objects;
+import com.google.common.base.Preconditions;
 import org.apache.commons.io.FilenameUtils;
-import org.apache.log4j.Logger;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.io.ObjectStreamException;
@@ -11,62 +13,61 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
+import java.util.concurrent.ExecutionException;
 
 /**
  * @author darren
  */
 public class RemoteCachingPath implements Path, Serializable {
-    private static final Logger log = Logger.getLogger(RemoteCachingPath.class);
-    public static final char PATH_SEPARATOR = '/';
-    public static final String PATH_SEPARATOR_STR = "/";
+    static final String PATH_SEPARATOR_STR = "/";
 
     private final RemoteCachingFileSystem fileSystem;
     private final String path;
     private final int[] offsets;
     private final String normalizedPath;
-    private boolean attrLocalOnly = false;
 
     RemoteCachingPath(final RemoteCachingFileSystem fs, final String path) {
-        this.fileSystem = fs;
+        fileSystem = fs;
         this.path = cleanPath(path);
-        this.offsets = calcOffsets(this.path);
-        this.normalizedPath = FilenameUtils.normalizeNoEndSeparator(path);
+        offsets = calcOffsets(this.path);
+        // TODO: Technically incorrect if the separate is not System dependent
+        normalizedPath = FilenameUtils.normalizeNoEndSeparator(path);
+        Preconditions.checkArgument(normalizedPath != null, "Unsupported path " + path);
     }
 
-    // TODO: will address this later
-    RemoteCachingPath(final RemoteCachingFileSystem2 fs, final String path) {
-        this.fileSystem = null;
-        this.path = cleanPath(path);
-        this.offsets = calcOffsets(this.path);
-        this.normalizedPath = FilenameUtils.normalizeNoEndSeparator(path);
-    }
-
-    private static String cleanPath(String path) {
-        if (path.charAt(path.length() - 1) == PATH_SEPARATOR) {
-            return path.substring(0, path.length() - 1);
+    private static String cleanPath(final String pathStr) {
+        if (!PATH_SEPARATOR_STR.equals(pathStr) && pathStr.endsWith(PATH_SEPARATOR_STR)) {
+            return pathStr.substring(0, pathStr.length() - PATH_SEPARATOR_STR.length());
         }
-        return path;
+        return pathStr;
     }
 
-    private static int[] calcOffsets(String path) {
-        final int[] tmpArr = new int[path.length() + 1];
+    private static int[] calcOffsets(final String pathStr) {
+        int index = 0;
         int count = 0;
+        final int[] tmp = new int[pathStr.length()];
 
-        for (int i = 0; i < path.length(); i++) {
-            if (path.charAt(i) != PATH_SEPARATOR) {
-                tmpArr[count] = i;
-                count++;
-                while (i < path.length() && path.charAt(i) != PATH_SEPARATOR) {
-                    i++;
-                }
-            }
+        if (!pathStr.isEmpty() && !pathStr.startsWith(PATH_SEPARATOR_STR)) {
+            // in case of relative path
+            tmp[count++] = 0;
         }
-        return Arrays.copyOf(tmpArr, count);
+
+        while (index < pathStr.length()) {
+            index = pathStr.indexOf(PATH_SEPARATOR_STR, index);
+            if ((index == -1) || (index == (pathStr.length() - PATH_SEPARATOR_STR.length()))) {
+                break;
+            }
+            index += PATH_SEPARATOR_STR.length();
+            tmp[count++] = index;
+        }
+        return Arrays.copyOf(tmp, count);
     }
 
     @Override
@@ -76,28 +77,34 @@ public class RemoteCachingPath implements Path, Serializable {
 
     @Override
     public boolean isAbsolute() {
-        return ((!path.isEmpty()) && (path.charAt(0) == PATH_SEPARATOR));
+        return path.startsWith(PATH_SEPARATOR_STR);
     }
 
     @Override
     public RemoteCachingPath getRoot() {
-        if (this.isAbsolute()) {
-            return new RemoteCachingPath(fileSystem, Character.toString(PATH_SEPARATOR));
-        } else {
-            return null;
-        }
+        return getRoot(fileSystem);
     }
 
     @Override
     public Path getFileName() {
-        final int start = offsets[offsets.length - 2];
-        final int end = offsets[offsets.length - 1];
-        return new RemoteCachingPath(fileSystem, path.substring(start, end));
+        if (getNameCount() == 0) {
+            return null;
+        }
+        return getName(getNameCount() - 1);
     }
 
     @Override
     public Path getParent() {
-        return subpath(0, offsets.length - 1);
+        if (getNameCount() <= 1) {
+            return null;
+        }
+
+        final RemoteCachingPath subpath = (RemoteCachingPath) subpath(0, getNameCount() - 1);
+        if (isAbsolute()) {
+            return new RemoteCachingPath(fileSystem, PATH_SEPARATOR_STR + subpath.toString());
+        } else {
+            return subpath;
+        }
     }
 
     @Override
@@ -106,52 +113,47 @@ public class RemoteCachingPath implements Path, Serializable {
     }
 
     @Override
-    public Path getName(int index) {
+    public Path getName(final int index) {
         return subpath(index, index + 1);
     }
 
     @Override
-    public Path subpath(int beginIndex, int endIndex) {
+    public Path subpath(final int beginIndex, final int endIndex) {
         if ((beginIndex < 0) ||
-                (beginIndex >= offsets.length) ||
                 (endIndex > offsets.length) ||
                 (beginIndex >= endIndex)) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("Cannot get subpath [" +
+                    beginIndex + ", " + endIndex + ") for path " + this);
         }
 
         // starting and ending offsets
         final int start = offsets[beginIndex];
-        final int end;
-        if (endIndex == offsets.length) {
-            end = path.length();
-        } else {
-            end = offsets[endIndex] - 1;
-        }
+        final int end = (endIndex == offsets.length) ? path.length() : offsets[endIndex];
         return new RemoteCachingPath(fileSystem, path.substring(start, end));
     }
 
     @Override
-    public boolean startsWith(Path other) {
-        return false;
+    public boolean startsWith(final Path other) {
+        return normalizedPath.startsWith(RemoteCachingFileSystemProvider.toRemoteCachePath(other).normalizedPath);
     }
 
     @Override
-    public boolean startsWith(String other) {
-        return false;
+    public boolean startsWith(final String other) {
+        return startsWith(new RemoteCachingPath(fileSystem, other));
     }
 
     @Override
-    public boolean endsWith(Path other) {
-        return false;
+    public boolean endsWith(final Path other) {
+        return normalizedPath.endsWith(RemoteCachingFileSystemProvider.toRemoteCachePath(other).normalizedPath);
     }
 
     @Override
-    public boolean endsWith(String other) {
-        return false;
+    public boolean endsWith(final String other) {
+        return endsWith(new RemoteCachingPath(fileSystem, other));
     }
 
     @Override
-    public Path normalize() {
+    public RemoteCachingPath normalize() {
         if (normalizedPath.equals(path)) {
             return this;
         }
@@ -159,171 +161,175 @@ public class RemoteCachingPath implements Path, Serializable {
     }
 
     @Override
-    public Path resolve(Path other) {
-        final RemoteCachingPath otherPath;
-
-        otherPath = RemoteCachingFileSystemProvider.toRCP(other);
-        if (otherPath.isAbsolute()) {
+    public Path resolve(final Path other) {
+        final RemoteCachingPath otherPath = RemoteCachingFileSystemProvider.toRemoteCachePath(other);
+        if (otherPath.isAbsolute() || path.isEmpty()) {
             return other;
+        } else if (otherPath.path.isEmpty()) {
+            return this;
         }
 
         final String newPath;
-        if (this.path.endsWith(PATH_SEPARATOR_STR)) {
-            newPath = this.path + otherPath.path;
+        if (path.endsWith(PATH_SEPARATOR_STR)) {
+            newPath = path + otherPath.path;
         } else {
-            newPath = this.path + PATH_SEPARATOR_STR + otherPath.path;
+            newPath = path + PATH_SEPARATOR_STR + otherPath.path;
         }
-        return new RemoteCachingPath(this.fileSystem, newPath);
+        return new RemoteCachingPath(fileSystem, newPath);
     }
 
     @Override
-    public Path resolve(String other) {
-        final RemoteCachingPath otherPath = new RemoteCachingPath(fileSystem, other);
-        if (otherPath.isAbsolute()) {
-            return otherPath;
-        }
-
-        final String newPath;
-        if (this.path.endsWith(PATH_SEPARATOR_STR)) {
-            newPath = this.path + otherPath.path;
-        } else {
-            newPath = this.path + PATH_SEPARATOR_STR + otherPath.path;
-        }
-        return new RemoteCachingPath(this.fileSystem, newPath);
+    public RemoteCachingPath resolve(final String other) {
+        return (RemoteCachingPath) resolve(new RemoteCachingPath(fileSystem, other));
     }
 
     @Override
-    public Path resolveSibling(Path other) {
-        if (other == null) {
-            throw new NullPointerException();
-        }
-
+    public Path resolveSibling(final Path other) {
         final Path parent = getParent();
         return (parent == null) ? other : parent.resolve(other);
     }
 
     @Override
-    public Path resolveSibling(String other) {
-        if (other == null) {
-            throw new NullPointerException();
-        }
-
-        final Path parent = getParent();
-        return (parent == null) ?
-                new RemoteCachingPath(this.fileSystem, other) :
-                parent.resolve(other);
+    public Path resolveSibling(final String other) {
+        return resolveSibling(new RemoteCachingPath(fileSystem, other));
     }
 
     @Override
-    public Path relativize(Path other) {
-        // TODO: make work in the general case
-        final RemoteCachingPath o = RemoteCachingFileSystemProvider.toRCP(other);
-
-        if (this.getRoot().equals(o)) {
-            if (this.equals(o)) {
-                /* both are root */
-                return new RemoteCachingPath(this.fileSystem, ".");
-            }
-            return new RemoteCachingPath(this.fileSystem, makeRelative(this.path));
+    public Path relativize(final Path other) {
+        final RemoteCachingPath otherPath = RemoteCachingFileSystemProvider.toRemoteCachePath(other);
+        if (!isAbsolute() || !otherPath.isAbsolute()) {
+            throw new IllegalArgumentException("Cannot relativize relative paths");
         }
-        throw new UnsupportedOperationException();
+
+        RemoteCachingPath result = new RemoteCachingPath(fileSystem, "");
+        int i = 0;
+        for (; i < Math.min(getNameCount(), otherPath.getNameCount()); i++) {
+            if (!getName(i).equals(otherPath.getName(i))) {
+                break;
+            }
+        }
+
+        if (i < getNameCount()) {
+            throw new IllegalArgumentException("Relativizing path " + other + " by " + this + " not supported");
+        }
+        for (int j = i; j < otherPath.getNameCount(); j++) {
+            result = (RemoteCachingPath) result.resolve(otherPath.getName(j));
+        }
+
+        return result;
     }
 
     @Override
     public URI toUri() {
+        if (!isAbsolute()) {
+            throw new IllegalStateException("Cannot convert relative path " + this + " to URI");
+        }
+        final StringBuilder pathBuilder = new StringBuilder(path.length()).append('/');
+        for (int i = 0; i < getNameCount(); i++) {
+            pathBuilder.append(getName(i)).append('/');
+        }
+
         try {
-            return new URI(this.fileSystem.provider().getScheme(), null, path, null, null);
-        } catch (URISyntaxException e) {
-            log.error(e.getMessage());
-            return null;
+            return new URI(fileSystem.provider().getScheme(), null, pathBuilder.toString(), null, null);
+        } catch (final URISyntaxException e) {
+            throw new IllegalArgumentException("Failed to construct URI from " + this, e);
         }
     }
 
     @Override
     public Path toAbsolutePath() {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
-    public Path toRealPath(LinkOption... options) throws IOException {
+    public Path toRealPath(final LinkOption... options) throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
     public File toFile() {
         try {
-            return fileSystem.getCacheFile(this);
-        } catch (IOException e) {
-            log.error("Could not load Path " + path, e);
-            return new File("/INVALID/INVALID/INVALID");
+            return fileSystem.getCachePath(this).toFile();
+        } catch (final ExecutionException e) {
+            throw new IllegalStateException("Unexpected error while getting cache path for " + this, e);
         }
     }
 
     @Override
-    public WatchKey register(WatchService watcher,
-                             WatchEvent.Kind<?>[] events,
-                             WatchEvent.Modifier... modifiers) throws IOException {
+    public WatchKey register(final WatchService watcher,
+                             final WatchEvent.Kind<?>[] events,
+                             final WatchEvent.Modifier... modifiers) throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public WatchKey register(WatchService watcher, WatchEvent.Kind<?>... events) throws
+    public WatchKey register(final WatchService watcher, final WatchEvent.Kind<?>... events) throws
             IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
     public Iterator<Path> iterator() {
-        return null;
+        return new Iterator<Path>() {
+            private int i = 0;
+            @Override
+            public boolean hasNext() {
+                return i < getNameCount();
+            }
+
+            @Override
+            public Path next() {
+                if (hasNext()) {
+                    return getName(i++);
+                }
+                throw new NoSuchElementException();
+            }
+
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException();
+            }
+        };
     }
 
     @Override
-    public int compareTo(Path other) {
-        final RemoteCachingPath otherPath = RemoteCachingFileSystemProvider.toRCP(other);
-        return this.path.compareTo(otherPath.path);
+    public int compareTo(final Path other) {
+        final RemoteCachingPath otherPath = RemoteCachingFileSystemProvider.toRemoteCachePath(other);
+        return path.compareTo(otherPath.path);
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(final Object o) {
         if (this == o) {
             return true;
         }
         if (!(o instanceof RemoteCachingPath)) {
             return false;
         }
-
         final RemoteCachingPath paths = (RemoteCachingPath) o;
-
-        if (!fileSystem.equals(paths.fileSystem)) {
-            return false;
-        }
-        return path.equals(paths.path);
+        return Objects.equal(fileSystem, paths.fileSystem) &&
+                Objects.equal(path, paths.path);
     }
 
     @Override
     public int hashCode() {
-        return path.hashCode();
+        return Objects.hashCode(fileSystem, path);
     }
 
-    public String getIndexPath() {
-        if (offsets.length < 1) {
-            return null;
-        }
-        return makeRelative(subpath(0, 1).toString());
-    }
-
-    public String getShardPath() {
+    @Nullable
+    RemoteCachingPath getShardPath() {
         if (offsets.length < 2) {
             return null;
         }
-        return makeRelative(subpath(0, 2).toString());
+        return (RemoteCachingPath) subpath(0, 2);
     }
 
-    public String getFilePath() {
+    @Nullable
+    RemoteCachingPath getFilePath() {
         if (offsets.length < 3) {
             return null;
         }
-        return makeRelative(subpath(2, getNameCount()).toString());
+        return (RemoteCachingPath) subpath(2, getNameCount());
     }
 
     public ImhotepPathType getType() {
@@ -339,19 +345,19 @@ public class RemoteCachingPath implements Path, Serializable {
         }
     }
 
-    boolean isLocalOnly() {
-        return attrLocalOnly;
-    }
-
-    void setLocalOnly(boolean localOnly) {
-        attrLocalOnly = localOnly;
-    }
-
-    private static String makeRelative(String path) {
-        if (path.startsWith(PATH_SEPARATOR_STR)) {
-            return path.substring(1);
+    private static String makeRelative(final String pathStr) {
+        if (pathStr.startsWith(PATH_SEPARATOR_STR)) {
+            return pathStr.substring(PATH_SEPARATOR_STR.length());
         } else {
-            return path;
+            return pathStr;
+        }
+    }
+
+    RemoteCachingPath asRelativePath() {
+        if (isAbsolute()) {
+            return new RemoteCachingPath(fileSystem, makeRelative(path));
+        } else {
+            return this;
         }
     }
 
@@ -362,5 +368,32 @@ public class RemoteCachingPath implements Path, Serializable {
     @Override
     public String toString() {
         return normalizedPath;
+    }
+
+    static RemoteCachingPath getRoot(final RemoteCachingFileSystem fs) {
+        return new RemoteCachingPath(fs, PATH_SEPARATOR_STR);
+    }
+
+    /**
+     * used to resolve a paths of different types
+     */
+    static <T extends Path> T resolve(final T basePath, final Path other) {
+        T result = basePath;
+        for (final Path component : other.normalize()) {
+            result = (T) result.resolve(component.toString());
+        }
+        return result;
+    }
+
+    private static class PathProxy implements Serializable {
+        private PathProxy(final Path path) {
+            pathUri = path.toUri();
+        }
+
+        private final URI pathUri;
+
+        Object readResolve() throws ObjectStreamException {
+            return Paths.get(pathUri);
+        }
     }
 }

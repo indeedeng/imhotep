@@ -1,141 +1,131 @@
 package com.indeed.imhotep.fs;
 
+import com.google.common.base.Throwables;
 import com.indeed.imhotep.archive.FileMetadata;
 
-import java.io.FileNotFoundException;
+import javax.annotation.Nullable;
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
+import java.nio.file.NotDirectoryException;
 import java.nio.file.Path;
-import java.nio.file.attribute.BasicFileAttributeView;
-import java.nio.file.attribute.FileAttributeView;
-import java.nio.file.attribute.FileStoreAttributeView;
 import java.sql.SQLException;
-import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
  * @author darren
  */
-public class SqarRemoteFileStore extends RemoteFileStore {
-    private final SqarManager sqarManager;
-    private final RemoteFileStore backingStore;
+class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
+    private final SqarMetaDataManager sqarMetaDataManager;
+    private final RemoteFileStore backingFileStore;
 
-    public SqarRemoteFileStore(final RemoteFileStore backingStore,
-                               final Map<String, String> configuration) {
-        this.backingStore = backingStore;
-        sqarManager = new SqarManager(configuration);
+    SqarRemoteFileStore(final RemoteFileStore backingFileStore,
+                               final Map<String, ?> configuration) throws SQLException, ClassNotFoundException {
+        this.backingFileStore = backingFileStore;
+        sqarMetaDataManager = new SqarMetaDataManager(configuration);
+    }
+
+    @Override
+    public void close() throws IOException {
+        sqarMetaDataManager.close();
+    }
+
+    RemoteFileStore getBackingFileStore() {
+        return backingFileStore;
+    }
+
+    @Override
+    InputStream newInputStream(final RemoteCachingPath path, final long startOffset, final long length) throws IOException {
+        return backingFileStore.newInputStream(path, startOffset, length);
     }
 
     @Override
     public String name() {
-        return null;
+        return backingFileStore.name();
     }
 
     @Override
-    public boolean isReadOnly() {
-        return true;
-    }
-
-    @Override
-    public long getTotalSpace() throws IOException {
-        return 0L;
-    }
-
-    @Override
-    public long getUsableSpace() throws IOException {
-        return 0L;
-    }
-
-    @Override
-    public long getUnallocatedSpace() throws IOException {
-        return 0L;
-    }
-
-    @Override
-    public ArrayList<RemoteFileInfo> listDir(RemoteCachingPath path) throws IOException {
-        return sqarManager.readDir(path);
-    }
-
-    @Override
-    public RemoteFileInfo readInfo(RemoteCachingPath path) throws IOException {
-        final FileMetadata md = getMetadata(path);
-
-        if (md == null) {
-            return null;
-        }
-        return new RemoteFileInfo(path.toString(), md.getSize(), md.isFile());
-    }
-
-    @Override
-    public RemoteFileInfo readInfo(RemoteCachingPath path, boolean isFile) throws IOException {
-        final RemoteFileInfo result = readInfo(path);
-
-        if ((result != null) && (result.isFile() == isFile)) {
-            return result;
+    List<RemoteFileStore.RemoteFileAttributes> listDir(final RemoteCachingPath path) throws IOException {
+        if (SqarMetaDataManager.isInSqarDirectory(path, backingFileStore)) {
+            final FileMetadata sqarMetadata = getSqarMetadata(path);
+            if (sqarMetadata == null) {
+                throw new NoSuchFileException(path.toString());
+            } else if (sqarMetadata.isFile()) {
+                throw new NotDirectoryException(path.toString());
+            }
+            return sqarMetaDataManager.readDir(path);
         } else {
-            return null;
+            return backingFileStore.listDir(path);
         }
     }
 
-    @Override
-    public RemoteFileInfo readInfo(String path) throws IOException {
-        throw new UnsupportedOperationException();
+    private RemoteFileStore.RemoteFileAttributes getRemoteAttributesImpl(final RemoteCachingPath path) throws IOException {
+        final FileMetadata md = getSqarMetadata(path);
+        if (md == null) {
+            throw new NoSuchFileException("Could not find metadata for " + path);
+        }
+        return new RemoteFileStore.RemoteFileAttributes(path, md.getSize(), md.isFile());
     }
 
     @Override
-    public void downloadFile(RemoteCachingPath srcPath, Path destPath) throws IOException {
-        final String archivePath;
-        final InputStream archiveIS;
-        final FileMetadata md = getMetadata(srcPath);
+    RemoteFileStore.RemoteFileAttributes getRemoteAttributes(final RemoteCachingPath path) throws IOException {
+        if (SqarMetaDataManager.isInSqarDirectory(path, backingFileStore)) {
 
+            return getRemoteAttributesImpl(path);
+        } else {
+            return backingFileStore.getRemoteAttributes(path);
+        }
+    }
+
+    private void downloadFileImpl(final RemoteCachingPath srcPath, final Path destPath) throws IOException {
+        final FileMetadata md = getSqarMetadata(srcPath);
         if (md == null) {
-            throw new FileNotFoundException("Cannot find shard for " + srcPath);
+            throw new NoSuchFileException("Cannot find file for " + srcPath);
         }
         if (!md.isFile()) {
             throw new NoSuchFileException(srcPath.toString() + " is not a file");
         }
 
-        archivePath = sqarManager.getFullArchivePath(srcPath, md.getArchiveFilename());
-        archiveIS = backingStore.getInputStream(archivePath,
+        final RemoteCachingPath archivePath = SqarMetaDataManager.getFullArchivePath(srcPath, md.getArchiveFilename());
+        try (final InputStream archiveIS = backingFileStore.newInputStream(archivePath,
                 md.getStartOffset(),
-                md.getCompressedSize());
-        try {
-            sqarManager.copyDecompressed(archiveIS, destPath, md, srcPath.toString());
-        } catch (IOException e) {
-            Files.delete(destPath);
-            throw e;
-        } finally {
-            archiveIS.close();
+                md.getCompressedSize())) {
+            try {
+                sqarMetaDataManager.copyDecompressed(archiveIS, srcPath, destPath, md);
+            } catch (final IOException e) {
+                Files.delete(destPath);
+                throw Throwables.propagate(e);
+            }
         }
     }
 
     @Override
-    public InputStream getInputStream(String path, long startOffset, long length) throws
-            IOException {
-        throw new UnsupportedOperationException();
+    void downloadFile(final RemoteCachingPath srcPath, final Path destPath) throws IOException {
+        if (SqarMetaDataManager.isInSqarDirectory(srcPath, backingFileStore)) {
+            downloadFileImpl(srcPath, destPath);
+        } else {
+            backingFileStore.downloadFile(srcPath, destPath);
+        }
     }
 
-    private FileMetadata getMetadata(RemoteCachingPath path) throws IOException {
-        SqarManager.PathInfoResult pathInfoResult = sqarManager.getPathInfo(path);
+    @Nullable
+    private FileMetadata getSqarMetadata(final RemoteCachingPath path) throws IOException {
+        SqarMetaDataManager.PathInfoResult pathInfoResult = sqarMetaDataManager.getPathInfo(path);
 
-        if (pathInfoResult == SqarManager.PathInfoResult.ARCHIVE_MISSING) {
-            loadMetadataForSqar(path);
-            pathInfoResult = sqarManager.getPathInfo(path);
+        if (pathInfoResult == SqarMetaDataManager.PathInfoResult.ARCHIVE_MISSING) {
+            final RemoteCachingPath metadataPath = SqarMetaDataManager.getMetadataPath(path);
+            try (InputStream metadataIS = backingFileStore.newInputStream(metadataPath, 0, -1)) {
+                sqarMetaDataManager.cacheMetadata(path, metadataIS);
+            }
+            pathInfoResult = sqarMetaDataManager.getPathInfo(path);
         }
-        if (pathInfoResult == SqarManager.PathInfoResult.FILE_MISSING) {
+        if (pathInfoResult == SqarMetaDataManager.PathInfoResult.FILE_MISSING) {
             return null;
         }
 
         return pathInfoResult.metadata;
     }
-
-    private void loadMetadataForSqar(RemoteCachingPath path) throws IOException {
-        final String metadataLoc = sqarManager.getMetadataLoc(path);
-        try (InputStream metadataIS = backingStore.getInputStream(metadataLoc, 0, -1)) {
-            sqarManager.cacheMetadata(path, metadataIS);
-        }
-    }
-
 }

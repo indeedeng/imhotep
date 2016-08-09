@@ -2,9 +2,10 @@ package com.indeed.imhotep.fs;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URISyntaxException;
 import java.nio.file.FileStore;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.FileAttributeView;
 import java.nio.file.attribute.FileStoreAttributeView;
 import java.util.List;
@@ -14,10 +15,15 @@ import java.util.Map;
  * @author darren
  */
 
-public abstract class RemoteFileStore extends FileStore {
+abstract class RemoteFileStore extends FileStore {
     @Override
     public String type() {
         return getClass().getName();
+    }
+
+    @Override
+    public boolean isReadOnly() {
+        return true;
     }
 
     @Override
@@ -35,15 +41,11 @@ public abstract class RemoteFileStore extends FileStore {
         return 0;
     }
 
-    public abstract List<RemoteFileInfo> listDir(RemoteCachingPath path) throws IOException;
-
-    public RemoteFileInfo readInfo(RemoteCachingPath path) throws IOException {
-        return readInfo(path.toString());
-    }
+    abstract List<RemoteFileAttributes> listDir(RemoteCachingPath path) throws IOException;
 
     @Override
     public boolean supportsFileAttributeView(final Class<? extends FileAttributeView> type) {
-        return ImhotepFileAttributeView.class.isInstance(type);
+        return (BasicFileAttributeView.class == type) || (RemoteCachingFileAttributeViews.Imhotep.class == type);
     }
 
     @Override
@@ -61,47 +63,46 @@ public abstract class RemoteFileStore extends FileStore {
         return null;
     }
 
-    public RemoteFileInfo readInfo(RemoteCachingPath path, boolean isFile) throws IOException {
-        return readInfo(path.toString(), isFile);
-    }
+    abstract RemoteFileAttributes getRemoteAttributes(RemoteCachingPath path) throws IOException;
 
-    // TODO: why string
-    public abstract RemoteFileInfo readInfo(String shardPath) throws IOException;
+    RemoteFileAttributes getRemoteAttributes(final RemoteCachingPath path, final boolean isFile) throws IOException {
+        final RemoteFileAttributes result = getRemoteAttributes(path);
 
-    public RemoteFileInfo readInfo(String shardPath, boolean isFile) throws IOException {
-        final RemoteFileInfo result = readInfo(shardPath);
-
-        if (result != null && result.isFile == isFile) {
+        if ((result != null) && (result.isFile == isFile)) {
             return result;
         } else {
-            return null;
+            throw new NoSuchFileException(path + " not found");
         }
     }
 
-    public abstract void downloadFile(RemoteCachingPath srcPath, Path destPath) throws IOException;
+    abstract void downloadFile(RemoteCachingPath srcPath, Path destPath) throws IOException;
 
-    public abstract InputStream getInputStream(String path,
-                                               long startOffset,
-                                               long length) throws IOException;
+    /**
+     * open an input stream without caching
+     * @param path the remote path
+     * @param startOffset the offset bytes
+     * @param length bytes you want to read
+     * @return the input stream
+     * @throws IOException
+     */
+    abstract InputStream newInputStream(RemoteCachingPath path,
+                                        long startOffset,
+                                        long length) throws IOException;
 
-    public static class RemoteFileInfo {
-        private String path;
-        private long size;
+    static class RemoteFileAttributes {
+        private final RemoteCachingPath path;
+        private final long size;
         // TODO: should this be isDirectory?
         private final boolean isFile;
 
-        public RemoteFileInfo(String path, long size, boolean isFile) {
+        RemoteFileAttributes(final RemoteCachingPath path, final long size, final boolean isFile) {
             this.path = path;
             this.size = size;
             this.isFile = isFile;
         }
 
-        public String getPath() {
+        public RemoteCachingPath getPath() {
             return path;
-        }
-
-        public void setPath(final String path) {
-            this.path = path;
         }
 
         public long getSize() {

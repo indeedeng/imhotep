@@ -22,28 +22,30 @@ import java.util.Map;
 class LocalFileStore extends RemoteFileStore {
     private final Path root;
 
-    LocalFileStore(final Path root) {
+    private LocalFileStore(final Path root) {
         this.root = root;
     }
 
     private LocalFileStore(final Map<String, ?> configuration) throws URISyntaxException {
-        this(Paths.get(new URI((String) configuration.get("local-filestore.root-uri"))));
+        this(Paths.get(new URI((String) configuration.get("imhotep.fs.filestore.local.root-uri"))));
     }
 
     @Override
-    public List<RemoteFileInfo> listDir(final RemoteCachingPath path) throws IOException {
-        try (final DirectoryStream<Path> dirStream = Files.newDirectoryStream(getLocalPath(path))) {
+    public List<RemoteFileAttributes> listDir(final RemoteCachingPath path) throws IOException {
+        final Path localDirPath = getLocalPath(path);
+        try (final DirectoryStream<Path> dirStream = Files.newDirectoryStream( localDirPath)) {
 
-            return FluentIterable.from(dirStream).transform(new Function<Path, RemoteFileInfo>() {
+            return FluentIterable.from(dirStream).transform(new Function<Path, RemoteFileAttributes>() {
                 @Override
-                public RemoteFileInfo apply(final Path localPath) {
+                public RemoteFileAttributes apply(final Path localPath) {
                     try {
                         final BasicFileAttributes attributes = Files.readAttributes(localPath, BasicFileAttributes.class);
-                        return new RemoteFileInfo(localPath.relativize(root).toString(),
+                        return new RemoteFileAttributes(
+                                RemoteCachingPath.resolve(path, localDirPath.relativize(localPath)),
                                 attributes.size(),
                                 !attributes.isDirectory());
                     } catch (final IOException e) {
-                        throw new RuntimeException("Failed to get attributes for " + localPath, e);
+                        throw new IllegalStateException("Failed to get attributes for " + localPath + " while listing " + path, e);
                     }
                 }
             }).toList();
@@ -56,24 +58,23 @@ class LocalFileStore extends RemoteFileStore {
     }
 
     @Override
-    public boolean isReadOnly() {
-        return true;
-    }
-
-    @Override
-    public RemoteFileInfo readInfo(final String shardPath) throws IOException {
-        final Path localPath = getLocalPath(shardPath);
+    public RemoteFileAttributes getRemoteAttributes(final RemoteCachingPath path) throws IOException {
+        final Path localPath = getLocalPath(path);
         final BasicFileAttributes attributes = Files.readAttributes(localPath, BasicFileAttributes.class);
-        return new RemoteFileInfo(shardPath, attributes.size(), !attributes.isDirectory());
+        return new RemoteFileAttributes(path, attributes.size(), !attributes.isDirectory());
     }
 
     @Override
     public void downloadFile(final RemoteCachingPath srcPath, final Path destPath) throws IOException {
+        final Path destParent = destPath.getParent();
+        if (destParent != null) {
+            Files.createDirectories(destParent);
+        }
         Files.copy(getLocalPath(srcPath), destPath, StandardCopyOption.REPLACE_EXISTING);
     }
 
     @Override
-    public InputStream getInputStream(final String path, final long startOffset, final long length) throws
+    public InputStream newInputStream(final RemoteCachingPath path, final long startOffset, final long length) throws
             IOException {
         final Path localPath = getLocalPath(path);
         final InputStream is = Files.newInputStream(localPath);
@@ -83,20 +84,8 @@ class LocalFileStore extends RemoteFileStore {
         return is;
     }
 
-    private Path getLocalPath(final String path) {
-        final String relPath;
-
-        if (path.startsWith(RemoteCachingPath.PATH_SEPARATOR_STR)) {
-            relPath = path.substring(RemoteCachingPath.PATH_SEPARATOR_STR.length());
-        } else {
-            relPath = path;
-        }
-
-        return root.resolve(relPath);
-    }
-
     private Path getLocalPath(final RemoteCachingPath path) {
-        return root.resolve(path.relativize(path.getRoot()).toString());
+        return RemoteCachingPath.resolve(root, path.asRelativePath());
     }
 
     static class Builder implements RemoteFileStore.Builder {

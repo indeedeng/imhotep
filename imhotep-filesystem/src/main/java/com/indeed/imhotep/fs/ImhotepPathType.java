@@ -1,8 +1,8 @@
 package com.indeed.imhotep.fs;
 
 /**
- * Created by darren on 12/17/15.
+ * @author darren
  */
-public enum ImhotepPathType {
+enum ImhotepPathType {
     ROOT, INDEX, SHARD, FILE
 }

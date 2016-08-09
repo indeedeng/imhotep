@@ -12,7 +12,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 
 /**
- * Created by darren on 4/6/16.
+ * @author darren
  */
 public class SqlStatements {
     private static final String INSERT_SHARD_NAME =
@@ -58,7 +58,6 @@ public class SqlStatements {
                     + "ON cache_file_ids (sqar_id, file_name_id);";
     private static final String CREATE_FILENAME_2_ID_VIEW =
             "CREATE VIEW IF NOT EXISTS cache_file_name_to_id "
-//                    + "(id, sqar_id, name, type) "
                     + "AS "
                     + "SELECT cache_file_ids.id, cache_file_ids.sqar_id, cache_file_names.name, cache_file_ids.type "
                     + "FROM cache_file_names INNER JOIN cache_file_ids "
@@ -80,8 +79,6 @@ public class SqlStatements {
             "sig_low BIGINT," +
             "compressor_type VARCHAR(16)," +
             "is_file INTEGER);";
-//    private static final String CREATE_FILE_INFO_IDX =
-//            "CREATE UNIQUE INDEX IF NOT EXISTS cache_file_info_idx ON cache_file_info (file_id);";
 
     private static final String SELECT_SQAR_ID =
             "SELECT id FROM cache_sqar_names WHERE name = ?;";
@@ -109,11 +106,7 @@ public class SqlStatements {
                     + "FROM cache_file_name_to_id "
                     + "WHERE sqar_id = ?1 "
                     + "AND instr(name, ?2) = 1 " // begins with prefix
-                    + "AND instr(substr(name, ?3), '" + SqarManager.DELIMITER + "')= 0;"; // delimiter is not in the rest of the filename
-    private static final String SELECT_FILE_NAMES_NO_PREFIX =
-            "SELECT name, type "
-                    + "FROM cache_file_name_to_id "
-                    + "WHERE sqar_id = ?1;";
+                    + "AND instr(substr(name, ?3), '" + SqarMetaDataManager.DELIMITER + "')= 0;"; // delimiter is not in the rest of the filename
 
     private final PreparedStatement INSERT_SHARD_NAME_STATEMENT;
     private final PreparedStatement SELECT_SHARD_ID_STATEMENT;
@@ -129,9 +122,8 @@ public class SqlStatements {
     private final PreparedStatement SELECT_FILE_INFO_STATEMENT;
     private final PreparedStatement SELECT_ARCHIVE_FILE_NAME_STATEMENT;
     private final PreparedStatement SELECT_FILE_NAMES_WITH_PREFIX_STATEMENT;
-    private final PreparedStatement SELECT_FILE_NAMES_NO_PREFIX_STATEMENT;
 
-    SqlStatements(Connection connection) throws SQLException {
+    SqlStatements(final Connection connection) throws SQLException {
         INSERT_SHARD_NAME_STATEMENT = connection.prepareStatement(INSERT_SHARD_NAME,
                                                                   Statement.RETURN_GENERATED_KEYS);
         SELECT_SHARD_ID_STATEMENT = connection.prepareStatement(SELECT_SHARD_ID);
@@ -152,8 +144,6 @@ public class SqlStatements {
         SELECT_ARCHIVE_FILE_NAME_STATEMENT = connection.prepareStatement(SELECT_ARCHIVE_FILE_NAME);
         SELECT_FILE_NAMES_WITH_PREFIX_STATEMENT = connection.prepareStatement(
                 SELECT_FILE_NAMES_WITH_PREFIX);
-        SELECT_FILE_NAMES_NO_PREFIX_STATEMENT = connection.prepareStatement(
-                SELECT_FILE_NAMES_NO_PREFIX);
     }
 
     static void execute_CREATE_SQAR_TBL(Connection connection) throws SQLException {
@@ -225,13 +215,6 @@ public class SqlStatements {
         stmt.executeUpdate(CREATE_FILE_INFO_TBL);
         stmt.close();
     }
-
-//    static void execute_CREATE_FILE_INFO_IDX(Connection connection) throws SQLException {
-//        final Statement stmt = connection.createStatement();
-//
-//        stmt.executeUpdate(CREATE_FILE_INFO_IDX);
-//        stmt.close();
-//    }
 
     private static int executInsertNameSql(String name, PreparedStatement statement) throws
             SQLException {
@@ -452,20 +435,12 @@ public class SqlStatements {
         return processFilenames(rs);
     }
 
-    public ArrayList<FileOrDir> execute_SELECT_FILE_NAMES_NO_PREFIX_STATEMENT(int sqarId) throws
-            SQLException {
-        SELECT_FILE_NAMES_NO_PREFIX_STATEMENT.clearParameters();
-        SELECT_FILE_NAMES_NO_PREFIX_STATEMENT.setInt(1, sqarId);
-        final ResultSet rs = SELECT_FILE_NAMES_NO_PREFIX_STATEMENT.executeQuery();
-        return processFilenames(rs);
-    }
-
     public static class FileOrDir {
-        public String name;
-        public boolean isFile;
+        public final String name;
+        public final boolean isFile;
 
         public FileOrDir(String path, boolean isFile) {
-            this.name = path;
+            name = path;
             this.isFile = isFile;
         }
     }
@@ -473,11 +448,11 @@ public class SqlStatements {
     private ArrayList<FileOrDir> processFilenames(ResultSet rs) throws SQLException {
         final ArrayList<FileOrDir> results = new ArrayList<>(1024);
 
-        while (rs != null && rs.next()) {
+        while ((rs != null) && rs.next()) {
             final String path = rs.getString(1);
-            final int isFile = rs.getInt(2);
+            final boolean isFile = rs.getBoolean(2);
 
-            results.add(new FileOrDir(path, isFile == 1));
+            results.add(new FileOrDir(path, isFile));
         }
 
         return results;
