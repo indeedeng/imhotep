@@ -205,7 +205,9 @@ public class SimpleFlamdexReader
 
     public IntTermDocIterator getIntTermDocIterator(final String field, final boolean unsorted) {
         final SimpleIntTermIterator termIterator = getIntTermIterator(field, unsorted);
-        if (useNativeDocIdStream && CachedFile.create(termIterator.getFilename()).length() > 0) {
+        // NativeIntTermDocIterator doesn't work reliably with reordering like StringToIntTermIterator
+        if (useNativeDocIdStream && !(termIterator instanceof StringToIntTermIterator) &&
+                CachedFile.create(termIterator.getFilename()).length() > 0) {
             try {
                 return new NativeIntTermDocIterator(termIterator, mapCache);
             } catch (IOException e) {
