@@ -16,6 +16,7 @@
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Doubles;
@@ -575,6 +576,23 @@ public class ImhotepRemoteSession
     }
 
     @Override
+    public int regroupWithProtos(GroupMultiRemapMessage[] rawRuleMessages,
+                       boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
+        final Timer timer = new Timer();
+        try {
+            final Iterator<GroupMultiRemapMessage> rawRuleMessagesIterator = Arrays.asList(rawRuleMessages).iterator();
+            final ImhotepResponse response =
+                    sendMultisplitRegroupRequestFromProtos(rawRuleMessages.length, rawRuleMessagesIterator, sessionId,
+                            errorOnCollisions);
+            final int result = response.getNumGroups();
+            timer.complete(ImhotepRequest.RequestType.EXPLODED_MULTISPLIT_REGROUP);
+            return result;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
     public int regroup(int numRawRules, Iterator<GroupMultiRemapRule> rawRules,
                        boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
         final Timer timer = new Timer();
@@ -1052,6 +1070,18 @@ public class ImhotepRemoteSession
     }
 
     private ImhotepResponse sendMultisplitRegroupRequest(int numRules, Iterator<GroupMultiRemapRule> rules, String sessionId, boolean errorOnCollisions) throws IOException, ImhotepOutOfMemoryException {
+        final Iterator<GroupMultiRemapMessage> ruleMessageIterator = Iterators.transform(rules,
+                new Function<GroupMultiRemapRule, GroupMultiRemapMessage>() {
+            @Nullable
+            @Override
+            public GroupMultiRemapMessage apply(@Nullable GroupMultiRemapRule rule) {
+                return ImhotepClientMarshaller.marshal(rule);
+            }
+        });
+        return sendMultisplitRegroupRequestFromProtos(numRules, ruleMessageIterator, sessionId, errorOnCollisions);
+    }
+
+    private ImhotepResponse sendMultisplitRegroupRequestFromProtos(int numRules, Iterator<GroupMultiRemapMessage> rules, String sessionId, boolean errorOnCollisions) throws IOException, ImhotepOutOfMemoryException {
         final ImhotepRequest initialRequest = getBuilderForType(ImhotepRequest.RequestType.EXPLODED_MULTISPLIT_REGROUP)
                 .setLength(numRules)
                 .setSessionId(sessionId)
@@ -1064,8 +1094,7 @@ public class ImhotepRemoteSession
         try {
             ImhotepProtobufShipping.sendProtobuf(initialRequest, os);
             while (rules.hasNext()) {
-                final GroupMultiRemapRule rule = rules.next();
-                final GroupMultiRemapMessage ruleMessage = ImhotepClientMarshaller.marshal(rule);
+                final GroupMultiRemapMessage ruleMessage = rules.next();
                 ImhotepProtobufShipping.sendProtobuf(ruleMessage, os);
             }
             return readResponseWithMemoryException(is, host, port);

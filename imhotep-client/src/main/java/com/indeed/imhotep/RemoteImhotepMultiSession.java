@@ -16,12 +16,17 @@
 import com.google.common.base.Throwables;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.HasSessionId;
+import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.RawFTGSIterator;
+import com.indeed.imhotep.marshal.ImhotepClientMarshaller;
+import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.util.core.Pair;
 import org.apache.log4j.Logger;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
@@ -128,6 +133,31 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             throw Throwables.propagate(e);
         }
         return mergers;
+    }
+
+    // Overrides the AbstractImhotepMultiSession implementation to avoid each sub-session constructing a separate copy
+    // of the rules protobufs using too much RAM.
+    @Override
+    public int regroup(final GroupMultiRemapRule[] rawRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
+        final GroupMultiRemapMessage[] groupMultiRemapMessages = new GroupMultiRemapMessage[rawRules.length];
+        for(int i = 0; i < rawRules.length; i++) {
+            groupMultiRemapMessages[i] = ImhotepClientMarshaller.marshal(rawRules[i]);
+        }
+
+        return regroupWithProtos(groupMultiRemapMessages, errorOnCollisions);
+    }
+
+    @Override
+    public int regroupWithProtos(final GroupMultiRemapMessage[] rawRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
+        executeMemoryException(integerBuf, new ThrowingFunction<ImhotepSession, Integer>() {
+            @Override
+            public Integer apply(ImhotepSession session) throws Exception {
+                return session.regroupWithProtos(rawRules, errorOnCollisions);
+            }
+        });
+
+        numGroups = Collections.max(Arrays.asList(integerBuf));
+        return numGroups;
     }
 
     /**

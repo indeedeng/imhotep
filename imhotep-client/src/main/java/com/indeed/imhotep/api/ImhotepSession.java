@@ -19,6 +19,7 @@ import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.TermCount;
+import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 
 import javax.annotation.concurrent.NotThreadSafe;
 import java.io.Closeable;
@@ -149,6 +150,13 @@ public interface ImhotepSession
     int regroup(int numRawRules, Iterator<GroupMultiRemapRule> rawRules) throws ImhotepOutOfMemoryException;
 
     int regroup(GroupMultiRemapRule[] rawRules, boolean errorOnCollisions) throws ImhotepOutOfMemoryException;
+
+    /**
+     * Performs a regroup same as the GroupMultiRemapRule[] overload but takes protobuf objects
+     * to avoid serialization costs.
+     */
+    int regroupWithProtos(GroupMultiRemapMessage[] rawRuleMessages,
+                          boolean errorOnCollisions) throws ImhotepOutOfMemoryException;
 
     int regroup(int numRawRules, Iterator<GroupMultiRemapRule> rawRules, boolean errorOnCollisions) throws ImhotepOutOfMemoryException;
 

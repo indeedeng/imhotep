@@ -67,7 +67,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
 
     private final Long[] totalDocFreqBuf;
 
-    private final Integer[] integerBuf;
+    protected final Integer[] integerBuf;
 
     private final Long[] longBuf;
 
@@ -141,7 +141,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
 
     protected int numStats = 0;
 
-    private int numGroups = 2;
+    protected int numGroups = 2;
 
     protected AbstractImhotepMultiSession(T[] sessions) {
         this(sessions, null);
@@ -227,19 +227,10 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
 
     @Override
     public int regroup(final int numRawRules, final Iterator<GroupMultiRemapRule> rawRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
-
         final GroupMultiRemapRuleArray rulesArray =
             new GroupMultiRemapRuleArray(numRawRules, rawRules);
 
-        executeMemoryException(integerBuf, new ThrowingFunction<ImhotepSession, Integer>() {
-            @Override
-            public Integer apply(ImhotepSession session) throws Exception {
-                return session.regroup(rulesArray.elements(), errorOnCollisions);
-            }
-        });
-
-        numGroups = Collections.max(Arrays.asList(integerBuf));
-        return numGroups;
+        return regroup(rulesArray.elements(), errorOnCollisions);
     }
 
     @Override
@@ -906,7 +897,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
         }
     }
 
-    protected <T> void executeRuntimeException(final T[] ret, final ThrowingFunction<? super ImhotepSession, ? extends T> function) {
+    protected <R> void executeRuntimeException(final R[] ret, final ThrowingFunction<? super T, ? extends R> function) {
         try {
             executeSessions(ret, function);
         } catch (ExecutionException e) {
@@ -914,7 +905,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
         }
     }
 
-    protected <T> void executeMemoryException(final T[] ret, final ThrowingFunction<? super ImhotepSession, ? extends T> function) throws ImhotepOutOfMemoryException {
+    protected <R> void executeMemoryException(final R[] ret, final ThrowingFunction<? super T, ? extends R> function) throws ImhotepOutOfMemoryException {
         try {
             executeSessions(ret, function);
         } catch (ExecutionException e) {
@@ -968,15 +959,15 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
         execute(executor, ret, things, function);
     }
 
-    protected <T> void executeSessions(final ExecutorService es,
-                                       final T[] ret,
-                                       final ThrowingFunction<? super ImhotepSession, ? extends T> function)
+    protected <R> void executeSessions(final ExecutorService es,
+                                       final R[] ret,
+                                       final ThrowingFunction<? super T, ? extends R> function)
         throws ExecutionException {
         execute(es, ret, sessions, function);
     }
 
-    protected <T> void executeSessions(final T[] ret,
-                                       final ThrowingFunction<? super ImhotepSession, ? extends T> function)
+    protected <R> void executeSessions(final R[] ret,
+                                       final ThrowingFunction<? super T, ? extends R> function)
         throws ExecutionException {
         execute(executor, ret, sessions, function);
     }

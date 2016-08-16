@@ -16,6 +16,7 @@
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.Instrumentation;
+import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 
 import java.util.Iterator;
 
@@ -44,6 +45,11 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
 
     public int regroup(final GroupMultiRemapRule[] rawRules) throws ImhotepOutOfMemoryException {
         return regroup(rawRules, false);
+    }
+
+    public int regroupWithProtos(GroupMultiRemapMessage[] rawRuleMessages,
+                          boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
+        throw new UnsupportedOperationException("Local imhotep sessions don't use protobufs, only remote sessions do");
     }
 
     @Override
