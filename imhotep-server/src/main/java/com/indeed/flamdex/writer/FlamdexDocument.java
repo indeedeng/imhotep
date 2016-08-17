@@ -34,6 +34,8 @@ public final class FlamdexDocument {
     @Nonnull
     private final Map<String, List<String>> stringFields;
 
+    public static final int STRING_TERM_LENGTH_LIMIT = 8092;
+
     public FlamdexDocument() {
         this(new HashMap<String, LongList>(), new HashMap<String, List<String>>());
     }
@@ -149,12 +151,20 @@ public final class FlamdexDocument {
         return list;
     }
 
+    private void checkStringTerm(String field, final CharSequence term) {
+        Preconditions.checkNotNull(term, "null terms not allowed");
+        if (term.length() > STRING_TERM_LENGTH_LIMIT) {
+            throw new IllegalArgumentException("Can't add a term string longer than the limit " + term.length() +
+                    " > " + STRING_TERM_LENGTH_LIMIT + " in field " + field + ": " + term);
+        }
+    }
+
     public void setStringField(@Nonnull final String field, @Nonnull final CharSequence term) {
         clearStringField(field);
         addStringTerm(field, term);
     }
     public void addStringTerm(@Nonnull final String field, @Nonnull final CharSequence term) {
-        Preconditions.checkNotNull(term, "term cannot be null");
+        checkStringTerm(field, term);
         prepareStringField(field).add(term.toString());
     }
 
@@ -166,7 +176,7 @@ public final class FlamdexDocument {
         final List<String> list = prepareStringField(field);
         Preconditions.checkNotNull(terms, "terms list cannot be null");
         for (CharSequence term : terms) {
-            Preconditions.checkNotNull(term, "null terms not allowed");
+            checkStringTerm(field, term);
             list.add(term.toString());
         }
     }
@@ -179,7 +189,7 @@ public final class FlamdexDocument {
         final List<String> list = prepareStringField(field);
         Preconditions.checkNotNull(terms, "terms list cannot be null");
         for (CharSequence term : terms) {
-            Preconditions.checkNotNull(term, "null terms not allowed");
+            checkStringTerm(field, term);
             list.add(term.toString());
         }
     }
@@ -194,5 +204,55 @@ public final class FlamdexDocument {
             stringFieldsCopy.put(e.getKey(), Lists.newArrayList(e.getValue()));
         }
         return new FlamdexDocument(intFieldsCopy, stringFieldsCopy);
+    }
+
+    public static class Builder {
+        private final FlamdexDocument document;
+        public Builder() {
+            document = new FlamdexDocument();
+        }
+
+        public Builder(final FlamdexDocument that) {
+            document = that;
+        }
+
+        public Builder addStringTerm(final String field, final CharSequence term) {
+            document.addStringTerm(field, term);
+            return this;
+        }
+
+        public Builder addStringTerms(final String field, final CharSequence... terms) {
+            document.addStringTerms(field, terms);
+            return this;
+        }
+
+        public Builder addStringTerms(final String field, final Iterable<? extends CharSequence> terms) {
+            document.addStringTerms(field, terms);
+            return this;
+        }
+
+        public Builder addIntTerm(final String field, final boolean term) {
+            document.addIntTerm(field, term);
+            return this;
+        }
+
+        public Builder addIntTerm(final String field, final long term) {
+            document.addIntTerm(field, term);
+            return this;
+        }
+
+        public Builder addIntTerms(final String field, final long... terms) {
+            document.addIntTerms(field, terms);
+            return this;
+        }
+
+        public Builder addIntTerms(final String field, final Iterable<Long> terms) {
+            document.addIntTerms(field, terms);
+            return this;
+        }
+
+        public FlamdexDocument build() {
+            return document;
+        }
     }
 }

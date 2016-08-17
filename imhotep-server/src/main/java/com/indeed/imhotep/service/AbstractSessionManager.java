@@ -13,7 +13,11 @@
  */
  package com.indeed.imhotep.service;
 
+import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
+import com.indeed.imhotep.MemoryReservationContext;
+import com.indeed.imhotep.exceptions.TooManySessionsException;
+import com.indeed.imhotep.exceptions.UserSessionCountLimitExceededException;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.varexport.Export;
@@ -31,6 +35,9 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
 
     private static final Logger log = Logger.getLogger(AbstractSessionManager.class);
 
+    private static int MAX_SESSION_COUNT = 64;
+    private static int MAX_SESSION_COUNT_PER_USER = 8;
+
     private final Map<String, Session<E>> sessionMap = new HashMap<String, Session<E>>();
     private final Map<String, Exception> failureCauseMap = CacheBuilder.newBuilder().maximumSize(200).<String, Exception>build().asMap();
 
@@ -38,7 +45,22 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
         synchronized (sessionMap) {
             if (sessionMap.containsKey(sessionId)) {
                 throw new IllegalArgumentException("there already exists a session with id "+sessionId);
+            } else if (sessionMap.size() >= MAX_SESSION_COUNT) {
+                throw new TooManySessionsException("Imhotep daemon has reached the maximum number of concurrent sessions: "+sessionMap.size());
             }
+
+            if (!Strings.isNullOrEmpty(session.username) && !session.username.equals(session.clientName)) {
+                int userSessionCount = 0;
+                for (final Map.Entry<String, Session<E>> e : sessionMap.entrySet()) {
+                    if (e.getValue().getUsername().equals(session.getUsername())) {
+                        userSessionCount += 1;
+                    }
+                }
+                if (userSessionCount >= MAX_SESSION_COUNT_PER_USER) {
+                    throw new UserSessionCountLimitExceededException("Imhotep daemon has reached the maximum number of concurrent sessions per user: " + userSessionCount);
+                }
+            }
+
             sessionMap.put(sessionId, session);
         }
     }
@@ -136,10 +158,13 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
         protected final SharedReference<ImhotepSession> imhotepSession;
         protected final E sessionState;
         protected final String username;
+        protected final String clientName;
         protected final String ipAddress;
         protected final int clientVersion;
         protected final String dataset;
+        protected final MemoryReservationContext sessionMemoryContext;
         protected final long timeout;
+        protected final long creationTime;
         protected final long SESSION_TIMEOUT_DEFAULT = 30L * 60 * 1000;
 
         private volatile int numStats;
@@ -149,29 +174,37 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
                 ImhotepSession imhotepSession,
                 E sessionState,
                 String username,
+                String clientName,
                 String ipAddress,
                 int clientVersion,
                 String dataset,
-                long timeout
-        ) {
+                long timeout,
+                MemoryReservationContext sessionMemoryContext) {
             this.imhotepSession = SharedReference.create(imhotepSession);
             this.sessionState = sessionState;
             this.username = username;
+            this.clientName = clientName;
             this.ipAddress = ipAddress;
             this.clientVersion = clientVersion;
             this.dataset = dataset;
+            this.sessionMemoryContext = sessionMemoryContext;
             if(timeout < 1) {
                 this.timeout = SESSION_TIMEOUT_DEFAULT;
             } else {
                 this.timeout = timeout;
             }
 
+            creationTime = System.currentTimeMillis();
 
-            lastActionTime = System.currentTimeMillis();
+            lastActionTime = creationTime;
         }
 
         public long getTimeout() {
             return timeout;
+        }
+
+        public String getUsername() {
+            return username;
         }
     }
 

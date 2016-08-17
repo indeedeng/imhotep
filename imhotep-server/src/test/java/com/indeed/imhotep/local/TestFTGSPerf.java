@@ -13,8 +13,8 @@
  */
  package com.indeed.imhotep.local;
 
-import org.apache.commons.math.stat.descriptive.moment.StandardDeviation;
-import org.apache.commons.math.stat.descriptive.rank.Percentile;
+//import org.apache.commons.math.stat.descriptive.moment.StandardDeviation;
+//import org.apache.commons.math.stat.descriptive.rank.Percentile;
 
 import static org.junit.Assert.*;
 

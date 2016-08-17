@@ -19,6 +19,11 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
+import com.indeed.flamdex.api.IntValueLookup;
+import com.indeed.flamdex.fieldcache.FieldCacherUtil;
+import com.indeed.flamdex.fieldcache.NativeFlamdexFieldCacher;
+import com.indeed.util.io.Files;
 import com.indeed.flamdex.AbstractFlamdexReader;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
@@ -50,14 +55,14 @@ import java.util.Set;
 */
 public class SimpleFlamdexReader
     extends AbstractFlamdexReader
-    implements RawFlamdexReader {
-    private static final Logger log = Logger.getLogger(SimpleFlamdexReader.class);
-    private static final boolean useNativeDocIdStream;
+    implements HasMapCache, RawFlamdexReader {
 
     private final Collection<String> intFields;
     private final Collection<String> stringFields;
-    private final MapCache.Pool mapPool = MapCache.getPool();
+    private final MapCache mapCache = new MapCache();
 
+    private static final boolean useNativeDocIdStream;
+    private final boolean useMMapDocIdStream;
 
     static {
         final String useNative = System.getProperties().getProperty("com.indeed.flamdex.simple.useNative");
@@ -65,20 +70,27 @@ public class SimpleFlamdexReader
     }
 
     private final Map<String, NativeFlamdexFieldCacher> intFieldCachers;
-    private final String creationStackTrace;
-    private boolean closed = false;
 
     protected SimpleFlamdexReader(Path directory,
                                   int numDocs,
                                   Collection<String> intFields,
                                   Collection<String> stringFields,
                                   boolean useMMapMetrics) {
+        this(directory, numDocs, intFields, stringFields, useMMapMetrics, true);
+    }
+
+    protected SimpleFlamdexReader(String directory,
+                                  int numDocs,
+                                  Collection<String> intFields,
+                                  Collection<String> stringFields,
+                                  boolean useMMapMetrics, boolean useMMapDocIdStream) {
         super(directory, numDocs, useMMapMetrics);
 
         this.intFields = intFields;
         this.stringFields = stringFields;
         this.intFieldCachers = Maps.newHashMap();
-        this.creationStackTrace = Arrays.toString((new Throwable()).getStackTrace());
+
+        this.useMMapDocIdStream = useMMapDocIdStream;
     }
 
     public static SimpleFlamdexReader open(Path directory) throws IOException {
@@ -93,7 +105,8 @@ public class SimpleFlamdexReader
             buildIntBTrees(directory, Lists.newArrayList(intFields));
             buildStringBTrees(directory, Lists.newArrayList(stringFields));
         }
-        return new SimpleFlamdexReader(directory, metadata.numDocs, intFields, stringFields, config.useMMapMetrics);
+        return new SimpleFlamdexReader(directory, metadata.numDocs, intFields, stringFields,
+                config.useMMapMetrics, config.useMMapDocIdStream);
     }
 
     protected static Collection<String> scan(final Path directory, final String ending) throws IOException {
@@ -111,7 +124,7 @@ public class SimpleFlamdexReader
         return fields;
     }
 
-    public MapCache.Pool getMapCache() { return mapPool; }
+    public MapCache getMapCache() { return mapCache; }
 
     @Override
     public Collection<String> getIntFields() {
@@ -125,7 +138,11 @@ public class SimpleFlamdexReader
 
     @Override
     public DocIdStream getDocIdStream() {
-        return useNativeDocIdStream ? new NativeDocIdStream(mapPool) : new SimpleDocIdStream(mapPool);
+        if (useMMapDocIdStream) {
+            return useNativeDocIdStream ? new NativeDocIdStream(mapCache) : new MMapDocIdStream(mapCache);
+        } else {
+            return new ByteChannelDocIdStream();
+        }
     }
 
     @Override
@@ -209,16 +226,16 @@ public class SimpleFlamdexReader
 
     public IntTermDocIterator getIntTermDocIterator(final String field, final boolean unsorted) {
         final SimpleIntTermIterator termIterator = getIntTermIterator(field, unsorted);
-        final Path termsPath = termIterator.getFilename();
-
-        try {
-            if (useNativeDocIdStream && (Files.notExists(termsPath) || Files.size(termsPath) > 0)) {
-                return new NativeIntTermDocIterator(termIterator, mapPool);
-            } else {
-                return new GenericIntTermDocIterator(termIterator, getDocIdStream());
+        // NativeIntTermDocIterator doesn't work reliably with reordering like StringToIntTermIterator
+        if (useNativeDocIdStream && !(termIterator instanceof StringToIntTermIterator) &&
+                CachedFile.create(termIterator.getFilename()).length() > 0) {
+            try {
+                return new NativeIntTermDocIterator(termIterator, mapCache);
+            } catch (IOException e) {
+                throw Throwables.propagate(e);
             }
-        } catch (IOException e) {
-            throw Throwables.propagate(e);
+        } else {
+            return new GenericIntTermDocIterator(termIterator, getDocIdStream());
         }
     }
 
@@ -306,23 +323,10 @@ public class SimpleFlamdexReader
 
     @Override
     public void close() throws IOException {
-        if (closed)
-            return;
-        mapPool.close();
-        this.closed = true;
+        mapCache.close();
     }
 
-    @Override
-    protected void finalize() throws Throwable {
-        if (!closed) {
-            log.error("SimpleFlamdexReader was not closed properly! Stack trace at creation:\n"
-                              + this.creationStackTrace);
-        }
-        this.close();
-        super.finalize();
-    }
-
-    protected static void buildIntBTrees(final Path directory, final List<String> intFields) throws IOException {
+    protected static void buildIntBTrees(final String directory, final List<String> intFields) throws IOException {
         for (final String intField : intFields) {
             final Path btreeDir = directory.resolve("fld-" + intField + ".intindex");
             final Path btreeDir64 = directory.resolve("fld-" + intField + ".intindex64");
@@ -344,6 +348,7 @@ public class SimpleFlamdexReader
     public static final class Config {
         private boolean writeBTreesIfNotExisting = true;
         private boolean useMMapMetrics = System.getProperty("flamdex.mmap.fieldcache") != null;
+        private boolean useMMapDocIdStream = false;
 
         public boolean isWriteBTreesIfNotExisting() {
             return writeBTreesIfNotExisting;
@@ -361,6 +366,14 @@ public class SimpleFlamdexReader
         public Config setUseMMapMetrics(boolean useMMapMetrics) {
             this.useMMapMetrics = useMMapMetrics;
             return this;
+        }
+
+        public boolean isUseMMapDocIdStream() {
+            return useMMapDocIdStream;
+        }
+
+        public void setUseMMapDocIdStream(boolean useMMapDocIdStream) {
+            this.useMMapDocIdStream = useMMapDocIdStream;
         }
     }
 }

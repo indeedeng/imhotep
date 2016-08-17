@@ -13,8 +13,11 @@
  */
 package com.indeed.imhotep.service;
 
+import com.indeed.lsmtree.core.StorageType;
 import com.indeed.lsmtree.core.Store;
 import com.indeed.lsmtree.core.StoreBuilder;
+import com.indeed.util.compress.SnappyCodec;
+import com.indeed.util.io.Files;
 import com.indeed.util.core.shell.PosixFileOperations;
 import com.indeed.util.serialization.IntSerializer;
 import com.indeed.util.serialization.LongSerializer;
@@ -52,7 +55,9 @@ class ShardStore implements AutoCloseable {
 
     ShardStore(Path root) throws IOException {
         StoreBuilder<Key, Value> builder =
-            new StoreBuilder<>(root.toFile(), keySerializer, valueSerializer);
+            new StoreBuilder<>(root, keySerializer, valueSerializer);
+        builder.setCodec(new SnappyCodec());
+        builder.setStorageType(StorageType.BLOCK_COMPRESSED);
         store = builder.build();
     }
 
@@ -138,7 +143,7 @@ class ShardStore implements AutoCloseable {
 
     static public final class Value {
 
-        private final String       shardDir; // relative to cannonical shard dir
+        private final String       shardDir; // relative to canonical shard dir
         private final int          numDocs;
         private final long         version;
         private final List<String> intFields;

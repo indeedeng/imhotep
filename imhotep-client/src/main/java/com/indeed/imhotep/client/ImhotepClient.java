@@ -14,6 +14,7 @@
  package com.indeed.imhotep.client;
 
 import com.google.common.base.Predicates;
+import com.google.common.base.Throwables;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -142,6 +143,23 @@ public class ImhotepClient
         return getDatasetToShardList(shardListMap.values());
     }
 
+    public DatasetInfo getDatasetShardInfo(String dataset) {
+        final List<List<DatasetInfo>> restrictedDatasetInfos = new ArrayList<>();
+        outer: for (final List<DatasetInfo> hostDatasetInfo : getShardList().values()) {
+            for (final DatasetInfo datasetInfo : hostDatasetInfo) {
+                if (datasetInfo.getDataset().equals(dataset)) {
+                    restrictedDatasetInfos.add(Collections.singletonList(datasetInfo));
+                    // Making the assumption that a given dataset only shows up once for a given host.
+                    continue outer;
+                }
+            }
+        }
+        if (restrictedDatasetInfos.isEmpty()) {
+            throw new IllegalArgumentException("Dataset not present in shard lists: " + dataset);
+        }
+        return getDatasetToShardList(restrictedDatasetInfos).get(dataset);
+    }
+
     static Map<String, DatasetInfo> getDatasetToShardList(Collection<List<DatasetInfo>> hostsDatasets) {
         final Map<String, DatasetInfo> ret = Maps.newHashMap();
         final Map<String, DatasetNewestShardMetadata> datasetNameToMetadata = Maps.newHashMap();
@@ -219,8 +237,11 @@ public class ImhotepClient
         final Map<String,Long> latestVersionMap = new HashMap<String, Long>();
         for (final List<DatasetInfo> datasetList : shardListMap.values()) {
             for (final DatasetInfo datasetInfo : datasetList) {
+                if (!dataset.equals(datasetInfo.getDataset())) {
+                    continue;
+                }
                 for (final ShardInfo shard : datasetInfo.getShardList()) {
-                    if (dataset.equals(shard.dataset) && filterFunc.accept(shard)) {
+                    if (filterFunc.accept(shard)) {
                         //is in time range, check version
                         if(!latestVersionMap.containsKey(shard.shardId) || latestVersionMap.get(shard.shardId) < shard.version) {
                             latestVersionMap.put(shard.shardId, shard.version);
@@ -326,7 +347,8 @@ public class ImhotepClient
 
         private Collection<String> requestedMetrics = Collections.emptyList();
         private int mergeThreadLimit = ImhotepRemoteSession.DEFAULT_MERGE_THREAD_LIMIT;
-        private String username;
+        private String username = "";
+        private String clientName = "";
         private boolean optimizeGroupZeroLookups = false;
         private int socketTimeout = -1;
         private long localTempFileSizeLimit = -1;
@@ -362,6 +384,10 @@ public class ImhotepClient
         }
         public SessionBuilder username(String username) {
             this.username = username;
+            return this;
+        }
+        public SessionBuilder clientName(String clientName) {
+            this.clientName = clientName;
             return this;
         }
         public SessionBuilder optimizeGroupZeroLookups(boolean optimizeGroupZeroLookups) {
@@ -451,7 +477,7 @@ public class ImhotepClient
                 username = ImhotepRemoteSession.getUsername();
             }
             List<String> chosenShardIDs = shardsOverride != null ? shardsOverride : ShardIdWithVersion.keepShardIds(getChosenShards());
-            return getSessionForShards(dataset, chosenShardIDs, requestedMetrics, mergeThreadLimit, username,
+            return getSessionForShards(dataset, chosenShardIDs, requestedMetrics, mergeThreadLimit, username, clientName,
                     optimizeGroupZeroLookups, socketTimeout, localTempFileSizeLimit, daemonTempFileSizeLimit, useNativeFTGS, sessionTimeout);
         }
     }
@@ -533,11 +559,11 @@ public class ImhotepClient
                                      final int mergeThreadLimit, final int priority, final String username,
                                      final boolean optimizeGroupZeroLookups, final int socketTimeout) {
 
-        return getSessionForShards(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout, -1, -1, false, 0);
+        return getSessionForShards(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, "", optimizeGroupZeroLookups, socketTimeout, -1, -1, false, 0);
     }
 
     private ImhotepSession getSessionForShards(final String dataset, final Collection<String> requestedShards, final Collection<String> requestedMetrics,
-                                               final int mergeThreadLimit, final String username,
+                                               final int mergeThreadLimit, final String username, final String clientName,
                                                final boolean optimizeGroupZeroLookups, final int socketTimeout,
                                                long localTempFileSizeLimit, long daemonTempFileSizeLimit,
                                                final boolean useNativeFtgs, long sessionTimeout) {
@@ -545,11 +571,17 @@ public class ImhotepClient
         if(requestedShards == null || requestedShards.size() == 0) {
             throw new IllegalArgumentException("No shards");
         }
-        int retries = 3;
+        int retries = 2;
         final AtomicLong localTempFileSizeBytesLeft = localTempFileSizeLimit > 0 ? new AtomicLong(localTempFileSizeLimit) : null;
+        Exception error = null;
         while (retries > 0) {
             final String sessionId = UUID.randomUUID().toString();
-            final ImhotepRemoteSession[] remoteSessions = internalGetSession(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout, sessionId, daemonTempFileSizeLimit, localTempFileSizeBytesLeft, useNativeFtgs, sessionTimeout);
+            ImhotepRemoteSession[] remoteSessions = null;
+            try {
+                remoteSessions = internalGetSession(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, clientName, optimizeGroupZeroLookups, socketTimeout, sessionId, daemonTempFileSizeLimit, localTempFileSizeBytesLeft, useNativeFtgs, sessionTimeout);
+            } catch (Exception e) {
+                error = e;
+            }
             if (remoteSessions == null) {
                 --retries;
                 if (retries > 0) {
@@ -563,7 +595,7 @@ public class ImhotepClient
             }
             return new RemoteImhotepMultiSession(remoteSessions, sessionId, nodes, localTempFileSizeLimit, localTempFileSizeBytesLeft);
         }
-        throw new RuntimeException("unable to open session");
+        throw new RuntimeException("unable to open session", error);
     }
 
     private static class IncrementalEvaluationState {
@@ -697,6 +729,7 @@ public class ImhotepClient
                            Collection<String> requestedMetrics,
                            final int mergeThreadLimit,
                            final String username,
+                           final String clientName,
                            final boolean optimizeGroupZeroLookups,
                            final int socketTimeout,
                            @Nullable final String sessionId,
@@ -705,8 +738,10 @@ public class ImhotepClient
                            final boolean useNativeFtgs,
                            final long sessionTimeout) {
 
-        final Map<Host, List<String>> shardRequestMap =
-            buildShardRequestMap(dataset, requestedShards, requestedMetrics);
+        final ShardsAndDocCounts shardsAndDocCounts = buildShardRequestMap(dataset, requestedShards, requestedMetrics);
+        final Map<Host, List<String>> shardRequestMap = shardsAndDocCounts.shardRequestMap;
+        final Map<Host, Integer> hostsToDocCounts = shardsAndDocCounts.hostDocCounts;
+
 
         if (shardRequestMap.isEmpty()) {
             log.error("unable to find all of the requested shards in dataset " + dataset +
@@ -721,6 +756,7 @@ public class ImhotepClient
             for (final Map.Entry<Host, List<String>> entry : shardRequestMap.entrySet()) {
                 final Host host = entry.getKey();
                 final List<String> shardList = entry.getValue();
+                final long numDocs = hostsToDocCounts.get(host);
 
                 futures.add(executor.submit(new Callable<ImhotepRemoteSession>() {
                     @Override
@@ -729,13 +765,15 @@ public class ImhotepClient
                                                                 dataset, shardList,
                                                                 mergeThreadLimit,
                                                                 username,
+                                                                clientName,
                                                                 optimizeGroupZeroLookups,
                                                                 socketTimeout,
                                                                 sessionId,
                                                                 tempFileSizeLimit,
                                                                 tempFileSizeBytesLeft,
                                                                 useNativeFtgs,
-                                                                sessionTimeout);
+                                                                sessionTimeout,
+                                                                numDocs);
                     }
                 }));
             }
@@ -745,7 +783,7 @@ public class ImhotepClient
 
         final ImhotepRemoteSession[] remoteSessions =
             new ImhotepRemoteSession[shardRequestMap.size()];
-        boolean error = false;
+        Throwable error = null;
         for (int i = 0; i < futures.size(); ++i) {
             try {
                 remoteSessions[i] = futures.get(i).get();
@@ -757,14 +795,14 @@ public class ImhotepClient
                     });
             } catch (ExecutionException e) {
                 log.error("exception while opening session", e);
-                error = true;
+                error = e.getCause();
             } catch (InterruptedException e) {
                 log.error("interrupted while opening session", e);
-                error = true;
+                error = e;
             }
         }
 
-        if (error) {
+        if (error != null) {
             for (final ImhotepRemoteSession session : remoteSessions) {
                 if (session != null) {
                     try {
@@ -774,12 +812,21 @@ public class ImhotepClient
                     }
                 }
             }
-            return null;
+            Throwables.propagate(error);
         }
         return remoteSessions;
     }
+    private static class ShardsAndDocCounts {
+        final Map<Host, Integer> hostDocCounts;
+        final Map<Host, List<String>> shardRequestMap;
 
-    private Map<Host, List<String>> buildShardRequestMap(String dataset, Collection<String> requestedShards, Collection<String> requestedMetrics) {
+        public ShardsAndDocCounts(Map<Host, List<String>> shardRequestMap, Map<Host, Integer> hostDocCounts) {
+            this.hostDocCounts = hostDocCounts;
+            this.shardRequestMap = shardRequestMap;
+        }
+    }
+
+    private ShardsAndDocCounts buildShardRequestMap(String dataset, Collection<String> requestedShards, Collection<String> requestedMetrics) {
         final Set<String> requestedMetricsSet = new HashSet<String>(requestedMetrics);
         final Map<String, ShardData> shardMap = constructPotentialShardMap(dataset, requestedMetricsSet);
 
@@ -792,7 +839,7 @@ public class ImhotepClient
         }
 
         if (error) {
-            return Maps.newHashMap();
+            return new ShardsAndDocCounts(Maps.<Host, List<String>>newHashMap(), Maps.<Host, Integer>newHashMap());
         }
 
         final List<String> sortedShards = new ArrayList<String>(requestedShards);
@@ -831,7 +878,7 @@ public class ImhotepClient
             shardRequestMap.get(minHost).add(shard);
             hostDocCounts.put(minHost, hostDocCounts.get(minHost) + shardMap.get(shard).numDocs);
         }
-        return shardRequestMap;
+        return new ShardsAndDocCounts(shardRequestMap, hostDocCounts);
     }
 
     /**

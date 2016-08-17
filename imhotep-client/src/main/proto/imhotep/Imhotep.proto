@@ -25,6 +25,7 @@ message StatusDumpMessage {
   required uint64 total_memory = 2;
   repeated SessionDumpMessage open_session = 3;
   repeated ShardDumpMessage loaded_shard = 4;
+  optional uint32 shard_count = 5 [default = 0];
 }
 
 message SessionDumpMessage {
@@ -35,6 +36,10 @@ message SessionDumpMessage {
   required string ip_address = 5;
   repeated ShardDumpMessage open_shard = 6;
   optional uint32 client_version = 7 [default = 0];
+  optional uint64 creation_time = 8 [default = 0];
+  optional string client_name = 9 [default = ""];
+  optional uint64 used_memory = 10 [default = 0];
+  optional uint64 max_used_memory = 11 [default = 0];
 }
 
 message ShardDumpMessage {
@@ -236,6 +241,15 @@ message ImhotepRequest {
 
   // for getFTGSIterator
   optional int64 termLimit = 54 [default = 0];
+
+  // for getFTGSIterator and mergeFTGSSplit
+  optional int32 sortStat = 55 [default = -1];
+
+  // for openSession
+  optional string clientName = 56 [default = ""];
+
+  // for getStatusDump
+  optional bool includeShardList = 57 [default = false];
 }
 
 message ImhotepResponse {

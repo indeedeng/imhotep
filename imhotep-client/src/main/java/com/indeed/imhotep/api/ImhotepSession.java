@@ -19,6 +19,7 @@ import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.TermCount;
+import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 
 import javax.annotation.concurrent.NotThreadSafe;
 import java.io.Closeable;
@@ -65,6 +66,16 @@ public interface ImhotepSession
      */
     FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, long termLimit);
 
+    /**
+     * get an iterator over (field, term, group, stat) tuples for the top termLimit terms sorted by stats in sortStat for the given fields
+     * @param intFields list of int fields
+     * @param stringFields list of string fields
+     * @param termLimit maximum number of terms that can be returned. 0 means no limit
+     * @param sortStat the index of stats to get the top terms. No sorting is done if the value is negative
+     * @return an iterator
+     */
+    FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, long termLimit, int sortStat);
+
     FTGSIterator getSubsetFTGSIterator(Map<String, long[]> intFields, Map<String, String[]> stringFields);
 
     RawFTGSIterator[] getSubsetFTGSIteratorSplits(Map<String, long[]> intFields, Map<String, String[]> stringFields);
@@ -103,7 +114,7 @@ public interface ImhotepSession
     /**
      * this is only really here to be called on ImhotepRemoteSession by RemoteImhotepMultiSession
      */
-    RawFTGSIterator mergeFTGSSplit(String[] intFields, String[] stringFields, String sessionId, InetSocketAddress[] nodes, int splitIndex, long termLimit);
+    RawFTGSIterator mergeFTGSSplit(String[] intFields, String[] stringFields, String sessionId, InetSocketAddress[] nodes, int splitIndex, long termLimit, int sortStat);
 
     RawFTGSIterator mergeSubsetFTGSSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, String sessionId, InetSocketAddress[] nodes, int splitIndex);
 
@@ -139,6 +150,13 @@ public interface ImhotepSession
     int regroup(int numRawRules, Iterator<GroupMultiRemapRule> rawRules) throws ImhotepOutOfMemoryException;
 
     int regroup(GroupMultiRemapRule[] rawRules, boolean errorOnCollisions) throws ImhotepOutOfMemoryException;
+
+    /**
+     * Performs a regroup same as the GroupMultiRemapRule[] overload but takes protobuf objects
+     * to avoid serialization costs.
+     */
+    int regroupWithProtos(GroupMultiRemapMessage[] rawRuleMessages,
+                          boolean errorOnCollisions) throws ImhotepOutOfMemoryException;
 
     int regroup(int numRawRules, Iterator<GroupMultiRemapRule> rawRules, boolean errorOnCollisions) throws ImhotepOutOfMemoryException;
 
@@ -371,4 +389,7 @@ public interface ImhotepSession
      * @throws ImhotepOutOfMemoryException 
      */
     void rebuildAndFilterIndexes(List<String> intFields, List<String> stringFields) throws ImhotepOutOfMemoryException;
+
+    /** Returns the number of docs in the shards handled by this session */
+    long getNumDocs();
 }

@@ -7,6 +7,7 @@ import junit.framework.TestCase;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.regex.Pattern;
 
 public class FlamdexUtilsTest extends TestCase {
     public void testCacheRegexIntField() throws Exception {
@@ -47,6 +48,42 @@ public class FlamdexUtilsTest extends TestCase {
         expected.set(8);
 
         assertBitsetEquality(expected, bitSet);
+    }
+
+    public void testRegExpCapturedLong() {
+        final MockFlamdexReader reader = new MockFlamdexReader(Collections.<String>emptySet(), Collections.singletonList("fieldname"), Collections.<String>emptySet(), 10);
+        reader.addStringTerm("fieldname", "m0m12", 3);
+        reader.addStringTerm("fieldname", "m151m12", 0, 1, 2);
+        reader.addStringTerm("fieldname", "m283m345", 3, 5);
+        reader.addStringTerm("fieldname", "m3551m678", 4, 6, 8);
+        reader.addStringTerm("fieldname", "m40005m910", 7, 9);
+
+        final int[] docIds = new int[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+        final long[] metricValues = new long[10];
+
+        FlamdexUtils.cacheRegExpCapturedLong("fieldname", reader, Pattern.compile("m([0-9]+)m([0-9]+)"), 0)
+                .lookup(docIds, metricValues, docIds.length);
+        org.junit.Assert.assertArrayEquals(new long[] {
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        }, metricValues);
+
+        FlamdexUtils.cacheRegExpCapturedLong("fieldname", reader, Pattern.compile("m([0-5]+)m([0-9]+)"), 1)
+                .lookup(docIds, metricValues, docIds.length);
+        org.junit.Assert.assertArrayEquals(new long[] {
+                151, 151, 151, 0, 3551, 0, 3551, 40005, 3551, 40005
+        }, metricValues);
+
+        FlamdexUtils.cacheRegExpCapturedLong("fieldname", reader, Pattern.compile("m([0-9]+)m([0-9]+)"), 1)
+                .lookup(docIds, metricValues, docIds.length);
+        org.junit.Assert.assertArrayEquals(new long[] {
+                151, 151, 151, 283, 3551, 283, 3551, 40005, 3551, 40005
+        }, metricValues);
+
+        FlamdexUtils.cacheRegExpCapturedLong("fieldname", reader, Pattern.compile("m([0-9]+)m([0-9]+)"), 2)
+                .lookup(docIds, metricValues, docIds.length);
+        org.junit.Assert.assertArrayEquals(new long[] {
+                12, 12, 12, 345, 678, 345, 678, 910, 678, 910
+        }, metricValues);
     }
 
     public void testCacheRegexNoField() throws Exception {

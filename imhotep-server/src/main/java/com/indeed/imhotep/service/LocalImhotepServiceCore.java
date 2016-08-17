@@ -49,6 +49,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -344,6 +345,15 @@ public class LocalImhotepServiceCore
                 /* an optimization log */
                 Files.delete(p);
             }
+            if (!f.isDirectory() && f.getName().startsWith("ftgs") && f.getName().endsWith(".tmp")) {
+                /* created by AbstractImhotepMultisession::persist() */
+                f.delete();
+            }
+            if (!f.isDirectory() && f.getName().startsWith("native-split")) {
+                /* a temporary split file created by native code (see
+                 * shard.cpp, Shard::split_filename()) */
+                f.delete();
+            }
         }
         dirStream.close();
     }
@@ -352,7 +362,7 @@ public class LocalImhotepServiceCore
     @Override public List<DatasetInfo> handleGetDatasetList() { return datasetList.get(); }
 
     @Override
-    public ImhotepStatusDump handleGetStatusDump() {
+    public ImhotepStatusDump handleGetStatusDump(boolean includeShardList) {
         final long usedMemory = memory.usedMemory();
         final long totalMemory = memory.totalMemory();
 
@@ -360,13 +370,17 @@ public class LocalImhotepServiceCore
                 getSessionManager().getSessionDump();
 
         final List<ImhotepStatusDump.ShardDump> shards;
-        try {
-            shards = shardMap.get().getShardDump();
+        if (includeShardList) {
+            try {
+                shards = shardMap.get().getShardDump();
+            } catch (IOException e) {
+                throw Throwables.propagate(e);
+            }
+        } else {
+            shards = Collections.emptyList();
         }
-        catch (IOException e) {
-            throw Throwables.propagate(e);
-        }
-        return new ImhotepStatusDump(usedMemory, totalMemory, openSessions, shards);
+        final int shardCount = shardMap.get().size();
+        return new ImhotepStatusDump(usedMemory, totalMemory, openSessions, shards, shardCount);
     }
 
     @Override
@@ -377,7 +391,8 @@ public class LocalImhotepServiceCore
     @Override
     public String handleOpenSession(final String dataset,
                                     final List<String> shardRequestList,
-                                    final String username,
+                                    String username,
+                                    String clientName,
                                     final String ipAddress,
                                     final int clientVersion,
                                     final int mergeThreadLimit,
@@ -392,8 +407,22 @@ public class LocalImhotepServiceCore
             sessionId = generateSessionId();
         }
 
+        if (Strings.isNullOrEmpty(clientName)) {
+            // infer clientName from username for old clients
+            if (username.indexOf(':') > 0) {
+                final String[] usernameParts = username.split(":", -1);
+                clientName = usernameParts[0];
+                username = usernameParts[1];
+            } else {
+                clientName = username;
+            }
+        }
+
         final ImhotepLocalSession[] localSessions =
             new ImhotepLocalSession[shardRequestList.size()];
+
+        final MemoryReservationContext multiSessionMemoryContext = new MemoryReservationContext(memory);
+
 
         try {
             final ShardMap.FlamdexReaderMap flamdexReaders =
@@ -412,30 +441,27 @@ public class LocalImhotepServiceCore
                     flamdexes.put(pair.getFirst(), cachedFlamdexReaderReference);
                     localSessions[i] = useNativeFtgs && flamdexReaders.allFlamdexReaders ?
                         new ImhotepNativeLocalSession(cachedFlamdexReaderReference,
-                                                      new MemoryReservationContext(memory),
+                                                      new MemoryReservationContext(multiSessionMemoryContext),
                                                       tempFileSizeBytesLeft) :
                         new ImhotepJavaLocalSession(cachedFlamdexReaderReference,
-                                                    this.shardTempDir.toString(),
-                                                    new MemoryReservationContext(memory),
+                                                    this.shardTempDir,
+                                                    new MemoryReservationContext(multiSessionMemoryContext),
                                                     tempFileSizeBytesLeft);
                     localSessions[i].addObserver(observer);
-                } catch (RuntimeException e) {
-                    Closeables2.closeQuietly(cachedFlamdexReaderReference, log);
-                    localSessions[i] = null;
-                    throw e;
-                } catch (ImhotepOutOfMemoryException e) {
+                } catch (RuntimeException | ImhotepOutOfMemoryException e) {
                     Closeables2.closeQuietly(cachedFlamdexReaderReference, log);
                     localSessions[i] = null;
                     throw e;
                 }
             }
+
             final MTImhotepLocalMultiSession session =
                 new MTImhotepLocalMultiSession(localSessions,
-                                               new MemoryReservationContext(memory),
+                                               new MemoryReservationContext(multiSessionMemoryContext),
                                                tempFileSizeBytesLeft,
                                                useNativeFtgs && flamdexReaders.allFlamdexReaders);
-            getSessionManager().addSession(sessionId, session, flamdexes, username,
-                                           ipAddress, clientVersion, dataset, sessionTimeout);
+            getSessionManager().addSession(sessionId, session, flamdexes, username, clientName,
+                                           ipAddress, clientVersion, dataset, sessionTimeout, multiSessionMemoryContext);
             session.addObserver(observer);
         }
         catch (IOException ex) {

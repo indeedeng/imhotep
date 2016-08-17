@@ -14,6 +14,8 @@
  package com.indeed.imhotep.service;
 
 import com.google.common.base.Function;
+import com.indeed.flamdex.lucene.LuceneFlamdexReader;
+import com.indeed.flamdex.ramses.RamsesFlamdexWrapper;
 import com.indeed.util.core.Either;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.ReloadableSharedReference;
@@ -33,6 +35,8 @@ import com.indeed.imhotep.MetricKey;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
+import java.io.File;
+import java.io.FilenameFilter;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
@@ -52,6 +56,8 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
 
     private final @Nullable MemoryReservationContext memory;
 
+    private final int memoryReservedForIndex;
+
     private final FlamdexReader wrapped;
 
     private final MetricCache metricCache;
@@ -67,6 +73,12 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
         //closer will free these in the opposite order that they are added
         this.memory = memory;
         this.wrapped = wrapped;
+        if (wrapped instanceof LuceneFlamdexReader || wrapped instanceof RamsesFlamdexWrapper) {
+            memoryReservedForIndex = getMemoryUsedForLuceneIndex(wrapped.getDirectory());
+            memory.claimMemory(memoryReservedForIndex);
+        } else {
+            memoryReservedForIndex = 0;
+        }
         metricCache = new MetricCacheImpl(
                 new Function<String, Either<FlamdexOutOfMemoryException, IntValueLookup>>() {
                     @Override
@@ -225,10 +237,35 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
             if (memory == null) {
                 return;
             }
+            if (memoryReservedForIndex > 0) {
+                memory.releaseMemory(memoryReservedForIndex);
+            }
             if (memory.usedMemory() > 0) {
                 log.error("CachedFlamdexReader is leaking! memory reserved after all memory has been freed: "+memory.usedMemory());
             }
             Closeables2.closeQuietly(memory, log);
         }
+    }
+
+    public FlamdexReader getWrapped() { return this.wrapped; }
+
+    private static int getMemoryUsedForLuceneIndex(String directory) {
+        final File shardDirectory = new File(directory);
+        if (!shardDirectory.exists()) {
+            return 0;
+        }
+
+        final File[] tiis = shardDirectory.listFiles(new FilenameFilter() {
+            @Override
+            public boolean accept(File dir, String name) {
+                return name.endsWith(".tii");
+            }
+        });
+
+        int memoryNeeded = 0;
+        for(final File tii : tiis) {
+            memoryNeeded += 4 * tii.length();   // reserve 4 times the index file size to account for decompression
+        }
+        return memoryNeeded;
     }
 }

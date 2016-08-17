@@ -32,12 +32,15 @@ import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepServiceCore;
+import com.indeed.imhotep.io.ImhotepProtobufShipping;
+import com.indeed.imhotep.io.Streams;
 import com.indeed.imhotep.marshal.ImhotepDaemonMarshaller;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.GroupRemapMessage;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
+import com.indeed.imhotep.protobuf.IntFieldAndTerms;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
@@ -65,11 +68,8 @@ import java.nio.file.Paths;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
@@ -81,7 +81,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
     private final ServerSocket ss;
 
     private final ExecutorService executor;
-    private final ExecutorService lowPriorityExecutor;
 
     private final AbstractImhotepServiceCore service;
     private final ServiceZooKeeperWrapper zkWrapper;
@@ -172,9 +171,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             }
         });
 
-
-        lowPriorityExecutor = Executors.newCachedThreadPool(new PinnedThreadFactory(0));
-
         zkWrapper = zkNodes != null ?
             new ServiceZooKeeperWrapper(zkNodes, hostname, port, zkPath) : null;
     }
@@ -205,7 +201,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     final Socket socket = ss.accept();
                     socket.setSoTimeout(60000);
                     socket.setTcpNoDelay(true);
-                    log.info("received connection, running");
+                    log.debug("received connection, running");
                     executor.execute(new DaemonWorker(socket));
                 } catch (IOException e) {
                     log.warn("server socket error", e);
@@ -229,47 +225,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
     }
 
     static void sendResponse(ImhotepResponse response, OutputStream os) throws IOException {
-        log.info("sending response");
+        log.debug("sending response");
         ImhotepProtobufShipping.sendProtobuf(response, os);
-        log.info("response sent");
-    }
-
-    private static final class SendResponseCallable implements Callable<Void> {
-        final ImhotepResponse response;
-        final OutputStream    os;
-
-        SendResponseCallable(final ImhotepResponse response,
-                             final OutputStream    os) {
-            this.response = response;
-            this.os       = os;
-        }
-
-        public Void call() {
-            try {
-                log.info("sending response");
-                ImhotepProtobufShipping.sendProtobuf(response, os);
-                log.info("response sent");
-                return null;
-            }
-            catch (IOException ex) {
-                throw new RuntimeException(ex);
-            }
-        }
-    }
-
-    static void sendLowPriorityResponse(ExecutorService executor,
-                                        ImhotepResponse response,
-                                        OutputStream    os) {
-        try {
-            Future<Void> future = executor.submit(new SendResponseCallable(response, os));
-            future.get();
-        }
-        catch (ExecutionException ex) {
-            throw new RuntimeException(ex);
-        }
-        catch (InterruptedException ex) {
-            throw new RuntimeException(ex);
-        }
+        log.debug("response sent");
     }
 
     private class DaemonWorker implements Runnable {
@@ -319,10 +277,12 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             final AtomicLong tempFileSizeBytesLeft =
                 request.getTempFileSizeLimit() > 0 ?
                 new AtomicLong(request.getTempFileSizeLimit()) : null;
+
             final String sessionId =
                 service.handleOpenSession(request.getDataset(),
                                           request.getShardRequestList(),
                                           request.getUsername(),
+                                          request.getClientName(),
                                           inetAddress.getHostAddress(),
                                           request.getClientVersion(),
                                           request.getMergeThreadLimit(),
@@ -493,6 +453,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                           getIntFields(request),
                                           getStringFields(request),
                                           request.getTermLimit(),
+                                          request.getSortStat(),
                                           os);
         }
 
@@ -565,7 +526,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             service.handleMergeFTGSIteratorSplit(request.getSessionId(),
                                                  getIntFields(request),
                                                  getStringFields(request),
-                                                 os, nodes, request.getSplitIndex(), request.getTermLimit());
+                                                 os, nodes, request.getSplitIndex(), request.getTermLimit(), request.getSortStat());
         }
 
         private final void mergeSubsetFTGSSplit(final ImhotepRequest          request,
@@ -622,82 +583,38 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             return builder.build();
         }
 
-        private final class BuildShardListResponse implements Callable<ImhotepResponse> {
-            final ImhotepResponse.Builder builder;
-
-            BuildShardListResponse(ImhotepResponse.Builder builder) {
-                this.builder = builder;
-            }
-
-            public ImhotepResponse call() {
-                ImhotepResponse response = shardUpdateListener.getShardListResponse();
-                if (response == null) {
-                    final List<ShardInfo> shards = service.handleGetShardList();
-                    for (final ShardInfo shard : shards) {
-                        builder.addShardInfo(shard.toProto());
-                    }
-                    response = builder.build();
-                }
-                return response;
-            }
-        }
-
         private final ImhotepResponse getShardList(final ImhotepRequest          request,
                                                    final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
-            try {
-                Future<ImhotepResponse> response =
-                    lowPriorityExecutor.submit(new BuildShardListResponse(builder));
-                return response.get();
-            }
-            catch (ExecutionException ex) {
-                throw new RuntimeException(ex);
-            }
-            catch (InterruptedException ex) {
-                throw new RuntimeException(ex);
-            }
-        }
-
-        private final class BuildShardInfoListResponse implements Callable<ImhotepResponse> {
-            final ImhotepResponse.Builder builder;
-
-            BuildShardInfoListResponse(ImhotepResponse.Builder builder) {
-                this.builder = builder;
-            }
-
-            public ImhotepResponse call() {
-                ImhotepResponse response = shardUpdateListener.getDatasetListResponse();
-                if (response == null) {
-                    final List<DatasetInfo> datasets = service.handleGetDatasetList();
-                    for (final DatasetInfo dataset : datasets) {
-                        builder.addDatasetInfo(dataset.toProto());
-                    }
-                    response = builder.build();
+            ImhotepResponse response = shardUpdateListener.getShardListResponse();
+            if (response == null) {
+                final List<ShardInfo> shards = service.handleGetShardList();
+                for (final ShardInfo shard : shards) {
+                    builder.addShardInfo(shard.toProto());
                 }
-                return response;
+                response = builder.build();
             }
+            return response;
         }
 
         private final ImhotepResponse getShardInfoList(final ImhotepRequest          request,
                                                        final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
-            try {
-                Future<ImhotepResponse> response =
-                    lowPriorityExecutor.submit(new BuildShardInfoListResponse(builder));
-                return response.get();
+            ImhotepResponse response = shardUpdateListener.getDatasetListResponse();
+            if (response == null) {
+                final List<DatasetInfo> datasets = service.handleGetDatasetList();
+                for (final DatasetInfo dataset : datasets) {
+                    builder.addDatasetInfo(dataset.toProto());
+                }
+                response = builder.build();
             }
-            catch (ExecutionException ex) {
-                throw new RuntimeException(ex);
-            }
-            catch (InterruptedException ex) {
-                throw new RuntimeException(ex);
-            }
+            return response;
         }
 
         private final ImhotepResponse getStatusDump(final ImhotepRequest          request,
                                                     final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
-            final ImhotepStatusDump statusDump = service.handleGetStatusDump();
+            final ImhotepStatusDump statusDump = service.handleGetStatusDump(request.getIncludeShardList());
             builder.setStatusDump(statusDump.toProto());
             return builder.build();
         }
@@ -899,7 +816,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 NDC.push("#" + requestId);
 
                 try {
-                    log.info("getting request");
+                    log.debug("getting request");
                     // TODO TODO TODO validate request
                     request = ImhotepProtobufShipping.readRequest(is);
 
@@ -907,7 +824,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                         NDC.push(request.getSessionId());
                     }
 
-                    log.info("received request of type " + request.getRequestType() +
+                    log.debug("received request of type " + request.getRequestType() +
                              ", building response");
                     final ImhotepResponse.Builder builder = ImhotepResponse.newBuilder();
                     switch (request.getRequestType()) {
@@ -1033,14 +950,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                                                request.getRequestType());
                     }
                     if (response != null) {
-                        final ImhotepRequest.RequestType requestType = request.getRequestType();
-                        if (requestType.equals(ImhotepRequest.RequestType.GET_SHARD_LIST) ||
-                            requestType.equals(ImhotepRequest.RequestType.GET_SHARD_INFO_LIST)) {
-                            sendLowPriorityResponse(lowPriorityExecutor, response, os);
-                        }
-                        else {
-                            sendResponse(response, os);
-                        }
+                        sendResponse(response, os);
                     }
                 } catch (ImhotepOutOfMemoryException e) {
                     expireSession(request, e);
@@ -1287,18 +1197,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                           long memoryCapacityInMB,
                                           boolean useCache,
                                           String zkNodes,
-                                          String zkPath) throws IOException, URISyntaxException {
-        /* !@# HACK ALERT
-
-           This idea is speculative. In service of expediency, the
-           native code required by PinnedThreadFactory has been
-           packaged up into libftgs. If it proves useful, then it
-           should be migrated to a util lib either within this project
-           or perhaps opensource/util.
-
-           !@# HACK ALERT */
-        com.indeed.imhotep.local.MTImhotepLocalMultiSession.loadNativeLibrary();
-
+                                          String zkPath) throws IOException {
         final AbstractImhotepServiceCore localService;
         final ShardUpdateListener shardUpdateListener = new ShardUpdateListener();
 
@@ -1327,5 +1226,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
 
     public ServiceZooKeeperWrapper getZkWrapper() {
         return zkWrapper;
+    }
+
+    public int getPort() {
+        return ss.getLocalPort();
     }
 }

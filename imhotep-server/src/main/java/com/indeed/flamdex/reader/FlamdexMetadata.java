@@ -76,23 +76,17 @@ public class FlamdexMetadata {
         this.formatVersion = formatVersion;
     }
 
-    public static FlamdexMetadata readMetadata(final Path directory) throws IOException {
-        JavaBeanLoader<FlamdexMetadata> loader = new JavaBeanLoader<FlamdexMetadata>(FlamdexMetadata.class);
-        final Path metadataPath = directory.resolve("metadata.txt");
+    public static FlamdexMetadata readMetadata(final String directory) throws IOException {
+        final Yaml loader = new Yaml(new Constructor(FlamdexMetadata.class));
 
-        try (final BufferedReader metadataReader = Files.newBufferedReader(metadataPath, Charsets.UTF_8)) {
-            final FlamdexMetadata results = loader.load(metadataReader);
-            return results;
-        }
+        final File metadataFile = CachedFile.create(CachedFile.buildPath(directory, "metadata.txt")).loadFile();
+        final String metadata = Files.toString(metadataFile, Charsets.UTF_8);
+        return loader.loadAs(metadata, FlamdexMetadata.class);
     }
 
-    public static void writeMetadata(final Path directory, FlamdexMetadata metadata) throws IOException {
-        JavaBeanDumper dumper = new JavaBeanDumper(false);
-
-        Files.write(directory.resolve("metadata.txt"),
-                    dumper.dump(metadata).getBytes(Charsets.UTF_8),
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.WRITE,
-                    StandardOpenOption.TRUNCATE_EXISTING);
+    public static void writeMetadata(final String directory, final FlamdexMetadata metadata) throws IOException {
+        final Yaml dumper = new Yaml();
+        final String s = dumper.dumpAs(metadata, Tag.MAP, DumperOptions.FlowStyle.BLOCK);
+        Files.write(s.getBytes(Charsets.UTF_8), new File(directory, "metadata.txt"));
     }
 }

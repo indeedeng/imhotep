@@ -100,14 +100,14 @@ public class TestLocalImhotepServiceCore {
                 }
             }, new LocalImhotepServiceConfig());
 
-            final String sessionId = service.handleOpenSession("dataset", Arrays.asList("shard"), "", "", 0, 0, false, "", null, false, 0);
+            final String sessionId = service.handleOpenSession("dataset", Arrays.asList("shard"), "", "", "", 0, 0, false, "", null, false, 0);
             service.handlePushStat(sessionId, "count()");
             final OutputStream os = new CloseableNullOutputStream();
             final Thread t = new Thread(new Runnable() {
                 @Override
                 public void run() {
                     try {
-                        service.handleGetFTGSIterator(sessionId, new String[]{"if1"}, new String[0], 0, os);
+                        service.handleGetFTGSIterator(sessionId, new String[]{"if1"}, new String[0], 0, -1, os);
                         fail();
                     } catch (Exception e) {
                         e.printStackTrace();

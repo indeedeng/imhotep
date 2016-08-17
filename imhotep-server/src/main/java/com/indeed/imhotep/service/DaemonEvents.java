@@ -30,6 +30,7 @@ class DaemonEvents {
             if (protoResponse != null) {
                 getProperties().put(Keys.RESPONSE_SIZE, protoResponse.getSerializedSize());
             }
+            getProperties().put(Keys.USERNAME,            protoRequest.getUsername());
         }
 
         public HandleRequestEvent(final ImhotepRequest  protoRequest,

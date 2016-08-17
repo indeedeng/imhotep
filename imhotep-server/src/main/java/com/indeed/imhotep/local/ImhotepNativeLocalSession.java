@@ -14,12 +14,16 @@
 package com.indeed.imhotep.local;
 
 import com.indeed.flamdex.api.*;
+import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.imhotep.*;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 
+import com.indeed.imhotep.service.CachedFlamdexReader;
+import com.indeed.imhotep.service.RawCachedFlamdexReaderReference;
 import org.apache.log4j.Logger;
 
 import java.beans.*;
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nonnull;
@@ -30,6 +34,12 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
 
     private MultiCache multiCache;
     private boolean    rebuildMultiCache = true;
+
+    private NativeShard nativeShard = null;
+
+    /* !@# Blech! Egregious hack to access actual SFR wrapped within
+        FlamdexReader passed in. */
+    private SimpleFlamdexReader simpleFlamdexReader;
 
     public ImhotepNativeLocalSession(final FlamdexReader flamdexReader)
         throws ImhotepOutOfMemoryException {
@@ -44,6 +54,18 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
 
         super(flamdexReader, memory, tempFileSizeBytesLeft);
 
+        /* !@# egregious hack to work around the fact that while we know damn
+            well we have access to a SimpleFlamdexReader in this context, it's
+            buried beneath wrappers of wrappers. */
+        if (flamdexReader instanceof SimpleFlamdexReader) {
+            this.simpleFlamdexReader = (SimpleFlamdexReader) flamdexReader;
+        }
+        else {
+            RawCachedFlamdexReaderReference rcfrr = (RawCachedFlamdexReaderReference) flamdexReader;
+            CachedFlamdexReader             cfr   = (CachedFlamdexReader) rcfrr.getReader();
+            this.simpleFlamdexReader = (SimpleFlamdexReader) cfr.getWrapped();
+        }
+
         this.statLookup.addObserver(new StatLookup.Observer() {
                 public void onChange(final StatLookup statLookup, final int index) {
                     ImhotepNativeLocalSession.this.rebuildMultiCache = true;
@@ -56,11 +78,43 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
             if (multiCache != null) {
                 multiCache.close();
             }
-            multiCache = new MultiCache(this, getNumDocs(), config, statLookup, docIdToGroup);
+            multiCache = new MultiCache(this, (int)getNumDocs(), config, statLookup, docIdToGroup);
             docIdToGroup = multiCache.getGroupLookup();
             rebuildMultiCache = false;
         }
         return multiCache;
+    }
+
+    public NativeShard getNativeShard() { return nativeShard; }
+
+    /* !@# This is a temporary hack that needs to go away. Some
+        operations, namely regroup, require both a proper multicache
+        (and the packed table within it) and a NativeShard. Since the
+        native shard class currently owns the packed table reference,
+        which is dubious, we have to reconstruct both multicache and
+        native shard in tandem.
+     */
+    public void bindNativeReferences() {
+        if (multiCache == null) {
+            final MultiCacheConfig config = new MultiCacheConfig();
+            final StatLookup[] statLookups = new StatLookup[1];
+            statLookups[0] = statLookup;
+            config.calcOrdering(statLookups, numStats);
+            buildMultiCache(config);
+            if (nativeShard != null) {
+                nativeShard.close();
+                nativeShard = null;
+            }
+        }
+
+        if (nativeShard == null) {
+            try {
+                nativeShard = new NativeShard(simpleFlamdexReader, multiCache.getNativeAddress());
+            }
+            catch (IOException ex) {
+                throw new RuntimeException("failed to create nativeShard", ex);
+            }
+        }
     }
 
     @Override
@@ -72,13 +126,7 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
     @Override
     public synchronized long[] getGroupStats(int stat) {
 
-        if (multiCache == null) {
-            final MultiCacheConfig config = new MultiCacheConfig();
-            final StatLookup[] statLookups = new StatLookup[1];
-            statLookups[0] = statLookup;
-            config.calcOrdering(statLookups, numStats);
-            buildMultiCache(config);
-        }
+        bindNativeReferences();
 
         long[] result = groupStats.get(stat);
         if (groupStats.isDirty(stat)) {
@@ -104,16 +152,24 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
             multiCache.close();
             // TODO: free memory?
         }
+        if (nativeShard != null) {
+            nativeShard.close();
+        }
         super.tryClose();
     }
 
     @Override
     public synchronized int regroup(final GroupMultiRemapRule[] rules, boolean errorOnCollisions)
         throws ImhotepOutOfMemoryException {
+
         int result = 0;
+        bindNativeReferences();
+
         final long rulesPtr = nativeGetRules(rules);
         try {
-            result = super.regroup(rules, errorOnCollisions);
+            result = nativeRegroup(rulesPtr, nativeShard.getPtr(), errorOnCollisions);
+            docIdToGroup.recalculateNumGroups();
+            groupStats.reset(numStats, result);
         }
         finally {
             nativeReleaseRules(rulesPtr);
@@ -123,4 +179,7 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
 
     private native static long nativeGetRules(final GroupMultiRemapRule[] rules);
     private native static void nativeReleaseRules(final long nativeRulesPtr);
+    private native static int  nativeRegroup(final long nativeRulesPtr,
+                                             final long nativeShardDataPtr,
+                                             final boolean errorOnCollisions);
 }
