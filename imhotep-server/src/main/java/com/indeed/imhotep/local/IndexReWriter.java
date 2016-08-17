@@ -13,14 +13,6 @@
  */
  package com.indeed.imhotep.local;
 
-import javax.annotation.Nonnull;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-
 import com.google.common.collect.Maps;
 import com.indeed.flamdex.api.IntTermDocIterator;
 import com.indeed.flamdex.api.StringTermDocIterator;
@@ -29,6 +21,13 @@ import com.indeed.flamdex.writer.IntFieldWriter;
 import com.indeed.flamdex.writer.StringFieldWriter;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+
+import javax.annotation.Nonnull;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 
 public class IndexReWriter {
     private final List<ImhotepJavaLocalSession> sessions;

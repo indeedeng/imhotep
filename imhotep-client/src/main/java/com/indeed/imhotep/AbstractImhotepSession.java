@@ -15,7 +15,6 @@
 
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
-import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 
 import java.util.Iterator;

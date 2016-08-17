@@ -98,6 +98,7 @@ namespace imhotep {
         packed_table_ptr _table;
         MapCache         _map_cache;
 
+        std::ostream& fieldmap_to_string(std::ostream& os, const FieldToMMappedFile& fieldAndMmappedFile) const;
         std::shared_ptr<SplitFileCache> _split_file_cache = std::make_shared<SplitFileCache>();
     };
 

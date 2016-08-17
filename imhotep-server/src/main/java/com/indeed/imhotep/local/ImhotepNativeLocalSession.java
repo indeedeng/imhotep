@@ -13,20 +13,20 @@
  */
 package com.indeed.imhotep.local;
 
-import com.indeed.flamdex.api.*;
+import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
-import com.indeed.imhotep.*;
+import com.indeed.imhotep.GroupMultiRemapRule;
+import com.indeed.imhotep.ImhotepMemoryPool;
+import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
-
 import com.indeed.imhotep.service.CachedFlamdexReader;
 import com.indeed.imhotep.service.RawCachedFlamdexReaderReference;
 import org.apache.log4j.Logger;
 
-import java.beans.*;
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
-import javax.annotation.Nonnull;
 
 public class ImhotepNativeLocalSession extends ImhotepLocalSession {
 

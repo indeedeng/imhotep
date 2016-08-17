@@ -30,9 +30,9 @@ public final class NativeIntTermDocIterator extends NativeTermDocIterator implem
     private int index = 0;
     private int size = 0;
 
-    public NativeIntTermDocIterator(SimpleIntTermIterator termIterator, MapCache.Pool mapPool)
+    public NativeIntTermDocIterator(SimpleIntTermIterator termIterator, MapCache mapCache)
             throws IOException {
-        super(termIterator.getFilename(), mapPool);
+        super(termIterator.getFilename(), mapCache);
         this.termIterator = termIterator;
     }
 

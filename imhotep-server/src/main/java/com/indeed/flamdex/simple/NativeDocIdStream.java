@@ -13,10 +13,10 @@
  */
  package com.indeed.flamdex.simple;
 
-import com.indeed.util.core.io.Closeables2;
-import com.indeed.util.core.reference.SharedReference;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.TermIterator;
+import com.indeed.util.core.io.Closeables2;
+import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.mmap.DirectMemory;
 import com.indeed.util.mmap.MMapBuffer;
 import org.apache.log4j.Logger;
@@ -32,6 +32,7 @@ public final class NativeDocIdStream implements DocIdStream {
     private static final Logger log = Logger.getLogger(NativeDocIdStream.class);
 
     private DirectMemory memory;
+    private SharedReference<MMapBuffer> file;
 
     private final NativeDocIdBuffer buffer = new NativeDocIdBuffer();
 
@@ -41,10 +42,10 @@ public final class NativeDocIdStream implements DocIdStream {
 
     private int lastDoc = 0;
 
-    private final MapCache.Pool mapPool;
+    private final MapCache mapCache;
 
-    NativeDocIdStream(MapCache.Pool mapPool) {
-        this.mapPool = mapPool;
+    NativeDocIdStream(MapCache mapCache) {
+        this.mapCache = mapCache;
     }
 
     @Override
@@ -63,7 +64,10 @@ public final class NativeDocIdStream implements DocIdStream {
         final Path filename = term.getFilename();
         if (!filename.equals(currentFileOpen)) {
 
-            memory = mapPool.getDirectMemory(filename);
+            if (file != null) file.close();
+            file = mapCache.copyOrOpen(filename);
+
+            memory = file.get().memory();
             currentFileOpen = filename;
         }
         buffer.reset(memory.getAddress()+term.getOffset(), term.docFreq());
@@ -86,6 +90,7 @@ public final class NativeDocIdStream implements DocIdStream {
         if (!closed) {
             closed = true;
             Closeables2.closeQuietly(buffer, log);
+            Closeables2.closeQuietly(file, log);
         }
     }
 }

@@ -30,10 +30,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author jsgroth
- *
- * some of these tests are reliant on the implementation of {@link
- * LocalImhotepServiceCore#updateShards()}} if that method changes significantly
- * then these tests will very likely break
  */
 public class TestLocalImhotepServiceCoreSharedResource extends TestCase {
     private static final long TIMEOUT = 5000L;
@@ -195,7 +191,7 @@ public class TestLocalImhotepServiceCoreSharedResource extends TestCase {
         FlamdexReaderSource factory = new FlamdexReaderSource() {
 
             @Override
-            public FlamdexReader openReader(String directory) throws IOException {
+            public FlamdexReader openReader(final Path directory) throws IOException {
                 return new MockFlamdexReader(Arrays.asList("if1"), Arrays.asList("sf1"), Arrays.asList("if1"), 10) {
                     @Override
                     public void close() throws IOException {

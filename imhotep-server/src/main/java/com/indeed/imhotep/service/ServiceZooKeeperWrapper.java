@@ -30,8 +30,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static java.util.concurrent.TimeUnit.*;
-import static org.apache.zookeeper.KeeperException.Code.*;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.zookeeper.KeeperException.Code.NODEEXISTS;
 
 /**
    Previous versions of this class suffered from instability due to the

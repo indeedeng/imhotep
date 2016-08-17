@@ -14,11 +14,6 @@
  package com.indeed.imhotep.service;
 
 import com.google.common.base.Function;
-import com.indeed.flamdex.lucene.LuceneFlamdexReader;
-import com.indeed.flamdex.ramses.RamsesFlamdexWrapper;
-import com.indeed.util.core.Either;
-import com.indeed.util.core.io.Closeables2;
-import com.indeed.util.core.reference.ReloadableSharedReference;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
@@ -28,15 +23,21 @@ import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.StringValueLookup;
+import com.indeed.flamdex.lucene.LuceneFlamdexReader;
+import com.indeed.flamdex.ramses.RamsesFlamdexWrapper;
 import com.indeed.imhotep.ImhotepMemoryCache;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.MetricKey;
+import com.indeed.util.core.Either;
+import com.indeed.util.core.io.Closeables2;
+import com.indeed.util.core.reference.ReloadableSharedReference;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
-import java.io.File;
-import java.io.FilenameFilter;
+import java.io.IOException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
@@ -249,23 +250,25 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
 
     public FlamdexReader getWrapped() { return this.wrapped; }
 
-    private static int getMemoryUsedForLuceneIndex(String directory) {
-        final File shardDirectory = new File(directory);
-        if (!shardDirectory.exists()) {
+    private static int getMemoryUsedForLuceneIndex(final Path shardDirectory) {
+        if (!Files.exists(shardDirectory)) {
             return 0;
         }
 
-        final File[] tiis = shardDirectory.listFiles(new FilenameFilter() {
-            @Override
-            public boolean accept(File dir, String name) {
-                return name.endsWith(".tii");
-            }
-        });
-
         int memoryNeeded = 0;
-        for(final File tii : tiis) {
-            memoryNeeded += 4 * tii.length();   // reserve 4 times the index file size to account for decompression
+        try {
+            for (final Path tii : Files.newDirectoryStream(shardDirectory, new DirectoryStream.Filter<Path>() {
+                @Override
+                public boolean accept(final Path entry) throws IOException {
+                    return entry.getFileName().toString().endsWith(".tii");
+                }
+            })) {
+                memoryNeeded += 4 * Files.size(tii); // reserve 4 times the index file size to account for decompression
+            }
+        } catch (final IOException e) {
+            throw new IllegalStateException("Could not get memory used for lucene index", e);
         }
+
         return memoryNeeded;
     }
 }

@@ -16,25 +16,36 @@
 //import org.apache.commons.math.stat.descriptive.moment.StandardDeviation;
 //import org.apache.commons.math.stat.descriptive.rank.Percentile;
 
-import static org.junit.Assert.*;
-
-import java.io.*;
-import java.net.*;
-import java.nio.file.Path;
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicLong;
-
+import com.indeed.flamdex.simple.SimpleFlamdexReader;
+import com.indeed.flamdex.simple.SimpleFlamdexWriter;
+import com.indeed.flamdex.writer.IntFieldWriter;
+import com.indeed.flamdex.writer.StringFieldWriter;
+import com.indeed.imhotep.ImhotepMemoryPool;
+import com.indeed.imhotep.MemoryReservationContext;
+import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.RandomStringUtils;
-import org.junit.*;
-import org.junit.rules.*;
+import org.junit.After;
+import org.junit.Before;
 
-import com.indeed.flamdex.simple.*;
-import com.indeed.flamdex.writer.*;
-import com.indeed.imhotep.*;
-import com.indeed.imhotep.api.*;
-import com.indeed.util.io.Files;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Random;
+import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicLong;
+
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class TestFTGSPerf {
 

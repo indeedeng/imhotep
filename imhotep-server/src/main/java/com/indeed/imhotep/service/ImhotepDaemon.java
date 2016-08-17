@@ -43,10 +43,6 @@ import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.IntFieldAndTerms;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
-import com.indeed.imhotep.io.ImhotepProtobufShipping;
-import com.indeed.imhotep.io.Streams;
-
-import com.indeed.imhotep.protobuf.IntFieldAndTerms;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
 import org.apache.log4j.Logger;
 import org.apache.log4j.NDC;
@@ -1197,7 +1193,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                           long memoryCapacityInMB,
                                           boolean useCache,
                                           String zkNodes,
-                                          String zkPath) throws IOException {
+                                          String zkPath) throws IOException, URISyntaxException {
         final AbstractImhotepServiceCore localService;
         final ShardUpdateListener shardUpdateListener = new ShardUpdateListener();
 

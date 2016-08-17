@@ -134,7 +134,18 @@ public class RemoteCachingPath implements Path, Serializable {
 
     @Override
     public boolean startsWith(final Path other) {
-        return normalizedPath.startsWith(RemoteCachingFileSystemProvider.toRemoteCachePath(other).normalizedPath);
+        if (other.getNameCount() > getNameCount()) {
+            return false;
+        } else if (other.isAbsolute() && !isAbsolute()) {
+            return false;
+        }
+
+        for (int i = 0; i < other.getNameCount(); i++) {
+            if (!getName(i).equals(other.getName(i))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override
@@ -144,7 +155,18 @@ public class RemoteCachingPath implements Path, Serializable {
 
     @Override
     public boolean endsWith(final Path other) {
-        return normalizedPath.endsWith(RemoteCachingFileSystemProvider.toRemoteCachePath(other).normalizedPath);
+        if (other.getNameCount() > getNameCount()) {
+            return false;
+        } else if (other.isAbsolute() && (!isAbsolute() || (other.getNameCount() < getNameCount()))) {
+            return false;
+        }
+
+        for (int i = 1; i <= other.getNameCount(); i++) {
+            if (!getName(getNameCount() - i).equals(other.getName(other.getNameCount() - i))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override

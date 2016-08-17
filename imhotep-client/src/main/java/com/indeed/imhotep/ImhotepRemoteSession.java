@@ -46,7 +46,6 @@ import com.indeed.imhotep.protobuf.RegroupConditionMessage;
 import com.indeed.imhotep.protobuf.ShardInfoMessage;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
 import com.indeed.imhotep.service.InputStreamDocIterator;
-
 import com.indeed.util.core.Throwables2;
 import org.apache.log4j.Logger;
 

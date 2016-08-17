@@ -13,10 +13,10 @@
  */
  package com.indeed.imhotep.service;
 
-import com.indeed.imhotep.MemoryReservationContext;
-import com.indeed.util.varexport.VarExporter;
 import com.indeed.imhotep.ImhotepStatusDump;
+import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.util.varexport.VarExporter;
 
 import java.util.ArrayList;
 import java.util.List;

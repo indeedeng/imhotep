@@ -14,13 +14,12 @@
  package com.indeed.flamdex.simple;
 
 import com.google.common.base.Charsets;
-import com.indeed.util.core.reference.SharedReference;
-import com.indeed.util.serialization.StringSerializer;
 import com.indeed.lsmtree.core.Generation;
 import com.indeed.lsmtree.core.ImmutableBTreeIndex;
+import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.mmap.DirectMemory;
 import com.indeed.util.mmap.MMapBuffer;
-
+import com.indeed.util.serialization.StringSerializer;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
@@ -38,7 +37,7 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
 
     private static final int BUFFER_SIZE = 8192;
 
-    private final MapCache.Pool mapPool;
+    private final MapCache mapCache;
 
     private final byte[] buffer;
     private long docListAddress = 0L;
@@ -52,7 +51,10 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
 
     private final CharsetDecoder decoder = Charsets.UTF_8.newDecoder();
 
+    private final SharedReference<MMapBuffer> file;
     private final DirectMemory memory;
+
+    private SharedReference<MMapBuffer> docListFile = null;
 
     private byte[] lastTermBytes = new byte[100];
     private ByteBuffer lastTermByteBuffer = ByteBuffer.wrap(lastTermBytes);
@@ -65,15 +67,16 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
     private boolean bufferNext = false;
     private boolean closed = false;
 
-    SimpleStringTermIteratorImpl(MapCache.Pool mapPool, Path filename, Path docListPath, Path indexPath) throws IOException {
-        this.mapPool = mapPool;
+    SimpleStringTermIteratorImpl(MapCache mapCache, Path filename, Path docListPath, Path indexPath) throws IOException {
+        this.mapCache = mapCache;
 
         buffer = new byte[BUFFER_SIZE];
 
         this.docListPath = docListPath;
         this.indexPath = indexPath;
 
-        memory = mapPool.getDirectMemory(filename);
+        file = mapCache.copyOrOpen(filename);
+        memory = file.get().memory();
         done = false;
         bufferLen = 0;
         bufferOffset = 0L;
@@ -216,6 +219,18 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
             } catch (IOException e) {
                 log.error("error closing index", e);
             }
+            try {
+                file.close();
+            } catch (IOException e) {
+                log.error("error closing file", e);
+            }
+            try {
+                if (docListFile != null) {
+                    docListFile.close();
+                }
+            } catch (IOException e) {
+                log.error("error closing docListFile", e);
+            }
             closed = true;
         }
     }
@@ -233,8 +248,9 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
     @Override
     public long getDocListAddress()
         throws IOException {
-        if (docListAddress == 0) {
-            docListAddress = mapPool.getDirectMemory(docListPath).getAddress();
+        if (docListFile == null) {
+            docListFile = mapCache.copyOrOpen(docListPath);
+            docListAddress = docListFile.get().memory().getAddress();
         }
         return this.docListAddress;
     }

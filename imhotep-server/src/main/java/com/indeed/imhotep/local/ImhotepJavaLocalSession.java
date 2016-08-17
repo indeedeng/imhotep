@@ -26,10 +26,10 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.service.CachedFlamdexReader;
 import com.indeed.imhotep.service.RawCachedFlamdexReader;
 import com.indeed.util.core.reference.SharedReference;
-
 import com.indeed.util.core.shell.PosixFileOperations;
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nonnull;
 import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
@@ -50,7 +50,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
-import javax.annotation.Nonnull;
 
 public class ImhotepJavaLocalSession extends ImhotepLocalSession {
 

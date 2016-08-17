@@ -15,14 +15,14 @@
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
+import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.imhotep.io.MultiFile;
 import com.indeed.imhotep.io.TempFileSizeLimitExceededException;
 import com.indeed.imhotep.io.WriteLimitExceededException;
+import com.indeed.imhotep.service.FTGSOutputStreamWriter;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.hash.MurmurHash;
-import com.indeed.imhotep.api.FTGSIterator;
-import com.indeed.imhotep.api.RawFTGSIterator;
-import com.indeed.imhotep.service.FTGSOutputStreamWriter;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 

@@ -9,8 +9,9 @@ import com.indeed.imhotep.client.ImhotepClient;
 import com.indeed.imhotep.client.ShardTimeUtils;
 import org.joda.time.DateTime;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -23,20 +24,20 @@ import java.util.concurrent.TimeoutException;
 
 public class ImhotepDaemonClusterRunner {
     final List<ImhotepDaemonRunner> runners = new ArrayList<>();
-    final File rootDir;
-    final File tempDir;
-    private final Map<String, MemoryFlamdex> flamdexMap = new HashMap<>();
+    final Path rootDir;
+    final Path tempDir;
+    private final Map<Path, MemoryFlamdex> flamdexMap = new HashMap<>();
     private final FlamdexReaderSource factory = new FlamdexReaderSource() {
 
         @Override
-        public FlamdexReader openReader(final String directory) throws IOException {
+        public FlamdexReader openReader(final Path directory) throws IOException {
             return flamdexMap.get(directory);
         }
     };
 
-    public ImhotepDaemonClusterRunner(final File rootDir) {
+    public ImhotepDaemonClusterRunner(final Path rootDir) {
         this.rootDir = rootDir;
-        tempDir = new File(rootDir, "temp");
+        tempDir = rootDir.resolve("temp");
     }
 
     public void createDailyShard(final String dataset, final DateTime dateTime, final MemoryFlamdex memoryFlamdex) throws IOException {
@@ -48,21 +49,19 @@ public class ImhotepDaemonClusterRunner {
     }
 
     private void createShard(final String dataset, final String shardId, final MemoryFlamdex memoryFlamdex) throws IOException {
-        final File datasetDir = new File(rootDir, dataset);
-        if (!datasetDir.exists() && !datasetDir.mkdir()) {
-            throw new IOException("Failed to create directory " + datasetDir.getAbsolutePath());
+        final Path datasetDir = rootDir.resolve(dataset);
+        if (!Files.exists(datasetDir)) {
+            Files.createDirectories(datasetDir);
         }
 
-        final File shardDir = new File(datasetDir, shardId);
-        if (!shardDir.mkdir()) {
-            throw new IOException("couldn't make " + shardDir.getAbsolutePath());
-        }
+        final Path shardDir = datasetDir.resolve(shardId);
+        Files.createDirectories(shardDir);
 
-        flamdexMap.put(shardDir.getAbsolutePath(), memoryFlamdex);
+        flamdexMap.put(shardDir, memoryFlamdex);
     }
 
     ImhotepDaemonRunner startDaemon() throws IOException, TimeoutException {
-        final ImhotepDaemonRunner runner = new ImhotepDaemonRunner(rootDir.getAbsolutePath(), tempDir.getAbsolutePath(), 0, factory);
+        final ImhotepDaemonRunner runner = new ImhotepDaemonRunner(rootDir, tempDir, 0, factory);
         runner.start();
         runners.add(runner);
 

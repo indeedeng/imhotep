@@ -23,17 +23,18 @@ import java.nio.file.Path;
  */
 public class SimpleFlamdexFileFilter implements DirectoryStream.Filter<Path> {
     @Override
-    public boolean accept(Path entry) throws IOException {
+    public boolean accept(final Path entry) throws IOException {
         final String name = entry.getFileName().toString();
+        final boolean isDirectory = Files.isDirectory(entry);
         if ("metadata.txt".equals(name)) return true;
         if (name.startsWith("fld-")) {
             if (name.endsWith(".intterms")) return true;
             if (name.endsWith(".strterms")) return true;
             if (name.endsWith(".intdocs")) return true;
             if (name.endsWith(".strdocs")) return true;
-            if (name.endsWith(".intindex") && Files.isDirectory(entry)) return true;
-            if (name.endsWith(".intindex64") && Files.isDirectory(entry)) return true;
-            if (name.endsWith(".strindex") && Files.isDirectory(entry)) return true;
+            if (name.endsWith(".intindex") && isDirectory) return true;
+            if (name.endsWith(".intindex64") && isDirectory) return true;
+            if (name.endsWith(".strindex") && isDirectory) return true;
         }
         return false;
     }

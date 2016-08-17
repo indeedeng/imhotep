@@ -17,12 +17,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
-import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
-import com.indeed.util.core.Pair;
-import com.indeed.util.core.shell.PosixFileOperations;
-import com.indeed.util.core.io.Closeables2;
-import com.indeed.util.varexport.Export;
-import com.indeed.util.varexport.VarExporter;
 import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.imhotep.CachedMemoryReserver;
 import com.indeed.imhotep.DatasetInfo;
@@ -35,10 +29,15 @@ import com.indeed.imhotep.MetricKey;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
-import com.indeed.imhotep.local.ImhotepLocalSession;
 import com.indeed.imhotep.local.ImhotepJavaLocalSession;
+import com.indeed.imhotep.local.ImhotepLocalSession;
 import com.indeed.imhotep.local.ImhotepNativeLocalSession;
-
+import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
+import com.indeed.util.core.Pair;
+import com.indeed.util.core.io.Closeables2;
+import com.indeed.util.core.shell.PosixFileOperations;
+import com.indeed.util.varexport.Export;
+import com.indeed.util.varexport.VarExporter;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
@@ -336,23 +335,26 @@ public class LocalImhotepServiceCore
         }
 
         final DirectoryStream<Path> dirStream = Files.newDirectoryStream(directory);
-        for (Path p : dirStream) {
-            if (Files.isDirectory(p) && p.endsWith(".optimization_log")) {
+        for (final Path p : dirStream) {
+            final String baseName = p.getFileName().toString();
+            final boolean isDirectory = Files.isDirectory(p);
+
+            if (isDirectory && baseName.endsWith(".optimization_log")) {
                 /* an optimized index */
                 PosixFileOperations.rmrf(p);
             }
-            if (!Files.isDirectory(p) && p.startsWith(".tmp")) {
+            if (!isDirectory && baseName.startsWith(".tmp")) {
                 /* an optimization log */
                 Files.delete(p);
             }
-            if (!f.isDirectory() && f.getName().startsWith("ftgs") && f.getName().endsWith(".tmp")) {
+            if (!isDirectory && baseName.startsWith("ftgs") && baseName.endsWith(".tmp")) {
                 /* created by AbstractImhotepMultisession::persist() */
-                f.delete();
+                Files.delete(p);
             }
-            if (!f.isDirectory() && f.getName().startsWith("native-split")) {
+            if (!isDirectory && baseName.startsWith("native-split")) {
                 /* a temporary split file created by native code (see
                  * shard.cpp, Shard::split_filename()) */
-                f.delete();
+                Files.delete(p);
             }
         }
         dirStream.close();
@@ -444,7 +446,7 @@ public class LocalImhotepServiceCore
                                                       new MemoryReservationContext(multiSessionMemoryContext),
                                                       tempFileSizeBytesLeft) :
                         new ImhotepJavaLocalSession(cachedFlamdexReaderReference,
-                                                    this.shardTempDir,
+                                                    this.shardTempDir.toString(),
                                                     new MemoryReservationContext(multiSessionMemoryContext),
                                                     tempFileSizeBytesLeft);
                     localSessions[i].addObserver(observer);

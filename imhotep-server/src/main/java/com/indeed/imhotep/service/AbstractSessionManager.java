@@ -16,13 +16,12 @@
 import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.indeed.imhotep.MemoryReservationContext;
+import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.exceptions.TooManySessionsException;
 import com.indeed.imhotep.exceptions.UserSessionCountLimitExceededException;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.varexport.Export;
-import com.indeed.imhotep.api.ImhotepSession;
-
 import org.apache.log4j.Logger;
 
 import java.util.HashMap;

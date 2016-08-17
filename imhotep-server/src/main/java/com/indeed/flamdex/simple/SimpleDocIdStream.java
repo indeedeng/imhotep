@@ -15,12 +15,11 @@
 
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.TermIterator;
-import com.indeed.util.mmap.DirectMemory;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
 
 /**
  * @author jsgroth
@@ -125,7 +124,7 @@ abstract class SimpleDocIdStream implements DocIdStream {
         bufferPtr = 0;
     }
 
-    protected abstract void openFile(String filename) throws IOException;
+    protected abstract void openFile(Path filePath) throws IOException;
     protected abstract long getLength();
     protected abstract void readBytes(long offset);
     public abstract void close();

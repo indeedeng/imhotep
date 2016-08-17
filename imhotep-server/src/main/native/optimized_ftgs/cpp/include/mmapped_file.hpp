@@ -79,6 +79,8 @@ namespace imhotep {
 
         size_t size() const { return _size; }
 
+        const std::string& filename() const { return _filename; }
+
     private:
         const std::string _filename;
         const bool        _delete_on_close;

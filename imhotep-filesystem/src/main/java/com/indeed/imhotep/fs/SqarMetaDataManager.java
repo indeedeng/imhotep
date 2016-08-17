@@ -314,7 +314,7 @@ public class SqarMetaDataManager implements Closeable {
         private SqarPathInfo(final RemoteCachingPath path) {
             if (path.getNameCount() >= 2) {
                 final RemoteCachingPath shardPath = path.getShardPath();
-                if (!shardPath.getFileName().endsWith(SUFFIX)) {
+                if (!shardPath.getFileName().toString().endsWith(SUFFIX)) {
                     sqarDir = ((RemoteCachingPath) shardPath.getParent()).resolve(shardPath.getFileName() + SUFFIX);
                 } else {
                     sqarDir = shardPath;

@@ -61,7 +61,7 @@ public enum FieldCacher {
             MMapBuffer buffer;
             try {
                 buffer = new MMapBuffer(cachePath, FileChannel.MapMode.READ_ONLY, ByteOrder.LITTLE_ENDIAN);
-            } catch (FileNotFoundException e) {
+            } catch (final NoSuchFileException|FileNotFoundException e) {
                 buffer = cacheToFileAtomically(iterator,
                                                numDocs,
                                                field,
@@ -111,7 +111,7 @@ public enum FieldCacher {
             MMapBuffer buffer;
             try {
                 buffer = new MMapBuffer(cachePath, FileChannel.MapMode.READ_ONLY, ByteOrder.LITTLE_ENDIAN);
-            } catch (NoSuchFileException e) {
+            } catch (final NoSuchFileException|FileNotFoundException e) {
                 buffer = cacheToFileAtomically(iterator,
                                                numDocs,
                                                field,
@@ -161,7 +161,7 @@ public enum FieldCacher {
             MMapBuffer buffer;
             try {
                 buffer = new MMapBuffer(cachePath, FileChannel.MapMode.READ_ONLY, ByteOrder.LITTLE_ENDIAN);
-            } catch (NoSuchFileException e) {
+            } catch (final NoSuchFileException|FileNotFoundException e) {
                 buffer = cacheToFileAtomically(iterator,
                                                numDocs,
                                                field,
@@ -211,7 +211,7 @@ public enum FieldCacher {
             MMapBuffer buffer;
             try {
                 buffer = new MMapBuffer(cachePath, FileChannel.MapMode.READ_ONLY, ByteOrder.LITTLE_ENDIAN);
-            } catch (NoSuchFileException e) {
+            } catch (final NoSuchFileException|FileNotFoundException e) {
                 buffer = cacheToFileAtomically(iterator,
                                                numDocs,
                                                field,
@@ -261,7 +261,7 @@ public enum FieldCacher {
             MMapBuffer buffer;
             try {
                 buffer = new MMapBuffer(cachePath, FileChannel.MapMode.READ_ONLY, ByteOrder.LITTLE_ENDIAN);
-            } catch (NoSuchFileException e) {
+            } catch (final NoSuchFileException|FileNotFoundException e) {
                 buffer = cacheToFileAtomically(iterator,
                                                numDocs,
                                                field,
@@ -311,7 +311,7 @@ public enum FieldCacher {
             MMapBuffer buffer;
             try {
                 buffer = new MMapBuffer(cachePath, FileChannel.MapMode.READ_ONLY, ByteOrder.LITTLE_ENDIAN);
-            } catch (NoSuchFileException e) {
+            } catch (final NoSuchFileException|FileNotFoundException e) {
                 buffer = cacheToFileAtomically(iterator,
                                                numDocs,
                                                field,
@@ -358,7 +358,7 @@ public enum FieldCacher {
             final Path cachePath = directory.resolve(getMMapFileName(field));
             try {
                 return new MMapBitSetIntValueLookup(cachePath, numDocs);
-            } catch (NoSuchFileException e) {
+            } catch (final NoSuchFileException|FileNotFoundException e) {
                 // ignore
             }
             final MMapFastBitSet bitSet = cacheToFileAtomically(iterator,

@@ -13,12 +13,13 @@
  */
  package com.indeed.flamdex.simple;
 
-import com.indeed.util.serialization.IntSerializer;
-import com.indeed.util.serialization.LongSerializer;
 import com.indeed.lsmtree.core.Generation;
 import com.indeed.lsmtree.core.ImmutableBTreeIndex;
+import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.mmap.DirectMemory;
-
+import com.indeed.util.mmap.MMapBuffer;
+import com.indeed.util.serialization.IntSerializer;
+import com.indeed.util.serialization.LongSerializer;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
@@ -32,7 +33,7 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
 
     private static final int BUFFER_SIZE = 8192;
 
-    private final MapCache.Pool mapPool;
+    private final MapCache mapCache;
 
     private final byte[] buffer;
     private long docListAddress = 0L;
@@ -47,8 +48,10 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
     private final Path indexPath;
     private final boolean use64BitIndex;
 
+    private final SharedReference<MMapBuffer> file;
     private final DirectMemory memory;
-    private DirectMemory docListMem = null;
+
+    private SharedReference<MMapBuffer> docListFile = null;
 
     private long lastTerm = 0;
     private long lastTermOffset = 0L;
@@ -58,10 +61,10 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
     private boolean bufferNext = false;
     private boolean closed = false;
 
-    SimpleIntTermIteratorImpl(MapCache.Pool mapPool, Path filename, Path docListPath, Path indexPath)
+    SimpleIntTermIteratorImpl(MapCache mapCache, Path filename, Path docListPath, Path indexPath)
         throws IOException {
 
-        this.mapPool = mapPool;
+        this.mapCache = mapCache;
 
         buffer = new byte[BUFFER_SIZE];
 
@@ -70,19 +73,21 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
         this.indexPath = indexPath;
 
         if (indexPath != null) {
-            if (indexPath.endsWith(".intindex64")) {
-                this.use64BitIndex = true;
-            } else if (indexPath.endsWith(".intindex")) {
-                this.use64BitIndex = false;
+            final String fileName = indexPath.getFileName().toString();
+            if (fileName.endsWith(".intindex64")) {
+                use64BitIndex = true;
+            } else if (fileName.endsWith(".intindex")) {
+                use64BitIndex = false;
             } else {
                 throw new RuntimeException(
-                        "Invalid index type: " + indexPath.getFileName().toString());
+                        "Invalid index type: " + fileName);
             }
         } else {
             this.use64BitIndex = true;
         }
 
-        memory = mapPool.getDirectMemory(filename);
+        file = mapCache.copyOrOpen(filename);
+        memory = file.get().memory();
 
         done = false;
         bufferLen = 0;
@@ -217,6 +222,18 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
             } catch (IOException e) {
                 log.error("error closing index", e);
             }
+            try {
+                file.close();
+            } catch (IOException e) {
+                log.error("error closing file", e);
+            }
+            try {
+                if (docListFile != null) {
+                    docListFile.close();
+                }
+            } catch (IOException e) {
+                log.error("error closing docListFile", e);
+            }
             closed = true;
         }
     }
@@ -232,10 +249,11 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
     }
 
     @Override
-    public long getDocListAddress() throws IOException {
-        if (docListMem == null) {
-            docListMem = mapPool.getDirectMemory(docListPath);
-            docListAddress = docListMem.getAddress();
+    public long getDocListAddress()
+        throws IOException {
+        if (docListFile == null) {
+            docListFile = mapCache.copyOrOpen(docListPath);
+            docListAddress = docListFile.get().memory().getAddress();
         }
         return this.docListAddress;
     }

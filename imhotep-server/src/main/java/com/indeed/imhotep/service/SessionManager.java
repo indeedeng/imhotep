@@ -14,8 +14,8 @@
  package com.indeed.imhotep.service;
 
 import com.indeed.imhotep.MemoryReservationContext;
-import com.indeed.util.core.reference.SharedReference;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.util.core.reference.SharedReference;
 
 import java.util.Map;
 

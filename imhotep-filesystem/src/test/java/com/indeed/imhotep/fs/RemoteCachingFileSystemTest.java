@@ -96,12 +96,34 @@ public class RemoteCachingFileSystemTest {
         Assert.assertTrue(fs.getPath("a", "b", "c").startsWith(fs.getPath("a", "b", "c")));
         Assert.assertFalse(fs.getPath("a", "b", "c").startsWith(fs.getPath("a", "b", "c", "d")));
         Assert.assertFalse(fs.getPath("a", "b", "c").startsWith(fs.getPath("aa", "b", "c")));
+        Assert.assertFalse(fs.getPath("a", "b", "c").startsWith(fs.getPath("c")));
 
+        Assert.assertTrue(fs.getPath("a", "b", "c").startsWith(fs.getPath("")));
+
+        Assert.assertFalse(fs.getPath("a", "b", "c").startsWith(rootDir));
+        Assert.assertTrue(rootDir.resolve("a").resolve("b").resolve("c").startsWith(rootDir));
+        Assert.assertTrue(rootDir.resolve("a").resolve("b").resolve("c").startsWith(rootDir.resolve("a").resolve("b")));
+        Assert.assertTrue(rootDir.resolve("a").resolve("b").resolve("c").startsWith(rootDir.resolve("a").resolve("b").resolve("c")));
+
+        Assert.assertTrue(fs.getPath("123", "a", "b", "c").startsWith("123"));
+        Assert.assertFalse(fs.getPath("123", "a", "b", "c").startsWith("1"));
+
+        Assert.assertTrue(fs.getPath("a", "b", "c").endsWith(fs.getPath("")));
         Assert.assertTrue(fs.getPath("a", "b", "c").endsWith(fs.getPath("c")));
         Assert.assertTrue(fs.getPath("a", "b", "c").endsWith(fs.getPath("b", "c")));
         Assert.assertTrue(fs.getPath("a", "b", "c").endsWith(fs.getPath("a", "b", "c")));
+        Assert.assertFalse(fs.getPath("a", "b", "c").endsWith(fs.getPath("a", "b")));
+        Assert.assertFalse(fs.getPath("a", "b", "c").endsWith(fs.getPath("z", "a", "b", "c")));
         Assert.assertFalse(fs.getPath("a", "b", "c").endsWith(fs.getPath("0", "a", "b", "c")));
         Assert.assertFalse(fs.getPath("a", "b", "c").endsWith(fs.getPath("a", "b", "cc")));
+
+        Assert.assertTrue(rootDir.resolve("a").resolve("b").resolve("c").endsWith(rootDir.resolve("a").resolve("b").resolve("c")));
+        Assert.assertFalse(fs.getPath("a", "b", "c").endsWith(rootDir.resolve("c")));
+
+        Assert.assertTrue(fs.getPath("a", "b", "c", "123").endsWith(fs.getPath("123")));
+        Assert.assertFalse(fs.getPath("a", "b", "c", "123").endsWith(fs.getPath("3")));
+        Assert.assertTrue(fs.getPath("a", "b", "c", "123").endsWith("123"));
+        Assert.assertFalse(fs.getPath("a", "b", "c", "123").endsWith("3"));
 
         {
             final List<Path> paths = new ArrayList<>();

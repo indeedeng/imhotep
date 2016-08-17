@@ -6,6 +6,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.nio.file.Path;
+
 import static org.junit.Assert.assertEquals;
 
 public class TestFlamdexMetadata {
@@ -16,7 +18,7 @@ public class TestFlamdexMetadata {
     public void testReadWrite() throws Exception {
         final FlamdexMetadata metadata = new FlamdexMetadata(31, ImmutableList.of("int1", "int2"), ImmutableList.of("string1", "string2"), SimpleFlamdexWriter.FORMAT_VERSION);
 
-        final String tempDir = folder.getRoot().getPath();
+        final Path tempDir = folder.getRoot().toPath();
         FlamdexMetadata.writeMetadata(tempDir, metadata);
         final FlamdexMetadata metadata1 = FlamdexMetadata.readMetadata(tempDir);
         assertEquals(metadata.getFormatVersion(), metadata1.getFormatVersion());

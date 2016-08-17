@@ -18,7 +18,7 @@ import org.apache.log4j.Logger;
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.EnumSet;
 
@@ -39,9 +39,9 @@ final class ByteChannelDocIdStream extends SimpleDocIdStream {
     }
 
     @Override
-    protected void openFile(String filename) throws IOException {
+    protected void openFile(final Path filePath) throws IOException {
         if (channel != null) channel.close();
-        channel = Files.newByteChannel(Paths.get(filename), OPEN_OPTIONS);
+        channel = Files.newByteChannel(filePath, OPEN_OPTIONS);
         length = channel.size();
     }
 

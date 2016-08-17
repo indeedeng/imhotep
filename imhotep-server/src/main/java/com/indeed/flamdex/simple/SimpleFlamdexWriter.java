@@ -19,11 +19,6 @@ import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingInputStream;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
-import com.indeed.util.core.shell.PosixFileOperations;
-import com.indeed.util.core.sort.Quicksortable;
-import com.indeed.util.core.sort.Quicksortables;
-import com.indeed.util.serialization.LongSerializer;
-import com.indeed.util.serialization.StringSerializer;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermIterator;
@@ -35,8 +30,13 @@ import com.indeed.flamdex.writer.IntFieldWriter;
 import com.indeed.flamdex.writer.StringFieldWriter;
 import com.indeed.lsmtree.core.Generation;
 import com.indeed.lsmtree.core.ImmutableBTreeIndex;
+import com.indeed.util.core.shell.PosixFileOperations;
+import com.indeed.util.core.sort.Quicksortable;
+import com.indeed.util.core.sort.Quicksortables;
 import com.indeed.util.mmap.IntArray;
 import com.indeed.util.mmap.MMapBuffer;
+import com.indeed.util.serialization.LongSerializer;
+import com.indeed.util.serialization.StringSerializer;
 import it.unimi.dsi.fastutil.IndirectPriorityQueue;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectHeapSemiIndirectPriorityQueue;
@@ -174,7 +174,7 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
     }
 
     public static void writeIntBTree(Path directory, String intField, Path btreeDir) throws IOException {
-        final Path termsPath = directory.resolve(SimpleStringFieldWriter.getTermsFilename(intField));
+        final Path termsPath = directory.resolve(SimpleIntFieldWriter.getTermsFilename(intField));
         if (Files.notExists(termsPath) || Files.size(termsPath) == 0L)
             return;
 

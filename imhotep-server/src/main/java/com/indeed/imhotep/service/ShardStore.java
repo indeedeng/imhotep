@@ -17,13 +17,11 @@ import com.indeed.lsmtree.core.StorageType;
 import com.indeed.lsmtree.core.Store;
 import com.indeed.lsmtree.core.StoreBuilder;
 import com.indeed.util.compress.SnappyCodec;
-import com.indeed.util.io.Files;
 import com.indeed.util.core.shell.PosixFileOperations;
 import com.indeed.util.serialization.IntSerializer;
 import com.indeed.util.serialization.LongSerializer;
 import com.indeed.util.serialization.Serializer;
 import com.indeed.util.serialization.StringSerializer;
-
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import java.io.DataInput;
@@ -55,7 +53,7 @@ class ShardStore implements AutoCloseable {
 
     ShardStore(Path root) throws IOException {
         StoreBuilder<Key, Value> builder =
-            new StoreBuilder<>(root, keySerializer, valueSerializer);
+            new StoreBuilder<>(root.toFile(), keySerializer, valueSerializer);
         builder.setCodec(new SnappyCodec());
         builder.setStorageType(StorageType.BLOCK_COMPRESSED);
         store = builder.build();
