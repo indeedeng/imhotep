@@ -95,6 +95,8 @@ public class LocalImhotepServiceCore
     /**
      * @param shardsDir
      *            root directory from which to read shards
+     * @param shardTempDir
+     *            root directory for the daemon scratch area
      * @param shardStoreDir
      *            root directory of the [Shard|Dataset]Info cache (ShardStore).
      * @param memoryCapacity

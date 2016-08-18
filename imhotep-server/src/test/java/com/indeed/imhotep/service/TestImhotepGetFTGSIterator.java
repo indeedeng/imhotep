@@ -40,7 +40,7 @@ public class TestImhotepGetFTGSIterator {
 
     @Before
     public void setUp() throws IOException {
-        clusterRunner = new ImhotepDaemonClusterRunner(rootDir.getRoot().toPath());
+        clusterRunner = new ImhotepDaemonClusterRunner(rootDir.getRoot());
     }
 
     @After
@@ -80,7 +80,7 @@ public class TestImhotepGetFTGSIterator {
                 .build());
 
         clusterRunner.createDailyShard(DATASET, TODAY.minusDays(1), memoryFlamdex);
-        clusterRunner.startDaemon();
+        clusterRunner.startDaemon(rootDir.getRoot().toPath());
 
         final ImhotepClient client = clusterRunner.createClient();
 
@@ -506,8 +506,8 @@ public class TestImhotepGetFTGSIterator {
             clusterRunner.createDailyShard(DATASET, TODAY.minusDays(1), memoryFlamdex);
         }
 
-        clusterRunner.startDaemon();
-        clusterRunner.startDaemon();
+        clusterRunner.startDaemon(rootDir.getRoot().toPath());
+        clusterRunner.startDaemon(rootDir.getRoot().toPath());
 
         final ImhotepClient client = clusterRunner.createClient();
 

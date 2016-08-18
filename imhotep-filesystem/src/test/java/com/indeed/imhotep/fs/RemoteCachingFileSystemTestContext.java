@@ -16,13 +16,12 @@ import java.util.Properties;
  * @author kenh
  */
 
-class RemoteCachingFileSystemTestContext extends ExternalResource {
+public class RemoteCachingFileSystemTestContext extends ExternalResource {
     private final TemporaryFolder tempDir = new TemporaryFolder();
 
     private static final Map<String, String> DEFAULT_CONFIG = ImmutableMap.<String, String>builder()
                 .put("imhotep.fs.store.type", "local")
                 .put("imhotep.fs.cache.size.megabytes", "128")
-                .put("imhotep.fs.sqardb.maxmem.megabytes", "128")
                 .build();
 
     private final Map<String, String> configuration;

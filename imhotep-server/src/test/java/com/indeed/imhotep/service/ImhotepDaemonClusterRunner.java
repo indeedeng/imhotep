@@ -3,19 +3,18 @@ package com.indeed.imhotep.service;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.indeed.flamdex.MemoryFlamdex;
-import com.indeed.flamdex.api.FlamdexReader;
+import com.indeed.flamdex.simple.SimpleFlamdexWriter;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.client.ImhotepClient;
 import com.indeed.imhotep.client.ShardTimeUtils;
 import org.joda.time.DateTime;
 
+import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -24,20 +23,17 @@ import java.util.concurrent.TimeoutException;
 
 public class ImhotepDaemonClusterRunner {
     final List<ImhotepDaemonRunner> runners = new ArrayList<>();
-    final Path rootDir;
-    final Path tempDir;
-    private final Map<Path, MemoryFlamdex> flamdexMap = new HashMap<>();
-    private final FlamdexReaderSource factory = new FlamdexReaderSource() {
+    final File shardRootDir;
+    final File tempRootDir;
 
-        @Override
-        public FlamdexReader openReader(final Path directory) throws IOException {
-            return flamdexMap.get(directory);
-        }
-    };
+    public ImhotepDaemonClusterRunner(final File shardRootDir, final File tempRootDir) {
+        this.shardRootDir = shardRootDir;
+        this.tempRootDir = tempRootDir;
+    }
 
-    public ImhotepDaemonClusterRunner(final Path rootDir) {
-        this.rootDir = rootDir;
-        tempDir = rootDir.resolve("temp");
+    public ImhotepDaemonClusterRunner(final File shardRootDir) {
+        this.shardRootDir = shardRootDir;
+        tempRootDir = new File(shardRootDir, "temp");
     }
 
     public void createDailyShard(final String dataset, final DateTime dateTime, final MemoryFlamdex memoryFlamdex) throws IOException {
@@ -49,19 +45,13 @@ public class ImhotepDaemonClusterRunner {
     }
 
     private void createShard(final String dataset, final String shardId, final MemoryFlamdex memoryFlamdex) throws IOException {
-        final Path datasetDir = rootDir.resolve(dataset);
-        if (!Files.exists(datasetDir)) {
-            Files.createDirectories(datasetDir);
-        }
-
-        final Path shardDir = datasetDir.resolve(shardId);
-        Files.createDirectories(shardDir);
-
-        flamdexMap.put(shardDir, memoryFlamdex);
+        final Path shardDir = shardRootDir.toPath().resolve(dataset).resolve(shardId);
+        SimpleFlamdexWriter.writeFlamdex(memoryFlamdex, new SimpleFlamdexWriter(shardDir, memoryFlamdex.getNumDocs()));
     }
 
-    ImhotepDaemonRunner startDaemon() throws IOException, TimeoutException {
-        final ImhotepDaemonRunner runner = new ImhotepDaemonRunner(rootDir, tempDir, 0, factory);
+    ImhotepDaemonRunner startDaemon(final Path rootDir) throws IOException, TimeoutException {
+        // each daemon should have its own private scratch temp dir
+        final ImhotepDaemonRunner runner = new ImhotepDaemonRunner(rootDir, tempRootDir.toPath().resolve(UUID.randomUUID().toString()), 0, new GenericFlamdexReaderSource());
         runner.start();
         runners.add(runner);
 

@@ -122,6 +122,20 @@
 
 		<dependency>
 			<groupId>com.indeed</groupId>
+			<artifactId>imhotep-filesystem</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.indeed</groupId>
+			<artifactId>imhotep-filesystem</artifactId>
+			<type>test-jar</type>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.indeed</groupId>
 			<artifactId>lsmtree-core</artifactId>
 			<version>1.0.5-SNAPSHOT</version>
 		</dependency>
