@@ -50,6 +50,7 @@ import java.nio.channels.FileChannel;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
@@ -82,18 +83,34 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
     private final Set<String> intFields;
     private final Set<String> stringFields;
 
-    public SimpleFlamdexWriter(Path outputDirectory, long numDocs) throws IOException {
+    /**
+     * use {@link #SimpleFlamdexWriter(Path, long)} instead
+     */
+    @Deprecated
+    public SimpleFlamdexWriter(final String outputDirectory, final long numDocs) throws IOException {
+        this(Paths.get(outputDirectory), numDocs);
+    }
+
+    public SimpleFlamdexWriter(final Path outputDirectory, final long numDocs) throws IOException {
         this(outputDirectory, numDocs, true, true);
     }
 
-    public SimpleFlamdexWriter(Path outputDirectory, long numDocs, boolean create) throws IOException {
+    /**
+     * use {@link #SimpleFlamdexWriter(Path, long, boolean)} instead
+     */
+    @Deprecated
+    public SimpleFlamdexWriter(final String outputDirectory, final long numDocs, final boolean create) throws IOException {
+        this(Paths.get(outputDirectory), numDocs, create);
+    }
+
+    public SimpleFlamdexWriter(final Path outputDirectory, final long numDocs, final boolean create) throws IOException {
         this(outputDirectory, numDocs, create, true);
     }
 
-    public SimpleFlamdexWriter(Path outputDirectory,
-                               long numDocs,
-                               boolean create,
-                               boolean writeBTreesOnClose) throws IOException {
+    public SimpleFlamdexWriter(final Path outputDirectory,
+                               final long numDocs,
+                               final boolean create,
+                               final boolean writeBTreesOnClose) throws IOException {
         this.outputDirectory = outputDirectory;
         this.maxDocs = numDocs;
         this.writeBTreesOnClose = writeBTreesOnClose;
