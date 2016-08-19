@@ -15,7 +15,6 @@ package com.indeed.imhotep.service;
 
 import com.indeed.imhotep.io.Shard;
 
-import java.io.IOException;
 import java.nio.file.Path;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -28,7 +27,7 @@ class ShardDir {
     private final String id;
     private final long version;
 
-    ShardDir(final Path path) throws IOException {
+    ShardDir(final Path path) {
 
         this.name = path.getFileName().toString();
         this.indexDir = path;

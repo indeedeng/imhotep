@@ -34,8 +34,6 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
-import java.nio.file.DirectoryStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -133,19 +131,13 @@ class ShardMap
         ShardMap is required primarily so that we can internally reuse Shards
         which have already been loaded. */
     ShardMap(final ShardMap reference,
-             final Path     localShardsPath)
+             final ShardDirIterator shardDirIterator)
         throws IOException {
 
         this(reference.memory, reference.flamdexReaderSource, reference.freeCache);
 
-        final OnlyDirs onlyDirs = new OnlyDirs();
-        for (Path datasetDir : Files.newDirectoryStream(localShardsPath, onlyDirs)) {
-            final String dataset = datasetDir.getFileName().toString();
-
-            for (Path path : Files.newDirectoryStream(datasetDir, onlyDirs)) {
-                final ShardDir shardDir = new ShardDir(path);
-                track(reference, dataset, shardDir);
-            }
+        for (final Pair<String, ShardDir> shard : shardDirIterator) {
+            track(reference, shard.getFirst(), shard.getSecond());
         }
     }
 
@@ -409,12 +401,5 @@ class ShardMap
                 }
             }
         };
-    }
-
-    private static final class OnlyDirs implements DirectoryStream.Filter<Path> {
-        @Override
-        public boolean accept(Path path) throws IOException {
-            return Files.exists(path) && Files.isDirectory(path);
-        }
     }
 }

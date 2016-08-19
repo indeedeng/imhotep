@@ -11,17 +11,17 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.indeed.imhotep.service;
+package com.indeed.imhotep.service;
 
 /**
-* @author jsgroth
- *
- * additional config parameters for LocalImhotepServiceCore with provided defaults
-*/
+ * @author jsgroth
+ *         additional config parameters for LocalImhotepServiceCore with provided defaults
+ */
 public final class LocalImhotepServiceConfig {
-    private int updateShardsFrequencySeconds   = 120;
+    private int updateShardsFrequencySeconds = 120;
     private int heartBeatCheckFrequencySeconds = 60;
     private int syncShardStoreFrequencySeconds = 1200;
+    private ShardDirIteratorFactory shardDirIteratorFactory = new ShardDirIteratorFactory();
 
     public int getUpdateShardsFrequencySeconds() {
         return updateShardsFrequencySeconds;
@@ -35,19 +35,26 @@ public final class LocalImhotepServiceConfig {
         return syncShardStoreFrequencySeconds;
     }
 
-    public LocalImhotepServiceConfig setUpdateShardsFrequencySeconds(int updateShardsFrequencySeconds) {
+    public LocalImhotepServiceConfig setUpdateShardsFrequencySeconds(final int updateShardsFrequencySeconds) {
         this.updateShardsFrequencySeconds = updateShardsFrequencySeconds;
         return this;
     }
 
-    public LocalImhotepServiceConfig setHeartBeatCheckFrequencySeconds(int heartBeatCheckFrequencySeconds) {
+    public LocalImhotepServiceConfig setHeartBeatCheckFrequencySeconds(final int heartBeatCheckFrequencySeconds) {
         this.heartBeatCheckFrequencySeconds = heartBeatCheckFrequencySeconds;
         return this;
     }
 
-    public LocalImhotepServiceConfig setSyncShardStoreFrequencySeconds(int syncShardStoreFrequencySeconds) {
+    public LocalImhotepServiceConfig setSyncShardStoreFrequencySeconds(final int syncShardStoreFrequencySeconds) {
         this.syncShardStoreFrequencySeconds = syncShardStoreFrequencySeconds;
         return this;
     }
 
+    public ShardDirIteratorFactory getShardDirIteratorFactory() {
+        return shardDirIteratorFactory;
+    }
+
+    public void setShardDirIteratorFactory(final ShardDirIteratorFactory shardDirIteratorFactory) {
+        this.shardDirIteratorFactory = shardDirIteratorFactory;
+    }
 }

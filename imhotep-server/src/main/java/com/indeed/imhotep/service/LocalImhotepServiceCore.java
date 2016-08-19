@@ -13,6 +13,7 @@
  */
  package com.indeed.imhotep.service;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
@@ -151,6 +152,8 @@ public class LocalImhotepServiceCore
         this.shardStore    = loadOrCreateShardStore(shardStoreDir);
 
         if (shardsDir != null) {
+            final ShardDirIterator shardDirIterator = config.getShardDirIteratorFactory().get(shardsDir);
+
             ShardMap newShardMap = (shardStore != null) ?
                     new ShardMap(shardStore, shardsDir, memory, flamdexReaderFactory, freeCache) :
                     new ShardMap(memory, flamdexReaderFactory, freeCache);
@@ -160,7 +163,7 @@ public class LocalImhotepServiceCore
             if (newShardMap.isEmpty()) {
                 log.info("Could not load ShardMap from cache: " + shardStoreDir + ". " +
                          "Scanning shard path instead.");
-                newShardMap = new ShardMap(newShardMap, shardsDir);
+                newShardMap = new ShardMap(newShardMap, shardDirIterator);
                 newShardMap.sync(shardStore);
                 setShardMap(newShardMap, ShardUpdateListenerIf.Source.FILESYSTEM);
                 log.info("Loaded ShardMap from filesystem: " + shardsDir);
@@ -169,11 +172,14 @@ public class LocalImhotepServiceCore
                 setShardMap(newShardMap, ShardUpdateListenerIf.Source.CACHE);
                 log.info("Loaded ShardMap from cache: " + shardStoreDir);
             }
+
+            this.shardReload =
+                    newFixedRateExecutor(new ShardReloader(shardDirIterator), config.getUpdateShardsFrequencySeconds());
+        } else {
+            this.shardReload = null;
         }
 
         /* TODO(johnf): consider pinning these threads... */
-        this.shardReload =
-            newFixedRateExecutor(new ShardReloader(), config.getUpdateShardsFrequencySeconds());
         this.shardStoreSync =
             newFixedRateExecutor(new ShardStoreSyncer(), config.getSyncShardStoreFrequencySeconds());
         this.heartBeat
@@ -194,7 +200,7 @@ public class LocalImhotepServiceCore
              memoryCapacity, useCache, flamdexReaderFactory, config, shardUpdateListener);
     }
 
-    /** Intended for tests that create their own LocalImhotepServiceCores. */
+    @VisibleForTesting
     public LocalImhotepServiceCore(@Nullable Path shardsDir,
                                    @Nullable Path shardTempDir,
                                    long memoryCapacity,
@@ -232,10 +238,16 @@ public class LocalImhotepServiceCore
     }
 
     private class ShardReloader implements Runnable {
+        private final ShardDirIterator shardDirIterator;
+
+        ShardReloader(final ShardDirIterator shardDirIterator) {
+            this.shardDirIterator = shardDirIterator;
+        }
+
         @Override
         public void run() {
             try {
-                final ShardMap newShardMap = new ShardMap(shardMap.get(), shardsDir);
+                final ShardMap newShardMap = new ShardMap(shardMap.get(), shardDirIterator);
                 setShardMap(newShardMap, ShardUpdateListenerIf.Source.FILESYSTEM);
             }
             catch (IOException e) {
@@ -301,26 +313,26 @@ public class LocalImhotepServiceCore
         shardUpdateListener.onDatasetUpdate(this.datasetList.get(), source);
     }
 
-    private static ShardStore loadOrCreateShardStore(final Path shardStoreDir) {
+    private static ShardStore loadOrCreateShardStore(@Nullable final Path shardStoreDir) {
 
         ShardStore result = null;
 
         if (shardStoreDir == null) {
             log.error("shardStoreDir is null; did you set imhotep.shard.store?");
-            return result;
+            return null;
         }
 
         try {
             result = new ShardStore(shardStoreDir);
         }
-        catch (Exception ex1) {
+        catch (final Exception ex1) {
             log.error("unable to create/load ShardStore: " + shardStoreDir +
                       " will attempt to repair", ex1);
             try {
                 ShardStore.deleteExisting(shardStoreDir);
                 result = new ShardStore(shardStoreDir);
             }
-            catch (Exception ex2) {
+            catch (final Exception ex2) {
                 log.error("failed to cleanup and recreate ShardStore: " + shardStoreDir +
                           " operator assistance is required", ex2);
             }
@@ -494,7 +506,9 @@ public class LocalImhotepServiceCore
     @Override
     public void close() {
         super.close();
-        shardReload.shutdown();
+        if (shardReload != null) {
+            shardReload.shutdown();
+        }
         shardStoreSync.shutdown();
         heartBeat.shutdown();
         if (shardStore != null) {
