@@ -382,7 +382,7 @@ public class SqlStatements {
 
             if (isFile) {
                 final String archiveFileName;
-                archiveFileName = execute_SELECT_ARCHIVE_FILE_NAME_STATEMENT(sqarId);
+                archiveFileName = execute_SELECT_ARCHIVE_FILE_NAME_STATEMENT(archiveId);
                 if (archiveFileName == null) {
                     throw new IOException("Archive name missing. id: " + archiveId);
                 }

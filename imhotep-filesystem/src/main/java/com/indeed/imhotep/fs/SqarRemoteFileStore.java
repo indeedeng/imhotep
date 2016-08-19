@@ -1,6 +1,8 @@
 package com.indeed.imhotep.fs;
 
+import com.google.common.base.Function;
 import com.google.common.base.Throwables;
+import com.google.common.collect.FluentIterable;
 import com.indeed.imhotep.archive.FileMetadata;
 
 import javax.annotation.Nullable;
@@ -58,7 +60,14 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
             }
             return sqarMetaDataManager.readDir(path);
         } else {
-            return backingFileStore.listDir(path);
+            return FluentIterable.from(backingFileStore.listDir(path)).transform(
+                    new Function<RemoteFileAttributes, RemoteFileAttributes>() {
+                        @Override
+                        public RemoteFileAttributes apply(final RemoteFileAttributes remoteFileAttributes) {
+                            return SqarMetaDataManager.normalizeSqarFileAttribute(remoteFileAttributes);
+                        }
+                    }
+            ).toList();
         }
     }
 
@@ -73,7 +82,6 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
     @Override
     RemoteFileStore.RemoteFileAttributes getRemoteAttributes(final RemoteCachingPath path) throws IOException {
         if (SqarMetaDataManager.isInSqarDirectory(path, backingFileStore)) {
-
             return getRemoteAttributesImpl(path);
         } else {
             return backingFileStore.getRemoteAttributes(path);

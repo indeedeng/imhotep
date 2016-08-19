@@ -12,6 +12,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URISyntaxException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.NotDirectoryException;
@@ -38,8 +39,11 @@ public class SqarMetaDataManagerTest {
         assertTrue(Files.isDirectory(root));
         assertTrue(Files.isRegularFile(root));
 
-        final RemoteCachingPath testArchive = root.resolve("testData/test-archive.sqar");
+        testSqarExistsWithDir(root.resolve("testData/test-archive"));
+        testSqarExistsWithDir(root.resolve("testData/test-archive.sqar"));
+    }
 
+    private void testSqarExistsWithDir(final RemoteCachingPath testArchive) throws IOException, URISyntaxException {
         for (final RemoteCachingPath dirPath : Arrays.asList(
                 testArchive.resolve("1"),
                 testArchive.resolve("1").resolve("2").resolve("3"),
@@ -73,6 +77,36 @@ public class SqarMetaDataManagerTest {
     }
 
     @Test
+    public void testListRootDirectories() throws IOException, URISyntaxException {
+        final RemoteCachingFileSystem fs = testContext.getFs();
+
+        final RemoteCachingPath root = RemoteCachingPath.getRoot(fs);
+
+        assertTrue(Files.exists(root));
+        assertTrue(Files.isDirectory(root));
+        assertTrue(Files.isRegularFile(root));
+
+        Assert.assertEquals(
+                ImmutableSet.of(
+                        root.resolve("com"),
+                        root.resolve("testData")
+                ), FluentIterable.from(Files.newDirectoryStream(root, new DirectoryStream.Filter<Path>() {
+                    @Override
+                    public boolean accept(final Path entry) throws IOException {
+                        return Files.isDirectory(entry);
+                    }
+                })).toSet()
+        );
+
+        final RemoteCachingPath indexDir = root.resolve("testData");
+        Assert.assertEquals(
+                ImmutableSet.of(
+                        indexDir.resolve("test-archive")
+                ), FluentIterable.from(Files.newDirectoryStream(indexDir)).toSet()
+        );
+    }
+
+    @Test
     public void testSqarListDirectory() throws IOException, URISyntaxException {
         final RemoteCachingFileSystem fs = testContext.getFs();
 
@@ -82,8 +116,11 @@ public class SqarMetaDataManagerTest {
         assertTrue(Files.isDirectory(root));
         assertTrue(Files.isRegularFile(root));
 
-        final RemoteCachingPath testArchive = root.resolve("testData/test-archive.sqar");
+        testSqarListDirectoryWithDir(root.resolve("testData/test-archive"));
+        testSqarListDirectoryWithDir(root.resolve("testData/test-archive.sqar"));
+    }
 
+    private void testSqarListDirectoryWithDir(final RemoteCachingPath testArchive) throws IOException, URISyntaxException {
         {
             final RemoteCachingPath dirPath = testArchive.resolve("1");
             Files.newDirectoryStream(dirPath);
@@ -140,7 +177,7 @@ public class SqarMetaDataManagerTest {
         assertTrue(Files.isDirectory(root));
         assertTrue(Files.isRegularFile(root));
 
-        final RemoteCachingPath testArchive = root.resolve("testData/test-archive.sqar");
+        final RemoteCachingPath testArchive = root.resolve("testData/test-archive");
 
         FluentIterable.from(Files.newDirectoryStream(testArchive.resolve("4").resolve("5").resolve("54.file"))).toSet();
     }
@@ -155,7 +192,7 @@ public class SqarMetaDataManagerTest {
         assertTrue(Files.isDirectory(root));
         assertTrue(Files.isRegularFile(root));
 
-        final RemoteCachingPath testArchive = root.resolve("testData/test-archive.sqar");
+        final RemoteCachingPath testArchive = root.resolve("testData/test-archive");
 
         FluentIterable.from(Files.newDirectoryStream(testArchive.resolve("4").resolve("5").resolve("45.file"))).toSet();
     }
@@ -170,8 +207,11 @@ public class SqarMetaDataManagerTest {
         assertTrue(Files.isDirectory(root));
         assertTrue(Files.isRegularFile(root));
 
-        final RemoteCachingPath testArchive = root.resolve("testData/test-archive.sqar");
+        testSqarLoadFileWithDir(root.resolve("testData/test-archive"));
+        testSqarLoadFileWithDir(root.resolve("testData/test-archive.sqar"));
+    }
 
+    private void testSqarLoadFileWithDir(final RemoteCachingPath testArchive) throws IOException, URISyntaxException {
         final RemoteCachingPath file12345 = testArchive.resolve("1").resolve("2").resolve("3").resolve("4").resolve("5").resolve("12345.file");
         testInputStream(file12345, 12345);
 
@@ -192,7 +232,7 @@ public class SqarMetaDataManagerTest {
         assertTrue(Files.isDirectory(root));
         assertTrue(Files.isRegularFile(root));
 
-        final RemoteCachingPath testArchive = root.resolve("testData/test-archive.sqar");
+        final RemoteCachingPath testArchive = root.resolve("testData/test-archive");
 
         Files.newInputStream(testArchive.resolve("1").resolve("2").resolve("3").resolve("4").resolve("5"));
     }
@@ -207,7 +247,7 @@ public class SqarMetaDataManagerTest {
         assertTrue(Files.isDirectory(root));
         assertTrue(Files.isRegularFile(root));
 
-        final RemoteCachingPath testArchive = root.resolve("testData/test-archive.sqar");
+        final RemoteCachingPath testArchive = root.resolve("testData/test-archive");
 
         Files.newInputStream(testArchive.resolve("abc.file"));
     }

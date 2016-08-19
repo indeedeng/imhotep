@@ -47,6 +47,7 @@ import java.util.Set;
 
 public class SqarMetaDataManager implements Closeable {
     private static final Logger LOGGER = Logger.getLogger(SqarMetaDataManager.class);
+    private static final String SQAR_SUFFIX = ".sqar";
     static final char DELIMITER = '/';
 
     private final Connection connection;
@@ -98,6 +99,30 @@ public class SqarMetaDataManager implements Closeable {
             return false;
         }
         return rfi.isDirectory();
+    }
+
+    private static boolean isSqarDirectory(final RemoteFileStore.RemoteFileAttributes fileAttributes) {
+        if (fileAttributes.isDirectory()) {
+            if (fileAttributes.getPath().getNameCount() == 2) {
+                if (fileAttributes.getPath().getFileName().toString().endsWith(SQAR_SUFFIX)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    static RemoteFileStore.RemoteFileAttributes normalizeSqarFileAttribute(final RemoteFileStore.RemoteFileAttributes fileAttributes) {
+        if (isSqarDirectory(fileAttributes)) {
+            final String pathStr = fileAttributes.getPath().toString();
+            return new RemoteFileStore.RemoteFileAttributes(
+                    new RemoteCachingPath(fileAttributes.getPath().getFileSystem(), pathStr.substring(0, pathStr.length() - SQAR_SUFFIX.length())),
+                    fileAttributes.getSize(),
+                    fileAttributes.isFile()
+            );
+        } else {
+            return fileAttributes;
+        }
     }
 
     private static FileMetadata parseMetadataLine(final String line) throws IOException {
@@ -305,7 +330,6 @@ public class SqarMetaDataManager implements Closeable {
     }
 
     private static class SqarPathInfo {
-        private static final String SUFFIX = ".sqar";
         private static final String METADATA_FILE = "metadata.txt";
 
         RemoteCachingPath sqarDir;
@@ -314,8 +338,8 @@ public class SqarMetaDataManager implements Closeable {
         private SqarPathInfo(final RemoteCachingPath path) {
             if (path.getNameCount() >= 2) {
                 final RemoteCachingPath shardPath = path.getShardPath();
-                if (!shardPath.getFileName().toString().endsWith(SUFFIX)) {
-                    sqarDir = ((RemoteCachingPath) shardPath.getParent()).resolve(shardPath.getFileName() + SUFFIX);
+                if (!shardPath.getFileName().toString().endsWith(SQAR_SUFFIX)) {
+                    sqarDir = ((RemoteCachingPath) shardPath.getParent()).resolve(shardPath.getFileName() + SQAR_SUFFIX);
                 } else {
                     sqarDir = shardPath;
                 }

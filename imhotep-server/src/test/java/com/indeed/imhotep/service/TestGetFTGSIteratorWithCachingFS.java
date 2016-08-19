@@ -10,7 +10,6 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.client.ImhotepClient;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemTestContext;
-import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
 import org.junit.After;
 import org.junit.Before;
@@ -29,7 +28,6 @@ import java.util.concurrent.TimeoutException;
  */
 
 public class TestGetFTGSIteratorWithCachingFS {
-    private static final Logger LOGGER = Logger.getLogger(TestGetFTGSIteratorWithCachingFS.class);
     private static final DateTime TODAY = DateTime.now().withTimeAtStartOfDay();
 
     private static final String DATASET = "dataset";
@@ -41,7 +39,9 @@ public class TestGetFTGSIteratorWithCachingFS {
 
     @Before
     public void setUp() throws IOException, URISyntaxException {
-        clusterRunner = new ImhotepDaemonClusterRunner(fsTestContext.getLocalStoreDir(), fsTestContext.getTempRootDir());
+        clusterRunner = new ImhotepDaemonClusterRunner(
+                fsTestContext.getLocalStoreDir(),
+                fsTestContext.getTempRootDir(), ImhotepShardCreator.GZIP_ARCHIVE);
     }
 
     @After
@@ -81,6 +81,8 @@ public class TestGetFTGSIteratorWithCachingFS {
                 .build());
 
         clusterRunner.createDailyShard(DATASET, TODAY.minusDays(1), memoryFlamdex);
+
+        // start daemons with imhotep filesystem
         clusterRunner.startDaemon(Paths.get(new URI("imhtpfs:///")));
 
         final ImhotepClient client = clusterRunner.createClient();

@@ -340,7 +340,7 @@ public class RemoteCachingPath implements Path, Serializable {
 
     @Nullable
     RemoteCachingPath getShardPath() {
-        if (offsets.length < 2) {
+        if (getNameCount() < 2) {
             return null;
         }
         return (RemoteCachingPath) subpath(0, 2);
@@ -348,7 +348,7 @@ public class RemoteCachingPath implements Path, Serializable {
 
     @Nullable
     RemoteCachingPath getFilePath() {
-        if (offsets.length < 3) {
+        if (getNameCount() < 3) {
             return null;
         }
         return (RemoteCachingPath) subpath(2, getNameCount());
