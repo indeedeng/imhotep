@@ -221,7 +221,6 @@
         <fastutil.version>6.2.2</fastutil.version>
         <gnu-trove.version>3.0.3</gnu-trove.version>
         <hadoop.version>2.6.0-cdh5.4.8</hadoop.version>
-        <fastutil.version>6.2.2</fastutil.version>
 
         <!-- releases of our own projects to use -->
         <!-- these should only be SNAPSHOTs when no release is available -->
