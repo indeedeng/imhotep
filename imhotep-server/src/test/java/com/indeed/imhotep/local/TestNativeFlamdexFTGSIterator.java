@@ -13,25 +13,6 @@
  */
  package com.indeed.imhotep.local;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.nio.file.Path;
-import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Random;
-import java.util.TreeMap;
-import java.util.concurrent.atomic.AtomicLong;
-
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
@@ -45,34 +26,38 @@ import com.indeed.imhotep.RawFTGSMerger;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.RawFTGSIterator;
-import com.indeed.imhotep.io.TestFileUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.RandomStringUtils;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.junit.rules.TemporaryFolder;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Random;
+import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicLong;
+
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author darren
  */
 public class TestNativeFlamdexFTGSIterator {
 
-//    @Rule
-//    public Timeout globalTimeout = new Timeout(120000);
-
-    private static Path rootTestDir;
-
-    @BeforeClass
-    public static void setUp() throws IOException {
-        rootTestDir = Files.createTempDirectory("rootTestDir-delete.me");
-    }
-
-    @AfterClass
-    public static void tearDown() throws IOException {
-        TestFileUtils.deleteDirTree(rootTestDir);
-    }
+    @Rule
+    public final TemporaryFolder rootTestDir = new TemporaryFolder();
 
     public static class ClusterSimulator {
         public static final int PORT = 8138;
@@ -292,7 +277,7 @@ public class TestNativeFlamdexFTGSIterator {
     }
 
     private Path generateShard(List<FieldDesc> fieldDescs) throws IOException {
-        final Path dir = Files.createTempDirectory(rootTestDir, "native-ftgs-test.test-dir.");
+        final Path dir = Files.createTempDirectory(rootTestDir.getRoot().toPath(), "native-ftgs-test.test-dir.");
 
         // find max # of docs
         long nDocs = 0;
@@ -317,7 +302,7 @@ public class TestNativeFlamdexFTGSIterator {
     }
 
     private Path copyShard(Path dir) throws IOException {
-        final Path new_dir = Files.createTempDirectory(rootTestDir, "native-ftgs-test.verify-dir.");
+        final Path new_dir = Files.createTempDirectory(rootTestDir.getRoot().toPath(), "native-ftgs-test.verify-dir.");
 
         FileUtils.copyDirectory(dir.toFile(), new_dir.toFile());
 

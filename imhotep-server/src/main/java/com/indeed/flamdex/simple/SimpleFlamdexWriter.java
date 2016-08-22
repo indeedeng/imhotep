@@ -195,9 +195,7 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
         if (Files.notExists(termsPath) || Files.size(termsPath) == 0L)
             return;
 
-        final BufferedInputStream buff;
-        buff = new BufferedInputStream(Files.newInputStream(termsPath), 65536);
-        try (CountingInputStream termsList = new CountingInputStream(buff)) {
+        try (CountingInputStream termsList = new CountingInputStream(new BufferedInputStream(Files.newInputStream(termsPath), 65536))) {
             ImmutableBTreeIndex.Writer.write(btreeDir, new AbstractIterator<Generation.Entry<Long, LongPair>>() {
                 private long lastTerm = 0;
                 private long lastTermDocOffset = 0L;
@@ -254,9 +252,7 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
         final Path termsPath = directory.resolve(SimpleStringFieldWriter.getTermsFilename(stringField));
         if (Files.notExists(termsPath) || Files.size(termsPath) == 0L) return;
 
-        final BufferedInputStream buff;
-        buff = new BufferedInputStream(Files.newInputStream(termsPath), 65536);
-        try(CountingInputStream termsList = new CountingInputStream(buff)) {
+        try(CountingInputStream termsList = new CountingInputStream(new BufferedInputStream(Files.newInputStream(termsPath), 65536))) {
             ImmutableBTreeIndex.Writer.write(btreeDir, new AbstractIterator<Generation.Entry<String, LongPair>>() {
                 private String key;
                 private LongPair value;

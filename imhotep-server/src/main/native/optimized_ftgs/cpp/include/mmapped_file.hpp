@@ -126,7 +126,7 @@ namespace imhotep {
         const char* end() const { return begin() + size(); }
 
     private:
-        void* const _address        = 0;
+        void* const _address  = 0;
         bool  _unmap_on_close = false;
     };
 

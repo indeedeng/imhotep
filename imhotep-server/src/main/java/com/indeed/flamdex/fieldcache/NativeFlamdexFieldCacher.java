@@ -898,11 +898,11 @@ public enum NativeFlamdexFieldCacher {
     @VisibleForTesting
     abstract String getMMapFileName(String field);
 
-    private static void delete(Path p) {
+    private static void deleteQuietly(final Path p) {
         try {
             Files.delete(p);
-        } catch (IOException e){
-            log.error("unable to delete file " + p);
+        } catch (final IOException e){
+            log.error("unable to delete file " + p, e);
         }
     }
 
@@ -914,30 +914,25 @@ public enum NativeFlamdexFieldCacher {
                                                                  CacheToFileOperation<T> op)
     throws IOException {
         final Path tmp = directory.resolve("fld-" + field + ".intcache." + UUID.randomUUID());
-        final T ret;
         try {
-            ret = op.execute(iterator, numDocs, tmp);
-        } catch (RuntimeException e) {
-            delete(tmp);
-            throw e;
-        } catch (IOException e) {
-            delete(tmp);
+            final T ret = op.execute(iterator, numDocs, tmp);
+            try {
+                Files.move(tmp,
+                        cachePath,
+                        StandardCopyOption.ATOMIC_MOVE,
+                        StandardCopyOption.REPLACE_EXISTING);
+            } catch (final IOException e) {
+                Closeables2.closeQuietly(ret, log);
+                throw new IOException("unable to rename " + tmp + " to " + cachePath, e);
+            }
+            return ret;
+        } catch (final Throwable e) {
+            deleteQuietly(tmp);
             throw e;
         }
-        try {
-            Files.move(tmp,
-                       cachePath,
-                       StandardCopyOption.ATOMIC_MOVE,
-                       StandardCopyOption.REPLACE_EXISTING);
-        } catch (IOException e) {
-            delete(tmp);
-            Closeables2.closeQuietly(ret, log);
-            throw new IOException("unable to rename " + tmp + " to " + cachePath, e);
-        }
-        return ret;
     }
 
-    private static interface CacheToFileOperation<T> {
+    private interface CacheToFileOperation<T> {
         T execute(SimpleIntTermIterator iterator, int numDocs, Path p) throws IOException;
     }
 

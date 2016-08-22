@@ -541,8 +541,7 @@ public class ImhotepRemoteSession
                         out.close();
                     }
                 }
-                final BufferedInputStream bufferedInputStream;
-                bufferedInputStream = new BufferedInputStream(Files.newInputStream(tmp));
+                final BufferedInputStream bufferedInputStream = new BufferedInputStream(Files.newInputStream(tmp));
                 final InputStream in = new FilterInputStream(bufferedInputStream) {
                     public void close() throws IOException {
                         bufferedInputStream.close();

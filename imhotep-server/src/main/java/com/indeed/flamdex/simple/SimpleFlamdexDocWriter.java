@@ -61,12 +61,10 @@ public final class SimpleFlamdexDocWriter implements FlamdexDocWriter {
             throw new FileNotFoundException(outputDirectory + " is not a directory");
         }
 
-        if (Files.notExists(outputDirectory)) {
-            try {
-                Files.createDirectories(outputDirectory);
-            } catch (IOException e) {
-                throw new IOException("unable to create directory " + outputDirectory, e);
-            }
+        try {
+            Files.createDirectories(outputDirectory);
+        } catch (IOException e) {
+            throw new IOException("unable to create directory " + outputDirectory, e);
         }
     }
 
@@ -144,17 +142,13 @@ public final class SimpleFlamdexDocWriter implements FlamdexDocWriter {
         long numDocs = 0;
         final List<FlamdexReader> allReaders = Lists.newArrayList();
         for (final Path file : Iterables.concat(Lists.reverse(segmentsOnDisk.subList(1, segmentsOnDisk.size())))) {
-            final SimpleFlamdexReader reader = SimpleFlamdexReader.open(file.normalize(),
+            final SimpleFlamdexReader reader = SimpleFlamdexReader.open(file,
                     new SimpleFlamdexReader.Config().setWriteBTreesIfNotExisting(false));
             allReaders.add(reader);
             numDocs += reader.getNumDocs();
         }
         for (final Path path : segmentsOnDisk.get(0)) {
-            final BufferedFileDataInputStream dataInputStream;
-            final FlamdexReader reader;
-
-            dataInputStream = new BufferedFileDataInputStream(path, ByteOrder.nativeOrder(), 65536);
-            reader = MemoryFlamdex.streamer(dataInputStream);
+            final FlamdexReader reader = MemoryFlamdex.streamer(new BufferedFileDataInputStream(path, ByteOrder.nativeOrder(), 65536));
             allReaders.add(reader);
             numDocs += reader.getNumDocs();
         }

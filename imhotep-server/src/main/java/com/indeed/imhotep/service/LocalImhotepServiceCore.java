@@ -348,30 +348,30 @@ public class LocalImhotepServiceCore
             throw new IOException(directory + " is not a directory.");
         }
 
-        final DirectoryStream<Path> dirStream = Files.newDirectoryStream(directory);
-        for (final Path p : dirStream) {
-            final String baseName = p.getFileName().toString();
-            final boolean isDirectory = Files.isDirectory(p);
+        try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(directory)) {
+            for (final Path p : dirStream) {
+                final String baseName = p.getFileName().toString();
+                final boolean isDirectory = Files.isDirectory(p);
 
-            if (isDirectory && baseName.endsWith(".optimization_log")) {
-                /* an optimized index */
-                PosixFileOperations.rmrf(p);
-            }
-            if (!isDirectory && baseName.startsWith(".tmp")) {
-                /* an optimization log */
-                Files.delete(p);
-            }
-            if (!isDirectory && baseName.startsWith("ftgs") && baseName.endsWith(".tmp")) {
-                /* created by AbstractImhotepMultisession::persist() */
-                Files.delete(p);
-            }
-            if (!isDirectory && baseName.startsWith("native-split")) {
-                /* a temporary split file created by native code (see
-                 * shard.cpp, Shard::split_filename()) */
-                Files.delete(p);
+                if (isDirectory && baseName.endsWith(".optimization_log")) {
+                    /* an optimized index */
+                    PosixFileOperations.rmrf(p);
+                }
+                if (!isDirectory && baseName.startsWith(".tmp")) {
+                    /* an optimization log */
+                    Files.delete(p);
+                }
+                if (!isDirectory && baseName.startsWith("ftgs") && baseName.endsWith(".tmp")) {
+                    /* created by AbstractImhotepMultisession::persist() */
+                    Files.delete(p);
+                }
+                if (!isDirectory && baseName.startsWith("native-split")) {
+                    /* a temporary split file created by native code (see
+                     * shard.cpp, Shard::split_filename()) */
+                    Files.delete(p);
+                }
             }
         }
-        dirStream.close();
     }
 
     @Override public List<ShardInfo>     handleGetShardList() { return shardList.get();   }
@@ -507,6 +507,7 @@ public class LocalImhotepServiceCore
     public void close() {
         super.close();
         if (shardReload != null) {
+            // could be null if shardDir is missing
             shardReload.shutdown();
         }
         shardStoreSync.shutdown();

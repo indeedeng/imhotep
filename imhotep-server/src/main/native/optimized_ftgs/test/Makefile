@@ -28,9 +28,9 @@ LIBS=\
 	-lboost_filesystem      \
 	-lboost_program_options \
 	-lboost_system          \
+	-lprofiler              \
 	-lyaml-cpp              \
 	-lm                     \
-#	-lprofiler              \
 #	-lm -lstdc++
 
 TESTS := \
@@ -162,8 +162,7 @@ test_varintdecode: obj/test_varintdecode.o ../obj/varintdecode.o
 	$(CPP) $ -o test_varintdecode $(LIBS) $^
 
 dump_term: obj/dump_term.o $(TGS_OBJS)
-#	$(CPP) $(LFLAGS) $ -o dump_term $(LIBS) $^ -L/usr/lib/x86_64-linux-gnu -lboost_system -lpthread -lasan
-	$(CPP) $(LFLAGS) $ -o dump_term $(LIBS) $^ -L/usr/lib/x86_64-linux-gnu -lboost_system -lpthread
+	$(CPP) $(LFLAGS) $ -o dump_term $(LIBS) $^ -L/usr/lib/x86_64-linux-gnu -lboost_system -lpthread #-lasan
 
 packed_tree_perf_test: obj/packed_tree_perf_test.o ../obj/packed_table.o
 	$(CC) $ -flto -funroll-loops -O3 -o packed_tree_perf_test $^ -L/usr/lib/x86_64-linux-gnu -lrt

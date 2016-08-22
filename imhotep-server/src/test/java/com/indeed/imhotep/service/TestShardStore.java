@@ -16,34 +16,38 @@ package com.indeed.imhotep.service;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.io.TestFileUtils;
 import com.indeed.lsmtree.core.Store;
-
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-
 import org.apache.commons.lang.RandomStringUtils;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
-import static org.junit.Assert.*;
+import org.junit.rules.TemporaryFolder;
 
-import java.nio.file.Path;
 import java.nio.file.Files;
-import java.util.*;
+import java.nio.file.Path;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.TreeMap;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 public class TestShardStore {
 
     private static final Random rng = new Random(0xdeadbeef);
 
-    private Path datasetDir = null;
+    @Rule
+    public final TemporaryFolder rootTestDir = new TemporaryFolder();
+
     private Path storeDir   = null;
 
-    @Before public void setUp() throws Exception {
-        datasetDir = Files.createTempDirectory("Datasets-delete.me.");
-        storeDir   = Files.createTempDirectory("ShardStore-delete.me");
-    }
-
-    @After public void tearDown() throws Exception {
-        TestFileUtils.deleteDirTree(datasetDir);
-        TestFileUtils.deleteDirTree(storeDir);
+    @Before
+    public void setUp() throws Exception {
+        storeDir   = rootTestDir.newFolder("store").toPath();
     }
 
     @Test public void testShardStore() {
