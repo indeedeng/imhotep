@@ -13,6 +13,7 @@
  */
 package com.indeed.imhotep.service;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
@@ -32,6 +33,7 @@ import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepServiceCore;
+import com.indeed.imhotep.fs.RemoteCachingFileSystemInitializer;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.Streams;
 import com.indeed.imhotep.marshal.ImhotepDaemonMarshaller;
@@ -172,6 +174,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
     }
 
     /** Intended for tests that create their own ImhotepDaemons. */
+    @VisibleForTesting
     public ImhotepDaemon(ServerSocket ss, AbstractImhotepServiceCore service,
                          String zkNodes, String zkPath, String hostname, int port) {
         this(ss, service, zkNodes, zkPath, hostname, port, new ShardUpdateListener());
@@ -1196,6 +1199,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                           String zkPath) throws IOException, URISyntaxException {
         final AbstractImhotepServiceCore localService;
         final ShardUpdateListener shardUpdateListener = new ShardUpdateListener();
+
+        // initialize the imhotepfs if necessary
+        new RemoteCachingFileSystemInitializer().get();
 
         final Path shardsDir = Paths.get(new URI(shardsDirectory));
         final Path tmpDir = Paths.get(new URI(shardTempDir));

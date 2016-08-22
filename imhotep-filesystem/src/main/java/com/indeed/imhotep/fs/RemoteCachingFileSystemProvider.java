@@ -38,7 +38,8 @@ import java.util.Set;
 
 public class RemoteCachingFileSystemProvider extends FileSystemProvider {
     private static final Logger LOGGER = Logger.getLogger(RemoteCachingFileSystemProvider.class);
-    private static final String URI_SCHEME = "imhtpfs";
+    static final String URI_SCHEME = "imhtpfs";
+    static final URI URI = java.net.URI.create(RemoteCachingFileSystemProvider.URI_SCHEME + ":///");
 
     private static class FileSystemHolder {
         private static RemoteCachingFileSystem fileSystem;
@@ -52,7 +53,6 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
         }
 
         synchronized RemoteCachingFileSystem get() {
-            Preconditions.checkNotNull(fileSystem, "File system must be first created by Files.newFileSystem()");
             return fileSystem;
         }
 

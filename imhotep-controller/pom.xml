@@ -86,7 +86,13 @@
             <version>${project.version}</version>
         </dependency>
 
-		<dependency>
+        <dependency>
+            <groupId>com.indeed</groupId>
+            <artifactId>imhotep-filesystem</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
 			<groupId>log4j</groupId>
 			<artifactId>log4j</artifactId>
 		</dependency>

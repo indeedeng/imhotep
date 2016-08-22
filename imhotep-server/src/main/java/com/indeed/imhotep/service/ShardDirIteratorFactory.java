@@ -22,7 +22,7 @@ class ShardDirIteratorFactory {
     private Properties shardFilterConfig;
 
     ShardDirIteratorFactory() {
-        this(new DefaultWallClock(), System.getProperty("imhotep.shard.filter.config.path"));
+        this(new DefaultWallClock(), System.getProperty("imhotep.shard.filter.config.file"));
     }
 
     ShardDirIteratorFactory(final WallClock wallClock, @Nullable final String shardFilterConfigPath) {

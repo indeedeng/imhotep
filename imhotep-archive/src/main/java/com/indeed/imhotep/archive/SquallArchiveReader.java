@@ -14,9 +14,8 @@
  package com.indeed.imhotep.archive;
 
 import com.google.common.base.Charsets;
-import com.indeed.util.io.Files;
 import com.indeed.imhotep.archive.compression.SquallArchiveCompressor;
-
+import com.indeed.util.io.Files;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -28,6 +27,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.security.DigestInputStream;
@@ -64,25 +64,36 @@ public class SquallArchiveReader {
         int retries = 3;
         while (true) {
             try {
-                final BufferedReader r = new BufferedReader(new InputStreamReader(fs.open(new Path(path, "metadata.txt")), Charsets.UTF_8));
-                try {
-                    final List<FileMetadata> ret = new ArrayList<FileMetadata>();
-                    for (String line = r.readLine(); line != null; line = r.readLine()) {
-                        final FileMetadata metadata = parseMetadata(line);
-                        ret.add(metadata);
-                    }
-                    return ret;
-                } finally {
-                    r.close();
-                }
-            } catch (FileNotFoundException e) {
+                return readMetadata(fs.open(new Path(path, "metadata.txt")));
+            } catch (final FileNotFoundException e) {
                 if (--retries == 0) throw e;
                 try {
                     Thread.sleep(1000);
-                } catch (InterruptedException ie) {
+                } catch (final InterruptedException ie) {
                     throw new RuntimeException(ie);
                 }
             }
+        }
+    }
+
+    /**
+     * get a list of all files contained in the metadata for this archive
+     *
+     * @param is the input stream to read the metadata from
+     * @return a list of file metadata
+     * @throws IOException if there is an IO problem
+     */
+    public static List<FileMetadata> readMetadata(final InputStream is) throws IOException {
+        final BufferedReader r = new BufferedReader(new InputStreamReader(is, Charsets.UTF_8));
+        try {
+            final List<FileMetadata> ret = new ArrayList<FileMetadata>();
+            for (String line = r.readLine(); line != null; line = r.readLine()) {
+                final FileMetadata metadata = parseMetadata(line);
+                ret.add(metadata);
+            }
+            return ret;
+        } finally {
+            r.close();
         }
     }
 

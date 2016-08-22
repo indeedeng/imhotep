@@ -1,13 +1,10 @@
 package com.indeed.imhotep.controller;
 
-import com.google.common.collect.ImmutableMap;
-import com.indeed.imhotep.fs.SqarMetaDataManager;
 import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.log4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -181,8 +178,8 @@ public class RemoteFileScanner {
 
     private void addShardToQueue(String datasetName, String shardName, int shardId) throws IOException {
         final String metadataPath = datasetName + "/" + shardName + "/" + "metadata.txt";
-        this.metadataLoaders.execute(new MetadataScanner(shardId,
-                                                        this.rfs.getInputStream(metadataPath, 0, -1)));
+        // this.metadataLoaders.execute(new MetadataScanner(shardId,
+        // this.rfs.getInputStream(metadataPath, 0, -1)));
     }
 
     private void untrackDataset(int datasetId) throws SQLException {
@@ -190,17 +187,17 @@ public class RemoteFileScanner {
         sqlStatements.execute_DELETE_DATASET_STATEMENT(datasetId);
     }
 
-
+    /*
     static class MetadataScanner implements Runnable {
         static final Map<String, String> config = ImmutableMap.of("sqlite-max-mem",
                                                                   "500",
                                                                   "database-location",
                                                                   "/tmp/3ndTry");
-        private static final ThreadLocal<SqarMetaDataManager> sqarManager = new ThreadLocal<SqarMetaDataManager>() {
+        private static final ThreadLocal<SqarMetaDataManagerOld> sqarManager = new ThreadLocal<SqarMetaDataManagerOld>() {
             @Override
-            protected SqarMetaDataManager initialValue() {
+            protected SqarMetaDataManagerOld initialValue() {
                 try {
-                    return new SqarMetaDataManager(config);
+                    return new SqarMetaDataManagerOld(config);
                 } catch (ClassNotFoundException | SQLException e) {
                     e.printStackTrace();
                     return null;
@@ -225,4 +222,5 @@ public class RemoteFileScanner {
             }
         }
     }
+    */
 }
