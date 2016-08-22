@@ -5,6 +5,7 @@ import com.google.common.base.Predicates;
 import com.google.common.collect.FluentIterable;
 import com.indeed.imhotep.client.ShardTimeUtils;
 import com.indeed.util.core.Pair;
+import com.indeed.util.core.time.WallClock;
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -25,17 +26,20 @@ import java.util.Properties;
 
 class FilteredShardDirIterator implements ShardDirIterator {
     private static final Logger LOGGER = Logger.getLogger(FilteredShardDirIterator.class);
+    private static final DateTimeZone TIME_ZONE = DateTimeZone.forOffsetHours(-6);
+    private final WallClock wallClock;
     private final Path shardsPath;
     private final Config config;
 
-    FilteredShardDirIterator(final Path shardsPath, final Config config) {
+    public FilteredShardDirIterator(final WallClock wallClock, final Path shardsPath, final Config config) {
+        this.wallClock = wallClock;
         this.shardsPath = shardsPath;
         this.config = config;
     }
 
     @Override
     public Iterator<Pair<String, ShardDir>> iterator() {
-        final DateTime now = DateTime.now(DateTimeZone.forOffsetHours(-6));
+        final DateTime now = new DateTime(wallClock.currentTimeMillis(), TIME_ZONE);
         try {
             return FluentIterable.from(Files.newDirectoryStream(shardsPath, ONLY_DIRS)).transformAndConcat(
                     new Function<Path, Iterable<Pair<String, ShardDir>>>() {
@@ -86,12 +90,13 @@ class FilteredShardDirIterator implements ShardDirIterator {
             final Period period = dataSetInterval.get(dataset);
             if (period != null) {
                 final DateTime shardTime = ShardTimeUtils.parseStart(shardDir.getId());
-                return now.minus(period).isBefore(shardTime);
+                final DateTime threshold = now.minus(period);
+                return threshold.isBefore(shardTime) || threshold.isEqual(shardTime);
             }
             return false;
         }
 
-        private static final String PROPERTY_PREFIX = "imhotep.shard.filter.include.";
+        static final String PROPERTY_PREFIX = "imhotep.shard.filter.include.";
 
         static Config loadFromProperties(final Properties properties) {
             final Map<String, Period> dataSetInterval = new HashMap<>();

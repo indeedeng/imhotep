@@ -13,6 +13,7 @@
  */
 package com.indeed.imhotep.service;
 
+import com.google.common.base.Objects;
 import com.indeed.imhotep.io.Shard;
 
 import java.nio.file.Path;
@@ -60,5 +61,35 @@ class ShardDir {
 
     boolean isNewerThan(final Shard shard) {
         return (shard == null) || (version > shard.getShardVersion());
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof ShardDir)) {
+            return false;
+        }
+        final ShardDir shardDir = (ShardDir) o;
+        return version == shardDir.version &&
+                Objects.equal(name, shardDir.name) &&
+                Objects.equal(indexDir, shardDir.indexDir) &&
+                Objects.equal(id, shardDir.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(name, indexDir, id, version);
+    }
+
+    @Override
+    public String toString() {
+        return "ShardDir{" +
+                "name='" + name + '\'' +
+                ", indexDir=" + indexDir +
+                ", id='" + id + '\'' +
+                ", version=" + version +
+                '}';
     }
 }

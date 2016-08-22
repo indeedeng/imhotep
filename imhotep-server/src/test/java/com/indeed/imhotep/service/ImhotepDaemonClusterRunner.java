@@ -28,7 +28,7 @@ public class ImhotepDaemonClusterRunner {
     final File tempRootDir;
     final ImhotepShardCreator shardCreator;
 
-    DateTimeFormatter SHARD_VERSION_FORMAT = DateTimeFormat.forPattern(".yyyyMMddHHmmss");
+    private static final DateTimeFormatter SHARD_VERSION_FORMAT = DateTimeFormat.forPattern(".yyyyMMddHHmmss");
 
     public ImhotepDaemonClusterRunner(final File shardsDir, final File tempRootDir, final ImhotepShardCreator shardCreator) {
         this.shardsDir = shardsDir;
