@@ -60,7 +60,7 @@ class RemoteCachingFileSystem extends FileSystem {
         fileCache = new LocalFileCache(
                 this,
                 Paths.get(cacheRootUri),
-                Long.parseLong((String) configuration.get("imhotep.fs.cache.size.megabytes")) * 1024 * 1024,
+                Long.parseLong((String) configuration.get("imhotep.fs.cache.size.gigabytes")) * 1024 * 1024 * 1024,
                 new LocalFileCache.CacheFileLoader() {
                     @Override
                     public void load(final RemoteCachingPath src, final Path dest) throws IOException {
@@ -127,6 +127,10 @@ class RemoteCachingFileSystem extends FileSystem {
     @Override
     public Path getPath(final String first, final String... more) {
         return new RemoteCachingPath(this, Joiner.on(RemoteCachingPath.PATH_SEPARATOR_STR).join(Lists.asList(first, more)));
+    }
+
+    Iterable<RemoteFileStore.RemoteFileAttributes> listDirWithAttributes(final RemoteCachingPath path) throws IOException {
+        return fileStore.listDir(path);
     }
 
     Iterable<RemoteCachingPath> listDir(final RemoteCachingPath path) throws IOException {

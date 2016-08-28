@@ -73,7 +73,7 @@
                         </goals>
                         <configuration>
                             <srcFiles>
-                                <srcFile>src/main/resources/schema/tblFileMetadata.sql</srcFile>
+                                <srcFile>src/main/resources/schema/TBLFILEMETADATA.sql</srcFile>
                             </srcFiles>
                         </configuration>
                     </execution>
@@ -211,20 +211,7 @@
     </dependencies>
 
     <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <autoVersionSubmodules>true</autoVersionSubmodules>
-
         <aws-java-sdk.version>1.7.11</aws-java-sdk.version>
-        <h2database.version>1.4.191</h2database.version>
-        <hikari-cp.version>2.4.6</hikari-cp.version>
-        <jooq.version>3.6.4</jooq.version>
-        <fastutil.version>6.2.2</fastutil.version>
-        <gnu-trove.version>3.0.3</gnu-trove.version>
-        <hadoop.version>2.6.0-cdh5.4.8</hadoop.version>
-
-        <!-- releases of our own projects to use -->
-        <!-- these should only be SNAPSHOTs when no release is available -->
-        <indeed-util.version>[1.0.15,)</indeed-util.version>
     </properties>
 
 </project>

@@ -11,15 +11,15 @@ import javax.sql.DataSource;
  * @author kenh
  */
 
-class DSLContextContainer {
+public class DSLContextContainer {
     private final Settings settings = new Settings().withRenderSchema(false);
     private final DataSource dataSource;
 
-    DSLContextContainer(final DataSource dataSource) {
+    public DSLContextContainer(final DataSource dataSource) {
         this.dataSource = dataSource;
     }
 
-    DSLContext getDSLContext() {
+    public DSLContext getDSLContext() {
         return DSL.using(dataSource, SQLDialect.H2, settings);
     }
 }

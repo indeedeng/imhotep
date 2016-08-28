@@ -1,5 +1,6 @@
 package com.indeed.imhotep.service;
 
+import com.indeed.imhotep.ShardDir;
 import com.indeed.util.core.Pair;
 
 /**

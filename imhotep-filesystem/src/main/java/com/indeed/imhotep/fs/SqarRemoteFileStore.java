@@ -4,6 +4,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import com.indeed.imhotep.archive.FileMetadata;
+import com.indeed.imhotep.fs.db.metadata.Tables;
 import com.indeed.imhotep.fs.sql.FileMetadataDao;
 import com.indeed.imhotep.fs.sql.SchemaInitializer;
 import com.indeed.imhotep.fs.sql.SqarMetaDataDao;
@@ -21,6 +22,7 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.NotDirectoryException;
 import java.nio.file.Path;
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -29,6 +31,7 @@ import java.util.Map;
  */
 class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
     private final SqarMetaDataManager sqarMetaDataManager;
+    private final HikariDataSource dataSource;
     private final SqarMetaDataDao sqarMetaDataDao;
     private final RemoteFileStore backingFileStore;
 
@@ -41,9 +44,8 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
         config.setJdbcUrl("jdbc:h2:" + dbFile);
 
 
-        final HikariDataSource dataSource = new HikariDataSource(config);
-
-        new SchemaInitializer(dataSource).initialize();
+        dataSource = new HikariDataSource(config);
+        new SchemaInitializer(dataSource).initialize(Collections.singletonList(Tables.TBLFILEMETADATA));
 
         sqarMetaDataDao = new FileMetadataDao(dataSource);
         sqarMetaDataManager = new SqarMetaDataManager(sqarMetaDataDao);
@@ -51,7 +53,7 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
 
     @Override
     public void close() throws IOException {
-        sqarMetaDataDao.close();
+        dataSource.close();
     }
 
     RemoteFileStore getBackingFileStore() {

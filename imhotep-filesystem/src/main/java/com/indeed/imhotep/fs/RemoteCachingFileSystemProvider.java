@@ -1,10 +1,13 @@
 package com.indeed.imhotep.fs;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterables;
+import com.indeed.util.core.Pair;
 import org.apache.log4j.Logger;
 
 import java.io.File;
@@ -45,7 +48,7 @@ import java.util.Set;
 public class RemoteCachingFileSystemProvider extends FileSystemProvider {
     private static final Logger LOGGER = Logger.getLogger(RemoteCachingFileSystemProvider.class);
     static final String URI_SCHEME = "imhtpfs";
-    static final URI URI = java.net.URI.create(RemoteCachingFileSystemProvider.URI_SCHEME + ":///");
+    public static final URI URI = java.net.URI.create(RemoteCachingFileSystemProvider.URI_SCHEME + ":///");
 
     private static class FileSystemHolder {
         private static RemoteCachingFileSystem fileSystem;
@@ -112,7 +115,8 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
         Preconditions.checkArgument(uri.getFragment() == null, "URI fragment must be absent");
     }
 
-    static FileSystem newFileSystem(final File fsConfigFile) throws IOException {
+    @VisibleForTesting
+    public static FileSystem newFileSystem(final File fsConfigFile) throws IOException {
         return FILE_SYSTEM_HOLDER.create(fsConfigFile);
     }
 
@@ -168,6 +172,46 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
     @Override
     public OutputStream newOutputStream(final Path path, final OpenOption... options) throws IOException {
         throw new UnsupportedOperationException();
+    }
+
+    /**
+     * a loophole interface to allow for efficient filter without doing a seprate attribute lookup
+     */
+    public DirectoryStream<RemoteCachingPath> newDirectoryStreamWithAttributes(final Path dir, final DirectoryStream.Filter<Pair<? extends Path, ? extends BasicFileAttributes>> filter) throws IOException {
+        final FluentIterable<RemoteCachingPath> filtered = FluentIterable.from(FILE_SYSTEM_HOLDER.get().listDirWithAttributes(toRemoteCachePath(dir)))
+                .filter(new Predicate<RemoteFileStore.RemoteFileAttributes>() {
+                    @Override
+                    public boolean apply(final RemoteFileStore.RemoteFileAttributes attributes) {
+                        try {
+                            return filter.accept(Pair.of(attributes.getPath(), new ImhotepFileAttributes(attributes.getSize(), attributes.isDirectory())));
+                        } catch (final IOException e) {
+                            LOGGER.warn("Failed to apply directory stream filtering on " + attributes + ". It will be ignored", e);
+                            return false;
+                        }
+                    }
+                }).transform(new Function<RemoteFileStore.RemoteFileAttributes, RemoteCachingPath>() {
+                    @Override
+                    public RemoteCachingPath apply(final RemoteFileStore.RemoteFileAttributes fileAttributes) {
+                        return fileAttributes.getPath();
+                    }
+                });
+
+        return new DirectoryStream<RemoteCachingPath>() {
+            private boolean closed = false;
+
+            @Override
+            public Iterator<RemoteCachingPath> iterator() {
+                if (closed) {
+                    throw new IllegalStateException("DirectoryStream already closed");
+                }
+                return filtered.iterator();
+            }
+
+            @Override
+            public void close() throws IOException {
+                closed = true;
+            }
+        };
     }
 
     @Override

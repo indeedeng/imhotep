@@ -22,6 +22,7 @@ import com.indeed.imhotep.ImhotepStatusDump.ShardDump;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.MemoryReserver;
 import com.indeed.imhotep.MetricKey;
+import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.io.Shard;
 import com.indeed.lsmtree.core.Store;
 import com.indeed.util.core.Pair;
@@ -299,11 +300,15 @@ class ShardMap
         idToShard.put(shard.getShardId().getId(), shard);
     }
 
+    public boolean isNewerThan(final ShardDir shardDir, final Shard shard) {
+        return (shard == null) || (shardDir.getVersion() > shard.getShardVersion());
+    }
+
     private boolean track(ShardMap reference, String dataset, ShardDir shardDir) {
         final Shard referenceShard = reference.getShard(dataset, shardDir.getId());
         final Shard currentShard   = getShard(dataset, shardDir.getId());
 
-        if (shardDir.isNewerThan(referenceShard) && shardDir.isNewerThan(currentShard)) {
+        if (isNewerThan(shardDir, referenceShard) && isNewerThan(shardDir, currentShard)) {
             final ReloadableSharedReference.Loader<CachedFlamdexReader, IOException>
                 loader = newLoader(shardDir.getIndexDir(), dataset, shardDir.getName());
             try {

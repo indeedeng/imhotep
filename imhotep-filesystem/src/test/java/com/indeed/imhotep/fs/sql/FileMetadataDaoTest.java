@@ -3,18 +3,15 @@ package com.indeed.imhotep.fs.sql;
 import com.google.common.collect.Lists;
 import com.indeed.imhotep.archive.FileMetadata;
 import com.indeed.imhotep.archive.compression.SquallArchiveCompressor;
+import com.indeed.imhotep.dbutil.DbDataFixture;
 import com.indeed.imhotep.fs.RemoteFileMetadata;
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
+import com.indeed.imhotep.fs.db.metadata.Tables;
 import org.joda.time.DateTime;
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Paths;
@@ -28,24 +25,13 @@ import java.util.Collections;
 
 public class FileMetadataDaoTest {
     @Rule
-    public final TemporaryFolder tempDir = new TemporaryFolder();
+    public final DbDataFixture dbDataFixture = new DbDataFixture(Collections.singletonList(Tables.TBLFILEMETADATA));
     private FileMetadataDao fileMetadataDao;
     private DateTime now = DateTime.now();
 
     @Before
     public void setUp() throws IOException, SQLException, URISyntaxException {
-        final File dbFile = tempDir.newFile("db");
-        final HikariConfig config = new HikariConfig();
-        config.setJdbcUrl("jdbc:h2:" + dbFile);
-        final HikariDataSource dataSource = new HikariDataSource(config);
-        fileMetadataDao = new FileMetadataDao(dataSource);
-
-        new SchemaInitializer(dataSource).initialize();
-    }
-
-    @After
-    public void tearDown() throws IOException {
-        fileMetadataDao.close();
+        fileMetadataDao = new FileMetadataDao(dbDataFixture.getDataSource());
     }
 
     @Test

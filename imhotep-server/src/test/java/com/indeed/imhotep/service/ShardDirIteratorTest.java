@@ -3,6 +3,7 @@ package com.indeed.imhotep.service;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.client.ShardTimeUtils;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.time.DefaultWallClock;

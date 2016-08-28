@@ -42,9 +42,7 @@ public class RemoteCachingFileSystemInitializerTest {
 
     @Test
     public void testIt() throws IOException, URISyntaxException {
-        final Map<String, String> config = RemoteCachingFileSystemTestContext.getConfigFor(
-                RemoteCachingFileSystemTestContext.DEFAULT_CONFIG,
-                tempDir.newFolder("db"), tempDir.newFolder("cache"), tempDir.newFolder("store"));
+        final Map<String, String> config = RemoteCachingFileSystemTestContext.getConfig(tempDir);
         final File fsProp = tempDir.newFile("fs.properties");
         mapToProperties(config, fsProp);
 
@@ -57,9 +55,7 @@ public class RemoteCachingFileSystemInitializerTest {
 
     @Test(expected = FileSystemAlreadyExistsException.class)
     public void testDuplicateInitilization() throws IOException, URISyntaxException {
-        final Map<String, String> config = RemoteCachingFileSystemTestContext.getConfigFor(
-                RemoteCachingFileSystemTestContext.DEFAULT_CONFIG,
-                tempDir.newFolder("db"), tempDir.newFolder("cache"), tempDir.newFolder("store"));
+        final Map<String, String> config = RemoteCachingFileSystemTestContext.getConfig(tempDir);
         final File fsProp = tempDir.newFile("fs.properties");
         mapToProperties(config, fsProp);
 

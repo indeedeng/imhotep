@@ -2,6 +2,7 @@ package com.indeed.imhotep.service;
 
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
+import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.fs.DirectoryStreamFilters;
 import com.indeed.util.core.Pair;
 import org.apache.log4j.Logger;

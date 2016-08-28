@@ -5,6 +5,7 @@ import org.junit.rules.ExternalResource;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -21,9 +22,9 @@ public class RemoteCachingFileSystemTestContext extends ExternalResource {
     private final TemporaryFolder tempDir = new TemporaryFolder();
 
     static final Map<String, String> DEFAULT_CONFIG = ImmutableMap.<String, String>builder()
-                .put("imhotep.fs.store.type", "local")
-                .put("imhotep.fs.cache.size.megabytes", "128")
-                .build();
+            .put("imhotep.fs.store.type", "local")
+            .put("imhotep.fs.cache.size.gigabytes", "1")
+            .build();
 
     private final Map<String, String> configuration;
 
@@ -67,7 +68,7 @@ public class RemoteCachingFileSystemTestContext extends ExternalResource {
         return localStoreDir;
     }
 
-    static Map<String, String> getConfigFor(Map<String, String> baseConfig, final File sqarDbDir, final File cacheDir, final File localStoreDir) throws IOException {
+    public static Map<String, String> getConfigFor(final Map<String, String> baseConfig, final File sqarDbDir, final File cacheDir, final File localStoreDir, final URI hdfsStoreDir) throws IOException {
         final Properties s3Properties = new Properties();
         try (InputStream s3ConfigIS = ClassLoader.getSystemResourceAsStream("s3-test.properties")) {
             s3Properties.load(s3ConfigIS);
@@ -81,7 +82,7 @@ public class RemoteCachingFileSystemTestContext extends ExternalResource {
                 .put("imhotep.fs.filestore.local.root-uri", localStoreDir.toURI().toString())
 
                 // hdfs
-                .put("imhotep.fs.filestore.hdfs.root-uri", localStoreDir.toURI().toString())
+                .put("imhotep.fs.filestore.hdfs.root-uri", hdfsStoreDir.toString())
 
                 // s3
                 .put("imhotep.fs.filestore.s3.prefix", "")
@@ -91,6 +92,30 @@ public class RemoteCachingFileSystemTestContext extends ExternalResource {
 
                 .put("imhotep.fs.sqardb.file", new File(sqarDbDir, "db.data").toString())
                 .build();
+    }
+
+    public static Map<String, String> getConfig(final TemporaryFolder rootDir) throws IOException {
+        final File localStoreDir = rootDir.newFolder("local-store");
+        return getConfigFor(
+                DEFAULT_CONFIG,
+                rootDir.newFolder("sqardb"), rootDir.newFolder("cache"), localStoreDir, localStoreDir.toURI());
+    }
+
+    private static void mapToProperties(final Map<String, String> config, final File target) throws IOException {
+        final Properties properties = new Properties();
+        for (final Map.Entry<String, String> entry : config.entrySet()) {
+            properties.setProperty(entry.getKey(), entry.getValue());
+        }
+
+        try (FileOutputStream os = new FileOutputStream(target)) {
+            properties.store(os, "");
+        }
+    }
+
+    public static File getConfigAsFile(final TemporaryFolder rootDir) throws IOException {
+        final File configFile = rootDir.newFile("fs.properties");
+        mapToProperties(getConfig(rootDir), configFile);
+        return configFile;
     }
 
     @Override
@@ -105,7 +130,7 @@ public class RemoteCachingFileSystemTestContext extends ExternalResource {
 
         fs = (RemoteCachingFileSystem) FileSystems.newFileSystem(URI.create("imhtpfs://somehost/some/path"),
                 ImmutableMap.<String, String>builder()
-                        .putAll(getConfigFor(configuration, tempDir.getRoot(), cacheDir, localStoreDir))
+                        .putAll(getConfigFor(configuration, tempDir.newFolder("sqardb"), cacheDir, localStoreDir, localStoreDir.toURI()))
                         .build()
         );
     }
