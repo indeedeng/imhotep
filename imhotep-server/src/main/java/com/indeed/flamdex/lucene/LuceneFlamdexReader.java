@@ -148,6 +148,10 @@ public class LuceneFlamdexReader extends AbstractFlamdexReader {
         Closeables2.closeAll(streams, log);
     }
 
+    public IndexReader getReader() {
+        return reader;
+    }
+
     @Override
     public Collection<String> getIntFields() {
         return intFields;
