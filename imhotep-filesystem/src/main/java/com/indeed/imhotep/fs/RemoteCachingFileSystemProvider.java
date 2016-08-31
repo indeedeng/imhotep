@@ -7,7 +7,9 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import org.apache.log4j.Logger;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.nio.channels.SeekableByteChannel;
@@ -18,6 +20,8 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.FileStore;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystemAlreadyExistsException;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.OpenOption;
@@ -28,8 +32,10 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.FileAttributeView;
 import java.nio.file.spi.FileSystemProvider;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 
 /**
@@ -50,6 +56,27 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
             }
             fileSystem = new RemoteCachingFileSystem(fileSystemProvider, env);
             return fileSystem;
+        }
+
+        synchronized FileSystem create(final File fsConfigFile) throws IOException {
+            if (fileSystem != null) {
+                throw new FileSystemAlreadyExistsException("Multiple file systems not supported");
+            } else {
+                try {
+                    try (InputStream inputStream = Files.newInputStream(fsConfigFile.toPath())) {
+                        final Properties properties = new Properties();
+                        properties.load(inputStream);
+                        final Map<String, Object> configuration = new HashMap<>();
+                        for (final String prop : properties.stringPropertyNames()) {
+                            configuration.put(prop, properties.get(prop));
+                        }
+                        // we use the FileSystems api to avoid duplicate instantiation of the provider
+                        return FileSystems.newFileSystem(URI, configuration);
+                    }
+                } catch (final IOException e) {
+                    throw new IllegalStateException("Failed to read imhotep fs configuration from " + fsConfigFile, e);
+                }
+            }
         }
 
         synchronized RemoteCachingFileSystem get() {
@@ -83,6 +110,19 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
         Preconditions.checkArgument(uri.getPath() != null, "URI path must be present");
         Preconditions.checkArgument(uri.getQuery() == null, "URI query must be absent");
         Preconditions.checkArgument(uri.getFragment() == null, "URI fragment must be absent");
+    }
+
+    static FileSystem newFileSystem(final File fsConfigFile) throws IOException {
+        return FILE_SYSTEM_HOLDER.create(fsConfigFile);
+    }
+
+    public static FileSystem newFileSystem() throws IOException {
+        final String fsFilePath = System.getProperty("imhotep.fs.config.file");
+        if (fsFilePath != null) {
+            return newFileSystem(new File(fsFilePath));
+        } else {
+            return null;
+        }
     }
 
     @Override

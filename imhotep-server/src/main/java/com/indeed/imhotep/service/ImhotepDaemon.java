@@ -33,7 +33,7 @@ import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepServiceCore;
-import com.indeed.imhotep.fs.RemoteCachingFileSystemInitializer;
+import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.Streams;
 import com.indeed.imhotep.marshal.ImhotepDaemonMarshaller;
@@ -1201,7 +1201,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         final ShardUpdateListener shardUpdateListener = new ShardUpdateListener();
 
         // initialize the imhotepfs if necessary
-        new RemoteCachingFileSystemInitializer().get();
+        RemoteCachingFileSystemProvider.newFileSystem();
 
         final Path shardsDir = Paths.get(new URI(shardsDirectory));
         final Path tmpDir = Paths.get(new URI(shardTempDir));

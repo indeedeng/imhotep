@@ -11,6 +11,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.FileSystem;
+import java.nio.file.FileSystemAlreadyExistsException;
+import java.nio.file.Paths;
 import java.util.Map;
 import java.util.Properties;
 
@@ -46,16 +48,25 @@ public class RemoteCachingFileSystemInitializerTest {
         final File fsProp = tempDir.newFile("fs.properties");
         mapToProperties(config, fsProp);
 
-        Assert.assertNull(new RemoteCachingFileSystemInitializer().get());
         Assert.assertNull(new RemoteCachingFileSystemProvider().getFileSystem(RemoteCachingFileSystemProvider.URI));
 
-        final RemoteCachingFileSystemInitializer initializer = new RemoteCachingFileSystemInitializer(fsProp.toString());
-        final FileSystem fileSystem = initializer.get();
-        Assert.assertNotNull(fileSystem);
+        final FileSystem fileSystem = RemoteCachingFileSystemProvider.newFileSystem(fsProp);
+        Assert.assertEquals(fileSystem, Paths.get(RemoteCachingFileSystemProvider.URI).getFileSystem());
         Assert.assertEquals(fileSystem, new RemoteCachingFileSystemProvider().getFileSystem(RemoteCachingFileSystemProvider.URI));
+    }
 
-        Assert.assertEquals(fileSystem, initializer.get());
-        Assert.assertEquals(fileSystem, new RemoteCachingFileSystemInitializer(fsProp.toString()).get());
-        Assert.assertEquals(fileSystem, new RemoteCachingFileSystemInitializer().get());
+    @Test(expected = FileSystemAlreadyExistsException.class)
+    public void testDuplicateInitilization() throws IOException, URISyntaxException {
+        final Map<String, String> config = RemoteCachingFileSystemTestContext.getConfigFor(
+                RemoteCachingFileSystemTestContext.DEFAULT_CONFIG,
+                tempDir.newFolder("db"), tempDir.newFolder("cache"), tempDir.newFolder("store"));
+        final File fsProp = tempDir.newFile("fs.properties");
+        mapToProperties(config, fsProp);
+
+        Assert.assertNull(new RemoteCachingFileSystemProvider().getFileSystem(RemoteCachingFileSystemProvider.URI));
+
+        final FileSystem fileSystem = RemoteCachingFileSystemProvider.newFileSystem(fsProp);
+        Assert.assertEquals(fileSystem, Paths.get(RemoteCachingFileSystemProvider.URI).getFileSystem());
+        RemoteCachingFileSystemProvider.newFileSystem(fsProp);
     }
 }
