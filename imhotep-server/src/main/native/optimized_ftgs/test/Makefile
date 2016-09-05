@@ -1,7 +1,7 @@
 MODE=dbg
 
-CC=/usr/bin/gcc-5
-CPP=/usr/bin/g++-5
+CC=/usr/bin/gcc
+CPP=/usr/bin/g++
 BASE_CFLAGS=-Wall -Werror -I./include -I../include  -std=gnu99 -msse4.2 -fPIC -flax-vector-conversions -fno-omit-frame-pointer -flto
 BASE_CPPFLAGS=-Wall -Werror -I./include -I../include -I../cpp/include -I/usr/include/boost -msse4.2 -std=c++11 -fPIC -flto
 
@@ -118,11 +118,9 @@ FTGS_RUNNER_OBJS =\
 	../build/cppobj/shard.o \
 	../build/cppobj/task_iterator.o \
 	../build/cppobj/term_providers.o \
-	../obj/binary_table_accumulate.o \
 	../obj/bit_tree.o \
 	../obj/circ_buf.o \
 	../obj/local_session.o \
-	../obj/packed_table.o \
 	../obj/packed_table.o \
 	../obj/remote_output.o \
 	../obj/socket.o \
@@ -148,7 +146,6 @@ TGS_OBJS = \
     ../obj/packed_table.o     \
     ../obj/remote_output.o    \
     ../obj/socket.o           \
-    ../obj/table_accumulate.o \
     ../obj/table_accumulate.o \
     ../obj/tgs.o              \
     ../obj/unpacked_table.o   \
