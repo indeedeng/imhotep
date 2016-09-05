@@ -2,6 +2,7 @@ package com.indeed.imhotep.service;
 
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
+import com.indeed.imhotep.fs.DirectoryStreamFilters;
 import com.indeed.util.core.Pair;
 import org.apache.log4j.Logger;
 
@@ -26,13 +27,13 @@ class LocalShardDirIterator implements ShardDirIterator {
     @Override
     public Iterator<Pair<String, ShardDir>> iterator() {
         try {
-            return FluentIterable.from(Files.newDirectoryStream(shardsPath, ONLY_DIRS)).transformAndConcat(
+            return FluentIterable.from(Files.newDirectoryStream(shardsPath, DirectoryStreamFilters.ONLY_DIRS)).transformAndConcat(
                     new Function<Path, Iterable<Pair<String, ShardDir>>>() {
                         @Override
                         public Iterable<Pair<String, ShardDir>> apply(final Path dataSetPath) {
                             final String dataset = dataSetPath.getFileName().toString();
                             try {
-                                return FluentIterable.from(Files.newDirectoryStream(dataSetPath, ONLY_DIRS)).transform(
+                                return FluentIterable.from(Files.newDirectoryStream(dataSetPath, DirectoryStreamFilters.ONLY_DIRS)).transform(
                                         new Function<Path, Pair<String, ShardDir>>() {
                                             @Override
                                             public Pair<String, ShardDir> apply(final Path shardPath) {

@@ -22,6 +22,7 @@ import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIterator;
 import com.indeed.flamdex.utils.FlamdexUtils;
+import com.indeed.imhotep.fs.DirectoryStreamFilters;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 import org.apache.lucene.index.IndexReader;
@@ -71,20 +72,6 @@ public class LuceneFlamdexReader extends AbstractFlamdexReader {
         this.stringFields = (stringFields != null) ? stringFields : getStringFieldsFromIndex(reader);
     }
 
-    private static final DirectoryStream.Filter<Path> ONLY_DIRS = new DirectoryStream.Filter<Path>() {
-        @Override
-        public boolean accept(final Path entry) throws IOException {
-            return Files.exists(entry) && Files.isDirectory(entry);
-        }
-    };
-
-    private static final DirectoryStream.Filter<Path> ONLY_NON_DIRS = new DirectoryStream.Filter<Path>() {
-        @Override
-        public boolean accept(final Path entry) throws IOException {
-            return Files.exists(entry) && !Files.isDirectory(entry);
-        }
-    };
-
     private IndexReader openIndex(final Path indexDir) throws IOException {
         final ParallelReader parallelReader = new ParallelReader();
 
@@ -93,7 +80,7 @@ public class LuceneFlamdexReader extends AbstractFlamdexReader {
 
         // try finding and loading subindexes
         boolean foundSubIndexes = false;
-        try (final DirectoryStream<Path> entries = Files.newDirectoryStream(indexDir, ONLY_DIRS)) {
+        try (final DirectoryStream<Path> entries = Files.newDirectoryStream(indexDir, DirectoryStreamFilters.ONLY_DIRS)) {
             for (final Path entry : entries) {
                 trackDirectory(entry);
 
@@ -147,7 +134,7 @@ public class LuceneFlamdexReader extends AbstractFlamdexReader {
      * instead of the {@link Path} interface
      */
     private void trackDirectory(final Path dir) throws IOException {
-        try (final DirectoryStream<Path> entries = Files.newDirectoryStream(dir, ONLY_NON_DIRS)) {
+        try (final DirectoryStream<Path> entries = Files.newDirectoryStream(dir, DirectoryStreamFilters.ONLY_NON_DIRS)) {
             for (final Path path : entries) {
                 final InputStream is = Files.newInputStream(path, StandardOpenOption.READ);
                 trackedInputStreams.put(dir, is);

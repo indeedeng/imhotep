@@ -12,7 +12,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URISyntaxException;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.NotDirectoryException;
@@ -90,12 +89,7 @@ public class SqarMetaDataManagerTest {
                 ImmutableSet.of(
                         root.resolve("com"),
                         root.resolve("testData")
-                ), FluentIterable.from(Files.newDirectoryStream(root, new DirectoryStream.Filter<Path>() {
-                    @Override
-                    public boolean accept(final Path entry) throws IOException {
-                        return Files.isDirectory(entry);
-                    }
-                })).toSet()
+                ), FluentIterable.from(Files.newDirectoryStream(root, DirectoryStreamFilters.ONLY_DIRS)).toSet()
         );
 
         final RemoteCachingPath indexDir = root.resolve("testData");

@@ -4,6 +4,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Predicates;
 import com.google.common.collect.FluentIterable;
 import com.indeed.imhotep.client.ShardTimeUtils;
+import com.indeed.imhotep.fs.DirectoryStreamFilters;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.time.WallClock;
 import org.apache.log4j.Logger;
@@ -41,14 +42,14 @@ class FilteredShardDirIterator implements ShardDirIterator {
     public Iterator<Pair<String, ShardDir>> iterator() {
         final DateTime now = new DateTime(wallClock.currentTimeMillis(), TIME_ZONE);
         try {
-            return FluentIterable.from(Files.newDirectoryStream(shardsPath, ONLY_DIRS)).transformAndConcat(
+            return FluentIterable.from(Files.newDirectoryStream(shardsPath, DirectoryStreamFilters.ONLY_DIRS)).transformAndConcat(
                     new Function<Path, Iterable<Pair<String, ShardDir>>>() {
                         @Override
                         public Iterable<Pair<String, ShardDir>> apply(final Path dataSetPath) {
                             final String dataset = dataSetPath.getFileName().toString();
                             if (config.includeDataSet(dataset)) {
                                 try {
-                                    return FluentIterable.from(Files.newDirectoryStream(dataSetPath, ONLY_DIRS)).transform(
+                                    return FluentIterable.from(Files.newDirectoryStream(dataSetPath, DirectoryStreamFilters.ONLY_DIRS)).transform(
                                             new Function<Path, Pair<String, ShardDir>>() {
                                                 @Override
                                                 public Pair<String, ShardDir> apply(final Path shardPath) {
