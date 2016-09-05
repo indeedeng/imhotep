@@ -1,10 +1,12 @@
 package com.indeed.imhotep.fs;
 
+import com.indeed.util.core.io.Closeables2;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.log4j.Logger;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -21,6 +23,7 @@ import java.util.Map;
  * @author darren
  */
 class HdfsRemoteFileStore extends RemoteFileStore {
+    private static final Logger LOGGER = Logger.getLogger(HdfsRemoteFileStore.class);
     static final String HDFS_BASE_DIR = "/var/imhotep/";
 
     private final Path hdfsShardBasePath;
@@ -88,11 +91,15 @@ class HdfsRemoteFileStore extends RemoteFileStore {
     }
 
     @Override
-    public InputStream newInputStream(final RemoteCachingPath path, final long startOffset, final long length) throws
-            IOException {
+    public InputStream newInputStream(final RemoteCachingPath path, final long startOffset, final long length) throws IOException {
         final Path hdfsPath = getHdfsPath(path);
         final FSDataInputStream stream = fs.open(hdfsPath);
-        stream.seek(startOffset);
+        try {
+            stream.seek(startOffset);
+        } catch (final IOException e) {
+            Closeables2.closeQuietly(stream, LOGGER);
+            throw new IOException("Failed to open " + path + " with offset " + startOffset, e);
+        }
         return stream;
     }
 

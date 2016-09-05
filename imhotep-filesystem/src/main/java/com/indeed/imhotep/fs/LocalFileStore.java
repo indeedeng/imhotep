@@ -2,6 +2,8 @@ package com.indeed.imhotep.fs;
 
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
+import com.indeed.util.core.io.Closeables2;
+import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -20,6 +22,7 @@ import java.util.Map;
  * @author darren
  */
 class LocalFileStore extends RemoteFileStore {
+    private static final Logger LOGGER = Logger.getLogger(LocalFileStore.class);
     private final Path root;
 
     private LocalFileStore(final Path root) {
@@ -43,7 +46,7 @@ class LocalFileStore extends RemoteFileStore {
                         return new RemoteFileAttributes(
                                 RemoteCachingPath.resolve(path, localDirPath.relativize(localPath)),
                                 attributes.size(),
-                                !attributes.isDirectory());
+                                attributes.isRegularFile());
                     } catch (final IOException e) {
                         throw new IllegalStateException("Failed to get attributes for " + localPath + " while listing " + path, e);
                     }
@@ -61,7 +64,7 @@ class LocalFileStore extends RemoteFileStore {
     public RemoteFileAttributes getRemoteAttributes(final RemoteCachingPath path) throws IOException {
         final Path localPath = getLocalPath(path);
         final BasicFileAttributes attributes = Files.readAttributes(localPath, BasicFileAttributes.class);
-        return new RemoteFileAttributes(path, attributes.size(), !attributes.isDirectory());
+        return new RemoteFileAttributes(path, attributes.size(), attributes.isRegularFile());
     }
 
     @Override
@@ -74,11 +77,18 @@ class LocalFileStore extends RemoteFileStore {
     }
 
     @Override
-    public InputStream newInputStream(final RemoteCachingPath path, final long startOffset, final long length) throws
-            IOException {
+    public InputStream newInputStream(final RemoteCachingPath path, final long startOffset, final long length) throws IOException {
         final Path localPath = getLocalPath(path);
         final InputStream is = Files.newInputStream(localPath);
-        if (is.skip(startOffset) != startOffset) {
+        final long skippedTo;
+        try {
+            skippedTo = is.skip(startOffset);
+        } catch (final IOException e) {
+            Closeables2.closeQuietly(is, LOGGER);
+            throw new IOException("Failed to open " + path + " with offset " + startOffset, e);
+        }
+
+        if (skippedTo != startOffset) {
             throw new IOException("Could not move offset for path " + path + " by " + startOffset);
         }
         return is;

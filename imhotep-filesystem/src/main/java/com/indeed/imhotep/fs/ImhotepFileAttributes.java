@@ -32,7 +32,7 @@ class ImhotepFileAttributes implements BasicFileAttributes {
 
     @Override
     public boolean isRegularFile() {
-        return true;
+        return !isDirectory;
     }
 
     @Override

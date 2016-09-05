@@ -1,6 +1,7 @@
 package com.indeed.imhotep.fs;
 
 import com.google.common.base.Preconditions;
+import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -28,10 +29,11 @@ class LocalFileCache {
     private static final Logger LOGGER = Logger.getLogger(LocalFileCache.class);
     private final Path cacheRootDir;
     private final TObjectIntHashMap<RemoteCachingPath> fileUseCounter = new TObjectIntHashMap<>(Constants.DEFAULT_CAPACITY, Constants.DEFAULT_LOAD_FACTOR, 0);
-    private final LoadingCache<RemoteCachingPath, FileCacheEntry> unusedFilesCache;
+    private final Cache<RemoteCachingPath, FileCacheEntry> unusedFilesCache;
+    private final LoadingCache<RemoteCachingPath, FileCacheEntry> referencedFilesCache;
     private final Object lock = new Object();
 
-    LocalFileCache(final Path cacheRootDir, final long diskSpaceCapacity, final CacheFileLoader cacheFileLoader) {
+    LocalFileCache(final RemoteCachingFileSystem fs, final Path cacheRootDir, final long diskSpaceCapacity, final CacheFileLoader cacheFileLoader) throws IOException {
         this.cacheRootDir = cacheRootDir;
         unusedFilesCache = CacheBuilder.<RemoteCachingPath, FileCacheEntry>newBuilder()
                 .maximumWeight(diskSpaceCapacity)
@@ -48,14 +50,16 @@ class LocalFileCache {
                             // we only need to delete the cache if the entry was pushed out
                             final Path cachePath = removalNotification.getValue().cachePath;
                             try {
-
                                 Files.delete(cachePath);
                             } catch (final IOException e) {
-                                LOGGER.warn("Failed to delete evicted local cache " + cachePath, e);
+                                LOGGER.error("Failed to delete evicted local cache " + cachePath, e);
                             }
                         }
                     }
                 })
+                .build();
+
+        referencedFilesCache = CacheBuilder.newBuilder()
                 .build(new CacheLoader<RemoteCachingPath, FileCacheEntry>() {
                     @Override
                     public FileCacheEntry load(final RemoteCachingPath path) throws Exception {
@@ -65,9 +69,11 @@ class LocalFileCache {
                         return entry;
                     }
                 });
+
+        initialize(fs);
     }
 
-    void initialize(final RemoteCachingFileSystem fs) throws IOException {
+    private void initialize(final RemoteCachingFileSystem fs) throws IOException {
         synchronized (lock) {
             unusedFilesCache.invalidateAll();
             Files.walkFileTree(cacheRootDir, new SimpleFileVisitor<Path>() {
@@ -102,9 +108,21 @@ class LocalFileCache {
      */
     Path cache(final RemoteCachingPath path) throws ExecutionException {
         Preconditions.checkArgument(path.isAbsolute(), "Only absolute paths are supported");
-        synchronized (lock) {
-            return unusedFilesCache.get(path).cachePath;
+        try (ScopedCacheFile openedCacheFile = getForOpen(path)) {
+            return openedCacheFile.cachePath;
         }
+    }
+
+    private int incFileUsageRef(final RemoteCachingPath path) {
+        return fileUseCounter.adjustOrPutValue(path, 1, 1);
+    }
+
+    private int decFileUsageRef(final RemoteCachingPath path) {
+        final int count = fileUseCounter.adjustOrPutValue(path, -1, 0);
+        if (count == 0) {
+            fileUseCounter.remove(path);
+        }
+        return count;
     }
 
     /**
@@ -116,13 +134,30 @@ class LocalFileCache {
      * @return the path corresponding to the local cache file
      */
     private Path get(final RemoteCachingPath path) throws ExecutionException {
+        FileCacheEntry fileCacheEntry;
         synchronized (lock) {
-            // this unnatural code is necessary to get the cached file, or force a cache if not present
-            final FileCacheEntry fileCacheEntry = unusedFilesCache.get(path);
-            unusedFilesCache.invalidate(path);
-            fileUseCounter.adjustOrPutValue(path, 1, 1);
-            return fileCacheEntry.cachePath;
+            incFileUsageRef(path);
+            fileCacheEntry = unusedFilesCache.getIfPresent(path);
+            if (fileCacheEntry != null) {
+                // if the file was in the unused file cache, we can use that again
+                unusedFilesCache.invalidate(path);
+                referencedFilesCache.put(path, fileCacheEntry);
+                return fileCacheEntry.cachePath;
+            }
         }
+
+        // at this point, unusedFilesCache does not contain path so we are
+        // 1. getting the cached value
+        // 2. loading the cache file (which can result in exceptions and the file use counter has to be rolled back)
+        try {
+            fileCacheEntry = referencedFilesCache.get(path);
+        } catch (final ExecutionException e) {
+            synchronized (lock) {
+                decFileUsageRef(path);
+            }
+            throw e;
+        }
+        return fileCacheEntry.cachePath;
     }
 
     /**
@@ -144,10 +179,11 @@ class LocalFileCache {
      * @param cachePath the corresponding local cache file
      */
     private void dispose(final RemoteCachingPath path, final Path cachePath) {
+        ;
         synchronized (lock) {
-            final int counter = fileUseCounter.adjustOrPutValue(path, -1, 0);
+            final int counter = decFileUsageRef(path);
             if (counter == 0) {
-                fileUseCounter.remove(path);
+                referencedFilesCache.invalidate(path);
                 try {
                     unusedFilesCache.put(path, new FileCacheEntry(cachePath, (int) Files.size(cachePath)));
                 } catch (final IOException e) {

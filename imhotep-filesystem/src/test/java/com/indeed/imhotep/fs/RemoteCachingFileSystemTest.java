@@ -210,7 +210,7 @@ public class RemoteCachingFileSystemTest {
         Assert.assertFalse(Files.isHidden(fs.getPath("a")));
         Assert.assertFalse(Files.isHidden(fs.getPath("a", "aa1")));
 
-        Assert.assertTrue(Files.isRegularFile(fs.getPath("a")));
+        Assert.assertFalse(Files.isRegularFile(fs.getPath("a")));
         Assert.assertTrue(Files.isRegularFile(fs.getPath("a", "aa1")));
 
         final BasicFileAttributes bAttr = Files.readAttributes(fs.getPath("b"), BasicFileAttributes.class);

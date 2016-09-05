@@ -329,13 +329,12 @@ public class RemoteCachingPath implements Path, Serializable {
             return false;
         }
         final RemoteCachingPath paths = (RemoteCachingPath) o;
-        return Objects.equal(fileSystem, paths.fileSystem) &&
-                Objects.equal(path, paths.path);
+        return Objects.equal(path, paths.path);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(fileSystem, path);
+        return Objects.hashCode(path);
     }
 
     @Nullable

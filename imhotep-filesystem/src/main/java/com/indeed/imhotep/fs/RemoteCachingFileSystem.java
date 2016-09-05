@@ -2,8 +2,8 @@ package com.indeed.imhotep.fs;
 
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
 import javax.annotation.Nullable;
@@ -47,25 +47,28 @@ class RemoteCachingFileSystem extends FileSystem {
             throw new IllegalStateException("Failed to initialize SqarRemoteFileStore", e);
         }
 
+        final URI cacheRootUri;
         try {
-            fileCache = new LocalFileCache(
-                    Paths.get(new URI((String) configuration.get("imhotep.fs.cache.root-uri"))),
-                    Long.parseLong((String) configuration.get("imhotep.fs.cache.size.megabytes")) * 1024 * 1024,
-                    new LocalFileCache.CacheFileLoader() {
-                        @Override
-                        public LocalFileCache.FileCacheEntry load(final RemoteCachingPath src, final Path dest) throws IOException {
-                            fileStore.downloadFile(src, dest);
-                            return new LocalFileCache.FileCacheEntry(
-                                    dest,
-                                    (int) Files.size(dest)
-                            );
-                        }
-                    }
-            );
+            cacheRootUri = new URI((String) configuration.get("imhotep.fs.cache.root-uri"));
         } catch (final URISyntaxException e) {
             throw new IllegalArgumentException("Could not parse cache root URI", e);
         }
-        fileCache.initialize(this);
+
+        fileCache = new LocalFileCache(
+                this,
+                Paths.get(cacheRootUri),
+                Long.parseLong((String) configuration.get("imhotep.fs.cache.size.megabytes")) * 1024 * 1024,
+                new LocalFileCache.CacheFileLoader() {
+                    @Override
+                    public LocalFileCache.FileCacheEntry load(final RemoteCachingPath src, final Path dest) throws IOException {
+                        fileStore.downloadFile(src, dest);
+                        return new LocalFileCache.FileCacheEntry(
+                                dest,
+                                (int) Files.size(dest)
+                        );
+                    }
+                }
+        );
     }
 
     Path getCachePath(final RemoteCachingPath path) throws ExecutionException {
@@ -99,7 +102,7 @@ class RemoteCachingFileSystem extends FileSystem {
 
     @Override
     public Iterable<Path> getRootDirectories() {
-        return Collections.singletonList((Path) new RemoteCachingPath(this, RemoteCachingPath.PATH_SEPARATOR_STR));
+        return Collections.<Path>singletonList(new RemoteCachingPath(this, RemoteCachingPath.PATH_SEPARATOR_STR));
     }
 
     @Override
@@ -128,13 +131,12 @@ class RemoteCachingFileSystem extends FileSystem {
     }
 
     Iterable<RemoteCachingPath> listDir(final RemoteCachingPath path) throws IOException {
-        return FluentIterable.from(fileStore.listDir(path))
-                .transform(new Function<RemoteFileStore.RemoteFileAttributes, RemoteCachingPath>() {
-                    @Override
-                    public RemoteCachingPath apply(final RemoteFileStore.RemoteFileAttributes remoteFileAttributes) {
-                        return remoteFileAttributes.getPath();
-                    }
-                });
+        return Iterables.transform(fileStore.listDir(path), new Function<RemoteFileStore.RemoteFileAttributes, RemoteCachingPath>() {
+            @Override
+            public RemoteCachingPath apply(final RemoteFileStore.RemoteFileAttributes remoteFileAttributes) {
+                return remoteFileAttributes.getPath();
+            }
+        });
     }
 
     SeekableByteChannel newByteChannel(final RemoteCachingPath path) throws IOException {

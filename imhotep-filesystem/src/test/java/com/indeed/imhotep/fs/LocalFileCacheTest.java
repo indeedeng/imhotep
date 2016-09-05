@@ -52,20 +52,50 @@ public class LocalFileCacheTest {
         return Files.readTextFile(cachePath.toString())[0];
     }
 
-    static class RandomFileLoader implements LocalFileCache.CacheFileLoader {
+    static class RandomCacheFileLoader implements LocalFileCache.CacheFileLoader {
         private final int fileSize;
+        private int loadCount = 0;
 
-        RandomFileLoader(final int fileSize) {
+        RandomCacheFileLoader(final int fileSize) {
             this.fileSize = fileSize;
         }
 
         @Override
         public LocalFileCache.FileCacheEntry load(final RemoteCachingPath src, final Path dest) throws IOException {
+            Assert.assertFalse(java.nio.file.Files.exists(dest));
+            ++loadCount;
             final String payload = generateFileData(src, fileSize);
             java.nio.file.Files.createDirectories(dest.getParent());
             Files.writeToTextFileOrDie(new String[]{payload}, dest.toString());
             return new LocalFileCache.FileCacheEntry(dest, (int) java.nio.file.Files.size(dest));
         }
+    }
+
+    @Test
+    public void testDuplicateLoads() throws IOException, ExecutionException {
+        final int fileSize = 128;
+        final int maxEntries = 8;
+        // the strategy for the guava cache is to divide the max size into segments (set by concurrency level) and
+        // bound each segments by maxCapacity / segments. By default this is 4.
+        // To ensure everything stays in the cache, we increase the max capacity by 4.
+        final int maxCapacity = maxEntries * fileSize * 4;
+
+        final RemoteCachingFileSystem fs = testContext.getFs();
+        final RemoteCachingPath rootPath = RemoteCachingPath.getRoot(fs);
+        final Path cacheBasePath = testContext.getCacheDir().toPath();
+
+        final RandomCacheFileLoader cacheFileLoader = new RandomCacheFileLoader(fileSize);
+        final LocalFileCache localFileCache = new LocalFileCache(fs, cacheBasePath, maxCapacity, cacheFileLoader);
+
+        Assert.assertEquals(0, getCacheUsage(cacheBasePath));
+
+        // cache the same files over and over again. Ensure they do not get evicted.
+        for (int i = 1; i <= (maxEntries * 10); i++) {
+            final RemoteCachingPath file = rootPath.resolve("cachedOnly").resolve("cacheOnly." + (i % maxEntries) + ".file");
+            Assert.assertEquals(generateFileData(file, fileSize), readPath(localFileCache.cache(file)));
+            Assert.assertTrue(getCacheUsage(cacheBasePath) <= maxCapacity);
+        }
+        Assert.assertEquals(maxEntries, cacheFileLoader.loadCount);
     }
 
     @Test
@@ -78,18 +108,20 @@ public class LocalFileCacheTest {
         final RemoteCachingPath rootPath = RemoteCachingPath.getRoot(fs);
         final Path cacheBasePath = testContext.getCacheDir().toPath();
 
-        final LocalFileCache localFileCache = new LocalFileCache(cacheBasePath, maxCapacity, new RandomFileLoader(fileSize));
-
-        localFileCache.initialize(fs);
+        final RandomCacheFileLoader cacheFileLoader = new RandomCacheFileLoader(fileSize);
+        final LocalFileCache localFileCache = new LocalFileCache(fs, cacheBasePath, maxCapacity, cacheFileLoader);
 
         Assert.assertEquals(0, getCacheUsage(cacheBasePath));
 
         // fill up the cache, and have some entries evicted along the way
+        int cacheCount = 0;
         for (int i = 1; i <= (maxEntries * 10); i++) {
             final RemoteCachingPath file = rootPath.resolve("cachedOnly").resolve("cacheOnly." + (i % (maxEntries * 2)) + ".file");
             Assert.assertEquals(generateFileData(file, fileSize), readPath(localFileCache.cache(file)));
             Assert.assertTrue(getCacheUsage(cacheBasePath) <= maxCapacity);
+            ++cacheCount;
         }
+        Assert.assertEquals(cacheCount - maxEntries, cacheFileLoader.loadCount);
 
         final List<LocalFileCache.ScopedCacheFile> scopedCacheFiles = new ArrayList<>();
 
@@ -99,7 +131,9 @@ public class LocalFileCacheTest {
             final LocalFileCache.ScopedCacheFile openedFile = localFileCache.getForOpen(file);
             Assert.assertEquals(generateFileData(file, fileSize), readPath(openedFile.getCachePath()));
             scopedCacheFiles.add(openedFile);
+            ++cacheCount;
         }
+        Assert.assertEquals(cacheCount - maxEntries, cacheFileLoader.loadCount);
 
         // ensure all opened files are in the cache
         for (final LocalFileCache.ScopedCacheFile scopedCacheFile : scopedCacheFiles) {
@@ -129,9 +163,7 @@ public class LocalFileCacheTest {
         final Path cacheBasePath = testContext.getCacheDir().toPath();
 
         {
-            final LocalFileCache localFileCache = new LocalFileCache(cacheBasePath, maxCapacity, new RandomFileLoader(fileSize));
-
-            localFileCache.initialize(fs);
+            final LocalFileCache localFileCache = new LocalFileCache(fs, cacheBasePath, maxCapacity, new RandomCacheFileLoader(fileSize));
 
             Assert.assertEquals(0, getCacheUsage(cacheBasePath));
 
@@ -161,9 +193,7 @@ public class LocalFileCacheTest {
 
         {
             // reinitialize the cache
-            final LocalFileCache localFileCache = new LocalFileCache(cacheBasePath, maxCapacity, new RandomFileLoader(fileSize));
-
-            localFileCache.initialize(fs);
+            final LocalFileCache localFileCache = new LocalFileCache(fs, cacheBasePath, maxCapacity, new RandomCacheFileLoader(fileSize));
 
             // all files from previous opened/closed files should be treated as closed
             // so the cache usage should be below the threshold

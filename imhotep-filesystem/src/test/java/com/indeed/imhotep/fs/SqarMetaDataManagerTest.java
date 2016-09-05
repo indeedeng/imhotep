@@ -36,7 +36,7 @@ public class SqarMetaDataManagerTest {
 
         assertTrue(Files.exists(root));
         assertTrue(Files.isDirectory(root));
-        assertTrue(Files.isRegularFile(root));
+        assertFalse(Files.isRegularFile(root));
 
         testSqarExistsWithDir(root.resolve("testData/test-archive"));
         testSqarExistsWithDir(root.resolve("testData/test-archive.sqar"));
@@ -50,7 +50,7 @@ public class SqarMetaDataManagerTest {
         )) {
             assertTrue(Files.exists(dirPath));
             assertTrue(Files.isDirectory(dirPath));
-            assertTrue(Files.isRegularFile(dirPath));
+            assertFalse(Files.isRegularFile(dirPath));
         }
 
         for (final RemoteCachingPath filePath : Arrays.asList(
@@ -83,7 +83,7 @@ public class SqarMetaDataManagerTest {
 
         assertTrue(Files.exists(root));
         assertTrue(Files.isDirectory(root));
-        assertTrue(Files.isRegularFile(root));
+        assertFalse(Files.isRegularFile(root));
 
         Assert.assertEquals(
                 ImmutableSet.of(
@@ -108,7 +108,7 @@ public class SqarMetaDataManagerTest {
 
         assertTrue(Files.exists(root));
         assertTrue(Files.isDirectory(root));
-        assertTrue(Files.isRegularFile(root));
+        assertFalse(Files.isRegularFile(root));
 
         testSqarListDirectoryWithDir(root.resolve("testData/test-archive"));
         testSqarListDirectoryWithDir(root.resolve("testData/test-archive.sqar"));
@@ -169,7 +169,7 @@ public class SqarMetaDataManagerTest {
 
         assertTrue(Files.exists(root));
         assertTrue(Files.isDirectory(root));
-        assertTrue(Files.isRegularFile(root));
+        assertFalse(Files.isRegularFile(root));
 
         final RemoteCachingPath testArchive = root.resolve("testData/test-archive");
 
@@ -184,7 +184,7 @@ public class SqarMetaDataManagerTest {
 
         assertTrue(Files.exists(root));
         assertTrue(Files.isDirectory(root));
-        assertTrue(Files.isRegularFile(root));
+        assertFalse(Files.isRegularFile(root));
 
         final RemoteCachingPath testArchive = root.resolve("testData/test-archive");
 
@@ -199,7 +199,7 @@ public class SqarMetaDataManagerTest {
 
         assertTrue(Files.exists(root));
         assertTrue(Files.isDirectory(root));
-        assertTrue(Files.isRegularFile(root));
+        assertFalse(Files.isRegularFile(root));
 
         testSqarLoadFileWithDir(root.resolve("testData/test-archive"));
         testSqarLoadFileWithDir(root.resolve("testData/test-archive.sqar"));
@@ -224,7 +224,7 @@ public class SqarMetaDataManagerTest {
 
         assertTrue(Files.exists(root));
         assertTrue(Files.isDirectory(root));
-        assertTrue(Files.isRegularFile(root));
+        assertFalse(Files.isRegularFile(root));
 
         final RemoteCachingPath testArchive = root.resolve("testData/test-archive");
 
@@ -239,7 +239,7 @@ public class SqarMetaDataManagerTest {
 
         assertTrue(Files.exists(root));
         assertTrue(Files.isDirectory(root));
-        assertTrue(Files.isRegularFile(root));
+        assertFalse(Files.isRegularFile(root));
 
         final RemoteCachingPath testArchive = root.resolve("testData/test-archive");
 
