@@ -1,9 +1,9 @@
 package com.indeed.imhotep.fs;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterables;
 import org.apache.log4j.Logger;
 
@@ -132,8 +132,8 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
 
     @Override
     public DirectoryStream<Path> newDirectoryStream(final Path dir, final DirectoryStream.Filter<? super Path> filter) throws IOException {
-        final FluentIterable<? extends Path> filteredPaths = FluentIterable.from(FILE_SYSTEM_HOLDER.get().listDir(toRemoteCachePath(dir)))
-                .filter(new Predicate<RemoteCachingPath>() {
+        final Iterable<? extends Path> filteredPaths = Iterables.filter(FILE_SYSTEM_HOLDER.get().listDir(toRemoteCachePath(dir)),
+                new Predicate<RemoteCachingPath>() {
                     @Override
                     public boolean apply(final RemoteCachingPath path) {
                         try {
@@ -185,11 +185,7 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
 
     @Override
     public boolean isSameFile(final Path path, final Path path2) throws IOException {
-        if (path == null) {
-            return path2 == null;
-        } else {
-            return path.equals(path2);
-        }
+        return Objects.equal(path, path2);
     }
 
     @Override

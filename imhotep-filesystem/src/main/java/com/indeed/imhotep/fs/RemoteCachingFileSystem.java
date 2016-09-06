@@ -5,6 +5,8 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.indeed.util.core.io.Closeables2;
+import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -33,6 +35,7 @@ import java.util.regex.Pattern;
  */
 
 class RemoteCachingFileSystem extends FileSystem {
+    private static final Logger LOGGER = Logger.getLogger(RemoteCachingFileSystem.class);
     private final RemoteCachingFileSystemProvider provider;
     private final SqarRemoteFileStore fileStore;
     private final LocalFileCache fileCache;
@@ -40,7 +43,7 @@ class RemoteCachingFileSystem extends FileSystem {
     RemoteCachingFileSystem(final RemoteCachingFileSystemProvider provider, final Map<String, ?> configuration) throws IOException {
         this.provider = provider;
         final RemoteFileStore backingFileStore = RemoteFileStoreType.fromName((String) configuration.get("imhotep.fs.store.type"))
-                .getBuilder().build(configuration);
+                .getFactory().create(configuration);
         try {
             fileStore = new SqarRemoteFileStore(backingFileStore, configuration);
         } catch (final SQLException | ClassNotFoundException e) {
@@ -197,8 +200,7 @@ class RemoteCachingFileSystem extends FileSystem {
 
         @Override
         public void close() throws IOException {
-            scopedCacheFile.close();
-            wrapped.close();
+            Closeables2.closeAll(LOGGER, scopedCacheFile, wrapped);
         }
     }
 

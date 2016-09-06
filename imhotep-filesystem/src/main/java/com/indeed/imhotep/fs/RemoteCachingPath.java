@@ -30,13 +30,13 @@ public class RemoteCachingPath implements Path, Serializable {
 
     private final RemoteCachingFileSystem fileSystem;
     private final String path;
-    private final int[] offsets;
+    private final int[] nameOffsets;
     private final String normalizedPath;
 
     RemoteCachingPath(final RemoteCachingFileSystem fs, final String path) {
         fileSystem = fs;
         this.path = cleanPath(path);
-        offsets = calcOffsets(this.path);
+        nameOffsets = calcNameOffsets(this.path);
         // TODO: Technically incorrect if the separate is not System dependent
         normalizedPath = FilenameUtils.normalizeNoEndSeparator(path);
         Preconditions.checkArgument(normalizedPath != null, "Unsupported path " + path);
@@ -49,7 +49,7 @@ public class RemoteCachingPath implements Path, Serializable {
         return pathStr;
     }
 
-    private static int[] calcOffsets(final String pathStr) {
+    private static int[] calcNameOffsets(final String pathStr) {
         int index = 0;
         int count = 0;
         final int[] tmp = new int[pathStr.length()];
@@ -109,7 +109,7 @@ public class RemoteCachingPath implements Path, Serializable {
 
     @Override
     public int getNameCount() {
-        return offsets.length;
+        return nameOffsets.length;
     }
 
     @Override
@@ -120,15 +120,15 @@ public class RemoteCachingPath implements Path, Serializable {
     @Override
     public Path subpath(final int beginIndex, final int endIndex) {
         if ((beginIndex < 0) ||
-                (endIndex > offsets.length) ||
+                (endIndex > nameOffsets.length) ||
                 (beginIndex >= endIndex)) {
             throw new IllegalArgumentException("Cannot get subpath [" +
                     beginIndex + ", " + endIndex + ") for path " + this);
         }
 
-        // starting and ending offsets
-        final int start = offsets[beginIndex];
-        final int end = (endIndex == offsets.length) ? path.length() : offsets[endIndex];
+        // starting and ending nameOffsets
+        final int start = nameOffsets[beginIndex];
+        final int end = (endIndex == nameOffsets.length) ? path.length() : nameOffsets[endIndex];
         return new RemoteCachingPath(fileSystem, path.substring(start, end));
     }
 
@@ -354,7 +354,7 @@ public class RemoteCachingPath implements Path, Serializable {
     }
 
     public ImhotepPathType getType() {
-        switch (offsets.length) {
+        switch (nameOffsets.length) {
             case 0:
                 return ImhotepPathType.ROOT;
             case 1:

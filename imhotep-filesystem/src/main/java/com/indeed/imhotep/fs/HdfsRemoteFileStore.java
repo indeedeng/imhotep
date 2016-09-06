@@ -108,9 +108,9 @@ class HdfsRemoteFileStore extends RemoteFileStore {
         return hdfsShardBasePath.toString();
     }
 
-    static class Builder implements RemoteFileStore.Builder {
+    static class Factory implements RemoteFileStore.Factory {
         @Override
-        public RemoteFileStore build(final Map<String, ?> configuration) {
+        public RemoteFileStore create(final Map<String, ?> configuration) {
             try {
                 return new HdfsRemoteFileStore(configuration);
             } catch (final IOException|URISyntaxException e) {

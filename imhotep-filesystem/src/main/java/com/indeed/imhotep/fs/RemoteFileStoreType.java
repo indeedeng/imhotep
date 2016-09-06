@@ -5,24 +5,24 @@ package com.indeed.imhotep.fs;
  */
 
 public enum RemoteFileStoreType {
-    LOCAL("local", new LocalFileStore.Builder()),
-    S3("s3", new S3RemoteFileStore.Builder()),
-    HDFS("hdfs", new HdfsRemoteFileStore.Builder());
+    LOCAL("local", new LocalFileStore.Factory()),
+    S3("s3", new S3RemoteFileStore.Factory()),
+    HDFS("hdfs", new HdfsRemoteFileStore.Factory());
 
     private final String name;
-    private final RemoteFileStore.Builder builder;
+    private final RemoteFileStore.Factory factory;
 
-    RemoteFileStoreType(final String name, final RemoteFileStore.Builder builder) {
+    RemoteFileStoreType(final String name, final RemoteFileStore.Factory factory) {
         this.name = name;
-        this.builder = builder;
+        this.factory = factory;
     }
 
     public String getName() {
         return name;
     }
 
-    public RemoteFileStore.Builder getBuilder() {
-        return builder;
+    public RemoteFileStore.Factory getFactory() {
+        return factory;
     }
 
     public static RemoteFileStoreType fromName(final String name) {

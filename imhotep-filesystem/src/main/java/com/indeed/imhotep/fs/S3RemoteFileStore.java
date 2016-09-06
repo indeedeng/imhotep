@@ -189,9 +189,9 @@ class S3RemoteFileStore extends RemoteFileStore {
         return s3bucket + ":" + s3prefix;
     }
 
-    static class Builder implements RemoteFileStore.Builder {
+    static class Factory implements RemoteFileStore.Factory {
         @Override
-        public RemoteFileStore build(final Map<String, ?> configuration) {
+        public RemoteFileStore create(final Map<String, ?> configuration) {
             return new S3RemoteFileStore(configuration);
         }
     }

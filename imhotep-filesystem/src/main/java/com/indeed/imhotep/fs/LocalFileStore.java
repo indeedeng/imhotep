@@ -98,9 +98,9 @@ class LocalFileStore extends RemoteFileStore {
         return RemoteCachingPath.resolve(root, path.asRelativePath());
     }
 
-    static class Builder implements RemoteFileStore.Builder {
+    static class Factory implements RemoteFileStore.Factory {
         @Override
-        public RemoteFileStore build(final Map<String, ?> configuration) {
+        public RemoteFileStore create(final Map<String, ?> configuration) {
             try {
                 return new LocalFileStore(configuration);
             } catch (final URISyntaxException e) {
