@@ -8,8 +8,7 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 import com.google.common.cache.Weigher;
-import gnu.trove.impl.Constants;
-import gnu.trove.map.hash.TObjectIntHashMap;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import org.apache.log4j.Logger;
 
 import java.io.Closeable;
@@ -28,13 +27,17 @@ import java.util.concurrent.ExecutionException;
 class LocalFileCache {
     private static final Logger LOGGER = Logger.getLogger(LocalFileCache.class);
     private final Path cacheRootDir;
-    private final TObjectIntHashMap<RemoteCachingPath> fileUseCounter = new TObjectIntHashMap<>(Constants.DEFAULT_CAPACITY, Constants.DEFAULT_LOAD_FACTOR, 0);
+    private final Object2IntOpenHashMap<RemoteCachingPath> fileUseCounter;
     private final Cache<RemoteCachingPath, FileCacheEntry> unusedFilesCache;
     private final LoadingCache<RemoteCachingPath, FileCacheEntry> referencedFilesCache;
     private final Object lock = new Object();
 
     LocalFileCache(final RemoteCachingFileSystem fs, final Path cacheRootDir, final long diskSpaceCapacity, final CacheFileLoader cacheFileLoader) throws IOException {
         this.cacheRootDir = cacheRootDir;
+
+        fileUseCounter = new Object2IntOpenHashMap<>();
+        fileUseCounter.defaultReturnValue(0);
+
         unusedFilesCache = CacheBuilder.<RemoteCachingPath, FileCacheEntry>newBuilder()
                 .maximumWeight(diskSpaceCapacity)
                 .weigher(new Weigher<RemoteCachingPath, FileCacheEntry>() {
@@ -113,16 +116,16 @@ class LocalFileCache {
         }
     }
 
-    private int incFileUsageRef(final RemoteCachingPath path) {
-        return fileUseCounter.adjustOrPutValue(path, 1, 1);
+    private void incFileUsageRef(final RemoteCachingPath path) {
+        fileUseCounter.add(path, 1);
     }
 
     private int decFileUsageRef(final RemoteCachingPath path) {
-        final int count = fileUseCounter.adjustOrPutValue(path, -1, 0);
-        if (count == 0) {
+        final int count = fileUseCounter.add(path, -1);
+        if (count == 1) {
             fileUseCounter.remove(path);
         }
-        return count;
+        return count - 1;
     }
 
     /**

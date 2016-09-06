@@ -80,11 +80,10 @@
 		</dependency>
 
         <dependency>
-            <groupId>net.sf.trove4j</groupId>
-            <artifactId>trove4j</artifactId>
-            <version>${gnu-trove.version}</version>
+            <groupId>it.unimi.dsi</groupId>
+            <artifactId>fastutil</artifactId>
+            <version>${fastutil.version}</version>
         </dependency>
-
 
         <dependency>
             <groupId>com.h2database</groupId>
@@ -118,7 +117,6 @@
 		<autoVersionSubmodules>true</autoVersionSubmodules>
 
 		<fastutil.version>6.2.2</fastutil.version>
-		<gnu-trove.version>3.0.3</gnu-trove.version>
         <sqlite4java.version>1.0.392</sqlite4java.version>
 
 		<!-- releases of our own projects to use -->
