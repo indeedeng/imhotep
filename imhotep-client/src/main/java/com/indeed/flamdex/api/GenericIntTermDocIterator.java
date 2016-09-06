@@ -13,7 +13,10 @@
  */
  package com.indeed.flamdex.api;
 
+import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
+
+import java.util.Arrays;
 
 /**
  * @author jplaisance
@@ -62,7 +65,6 @@ public final class GenericIntTermDocIterator implements IntTermDocIterator {
 
     @Override
     public void close() {
-        termIterator.close();
-        docIdStream.close();
+        Closeables2.closeAll(Arrays.asList(termIterator, docIdStream), log);
     }
 }

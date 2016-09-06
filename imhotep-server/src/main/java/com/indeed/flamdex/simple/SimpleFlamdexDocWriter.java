@@ -15,20 +15,23 @@ package com.indeed.flamdex.simple;
 
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.indeed.util.core.shell.PosixFileOperations;
-import com.indeed.util.io.BufferedFileDataInputStream;
-import com.indeed.util.io.BufferedFileDataOutputStream;
+import com.google.common.io.Closer;
 import com.indeed.flamdex.MemoryFlamdex;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.writer.FlamdexDocWriter;
 import com.indeed.flamdex.writer.FlamdexDocument;
 import com.indeed.flamdex.writer.FlamdexWriter;
+import com.indeed.util.core.io.Closeables2;
+import com.indeed.util.core.shell.PosixFileOperations;
+import com.indeed.util.io.BufferedFileDataInputStream;
+import com.indeed.util.io.BufferedFileDataOutputStream;
+import org.apache.log4j.Logger;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteOrder;
-import java.nio.file.Path;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,6 +39,7 @@ import java.util.List;
  * @author jsgroth
  */
 public final class SimpleFlamdexDocWriter implements FlamdexDocWriter {
+    private static final Logger LOGGER = Logger.getLogger(SimpleFlamdexDocWriter.class);
     private final Path outputDirectory;
     private final int docBufferSize;
     private final int mergeFactor;
@@ -83,10 +87,9 @@ public final class SimpleFlamdexDocWriter implements FlamdexDocWriter {
         }
 
         final Path outFile = outputDirectory.resolve(currentSegment);
-        final BufferedFileDataOutputStream out;
-        out = new BufferedFileDataOutputStream(outFile, ByteOrder.nativeOrder(), 65536);
-        currentBuffer.write(out);
-        out.close();
+        try (BufferedFileDataOutputStream out = new BufferedFileDataOutputStream(outFile, ByteOrder.nativeOrder(), 65536)) {
+            currentBuffer.write(out);
+        }
 
         segmentsOnDisk.get(0).add(outFile);
 
@@ -96,30 +99,36 @@ public final class SimpleFlamdexDocWriter implements FlamdexDocWriter {
         while (segmentsOnDisk.get(i).size() == mergeFactor) {
             final List<Path> segments = segmentsOnDisk.get(i);
             final List<FlamdexReader> readers = Lists.newArrayListWithCapacity(segments.size());
-            long numDocs = 0;
-            for (final Path segment : segments) {
-                final FlamdexReader reader;
-                if (i == 0) {
-                    final BufferedFileDataInputStream dataInputStream = new BufferedFileDataInputStream(segment,
-                            ByteOrder.nativeOrder(),
-                            65536);
-                    reader = MemoryFlamdex.streamer(dataInputStream);
-                } else {
-                    reader = SimpleFlamdexReader.open(segment,
-                            new SimpleFlamdexReader.Config().setWriteBTreesIfNotExisting(false));
+            final Path mergeDir;
+            try (Closer readerCloser = Closer.create()) {
+                long numDocs = 0;
+                for (final Path segment : segments) {
+                    final FlamdexReader reader;
+                    if (i == 0) {
+                        final BufferedFileDataInputStream dataInputStream = new BufferedFileDataInputStream(segment,
+                                ByteOrder.nativeOrder(),
+                                65536);
+                        reader = MemoryFlamdex.streamer(dataInputStream);
+                    } else {
+                        reader = SimpleFlamdexReader.open(segment,
+                                new SimpleFlamdexReader.Config().setWriteBTreesIfNotExisting(false));
+                    }
+                    readers.add(reader);
+                    readerCloser.register(reader);
+                    numDocs += reader.getNumDocs();
                 }
-                readers.add(reader);
-                numDocs += reader.getNumDocs();
-            }
 
-            final Path mergeDir = outputDirectory.resolve(currentSegment);
-            currentSegment = nextSegmentDirectory(currentSegment);
-            final FlamdexWriter w = new SimpleFlamdexWriter(mergeDir, numDocs, true, false);
-            SimpleFlamdexWriter.merge(readers, w);
-            w.close();
+                mergeDir = outputDirectory.resolve(currentSegment);
+                currentSegment = nextSegmentDirectory(currentSegment);
+                final FlamdexWriter w = new SimpleFlamdexWriter(mergeDir, numDocs, true, false);
+                SimpleFlamdexWriter.merge(readers, w);
+                try {
+                    w.close();
+                } catch (final IOException e) {
+                    LOGGER.error("failed to close flamdex writer", e);
+                }
 
-            for (final FlamdexReader reader : readers) {
-                reader.close();
+                Closeables2.closeQuietly(readerCloser, LOGGER);
             }
 
             for (final Path segment : segments) {
@@ -141,24 +150,29 @@ public final class SimpleFlamdexDocWriter implements FlamdexDocWriter {
         flush();
         long numDocs = 0;
         final List<FlamdexReader> allReaders = Lists.newArrayList();
-        for (final Path file : Iterables.concat(Lists.reverse(segmentsOnDisk.subList(1, segmentsOnDisk.size())))) {
-            final SimpleFlamdexReader reader = SimpleFlamdexReader.open(file,
-                    new SimpleFlamdexReader.Config().setWriteBTreesIfNotExisting(false));
-            allReaders.add(reader);
-            numDocs += reader.getNumDocs();
-        }
-        for (final Path path : segmentsOnDisk.get(0)) {
-            final FlamdexReader reader = MemoryFlamdex.streamer(new BufferedFileDataInputStream(path, ByteOrder.nativeOrder(), 65536));
-            allReaders.add(reader);
-            numDocs += reader.getNumDocs();
-        }
+        try (Closer readerCloser = Closer.create()) {
+            for (final Path file : Iterables.concat(Lists.reverse(segmentsOnDisk.subList(1, segmentsOnDisk.size())))) {
+                final SimpleFlamdexReader reader = SimpleFlamdexReader.open(file,
+                        new SimpleFlamdexReader.Config().setWriteBTreesIfNotExisting(false));
+                allReaders.add(reader);
+                numDocs += reader.getNumDocs();
+            }
+            for (final Path path : segmentsOnDisk.get(0)) {
+                final FlamdexReader reader = MemoryFlamdex.streamer(new BufferedFileDataInputStream(path, ByteOrder.nativeOrder(), 65536));
+                allReaders.add(reader);
+                readerCloser.register(reader);
+                numDocs += reader.getNumDocs();
+            }
 
-        final FlamdexWriter w = new SimpleFlamdexWriter(outputDirectory, numDocs, true, true);
-        SimpleFlamdexWriter.merge(allReaders, w);
-        w.close();
+            final FlamdexWriter w = new SimpleFlamdexWriter(outputDirectory, numDocs, true, true);
+            SimpleFlamdexWriter.merge(allReaders, w);
+            try {
+                w.close();
+            } catch (final IOException e) {
+                LOGGER.error("failed to close flamdex writer", e);
+            }
 
-        for (final FlamdexReader reader : allReaders) {
-            reader.close();
+            Closeables2.closeQuietly(readerCloser, LOGGER);
         }
 
         for (final Path path : Iterables.concat(segmentsOnDisk)) {

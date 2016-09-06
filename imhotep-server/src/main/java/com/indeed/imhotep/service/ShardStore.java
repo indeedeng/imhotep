@@ -88,12 +88,17 @@ class ShardStore implements AutoCloseable {
 
         boolean foundLatest = false;
         boolean foundData = false;
-        final DirectoryStream<Path> dirStream = Files.newDirectoryStream(shardStoreDir);
-        for (Path child : dirStream) {
-            if (child.getFileName().toString().equals("latest")) foundLatest = true;
-            if (child.getFileName().toString().equals("data")) foundData = true;
+        try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(shardStoreDir)) {
+            for (Path child : dirStream) {
+                if (child.getFileName().toString().equals("latest")) {
+                    foundLatest = true;
+                }
+                if (child.getFileName().toString().equals("data")) {
+                    foundData = true;
+                }
+            }
         }
-        dirStream.close();
+
         if (foundLatest && foundData) {
             PosixFileOperations.rmrf(shardStoreDir);
         }

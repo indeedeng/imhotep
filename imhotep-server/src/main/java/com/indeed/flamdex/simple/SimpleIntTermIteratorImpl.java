@@ -13,8 +13,10 @@
  */
  package com.indeed.flamdex.simple;
 
+import com.google.common.io.Closer;
 import com.indeed.lsmtree.core.Generation;
 import com.indeed.lsmtree.core.ImmutableBTreeIndex;
+import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.mmap.DirectMemory;
 import com.indeed.util.mmap.MMapBuffer;
@@ -59,7 +61,7 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
 
     private boolean done = false;
     private boolean bufferNext = false;
-    private boolean closed = false;
+    private Closer closer = Closer.create();
 
     SimpleIntTermIteratorImpl(MapCache mapCache, Path filename, Path docListPath, Path indexPath)
         throws IOException {
@@ -86,7 +88,7 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
             this.use64BitIndex = true;
         }
 
-        file = mapCache.copyOrOpen(filename);
+        file = closer.register(mapCache.copyOrOpen(filename));
         memory = file.get().memory();
 
         done = false;
@@ -114,11 +116,11 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
             final LongPair p;
             if (use64BitIndex) {
                 if (index64 == null) {
-                    index64 = new ImmutableBTreeIndex.Reader<Long,LongPair>(indexPath,
+                    index64 = closer.register(new ImmutableBTreeIndex.Reader<Long,LongPair>(indexPath,
                             new LongSerializer(),
                             new LongPairSerializer(),
                             false
-                    );
+                    ));
                 }
                 Generation.Entry<Long, LongPair> e = index64.floor(term);
                 if (e == null) {
@@ -128,11 +130,11 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
                 p = e.getValue();
             } else {
                 if (index == null) {
-                    index = new ImmutableBTreeIndex.Reader<Integer,LongPair>(indexPath,
+                    index = closer.register(new ImmutableBTreeIndex.Reader<Integer,LongPair>(indexPath,
                             new IntSerializer(),
                             new LongPairSerializer(),
                             false
-                    );
+                    ));
                 }
                 Generation.Entry<Integer, LongPair> e = index.floor((int)term);
                 if (e == null) {
@@ -211,31 +213,7 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
 
     @Override
     public void close() {
-        if (!closed) {
-            try {
-                if (index64 != null) {
-                    index64.close();
-                }
-                if (index != null) {
-                    index.close();
-                }
-            } catch (IOException e) {
-                log.error("error closing index", e);
-            }
-            try {
-                file.close();
-            } catch (IOException e) {
-                log.error("error closing file", e);
-            }
-            try {
-                if (docListFile != null) {
-                    docListFile.close();
-                }
-            } catch (IOException e) {
-                log.error("error closing docListFile", e);
-            }
-            closed = true;
-        }
+        Closeables2.closeQuietly(closer, log);
     }
 
     @Override
@@ -252,7 +230,7 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
     public long getDocListAddress()
         throws IOException {
         if (docListFile == null) {
-            docListFile = mapCache.copyOrOpen(docListPath);
+            docListFile = closer.register(mapCache.copyOrOpen(docListPath));
             docListAddress = docListFile.get().memory().getAddress();
         }
         return this.docListAddress;

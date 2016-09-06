@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2014 Indeed Inc.
- *
+n *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
  *
@@ -68,18 +68,12 @@ class FlamdexFTGSIterator extends AbstractFlamdexFTGSIterator {
     @Override
     public final void close() {
         synchronized (session) {
-            if (intTermDocIterator != null) {
-                Closeables2.closeQuietly(intTermDocIterator, ImhotepLocalSession.log);
-                intTermDocIterator = null;
-            }
-            if (stringTermDocIterator != null) {
-                Closeables2.closeQuietly(stringTermDocIterator, ImhotepLocalSession.log);
-                stringTermDocIterator = null;
-            }
-            if (flamdexReader != null) {
-                Closeables2.closeQuietly(flamdexReader, ImhotepLocalSession.log);
-                flamdexReader = null;
-            }
+            Closeables2.closeQuietly(intTermDocIterator, ImhotepLocalSession.log);
+            intTermDocIterator = null;
+            Closeables2.closeQuietly(stringTermDocIterator, ImhotepLocalSession.log);
+            stringTermDocIterator = null;
+            Closeables2.closeQuietly(flamdexReader, ImhotepLocalSession.log);
+            flamdexReader = null;
         }
     }
 

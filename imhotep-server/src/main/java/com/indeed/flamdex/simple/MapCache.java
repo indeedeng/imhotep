@@ -51,9 +51,7 @@ public final class MapCache implements Closeable {
 
     @Override
     public synchronized void close() throws IOException {
-        for (final Map.Entry<Path, SharedReference<MMapBuffer>> entry : mappingCache.entrySet()) {
-            Closeables2.closeQuietly(entry.getValue(), log);
-        }
+        Closeables2.closeAll(mappingCache.values(), log);
     }
 
     /** !@# This is something of a temporary hack. We need to pass the addresses

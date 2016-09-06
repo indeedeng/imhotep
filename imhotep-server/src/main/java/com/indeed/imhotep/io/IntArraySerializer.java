@@ -55,10 +55,9 @@ public class IntArraySerializer implements FileSerializer<int[]> {
     @Override
     public int[] deserialize(Path path) throws IOException {
         final FileSystemProvider provider = path.getFileSystem().provider();
-        final FileChannel ch = provider.newFileChannel(path, EnumSet.of(StandardOpenOption.READ));
 
-        try {
-            int[] ret = new int[(int)(Files.size(path) / 4)];
+        try (FileChannel ch = provider.newFileChannel(path, EnumSet.of(StandardOpenOption.READ))) {
+            int[] ret = new int[(int) (Files.size(path) / 4)];
             ByteBuffer buffer = ByteBuffer.allocateDirect(8192);
             buffer.order(ByteOrder.LITTLE_ENDIAN);
             IntBuffer intBuffer = buffer.asIntBuffer();
@@ -69,8 +68,6 @@ public class IntArraySerializer implements FileSerializer<int[]> {
                 intBuffer.get(ret, i, lim);
             }
             return ret;
-        } finally {
-            ch.close();
         }
     }
 }

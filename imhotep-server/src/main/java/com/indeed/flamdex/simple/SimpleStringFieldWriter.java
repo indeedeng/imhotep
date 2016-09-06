@@ -16,6 +16,8 @@
 import com.google.common.base.Charsets;
 import com.indeed.flamdex.utils.FlamdexUtils;
 import com.indeed.flamdex.writer.StringFieldWriter;
+import com.indeed.util.core.io.Closeables2;
+import org.apache.log4j.Logger;
 
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -27,6 +29,7 @@ import java.nio.file.Path;
  * @author jsgroth
  */
 class SimpleStringFieldWriter extends SimpleFieldWriter implements StringFieldWriter {
+    private static final Logger LOGGER = Logger.getLogger(SimpleStringFieldWriter.class);
     private final Path outputDirectory;
     private final String field;
     private final boolean writeBTreesOnClose;
@@ -61,7 +64,12 @@ class SimpleStringFieldWriter extends SimpleFieldWriter implements StringFieldWr
         final OutputStream docsOutput;
 
         termsOutput = Files.newOutputStream(outputDirectory.resolve(getTermsFilename(field)));
-        docsOutput = Files.newOutputStream(outputDirectory.resolve(getDocsFilename(field)));
+        try {
+            docsOutput = Files.newOutputStream(outputDirectory.resolve(getDocsFilename(field)));
+        } catch (final IOException e) {
+            Closeables2.closeQuietly(termsOutput, LOGGER);
+            throw e;
+        }
 
         return new SimpleStringFieldWriter(outputDirectory,
                                            field,
