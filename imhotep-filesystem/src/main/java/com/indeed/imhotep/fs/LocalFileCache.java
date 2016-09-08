@@ -18,6 +18,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -67,9 +68,24 @@ class LocalFileCache {
                     @Override
                     public FileCacheEntry load(final RemoteCachingPath path) throws Exception {
                         final Path cachePath = toCachePath(path);
-                        final FileCacheEntry entry = cacheFileLoader.load(path, cachePath);
-                        Preconditions.checkState(Files.exists(cachePath), "Failed to load " + path + " to cache " + cachePath);
-                        return entry;
+                        final Path cacheParentPath = cachePath.getParent();
+
+                        Files.createDirectories(cacheParentPath);
+
+                        final Path tempPath = cacheParentPath.resolve(UUID.randomUUID().toString());
+                        cacheFileLoader.load(path, tempPath);
+
+                        // only sane way that I can come up with to do replace existing atomically
+                        if (!tempPath.toFile().renameTo(cachePath.toFile())) {
+                            //noinspection ResultOfMethodCallIgnored
+                            tempPath.toFile().delete();
+                            throw new IOException("Failed to place cache file under " + cachePath);
+                        }
+
+                        return new FileCacheEntry(
+                                cachePath,
+                                (int) Files.size(cachePath)
+                        );
                     }
                 });
 
@@ -160,6 +176,7 @@ class LocalFileCache {
             }
             throw e;
         }
+        Preconditions.checkState(Files.exists(fileCacheEntry.cachePath), fileCacheEntry.cachePath + " does not exist");
         return fileCacheEntry.cachePath;
     }
 
@@ -182,7 +199,6 @@ class LocalFileCache {
      * @param cachePath the corresponding local cache file
      */
     private void dispose(final RemoteCachingPath path, final Path cachePath) {
-        ;
         synchronized (lock) {
             final int counter = decFileUsageRef(path);
             if (counter == 0) {
@@ -229,6 +245,6 @@ class LocalFileCache {
     }
 
     interface CacheFileLoader {
-        FileCacheEntry load(final RemoteCachingPath src, final Path dest) throws IOException;
+        void load(final RemoteCachingPath src, final Path dest) throws IOException;
     }
 }

@@ -155,6 +155,7 @@ public final class SimpleFlamdexDocWriter implements FlamdexDocWriter {
                 final SimpleFlamdexReader reader = SimpleFlamdexReader.open(file,
                         new SimpleFlamdexReader.Config().setWriteBTreesIfNotExisting(false));
                 allReaders.add(reader);
+                readerCloser.register(reader);
                 numDocs += reader.getNumDocs();
             }
             for (final Path path : segmentsOnDisk.get(0)) {

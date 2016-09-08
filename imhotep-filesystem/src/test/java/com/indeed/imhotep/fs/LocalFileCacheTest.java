@@ -1,5 +1,7 @@
 package com.indeed.imhotep.fs;
 
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFutureTask;
 import com.indeed.util.io.Files;
 import org.apache.commons.lang.RandomStringUtils;
 import org.junit.Assert;
@@ -14,7 +16,10 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * @author kenh
@@ -61,13 +66,11 @@ public class LocalFileCacheTest {
         }
 
         @Override
-        public LocalFileCache.FileCacheEntry load(final RemoteCachingPath src, final Path dest) throws IOException {
+        public void load(final RemoteCachingPath src, final Path dest) throws IOException {
             Assert.assertFalse(java.nio.file.Files.exists(dest));
             ++loadCount;
             final String payload = generateFileData(src, fileSize);
-            java.nio.file.Files.createDirectories(dest.getParent());
             Files.writeToTextFileOrDie(new String[]{payload}, dest.toString());
-            return new LocalFileCache.FileCacheEntry(dest, (int) java.nio.file.Files.size(dest));
         }
     }
 
@@ -96,6 +99,46 @@ public class LocalFileCacheTest {
             Assert.assertTrue(getCacheUsage(cacheBasePath) <= maxCapacity);
         }
         Assert.assertEquals(maxEntries, cacheFileLoader.loadCount);
+    }
+
+    @Test
+    public void testConcurrentStreams() throws IOException, ExecutionException, InterruptedException {
+        final int fileSize = 128;
+        final int maxEntries = 8;
+        final int numThreads = 10;
+        final int numIterations = 1024 * 32;
+
+        final int maxCapacity = maxEntries * fileSize;
+
+        final RemoteCachingFileSystem fs = testContext.getFs();
+        final RemoteCachingPath rootPath = RemoteCachingPath.getRoot(fs);
+        final Path cacheBasePath = testContext.getCacheDir().toPath();
+
+        final RandomCacheFileLoader cacheFileLoader = new RandomCacheFileLoader(fileSize);
+        final LocalFileCache localFileCache = new LocalFileCache(fs, cacheBasePath, maxCapacity, cacheFileLoader);
+
+        Assert.assertEquals(0, getCacheUsage(cacheBasePath));
+
+        final ExecutorService executorService = Executors.newCachedThreadPool();
+        final List<ListenableFutureTask<Void>> tasks = new ArrayList<>();
+        for (int i = 0; i < numThreads; i++) {
+            final ListenableFutureTask<Void> task = ListenableFutureTask.create(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    for (int i = 1; i <= numIterations; i++) {
+                        final RemoteCachingPath file = rootPath.resolve("opened").resolve("opened." + (i % maxEntries * 2) + ".file");
+                        try (LocalFileCache.ScopedCacheFile openedFile = localFileCache.getForOpen(file)) {
+                            Assert.assertEquals(generateFileData(file, fileSize), readPath(openedFile.getCachePath()));
+                        }
+                    }
+                    return null;
+                }
+            });
+            tasks.add(task);
+            executorService.submit(task);
+        }
+
+        Futures.allAsList(tasks).get();
     }
 
     @Test

@@ -13,6 +13,7 @@
  */
 package com.indeed.imhotep.local;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntValueLookup;
@@ -260,7 +261,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
             }
             this.flamdexReaderRef = SharedReference.create(this.flamdexReader);
         } catch (final IOException e) {
-            throw new RuntimeException(e);
+            throw Throwables.propagate(e);
         }
 
         // alter tracking fields to reflect the removal of group 0 docs
