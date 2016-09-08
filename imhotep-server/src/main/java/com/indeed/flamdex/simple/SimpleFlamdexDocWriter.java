@@ -123,13 +123,8 @@ public final class SimpleFlamdexDocWriter implements FlamdexDocWriter {
                 mergeDir = outputDirectory.resolve(currentSegment);
                 currentSegment = nextSegmentDirectory(currentSegment);
                 final FlamdexWriter w = new SimpleFlamdexWriter(mergeDir, numDocs, true, false);
-                closer.register(new Closeable() {
-                    @Override
-                    public void close() throws IOException {
-                        w.close();
-                    }
-                });
                 SimpleFlamdexWriter.merge(readers, w);
+                w.close();
             } finally {
                 Closeables2.closeQuietly(closer, LOGGER);
             }

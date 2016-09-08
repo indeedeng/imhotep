@@ -619,10 +619,10 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
                 ifw.nextDoc(indices.get(i));
             }
         } finally {
-            Closeables2.closeQuietly(closer, log);
             if (Files.deleteIfExists(tempPath)) {
                 log.warn("unable to delete temp file " + tempPath.toString());
             }
+            Closeables2.closeQuietly(closer, log);
         }
     }
 
