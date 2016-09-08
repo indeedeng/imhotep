@@ -16,6 +16,7 @@
 import com.google.common.base.Charsets;
 import com.google.common.collect.AbstractIterator;
 import com.google.common.io.ByteStreams;
+import com.google.common.io.Closer;
 import com.google.common.io.CountingInputStream;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
@@ -30,6 +31,7 @@ import com.indeed.flamdex.writer.IntFieldWriter;
 import com.indeed.flamdex.writer.StringFieldWriter;
 import com.indeed.lsmtree.core.Generation;
 import com.indeed.lsmtree.core.ImmutableBTreeIndex;
+import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.shell.PosixFileOperations;
 import com.indeed.util.core.sort.Quicksortable;
 import com.indeed.util.core.sort.Quicksortables;
@@ -43,6 +45,7 @@ import it.unimi.dsi.fastutil.objects.ObjectHeapSemiIndirectPriorityQueue;
 import org.apache.log4j.Logger;
 
 import java.io.BufferedInputStream;
+import java.io.Closeable;
 import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteOrder;
@@ -315,46 +318,61 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
     }
 
     public static void writeFlamdex(final FlamdexReader fdx, final FlamdexWriter w) throws IOException {
-        final DocIdStream dis = fdx.getDocIdStream();
-        final int[] docIdBuf = new int[DOC_ID_BUFFER_SIZE];
+        try (DocIdStream dis = fdx.getDocIdStream()) {
+            final int[] docIdBuf = new int[DOC_ID_BUFFER_SIZE];
 
-        for (final String intField : fdx.getIntFields()) {
-            final IntFieldWriter ifw = w.getIntFieldWriter(intField);
-            final IntTermIterator iter = fdx.getIntTermIterator(intField);
-            while (iter.next()) {
-                ifw.nextTerm(iter.term());
-                dis.reset(iter);
-                while (true) {
-                    final int n = dis.fillDocIdBuffer(docIdBuf);
-                    for (int i = 0; i < n; ++i) {
-                        ifw.nextDoc(docIdBuf[i]);
+            for (final String intField : fdx.getIntFields()) {
+                try (Closer closer = Closer.create()) {
+                    final IntFieldWriter ifw = w.getIntFieldWriter(intField);
+                    closer.register(new Closeable() {
+                        @Override
+                        public void close() throws IOException {
+                            ifw.close();
+                        }
+                    });
+                    final IntTermIterator iter = closer.register(fdx.getIntTermIterator(intField));
+                    while (iter.next()) {
+                        ifw.nextTerm(iter.term());
+                        dis.reset(iter);
+                        while (true) {
+                            final int n = dis.fillDocIdBuffer(docIdBuf);
+                            for (int i = 0; i < n; ++i) {
+                                ifw.nextDoc(docIdBuf[i]);
+                            }
+                            if (n < docIdBuf.length) {
+                                break;
+                            }
+                        }
                     }
-                    if (n < docIdBuf.length) break;
                 }
             }
-            iter.close();
-            ifw.close();
-        }
 
-        for (final String stringField : fdx.getStringFields()) {
-            final StringFieldWriter sfw = w.getStringFieldWriter(stringField);
-            final StringTermIterator iter = fdx.getStringTermIterator(stringField);
-            while (iter.next()) {
-                sfw.nextTerm(iter.term());
-                dis.reset(iter);
-                while (true) {
-                    final int n = dis.fillDocIdBuffer(docIdBuf);
-                    for (int i = 0; i < n; ++i) {
-                        sfw.nextDoc(docIdBuf[i]);
+            for (final String stringField : fdx.getStringFields()) {
+                try (Closer closer = Closer.create()) {
+                    final StringFieldWriter sfw = w.getStringFieldWriter(stringField);
+                    closer.register(new Closeable() {
+                        @Override
+                        public void close() throws IOException {
+                            sfw.close();
+                        }
+                    });
+                    final StringTermIterator iter = closer.register(fdx.getStringTermIterator(stringField));
+                    while (iter.next()) {
+                        sfw.nextTerm(iter.term());
+                        dis.reset(iter);
+                        while (true) {
+                            final int n = dis.fillDocIdBuffer(docIdBuf);
+                            for (int i = 0; i < n; ++i) {
+                                sfw.nextDoc(docIdBuf[i]);
+                            }
+                            if (n < docIdBuf.length) {
+                                break;
+                            }
+                        }
                     }
-                    if (n < docIdBuf.length) break;
                 }
             }
-            iter.close();
-            sfw.close();
         }
-
-        dis.close();
         w.close();
     }
 
@@ -374,115 +392,123 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
 
         log.info("merging " + readers.length + " readers with a total of " + totalNumDocs + " docs");
 
-        final int[] indexBuf = new int[readers.length];
-        final int[] docIdBuf = new int[64];
+        try {
+            final int[] indexBuf = new int[readers.length];
+            final int[] docIdBuf = new int[64];
 
-        for (final String intField : mergeIntFields(readers)) {
-            final IntFieldWriter ifw = w.getIntFieldWriter(intField);
-
-            final IntTermIteratorWrapper[] iterators = new IntTermIteratorWrapper[readers.length];
-            final IndirectPriorityQueue<IntTermIteratorWrapper> pq = new ObjectHeapSemiIndirectPriorityQueue<IntTermIteratorWrapper>(iterators, iterators.length);
-            for (int i = 0; i < readers.length; ++i) {
-                if (!readers[i].getIntFields().contains(intField)) continue;
-                final IntTermIterator it = readers[i].getIntTermIterator(intField);
-                if (it.next()) {
-                    iterators[i] = new IntTermIteratorWrapper(it, i);
-                    pq.enqueue(i);
-                } else {
-                    it.close();
-                }
-            }
-
-            while (!pq.isEmpty()) {
-                final long term = iterators[pq.first()].it.term();
-                int numIndexes = 0;
-                IntTermIteratorWrapper wrap;
-                while (!pq.isEmpty() && (wrap = iterators[pq.first()]).it.term() == term) {
-                    final int index = wrap.index;
-                    docIdStreams[index].reset(wrap.it);
-                    indexBuf[numIndexes++] = index;
-                    if (wrap.it.next()) {
-                        pq.changed();
-                    } else {
-                        wrap.it.close();
-                        pq.dequeue();
+            for (final String intField : mergeIntFields(readers)) {
+                final IntFieldWriter ifw = w.getIntFieldWriter(intField);
+                final IntTermIteratorWrapper[] iterators = new IntTermIteratorWrapper[readers.length];
+                final IndirectPriorityQueue<IntTermIteratorWrapper> pq = new ObjectHeapSemiIndirectPriorityQueue<IntTermIteratorWrapper>(iterators, iterators.length);
+                try {
+                    for (int i = 0; i < readers.length; ++i) {
+                        if (!readers[i].getIntFields().contains(intField)) continue;
+                        final IntTermIterator it = readers[i].getIntTermIterator(intField);
+                        if (it.next()) {
+                            iterators[i] = new IntTermIteratorWrapper(it, i);
+                            pq.enqueue(i);
+                        } else {
+                            it.close();
+                        }
                     }
-                }
 
-                ifw.nextTerm(term);
-                for (int i = 0; i < numIndexes; ++i) {
-                    final int index = indexBuf[i];
-                    final int startDoc = segmentStartDocs[index];
-                    final DocIdStream dis = docIdStreams[index];
-                    while (true) {
-                        final int n = dis.fillDocIdBuffer(docIdBuf);
-
-                        for (int j = 0; j < n; ++j) {
-                            ifw.nextDoc(docIdBuf[j]+startDoc);
+                    while (!pq.isEmpty()) {
+                        final long term = iterators[pq.first()].it.term();
+                        int numIndexes = 0;
+                        IntTermIteratorWrapper wrap;
+                        while (!pq.isEmpty() && (wrap = iterators[pq.first()]).it.term() == term) {
+                            final int index = wrap.index;
+                            docIdStreams[index].reset(wrap.it);
+                            indexBuf[numIndexes++] = index;
+                            if (wrap.it.next()) {
+                                pq.changed();
+                            } else {
+                                wrap.it.close();
+                                pq.dequeue();
+                            }
                         }
 
-                        if (n < docIdBuf.length) break;
+                        ifw.nextTerm(term);
+                        for (int i = 0; i < numIndexes; ++i) {
+                            final int index = indexBuf[i];
+                            final int startDoc = segmentStartDocs[index];
+                            final DocIdStream dis = docIdStreams[index];
+                            while (true) {
+                                final int n = dis.fillDocIdBuffer(docIdBuf);
+
+                                for (int j = 0; j < n; ++j) {
+                                    ifw.nextDoc(docIdBuf[j] + startDoc);
+                                }
+
+                                if (n < docIdBuf.length) break;
+                            }
+                        }
                     }
+                } finally {
+                    while (!pq.isEmpty()) {
+                        Closeables2.closeQuietly(iterators[pq.dequeue()].it, log);
+                    }
+                    ifw.close();
                 }
             }
 
-            ifw.close();
-        }
-
-        for (final String stringField : mergeStringFields(readers)) {
-            final StringFieldWriter sfw = w.getStringFieldWriter(stringField);
-
-            final StringTermIteratorWrapper[] iterators = new StringTermIteratorWrapper[readers.length];
-            final IndirectPriorityQueue<StringTermIteratorWrapper> pq = new ObjectHeapSemiIndirectPriorityQueue<StringTermIteratorWrapper>(iterators, iterators.length);
-            for (int i = 0; i < readers.length; ++i) {
-                if (!readers[i].getStringFields().contains(stringField)) continue;
-                final StringTermIterator it = readers[i].getStringTermIterator(stringField);
-                if (it.next()) {
-                    iterators[i] = new StringTermIteratorWrapper(it, i);
-                    pq.enqueue(i);
-                } else {
-                    it.close();
-                }
-            }
-
-            while (!pq.isEmpty()) {
-                final String term = iterators[pq.first()].it.term();
-                int numIndexes = 0;
-                StringTermIteratorWrapper wrap;
-                while (!pq.isEmpty() && (wrap = iterators[pq.first()]).it.term().equals(term)) {
-                    final int index = wrap.index;
-                    docIdStreams[index].reset(wrap.it);
-                    indexBuf[numIndexes++] = index;
-                    if (wrap.it.next()) {
-                        pq.changed();
-                    } else {
-                        wrap.it.close();
-                        pq.dequeue();
+            for (final String stringField : mergeStringFields(readers)) {
+                final StringFieldWriter sfw = w.getStringFieldWriter(stringField);
+                final StringTermIteratorWrapper[] iterators = new StringTermIteratorWrapper[readers.length];
+                final IndirectPriorityQueue<StringTermIteratorWrapper> pq = new ObjectHeapSemiIndirectPriorityQueue<StringTermIteratorWrapper>(iterators, iterators.length);
+                try {
+                    for (int i = 0; i < readers.length; ++i) {
+                        if (!readers[i].getStringFields().contains(stringField)) continue;
+                        final StringTermIterator it = readers[i].getStringTermIterator(stringField);
+                        if (it.next()) {
+                            iterators[i] = new StringTermIteratorWrapper(it, i);
+                            pq.enqueue(i);
+                        } else {
+                            it.close();
+                        }
                     }
-                }
 
-                sfw.nextTerm(term);
-                for (int i = 0; i < numIndexes; ++i) {
-                    final int index = indexBuf[i];
-                    final int startDoc = segmentStartDocs[index];
-                    final DocIdStream dis = docIdStreams[index];
-                    while (true) {
-                        final int n = dis.fillDocIdBuffer(docIdBuf);
-
-                        for (int j = 0; j < n; ++j) {
-                            sfw.nextDoc(docIdBuf[j]+startDoc);
+                    while (!pq.isEmpty()) {
+                        final String term = iterators[pq.first()].it.term();
+                        int numIndexes = 0;
+                        StringTermIteratorWrapper wrap;
+                        while (!pq.isEmpty() && (wrap = iterators[pq.first()]).it.term().equals(term)) {
+                            final int index = wrap.index;
+                            docIdStreams[index].reset(wrap.it);
+                            indexBuf[numIndexes++] = index;
+                            if (wrap.it.next()) {
+                                pq.changed();
+                            } else {
+                                wrap.it.close();
+                                pq.dequeue();
+                            }
                         }
 
-                        if (n < docIdBuf.length) break;
+                        sfw.nextTerm(term);
+                        for (int i = 0; i < numIndexes; ++i) {
+                            final int index = indexBuf[i];
+                            final int startDoc = segmentStartDocs[index];
+                            final DocIdStream dis = docIdStreams[index];
+                            while (true) {
+                                final int n = dis.fillDocIdBuffer(docIdBuf);
+
+                                for (int j = 0; j < n; ++j) {
+                                    sfw.nextDoc(docIdBuf[j] + startDoc);
+                                }
+
+                                if (n < docIdBuf.length) break;
+                            }
+                        }
                     }
+                } finally {
+                    while (!pq.isEmpty()) {
+                        Closeables2.closeQuietly(iterators[pq.dequeue()].it, log);
+                    }
+                    sfw.close();
                 }
             }
-
-            sfw.close();
-        }
-
-        for (final DocIdStream dis : docIdStreams) {
-            dis.close();
+        } finally {
+            Closeables2.closeAll(log, docIdStreams);
         }
     }
 
@@ -537,65 +563,63 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
     public static void addField(Path dir, String fieldName, FlamdexReader r, final long[] cache) throws IOException {
         final Path tempPath = dir.resolve(
                 "temp-" + fieldName + "-" + UUID.randomUUID() + ".intarray.bin");
+
+        final Closer closer = Closer.create();
         try {
-            final MMapBuffer buffer = new MMapBuffer(tempPath,
+            final MMapBuffer buffer = closer.register(new MMapBuffer(tempPath,
                                                      0,
                                                      4 * cache.length,
                                                      FileChannel.MapMode.READ_WRITE,
-                                                     ByteOrder.nativeOrder());
-            try {
-                final IntArray indices = buffer.memory().intArray(0, cache.length);
-                for (int i = 0; i < cache.length; ++i) {
-                    indices.set(i, i);
-                }
-                log.debug("sorting");
-                Quicksortables.sort(new Quicksortable() {
-                    @Override
-                    public void swap(int i, int j) {
-                        final int t = indices.get(i);
-                        indices.set(i, indices.get(j));
-                        indices.set(j, t);
-                    }
-
-                    @Override
-                    public int compare(int i, int j) {
-                        final long ii = cache[indices.get(i)];
-                        final long ij = cache[indices.get(j)];
-                        return ii < ij
-                                ? -1
-                                : ii > ij
-                                        ? 1
-                                        : indices.get(i) < indices.get(j)
-                                                ? -1
-                                                : indices.get(i) > indices.get(j) ? 1 : 0;
-                    }
-                }, cache.length);
-
-                log.debug("writing field " + fieldName);
-                final SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, r.getNumDocs(), false);
-                final IntFieldWriter ifw = w.getIntFieldWriter(fieldName, true);
-                long prev = 0;
-                boolean prevInitialized = false;
-                for (int i = 0; i < cache.length; ++i) {
-                    final long cur = cache[indices.get(i)];
-                    if (!prevInitialized || cur != prev) {
-                        ifw.nextTerm(cur);
-                        prev = cur;
-                        prevInitialized = true;
-                    }
-                    ifw.nextDoc(indices.get(i));
+                                                     ByteOrder.nativeOrder()));
+            final IntArray indices = buffer.memory().intArray(0, cache.length);
+            for (int i = 0; i < cache.length; ++i) {
+                indices.set(i, i);
+            }
+            log.debug("sorting");
+            Quicksortables.sort(new Quicksortable() {
+                @Override
+                public void swap(int i, int j) {
+                    final int t = indices.get(i);
+                    indices.set(i, indices.get(j));
+                    indices.set(j, t);
                 }
 
-                ifw.close();
-                w.close();
-            } finally {
-                try {
-                    buffer.close();
-                } catch (IOException e) {
-                    log.error("error closing MMapBuffer", e);
+                @Override
+                public int compare(int i, int j) {
+                    final long ii = cache[indices.get(i)];
+                    final long ij = cache[indices.get(j)];
+                    return ii < ij
+                            ? -1
+                            : ii > ij
+                            ? 1
+                            : indices.get(i) < indices.get(j)
+                            ? -1
+                            : indices.get(i) > indices.get(j) ? 1 : 0;
                 }
+            }, cache.length);
+
+            log.debug("writing field " + fieldName);
+            final SimpleFlamdexWriter w = closer.register(new SimpleFlamdexWriter(dir, r.getNumDocs(), false));
+            final IntFieldWriter ifw = w.getIntFieldWriter(fieldName, true);
+            closer.register(new Closeable() {
+                @Override
+                public void close() throws IOException {
+                    ifw.close();
+                }
+            });
+            long prev = 0;
+            boolean prevInitialized = false;
+            for (int i = 0; i < cache.length; ++i) {
+                final long cur = cache[indices.get(i)];
+                if (!prevInitialized || cur != prev) {
+                    ifw.nextTerm(cur);
+                    prev = cur;
+                    prevInitialized = true;
+                }
+                ifw.nextDoc(indices.get(i));
             }
         } finally {
+            Closeables2.closeQuietly(closer, log);
             if (Files.deleteIfExists(tempPath)) {
                 log.warn("unable to delete temp file " + tempPath.toString());
             }
@@ -639,31 +663,36 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
         }, values.length);
 
         log.debug("writing field " + newFieldName);
-        final SimpleFlamdexWriter w = new SimpleFlamdexWriter(indexDir, docReader.getNumDocs(), false);
-        final StringFieldWriter sfw = w.getStringFieldWriter(newFieldName, true);
-        final IntArrayList docList = new IntArrayList();
-        docList.add(indices[0]);
-        for (int i = 1; i < indices.length; ++i) {
-            final String prev = values[indices[i - 1]];
-            final String cur = values[indices[i]];
-            if (cur.compareTo(prev) != 0) {
-                sfw.nextTerm(prev);
+        try (Closer closer = Closer.create()) {
+            final SimpleFlamdexWriter w = closer.register(new SimpleFlamdexWriter(indexDir, docReader.getNumDocs(), false));
+            final StringFieldWriter sfw = w.getStringFieldWriter(newFieldName, true);
+            closer.register(new Closeable() {
+                @Override
+                public void close() throws IOException {
+                    sfw.close();
+                }
+            });
+            final IntArrayList docList = new IntArrayList();
+            docList.add(indices[0]);
+            for (int i = 1; i < indices.length; ++i) {
+                final String prev = values[indices[i - 1]];
+                final String cur = values[indices[i]];
+                if (cur.compareTo(prev) != 0) {
+                    sfw.nextTerm(prev);
+                    for (int j = 0; j < docList.size(); ++j) {
+                        sfw.nextDoc(docList.getInt(j));
+                    }
+                    docList.clear();
+                }
+                docList.add(indices[i]);
+            }
+            if (docList.size() > 0) {
+                sfw.nextTerm(values[indices[indices.length - 1]]);
                 for (int j = 0; j < docList.size(); ++j) {
                     sfw.nextDoc(docList.getInt(j));
                 }
-                docList.clear();
-            }
-            docList.add(indices[i]);
-        }
-        if (docList.size() > 0) {
-            sfw.nextTerm(values[indices[indices.length - 1]]);
-            for (int j = 0; j < docList.size(); ++j) {
-                sfw.nextDoc(docList.getInt(j));
             }
         }
-
-        sfw.close();
-        w.close();
     }
 
     public static void deleteIndex(final Path dir) throws IOException {
