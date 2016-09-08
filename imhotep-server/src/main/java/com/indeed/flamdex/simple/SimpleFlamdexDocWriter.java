@@ -27,6 +27,7 @@ import com.indeed.util.io.BufferedFileDataInputStream;
 import com.indeed.util.io.BufferedFileDataOutputStream;
 import org.apache.log4j.Logger;
 
+import java.io.Closeable;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteOrder;
@@ -100,7 +101,8 @@ public final class SimpleFlamdexDocWriter implements FlamdexDocWriter {
             final List<Path> segments = segmentsOnDisk.get(i);
             final List<FlamdexReader> readers = Lists.newArrayListWithCapacity(segments.size());
             final Path mergeDir;
-            try (Closer readerCloser = Closer.create()) {
+            final Closer closer = Closer.create();
+            try {
                 long numDocs = 0;
                 for (final Path segment : segments) {
                     final FlamdexReader reader;
@@ -114,21 +116,22 @@ public final class SimpleFlamdexDocWriter implements FlamdexDocWriter {
                                 new SimpleFlamdexReader.Config().setWriteBTreesIfNotExisting(false));
                     }
                     readers.add(reader);
-                    readerCloser.register(reader);
+                    closer.register(reader);
                     numDocs += reader.getNumDocs();
                 }
 
                 mergeDir = outputDirectory.resolve(currentSegment);
                 currentSegment = nextSegmentDirectory(currentSegment);
                 final FlamdexWriter w = new SimpleFlamdexWriter(mergeDir, numDocs, true, false);
+                closer.register(new Closeable() {
+                    @Override
+                    public void close() throws IOException {
+                        w.close();
+                    }
+                });
                 SimpleFlamdexWriter.merge(readers, w);
-                try {
-                    w.close();
-                } catch (final IOException e) {
-                    LOGGER.error("failed to close flamdex writer", e);
-                }
-
-                Closeables2.closeQuietly(readerCloser, LOGGER);
+            } finally {
+                Closeables2.closeQuietly(closer, LOGGER);
             }
 
             for (final Path segment : segments) {
@@ -150,30 +153,32 @@ public final class SimpleFlamdexDocWriter implements FlamdexDocWriter {
         flush();
         long numDocs = 0;
         final List<FlamdexReader> allReaders = Lists.newArrayList();
-        try (Closer readerCloser = Closer.create()) {
+        Closer closer = Closer.create();
+        try {
             for (final Path file : Iterables.concat(Lists.reverse(segmentsOnDisk.subList(1, segmentsOnDisk.size())))) {
                 final SimpleFlamdexReader reader = SimpleFlamdexReader.open(file,
                         new SimpleFlamdexReader.Config().setWriteBTreesIfNotExisting(false));
                 allReaders.add(reader);
-                readerCloser.register(reader);
+                closer.register(reader);
                 numDocs += reader.getNumDocs();
             }
             for (final Path path : segmentsOnDisk.get(0)) {
                 final FlamdexReader reader = MemoryFlamdex.streamer(new BufferedFileDataInputStream(path, ByteOrder.nativeOrder(), 65536));
                 allReaders.add(reader);
-                readerCloser.register(reader);
+                closer.register(reader);
                 numDocs += reader.getNumDocs();
             }
 
             final FlamdexWriter w = new SimpleFlamdexWriter(outputDirectory, numDocs, true, true);
+            closer.register(new Closeable() {
+                @Override
+                public void close() throws IOException {
+                    w.close();
+                }
+            });
             SimpleFlamdexWriter.merge(allReaders, w);
-            try {
-                w.close();
-            } catch (final IOException e) {
-                LOGGER.error("failed to close flamdex writer", e);
-            }
-
-            Closeables2.closeQuietly(readerCloser, LOGGER);
+        } finally {
+            Closeables2.closeQuietly(closer, LOGGER);
         }
 
         for (final Path path : Iterables.concat(segmentsOnDisk)) {
