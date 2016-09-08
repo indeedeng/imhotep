@@ -13,38 +13,41 @@
  */
 package com.indeed.imhotep.service;
 
-import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.ShardInfo;
+import com.indeed.imhotep.io.TestFileUtils;
 import com.indeed.lsmtree.core.Store;
-import com.indeed.util.io.Files;
-
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-
 import org.apache.commons.lang.RandomStringUtils;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
-import static org.junit.Assert.*;
+import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.TreeMap;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 public class TestShardStore {
 
     private static final Random rng = new Random(0xdeadbeef);
 
-    private String datasetDir = null;
-    private String storeDir   = null;
+    @Rule
+    public final TemporaryFolder rootTestDir = new TemporaryFolder();
 
-    @Before public void setUp() throws Exception {
-        datasetDir = Files.getTempDirectory("Datasets.", ".delete.me");
-        storeDir   = Files.getTempDirectory("ShardStore.", ".delete.me");
-    }
+    private Path storeDir   = null;
 
-    @After public void tearDown() throws Exception {
-        Files.delete(datasetDir);
-        Files.delete(storeDir);
+    @Before
+    public void setUp() throws Exception {
+        storeDir   = rootTestDir.newFolder("store").toPath();
     }
 
     @Test public void testShardStore() {
@@ -52,7 +55,7 @@ public class TestShardStore {
             RandomEntries before = new RandomEntries(64, 512);
 
             /* Create the store and verify that it has everything in it. */
-            try (ShardStore store = new ShardStore(new File(storeDir))) {
+            try (ShardStore store = new ShardStore(storeDir)) {
                for (Map.Entry<ShardStore.Key, ShardStore.Value> entry: before.entrySet()) {
                    store.put(entry.getKey(), entry.getValue());
                }
@@ -74,7 +77,7 @@ public class TestShardStore {
             Thread.sleep(1000);
 
             /* Reopen the store and verify that it has everything in it. */
-            try (ShardStore store = new ShardStore(new File(storeDir))) {
+            try (ShardStore store = new ShardStore(storeDir)) {
                TreeMap<ShardStore.Key, ShardStore.Value> after =
                    new TreeMap<ShardStore.Key, ShardStore.Value>();
                Iterator<Store.Entry<ShardStore.Key, ShardStore.Value>> it =
@@ -108,7 +111,7 @@ public class TestShardStore {
             }
             Collections.sort(expected, ShardInfoList.comparator);
 
-            try (ShardStore store = new ShardStore(new File(storeDir))) {
+            try (ShardStore store = new ShardStore(storeDir)) {
                for (Map.Entry<ShardStore.Key, ShardStore.Value> entry: entries.entrySet()) {
                    store.put(entry.getKey(), entry.getValue());
                }
@@ -120,7 +123,7 @@ public class TestShardStore {
             Thread.sleep(1000);
 
             /* Reopen the store and verify that it has everything in it. */
-            try (ShardStore store = new ShardStore(new File(storeDir))) {
+            try (ShardStore store = new ShardStore(storeDir)) {
                ShardInfoList actual = new ShardInfoList(store);
                assertEquals(expected, actual);
          }
@@ -134,7 +137,7 @@ public class TestShardStore {
         try {
             RandomEntries entries = new RandomEntries(64, 512);
 
-            try (ShardStore store = new ShardStore(new File(storeDir))) {
+            try (ShardStore store = new ShardStore(storeDir)) {
                for (Map.Entry<ShardStore.Key, ShardStore.Value> entry: entries.entrySet()) {
                    store.put(entry.getKey(), entry.getValue());
                }
@@ -146,7 +149,7 @@ public class TestShardStore {
             Thread.sleep(1000);
 
             /* Reopen the store and verify that it has everything in it. */
-            try (ShardStore store = new ShardStore(new File(storeDir))) {
+            try (ShardStore store = new ShardStore(storeDir)) {
                 DatasetInfoList actual = new DatasetInfoList(store);
                 /* TODO(johnf): test the content in some meaningful way (without
                  just recreating the DatasetInfoList logic in this test. */

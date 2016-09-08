@@ -16,13 +16,14 @@
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Longs;
 import com.indeed.flamdex.AbstractFlamdexReader;
-import com.indeed.util.io.Files;
 import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.reader.MockFlamdexReader;
+import com.indeed.imhotep.io.TestFileUtils;
 import org.junit.Test;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -49,9 +50,15 @@ public class TestFieldCacher {
         runCacheTest(1, 0, FieldCacher.BITSET, 8);
     }
 
-    private void runCacheTest(int maxVal, int lowerMaxVal, FieldCacher expectedType, long expectedMemory) throws IOException {
+    private void runCacheTest(int maxVal,
+                              int lowerMaxVal,
+                              FieldCacher expectedType,
+                              long expectedMemory) throws IOException {
         for (int i = 0; i < 10; ++i) {
-            MockFlamdexReader r = new MockFlamdexReader(Arrays.asList("f"), Collections.<String>emptyList(), Arrays.asList("f"), 10);
+            MockFlamdexReader r = new MockFlamdexReader(Arrays.asList("f"),
+                                                        Collections.<String>emptyList(),
+                                                        Arrays.asList("f"),
+                                                        10);
             long maxTerm = rand.nextInt(maxVal - lowerMaxVal) + lowerMaxVal + 1;
             int maxTermDoc = rand.nextInt(10);
             r.addIntTerm("f", maxTerm, maxTermDoc);
@@ -92,24 +99,27 @@ public class TestFieldCacher {
             IntValueLookup ivl = fieldCacher.newFieldCache("f", r, minMax.min, minMax.max);
             verifyCache(cache, ivl);
 
-            String tempDir = Files.getTempDirectory("asdf", "");
+            Path tempDir = Files.createTempDirectory("asdf");
             try {
                 for (int x = 0; x < 5; ++x) {
                     if (x > 0) {
-                        assertTrue(new File(tempDir, fieldCacher.getMMapFileName("f")).exists());
+                        assertTrue(Files.exists(tempDir.resolve(fieldCacher.getMMapFileName("f"))));
                     } else {
-                        assertFalse(new File(tempDir, fieldCacher.getMMapFileName("f")).exists());
+                        assertFalse(Files.exists(tempDir.resolve(fieldCacher.getMMapFileName("f"))));
                     }
-                    IntValueLookup mmivl = fieldCacher.newMMapFieldCache("f", r, tempDir, minMax.min,
+                    IntValueLookup mmivl = fieldCacher.newMMapFieldCache("f",
+                                                                         r,
+                                                                         tempDir,
+                                                                         minMax.min,
                                                                          minMax.max);
                     verifyCache(cache, mmivl);
-                    assertTrue(new File(tempDir, fieldCacher.getMMapFileName("f")).exists());
+                    assertTrue(Files.exists(tempDir.resolve(fieldCacher.getMMapFileName("f"))));
                     mmivl.close();
-                    assertTrue(new File(tempDir, fieldCacher.getMMapFileName("f")).exists());
+                    assertTrue(Files.exists(tempDir.resolve(fieldCacher.getMMapFileName("f"))));
                 }
             }
             finally {
-                Files.delete(tempDir);
+                TestFileUtils.deleteDirTree(tempDir);
             }
         }
     }

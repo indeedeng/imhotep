@@ -15,10 +15,12 @@
 
 import com.indeed.flamdex.api.TermIterator;
 
+import java.nio.file.Path;
+
 /**
  * @author jsgroth
  */
 interface SimpleTermIterator extends TermIterator {
-    String getFilename();
+    Path getFilename();
     long getOffset();
 }

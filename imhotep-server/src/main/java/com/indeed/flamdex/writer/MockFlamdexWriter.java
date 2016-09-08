@@ -14,6 +14,7 @@
  package com.indeed.flamdex.writer;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -133,7 +134,7 @@ public class MockFlamdexWriter implements FlamdexWriter {
     }
 
     @Override
-    public String getOutputDirectory() {
+    public Path getOutputDirectory() {
         return null;
     }
 

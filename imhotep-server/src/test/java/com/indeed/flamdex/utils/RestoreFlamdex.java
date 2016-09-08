@@ -24,6 +24,8 @@ import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Random;
@@ -52,8 +54,8 @@ public class RestoreFlamdex {
 
         final int[] docIds = new int[numDocs];
 
-        final String path = "/tmp/reconstructed";
-        PosixFileOperations.rmrf(new File(path));
+        final Path path = Paths.get("/tmp/reconstructed");
+        PosixFileOperations.rmrf(path);
         final SimpleFlamdexWriter writer = new SimpleFlamdexWriter(path, numDocs, true, true);
 
         long termCount = 0;

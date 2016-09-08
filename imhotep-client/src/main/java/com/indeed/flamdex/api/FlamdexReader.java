@@ -14,13 +14,14 @@
  package com.indeed.flamdex.api;
 
 import java.io.Closeable;
+import java.nio.file.Path;
 import java.util.Collection;
 
 public interface FlamdexReader extends Closeable {
     Collection<String> getIntFields();
     Collection<String> getStringFields();
     int getNumDocs();
-    String getDirectory();
+    Path getDirectory();
     DocIdStream getDocIdStream();
     IntTermIterator getUnsortedIntTermIterator(String field);
     IntTermIterator getIntTermIterator(String field);

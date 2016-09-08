@@ -15,19 +15,28 @@ package com.indeed.imhotep.service;
 
 import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.ShardInfo;
-import com.indeed.util.io.Files;
-
+import com.indeed.imhotep.io.TestFileUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import static org.junit.Assert.*;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.channels.FileChannel;
-import java.util.*;
+import java.nio.channels.SeekableByteChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class TestDatasetInfoCache {
     private static final Random rng = new Random(0xdeadbeef);
@@ -35,22 +44,22 @@ public class TestDatasetInfoCache {
     private LocalImhotepServiceConfig config = null;
     private List<SkeletonDataset>     sds    = null;
 
-    private String datasetDir = null;
-    private String storeDir   = null;
-    private String unusedDir  = null;
+    private Path datasetDir = null;
+    private Path storeDir   = null;
+    private Path unusedDir  = null;
 
     @Before public void setUp() throws Exception {
         config     = new LocalImhotepServiceConfig();
-        datasetDir = Files.getTempDirectory("Datasets.", ".delete.me");
-        storeDir   = Files.getTempDirectory("ShardStore.", ".delete.me");
-        unusedDir  = Files.getTempDirectory("Unused.", ".delete.me");
+        datasetDir = Files.createTempDirectory("Datasets.");
+        storeDir   = Files.createTempDirectory("ShardStore.");
+        unusedDir  = Files.createTempDirectory("Unused.");
         sds        = generateDatasets(16);
     }
 
     @After public void tearDown() throws Exception {
-        Files.delete(datasetDir);
-        Files.delete(storeDir);
-        Files.delete(unusedDir);
+        TestFileUtils.deleteDirTree(datasetDir);
+        TestFileUtils.deleteDirTree(storeDir);
+        TestFileUtils.deleteDirTree(unusedDir);
     }
 
     /** Verify that LocalImhotepServiceCore can build a ShardMap from datasets
@@ -134,7 +143,7 @@ public class TestDatasetInfoCache {
             while (expectedIt.hasNext() && actualIt.hasNext()) {
                 final SkeletonDataset sd = expectedIt.next();
                 final DatasetInfo     di = actualIt.next();
-                if (! new File(sd.getDatasetDir()).getName().equals(di.getDataset())) return false;
+                if (! sd.getDatasetDir().getFileName().toString().equals(di.getDataset())) return false;
                 if (sd.getNumShards() != di.getShardList().size()) return false;
                 if (! compare(Arrays.asList(sd.getIntFieldNames()), di.getIntFields())) return false;
                 if (! compare(Arrays.asList(sd.getStrFieldNames()), di.getStringFields())) return false;
@@ -151,7 +160,7 @@ public class TestDatasetInfoCache {
             final int maxNumDocs   = Math.max(rng.nextInt(1000000), 1);
             final int maxNumFields = Math.max(rng.nextInt(50), 1);
             final SkeletonDataset sd =
-                new SkeletonDataset(rng, new File(datasetDir),
+                new SkeletonDataset(rng, datasetDir,
                                     maxNumShards, maxNumDocs, maxNumFields);
             /*
             System.err.println("created dataset: " + sd.getDatasetDir() +
@@ -170,10 +179,18 @@ public class TestDatasetInfoCache {
         LocalImhotepServiceCore svcCore = null;
         try {
             final CheckDatasetUpdate listener = new CheckDatasetUpdate(sds, source);
-            svcCore = new LocalImhotepServiceCore(datasetDir, unusedDir, storeDir, 500, false,
-                                                  new GenericFlamdexReaderSource(), config, listener);
-            assertTrue("loaded DatasetInfo from " + source.name(), listener.sourcesMatch.get());
-            assertTrue("DatasetInfo lists match", listener.datasetsMatch.get());
+            svcCore = new LocalImhotepServiceCore(datasetDir,
+                                                  unusedDir,
+                                                  storeDir,
+                                                  500,
+                                                  false,
+                                                  new GenericFlamdexReaderSource(),
+                                                  config,
+                                                  listener);
+            assertTrue("loaded DatasetInfo from " + source.name(),
+                       listener.sourcesMatch.get());
+            assertTrue("DatasetInfo lists match",
+                       listener.datasetsMatch.get());
         }
         catch (IOException ex) {
             fail(ex.toString());
@@ -186,16 +203,13 @@ public class TestDatasetInfoCache {
     /** This method takes hamfisted approach to corrupting an LSM tree store,
      * looking for its 'latest' and truncating all the files it contains. */
     private void injectCacheCorruption() throws IOException {
-        final File cacheDir = new File(storeDir);
-        final File[] children = cacheDir.listFiles();
-        if (children != null ) {
-            for (final File child: children) {
-                if (child.getName().equals("latest") && child.isDirectory()) {
-                    for (final File latestChild: child.listFiles()) {
-                        try (final FileChannel oc =
-                             new FileOutputStream(latestChild, true).getChannel()) {
-                            oc.truncate(1);
-                        }
+        final Path cacheDir = storeDir;
+        for (final Path child : Files.newDirectoryStream(cacheDir)) {
+            if (child.getFileName().toString().equals("latest") && Files.isDirectory(child)) {
+                for (final Path latestChild : Files.newDirectoryStream(child)) {
+                    try (SeekableByteChannel oc = Files.newByteChannel(latestChild,
+                                                                       StandardOpenOption.WRITE)) {
+                        oc.truncate(1);
                     }
                 }
             }

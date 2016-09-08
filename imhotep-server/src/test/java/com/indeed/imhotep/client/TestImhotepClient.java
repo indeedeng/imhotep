@@ -15,21 +15,21 @@
 
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.indeed.util.io.Files;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.service.ImhotepDaemonRunner;
 import junit.framework.TestCase;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
-
-import static org.junit.Assert.assertTrue;
 
 /**
  * @author jsgroth
@@ -39,10 +39,14 @@ public class TestImhotepClient extends TestCase {
     static {
         DateTimeZone.setDefault(DateTimeZone.forOffsetHours(-6));
     }
-    private String tempDir1;
-    private String tempOptDir1;
-    private String tempDir2;
-    private String tempOptDir2;
+
+    @Rule
+    public final TemporaryFolder tempDir = new TemporaryFolder();
+
+    private Path tempDir1;
+    private Path tempOptDir1;
+    private Path tempDir2;
+    private Path tempOptDir2;
 
     private static final String SHARD0 = "index20130418.18-20130418.19";
     private static final String SHARD1 = "index20130418.19-20130418.20";
@@ -53,18 +57,18 @@ public class TestImhotepClient extends TestCase {
 
     @Override
     protected void setUp() throws Exception {
-        tempDir1 = Files.getTempDirectory("imhotep", "test");
-        tempOptDir1 = Files.getTempDirectory("imhotep", "optimize.test");
-        String datasetDir = new File(tempDir1, DATASET).getAbsolutePath();
-        new File(datasetDir).mkdir();
-        new File(datasetDir, SHARD0).mkdir();
-        new File(datasetDir, SHARD1).mkdir();
+        tempDir1 = tempDir.newFolder("test1").toPath();
+        tempOptDir1 = tempDir.newFolder("optimized.test1").toPath();
+        Path datasetDir = tempDir1.resolve(DATASET);
+        Files.createDirectories(datasetDir);
+        Files.createDirectories(datasetDir.resolve(SHARD0));
+        Files.createDirectories(datasetDir.resolve(SHARD1));
 
-        tempDir2 = Files.getTempDirectory("imhotep", "test");
-        tempOptDir2 = Files.getTempDirectory("imhotep", "optimize.test");
-        String datasetDir2 = new File(tempDir2, DATASET).getAbsolutePath();
-        new File(datasetDir2).mkdir();
-        new File(datasetDir2, SHARD1).mkdir();
+        tempDir2 = tempDir.newFolder("test2").toPath();
+        tempOptDir2 = tempDir.newFolder("optimized.test2").toPath();
+        Path datasetDir2 = tempDir2.resolve(DATASET);
+        Files.createDirectories(datasetDir2);
+        Files.createDirectories(datasetDir2.resolve(SHARD1));
 
         daemon1 = new ImhotepDaemonRunner(tempDir1, tempOptDir1, getFreePort());
         daemon2 = new ImhotepDaemonRunner(tempDir2, tempOptDir2, getFreePort());
@@ -85,10 +89,6 @@ public class TestImhotepClient extends TestCase {
         if (daemon2 != null) {
             daemon2.stop();
         }
-        Files.delete(tempDir1);
-        Files.delete(tempOptDir1);
-        Files.delete(tempDir2);
-        Files.delete(tempOptDir2);
     }
 
     @Test

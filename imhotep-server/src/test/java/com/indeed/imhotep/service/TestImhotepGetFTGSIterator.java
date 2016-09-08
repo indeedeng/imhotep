@@ -40,7 +40,7 @@ public class TestImhotepGetFTGSIterator {
 
     @Before
     public void setUp() throws IOException {
-        clusterRunner = new ImhotepDaemonClusterRunner(rootDir.getRoot());
+        clusterRunner = new ImhotepDaemonClusterRunner(rootDir.newFolder("shards"), rootDir.newFolder("temp"));
     }
 
     @After

@@ -13,32 +13,53 @@
  */
 package com.indeed.imhotep.local;
 
-import com.indeed.flamdex.api.*;
+import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
+import com.indeed.flamdex.api.FlamdexReader;
+import com.indeed.flamdex.api.IntValueLookup;
+import com.indeed.flamdex.api.RawFlamdexReader;
 import com.indeed.flamdex.reader.FlamdexMetadata;
-import com.indeed.flamdex.simple.*;
-import com.indeed.imhotep.*;
-import com.indeed.imhotep.api.*;
-import com.indeed.imhotep.service.*;
+import com.indeed.flamdex.simple.SimpleFlamdexReader;
+import com.indeed.flamdex.simple.SimpleFlamdexWriter;
+import com.indeed.imhotep.ImhotepMemoryPool;
+import com.indeed.imhotep.MemoryReservationContext;
+import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.service.CachedFlamdexReader;
+import com.indeed.imhotep.service.RawCachedFlamdexReader;
 import com.indeed.util.core.reference.SharedReference;
-
-import com.google.common.collect.*;
-
-import org.apache.commons.io.FileUtils;
+import com.indeed.util.core.shell.PosixFileOperations;
 import org.apache.log4j.Logger;
 
-import java.io.*;
-import java.util.*;
-import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nonnull;
+import java.io.EOFException;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.OutputStream;
+import java.io.Serializable;
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class ImhotepJavaLocalSession extends ImhotepLocalSession {
 
     static final Logger log = Logger.getLogger(ImhotepJavaLocalSession.class);
 
     private final String optimizedIndexesDir;
-    private final File   optimizationLog;
+    private final File optimizationLog;
 
-    private FlamdexReader                  originalReader;
+    private FlamdexReader originalReader;
     private SharedReference<FlamdexReader> originalReaderRef;
 
     public ImhotepJavaLocalSession(final FlamdexReader flamdexReader)
@@ -69,7 +90,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
         public long time;
         List<String> intFieldsMerged;
         List<String> stringFieldsMerged;
-        String shardLocation;
+        URI shardLocation;
         List<ShardMergeInfo> mergedShards;
     }
 
@@ -85,22 +106,22 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
      * SimpleFlamdexWriter to it.
      */
     private SimpleFlamdexWriter createNewTempWriter(int maxDocs) throws IOException {
-        final File tempIdxDir;
+        final Path tempIdxDir;
         final String newShardName;
-        final File newShardDir;
+        final Path newShardDir;
 
         newShardName = "temp." + UUID.randomUUID().toString();
-        tempIdxDir = new File(this.optimizedIndexesDir);
-        newShardDir = new File(tempIdxDir, newShardName);
-        newShardDir.mkdir();
+        tempIdxDir = Paths.get(this.optimizedIndexesDir);
+        newShardDir =tempIdxDir.resolve(newShardName);
+        Files.createDirectories(newShardDir);
 
-        return new SimpleFlamdexWriter(newShardDir.getCanonicalPath(), maxDocs);
+        return new SimpleFlamdexWriter(newShardDir, maxDocs);
     }
 
     /* wrapper for SimpleFlamdexReader which deletes the on disk data on close() */
     private static class AutoDeletingReader extends SimpleFlamdexReader {
 
-        public AutoDeletingReader(String directory,
+        public AutoDeletingReader(Path directory,
                                   int numDocs,
                                   Collection<String> intFields,
                                   Collection<String> stringFields,
@@ -109,11 +130,11 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
             super(directory, numDocs, intFields, stringFields, useMMapMetrics, useMMapDocIdStream);
         }
 
-        public static AutoDeletingReader open(String directory) throws IOException {
+        public static AutoDeletingReader open(Path directory) throws IOException {
             return open(directory, new Config());
         }
 
-        public static AutoDeletingReader open(String directory, Config config) throws IOException {
+        public static AutoDeletingReader open(Path directory, Config config) throws IOException {
             final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(directory);
             final Collection<String> intFields = scan(directory, ".intterms");
             final Collection<String> stringFields = scan(directory, ".strterms");
@@ -127,10 +148,8 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
 
         @Override
         public void close() throws IOException {
-            File dir = new File(this.directory);
             super.close();
-
-            FileUtils.deleteDirectory(dir);
+            PosixFileOperations.rmrf(this.directory);
         }
 
     }
@@ -154,116 +173,109 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
     public synchronized void rebuildAndFilterIndexes(@Nonnull final List<String> intFields,
                                                      @Nonnull final List<String> stringFields)
         throws ImhotepOutOfMemoryException {
-        final IndexReWriter rewriter;
-        final ObjectOutputStream oos;
-        final SimpleFlamdexWriter w;
-        final ArrayList<String> statsCopy;
 
         long time = System.currentTimeMillis();
 
         /* pop off all the stats, they will be repushed after the optimization */
-        statsCopy = new ArrayList<String>(this.statCommands);
+        final List<String> statsCopy = new ArrayList<String>(this.statCommands);
         while (this.numStats > 0) {
             this.popStat();
         }
         this.statCommands.clear();
 
-        MemoryReservationContext rewriterMemory = new MemoryReservationContext(memory);
-        rewriter = new IndexReWriter(Arrays.asList(this), this, rewriterMemory);
+        final Path writerOutputDir;
         try {
-            w = createNewTempWriter(this.numDocs);
-            rewriter.optimizeIndices(intFields, stringFields, w);
-            w.close();
+            try (MemoryReservationContext rewriterMemory = new MemoryReservationContext(memory)) {
+                final IndexReWriter rewriter = new IndexReWriter(Arrays.asList(this), this, rewriterMemory);
+                final OptimizationRecord record;
+                final ShardMergeInfo info;
+                try (SimpleFlamdexWriter w = createNewTempWriter(this.numDocs)) {
+                    rewriter.optimizeIndices(intFields, stringFields, w);
+                    writerOutputDir = w.getOutputDirectory();
+                }
 
             /*
              * save a record of the merge, so it can be unwound later if the
              * shards are reset
              */
-            if (this.optimizationLog.exists()) {
-                /* plain ObjectOutputStream does not append correctly */
-                oos = new AppendingObjectOutputStream(new FileOutputStream(this.optimizationLog,
-                                                                             true));
-            } else {
-                oos = new ObjectOutputStream(new FileOutputStream(this.optimizationLog, true));
-            }
+                try (ObjectOutputStream oos = this.optimizationLog.exists() ? new AppendingObjectOutputStream(new FileOutputStream(this.optimizationLog,
+                        true)) : // plain ObjectOutputStream does not append correctly
+                        new ObjectOutputStream(new FileOutputStream(this.optimizationLog, true))) {
 
-            OptimizationRecord record = new OptimizationRecord();
+                    record = new OptimizationRecord();
 
-            record.time = time;
-            record.intFieldsMerged = intFields;
-            record.stringFieldsMerged = stringFields;
-            record.shardLocation = w.getOutputDirectory();
-            record.mergedShards = new ArrayList<ShardMergeInfo>();
+                    record.time = time;
+                    record.intFieldsMerged = intFields;
+                    record.stringFieldsMerged = stringFields;
+                    record.shardLocation = writerOutputDir.toUri();
+                    record.mergedShards = new ArrayList<>();
 
-            ShardMergeInfo info = new ShardMergeInfo();
-            info.numDocs = this.flamdexReader.getNumDocs();
-            info.dynamicMetrics = this.getDynamicMetrics();
-            info.newDocIdToOldDocId = rewriter.getPerSessionMappings().get(0);
-            record.mergedShards.add(info);
+                    info = new ShardMergeInfo();
+                    info.numDocs = this.flamdexReader.getNumDocs();
+                    info.dynamicMetrics = this.getDynamicMetrics();
+                    info.newDocIdToOldDocId = rewriter.getPerSessionMappings().get(0);
+                    record.mergedShards.add(info);
 
-            oos.writeObject(record);
-            oos.close();
+                    oos.writeObject(record);
+                }
 
             /* use rebuilt structures */
-            memory.releaseMemory(this.docIdToGroup.memoryUsed());
-            rewriterMemory.hoist(rewriter.getNewGroupLookup().memoryUsed());
-            this.docIdToGroup = rewriter.getNewGroupLookup();
+                memory.releaseMemory(this.docIdToGroup.memoryUsed());
+                rewriterMemory.hoist(rewriter.getNewGroupLookup().memoryUsed());
+                this.docIdToGroup = rewriter.getNewGroupLookup();
 
-            for (DynamicMetric dm : this.dynamicMetrics.values()) {
-                memory.releaseMemory(dm.memoryUsed());
-            }
-            for (DynamicMetric dm : rewriter.getDynamicMetrics().values()) {
-                rewriterMemory.hoist(dm.memoryUsed());
-            }
-            this.dynamicMetrics = rewriter.getDynamicMetrics();
+                for (DynamicMetric dm : this.dynamicMetrics.values()) {
+                    memory.releaseMemory(dm.memoryUsed());
+                }
+                for (DynamicMetric dm : rewriter.getDynamicMetrics().values()) {
+                    rewriterMemory.hoist(dm.memoryUsed());
+                }
+                this.dynamicMetrics = rewriter.getDynamicMetrics();
 
             /* release memory used by the index rewriter */
-            rewriterMemory.close();
+                rewriterMemory.close();
+            }
 
-            /*
-             * replace flamdexReader pointers, but keep the originals in case
-             * there is a reset() call
-             */
+            // replace flamdexReader pointers, but keep the originals in case
+            // there is a reset() call
             if (this.originalReader == null) {
                 this.originalReader = this.flamdexReader;
             }
             if (this.originalReaderRef == null) {
                 this.originalReaderRef = this.flamdexReaderRef;
             } else {
-                /* close the unnecessary optimized index */
+                // close the unnecessary optimized index
                 this.flamdexReaderRef.close();
             }
 
-            FlamdexReader flamdex = AutoDeletingReader.open(w.getOutputDirectory());
+            final FlamdexReader flamdex = AutoDeletingReader.open(writerOutputDir);
             if (flamdex instanceof RawFlamdexReader) {
                 this.flamdexReader =
                         new RawCachedFlamdexReader(new MemoryReservationContext(memory),
-                                                   (RawFlamdexReader) flamdex, null, null,
-                                                   null);
+                                (RawFlamdexReader) flamdex, null, null,
+                                null);
             } else {
                 this.flamdexReader =
                         new CachedFlamdexReader(new MemoryReservationContext(memory), flamdex,
-                                                null, null, null);
+                                null, null, null);
             }
             this.flamdexReaderRef = SharedReference.create(this.flamdexReader);
-
-            /* alter tracking fields to reflect the removal of group 0 docs */
-            this.numDocs = this.flamdexReader.getNumDocs();
-            this.groupDocCount[0] = 0;
-
-            /* push the stats back on */
-            for (String stat : statsCopy) {
-                if ("pop".equals(stat)) {
-                    this.popStat();
-                } else {
-                    this.pushStat(stat);
-                }
-            }
-
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        } catch (final IOException e) {
+            throw Throwables.propagate(e);
         }
 
+        // alter tracking fields to reflect the removal of group 0 docs
+        this.numDocs = this.flamdexReader.getNumDocs();
+        this.groupDocCount[0] = 0;
+
+        // push the stats back on
+        for (String stat : statsCopy) {
+            if ("pop".equals(stat)) {
+                this.popStat();
+            } else {
+                this.pushStat(stat);
+            }
+        }
     }
 
     /*

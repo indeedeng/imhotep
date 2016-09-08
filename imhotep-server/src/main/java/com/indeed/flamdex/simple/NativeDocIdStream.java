@@ -13,15 +13,16 @@
  */
  package com.indeed.flamdex.simple;
 
-import com.indeed.util.core.io.Closeables2;
-import com.indeed.util.core.reference.SharedReference;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.TermIterator;
+import com.indeed.util.core.io.Closeables2;
+import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.mmap.DirectMemory;
 import com.indeed.util.mmap.MMapBuffer;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
+import java.nio.file.Path;
 
 /**
  * @author jplaisance
@@ -35,7 +36,7 @@ public final class NativeDocIdStream implements DocIdStream {
 
     private final NativeDocIdBuffer buffer = new NativeDocIdBuffer();
 
-    private String currentFileOpen;
+    private Path currentFileOpen;
 
     private boolean closed = false;
 
@@ -60,7 +61,7 @@ public final class NativeDocIdStream implements DocIdStream {
     }
 
     private void internalReset(SimpleTermIterator term) throws IOException {
-        final String filename = term.getFilename();
+        final Path filename = term.getFilename();
         if (!filename.equals(currentFileOpen)) {
 
             if (file != null) file.close();

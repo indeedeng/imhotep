@@ -21,6 +21,7 @@ import org.apache.log4j.Logger;
 import java.io.File;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
+import java.nio.file.Path;
 
 /**
  * @author jsgroth
@@ -34,8 +35,8 @@ public final class MMapBitSetIntValueLookup implements IntValueLookup {
         this.bitSet = bitSet;
     }
 
-    public MMapBitSetIntValueLookup(File file, int length) throws IOException {
-        this(new MMapFastBitSet(file, length, FileChannel.MapMode.READ_ONLY));
+    public MMapBitSetIntValueLookup(Path path, int length) throws IOException {
+        this(new MMapFastBitSet(path, length, FileChannel.MapMode.READ_ONLY));
     }
 
     @Override

@@ -14,29 +14,30 @@
  package com.indeed.flamdex.simple;
 
 import com.google.common.base.Charsets;
-import com.indeed.util.io.Files;
 import com.indeed.flamdex.utils.FlamdexUtils;
 import com.indeed.flamdex.writer.StringFieldWriter;
+import com.indeed.util.core.io.Closeables2;
+import org.apache.log4j.Logger;
 
 import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 /**
  * @author jsgroth
  */
 class SimpleStringFieldWriter extends SimpleFieldWriter implements StringFieldWriter {
-    private final String outputDirectory;
+    private static final Logger LOGGER = Logger.getLogger(SimpleStringFieldWriter.class);
+    private final Path outputDirectory;
     private final String field;
     private final boolean writeBTreesOnClose;
 
     private byte[] lastWrittenTermBytes = new byte[0];
     private String currentTerm = null;
 
-    private SimpleStringFieldWriter(String outputDirectory, String field, boolean writeBTreesOnClose, OutputStream termsOutput, OutputStream docsOutput, long numDocs) {
+    private SimpleStringFieldWriter(Path outputDirectory, String field, boolean writeBTreesOnClose, OutputStream termsOutput, OutputStream docsOutput, long numDocs) {
         super(termsOutput, docsOutput, numDocs);
         this.outputDirectory = outputDirectory;
         this.field = field;
@@ -47,14 +48,35 @@ class SimpleStringFieldWriter extends SimpleFieldWriter implements StringFieldWr
         return "fld-"+field+".strterms";
     }
 
+    public static String getIndexFilename(String field) {
+        return "fld-"+field+".strindex";
+    }
+
     public static String getDocsFilename(String field) {
         return "fld-"+field+".strdocs";
     }
 
-    public static SimpleStringFieldWriter open(String outputDirectory, String field, long numDocs, boolean writeBTreesOnClose) throws FileNotFoundException {
-        final OutputStream termsOutput = new BufferedOutputStream(new FileOutputStream(Files.buildPath(outputDirectory, getTermsFilename(field))), 65536);
-        final OutputStream docsOutput = new BufferedOutputStream(new FileOutputStream(Files.buildPath(outputDirectory, getDocsFilename(field))), 65536);
-        return new SimpleStringFieldWriter(outputDirectory, field, writeBTreesOnClose, termsOutput, docsOutput, numDocs);
+    public static SimpleStringFieldWriter open(Path outputDirectory,
+                                               String field,
+                                               long numDocs,
+                                               boolean writeBTreesOnClose) throws IOException {
+        final OutputStream termsOutput;
+        final OutputStream docsOutput;
+
+        termsOutput = Files.newOutputStream(outputDirectory.resolve(getTermsFilename(field)));
+        try {
+            docsOutput = Files.newOutputStream(outputDirectory.resolve(getDocsFilename(field)));
+        } catch (final IOException e) {
+            Closeables2.closeQuietly(termsOutput, LOGGER);
+            throw e;
+        }
+
+        return new SimpleStringFieldWriter(outputDirectory,
+                                           field,
+                                           writeBTreesOnClose,
+                                           new BufferedOutputStream(termsOutput, 65536),
+                                           new BufferedOutputStream(docsOutput, 65536),
+                                           numDocs);
     }
 
     /**
@@ -69,7 +91,9 @@ class SimpleStringFieldWriter extends SimpleFieldWriter implements StringFieldWr
     public void nextTerm(String term) throws IOException {
         if (term == null) throw new NullPointerException("you just had to try, didn't you?");
         if (currentTerm != null && currentTerm.compareTo(term) >= 0) {
-            throw new IllegalArgumentException("terms must be in sorted order: "+term+" is not lexicographically greater than "+currentTerm);
+            throw new IllegalArgumentException("terms must be in sorted order: " + term
+                                                       + " is not lexicographically greater than "
+                                                       + currentTerm);
         }
         
         internalNextTerm();
@@ -79,7 +103,10 @@ class SimpleStringFieldWriter extends SimpleFieldWriter implements StringFieldWr
     @Override
     protected void writeTermDelta() throws IOException {
         final byte[] currentTermBytes = currentTerm.getBytes(Charsets.UTF_8);
-        final int prefixLen = getPrefixLen(lastWrittenTermBytes, currentTermBytes, Math.min(lastWrittenTermBytes.length, currentTermBytes.length));
+        final int prefixLen = getPrefixLen(lastWrittenTermBytes,
+                                           currentTermBytes,
+                                           Math.min(lastWrittenTermBytes.length,
+                                                    currentTermBytes.length));
         FlamdexUtils.writeVLong(lastWrittenTermBytes.length - prefixLen, termsOutput);
         FlamdexUtils.writeVLong(currentTermBytes.length - prefixLen, termsOutput);
         termsOutput.write(currentTermBytes, prefixLen, currentTermBytes.length - prefixLen);
@@ -89,7 +116,10 @@ class SimpleStringFieldWriter extends SimpleFieldWriter implements StringFieldWr
     @Override
     protected void writeBTreeIndex() throws IOException {
         if (writeBTreesOnClose) {
-            SimpleFlamdexWriter.writeStringBTree(outputDirectory, field, new File(outputDirectory, "fld-" + field + ".strindex"));
+            final Path btreeDir = outputDirectory.resolve(getIndexFilename(field));
+            SimpleFlamdexWriter.writeStringBTree(outputDirectory,
+                                                 field,
+                                                 btreeDir);
         }
     }
 

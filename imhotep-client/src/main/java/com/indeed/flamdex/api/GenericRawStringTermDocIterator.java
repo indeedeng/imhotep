@@ -13,9 +13,11 @@
  */
  package com.indeed.flamdex.api;
 
+import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 /**
  * @author jplaisance
@@ -69,7 +71,6 @@ public final class GenericRawStringTermDocIterator implements RawStringTermDocIt
 
     @Override
     public void close() throws IOException {
-        termIterator.close();
-        docIdStream.close();
+        Closeables2.closeAll(Arrays.asList(termIterator, docIdStream), log);
     }
 }

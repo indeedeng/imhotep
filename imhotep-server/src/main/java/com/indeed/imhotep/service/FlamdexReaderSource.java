@@ -16,10 +16,11 @@
 import com.indeed.flamdex.api.FlamdexReader;
 
 import java.io.IOException;
+import java.nio.file.Path;
 
 /**
  * @author jsgroth
  */
 public interface FlamdexReaderSource {
-    FlamdexReader openReader(String directory) throws IOException;
+    FlamdexReader openReader(Path directory) throws IOException;
 }

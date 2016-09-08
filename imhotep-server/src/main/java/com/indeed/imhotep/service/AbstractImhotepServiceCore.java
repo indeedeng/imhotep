@@ -16,10 +16,6 @@
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.indeed.imhotep.protobuf.ImhotepResponse;
-import com.indeed.util.core.Throwables2;
-import com.indeed.util.core.io.Closeables2;
-import com.indeed.util.core.reference.SharedReference;
 import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupRemapRule;
@@ -35,7 +31,10 @@ import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepServiceCore;
 import com.indeed.imhotep.api.ImhotepSession;
-
+import com.indeed.imhotep.protobuf.ImhotepResponse;
+import com.indeed.util.core.Throwables2;
+import com.indeed.util.core.io.Closeables2;
+import com.indeed.util.core.reference.SharedReference;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;

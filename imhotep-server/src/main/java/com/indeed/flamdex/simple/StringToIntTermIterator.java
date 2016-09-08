@@ -3,6 +3,7 @@ package com.indeed.flamdex.simple;
 import com.google.common.base.Supplier;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -16,7 +17,7 @@ import java.util.PriorityQueue;
 public class StringToIntTermIterator implements SimpleIntTermIterator  {
     private final SimpleStringTermIterator stringTermIterator;
     private final Supplier<SimpleStringTermIterator> stringTermIteratorSupplier;
-    private final String filename;
+    private final Path filename;
 
     /**
      * @param stringTermIterator initial iterator used for initialization
@@ -30,7 +31,7 @@ public class StringToIntTermIterator implements SimpleIntTermIterator  {
     }
 
     @Override
-    public String getFilename() {
+    public Path getFilename() {
         return filename;
     }
 

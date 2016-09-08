@@ -14,10 +14,13 @@
  package com.indeed.flamdex.lucene;
 
 import com.indeed.flamdex.api.IntTermIterator;
+import com.indeed.util.core.io.Closeables2;
+import org.apache.log4j.Logger;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TermEnum;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -25,6 +28,7 @@ import java.util.List;
 import java.util.PriorityQueue;
 
 class LuceneIntTermIterator implements IntTermIterator, LuceneTermIterator {
+    private static final Logger LOGGER = Logger.getLogger(LuceneIntTermIterator.class);
     // only handles positive numbers
     private static final List<String> intPrefixes;
 
@@ -42,7 +46,7 @@ class LuceneIntTermIterator implements IntTermIterator, LuceneTermIterator {
         intPrefixes = Collections.unmodifiableList(temp);
     }
 
-    static class Prefix implements Comparable<Prefix> {
+    static class Prefix implements Comparable<Prefix>, Closeable {
         final IndexReader reader;
         final String field;
         final String firstTerm;
@@ -61,7 +65,8 @@ class LuceneIntTermIterator implements IntTermIterator, LuceneTermIterator {
             this.firstTerm = firstTerm;
         }
 
-        private void reset() {
+        @Override
+        public void close() throws IOException {
             closeTermEnum();
             endOfStream = false;
         }
@@ -202,9 +207,7 @@ class LuceneIntTermIterator implements IntTermIterator, LuceneTermIterator {
         if (prefixes == null) {
             prefixes = determineAppropriatePrefixes();
         } else {
-            for (final Prefix prefix : prefixes) {
-                prefix.reset();
-            }
+            Closeables2.closeAll(prefixes, LOGGER);
         }
         if (prefixes.isEmpty()) {
             prefixQueue = new PriorityQueue<Prefix>(1);
@@ -245,7 +248,7 @@ class LuceneIntTermIterator implements IntTermIterator, LuceneTermIterator {
 
     @Override
     public void close() {
-        // TODO ?
+        Closeables2.closeAll(prefixes, LOGGER);
     }
 
     @Override

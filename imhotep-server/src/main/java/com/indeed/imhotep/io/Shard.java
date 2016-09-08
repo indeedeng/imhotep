@@ -13,8 +13,8 @@
  */
  package com.indeed.imhotep.io;
 
-import java.io.Closeable;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -45,7 +45,7 @@ public class Shard {
 
     public Shard(final ReloadableSharedReference<CachedFlamdexReader, IOException> ref,
                   final long shardVersion,
-                  final String indexDir,
+                  final Path indexDir,
                   final String dataset,
                   final String shardId) throws IOException {
         this.ref = ref;
@@ -93,7 +93,7 @@ public class Shard {
         return shardId.getShardVersion();
     }
 
-    public String getIndexDir() {
+    public Path getIndexDir() {
         return shardId.getIndexDir();
     }
 

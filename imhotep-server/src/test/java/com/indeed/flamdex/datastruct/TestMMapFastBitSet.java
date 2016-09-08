@@ -17,9 +17,10 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -29,16 +30,16 @@ import static org.junit.Assert.assertTrue;
  * @author jsgroth
  */
 public class TestMMapFastBitSet {
-    private File tmp;
+    private Path tmp;
 
     @Before
     public void setUp() throws IOException {
-        tmp = File.createTempFile("asdf", "");
+        tmp = Files.createTempFile("asdf", "");
     }
 
     @After
     public void tearDown() throws IOException {
-        tmp.delete();
+        Files.delete(tmp);
     }
 
     @Test

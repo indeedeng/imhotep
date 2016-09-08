@@ -19,6 +19,7 @@ import com.indeed.util.mmap.MMapBuffer;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
+import java.nio.file.Path;
 
 /**
  * @author jsgroth
@@ -44,9 +45,9 @@ final class MMapDocIdStream extends SimpleDocIdStream {
     }
 
     @Override
-    protected void openFile(String filename) throws IOException {
+    protected void openFile(final Path filePath) throws IOException {
         if (file != null) file.close();
-        file = mapCache.copyOrOpen(filename);
+        file = mapCache.copyOrOpen(filePath);
         memory = file.get().memory();
     }
 

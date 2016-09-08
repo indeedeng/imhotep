@@ -27,15 +27,13 @@ import com.indeed.imhotep.local.ImhotepLocalSession;
 import org.apache.lucene.analysis.WhitespaceAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
-import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.Random;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.Assert.assertTrue;
@@ -62,7 +60,10 @@ public class TestCloseSessionDuringFTGS {
                 int numTerms = rand.nextInt(5) + 5;
                 Document doc = new Document();
                 for (int t = 0; t < numTerms; ++t) {
-                    doc.add(new Field("sf1", Integer.toString(rand.nextInt(10000)), Field.Store.NO, Field.Index.NOT_ANALYZED_NO_NORMS));
+                    doc.add(new Field("sf1",
+                                      Integer.toString(rand.nextInt(10000)),
+                                      Field.Store.NO,
+                                      Field.Index.NOT_ANALYZED_NO_NORMS));
                 }
                 w.addDocument(doc);
             }
@@ -70,7 +71,7 @@ public class TestCloseSessionDuringFTGS {
             w.close();
 
             final AtomicBoolean closed = new AtomicBoolean(false);
-            FlamdexReader r = new LuceneFlamdexReader(IndexReader.open(tempDir)) {
+            FlamdexReader r = new LuceneFlamdexReader(Paths.get(tempDir)) {
                 @Override
                 public void close() throws IOException {
                     super.close();

@@ -13,13 +13,16 @@
  */
  package com.indeed.flamdex.writer;
 
+import com.google.common.io.Closer;
 import com.indeed.flamdex.api.DocIdStream;
-import com.indeed.flamdex.reader.FlamdexMetadata;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.StringTermIterator;
+import com.indeed.flamdex.reader.FlamdexMetadata;
 
+import java.io.Closeable;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -33,7 +36,7 @@ public final class GenericFlamdexWriter implements FlamdexWriter {
 
     private static final int DOC_ID_BUFFER_SIZE = 32;
 
-    private final String outputDirectory;
+    private final Path outputDirectory;
 
     private final IntFieldWriterFactory intFieldWriterFactory;
 
@@ -46,11 +49,11 @@ public final class GenericFlamdexWriter implements FlamdexWriter {
     private final Set<String> intFields;
     private final Set<String> stringFields;
 
-    public GenericFlamdexWriter(String outputDirectory, IntFieldWriterFactory intFieldWriterFactory, StringFieldWriterFactory stringFieldWriterFactory, long numDocs, int formatVersion) throws IOException {
+    public GenericFlamdexWriter(Path outputDirectory, IntFieldWriterFactory intFieldWriterFactory, StringFieldWriterFactory stringFieldWriterFactory, long numDocs, int formatVersion) throws IOException {
         this(outputDirectory, intFieldWriterFactory, stringFieldWriterFactory, numDocs, formatVersion, true);
     }
 
-    public GenericFlamdexWriter(String outputDirectory, IntFieldWriterFactory intFieldWriterFactory, StringFieldWriterFactory stringFieldWriterFactory, long numDocs, int formatVersion, boolean create) throws IOException {
+    public GenericFlamdexWriter(Path outputDirectory, IntFieldWriterFactory intFieldWriterFactory, StringFieldWriterFactory stringFieldWriterFactory, long numDocs, int formatVersion, boolean create) throws IOException {
         this.outputDirectory = outputDirectory;
         this.intFieldWriterFactory = intFieldWriterFactory;
         this.stringFieldWriterFactory = stringFieldWriterFactory;
@@ -96,7 +99,7 @@ public final class GenericFlamdexWriter implements FlamdexWriter {
     }
 
     @Override
-    public String getOutputDirectory() {
+    public Path getOutputDirectory() {
         return this.outputDirectory;
     }
     
@@ -117,49 +120,74 @@ public final class GenericFlamdexWriter implements FlamdexWriter {
         FlamdexMetadata.writeMetadata(outputDirectory, metadata);
     }
 
-    public static void writeFlamdex(final String indexDir, final FlamdexReader fdx, final IntFieldWriterFactory intFieldWriterFactory, final StringFieldWriterFactory stringFieldWriterFactory, int formatVersion,
+    public static void writeFlamdex(final Path indexDir, final FlamdexReader fdx, final IntFieldWriterFactory intFieldWriterFactory, final StringFieldWriterFactory stringFieldWriterFactory, int formatVersion,
                                     final List<String> intFields, final List<String> stringFields) throws IOException {
-        final DocIdStream dis = fdx.getDocIdStream();
-        final int[] docIdBuf = new int[DOC_ID_BUFFER_SIZE];
+        try (Closer closer = Closer.create()) {
+            final DocIdStream dis = fdx.getDocIdStream();
+            closer.register(dis);
+            final int[] docIdBuf = new int[DOC_ID_BUFFER_SIZE];
 
-        final GenericFlamdexWriter w = new GenericFlamdexWriter(indexDir, intFieldWriterFactory, stringFieldWriterFactory, fdx.getNumDocs(), formatVersion);
+            final GenericFlamdexWriter w = new GenericFlamdexWriter(indexDir, intFieldWriterFactory, stringFieldWriterFactory, fdx.getNumDocs(), formatVersion);
+            closer.register(new Closeable() {
+                @Override
+                public void close() throws IOException {
+                    w.close();
+                }
+            });
 
-        for (final String intField : intFields) {
-            final IntFieldWriter ifw = w.getIntFieldWriter(intField);
-            final IntTermIterator iter = fdx.getIntTermIterator(intField);
-            while (iter.next()) {
-                ifw.nextTerm(iter.term());
-                dis.reset(iter);
-                while (true) {
-                    final int n = dis.fillDocIdBuffer(docIdBuf);
-                    for (int i = 0; i < n; ++i) {
-                        ifw.nextDoc(docIdBuf[i]);
+            for (final String intField : intFields) {
+                try (Closer intIterCloser = Closer.create()) {
+                    final IntFieldWriter ifw = w.getIntFieldWriter(intField);
+                    intIterCloser.register(new Closeable() {
+                        @Override
+                        public void close() throws IOException {
+                            ifw.close();
+                        }
+                    });
+                    final IntTermIterator iter = fdx.getIntTermIterator(intField);
+                    intIterCloser.register(iter);
+                    while (iter.next()) {
+                        ifw.nextTerm(iter.term());
+                        dis.reset(iter);
+                        while (true) {
+                            final int n = dis.fillDocIdBuffer(docIdBuf);
+                            for (int i = 0; i < n; ++i) {
+                                ifw.nextDoc(docIdBuf[i]);
+                            }
+                            if (n < docIdBuf.length) {
+                                break;
+                            }
+                        }
                     }
-                    if (n < docIdBuf.length) break;
                 }
             }
-            iter.close();
-            ifw.close();
-        }
 
-        for (final String stringField : stringFields) {
-            final StringFieldWriter sfw = w.getStringFieldWriter(stringField);
-            final StringTermIterator iter = fdx.getStringTermIterator(stringField);
-            while (iter.next()) {
-                sfw.nextTerm(iter.term());
-                dis.reset(iter);
-                while (true) {
-                    final int n = dis.fillDocIdBuffer(docIdBuf);
-                    for (int i = 0; i < n; ++i) {
-                        sfw.nextDoc(docIdBuf[i]);
+            for (final String stringField : stringFields) {
+                try (Closer strIterCloser = Closer.create()) {
+                    final StringFieldWriter sfw = w.getStringFieldWriter(stringField);
+                    strIterCloser.register(new Closeable() {
+                        @Override
+                        public void close() throws IOException {
+                            sfw.close();
+                        }
+                    });
+                    final StringTermIterator iter = fdx.getStringTermIterator(stringField);
+                    strIterCloser.register(iter);
+                    while (iter.next()) {
+                        sfw.nextTerm(iter.term());
+                        dis.reset(iter);
+                        while (true) {
+                            final int n = dis.fillDocIdBuffer(docIdBuf);
+                            for (int i = 0; i < n; ++i) {
+                                sfw.nextDoc(docIdBuf[i]);
+                            }
+                            if (n < docIdBuf.length) {
+                                break;
+                            }
+                        }
                     }
-                    if (n < docIdBuf.length) break;
                 }
             }
-            sfw.close();
         }
-
-        dis.close();
-        w.close();
     }
 }

@@ -13,21 +13,29 @@
  */
  package com.indeed.imhotep.io;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.nio.file.spi.FileSystemProvider;
+import java.util.EnumSet;
 
 /**
  * @author jsgroth
  */
 public class IntArraySerializer implements FileSerializer<int[]> {
     @Override
-    public void serialize(int[] a, File file) throws IOException {
-        FileChannel ch = new RandomAccessFile(file, "rw").getChannel();
+    public void serialize(int[] a, Path path) throws IOException {
+        final FileSystemProvider provider = path.getFileSystem().provider();
+        final FileChannel ch = provider.newFileChannel(path,
+                                                       EnumSet.of(StandardOpenOption.READ,
+                                                                  StandardOpenOption.WRITE,
+                                                                  StandardOpenOption.CREATE));
+
         try {
             ByteBuffer buffer = ByteBuffer.allocateDirect(8192);
             buffer.order(ByteOrder.LITTLE_ENDIAN);
@@ -45,10 +53,11 @@ public class IntArraySerializer implements FileSerializer<int[]> {
     }
 
     @Override
-    public int[] deserialize(File file) throws IOException {
-        FileChannel ch = new RandomAccessFile(file, "r").getChannel();
-        try {
-            int[] ret = new int[(int)(file.length() / 4)];
+    public int[] deserialize(Path path) throws IOException {
+        final FileSystemProvider provider = path.getFileSystem().provider();
+
+        try (FileChannel ch = provider.newFileChannel(path, EnumSet.of(StandardOpenOption.READ))) {
+            int[] ret = new int[(int) (Files.size(path) / 4)];
             ByteBuffer buffer = ByteBuffer.allocateDirect(8192);
             buffer.order(ByteOrder.LITTLE_ENDIAN);
             IntBuffer intBuffer = buffer.asIntBuffer();
@@ -59,8 +68,6 @@ public class IntArraySerializer implements FileSerializer<int[]> {
                 intBuffer.get(ret, i, lim);
             }
             return ret;
-        } finally {
-            ch.close();
         }
     }
 }

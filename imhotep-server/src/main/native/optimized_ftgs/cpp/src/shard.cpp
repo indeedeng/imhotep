@@ -99,6 +99,15 @@ namespace imhotep {
         return _split_file_cache->get(filename);
     }
 
+    std::ostream& Shard::fieldmap_to_string(std::ostream& os, const Shard::FieldToMMappedFile& fieldAndMmappedFile) const {
+        os << "[";
+        for (auto entry: fieldAndMmappedFile) {
+            os << "{ field:" << entry.first << ", map_file: " << entry.second->filename() << "}, ";
+        }
+        os << "]";
+        return os;
+    }
+
     std::string Shard::to_string() const {
         std::ostringstream os;
         os << "{ name_of: " << name_of()
@@ -115,7 +124,21 @@ namespace imhotep {
                << ", value: " << reinterpret_cast<long>(entry.second)
                << " }";
         }
-        os << "] }";
+        os << "]";
+
+        os << ", term_views: ";
+        fieldmap_to_string(os, _term_views);
+
+        os << ", docid_views: ";
+        fieldmap_to_string(os, _docid_views);
+
+        os << ", int_term_indices: ";
+        fieldmap_to_string(os, _int_term_indices);
+
+        os << ", str_term_indices: ";
+        fieldmap_to_string(os, _str_term_indices);
+
+        os << " }";
         return os.str();
     }
 

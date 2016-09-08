@@ -19,6 +19,7 @@ import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
 
 /**
  * @author jsgroth
@@ -36,7 +37,7 @@ abstract class SimpleDocIdStream implements DocIdStream {
     private int docsRemaining;
     private int lastDoc;
 
-    private String currentFileOpen;
+    private Path currentFileOpen;
 
     public SimpleDocIdStream(byte[] buffer) {
         this.buffer = buffer;
@@ -60,7 +61,7 @@ abstract class SimpleDocIdStream implements DocIdStream {
     }
 
     private void internalReset(SimpleTermIterator term) throws IOException {
-        final String filename = term.getFilename();
+        final Path filename = term.getFilename();
         if (!filename.equals(currentFileOpen)) {
 
             openFile(filename);
@@ -123,7 +124,7 @@ abstract class SimpleDocIdStream implements DocIdStream {
         bufferPtr = 0;
     }
 
-    protected abstract void openFile(String filename) throws IOException;
+    protected abstract void openFile(Path filePath) throws IOException;
     protected abstract long getLength();
     protected abstract void readBytes(long offset);
     public abstract void close();

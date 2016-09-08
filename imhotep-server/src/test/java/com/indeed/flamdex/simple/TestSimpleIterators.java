@@ -13,16 +13,18 @@
  */
  package com.indeed.flamdex.simple;
 
-import com.indeed.util.io.Files;
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.writer.IntFieldWriter;
 import com.indeed.flamdex.writer.StringFieldWriter;
+import com.indeed.imhotep.io.TestFileUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -32,16 +34,16 @@ import static org.junit.Assert.assertTrue;
  * @author jwolfe
  */
 public class TestSimpleIterators {
-    private String tempDir;
+    private Path tempDir;
 
     @Before
     public void setUp() throws Exception {
-        tempDir = Files.getTempDirectory("flamdex-test", "dir");
+        tempDir = Files.createTempDirectory("flamdex-test");
     }
 
     @After
     public void tearDown() throws Exception {
-        Files.delete(tempDir);
+        TestFileUtils.deleteDirTree(tempDir);
     }
 
     @Test

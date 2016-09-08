@@ -11,15 +11,17 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.indeed.flamdex.simple;
+package com.indeed.flamdex.simple;
+
+import java.nio.file.Path;
 
 /**
  * @author jsgroth
  */
 final class NullIntTermIterator implements SimpleIntTermIterator {
-    private final String docsFilename;
+    private final Path docsFilename;
 
-    NullIntTermIterator(String docsFilename) {
+    NullIntTermIterator(Path docsFilename) {
         this.docsFilename = docsFilename;
     }
 
@@ -33,7 +35,7 @@ final class NullIntTermIterator implements SimpleIntTermIterator {
     }
 
     @Override
-    public String getFilename() {
+    public Path getFilename() {
         return docsFilename;
     }
 

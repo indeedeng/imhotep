@@ -13,15 +13,16 @@
  */
  package com.indeed.imhotep.service;
 
-import com.google.common.io.Files;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.reader.MockFlamdexReader;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.util.core.shell.PosixFileOperations;
 import junit.framework.TestCase;
 import org.junit.Test;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -29,46 +30,36 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author jsgroth
- *
- * some of these tests are reliant on the implementation of {@link
- * LocalImhotepServiceCore#updateShards()}} if that method changes significantly
- * then these tests will very likely break
  */
 public class TestLocalImhotepServiceCoreSharedResource extends TestCase {
     private static final long TIMEOUT = 5000L;
 
-    private File tempDir;
-    private String directory;
-    private String optDirectory;
+    private Path tempDir;
+    private Path directory;
+    private Path optDirectory;
 
     @Override
     protected void setUp() throws Exception {
-        tempDir = Files.createTempDir();
-        File datasetDir = new File(tempDir, "dataset");
-        if (!datasetDir.mkdir())
-            throw new IOException("couldn't make " + datasetDir.getAbsolutePath() + " :(");
-        File shardDir = new File(datasetDir, "shard");
-        if (!shardDir.mkdir())
-            throw new IOException("couldn't make " + shardDir.getAbsolutePath() + " :(");
-        File optDir = new File(tempDir, "temp");
-        if (!optDir.mkdir())
-            throw new IOException("couldn't make " + optDir.getAbsolutePath() + " :(");
+        tempDir = Files.createTempDirectory(this.getClass().getName());
+        Path datasetDir = Files.createDirectory(tempDir.resolve("dataset"));
+        Path shardDir = Files.createDirectory(datasetDir.resolve("shard"));
+        Path optDir = Files.createDirectory(tempDir.resolve("temp"));
 
-        directory = tempDir.getAbsolutePath();
-        optDirectory = optDir.getAbsolutePath();
+        directory = tempDir;
+        optDirectory = optDir;
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
     @Override
     protected void tearDown() throws Exception {
-        com.indeed.util.io.Files.delete(tempDir.getAbsolutePath());
+        PosixFileOperations.rmrf(tempDir);
     }
 
     @Test
     public void testNoDoubleClose() throws IOException, ImhotepOutOfMemoryException {
         FlamdexReaderSource factory = new FlamdexReaderSource() {
             @Override
-            public FlamdexReader openReader(String directory) throws IOException {
+            public FlamdexReader openReader(Path directory) throws IOException {
                 return new MockFlamdexReader(Arrays.asList("if1"),
                                              Arrays.asList("sf1"),
                                              Arrays.asList("if1"), 10) {
@@ -104,7 +95,7 @@ public class TestLocalImhotepServiceCoreSharedResource extends TestCase {
             int i = 0;
 
             @Override
-            public FlamdexReader openReader(String directory) throws IOException {
+            public FlamdexReader openReader(Path directory) throws IOException {
                 while (!created.compareAndSet(false, true)) {}
 
                 if (((i++) & 1) == 0) {
@@ -156,7 +147,7 @@ public class TestLocalImhotepServiceCoreSharedResource extends TestCase {
             FlamdexReader lastOpened = null;
 
             @Override
-            public FlamdexReader openReader(String directory) throws IOException {
+            public FlamdexReader openReader(Path directory) throws IOException {
                 createCount.incrementAndGet();
 
                 return (lastOpened = new MockFlamdexReader(Collections.<String>emptyList(), Collections.<String>emptyList(), Collections.<String>emptyList(), 10) {
@@ -200,7 +191,7 @@ public class TestLocalImhotepServiceCoreSharedResource extends TestCase {
         FlamdexReaderSource factory = new FlamdexReaderSource() {
 
             @Override
-            public FlamdexReader openReader(String directory) throws IOException {
+            public FlamdexReader openReader(final Path directory) throws IOException {
                 return new MockFlamdexReader(Arrays.asList("if1"), Arrays.asList("sf1"), Arrays.asList("if1"), 10) {
                     @Override
                     public void close() throws IOException {

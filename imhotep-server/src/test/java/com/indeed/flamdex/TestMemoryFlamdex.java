@@ -35,6 +35,9 @@ import org.junit.Test;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -48,17 +51,15 @@ import static org.junit.Assert.*;
  */
 public class TestMemoryFlamdex {
 
-    File tmpDir;
+    Path tmpDir;
 
     @Before
-    public void setUp() throws Exception {
-        tmpDir = File.createTempFile("tmp", "", new File("."));
-        tmpDir.delete();
-        tmpDir.mkdirs();
+    public void setUp() throws IOException {
+        tmpDir = Files.createTempDirectory(Paths.get("."), "tmp");
     }
 
     @After
-    public void tearDown() throws Exception {
+    public void tearDown() throws IOException {
         PosixFileOperations.rmrf(tmpDir);
     }
 
@@ -374,12 +375,13 @@ public class TestMemoryFlamdex {
         merged.setNumDocs(numDocs);
         SimpleFlamdexWriter.merge(flamdexes, merged);
         assertTrue(FlamdexCompare.unorderedEquals(merged, original));
-        File tmpFlamdexDir = new File(tmpDir, "tmpfdx");
-        SimpleFlamdexWriter writer = new SimpleFlamdexWriter(tmpFlamdexDir.getPath(), numDocs, true);
+        Path tmpFlamdexDir = tmpDir.resolve("tmpfdx");
+        SimpleFlamdexWriter writer = new SimpleFlamdexWriter(tmpFlamdexDir, numDocs, true);
         SimpleFlamdexWriter.writeFlamdex(merged, writer);
         writer.close();
-        SimpleFlamdexReader reader = SimpleFlamdexReader.open(tmpFlamdexDir.getPath());
+        SimpleFlamdexReader reader = SimpleFlamdexReader.open(tmpFlamdexDir);
         assertTrue(FlamdexCompare.unorderedEquals(reader, original));
+        reader.close();
     }
 
     public class MockDoc {

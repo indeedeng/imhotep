@@ -14,14 +14,18 @@
  package com.indeed.flamdex.simple;
 
 import com.indeed.flamdex.utils.FlamdexUtils;
+import com.indeed.util.core.io.Closeables2;
+import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Arrays;
 
 /**
  * @author jsgroth
  */
 abstract class SimpleFieldWriter {
+    private static final Logger LOGGER = Logger.getLogger(SimpleFieldWriter.class);
     protected final OutputStream termsOutput;
     protected final OutputStream docsOutput;
     protected final long numDocs;
@@ -94,9 +98,11 @@ abstract class SimpleFieldWriter {
     protected abstract void writeBTreeIndex() throws IOException;
 
     public void close() throws IOException {
-        writeTerm();
-        termsOutput.close();
-        docsOutput.close();
+        try {
+            writeTerm();
+        } finally {
+            Closeables2.closeAll(Arrays.asList(termsOutput, docsOutput), LOGGER);
+        }
         if (nextTermCalled) {
             writeBTreeIndex();
         }

@@ -31,7 +31,7 @@ namespace test_ftgs_namespace{
     public:
         ShardMetadata(const Shard& shard)
             : _shard(shard)
-            , _metadata(YAML::LoadFile(shard.dir() + "/metadata.txt"))
+            , _metadata(YAML::LoadFile(shard.dir_uri() + "/metadata.txt"))
         { }
 
         const Shard& shard() const { return _shard; }
@@ -107,7 +107,7 @@ namespace test_ftgs_namespace{
                                     mins.data(), maxes.data(),
                                     table_meta.sizes, table_meta.vec_nums, table_meta.offsets_in_vecs,
                                     vector<int8_t>(num_cols, 0).data(), num_cols, only_binary_metrics);
-        return Shard(metadata.shard().dir(), int_fields, str_fields, table);
+        return Shard(metadata.shard().dir_uri(), int_fields, str_fields, table);
     }
 
 

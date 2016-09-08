@@ -3,8 +3,8 @@
 
     <parent>
         <groupId>com.indeed</groupId>
-        <artifactId>proprietary-parent</artifactId>
-        <version>8</version>
+        <artifactId>oss-parent</artifactId>
+        <version>16</version>
     </parent>
 
     <groupId>com.indeed</groupId>
@@ -41,18 +41,32 @@
 
     <repositories>
         <repository>
+            <id>sonatype-nexus-staging</id>
+            <name>Nexus Release Repository</name>
+            <url>https://oss.sonatype.org/content/repositories/releases/</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+        <repository>
             <id>cloudera</id>
             <url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
         </repository>
     </repositories>
 
     <modules>
-        <module>imhotep-server</module>
-        <module>imhotep-client</module>
         <module>imhotep-archive</module>
+        <module>imhotep-filesystem</module>
+        <module>imhotep-controller</module>
+        <module>imhotep-client</module>
+        <module>imhotep-server</module>
     </modules>
 
     <properties>
+        <protobuf-java.version>3.0.0-beta-1</protobuf-java.version>
+
+        <!-- releases of our own projects to use -->
+        <!-- these should only be SNAPSHOTs when no release is available -->
+        <indeed-util.version>[1.0.16-SNAPSHOT,)</indeed-util.version>
     </properties>
 
 </project>

@@ -13,10 +13,10 @@
  */
 package com.indeed.imhotep.service;
 
+import com.google.common.base.Objects;
 import com.indeed.imhotep.io.Shard;
 
-import java.io.File;
-import java.io.IOException;
+import java.nio.file.Path;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -24,34 +24,72 @@ class ShardDir {
     private static final Pattern VERSION_PATTERN = Pattern.compile("^(.+)\\.(\\d{14})$");
 
     private final String name;
-    private final String indexDir;
+    private final Path indexDir;
     private final String id;
-    private final long   version;
+    private final long version;
 
-    ShardDir(File file) throws IOException {
+    ShardDir(final Path path) {
 
-        this.name     = file.getName();
-        this.indexDir = file.getCanonicalPath();
+        this.name = path.getFileName().toString();
+        this.indexDir = path;
 
         final Matcher matcher = VERSION_PATTERN.matcher(name);
         if (matcher.matches()) {
-            this.id      = matcher.group(1);
+            this.id = matcher.group(1);
             this.version = Long.parseLong(matcher.group(2));
-        }
-        else {
-            this.id      = name;
+        } else {
+            this.id = name;
             this.version = 0L;
         }
     }
 
-    ShardDir(String path) throws IOException { this(new File(path)); }
+    String getId() {
+        return id;
+    }
 
-    String       getId() { return id;       }
-    long    getVersion() { return version;  }
-    String     getName() { return name;     }
-    String getIndexDir() { return indexDir; }
+    long getVersion() {
+        return version;
+    }
 
-    boolean isNewerThan(Shard shard) {
-        return shard ==  null || getVersion() > shard.getShardVersion();
+    String getName() {
+        return name;
+    }
+
+    Path getIndexDir() {
+        return indexDir;
+    }
+
+    boolean isNewerThan(final Shard shard) {
+        return (shard == null) || (version > shard.getShardVersion());
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof ShardDir)) {
+            return false;
+        }
+        final ShardDir shardDir = (ShardDir) o;
+        return version == shardDir.version &&
+                Objects.equal(name, shardDir.name) &&
+                Objects.equal(indexDir, shardDir.indexDir) &&
+                Objects.equal(id, shardDir.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(name, indexDir, id, version);
+    }
+
+    @Override
+    public String toString() {
+        return "ShardDir{" +
+                "name='" + name + '\'' +
+                ", indexDir=" + indexDir +
+                ", id='" + id + '\'' +
+                ", version=" + version +
+                '}';
     }
 }

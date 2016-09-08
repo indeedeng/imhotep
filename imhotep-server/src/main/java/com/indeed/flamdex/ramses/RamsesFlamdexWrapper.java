@@ -24,14 +24,14 @@ import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.StringValueLookup;
 import com.indeed.flamdex.fieldcache.FieldCacherUtil;
-import com.indeed.imhotep.io.caching.CachedFile;
 import com.indeed.imhotep.metrics.Count;
 
 import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collection;
 
 /**
@@ -44,22 +44,22 @@ public class RamsesFlamdexWrapper implements FlamdexReader {
     private static final String SCALE_FACTOR_FILE = "scale.bin";
 
     private final FlamdexReader wrapped;
-    private final String directory;
+    private final Path directory;
 
     private final int scaleFactor;
 
     private final long memoryOverhead;
 
-    public RamsesFlamdexWrapper(FlamdexReader wrapped, String directory) throws IOException {
+    public RamsesFlamdexWrapper(FlamdexReader wrapped, Path directory) throws IOException {
         this.wrapped = wrapped;
         this.directory = directory;
 
-        final CachedFile tubFile = CachedFile.create(CachedFile.buildPath(directory, TIME_UPPER_BITS_FILE));
-        final CachedFile docIdFile = CachedFile.create(CachedFile.buildPath(directory, DOC_ID_BOUNDARIES_FILE));
-        final CachedFile tlbFile = CachedFile.create(CachedFile.buildPath(directory, TIME_LOWER_BITS_FILE));
-        memoryOverhead = tubFile.length() + docIdFile.length() + tlbFile.length();
+        final Path tubFile = directory.resolve(TIME_UPPER_BITS_FILE);
+        final Path docIdFile = directory.resolve(DOC_ID_BOUNDARIES_FILE);
+        final Path tlbFile = directory.resolve(TIME_LOWER_BITS_FILE);
+        memoryOverhead = Files.size(tubFile) + Files.size(docIdFile) + Files.size(tlbFile);
 
-        final File sfFile = CachedFile.create(CachedFile.buildPath(directory, SCALE_FACTOR_FILE)).loadFile();
+        final Path sfFile = directory.resolve(SCALE_FACTOR_FILE);
         final Integer rawScaleFactor = readObjectFromFile(sfFile, Integer.class);
         scaleFactor = rawScaleFactor != null ? rawScaleFactor : 1;
     }
@@ -80,7 +80,7 @@ public class RamsesFlamdexWrapper implements FlamdexReader {
     }
 
     @Override
-    public String getDirectory() {
+    public Path getDirectory() {
         return wrapped.getDirectory();
     }
 
@@ -140,31 +140,31 @@ public class RamsesFlamdexWrapper implements FlamdexReader {
 
     public StringValueLookup getStringLookup(final String field) throws FlamdexOutOfMemoryException {
         try {
-            return FieldCacherUtil.newStringValueLookup(field, this, directory);
+            return FieldCacherUtil.newStringValueLookup(field, this);
         } catch (IOException e) {
             throw Throwables.propagate(e);
         }
     }
 
     private IntValueLookup newTimeLookup() {
-        
-        try {
-            final File tubFile = CachedFile.create(CachedFile.buildPath(directory, TIME_UPPER_BITS_FILE)).loadFile();
-            final int[] timeUpperBits = readObjectFromFile(tubFile, int[].class);
-            final File docIdFile = CachedFile.create(CachedFile.buildPath(directory, DOC_ID_BOUNDARIES_FILE)).loadFile();
-            final int[] docIdBoundaries = readObjectFromFile(docIdFile, int[].class);
-            final File tlbFile = CachedFile.create(CachedFile.buildPath(directory, TIME_LOWER_BITS_FILE)).loadFile();
-            final byte[] timeLowerBits = readObjectFromFile(tlbFile, byte[].class);
-    
-            if (timeUpperBits == null || docIdBoundaries == null || timeLowerBits == null) {
-                throw new RuntimeException("unable to load ramses time metric from directory " + directory + ", missing one or more required files");
-            }
-        
-            return new RamsesTimeIntValueLookup(timeUpperBits, docIdBoundaries, timeLowerBits, memoryOverhead);
 
-        } catch(IOException e) {
-            throw new RuntimeException("unable to load ramses time metric from directory " + directory + ", missing one or more required files");
+        final Path tubFile = directory.resolve(TIME_UPPER_BITS_FILE);
+        final int[] timeUpperBits = readObjectFromFile(tubFile, int[].class);
+        final Path docIdFile = directory.resolve(DOC_ID_BOUNDARIES_FILE);
+        final int[] docIdBoundaries = readObjectFromFile(docIdFile, int[].class);
+        final Path tlbFile = directory.resolve(TIME_LOWER_BITS_FILE);
+        final byte[] timeLowerBits = readObjectFromFile(tlbFile, byte[].class);
+
+        if (timeUpperBits == null || docIdBoundaries == null || timeLowerBits == null) {
+            throw new RuntimeException(
+                    "unable to load ramses time metric from directory " + directory
+                            + ", missing one or more required files");
         }
+
+        return new RamsesTimeIntValueLookup(timeUpperBits,
+                                            docIdBoundaries,
+                                            timeLowerBits,
+                                            memoryOverhead);
     }
 
     @Override
@@ -182,36 +182,35 @@ public class RamsesFlamdexWrapper implements FlamdexReader {
         wrapped.close();
     }
 
-    public static boolean ramsesFilesExist(String dir) {
-        return CachedFile.create(CachedFile.buildPath(dir, TIME_UPPER_BITS_FILE)).exists() &&
-                CachedFile.create(CachedFile.buildPath(dir, DOC_ID_BOUNDARIES_FILE)).exists() &&
-                CachedFile.create(CachedFile.buildPath(dir, TIME_LOWER_BITS_FILE)).exists();
+    public static boolean ramsesFilesExist(Path dir) {
+        return  Files.exists(dir.resolve(TIME_UPPER_BITS_FILE)) &&
+                Files.exists(dir.resolve(DOC_ID_BOUNDARIES_FILE)) &&
+                Files.exists(dir.resolve(TIME_LOWER_BITS_FILE));
     }
     
     /**
      * Reads an object of type {@code T} from {@code file}.
      *
-     * @param file file from which the object should be read
+     * @param path Path from which the object should be read
      * @param clazz non-null Class object for {@code T}
-     * @param printException whether or not any stacktraces should be printed
      * @param <T> the return type
      * @return possibly null object of type {@code T}.
      */
-    private static <T> T readObjectFromFile(File file, Class<T> clazz) {
-        final FileInputStream fileIn;
+    private static <T> T readObjectFromFile(Path path, Class<T> clazz) {
+        final InputStream is;
         try {
-            fileIn = new FileInputStream(file);
+            is = Files.newInputStream(path);
         } catch (Exception e) {
             return null;
         }
 
-        final BufferedInputStream bufferedIn = new BufferedInputStream(fileIn);
+        final BufferedInputStream bufferedIn = new BufferedInputStream(is);
         final ObjectInputStream objIn;
         try {
             objIn = new ObjectInputStream(bufferedIn);
         } catch (Exception e) {
             try {
-                fileIn.close();
+                is.close();
             } catch (IOException e1) { }
             return null;
         }

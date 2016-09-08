@@ -13,14 +13,15 @@
  */
  package com.indeed.flamdex.simple;
 
+import com.indeed.flamdex.api.TermDocIterator;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
-import com.indeed.flamdex.api.TermDocIterator;
 import com.indeed.util.mmap.DirectMemory;
 import com.indeed.util.mmap.MMapBuffer;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
+import java.nio.file.Path;
 
 /**
  * @author jplaisance
@@ -51,7 +52,7 @@ public abstract class NativeTermDocIterator implements TermDocIterator {
 
     private boolean closed = false;
 
-    NativeTermDocIterator(String filename, MapCache mapCache) throws IOException {
+    NativeTermDocIterator(Path filename, MapCache mapCache) throws IOException {
         file = mapCache.copyOrOpen(filename);
         memory = file.get().memory();
     }

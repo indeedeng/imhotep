@@ -10,9 +10,9 @@ import com.indeed.imhotep.io.WriteLimitExceededException;
 import com.indeed.imhotep.service.FTGSOutputStreamWriter;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
-import gnu.trove.TIntObjectHashMap;
-import gnu.trove.TIntObjectProcedure;
-import gnu.trove.TObjectProcedure;
+import gnu.trove.map.hash.TIntObjectHashMap;
+import gnu.trove.procedure.TIntObjectProcedure;
+import gnu.trove.procedure.TObjectProcedure;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.log4j.Logger;
 

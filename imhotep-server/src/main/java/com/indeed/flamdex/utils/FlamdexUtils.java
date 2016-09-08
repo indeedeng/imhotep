@@ -36,12 +36,12 @@ import dk.brics.automaton.RegExp;
 import org.apache.log4j.Logger;
 
 import java.io.EOFException;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
+import java.nio.file.Path;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -89,11 +89,13 @@ public class FlamdexUtils {
         return cache;
     }
 
-    public static MMapBuffer cacheLongFieldToFile(UnsortedIntTermDocIterator iterator, int numDocs, File file) throws IOException {
+    public static MMapBuffer cacheLongFieldToFile(UnsortedIntTermDocIterator iterator,
+                                                  int numDocs,
+                                                  Path path) throws IOException {
         final int[] docIdBuf = new int[BUFFER_SIZE];
 
         final int length = numDocs * 8;
-        final MMapBuffer buffer = new MMapBuffer(file, 0L, length, FileChannel.MapMode.READ_WRITE, ByteOrder.LITTLE_ENDIAN);
+        final MMapBuffer buffer = new MMapBuffer(path, 0L, length, FileChannel.MapMode.READ_WRITE, ByteOrder.LITTLE_ENDIAN);
         final LongArray longArray = buffer.memory().longArray(0, numDocs);
         try {
             while (iterator.nextTerm()) {
@@ -138,11 +140,17 @@ public class FlamdexUtils {
         return cache;
     }
 
-    public static MMapBuffer cacheIntFieldToFile(UnsortedIntTermDocIterator iterator, int numDocs, File file) throws IOException {
+    public static MMapBuffer cacheIntFieldToFile(UnsortedIntTermDocIterator iterator,
+                                                 int numDocs,
+                                                 Path path) throws IOException {
         final int[] docIdBuf = new int[BUFFER_SIZE];
 
         final int length = numDocs * 4;
-        final MMapBuffer buffer = new MMapBuffer(file, 0L, length, FileChannel.MapMode.READ_WRITE, ByteOrder.LITTLE_ENDIAN);
+        final MMapBuffer buffer = new MMapBuffer(path,
+                                                 0L,
+                                                 length,
+                                                 FileChannel.MapMode.READ_WRITE,
+                                                 ByteOrder.LITTLE_ENDIAN);
         final IntArray intArray = buffer.memory().intArray(0, numDocs);
         try {
             while (iterator.nextTerm()) {
@@ -197,11 +205,13 @@ public class FlamdexUtils {
         return cache;
     }
 
-    public static MMapBuffer cacheCharFieldToFile(UnsortedIntTermDocIterator iterator, int numDocs, File file) throws IOException {
+    public static MMapBuffer cacheCharFieldToFile(UnsortedIntTermDocIterator iterator,
+                                                  int numDocs,
+                                                  Path path) throws IOException {
         final int[] docIdBuf = new int[BUFFER_SIZE];
 
         final int length = numDocs * 2;
-        final MMapBuffer buffer = new MMapBuffer(file, 0L, length, FileChannel.MapMode.READ_WRITE, ByteOrder.LITTLE_ENDIAN);
+        final MMapBuffer buffer = new MMapBuffer(path, 0L, length, FileChannel.MapMode.READ_WRITE, ByteOrder.LITTLE_ENDIAN);
         final CharArray charArray = buffer.memory().charArray(0, numDocs);
         try {
             while (iterator.nextTerm()) {
@@ -247,11 +257,13 @@ public class FlamdexUtils {
         return cache;
     }
 
-    public static MMapBuffer cacheShortFieldToFile(UnsortedIntTermDocIterator iterator, int numDocs, File file) throws IOException {
+    public static MMapBuffer cacheShortFieldToFile(UnsortedIntTermDocIterator iterator,
+                                                   int numDocs,
+                                                   Path path) throws IOException {
         final int[] docIdBuf = new int[BUFFER_SIZE];
 
         final int length = numDocs * 2;
-        final MMapBuffer buffer = new MMapBuffer(file, 0L, length, FileChannel.MapMode.READ_WRITE, ByteOrder.LITTLE_ENDIAN);
+        final MMapBuffer buffer = new MMapBuffer(path, 0L, length, FileChannel.MapMode.READ_WRITE, ByteOrder.LITTLE_ENDIAN);
         final ShortArray shortArray = buffer.memory().shortArray(0, numDocs);
         try {
             while (iterator.nextTerm()) {
@@ -306,10 +318,16 @@ public class FlamdexUtils {
         return cache;
     }
 
-    public static MMapBuffer cacheByteFieldToFile(UnsortedIntTermDocIterator iterator, int numDocs, File file) throws IOException {
+    public static MMapBuffer cacheByteFieldToFile(UnsortedIntTermDocIterator iterator,
+                                                  int numDocs,
+                                                  Path path) throws IOException {
         final int[] docIdBuf = new int[BUFFER_SIZE];
 
-        final MMapBuffer buffer = new MMapBuffer(file, 0L, numDocs, FileChannel.MapMode.READ_WRITE, ByteOrder.LITTLE_ENDIAN);
+        final MMapBuffer buffer = new MMapBuffer(path,
+                                                 0L,
+                                                 numDocs,
+                                                 FileChannel.MapMode.READ_WRITE,
+                                                 ByteOrder.LITTLE_ENDIAN);
         final ByteArray byteArray = buffer.memory().byteArray(0, numDocs);
         try {
             while (iterator.nextTerm()) {
@@ -365,10 +383,12 @@ public class FlamdexUtils {
         return cache;
     }
 
-    public static MMapFastBitSet cacheBitSetFieldToFile(UnsortedIntTermDocIterator iterator, int numDocs, File file) throws IOException {
+    public static MMapFastBitSet cacheBitSetFieldToFile(UnsortedIntTermDocIterator iterator,
+                                                        int numDocs,
+                                                        Path path) throws IOException {
         final int[] docIdBuf = new int[BUFFER_SIZE];
 
-        final MMapFastBitSet cache = new MMapFastBitSet(file, numDocs, FileChannel.MapMode.READ_WRITE);
+        final MMapFastBitSet cache = new MMapFastBitSet(path, numDocs, FileChannel.MapMode.READ_WRITE);
         try {
             while (iterator.nextTerm()) {
                 final long term = iterator.term();

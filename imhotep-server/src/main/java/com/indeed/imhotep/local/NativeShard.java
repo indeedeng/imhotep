@@ -15,11 +15,11 @@ package com.indeed.imhotep.local;
 
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
-import com.indeed.imhotep.io.caching.CachedFile;
 import it.unimi.dsi.fastutil.objects.Object2LongArrayMap;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 
 /**
@@ -45,25 +45,27 @@ class NativeShard implements AutoCloseable {
                        final long                packedTablePtr)
         throws IOException {
 
-        final String shardDir = getDirectory(reader);
+        final Path shardDir = getDirectory(reader);
 
-        final Map<String, Long> cached = new Object2LongArrayMap<String>();
+        final Map<Path, Long> cached = new Object2LongArrayMap<>();
         reader.getMapCache().getAddresses(cached);
 
         final String[] mappedFiles = new String[cached.size()];
         final long[]   mappedPtrs  = new long[cached.size()];
         int idx = 0;
-        for (Map.Entry<String, Long> entry: cached.entrySet()) {
-            mappedFiles[idx] = entry.getKey();
+        for (final Map.Entry<Path, Long> entry: cached.entrySet()) {
+            mappedFiles[idx] = entry.getKey().toFile().toString();
             mappedPtrs[idx]  = entry.getValue();
             ++idx;
         }
 
+        // here we take Path and get the string path to the locally cached shard files
+        // this is okay because the cached files are guaranteed to be present for the lifetime of the mapcache
         try {
-            shardPtr = nativeGetShard(shardDir, packedTablePtr, mappedFiles, mappedPtrs);
+            shardPtr = nativeGetShard(shardDir.toFile().toString(), packedTablePtr, mappedFiles, mappedPtrs);
         }
-        catch (Throwable th) {
-            throw new IOException("unable to create native shard for dir:" + shardDir, th);
+        catch (final Throwable e) {
+            throw new IOException("unable to create native shard for dir:" + shardDir, e);
         }
     }
 
@@ -79,11 +81,10 @@ class NativeShard implements AutoCloseable {
      * force cache population before we actually do anything with the
      * shard dir.
      */
-    private String getDirectory(final FlamdexReader reader)
+    private Path getDirectory(final FlamdexReader reader)
         throws IOException {
-        final CachedFile cachedFile = CachedFile.create(reader.getDirectory());
-        final File       cachedDir  = cachedFile.loadDirectory();
-        return cachedDir.getAbsolutePath();
+        Files.isDirectory(reader.getDirectory());
+        return reader.getDirectory();
     }
 
     private native static long nativeGetShard(final String   shardDir,

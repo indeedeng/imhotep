@@ -17,7 +17,6 @@ import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.StringTermIterator;
-import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 
@@ -82,21 +81,13 @@ class FlamdexSubsetFTGSIterator extends AbstractFlamdexFTGSIterator {
     @Override
     public final void close() {
         synchronized (session) {
-            if (docIdStream != null) {
-                Closeables2.closeQuietly(docIdStream, ImhotepLocalSession.log);
-            }
-            if (intTermIterator != null) {
-                Closeables2.closeQuietly(intTermIterator, ImhotepLocalSession.log);
-                intTermIterator = null;
-            }
-            if (stringTermIterator != null) {
-                Closeables2.closeQuietly(stringTermIterator, ImhotepLocalSession.log);
-                stringTermIterator = null;
-            }
-            if (flamdexReader != null) {
-                Closeables2.closeQuietly(flamdexReader, ImhotepLocalSession.log);
-                flamdexReader = null;
-            }
+            Closeables2.closeQuietly(docIdStream, ImhotepLocalSession.log);
+            Closeables2.closeQuietly(intTermIterator, ImhotepLocalSession.log);
+            intTermIterator = null;
+            Closeables2.closeQuietly(stringTermIterator, ImhotepLocalSession.log);
+            stringTermIterator = null;
+            Closeables2.closeQuietly(flamdexReader, ImhotepLocalSession.log);
+            flamdexReader = null;
         }
     }
 

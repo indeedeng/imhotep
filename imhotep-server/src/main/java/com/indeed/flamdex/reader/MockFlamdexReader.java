@@ -29,6 +29,8 @@ import com.indeed.flamdex.api.TermIterator;
 import com.indeed.flamdex.utils.FlamdexUtils;
 
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -47,7 +49,7 @@ public class MockFlamdexReader implements FlamdexReader {
     private final Collection<String> stringFields;
     private final Collection<String> metrics;
     private final int numDocs;
-    private String directory;
+    private Path directory;
 
     private final Map<String, SortedMap<Long, List<Integer>>> intTerms = new HashMap<String, SortedMap<Long, List<Integer>>>();
     private final Map<String, SortedMap<String, List<Integer>>> stringTerms = new HashMap<String, SortedMap<String, List<Integer>>>();
@@ -60,7 +62,7 @@ public class MockFlamdexReader implements FlamdexReader {
                              Collection<String> stringFields,
                              Collection<String> metrics,
                              int numDocs) {
-        this.directory = ".";
+        this.directory = Paths.get(".");
         this.intFields = intFields;
         this.stringFields = stringFields;
         this.metrics = metrics;
@@ -78,7 +80,7 @@ public class MockFlamdexReader implements FlamdexReader {
                              Collection<String> stringFields,
                              Collection<String> metrics,
                              int numDocs,
-                             String directory) {
+                             Path directory) {
         this(intFields, stringFields, metrics, numDocs);
         this.directory = directory;
     }
@@ -363,7 +365,7 @@ public class MockFlamdexReader implements FlamdexReader {
     }
     
     @Override
-    public String getDirectory() {
+    public Path getDirectory() {
         return directory;
     }
 

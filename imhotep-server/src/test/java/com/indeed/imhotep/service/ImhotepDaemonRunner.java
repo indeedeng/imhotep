@@ -18,32 +18,33 @@ import com.indeed.flamdex.reader.MockFlamdexReader;
 
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.nio.file.Path;
 import java.util.concurrent.TimeoutException;
 
 /**
  * @author jsgroth
  */
 public class ImhotepDaemonRunner {
-    private final String dir;
-    private final String tempDir;
+    private final Path dir;
+    private final Path tempDir;
     private final int port;
     private int actualPort;
     private final FlamdexReaderSource flamdexFactory;
 
     private ImhotepDaemon currentlyRunning;
 
-    public ImhotepDaemonRunner(final String dir, final String tempDir, final int port) throws IOException,
+    public ImhotepDaemonRunner(final Path dir, final Path tempDir, final int port) throws IOException,
                                                                                       TimeoutException {
         this(dir, tempDir, port, new FlamdexReaderSource() {
             @Override
-            public FlamdexReader openReader(String directory) throws IOException {
+            public FlamdexReader openReader(Path directory) throws IOException {
                 return new MockFlamdexReader();
             }
         });
     }
 
-    public ImhotepDaemonRunner(final String dir,
-                               String tempDir,
+    public ImhotepDaemonRunner(final Path dir,
+                               Path tempDir,
                                final int port,
                                final FlamdexReaderSource flamdexFactory) throws IOException,
                                                                         TimeoutException {

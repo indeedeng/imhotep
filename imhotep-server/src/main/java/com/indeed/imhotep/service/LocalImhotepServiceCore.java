@@ -13,16 +13,11 @@
  */
  package com.indeed.imhotep.service;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
-import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
-import com.indeed.util.core.Pair;
-import com.indeed.util.core.shell.PosixFileOperations;
-import com.indeed.util.core.io.Closeables2;
-import com.indeed.util.io.Files;
-import com.indeed.util.varexport.Export;
-import com.indeed.util.varexport.VarExporter;
 import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.imhotep.CachedMemoryReserver;
 import com.indeed.imhotep.DatasetInfo;
@@ -35,15 +30,24 @@ import com.indeed.imhotep.MetricKey;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
-import com.indeed.imhotep.local.ImhotepLocalSession;
 import com.indeed.imhotep.local.ImhotepJavaLocalSession;
+import com.indeed.imhotep.local.ImhotepLocalSession;
 import com.indeed.imhotep.local.ImhotepNativeLocalSession;
-
+import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
+import com.indeed.util.core.Pair;
+import com.indeed.util.core.io.Closeables2;
+import com.indeed.util.core.shell.PosixFileOperations;
+import com.indeed.util.varexport.Export;
+import com.indeed.util.varexport.VarExporter;
 import org.apache.log4j.Logger;
 
-import java.io.File;
+import javax.annotation.Nullable;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -70,9 +74,9 @@ public class LocalImhotepServiceCore
     private final ScheduledExecutorService shardReload;
     private final ScheduledExecutorService shardStoreSync;
     private final ScheduledExecutorService heartBeat;
-    private final String shardsDir;
-    private final String shardTempDir;
-    private final String shardStoreDir;
+    private final Path shardsDir;
+    private final Path shardTempDir;
+    private final Path shardStoreDir;
 
     private boolean cleanupShardStoreDir = false; // 'true' only in test codepaths
 
@@ -92,6 +96,8 @@ public class LocalImhotepServiceCore
     /**
      * @param shardsDir
      *            root directory from which to read shards
+     * @param shardTempDir
+     *            root directory for the daemon scratch area
      * @param shardStoreDir
      *            root directory of the [Shard|Dataset]Info cache (ShardStore).
      * @param memoryCapacity
@@ -106,9 +112,9 @@ public class LocalImhotepServiceCore
      * @throws IOException
      *             if something bad happens
      */
-    public LocalImhotepServiceCore(String shardsDir,
-                                   String shardTempDir,
-                                   String shardStoreDir,
+    public LocalImhotepServiceCore(@Nullable Path shardsDir,
+                                   @Nullable Path shardTempDir,
+                                   @Nullable Path shardStoreDir,
                                    long memoryCapacity,
                                    boolean useCache,
                                    FlamdexReaderSource flamdexReaderFactory,
@@ -119,12 +125,13 @@ public class LocalImhotepServiceCore
         this.shardUpdateListener = shardUpdateListener;
 
         /* check if the temp dir exists, try to create it if it does not */
-        final File tempDir = new File(shardTempDir);
-        if (tempDir.exists() && !tempDir.isDirectory()) {
+        Preconditions.checkNotNull(shardTempDir, "shardTempDir is invalid");
+
+        if (Files.exists(shardTempDir) && !Files.isDirectory(shardTempDir)) {
             throw new FileNotFoundException(shardTempDir + " is not a directory.");
         }
-        if (!tempDir.exists()) {
-            tempDir.mkdirs();
+        if (Files.notExists(shardTempDir)) {
+            Files.createDirectories(shardTempDir);
         }
         this.shardTempDir = shardTempDir;
 
@@ -138,40 +145,41 @@ public class LocalImhotepServiceCore
         }
 
         sessionManager = new LocalSessionManager();
-        /* allow temp dir to be null for testing */
-        if (shardTempDir != null) {
-            clearTempDir(shardTempDir);
-        }
+
+        clearTempDir(shardTempDir);
 
         this.shardStoreDir = shardStoreDir;
         this.shardStore    = loadOrCreateShardStore(shardStoreDir);
 
-        final String canonicalShardsDir = Files.getCanonicalPath(shardsDir);
-        if (canonicalShardsDir != null) {
-            final File localShardsPath = new File(canonicalShardsDir);
-            ShardMap newShardMap = shardStore != null ?
-                new ShardMap(shardStore, localShardsPath, memory, flamdexReaderFactory, freeCache) :
-                new ShardMap(memory, flamdexReaderFactory, freeCache);
+        if (shardsDir != null) {
+            final ShardDirIterator shardDirIterator = config.getShardDirIteratorFactory().get(shardsDir);
+
+            ShardMap newShardMap = (shardStore != null) ?
+                    new ShardMap(shardStore, shardsDir, memory, flamdexReaderFactory, freeCache) :
+                    new ShardMap(memory, flamdexReaderFactory, freeCache);
 
             /* An empty ShardMap suggests that ShardStore had not been
              * initialized, so fallback to a synchronous directory scan. */
-            if (newShardMap.size() == 0) {
+            if (newShardMap.isEmpty()) {
                 log.info("Could not load ShardMap from cache: " + shardStoreDir + ". " +
                          "Scanning shard path instead.");
-                newShardMap = new ShardMap(newShardMap, localShardsPath);
+                newShardMap = new ShardMap(newShardMap, shardDirIterator);
                 newShardMap.sync(shardStore);
                 setShardMap(newShardMap, ShardUpdateListenerIf.Source.FILESYSTEM);
-                log.info("Loaded ShardMap from filesystem: " + canonicalShardsDir);
+                log.info("Loaded ShardMap from filesystem: " + shardsDir);
             }
             else {
                 setShardMap(newShardMap, ShardUpdateListenerIf.Source.CACHE);
                 log.info("Loaded ShardMap from cache: " + shardStoreDir);
             }
+
+            this.shardReload =
+                    newFixedRateExecutor(new ShardReloader(shardDirIterator), config.getUpdateShardsFrequencySeconds());
+        } else {
+            this.shardReload = null;
         }
 
         /* TODO(johnf): consider pinning these threads... */
-        this.shardReload =
-            newFixedRateExecutor(new ShardReloader(), config.getUpdateShardsFrequencySeconds());
         this.shardStoreSync =
             newFixedRateExecutor(new ShardStoreSyncer(), config.getSyncShardStoreFrequencySeconds());
         this.heartBeat
@@ -180,27 +188,27 @@ public class LocalImhotepServiceCore
         VarExporter.forNamespace(getClass().getSimpleName()).includeInGlobal().export(this, "");
     }
 
-    public LocalImhotepServiceCore(String shardsDir,
-                                   String shardTempDir,
+    public LocalImhotepServiceCore(@Nullable Path shardsDir,
+                                   @Nullable Path shardTempDir,
                                    long memoryCapacity,
                                    boolean useCache,
                                    FlamdexReaderSource flamdexReaderFactory,
                                    LocalImhotepServiceConfig config,
                                    ShardUpdateListenerIf shardUpdateListener)
         throws IOException {
-        this(shardsDir, shardTempDir, System.getProperty("imhotep.shard.store"),
+        this(shardsDir, shardTempDir, Paths.get(System.getProperty("imhotep.shard.store")),
              memoryCapacity, useCache, flamdexReaderFactory, config, shardUpdateListener);
     }
 
-    /** Intended for tests that create their own LocalImhotepServiceCores. */
-    public LocalImhotepServiceCore(String shardsDir,
-                                   String shardTempDir,
+    @VisibleForTesting
+    public LocalImhotepServiceCore(@Nullable Path shardsDir,
+                                   @Nullable Path shardTempDir,
                                    long memoryCapacity,
                                    boolean useCache,
                                    FlamdexReaderSource flamdexReaderFactory,
                                    LocalImhotepServiceConfig config)
         throws IOException {
-        this(shardsDir, shardTempDir, Files.getTempDirectory("imhotep.shard.store", "delete.me"),
+        this(shardsDir, shardTempDir, Files.createTempDirectory("delete.me-imhotep.shard.store"),
              memoryCapacity, useCache, flamdexReaderFactory, config,
              new ShardUpdateListenerIf() {
                  public void onShardUpdate(final List<ShardInfo> shardList,
@@ -230,11 +238,16 @@ public class LocalImhotepServiceCore
     }
 
     private class ShardReloader implements Runnable {
+        private final ShardDirIterator shardDirIterator;
+
+        ShardReloader(final ShardDirIterator shardDirIterator) {
+            this.shardDirIterator = shardDirIterator;
+        }
+
         @Override
         public void run() {
             try {
-                final ShardMap newShardMap =
-                    new ShardMap(shardMap.get(), new File(shardsDir));
+                final ShardMap newShardMap = new ShardMap(shardMap.get(), shardDirIterator);
                 setShardMap(newShardMap, ShardUpdateListenerIf.Source.FILESYSTEM);
             }
             catch (IOException e) {
@@ -300,27 +313,26 @@ public class LocalImhotepServiceCore
         shardUpdateListener.onDatasetUpdate(this.datasetList.get(), source);
     }
 
-    private static ShardStore loadOrCreateShardStore(final String shardStoreDir) {
+    private static ShardStore loadOrCreateShardStore(@Nullable final Path shardStoreDir) {
 
         ShardStore result = null;
 
         if (shardStoreDir == null) {
             log.error("shardStoreDir is null; did you set imhotep.shard.store?");
-            return result;
+            return null;
         }
 
-        final File storeDir = new File(shardStoreDir);
         try {
-            result = new ShardStore(storeDir);
+            result = new ShardStore(shardStoreDir);
         }
-        catch (Exception ex1) {
+        catch (final Exception ex1) {
             log.error("unable to create/load ShardStore: " + shardStoreDir +
                       " will attempt to repair", ex1);
             try {
                 ShardStore.deleteExisting(shardStoreDir);
-                result = new ShardStore(storeDir);
+                result = new ShardStore(shardStoreDir);
             }
-            catch (Exception ex2) {
+            catch (final Exception ex2) {
                 log.error("failed to cleanup and recreate ShardStore: " + shardStoreDir +
                           " operator assistance is required", ex2);
             }
@@ -328,33 +340,36 @@ public class LocalImhotepServiceCore
         return result;
     }
 
-    private void clearTempDir(String directory) throws IOException {
-        final File tmpDir = new File(directory);
-
-        if (!tmpDir.exists()) {
+    private void clearTempDir(Path directory) throws IOException {
+        if (Files.notExists(directory)) {
             throw new IOException(directory + " does not exist.");
         }
-        if (!tmpDir.isDirectory()) {
+        if (!Files.isDirectory(directory)) {
             throw new IOException(directory + " is not a directory.");
         }
 
-        for (File f : tmpDir.listFiles()) {
-            if (f.isDirectory() && f.getName().endsWith(".optimization_log")) {
-                /* an optimized index */
-                PosixFileOperations.rmrf(f);
-            }
-            if (!f.isDirectory() && f.getName().startsWith(".tmp")) {
-                /* an optimization log */
-                f.delete();
-            }
-            if (!f.isDirectory() && f.getName().startsWith("ftgs") && f.getName().endsWith(".tmp")) {
-                /* created by AbstractImhotepMultisession::persist() */
-                f.delete();
-            }
-            if (!f.isDirectory() && f.getName().startsWith("native-split")) {
-                /* a temporary split file created by native code (see
-                 * shard.cpp, Shard::split_filename()) */
-                f.delete();
+        try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(directory)) {
+            for (final Path p : dirStream) {
+                final String baseName = p.getFileName().toString();
+                final boolean isDirectory = Files.isDirectory(p);
+
+                if (isDirectory && baseName.endsWith(".optimization_log")) {
+                    /* an optimized index */
+                    PosixFileOperations.rmrf(p);
+                }
+                if (!isDirectory && baseName.startsWith(".tmp")) {
+                    /* an optimization log */
+                    Files.delete(p);
+                }
+                if (!isDirectory && baseName.startsWith("ftgs") && baseName.endsWith(".tmp")) {
+                    /* created by AbstractImhotepMultisession::persist() */
+                    Files.delete(p);
+                }
+                if (!isDirectory && baseName.startsWith("native-split")) {
+                    /* a temporary split file created by native code (see
+                     * shard.cpp, Shard::split_filename()) */
+                    Files.delete(p);
+                }
             }
         }
     }
@@ -445,7 +460,7 @@ public class LocalImhotepServiceCore
                                                       new MemoryReservationContext(multiSessionMemoryContext),
                                                       tempFileSizeBytesLeft) :
                         new ImhotepJavaLocalSession(cachedFlamdexReaderReference,
-                                                    this.shardTempDir,
+                                                    this.shardTempDir.toString(),
                                                     new MemoryReservationContext(multiSessionMemoryContext),
                                                     tempFileSizeBytesLeft);
                     localSessions[i].addObserver(observer);
@@ -491,7 +506,10 @@ public class LocalImhotepServiceCore
     @Override
     public void close() {
         super.close();
-        shardReload.shutdown();
+        if (shardReload != null) {
+            // could be null if shardDir is missing
+            shardReload.shutdown();
+        }
         shardStoreSync.shutdown();
         heartBeat.shutdown();
         if (shardStore != null) {

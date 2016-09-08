@@ -1,5 +1,4 @@
-#ifndef MMAPPED_FILE_HPP
-#define MMAPPED_FILE_HPP
+#pragma once
 
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -48,17 +47,20 @@ namespace imhotep {
         }
 
         /** For files already opened in Javaland, we just record the size. */
-        OpenedFile(const std::string& filename, int fd=-1)
+        OpenedFile(const std::string& filename, size_t sz, int fd=-1)
             : _filename(filename)
             , _delete_on_close(false)
-            , _fd(fd)
-            , _size(0)  {
-            struct stat info;
-            if (stat(filename.c_str(), &info) != 0) {
-                throw imhotep_error("cannot stat file: " + filename +
-                                    " " + std::string(strerror(errno)));
+            , _fd(fd)  {
+            if (sz == 0) {
+                struct stat info;
+                if (stat(filename.c_str(), &info) != 0) {
+                    throw imhotep_error("cannot stat file: " + filename +
+                                        " " + std::string(strerror(errno)));
+                }
+                _size = info.st_size;
+            } else {
+                _size = sz;
             }
-            _size = info.st_size;
         }
 
         ~OpenedFile() {
@@ -76,6 +78,8 @@ namespace imhotep {
         int fd() const { return _fd; }
 
         size_t size() const { return _size; }
+
+        const std::string& filename() const { return _filename; }
 
     private:
         const std::string _filename;
@@ -101,8 +105,8 @@ namespace imhotep {
             }
         }
 
-        MMappedFile(const std::string& filename, void* address)
-            : OpenedFile(filename, -1)
+        MMappedFile(void* const address, const size_t length, const std::string& filename)
+            : OpenedFile(filename, length, -1)
             , _address(address)
         { }
 
@@ -122,10 +126,8 @@ namespace imhotep {
         const char* end() const { return begin() + size(); }
 
     private:
-        void* _address        = 0;
+        void* const _address  = 0;
         bool  _unmap_on_close = false;
     };
 
 } // namespace imhotep
-
-#endif

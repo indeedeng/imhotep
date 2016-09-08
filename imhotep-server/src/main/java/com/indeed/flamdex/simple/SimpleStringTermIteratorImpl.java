@@ -14,21 +14,19 @@
  package com.indeed.flamdex.simple;
 
 import com.google.common.base.Charsets;
-import com.indeed.util.core.reference.SharedReference;
-import com.indeed.util.serialization.StringSerializer;
-import com.indeed.imhotep.io.caching.CachedFile;
 import com.indeed.lsmtree.core.Generation;
 import com.indeed.lsmtree.core.ImmutableBTreeIndex;
+import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.mmap.DirectMemory;
 import com.indeed.util.mmap.MMapBuffer;
-
+import com.indeed.util.serialization.StringSerializer;
 import org.apache.log4j.Logger;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CharsetDecoder;
+import java.nio.file.Path;
 import java.util.Arrays;
 
 /**
@@ -47,9 +45,9 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
     private long bufferOffset;
     private int bufferPtr;
 
-    private final String docListFilename;
+    private final Path docListPath;
     private ImmutableBTreeIndex.Reader<String, LongPair> index;
-    private final File indexFile;
+    private final Path indexPath;
 
     private final CharsetDecoder decoder = Charsets.UTF_8.newDecoder();
 
@@ -69,18 +67,13 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
     private boolean bufferNext = false;
     private boolean closed = false;
 
-    SimpleStringTermIteratorImpl(MapCache mapCache, String filename, String docListFilename, String indexFilename) throws IOException {
+    SimpleStringTermIteratorImpl(MapCache mapCache, Path filename, Path docListPath, Path indexPath) throws IOException {
         this.mapCache = mapCache;
 
         buffer = new byte[BUFFER_SIZE];
 
-        this.docListFilename = docListFilename;
-        final CachedFile cf = CachedFile.create(indexFilename);
-        if (cf.exists()) {
-            indexFile = cf.loadDirectory();
-        } else {
-            indexFile = null;
-        }
+        this.docListPath = docListPath;
+        this.indexPath = indexPath;
 
         file = mapCache.copyOrOpen(filename);
         memory = file.get().memory();
@@ -101,10 +94,9 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
     }
 
     private void internalReset(String term) throws IOException {
-        if (indexFile != null) {
+        if (indexPath != null) {
             if (index == null) {
-                index = new ImmutableBTreeIndex.Reader<String,LongPair>(
-                    indexFile,
+                index = new ImmutableBTreeIndex.Reader<String,LongPair>(indexPath,
                     new StringSerializer(),
                     new LongPairSerializer(),
                     false
@@ -244,8 +236,8 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
     }
 
     @Override
-    public String getFilename() {
-        return docListFilename;
+    public Path getFilename() {
+        return docListPath;
     }
 
     @Override
@@ -257,7 +249,7 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
     public long getDocListAddress()
         throws IOException {
         if (docListFile == null) {
-            docListFile = mapCache.copyOrOpen(docListFilename);
+            docListFile = mapCache.copyOrOpen(docListPath);
             docListAddress = docListFile.get().memory().getAddress();
         }
         return this.docListAddress;

@@ -21,10 +21,14 @@ import com.indeed.imhotep.archive.compression.SquallArchiveCompressor;
 public class FileMetadata {
     private String filename;
     private final long size;
+    private long compressedSize = -1;
     private final long timestamp;
     private final String checksum;
+    private final long checksumHi;
+    private final long checksumLow;
     private final long startOffset;
     private final SquallArchiveCompressor compressor;
+    private final boolean isFile;
     private String archiveFilename;
 
     public FileMetadata(String filename,
@@ -38,9 +42,69 @@ public class FileMetadata {
         this.size = size;
         this.timestamp = timestamp;
         this.checksum = checksum;
+        this.checksumHi = parseUnsignedLongHex(checksum.substring(0,16));
+        this.checksumLow = parseUnsignedLongHex(checksum.substring(16));
         this.startOffset = startOffset;
         this.compressor = compressor;
         this.archiveFilename = archiveFilename;
+        this.isFile = true;
+    }
+
+    private static long parseUnsignedLongHex(String numStr) {
+        final long mostSigBits;
+        final long leastSigBits;
+        final int len;
+
+        if (numStr.length() > 8) {
+            // parse high order bits
+            len = numStr.length() - 8;
+            mostSigBits = Long.parseLong(numStr.substring(0, len), 16);
+        } else {
+            len = 0;
+            mostSigBits = 0;
+        }
+        leastSigBits = Long.parseLong(numStr.substring(len), 16);
+        return (mostSigBits << 32) | leastSigBits;
+    }
+
+    public FileMetadata(String filename,
+                        long unpackedSize,
+                        long packedSize,
+                        long timestamp,
+                        long sigHi,
+                        long sigLow,
+                        long archiveOffset,
+                        SquallArchiveCompressor compressor,
+                        String archiveFilename,
+                        boolean isFile) {
+        this.filename = filename;
+        this.size = unpackedSize;
+        this.timestamp = timestamp;
+        this.checksum = String.format("%016x%016x", sigHi, sigLow);
+        this.checksumHi = sigHi;
+        this.checksumLow = sigLow;
+        this.startOffset = archiveOffset;
+        this.compressor = compressor;
+        this.archiveFilename = archiveFilename;
+        this.compressedSize = packedSize;
+        this.isFile = isFile;
+    }
+
+    public FileMetadata(String dirName, boolean isFile) {
+        if (isFile) {
+            throw new IllegalArgumentException("This constructor is only for directories.");
+        }
+        this.isFile = false;
+        this.filename = dirName;
+        this.size = -1;
+        this.timestamp = -1;
+        this.checksum = null;
+        this.checksumHi = -1;
+        this.checksumLow = -1;
+        this.startOffset = -1;
+        this.compressor = SquallArchiveCompressor.NONE;
+        this.archiveFilename = null;
+        this.compressedSize = -1;
     }
 
     public String getFilename() {
@@ -57,6 +121,14 @@ public class FileMetadata {
 
     public String getChecksum() {
         return checksum;
+    }
+
+    public long getChecksumHi() {
+        return checksumHi;
+    }
+
+    public long getChecksumLow() {
+        return checksumLow;
     }
 
     public long getStartOffset() {
@@ -121,5 +193,17 @@ public class FileMetadata {
 
     public void setArchiveFilename(String str) {
         this.archiveFilename = str;
+    }
+
+    public long getCompressedSize() {
+        return compressedSize;
+    }
+
+    public void setCompressedSize(long compressedSize) {
+        this.compressedSize = compressedSize;
+    }
+
+    public boolean isFile() {
+        return isFile;
     }
 }

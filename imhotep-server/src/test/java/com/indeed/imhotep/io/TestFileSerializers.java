@@ -63,8 +63,8 @@ public class TestFileSerializers extends TestCase {
     private <T> T runASerializer(FileSerializer<T> serializer, T t) throws IOException {
         File tmp = File.createTempFile("temp", ".bin");
         try {
-            serializer.serialize(t, tmp);
-            return serializer.deserialize(tmp);
+            serializer.serialize(t, tmp.toPath());
+            return serializer.deserialize(tmp.toPath());
         } finally {
             tmp.delete();
         }

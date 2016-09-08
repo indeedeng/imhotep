@@ -18,10 +18,8 @@ import com.google.common.collect.Collections2;
 import com.google.common.collect.Lists;
 import com.indeed.imhotep.protobuf.DatasetInfoMessage;
 import com.indeed.imhotep.protobuf.ShardInfoMessage;
-import it.unimi.dsi.fastutil.objects.ObjectRBTreeSet;
 
 import java.util.Collection;
-import java.util.Collections;
 
 /**
  * @author jsgroth

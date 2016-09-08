@@ -13,8 +13,6 @@
  */
  package com.indeed.imhotep.service;
 
-import com.indeed.util.core.io.Closeables2;
-import com.indeed.util.core.reference.SharedReference;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
@@ -25,9 +23,11 @@ import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.StringValueLookup;
 import com.indeed.imhotep.ImhotepStatusDump;
-
+import com.indeed.util.core.io.Closeables2;
+import com.indeed.util.core.reference.SharedReference;
 import org.apache.log4j.Logger;
 
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -67,7 +67,7 @@ public class CachedFlamdexReaderReference implements FlamdexReader, MetricCache 
     }
     
     @Override
-    public String getDirectory() {
+    public Path getDirectory() {
         return reader.getDirectory();
     }
 

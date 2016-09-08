@@ -23,6 +23,7 @@ extern "C" {
 #include "metrics_inverter.h"
 #include "local_session.h"
 #include "test_patch.h"
+#include "table.h"
 }
 #include "test_utils.h"
 #include "varintdecode.h"
@@ -92,6 +93,9 @@ class IntFieldView {
     long _min_doc_id = numeric_limits<long>::max();
     long _max_doc_id = numeric_limits<long>::min();
 
+    long _min_offset = numeric_limits<long>::max();
+    long _max_offset = numeric_limits<long>::min();
+
     long _max_term_doc_freq = 0;
 
     size_t _n_terms = 0;
@@ -149,6 +153,8 @@ public:
             const long doc_freq(get<2>(next));
             _min = std::min(term, _min);
             _max = std::max(term, _max);
+            _min_offset = std::min(offset, _min_offset);
+            _max_offset = std::max(offset, _max_offset);
             _max_term_doc_freq = std::max(doc_freq, _max_term_doc_freq);
 
             VarIntView doc_ids_view(_docs.begin() + offset, _docs.end());
@@ -166,6 +172,9 @@ public:
 
     long min_doc_id() const { return _min_doc_id; }
     long max_doc_id() const { return _max_doc_id; }
+
+    long min_offset() const { return _min_offset; }
+    long max_offset() const { return _max_offset; }
 
     long max_term_doc_freq() const { return _max_term_doc_freq; }
 
@@ -282,6 +291,7 @@ void rrrandom_regroup(packed_table_t* table, int num_docs, int num_grps) {
 	}
 }
 
+
 int main(int argc, char* argv[])
 {
     simdvbyteinit();
@@ -293,125 +303,15 @@ int main(int argc, char* argv[])
     string shard_dir(argv[1]);
     vector<string> fields;
     string ftgs_field = argv[2];
-    for (int i_argv(3); i_argv < argc; ++i_argv) { fields.push_back(argv[i_argv]); }
+    for (int i_argv(2); i_argv < argc; ++i_argv) { fields.push_back(argv[i_argv]); }
 
-    IntFieldView ftgs_field_view(shard_dir, ftgs_field);
     vector<shared_ptr<IntFieldView>> field_views;
     for (auto field: fields) {
-        field_views.push_back(make_shared<IntFieldView>(shard_dir, field));
+        IntFieldView view(shard_dir, field);
+        std::cout << view.name() << ':' << std::endl;
+        std::cout << "\tmin term: " << view.min() << "    max term: " << view.max() << std::endl;
+        std::cout << "\tmin doc id: " << view.min_doc_id() << "    max doc id: " << view.max_doc_id() << std::endl;
+        std::cout << "\tmin offset: " << view.min_offset() << "    max offset: " << view.max_offset() << std::endl;
     }
 
-    size_t n_cols(fields.size());
-    int n_rows(0);
-    vector<int64_t> col_mins(n_cols), col_maxes(n_cols);
-    for (size_t col(0); col < n_cols; ++col) {
-        IntFieldView& field_view(*field_views[col]);
-        col_mins[col]  = field_view.min();
-        col_maxes[col] = field_view.max();
-        n_rows         = std::max(n_rows, field_view.n_rows());
-    }
-
-    cerr << "Num rows: " << n_rows << endl;
-
-    TableMetadata metadata(n_cols, col_mins.data(), col_maxes.data());
-    packed_table_t* table(packed_table_create(n_rows,
-                                              col_mins.data(), col_maxes.data(),
-                                              metadata.sizes, metadata.vec_nums, metadata.offsets_in_vecs,
-                                              vector<int8_t>(n_cols, 0).data(), n_cols));
-    for (size_t col(0); col < n_cols; ++col) {
-        field_views[col]->pack(table, col, col == 0);
-    }
-    rrrandom_regroup(table, n_rows, 40000);
-
-
-    // cout << field_views;
-
-    array <int, 1> socket_file_desc{{-1}};
-    struct worker_desc  worker;
-    worker_init(&worker, 1, 40000, n_cols, socket_file_desc.data(), 1);
-
-    packed_table_t* shards[] = { table };
-    struct session_desc session;
-    session_init(&session, 40000, n_cols, shards, 1);
-
-    array <int, 1> shard_handles;
-    shard_handles[0] = register_shard(&session, table);
-
-    for (int i = 0; i < 4; i++) {
-        IntFieldView::TermIterator it(ftgs_field_view.term_iterator());
-        while (it.has_next()) {
-            IntFieldView::TermIterator::Tuple next(it.next());
-            const long offset(get<1>(next));
-            const long doc_freq(get<2>(next));
-            array<long, 1> addresses{{(long) ftgs_field_view.doc_id_stream(offset)}};
-            array<int, 1> docs_in_term{{(int) doc_freq}};
-
-            run_tgs_pass(&worker,
-                         &session,
-                         TERM_TYPE_INT, 1,
-                         NULL, 0,
-                         addresses.data(),
-                         docs_in_term.data(),
-                         1, 0);
-        }
-    }
-
-    constexpr size_t n_iterations = 20;
-    constexpr size_t NANOS_PER_SEC = 1000000000;
-    accumulator_set<double, stats<tag::mean, tag::variance > > acc;
-
-    for (size_t i = 0; i < n_iterations; i++) {
-        struct timespec start;
-        clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-
-        IntFieldView::TermIterator it(ftgs_field_view.term_iterator());
-        while (it.has_next()) {
-            IntFieldView::TermIterator::Tuple next(it.next());
-            const long term(get<0>(next));
-            const long offset(get<1>(next));
-            const long doc_freq(get<2>(next));
-            array<long, 1> addresses{{(long) ftgs_field_view.doc_id_stream(offset)}};
-            array<int, 1> docs_in_term{{(int) doc_freq}};
-
-            run_tgs_pass(&worker,
-                         &session,
-                         TERM_TYPE_INT,
-                         term,
-                         NULL, 0,
-                         addresses.data(),
-                         docs_in_term.data(),
-                         1, 0);
-        }
-
-        struct timespec end;
-        clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-
-        end.tv_sec -= start.tv_sec;
-        end.tv_nsec -= start.tv_nsec;
-        if (end.tv_nsec < 0) {
-            end.tv_sec--;
-            end.tv_nsec += NANOS_PER_SEC;
-        }
-        if (size_t(end.tv_nsec) >= NANOS_PER_SEC) {
-            end.tv_sec++;
-            end.tv_nsec -= NANOS_PER_SEC;
-        }
-
-        const double elapsed((end.tv_sec * NANOS_PER_SEC + end.tv_nsec) / double(NANOS_PER_SEC));
-        acc(elapsed);
-
-        // cout << "Seconds: " << end.tv_sec << endl;
-        // cout << "Nanoseconds: " << end.tv_nsec << endl;
-    }
-    cout << "iterations: " << n_iterations;
-    cout << " mean: " << mean(acc);
-    cout << " stddev: " << sqrt(variance(acc)) << endl;
-
-    session_destroy(&session);
-
-    worker_destroy(&worker);
-
-    // cout << endl << worker.grp_stats << endl;
-
-    packed_table_destroy(table);
 }

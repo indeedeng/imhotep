@@ -29,6 +29,7 @@ import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIterator;
 import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIteratorImpl;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Map;
 
 /**
@@ -39,8 +40,8 @@ import java.util.Map;
  * at the moment of this comment's writing, {@link FlamdexReader#getMetric} and {@link FlamdexReader#memoryRequired} are implemented here
  */
 public abstract class AbstractFlamdexReader implements FlamdexReader {
-    protected final String directory;
-    protected final int numDocs;
+    protected final Path directory;
+    protected int numDocs;
     protected final boolean useMMapMetrics;
 
     public static final class MinMax {
@@ -51,11 +52,11 @@ public abstract class AbstractFlamdexReader implements FlamdexReader {
     private final Map<String, FieldCacher> intFieldCachers;
     protected final Map<String, MinMax> metricMinMaxes;
 
-    protected AbstractFlamdexReader(String directory, int numDocs) {
-        this(directory, numDocs, System.getProperty("flamdex.mmap.fieldcache") != null);
+    protected AbstractFlamdexReader(Path directory) {
+        this(directory, 0, System.getProperty("flamdex.mmap.fieldcache") != null);
     }
 
-    protected AbstractFlamdexReader(String directory, int numDocs, boolean useMMapMetrics) {
+    protected AbstractFlamdexReader(Path directory, int numDocs, boolean useMMapMetrics) {
         this.directory = directory;
         this.numDocs = numDocs;
         this.useMMapMetrics = useMMapMetrics;
@@ -83,17 +84,24 @@ public abstract class AbstractFlamdexReader implements FlamdexReader {
 
     public StringValueLookup getStringLookup(final String field) throws FlamdexOutOfMemoryException {
         try {
-            return FieldCacherUtil.newStringValueLookup(field, this, directory);
+            return FieldCacherUtil.newStringValueLookup(field, this);
         } catch (IOException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    private IntValueLookup cacheField(UnsortedIntTermDocIterator iterator, String metric, FieldCacher fieldCacher) {
+    private IntValueLookup cacheField(UnsortedIntTermDocIterator iterator,
+                                      String metric,
+                                      FieldCacher fieldCacher) {
         final MinMax minMax = metricMinMaxes.get(metric);
         if (useMMapMetrics) {
             try {
-                return fieldCacher.newMMapFieldCache(iterator, numDocs, metric, directory, minMax.min, minMax.max);
+                return fieldCacher.newMMapFieldCache(iterator,
+                                                     numDocs,
+                                                     metric,
+                                                     directory,
+                                                     minMax.min,
+                                                     minMax.max);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -130,6 +138,10 @@ public abstract class AbstractFlamdexReader implements FlamdexReader {
     public StringTermDocIterator getStringTermDocIterator(final String field) {
         return new GenericStringTermDocIterator(getStringTermIterator(field), getDocIdStream());
     }
+
+    protected void setNumDocs(int nDocs) {
+        this.numDocs = nDocs;
+    }
     
     @Override
     public int getNumDocs() {
@@ -137,7 +149,7 @@ public abstract class AbstractFlamdexReader implements FlamdexReader {
     }
 
     @Override
-    public String getDirectory() {
+    public Path getDirectory() {
         return directory;
     }
 
