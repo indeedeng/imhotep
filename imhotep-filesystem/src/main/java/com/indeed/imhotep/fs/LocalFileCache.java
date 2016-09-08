@@ -176,7 +176,6 @@ class LocalFileCache {
             }
             throw e;
         }
-        Preconditions.checkState(Files.exists(fileCacheEntry.cachePath), fileCacheEntry.cachePath + " does not exist");
         return fileCacheEntry.cachePath;
     }
 
