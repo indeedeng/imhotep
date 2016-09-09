@@ -11,6 +11,7 @@ import com.indeed.imhotep.fs.RemoteCachingFileSystemTestContext;
 import com.indeed.imhotep.fs.RemoteCachingPath;
 import com.indeed.imhotep.shardmanager.db.shardinfo.Tables;
 import com.indeed.imhotep.shardmanager.model.ShardAssignmentInfo;
+import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Ignore;
@@ -99,7 +100,7 @@ public class DatasetShardAssignmentRefresherTest {
 
         final RemoteCachingPath dataSetsDir = (RemoteCachingPath) Paths.get(RemoteCachingFileSystemProvider.URI);
 
-        final ShardAssignmentInfoDao shardAssignmentInfoDao = new ShardAssignmentInfoDao(dbDataFixture.getDataSource());
+        final ShardAssignmentInfoDao shardAssignmentInfoDao = new ShardAssignmentInfoDao(dbDataFixture.getDataSource(), Duration.standardMinutes(30));
         final DataSetScanWork.Result results = new DatasetShardAssignmentRefresher(
                 dataSetsDir,
                 ShardFilter.ACCEPT_ALL,
@@ -153,7 +154,7 @@ public class DatasetShardAssignmentRefresherTest {
 
         RemoteCachingFileSystemProvider.newFileSystem(fsProp);
 
-        final ShardAssignmentInfoDao shardAssignmentInfoDao = new ShardAssignmentInfoDao(dbDataFixture.getDataSource());
+        final ShardAssignmentInfoDao shardAssignmentInfoDao = new ShardAssignmentInfoDao(dbDataFixture.getDataSource(), Duration.standardMinutes(30));
         final DataSetScanWork.Result results = new DatasetShardAssignmentRefresher(
                 (RemoteCachingPath) Paths.get(RemoteCachingFileSystemProvider.URI),
                 ShardFilter.ACCEPT_ALL,

@@ -7,7 +7,6 @@ option java_multiple_files = true;
 message AssignedShard {
   required string dataset = 1;
   required string shard_id = 2;
-  required uint64 version = 3;
 }
 
 message ShardManagerResponse {

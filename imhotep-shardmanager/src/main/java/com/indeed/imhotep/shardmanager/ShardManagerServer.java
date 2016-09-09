@@ -26,7 +26,6 @@ public class ShardManagerServer implements ShardManager {
                         return AssignedShard.newBuilder()
                                 .setDataset(shard.getDataset())
                                 .setShardId(shard.getShardId())
-                                .setVersion(shard.getVersion())
                                 .build();
                     }
                 });

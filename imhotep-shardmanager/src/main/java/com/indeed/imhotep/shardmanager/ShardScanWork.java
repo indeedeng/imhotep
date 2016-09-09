@@ -6,6 +6,7 @@ import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.client.HostsReloader;
 import com.indeed.imhotep.fs.RemoteCachingPath;
 import org.apache.log4j.Logger;
+import org.joda.time.DateTime;
 
 import java.util.Collections;
 import java.util.List;
@@ -46,7 +47,8 @@ class ShardScanWork implements Callable<ShardScanWork.Result> {
 
             LOGGER.info("Assigning shards in " + dataset + " for " + hosts.size() + " hosts");
             final List<ShardDir> shards = Lists.newArrayList(new ShardScanner(datasetDir, shardFilter));
-            assignmentInfoDao.updateAssignments(dataset, shardAssigner.assign(
+
+            assignmentInfoDao.updateAssignments(dataset, DateTime.now(), shardAssigner.assign(
                     hosts,
                     dataset,
                     shards

@@ -8,11 +8,15 @@ import com.indeed.imhotep.shardmanager.db.shardinfo.tables.Tblshardassignmentinf
 import com.indeed.imhotep.shardmanager.db.shardinfo.tables.records.TblshardassignmentinfoRecord;
 import com.indeed.imhotep.shardmanager.model.ShardAssignmentInfo;
 import com.zaxxer.hikari.HikariDataSource;
+import org.joda.time.DateTime;
+import org.joda.time.Duration;
 import org.jooq.BatchBindStep;
 import org.jooq.Configuration;
 import org.jooq.DSLContext;
 import org.jooq.TransactionalRunnable;
 import org.jooq.impl.DSL;
+
+import java.sql.Timestamp;
 
 /**
  * @author kenh
@@ -22,16 +26,17 @@ public class ShardAssignmentInfoDao {
     private static final Tblshardassignmentinfo TABLE = Tables.TBLSHARDASSIGNMENTINFO;
     private static final int BATCH_SIZE = 1000;
     private final DSLContext dslContext;
+    private final Duration stalenessThreshold;
 
-    public ShardAssignmentInfoDao(final HikariDataSource dataSource) {
+    public ShardAssignmentInfoDao(final HikariDataSource dataSource, final Duration stalenessThreshold) {
         dslContext = new DSLContextContainer(dataSource).getDSLContext();
+        this.stalenessThreshold = stalenessThreshold;
     }
 
     private static ShardAssignmentInfo fromRecord(final TblshardassignmentinfoRecord record) {
         return new ShardAssignmentInfo(
                 record.getDataset(),
-                record.getId(),
-                record.getVersion(),
+                record.getShardId(),
                 record.getAssignedNode()
         );
     }
@@ -44,27 +49,31 @@ public class ShardAssignmentInfoDao {
             public ShardAssignmentInfo apply(final TblshardassignmentinfoRecord record) {
                 return fromRecord(record);
             }
-        });
+        }).toSet();
     }
 
     private static BatchBindStep createInsertBatch(final DSLContext dslContext) {
         return dslContext.batch(
                 dslContext.insertInto(TABLE,
                         TABLE.DATASET,
-                        TABLE.ID,
+                        TABLE.SHARD_ID,
                         TABLE.ASSIGNED_NODE,
-                        TABLE.VERSION)
+                        TABLE.TIMESTAMP
+                )
                         .values((String) null, null, null, null)
         );
     }
 
-    public void updateAssignments(final String dataset, final Iterable<ShardAssignmentInfo> assignmentInfos) {
+    public void updateAssignments(final String dataset, final DateTime timestamp, final Iterable<ShardAssignmentInfo> assignmentInfos) {
         dslContext.transaction(new TransactionalRunnable() {
             @Override
             public void run(final Configuration configuration) throws Exception {
                 final DSLContext txnDslContext = DSL.using(configuration);
 
-                txnDslContext.deleteFrom(TABLE).where(TABLE.DATASET.eq(dataset)).execute();
+                txnDslContext.deleteFrom(TABLE)
+                        .where(TABLE.DATASET.eq(dataset)
+                                .and(TABLE.TIMESTAMP.le(new Timestamp(timestamp.minus(stalenessThreshold).getMillis()))))
+                        .execute();
 
                 BatchBindStep insertBatch = createInsertBatch(txnDslContext);
                 for (final ShardAssignmentInfo assignmentInfo : assignmentInfos) {
@@ -72,7 +81,7 @@ public class ShardAssignmentInfoDao {
                             assignmentInfo.getDataset(),
                             assignmentInfo.getShardId(),
                             assignmentInfo.getAssignedNode(),
-                            assignmentInfo.getVersion()
+                            timestamp.getMillis()
                     );
 
                     if (insertBatch.size() > BATCH_SIZE) {

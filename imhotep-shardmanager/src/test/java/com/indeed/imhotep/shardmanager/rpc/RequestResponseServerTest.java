@@ -8,6 +8,9 @@ import com.indeed.imhotep.shardmanager.ShardManagerServer;
 import com.indeed.imhotep.shardmanager.db.shardinfo.Tables;
 import com.indeed.imhotep.shardmanager.model.ShardAssignmentInfo;
 import com.indeed.imhotep.shardmanager.protobuf.AssignedShard;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -27,30 +30,32 @@ public class RequestResponseServerTest {
     @Rule
     public final DbDataFixture dbDataFixture = new DbDataFixture(Collections.singletonList(Tables.TBLSHARDASSIGNMENTINFO));
     private ShardAssignmentInfoDao assignmentInfoDao;
+    private static final DateTime NOW = DateTime.now(DateTimeZone.forOffsetHours(-6));
+    private static final DateTime LATER = NOW.plusHours(1);
 
     @Before
     public void setUp() {
-        assignmentInfoDao = new ShardAssignmentInfoDao(dbDataFixture.getDataSource());
+        assignmentInfoDao = new ShardAssignmentInfoDao(dbDataFixture.getDataSource(), Duration.standardHours(1));
     }
 
     @Test
     public void testRequestResponse() throws IOException {
-        assignmentInfoDao.updateAssignments("dataset1", Arrays.asList(
-                new ShardAssignmentInfo("dataset1", "shard1", 1, "A"),
-                new ShardAssignmentInfo("dataset1", "shard2", 2, "B"),
-                new ShardAssignmentInfo("dataset1", "shard3", 1, "C")
+        assignmentInfoDao.updateAssignments("dataset1", NOW, Arrays.asList(
+                new ShardAssignmentInfo("dataset1", "shard1", "A"),
+                new ShardAssignmentInfo("dataset1", "shard2", "B"),
+                new ShardAssignmentInfo("dataset1", "shard3", "C")
         ));
 
-        assignmentInfoDao.updateAssignments("dataset2", Arrays.asList(
-                new ShardAssignmentInfo("dataset2", "shard1", 2, "A"),
-                new ShardAssignmentInfo("dataset2", "shard2", 3, "B"),
-                new ShardAssignmentInfo("dataset2", "shard3", 4, "C")
+        assignmentInfoDao.updateAssignments("dataset2", NOW, Arrays.asList(
+                new ShardAssignmentInfo("dataset2", "shard1", "A"),
+                new ShardAssignmentInfo("dataset2", "shard2", "B"),
+                new ShardAssignmentInfo("dataset2", "shard3", "C")
         ));
 
-        assignmentInfoDao.updateAssignments("dataset3", Arrays.asList(
-                new ShardAssignmentInfo("dataset3", "shard1", 5, "B"),
-                new ShardAssignmentInfo("dataset3", "shard2", 5, "C"),
-                new ShardAssignmentInfo("dataset3", "shard3", 6, "B")
+        assignmentInfoDao.updateAssignments("dataset3", NOW, Arrays.asList(
+                new ShardAssignmentInfo("dataset3", "shard1", "B"),
+                new ShardAssignmentInfo("dataset3", "shard2", "C"),
+                new ShardAssignmentInfo("dataset3", "shard3", "B")
         ));
 
         final ShardManagerServer shardManagerServer = new ShardManagerServer(assignmentInfoDao);
@@ -72,27 +77,27 @@ public class RequestResponseServerTest {
 
             Assert.assertEquals(
                     Sets.newHashSet(
-                            AssignedShard.newBuilder().setDataset("dataset1").setShardId("shard1").setVersion(1).build(),
-                            AssignedShard.newBuilder().setDataset("dataset2").setShardId("shard1").setVersion(2).build()
+                            AssignedShard.newBuilder().setDataset("dataset1").setShardId("shard1").build(),
+                            AssignedShard.newBuilder().setDataset("dataset2").setShardId("shard1").build()
                     ),
                     Sets.newHashSet(requestResponseClient.getAssignments("A"))
             );
 
             Assert.assertEquals(
                     Sets.newHashSet(
-                            AssignedShard.newBuilder().setDataset("dataset1").setShardId("shard2").setVersion(2).build(),
-                            AssignedShard.newBuilder().setDataset("dataset2").setShardId("shard2").setVersion(3).build(),
-                            AssignedShard.newBuilder().setDataset("dataset3").setShardId("shard1").setVersion(5).build(),
-                            AssignedShard.newBuilder().setDataset("dataset3").setShardId("shard3").setVersion(6).build()
+                            AssignedShard.newBuilder().setDataset("dataset1").setShardId("shard2").build(),
+                            AssignedShard.newBuilder().setDataset("dataset2").setShardId("shard2").build(),
+                            AssignedShard.newBuilder().setDataset("dataset3").setShardId("shard1").build(),
+                            AssignedShard.newBuilder().setDataset("dataset3").setShardId("shard3").build()
                     ),
                     Sets.newHashSet(requestResponseClient.getAssignments("B"))
             );
 
             Assert.assertEquals(
                     Sets.newHashSet(
-                            AssignedShard.newBuilder().setDataset("dataset1").setShardId("shard3").setVersion(1).build(),
-                            AssignedShard.newBuilder().setDataset("dataset2").setShardId("shard3").setVersion(4).build(),
-                            AssignedShard.newBuilder().setDataset("dataset3").setShardId("shard2").setVersion(5).build()
+                            AssignedShard.newBuilder().setDataset("dataset1").setShardId("shard3").build(),
+                            AssignedShard.newBuilder().setDataset("dataset2").setShardId("shard3").build(),
+                            AssignedShard.newBuilder().setDataset("dataset3").setShardId("shard2").build()
                     ),
                     Sets.newHashSet(requestResponseClient.getAssignments("C"))
             );
@@ -102,52 +107,52 @@ public class RequestResponseServerTest {
                     requestResponseClient.getAssignments("D")
             );
 
-            assignmentInfoDao.updateAssignments("dataset1", Arrays.asList(
-                    new ShardAssignmentInfo("dataset1", "shard1", 2, "A"),
-                    new ShardAssignmentInfo("dataset1", "shard1", 2, "B"),
-                    new ShardAssignmentInfo("dataset1", "shard2", 3, "C"),
-                    new ShardAssignmentInfo("dataset1", "shard2", 3, "A"),
-                    new ShardAssignmentInfo("dataset1", "shard3", 2, "B"),
-                    new ShardAssignmentInfo("dataset1", "shard3", 2, "C")
+            assignmentInfoDao.updateAssignments("dataset1", LATER, Arrays.asList(
+                    new ShardAssignmentInfo("dataset1", "shard1", "A"),
+                    new ShardAssignmentInfo("dataset1", "shard1", "B"),
+                    new ShardAssignmentInfo("dataset1", "shard2", "C"),
+                    new ShardAssignmentInfo("dataset1", "shard2", "A"),
+                    new ShardAssignmentInfo("dataset1", "shard3", "B"),
+                    new ShardAssignmentInfo("dataset1", "shard3", "C")
             ));
 
-            assignmentInfoDao.updateAssignments("dataset2", Collections.<ShardAssignmentInfo>emptyList());
+            assignmentInfoDao.updateAssignments("dataset2", LATER, Collections.<ShardAssignmentInfo>emptyList());
 
-            assignmentInfoDao.updateAssignments("dataset3", Arrays.asList(
-                    new ShardAssignmentInfo("dataset3", "shard1", 6, "A"),
-                    new ShardAssignmentInfo("dataset3", "shard1", 6, "B"),
-                    new ShardAssignmentInfo("dataset3", "shard2", 6, "A"),
-                    new ShardAssignmentInfo("dataset3", "shard2", 6, "B"),
-                    new ShardAssignmentInfo("dataset3", "shard3", 7, "A"),
-                    new ShardAssignmentInfo("dataset3", "shard3", 7, "B")
+            assignmentInfoDao.updateAssignments("dataset3", LATER, Arrays.asList(
+                    new ShardAssignmentInfo("dataset3", "shard1", "A"),
+                    new ShardAssignmentInfo("dataset3", "shard1", "B"),
+                    new ShardAssignmentInfo("dataset3", "shard2", "A"),
+                    new ShardAssignmentInfo("dataset3", "shard2", "B"),
+                    new ShardAssignmentInfo("dataset3", "shard3", "A"),
+                    new ShardAssignmentInfo("dataset3", "shard3", "B")
             ));
 
             Assert.assertEquals(
                     Sets.newHashSet(
-                            AssignedShard.newBuilder().setDataset("dataset1").setShardId("shard1").setVersion(2).build(),
-                            AssignedShard.newBuilder().setDataset("dataset1").setShardId("shard2").setVersion(3).build(),
-                            AssignedShard.newBuilder().setDataset("dataset3").setShardId("shard1").setVersion(6).build(),
-                            AssignedShard.newBuilder().setDataset("dataset3").setShardId("shard2").setVersion(6).build(),
-                            AssignedShard.newBuilder().setDataset("dataset3").setShardId("shard3").setVersion(7).build()
+                            AssignedShard.newBuilder().setDataset("dataset1").setShardId("shard1").build(),
+                            AssignedShard.newBuilder().setDataset("dataset1").setShardId("shard2").build(),
+                            AssignedShard.newBuilder().setDataset("dataset3").setShardId("shard1").build(),
+                            AssignedShard.newBuilder().setDataset("dataset3").setShardId("shard2").build(),
+                            AssignedShard.newBuilder().setDataset("dataset3").setShardId("shard3").build()
                     ),
                     Sets.newHashSet(requestResponseClient.getAssignments("A"))
             );
 
             Assert.assertEquals(
                     Sets.newHashSet(
-                            AssignedShard.newBuilder().setDataset("dataset1").setShardId("shard1").setVersion(2).build(),
-                            AssignedShard.newBuilder().setDataset("dataset1").setShardId("shard3").setVersion(2).build(),
-                            AssignedShard.newBuilder().setDataset("dataset3").setShardId("shard1").setVersion(6).build(),
-                            AssignedShard.newBuilder().setDataset("dataset3").setShardId("shard2").setVersion(6).build(),
-                            AssignedShard.newBuilder().setDataset("dataset3").setShardId("shard3").setVersion(7).build()
+                            AssignedShard.newBuilder().setDataset("dataset1").setShardId("shard1").build(),
+                            AssignedShard.newBuilder().setDataset("dataset1").setShardId("shard3").build(),
+                            AssignedShard.newBuilder().setDataset("dataset3").setShardId("shard1").build(),
+                            AssignedShard.newBuilder().setDataset("dataset3").setShardId("shard2").build(),
+                            AssignedShard.newBuilder().setDataset("dataset3").setShardId("shard3").build()
                     ),
                     Sets.newHashSet(requestResponseClient.getAssignments("B"))
             );
 
             Assert.assertEquals(
                     Sets.newHashSet(
-                            AssignedShard.newBuilder().setDataset("dataset1").setShardId("shard2").setVersion(3).build(),
-                            AssignedShard.newBuilder().setDataset("dataset1").setShardId("shard3").setVersion(2).build()
+                            AssignedShard.newBuilder().setDataset("dataset1").setShardId("shard2").build(),
+                            AssignedShard.newBuilder().setDataset("dataset1").setShardId("shard3").build()
                             ),
                     Sets.newHashSet(requestResponseClient.getAssignments("C"))
             );

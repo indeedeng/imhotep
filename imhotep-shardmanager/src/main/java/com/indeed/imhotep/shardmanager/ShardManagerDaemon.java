@@ -1,6 +1,7 @@
 package com.indeed.imhotep.shardmanager;
 
 import com.google.common.base.Preconditions;
+import com.indeed.imhotep.client.CheckpointedHostsReloader;
 import com.indeed.imhotep.client.HostsReloader;
 import com.indeed.imhotep.client.ZkHostsReloader;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
@@ -10,10 +11,13 @@ import com.indeed.imhotep.shardmanager.rpc.RequestResponseServer;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.apache.log4j.Logger;
+import org.joda.time.Duration;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
@@ -35,18 +39,28 @@ public class ShardManagerDaemon {
         final ExecutorService executorService = config.createExecutorService();
         final Timer timer = new Timer();
         try (HikariDataSource dataSource = config.createDataSource()) {
-            final ShardAssignmentInfoDao shardAssignmentInfoDao = new ShardAssignmentInfoDao(dataSource);
+            final ShardAssignmentInfoDao shardAssignmentInfoDao = new ShardAssignmentInfoDao(dataSource, config.getStalenessThreshold());
 
             final RemoteCachingPath dataSetsDir = (RemoteCachingPath) Paths.get(RemoteCachingFileSystemProvider.URI);
 
             LOGGER.info("Reloading all daemon hosts");
-            final HostsReloader hostReloader = config.createHostReloader();
+            final HostsReloader hostsReloader = new CheckpointedHostsReloader(
+                    new File(config.getHostsFile()),
+                    config.createHostsReloader(),
+                    config.getHostsDropRatio());
+
+            timer.schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    hostsReloader.run();
+                }
+            }, Duration.standardMinutes(1).getMillis(), Duration.standardMinutes(1).getMillis());
 
             final DatasetShardAssignmentRefresher refresher = new DatasetShardAssignmentRefresher(
                     dataSetsDir,
                     config.getShardFilter(),
                     executorService,
-                    hostReloader,
+                    hostsReloader,
                     config.createAssigner(),
                     shardAssignmentInfoDao
             );
@@ -54,7 +68,7 @@ public class ShardManagerDaemon {
             LOGGER.info("Initializing all shard assignments");
             refresher.initialize();
 
-            timer.schedule(refresher, config.getRefreshInterval(), config.getRefreshInterval());
+            timer.schedule(refresher, config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis());
 
             try (RequestResponseServer server = new RequestResponseServer(config.getServerPort(), new MultiplexingRequestHandler(
                     new ShardManagerServer(shardAssignmentInfoDao)
@@ -71,11 +85,14 @@ public class ShardManagerDaemon {
     static class Config {
         String zkNodes;
         String dbFile;
+        String hostsFile;
         private ShardFilter shardFilter = ShardFilter.ACCEPT_ALL;
         int serverPort = 0;
         int threadPoolSize = 5;
         int replicationFactor = 3;
-        long refreshInterval = 15 * 60 * 1000;
+        Duration refreshInterval = Duration.standardMinutes(15);
+        Duration stalenessThreshold = Duration.standardHours(1);
+        double hostsDropRatio = 0.5;
 
         public Config setZkNodes(final String zkNodes) {
             this.zkNodes = zkNodes;
@@ -84,6 +101,11 @@ public class ShardManagerDaemon {
 
         public Config setDbFile(final String dbFile) {
             this.dbFile = dbFile;
+            return this;
+        }
+
+        public Config setHostsFile(final String hostsFile) {
+            this.hostsFile = hostsFile;
             return this;
         }
 
@@ -108,11 +130,21 @@ public class ShardManagerDaemon {
         }
 
         public Config setRefreshInterval(final long refreshInterval) {
-            this.refreshInterval = refreshInterval;
+            this.refreshInterval = Duration.millis(refreshInterval);
             return this;
         }
 
-        HostsReloader createHostReloader() {
+        public Config setStalenessThreshold(final long stalenessThreshold) {
+            this.stalenessThreshold = Duration.millis(stalenessThreshold);
+            return this;
+        }
+
+        public Config setHostsDropRatio(final double hostsDropRatio) {
+            this.hostsDropRatio = hostsDropRatio;
+            return this;
+        }
+
+        HostsReloader createHostsReloader() {
             Preconditions.checkNotNull(zkNodes, "ZooKeeper nodes config is missing");
             return new ZkHostsReloader(zkNodes, true);
         }
@@ -142,8 +174,21 @@ public class ShardManagerDaemon {
             return new MinHashShardAssigner(replicationFactor);
         }
 
-        long getRefreshInterval() {
+        Duration getRefreshInterval() {
             return refreshInterval;
+        }
+
+        Duration getStalenessThreshold() {
+            return stalenessThreshold;
+        }
+
+        String getHostsFile() {
+            Preconditions.checkNotNull(hostsFile, "HostsFile config is missing");
+            return hostsFile;
+        }
+
+        public double getHostsDropRatio() {
+            return hostsDropRatio;
         }
     }
 
@@ -153,6 +198,7 @@ public class ShardManagerDaemon {
         new ShardManagerDaemon(new Config()
                 .setZkNodes(System.getProperty("imhotep.shardmanager.zookeeper.nodes"))
                 .setDbFile(System.getProperty("imhotep.shardmanager.db.file"))
+                .setHostsFile(System.getProperty("imhotep.shardmanager.hosts.file"))
                 .setServerPort(Integer.parseInt(System.getProperty("imhotep.shardmanager.server.port")))
         ).run();
     }
