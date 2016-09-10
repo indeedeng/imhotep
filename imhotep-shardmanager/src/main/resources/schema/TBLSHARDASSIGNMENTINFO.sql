@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS tblShardAssignmentInfo (
   id            IDENTITY PRIMARY KEY,
   dataset       VARCHAR(128) NOT NULL,
   shard_id      VARCHAR(128) NOT NULL,
+  shard_path    VARCHAR(255) NOT NULL,
   assigned_node VARCHAR(128) NOT NULL,
   timestamp     TIMESTAMP    NOT NULL,
 );

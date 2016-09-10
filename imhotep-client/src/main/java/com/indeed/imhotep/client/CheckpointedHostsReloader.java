@@ -49,7 +49,7 @@ public class CheckpointedHostsReloader extends DataLoadTimer implements HostsRel
 
         if (wrappedReloader.isLoadedDataSuccessfullyRecently()) {
             final List<Host> temp = wrappedReloader.getHosts();
-            if (!temp.isEmpty() && (hosts.isEmpty() || ((((double) temp.size()) / hosts.size()) >= dropThreshold))) {
+            if (!temp.isEmpty() && (temp.size() >= (hosts.size() * dropThreshold))) {
                 hosts = temp;
                 loadComplete();
                 try {

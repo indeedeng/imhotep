@@ -1,6 +1,5 @@
 package com.indeed.imhotep.shardmanager.rpc;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.indeed.imhotep.shardmanager.protobuf.ShardManagerRequest;
 import com.indeed.imhotep.shardmanager.protobuf.ShardManagerResponse;
 import org.apache.log4j.Logger;
@@ -25,8 +24,7 @@ public class RequestResponseServer implements Closeable {
         serverSocket = new ServerSocket(port);
     }
 
-    @VisibleForTesting
-    int getActualPort() {
+    public int getActualPort() {
         if (serverSocket.isClosed()) {
             return 0;
         } else {
@@ -41,7 +39,18 @@ public class RequestResponseServer implements Closeable {
 
     public void run() throws IOException {
         while (!serverSocket.isClosed()) {
-            try (Socket socket = serverSocket.accept()) {
+            final Socket socket;
+            try {
+                socket = serverSocket.accept();
+            } catch (final IOException e) {
+                if ("Socket closed".equals(e.getMessage())) {
+                    LOGGER.warn("Shutting down due to server socket closed");
+                    break;
+                }
+                throw e;
+            }
+
+            try {
                 socket.setTcpNoDelay(true); // disable nagle
                 final ShardManagerRequest request = ShardManagerMessageUtil.receiveRequest(socket.getInputStream());
 
@@ -56,6 +65,8 @@ public class RequestResponseServer implements Closeable {
                             .build();
                 }
                 ShardManagerMessageUtil.sendMessage(response, socket.getOutputStream());
+            } finally {
+                socket.close();
             }
         }
     }

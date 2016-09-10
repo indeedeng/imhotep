@@ -36,6 +36,10 @@ public class ShardAssignmentInfoDaoTest {
         assignmentInfoDao = new ShardAssignmentInfoDao(dbDataFixture.getDataSource(), Duration.standardHours(1));
     }
 
+    private static ShardAssignmentInfo createAssignmentInfo(final String dataset, final String shardId, final String node) {
+        return new ShardAssignmentInfo(dataset, shardId, "/var/imhotep/" + dataset + "/" + shardId, node);
+    }
+
     @Test
     public void testGetUpdate() {
         Assert.assertTrue(
@@ -43,37 +47,37 @@ public class ShardAssignmentInfoDaoTest {
         );
 
         assignmentInfoDao.updateAssignments("dataset1", NOW, Arrays.asList(
-                new ShardAssignmentInfo("dataset1", "shard1", "A"),
-                new ShardAssignmentInfo("dataset1", "shard2", "B"),
-                new ShardAssignmentInfo("dataset1", "shard3", "C")
+                createAssignmentInfo("dataset1", "shard1", "A"),
+                createAssignmentInfo("dataset1", "shard2", "B"),
+                createAssignmentInfo("dataset1", "shard3", "C")
         ));
 
         assignmentInfoDao.updateAssignments("dataset2", NOW, Arrays.asList(
-                new ShardAssignmentInfo("dataset2", "shard1", "A"),
-                new ShardAssignmentInfo("dataset2", "shard2", "B"),
-                new ShardAssignmentInfo("dataset2", "shard3", "C")
+                createAssignmentInfo("dataset2", "shard1", "A"),
+                createAssignmentInfo("dataset2", "shard2", "B"),
+                createAssignmentInfo("dataset2", "shard3", "C")
         ));
 
         assignmentInfoDao.updateAssignments("dataset3", NOW, Arrays.asList(
-                new ShardAssignmentInfo("dataset3", "shard1", "B"),
-                new ShardAssignmentInfo("dataset3", "shard2", "C"),
-                new ShardAssignmentInfo("dataset3", "shard3", "B")
+                createAssignmentInfo("dataset3", "shard1", "B"),
+                createAssignmentInfo("dataset3", "shard2", "C"),
+                createAssignmentInfo("dataset3", "shard3", "B")
         ));
 
         Assert.assertEquals(
                 ImmutableSet.of(
-                        new ShardAssignmentInfo("dataset1", "shard1", "A"),
-                        new ShardAssignmentInfo("dataset2", "shard1", "A")
+                        createAssignmentInfo("dataset1", "shard1", "A"),
+                        createAssignmentInfo("dataset2", "shard1", "A")
                 ),
                 FluentIterable.from(assignmentInfoDao.getAssignments("A")).toSet()
         );
 
         Assert.assertEquals(
                 ImmutableSet.of(
-                        new ShardAssignmentInfo("dataset1", "shard2", "B"),
-                        new ShardAssignmentInfo("dataset2", "shard2", "B"),
-                        new ShardAssignmentInfo("dataset3", "shard1", "B"),
-                        new ShardAssignmentInfo("dataset3", "shard3", "B")
+                        createAssignmentInfo("dataset1", "shard2", "B"),
+                        createAssignmentInfo("dataset2", "shard2", "B"),
+                        createAssignmentInfo("dataset3", "shard1", "B"),
+                        createAssignmentInfo("dataset3", "shard3", "B")
                 ),
                 FluentIterable.from(assignmentInfoDao.getAssignments("B")).toSet()
         );
@@ -84,40 +88,40 @@ public class ShardAssignmentInfoDaoTest {
         );
 
         assignmentInfoDao.updateAssignments("dataset1", NOW.plusMinutes(30), Arrays.asList(
-                new ShardAssignmentInfo("dataset1", "shard1", "A"),
-                new ShardAssignmentInfo("dataset1", "shard1", "B"),
-                new ShardAssignmentInfo("dataset1", "shard1", "D"),
-                new ShardAssignmentInfo("dataset1", "shard2", "B"),
-                new ShardAssignmentInfo("dataset1", "shard2", "D"),
-                new ShardAssignmentInfo("dataset1", "shard3", "B"),
-                new ShardAssignmentInfo("dataset1", "shard3", "A")
+                createAssignmentInfo("dataset1", "shard1", "A"),
+                createAssignmentInfo("dataset1", "shard1", "B"),
+                createAssignmentInfo("dataset1", "shard1", "D"),
+                createAssignmentInfo("dataset1", "shard2", "B"),
+                createAssignmentInfo("dataset1", "shard2", "D"),
+                createAssignmentInfo("dataset1", "shard3", "B"),
+                createAssignmentInfo("dataset1", "shard3", "A")
         ));
 
         Assert.assertEquals(
                 ImmutableSet.of(
-                        new ShardAssignmentInfo("dataset1", "shard1", "A"),
-                        new ShardAssignmentInfo("dataset2", "shard1", "A"),
-                        new ShardAssignmentInfo("dataset1", "shard3", "A")
+                        createAssignmentInfo("dataset1", "shard1", "A"),
+                        createAssignmentInfo("dataset2", "shard1", "A"),
+                        createAssignmentInfo("dataset1", "shard3", "A")
                 ),
                 FluentIterable.from(assignmentInfoDao.getAssignments("A")).toSet()
         );
 
         Assert.assertEquals(
                 ImmutableSet.of(
-                        new ShardAssignmentInfo("dataset1", "shard1", "B"),
-                        new ShardAssignmentInfo("dataset1", "shard2", "B"),
-                        new ShardAssignmentInfo("dataset1", "shard3", "B"),
-                        new ShardAssignmentInfo("dataset2", "shard2", "B"),
-                        new ShardAssignmentInfo("dataset3", "shard1", "B"),
-                        new ShardAssignmentInfo("dataset3", "shard3", "B")
+                        createAssignmentInfo("dataset1", "shard1", "B"),
+                        createAssignmentInfo("dataset1", "shard2", "B"),
+                        createAssignmentInfo("dataset1", "shard3", "B"),
+                        createAssignmentInfo("dataset2", "shard2", "B"),
+                        createAssignmentInfo("dataset3", "shard1", "B"),
+                        createAssignmentInfo("dataset3", "shard3", "B")
                 ),
                 FluentIterable.from(assignmentInfoDao.getAssignments("B")).toSet()
         );
 
         Assert.assertEquals(
                 ImmutableSet.of(
-                        new ShardAssignmentInfo("dataset1", "shard1", "D"),
-                        new ShardAssignmentInfo("dataset1", "shard2", "D")
+                        createAssignmentInfo("dataset1", "shard1", "D"),
+                        createAssignmentInfo("dataset1", "shard2", "D")
                 ),
                 FluentIterable.from(assignmentInfoDao.getAssignments("D")).toSet()
         );
@@ -127,19 +131,19 @@ public class ShardAssignmentInfoDaoTest {
 
         Assert.assertEquals(
                 ImmutableSet.of(
-                        new ShardAssignmentInfo("dataset1", "shard1", "A"),
-                        new ShardAssignmentInfo("dataset1", "shard3", "A")
+                        createAssignmentInfo("dataset1", "shard1", "A"),
+                        createAssignmentInfo("dataset1", "shard3", "A")
                 ),
                 FluentIterable.from(assignmentInfoDao.getAssignments("A")).toSet()
         );
 
         Assert.assertEquals(
                 ImmutableSet.of(
-                        new ShardAssignmentInfo("dataset1", "shard1", "B"),
-                        new ShardAssignmentInfo("dataset1", "shard2", "B"),
-                        new ShardAssignmentInfo("dataset1", "shard3", "B"),
-                        new ShardAssignmentInfo("dataset3", "shard1", "B"),
-                        new ShardAssignmentInfo("dataset3", "shard3", "B")
+                        createAssignmentInfo("dataset1", "shard1", "B"),
+                        createAssignmentInfo("dataset1", "shard2", "B"),
+                        createAssignmentInfo("dataset1", "shard3", "B"),
+                        createAssignmentInfo("dataset3", "shard1", "B"),
+                        createAssignmentInfo("dataset3", "shard3", "B")
                 ),
                 FluentIterable.from(assignmentInfoDao.getAssignments("B")).toSet()
         );
@@ -148,17 +152,17 @@ public class ShardAssignmentInfoDaoTest {
 
         Assert.assertEquals(
                 ImmutableSet.of(
-                        new ShardAssignmentInfo("dataset1", "shard1", "A"),
-                        new ShardAssignmentInfo("dataset1", "shard3", "A")
+                        createAssignmentInfo("dataset1", "shard1", "A"),
+                        createAssignmentInfo("dataset1", "shard3", "A")
                 ),
                 FluentIterable.from(assignmentInfoDao.getAssignments("A")).toSet()
         );
 
         Assert.assertEquals(
                 ImmutableSet.of(
-                        new ShardAssignmentInfo("dataset1", "shard1", "B"),
-                        new ShardAssignmentInfo("dataset1", "shard2", "B"),
-                        new ShardAssignmentInfo("dataset1", "shard3", "B")
+                        createAssignmentInfo("dataset1", "shard1", "B"),
+                        createAssignmentInfo("dataset1", "shard2", "B"),
+                        createAssignmentInfo("dataset1", "shard3", "B")
                 ),
                 FluentIterable.from(assignmentInfoDao.getAssignments("B")).toSet()
         );

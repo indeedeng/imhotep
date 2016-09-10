@@ -1,6 +1,5 @@
 package com.indeed.imhotep.shardmanager;
 
-import com.google.common.collect.Lists;
 import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.client.HostsReloader;
@@ -8,8 +7,11 @@ import com.indeed.imhotep.fs.RemoteCachingPath;
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
 
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 
 /**
@@ -46,23 +48,29 @@ class ShardScanWork implements Callable<ShardScanWork.Result> {
             final String dataset = datasetDir.getFileName().toString();
 
             LOGGER.info("Assigning shards in " + dataset + " for " + hosts.size() + " hosts");
-            final List<ShardDir> shards = Lists.newArrayList(new ShardScanner(datasetDir, shardFilter));
+            final Map<String, ShardDir> shardsMap = new HashMap<>();
+            for (final ShardDir shardDir : new ShardScanner(datasetDir, shardFilter)) {
+                final ShardDir existing = shardsMap.get(shardDir.getId());
+                if ((existing == null) || (existing.getVersion() < shardDir.getVersion())) {
+                    shardsMap.put(shardDir.getId(), shardDir);
+                }
+            }
 
             assignmentInfoDao.updateAssignments(dataset, DateTime.now(), shardAssigner.assign(
                     hosts,
                     dataset,
-                    shards
+                    shardsMap.values()
             ));
             LOGGER.info("Assigned all shards for " + dataset);
-            return new Result(datasetDir, shards);
+            return new Result(datasetDir, shardsMap.values());
         }
     }
 
     static class Result {
         private final RemoteCachingPath datasetDir;
-        private final List<ShardDir> shards;
+        private final Collection<ShardDir> shards;
 
-        Result(final RemoteCachingPath datasetDir, final List<ShardDir> shards) {
+        Result(final RemoteCachingPath datasetDir, final Collection<ShardDir> shards) {
             this.datasetDir = datasetDir;
             this.shards = shards;
         }
@@ -71,7 +79,7 @@ class ShardScanWork implements Callable<ShardScanWork.Result> {
             return datasetDir;
         }
 
-        List<ShardDir> getShards() {
+        Collection<ShardDir> getShards() {
             return shards;
         }
     }

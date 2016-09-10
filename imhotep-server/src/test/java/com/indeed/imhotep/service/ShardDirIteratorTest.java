@@ -1,10 +1,13 @@
 package com.indeed.imhotep.service;
 
+import com.google.common.base.Suppliers;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.client.ShardTimeUtils;
+import com.indeed.imhotep.shardmanager.ShardManager;
+import com.indeed.imhotep.shardmanager.protobuf.AssignedShard;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.time.DefaultWallClock;
 import com.indeed.util.core.time.StoppedClock;
@@ -22,6 +25,7 @@ import org.junit.rules.TemporaryFolder;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
@@ -69,7 +73,7 @@ public class ShardDirIteratorTest {
             expected.add(Pair.of(dataset2.getFileName().toString(), new ShardDir(createShard(dataset2, TODAY.minusDays(i)))));
         }
 
-        final ShardDirIterator shardDirIterator = new ShardDirIteratorFactory(new DefaultWallClock(), null).get(shardsDir);
+        final ShardDirIterator shardDirIterator = new ShardDirIteratorFactory(new DefaultWallClock(), null, "localhost", null, null).get(shardsDir);
         Assert.assertTrue(shardDirIterator instanceof LocalShardDirIterator);
         Assert.assertEquals(
                 expected,
@@ -106,13 +110,16 @@ public class ShardDirIteratorTest {
             createShard(dataset3, TODAY.minusDays(i));
         }
 
-        final ShardDirIterator shardDirIterator = new ShardDirIteratorFactory(new StoppedClock(TODAY.getMillis()), createConfig(
+        final ShardDirIterator shardDirIterator = new ShardDirIteratorFactory(new StoppedClock(TODAY.getMillis()),
+                null,
+                "localhost",
+                createConfig(
                 ImmutableMap.<String, Period>builder()
                         .put("dataset1", Period.days(5))
                         .put("dataset2", Period.days(20))
                         .put("dataset4", Period.days(30))
                 .build()
-        ).toString()).get(shardsDir);
+        ).toString(), null).get(shardsDir);
         Assert.assertTrue(shardDirIterator instanceof FilteredShardDirIterator);
         Assert.assertEquals(
                 ImmutableSet.builder()
@@ -135,6 +142,79 @@ public class ShardDirIteratorTest {
                         .add(Pair.of("dataset2", shardDirOf(dataset2, TODAY.minusDays(19))))
                         .add(Pair.of("dataset2", shardDirOf(dataset2, TODAY.minusDays(20))))
                 .build(),
+                FluentIterable.from(shardDirIterator).toSet()
+        );
+    }
+
+    private static AssignedShard assignedShard(final Path datasetDir, final DateTime shardTime) {
+        final ShardDir shardDir = shardDirOf(datasetDir, shardTime);
+        return AssignedShard.newBuilder()
+                .setDataset(shardDir.getIndexDir().getParent().getFileName().toString())
+                .setShardId(shardDir.getId())
+                .setShardPath(shardDir.getIndexDir().toString())
+                .build();
+    }
+
+    @Test
+    public void testShardManagerShardIterator() throws IOException {
+        final Path shardsDir = tempDir.newFolder("imhotep").toPath();
+
+        final Path dataset1 = shardsDir.resolve("dataset1");
+        for (int i = 0; i < 20; i++) {
+            createShard(dataset1, TODAY.minusDays(i));
+        }
+
+        final Path dataset2 = shardsDir.resolve("dataset2");
+        for (int i = 10; i < 100; i++) {
+            createShard(dataset2, TODAY.minusDays(i));
+        }
+
+        final Path dataset3 = shardsDir.resolve("dataset3");
+        for (int i = 0; i < 100; i++) {
+            createShard(dataset3, TODAY.minusDays(i));
+        }
+
+        final ShardManager shardManager = new ShardManager() {
+            @Override
+            public Iterable<AssignedShard> getAssignments(final String node) throws IOException {
+                return Arrays.asList(
+                        assignedShard(dataset1, TODAY.minusDays(1)),
+                        assignedShard(dataset1, TODAY.minusDays(3)),
+                        assignedShard(dataset1, TODAY.minusDays(5)),
+                        assignedShard(dataset1, TODAY.minusDays(7)),
+                        assignedShard(dataset1, TODAY.minusDays(11)),
+                        assignedShard(dataset1, TODAY.minusDays(13)),
+                        assignedShard(dataset1, TODAY.minusDays(17)),
+                        assignedShard(dataset1, TODAY.minusDays(19)),
+
+                        assignedShard(dataset2, TODAY.minusDays(20)),
+                        assignedShard(dataset2, TODAY.minusDays(30)),
+                        assignedShard(dataset2, TODAY.minusDays(50))
+                );
+            }
+        };
+
+        final ShardDirIterator shardDirIterator = new ShardDirIteratorFactory(new StoppedClock(TODAY.getMillis()),
+                Suppliers.ofInstance(shardManager),
+                "localhost",
+                null, Boolean.TRUE.toString()).get(shardsDir);
+
+        Assert.assertTrue(shardDirIterator instanceof ShardManagerShardDirIterator);
+        Assert.assertEquals(
+                ImmutableSet.builder()
+                        .add(Pair.of("dataset1", shardDirOf(dataset1, TODAY.minusDays(1))))
+                        .add(Pair.of("dataset1", shardDirOf(dataset1, TODAY.minusDays(3))))
+                        .add(Pair.of("dataset1", shardDirOf(dataset1, TODAY.minusDays(5))))
+                        .add(Pair.of("dataset1", shardDirOf(dataset1, TODAY.minusDays(7))))
+                        .add(Pair.of("dataset1", shardDirOf(dataset1, TODAY.minusDays(11))))
+                        .add(Pair.of("dataset1", shardDirOf(dataset1, TODAY.minusDays(13))))
+                        .add(Pair.of("dataset1", shardDirOf(dataset1, TODAY.minusDays(17))))
+                        .add(Pair.of("dataset1", shardDirOf(dataset1, TODAY.minusDays(19))))
+
+                        .add(Pair.of("dataset2", shardDirOf(dataset2, TODAY.minusDays(20))))
+                        .add(Pair.of("dataset2", shardDirOf(dataset2, TODAY.minusDays(30))))
+                        .add(Pair.of("dataset2", shardDirOf(dataset2, TODAY.minusDays(50))))
+                        .build(),
                 FluentIterable.from(shardDirIterator).toSet()
         );
     }

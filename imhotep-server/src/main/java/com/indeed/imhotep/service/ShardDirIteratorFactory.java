@@ -1,5 +1,8 @@
 package com.indeed.imhotep.service;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Supplier;
+import com.indeed.imhotep.shardmanager.ShardManager;
 import com.indeed.util.core.time.DefaultWallClock;
 import com.indeed.util.core.time.WallClock;
 import org.apache.log4j.Logger;
@@ -19,14 +22,23 @@ import java.util.Properties;
 class ShardDirIteratorFactory {
     private final Logger LOGGER = Logger.getLogger(ShardDirIteratorFactory.class);
     private final WallClock wallClock;
+    final Supplier<ShardManager> shardManager;
+    private final String localHostname;
     private Properties shardFilterConfig;
+    private boolean shardManagerEnabled;
 
-    ShardDirIteratorFactory() {
-        this(new DefaultWallClock(), System.getProperty("imhotep.shard.filter.config.file"));
+    ShardDirIteratorFactory(final Supplier<ShardManager> shardManager, final String localHostname) {
+        this(new DefaultWallClock(), shardManager, localHostname, System.getProperty("imhotep.shard.filter.config.file"), System.getProperty("imhotep.shard.shardmanager.enabled"));
     }
 
-    ShardDirIteratorFactory(final WallClock wallClock, @Nullable final String shardFilterConfigPath) {
+    @VisibleForTesting
+    ShardDirIteratorFactory(final WallClock wallClock, final Supplier<ShardManager> shardManager,
+                            final String localHostname,
+                            @Nullable final String shardFilterConfigPath,
+                            @Nullable final String shardManagerEnabled) {
         this.wallClock = wallClock;
+        this.shardManager = shardManager;
+        this.localHostname = localHostname;
         if (shardFilterConfigPath == null) {
             shardFilterConfig = null;
         } else {
@@ -38,6 +50,10 @@ class ShardDirIteratorFactory {
                 shardFilterConfig = null;
             }
         }
+
+        if ((shardManagerEnabled != null) && Boolean.parseBoolean(shardManagerEnabled)) {
+            this.shardManagerEnabled = true;
+        }
     }
 
     ShardDirIterator get(final Path shardsPath) {
@@ -46,6 +62,9 @@ class ShardDirIteratorFactory {
                     wallClock,
                     shardsPath,
                     FilteredShardDirIterator.Config.loadFromProperties(shardFilterConfig));
+        } else if (shardManagerEnabled) {
+            return new ShardManagerShardDirIterator(shardManager,
+                    localHostname);
         } else {
             return new LocalShardDirIterator(shardsPath);
         }

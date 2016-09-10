@@ -92,6 +92,8 @@ public class DatasetShardAssignmentRefresherTest {
             for (int j = 0; j < numShards; j++) {
                 final String shard = "shard" + j;
                 createShard(fsTestContext.getLocalStoreDir(), dataset, shard, (Objects.hash(dataset, shard) % 10) + 11);
+                // each shard has two versions, only 1 should be picked up
+                createShard(fsTestContext.getLocalStoreDir(), dataset, shard, (Objects.hash(dataset, shard) % 10) + 13);
             }
         }
 

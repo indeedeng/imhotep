@@ -37,6 +37,7 @@ public class ShardAssignmentInfoDao {
         return new ShardAssignmentInfo(
                 record.getDataset(),
                 record.getShardId(),
+                record.getShardPath(),
                 record.getAssignedNode()
         );
     }
@@ -57,10 +58,11 @@ public class ShardAssignmentInfoDao {
                 dslContext.insertInto(TABLE,
                         TABLE.DATASET,
                         TABLE.SHARD_ID,
+                        TABLE.SHARD_PATH,
                         TABLE.ASSIGNED_NODE,
                         TABLE.TIMESTAMP
                 )
-                        .values((String) null, null, null, null)
+                        .values((String) null, null, null, null, null)
         );
     }
 
@@ -80,6 +82,7 @@ public class ShardAssignmentInfoDao {
                     insertBatch.bind(
                             assignmentInfo.getDataset(),
                             assignmentInfo.getShardId(),
+                            assignmentInfo.getShardPath(),
                             assignmentInfo.getAssignedNode(),
                             timestamp.getMillis()
                     );

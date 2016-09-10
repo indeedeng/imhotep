@@ -41,7 +41,7 @@ class MinHashShardAssigner implements ShardAssigner {
     }
 
     @Override
-    public Iterable<ShardAssignmentInfo> assign(final List<Host> hosts, final String dataset, final List<ShardDir> shards) {
+    public Iterable<ShardAssignmentInfo> assign(final List<Host> hosts, final String dataset, final Iterable<ShardDir> shards) {
         return FluentIterable.from(shards).transformAndConcat(new Function<ShardDir, Iterable<ShardAssignmentInfo>>() {
             @Override
             public Iterable<ShardAssignmentInfo> apply(final ShardDir shard) {
@@ -66,6 +66,7 @@ class MinHashShardAssigner implements ShardAssigner {
                         return new ShardAssignmentInfo(
                                 dataset,
                                 shard.getId(),
+                                shard.getIndexDir().toUri().toString(),
                                 chosenHost.getSecond().getHostname()
                         );
                     }

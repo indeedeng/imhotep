@@ -9,11 +9,13 @@ import com.google.common.base.Objects;
 public class ShardAssignmentInfo {
     private final String dataset;
     private final String shardId;
+    private final String shardPath;
     private final String assignedNode;
 
-    public ShardAssignmentInfo(final String dataset, final String shardId, final String assignedNode) {
+    public ShardAssignmentInfo(final String dataset, final String shardId, final String shardPath, final String assignedNode) {
         this.dataset = dataset;
         this.shardId = shardId;
+        this.shardPath = shardPath;
         this.assignedNode = assignedNode;
     }
 
@@ -25,6 +27,10 @@ public class ShardAssignmentInfo {
         return shardId;
     }
 
+    public String getShardPath() {
+        return shardPath;
+    }
+
     public String getAssignedNode() {
         return assignedNode;
     }
@@ -34,18 +40,19 @@ public class ShardAssignmentInfo {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof ShardAssignmentInfo)) {
+        if (o == null || getClass() != o.getClass()) {
             return false;
         }
         final ShardAssignmentInfo that = (ShardAssignmentInfo) o;
         return Objects.equal(dataset, that.dataset) &&
                 Objects.equal(shardId, that.shardId) &&
+                Objects.equal(shardPath, that.shardPath) &&
                 Objects.equal(assignedNode, that.assignedNode);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(dataset, shardId, assignedNode);
+        return Objects.hashCode(dataset, shardId, shardPath, assignedNode);
     }
 
     @Override
@@ -53,6 +60,7 @@ public class ShardAssignmentInfo {
         return Objects.toStringHelper(this)
                 .add("dataset", dataset)
                 .add("shardId", shardId)
+                .add("shardPath", shardPath)
                 .add("assignedNode", assignedNode)
                 .toString();
     }

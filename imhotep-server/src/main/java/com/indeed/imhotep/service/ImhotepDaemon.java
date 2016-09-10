@@ -46,6 +46,7 @@ import com.indeed.imhotep.protobuf.IntFieldAndTerms;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
+import com.indeed.imhotep.shardmanager.rpc.RequestResponseClientFactory;
 import org.apache.log4j.Logger;
 import org.apache.log4j.NDC;
 
@@ -1206,15 +1207,19 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         final Path shardsDir = Paths.get(new URI(shardsDirectory));
         final Path tmpDir = Paths.get(new URI(shardTempDir));
 
+        final String myHostname = InetAddress.getLocalHost().getCanonicalHostName();
         localService = new LocalImhotepServiceCore(shardsDir,
                                                    tmpDir,
                                                    memoryCapacityInMB * 1024 * 1024,
                                                    useCache,
                                                    new GenericFlamdexReaderSource(),
-                                                   new LocalImhotepServiceConfig(),
+                                                   new LocalImhotepServiceConfig(
+                                                           new ShardDirIteratorFactory(
+                                                                   new RequestResponseClientFactory(zkNodes, myHostname),
+                                                                   myHostname)
+                                                   ),
                                                    shardUpdateListener);
         final ServerSocket ss = new ServerSocket(port);
-        final String myHostname = InetAddress.getLocalHost().getCanonicalHostName();
         final ImhotepDaemon result =
             new ImhotepDaemon(ss, localService, zkNodes, zkPath,
                               myHostname, port, shardUpdateListener);

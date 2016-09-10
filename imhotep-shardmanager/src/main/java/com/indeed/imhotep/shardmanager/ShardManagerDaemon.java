@@ -1,21 +1,31 @@
 package com.indeed.imhotep.shardmanager;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.indeed.imhotep.ZkEndpointPersister;
 import com.indeed.imhotep.client.CheckpointedHostsReloader;
+import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.client.HostsReloader;
 import com.indeed.imhotep.client.ZkHostsReloader;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.fs.RemoteCachingPath;
+import com.indeed.imhotep.fs.sql.SchemaInitializer;
+import com.indeed.imhotep.shardmanager.db.shardinfo.Tables;
 import com.indeed.imhotep.shardmanager.rpc.MultiplexingRequestHandler;
 import com.indeed.imhotep.shardmanager.rpc.RequestResponseServer;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.apache.log4j.Logger;
+import org.apache.zookeeper.KeeperException;
 import org.joda.time.Duration;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.URISyntaxException;
 import java.nio.file.Paths;
+import java.sql.SQLException;
+import java.util.Collections;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
@@ -27,18 +37,21 @@ import java.util.concurrent.ExecutorService;
 
 public class ShardManagerDaemon {
     private static final Logger LOGGER = Logger.getLogger(ShardManagerDaemon.class);
-    final Config config;
+    private final Config config;
+    private volatile RequestResponseServer server;
 
     public ShardManagerDaemon(final Config config) {
         this.config = config;
     }
 
-    public void run() throws IOException, ExecutionException, InterruptedException {
+    public void run() throws IOException, ExecutionException, InterruptedException, KeeperException, SQLException, URISyntaxException {
         LOGGER.info("Starting daemon...");
 
         final ExecutorService executorService = config.createExecutorService();
-        final Timer timer = new Timer();
+        final Timer timer = new Timer(DatasetShardAssignmentRefresher.class.getSimpleName());
         try (HikariDataSource dataSource = config.createDataSource()) {
+            new SchemaInitializer(dataSource).initialize(Collections.singletonList(Tables.TBLSHARDASSIGNMENTINFO));
+
             final ShardAssignmentInfoDao shardAssignmentInfoDao = new ShardAssignmentInfoDao(dataSource, config.getStalenessThreshold());
 
             final RemoteCachingPath dataSetsDir = (RemoteCachingPath) Paths.get(RemoteCachingFileSystemProvider.URI);
@@ -48,6 +61,8 @@ public class ShardManagerDaemon {
                     new File(config.getHostsFile()),
                     config.createHostsReloader(),
                     config.getHostsDropRatio());
+
+            hostsReloader.run();
 
             timer.schedule(new TimerTask() {
                 @Override
@@ -70,15 +85,27 @@ public class ShardManagerDaemon {
 
             timer.schedule(refresher, config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis());
 
-            try (RequestResponseServer server = new RequestResponseServer(config.getServerPort(), new MultiplexingRequestHandler(
+            server = new RequestResponseServer(config.getServerPort(), new MultiplexingRequestHandler(
                     new ShardManagerServer(shardAssignmentInfoDao)
-            ))) {
+            ));
+            try (ZkEndpointPersister endpointPersister = new ZkEndpointPersister(config.zkNodes, "/imhotep/shardmanagers",
+                         new Host(InetAddress.getLocalHost().getCanonicalHostName(), server.getActualPort()))
+            ) {
                 LOGGER.info("Starting request response server");
                 server.run();
+            } finally {
+                server.close();
             }
         } finally {
             timer.cancel();
             executorService.shutdown();
+        }
+    }
+
+    @VisibleForTesting
+    void shutdown() throws IOException {
+        if (server != null) {
+            server.close();
         }
     }
 
@@ -146,7 +173,7 @@ public class ShardManagerDaemon {
 
         HostsReloader createHostsReloader() {
             Preconditions.checkNotNull(zkNodes, "ZooKeeper nodes config is missing");
-            return new ZkHostsReloader(zkNodes, true);
+            return new ZkHostsReloader(zkNodes, false);
         }
 
         ExecutorService createExecutorService() {
@@ -187,12 +214,12 @@ public class ShardManagerDaemon {
             return hostsFile;
         }
 
-        public double getHostsDropRatio() {
+        double getHostsDropRatio() {
             return hostsDropRatio;
         }
     }
 
-    public static void main(final String[] args) throws InterruptedException, ExecutionException, IOException {
+    public static void main(final String[] args) throws InterruptedException, ExecutionException, IOException, KeeperException, SQLException, URISyntaxException {
         RemoteCachingFileSystemProvider.newFileSystem();
 
         new ShardManagerDaemon(new Config()
