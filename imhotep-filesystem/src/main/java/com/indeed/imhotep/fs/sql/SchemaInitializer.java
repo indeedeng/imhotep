@@ -7,10 +7,6 @@ import org.jooq.impl.TableImpl;
 import javax.sql.DataSource;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URISyntaxException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -28,19 +24,19 @@ public class SchemaInitializer {
         this.dataSource = dataSource;
     }
 
-    private void executeSql(final Path contentPath) throws SQLException, IOException {
+    private void executeSql(final String schemaFile) throws SQLException, IOException {
         try (Connection connection = dataSource.getConnection();
              final Statement statement = connection.createStatement();
-             final InputStream inputStream = Files.newInputStream(contentPath);
+             final InputStream inputStream = getClass().getClassLoader().getResourceAsStream(schemaFile)
         ) {
             final String contents = IOUtils.toString(inputStream);
             statement.execute(contents);
         }
     }
 
-    public void initialize(final List<? extends TableImpl> tables) throws IOException, SQLException, URISyntaxException {
+    public void initialize(final List<? extends TableImpl> tables) throws IOException, SQLException {
         for (final TableImpl table : tables) {
-            final Path schemaFile = Paths.get(getClass().getClassLoader().getResource("schema/" + table.getName() + ".sql").toURI());
+            final String schemaFile = "schema/" + table.getName() + ".sql";
             LOGGER.info("Initializing schema in " + schemaFile);
             executeSql(schemaFile);
         }

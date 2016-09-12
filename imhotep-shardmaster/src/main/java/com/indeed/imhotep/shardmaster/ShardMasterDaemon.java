@@ -22,7 +22,6 @@ import org.joda.time.Duration;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.URISyntaxException;
 import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.Collections;
@@ -44,7 +43,7 @@ public class ShardMasterDaemon {
         this.config = config;
     }
 
-    public void run() throws IOException, ExecutionException, InterruptedException, KeeperException, SQLException, URISyntaxException {
+    public void run() throws IOException, ExecutionException, InterruptedException, KeeperException, SQLException {
         LOGGER.info("Starting daemon...");
 
         final ExecutorService executorService = config.createExecutorService();
@@ -219,7 +218,7 @@ public class ShardMasterDaemon {
         }
     }
 
-    public static void main(final String[] args) throws InterruptedException, ExecutionException, IOException, KeeperException, SQLException, URISyntaxException {
+    public static void main(final String[] args) throws InterruptedException, ExecutionException, IOException, KeeperException, SQLException {
         RemoteCachingFileSystemProvider.newFileSystem();
 
         new ShardMasterDaemon(new Config()

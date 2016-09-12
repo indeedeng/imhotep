@@ -16,7 +16,6 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.NotDirectoryException;
@@ -36,7 +35,7 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
     private final RemoteFileStore backingFileStore;
 
     SqarRemoteFileStore(final RemoteFileStore backingFileStore,
-                               final Map<String, ?> configuration) throws SQLException, ClassNotFoundException, IOException, URISyntaxException {
+                               final Map<String, ?> configuration) throws SQLException, ClassNotFoundException, IOException {
         this.backingFileStore = backingFileStore;
 
         final File dbFile = new File((String) configuration.get("imhotep.fs.sqardb.file"));
