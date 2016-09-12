@@ -115,7 +115,6 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
         Preconditions.checkArgument(uri.getFragment() == null, "URI fragment must be absent");
     }
 
-    @VisibleForTesting
     public static FileSystem newFileSystem(final File fsConfigFile) throws IOException {
         return FILE_SYSTEM_HOLDER.create(fsConfigFile);
     }

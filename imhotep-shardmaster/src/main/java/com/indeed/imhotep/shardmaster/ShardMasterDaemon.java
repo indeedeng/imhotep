@@ -44,6 +44,14 @@ public class ShardMasterDaemon {
     }
 
     public void run() throws IOException, ExecutionException, InterruptedException, KeeperException, SQLException {
+
+        LOGGER.info("Initializing fs");
+        if (config.getFsConfigFile() != null) {
+            RemoteCachingFileSystemProvider.newFileSystem(new File(config.getFsConfigFile()));
+        } else {
+            RemoteCachingFileSystemProvider.newFileSystem();
+        }
+
         LOGGER.info("Starting daemon...");
 
         final ExecutorService executorService = config.createExecutorService();
@@ -59,7 +67,7 @@ public class ShardMasterDaemon {
             final HostsReloader hostsReloader = new CheckpointedHostsReloader(
                     new File(config.getHostsFile()),
                     config.createHostsReloader(),
-                    config.getHostsDropRatio());
+                    config.getHostsDropThreshold());
 
             hostsReloader.run();
 
@@ -90,9 +98,10 @@ public class ShardMasterDaemon {
             try (ZkEndpointPersister endpointPersister = new ZkEndpointPersister(config.zkNodes, "/imhotep/shardmasters",
                          new Host(InetAddress.getLocalHost().getCanonicalHostName(), server.getActualPort()))
             ) {
-                LOGGER.info("Starting request response server");
+                LOGGER.info("Starting service");
                 server.run();
             } finally {
+                LOGGER.info("shutting down service");
                 server.close();
             }
         } finally {
@@ -109,6 +118,7 @@ public class ShardMasterDaemon {
     }
 
     static class Config {
+        String fsConfigFile;
         String zkNodes;
         String dbFile;
         String hostsFile;
@@ -118,7 +128,12 @@ public class ShardMasterDaemon {
         int replicationFactor = 3;
         Duration refreshInterval = Duration.standardMinutes(15);
         Duration stalenessThreshold = Duration.standardHours(1);
-        double hostsDropRatio = 0.5;
+        double hostsDropThreshold = 0.5;
+
+        public Config setFsConfigFile(final String fsConfigFile) {
+            this.fsConfigFile = fsConfigFile;
+            return this;
+        }
 
         public Config setZkNodes(final String zkNodes) {
             this.zkNodes = zkNodes;
@@ -165,8 +180,8 @@ public class ShardMasterDaemon {
             return this;
         }
 
-        public Config setHostsDropRatio(final double hostsDropRatio) {
-            this.hostsDropRatio = hostsDropRatio;
+        public Config setHostsDropThreshold(final double hostsDropThreshold) {
+            this.hostsDropThreshold = hostsDropThreshold;
             return this;
         }
 
@@ -186,6 +201,10 @@ public class ShardMasterDaemon {
             dbConfig.setMaximumPoolSize(Math.max(10, threadPoolSize + 1));
             dbConfig.setJdbcUrl("jdbc:h2:" + dbFile);
             return new HikariDataSource(dbConfig);
+        }
+
+        String getFsConfigFile() {
+            return fsConfigFile;
         }
 
         int getServerPort() {
@@ -213,14 +232,12 @@ public class ShardMasterDaemon {
             return hostsFile;
         }
 
-        double getHostsDropRatio() {
-            return hostsDropRatio;
+        double getHostsDropThreshold() {
+            return hostsDropThreshold;
         }
     }
 
     public static void main(final String[] args) throws InterruptedException, ExecutionException, IOException, KeeperException, SQLException {
-        RemoteCachingFileSystemProvider.newFileSystem();
-
         new ShardMasterDaemon(new Config()
                 .setZkNodes(System.getProperty("imhotep.shardmaster.zookeeper.nodes"))
                 .setDbFile(System.getProperty("imhotep.shardmaster.db.file"))
