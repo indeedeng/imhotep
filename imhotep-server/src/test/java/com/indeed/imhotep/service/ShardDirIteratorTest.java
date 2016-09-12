@@ -6,8 +6,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.client.ShardTimeUtils;
-import com.indeed.imhotep.shardmanager.ShardManager;
-import com.indeed.imhotep.shardmanager.protobuf.AssignedShard;
+import com.indeed.imhotep.shardmaster.ShardMaster;
+import com.indeed.imhotep.shardmaster.protobuf.AssignedShard;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.time.DefaultWallClock;
 import com.indeed.util.core.time.StoppedClock;
@@ -156,7 +156,7 @@ public class ShardDirIteratorTest {
     }
 
     @Test
-    public void testShardManagerShardIterator() throws IOException {
+    public void testShardMasterShardIterator() throws IOException {
         final Path shardsDir = tempDir.newFolder("imhotep").toPath();
 
         final Path dataset1 = shardsDir.resolve("dataset1");
@@ -174,7 +174,7 @@ public class ShardDirIteratorTest {
             createShard(dataset3, TODAY.minusDays(i));
         }
 
-        final ShardManager shardManager = new ShardManager() {
+        final ShardMaster shardMaster = new ShardMaster() {
             @Override
             public Iterable<AssignedShard> getAssignments(final String node) throws IOException {
                 return Arrays.asList(
@@ -195,11 +195,11 @@ public class ShardDirIteratorTest {
         };
 
         final ShardDirIterator shardDirIterator = new ShardDirIteratorFactory(new StoppedClock(TODAY.getMillis()),
-                Suppliers.ofInstance(shardManager),
+                Suppliers.ofInstance(shardMaster),
                 "localhost",
                 null, Boolean.TRUE.toString()).get(shardsDir);
 
-        Assert.assertTrue(shardDirIterator instanceof ShardManagerShardDirIterator);
+        Assert.assertTrue(shardDirIterator instanceof ShardMasterShardDirIterator);
         Assert.assertEquals(
                 ImmutableSet.builder()
                         .add(Pair.of("dataset1", shardDirOf(dataset1, TODAY.minusDays(1))))

@@ -46,7 +46,7 @@ import com.indeed.imhotep.protobuf.IntFieldAndTerms;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
-import com.indeed.imhotep.shardmanager.rpc.RequestResponseClientFactory;
+import com.indeed.imhotep.shardmaster.rpc.RequestResponseClientFactory;
 import org.apache.log4j.Logger;
 import org.apache.log4j.NDC;
 

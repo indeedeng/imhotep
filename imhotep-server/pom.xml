@@ -134,7 +134,7 @@
 
 		<dependency>
 			<groupId>com.indeed</groupId>
-			<artifactId>imhotep-shardmanager</artifactId>
+			<artifactId>imhotep-shardmaster</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -217,11 +217,6 @@
 			<groupId>junit</groupId>
 			<artifactId>junit-dep</artifactId>
 			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>com.indeed</groupId>
-			<artifactId>imhotep-shardmanager</artifactId>
-			<version>3.1.26-SNAPSHOT</version>
 		</dependency>
 
 	</dependencies>

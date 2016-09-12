@@ -57,7 +57,7 @@
         <module>imhotep-filesystem</module>
         <module>imhotep-client</module>
         <module>imhotep-server</module>
-        <module>imhotep-shardmanager</module>
+        <module>imhotep-shardmaster</module>
     </modules>
 
     <properties>
