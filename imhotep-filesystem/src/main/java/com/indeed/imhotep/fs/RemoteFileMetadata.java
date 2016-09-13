@@ -52,6 +52,9 @@ public class RemoteFileMetadata {
         return fileMetadata;
     }
 
+    /**
+     * @return returns the compressed file size. -1 if unknown
+     */
     public long getCompressedSize() {
         return compressedSize;
     }

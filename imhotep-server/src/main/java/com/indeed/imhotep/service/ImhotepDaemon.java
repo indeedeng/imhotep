@@ -1204,8 +1204,18 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         // initialize the imhotepfs if necessary
         RemoteCachingFileSystemProvider.newFileSystem();
 
-        final Path shardsDir = Paths.get(new URI(shardsDirectory));
-        final Path tmpDir = Paths.get(new URI(shardTempDir));
+        Path shardsDir;
+        try {
+            shardsDir = Paths.get(new URI(shardsDirectory));
+        } catch (final IllegalArgumentException e){
+            shardsDir = Paths.get(shardsDirectory);
+        }
+        Path tmpDir;
+        try {
+            tmpDir = Paths.get(new URI(shardTempDir));
+        } catch (final IllegalArgumentException e) {
+            tmpDir = Paths.get(shardTempDir);
+        }
 
         final String myHostname = InetAddress.getLocalHost().getCanonicalHostName();
         localService = new LocalImhotepServiceCore(shardsDir,
