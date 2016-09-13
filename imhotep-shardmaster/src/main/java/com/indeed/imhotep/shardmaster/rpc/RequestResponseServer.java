@@ -8,6 +8,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 
 /**
  * @author kenh
@@ -42,7 +43,7 @@ public class RequestResponseServer implements Closeable {
             final Socket socket;
             try {
                 socket = serverSocket.accept();
-            } catch (final IOException e) {
+            } catch (final SocketException e) {
                 if ("Socket closed".equals(e.getMessage())) {
                     LOGGER.warn("Shutting down due to server socket closed");
                     break;

@@ -20,24 +20,24 @@ import java.util.Properties;
  */
 
 class ShardDirIteratorFactory {
-    private final Logger LOGGER = Logger.getLogger(ShardDirIteratorFactory.class);
+    private static final Logger LOGGER = Logger.getLogger(ShardDirIteratorFactory.class);
     private final WallClock wallClock;
-    final Supplier<ShardMaster> shardMaster;
+    private final Supplier<ShardMaster> shardMasterSupplier;
     private final String localHostname;
     private Properties shardFilterConfig;
-    private boolean shardMasterEnabled;
+    private final boolean shardMasterEnabled;
 
-    ShardDirIteratorFactory(final Supplier<ShardMaster> shardMaster, final String localHostname) {
-        this(new DefaultWallClock(), shardMaster, localHostname, System.getProperty("imhotep.shard.filter.config.file"), System.getProperty("imhotep.shard.shardmaster.enabled"));
+    ShardDirIteratorFactory(final Supplier<ShardMaster> shardMasterSupplier, final String localHostname) {
+        this(new DefaultWallClock(), shardMasterSupplier, localHostname, System.getProperty("imhotep.shard.filter.config.file"), System.getProperty("imhotep.shard.shardmaster.enabled"));
     }
 
     @VisibleForTesting
-    ShardDirIteratorFactory(final WallClock wallClock, final Supplier<ShardMaster> shardMaster,
+    ShardDirIteratorFactory(final WallClock wallClock, final Supplier<ShardMaster> shardMasterSupplier,
                             final String localHostname,
                             @Nullable final String shardFilterConfigPath,
                             @Nullable final String shardMasterEnabled) {
         this.wallClock = wallClock;
-        this.shardMaster = shardMaster;
+        this.shardMasterSupplier = shardMasterSupplier;
         this.localHostname = localHostname;
         if (shardFilterConfigPath == null) {
             shardFilterConfig = null;
@@ -51,9 +51,7 @@ class ShardDirIteratorFactory {
             }
         }
 
-        if ((shardMasterEnabled != null) && Boolean.parseBoolean(shardMasterEnabled)) {
-            this.shardMasterEnabled = true;
-        }
+        this.shardMasterEnabled = (shardMasterEnabled != null) && Boolean.parseBoolean(shardMasterEnabled);
     }
 
     ShardDirIterator get(final Path shardsPath) {
@@ -63,7 +61,7 @@ class ShardDirIteratorFactory {
                     shardsPath,
                     FilteredShardDirIterator.Config.loadFromProperties(shardFilterConfig));
         } else if (shardMasterEnabled) {
-            return new ShardMasterShardDirIterator(shardMaster,
+            return new ShardMasterShardDirIterator(shardMasterSupplier,
                     localHostname);
         } else {
             return new LocalShardDirIterator(shardsPath);

@@ -39,11 +39,12 @@ public class RequestResponseClient implements ShardMaster {
 
     @Override
     public List<AssignedShard> getAssignments(final String node) throws IOException {
-        final ShardMasterResponse response = sendAndReceive(ShardMasterRequest.newBuilder()
+        final ShardMasterRequest request = ShardMasterRequest.newBuilder()
                 .setRequestType(ShardMasterRequest.RequestType.GET_ASSIGNMENT)
                 .setNode(HostAndPort.newBuilder().setHost(node).build())
-                .build());
+                .build();
 
+        final ShardMasterResponse response = sendAndReceive(request);
         return response.getAssignedShardsList();
     }
 }

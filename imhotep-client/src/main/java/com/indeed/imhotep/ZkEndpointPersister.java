@@ -73,6 +73,7 @@ public class ZkEndpointPersister implements Watcher, Closeable {
         if (connection != null) {
             try {
                 connection.close();
+                connection = null;
             } catch (final InterruptedException e) {
                 throw new IllegalStateException("Failed to close zookeeper connection", e);
             }

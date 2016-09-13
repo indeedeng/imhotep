@@ -20,11 +20,11 @@ public class MultiplexingRequestHandler implements RequestHandler {
         switch (request.getRequestType()) {
             case GET_ASSIGNMENT:
                 return assignmentRequestHandler.handleRequest(request);
+            default:
+                return ShardMasterResponse.newBuilder()
+                        .setResponseCode(ShardMasterResponse.ResponseCode.ERROR)
+                        .setErrorMessage("Unhandled request type " + request.getRequestType())
+                        .build();
         }
-
-        return ShardMasterResponse.newBuilder()
-                .setResponseCode(ShardMasterResponse.ResponseCode.ERROR)
-                .setErrorMessage("Unhandled request type " + request.getRequestType())
-                .build();
     }
 }

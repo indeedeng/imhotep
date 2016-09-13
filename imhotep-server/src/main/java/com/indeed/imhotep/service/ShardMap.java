@@ -34,6 +34,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -300,8 +301,8 @@ class ShardMap
         idToShard.put(shard.getShardId().getId(), shard);
     }
 
-    public boolean isNewerThan(final ShardDir shardDir, final Shard shard) {
-        return (shard == null) || (shardDir.getVersion() > shard.getShardVersion());
+    private static boolean isNewerThan(@Nullable final ShardDir shardDir, @Nullable final Shard shard) {
+        return (shardDir != null) && ((shard == null) || (shardDir.getVersion() > shard.getShardVersion()));
     }
 
     private boolean track(ShardMap reference, String dataset, ShardDir shardDir) {

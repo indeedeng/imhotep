@@ -1,7 +1,7 @@
 package com.indeed.imhotep.shardmaster;
 
 import com.google.common.base.Predicate;
-import com.google.common.collect.FluentIterable;
+import com.google.common.collect.Iterables;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.fs.RemoteCachingPath;
 import com.indeed.util.core.Pair;
@@ -31,13 +31,12 @@ class DataSetScanner implements Iterable<RemoteCachingPath> {
             // hack to avoid an extra attribute lookup on each list entry
             final RemoteCachingFileSystemProvider fsProvider = (RemoteCachingFileSystemProvider) (((Path) datasetsDir).getFileSystem().provider());
 
-            return FluentIterable.from(fsProvider.newDirectoryStreamWithAttributes(datasetsDir, ONLY_DIRS))
-                    .filter(new Predicate<Path>() {
-                        @Override
-                        public boolean apply(final Path datasetPath) {
-                            return shardFilter.accept(datasetPath.getFileName().toString());
-                        }
-                    }).iterator();
+            return Iterables.filter(fsProvider.newDirectoryStreamWithAttributes(datasetsDir, ONLY_DIRS), new Predicate<Path>() {
+                @Override
+                public boolean apply(final Path datasetPath) {
+                    return shardFilter.accept(datasetPath.getFileName().toString());
+                }
+            }).iterator();
         } catch (final IOException e) {
             throw new IllegalStateException("Failed to get datasets from " + datasetsDir, e);
         }

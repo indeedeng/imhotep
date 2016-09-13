@@ -85,11 +85,17 @@ class ShardScanWork implements Callable<ShardScanWork.Result> {
     }
 
     static class Builder {
+        private final HostsReloader hostsReloader;
+        private final ShardAssigner shardAssigner;
+        private final ShardAssignmentInfoDao assignmentInfoDao;
         private RemoteCachingPath datasetDir;
         private ShardFilter shardFilter;
-        private HostsReloader hostsReloader;
-        private ShardAssigner shardAssigner;
-        private ShardAssignmentInfoDao assignmentInfoDao;
+
+        public Builder(final HostsReloader hostsReloader, final ShardAssigner shardAssigner, final ShardAssignmentInfoDao assignmentInfoDao) {
+            this.hostsReloader = hostsReloader;
+            this.shardAssigner = shardAssigner;
+            this.assignmentInfoDao = assignmentInfoDao;
+        }
 
         Builder setDatasetDir(final RemoteCachingPath datasetDir) {
             this.datasetDir = datasetDir;
@@ -98,21 +104,6 @@ class ShardScanWork implements Callable<ShardScanWork.Result> {
 
         Builder setShardFilter(final ShardFilter shardFilter) {
             this.shardFilter = shardFilter;
-            return this;
-        }
-
-        Builder setHostsReloader(final HostsReloader hostsReloader) {
-            this.hostsReloader = hostsReloader;
-            return this;
-        }
-
-        Builder setAssignmentInfoDao(final ShardAssignmentInfoDao assignmentInfoDao) {
-            this.assignmentInfoDao = assignmentInfoDao;
-            return this;
-        }
-
-        Builder setShardAssigner(final ShardAssigner shardAssigner) {
-            this.shardAssigner = shardAssigner;
             return this;
         }
 

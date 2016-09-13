@@ -44,10 +44,11 @@ class DatasetShardAssignmentRefresher extends TimerTask {
     }
 
     private Future<DataSetScanWork.Result> innerRun() {
-        final ShardScanWork.Builder shardScanWorkBuilder = new ShardScanWork.Builder()
-                .setHostsReloader(hostsReloader)
-                .setShardAssigner(shardAssigner)
-                .setAssignmentInfoDao(assignmentInfoDao);
+        final ShardScanWork.Builder shardScanWorkBuilder = new ShardScanWork.Builder(
+                hostsReloader,
+                shardAssigner,
+                assignmentInfoDao
+        );
 
         LOGGER.info("Refreshing all index datasets for assignments");
 
