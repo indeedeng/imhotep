@@ -93,6 +93,7 @@ class LocalFileCache {
     }
 
     private void initialize(final RemoteCachingFileSystem fs) throws IOException {
+        Files.createDirectories(cacheRootDir);
         synchronized (lock) {
             unusedFilesCache.invalidateAll();
             Files.walkFileTree(cacheRootDir, new SimpleFileVisitor<Path>() {

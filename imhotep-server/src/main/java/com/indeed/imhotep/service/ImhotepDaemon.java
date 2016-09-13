@@ -1215,7 +1215,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                                    new GenericFlamdexReaderSource(),
                                                    new LocalImhotepServiceConfig(
                                                            new ShardDirIteratorFactory(
-                                                                   new RequestResponseClientFactory(zkNodes, myHostname),
+                                                                   new RequestResponseClientFactory(zkNodes,
+                                                                           System.getProperty("imhotep.shardmaster.zookeeper.path"),
+                                                                           myHostname),
                                                                    myHostname)
                                                    ),
                                                    shardUpdateListener);

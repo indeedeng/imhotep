@@ -61,6 +61,8 @@ public class ShardMasterDaemonTest {
         final ShardMasterDaemon.Config config = new ShardMasterDaemon.Config()
                 .setReplicationFactor(replicationFactor)
                 .setZkNodes(testingServer.getConnectString())
+                .setImhotepDaemonsZkPath("/imhotep/daemons")
+                .setShardMastersZkPath("/imhotep/shardmasters")
                 .setDbFile(new File(tempDir.getRoot(), "db.dat").toString())
                 .setHostsFile(new File(tempDir.getRoot(), "hosts.dat").toString());
 
@@ -96,6 +98,7 @@ public class ShardMasterDaemonTest {
         Thread.sleep(1000);
 
         final RequestResponseClient client = new RequestResponseClientFactory(testingServer.getConnectString(),
+                "/imhotep/shardmasters",
                 "DAEMON1").get();
 
         final ListMultimap<Pair<String, String>, AssignedShard> assignments = FluentIterable.from(Iterables.concat(

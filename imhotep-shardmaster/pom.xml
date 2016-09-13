@@ -20,7 +20,7 @@
         </license>
     </licenses>
 
-    <name>Imhotep Shard Manager</name>
+    <name>Imhotep Shard Master</name>
     <url>http://indeedeng.github.io/imhotep/</url>
 
     <scm> <!-- prevent Maven from trying to override with subproject suffix -->

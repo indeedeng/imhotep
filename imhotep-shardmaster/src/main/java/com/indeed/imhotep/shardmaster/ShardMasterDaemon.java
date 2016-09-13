@@ -71,13 +71,6 @@ public class ShardMasterDaemon {
 
             hostsReloader.run();
 
-            timer.schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    hostsReloader.run();
-                }
-            }, Duration.standardMinutes(1).getMillis(), Duration.standardMinutes(1).getMillis());
-
             final DatasetShardAssignmentRefresher refresher = new DatasetShardAssignmentRefresher(
                     dataSetsDir,
                     config.getShardFilter(),
@@ -88,14 +81,21 @@ public class ShardMasterDaemon {
             );
 
             LOGGER.info("Initializing all shard assignments");
-            refresher.initialize();
+            refresher.initialize().getAllShards().get();
+
+            timer.schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    hostsReloader.run();
+                }
+            }, Duration.standardMinutes(1).getMillis(), Duration.standardMinutes(1).getMillis());
 
             timer.schedule(refresher, config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis());
 
             server = new RequestResponseServer(config.getServerPort(), new MultiplexingRequestHandler(
                     new ShardMasterServer(shardAssignmentInfoDao)
             ));
-            try (ZkEndpointPersister endpointPersister = new ZkEndpointPersister(config.zkNodes, "/imhotep/shardmasters",
+            try (ZkEndpointPersister endpointPersister = new ZkEndpointPersister(config.zkNodes, config.shardMastersZkPath,
                          new Host(InetAddress.getLocalHost().getCanonicalHostName(), server.getActualPort()))
             ) {
                 LOGGER.info("Starting service");
@@ -118,17 +118,19 @@ public class ShardMasterDaemon {
     }
 
     static class Config {
-        String fsConfigFile;
-        String zkNodes;
-        String dbFile;
-        String hostsFile;
+        private String fsConfigFile;
+        private String zkNodes;
+        private String imhotepDaemonsZkPath;
+        private String shardMastersZkPath;
+        private String dbFile;
+        private String hostsFile;
         private ShardFilter shardFilter = ShardFilter.ACCEPT_ALL;
-        int serverPort = 0;
-        int threadPoolSize = 5;
-        int replicationFactor = 3;
-        Duration refreshInterval = Duration.standardMinutes(15);
-        Duration stalenessThreshold = Duration.standardHours(1);
-        double hostsDropThreshold = 0.5;
+        private int serverPort = 0;
+        private int threadPoolSize = 5;
+        private int replicationFactor = 3;
+        private Duration refreshInterval = Duration.standardMinutes(15);
+        private Duration stalenessThreshold = Duration.standardHours(1);
+        private double hostsDropThreshold = 0.5;
 
         public Config setFsConfigFile(final String fsConfigFile) {
             this.fsConfigFile = fsConfigFile;
@@ -137,6 +139,16 @@ public class ShardMasterDaemon {
 
         public Config setZkNodes(final String zkNodes) {
             this.zkNodes = zkNodes;
+            return this;
+        }
+
+        public Config setImhotepDaemonsZkPath(final String imhotepDaemonsZkPath) {
+            this.imhotepDaemonsZkPath = imhotepDaemonsZkPath;
+            return this;
+        }
+
+        public Config setShardMastersZkPath(final String shardMastersZkPath) {
+            this.shardMastersZkPath = shardMastersZkPath;
             return this;
         }
 
@@ -187,7 +199,7 @@ public class ShardMasterDaemon {
 
         HostsReloader createHostsReloader() {
             Preconditions.checkNotNull(zkNodes, "ZooKeeper nodes config is missing");
-            return new ZkHostsReloader(zkNodes, false);
+            return new ZkHostsReloader(zkNodes, imhotepDaemonsZkPath, false);
         }
 
         ExecutorService createExecutorService() {
