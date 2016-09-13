@@ -88,8 +88,7 @@ class SqarMetaDataUtil {
         }
 
         try {
-            final RemoteFileStore.RemoteFileAttributes  rfi = fs.getRemoteAttributes(sqarPath);
-            return rfi.isDirectory();
+            return fs.getRemoteAttributes(sqarPath).isDirectory();
         } catch (final NoSuchFileException | FileNotFoundException e) {
             return false;
         }

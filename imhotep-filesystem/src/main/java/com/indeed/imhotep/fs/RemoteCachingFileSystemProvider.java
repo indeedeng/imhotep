@@ -66,12 +66,8 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
                     try (InputStream inputStream = Files.newInputStream(fsConfigFile.toPath())) {
                         final Properties properties = new Properties();
                         properties.load(inputStream);
-                        final Map<String, Object> configuration = new HashMap<>();
-                        for (final String prop : properties.stringPropertyNames()) {
-                            configuration.put(prop, properties.get(prop));
-                        }
                         // we use the FileSystems api to avoid duplicate instantiation of the provider
-                        return FileSystems.newFileSystem(URI, configuration);
+                        return FileSystems.newFileSystem(URI, asMap(properties));
                     }
                 } catch (final IOException e) {
                     throw new IllegalStateException("Failed to read imhotep fs configuration from " + fsConfigFile, e);
@@ -89,6 +85,14 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
     }
 
     private static final FileSystemHolder FILE_SYSTEM_HOLDER = new FileSystemHolder();
+
+    private static Map<String, Object> asMap(final Properties properties) {
+        final Map<String, Object> configuration = new HashMap<>();
+        for (final String prop : properties.stringPropertyNames()) {
+            configuration.put(prop, properties.get(prop));
+        }
+        return configuration;
+    }
 
     static RemoteCachingPath toRemoteCachePath(final Path path) {
         if (path == null) {

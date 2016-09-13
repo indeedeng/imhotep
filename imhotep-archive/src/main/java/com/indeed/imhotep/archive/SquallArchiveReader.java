@@ -61,19 +61,22 @@ public class SquallArchiveReader {
      * @throws IOException if there is an IO problem
      */
     public List<FileMetadata> readMetadata() throws IOException {
-        int retries = 3;
-        while (true) {
-            try {
-                return readMetadata(fs.open(new Path(path, "metadata.txt")));
-            } catch (final FileNotFoundException e) {
-                if (--retries == 0) throw e;
+        FileNotFoundException throwable = null;
+        for (int retries = 3; retries > 0; --retries) {
+            try (FSDataInputStream is = fs.open(new Path(path, "metadata.txt"))) {
                 try {
-                    Thread.sleep(1000);
-                } catch (final InterruptedException ie) {
-                    throw new RuntimeException(ie);
+                    return readMetadata(is);
+                } catch (final FileNotFoundException e) {
+                    throwable = e;
+                    try {
+                        Thread.sleep(1000);
+                    } catch (final InterruptedException ie) {
+                        throw new RuntimeException(ie);
+                    }
                 }
             }
         }
+        throw throwable;
     }
 
     /**
@@ -84,16 +87,13 @@ public class SquallArchiveReader {
      * @throws IOException if there is an IO problem
      */
     public static List<FileMetadata> readMetadata(final InputStream is) throws IOException {
-        final BufferedReader r = new BufferedReader(new InputStreamReader(is, Charsets.UTF_8));
-        try {
+        try (BufferedReader r = new BufferedReader(new InputStreamReader(is, Charsets.UTF_8))) {
             final List<FileMetadata> ret = new ArrayList<FileMetadata>();
             for (String line = r.readLine(); line != null; line = r.readLine()) {
                 final FileMetadata metadata = parseMetadata(line);
                 ret.add(metadata);
             }
             return ret;
-        } finally {
-            r.close();
         }
     }
 
