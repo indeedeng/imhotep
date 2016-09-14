@@ -92,7 +92,7 @@ public class ShardMasterDaemon {
 
             timer.schedule(refresher, config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis());
 
-            server = new RequestResponseServer(config.getServerPort(), new MultiplexingRequestHandler(
+            server = new RequestResponseServer(config.getServicePort(), new MultiplexingRequestHandler(
                     new ShardMasterServer(shardAssignmentInfoDao)
             ));
             try (ZkEndpointPersister endpointPersister = new ZkEndpointPersister(config.zkNodes, config.shardMastersZkPath,
@@ -125,7 +125,7 @@ public class ShardMasterDaemon {
         private String dbFile;
         private String hostsFile;
         private ShardFilter shardFilter = ShardFilter.ACCEPT_ALL;
-        private int serverPort = 0;
+        private int servicePort = 0;
         private int threadPoolSize = 5;
         private int replicationFactor = 3;
         private Duration refreshInterval = Duration.standardMinutes(15);
@@ -167,8 +167,8 @@ public class ShardMasterDaemon {
             return this;
         }
 
-        public Config setServerPort(final int serverPort) {
-            this.serverPort = serverPort;
+        public Config setServicePort(final int servicePort) {
+            this.servicePort = servicePort;
             return this;
         }
 
@@ -219,8 +219,8 @@ public class ShardMasterDaemon {
             return fsConfigFile;
         }
 
-        int getServerPort() {
-            return serverPort;
+        int getServicePort() {
+            return servicePort;
         }
 
         ShardFilter getShardFilter() {
@@ -254,7 +254,7 @@ public class ShardMasterDaemon {
                 .setZkNodes(System.getProperty("imhotep.shardmaster.zookeeper.nodes"))
                 .setDbFile(System.getProperty("imhotep.shardmaster.db.file"))
                 .setHostsFile(System.getProperty("imhotep.shardmaster.hosts.file"))
-                .setServerPort(Integer.parseInt(System.getProperty("imhotep.shardmaster.server.port")))
+                .setServicePort(Integer.parseInt(System.getProperty("imhotep.shardmaster.server.port")))
         ).run();
     }
 }

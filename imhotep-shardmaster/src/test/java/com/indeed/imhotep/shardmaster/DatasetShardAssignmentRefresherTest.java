@@ -145,7 +145,7 @@ public class DatasetShardAssignmentRefresherTest {
         final Map<String, String> fsConfig = RemoteCachingFileSystemTestContext.getConfigFor(
                 ImmutableMap.<String, String>builder()
                         .put("imhotep.fs.store.type", "hdfs")
-                        .put("imhotep.fs.cache.size.gigabytes", "1")
+                        .put("imhotep.fs.cache.size.gb", "1")
                         .build(),
                 tempDir.newFolder("sqar"),
                 tempDir.newFolder("cache"),

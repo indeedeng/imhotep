@@ -23,7 +23,7 @@ public class RemoteCachingFileSystemTestContext extends ExternalResource {
 
     static final Map<String, String> DEFAULT_CONFIG = ImmutableMap.<String, String>builder()
             .put("imhotep.fs.store.type", "local")
-            .put("imhotep.fs.cache.size.gigabytes", "1")
+            .put("imhotep.fs.cache.size.gb", "1")
             .build();
 
     private final Map<String, String> configuration;

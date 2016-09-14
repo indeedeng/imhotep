@@ -60,7 +60,7 @@ class RemoteCachingFileSystem extends FileSystem {
         fileCache = new LocalFileCache(
                 this,
                 Paths.get(cacheRootUri),
-                Long.parseLong((String) configuration.get("imhotep.fs.cache.size.gigabytes")) * 1024 * 1024 * 1024,
+                Long.parseLong((String) configuration.get("imhotep.fs.cache.size.gb")) * 1024 * 1024 * 1024,
                 new LocalFileCache.CacheFileLoader() {
                     @Override
                     public void load(final RemoteCachingPath src, final Path dest) throws IOException {
