@@ -1,6 +1,6 @@
 package com.indeed.imhotep.shardmaster;
 
-`````import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.indeed.imhotep.client.HostsReloader;
 import com.indeed.imhotep.fs.RemoteCachingPath;
 import org.apache.log4j.Logger;
