@@ -1,10 +1,11 @@
 package com.indeed.imhotep.shardmaster;
 
-import com.google.common.base.Preconditions;
+`````import com.google.common.util.concurrent.ListenableFuture;
 import com.indeed.imhotep.client.HostsReloader;
 import com.indeed.imhotep.fs.RemoteCachingPath;
 import org.apache.log4j.Logger;
 
+import java.util.Collections;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -38,7 +39,10 @@ class DatasetShardAssignmentRefresher extends TimerTask {
     }
 
     DataSetScanWork.Result initialize() throws ExecutionException, InterruptedException {
-        Preconditions.checkState(hostsReloader.isLoadedDataSuccessfullyRecently(), "Unable to load latest host list");
+        if (!hostsReloader.isLoadedDataSuccessfullyRecently()) {
+            LOGGER.warn("Unable to load latest host list. Skipping shard assignment refresh");
+            return new DataSetScanWork.Result(Collections.<String, ListenableFuture<ShardScanWork.Result>>emptyMap());
+        }
         final Future<DataSetScanWork.Result> result = innerRun();
         return result.get();
     }
