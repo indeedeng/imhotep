@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.Collections;
 
 /**
  * @author kenh
@@ -55,17 +56,24 @@ public class RequestResponseServer implements Closeable {
                 socket.setTcpNoDelay(true); // disable nagle
                 final ShardMasterRequest request = ShardMasterMessageUtil.receiveRequest(socket.getInputStream());
 
-                ShardMasterResponse response;
+                Iterable<ShardMasterResponse> responses;
                 try {
-                    response = requestHandler.handleRequest(request);
+                    responses = requestHandler.handleRequest(request);
                 } catch (final Throwable e) {
                     LOGGER.error("Failed to handle request " + request, e);
-                    response = ShardMasterResponse.newBuilder()
+                    responses = Collections.singletonList(ShardMasterResponse.newBuilder()
                             .setResponseCode(ShardMasterResponse.ResponseCode.ERROR)
                             .setErrorMessage(e.getMessage())
-                            .build();
+                            .build());
                 }
-                ShardMasterMessageUtil.sendMessage(response, socket.getOutputStream());
+
+                try {
+                    for (final ShardMasterResponse response : responses) {
+                        ShardMasterMessageUtil.sendMessage(response, socket.getOutputStream());
+                    }
+                } catch (final IOException e) {
+                    LOGGER.error("Error while responding to request "+ request, e);
+                }
             } finally {
                 socket.close();
             }

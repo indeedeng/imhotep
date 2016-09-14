@@ -1,11 +1,15 @@
 package com.indeed.imhotep.shardmaster.rpc;
 
+import com.google.common.base.Function;
+import com.google.common.collect.Iterables;
 import com.indeed.imhotep.shardmaster.ShardMaster;
 import com.indeed.imhotep.shardmaster.protobuf.AssignedShard;
 import com.indeed.imhotep.shardmaster.protobuf.ShardMasterRequest;
 import com.indeed.imhotep.shardmaster.protobuf.ShardMasterResponse;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
+import java.util.List;
 
 /**
  * @author kenh
@@ -13,13 +17,15 @@ import java.io.IOException;
 
 class ShardAssignmentRequestHandler implements RequestHandler {
     private final ShardMaster shardMaster;
+    private final int responseBatchSize;
 
-    ShardAssignmentRequestHandler(final ShardMaster shardMaster) {
+    public ShardAssignmentRequestHandler(final ShardMaster shardMaster, final int responseBatchSize) {
         this.shardMaster = shardMaster;
+        this.responseBatchSize = responseBatchSize;
     }
 
     @Override
-    public ShardMasterResponse handleRequest(final ShardMasterRequest request) {
+    public Iterable<ShardMasterResponse> handleRequest(final ShardMasterRequest request) {
         final String node = request.getNode().getHost();
         final Iterable<AssignedShard> assignedShards;
         try {
@@ -28,9 +34,16 @@ class ShardAssignmentRequestHandler implements RequestHandler {
             throw new IllegalStateException("Failed to get shards for " + node, e);
         }
 
-        return ShardMasterResponse.newBuilder()
-                .setResponseCode(ShardMasterResponse.ResponseCode.OK)
-                .addAllAssignedShards(assignedShards)
-                .build();
+        return Iterables.transform(
+                Iterables.partition(assignedShards, responseBatchSize),
+                new Function<List<AssignedShard>, ShardMasterResponse>() {
+                    @Override
+                    public ShardMasterResponse apply(@Nullable final List<AssignedShard> shards) {
+                        return ShardMasterResponse.newBuilder()
+                                .setResponseCode(ShardMasterResponse.ResponseCode.OK)
+                                .addAllAssignedShards(shards)
+                                .build();
+                    }
+                });
     }
 }

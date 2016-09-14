@@ -93,7 +93,8 @@ public class ShardMasterDaemon {
             timer.schedule(refresher, config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis());
 
             server = new RequestResponseServer(config.getServicePort(), new MultiplexingRequestHandler(
-                    new ShardMasterServer(shardAssignmentInfoDao)
+                    new DatabaseShardMaster(shardAssignmentInfoDao),
+                    config.shardsResponseBatchSize
             ));
             try (ZkEndpointPersister endpointPersister = new ZkEndpointPersister(config.zkNodes, config.shardMastersZkPath,
                          new Host(InetAddress.getLocalHost().getCanonicalHostName(), server.getActualPort()))
@@ -126,6 +127,7 @@ public class ShardMasterDaemon {
         private String hostsFile;
         private ShardFilter shardFilter = ShardFilter.ACCEPT_ALL;
         private int servicePort = 0;
+        private int shardsResponseBatchSize = 1000;
         private int threadPoolSize = 5;
         private int replicationFactor = 3;
         private Duration refreshInterval = Duration.standardMinutes(15);
@@ -169,6 +171,11 @@ public class ShardMasterDaemon {
 
         public Config setServicePort(final int servicePort) {
             this.servicePort = servicePort;
+            return this;
+        }
+
+        public Config setShardsResponseBatchSize(final int shardsResponseBatchSize) {
+            this.shardsResponseBatchSize = shardsResponseBatchSize;
             return this;
         }
 

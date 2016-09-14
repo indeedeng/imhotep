@@ -61,7 +61,7 @@ class ShardScanWork implements Callable<ShardScanWork.Result> {
                     dataset,
                     shardsMap.values()
             ));
-            LOGGER.info("Assigned all shards for " + dataset);
+            LOGGER.info("Assigned all " + shardsMap.size() + " shards for " + dataset);
             return new Result(datasetDir, shardsMap.values());
         }
     }
@@ -95,6 +95,14 @@ class ShardScanWork implements Callable<ShardScanWork.Result> {
             this.hostsReloader = hostsReloader;
             this.shardAssigner = shardAssigner;
             this.assignmentInfoDao = assignmentInfoDao;
+        }
+
+        Builder copy() {
+            return new Builder(
+                    hostsReloader,
+                    shardAssigner,
+                    assignmentInfoDao
+            );
         }
 
         Builder setDatasetDir(final RemoteCachingPath datasetDir) {

@@ -9,10 +9,10 @@ import com.indeed.imhotep.shardmaster.protobuf.AssignedShard;
  * @author kenh
  */
 
-public class ShardMasterServer implements ShardMaster {
+public class DatabaseShardMaster implements ShardMaster {
     private final ShardAssignmentInfoDao assignmentInfoDao;
 
-    public ShardMasterServer(final ShardAssignmentInfoDao assignmentInfoDao) {
+    public DatabaseShardMaster(final ShardAssignmentInfoDao assignmentInfoDao) {
         this.assignmentInfoDao = assignmentInfoDao;
     }
 

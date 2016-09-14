@@ -1,10 +1,11 @@
 package com.indeed.imhotep.shardmaster.rpc;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.dbutil.DbDataFixture;
+import com.indeed.imhotep.shardmaster.DatabaseShardMaster;
 import com.indeed.imhotep.shardmaster.ShardAssignmentInfoDao;
-import com.indeed.imhotep.shardmaster.ShardMasterServer;
 import com.indeed.imhotep.shardmaster.db.shardinfo.Tables;
 import com.indeed.imhotep.shardmaster.model.ShardAssignmentInfo;
 import com.indeed.imhotep.shardmaster.protobuf.AssignedShard;
@@ -68,13 +69,13 @@ public class RequestResponseServerTest {
                 createAssignmentInfo("dataset3", "shard3", "B")
         ));
 
-        final ShardMasterServer shardMasterServer = new ShardMasterServer(assignmentInfoDao);
+        final DatabaseShardMaster shardMasterServer = new DatabaseShardMaster(assignmentInfoDao);
         final RequestResponseClient requestResponseClient;
 
         final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
         try (RequestResponseServer requestResponseServer = new RequestResponseServer(
-                0, new MultiplexingRequestHandler(shardMasterServer))) {
+                0, new MultiplexingRequestHandler(shardMasterServer, 2))) {
 
             requestResponseClient = new RequestResponseClient(
                     new Host("localhost", requestResponseServer.getActualPort()));
@@ -116,7 +117,7 @@ public class RequestResponseServerTest {
 
             Assert.assertEquals(
                     Collections.emptyList(),
-                    requestResponseClient.getAssignments("D")
+                    Lists.newArrayList(requestResponseClient.getAssignments("D"))
             );
 
             assignmentInfoDao.updateAssignments("dataset1", LATER, Arrays.asList(

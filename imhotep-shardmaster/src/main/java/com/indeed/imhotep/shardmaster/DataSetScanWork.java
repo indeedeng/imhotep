@@ -30,7 +30,7 @@ class DataSetScanWork implements Callable<DataSetScanWork.Result> {
         this.datasetsDir = datasetsDir;
         this.shardFilter = shardFilter;
         this.taskExecutorService = taskExecutorService;
-        this.shardScanBuilder = shardScanBuilder;
+        this.shardScanBuilder = shardScanBuilder.copy();
     }
 
     @Override

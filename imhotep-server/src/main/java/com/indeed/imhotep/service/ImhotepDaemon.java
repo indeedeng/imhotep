@@ -35,6 +35,7 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepServiceCore;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
+import com.indeed.imhotep.io.NioPathUtil;
 import com.indeed.imhotep.io.Streams;
 import com.indeed.imhotep.marshal.ImhotepDaemonMarshaller;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
@@ -60,10 +61,8 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -1204,18 +1203,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         // initialize the imhotepfs if necessary
         RemoteCachingFileSystemProvider.newFileSystem();
 
-        Path shardsDir;
-        try {
-            shardsDir = Paths.get(new URI(shardsDirectory));
-        } catch (final IllegalArgumentException e){
-            shardsDir = Paths.get(shardsDirectory);
-        }
-        Path tmpDir;
-        try {
-            tmpDir = Paths.get(new URI(shardTempDir));
-        } catch (final IllegalArgumentException e) {
-            tmpDir = Paths.get(shardTempDir);
-        }
+        final Path shardsDir = NioPathUtil.get(shardsDirectory);
+        final Path tmpDir = NioPathUtil.get(shardTempDir);
 
         final String myHostname = InetAddress.getLocalHost().getCanonicalHostName();
         localService = new LocalImhotepServiceCore(shardsDir,

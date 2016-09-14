@@ -8,5 +8,5 @@ import com.indeed.imhotep.shardmaster.protobuf.ShardMasterResponse;
  */
 
 public interface RequestHandler {
-    ShardMasterResponse handleRequest(ShardMasterRequest request);
+    Iterable<ShardMasterResponse> handleRequest(ShardMasterRequest request);
 }

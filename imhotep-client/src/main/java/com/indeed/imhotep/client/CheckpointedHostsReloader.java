@@ -11,6 +11,8 @@ import java.util.List;
 /**
  * A hosts reloader that checkpoints the last successfully read value locally for resiliency.
  * This reloader also avoids large drops in the number of reloaded hosts.
+ * It remembers the max number of hosts it has seen, and if it drops below the configured threshold,
+ * the reloader will refuse to refresh the hosts list.
  * This is to avoid transient large drops in reloaded hosts, that may result in overloading remaining hosts
  * @author kenh
  */
@@ -65,7 +67,7 @@ public class CheckpointedHostsReloader extends DataLoadTimer implements HostsRel
                 }
                 return;
             } else {
-                LOGGER.warn("# of hosts dropped too much since last load, loaded hosts will be ignored");
+                LOGGER.warn("loaded hosts of " + temp.size() + " dropped too much since max hosts " + maxHosts + ", loaded hosts will be ignored");
             }
         }
         loadFailed();
