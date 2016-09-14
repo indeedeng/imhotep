@@ -46,11 +46,7 @@ public class ShardMasterDaemon {
     public void run() throws IOException, ExecutionException, InterruptedException, KeeperException, SQLException {
 
         LOGGER.info("Initializing fs");
-        if (config.getFsConfigFile() != null) {
-            RemoteCachingFileSystemProvider.newFileSystem(new File(config.getFsConfigFile()));
-        } else {
-            RemoteCachingFileSystemProvider.newFileSystem();
-        }
+        RemoteCachingFileSystemProvider.newFileSystem();
 
         LOGGER.info("Starting daemon...");
 
@@ -119,7 +115,6 @@ public class ShardMasterDaemon {
     }
 
     static class Config {
-        private String fsConfigFile;
         private String zkNodes;
         private String imhotepDaemonsZkPath;
         private String shardMastersZkPath;
@@ -133,11 +128,6 @@ public class ShardMasterDaemon {
         private Duration refreshInterval = Duration.standardMinutes(15);
         private Duration stalenessThreshold = Duration.standardHours(1);
         private double hostsDropThreshold = 0.5;
-
-        public Config setFsConfigFile(final String fsConfigFile) {
-            this.fsConfigFile = fsConfigFile;
-            return this;
-        }
 
         public Config setZkNodes(final String zkNodes) {
             this.zkNodes = zkNodes;
@@ -220,10 +210,6 @@ public class ShardMasterDaemon {
             dbConfig.setMaximumPoolSize(Math.max(10, threadPoolSize + 1));
             dbConfig.setJdbcUrl("jdbc:h2:" + dbFile);
             return new HikariDataSource(dbConfig);
-        }
-
-        String getFsConfigFile() {
-            return fsConfigFile;
         }
 
         int getServicePort() {

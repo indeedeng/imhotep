@@ -76,13 +76,13 @@ public class RemoteCachingFileSystemTestContext extends ExternalResource {
 
         return ImmutableMap.<String, String>builder()
                 .putAll(baseConfig)
-                .put("imhotep.fs.cache.root-uri", cacheDir.toURI().toString())
+                .put("imhotep.fs.cache.root.uri", cacheDir.toURI().toString())
 
                 // local
-                .put("imhotep.fs.filestore.local.root-uri", localStoreDir.toURI().toString())
+                .put("imhotep.fs.filestore.local.root.uri", localStoreDir.toURI().toString())
 
                 // hdfs
-                .put("imhotep.fs.filestore.hdfs.root-uri", hdfsStoreDir.toString())
+                .put("imhotep.fs.filestore.hdfs.root.uri", hdfsStoreDir.toString())
 
                 // s3
                 .put("imhotep.fs.filestore.s3.prefix", "")

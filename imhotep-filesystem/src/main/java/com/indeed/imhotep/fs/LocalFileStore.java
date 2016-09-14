@@ -30,7 +30,7 @@ class LocalFileStore extends RemoteFileStore {
     }
 
     private LocalFileStore(final Map<String, ?> configuration) throws URISyntaxException {
-        this(Paths.get(new URI((String) configuration.get("imhotep.fs.filestore.local.root-uri"))));
+        this(Paths.get(new URI((String) configuration.get("imhotep.fs.filestore.local.root.uri"))));
     }
 
     @Override

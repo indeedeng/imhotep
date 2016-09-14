@@ -52,7 +52,7 @@ class RemoteCachingFileSystem extends FileSystem {
 
         final URI cacheRootUri;
         try {
-            cacheRootUri = new URI((String) configuration.get("imhotep.fs.cache.root-uri"));
+            cacheRootUri = new URI((String) configuration.get("imhotep.fs.cache.root.uri"));
         } catch (final URISyntaxException e) {
             throw new IllegalArgumentException("Could not parse cache root URI", e);
         }
