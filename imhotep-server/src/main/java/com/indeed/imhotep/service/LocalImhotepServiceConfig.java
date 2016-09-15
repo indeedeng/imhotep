@@ -13,6 +13,8 @@
  */
 package com.indeed.imhotep.service;
 
+import com.google.common.annotations.VisibleForTesting;
+
 /**
  * @author jsgroth
  *         additional config parameters for LocalImhotepServiceCore with provided defaults
@@ -21,7 +23,16 @@ public final class LocalImhotepServiceConfig {
     private int updateShardsFrequencySeconds = 120;
     private int heartBeatCheckFrequencySeconds = 60;
     private int syncShardStoreFrequencySeconds = 1200;
-    private ShardDirIteratorFactory shardDirIteratorFactory = new ShardDirIteratorFactory();
+    private ShardDirIteratorFactory shardDirIteratorFactory;
+
+    @VisibleForTesting
+    public LocalImhotepServiceConfig() {
+        shardDirIteratorFactory = new ShardDirIteratorFactory(null, null);
+    }
+
+    public LocalImhotepServiceConfig(final ShardDirIteratorFactory shardDirIteratorFactory) {
+        this.shardDirIteratorFactory = shardDirIteratorFactory;
+    }
 
     public int getUpdateShardsFrequencySeconds() {
         return updateShardsFrequencySeconds;

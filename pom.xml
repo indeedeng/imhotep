@@ -7,7 +7,6 @@
         <version>16</version>
     </parent>
 
-    <groupId>com.indeed</groupId>
     <artifactId>imhotep</artifactId>
     <version>3.1.26-SNAPSHOT</version>
     <packaging>pom</packaging>
@@ -56,13 +55,24 @@
     <modules>
         <module>imhotep-archive</module>
         <module>imhotep-filesystem</module>
-        <module>imhotep-controller</module>
         <module>imhotep-client</module>
         <module>imhotep-server</module>
+        <module>imhotep-shardmaster</module>
     </modules>
 
     <properties>
-        <protobuf-java.version>3.0.0-beta-1</protobuf-java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <autoVersionSubmodules>true</autoVersionSubmodules>
+
+        <joda-time.version>2.0</joda-time.version>
+        <h2database.version>1.4.191</h2database.version>
+        <hikari-cp.version>2.4.6</hikari-cp.version>
+        <jooq.version>3.6.4</jooq.version>
+        <fastutil.version>6.2.2</fastutil.version>
+        <gnu-trove.version>3.0.3</gnu-trove.version>
+        <protobuf-java.version>2.5.0</protobuf-java.version>
+        <hadoop.version>2.6.0-cdh5.4.8</hadoop.version>
+        <zookeeper.version>3.4.5-cdh5.4.8</zookeeper.version>
 
         <!-- releases of our own projects to use -->
         <!-- these should only be SNAPSHOTs when no release is available -->

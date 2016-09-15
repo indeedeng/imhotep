@@ -25,13 +25,13 @@ import java.util.Map;
  */
 class HdfsRemoteFileStore extends RemoteFileStore {
     private static final Logger LOGGER = Logger.getLogger(HdfsRemoteFileStore.class);
-    static final String HDFS_BASE_DIR = "/var/imhotep/";
+    private static final String HDFS_BASE_DIR = "/var/imhotep/";
 
     private final Path hdfsShardBasePath;
     private final FileSystem fs;
 
     private HdfsRemoteFileStore(final Map<String, ?> configuration) throws IOException, URISyntaxException {
-        final String basePath = (String) configuration.get("imhotep.fs.filestore.hdfs.root-uri");
+        final String basePath = (String) configuration.get("imhotep.fs.filestore.hdfs.root.uri");
 
         if (basePath != null) {
             hdfsShardBasePath = new Path(new URI(basePath));

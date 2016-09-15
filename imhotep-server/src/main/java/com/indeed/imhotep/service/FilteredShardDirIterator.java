@@ -3,6 +3,7 @@ package com.indeed.imhotep.service;
 import com.google.common.base.Function;
 import com.google.common.base.Predicates;
 import com.google.common.collect.FluentIterable;
+import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.client.ShardTimeUtils;
 import com.indeed.imhotep.fs.DirectoryStreamFilters;
 import com.indeed.util.core.Pair;

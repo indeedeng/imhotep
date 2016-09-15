@@ -7,9 +7,7 @@
         <version>3.1.26-SNAPSHOT</version>
 	</parent>
 
-	<groupId>com.indeed</groupId>
 	<artifactId>imhotep-archive</artifactId>
-	<version>3.1.26-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
 	<licenses>
@@ -29,18 +27,11 @@
         <developerConnection>${project.parent.scm.developerConnection}</developerConnection>
     </scm>
 
-	<repositories>
-		<repository>
-			<id>cloudera</id>
-			<url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
-		</repository>
-	</repositories>
-
 	<dependencies>
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-common</artifactId>
-            <version>2.6.0-cdh5.4.8</version>
+            <version>${hadoop.version}</version>
             <exclusions>
                 <exclusion>
                     <artifactId>servlet-api</artifactId>
@@ -93,20 +84,13 @@
         <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
-            <version>2.4</version>
+            <version>${common-io.version}</version>
         </dependency>
 
 	</dependencies>
 
 	<properties>
-		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<autoVersionSubmodules>true</autoVersionSubmodules>
-
-		<joda-time.version>2.0</joda-time.version>
-
-		<!-- releases of our own projects to use -->
-		<!-- these should only be SNAPSHOTs when no release is available -->
-		<indeed-util.version>[1.0.15,)</indeed-util.version>
+        <common-io.version>2.4</common-io.version>
 	</properties>
 
 </project>

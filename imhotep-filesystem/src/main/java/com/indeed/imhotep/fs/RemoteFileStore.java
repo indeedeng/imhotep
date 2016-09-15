@@ -83,7 +83,6 @@ abstract class RemoteFileStore extends FileStore {
      * @param startOffset the offset bytes
      * @param length bytes you want to read
      * @return the input stream
-     * @throws IOException
      */
     abstract InputStream newInputStream(RemoteCachingPath path,
                                         long startOffset,

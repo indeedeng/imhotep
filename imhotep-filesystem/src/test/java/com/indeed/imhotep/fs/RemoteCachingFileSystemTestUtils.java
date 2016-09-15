@@ -14,6 +14,9 @@ import java.nio.file.Path;
  */
 
 class RemoteCachingFileSystemTestUtils {
+    private RemoteCachingFileSystemTestUtils() {
+    }
+
     static void writeToFile(final File file, final String...output) throws IOException {
         com.indeed.util.io.Files.writeToTextFileOrDie(output, file.toString());
     }

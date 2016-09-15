@@ -29,7 +29,7 @@ public class LocalFileCacheTest {
     @Rule
     public RemoteCachingFileSystemTestContext testContext = new RemoteCachingFileSystemTestContext();
 
-    private static String generateFileData(final RemoteCachingPath path, int size) {
+    private static String generateFileData(final RemoteCachingPath path, final int size) {
         return RandomStringUtils.random(size - 1, 0, 0, true, true, null, new Random(path.hashCode()));
     }
 

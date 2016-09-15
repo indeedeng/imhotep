@@ -7,9 +7,7 @@
 		<version>3.1.26-SNAPSHOT</version>
 	</parent>
 
-	<groupId>com.indeed</groupId>
 	<artifactId>imhotep-server</artifactId>
-	<version>3.1.26-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
 	<licenses>
@@ -136,6 +134,12 @@
 
 		<dependency>
 			<groupId>com.indeed</groupId>
+			<artifactId>imhotep-shardmaster</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.indeed</groupId>
 			<artifactId>lsmtree-core</artifactId>
 			<version>[1.0.5,)</version>
 		</dependency>
@@ -197,12 +201,6 @@
 			<version>${lucene.version}</version>
 		</dependency>
 
-		<dependency>
-			<groupId>com.amazonaws</groupId>
-			<artifactId>aws-java-sdk</artifactId>
-			<version>1.7.11</version>
-		</dependency>
-    
         <dependency>
             <groupId>org.yaml</groupId>
             <artifactId>snakeyaml</artifactId>
@@ -216,13 +214,6 @@
         </dependency>
 
 		<dependency>
-			<groupId>colt</groupId>
-			<artifactId>colt</artifactId>
-			<version>${colt.version}</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit-dep</artifactId>
 			<scope>test</scope>
@@ -231,16 +222,9 @@
 	</dependencies>
 
 	<properties>
-		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<autoVersionSubmodules>true</autoVersionSubmodules>
-
 		<colt.version>1.2.0</colt.version>
-		<fastutil.version>6.2.2</fastutil.version>
-		<gnu-trove.version>2.0.2</gnu-trove.version>
 		<lucene.version>2.4.1</lucene.version>
-		<joda-time.version>2.0</joda-time.version>
 		<snakeyaml.version>1.10</snakeyaml.version>
-		<zookeeper.version>3.4.5-cdh4.4.0</zookeeper.version>
 		<automaton.version>1.11-8</automaton.version>
 	</properties>
 

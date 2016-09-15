@@ -22,6 +22,7 @@ import com.indeed.imhotep.ImhotepStatusDump.ShardDump;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.MemoryReserver;
 import com.indeed.imhotep.MetricKey;
+import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.io.Shard;
 import com.indeed.lsmtree.core.Store;
 import com.indeed.util.core.Pair;
@@ -33,6 +34,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -299,11 +301,15 @@ class ShardMap
         idToShard.put(shard.getShardId().getId(), shard);
     }
 
+    private static boolean isNewerThan(@Nullable final ShardDir shardDir, @Nullable final Shard shard) {
+        return (shardDir != null) && ((shard == null) || (shardDir.getVersion() > shard.getShardVersion()));
+    }
+
     private boolean track(ShardMap reference, String dataset, ShardDir shardDir) {
         final Shard referenceShard = reference.getShard(dataset, shardDir.getId());
         final Shard currentShard   = getShard(dataset, shardDir.getId());
 
-        if (shardDir.isNewerThan(referenceShard) && shardDir.isNewerThan(currentShard)) {
+        if (isNewerThan(shardDir, referenceShard) && isNewerThan(shardDir, currentShard)) {
             final ReloadableSharedReference.Loader<CachedFlamdexReader, IOException>
                 loader = newLoader(shardDir.getIndexDir(), dataset, shardDir.getName());
             try {

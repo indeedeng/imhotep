@@ -14,10 +14,9 @@
  package com.indeed.imhotep.client;
 
 import com.indeed.util.core.DataLoadingRunnable;
-import com.indeed.util.io.Files;
 import org.apache.log4j.Logger;
 
-import java.util.ArrayList;
+import java.io.File;
 import java.util.Collections;
 import java.util.List;
 
@@ -65,18 +64,7 @@ public class FileHostsReloader extends DataLoadingRunnable implements HostsReloa
 
     private boolean updateHosts() {
         try {
-            final List<Host> newHosts = new ArrayList<Host>();
-            for (String line : Files.readTextFile(hostsFile)) {
-                if (line.startsWith("#")) continue;
-
-                final String[] splitLine = line.split(":", 2);
-                if (splitLine.length != 2) {
-                    log.error("invalid host: "+line);
-                    continue;
-                }
-                newHosts.add(new Host(splitLine[0], Integer.parseInt(splitLine[1])));
-            }
-            Collections.sort(newHosts);
+            final List<Host> newHosts = HostListSerializer.fromFile(log, new File(hostsFile));
             log.info("reloaded hosts file, new list of hosts: "+newHosts);
             if (!newHosts.equals(hosts)) {
                 hosts = newHosts;

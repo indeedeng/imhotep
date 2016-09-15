@@ -4,6 +4,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import com.indeed.imhotep.archive.FileMetadata;
+import com.indeed.imhotep.fs.db.metadata.Tables;
 import com.indeed.imhotep.fs.sql.FileMetadataDao;
 import com.indeed.imhotep.fs.sql.SchemaInitializer;
 import com.indeed.imhotep.fs.sql.SqarMetaDataDao;
@@ -15,12 +16,12 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.NotDirectoryException;
 import java.nio.file.Path;
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -29,11 +30,11 @@ import java.util.Map;
  */
 class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
     private final SqarMetaDataManager sqarMetaDataManager;
-    private final SqarMetaDataDao sqarMetaDataDao;
+    private final HikariDataSource dataSource;
     private final RemoteFileStore backingFileStore;
 
     SqarRemoteFileStore(final RemoteFileStore backingFileStore,
-                               final Map<String, ?> configuration) throws SQLException, ClassNotFoundException, IOException, URISyntaxException {
+                               final Map<String, ?> configuration) throws SQLException, IOException {
         this.backingFileStore = backingFileStore;
 
         final File dbFile = new File((String) configuration.get("imhotep.fs.sqardb.file"));
@@ -41,17 +42,16 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
         config.setJdbcUrl("jdbc:h2:" + dbFile);
 
 
-        final HikariDataSource dataSource = new HikariDataSource(config);
+        dataSource = new HikariDataSource(config);
+        new SchemaInitializer(dataSource).initialize(Collections.singletonList(Tables.TBLFILEMETADATA));
 
-        new SchemaInitializer(dataSource).initialize();
-
-        sqarMetaDataDao = new FileMetadataDao(dataSource);
+        final SqarMetaDataDao sqarMetaDataDao = new FileMetadataDao(dataSource);
         sqarMetaDataManager = new SqarMetaDataManager(sqarMetaDataDao);
     }
 
     @Override
     public void close() throws IOException {
-        sqarMetaDataDao.close();
+        dataSource.close();
     }
 
     RemoteFileStore getBackingFileStore() {

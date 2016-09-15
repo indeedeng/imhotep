@@ -15,7 +15,6 @@ import org.jooq.DSLContext;
 import org.jooq.SelectConditionStep;
 import org.jooq.impl.DSL;
 
-import java.io.IOException;
 import java.nio.file.Path;
 
 /**
@@ -26,11 +25,9 @@ public class FileMetadataDao implements SqarMetaDataDao {
     private static final String DELIMITER = "/";
     private static final String CONTAINS_DELIMITER_PAT = "%/%";
     private static final Tblfilemetadata TABLE = Tables.TBLFILEMETADATA;
-    private final HikariDataSource dataSource;
     private final DSLContext dslContext;
 
     public FileMetadataDao(final HikariDataSource dataSource) {
-        this.dataSource = dataSource;
         dslContext = new DSLContextContainer(dataSource).getDSLContext();
     }
 
@@ -151,10 +148,5 @@ public class FileMetadataDao implements SqarMetaDataDao {
                         return toRemoteFileMetadata(fetchRecord);
                     }
                 });
-    }
-
-    @Override
-    public void close() throws IOException {
-        dataSource.close();
     }
 }
