@@ -31,11 +31,10 @@ import java.util.Map;
 class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
     private final SqarMetaDataManager sqarMetaDataManager;
     private final HikariDataSource dataSource;
-    private final SqarMetaDataDao sqarMetaDataDao;
     private final RemoteFileStore backingFileStore;
 
     SqarRemoteFileStore(final RemoteFileStore backingFileStore,
-                               final Map<String, ?> configuration) throws SQLException, ClassNotFoundException, IOException {
+                               final Map<String, ?> configuration) throws SQLException, IOException {
         this.backingFileStore = backingFileStore;
 
         final File dbFile = new File((String) configuration.get("imhotep.fs.sqardb.file"));
@@ -46,7 +45,7 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
         dataSource = new HikariDataSource(config);
         new SchemaInitializer(dataSource).initialize(Collections.singletonList(Tables.TBLFILEMETADATA));
 
-        sqarMetaDataDao = new FileMetadataDao(dataSource);
+        final SqarMetaDataDao sqarMetaDataDao = new FileMetadataDao(dataSource);
         sqarMetaDataManager = new SqarMetaDataManager(sqarMetaDataDao);
     }
 

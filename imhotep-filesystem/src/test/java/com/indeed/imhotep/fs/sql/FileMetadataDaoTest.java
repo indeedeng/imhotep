@@ -27,7 +27,7 @@ public class FileMetadataDaoTest {
     @Rule
     public final DbDataFixture dbDataFixture = new DbDataFixture(Collections.singletonList(Tables.TBLFILEMETADATA));
     private FileMetadataDao fileMetadataDao;
-    private DateTime now = DateTime.now();
+    private final DateTime now = DateTime.now();
 
     @Before
     public void setUp() throws IOException, SQLException, URISyntaxException {
@@ -319,7 +319,7 @@ public class FileMetadataDaoTest {
         fileMetadataDao.cacheMetadata(Paths.get("2"), Arrays.asList(dirmeta_2a, filemeta_2ab, filemeta_2ac));
 
         Assert.assertEquals(
-                Arrays.asList(
+                Collections.singletonList(
                         filemeta_1ab
                 ), Lists.newArrayList(fileMetadataDao.listDirectory(Paths.get("1"), "a")));
 

@@ -71,9 +71,6 @@ public class ShardAssignmentInfoDao {
      * This flushes out the old assignment, but with some time delay.
      * The reason for this is because during host fluctuation, there could be a transient state where a given
      * shard is allocated to no hosts, so to stay conservative, we retain old shard assignments for some time.
-     * @param dataset
-     * @param timestamp
-     * @param assignmentInfos
      */
     public void updateAssignments(final String dataset, final DateTime timestamp, final Iterable<ShardAssignmentInfo> assignmentInfos) {
         dslContext.transaction(new TransactionalRunnable() {

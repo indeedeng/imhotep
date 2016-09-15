@@ -99,7 +99,6 @@ class SqarMetaDataManager {
      * @param fs the file store implementation
      * @param path the path for which to fetch the metadata
      * @return the metadata. null if no file corresponding to {@param path}
-     * @throws IOException
      */
     @Nullable
     RemoteFileMetadata getFileMetadata(final RemoteFileStore fs, final RemoteCachingPath path) throws IOException {
@@ -144,7 +143,7 @@ class SqarMetaDataManager {
         }
     }
 
-    List<RemoteFileStore.RemoteFileAttributes> readDir(final RemoteCachingPath path) throws IOException {
+    List<RemoteFileStore.RemoteFileAttributes> readDir(final RemoteCachingPath path) {
         final RemoteCachingPath shardPath = SqarMetaDataUtil.getShardPath(path);
         final String fileName = SqarMetaDataUtil.getFilePath(path).toString();
         if ((shardPath == null) && (fileName == null)) {

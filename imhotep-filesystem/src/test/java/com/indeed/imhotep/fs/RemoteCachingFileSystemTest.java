@@ -21,6 +21,7 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static com.indeed.imhotep.fs.RemoteCachingFileSystemTestUtils.readFromPath;
@@ -144,7 +145,7 @@ public class RemoteCachingFileSystemTest {
 
         Assert.assertEquals(rootDir.resolve("a").resolve("b"), rootDir.resolve("a").resolve("b").resolve("c").getParent());
         Assert.assertEquals(rootDir.resolve("a"), rootDir.resolve("a").resolve("b").resolve("c").getParent().getParent());
-        Assert.assertEquals(null, rootDir.resolve("a").resolve("b").resolve("c").getParent().getParent().getParent());
+        Assert.assertNull(rootDir.resolve("a").resolve("b").resolve("c").getParent().getParent().getParent());
 
         Assert.assertEquals(fs.getPath("a"), rootDir.resolve("a").resolve("b").getName(0));
         Assert.assertEquals(fs.getPath("b"), rootDir.resolve("a").resolve("b").getName(1));
@@ -238,7 +239,7 @@ public class RemoteCachingFileSystemTest {
                 FluentIterable.from(Files.newDirectoryStream(fs.getPath(""))).toSet());
 
         Assert.assertEquals(
-                Arrays.asList(fs.getPath("b", "c")),
+                Collections.singletonList(fs.getPath("b", "c")),
                 FluentIterable.from(Files.newDirectoryStream(fs.getPath("b"))).toList());
 
         Assert.assertEquals(Sets.newHashSet(

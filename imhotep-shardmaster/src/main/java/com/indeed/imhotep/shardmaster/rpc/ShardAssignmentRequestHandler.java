@@ -19,7 +19,7 @@ class ShardAssignmentRequestHandler implements RequestHandler {
     private final ShardMaster shardMaster;
     private final int responseBatchSize;
 
-    public ShardAssignmentRequestHandler(final ShardMaster shardMaster, final int responseBatchSize) {
+    ShardAssignmentRequestHandler(final ShardMaster shardMaster, final int responseBatchSize) {
         this.shardMaster = shardMaster;
         this.responseBatchSize = responseBatchSize;
     }

@@ -352,7 +352,7 @@ public class RemoteCachingPath implements Path, Serializable {
         }
     }
 
-    private Object writeReplace() throws ObjectStreamException {
+    protected Object writeReplace() throws ObjectStreamException {
         return new PathProxy(this);
     }
 
@@ -377,13 +377,15 @@ public class RemoteCachingPath implements Path, Serializable {
     }
 
     private static class PathProxy implements Serializable {
+        private static final long serialVersionUID = -2658984992211825586L;
+
         private PathProxy(final Path path) {
             pathUri = path.toUri();
         }
 
         private final URI pathUri;
 
-        Object readResolve() throws ObjectStreamException {
+        protected Object readResolve() throws ObjectStreamException {
             return Paths.get(pathUri);
         }
     }

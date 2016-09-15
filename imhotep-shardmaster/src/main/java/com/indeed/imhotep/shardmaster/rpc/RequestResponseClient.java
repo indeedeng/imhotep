@@ -43,6 +43,7 @@ public class RequestResponseClient implements ShardMaster {
     }
 
     private Iterable<ShardMasterResponse> sendAndReceive(final ShardMasterRequest request) throws IOException {
+        @SuppressWarnings({"IOResourceOpenedButNotSafelyClosed", "SocketOpenedButNotSafelyClosed"})
         final Socket socket = new Socket(serverHost.getHostname(), serverHost.getPort());
         ShardMasterMessageUtil.sendMessage(request, socket.getOutputStream());
         final InputStream socketInputStream = socket.getInputStream();

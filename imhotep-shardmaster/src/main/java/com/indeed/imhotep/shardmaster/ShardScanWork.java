@@ -91,7 +91,7 @@ class ShardScanWork implements Callable<ShardScanWork.Result> {
         private RemoteCachingPath datasetDir;
         private ShardFilter shardFilter;
 
-        public Builder(final HostsReloader hostsReloader, final ShardAssigner shardAssigner, final ShardAssignmentInfoDao assignmentInfoDao) {
+        Builder(final HostsReloader hostsReloader, final ShardAssigner shardAssigner, final ShardAssignmentInfoDao assignmentInfoDao) {
             this.hostsReloader = hostsReloader;
             this.shardAssigner = shardAssigner;
             this.assignmentInfoDao = assignmentInfoDao;

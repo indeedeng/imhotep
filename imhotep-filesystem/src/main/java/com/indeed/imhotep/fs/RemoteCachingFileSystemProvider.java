@@ -61,7 +61,7 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
             return fileSystem;
         }
 
-        synchronized FileSystem create(final File fsConfigFile) throws IOException {
+        synchronized FileSystem create(final File fsConfigFile) {
             if (fileSystem != null) {
                 throw new FileSystemAlreadyExistsException("Multiple file systems not supported");
             } else {

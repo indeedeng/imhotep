@@ -32,7 +32,10 @@ public final class KerberosUtils {
     private static final String KERBEROS_PRINCIPAL_KEY = "kerberos.principal";
     private static final String KERBEROS_KEYTAB_KEY = "kerberos.keytab";
 
-    public static void loginFromKeytab(@Nonnull Configuration props) throws IOException {
+    private KerberosUtils() {
+    }
+
+    public static void loginFromKeytab(@Nonnull final Configuration props) throws IOException {
         // first try and login from the config
         final String principal = props.getString(KERBEROS_PRINCIPAL_KEY);
         final String keytabPath = props.getString(KERBEROS_KEYTAB_KEY);
@@ -46,7 +49,7 @@ public final class KerberosUtils {
         loginFromKeytab(principal, keytabPath);
     }
 
-    public static void loginFromKeytab(@Nullable String principal, @Nullable String keytabPath) throws IOException {
+    public static void loginFromKeytab(@Nullable final String principal, @Nullable final String keytabPath) throws IOException {
         // if one of these is set, then assume they meant to set both
         if (!Strings.isNullOrEmpty(principal) || !Strings.isNullOrEmpty(keytabPath)) {
             log.info("Using properties from configuration file");
@@ -65,7 +68,7 @@ public final class KerberosUtils {
         }
     }
 
-    private static void with(String principal, String keytabPath) throws IOException {
+    private static void with(final String principal, final String keytabPath) throws IOException {
         log.info("Setting keytab file of " + keytabPath + ", and principal to " + principal);
         checkArgument(!Strings.isNullOrEmpty(principal),
                       "Unable to use a null/empty principal for keytab");
@@ -76,7 +79,7 @@ public final class KerberosUtils {
         // actually login
         try {
             UserGroupInformation.loginUserFromKeytab(realPrincipal, keytabPath);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             checkKnownErrors(realPrincipal, e);
             throw e;
         }
@@ -104,7 +107,7 @@ public final class KerberosUtils {
     private static String getCanonicalHostNameSafe() {
         try {
             return InetAddress.getLocalHost().getCanonicalHostName();
-        } catch (UnknownHostException e) {
+        } catch (final UnknownHostException e) {
             log.error("Unable to lookup hostname of machine " + e.getMessage());
             return null;
         }
@@ -113,11 +116,12 @@ public final class KerberosUtils {
     /**
      * Use for testing keytab logins
      */
-    public static void main(String[] args) throws Exception {
+    public static void main(final String[] args) throws Exception {
         KerberosUtils.loginFromKeytab(new BaseConfiguration());
         final FileSystem fileSystem = FileSystem.get(new org.apache.hadoop.conf.Configuration());
         final Path path = new Path("/CLUSTERNAME");
         if (fileSystem.exists(path)) {
+            //noinspection UseOfSystemOutOrSystemErr
             System.out.println(CharStreams.toString(new InputStreamReader(fileSystem.open(path),
                                                                           Charsets.UTF_8)));
         }

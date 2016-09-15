@@ -76,7 +76,7 @@ public class MinHashShardAssignerTest {
     }
 
     @Test
-    public void testConsitency() {
+    public void testConsistency() {
         final ShardDir shard = new ShardDir(Paths.get("SHARD"));
 
         final int replicationFactor = 3;

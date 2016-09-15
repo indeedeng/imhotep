@@ -21,7 +21,7 @@ import java.util.Properties;
 public class RemoteCachingFileSystemTestContext extends ExternalResource {
     private final TemporaryFolder tempDir = new TemporaryFolder();
 
-    static final Map<String, String> DEFAULT_CONFIG = ImmutableMap.<String, String>builder()
+    private static final Map<String, String> DEFAULT_CONFIG = ImmutableMap.<String, String>builder()
             .put("imhotep.fs.store.type", "local")
             .put("imhotep.fs.cache.size.gb", "1")
             .build();

@@ -7,6 +7,6 @@ import com.indeed.imhotep.shardmaster.protobuf.ShardMasterResponse;
  * @author kenh
  */
 
-public interface RequestHandler {
+interface RequestHandler {
     Iterable<ShardMasterResponse> handleRequest(ShardMasterRequest request);
 }

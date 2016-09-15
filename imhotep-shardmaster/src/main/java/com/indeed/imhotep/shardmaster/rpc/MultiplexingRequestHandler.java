@@ -22,6 +22,7 @@ public class MultiplexingRequestHandler implements RequestHandler {
         switch (request.getRequestType()) {
             case GET_ASSIGNMENT:
                 return assignmentRequestHandler.handleRequest(request);
+            //noinspection UnnecessaryDefault
             default:
                 return Collections.singletonList(ShardMasterResponse.newBuilder()
                         .setResponseCode(ShardMasterResponse.ResponseCode.ERROR)

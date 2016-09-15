@@ -25,7 +25,7 @@ import java.util.Map;
  */
 class HdfsRemoteFileStore extends RemoteFileStore {
     private static final Logger LOGGER = Logger.getLogger(HdfsRemoteFileStore.class);
-    static final String HDFS_BASE_DIR = "/var/imhotep/";
+    private static final String HDFS_BASE_DIR = "/var/imhotep/";
 
     private final Path hdfsShardBasePath;
     private final FileSystem fs;
