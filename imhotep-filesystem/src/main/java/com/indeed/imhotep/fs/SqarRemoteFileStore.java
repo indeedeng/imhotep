@@ -4,11 +4,18 @@ import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import com.indeed.imhotep.archive.FileMetadata;
+import com.indeed.imhotep.fs.sql.FileMetadataDao;
+import com.indeed.imhotep.fs.sql.SchemaInitializer;
+import com.indeed.imhotep.fs.sql.SqarMetaDataDao;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 
 import javax.annotation.Nullable;
 import java.io.Closeable;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.NotDirectoryException;
@@ -18,21 +25,33 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * @author darren
+ * @author kenh
  */
 class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
     private final SqarMetaDataManager sqarMetaDataManager;
+    private final SqarMetaDataDao sqarMetaDataDao;
     private final RemoteFileStore backingFileStore;
 
     SqarRemoteFileStore(final RemoteFileStore backingFileStore,
-                               final Map<String, ?> configuration) throws SQLException, ClassNotFoundException {
+                               final Map<String, ?> configuration) throws SQLException, ClassNotFoundException, IOException, URISyntaxException {
         this.backingFileStore = backingFileStore;
-        sqarMetaDataManager = new SqarMetaDataManager(configuration);
+
+        final File dbFile = new File((String) configuration.get("imhotep.fs.sqardb.file"));
+        final HikariConfig config = new HikariConfig();
+        config.setJdbcUrl("jdbc:h2:" + dbFile);
+
+
+        final HikariDataSource dataSource = new HikariDataSource(config);
+
+        new SchemaInitializer(dataSource).initialize();
+
+        sqarMetaDataDao = new FileMetadataDao(dataSource);
+        sqarMetaDataManager = new SqarMetaDataManager(sqarMetaDataDao);
     }
 
     @Override
     public void close() throws IOException {
-        sqarMetaDataManager.close();
+        sqarMetaDataDao.close();
     }
 
     RemoteFileStore getBackingFileStore() {
@@ -51,8 +70,8 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
 
     @Override
     List<RemoteFileStore.RemoteFileAttributes> listDir(final RemoteCachingPath path) throws IOException {
-        if (SqarMetaDataManager.isInSqarDirectory(path, backingFileStore)) {
-            final FileMetadata sqarMetadata = getSqarMetadata(path);
+        if (SqarMetaDataUtil.isInSqarDirectory(backingFileStore, path)) {
+            final RemoteFileMetadata sqarMetadata = getSqarMetadata(path);
             if (sqarMetadata == null) {
                 throw new NoSuchFileException(path.toString());
             } else if (sqarMetadata.isFile()) {
@@ -64,7 +83,7 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
                     new Function<RemoteFileAttributes, RemoteFileAttributes>() {
                         @Override
                         public RemoteFileAttributes apply(final RemoteFileAttributes remoteFileAttributes) {
-                            return SqarMetaDataManager.normalizeSqarFileAttribute(remoteFileAttributes);
+                            return SqarMetaDataUtil.normalizeSqarFileAttribute(remoteFileAttributes);
                         }
                     }
             ).toList();
@@ -72,7 +91,7 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
     }
 
     private RemoteFileStore.RemoteFileAttributes getRemoteAttributesImpl(final RemoteCachingPath path) throws IOException {
-        final FileMetadata md = getSqarMetadata(path);
+        final RemoteFileMetadata md = getSqarMetadata(path);
         if (md == null) {
             throw new NoSuchFileException("Could not find metadata for " + path);
         }
@@ -81,7 +100,7 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
 
     @Override
     RemoteFileStore.RemoteFileAttributes getRemoteAttributes(final RemoteCachingPath path) throws IOException {
-        if (SqarMetaDataManager.isInSqarDirectory(path, backingFileStore)) {
+        if (SqarMetaDataUtil.isInSqarDirectory(backingFileStore, path)) {
             return getRemoteAttributesImpl(path);
         } else {
             return backingFileStore.getRemoteAttributes(path);
@@ -89,20 +108,21 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
     }
 
     private void downloadFileImpl(final RemoteCachingPath srcPath, final Path destPath) throws IOException {
-        final FileMetadata md = getSqarMetadata(srcPath);
-        if (md == null) {
+        final RemoteFileMetadata remoteFileMetadata = getSqarMetadata(srcPath);
+        if (remoteFileMetadata == null) {
             throw new NoSuchFileException("Cannot find file for " + srcPath);
         }
-        if (!md.isFile()) {
+        if (!remoteFileMetadata.isFile()) {
             throw new NoSuchFileException(srcPath.toString() + " is not a file");
         }
 
-        final RemoteCachingPath archivePath = SqarMetaDataManager.getFullArchivePath(srcPath, md.getArchiveFilename());
+        final FileMetadata fileMetadata = remoteFileMetadata.getFileMetadata();
+        final RemoteCachingPath archivePath = SqarMetaDataUtil.getFullArchivePath(srcPath, fileMetadata.getArchiveFilename());
         try (final InputStream archiveIS = backingFileStore.newInputStream(archivePath,
-                md.getStartOffset(),
-                md.getCompressedSize())) {
+                fileMetadata.getStartOffset(),
+                remoteFileMetadata.getCompressedSize())) {
             try {
-                sqarMetaDataManager.copyDecompressed(archiveIS, srcPath, destPath, md);
+                sqarMetaDataManager.copyDecompressed(archiveIS, srcPath, destPath, fileMetadata);
             } catch (final IOException e) {
                 Files.delete(destPath);
                 throw Throwables.propagate(e);
@@ -112,7 +132,7 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
 
     @Override
     void downloadFile(final RemoteCachingPath srcPath, final Path destPath) throws IOException {
-        if (SqarMetaDataManager.isInSqarDirectory(srcPath, backingFileStore)) {
+        if (SqarMetaDataUtil.isInSqarDirectory(backingFileStore, srcPath)) {
             downloadFileImpl(srcPath, destPath);
         } else {
             backingFileStore.downloadFile(srcPath, destPath);
@@ -120,20 +140,7 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
     }
 
     @Nullable
-    private FileMetadata getSqarMetadata(final RemoteCachingPath path) throws IOException {
-        SqarMetaDataManager.PathInfoResult pathInfoResult = sqarMetaDataManager.getPathInfo(path);
-
-        if (pathInfoResult == SqarMetaDataManager.PathInfoResult.ARCHIVE_MISSING) {
-            final RemoteCachingPath metadataPath = SqarMetaDataManager.getMetadataPath(path);
-            try (InputStream metadataIS = backingFileStore.newInputStream(metadataPath, 0, -1)) {
-                sqarMetaDataManager.cacheMetadata(path, metadataIS);
-            }
-            pathInfoResult = sqarMetaDataManager.getPathInfo(path);
-        }
-        if (pathInfoResult == SqarMetaDataManager.PathInfoResult.FILE_MISSING) {
-            return null;
-        }
-
-        return pathInfoResult.metadata;
+    private RemoteFileMetadata getSqarMetadata(final RemoteCachingPath path) throws IOException {
+        return sqarMetaDataManager.getFileMetadata(backingFileStore, path);
     }
 }

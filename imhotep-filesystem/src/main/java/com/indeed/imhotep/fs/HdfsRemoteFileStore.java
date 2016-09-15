@@ -1,5 +1,6 @@
 package com.indeed.imhotep.fs;
 
+import com.indeed.imhotep.hadoopcommon.KerberosUtils;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -37,6 +38,8 @@ class HdfsRemoteFileStore extends RemoteFileStore {
         } else {
             hdfsShardBasePath = new Path(HDFS_BASE_DIR);
         }
+
+        KerberosUtils.loginFromKeytab(configuration);
 
         fs = FileSystem.get(new Configuration());
     }

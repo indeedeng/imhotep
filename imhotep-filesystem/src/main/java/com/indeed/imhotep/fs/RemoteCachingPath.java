@@ -4,7 +4,6 @@ import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import org.apache.commons.io.FilenameUtils;
 
-import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.io.ObjectStreamException;
@@ -335,35 +334,6 @@ public class RemoteCachingPath implements Path, Serializable {
     @Override
     public int hashCode() {
         return Objects.hashCode(path);
-    }
-
-    @Nullable
-    RemoteCachingPath getShardPath() {
-        if (getNameCount() < 2) {
-            return null;
-        }
-        return (RemoteCachingPath) subpath(0, 2);
-    }
-
-    @Nullable
-    RemoteCachingPath getFilePath() {
-        if (getNameCount() < 3) {
-            return null;
-        }
-        return (RemoteCachingPath) subpath(2, getNameCount());
-    }
-
-    public ImhotepPathType getType() {
-        switch (nameOffsets.length) {
-            case 0:
-                return ImhotepPathType.ROOT;
-            case 1:
-                return ImhotepPathType.INDEX;
-            case 2:
-                return ImhotepPathType.SHARD;
-            default:
-                return ImhotepPathType.FILE;
-        }
     }
 
     private static String makeRelative(final String pathStr) {

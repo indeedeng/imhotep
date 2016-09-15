@@ -46,7 +46,7 @@ class RemoteCachingFileSystem extends FileSystem {
                 .getFactory().create(configuration);
         try {
             fileStore = new SqarRemoteFileStore(backingFileStore, configuration);
-        } catch (final SQLException | ClassNotFoundException e) {
+        } catch (final SQLException | ClassNotFoundException | URISyntaxException e) {
             throw new IllegalStateException("Failed to initialize SqarRemoteFileStore", e);
         }
 

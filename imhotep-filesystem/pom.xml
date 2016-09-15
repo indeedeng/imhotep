@@ -1,27 +1,26 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-	<modelVersion>4.0.0</modelVersion>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
 
-	<parent>
-		<groupId>com.indeed</groupId>
-		<artifactId>imhotep</artifactId>
-		<version>3.1.26-SNAPSHOT</version>
-	</parent>
+    <parent>
+        <groupId>com.indeed</groupId>
+        <artifactId>imhotep</artifactId>
+        <version>3.1.26-SNAPSHOT</version>
+    </parent>
 
-	<groupId>com.indeed</groupId>
-	<artifactId>imhotep-filesystem</artifactId>
-	<version>3.1.26-SNAPSHOT</version>
-	<packaging>jar</packaging>
+    <artifactId>imhotep-filesystem</artifactId>
+    <packaging>jar</packaging>
 
-	<licenses>
-		<license>
-			<name>The Apache Software License, Version 2.0</name>
-			<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
-			<distribution>repo</distribution>
-		</license>
-	</licenses>
+    <licenses>
+        <license>
+            <name>The Apache Software License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
 
-	<name>Imhotep Remote Sqar Caching Filesystem</name>
-	<url>http://indeedeng.github.io/imhotep/</url>
+    <name>Imhotep Remote Sqar Caching Filesystem</name>
+    <url>http://indeedeng.github.io/imhotep/</url>
 
     <scm> <!-- prevent Maven from trying to override with subproject suffix -->
         <url>${project.parent.scm.url}</url>
@@ -29,33 +28,118 @@
         <developerConnection>${project.parent.scm.developerConnection}</developerConnection>
     </scm>
 
-	<build>
-		<plugins>
+    <build>
+        <plugins>
             <plugin>
-              <groupId>org.apache.maven.plugins</groupId>
-              <artifactId>maven-compiler-plugin</artifactId>
-              <version>3.2</version>
-              <configuration>
-                <source>1.7</source>
-                <target>1.7</target>
-              </configuration>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.2</version>
+                <configuration>
+                    <source>1.7</source>
+                    <target>1.7</target>
+                </configuration>
             </plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<version>3.0.2</version>
-				<executions>
-					<execution>
-						<goals>
-							<goal>test-jar</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-		</plugins>
-	</build>
 
-	<dependencies>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.0.2</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>sql-maven-plugin</artifactId>
+                <version>1.5</version>
+
+                <configuration>
+                    <driver>org.h2.Driver</driver>
+                    <url>jdbc:h2:${project.build.directory}/jooq-output/metadata</url>
+                    <autocommit>true</autocommit>
+                </configuration>
+
+                <executions>
+                    <execution>
+                        <id>create-database-h2</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>execute</goal>
+                        </goals>
+                        <configuration>
+                            <srcFiles>
+                                <srcFile>src/main/resources/schema/tblFileMetadata.sql</srcFile>
+                            </srcFiles>
+                        </configuration>
+                    </execution>
+                </executions>
+
+                <dependencies>
+                    <dependency>
+                        <groupId>com.h2database</groupId>
+                        <artifactId>h2</artifactId>
+                        <version>${h2database.version}</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+
+            <plugin>
+                <!-- Specify the maven code generator plugin -->
+                <groupId>org.jooq</groupId>
+                <artifactId>jooq-codegen-maven</artifactId>
+                <version>${jooq.version}</version>
+
+                <!-- The plugin should hook into the generate goal -->
+                <executions>
+                    <execution>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                    </execution>
+                </executions>
+
+                <dependencies>
+                    <dependency>
+                        <groupId>com.h2database</groupId>
+                        <artifactId>h2</artifactId>
+                        <version>${h2database.version}</version>
+                    </dependency>
+                </dependencies>
+
+                <!-- Specify the plugin configuration.
+                     The configuration format is the same as for the standalone code generator -->
+                <configuration>
+
+                    <!-- JDBC connection parameters -->
+                    <jdbc>
+                        <driver>org.h2.Driver</driver>
+                        <url>jdbc:h2:${project.build.directory}/jooq-output/metadata</url>
+                    </jdbc>
+
+                    <!-- Generator parameters -->
+                    <generator>
+                        <database>
+                            <name>org.jooq.util.h2.H2Database</name>
+                            <includes>.*</includes>
+                            <inputSchema>PUBLIC</inputSchema>
+                        </database>
+                        <target>
+                            <packageName>com.indeed.imhotep.fs.db.metadata</packageName>
+                            <directory>target/generated-sources/jooq/java</directory>
+                        </target>
+                    </generator>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <dependencies>
 
         <dependency>
             <groupId>com.indeed</groupId>
@@ -63,21 +147,21 @@
             <version>${project.version}</version>
         </dependency>
 
-		<dependency>
-			<groupId>log4j</groupId>
-			<artifactId>log4j</artifactId>
-		</dependency>
+        <dependency>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+        </dependency>
 
-		<dependency>
-			<groupId>com.google.code.findbugs</groupId>
-			<artifactId>jsr305</artifactId>
-		</dependency>
+        <dependency>
+            <groupId>com.google.code.findbugs</groupId>
+            <artifactId>jsr305</artifactId>
+        </dependency>
 
-		<dependency>
-			<groupId>com.amazonaws</groupId>
-			<artifactId>aws-java-sdk</artifactId>
-			<version>1.7.11</version>
-		</dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk</artifactId>
+            <version>${aws-java-sdk.version}</version>
+        </dependency>
 
         <dependency>
             <groupId>it.unimi.dsi</groupId>
@@ -88,40 +172,60 @@
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
-            <version>1.4.191</version>
+            <version>${h2database.version}</version>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/com.zaxxer/HikariCP -->
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+            <version>${hikari-cp.version}</version>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/org.jooq/jooq -->
+        <dependency>
+            <groupId>org.jooq</groupId>
+            <artifactId>jooq</artifactId>
+            <version>${jooq.version}</version>
         </dependency>
 
         <!-- Hadoop for caching -->
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-common</artifactId>
-            <version>2.6.0-cdh5.4.8</version>
+            <version>${hadoop.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-client</artifactId>
-            <version>2.6.0-cdh5.4.8</version>
+            <version>${hadoop.version}</version>
         </dependency>
 
         <dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit-dep</artifactId>
-			<scope>test</scope>
-		</dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit-dep</artifactId>
+            <scope>test</scope>
+        </dependency>
 
-	</dependencies>
+    </dependencies>
 
-	<properties>
-		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<autoVersionSubmodules>true</autoVersionSubmodules>
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <autoVersionSubmodules>true</autoVersionSubmodules>
 
-		<fastutil.version>6.2.2</fastutil.version>
-        <sqlite4java.version>1.0.392</sqlite4java.version>
+        <aws-java-sdk.version>1.7.11</aws-java-sdk.version>
+        <h2database.version>1.4.191</h2database.version>
+        <hikari-cp.version>2.4.6</hikari-cp.version>
+        <jooq.version>3.6.4</jooq.version>
+        <fastutil.version>6.2.2</fastutil.version>
+        <gnu-trove.version>3.0.3</gnu-trove.version>
+        <hadoop.version>2.6.0-cdh5.4.8</hadoop.version>
+        <fastutil.version>6.2.2</fastutil.version>
 
-		<!-- releases of our own projects to use -->
-		<!-- these should only be SNAPSHOTs when no release is available -->
-		<indeed-util.version>[1.0.15,)</indeed-util.version>
-	</properties>
+        <!-- releases of our own projects to use -->
+        <!-- these should only be SNAPSHOTs when no release is available -->
+        <indeed-util.version>[1.0.15,)</indeed-util.version>
+    </properties>
 
 </project>

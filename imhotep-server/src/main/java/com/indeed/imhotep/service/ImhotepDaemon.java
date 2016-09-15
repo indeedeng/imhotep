@@ -13,6 +13,7 @@
  */
 package com.indeed.imhotep.service;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
@@ -32,6 +33,7 @@ import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepServiceCore;
+import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.Streams;
 import com.indeed.imhotep.marshal.ImhotepDaemonMarshaller;
@@ -172,6 +174,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
     }
 
     /** Intended for tests that create their own ImhotepDaemons. */
+    @VisibleForTesting
     public ImhotepDaemon(ServerSocket ss, AbstractImhotepServiceCore service,
                          String zkNodes, String zkPath, String hostname, int port) {
         this(ss, service, zkNodes, zkPath, hostname, port, new ShardUpdateListener());
@@ -1197,8 +1200,21 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         final AbstractImhotepServiceCore localService;
         final ShardUpdateListener shardUpdateListener = new ShardUpdateListener();
 
-        final Path shardsDir = Paths.get(new URI(shardsDirectory));
-        final Path tmpDir = Paths.get(new URI(shardTempDir));
+        // initialize the imhotepfs if necessary
+        RemoteCachingFileSystemProvider.newFileSystem();
+
+        Path shardsDir;
+        try {
+            shardsDir = Paths.get(new URI(shardsDirectory));
+        } catch (final IllegalArgumentException e){
+            shardsDir = Paths.get(shardsDirectory);
+        }
+        Path tmpDir;
+        try {
+            tmpDir = Paths.get(new URI(shardTempDir));
+        } catch (final IllegalArgumentException e) {
+            tmpDir = Paths.get(shardTempDir);
+        }
 
         localService = new LocalImhotepServiceCore(shardsDir,
                                                    tmpDir,

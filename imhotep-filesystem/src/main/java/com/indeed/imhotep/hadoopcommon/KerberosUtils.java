@@ -1,4 +1,4 @@
-package com.indeed.imhotep.controller;
+package com.indeed.imhotep.hadoopcommon;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Strings;
@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -28,11 +29,20 @@ import static com.google.common.base.Preconditions.checkArgument;
 public final class KerberosUtils {
     private static final Logger log = Logger.getLogger(KerberosUtils.class);
 
+    private static final String KERBEROS_PRINCIPAL_KEY = "kerberos.principal";
+    private static final String KERBEROS_KEYTAB_KEY = "kerberos.keytab";
+
     public static void loginFromKeytab(@Nonnull Configuration props) throws IOException {
         // first try and login from the config
-        final String principal = props.getString("kerberos.principal");
-        final String keytabPath = props.getString("kerberos.keytab");
+        final String principal = props.getString(KERBEROS_PRINCIPAL_KEY);
+        final String keytabPath = props.getString(KERBEROS_KEYTAB_KEY);
 
+        loginFromKeytab(principal, keytabPath);
+    }
+
+    public static void loginFromKeytab(@Nonnull final Map<String, ?> configuration) throws IOException {
+        final String principal = (String) configuration.get(KERBEROS_PRINCIPAL_KEY);
+        final String keytabPath = (String) configuration.get(KERBEROS_KEYTAB_KEY);
         loginFromKeytab(principal, keytabPath);
     }
 
