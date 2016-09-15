@@ -48,7 +48,7 @@ import java.util.Set;
 public class RemoteCachingFileSystemProvider extends FileSystemProvider {
     private static final Logger LOGGER = Logger.getLogger(RemoteCachingFileSystemProvider.class);
     static final String URI_SCHEME = "imhtpfs";
-    public static final URI URI = java.net.URI.create(RemoteCachingFileSystemProvider.URI_SCHEME + ":///");
+    public static final URI URI = java.net.URI.create(URI_SCHEME + ":///");
 
     private static class FileSystemHolder {
         private static RemoteCachingFileSystem fileSystem;

@@ -1,6 +1,7 @@
 package com.indeed.imhotep.shardmaster.rpc;
 
 import com.google.common.base.Function;
+import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.FluentIterable;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.shardmaster.ShardMaster;
@@ -16,7 +17,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.Socket;
 import java.util.Iterator;
-import java.util.NoSuchElementException;
 
 /**
  * @author kenh
@@ -49,41 +49,22 @@ public class RequestResponseClient implements ShardMaster {
         return new Iterable<ShardMasterResponse>() {
             @Override
             public Iterator<ShardMasterResponse> iterator() {
-                return new Iterator<ShardMasterResponse>() {
-                    private ShardMasterResponse response;
+                return new AbstractIterator<ShardMasterResponse>() {
                     @Override
-                    public boolean hasNext() {
-                        if (response != null) {
-                            return true;
-                        } else if (socket.isClosed()) {
-                            return false;
+                    protected ShardMasterResponse computeNext() {
+                        if (socket.isClosed()) {
+                            return endOfData();
                         } else {
                             try {
-                                response = receiveResponse(request, socketInputStream);
-                                return true;
+                                return receiveResponse(request, socketInputStream);
                             } catch (final EOFException e) {
                                 Closeables2.closeQuietly(socket, LOGGER);
-                                return false;
+                                return endOfData();
                             } catch (final IOException e) {
                                 Closeables2.closeQuietly(socket, LOGGER);
                                 throw new IllegalStateException("Unexpected IO error while reading response", e);
                             }
                         }
-                    }
-
-                    @Override
-                    public ShardMasterResponse next() {
-                        if (response != null) {
-                            final ShardMasterResponse result = response;
-                            response = null;
-                            return result;
-                        }
-                        throw new NoSuchElementException();
-                    }
-
-                    @Override
-                    public void remove() {
-                        throw new UnsupportedOperationException("Removal not supported");
                     }
                 };
             }

@@ -3,6 +3,7 @@ package com.indeed.imhotep.service;
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.Iterators;
 import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.io.NioPathUtil;
 import com.indeed.imhotep.shardmaster.ShardMaster;
@@ -12,7 +13,6 @@ import com.indeed.util.core.Pair;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
-import java.util.Collections;
 import java.util.Iterator;
 
 /**
@@ -34,7 +34,7 @@ public class ShardMasterShardDirIterator implements  ShardDirIterator {
         try {
             final ShardMaster shardMaster = shardMasterSupplier.get();
             if (shardMaster == null) {
-                return Collections.<Pair<String, ShardDir>>emptyList().iterator();
+                return Iterators.emptyIterator();
             }
             assignments = shardMaster.getAssignments(node);
         } catch (final IOException e) {
