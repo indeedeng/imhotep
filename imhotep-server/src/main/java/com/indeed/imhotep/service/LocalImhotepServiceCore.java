@@ -386,16 +386,21 @@ public class LocalImhotepServiceCore
                 getSessionManager().getSessionDump();
 
         final List<ImhotepStatusDump.ShardDump> shards;
+        int shardCount = 0;
         if (includeShardList) {
             try {
                 shards = shardMap.get().getShardDump();
+                shardCount = shards.size();
             } catch (IOException e) {
                 throw Throwables.propagate(e);
             }
         } else {
             shards = Collections.emptyList();
+            final Map<String, Integer> datasetToShardCounts = shardMap.get().getShardCounts();
+            for (Integer datasetShardCount : datasetToShardCounts.values()) {
+                shardCount += datasetShardCount;
+            }
         }
-        final int shardCount = shardMap.get().size();
         return new ImhotepStatusDump(usedMemory, totalMemory, openSessions, shards, shardCount);
     }
 
