@@ -41,7 +41,7 @@ public class ZkHostsReloader extends DataLoadingRunnable implements HostsReloade
     private volatile List<Host> hosts;
 
     public ZkHostsReloader(final String zkNodes, final boolean readHostsBeforeReturning) {
-        this(zkNodes, "/imhotep/daemons", readHostsBeforeReturning);
+        this(zkNodes, "/imhotep/interactive-daemons", readHostsBeforeReturning);
     }
 
     public ZkHostsReloader(final String zkNodes, final String zkPath, final boolean readHostsBeforeReturning) {
