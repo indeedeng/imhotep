@@ -2,6 +2,7 @@ package com.indeed.imhotep.shardmaster.rpc;
 
 import com.indeed.imhotep.shardmaster.protobuf.ShardMasterRequest;
 import com.indeed.imhotep.shardmaster.protobuf.ShardMasterResponse;
+import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
 import java.io.Closeable;
@@ -53,8 +54,14 @@ public class RequestResponseServer implements Closeable {
             }
 
             try {
-                socket.setTcpNoDelay(true); // disable nagle
-                final ShardMasterRequest request = ShardMasterMessageUtil.receiveRequest(socket.getInputStream());
+                final ShardMasterRequest request;
+                try {
+                    socket.setTcpNoDelay(true); // disable nagle
+                    request = ShardMasterMessageUtil.receiveRequest(socket.getInputStream());
+                } catch (final IOException e) {
+                    LOGGER.error("Error while reading request", e);
+                    break;
+                }
 
                 Iterable<ShardMasterResponse> responses;
                 try {
@@ -75,7 +82,7 @@ public class RequestResponseServer implements Closeable {
                     LOGGER.error("Error while responding to request "+ request, e);
                 }
             } finally {
-                socket.close();
+                Closeables2.closeQuietly(socket, LOGGER);
             }
         }
     }

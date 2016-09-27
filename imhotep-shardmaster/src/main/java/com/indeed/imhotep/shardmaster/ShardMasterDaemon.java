@@ -77,14 +77,15 @@ public class ShardMasterDaemon {
             );
 
             LOGGER.info("Initializing all shard assignments");
-            refresher.initialize().getAllShards().get();
+            // don't block on assignment refresh
+            refresher.initialize().getAllShards();
 
             timer.schedule(new TimerTask() {
                 @Override
                 public void run() {
                     hostsReloader.run();
                 }
-            }, Duration.standardMinutes(1).getMillis(), Duration.standardMinutes(1).getMillis());
+            }, config.getHostsRefreshInterval().getMillis(), config.getHostsRefreshInterval().getMillis());
 
             timer.schedule(refresher, config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis());
 
@@ -125,8 +126,9 @@ public class ShardMasterDaemon {
         private int shardsResponseBatchSize = 1000;
         private int threadPoolSize = 5;
         private int replicationFactor = 3;
-        private Duration refreshInterval = Duration.standardMinutes(15);
-        private Duration stalenessThreshold = Duration.standardHours(1);
+        private Duration refreshInterval = Duration.standardMinutes(5);
+        private Duration stalenessThreshold = Duration.standardMinutes(15);
+        private Duration hostsRefreshInterval = Duration.standardMinutes(1);
         private double hostsDropThreshold = 0.5;
 
         public Config setZkNodes(final String zkNodes) {
@@ -189,6 +191,11 @@ public class ShardMasterDaemon {
             return this;
         }
 
+        public Config setHostsRefreshInterval(final long hostsRefreshInterval) {
+            this.hostsRefreshInterval = Duration.millis(hostsRefreshInterval);
+            return this;
+        }
+
         public Config setHostsDropThreshold(final double hostsDropThreshold) {
             this.hostsDropThreshold = hostsDropThreshold;
             return this;
@@ -235,6 +242,10 @@ public class ShardMasterDaemon {
         String getHostsFile() {
             Preconditions.checkNotNull(hostsFile, "HostsFile config is missing");
             return hostsFile;
+        }
+
+        Duration getHostsRefreshInterval() {
+            return hostsRefreshInterval;
         }
 
         double getHostsDropThreshold() {
