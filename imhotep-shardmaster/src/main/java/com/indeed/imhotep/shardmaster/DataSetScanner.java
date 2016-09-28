@@ -27,18 +27,16 @@ class DataSetScanner implements Iterable<RemoteCachingPath> {
 
     @Override
     public Iterator<RemoteCachingPath> iterator() {
-        try {
-            // hack to avoid an extra attribute lookup on each list entry
-            final RemoteCachingFileSystemProvider fsProvider = (RemoteCachingFileSystemProvider) (((Path) datasetsDir).getFileSystem().provider());
+        // hack to avoid an extra attribute lookup on each list entry
+        final RemoteCachingFileSystemProvider fsProvider = (RemoteCachingFileSystemProvider) (((Path) datasetsDir).getFileSystem().provider());
 
-            try (DirectoryStream<RemoteCachingPath> remoteCachingPaths = fsProvider.newDirectoryStreamWithAttributes(datasetsDir, ONLY_DIRS)) {
-                return FluentIterable.from(remoteCachingPaths).filter(new Predicate<Path>() {
-                    @Override
-                    public boolean apply(final Path datasetPath) {
-                        return shardFilter.accept(datasetPath.getFileName().toString());
-                    }
-                }).toList().iterator();
-            }
+        try (DirectoryStream<RemoteCachingPath> remoteCachingPaths = fsProvider.newDirectoryStreamWithAttributes(datasetsDir, ONLY_DIRS)) {
+            return FluentIterable.from(remoteCachingPaths).filter(new Predicate<Path>() {
+                @Override
+                public boolean apply(final Path datasetPath) {
+                    return shardFilter.accept(datasetPath.getFileName().toString());
+                }
+            }).toList().iterator();
         } catch (final IOException e) {
             throw new IllegalStateException("Failed to get datasets from " + datasetsDir, e);
         }

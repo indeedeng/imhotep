@@ -43,39 +43,35 @@ class FilteredShardDirIterator implements ShardDirIterator {
     @Override
     public Iterator<Pair<String, ShardDir>> iterator() {
         final DateTime now = new DateTime(wallClock.currentTimeMillis(), TIME_ZONE);
-        try {
-            try (DirectoryStream<Path> datasets = Files.newDirectoryStream(shardsPath, DirectoryStreamFilters.ONLY_DIRS)) {
-                return FluentIterable.from(datasets).transformAndConcat(
-                        new Function<Path, Iterable<Pair<String, ShardDir>>>() {
-                            @Override
-                            public Iterable<Pair<String, ShardDir>> apply(final Path dataSetPath) {
-                                final String dataset = dataSetPath.getFileName().toString();
-                                if (config.includeDataSet(dataset)) {
-                                    try {
-                                        try (DirectoryStream<Path> shards = Files.newDirectoryStream(dataSetPath, DirectoryStreamFilters.ONLY_DIRS)) {
-                                            return FluentIterable.from(shards).transform(
-                                                    new Function<Path, Pair<String, ShardDir>>() {
-                                                        @Override
-                                                        public Pair<String, ShardDir> apply(final Path shardPath) {
-                                                            final ShardDir shardDir = new ShardDir(shardPath);
-                                                            if (config.includeShard(now, dataset, shardDir)) {
-                                                                return Pair.of(dataset, shardDir);
-                                                            } else {
-                                                                return null;
-                                                            }
-                                                        }
+        try (DirectoryStream<Path> datasets = Files.newDirectoryStream(shardsPath, DirectoryStreamFilters.ONLY_DIRS)) {
+            return FluentIterable.from(datasets).transformAndConcat(
+                    new Function<Path, Iterable<Pair<String, ShardDir>>>() {
+                        @Override
+                        public Iterable<Pair<String, ShardDir>> apply(final Path dataSetPath) {
+                            final String dataset = dataSetPath.getFileName().toString();
+                            if (config.includeDataSet(dataset)) {
+                                try (DirectoryStream<Path> shards = Files.newDirectoryStream(dataSetPath, DirectoryStreamFilters.ONLY_DIRS)) {
+                                    return FluentIterable.from(shards).transform(
+                                            new Function<Path, Pair<String, ShardDir>>() {
+                                                @Override
+                                                public Pair<String, ShardDir> apply(final Path shardPath) {
+                                                    final ShardDir shardDir = new ShardDir(shardPath);
+                                                    if (config.includeShard(now, dataset, shardDir)) {
+                                                        return Pair.of(dataset, shardDir);
+                                                    } else {
+                                                        return null;
                                                     }
-                                            ).filter(Predicates.notNull()).toList();
-                                        }
-                                    } catch (final IOException e) {
-                                        LOGGER.warn("Failed to scan for shard for dataset " + dataSetPath, e);
-                                    }
+                                                }
+                                            }
+                                    ).filter(Predicates.notNull()).toList();
+                                } catch (final IOException e) {
+                                    LOGGER.warn("Failed to scan for shard for dataset " + dataSetPath, e);
                                 }
-                                return Collections.emptyList();
                             }
+                            return Collections.emptyList();
                         }
-                ).toList().iterator();
-            }
+                    }
+            ).toList().iterator();
         } catch (final IOException e) {
             LOGGER.warn("Failed to scan for shards under directory " + shardsPath, e);
             return Collections.<Pair<String, ShardDir>>emptyList().iterator();
