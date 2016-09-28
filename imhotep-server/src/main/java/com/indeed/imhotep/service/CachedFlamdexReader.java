@@ -257,13 +257,15 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
 
         int memoryNeeded = 0;
         try {
-            for (final Path tii : Files.newDirectoryStream(shardDirectory, new DirectoryStream.Filter<Path>() {
+            try (DirectoryStream<Path> files = Files.newDirectoryStream(shardDirectory, new DirectoryStream.Filter<Path>() {
                 @Override
                 public boolean accept(final Path entry) throws IOException {
                     return entry.getFileName().toString().endsWith(".tii");
                 }
             })) {
-                memoryNeeded += 4 * Files.size(tii); // reserve 4 times the index file size to account for decompression
+                for (final Path tii : files) {
+                    memoryNeeded += 4 * Files.size(tii); // reserve 4 times the index file size to account for decompression
+                }
             }
         } catch (final IOException e) {
             throw new IllegalStateException("Could not get memory used for lucene index", e);

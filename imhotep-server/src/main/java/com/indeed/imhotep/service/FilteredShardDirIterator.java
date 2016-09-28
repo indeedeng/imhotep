@@ -14,6 +14,7 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.Period;
 
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
@@ -33,7 +34,7 @@ class FilteredShardDirIterator implements ShardDirIterator {
     private final Path shardsPath;
     private final Config config;
 
-    public FilteredShardDirIterator(final WallClock wallClock, final Path shardsPath, final Config config) {
+    FilteredShardDirIterator(final WallClock wallClock, final Path shardsPath, final Config config) {
         this.wallClock = wallClock;
         this.shardsPath = shardsPath;
         this.config = config;
@@ -43,34 +44,38 @@ class FilteredShardDirIterator implements ShardDirIterator {
     public Iterator<Pair<String, ShardDir>> iterator() {
         final DateTime now = new DateTime(wallClock.currentTimeMillis(), TIME_ZONE);
         try {
-            return FluentIterable.from(Files.newDirectoryStream(shardsPath, DirectoryStreamFilters.ONLY_DIRS)).transformAndConcat(
-                    new Function<Path, Iterable<Pair<String, ShardDir>>>() {
-                        @Override
-                        public Iterable<Pair<String, ShardDir>> apply(final Path dataSetPath) {
-                            final String dataset = dataSetPath.getFileName().toString();
-                            if (config.includeDataSet(dataset)) {
-                                try {
-                                    return FluentIterable.from(Files.newDirectoryStream(dataSetPath, DirectoryStreamFilters.ONLY_DIRS)).transform(
-                                            new Function<Path, Pair<String, ShardDir>>() {
-                                                @Override
-                                                public Pair<String, ShardDir> apply(final Path shardPath) {
-                                                    final ShardDir shardDir = new ShardDir(shardPath);
-                                                    if (config.includeShard(now, dataset, shardDir)) {
-                                                        return Pair.of(dataset, shardDir);
-                                                    } else {
-                                                        return null;
+            try (DirectoryStream<Path> datasets = Files.newDirectoryStream(shardsPath, DirectoryStreamFilters.ONLY_DIRS)) {
+                return FluentIterable.from(datasets).transformAndConcat(
+                        new Function<Path, Iterable<Pair<String, ShardDir>>>() {
+                            @Override
+                            public Iterable<Pair<String, ShardDir>> apply(final Path dataSetPath) {
+                                final String dataset = dataSetPath.getFileName().toString();
+                                if (config.includeDataSet(dataset)) {
+                                    try {
+                                        try (DirectoryStream<Path> shards = Files.newDirectoryStream(dataSetPath, DirectoryStreamFilters.ONLY_DIRS)) {
+                                            return FluentIterable.from(shards).transform(
+                                                    new Function<Path, Pair<String, ShardDir>>() {
+                                                        @Override
+                                                        public Pair<String, ShardDir> apply(final Path shardPath) {
+                                                            final ShardDir shardDir = new ShardDir(shardPath);
+                                                            if (config.includeShard(now, dataset, shardDir)) {
+                                                                return Pair.of(dataset, shardDir);
+                                                            } else {
+                                                                return null;
+                                                            }
+                                                        }
                                                     }
-                                                }
-                                            }
-                                    ).filter(Predicates.notNull());
-                                } catch (final IOException e) {
-                                    LOGGER.warn("Failed to scan for shard for dataset " + dataSetPath, e);
+                                            ).filter(Predicates.notNull()).toList();
+                                        }
+                                    } catch (final IOException e) {
+                                        LOGGER.warn("Failed to scan for shard for dataset " + dataSetPath, e);
+                                    }
                                 }
+                                return Collections.emptyList();
                             }
-                            return Collections.emptyList();
                         }
-                    }
-            ).iterator();
+                ).toList().iterator();
+            }
         } catch (final IOException e) {
             LOGGER.warn("Failed to scan for shards under directory " + shardsPath, e);
             return Collections.<Pair<String, ShardDir>>emptyList().iterator();

@@ -8,6 +8,7 @@ import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.fs.RemoteCachingPath;
 
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Path;
 import java.util.Iterator;
 
@@ -30,21 +31,23 @@ class ShardScanner implements Iterable<ShardDir> {
             // hack to avoid an extra attribute lookup on each list entry
             final RemoteCachingFileSystemProvider fsProvider = (RemoteCachingFileSystemProvider) (((Path) datasetDir).getFileSystem().provider());
 
-            return FluentIterable.from(fsProvider.newDirectoryStreamWithAttributes(datasetDir, DataSetScanner.ONLY_DIRS))
-                    .filter(new Predicate<Path>() {
-                        @Override
-                        public boolean apply(final Path shardPath) {
-                            final String dataset = shardPath.getParent().getFileName().toString();
-                            final String shard = shardPath.getFileName().toString();
-                            return shardFilter.accept(dataset, shard);
-                        }
-                    })
-                    .transform(new Function<Path, ShardDir>() {
-                        @Override
-                        public ShardDir apply(final Path path) {
-                            return new ShardDir(path);
-                        }
-                    }).iterator();
+            try (DirectoryStream<RemoteCachingPath> remoteCachingPaths = fsProvider.newDirectoryStreamWithAttributes(datasetDir, DataSetScanner.ONLY_DIRS)) {
+                return FluentIterable.from(remoteCachingPaths)
+                        .filter(new Predicate<Path>() {
+                            @Override
+                            public boolean apply(final Path shardPath) {
+                                final String dataset = shardPath.getParent().getFileName().toString();
+                                final String shard = shardPath.getFileName().toString();
+                                return shardFilter.accept(dataset, shard);
+                            }
+                        })
+                        .transform(new Function<Path, ShardDir>() {
+                            @Override
+                            public ShardDir apply(final Path path) {
+                                return new ShardDir(path);
+                            }
+                        }).toList().iterator();
+            }
         } catch (final IOException e) {
             throw new IllegalStateException("Failed to get shards from " + datasetDir, e);
         }
