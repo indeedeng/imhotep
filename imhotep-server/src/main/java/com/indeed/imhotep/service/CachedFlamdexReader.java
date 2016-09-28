@@ -54,9 +54,7 @@ import static com.indeed.util.core.Either.Right;
 public class CachedFlamdexReader implements FlamdexReader, MetricCache {
     private static final Logger log = Logger.getLogger(CachedFlamdexReader.class);
 
-    private final
-    @Nullable
-    MemoryReservationContext memory;
+    private final @Nullable MemoryReservationContext memory;
 
     private final int memoryReservedForIndex;
 
