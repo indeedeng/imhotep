@@ -1,9 +1,6 @@
 package com.indeed.imhotep.fs;
 
 import javax.annotation.Nullable;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.nio.file.NoSuchFileException;
 
 /**
  * @author kenh
@@ -47,7 +44,7 @@ class SqarMetaDataUtil {
         return null;
     }
 
-    private static RemoteCachingPath getSqarPath(final RemoteCachingPath path) {
+    static RemoteCachingPath getSqarPath(final RemoteCachingPath path) {
         final RemoteCachingPath shardPath = getShardPath(path);
         if (shardPath != null) {
             final RemoteCachingPath sqarPath;
@@ -76,22 +73,6 @@ class SqarMetaDataUtil {
             return sqarPath.resolve(archiveFile);
         }
         return null;
-    }
-
-    /**
-     * true if the contents is within a 'sqar' directory
-     */
-    static boolean isInSqarDirectory(final RemoteFileStore fs, final RemoteCachingPath path) throws IOException {
-        final RemoteCachingPath sqarPath = getSqarPath(path);
-        if (sqarPath == null) {
-            return false;
-        }
-
-        try {
-            return fs.getRemoteAttributes(sqarPath).isDirectory();
-        } catch (final NoSuchFileException | FileNotFoundException e) {
-            return false;
-        }
     }
 
     private static boolean isSqarDirectory(final RemoteFileStore.RemoteFileAttributes fileAttributes) {

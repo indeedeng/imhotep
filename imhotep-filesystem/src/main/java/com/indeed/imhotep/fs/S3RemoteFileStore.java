@@ -108,21 +108,6 @@ class S3RemoteFileStore extends RemoteFileStore {
         return result;
     }
 
-    @Override
-    public RemoteFileAttributes getRemoteAttributes(final RemoteCachingPath path, final boolean isFile) throws IOException {
-        final RemoteFileAttributes result;
-        if (isFile) {
-            result = readFileInfo(path);
-        } else {
-            result = readDirInfo(path);
-        }
-
-        if (result == null) {
-            throw new NoSuchFileException(path + "not found");
-        }
-        return result;
-    }
-
     @Nullable
     private RemoteFileAttributes readFileInfo(final RemoteCachingPath path) {
         final String s3path = getS3path(path);

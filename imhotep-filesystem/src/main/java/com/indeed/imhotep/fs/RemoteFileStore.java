@@ -3,7 +3,6 @@ package com.indeed.imhotep.fs;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.FileStore;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.FileAttributeView;
@@ -64,16 +63,6 @@ abstract class RemoteFileStore extends FileStore {
     }
 
     abstract RemoteFileAttributes getRemoteAttributes(RemoteCachingPath path) throws IOException;
-
-    RemoteFileAttributes getRemoteAttributes(final RemoteCachingPath path, final boolean isFile) throws IOException {
-        final RemoteFileAttributes result = getRemoteAttributes(path);
-
-        if ((result != null) && (result.isFile == isFile)) {
-            return result;
-        } else {
-            throw new NoSuchFileException(path + " not found");
-        }
-    }
 
     abstract void downloadFile(RemoteCachingPath srcPath, Path destPath) throws IOException;
 
