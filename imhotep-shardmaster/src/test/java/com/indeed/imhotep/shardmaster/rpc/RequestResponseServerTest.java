@@ -75,7 +75,7 @@ public class RequestResponseServerTest {
         final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
         try (RequestResponseServer requestResponseServer = new RequestResponseServer(
-                0, new MultiplexingRequestHandler(shardMasterServer, 2))) {
+                0, new MultiplexingRequestHandler(shardMasterServer, 2), 2)) {
 
             requestResponseClient = new RequestResponseClient(
                     new Host("localhost", requestResponseServer.getActualPort()));

@@ -47,7 +47,7 @@ public class DatasetShardAssignmentRefresherTest {
     @Rule
     public final RemoteCachingFileSystemTestContext fsTestContext = new RemoteCachingFileSystemTestContext();
 
-    private final ExecutorService executorService = ScanWorkExecutors.newBlockingFixedThreadPool(10);
+    private final ExecutorService executorService = ShardMasterExecutors.newBlockingFixedThreadPool(10);
 
     private static void mapToProperties(final Map<String, String> config, final File target) throws IOException {
         final Properties properties = new Properties();

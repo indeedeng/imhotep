@@ -14,29 +14,31 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.util.Iterator;
+import java.util.List;
 
 /**
  * @author kenh
  */
 
-public class ShardMasterShardDirIterator implements  ShardDirIterator {
+class ShardMasterShardDirIterator implements  ShardDirIterator {
     private final Supplier<ShardMaster> shardMasterSupplier;
     private final String node;
 
-    public ShardMasterShardDirIterator(final Supplier<ShardMaster> shardMasterSupplier, final String node) {
+    ShardMasterShardDirIterator(final Supplier<ShardMaster> shardMasterSupplier, final String node) {
         this.shardMasterSupplier = shardMasterSupplier;
         this.node = node;
     }
 
     @Override
     public Iterator<Pair<String, ShardDir>> iterator() {
-        final Iterable<AssignedShard> assignments;
+        // use list here to drain all assignments from the shard master
+        final List<AssignedShard> assignments;
         try {
             final ShardMaster shardMaster = shardMasterSupplier.get();
             if (shardMaster == null) {
                 return Iterators.emptyIterator();
             }
-            assignments = shardMaster.getAssignments(node);
+            assignments = FluentIterable.from(shardMaster.getAssignments(node)).toList();
         } catch (final IOException e) {
             throw new IllegalStateException("Failed to get shard assignment for " + node, e);
         }

@@ -92,7 +92,7 @@ public class ShardMasterDaemon {
             server = new RequestResponseServer(config.getServicePort(), new MultiplexingRequestHandler(
                     new DatabaseShardMaster(shardAssignmentInfoDao),
                     config.shardsResponseBatchSize
-            ));
+            ), config.serviceConcurrency);
             try (ZkEndpointPersister endpointPersister = new ZkEndpointPersister(config.zkNodes, config.shardMastersZkPath,
                          new Host(InetAddress.getLocalHost().getCanonicalHostName(), server.getActualPort()))
             ) {
@@ -123,6 +123,7 @@ public class ShardMasterDaemon {
         private String hostsFile;
         private ShardFilter shardFilter = ShardFilter.ACCEPT_ALL;
         private int servicePort = 0;
+        private int serviceConcurrency = 10;
         private int shardsResponseBatchSize = 1000;
         private int threadPoolSize = 5;
         private int replicationFactor = 3;
@@ -163,6 +164,11 @@ public class ShardMasterDaemon {
 
         public Config setServicePort(final int servicePort) {
             this.servicePort = servicePort;
+            return this;
+        }
+
+        public Config setServiceConcurrency(final int serviceConcurrency) {
+            this.serviceConcurrency = serviceConcurrency;
             return this;
         }
 
@@ -207,7 +213,7 @@ public class ShardMasterDaemon {
         }
 
         ExecutorService createExecutorService() {
-            return ScanWorkExecutors.newBlockingFixedThreadPool(threadPoolSize);
+            return ShardMasterExecutors.newBlockingFixedThreadPool(threadPoolSize);
         }
 
         HikariDataSource createDataSource() {

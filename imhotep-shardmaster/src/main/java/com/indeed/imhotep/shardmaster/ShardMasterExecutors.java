@@ -9,11 +9,11 @@ import java.util.concurrent.TimeUnit;
  * @author kenh
  */
 
-class ScanWorkExecutors {
-    private ScanWorkExecutors() {
+public class ShardMasterExecutors {
+    private ShardMasterExecutors() {
     }
 
-    static ExecutorService newBlockingFixedThreadPool(final int nThreads) {
+    public static ExecutorService newBlockingFixedThreadPool(final int nThreads) {
         return new ThreadPoolExecutor(nThreads, nThreads,
                 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
                 new ThreadPoolExecutor.CallerRunsPolicy());
