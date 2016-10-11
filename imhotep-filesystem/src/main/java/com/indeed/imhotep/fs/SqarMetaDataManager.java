@@ -9,10 +9,12 @@ import com.indeed.imhotep.fs.sql.SqarMetaDataDao;
 
 import javax.annotation.Nullable;
 import java.io.BufferedOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.DigestInputStream;
@@ -109,6 +111,9 @@ class SqarMetaDataManager {
             if (!sqarMetaDataDao.hasShard(shardPath)) {
                 try (InputStream metadataInputStream = fs.newInputStream(SqarMetaDataUtil.getMetadataPath(path), 0, -1)) {
                     cacheMetadata(shardPath, metadataInputStream);
+                } catch (final NoSuchFileException|FileNotFoundException e) {
+                    // when the metadata file doesn't exist, there is nothing to return
+                    return null;
                 }
                 return sqarMetaDataDao.getFileMetadata(shardPath, fileName);
             }
