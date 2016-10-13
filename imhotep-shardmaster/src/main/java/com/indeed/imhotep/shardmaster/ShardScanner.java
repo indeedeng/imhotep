@@ -4,6 +4,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.indeed.imhotep.ShardDir;
+import com.indeed.imhotep.client.ShardTimeUtils;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.fs.RemoteCachingPath;
 
@@ -37,6 +38,13 @@ class ShardScanner implements Iterable<ShardDir> {
                         public boolean apply(final Path shardPath) {
                             final String dataset = shardPath.getParent().getFileName().toString();
                             final String shard = shardPath.getFileName().toString();
+                            final String shardId = new ShardDir(shardPath).getId();
+                            try {
+                                ShardTimeUtils.parseInterval(shardId);
+                            } catch (final Throwable e) {
+                                // invalid shards should be ignored
+                                return false;
+                            }
                             return shardFilter.accept(dataset, shard);
                         }
                     })
