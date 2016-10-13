@@ -5,12 +5,14 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.indeed.imhotep.client.DummyHostsReloader;
 import com.indeed.imhotep.client.Host;
+import com.indeed.imhotep.client.ShardTimeUtils;
 import com.indeed.imhotep.dbutil.DbDataFixture;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemTestContext;
 import com.indeed.imhotep.fs.RemoteCachingPath;
 import com.indeed.imhotep.shardmaster.db.shardinfo.Tables;
 import com.indeed.imhotep.shardmaster.model.ShardAssignmentInfo;
+import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Assert;
@@ -49,6 +51,8 @@ public class DatasetShardAssignmentRefresherTest {
 
     private final ExecutorService executorService = ShardMasterExecutors.newBlockingFixedThreadPool(10);
 
+    private static final DateTime TODAY = DateTime.now().withTimeAtStartOfDay();
+
     private static void mapToProperties(final Map<String, String> config, final File target) throws IOException {
         final Properties properties = new Properties();
         for (final Map.Entry<String, String> entry : config.entrySet()) {
@@ -74,8 +78,8 @@ public class DatasetShardAssignmentRefresherTest {
         return hosts;
     }
 
-    private static void createShard(final File rootDir, final String dataset, final String shardId, final long version) {
-        Assert.assertTrue(new File(new File(rootDir, dataset), shardId + '.' + String.format("%014d", version)).mkdirs());
+    private static void createShard(final File rootDir, final String dataset, final DateTime shardId, final long version) {
+        Assert.assertTrue(new File(new File(rootDir, dataset), ShardTimeUtils.toDailyShardPrefix(shardId) + '.' + String.format("%014d", version)).mkdirs());
     }
 
     @After
@@ -90,7 +94,7 @@ public class DatasetShardAssignmentRefresherTest {
         for (int i = 0; i < numDataSets; i++) {
             final String dataset = "dataset" + i;
             for (int j = 0; j < numShards; j++) {
-                final String shard = "shard" + j;
+                final DateTime shard = TODAY.minusDays(j);
                 createShard(fsTestContext.getLocalStoreDir(), dataset, shard, (Objects.hash(dataset, shard) % 10) + 11);
                 // each shard has two versions, only 1 should be picked up
                 createShard(fsTestContext.getLocalStoreDir(), dataset, shard, (Objects.hash(dataset, shard) % 10) + 13);

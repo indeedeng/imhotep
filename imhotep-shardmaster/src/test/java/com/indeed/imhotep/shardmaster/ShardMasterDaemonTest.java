@@ -8,6 +8,7 @@ import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.indeed.imhotep.ZkEndpointPersister;
 import com.indeed.imhotep.client.Host;
+import com.indeed.imhotep.client.ShardTimeUtils;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemTestContext;
 import com.indeed.imhotep.shardmaster.protobuf.AssignedShard;
 import com.indeed.imhotep.shardmaster.rpc.RequestResponseClient;
@@ -15,6 +16,7 @@ import com.indeed.imhotep.shardmaster.rpc.RequestResponseClientFactory;
 import com.indeed.util.core.Pair;
 import org.apache.curator.test.TestingServer;
 import org.apache.zookeeper.KeeperException;
+import org.joda.time.DateTime;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -40,6 +42,8 @@ public class ShardMasterDaemonTest {
     private final Closer closer = Closer.create();
     private TestingServer testingServer;
 
+    private static final DateTime WEEK_AGO = DateTime.now().minusDays(7).withTimeAtStartOfDay();
+
     @Before
     public void setUp() throws Exception {
         testingServer = new TestingServer();
@@ -49,6 +53,10 @@ public class ShardMasterDaemonTest {
     public void tearDown() throws IOException {
         closer.close();
         testingServer.close();
+    }
+
+    private void createShard(final String dataset, final DateTime shardId, final long version) {
+        Assert.assertTrue(new File(new File(testContext.getLocalStoreDir(), dataset), ShardTimeUtils.toDailyShardPrefix(shardId) + '.' + String.format("%014d", version)).mkdirs());
     }
 
     private void createShard(final String dataset, final String shardId, final long version) {
@@ -70,16 +78,17 @@ public class ShardMasterDaemonTest {
         closer.register(new ZkEndpointPersister(testingServer.getConnectString(), "/imhotep/daemons", new Host("DAEMON2", 2340)));
         closer.register(new ZkEndpointPersister(testingServer.getConnectString(), "/imhotep/daemons", new Host("DAEMON3", 3450)));
 
-        createShard("dataset1", "shard1", 4);
-        createShard("dataset1", "shard1", 1);
-        createShard("dataset1", "shard2", 10);
-        createShard("dataset1", "shard3", 11);
+        createShard("dataset1", WEEK_AGO, 4);
+        createShard("dataset1", WEEK_AGO, 1);
+        createShard("dataset1", WEEK_AGO.plusDays(1), 10);
+        createShard("dataset1", WEEK_AGO.plusDays(2), 11);
+        createShard("dataset1", "garbage", 1);
 
-        createShard("dataset2", "shard1", 12);
+        createShard("dataset2", WEEK_AGO, 12);
 
-        createShard("dataset3", "shard1", 1);
-        createShard("dataset3", "shard1", 5);
-        createShard("dataset3", "shard2", 10);
+        createShard("dataset3", WEEK_AGO, 1);
+        createShard("dataset3", WEEK_AGO, 5);
+        createShard("dataset3", WEEK_AGO.plusDays(1), 10);
 
         final ShardMasterDaemon shardMasterDaemon = new ShardMasterDaemon(config);
         final Thread daemonRunner = new Thread(new Runnable() {
@@ -119,12 +128,12 @@ public class ShardMasterDaemonTest {
         Assert.assertEquals(
                 Sets.newHashSet(
                         Arrays.asList(
-                                Pair.of("dataset1", "shard1"),
-                                Pair.of("dataset1", "shard2"),
-                                Pair.of("dataset1", "shard3"),
-                                Pair.of("dataset2", "shard1"),
-                                Pair.of("dataset3", "shard1"),
-                                Pair.of("dataset3", "shard2")
+                                Pair.of("dataset1", ShardTimeUtils.toDailyShardPrefix(WEEK_AGO)),
+                                Pair.of("dataset1", ShardTimeUtils.toDailyShardPrefix(WEEK_AGO.plusDays(1))),
+                                Pair.of("dataset1", ShardTimeUtils.toDailyShardPrefix(WEEK_AGO.plusDays(2))),
+                                Pair.of("dataset2", ShardTimeUtils.toDailyShardPrefix(WEEK_AGO)),
+                                Pair.of("dataset3", ShardTimeUtils.toDailyShardPrefix(WEEK_AGO)),
+                                Pair.of("dataset3", ShardTimeUtils.toDailyShardPrefix(WEEK_AGO.plusDays(1)))
                         )
                 ),
                 assignments.keySet());
