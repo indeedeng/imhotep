@@ -112,6 +112,14 @@
             <version>${project.version}</version>
         </dependency>
 
+		<dependency>
+			<groupId>com.indeed</groupId>
+			<artifactId>imhotep-client</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
         <dependency>
             <groupId>com.indeed</groupId>
             <artifactId>imhotep-archive</artifactId>
@@ -215,7 +223,7 @@
 
 		<dependency>
 			<groupId>junit</groupId>
-			<artifactId>junit-dep</artifactId>
+			<artifactId>junit</artifactId>
 			<scope>test</scope>
 		</dependency>
 
