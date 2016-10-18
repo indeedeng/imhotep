@@ -11,7 +11,7 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.indeed.flamdex.utils;
+package com.indeed.flamdex.utils;
 
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexReader;
@@ -647,6 +647,119 @@ public class FlamdexUtils {
         }
     }
 
+    // return empty string if not found
+    private static FieldType getFieldType(final FlamdexReader reader, final String field) {
+        final boolean isIntField = reader.getIntFields().contains(field);
+        final boolean isStrField = reader.getStringFields().contains(field);
+        if (isIntField) {
+            return FieldType.INT;
+        } else if (isStrField) {
+            return FieldType.STR;
+        } else {
+            return FieldType.NULL;
+        }
+    }
+
+    public static ThreadSafeBitSet cacheFieldEqual(final String field1, final String field2, final FlamdexReader reader) {
+        final ThreadSafeBitSet ret = new ThreadSafeBitSet(reader.getNumDocs());
+        if (reader.getIntFields().contains(field1) && reader.getIntFields().contains(field2)) {
+            cacheIntFieldEqual(field1, field2, reader, ret);
+        } else if (reader.getStringFields().contains(field1) && reader.getStringFields().contains(field2)) {
+            cacheStringFieldEqual(field1, field2, reader, ret);
+        } else {
+            final FieldType type1 = getFieldType(reader, field1);
+            final FieldType type2 = getFieldType(reader, field2);
+            if (type1 != FieldType.NULL && type2 != FieldType.NULL && type1 != type2 ) { // incompatible field
+                throw new IllegalArgumentException(String.format("incompatible fields found in fieldequal: [%s -> %s], [%s -> %s]", field1, type1, field2, type2));
+            }
+        }
+        return ret;
+    }
+
+    private static void cacheIntFieldEqual(String field1, String field2, FlamdexReader reader, ThreadSafeBitSet ret) {
+        try (final IntTermIterator iter1 = reader.getIntTermIterator(field1);
+             final IntTermIterator iter2 = reader.getIntTermIterator(field2);
+             final DocIdStreamIterator docIdIter1 = new DocIdStreamIterator(reader.getDocIdStream(), BUFFER_SIZE);
+             final DocIdStreamIterator docIdIter2 = new DocIdStreamIterator(reader.getDocIdStream(), BUFFER_SIZE)) {
+            if (iter1.next() && iter2.next()) {
+                while (true) {
+                    final long term1 = iter1.term();
+                    final long term2 = iter2.term();
+                    final long compareResult = term1-term2;
+                    if (compareResult == 0) {
+                        docIdIter1.reset(iter1);
+                        docIdIter2.reset(iter2);
+                        mergeAndFillBitSet(docIdIter1, docIdIter2, ret);
+                        if (!iter1.next()) {
+                            break;
+                        }
+                        if (!iter2.next()) {
+                            break;
+                        }
+                    } else if (compareResult < 0) {
+                        if (!iter1.next()) {
+                            break;
+                        }
+                    } else {
+                        if (!iter2.next()) {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private static void cacheStringFieldEqual(String field1, String field2, FlamdexReader reader, ThreadSafeBitSet ret) {
+        try (final StringTermIterator iter1 = reader.getStringTermIterator(field1);
+             final StringTermIterator iter2 = reader.getStringTermIterator(field2);
+             final DocIdStreamIterator docIdIter1 = new DocIdStreamIterator(reader.getDocIdStream(), BUFFER_SIZE);
+             final DocIdStreamIterator docIdIter2 = new DocIdStreamIterator(reader.getDocIdStream(), BUFFER_SIZE)) {
+            if (iter1.next() && iter2.next()) {
+                while (true) {
+                    final String term1 = iter1.term();
+                    final String term2 = iter2.term();
+                    final int compareResult = term1.compareTo(term2);
+                    if (compareResult == 0) {
+                        docIdIter1.reset(iter1);
+                        docIdIter2.reset(iter2);
+                        mergeAndFillBitSet(docIdIter1, docIdIter2, ret);
+                        if (!iter1.next()) {
+                            break;
+                        }
+                        if (!iter2.next()) {
+                            break;
+                        }
+                    } else if (compareResult < 0) {
+                        if (!iter1.next()) {
+                            break;
+                        }
+                    } else {
+                        if (!iter2.next()) {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private static void mergeAndFillBitSet(final DocIdStreamIterator docIdStreamIter1, final DocIdStreamIterator docIdStreamIter2, final ThreadSafeBitSet bitSet) {
+        while (docIdStreamIter1.hasElement() && docIdStreamIter2.hasElement()) {
+            final int docId1 = docIdStreamIter1.docId();
+            final int docId2 = docIdStreamIter2.docId();
+            if (docId1 == docId2) {
+                bitSet.set(docId1);
+                docIdStreamIter1.advance();
+                docIdStreamIter2.advance();
+            } else if (docId1 < docId2) {
+                docIdStreamIter1.advance();
+            } else {
+                docIdStreamIter2.advance();
+            }
+        }
+    }
+
     private static void setLongMetricsForDocs(final long[] array, final DocIdStream dis, final long metric) {
         final int[] docIdBuf = new int[BUFFER_SIZE];
 
@@ -713,5 +826,9 @@ public class FlamdexUtils {
             iter.close();
         }
         return totalDocFreq;
+    }
+
+    private enum FieldType {
+        INT, STR, NULL
     }
 }
