@@ -8,7 +8,7 @@
     </parent>
 
     <artifactId>imhotep</artifactId>
-    <version>3.1.34-SNAPSHOT</version>
+    <version>3.1.34</version>
     <packaging>pom</packaging>
 
     <name>Imhotep Metapackage</name>
