@@ -247,10 +247,10 @@ public class LocalImhotepServiceCore
         @Override
         public void run() {
             try {
-                log.info("Attempting reload of shards");
+                log.debug("Attempting reload of shards");
                 final ShardMap newShardMap = new ShardMap(shardMap.get(), shardDirIterator);
                 setShardMap(newShardMap, ShardUpdateListenerIf.Source.FILESYSTEM);
-                log.info("Finished reloading " + newShardMap.size() + " shards");
+                log.debug("Finished reloading shards");
             } catch (final Throwable e) {
                 log.error("error updating shards", e);
             }

@@ -52,6 +52,12 @@ public class ShardMasterDaemon {
 
         final ExecutorService executorService = config.createExecutorService();
         final Timer timer = new Timer(DatasetShardAssignmentRefresher.class.getSimpleName());
+
+        final HostsReloader hostsReloader = new CheckpointedHostsReloader(
+                new File(config.getHostsFile()),
+                config.createHostsReloader(),
+                config.getHostsDropThreshold());
+
         try (HikariDataSource dataSource = config.createDataSource()) {
             new SchemaInitializer(dataSource).initialize(Collections.singletonList(Tables.TBLSHARDASSIGNMENTINFO));
 
@@ -60,11 +66,6 @@ public class ShardMasterDaemon {
             final RemoteCachingPath dataSetsDir = (RemoteCachingPath) Paths.get(RemoteCachingFileSystemProvider.URI);
 
             LOGGER.info("Reloading all daemon hosts");
-            final HostsReloader hostsReloader = new CheckpointedHostsReloader(
-                    new File(config.getHostsFile()),
-                    config.createHostsReloader(),
-                    config.getHostsDropThreshold());
-
             hostsReloader.run();
 
             final DatasetShardAssignmentRefresher refresher = new DatasetShardAssignmentRefresher(
@@ -105,6 +106,7 @@ public class ShardMasterDaemon {
         } finally {
             timer.cancel();
             executorService.shutdown();
+            hostsReloader.shutdown();
         }
     }
 
