@@ -26,13 +26,16 @@ public class RequestResponseClientFactory implements Supplier<ShardMaster> {
 
     @Override
     public RequestResponseClient get() {
-        final List<Host> hosts = new ZkHostsReloader(zkNodes, zkPath, true).getHosts();
-
-        if (hosts.isEmpty()) {
-            LOGGER.warn("Unable to get shardmaster endpoint under " + zkPath + " could not get client");
-            return null;
+        final ZkHostsReloader zkHostsReloader = new ZkHostsReloader(zkNodes, zkPath, true);
+        try {
+            final List<Host> hosts = zkHostsReloader.getHosts();
+            if (hosts.isEmpty()) {
+                LOGGER.warn("Unable to get shardmaster endpoint under " + zkPath + " could not get client");
+                return null;
+            }
+            return new RequestResponseClient(hosts.get(Math.abs(myHostname.hashCode()) % hosts.size()));
+        } finally {
+            zkHostsReloader.shutdown();
         }
-
-        return new RequestResponseClient(hosts.get(Math.abs(myHostname.hashCode()) % hosts.size()));
     }
 }

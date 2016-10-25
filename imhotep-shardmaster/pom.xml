@@ -241,7 +241,6 @@
     </dependencies>
 
     <properties>
-        <concurrent.version>1.3.4</concurrent.version>
         <curator-test.version>2.7.1</curator-test.version>
     </properties>
 

@@ -127,6 +127,16 @@
 			<!-- included for compile as well for test utilities -->
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.curator</groupId>
+			<artifactId>curator-test</artifactId>
+			<version>${curator-test.version}</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
+
+	<properties>
+		<curator-test.version>2.7.1</curator-test.version>
+	</properties>
 
 </project>
