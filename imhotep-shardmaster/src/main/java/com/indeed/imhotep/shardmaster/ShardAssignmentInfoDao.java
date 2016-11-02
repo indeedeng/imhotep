@@ -11,10 +11,7 @@ import com.zaxxer.hikari.HikariDataSource;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.jooq.BatchBindStep;
-import org.jooq.Configuration;
 import org.jooq.DSLContext;
-import org.jooq.TransactionalRunnable;
-import org.jooq.impl.DSL;
 
 import java.sql.Timestamp;
 
@@ -24,12 +21,12 @@ import java.sql.Timestamp;
 
 public class ShardAssignmentInfoDao {
     private static final Tblshardassignmentinfo TABLE = Tables.TBLSHARDASSIGNMENTINFO;
-    private static final int BATCH_SIZE = 1000;
-    private final DSLContext dslContext;
+    private static final int BATCH_SIZE = 100;
+    private final DSLContextContainer dslContextContainer;
     private final Duration stalenessThreshold;
 
     public ShardAssignmentInfoDao(final HikariDataSource dataSource, final Duration stalenessThreshold) {
-        dslContext = new DSLContextContainer(dataSource).getDSLContext();
+        dslContextContainer = new DSLContextContainer(dataSource);
         this.stalenessThreshold = stalenessThreshold;
     }
 
@@ -43,7 +40,7 @@ public class ShardAssignmentInfoDao {
     }
 
     Iterable<ShardAssignmentInfo> getAssignments(final String node) {
-        return FluentIterable.from(dslContext.selectFrom(TABLE)
+        return FluentIterable.from(dslContextContainer.getDSLContext().selectFrom(TABLE)
                 .where(TABLE.ASSIGNED_NODE.eq(node))
                 .fetch()).transform(new Function<TblshardassignmentinfoRecord, ShardAssignmentInfo>() {
             @Override
@@ -73,36 +70,32 @@ public class ShardAssignmentInfoDao {
      * shard is allocated to no hosts, so to stay conservative, we retain old shard assignments for some time.
      */
     public void updateAssignments(final String dataset, final DateTime timestamp, final Iterable<ShardAssignmentInfo> assignmentInfos) {
-        dslContext.transaction(new TransactionalRunnable() {
-            @Override
-            public void run(final Configuration configuration) throws Exception {
-                final DSLContext txnDslContext = DSL.using(configuration);
+        final DSLContext dslContext = dslContextContainer.getDSLContext();
 
-                txnDslContext.deleteFrom(TABLE)
-                        .where(TABLE.DATASET.eq(dataset)
-                                .and(TABLE.TIMESTAMP.le(new Timestamp(timestamp.minus(stalenessThreshold).getMillis()))))
-                        .execute();
+        BatchBindStep insertBatch = createInsertBatch(dslContext);
+        for (final ShardAssignmentInfo assignmentInfo : assignmentInfos) {
+            insertBatch.bind(
+                    assignmentInfo.getDataset(),
+                    assignmentInfo.getShardId(),
+                    assignmentInfo.getShardPath(),
+                    assignmentInfo.getAssignedNode(),
+                    timestamp.getMillis()
+            );
 
-                BatchBindStep insertBatch = createInsertBatch(txnDslContext);
-                for (final ShardAssignmentInfo assignmentInfo : assignmentInfos) {
-                    insertBatch.bind(
-                            assignmentInfo.getDataset(),
-                            assignmentInfo.getShardId(),
-                            assignmentInfo.getShardPath(),
-                            assignmentInfo.getAssignedNode(),
-                            timestamp.getMillis()
-                    );
-
-                    if (insertBatch.size() > BATCH_SIZE) {
-                        insertBatch.execute();
-                        insertBatch = createInsertBatch(txnDslContext);
-                    }
-                }
-
-                if (insertBatch.size() > 0) {
-                    insertBatch.execute();
-                }
+            if (insertBatch.size() > BATCH_SIZE) {
+                insertBatch.execute();
+                insertBatch = createInsertBatch(dslContext);
             }
-        });
+        }
+
+        if (insertBatch.size() > 0) {
+            insertBatch.execute();
+        }
+
+        dslContext.deleteFrom(TABLE)
+                .where(TABLE.DATASET.eq(dataset)
+                        .and(TABLE.TIMESTAMP.le(new Timestamp(timestamp.minus(stalenessThreshold).getMillis()))))
+                .execute();
+
     }
 }

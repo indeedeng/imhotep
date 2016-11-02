@@ -65,4 +65,13 @@ public final class ShardTimeUtils {
             return new Interval(start, end);
         }
     }
+
+    public static boolean isValidShardId(final String shardId) {
+        try {
+            ShardTimeUtils.parseInterval(shardId);
+            return true;
+        } catch (final Throwable e) {
+            return false;
+        }
+    }
 }

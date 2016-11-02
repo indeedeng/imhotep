@@ -25,14 +25,16 @@ public class FileMetadataDao implements SqarMetaDataDao {
     private static final String DELIMITER = "/";
     private static final String CONTAINS_DELIMITER_PAT = "%/%";
     private static final Tblfilemetadata TABLE = Tables.TBLFILEMETADATA;
-    private final DSLContext dslContext;
+    private final DSLContextContainer dslContextContainer;
 
     public FileMetadataDao(final HikariDataSource dataSource) {
-        dslContext = new DSLContextContainer(dataSource).getDSLContext();
+        dslContextContainer = new DSLContextContainer(dataSource);
     }
 
     @Override
     public void cacheMetadata(final Path shardPath, final Iterable<RemoteFileMetadata> metadataList) {
+        final DSLContext dslContext = dslContextContainer.getDSLContext();
+
         BatchBindStep batch = dslContext.batch(
                 dslContext.mergeInto(TABLE,
                         TABLE.SHARD_NAME,
@@ -92,6 +94,8 @@ public class FileMetadataDao implements SqarMetaDataDao {
 
     @Override
     public RemoteFileMetadata getFileMetadata(final Path shardPath, final String filename) {
+        final DSLContext dslContext = dslContextContainer.getDSLContext();
+
         final TblfilemetadataRecord fetchedRecord = dslContext.selectFrom(TABLE).where(
                 TABLE.SHARD_NAME.eq(shardPath.normalize().toString())
         )
@@ -120,6 +124,7 @@ public class FileMetadataDao implements SqarMetaDataDao {
 
     @Override
     public boolean hasShard(final Path shardPath) {
+        final DSLContext dslContext = dslContextContainer.getDSLContext();
         return dslContext.select(DSL.count())
                 .from(TABLE)
                 .where(
@@ -131,6 +136,7 @@ public class FileMetadataDao implements SqarMetaDataDao {
     public Iterable<RemoteFileMetadata> listDirectory(final Path shardPath, final String dirname) {
         final String normalizedDirNameWithSep = toNormalizedDirNameWithSep(dirname);
 
+        final DSLContext dslContext = dslContextContainer.getDSLContext();
         SelectConditionStep<TblfilemetadataRecord> query = dslContext.selectFrom(TABLE).where(
                 TABLE.SHARD_NAME.eq(shardPath.normalize().toString())
         )

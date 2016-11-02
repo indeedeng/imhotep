@@ -11,6 +11,7 @@ import com.indeed.util.core.time.WallClock;
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+import org.joda.time.Interval;
 import org.joda.time.Period;
 
 import java.io.IOException;
@@ -90,9 +91,16 @@ class FilteredShardDirIterator implements ShardDirIterator {
         }
 
         boolean includeShard(final DateTime now, final String dataset, final ShardDir shardDir) {
+            final Interval interval;
+            try {
+                interval = ShardTimeUtils.parseInterval(shardDir.getId());
+            } catch (final Throwable e) {
+                return false;
+            }
+
             final Period period = dataSetInterval.get(dataset);
             if (period != null) {
-                final DateTime shardTime = ShardTimeUtils.parseStart(shardDir.getId());
+                final DateTime shardTime = interval.getStart();
                 final DateTime threshold = now.minus(period);
                 return threshold.isBefore(shardTime) || threshold.isEqual(shardTime);
             }

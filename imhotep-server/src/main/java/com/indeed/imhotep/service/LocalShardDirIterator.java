@@ -1,12 +1,15 @@
 package com.indeed.imhotep.service;
 
 import com.google.common.base.Function;
+import com.google.common.base.Predicates;
 import com.google.common.collect.FluentIterable;
 import com.indeed.imhotep.ShardDir;
+import com.indeed.imhotep.client.ShardTimeUtils;
 import com.indeed.imhotep.fs.DirectoryStreamFilters;
 import com.indeed.util.core.Pair;
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -37,12 +40,18 @@ class LocalShardDirIterator implements ShardDirIterator {
                             try (DirectoryStream<Path> shards = Files.newDirectoryStream(dataSetPath, DirectoryStreamFilters.ONLY_DIRS)) {
                                 return FluentIterable.from(shards).transform(
                                         new Function<Path, Pair<String, ShardDir>>() {
+                                            @Nullable
                                             @Override
                                             public Pair<String, ShardDir> apply(final Path shardPath) {
-                                                return Pair.of(dataset, new ShardDir(shardPath));
+                                                final ShardDir shardDir = new ShardDir(shardPath);
+                                                if (ShardTimeUtils.isValidShardId(shardDir.getId())) {
+                                                    return Pair.of(dataset, shardDir);
+                                                } else {
+                                                    return null;
+                                                }
                                             }
                                         }
-                                ).toList();
+                                ).filter(Predicates.<Pair<String,ShardDir>>notNull()).toList();
                             } catch (final IOException e) {
                                 LOGGER.warn("Failed to scan for shard for dataset " + dataSetPath, e);
                                 return Collections.emptyList();

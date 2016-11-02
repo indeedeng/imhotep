@@ -125,7 +125,7 @@ public class ShardMasterDaemon {
         private String hostsFile;
         private ShardFilter shardFilter = ShardFilter.ACCEPT_ALL;
         private int servicePort = 0;
-        private int serviceConcurrency = 10;
+        private int serviceConcurrency = 2;
         private int shardsResponseBatchSize = 1000;
         private int threadPoolSize = 5;
         private int replicationFactor = 3;
@@ -222,7 +222,7 @@ public class ShardMasterDaemon {
             Preconditions.checkNotNull(dbFile, "DBFile config is missing");
             final HikariConfig dbConfig = new HikariConfig();
             // this is a bit arbitrary but we need to ensure that the pool size is large enough for the # of threads
-            dbConfig.setMaximumPoolSize(Math.max(10, threadPoolSize + 1));
+            dbConfig.setMaximumPoolSize(Math.max(10, threadPoolSize + serviceConcurrency + 5));
             dbConfig.setJdbcUrl("jdbc:h2:" + dbFile);
             return new HikariDataSource(dbConfig);
         }
