@@ -13,12 +13,14 @@
  */
  package com.indeed.flamdex.datastruct;
 
+import java.io.Serializable;
 import java.util.Arrays;
 
 /**
  * @author jsgroth
  */
-public final class FastBitSet {
+public final class FastBitSet implements Serializable {
+    private static final long serialVersionUID = 9146568940233876479L;
     private final int size;
     private final long[] bits;
 
