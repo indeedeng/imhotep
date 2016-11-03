@@ -449,7 +449,7 @@ public class LocalImhotepServiceCore
 
             final Map<ShardId, CachedFlamdexReaderReference> flamdexes = Maps.newHashMap();
             final SessionObserver observer =
-                new SessionObserver(dataset, sessionId, username);
+                new SessionObserver(dataset, sessionId, username, clientName, ipAddress);
             for (int i = 0; i < shardRequestList.size(); ++i) {
                 final String shardId = shardRequestList.get(i);
                 final Pair<ShardId, CachedFlamdexReaderReference> pair =

@@ -74,19 +74,27 @@ public abstract class AbstractImhotepServiceCore
         private final String dataset;
         private final String sessionId;
         private final String username;
+        private final String clientName;
+        private final String ipAddress;
 
         SessionObserver(String dataset,
                         String sessionId,
-                        String username) {
+                        String username,
+                        String clientName,
+                        String ipAddress) {
             this.dataset   = dataset;
             this.sessionId = sessionId;
             this.username  = username;
+            this.clientName = clientName;
+            this.ipAddress = ipAddress;
         }
 
         public void onEvent(Instrumentation.Event event) {
             event.getProperties().put(Keys.DATASET,    dataset);
             event.getProperties().put(Keys.SESSION_ID, sessionId);
             event.getProperties().put(Keys.USERNAME,   username);
+            event.getProperties().put(Keys.CLIENT_NAME, clientName);
+            event.getProperties().put(Keys.REMOTE_IP_ADDRESS, ipAddress);
             instrumentation.fire(event);
         }
     }
