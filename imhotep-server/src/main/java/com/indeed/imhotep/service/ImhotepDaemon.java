@@ -958,11 +958,19 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     sendResponse(ImhotepResponse.newBuilder().setResponseCode(oom).build(), os);
                     log.warn("ImhotepOutOfMemoryException while servicing request", e);
                 } catch (IOException e) {
-                    sendResponse(newErrorResponse(e), os);
+                    try {
+                        sendResponse(newErrorResponse(e), os);
+                    } catch (Exception e2) {
+                        log.error("Exception during sending back the error", e2);
+                    }
                     throw e;
                 } catch (RuntimeException e) {
                     expireSession(request, e);
-                    sendResponse(newErrorResponse(e), os);
+                    try {
+                        sendResponse(newErrorResponse(e), os);
+                    } catch (Exception e2) {
+                        log.error("Exception during sending back the error", e2);
+                    }
                     throw e;
                 } finally {
                     final long endTm = System.currentTimeMillis();
