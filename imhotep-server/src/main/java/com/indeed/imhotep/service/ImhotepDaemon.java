@@ -973,17 +973,20 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     }
                     throw e;
                 } finally {
-                    final long endTm = System.currentTimeMillis();
-                    final long elapsedTm = endTm - beginTm;
-                    DaemonEvents.HandleRequestEvent instEvent =
-                        request.getRequestType().equals(ImhotepRequest.RequestType.OPEN_SESSION) ?
-                        new DaemonEvents.OpenSessionEvent(request, response,
-                                                          remoteAddr, localAddr,
-                                                          beginTm, elapsedTm) :
-                        new DaemonEvents.HandleRequestEvent(request, response,
-                                                            remoteAddr, localAddr,
-                                                            beginTm, elapsedTm);
-                    instrumentation.fire(instEvent);
+                    // try to make the volume of logs manageable by skipping GET_FTGS_SPLIT requests
+                    if(request != null && request.getRequestType() != ImhotepRequest.RequestType.GET_FTGS_SPLIT) {
+                        final long endTm = System.currentTimeMillis();
+                        final long elapsedTm = endTm - beginTm;
+                        DaemonEvents.HandleRequestEvent instEvent =
+                                request.getRequestType().equals(ImhotepRequest.RequestType.OPEN_SESSION) ?
+                                        new DaemonEvents.OpenSessionEvent(request, response,
+                                                remoteAddr, localAddr,
+                                                beginTm, elapsedTm) :
+                                        new DaemonEvents.HandleRequestEvent(request, response,
+                                                remoteAddr, localAddr,
+                                                beginTm, elapsedTm);
+                        instrumentation.fire(instEvent);
+                    }
                     NDC.setMaxDepth(ndcDepth);
                     close(socket, is, os);
                 }
