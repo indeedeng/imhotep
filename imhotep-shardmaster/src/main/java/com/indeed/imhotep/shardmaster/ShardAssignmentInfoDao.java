@@ -5,13 +5,13 @@ import com.google.common.collect.FluentIterable;
 import com.indeed.imhotep.fs.sql.DSLContextContainer;
 import com.indeed.imhotep.shardmaster.db.shardinfo.Tables;
 import com.indeed.imhotep.shardmaster.db.shardinfo.tables.Tblshardassignmentinfo;
-import com.indeed.imhotep.shardmaster.db.shardinfo.tables.records.TblshardassignmentinfoRecord;
 import com.indeed.imhotep.shardmaster.model.ShardAssignmentInfo;
 import com.zaxxer.hikari.HikariDataSource;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.jooq.BatchBindStep;
 import org.jooq.DSLContext;
+import org.jooq.Record2;
 
 import java.sql.Timestamp;
 
@@ -30,22 +30,23 @@ public class ShardAssignmentInfoDao {
         this.stalenessThreshold = stalenessThreshold;
     }
 
-    private static ShardAssignmentInfo fromRecord(final TblshardassignmentinfoRecord record) {
+    private static ShardAssignmentInfo fromRecord(final String dataset, final String shardPath, final String assignedNode) {
         return new ShardAssignmentInfo(
-                record.getDataset(),
-                record.getShardId(),
-                record.getShardPath(),
-                record.getAssignedNode()
+                dataset,
+                shardPath,
+                assignedNode
         );
     }
 
     Iterable<ShardAssignmentInfo> getAssignments(final String node) {
-        return FluentIterable.from(dslContextContainer.getDSLContext().selectFrom(TABLE)
+        return FluentIterable.from(dslContextContainer.getDSLContext()
+                .select(TABLE.DATASET, TABLE.SHARD_PATH)
+                .from(TABLE)
                 .where(TABLE.ASSIGNED_NODE.eq(node))
-                .fetch()).transform(new Function<TblshardassignmentinfoRecord, ShardAssignmentInfo>() {
+                .fetch()).transform(new Function<Record2<String, String>, ShardAssignmentInfo>() {
             @Override
-            public ShardAssignmentInfo apply(final TblshardassignmentinfoRecord record) {
-                return fromRecord(record);
+            public ShardAssignmentInfo apply(final Record2<String, String> record) {
+                return fromRecord(record.value1(), record.value2(), node);
             }
         }).toSet();
     }
@@ -54,12 +55,11 @@ public class ShardAssignmentInfoDao {
         return dslContext.batch(
                 dslContext.insertInto(TABLE,
                         TABLE.DATASET,
-                        TABLE.SHARD_ID,
                         TABLE.SHARD_PATH,
                         TABLE.ASSIGNED_NODE,
                         TABLE.TIMESTAMP
                 )
-                        .values((String) null, null, null, null, null)
+                        .values((String) null, null, null, null)
         );
     }
 
@@ -76,7 +76,6 @@ public class ShardAssignmentInfoDao {
         for (final ShardAssignmentInfo assignmentInfo : assignmentInfos) {
             insertBatch.bind(
                     assignmentInfo.getDataset(),
-                    assignmentInfo.getShardId(),
                     assignmentInfo.getShardPath(),
                     assignmentInfo.getAssignedNode(),
                     timestamp.getMillis()

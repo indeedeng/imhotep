@@ -37,7 +37,7 @@ public class ShardAssignmentInfoDaoTest {
     }
 
     private static ShardAssignmentInfo createAssignmentInfo(final String dataset, final String shardId, final String node) {
-        return new ShardAssignmentInfo(dataset, shardId, "/var/imhotep/" + dataset + "/" + shardId, node);
+        return new ShardAssignmentInfo(dataset, "/var/imhotep/" + dataset + "/" + shardId, node);
     }
 
     @Test

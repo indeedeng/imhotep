@@ -41,11 +41,11 @@ public class RequestResponseServerTest {
     }
 
     private static ShardAssignmentInfo createAssignmentInfo(final String dataset, final String shardId, final String node) {
-        return new ShardAssignmentInfo(dataset, shardId, "/var/imhotep/" + dataset + "/" + shardId, node);
+        return new ShardAssignmentInfo(dataset, "/var/imhotep/" + dataset + "/" + shardId, node);
     }
 
     private static AssignedShard createAssignedShard(final String dataset, final String shardId) {
-        return AssignedShard.newBuilder().setDataset(dataset).setShardId(shardId)
+        return AssignedShard.newBuilder().setDataset(dataset)
                 .setShardPath("/var/imhotep/" + dataset + "/" + shardId).build();
     }
 

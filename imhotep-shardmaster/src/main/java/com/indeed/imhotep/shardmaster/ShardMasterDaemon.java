@@ -122,13 +122,14 @@ public class ShardMasterDaemon {
         private String imhotepDaemonsZkPath;
         private String shardMastersZkPath;
         private String dbFile;
+        private String dbParams = "MULTI_THREADED=TRUE;CACHE_SIZE=" + (1024L * 1024L * 1024L);
         private String hostsFile;
         private ShardFilter shardFilter = ShardFilter.ACCEPT_ALL;
         private int servicePort = 0;
-        private int serviceConcurrency = 2;
+        private int serviceConcurrency = 10;
         private int shardsResponseBatchSize = 1000;
         private int threadPoolSize = 5;
-        private int replicationFactor = 3;
+        private int replicationFactor = 2;
         private Duration refreshInterval = Duration.standardMinutes(5);
         private Duration stalenessThreshold = Duration.standardMinutes(15);
         private Duration hostsRefreshInterval = Duration.standardMinutes(1);
@@ -151,6 +152,11 @@ public class ShardMasterDaemon {
 
         public Config setDbFile(final String dbFile) {
             this.dbFile = dbFile;
+            return this;
+        }
+
+        public Config setDbParams(final String dbParams) {
+            this.dbParams = dbParams;
             return this;
         }
 
@@ -219,11 +225,21 @@ public class ShardMasterDaemon {
         }
 
         HikariDataSource createDataSource() {
-            Preconditions.checkNotNull(dbFile, "DBFile config is missing");
             final HikariConfig dbConfig = new HikariConfig();
             // this is a bit arbitrary but we need to ensure that the pool size is large enough for the # of threads
             dbConfig.setMaximumPoolSize(Math.max(10, threadPoolSize + serviceConcurrency + 5));
-            dbConfig.setJdbcUrl("jdbc:h2:" + dbFile);
+
+            String url;
+            if (dbFile != null) {
+                url = "jdbc:h2:" + dbFile;
+            } else {
+                url = "jdbc:h2:mem:shardassignment";
+            }
+
+            if (dbParams != null) {
+                url += ";" + dbParams;
+            }
+            dbConfig.setJdbcUrl(url);
             return new HikariDataSource(dbConfig);
         }
 

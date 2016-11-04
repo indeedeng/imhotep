@@ -25,7 +25,6 @@ public class DatabaseShardMaster implements ShardMaster {
                     public AssignedShard apply(final ShardAssignmentInfo shard) {
                         return AssignedShard.newBuilder()
                                 .setDataset(shard.getDataset())
-                                .setShardId(shard.getShardId())
                                 .setShardPath(shard.getShardPath())
                                 .build();
                     }

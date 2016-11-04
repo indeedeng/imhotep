@@ -161,7 +161,6 @@ public class ShardDirIteratorTest {
         final ShardDir shardDir = shardDirOf(datasetDir, shardTime);
         return AssignedShard.newBuilder()
                 .setDataset(shardDir.getIndexDir().getParent().getFileName().toString())
-                .setShardId(shardDir.getId())
                 .setShardPath(shardDir.getIndexDir().toString())
                 .build();
     }

@@ -58,7 +58,7 @@ public class MinHashShardAssignerTest {
         final MinHashShardAssigner assigner = new MinHashShardAssigner(replicationFactor);
         for (final ShardAssignmentInfo assignment : assigner.assign(hosts, "DATASET", shards)) {
             Assert.assertEquals("DATASET", assignment.getDataset());
-            assignedShards.add(assignment.getShardId());
+            assignedShards.add(assignment.getShardPath());
             final Integer count = hostToShardCount.get(assignment.getAssignedNode());
             if (count == null) {
                 hostToShardCount.put(assignment.getAssignedNode(), 1);

@@ -26,6 +26,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.ExecutionException;
@@ -117,7 +118,8 @@ public class ShardMasterDaemonTest {
         )).index(new Function<AssignedShard, Pair<String, String>>() {
             @Override
             public Pair<String, String> apply(final AssignedShard input) {
-                return Pair.of(input.getDataset(), input.getShardId());
+                final String shardId = Paths.get(input.getShardPath()).getFileName().toString().split("\\.")[0];
+                return Pair.of(input.getDataset(), shardId);
             }
         });
 
