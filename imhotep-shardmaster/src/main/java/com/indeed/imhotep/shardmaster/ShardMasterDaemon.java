@@ -124,7 +124,7 @@ public class ShardMasterDaemon {
         private String imhotepDaemonsZkPath;
         private String shardMastersZkPath;
         private String dbFile;
-        private String dbParams = "MULTI_THREADED=TRUE";
+        private String dbParams = "MULTI_THREADED=TRUE;CACHE_SIZE=" + (1024 * 1024);
         private String hostsFile;
         private ShardFilter shardFilter = ShardFilter.ACCEPT_ALL;
         private int servicePort = 0;
