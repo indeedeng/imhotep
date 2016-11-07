@@ -12,6 +12,7 @@ import com.indeed.imhotep.fs.RemoteCachingPath;
 import com.indeed.imhotep.fs.sql.SchemaInitializer;
 import com.indeed.imhotep.shardmaster.db.shardinfo.Tables;
 import com.indeed.imhotep.shardmaster.rpc.MultiplexingRequestHandler;
+import com.indeed.imhotep.shardmaster.rpc.RequestMetricStatsEmitter;
 import com.indeed.imhotep.shardmaster.rpc.RequestResponseServer;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -91,6 +92,7 @@ public class ShardMasterDaemon {
             timer.schedule(refresher, config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis());
 
             server = new RequestResponseServer(config.getServicePort(), new MultiplexingRequestHandler(
+                    config.statsEmitter,
                     new DatabaseShardMaster(shardAssignmentInfoDao),
                     config.shardsResponseBatchSize
             ), config.serviceConcurrency);
@@ -122,7 +124,7 @@ public class ShardMasterDaemon {
         private String imhotepDaemonsZkPath;
         private String shardMastersZkPath;
         private String dbFile;
-        private String dbParams = "MULTI_THREADED=TRUE;CACHE_SIZE=" + (1024L * 1024L * 1024L);
+        private String dbParams = "MULTI_THREADED=TRUE";
         private String hostsFile;
         private ShardFilter shardFilter = ShardFilter.ACCEPT_ALL;
         private int servicePort = 0;
@@ -134,6 +136,7 @@ public class ShardMasterDaemon {
         private Duration stalenessThreshold = Duration.standardMinutes(15);
         private Duration hostsRefreshInterval = Duration.standardMinutes(1);
         private double hostsDropThreshold = 0.5;
+        private RequestMetricStatsEmitter statsEmitter = RequestMetricStatsEmitter.NULL_EMITTER;
 
         public Config setZkNodes(final String zkNodes) {
             this.zkNodes = zkNodes;
@@ -212,6 +215,11 @@ public class ShardMasterDaemon {
 
         public Config setHostsDropThreshold(final double hostsDropThreshold) {
             this.hostsDropThreshold = hostsDropThreshold;
+            return this;
+        }
+
+        public Config setStatsEmitter(final RequestMetricStatsEmitter statsEmitter) {
+            this.statsEmitter = statsEmitter;
             return this;
         }
 

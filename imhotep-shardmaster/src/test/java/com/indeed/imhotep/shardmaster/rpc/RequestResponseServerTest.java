@@ -9,6 +9,7 @@ import com.indeed.imhotep.shardmaster.ShardAssignmentInfoDao;
 import com.indeed.imhotep.shardmaster.db.shardinfo.Tables;
 import com.indeed.imhotep.shardmaster.model.ShardAssignmentInfo;
 import com.indeed.imhotep.shardmaster.protobuf.AssignedShard;
+import com.indeed.imhotep.shardmaster.protobuf.ShardMasterRequest;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
@@ -49,6 +50,19 @@ public class RequestResponseServerTest {
                 .setShardPath("/var/imhotep/" + dataset + "/" + shardId).build();
     }
 
+    static class CountingRequestStatsEmitter implements RequestMetricStatsEmitter {
+        private int processed = 0;
+
+        @Override
+        public synchronized void processed(final String requestKey, final ShardMasterRequest.RequestType requestType, final long millis) {
+            ++processed;
+        }
+
+        public synchronized int getProcessed() {
+            return processed;
+        }
+    }
+
     @Test
     public void testRequestResponse() throws IOException {
         assignmentInfoDao.updateAssignments("dataset1", NOW, Arrays.asList(
@@ -74,8 +88,10 @@ public class RequestResponseServerTest {
 
         final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
+        final CountingRequestStatsEmitter statsEmitter = new CountingRequestStatsEmitter();
+
         try (RequestResponseServer requestResponseServer = new RequestResponseServer(
-                0, new MultiplexingRequestHandler(shardMasterServer, 2), 2)) {
+                0, new MultiplexingRequestHandler(statsEmitter, shardMasterServer, 2), 2)) {
 
             requestResponseClient = new RequestResponseClient(
                     new Host("localhost", requestResponseServer.getActualPort()));
@@ -95,6 +111,8 @@ public class RequestResponseServerTest {
                     ),
                     Sets.newHashSet(requestResponseClient.getAssignments("A"))
             );
+
+            Assert.assertEquals(1, statsEmitter.getProcessed());
 
             Assert.assertEquals(
                     Sets.newHashSet(
@@ -119,6 +137,8 @@ public class RequestResponseServerTest {
                     Collections.emptyList(),
                     Lists.newArrayList(requestResponseClient.getAssignments("D"))
             );
+
+            Assert.assertEquals(4, statsEmitter.getProcessed());
 
             assignmentInfoDao.updateAssignments("dataset1", LATER, Arrays.asList(
                     createAssignmentInfo("dataset1", "shard1", "A"),
@@ -170,6 +190,8 @@ public class RequestResponseServerTest {
                     Sets.newHashSet(requestResponseClient.getAssignments("C"))
             );
         }
+
+        Assert.assertEquals(7, statsEmitter.getProcessed());
 
         executorService.shutdownNow();
     }
