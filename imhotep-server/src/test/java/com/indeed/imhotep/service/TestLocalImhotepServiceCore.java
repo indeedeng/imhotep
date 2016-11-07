@@ -85,7 +85,7 @@ public class TestLocalImhotepServiceCore {
         Path tempDir = Files.createTempDirectory("asdf");
         Path datasetDir = directory.resolve("dataset");
         Files.createDirectories(datasetDir);
-        Files.createDirectories(datasetDir.resolve("shard"));
+        Files.createDirectories(datasetDir.resolve("index20150601"));
         try {
             final LocalImhotepServiceCore service = new LocalImhotepServiceCore(directory, tempDir, 9999999999999L, false, new FlamdexReaderSource() {
                 @Override
@@ -100,7 +100,7 @@ public class TestLocalImhotepServiceCore {
                 }
             }, new LocalImhotepServiceConfig());
 
-            final String sessionId = service.handleOpenSession("dataset", Arrays.asList("shard"), "", "", "", 0, 0, false, "", null, false, 0);
+            final String sessionId = service.handleOpenSession("dataset", Arrays.asList("index20150601"), "", "", "", 0, 0, false, "", null, false, 0);
             service.handlePushStat(sessionId, "count()");
             final OutputStream os = new CloseableNullOutputStream();
             final Thread t = new Thread(new Runnable() {
@@ -151,12 +151,12 @@ public class TestLocalImhotepServiceCore {
         try {
             Path datasetDir = directory.resolve("dataset");
             Files.createDirectory(datasetDir);
-            Files.createDirectory(datasetDir.resolve("shard0"));
-            Files.createDirectory(datasetDir.resolve("shard0.20120101000000"));
-            Files.createDirectory(datasetDir.resolve("shard0.20111231000000"));
-            Files.createDirectory(datasetDir.resolve("shard1.20120101000000"));
-            Files.createDirectory(datasetDir.resolve("shard1.20120101123456"));
-            Files.createDirectory(datasetDir.resolve("shard2.20120102000000"));
+            Files.createDirectory(datasetDir.resolve("index20160101"));
+            Files.createDirectory(datasetDir.resolve("index20160101.20120101000000"));
+            Files.createDirectory(datasetDir.resolve("index20160101.20111231000000"));
+            Files.createDirectory(datasetDir.resolve("index20160102.20120101000000"));
+            Files.createDirectory(datasetDir.resolve("index20160102.20120101123456"));
+            Files.createDirectory(datasetDir.resolve("index20160103.20120102000000"));
 
             LocalImhotepServiceCore service =
                 new LocalImhotepServiceCore(directory, tempDir, Long.MAX_VALUE,
@@ -176,11 +176,11 @@ public class TestLocalImhotepServiceCore {
                     return o1.getShardId().compareTo(o2.getShardId());
                 }
             });
-            assertEquals("shard0", shards.get(0).getShardId());
+            assertEquals("index20160101", shards.get(0).getShardId());
             assertEquals(20120101000000L, shards.get(0).getVersion());
-            assertEquals("shard1", shards.get(1).getShardId());
+            assertEquals("index20160102", shards.get(1).getShardId());
             assertEquals(20120101123456L, shards.get(1).getVersion());
-            assertEquals("shard2", shards.get(2).getShardId());
+            assertEquals("index20160103", shards.get(2).getShardId());
             assertEquals(20120102000000L, shards.get(2).getVersion());
 
             service.close();

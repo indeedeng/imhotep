@@ -42,7 +42,7 @@ public class TestLocalImhotepServiceCoreSharedResource extends TestCase {
     protected void setUp() throws Exception {
         tempDir = Files.createTempDirectory(this.getClass().getName());
         Path datasetDir = Files.createDirectory(tempDir.resolve("dataset"));
-        Path shardDir = Files.createDirectory(datasetDir.resolve("shard"));
+        Path shardDir = Files.createDirectory(datasetDir.resolve("index20160601"));
         Path optDir = Files.createDirectory(tempDir.resolve("temp"));
 
         directory = tempDir;
@@ -74,7 +74,7 @@ public class TestLocalImhotepServiceCoreSharedResource extends TestCase {
         LocalImhotepServiceCore service =
                 new LocalImhotepServiceCore(directory, optDirectory, 1024L * 1024 * 1024, false,
                                             factory, new LocalImhotepServiceConfig());
-        String sessionId = service.handleOpenSession("dataset", Arrays.asList("shard"), "", "", "", 0, 0, false, "", null, false, 0);
+        String sessionId = service.handleOpenSession("dataset", Arrays.asList("index20160601"), "", "", "", 0, 0, false, "", null, false, 0);
         try {
             service.handlePushStat(sessionId, "if1");
             assertTrue("pushStat didn't throw ImhotepOutOfMemory when it should have", false);
@@ -82,7 +82,7 @@ public class TestLocalImhotepServiceCoreSharedResource extends TestCase {
             // pass
         }
         service.handleCloseSession(sessionId);
-        String sessionId2 = service.handleOpenSession("dataset", Arrays.asList("shard"), "", "", "", 0, 0, false, "", null, false, 0);
+        String sessionId2 = service.handleOpenSession("dataset", Arrays.asList("index20160601"), "", "", "", 0, 0, false, "", null, false, 0);
         service.handleCloseSession(sessionId2);
         service.close();
     }
@@ -214,7 +214,7 @@ public class TestLocalImhotepServiceCoreSharedResource extends TestCase {
                                             factory,
                                             new LocalImhotepServiceConfig().setUpdateShardsFrequencySeconds(1));
         try {
-            String sessionId = service.handleOpenSession("dataset", Arrays.asList("shard"), "", "", "", 0, 0, false, "", null, false, 0);
+            String sessionId = service.handleOpenSession("dataset", Arrays.asList("index20160601"), "", "", "", 0, 0, false, "", null, false, 0);
             sessionOpened.set(true);
             try {
                 for (int i = 0; i < 5; ++i) {
