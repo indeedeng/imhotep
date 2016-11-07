@@ -39,13 +39,10 @@ class ShardScanner implements Iterable<ShardDir> {
                             final String dataset = shardPath.getParent().getFileName().toString();
                             final String shard = shardPath.getFileName().toString();
                             final String shardId = new ShardDir(shardPath).getId();
-                            try {
-                                ShardTimeUtils.parseInterval(shardId);
-                            } catch (final Throwable e) {
-                                // invalid shards should be ignored
-                                return false;
-                            }
-                            return shardFilter.accept(dataset, shard);
+
+                            // invalid shards should be ignored
+                            return ShardTimeUtils.isValidShardId(shardId) &&
+                                    shardFilter.accept(dataset, shard);
                         }
                     })
                     .transform(new Function<Path, ShardDir>() {

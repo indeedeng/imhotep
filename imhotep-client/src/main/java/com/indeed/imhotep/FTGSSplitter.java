@@ -177,11 +177,11 @@ public final class FTGSSplitter implements Runnable {
                     }
                 }
             } finally {
-                final Closeable closeOutputs = Closeables2.forArray(log, outputs);
                 final Closeable closeIterators = Closeables2.forArray(log, ftgsIterators);
+                final Closeable closeOutputs = Closeables2.forArray(log, outputs);
                 final Closeable closeOutputStreams = Closeables2.forArray(log, outputStreams);
-                Closeables2.closeAll(log, iterator, closeOutputs,
-                                     closeIterators, closeOutputStreams);
+                Closeables2.closeAll(log, iterator, closeIterators,
+                        closeOutputs, closeOutputStreams);
             }
         }
     }

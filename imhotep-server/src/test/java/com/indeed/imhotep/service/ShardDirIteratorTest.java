@@ -57,6 +57,12 @@ public class ShardDirIteratorTest {
         return shardDir;
     }
 
+    private static Path createShard(final Path datasetDir, final String shardId) throws IOException {
+        final Path shardDir = datasetDir.resolve(shardId);
+        Files.createDirectories(shardDir);
+        return shardDir;
+    }
+
     @Test
     public void testLocalShardIterator() throws IOException {
         final Path shardsDir = tempDir.newFolder("imhotep").toPath();
@@ -66,11 +72,13 @@ public class ShardDirIteratorTest {
         final Path dataset1 = shardsDir.resolve("dataset1");
         for (int i = 0; i < 10; i++) {
             expected.add(Pair.of(dataset1.getFileName().toString(), new ShardDir(createShard(dataset1, TODAY.minusDays(i)))));
+            createShard(dataset1, "SHARD" + i);
         }
 
         final Path dataset2 = shardsDir.resolve("dataset2");
         for (int i = 10; i < 100; i++) {
             expected.add(Pair.of(dataset2.getFileName().toString(), new ShardDir(createShard(dataset2, TODAY.minusDays(i)))));
+            createShard(dataset2, "SHARD" + i);
         }
 
         final ShardDirIterator shardDirIterator = new ShardDirIteratorFactory(new DefaultWallClock(), null, "localhost", null, null).get(shardsDir);
@@ -98,16 +106,19 @@ public class ShardDirIteratorTest {
         final Path dataset1 = shardsDir.resolve("dataset1");
         for (int i = 0; i < 20; i++) {
             createShard(dataset1, TODAY.minusDays(i));
+            createShard(dataset1, "SHARD" + i);
         }
 
         final Path dataset2 = shardsDir.resolve("dataset2");
         for (int i = 10; i < 100; i++) {
             createShard(dataset2, TODAY.minusDays(i));
+            createShard(dataset2, "SHARD" + i);
         }
 
         final Path dataset3 = shardsDir.resolve("dataset3");
         for (int i = 0; i < 100; i++) {
             createShard(dataset3, TODAY.minusDays(i));
+            createShard(dataset3, "SHARD" + i);
         }
 
         final ShardDirIterator shardDirIterator = new ShardDirIteratorFactory(new StoppedClock(TODAY.getMillis()),
@@ -150,7 +161,6 @@ public class ShardDirIteratorTest {
         final ShardDir shardDir = shardDirOf(datasetDir, shardTime);
         return AssignedShard.newBuilder()
                 .setDataset(shardDir.getIndexDir().getParent().getFileName().toString())
-                .setShardId(shardDir.getId())
                 .setShardPath(shardDir.getIndexDir().toString())
                 .build();
     }

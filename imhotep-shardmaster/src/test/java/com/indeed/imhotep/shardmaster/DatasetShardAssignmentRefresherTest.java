@@ -128,7 +128,7 @@ public class DatasetShardAssignmentRefresherTest {
         for (final Host host : hosts) {
             final List<ShardAssignmentInfo> infoList = Lists.newArrayList(shardAssignmentInfoDao.getAssignments(host.getHostname()));
             for (final ShardAssignmentInfo info : infoList) {
-                final String id = info.getDataset() + ":" + info.getShardId();
+                final String id = info.getShardPath();
                 final Integer count = assignments.get(id);
                 if (count == null) {
                     assignments.put(id, 1);

@@ -12,6 +12,7 @@ import com.indeed.imhotep.fs.RemoteCachingPath;
 import com.indeed.imhotep.fs.sql.SchemaInitializer;
 import com.indeed.imhotep.shardmaster.db.shardinfo.Tables;
 import com.indeed.imhotep.shardmaster.rpc.MultiplexingRequestHandler;
+import com.indeed.imhotep.shardmaster.rpc.RequestMetricStatsEmitter;
 import com.indeed.imhotep.shardmaster.rpc.RequestResponseServer;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -91,6 +92,7 @@ public class ShardMasterDaemon {
             timer.schedule(refresher, config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis());
 
             server = new RequestResponseServer(config.getServicePort(), new MultiplexingRequestHandler(
+                    config.statsEmitter,
                     new DatabaseShardMaster(shardAssignmentInfoDao),
                     config.shardsResponseBatchSize
             ), config.serviceConcurrency);
@@ -122,17 +124,19 @@ public class ShardMasterDaemon {
         private String imhotepDaemonsZkPath;
         private String shardMastersZkPath;
         private String dbFile;
+        private String dbParams = "MULTI_THREADED=TRUE;CACHE_SIZE=" + (1024 * 1024);
         private String hostsFile;
         private ShardFilter shardFilter = ShardFilter.ACCEPT_ALL;
         private int servicePort = 0;
         private int serviceConcurrency = 10;
         private int shardsResponseBatchSize = 1000;
         private int threadPoolSize = 5;
-        private int replicationFactor = 3;
+        private int replicationFactor = 2;
         private Duration refreshInterval = Duration.standardMinutes(5);
         private Duration stalenessThreshold = Duration.standardMinutes(15);
         private Duration hostsRefreshInterval = Duration.standardMinutes(1);
         private double hostsDropThreshold = 0.5;
+        private RequestMetricStatsEmitter statsEmitter = RequestMetricStatsEmitter.NULL_EMITTER;
 
         public Config setZkNodes(final String zkNodes) {
             this.zkNodes = zkNodes;
@@ -151,6 +155,11 @@ public class ShardMasterDaemon {
 
         public Config setDbFile(final String dbFile) {
             this.dbFile = dbFile;
+            return this;
+        }
+
+        public Config setDbParams(final String dbParams) {
+            this.dbParams = dbParams;
             return this;
         }
 
@@ -209,6 +218,11 @@ public class ShardMasterDaemon {
             return this;
         }
 
+        public Config setStatsEmitter(final RequestMetricStatsEmitter statsEmitter) {
+            this.statsEmitter = statsEmitter;
+            return this;
+        }
+
         HostsReloader createHostsReloader() {
             Preconditions.checkNotNull(zkNodes, "ZooKeeper nodes config is missing");
             return new ZkHostsReloader(zkNodes, imhotepDaemonsZkPath, false);
@@ -219,11 +233,21 @@ public class ShardMasterDaemon {
         }
 
         HikariDataSource createDataSource() {
-            Preconditions.checkNotNull(dbFile, "DBFile config is missing");
             final HikariConfig dbConfig = new HikariConfig();
             // this is a bit arbitrary but we need to ensure that the pool size is large enough for the # of threads
-            dbConfig.setMaximumPoolSize(Math.max(10, threadPoolSize + 1));
-            dbConfig.setJdbcUrl("jdbc:h2:" + dbFile);
+            dbConfig.setMaximumPoolSize(Math.max(10, threadPoolSize + serviceConcurrency + 5));
+
+            String url;
+            if (dbFile != null) {
+                url = "jdbc:h2:" + dbFile;
+            } else {
+                url = "jdbc:h2:mem:shardassignment";
+            }
+
+            if (dbParams != null) {
+                url += ";" + dbParams;
+            }
+            dbConfig.setJdbcUrl(url);
             return new HikariDataSource(dbConfig);
         }
 

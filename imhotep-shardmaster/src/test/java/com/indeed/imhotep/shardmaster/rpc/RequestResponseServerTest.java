@@ -9,6 +9,7 @@ import com.indeed.imhotep.shardmaster.ShardAssignmentInfoDao;
 import com.indeed.imhotep.shardmaster.db.shardinfo.Tables;
 import com.indeed.imhotep.shardmaster.model.ShardAssignmentInfo;
 import com.indeed.imhotep.shardmaster.protobuf.AssignedShard;
+import com.indeed.imhotep.shardmaster.protobuf.ShardMasterRequest;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
@@ -41,12 +42,25 @@ public class RequestResponseServerTest {
     }
 
     private static ShardAssignmentInfo createAssignmentInfo(final String dataset, final String shardId, final String node) {
-        return new ShardAssignmentInfo(dataset, shardId, "/var/imhotep/" + dataset + "/" + shardId, node);
+        return new ShardAssignmentInfo(dataset, "/var/imhotep/" + dataset + "/" + shardId, node);
     }
 
     private static AssignedShard createAssignedShard(final String dataset, final String shardId) {
-        return AssignedShard.newBuilder().setDataset(dataset).setShardId(shardId)
+        return AssignedShard.newBuilder().setDataset(dataset)
                 .setShardPath("/var/imhotep/" + dataset + "/" + shardId).build();
+    }
+
+    static class CountingRequestStatsEmitter implements RequestMetricStatsEmitter {
+        private int processed = 0;
+
+        @Override
+        public synchronized void processed(final String requestKey, final ShardMasterRequest.RequestType requestType, final long millis) {
+            ++processed;
+        }
+
+        public synchronized int getProcessed() {
+            return processed;
+        }
     }
 
     @Test
@@ -74,8 +88,10 @@ public class RequestResponseServerTest {
 
         final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
+        final CountingRequestStatsEmitter statsEmitter = new CountingRequestStatsEmitter();
+
         try (RequestResponseServer requestResponseServer = new RequestResponseServer(
-                0, new MultiplexingRequestHandler(shardMasterServer, 2), 2)) {
+                0, new MultiplexingRequestHandler(statsEmitter, shardMasterServer, 2), 2)) {
 
             requestResponseClient = new RequestResponseClient(
                     new Host("localhost", requestResponseServer.getActualPort()));
@@ -95,6 +111,8 @@ public class RequestResponseServerTest {
                     ),
                     Sets.newHashSet(requestResponseClient.getAssignments("A"))
             );
+
+            Assert.assertEquals(1, statsEmitter.getProcessed());
 
             Assert.assertEquals(
                     Sets.newHashSet(
@@ -119,6 +137,8 @@ public class RequestResponseServerTest {
                     Collections.emptyList(),
                     Lists.newArrayList(requestResponseClient.getAssignments("D"))
             );
+
+            Assert.assertEquals(4, statsEmitter.getProcessed());
 
             assignmentInfoDao.updateAssignments("dataset1", LATER, Arrays.asList(
                     createAssignmentInfo("dataset1", "shard1", "A"),
@@ -170,6 +190,8 @@ public class RequestResponseServerTest {
                     Sets.newHashSet(requestResponseClient.getAssignments("C"))
             );
         }
+
+        Assert.assertEquals(7, statsEmitter.getProcessed());
 
         executorService.shutdownNow();
     }
