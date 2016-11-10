@@ -7,6 +7,7 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.log4j.Logger;
 
 import java.io.FileNotFoundException;
@@ -42,6 +43,8 @@ class HdfsRemoteFileStore extends RemoteFileStore {
         KerberosUtils.loginFromKeytab(configuration);
 
         fs = FileSystem.get(new Configuration());
+        LOGGER.info("Using path " + hdfsShardBasePath + " on file system: " + fs);
+        fs.access(hdfsShardBasePath, FsAction.READ_EXECUTE);
     }
 
     private Path getHdfsPath(final RemoteCachingPath path) {
