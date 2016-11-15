@@ -75,6 +75,7 @@ class SqarMetaDataManager {
     private void cacheMetadata(final RemoteCachingPath shardPath, final InputStream metadataIS) throws IOException {
         final List<RemoteFileMetadata> fileList = readMetadata(metadataIS);
         final Set<String> dirList = new HashSet<>();
+        dirList.add("");
 
         for (final RemoteFileMetadata remoteMetadata : fileList) {
             final String fname = remoteMetadata.getFilename();
@@ -84,7 +85,6 @@ class SqarMetaDataManager {
                 if (path != null) {
                     dirList.add(path.toString());
                 } else {
-                    dirList.add("");
                     break;
                 }
             }
@@ -109,7 +109,7 @@ class SqarMetaDataManager {
         final RemoteFileMetadata fileMetadata = sqarMetaDataDao.getFileMetadata(shardPath, fileName);
         if (fileMetadata == null) {
             if (!sqarMetaDataDao.hasShard(shardPath)) {
-                try (InputStream metadataInputStream = fs.newInputStream(SqarMetaDataUtil.getMetadataPath(path), 0, -1)) {
+                try (InputStream metadataInputStream = fs.newInputStream(SqarMetaDataUtil.getMetadataPath(shardPath), 0, -1)) {
                     cacheMetadata(shardPath, metadataInputStream);
                 } catch (final NoSuchFileException|FileNotFoundException e) {
                     // when the metadata file doesn't exist, there is nothing to return

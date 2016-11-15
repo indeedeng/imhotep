@@ -14,7 +14,6 @@ import com.zaxxer.hikari.HikariDataSource;
 import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -135,21 +134,16 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
      * true if the contents is within a 'sqar' directory
      */
     boolean isInSqarDirectory(final RemoteCachingPath path) throws IOException {
-        final RemoteCachingPath sqarPath = SqarMetaDataUtil.getSqarPath(path);
-        if (sqarPath == null) {
+        final RemoteCachingPath shardPath = SqarMetaDataUtil.getShardPath(path);
+        if (shardPath == null) {
             return false;
         }
 
-        final RemoteFileMetadata cachedMetadata = getSqarMetadata(sqarPath);
-        if (cachedMetadata != null) {
-            return !cachedMetadata.isFile();
+        final RemoteFileMetadata metadata = getSqarMetadata(shardPath);
+        if (metadata != null) {
+            return !metadata.isFile();
         }
-
-        try {
-            return backingFileStore.getRemoteAttributes(sqarPath).isDirectory();
-        } catch (final NoSuchFileException | FileNotFoundException e) {
-            return false;
-        }
+        return false;
     }
 
     @Override

@@ -320,7 +320,7 @@ class ShardMap
                               dataset,
                               shardDir.getId());
                 putShard(dataset, shard);
-                log.debug("loading shard " + shardDir.getId() +
+                log.info("loading shard " + shardDir.getId() +
                           " from " + shardDir.getIndexDir());
                 return true;
             }
