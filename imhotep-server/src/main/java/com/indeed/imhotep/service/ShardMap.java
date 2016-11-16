@@ -302,7 +302,11 @@ class ShardMap
     }
 
     private static boolean isNewerThan(@Nullable final ShardDir shardDir, @Nullable final Shard shard) {
-        return (shardDir != null) && ((shard == null) || (shardDir.getVersion() > shard.getShardVersion()));
+        return (shardDir != null) &&
+                ((shard == null) ||
+                        (shardDir.getVersion() > shard.getShardVersion()) ||
+                        ((shardDir.getVersion() == shard.getShardVersion()) && !shardDir.getIndexDir().equals(shard.getIndexDir()))
+        );
     }
 
     private boolean track(ShardMap reference, String dataset, ShardDir shardDir) {
