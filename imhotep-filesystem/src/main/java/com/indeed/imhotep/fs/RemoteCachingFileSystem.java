@@ -70,7 +70,7 @@ class RemoteCachingFileSystem extends FileSystem {
         );
     }
 
-    Path getCachePath(final RemoteCachingPath path) throws ExecutionException {
+    Path getCachePath(final RemoteCachingPath path) throws ExecutionException, IOException {
         return fileCache.cache(path);
     }
 

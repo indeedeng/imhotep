@@ -337,6 +337,29 @@ public class RemoteCachingFileSystemTest {
         }
     }
 
+    @Test
+    public void testToFile() throws IOException {
+        final File storeDir = testContext.getLocalStoreDir();
+
+        final File aDir = new File(storeDir, "a");
+        Assert.assertTrue(aDir.mkdir());
+        writeToFile(new File(aDir, "aa1"), "this is a test", "here is another test");
+
+        final FileSystem fs = testContext.getFs();
+
+        final File parentDir = fs.getPath("/a").toFile();
+        Assert.assertEquals(parentDir, fs.getPath("/a").toFile());
+        Assert.assertFalse(new File(parentDir, "aa1").exists());
+
+        final File file = fs.getPath("/a", "aa1").toFile();
+        Assert.assertEquals(new File(parentDir, "aa1"), file);
+        Assert.assertTrue(file.exists());
+
+        try (BufferedReader bufferedReader = com.google.common.io.Files.newReader(file, Charsets.UTF_8)) {
+            Assert.assertEquals("this is a test", bufferedReader.readLine());
+        }
+    }
+
     @Test(expected = UnsupportedOperationException.class)
     public void testDeleteFailure() throws IOException {
         final File storeDir = testContext.getLocalStoreDir();

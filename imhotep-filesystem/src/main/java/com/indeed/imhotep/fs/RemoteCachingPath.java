@@ -271,7 +271,7 @@ public class RemoteCachingPath implements Path, Serializable {
     public File toFile() {
         try {
             return fileSystem.getCachePath(this).toFile();
-        } catch (final ExecutionException e) {
+        } catch (final ExecutionException|IOException e) {
             throw new IllegalStateException("Unexpected error while getting cache path for " + this, e);
         }
     }
