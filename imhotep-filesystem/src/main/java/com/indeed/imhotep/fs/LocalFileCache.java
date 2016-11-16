@@ -126,10 +126,17 @@ class LocalFileCache {
      * @param path the remote path you want to cache locally
      * @return the path corresponding to the local cache file
      */
-    Path cache(final RemoteCachingPath path) throws ExecutionException {
+    Path cache(final RemoteCachingPath path) throws ExecutionException, IOException {
         Preconditions.checkArgument(path.isAbsolute(), "Only absolute paths are supported");
-        try (ScopedCacheFile openedCacheFile = getForOpen(path)) {
-            return openedCacheFile.cachePath;
+        if (Files.isDirectory(path)) {
+            // directories should not go into the usage book keeping
+            final Path cacheDirPath = toCachePath(path);
+            Files.createDirectories(cacheDirPath);
+            return cacheDirPath;
+        } else {
+            try (ScopedCacheFile openedCacheFile = getForOpen(path)) {
+                return openedCacheFile.cachePath;
+            }
         }
     }
 

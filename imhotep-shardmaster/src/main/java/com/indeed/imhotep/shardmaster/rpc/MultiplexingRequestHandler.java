@@ -29,7 +29,7 @@ public class MultiplexingRequestHandler implements RequestHandler {
 
     @Override
     public Iterable<ShardMasterResponse> handleRequest(final ShardMasterRequest request) {
-        LOGGER.info("Handling " + request.getRequestType() + " request from " + request.getNode());
+        LOGGER.info("Handling " + request.getRequestType() + " request from " + request.getNode().getHost());
         final Stopwatch stopwatch = Stopwatch.createStarted();
         try {
             final Iterable<ShardMasterResponse> result;
@@ -43,17 +43,17 @@ public class MultiplexingRequestHandler implements RequestHandler {
                             .setErrorMessage("Unhandled request type " + request.getRequestType())
                             .build());
                     statsEmitter.processed(METRIC_ERROR, request.getRequestType(), stopwatch.elapsed(TimeUnit.MILLISECONDS));
-                    LOGGER.warn("Not handling unknown request " + request.getRequestType() + " from " + request.getNode());
+                    LOGGER.warn("Not handling unknown request " + request.getRequestType() + " from " + request.getNode().getHost());
                     return result;
             }
             final long elapsed = stopwatch.elapsed(TimeUnit.MILLISECONDS);
             statsEmitter.processed(METRIC_PROCESSED, request.getRequestType(), elapsed);
-            LOGGER.info("Finished handling request " + request.getRequestType() + " from " + request.getNode() + " in " + elapsed +" ms");
+            LOGGER.info("Finished handling request " + request.getRequestType() + " from " + request.getNode().getHost() + " in " + elapsed +" ms");
             return result;
         } catch (final Throwable e) {
             final long elapsed = stopwatch.elapsed(TimeUnit.MILLISECONDS);
             statsEmitter.processed(METRIC_ERROR, request.getRequestType(), elapsed);
-            LOGGER.error("Error while handling request " + request.getRequestType() + " from " + request.getNode() + " in " + elapsed +" ms", e);
+            LOGGER.error("Error while handling request " + request.getRequestType() + " from " + request.getNode().getHost() + " in " + elapsed +" ms", e);
             throw Throwables.propagate(e);
         }
     }
