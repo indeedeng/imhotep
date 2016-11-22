@@ -4,6 +4,7 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Ordering;
+import com.google.common.collect.Sets;
 import com.google.common.primitives.Longs;
 import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.archive.ArchiveUtils;
@@ -15,6 +16,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.security.MessageDigest;
 import java.util.List;
 import java.util.PriorityQueue;
+import java.util.Set;
 
 /**
  * @author kenh
@@ -47,7 +49,13 @@ class MinHashShardAssigner implements ShardAssigner {
             public Iterable<ShardAssignmentInfo> apply(final ShardDir shard) {
                 final PriorityQueue<Pair<Long, Host>> candidates = new PriorityQueue<>(replicationFactor,
                         Ordering.from(new Pair.HalfPairComparator()).reverse());
+
+                final Set<String> hostnames = Sets.newHashSet();
                 for (final Host host : hosts) {
+                    if (hostnames.contains(host.getHostname())) {
+                        continue;
+                    }
+                    hostnames.add(host.getHostname());
                     final long hash = getMinHash(shard, host);
                     if (candidates.size() < replicationFactor) {
                         candidates.add(Pair.of(hash, host));

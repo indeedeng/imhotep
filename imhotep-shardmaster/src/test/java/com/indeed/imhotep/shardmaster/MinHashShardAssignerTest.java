@@ -2,6 +2,7 @@ package com.indeed.imhotep.shardmaster;
 
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.indeed.imhotep.ShardDir;
@@ -12,6 +13,8 @@ import org.junit.Test;
 
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +45,7 @@ public class MinHashShardAssignerTest {
                     }
                 }).toList();
 
-        final int numHosts = 10;
+        final int numHosts = 100;
         final List<Host> hosts = FluentIterable.from(getListWithPrefix("HOST", 1, numHosts))
                 .transform(new Function<String, Host>() {
                     @Override
@@ -71,7 +74,48 @@ public class MinHashShardAssignerTest {
 
         final double shardsPerHost = ((double) numShards * replicationFactor) / numHosts;
         for (final Map.Entry<String, Integer> entry : hostToShardCount.entrySet()) {
-            Assert.assertEquals(entry.toString(), 0, (shardsPerHost - entry.getValue()) / numShards, 1e-1);
+            Assert.assertEquals(entry.toString(), 0, (shardsPerHost - entry.getValue()) / shardsPerHost, 0.15);
+        }
+    }
+
+    @Test
+    public void testReplicationWithMultiplePerHosts() {
+        final int numShards = 10000;
+        final List<ShardDir> shards = FluentIterable.from(getListWithPrefix("SHARD", 1, numShards))
+                .transform(new Function<String, ShardDir>() {
+                    @Override
+                    public ShardDir apply(final String shard) {
+                        return new ShardDir(Paths.get(shard));
+                    }
+                }).toList();
+
+        final int numHosts = 10;
+        final List<Host> hosts = FluentIterable.from(getListWithPrefix("HOST", 1, numHosts))
+                .transformAndConcat(new Function<String, List<Host>>() {
+                    @Override
+                    public List<Host> apply(final String host) {
+                        return Arrays.asList(
+                                new Host(host, 8080),
+                                new Host(host, 8081)
+                        );
+                    }
+                }).toList();
+
+        final HashMultimap<String, String> shardToHosts = HashMultimap.create();
+        final Set<String> assignedShards = Sets.newHashSet();
+
+        final int replicationFactor = 3;
+        final MinHashShardAssigner assigner = new MinHashShardAssigner(replicationFactor);
+        for (final ShardAssignmentInfo assignment : assigner.assign(hosts, "DATASET", shards)) {
+            Assert.assertEquals("DATASET", assignment.getDataset());
+            assignedShards.add(assignment.getShardPath());
+            shardToHosts.put(assignment.getShardPath(), assignment.getAssignedNode());
+        }
+
+        Assert.assertEquals(shards.size(), assignedShards.size());
+
+        for (final Map.Entry<String, Collection<String>> entry : shardToHosts.asMap().entrySet()) {
+            Assert.assertTrue(entry.getValue().size() >= replicationFactor);
         }
     }
 
