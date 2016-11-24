@@ -13,6 +13,8 @@
  */
  package com.indeed.imhotep.client;
 
+import com.google.common.base.Function;
+
 /**
 * @author jsgroth
 */
@@ -77,4 +79,11 @@ public class Host implements Comparable<Host> {
                 Integer.valueOf(value.substring(colon + 1))
         );
     }
+
+    public static final Function<Host, String> GET_HOSTNAME = new Function<Host, String>() {
+        @Override
+        public String apply(final Host input) {
+            return input.getHostname();
+        }
+    };
 }

@@ -49,15 +49,31 @@ class MinHashShardAssigner implements ShardAssigner {
 
     @Override
     public Iterable<ShardAssignmentInfo> assign(final List<Host> hosts, final String dataset, final Iterable<ShardDir> shards) {
+        int maxPerHostname = 0;
+        for (final Collection<Host> ofSameHostName : FluentIterable.from(hosts).index(Host.GET_HOSTNAME).asMap().values()) {
+            maxPerHostname = Math.max(maxPerHostname, ofSameHostName.size());
+        }
+        final int queueCapacity = replicationFactor * maxPerHostname;
+        final Pair.FullPairComparator comparator = new Pair.FullPairComparator();
+
         return FluentIterable.from(shards).transformAndConcat(new Function<ShardDir, Iterable<ShardAssignmentInfo>>() {
             @Override
             public Iterable<ShardAssignmentInfo> apply(final ShardDir shard) {
-                final Collection<Pair<Long, Host>> sortedHosts = new PriorityQueue<>(replicationFactor,
-                        Ordering.from(new Pair.HalfPairComparator()).reverse());
+                final PriorityQueue<Pair<Long, Host>> sortedHosts = new PriorityQueue<>(queueCapacity,
+                        Ordering.from(comparator).reverse());
 
                 for (final Host host : hosts) {
                     final long hash = getMinHash(dataset, shard, host);
-                    sortedHosts.add(Pair.of(hash, host));
+                    final Pair<Long, Host> entry = Pair.of(hash, host);
+                    if (sortedHosts.size() < queueCapacity) {
+                        sortedHosts.add(entry);
+                    } else {
+                        final Pair<Long, Host> largest = sortedHosts.peek();
+                        if (comparator.compare(entry, largest) < 0) {
+                            sortedHosts.remove();
+                            sortedHosts.add(entry);
+                        }
+                    }
                 }
 
                 final Set<String> hostnames = Sets.newHashSet();
