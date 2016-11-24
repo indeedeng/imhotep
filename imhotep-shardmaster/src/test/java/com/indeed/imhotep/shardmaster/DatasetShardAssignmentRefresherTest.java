@@ -106,7 +106,7 @@ public class DatasetShardAssignmentRefresherTest {
 
         final RemoteCachingPath dataSetsDir = (RemoteCachingPath) Paths.get(RemoteCachingFileSystemProvider.URI);
 
-        final ShardAssignmentInfoDao shardAssignmentInfoDao = new ShardAssignmentInfoDao(dbDataFixture.getDataSource(), Duration.standardMinutes(30));
+        final ShardAssignmentInfoDao shardAssignmentInfoDao = new H2ShardAssignmentInfoDao(dbDataFixture.getDataSource(), Duration.standardMinutes(30));
         final DataSetScanWork.Result results = new DatasetShardAssignmentRefresher(
                 dataSetsDir,
                 ShardFilter.ACCEPT_ALL,
@@ -161,7 +161,7 @@ public class DatasetShardAssignmentRefresherTest {
 
         RemoteCachingFileSystemProvider.newFileSystem(fsProp);
 
-        final ShardAssignmentInfoDao shardAssignmentInfoDao = new ShardAssignmentInfoDao(dbDataFixture.getDataSource(), Duration.standardMinutes(30));
+        final ShardAssignmentInfoDao shardAssignmentInfoDao = new H2ShardAssignmentInfoDao(dbDataFixture.getDataSource(), Duration.standardMinutes(30));
         final DataSetScanWork.Result results = new DatasetShardAssignmentRefresher(
                 (RemoteCachingPath) Paths.get(RemoteCachingFileSystemProvider.URI),
                 ShardFilter.ACCEPT_ALL,

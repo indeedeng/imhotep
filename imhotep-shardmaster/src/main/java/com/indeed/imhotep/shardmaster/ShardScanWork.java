@@ -47,7 +47,6 @@ class ShardScanWork implements Callable<ShardScanWork.Result> {
 
             final String dataset = datasetDir.getFileName().toString();
 
-            LOGGER.info("Assigning shards in " + dataset + " for " + hosts.size() + " hosts");
             final Map<String, ShardDir> shardsMap = new HashMap<>();
             for (final ShardDir shardDir : new ShardScanner(datasetDir, shardFilter)) {
                 final ShardDir existing = shardsMap.get(shardDir.getId());
@@ -55,6 +54,7 @@ class ShardScanWork implements Callable<ShardScanWork.Result> {
                     shardsMap.put(shardDir.getId(), shardDir);
                 }
             }
+            LOGGER.info("Assigning " + shardsMap.values().size() + " shards in " + dataset + " for " + hosts.size() + " hosts");
 
             assignmentInfoDao.updateAssignments(dataset, DateTime.now(), shardAssigner.assign(
                     hosts,

@@ -5,6 +5,7 @@ import com.google.common.collect.Sets;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.dbutil.DbDataFixture;
 import com.indeed.imhotep.shardmaster.DatabaseShardMaster;
+import com.indeed.imhotep.shardmaster.H2ShardAssignmentInfoDao;
 import com.indeed.imhotep.shardmaster.ShardAssignmentInfoDao;
 import com.indeed.imhotep.shardmaster.db.shardinfo.Tables;
 import com.indeed.imhotep.shardmaster.model.ShardAssignmentInfo;
@@ -39,7 +40,7 @@ public class RequestResponseServerTest {
 
     @Before
     public void setUp() {
-        assignmentInfoDao = new ShardAssignmentInfoDao(dbDataFixture.getDataSource(), Duration.standardHours(1));
+        assignmentInfoDao = new H2ShardAssignmentInfoDao(dbDataFixture.getDataSource(), Duration.standardHours(1));
     }
 
     private static ShardAssignmentInfo createAssignmentInfo(final String dataset, final String shardId, final Host host) {
