@@ -5,6 +5,7 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.indeed.imhotep.ShardDir;
+import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.client.ShardTimeUtils;
 import com.indeed.imhotep.shardmaster.ShardMaster;
 import com.indeed.imhotep.shardmaster.protobuf.AssignedShard;
@@ -42,6 +43,8 @@ public class ShardDirIteratorTest {
     private static final DateTimeFormatter SHARD_VERSION_FORMAT = DateTimeFormat.forPattern(".yyyyMMddHHmmss");
     private static final DateTimeZone TIME_ZONE = DateTimeZone.forOffsetHours(-6);
     private static final DateTime TODAY = DateTime.now(TIME_ZONE).withTimeAtStartOfDay();
+
+    private static final Host LOCAL_HOST = new Host("localhost", 1230);
 
     private static Path shardOf(final Path datasetDir, final DateTime shardTime) {
         return datasetDir.resolve(ShardTimeUtils.toDailyShardPrefix(shardTime) + SHARD_VERSION_FORMAT.print(DateTime.now()));
@@ -81,7 +84,7 @@ public class ShardDirIteratorTest {
             createShard(dataset2, "SHARD" + i);
         }
 
-        final ShardDirIterator shardDirIterator = new ShardDirIteratorFactory(new DefaultWallClock(), null, "localhost", null, null).get(shardsDir);
+        final ShardDirIterator shardDirIterator = new ShardDirIteratorFactory(new DefaultWallClock(), null, LOCAL_HOST, null, null).get(shardsDir);
         Assert.assertTrue(shardDirIterator instanceof LocalShardDirIterator);
         Assert.assertEquals(
                 expected,
@@ -123,14 +126,14 @@ public class ShardDirIteratorTest {
 
         final ShardDirIterator shardDirIterator = new ShardDirIteratorFactory(new StoppedClock(TODAY.getMillis()),
                 null,
-                "localhost",
+                LOCAL_HOST,
                 createConfig(
-                ImmutableMap.<String, Period>builder()
-                        .put("dataset1", Period.days(5))
-                        .put("dataset2", Period.days(20))
-                        .put("dataset4", Period.days(30))
-                .build()
-        ).toString(), null).get(shardsDir);
+                        ImmutableMap.<String, Period>builder()
+                                .put("dataset1", Period.days(5))
+                                .put("dataset2", Period.days(20))
+                                .put("dataset4", Period.days(30))
+                                .build()
+                ).toString(), null).get(shardsDir);
         Assert.assertTrue(shardDirIterator instanceof FilteredShardDirIterator);
         Assert.assertEquals(
                 ImmutableSet.builder()
@@ -152,7 +155,7 @@ public class ShardDirIteratorTest {
                         .add(Pair.of("dataset2", shardDirOf(dataset2, TODAY.minusDays(18))))
                         .add(Pair.of("dataset2", shardDirOf(dataset2, TODAY.minusDays(19))))
                         .add(Pair.of("dataset2", shardDirOf(dataset2, TODAY.minusDays(20))))
-                .build(),
+                        .build(),
                 FluentIterable.from(shardDirIterator).toSet()
         );
     }
@@ -186,7 +189,7 @@ public class ShardDirIteratorTest {
 
         final ShardMaster shardMaster = new ShardMaster() {
             @Override
-            public Iterable<AssignedShard> getAssignments(final String node) throws IOException {
+            public Iterable<AssignedShard> getAssignments(final Host node) throws IOException {
                 return Arrays.asList(
                         assignedShard(dataset1, TODAY.minusDays(1)),
                         assignedShard(dataset1, TODAY.minusDays(3)),
@@ -206,7 +209,7 @@ public class ShardDirIteratorTest {
 
         final ShardDirIterator shardDirIterator = new ShardDirIteratorFactory(new StoppedClock(TODAY.getMillis()),
                 Suppliers.ofInstance(shardMaster),
-                "localhost",
+                LOCAL_HOST,
                 null, Boolean.TRUE.toString()).get(shardsDir);
 
         Assert.assertTrue(shardDirIterator instanceof ShardMasterShardDirIterator);

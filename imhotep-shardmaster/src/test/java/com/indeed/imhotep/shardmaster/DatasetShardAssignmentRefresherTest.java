@@ -126,7 +126,7 @@ public class DatasetShardAssignmentRefresherTest {
 
         final Map<String, Integer> assignments = Maps.newHashMap();
         for (final Host host : hosts) {
-            final List<ShardAssignmentInfo> infoList = Lists.newArrayList(shardAssignmentInfoDao.getAssignments(host.getHostname()));
+            final List<ShardAssignmentInfo> infoList = Lists.newArrayList(shardAssignmentInfoDao.getAssignments(host));
             for (final ShardAssignmentInfo info : infoList) {
                 final String id = info.getShardPath();
                 final Integer count = assignments.get(id);

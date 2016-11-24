@@ -16,12 +16,12 @@ public class RequestResponseClientFactory implements Supplier<ShardMaster> {
     private static final Logger LOGGER = Logger.getLogger(RequestResponseClientFactory.class);
     private final String zkNodes;
     private final String zkPath;
-    private final String myHostname;
+    private final Host myHost;
 
-    public RequestResponseClientFactory(final String zkNodes, final String zkPath, final String myHostname) {
+    public RequestResponseClientFactory(final String zkNodes, final String zkPath, final Host myHost) {
         this.zkNodes = zkNodes;
         this.zkPath = zkPath;
-        this.myHostname = myHostname;
+        this.myHost = myHost;
     }
 
     @Override
@@ -33,7 +33,7 @@ public class RequestResponseClientFactory implements Supplier<ShardMaster> {
                 LOGGER.warn("Unable to get shardmaster endpoint under " + zkPath + " could not get client");
                 return null;
             }
-            return new RequestResponseClient(hosts.get(Math.abs(myHostname.hashCode()) % hosts.size()));
+            return new RequestResponseClient(hosts.get(Math.abs(myHost.hashCode()) % hosts.size()));
         } finally {
             zkHostsReloader.shutdown();
         }

@@ -33,6 +33,7 @@ import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepServiceCore;
+import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.NioPathUtil;
@@ -1218,6 +1219,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         final Path tmpDir = NioPathUtil.get(shardTempDir);
 
         final String myHostname = InetAddress.getLocalHost().getCanonicalHostName();
+        final ServerSocket ss = new ServerSocket(port);
+        final Host myHost = new Host(myHostname, ss.getLocalPort());
         localService = new LocalImhotepServiceCore(shardsDir,
                                                    tmpDir,
                                                    memoryCapacityInMB * 1024 * 1024,
@@ -1227,11 +1230,10 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                                            new ShardDirIteratorFactory(
                                                                    new RequestResponseClientFactory(zkNodes,
                                                                            System.getProperty("imhotep.shardmaster.zookeeper.path"),
-                                                                           myHostname),
-                                                                   myHostname)
+                                                                           myHost),
+                                                                   myHost)
                                                    ),
                                                    shardUpdateListener);
-        final ServerSocket ss = new ServerSocket(port);
         final ImhotepDaemon result =
             new ImhotepDaemon(ss, localService, zkNodes, zkPath,
                               myHostname, port, shardUpdateListener);

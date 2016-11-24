@@ -1,9 +1,10 @@
 package com.indeed.imhotep.shardmaster;
 
 import com.google.common.base.Function;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.client.Host;
@@ -45,16 +46,19 @@ public class MinHashShardAssignerTest {
                     }
                 }).toList();
 
-        final int numHosts = 100;
-        final List<Host> hosts = FluentIterable.from(getListWithPrefix("HOST", 1, numHosts))
-                .transform(new Function<String, Host>() {
+        final List<Host> hosts = FluentIterable.from(getListWithPrefix("HOST", 1, 10))
+                .transformAndConcat(new Function<String, List<Host>>() {
                     @Override
-                    public Host apply(final String host) {
-                        return new Host(host, 8080);
+                    public List<Host> apply(final String host) {
+                        return Arrays.asList(
+                                new Host(host, 8080),
+                                new Host(host, 8081)
+                        );
                     }
                 }).toList();
+        final int numHosts = hosts.size();
 
-        final Map<String, Integer> hostToShardCount = Maps.newHashMap();
+        final Multimap<Host, String> hostToShardCount = ArrayListMultimap.create();
         final Set<String> assignedShards = Sets.newHashSet();
 
         final int replicationFactor = 3;
@@ -62,19 +66,14 @@ public class MinHashShardAssignerTest {
         for (final ShardAssignmentInfo assignment : assigner.assign(hosts, "DATASET", shards)) {
             Assert.assertEquals("DATASET", assignment.getDataset());
             assignedShards.add(assignment.getShardPath());
-            final Integer count = hostToShardCount.get(assignment.getAssignedNode());
-            if (count == null) {
-                hostToShardCount.put(assignment.getAssignedNode(), 1);
-            } else {
-                hostToShardCount.put(assignment.getAssignedNode(), count + 1);
-            }
+            hostToShardCount.put(assignment.getAssignedNode(), assignment.getShardPath());
         }
 
         Assert.assertEquals(shards.size(), assignedShards.size());
 
         final double shardsPerHost = ((double) numShards * replicationFactor) / numHosts;
-        for (final Map.Entry<String, Integer> entry : hostToShardCount.entrySet()) {
-            Assert.assertEquals(entry.toString(), 0, (shardsPerHost - entry.getValue()) / shardsPerHost, 0.15);
+        for (final Map.Entry<Host, Collection<String>> entry : hostToShardCount.asMap().entrySet()) {
+            Assert.assertEquals(entry.getKey() + ":" + entry.getValue().size(), 0, (shardsPerHost - entry.getValue().size()) / shardsPerHost, 0.15);
         }
     }
 
@@ -101,7 +100,7 @@ public class MinHashShardAssignerTest {
                     }
                 }).toList();
 
-        final HashMultimap<String, String> shardToHosts = HashMultimap.create();
+        final HashMultimap<String, Host> shardToHosts = HashMultimap.create();
         final Set<String> assignedShards = Sets.newHashSet();
 
         final int replicationFactor = 3;
@@ -114,8 +113,16 @@ public class MinHashShardAssignerTest {
 
         Assert.assertEquals(shards.size(), assignedShards.size());
 
-        for (final Map.Entry<String, Collection<String>> entry : shardToHosts.asMap().entrySet()) {
-            Assert.assertTrue(entry.getValue().size() >= replicationFactor);
+        for (final Map.Entry<String, Collection<Host>> entry : shardToHosts.asMap().entrySet()) {
+            final List<Host> assignedHosts = new ArrayList<>(entry.getValue());
+            Assert.assertEquals(replicationFactor, assignedHosts.size());
+            // ensure same shard is not allocated to same hostname twice
+            for (int i = 0; i < assignedHosts.size(); i++) {
+                final String hostname = assignedHosts.get(i).getHostname();
+                for (int j = i + 1; j < assignedHosts.size(); j++) {
+                    Assert.assertFalse(hostname.equals(assignedHosts.get(j).getHostname()));
+                }
+            }
         }
     }
 

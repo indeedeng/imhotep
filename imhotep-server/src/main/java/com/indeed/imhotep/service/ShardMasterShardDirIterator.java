@@ -5,6 +5,7 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterators;
 import com.indeed.imhotep.ShardDir;
+import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.io.NioPathUtil;
 import com.indeed.imhotep.shardmaster.ShardMaster;
 import com.indeed.imhotep.shardmaster.protobuf.AssignedShard;
@@ -22,9 +23,9 @@ import java.util.List;
 
 class ShardMasterShardDirIterator implements  ShardDirIterator {
     private final Supplier<ShardMaster> shardMasterSupplier;
-    private final String node;
+    private final Host node;
 
-    ShardMasterShardDirIterator(final Supplier<ShardMaster> shardMasterSupplier, final String node) {
+    ShardMasterShardDirIterator(final Supplier<ShardMaster> shardMasterSupplier, final Host node) {
         this.shardMasterSupplier = shardMasterSupplier;
         this.node = node;
     }
