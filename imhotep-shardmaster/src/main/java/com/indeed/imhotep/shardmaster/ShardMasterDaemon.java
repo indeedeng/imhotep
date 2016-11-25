@@ -2,6 +2,7 @@ package com.indeed.imhotep.shardmaster;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.indeed.imhotep.ZkEndpointPersister;
 import com.indeed.imhotep.client.CheckpointedHostsReloader;
 import com.indeed.imhotep.client.Host;
@@ -26,10 +27,12 @@ import java.net.InetAddress;
 import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.Collections;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * @author kenh
@@ -80,7 +83,23 @@ public class ShardMasterDaemon {
 
             LOGGER.info("Initializing all shard assignments");
             // don't block on assignment refresh
-            refresher.initialize().getAllShards();
+            final ListenableFuture<List<ShardScanWork.Result>> shardScanResults = refresher.initialize().getAllShards();
+            final AtomicBoolean shardScanComplete = new AtomicBoolean(false);
+
+            final Thread scanBlocker = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        shardScanResults.get();
+                        shardScanComplete.set(true);
+                        LOGGER.info("Successfully scanned all shards on initialization");
+                    } catch (final InterruptedException | ExecutionException e) {
+                        throw new IllegalStateException("Failed while scanning shards", e);
+                    }
+                }
+            }, ShardMasterDaemon.class.getSimpleName() + "-ShardScanBlocker");
+            scanBlocker.setDaemon(true);
+            scanBlocker.start();
 
             timer.schedule(new TimerTask() {
                 @Override
@@ -93,11 +112,11 @@ public class ShardMasterDaemon {
 
             server = new RequestResponseServer(config.getServicePort(), new MultiplexingRequestHandler(
                     config.statsEmitter,
-                    new DatabaseShardMaster(shardAssignmentInfoDao),
+                    new DatabaseShardMaster(shardAssignmentInfoDao, shardScanComplete),
                     config.shardsResponseBatchSize
             ), config.serviceConcurrency);
             try (ZkEndpointPersister endpointPersister = new ZkEndpointPersister(config.zkNodes, config.shardMastersZkPath,
-                         new Host(InetAddress.getLocalHost().getCanonicalHostName(), server.getActualPort()))
+                    new Host(InetAddress.getLocalHost().getCanonicalHostName(), server.getActualPort()))
             ) {
                 LOGGER.info("Starting service");
                 server.run();

@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * @author kenh
@@ -88,7 +89,7 @@ public class RequestResponseServerTest {
                 createAssignmentInfo("dataset3", "shard3", b)
         ));
 
-        final DatabaseShardMaster shardMasterServer = new DatabaseShardMaster(assignmentInfoDao);
+        final DatabaseShardMaster shardMasterServer = new DatabaseShardMaster(assignmentInfoDao, new AtomicBoolean(true));
         final RequestResponseClient requestResponseClient;
 
         final ExecutorService executorService = Executors.newSingleThreadExecutor();
