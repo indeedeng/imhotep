@@ -1,6 +1,7 @@
 package com.indeed.imhotep.shardmaster.model;
 
 import com.google.common.base.Objects;
+import com.indeed.imhotep.client.Host;
 
 /**
  * @author kenh
@@ -9,9 +10,9 @@ import com.google.common.base.Objects;
 public class ShardAssignmentInfo {
     private final String dataset;
     private final String shardPath;
-    private final String assignedNode;
+    private final Host assignedNode;
 
-    public ShardAssignmentInfo(final String dataset, final String shardPath, final String assignedNode) {
+    public ShardAssignmentInfo(final String dataset, final String shardPath, final Host assignedNode) {
         this.dataset = dataset;
         this.shardPath = shardPath;
         this.assignedNode = assignedNode;
@@ -25,7 +26,7 @@ public class ShardAssignmentInfo {
         return shardPath;
     }
 
-    public String getAssignedNode() {
+    public Host getAssignedNode() {
         return assignedNode;
     }
 

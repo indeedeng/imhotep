@@ -2,6 +2,7 @@ package com.indeed.imhotep.shardmaster.rpc;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
+import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.shardmaster.ShardMaster;
 import com.indeed.imhotep.shardmaster.protobuf.AssignedShard;
 import com.indeed.imhotep.shardmaster.protobuf.ShardMasterRequest;
@@ -26,7 +27,7 @@ class ShardAssignmentRequestHandler implements RequestHandler {
 
     @Override
     public Iterable<ShardMasterResponse> handleRequest(final ShardMasterRequest request) {
-        final String node = request.getNode().getHost();
+        final Host node = new Host(request.getNode().getHost(), request.getNode().getPort());
         final Iterable<AssignedShard> assignedShards;
         try {
             assignedShards = shardMaster.getAssignments(node);

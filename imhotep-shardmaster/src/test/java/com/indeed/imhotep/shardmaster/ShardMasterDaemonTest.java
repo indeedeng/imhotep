@@ -67,6 +67,10 @@ public class ShardMasterDaemonTest {
     @Test
     public void testIt() throws IOException, InterruptedException, ExecutionException, KeeperException {
         final int replicationFactor = 2;
+        final Host daemon1 = new Host("HOST1", 1230);
+        final Host daemon2 = new Host("HOST1", 2340);
+        final Host daemon3 = new Host("HOST2", 1230);
+
         final ShardMasterDaemon.Config config = new ShardMasterDaemon.Config()
                 .setReplicationFactor(replicationFactor)
                 .setZkNodes(testingServer.getConnectString())
@@ -75,9 +79,9 @@ public class ShardMasterDaemonTest {
                 .setDbFile(new File(tempDir.getRoot(), "db.dat").toString())
                 .setHostsFile(new File(tempDir.getRoot(), "hosts.dat").toString());
 
-        closer.register(new ZkEndpointPersister(testingServer.getConnectString(), "/imhotep/daemons", new Host("DAEMON1", 1230)));
-        closer.register(new ZkEndpointPersister(testingServer.getConnectString(), "/imhotep/daemons", new Host("DAEMON2", 2340)));
-        closer.register(new ZkEndpointPersister(testingServer.getConnectString(), "/imhotep/daemons", new Host("DAEMON3", 3450)));
+        closer.register(new ZkEndpointPersister(testingServer.getConnectString(), "/imhotep/daemons", daemon1));
+        closer.register(new ZkEndpointPersister(testingServer.getConnectString(), "/imhotep/daemons", daemon2));
+        closer.register(new ZkEndpointPersister(testingServer.getConnectString(), "/imhotep/daemons", daemon3));
 
         createShard("dataset1", WEEK_AGO, 4);
         createShard("dataset1", WEEK_AGO, 1);
@@ -109,12 +113,12 @@ public class ShardMasterDaemonTest {
 
         final RequestResponseClient client = new RequestResponseClientFactory(testingServer.getConnectString(),
                 "/imhotep/shardmasters",
-                "DAEMON1").get();
+                daemon1).get();
 
         final ListMultimap<Pair<String, String>, AssignedShard> assignments = FluentIterable.from(Iterables.concat(
-                client.getAssignments("DAEMON1"),
-                client.getAssignments("DAEMON2"),
-                client.getAssignments("DAEMON3")
+                client.getAssignments(daemon1),
+                client.getAssignments(daemon2),
+                client.getAssignments(daemon3)
         )).index(new Function<AssignedShard, Pair<String, String>>() {
             @Override
             public Pair<String, String> apply(final AssignedShard input) {

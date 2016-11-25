@@ -58,10 +58,10 @@ public class RequestResponseClient implements ShardMaster {
     }
 
     @Override
-    public Iterable<AssignedShard> getAssignments(final String node) throws IOException {
+    public Iterable<AssignedShard> getAssignments(final Host node) throws IOException {
         final ShardMasterRequest request = ShardMasterRequest.newBuilder()
                 .setRequestType(ShardMasterRequest.RequestType.GET_ASSIGNMENT)
-                .setNode(HostAndPort.newBuilder().setHost(node).build())
+                .setNode(HostAndPort.newBuilder().setHost(node.getHostname()).setPort(node.getPort()).build())
                 .build();
 
         return FluentIterable.from(sendAndReceive(request))

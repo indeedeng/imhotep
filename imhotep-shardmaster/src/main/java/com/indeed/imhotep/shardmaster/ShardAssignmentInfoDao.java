@@ -2,6 +2,7 @@ package com.indeed.imhotep.shardmaster;
 
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
+import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.fs.sql.DSLContextContainer;
 import com.indeed.imhotep.shardmaster.db.shardinfo.Tables;
 import com.indeed.imhotep.shardmaster.db.shardinfo.tables.Tblshardassignmentinfo;
@@ -30,7 +31,7 @@ public class ShardAssignmentInfoDao {
         this.stalenessThreshold = stalenessThreshold;
     }
 
-    private static ShardAssignmentInfo fromRecord(final String dataset, final String shardPath, final String assignedNode) {
+    private static ShardAssignmentInfo fromRecord(final String dataset, final String shardPath, final Host assignedNode) {
         return new ShardAssignmentInfo(
                 dataset,
                 shardPath,
@@ -38,11 +39,11 @@ public class ShardAssignmentInfoDao {
         );
     }
 
-    Iterable<ShardAssignmentInfo> getAssignments(final String node) {
+    Iterable<ShardAssignmentInfo> getAssignments(final Host node) {
         return FluentIterable.from(dslContextContainer.getDSLContext()
                 .select(TABLE.DATASET, TABLE.SHARD_PATH)
                 .from(TABLE)
-                .where(TABLE.ASSIGNED_NODE.eq(node))
+                .where(TABLE.ASSIGNED_NODE.eq(node.toString()))
                 .fetch()).transform(new Function<Record2<String, String>, ShardAssignmentInfo>() {
             @Override
             public ShardAssignmentInfo apply(final Record2<String, String> record) {
@@ -77,7 +78,7 @@ public class ShardAssignmentInfoDao {
             insertBatch.bind(
                     assignmentInfo.getDataset(),
                     assignmentInfo.getShardPath(),
-                    assignmentInfo.getAssignedNode(),
+                    assignmentInfo.getAssignedNode().toString(),
                     timestamp.getMillis()
             );
 

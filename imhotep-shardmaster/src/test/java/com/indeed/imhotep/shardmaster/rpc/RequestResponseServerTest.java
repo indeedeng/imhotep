@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * @author kenh
@@ -41,8 +42,8 @@ public class RequestResponseServerTest {
         assignmentInfoDao = new ShardAssignmentInfoDao(dbDataFixture.getDataSource(), Duration.standardHours(1));
     }
 
-    private static ShardAssignmentInfo createAssignmentInfo(final String dataset, final String shardId, final String node) {
-        return new ShardAssignmentInfo(dataset, "/var/imhotep/" + dataset + "/" + shardId, node);
+    private static ShardAssignmentInfo createAssignmentInfo(final String dataset, final String shardId, final Host host) {
+        return new ShardAssignmentInfo(dataset, "/var/imhotep/" + dataset + "/" + shardId, host);
     }
 
     private static AssignedShard createAssignedShard(final String dataset, final String shardId) {
@@ -65,25 +66,30 @@ public class RequestResponseServerTest {
 
     @Test
     public void testRequestResponse() throws IOException {
+        final Host a = new Host("A", 10);
+        final Host b = new Host("A", 20);
+        final Host c = new Host("C", 10);
+        final Host d = new Host("C", 20);
+
         assignmentInfoDao.updateAssignments("dataset1", NOW, Arrays.asList(
-                createAssignmentInfo("dataset1", "shard1", "A"),
-                createAssignmentInfo("dataset1", "shard2", "B"),
-                createAssignmentInfo("dataset1", "shard3", "C")
+                createAssignmentInfo("dataset1", "shard1", a),
+                createAssignmentInfo("dataset1", "shard2", b),
+                createAssignmentInfo("dataset1", "shard3", c)
         ));
 
         assignmentInfoDao.updateAssignments("dataset2", NOW, Arrays.asList(
-                createAssignmentInfo("dataset2", "shard1", "A"),
-                createAssignmentInfo("dataset2", "shard2", "B"),
-                createAssignmentInfo("dataset2", "shard3", "C")
+                createAssignmentInfo("dataset2", "shard1", a),
+                createAssignmentInfo("dataset2", "shard2", b),
+                createAssignmentInfo("dataset2", "shard3", c)
         ));
 
         assignmentInfoDao.updateAssignments("dataset3", NOW, Arrays.asList(
-                createAssignmentInfo("dataset3", "shard1", "B"),
-                createAssignmentInfo("dataset3", "shard2", "C"),
-                createAssignmentInfo("dataset3", "shard3", "B")
+                createAssignmentInfo("dataset3", "shard1", b),
+                createAssignmentInfo("dataset3", "shard2", c),
+                createAssignmentInfo("dataset3", "shard3", b)
         ));
 
-        final DatabaseShardMaster shardMasterServer = new DatabaseShardMaster(assignmentInfoDao);
+        final DatabaseShardMaster shardMasterServer = new DatabaseShardMaster(assignmentInfoDao, new AtomicBoolean(true));
         final RequestResponseClient requestResponseClient;
 
         final ExecutorService executorService = Executors.newSingleThreadExecutor();
@@ -109,7 +115,7 @@ public class RequestResponseServerTest {
                             createAssignedShard("dataset1", "shard1"),
                             createAssignedShard("dataset2", "shard1")
                     ),
-                    Sets.newHashSet(requestResponseClient.getAssignments("A"))
+                    Sets.newHashSet(requestResponseClient.getAssignments(a))
             );
 
             Assert.assertEquals(1, statsEmitter.getProcessed());
@@ -121,7 +127,7 @@ public class RequestResponseServerTest {
                             createAssignedShard("dataset3", "shard1"),
                             createAssignedShard("dataset3", "shard3")
                     ),
-                    Sets.newHashSet(requestResponseClient.getAssignments("B"))
+                    Sets.newHashSet(requestResponseClient.getAssignments(b))
             );
 
             Assert.assertEquals(
@@ -130,34 +136,34 @@ public class RequestResponseServerTest {
                             createAssignedShard("dataset2", "shard3"),
                             createAssignedShard("dataset3", "shard2")
                     ),
-                    Sets.newHashSet(requestResponseClient.getAssignments("C"))
+                    Sets.newHashSet(requestResponseClient.getAssignments(c))
             );
 
             Assert.assertEquals(
                     Collections.emptyList(),
-                    Lists.newArrayList(requestResponseClient.getAssignments("D"))
+                    Lists.newArrayList(requestResponseClient.getAssignments(d))
             );
 
             Assert.assertEquals(4, statsEmitter.getProcessed());
 
             assignmentInfoDao.updateAssignments("dataset1", LATER, Arrays.asList(
-                    createAssignmentInfo("dataset1", "shard1", "A"),
-                    createAssignmentInfo("dataset1", "shard1", "B"),
-                    createAssignmentInfo("dataset1", "shard2", "C"),
-                    createAssignmentInfo("dataset1", "shard2", "A"),
-                    createAssignmentInfo("dataset1", "shard3", "B"),
-                    createAssignmentInfo("dataset1", "shard3", "C")
+                    createAssignmentInfo("dataset1", "shard1", a),
+                    createAssignmentInfo("dataset1", "shard1", b),
+                    createAssignmentInfo("dataset1", "shard2", c),
+                    createAssignmentInfo("dataset1", "shard2", a),
+                    createAssignmentInfo("dataset1", "shard3", b),
+                    createAssignmentInfo("dataset1", "shard3", c)
             ));
 
             assignmentInfoDao.updateAssignments("dataset2", LATER, Collections.<ShardAssignmentInfo>emptyList());
 
             assignmentInfoDao.updateAssignments("dataset3", LATER, Arrays.asList(
-                    createAssignmentInfo("dataset3", "shard1", "A"),
-                    createAssignmentInfo("dataset3", "shard1", "B"),
-                    createAssignmentInfo("dataset3", "shard2", "A"),
-                    createAssignmentInfo("dataset3", "shard2", "B"),
-                    createAssignmentInfo("dataset3", "shard3", "A"),
-                    createAssignmentInfo("dataset3", "shard3", "B")
+                    createAssignmentInfo("dataset3", "shard1", a),
+                    createAssignmentInfo("dataset3", "shard1", b),
+                    createAssignmentInfo("dataset3", "shard2", a),
+                    createAssignmentInfo("dataset3", "shard2", b),
+                    createAssignmentInfo("dataset3", "shard3", a),
+                    createAssignmentInfo("dataset3", "shard3", b)
             ));
 
             Assert.assertEquals(
@@ -168,7 +174,7 @@ public class RequestResponseServerTest {
                             createAssignedShard("dataset3", "shard2"),
                             createAssignedShard("dataset3", "shard3")
                     ),
-                    Sets.newHashSet(requestResponseClient.getAssignments("A"))
+                    Sets.newHashSet(requestResponseClient.getAssignments(a))
             );
 
             Assert.assertEquals(
@@ -179,7 +185,7 @@ public class RequestResponseServerTest {
                             createAssignedShard("dataset3", "shard2"),
                             createAssignedShard("dataset3", "shard3")
                     ),
-                    Sets.newHashSet(requestResponseClient.getAssignments("B"))
+                    Sets.newHashSet(requestResponseClient.getAssignments(b))
             );
 
             Assert.assertEquals(
@@ -187,7 +193,7 @@ public class RequestResponseServerTest {
                             createAssignedShard("dataset1", "shard2"),
                             createAssignedShard("dataset1", "shard3")
                     ),
-                    Sets.newHashSet(requestResponseClient.getAssignments("C"))
+                    Sets.newHashSet(requestResponseClient.getAssignments(c))
             );
         }
 

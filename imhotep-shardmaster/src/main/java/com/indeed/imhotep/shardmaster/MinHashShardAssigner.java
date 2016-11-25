@@ -9,11 +9,14 @@ import com.google.common.primitives.Longs;
 import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.archive.ArchiveUtils;
 import com.indeed.imhotep.client.Host;
+import com.indeed.imhotep.io.Bytes;
 import com.indeed.imhotep.shardmaster.model.ShardAssignmentInfo;
 import com.indeed.util.core.Pair;
 
 import javax.annotation.concurrent.ThreadSafe;
 import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Set;
@@ -35,46 +38,63 @@ class MinHashShardAssigner implements ShardAssigner {
         this.replicationFactor = replicationFactor;
     }
 
-    private long getMinHash(final ShardDir shard, final Host host) {
+    private long getMinHash(final String dataset, final ShardDir shard, final Host host) {
         final MessageDigest messageDigest = MD5_DIGEST.get();
         messageDigest.reset();
+        messageDigest.update(dataset.getBytes(Charsets.UTF_8));
         messageDigest.update(shard.getId().getBytes(Charsets.UTF_8));
-        return Longs.fromByteArray(messageDigest.digest(host.getHostname().getBytes(Charsets.UTF_8)));
+        messageDigest.update(host.getHostname().getBytes(Charsets.UTF_8));
+        return Longs.fromByteArray(messageDigest.digest(Bytes.intToBytes(host.getPort())));
     }
 
     @Override
     public Iterable<ShardAssignmentInfo> assign(final List<Host> hosts, final String dataset, final Iterable<ShardDir> shards) {
+        int maxPerHostname = 0;
+        for (final Collection<Host> ofSameHostName : FluentIterable.from(hosts).index(Host.GET_HOSTNAME).asMap().values()) {
+            maxPerHostname = Math.max(maxPerHostname, ofSameHostName.size());
+        }
+        final int queueCapacity = replicationFactor * maxPerHostname;
+        final Pair.FullPairComparator comparator = new Pair.FullPairComparator();
+
         return FluentIterable.from(shards).transformAndConcat(new Function<ShardDir, Iterable<ShardAssignmentInfo>>() {
             @Override
             public Iterable<ShardAssignmentInfo> apply(final ShardDir shard) {
-                final PriorityQueue<Pair<Long, Host>> candidates = new PriorityQueue<>(replicationFactor,
-                        Ordering.from(new Pair.HalfPairComparator()).reverse());
+                final PriorityQueue<Pair<Long, Host>> sortedHosts = new PriorityQueue<>(queueCapacity,
+                        Ordering.from(comparator).reverse());
 
-                final Set<String> hostnames = Sets.newHashSet();
                 for (final Host host : hosts) {
-                    if (hostnames.contains(host.getHostname())) {
-                        continue;
-                    }
-                    hostnames.add(host.getHostname());
-                    final long hash = getMinHash(shard, host);
-                    if (candidates.size() < replicationFactor) {
-                        candidates.add(Pair.of(hash, host));
+                    final long hash = getMinHash(dataset, shard, host);
+                    final Pair<Long, Host> entry = Pair.of(hash, host);
+                    if (sortedHosts.size() < queueCapacity) {
+                        sortedHosts.add(entry);
                     } else {
-                        final Pair<Long, Host> largest = candidates.peek();
-                        if (hash <= largest.getFirst()) {
-                            candidates.remove();
-                            candidates.add(Pair.of(hash, host));
+                        final Pair<Long, Host> largest = sortedHosts.peek();
+                        if (comparator.compare(entry, largest) < 0) {
+                            sortedHosts.remove();
+                            sortedHosts.add(entry);
                         }
                     }
                 }
 
-                return FluentIterable.from(candidates).transform(new Function<Pair<Long, Host>, ShardAssignmentInfo>() {
+                final Set<String> hostnames = Sets.newHashSet();
+                final List<Host> candidates = new ArrayList<>(replicationFactor);
+                for (final Pair<Long, Host> sortedHost : sortedHosts) {
+                    if (!hostnames.contains(sortedHost.getSecond().getHostname())) {
+                        hostnames.add(sortedHost.getSecond().getHostname());
+                        candidates.add(sortedHost.getSecond());
+                        if (candidates.size() >= replicationFactor) {
+                            break;
+                        }
+                    }
+                }
+
+                return FluentIterable.from(candidates).transform(new Function<Host, ShardAssignmentInfo>() {
                     @Override
-                    public ShardAssignmentInfo apply(final Pair<Long, Host> chosenHost) {
+                    public ShardAssignmentInfo apply(final Host chosenHost) {
                         return new ShardAssignmentInfo(
                                 dataset,
                                 shard.getIndexDir().toUri().toString(),
-                                chosenHost.getSecond().getHostname()
+                                chosenHost
                         );
                     }
                 });
