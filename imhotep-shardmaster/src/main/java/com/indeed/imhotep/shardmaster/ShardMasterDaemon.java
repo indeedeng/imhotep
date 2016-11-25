@@ -3,6 +3,7 @@ package com.indeed.imhotep.shardmaster;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.io.Closer;
 import com.indeed.imhotep.ZkEndpointPersister;
 import com.indeed.imhotep.client.CheckpointedHostsReloader;
 import com.indeed.imhotep.client.Host;
@@ -62,10 +63,16 @@ public class ShardMasterDaemon {
                 config.createHostsReloader(),
                 config.getHostsDropThreshold());
 
-        try (HikariDataSource dataSource = config.createDataSource()) {
-            new SchemaInitializer(dataSource).initialize(Collections.singletonList(Tables.TBLSHARDASSIGNMENTINFO));
+        try (Closer closer = Closer.create()) {
+            final ShardAssignmentInfoDao shardAssignmentInfoDao;
+            if (config.getDbFile() != null) {
+                final HikariDataSource dataSource = closer.register(config.createDataSource());
+                new SchemaInitializer(dataSource).initialize(Collections.singletonList(Tables.TBLSHARDASSIGNMENTINFO));
 
-            final ShardAssignmentInfoDao shardAssignmentInfoDao = new ShardAssignmentInfoDao(dataSource, config.getStalenessThreshold());
+                shardAssignmentInfoDao = new H2ShardAssignmentInfoDao(dataSource, config.getStalenessThreshold());
+            } else {
+                shardAssignmentInfoDao = new InMemoryShardAssignmentInfoDao(config.getStalenessThreshold());
+            }
 
             final RemoteCachingPath dataSetsDir = (RemoteCachingPath) Paths.get(RemoteCachingFileSystemProvider.URI);
 
@@ -294,6 +301,10 @@ public class ShardMasterDaemon {
         String getHostsFile() {
             Preconditions.checkNotNull(hostsFile, "HostsFile config is missing");
             return hostsFile;
+        }
+
+        String getDbFile() {
+            return dbFile;
         }
 
         Duration getHostsRefreshInterval() {

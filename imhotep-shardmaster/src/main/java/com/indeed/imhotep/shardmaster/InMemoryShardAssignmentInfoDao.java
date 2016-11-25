@@ -38,15 +38,15 @@ class InMemoryShardAssignmentInfoDao implements ShardAssignmentInfoDao {
     private class NodeAssignments {
         private final Set<TimestampedAssignment> assignments = new HashSet<>();
 
-        synchronized void remove(final TimestampedAssignment assignment) {
+        void remove(final TimestampedAssignment assignment) {
             assignments.remove(assignment);
         }
 
-        synchronized void add(final TimestampedAssignment assignment) {
+        void add(final TimestampedAssignment assignment) {
             assignments.add(assignment);
         }
 
-        synchronized Iterable<ShardAssignmentInfo> getAssignments() {
+        Iterable<ShardAssignmentInfo> getAssignments() {
             return FluentIterable.from(assignments).transform(new Function<TimestampedAssignment, ShardAssignmentInfo>() {
                 @Override
                 public ShardAssignmentInfo apply(final TimestampedAssignment input) {
@@ -64,7 +64,7 @@ class InMemoryShardAssignmentInfoDao implements ShardAssignmentInfoDao {
             this.stalenessThreshold = stalenessThreshold;
         }
 
-        synchronized void addAll(final long timestamp, final Iterable<ShardAssignmentInfo> elements) {
+        void addAll(final long timestamp, final Iterable<ShardAssignmentInfo> elements) {
             for (final ShardAssignmentInfo element : elements) {
                 final TimestampedAssignment timestampedAssignment = new TimestampedAssignment(timestamp, element);
                 assignments.add(timestampedAssignment);
@@ -72,7 +72,6 @@ class InMemoryShardAssignmentInfoDao implements ShardAssignmentInfoDao {
                     nodeAssignments.get(element.getAssignedNode()).add(timestampedAssignment);
                 } catch (final ExecutionException e) {
                     LOGGER.warn("Failed to add assignment " + element, e);
-
                 }
             }
 
@@ -111,7 +110,7 @@ class InMemoryShardAssignmentInfoDao implements ShardAssignmentInfoDao {
     }
 
     @Override
-    public Iterable<ShardAssignmentInfo> getAssignments(final Host node) {
+    public synchronized Iterable<ShardAssignmentInfo> getAssignments(final Host node) {
         try {
             return nodeAssignments.get(node).getAssignments();
         } catch (final ExecutionException e) {
@@ -120,11 +119,11 @@ class InMemoryShardAssignmentInfoDao implements ShardAssignmentInfoDao {
     }
 
     @Override
-    public void updateAssignments(final String dataset, final DateTime timestamp, final Iterable<ShardAssignmentInfo> assignmentInfos) {
-            try {
-                datasetAssignments.get(dataset).addAll(timestamp.getMillis(), assignmentInfos);
-            } catch (final ExecutionException e) {
-                LOGGER.warn("Unexpected error while updating assignments for " + dataset, e);
-            }
+    public synchronized void updateAssignments(final String dataset, final DateTime timestamp, final Iterable<ShardAssignmentInfo> assignmentInfos) {
+        try {
+            datasetAssignments.get(dataset).addAll(timestamp.getMillis(), assignmentInfos);
+        } catch (final ExecutionException e) {
+            LOGGER.warn("Unexpected error while updating assignments for " + dataset, e);
+        }
     }
 }

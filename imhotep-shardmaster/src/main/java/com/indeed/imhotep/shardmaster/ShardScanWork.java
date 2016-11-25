@@ -54,7 +54,7 @@ class ShardScanWork implements Callable<ShardScanWork.Result> {
                     shardsMap.put(shardDir.getId(), shardDir);
                 }
             }
-            LOGGER.info("Assigning " + shardsMap.values().size() + " shards in " + dataset + " for " + hosts.size() + " hosts");
+            LOGGER.info("Assigning " + shardsMap.size() + " shards in " + dataset + " for " + hosts.size() + " hosts");
 
             assignmentInfoDao.updateAssignments(dataset, DateTime.now(), shardAssigner.assign(
                     hosts,
