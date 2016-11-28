@@ -94,7 +94,8 @@ public class ShardMasterDaemon {
                         shardScanComplete.set(true);
                         LOGGER.info("Successfully scanned all shards on initialization");
                     } catch (final InterruptedException | ExecutionException e) {
-                        throw new IllegalStateException("Failed while scanning shards", e);
+                        LOGGER.fatal("Failed while scanning shards", e);
+                        System.exit(1);
                     }
                 }
             }, ShardMasterDaemon.class.getSimpleName() + "-ShardScanBlocker");
