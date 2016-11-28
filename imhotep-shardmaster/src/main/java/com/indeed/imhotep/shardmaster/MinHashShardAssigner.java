@@ -77,18 +77,18 @@ class MinHashShardAssigner implements ShardAssigner {
                 }
 
                 final Set<String> hostnames = Sets.newHashSet();
-                final List<Host> candidates = new ArrayList<>(replicationFactor);
+                final List<Host> chosen = new ArrayList<>(replicationFactor);
                 for (final Pair<Long, Host> sortedHost : sortedHosts) {
                     if (!hostnames.contains(sortedHost.getSecond().getHostname())) {
                         hostnames.add(sortedHost.getSecond().getHostname());
-                        candidates.add(sortedHost.getSecond());
-                        if (candidates.size() >= replicationFactor) {
+                        chosen.add(sortedHost.getSecond());
+                        if (chosen.size() >= replicationFactor) {
                             break;
                         }
                     }
                 }
 
-                return FluentIterable.from(candidates).transform(new Function<Host, ShardAssignmentInfo>() {
+                return FluentIterable.from(chosen).transform(new Function<Host, ShardAssignmentInfo>() {
                     @Override
                     public ShardAssignmentInfo apply(final Host chosenHost) {
                         return new ShardAssignmentInfo(
