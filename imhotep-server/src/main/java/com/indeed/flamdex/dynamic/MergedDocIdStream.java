@@ -7,6 +7,7 @@ import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
+import java.util.BitSet;
 import java.util.List;
 
 /**
@@ -16,12 +17,14 @@ import java.util.List;
 class MergedDocIdStream implements DocIdStream {
     private static final Logger LOG = Logger.getLogger(MergedDocIdStream.class);
     private final List<DocIdStream> docIdStreams;
+    private final BitSet isMinimum;
     private int currentStream = 0;
     private final int[] offsets;
 
     MergedDocIdStream(@Nonnull final List<DocIdStream> docIdStreams, @Nonnull final int[] offsets) {
         this.docIdStreams = docIdStreams;
         this.offsets = offsets;
+        this.isMinimum = new BitSet(docIdStreams.size());
     }
 
     @Override
@@ -32,10 +35,17 @@ class MergedDocIdStream implements DocIdStream {
         for (int i = 0; i < docIdStreams.size(); ++i) {
             docIdStreams.get(i).reset(mergedTermIterator.getInnerTermIterator(i));
         }
+        isMinimum.clear();
+        for (final int minimum : mergedTermIterator.getCurrentMinimums()) {
+            isMinimum.set(minimum);
+        }
     }
 
     @Override
     public int fillDocIdBuffer(final int[] docIdBuffer) {
+        while ((currentStream < docIdStreams.size()) && !isMinimum.get(currentStream)) {
+            ++currentStream;
+        }
         if (currentStream == docIdStreams.size()) {
             return 0;
         }
@@ -44,7 +54,9 @@ class MergedDocIdStream implements DocIdStream {
             docIdBuffer[i] += offsets[currentStream];
         }
         while (numFilled < docIdBuffer.length) {
-            ++currentStream;
+            do {
+                ++currentStream;
+            } while ((currentStream < docIdStreams.size()) && !isMinimum.get(currentStream));
             if (currentStream == docIdStreams.size()) {
                 break;
             }

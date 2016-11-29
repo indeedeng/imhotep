@@ -2,11 +2,12 @@ package com.indeed.flamdex.dynamic;
 
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.util.core.io.Closeables2;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.objects.ObjectHeapSemiIndirectPriorityQueue;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -17,7 +18,7 @@ class MergedStringTermIterator extends MergedTermIterator implements StringTermI
     private static final Logger LOG = Logger.getLogger(MergedStringTermIterator.class);
 
     private final List<StringTermIterator> stringTermIterators;
-    private final List<Integer> currentMinimums; // indices which satisfies currentTerms[i] == currentTerm
+    private final IntList currentMinimums; // indices which satisfies currentTerms[i] == currentTerm
     private String currentTerm;
     private int currentTermFreq;
     private final String[] currentTerms;
@@ -25,7 +26,7 @@ class MergedStringTermIterator extends MergedTermIterator implements StringTermI
 
     MergedStringTermIterator(@Nonnull final List<StringTermIterator> stringTermIterators) {
         this.stringTermIterators = stringTermIterators;
-        this.currentMinimums = new ArrayList<>(this.stringTermIterators.size());
+        this.currentMinimums = new IntArrayList(this.stringTermIterators.size());
         this.currentTerms = new String[stringTermIterators.size()];
         this.priorityQueue = new ObjectHeapSemiIndirectPriorityQueue<>(this.currentTerms);
         for (int i = 0; i < this.stringTermIterators.size(); ++i) {
@@ -64,6 +65,12 @@ class MergedStringTermIterator extends MergedTermIterator implements StringTermI
         return stringTermIterators.get(idx);
     }
 
+    @Nonnull
+    @Override
+    IntList getCurrentMinimums(){
+        return currentMinimums;
+    }
+
     @Override
     public void reset(final String term) {
         for (final StringTermIterator iterator : stringTermIterators) {
@@ -90,7 +97,7 @@ class MergedStringTermIterator extends MergedTermIterator implements StringTermI
             }
         }
         prepareNext();
-        return true;
+        return !currentMinimums.isEmpty();
     }
 
     @Override

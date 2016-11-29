@@ -91,8 +91,8 @@ public class TestDynamicFlamdexReader {
     }
 
     @Test
-    public void testSimpleStats() throws IOException {
-        try (FlamdexReader flamdexReader = new DynamicFlamdexReader(directory)) {
+    public void testSimpleStats() throws IOException, FlamdexOutOfMemoryException {
+        try (final FlamdexReader flamdexReader = new DynamicFlamdexReader(directory)) {
             assertEquals(NUM_DOCS, flamdexReader.getNumDocs());
             assertEquals(NUM_DOCS, flamdexReader.getIntTotalDocFreq("original"));
             int numMod7Mod11i = 0;
@@ -109,6 +109,18 @@ public class TestDynamicFlamdexReader {
             assertEquals(
                     ImmutableSet.of("mod5s", "mod7mod11s"),
                     ImmutableSet.copyOf(flamdexReader.getStringFields()));
+
+            final IntTermDocIterator iterator = flamdexReader.getIntTermDocIterator("original");
+            int id = 0;
+            for(; iterator.nextTerm(); ++id) {
+                final long term = iterator.term();
+                assertEquals(id, term);
+                final int[] buf = new int[10];
+                final int numDocs = iterator.nextDocs(buf);
+                assertEquals(1, numDocs);
+                assertEquals(term, restoreNum(flamdexReader, buf[0]));
+            }
+            assertEquals(NUM_DOCS, id);
         }
     }
 

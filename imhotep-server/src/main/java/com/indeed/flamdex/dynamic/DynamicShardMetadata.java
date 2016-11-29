@@ -15,6 +15,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -45,7 +46,9 @@ final class DynamicShardMetadata implements Closeable {
     @Nonnull
     private List<String> readSegments() throws IOException {
         final ImmutableList.Builder<String> segmentsBuilder = ImmutableList.builder();
-        final InputStream inputStream = Channels.newInputStream(this.fileLock.getFileChannel());
+        final FileChannel fileChannel = this.fileLock.getFileChannel();
+        fileChannel.position(0);
+        final InputStream inputStream = Channels.newInputStream(fileChannel);
         final InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
         // Don't close the channel!!
         @SuppressWarnings("IOResourceOpenedButNotSafelyClosed")
@@ -61,7 +64,9 @@ final class DynamicShardMetadata implements Closeable {
     }
 
     private void writeSegments(@Nonnull final List<String> segments) throws IOException {
-        final OutputStream outputStream = Channels.newOutputStream(this.fileLock.getFileChannel());
+        final FileChannel fileChannel = this.fileLock.getFileChannel();
+        fileChannel.truncate(0);
+        final OutputStream outputStream = Channels.newOutputStream(fileChannel);
         final OutputStreamWriter outputStreamWriter = new OutputStreamWriter(outputStream);
         // Don't close the channel!!
         @SuppressWarnings("IOResourceOpenedButNotSafelyClosed")

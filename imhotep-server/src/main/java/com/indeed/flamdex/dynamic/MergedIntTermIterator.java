@@ -2,11 +2,12 @@ package com.indeed.flamdex.dynamic;
 
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.util.core.io.Closeables2;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.longs.LongHeapSemiIndirectPriorityQueue;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -17,7 +18,7 @@ class MergedIntTermIterator extends MergedTermIterator implements IntTermIterato
     private static final Logger LOG = Logger.getLogger(MergedIntTermIterator.class);
 
     private final List<IntTermIterator> intTermIterators;
-    private final List<Integer> currentMinimums; // indices which satisfies currentTerms[i] == currentTerm
+    private final IntList currentMinimums; // indices which satisfies currentTerms[i] == currentTerm
     private long currentTerm;
     private int currentTermFreq;
     private final long[] currentTerms;
@@ -25,7 +26,7 @@ class MergedIntTermIterator extends MergedTermIterator implements IntTermIterato
 
     MergedIntTermIterator(@Nonnull final List<IntTermIterator> intTermIterators) {
         this.intTermIterators = intTermIterators;
-        this.currentMinimums = new ArrayList<>(this.intTermIterators.size());
+        this.currentMinimums = new IntArrayList(this.intTermIterators.size());
         this.currentTerms = new long[intTermIterators.size()];
         this.priorityQueue = new LongHeapSemiIndirectPriorityQueue(this.currentTerms);
         for (int i = 0; i < this.intTermIterators.size(); ++i) {
@@ -64,6 +65,12 @@ class MergedIntTermIterator extends MergedTermIterator implements IntTermIterato
         return intTermIterators.get(idx);
     }
 
+    @Nonnull
+    @Override
+    IntList getCurrentMinimums(){
+        return currentMinimums;
+    }
+
     @Override
     public void reset(final long term) {
         for (final IntTermIterator iterator : intTermIterators) {
@@ -90,7 +97,7 @@ class MergedIntTermIterator extends MergedTermIterator implements IntTermIterato
             }
         }
         prepareNext();
-        return true;
+        return !currentMinimums.isEmpty();
     }
 
     @Override
