@@ -76,4 +76,9 @@ final class DynamicFlamdexMetadataUtil {
             writeSegments(lock, directory, after);
         }
     }
+
+    @Nonnull
+    static MultiThreadLock acquireSegmentBuildLock(@Nonnull final Path shardDirectory) throws IOException {
+        return MultiThreadFileLockUtil.writeLock(shardDirectory, BUILD_SEGMENT_LOCK_FILENAME);
+    }
 }

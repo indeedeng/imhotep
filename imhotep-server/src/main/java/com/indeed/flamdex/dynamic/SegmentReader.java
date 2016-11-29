@@ -49,6 +49,26 @@ class SegmentReader implements FlamdexReader {
         return this.segmentInfo;
     }
 
+    @Nonnull
+    Optional<FastBitSet> getUpdatedTombstone(@Nonnull final Query query) {
+        final FlamdexSearcher flamdexSearcher = new FlamdexSearcher(flamdexReader);
+        final FastBitSet newTombstone = flamdexSearcher.search(query);
+        if (!this.tombstone.isPresent()) {
+            if (newTombstone.isEmpty()) {
+                return Optional.absent();
+            }
+            return Optional.of(newTombstone);
+        }
+        final int pre = tombstone.get().cardinality();
+        newTombstone.or(tombstone.get());
+        final int post = newTombstone.cardinality();
+        if (pre == post) {
+            return Optional.absent();
+        } else {
+            return Optional.of(newTombstone);
+        }
+    }
+
     @Override
     public void close() throws IOException {
         Closeables2.closeAll(LOG, flamdexReader, segmentReaderLock);

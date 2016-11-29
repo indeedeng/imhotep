@@ -19,10 +19,11 @@ import java.nio.file.Path;
 /**
  * @author jsgroth
  */
-public interface FlamdexWriter {
+public interface FlamdexWriter extends AutoCloseable {
     Path getOutputDirectory();
     void resetMaxDocs(long maxDocs);
     IntFieldWriter getIntFieldWriter(String field) throws IOException;
     StringFieldWriter getStringFieldWriter(String field) throws IOException;
+    @Override
     void close() throws IOException;
 }

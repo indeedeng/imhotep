@@ -18,8 +18,9 @@ import java.io.IOException;
 /**
  * @author jsgroth
  */
-public interface StringFieldWriter {
+public interface StringFieldWriter extends AutoCloseable {
     void nextTerm(String term) throws IOException;
     void nextDoc(int doc) throws IOException;
+    @Override
     void close() throws IOException;
 }
