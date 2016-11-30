@@ -73,7 +73,7 @@ public class MinHashShardAssignerTest {
 
         final double shardsPerHost = ((double) numShards * replicationFactor) / numHosts;
         for (final Map.Entry<Host, Collection<String>> entry : hostToShardCount.asMap().entrySet()) {
-            Assert.assertEquals(entry.getKey() + ":" + entry.getValue().size(), 0, (shardsPerHost - entry.getValue().size()) / shardsPerHost, 0.15);
+            Assert.assertEquals(entry.getKey() + ":" + entry.getValue().size(), 0, (shardsPerHost - entry.getValue().size()) / shardsPerHost, 0.05);
         }
     }
 
