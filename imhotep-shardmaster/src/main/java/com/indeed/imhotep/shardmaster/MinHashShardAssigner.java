@@ -76,12 +76,18 @@ class MinHashShardAssigner implements ShardAssigner {
                     }
                 }
 
+                final List<Host> sortedHostsList = new ArrayList<>(sortedHosts.size());
+                while (!sortedHosts.isEmpty()) {
+                    sortedHostsList.add(sortedHosts.poll().getSecond());
+                }
+
                 final Set<String> hostnames = Sets.newHashSet();
                 final List<Host> chosen = new ArrayList<>(replicationFactor);
-                for (final Pair<Long, Host> sortedHost : sortedHosts) {
-                    if (!hostnames.contains(sortedHost.getSecond().getHostname())) {
-                        hostnames.add(sortedHost.getSecond().getHostname());
-                        chosen.add(sortedHost.getSecond());
+                for (int i = sortedHostsList.size() - 1; i >= 0; i--) {
+                    final Host sortedHost = sortedHostsList.get(i);
+                    if (!hostnames.contains(sortedHost.getHostname())) {
+                        hostnames.add(sortedHost.getHostname());
+                        chosen.add(sortedHost);
                         if (chosen.size() >= replicationFactor) {
                             break;
                         }
