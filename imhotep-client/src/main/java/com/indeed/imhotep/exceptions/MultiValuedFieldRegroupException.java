@@ -16,7 +16,7 @@
 /**
  * @author vladimir
  */
-public class MultiValuedFieldRegroupException extends RuntimeException {
+public class MultiValuedFieldRegroupException extends ImhotepKnownException {
     public MultiValuedFieldRegroupException() {
         super();
     }

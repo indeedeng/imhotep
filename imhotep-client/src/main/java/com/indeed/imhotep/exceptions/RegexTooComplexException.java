@@ -16,7 +16,7 @@ package com.indeed.imhotep.exceptions;
 /**
  * @author vladimir
  */
-public class RegexTooComplexException extends RuntimeException {
+public class RegexTooComplexException extends ImhotepKnownException {
     public RegexTooComplexException() {
         super();
     }

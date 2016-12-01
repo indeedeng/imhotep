@@ -17,7 +17,7 @@ package com.indeed.imhotep.exceptions;
  * @author vladimir
  */
 
-public class StringFieldInSelectException extends RuntimeException {
+public class StringFieldInSelectException extends ImhotepKnownException {
     public StringFieldInSelectException() {
         super();
     }

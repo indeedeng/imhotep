@@ -17,7 +17,7 @@ package com.indeed.imhotep.exceptions;
  * @author vladimir
  */
 
-public abstract class LimitExceededException extends RuntimeException {
+public abstract class LimitExceededException extends ImhotepKnownException {
     public LimitExceededException() {
         super();
     }

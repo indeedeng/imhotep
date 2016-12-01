@@ -16,7 +16,7 @@
 /**
  * @author cvoss
  */
-public class TooManySessionsException extends RuntimeException {
+public class TooManySessionsException extends ImhotepKnownException {
     public TooManySessionsException() {
         super();
     }

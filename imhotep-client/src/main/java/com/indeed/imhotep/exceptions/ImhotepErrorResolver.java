@@ -47,6 +47,10 @@ public class ImhotepErrorResolver {
                     "numbers can be used in the SELECT clause.", e);
         }
 
+        if (error.contains("there does not exist a session with id")) {
+            return new QueryCancelledException("The query was cancelled during execution", e);
+        }
+
         return e;
     }
 }

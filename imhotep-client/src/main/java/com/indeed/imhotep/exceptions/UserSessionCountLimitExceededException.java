@@ -16,7 +16,7 @@
 /**
  * @author cvoss
  */
-public class UserSessionCountLimitExceededException extends LimitExceededException {
+public class UserSessionCountLimitExceededException extends ImhotepKnownException {
     public UserSessionCountLimitExceededException() {
         super();
     }

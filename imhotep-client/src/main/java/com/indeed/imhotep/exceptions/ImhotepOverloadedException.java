@@ -17,7 +17,7 @@ package com.indeed.imhotep.exceptions;
  * @author vladimir
  */
 
-public class ImhotepOverloadedException extends RuntimeException {
+public class ImhotepOverloadedException extends ImhotepKnownException {
     /**
      * Constructs an <code>ImhotepOverloadedException</code> with no
      * detail message.
