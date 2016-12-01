@@ -31,8 +31,8 @@ import com.indeed.util.mmap.IntArray;
 import com.indeed.util.mmap.LongArray;
 import com.indeed.util.mmap.MMapBuffer;
 import com.indeed.util.mmap.ShortArray;
-import dk.brics.automaton.Automaton;
-import dk.brics.automaton.RegExp;
+import com.indeed.imhotep.automaton.Automaton;
+import com.indeed.imhotep.automaton.RegExp;
 import org.apache.log4j.Logger;
 
 import java.io.EOFException;

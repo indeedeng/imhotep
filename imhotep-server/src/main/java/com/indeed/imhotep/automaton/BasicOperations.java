@@ -482,6 +482,10 @@ final public class BasicOperations {
 						if (t.min <= points[n] && points[n] <= t.max)
 							p.add(t.to);
 				if (!sets.containsKey(p)) {
+					if (sets.size() > 50000) {
+						throw new RegexTooComplexException("The provided regex is too complex. " +
+								"Please replace expressions like '.*A.*|.*B.*|.*C.*' with '.*(A|B|C).*'");
+					}
 					sets.put(p, p);
 					worklist.add(p);
 					newstate.put(p, new State());

@@ -36,6 +36,11 @@ public class ImhotepErrorResolver {
                     "multi-valued field. Grouping by a multi-valued field only works if it's the last group by and percentile/distinct are not used.", e);
         }
 
+        if (error.contains(RegexTooComplexException.class.getSimpleName())) {
+            return new RegexTooComplexException("The provided regex is too complex. " +
+                    "Please replace expressions like '.*A.*|.*B.*|.*C.*' with '.*(A|B|C).*'", e);
+        }
+
         if (error.contains("BitSet fields should only have term")) {
             return new StringFieldInSelectException("The query attempted to use a string field where a field with " +
                     "only numeric values is required. For example only int fields and string fields containing only " +
