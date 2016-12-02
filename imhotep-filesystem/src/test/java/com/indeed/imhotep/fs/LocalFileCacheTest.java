@@ -20,6 +20,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author kenh
@@ -59,7 +60,7 @@ public class LocalFileCacheTest {
 
     static class RandomCacheFileLoader implements LocalFileCache.CacheFileLoader {
         private final int fileSize;
-        private int loadCount = 0;
+        private final AtomicInteger loadCount = new AtomicInteger(0);
 
         RandomCacheFileLoader(final int fileSize) {
             this.fileSize = fileSize;
@@ -68,7 +69,7 @@ public class LocalFileCacheTest {
         @Override
         public void load(final RemoteCachingPath src, final Path dest) throws IOException {
             Assert.assertFalse(java.nio.file.Files.exists(dest));
-            ++loadCount;
+            loadCount.incrementAndGet();
             final String payload = generateFileData(src, fileSize);
             Files.writeToTextFileOrDie(new String[]{payload}, dest.toString());
         }
@@ -98,7 +99,7 @@ public class LocalFileCacheTest {
             Assert.assertEquals(generateFileData(file, fileSize), readPath(localFileCache.cache(file)));
             Assert.assertTrue(getCacheUsage(cacheBasePath) <= maxCapacity);
         }
-        Assert.assertEquals(maxEntries, cacheFileLoader.loadCount);
+        Assert.assertEquals(maxEntries, cacheFileLoader.loadCount.get());
     }
 
     @Test
@@ -122,7 +123,7 @@ public class LocalFileCacheTest {
         final ExecutorService executorService = Executors.newCachedThreadPool();
         final List<ListenableFutureTask<Void>> tasks = new ArrayList<>();
         for (int i = 0; i < numThreads; i++) {
-            final ListenableFutureTask<Void> task = ListenableFutureTask.create(new Callable<Void>() {
+            final ListenableFutureTask<Void> openTask = ListenableFutureTask.create(new Callable<Void>() {
                 @Override
                 public Void call() throws Exception {
                     for (int i = 1; i <= numIterations; i++) {
@@ -134,8 +135,21 @@ public class LocalFileCacheTest {
                     return null;
                 }
             });
-            tasks.add(task);
-            executorService.submit(task);
+            tasks.add(openTask);
+            executorService.submit(openTask);
+
+            final ListenableFutureTask<Void> cacheTask = ListenableFutureTask.create(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    for (int i = 1; i <= numIterations; i++) {
+                        final RemoteCachingPath file = rootPath.resolve("cacheOnly").resolve("cacheOnly." + (i % maxEntries * 2) + ".file");
+                        localFileCache.cache(file);
+                    }
+                    return null;
+                }
+            });
+            tasks.add(cacheTask);
+            executorService.submit(cacheTask);
         }
 
         Futures.allAsList(tasks).get();
@@ -164,19 +178,19 @@ public class LocalFileCacheTest {
             Assert.assertTrue(getCacheUsage(cacheBasePath) <= maxCapacity);
             ++cacheCount;
         }
-        Assert.assertEquals(cacheCount - maxEntries, cacheFileLoader.loadCount);
+        Assert.assertEquals(cacheCount, cacheFileLoader.loadCount.get());
 
         final List<LocalFileCache.ScopedCacheFile> scopedCacheFiles = new ArrayList<>();
 
         // open some files
-        for (int i = 1; i <= (maxEntries * 2); i++) {
+        for (int i = 1; i <= (maxEntries * 3); i++) {
             final RemoteCachingPath file = rootPath.resolve("opened").resolve("opened." + i + ".file");
             final LocalFileCache.ScopedCacheFile openedFile = localFileCache.getForOpen(file);
             Assert.assertEquals(generateFileData(file, fileSize), readPath(openedFile.getCachePath()));
             scopedCacheFiles.add(openedFile);
             ++cacheCount;
         }
-        Assert.assertEquals(cacheCount - maxEntries, cacheFileLoader.loadCount);
+        Assert.assertEquals(cacheCount, cacheFileLoader.loadCount.get());
 
         // ensure all opened files are in the cache
         for (final LocalFileCache.ScopedCacheFile scopedCacheFile : scopedCacheFiles) {
@@ -186,8 +200,28 @@ public class LocalFileCacheTest {
         // the total usage is above threshold because we have both cached and opened files
         Assert.assertTrue(getCacheUsage(cacheBasePath) > maxCapacity);
 
-        // close all opened files and ensure that the cache directory space goes back below the threshold
+        final List<LocalFileCache.ScopedCacheFile> moreScopedCacheFiles = new ArrayList<>();
+
+        // open the same files again
+        // the load count shouldn't change
+        for (int i = 1; i <= (maxEntries * 2); i++) {
+            final RemoteCachingPath file = rootPath.resolve("opened").resolve("opened." + i + ".file");
+            final LocalFileCache.ScopedCacheFile openedFile = localFileCache.getForOpen(file);
+            Assert.assertEquals(generateFileData(file, fileSize), readPath(openedFile.getCachePath()));
+            moreScopedCacheFiles.add(openedFile);
+        }
+        Assert.assertEquals(cacheCount, cacheFileLoader.loadCount.get());
+
+        // close all opened files and ensure that the cache directory space goes back down
         for (final LocalFileCache.ScopedCacheFile scopedCacheFile : scopedCacheFiles) {
+            scopedCacheFile.close();
+        }
+
+        // we still have open files should should be above threshold
+        Assert.assertTrue(getCacheUsage(cacheBasePath) > maxCapacity);
+
+        // close all opened files and ensure that the cache directory space goes back below the threshold
+        for (final LocalFileCache.ScopedCacheFile scopedCacheFile : moreScopedCacheFiles) {
             scopedCacheFile.close();
         }
 
@@ -256,7 +290,7 @@ public class LocalFileCacheTest {
             // we want to test if opened files are evicted
             for (int i = 1; i <= (maxEntries * 10); i++) {
                 final RemoteCachingPath file = rootPath.resolve("cachedOnly").resolve("cacheOnly." + (i % (maxEntries * 2)) + ".file");
-                Assert.assertEquals(generateFileData(file, fileSize), readPath(localFileCache.cache(file)));
+                localFileCache.cache(file);
             }
 
             // ensure all opened files are in the cache
