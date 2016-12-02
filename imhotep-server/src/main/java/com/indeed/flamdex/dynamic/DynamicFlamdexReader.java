@@ -4,6 +4,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Ordering;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
@@ -31,6 +32,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 /**
  * FlamdexReader for dynamic shards.
  * The return values of getNumDocs, docFreq(), ... might be wrong because of lazied deletion.
+ *
  * @author michihiko
  */
 
@@ -43,7 +45,7 @@ public class DynamicFlamdexReader implements FlamdexReader {
 
     public DynamicFlamdexReader(@Nonnull final Path directory) throws IOException {
         this.directory = directory;
-        this.segmentReaders = DynamicShardMetadata.openSegmentReaders(this.directory);
+        this.segmentReaders = DynamicFlamdexMetadataUtil.openSegmentReaders(this.directory);
         this.offsets = new int[segmentReaders.size() + 1];
         for (int i = 0; i < segmentReaders.size(); ++i) {
             this.offsets[i + 1] = this.offsets[i] + this.segmentReaders.get(i).maxNumDocs();
@@ -58,7 +60,7 @@ public class DynamicFlamdexReader implements FlamdexReader {
             public Collection<String> apply(@Nullable final SegmentReader segmentReader) {
                 return checkNotNull(segmentReader).getIntFields();
             }
-        }).toSet();
+        }).toSortedSet(Ordering.natural());
     }
 
     @Override
@@ -67,9 +69,10 @@ public class DynamicFlamdexReader implements FlamdexReader {
             @Nullable
             @Override
             public Collection<String> apply(@Nullable final SegmentReader segmentReader) {
-                return checkNotNull(segmentReader).getStringFields();
+                //noinspection ConstantConditions
+                return segmentReader.getStringFields();
             }
-        }).toSet();
+        }).toSortedSet(Ordering.natural());
     }
 
     @Override
@@ -90,7 +93,8 @@ public class DynamicFlamdexReader implements FlamdexReader {
                     @Nullable
                     @Override
                     public DocIdStream apply(@Nullable final SegmentReader segmentReader) {
-                        return Preconditions.checkNotNull(segmentReader).getDocIdStream();
+                        //noinspection ConstantConditions
+                        return segmentReader.getDocIdStream();
                     }
                 }).toList(),
                 offsets
@@ -109,7 +113,8 @@ public class DynamicFlamdexReader implements FlamdexReader {
                     @Nullable
                     @Override
                     public IntTermIterator apply(@Nullable final SegmentReader segmentReader) {
-                        return Preconditions.checkNotNull(segmentReader).getIntTermIterator(field);
+                        //noinspection ConstantConditions
+                        return segmentReader.getIntTermIterator(field);
                     }
                 }).toList()
         );
@@ -122,7 +127,8 @@ public class DynamicFlamdexReader implements FlamdexReader {
                     @Nullable
                     @Override
                     public StringTermIterator apply(@Nullable final SegmentReader segmentReader) {
-                        return Preconditions.checkNotNull(segmentReader).getStringTermIterator(field);
+                        //noinspection ConstantConditions
+                        return segmentReader.getStringTermIterator(field);
                     }
                 }).toList()
         );
@@ -162,9 +168,10 @@ public class DynamicFlamdexReader implements FlamdexReader {
             @Nullable
             @Override
             public Collection<String> apply(@Nullable final SegmentReader segmentReader) {
-                return checkNotNull(segmentReader).getAvailableMetrics();
+                //noinspection ConstantConditions
+                return segmentReader.getAvailableMetrics();
             }
-        }).toSet();
+        }).toSortedSet(Ordering.<String>natural());
     }
 
     private int calcSegmentFromDocId(final int docId) {

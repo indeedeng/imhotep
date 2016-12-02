@@ -12,13 +12,16 @@ import java.util.List;
 
 /**
  * {@link IntTermIterator} that merges several {@link IntTermIterator}.
+ *
  * @author michihiko
  */
-class MergedIntTermIterator extends MergedTermIterator implements IntTermIterator {
+class MergedIntTermIterator implements MergedTermIterator, IntTermIterator {
     private static final Logger LOG = Logger.getLogger(MergedIntTermIterator.class);
 
     private final List<IntTermIterator> intTermIterators;
-    private final IntList currentMinimums; // indices which satisfies currentTerms[i] == currentTerm
+    // We have to store iterators which have 'currentTerm' as that status to be able to do MergedDocIdStream#reset(MergedTermIterator).
+    // this is the indices which satisfies currentTerms[i] == currentTerm, which is removed from priority queue until the next call of next().
+    private final IntList currentMinimums;
     private long currentTerm;
     private int currentTermFreq;
     private final long[] currentTerms;
@@ -29,8 +32,11 @@ class MergedIntTermIterator extends MergedTermIterator implements IntTermIterato
         this.currentMinimums = new IntArrayList(this.intTermIterators.size());
         this.currentTerms = new long[intTermIterators.size()];
         this.priorityQueue = new LongHeapSemiIndirectPriorityQueue(this.currentTerms);
+        // Until first call of next(), this iterator should be invalid.
+        // This state can be consider as "we have -inf as the term before the first call of next(), and call next() to skip it".
+        // So, initially, all iterators are in currentMinimums
         for (int i = 0; i < this.intTermIterators.size(); ++i) {
-            currentMinimums.add(i);
+            this.currentMinimums.add(i);
         }
     }
 
@@ -61,13 +67,13 @@ class MergedIntTermIterator extends MergedTermIterator implements IntTermIterato
 
     @Nonnull
     @Override
-    IntTermIterator getInnerTermIterator(final int idx) {
+    public IntTermIterator getInnerTermIterator(final int idx) {
         return intTermIterators.get(idx);
     }
 
     @Nonnull
     @Override
-    IntList getCurrentMinimums(){
+    public IntList getCurrentMinimums() {
         return currentMinimums;
     }
 
@@ -86,9 +92,6 @@ class MergedIntTermIterator extends MergedTermIterator implements IntTermIterato
 
     @Override
     public boolean next() {
-        if (currentMinimums.isEmpty()) {
-            return false;
-        }
         for (final int i : currentMinimums) {
             final IntTermIterator iterator = intTermIterators.get(i);
             if (iterator.next()) {

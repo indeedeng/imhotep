@@ -1,6 +1,5 @@
 package com.indeed.flamdex.dynamic;
 
-import com.google.common.base.Preconditions;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
@@ -12,6 +11,8 @@ import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.StringValueLookup;
 import com.indeed.flamdex.api.TermIterator;
 import com.indeed.flamdex.datastruct.FastBitSet;
+import com.indeed.flamdex.dynamic.locks.MultiThreadFileLockUtil;
+import com.indeed.flamdex.dynamic.locks.MultiThreadLock;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 
 import javax.annotation.Nonnull;
@@ -20,32 +21,32 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collection;
 
 /**
  * Simple implementation of {@link FlamdexReader} with tombstone (bitset for deleted docIds).
+ *
  * @author michihiko
  */
 
 class SegmentReader implements FlamdexReader {
     private static final String TOMBSTONE_FILENAME = "tombstone";
+    private static final String SEGMENT_LOCK_FILENAME = "reader.lock";
 
     private final FlamdexReader flamdexReader;
     private final FastBitSet deleted;
-    private final MultiThreadFileLock readerLock;
+    private final MultiThreadLock readerLock;
 
-    SegmentReader(@Nonnull final DynamicShardMetadata metadata, @Nonnull final String segment) throws IOException {
-        Preconditions.checkState(!metadata.isClosed());
-        final Path directory = Paths.get(metadata.getDirectory().toString(), segment);
-        readerLock = metadata.readlockSegment(segment);
-        flamdexReader = SimpleFlamdexReader.open(directory);
+    SegmentReader(@Nonnull final Path directory, @Nonnull final String segment) throws IOException {
+        final Path segmentDirectory = directory.resolve(segment);
+        readerLock = MultiThreadFileLockUtil.readLock(segmentDirectory, SEGMENT_LOCK_FILENAME);
+        flamdexReader = SimpleFlamdexReader.open(segmentDirectory);
 
         FastBitSet deleted = null;
-        final File tombstoneFile = Paths.get(directory.toString(), TOMBSTONE_FILENAME).toFile();
+        final File tombstoneFile = segmentDirectory.resolve(TOMBSTONE_FILENAME).toFile();
         if (tombstoneFile.exists() && tombstoneFile.isFile()) {
-            try(final ObjectInputStream ois = new ObjectInputStream(new FileInputStream(tombstoneFile))) {
+            try (final ObjectInputStream ois = new ObjectInputStream(new FileInputStream(tombstoneFile))) {
                 deleted = (FastBitSet) ois.readObject();
             } catch (final ClassNotFoundException e) {
                 throw new IOException(e);
@@ -70,7 +71,7 @@ class SegmentReader implements FlamdexReader {
         return flamdexReader.getStringFields();
     }
 
-    int maxNumDocs(){
+    int maxNumDocs() {
         return flamdexReader.getNumDocs();
     }
 
@@ -101,7 +102,7 @@ class SegmentReader implements FlamdexReader {
             public int fillDocIdBuffer(final int[] docIdBuffer) {
                 if (internalBuffer == null) {
                     internalBuffer = new int[docIdBuffer.length];
-                } else if (internalBuffer.length < (docIdBuffer.length / 2)){
+                } else if (internalBuffer.length < (docIdBuffer.length / 2)) {
                     internalBuffer = Arrays.copyOf(internalBuffer, docIdBuffer.length);
                 }
                 int numFilled = 0;

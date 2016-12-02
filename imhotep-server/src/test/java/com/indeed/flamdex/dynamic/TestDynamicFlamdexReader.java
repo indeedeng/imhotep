@@ -21,10 +21,8 @@ import javax.annotation.Nullable;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -68,7 +66,7 @@ public class TestDynamicFlamdexReader {
     public void setUp() throws IOException {
         directory = temporaryFolder.getRoot().toPath();
         final List<String> shards = ImmutableList.of("segment1", "segment2", "segment3");
-        DynamicShardMetadata.modifyMetadata(directory, new Function<List<String>, List<String>>() {
+        DynamicFlamdexMetadataUtil.modifyMetadata(directory, new Function<List<String>, List<String>>() {
             @Nullable
             @Override
             public List<String> apply(@Nullable final List<String> strings) {
@@ -79,7 +77,7 @@ public class TestDynamicFlamdexReader {
         final List<FlamdexDocWriter> writers = new ArrayList<>();
         for (final String shard : shards) {
             writers.add(new SimpleFlamdexDocWriter(
-                    Paths.get(directory.toString(), shard),
+                    directory.resolve(shard),
                     new SimpleFlamdexDocWriter.Config()));
         }
         for (int i = 0; i < NUM_DOCS; ++i) {
@@ -112,7 +110,7 @@ public class TestDynamicFlamdexReader {
 
             final IntTermDocIterator iterator = flamdexReader.getIntTermDocIterator("original");
             int id = 0;
-            for(; iterator.nextTerm(); ++id) {
+            for (; iterator.nextTerm(); ++id) {
                 final long term = iterator.term();
                 assertEquals(id, term);
                 final int[] buf = new int[10];
@@ -191,17 +189,9 @@ public class TestDynamicFlamdexReader {
     @Test
     public void testTombstone() throws IOException, FlamdexOutOfMemoryException, NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException {
         for (final String segment : new String[]{"segment1", "segment2", "segment3"}) {
-            final DynamicShardMetadata dynamicShardMetadata;
-            {
-                // Dirty way to instantiate DynamicShardMetadata, which doesn't have non-private constructor.
-                final Constructor<DynamicShardMetadata> constructor = DynamicShardMetadata.class.getDeclaredConstructor(Path.class, Boolean.TYPE);
-                constructor.setAccessible(true);
-                dynamicShardMetadata = constructor.newInstance(directory, true);
-            }
-
-            final Path segmentPath = Paths.get(directory.toString(), segment);
-            final Path tombstonePath = Paths.get(segmentPath.toString(), "tombstone");
-            try (final SegmentReader segmentReader = new SegmentReader(dynamicShardMetadata, segment)) {
+            final Path segmentPath = directory.resolve(segment);
+            final Path tombstonePath = segmentPath.resolve("tombstone");
+            try (final SegmentReader segmentReader = new SegmentReader(directory, segment)) {
                 final int numDoc = segmentReader.maxNumDocs();
                 final FastBitSet tombstone = new FastBitSet(numDoc);
                 for (int docId = 0; docId < numDoc; ++docId) {
