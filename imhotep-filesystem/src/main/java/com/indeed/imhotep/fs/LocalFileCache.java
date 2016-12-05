@@ -142,6 +142,14 @@ class LocalFileCache {
         }
     }
 
+    /**
+     * get the local cache disk space usage
+     * @return the usage in bytes
+     */
+    long getCacheUsage() {
+        return diskSpaceUsage.get();
+    }
+
     private void incFileUsageRef(final RemoteCachingPath path) {
         fileUseCounter.add(path, 1);
     }

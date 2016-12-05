@@ -92,12 +92,14 @@ public class LocalFileCacheTest {
         final LocalFileCache localFileCache = new LocalFileCache(fs, cacheBasePath, maxCapacity, cacheFileLoader);
 
         Assert.assertEquals(0, getCacheUsage(cacheBasePath));
+        Assert.assertEquals(getCacheUsage(cacheBasePath), localFileCache.getCacheUsage());
 
         // cache the same files over and over again. Ensure they do not get evicted.
         for (int i = 1; i <= (maxEntries * 10); i++) {
             final RemoteCachingPath file = rootPath.resolve("cachedOnly").resolve("cacheOnly." + (i % maxEntries) + ".file");
             Assert.assertEquals(generateFileData(file, fileSize), readPath(localFileCache.cache(file)));
             Assert.assertTrue(getCacheUsage(cacheBasePath) <= maxCapacity);
+            Assert.assertEquals(getCacheUsage(cacheBasePath), localFileCache.getCacheUsage());
         }
         Assert.assertEquals(maxEntries, cacheFileLoader.loadCount.get());
     }
@@ -153,6 +155,9 @@ public class LocalFileCacheTest {
         }
 
         Futures.allAsList(tasks).get();
+
+        Assert.assertTrue(getCacheUsage(cacheBasePath) <= maxCapacity);
+        Assert.assertEquals(getCacheUsage(cacheBasePath), localFileCache.getCacheUsage());
     }
 
     @Test
@@ -169,6 +174,7 @@ public class LocalFileCacheTest {
         final LocalFileCache localFileCache = new LocalFileCache(fs, cacheBasePath, maxCapacity, cacheFileLoader);
 
         Assert.assertEquals(0, getCacheUsage(cacheBasePath));
+        Assert.assertEquals(getCacheUsage(cacheBasePath), localFileCache.getCacheUsage());
 
         // fill up the cache, and have some entries evicted along the way
         int cacheCount = 0;
@@ -192,6 +198,15 @@ public class LocalFileCacheTest {
         }
         Assert.assertEquals(cacheCount, cacheFileLoader.loadCount.get());
 
+        // try to cache some files again, but they should be evicted immediately
+        for (int i = 1; i <= (maxEntries * 10); i++) {
+            final RemoteCachingPath file = rootPath.resolve("cachedOnly2").resolve("cacheOnly2." + (i % (maxEntries * 2)) + ".file");
+            final Path cachedFile = localFileCache.cache(file);
+            Assert.assertTrue(java.nio.file.Files.notExists(cachedFile));
+            ++cacheCount;
+        }
+        Assert.assertEquals(cacheCount, cacheFileLoader.loadCount.get());
+
         // ensure all opened files are in the cache
         for (final LocalFileCache.ScopedCacheFile scopedCacheFile : scopedCacheFiles) {
             Assert.assertTrue(java.nio.file.Files.exists(scopedCacheFile.getCachePath()));
@@ -199,6 +214,7 @@ public class LocalFileCacheTest {
 
         // the total usage is above threshold because we have both cached and opened files
         Assert.assertTrue(getCacheUsage(cacheBasePath) > maxCapacity);
+        Assert.assertEquals(getCacheUsage(cacheBasePath), localFileCache.getCacheUsage());
 
         final List<LocalFileCache.ScopedCacheFile> moreScopedCacheFiles = new ArrayList<>();
 
@@ -219,6 +235,7 @@ public class LocalFileCacheTest {
 
         // we still have open files should should be above threshold
         Assert.assertTrue(getCacheUsage(cacheBasePath) > maxCapacity);
+        Assert.assertEquals(getCacheUsage(cacheBasePath), localFileCache.getCacheUsage());
 
         // close all opened files and ensure that the cache directory space goes back below the threshold
         for (final LocalFileCache.ScopedCacheFile scopedCacheFile : moreScopedCacheFiles) {
@@ -227,6 +244,21 @@ public class LocalFileCacheTest {
 
         // now that all opened files are closed, the cache directory usage should be below the threshold
         Assert.assertTrue(getCacheUsage(cacheBasePath) <= maxCapacity);
+        Assert.assertEquals(getCacheUsage(cacheBasePath), localFileCache.getCacheUsage());
+
+        // try to cache some files again, but they should now be cached
+        for (int i = 1; i <= (maxEntries * 10); i++) {
+            final RemoteCachingPath file = rootPath.resolve("cachedOnly3").resolve("cacheOnly3." + (i % (maxEntries * 2)) + ".file");
+            final Path cachedFile = localFileCache.cache(file);
+            Assert.assertEquals(generateFileData(file, fileSize), readPath(cachedFile));
+            Assert.assertTrue(java.nio.file.Files.exists(cachedFile));
+            ++cacheCount;
+        }
+        Assert.assertEquals(cacheCount, cacheFileLoader.loadCount.get());
+
+        // we still have open files should should be above threshold
+        Assert.assertTrue(getCacheUsage(cacheBasePath) <= maxCapacity);
+        Assert.assertEquals(getCacheUsage(cacheBasePath), localFileCache.getCacheUsage());
     }
 
     @Test
@@ -243,12 +275,14 @@ public class LocalFileCacheTest {
             final LocalFileCache localFileCache = new LocalFileCache(fs, cacheBasePath, maxCapacity, new RandomCacheFileLoader(fileSize));
 
             Assert.assertEquals(0, getCacheUsage(cacheBasePath));
+            Assert.assertEquals(getCacheUsage(cacheBasePath), localFileCache.getCacheUsage());
 
             // fill up the cache, and have some entries evicted along the way
             for (int i = 1; i <= (maxEntries * 10); i++) {
                 final RemoteCachingPath file = rootPath.resolve("cachedOnly").resolve("cacheOnly." + (i % (maxEntries * 2)) + ".file");
                 Assert.assertEquals(generateFileData(file, fileSize), readPath(localFileCache.cache(file)));
                 Assert.assertTrue(getCacheUsage(cacheBasePath) <= maxCapacity);
+                Assert.assertEquals(getCacheUsage(cacheBasePath), localFileCache.getCacheUsage());
             }
 
             final List<LocalFileCache.ScopedCacheFile> scopedCacheFiles = new ArrayList<>();
@@ -266,6 +300,8 @@ public class LocalFileCacheTest {
                 Assert.assertTrue(java.nio.file.Files.exists(scopedCacheFile.getCachePath()));
             }
             // do not close it
+            Assert.assertTrue(getCacheUsage(cacheBasePath) > maxCapacity);
+            Assert.assertEquals(getCacheUsage(cacheBasePath), localFileCache.getCacheUsage());
         }
 
         {
@@ -275,6 +311,7 @@ public class LocalFileCacheTest {
             // all files from previous opened/closed files should be treated as closed
             // so the cache usage should be below the threshold
             Assert.assertTrue(getCacheUsage(cacheBasePath) <= maxCapacity);
+            Assert.assertEquals(getCacheUsage(cacheBasePath), localFileCache.getCacheUsage());
 
             final List<LocalFileCache.ScopedCacheFile> scopedCacheFiles = new ArrayList<>();
 
@@ -305,6 +342,7 @@ public class LocalFileCacheTest {
 
             // now that all opened files are closed, the cache directory usage should be below the threshold
             Assert.assertTrue(getCacheUsage(cacheBasePath) <= maxCapacity);
+            Assert.assertEquals(getCacheUsage(cacheBasePath), localFileCache.getCacheUsage());
         }
     }
 }
