@@ -42,12 +42,13 @@ public class ShardDirIteratorTest {
 
     private static final DateTimeFormatter SHARD_VERSION_FORMAT = DateTimeFormat.forPattern(".yyyyMMddHHmmss");
     private static final DateTimeZone TIME_ZONE = DateTimeZone.forOffsetHours(-6);
-    private static final DateTime TODAY = DateTime.now(TIME_ZONE).withTimeAtStartOfDay();
+    private static final DateTime NOW = DateTime.now(TIME_ZONE);
+    private static final DateTime TODAY = NOW.withTimeAtStartOfDay();
 
     private static final Host LOCAL_HOST = new Host("localhost", 1230);
 
     private static Path shardOf(final Path datasetDir, final DateTime shardTime) {
-        return datasetDir.resolve(ShardTimeUtils.toDailyShardPrefix(shardTime) + SHARD_VERSION_FORMAT.print(DateTime.now()));
+        return datasetDir.resolve(ShardTimeUtils.toDailyShardPrefix(shardTime) + SHARD_VERSION_FORMAT.print(NOW));
     }
 
     private static ShardDir shardDirOf(final Path datasetDir, final DateTime shardTime) {
