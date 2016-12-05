@@ -1,8 +1,11 @@
 package com.indeed.flamdex.dynamic;
 
 import com.google.common.base.Function;
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.io.Closer;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermDocIterator;
@@ -62,22 +65,27 @@ public class TestDynamicFlamdexReader {
         return builder.build();
     }
 
+    private List<SegmentInfo> segmentInfos;
+
     @Before
     public void setUp() throws IOException {
         directory = temporaryFolder.getRoot().toPath();
-        final List<String> shards = ImmutableList.of("segment1", "segment2", "segment3");
-        DynamicFlamdexMetadataUtil.modifyMetadata(directory, new Function<List<String>, List<String>>() {
+        segmentInfos = ImmutableList.of(
+                new SegmentInfo(directory, "segment1", Optional.<String>absent()),
+                new SegmentInfo(directory, "segment2", Optional.<String>absent()),
+                new SegmentInfo(directory, "segment3", Optional.<String>absent()));
+        DynamicFlamdexMetadataUtil.modifyMetadata(directory, new Function<List<SegmentInfo>, List<SegmentInfo>>() {
             @Nullable
             @Override
-            public List<String> apply(@Nullable final List<String> strings) {
-                return shards;
+            public List<SegmentInfo> apply(@Nullable final List<SegmentInfo> empty) {
+                return segmentInfos;
             }
         });
         final Random random = new Random(3);
         final List<FlamdexDocWriter> writers = new ArrayList<>();
-        for (final String shard : shards) {
+        for (final SegmentInfo segmentInfo : segmentInfos) {
             writers.add(new SimpleFlamdexDocWriter(
-                    directory.resolve(shard),
+                    segmentInfo.getDirectory(),
                     new SimpleFlamdexDocWriter.Config()));
         }
         for (int i = 0; i < NUM_DOCS; ++i) {
@@ -188,23 +196,37 @@ public class TestDynamicFlamdexReader {
 
     @Test
     public void testTombstone() throws IOException, FlamdexOutOfMemoryException, NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException {
-        for (final String segment : new String[]{"segment1", "segment2", "segment3"}) {
-            final Path segmentPath = directory.resolve(segment);
-            final Path tombstonePath = segmentPath.resolve("tombstone");
-            try (final SegmentReader segmentReader = new SegmentReader(directory, segment)) {
-                final int numDoc = segmentReader.maxNumDocs();
-                final FastBitSet tombstone = new FastBitSet(numDoc);
-                for (int docId = 0; docId < numDoc; ++docId) {
-                    final int n = restoreNum(segmentReader, docId);
-                    if ((n % 5) == 4) {
-                        tombstone.set(docId, true);
+        for (final SegmentInfo segmentInfo : segmentInfos) {
+            try (final Closer closer = Closer.create()) {
+                final Path segmentPath = segmentInfo.getDirectory();
+                final Path tombstonePath = segmentPath.resolve("tombstone");
+                try (final SegmentReader segmentReader = new SegmentReader(segmentInfo)) {
+                    final int numDoc = segmentReader.maxNumDocs();
+                    final FastBitSet tombstone = new FastBitSet(numDoc);
+                    for (int docId = 0; docId < numDoc; ++docId) {
+                        final int n = restoreNum(segmentReader, docId);
+                        if ((n % 5) == 4) {
+                            tombstone.set(docId, true);
+                        }
                     }
-                }
-                try (final ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(tombstonePath.toFile()))) {
-                    oos.writeObject(tombstone);
+                    try (final ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(tombstonePath.toFile()))) {
+                        oos.writeObject(tombstone);
+                    }
                 }
             }
         }
+        DynamicFlamdexMetadataUtil.modifyMetadata(directory, new Function<List<SegmentInfo>, List<SegmentInfo>>() {
+            @Nullable
+            @Override
+            public List<SegmentInfo> apply(@Nullable final List<SegmentInfo> segmentInfo) {
+                final List<SegmentInfo> newSegmentInfo = new ArrayList<>();
+                for (final SegmentInfo data : Preconditions.checkNotNull(segmentInfo)) {
+                    newSegmentInfo.add(new SegmentInfo(data.getShardDirectory(), data.getName(), Optional.of("tombstone")));
+                }
+                return newSegmentInfo;
+            }
+        });
+
         try (final FlamdexReader flamdexReader = new DynamicFlamdexReader(directory)) {
             final int[] okBit = new int[flamdexReader.getNumDocs()];
             {

@@ -33,6 +33,8 @@ public final class MultiThreadFileLockUtil {
     private static MultiThreadFileLock getReadWriteLockImpl(@Nonnull final Path path) throws IOException {
         final File file = path.toFile();
         //noinspection ResultOfMethodCallIgnored
+        file.getParentFile().mkdirs();
+        //noinspection ResultOfMethodCallIgnored
         file.createNewFile();
         final String canonicalPath = file.getCanonicalPath();
         try {

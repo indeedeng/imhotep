@@ -65,6 +65,8 @@ public final class FileLockUtil {
 
     @Nonnull
     public static FileLockWithChannel lock(final boolean shared, @Nonnull final Path path) throws IOException {
+        //noinspection ResultOfMethodCallIgnored
+        path.toFile().getParentFile().mkdirs();
         final FileChannel fileChannel = openChannel(shared, path);
         try {
             return new FileLockWithChannel(fileChannel.lock(0, Long.MAX_VALUE, shared));
