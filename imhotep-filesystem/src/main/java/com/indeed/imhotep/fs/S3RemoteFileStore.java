@@ -20,12 +20,14 @@ import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.ListObjectsRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.NoSuchFileException;
+import java.nio.file.NotDirectoryException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,6 +48,8 @@ class S3RemoteFileStore extends RemoteFileStore {
         final BasicAWSCredentials cred = new BasicAWSCredentials(s3key, s3secret);
 
         client = new AmazonS3Client(cred);
+        final List<S3ObjectSummary> rootListing = getListing(s3prefix + DELIMITER, 1, true).getObjectSummaries();
+        Preconditions.checkState(!rootListing.isEmpty(), "Could not find S3 common prefix " + s3prefix);
     }
 
     private ObjectListing getListing(final String s3path, final int maxResults, final boolean recursive) {
@@ -79,19 +83,32 @@ class S3RemoteFileStore extends RemoteFileStore {
         final List<RemoteFileAttributes> results = new ArrayList<>();
 
         ObjectListing listing = getListing(s3DirPath, -1, false);
-        do {
-            // grab first set of keys for the object we found
+        while (true) {
+            // get files
             for (final S3ObjectSummary summary : listing.getObjectSummaries()) {
                 final String filename = summary.getKey().substring(s3DirPath.length());
                 results.add(new RemoteFileAttributes(path.resolve(filename), summary.getSize(), true));
             }
-            // add the common prefixes
+            // get directories
             for (final String prefix : listing.getCommonPrefixes()) {
                 final String dirname = prefix.substring(s3DirPath.length(), prefix.length() - 1);
                 results.add(new RemoteFileAttributes(path.resolve(dirname), -1, false));
             }
-            listing = getListing(s3DirPath, -1, false);
-        } while (listing.isTruncated());
+
+            if (listing.isTruncated()) {
+                listing = client.listNextBatchOfObjects(listing);
+            } else {
+                break;
+            }
+        }
+
+        if (results.isEmpty()) {
+            if (readFileInfo(path) != null) {
+                throw new NotDirectoryException("Directory " + path + " not found");
+            } else {
+                throw new NoSuchFileException("Directory " + path + " not found");
+            }
+        }
 
         return results;
     }
@@ -111,7 +128,7 @@ class S3RemoteFileStore extends RemoteFileStore {
     @Nullable
     private RemoteFileAttributes readFileInfo(final RemoteCachingPath path) {
         final String s3path = getS3path(path);
-        final ObjectListing listing = getListing(s3path, 1, true);
+        final ObjectListing listing = getListing(s3path, 1, false);
 
         final List<S3ObjectSummary> summaries = listing.getObjectSummaries();
         for (final S3ObjectSummary summary : summaries) {
@@ -152,7 +169,7 @@ class S3RemoteFileStore extends RemoteFileStore {
 
     @Override
     public InputStream newInputStream(final RemoteCachingPath path, final long startOffset, final long length) throws
-                                                                                  IOException {
+            IOException {
         final String s3path = getS3path(path);
 
         final GetObjectRequest request = new GetObjectRequest(s3bucket, s3path);
@@ -165,7 +182,11 @@ class S3RemoteFileStore extends RemoteFileStore {
         try {
             return client.getObject(request).getObjectContent();
         } catch (final AmazonS3Exception e) {
-            throw new IOException("Failed to open input stream for " + path, e);
+            if ("NoSuchKey".equals(e.getErrorCode())) {
+                throw new NoSuchFileException(path.toString(), s3path, e.toString());
+            } else {
+                throw new IOException("Failed to open input stream for " + path, e);
+            }
         }
     }
 
