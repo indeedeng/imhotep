@@ -154,7 +154,8 @@ public class DatasetShardAssignmentRefresherTest {
                 tempDir.newFolder("sqar"),
                 tempDir.newFolder("cache"),
                 tempDir.newFolder("local-store"),
-                URI.create("hdfs:/var/imhotep")
+                URI.create("hdfs:/var/imhotep"),
+                new RemoteCachingFileSystemTestContext.TestS3Endpoint()
         );
         final File fsProp = getConfigAsFile(fsConfig, tempDir);
 
