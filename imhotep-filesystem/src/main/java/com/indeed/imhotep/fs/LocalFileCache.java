@@ -1,13 +1,12 @@
 package com.indeed.imhotep.fs;
 
 import com.google.common.base.Preconditions;
+import com.google.common.cache.AbstractCache;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.common.cache.RemovalListener;
-import com.google.common.cache.RemovalNotification;
-import com.google.common.cache.Weigher;
+import com.indeed.util.core.Pair;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import org.apache.log4j.Logger;
 
@@ -18,8 +17,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author kenh
@@ -28,6 +32,8 @@ import java.util.concurrent.ExecutionException;
 class LocalFileCache {
     private static final Logger LOGGER = Logger.getLogger(LocalFileCache.class);
     private final Path cacheRootDir;
+    private final long diskSpaceCapacity;
+    private final AtomicLong diskSpaceUsage = new AtomicLong(0);
     private final Object2IntOpenHashMap<RemoteCachingPath> fileUseCounter;
     private final Cache<RemoteCachingPath, FileCacheEntry> unusedFilesCache;
     private final LoadingCache<RemoteCachingPath, FileCacheEntry> referencedFilesCache;
@@ -35,33 +41,12 @@ class LocalFileCache {
 
     LocalFileCache(final RemoteCachingFileSystem fs, final Path cacheRootDir, final long diskSpaceCapacity, final CacheFileLoader cacheFileLoader) throws IOException {
         this.cacheRootDir = cacheRootDir;
+        this.diskSpaceCapacity = diskSpaceCapacity;
 
         fileUseCounter = new Object2IntOpenHashMap<>();
         fileUseCounter.defaultReturnValue(0);
 
-        unusedFilesCache = CacheBuilder.<RemoteCachingPath, FileCacheEntry>newBuilder()
-                .maximumWeight(diskSpaceCapacity)
-                .weigher(new Weigher<RemoteCachingPath, FileCacheEntry>() {
-                    @Override
-                    public int weigh(final RemoteCachingPath path, final FileCacheEntry value) {
-                        return value.fileSize;
-                    }
-                })
-                .removalListener(new RemovalListener<RemoteCachingPath, FileCacheEntry>() {
-                    @Override
-                    public void onRemoval(final RemovalNotification<RemoteCachingPath, FileCacheEntry> removalNotification) {
-                        if (removalNotification.wasEvicted()) {
-                            // we only need to delete the cache if the entry was pushed out
-                            final Path cachePath = removalNotification.getValue().cachePath;
-                            try {
-                                Files.delete(cachePath);
-                            } catch (final IOException e) {
-                                LOGGER.error("Failed to delete evicted local cache " + cachePath, e);
-                            }
-                        }
-                    }
-                })
-                .build();
+        unusedFilesCache = new UnusedFileCache();
 
         referencedFilesCache = CacheBuilder.newBuilder()
                 .build(new CacheLoader<RemoteCachingPath, FileCacheEntry>() {
@@ -82,14 +67,30 @@ class LocalFileCache {
                             throw new IOException("Failed to place cache file under " + cachePath);
                         }
 
+                        final int fileSize = (int) Files.size(cachePath);
+
+                        diskSpaceUsage.addAndGet(fileSize);
+                        unusedFilesCache.cleanUp();
+
                         return new FileCacheEntry(
                                 cachePath,
-                                (int) Files.size(cachePath)
+                                fileSize
                         );
                     }
                 });
 
         initialize(fs);
+    }
+
+    private void evictCacheFile(final FileCacheEntry entry) {
+        // we only need to delete the cache if the entry was pushed out
+        final Path cachePath = entry.cachePath;
+        try {
+            Files.delete(cachePath);
+            diskSpaceUsage.addAndGet(-entry.fileSize);
+        } catch (final IOException e) {
+            LOGGER.error("Failed to delete evicted local cache " + cachePath, e);
+        }
     }
 
     private void initialize(final RemoteCachingFileSystem fs) throws IOException {
@@ -104,6 +105,7 @@ class LocalFileCache {
                     final long localCacheSize = Files.size(cachePath);
                     final RemoteCachingPath path = RemoteCachingPath.resolve(RemoteCachingPath.getRoot(fs), cacheRootDir.relativize(cachePath));
 
+                    diskSpaceUsage.addAndGet(localCacheSize);
                     unusedFilesCache.put(path, new FileCacheEntry(cachePath, (int) localCacheSize));
 
                     return FileVisitResult.CONTINUE;
@@ -138,6 +140,14 @@ class LocalFileCache {
                 return openedCacheFile.cachePath;
             }
         }
+    }
+
+    /**
+     * get the local cache disk space usage
+     * @return the usage in bytes
+     */
+    long getCacheUsage() {
+        return diskSpaceUsage.get();
     }
 
     private void incFileUsageRef(final RemoteCachingPath path) {
@@ -253,5 +263,53 @@ class LocalFileCache {
 
     interface CacheFileLoader {
         void load(final RemoteCachingPath src, final Path dest) throws IOException;
+    }
+
+    private class UnusedFileCache extends AbstractCache<RemoteCachingPath, FileCacheEntry> {
+        private final Map<RemoteCachingPath, Pair<FileCacheEntry, Long>> map = new HashMap<>();
+        private long epochCounter;
+        private final Deque<Pair<RemoteCachingPath, Long>> entriesByInsertOrder = new LinkedList<>();
+
+        @Override
+        public synchronized void cleanUp() {
+            while ((diskSpaceUsage.get() > diskSpaceCapacity) && !entriesByInsertOrder.isEmpty()) {
+                final Pair<RemoteCachingPath, Long> element = entriesByInsertOrder.poll();
+                final RemoteCachingPath path = element.getFirst();
+                final Pair<FileCacheEntry, Long> entry = map.get(path);
+                if ((entry != null) && (entry.getSecond().longValue() == element.getSecond().longValue())) {
+                    evictCacheFile(entry.getFirst());
+                    map.remove(path);
+                }
+            }
+        }
+
+        @Override
+        public synchronized void put(final RemoteCachingPath key, final FileCacheEntry value) {
+            final long epoch = epochCounter++;
+            map.put(key, Pair.of(value, epoch));
+            entriesByInsertOrder.addLast(Pair.of(key, epoch));
+
+            cleanUp();
+        }
+
+        @Override
+        public synchronized void invalidateAll() {
+            map.clear();
+        }
+
+        @Override
+        public synchronized void invalidate(final Object key) {
+            map.remove(key);
+        }
+
+        @Override
+        public synchronized FileCacheEntry getIfPresent(final Object key) {
+            final Pair<FileCacheEntry, Long> entry = map.get(key);
+            if (entry != null) {
+                return entry.getFirst();
+            } else {
+                return null;
+            }
+        }
     }
 }
