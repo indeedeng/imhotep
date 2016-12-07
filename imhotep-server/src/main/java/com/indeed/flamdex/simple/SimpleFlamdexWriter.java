@@ -560,9 +560,18 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
         }
     }
 
-    public static void addField(Path dir, String fieldName, FlamdexReader r, final long[] cache) throws IOException {
-        final Path tempPath = dir.resolve(
-                "temp-" + fieldName + "-" + UUID.randomUUID() + ".intarray.bin");
+    /**
+     * use {@link #addField(Path, String, FlamdexReader, long[])} instead
+     */
+    @Deprecated
+    public static void addField(String dir, String fieldName, FlamdexReader r, final long[] cache)
+            throws IOException {
+        addField(Paths.get(dir), fieldName, r, cache);
+    }
+
+    public static void addField(Path dir, String fieldName, FlamdexReader r, final long[] cache)
+            throws IOException {
+        final Path tempPath = dir.resolve("temp-" + fieldName + "-" + UUID.randomUUID() + ".intarray.bin");
 
         final Closer closer = Closer.create();
         try {
@@ -624,6 +633,17 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
             }
             Closeables2.closeQuietly(closer, log);
         }
+    }
+
+    /**
+     * use {@link #addField(Path, String, FlamdexReader, String[])} instead
+     */
+    @Deprecated
+    public static void addField(String indexDir,
+                                String newFieldName,
+                                FlamdexReader docReader,
+                                final String[] values) throws IOException {
+        addField(Paths.get(indexDir), newFieldName, docReader, values);
     }
 
     public static void addField(Path indexDir,

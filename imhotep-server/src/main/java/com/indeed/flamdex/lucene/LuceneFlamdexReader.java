@@ -35,6 +35,7 @@ import java.io.InputStream;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.Collection;
 import java.util.Collections;
@@ -50,14 +51,31 @@ public class LuceneFlamdexReader extends AbstractFlamdexReader {
     protected final Collection<String> stringFields;
     private final ListMultimap<Path, InputStream> trackedInputStreams = ArrayListMultimap.create();
 
-    public LuceneFlamdexReader(final Path directory) throws IOException {
-        this(directory, null, null);
+    /**
+     * use {@link #LuceneFlamdexReader(Path)} instead
+     */
+    @Deprecated
+    public LuceneFlamdexReader(final String directory) throws IOException {
+        this(Paths.get(directory));
     }
 
-    public LuceneFlamdexReader(final Path directory,
+    public LuceneFlamdexReader( final Path directory) throws IOException {
+            this(directory, null, null);
+    }
+
+    /**
+     * use {@link #LuceneFlamdexReader(Path, Collection, Collection)} instead
+     */
+    @Deprecated
+    public LuceneFlamdexReader(final String directory,
                                @Nullable  final Collection<String> intFields,
                                @Nullable  final Collection<String> stringFields) throws IOException {
-        super(directory);
+        this(Paths.get(directory), intFields, stringFields);
+    }
+
+    public LuceneFlamdexReader( final Path directory, @Nullable final Collection<String> intFields,
+        @Nullable final Collection<String> stringFields) throws IOException {
+            super(directory);
 
         // verify the directory is valid
         trackDirectory(directory);

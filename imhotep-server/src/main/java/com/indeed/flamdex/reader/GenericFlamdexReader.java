@@ -43,6 +43,7 @@ import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Path;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Collection;
 
 /**
@@ -73,8 +74,16 @@ public final class GenericFlamdexReader implements FlamdexReader {
         this.stringFields = stringFields;
     }
 
-    public static FlamdexReader open(Path directory) throws IOException {
-        final FlamdexReader r = internalOpen(directory);
+    /**
+     * use {@link #open(Path)} instead
+     */
+    @Deprecated
+    public static FlamdexReader open(String directory) throws IOException {
+        return open(Paths.get(directory));
+    }
+
+    public static FlamdexReader open (Path directory) throws IOException {
+            final FlamdexReader r = internalOpen(directory);
         if (RamsesFlamdexWrapper.ramsesFilesExist(directory)) {
             return new RamsesFlamdexWrapper(r, directory);
         }
@@ -113,10 +122,17 @@ public final class GenericFlamdexReader implements FlamdexReader {
     }
 
 
-    public static GenericFlamdexReader open(
-            Path directory,
-            GenericFlamdexFactory factory
-            ) throws IOException {
+    /**
+     * use {@link #open(Path, GenericFlamdexFactory)} instead
+     */
+    @Deprecated
+    public static GenericFlamdexReader open(String directory, GenericFlamdexFactory factory)
+            throws IOException {
+        return open(Paths.get(directory), factory);
+    }
+
+    public static GenericFlamdexReader open(Path directory, GenericFlamdexFactory factory)
+            throws IOException {
         final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(directory);
         return new GenericFlamdexReader(directory,
                                         factory,
