@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -49,6 +50,14 @@ public final class SimpleFlamdexDocWriter implements FlamdexDocWriter {
 
     private MemoryFlamdex currentBuffer = new MemoryFlamdex();
     private String currentSegment = "_0";
+
+    /**
+     * use {@link #SimpleFlamdexDocWriter(Path, Config)} instead
+     */
+    @Deprecated
+    public SimpleFlamdexDocWriter(String outputDirectory, Config config) throws IOException {
+        this(Paths.get(outputDirectory), config);
+    }
 
     public SimpleFlamdexDocWriter(Path outputDirectory, Config config) throws IOException {
         createOutputDir(outputDirectory);
