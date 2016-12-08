@@ -3,7 +3,7 @@ package com.indeed.flamdex.dynamic;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.TermIterator;
 import com.indeed.util.core.io.Closeables2;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntArrayFIFOQueue;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
@@ -17,13 +17,13 @@ import java.util.List;
 class MergedDocIdStream implements DocIdStream {
     private static final Logger LOG = Logger.getLogger(MergedDocIdStream.class);
     private final List<DocIdStream> docIdStreams;
-    private final IntArrayList currentMinimums;
+    private final IntArrayFIFOQueue currentMinimums;
     private final int[] offsets;
 
     MergedDocIdStream(@Nonnull final List<DocIdStream> docIdStreams, @Nonnull final int[] offsets) {
         this.docIdStreams = docIdStreams;
         this.offsets = offsets;
-        this.currentMinimums = new IntArrayList(docIdStreams.size());
+        this.currentMinimums = new IntArrayFIFOQueue(docIdStreams.size());
     }
 
     @Override
@@ -32,7 +32,7 @@ class MergedDocIdStream implements DocIdStream {
         currentMinimums.clear();
         for (final int minimum : mergedTermIterator.getCurrentMinimums()) {
             docIdStreams.get(minimum).reset(mergedTermIterator.getInnerTermIterator(minimum));
-            currentMinimums.push(minimum);
+            currentMinimums.enqueue(minimum);
         }
     }
 
@@ -41,20 +41,20 @@ class MergedDocIdStream implements DocIdStream {
         if (currentMinimums.isEmpty()) {
             return 0;
         }
-        int numFilled = docIdStreams.get(currentMinimums.topInt()).fillDocIdBuffer(docIdBuffer);
+        int numFilled = docIdStreams.get(currentMinimums.firstInt()).fillDocIdBuffer(docIdBuffer);
         for (int i = 0; i < numFilled; ++i) {
-            docIdBuffer[i] += offsets[currentMinimums.topInt()];
+            docIdBuffer[i] += offsets[currentMinimums.firstInt()];
         }
         while (numFilled < docIdBuffer.length) {
-            currentMinimums.popInt();
+            currentMinimums.dequeueInt();
             if (currentMinimums.isEmpty()) {
                 break;
             }
             final int required = docIdBuffer.length - numFilled;
             final int[] temporaryBuffer = new int[required];
-            final int additional = docIdStreams.get(currentMinimums.topInt()).fillDocIdBuffer(temporaryBuffer);
+            final int additional = docIdStreams.get(currentMinimums.firstInt()).fillDocIdBuffer(temporaryBuffer);
             for (int tmpIndex = 0; tmpIndex < additional; ++tmpIndex) {
-                docIdBuffer[numFilled] = temporaryBuffer[tmpIndex] + offsets[currentMinimums.topInt()];
+                docIdBuffer[numFilled] = temporaryBuffer[tmpIndex] + offsets[currentMinimums.firstInt()];
                 numFilled++;
             }
         }

@@ -3,6 +3,7 @@ package com.indeed.flamdex.dynamic;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.util.core.io.Closeables2;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntArrays;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.objects.ObjectHeapSemiIndirectPriorityQueue;
 import org.apache.log4j.Logger;
@@ -21,7 +22,7 @@ class MergedStringTermIterator implements MergedTermIterator, StringTermIterator
     private final List<StringTermIterator> stringTermIterators;
     // We have to store iterators which have 'currentTerm' as that status to be able to do MergedDocIdStream#reset(MergedTermIterator).
     // this is the indices which satisfies currentTerms[i] == currentTerm, which is removed from priority queue until the next call of next().
-    private final IntList currentMinimums;
+    private final IntArrayList currentMinimums;
     private String currentTerm;
     private int currentTermFreq;
     private final String[] currentTerms;
@@ -63,6 +64,7 @@ class MergedStringTermIterator implements MergedTermIterator, StringTermIterator
                 currentMinimums.add(i);
             }
         }
+        IntArrays.quickSort(currentMinimums.elements(), 0, currentMinimums.size());
     }
 
     @Nonnull
