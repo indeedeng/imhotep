@@ -8,7 +8,6 @@ import com.google.common.cache.LoadingCache;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.concurrent.ExecutionException;
 
 /**

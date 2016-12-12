@@ -3,8 +3,8 @@ package com.indeed.flamdex.dynamic;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
@@ -71,11 +71,11 @@ public class TestDynamicFlamdexReader {
     @Before
     public void setUp() throws IOException {
         directory = temporaryFolder.getRoot().toPath();
-        segmentInfos = ImmutableList.of(
-                new SegmentInfo(directory, "segment1", Optional.<String>absent()),
-                new SegmentInfo(directory, "segment2", Optional.<String>absent()),
-                new SegmentInfo(directory, "segment3", Optional.<String>absent()),
-                new SegmentInfo(directory, "segment4", Optional.<String>absent()) // empty segment
+        segmentInfos = Lists.newArrayList(
+                new SegmentInfo(directory, "segment1", 0, Optional.<String>absent()),
+                new SegmentInfo(directory, "segment2", 0, Optional.<String>absent()),
+                new SegmentInfo(directory, "segment3", 0, Optional.<String>absent()),
+                new SegmentInfo(directory, "segment4", 0, Optional.<String>absent()) // empty segment
         );
         DynamicFlamdexMetadataUtil.modifyMetadata(directory, new Function<List<SegmentInfo>, List<SegmentInfo>>() {
             @Nullable
@@ -91,12 +91,26 @@ public class TestDynamicFlamdexReader {
                     segmentInfo.getDirectory(),
                     new SimpleFlamdexDocWriter.Config()));
         }
+        final int[] numDocs = new int[segmentInfos.size()];
         for (int i = 0; i < NUM_DOCS; ++i) {
-            writers.get(random.nextInt(writers.size() - 1)).addDocument(makeDocument(i));
+            final int segment = random.nextInt(writers.size() - 1);
+            ++numDocs[segment];
+            writers.get(segment).addDocument(makeDocument(i));
         }
         for (final FlamdexDocWriter writer : writers) {
             writer.close();
         }
+        for (int i = 0; i < segmentInfos.size(); ++i) {
+            final SegmentInfo old = segmentInfos.get(i);
+            segmentInfos.set(i, new SegmentInfo(old.getShardDirectory(), old.getName(), numDocs[i], Optional.<String>absent()));
+        }
+        DynamicFlamdexMetadataUtil.modifyMetadata(directory, new Function<List<SegmentInfo>, List<SegmentInfo>>() {
+            @Nullable
+            @Override
+            public List<SegmentInfo> apply(@Nullable final List<SegmentInfo> empty) {
+                return segmentInfos;
+            }
+        });
     }
 
     @Test
@@ -224,7 +238,7 @@ public class TestDynamicFlamdexReader {
             public List<SegmentInfo> apply(@Nullable final List<SegmentInfo> segmentInfo) {
                 final List<SegmentInfo> newSegmentInfo = new ArrayList<>();
                 for (final SegmentInfo data : Preconditions.checkNotNull(segmentInfo)) {
-                    newSegmentInfo.add(new SegmentInfo(data.getShardDirectory(), data.getName(), Optional.of("tombstoneSet")));
+                    newSegmentInfo.add(new SegmentInfo(data.getShardDirectory(), data.getName(), data.getNumDocs(), Optional.of("tombstoneSet")));
                 }
                 return newSegmentInfo;
             }

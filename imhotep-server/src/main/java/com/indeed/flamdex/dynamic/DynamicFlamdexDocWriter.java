@@ -210,14 +210,14 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
 
                 final SegmentInfo newSegmentInfo;
                 if (this.removedDocIds.isEmpty()) {
-                    newSegmentInfo = new SegmentInfo(this.shardDirectory, segmentName, Optional.<String>absent());
+                    newSegmentInfo = new SegmentInfo(this.shardDirectory, segmentName, this.memoryFlamdex.getNumDocs(), Optional.<String>absent());
                 } else {
                     final FastBitSet tombstoneSet = new FastBitSet(this.memoryFlamdex.getNumDocs());
                     for (final IntIterator iterator = this.removedDocIds.iterator(); iterator.hasNext(); ) {
                         tombstoneSet.set(iterator.nextInt());
                     }
                     final String tombstoneSetFileName = outputTombstoneSet(segmentDirectory, segmentName, tombstoneSet);
-                    newSegmentInfo = new SegmentInfo(this.shardDirectory, segmentName, Optional.of(tombstoneSetFileName));
+                    newSegmentInfo = new SegmentInfo(this.shardDirectory, segmentName, this.memoryFlamdex.getNumDocs(), Optional.of(tombstoneSetFileName));
                 }
 
                 if (removeQueries.isEmpty()) {
@@ -242,7 +242,7 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
                         final Optional<FastBitSet> updatedTombstoneSet = segmentReader.getUpdatedTombstoneSet(query);
                         if (updatedTombstoneSet.isPresent()) {
                             final String tombstoneSetFileName = outputTombstoneSet(segmentReader.getDirectory(), segmentName, updatedTombstoneSet.get());
-                            final SegmentInfo segmentInfo = new SegmentInfo(this.shardDirectory, segmentReader.getSegmentInfo().getName(), Optional.of(tombstoneSetFileName));
+                            final SegmentInfo segmentInfo = new SegmentInfo(this.shardDirectory, segmentReader.getSegmentInfo().getName(), segmentReader.maxNumDocs(), Optional.of(tombstoneSetFileName));
                             //noinspection OptionalGetWithoutIsPresent
                             closerOnFailure.register(new DeleteOnClose(segmentInfo.getTombstoneSetPath().get()));
                             newSegments.add(segmentInfo);

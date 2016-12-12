@@ -41,8 +41,12 @@ public class DynamicFlamdexReader implements FlamdexReader {
     private final int[] offsets;
 
     public DynamicFlamdexReader(@Nonnull final Path directory) throws IOException {
+        this(directory, DynamicFlamdexMetadataUtil.openSegmentReaders(directory));
+    }
+
+    DynamicFlamdexReader(@Nonnull final Path directory, @Nonnull final List<SegmentReader> segmentReaders) {
         this.directory = directory;
-        this.segmentReaders = DynamicFlamdexMetadataUtil.openSegmentReaders(this.directory);
+        this.segmentReaders = segmentReaders;
         this.offsets = new int[segmentReaders.size() + 1];
         for (int i = 0; i < segmentReaders.size(); ++i) {
             this.offsets[i + 1] = this.offsets[i] + this.segmentReaders.get(i).maxNumDocs();

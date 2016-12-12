@@ -3,8 +3,10 @@ package com.indeed.flamdex.dynamic;
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Ordering;
 import com.google.common.io.Files;
 import com.indeed.flamdex.dynamic.locks.MultiThreadFileLockUtil;
 import com.indeed.flamdex.dynamic.locks.MultiThreadLock;
@@ -16,6 +18,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * @author michihiko
@@ -30,21 +33,21 @@ final class DynamicFlamdexMetadataUtil {
     }
 
     // Don't forget to read-lock or write-lock the matadata.
-    private static ImmutableList<SegmentInfo> readSegments(@Nonnull final MultiThreadLock lock, @Nonnull final Path directory) throws IOException {
+    private static ImmutableList<SegmentInfo> readMetadata(@Nonnull final MultiThreadLock lock, @Nonnull final Path directory) throws IOException {
         Preconditions.checkArgument(!lock.isClosed());
         return FluentIterable.from(Files.asCharSource(directory.resolve(METADATA_FILENAME).toFile(), Charsets.UTF_8).readLines()).transform(new Function<String, SegmentInfo>() {
             @Override
             public SegmentInfo apply(final String line) {
                 return SegmentInfo.decodeFromLine(directory, line);
             }
-        }).toList();
+        }).toSortedList(Ordering.<SegmentInfo>natural().reverse());
     }
 
-    private static void writeSegments(@Nonnull final MultiThreadLock lock, @Nonnull final Path directory, @Nonnull final List<SegmentInfo> segmentInfos) throws IOException {
+    private static void writeMetadata(@Nonnull final MultiThreadLock lock, @Nonnull final Path directory, @Nonnull final List<SegmentInfo> segmentInfos) throws IOException {
         Preconditions.checkArgument(!lock.isClosed());
         Preconditions.checkArgument(!lock.isShared());
         Files.asCharSink(directory.resolve(METADATA_FILENAME).toFile(), Charsets.UTF_8).writeLines(
-                FluentIterable.from(segmentInfos).transform(new Function<SegmentInfo, String>() {
+                FluentIterable.from(Ordering.natural().reverse().sortedCopy(segmentInfos)).transform(new Function<SegmentInfo, String>() {
                     @Override
                     public String apply(final SegmentInfo segmentInfo) {
                         return segmentInfo.encodeAsLine();
@@ -53,12 +56,19 @@ final class DynamicFlamdexMetadataUtil {
     }
 
     @Nonnull
+    static ImmutableList<SegmentInfo> getMetadata(@Nonnull final Path directory) throws IOException {
+        try (final MultiThreadLock lock = MultiThreadFileLockUtil.readLock(directory, METADATA_FILENAME)) {
+            return readMetadata(lock, directory);
+        }
+    }
+
+    @Nonnull
     static ImmutableList<SegmentReader> openSegmentReaders(@Nonnull final Path directory) throws IOException {
         try (final MultiThreadLock lock = MultiThreadFileLockUtil.readLock(directory, METADATA_FILENAME)) {
-            final List<SegmentInfo> segmentInfos = readSegments(lock, directory);
+            final List<SegmentInfo> metadata = readMetadata(lock, directory);
             final ImmutableList.Builder<SegmentReader> segmentReaderBuilder = ImmutableList.builder();
             try {
-                for (final SegmentInfo segmentInfo : segmentInfos) {
+                for (final SegmentInfo segmentInfo : metadata) {
                     final SegmentReader segmentReader = new SegmentReader(segmentInfo);
                     segmentReaderBuilder.add(segmentReader);
                 }
@@ -71,9 +81,9 @@ final class DynamicFlamdexMetadataUtil {
 
     static void modifyMetadata(@Nonnull final Path directory, @Nonnull final Function<List<SegmentInfo>, List<SegmentInfo>> metadataUpdater) throws IOException {
         try (final MultiThreadLock lock = MultiThreadFileLockUtil.writeLock(directory, METADATA_FILENAME)) {
-            final List<SegmentInfo> before = new ArrayList<>(readSegments(lock, directory));
+            final List<SegmentInfo> before = new ArrayList<>(readMetadata(lock, directory));
             final List<SegmentInfo> after = Preconditions.checkNotNull(metadataUpdater.apply(before));
-            writeSegments(lock, directory, after);
+            writeMetadata(lock, directory, after);
         }
     }
 

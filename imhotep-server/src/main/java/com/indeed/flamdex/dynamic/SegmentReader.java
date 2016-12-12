@@ -51,6 +51,10 @@ class SegmentReader implements FlamdexReader {
         return this.segmentInfo;
     }
 
+    boolean isDeleted(final int docId) {
+        return tombstoneSet.isPresent() && tombstoneSet.get().get(docId);
+    }
+
     @Nonnull
     Optional<FastBitSet> getUpdatedTombstoneSet(@Nonnull final Query query) {
         final FlamdexSearcher flamdexSearcher = new FlamdexSearcher(flamdexReader);
