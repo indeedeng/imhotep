@@ -1518,7 +1518,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             if (split.length < 2) {
                 throw new IllegalArgumentException("invalid hasint metric: " + statName);
             }
-            statLookup.set(numStats, statName, hasIntTermFilter(split[0], Integer.parseInt(split[1])));
+            statLookup.set(numStats, statName, hasIntTermFilter(split[0], Long.parseLong(split[1])));
         } else if (statName.startsWith("hasstrfield ")) {
             final String field = statName.substring("hasstrfield ".length()).trim();
             statLookup.set(numStats, statName, hasStringFieldFilter(field));
