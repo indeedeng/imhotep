@@ -41,7 +41,7 @@ class StringRangeQueryEvaluator implements QueryEvaluator {
 
     private static boolean isInt(String s) {
         try {
-            return Integer.parseInt(s) >= 0;
+            return Long.parseLong(s) >= 0;
         } catch (NumberFormatException e) {
             return false;
         }
@@ -102,8 +102,8 @@ class StringRangeQueryEvaluator implements QueryEvaluator {
     }
 
     private void doIntRangeQuery(FlamdexReader r, FastBitSet bitSet) {
-        final int min = Integer.parseInt(startTerm.getTermStringVal());
-        final int max = Integer.parseInt(endTerm.getTermStringVal());
+        final long min = Long.parseLong(startTerm.getTermStringVal());
+        final long max = Long.parseLong(endTerm.getTermStringVal());
 
         final StringTermIterator iterator = r.getStringTermIterator(startTerm.getFieldName());
         try {
@@ -111,9 +111,9 @@ class StringRangeQueryEvaluator implements QueryEvaluator {
             try {
                 final int[] docIdBuffer = new int[BUFFER_SIZE];
                 while (iterator.next()) {
-                    final int termIntVal;
+                    final long termIntVal;
                     try {
-                        termIntVal = Integer.parseInt(iterator.term());
+                        termIntVal = Long.parseLong(iterator.term());
                     } catch (NumberFormatException e) {
                         continue;
                     }
