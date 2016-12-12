@@ -104,6 +104,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
 import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.lang.IllegalClassException;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
@@ -1532,6 +1533,13 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 throw new IllegalArgumentException("invalid regex metric: " + statName);
             }
             statLookup.set(numStats, statName, hasRegexFilter(split[0], split[1]));
+        } else if (statName.startsWith("fieldequal ")) {
+            final String s = statName.substring("fieldequal ".length()).trim();
+            final String[] split = s.split("=");
+            if (split.length != 2) {
+                throw new IllegalArgumentException("invalid field equal: " + statName);
+            }
+            statLookup.set(numStats, statName, fieldEqualFilter(split[0], split[1]));
         } else if (statName.startsWith("regexmatch ")) {
             final Matcher matcher = REGEXPMATCH_COMMAND.matcher(statName);
             if (!matcher.matches()) {
@@ -2625,6 +2633,19 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
         return new BitSetIntValueLookup(
                 FlamdexUtils.cacheRegex(field, regex, flamdexReader),
+                memoryUsage
+        );
+    }
+
+    private IntValueLookup fieldEqualFilter(String field1, String field2) throws ImhotepOutOfMemoryException {
+        final long memoryUsage = getBitSetMemoryUsage();
+
+        if (!memory.claimMemory(memoryUsage)) {
+            throw new ImhotepOutOfMemoryException();
+        }
+
+        return new BitSetIntValueLookup(
+                FlamdexUtils.cacheFieldEqual(field1, field2, flamdexReader),
                 memoryUsage
         );
     }

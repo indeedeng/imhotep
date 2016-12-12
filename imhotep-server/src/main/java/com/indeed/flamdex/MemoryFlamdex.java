@@ -140,7 +140,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
 
     @Override
     public IntTermIterator getIntTermIterator(String field) {
-        return new MemoryIntTermIterator(field);
+        return intFields.containsKey(field) ? new MemoryIntTermIterator(field) : new MemoryIntTermIterator();
     }
 
     @Override
@@ -150,7 +150,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
 
     @Override
     public StringTermIterator getStringTermIterator(String field) {
-        return new MemoryStringTermIterator(field);
+        return stringFields.containsKey(field) ? new MemoryStringTermIterator(field) : new MemoryStringTermIterator();
     }
 
     @Override
@@ -814,6 +814,11 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
             keys = map.long2ObjectEntrySet().iterator();
         }
 
+        private MemoryIntTermIterator() {
+            map = new Long2ObjectRBTreeMap<>();
+            keys = map.long2ObjectEntrySet().iterator();
+        }
+
         @Override
         public void reset(long term) {
             keys = map.tailMap(term).long2ObjectEntrySet().iterator();
@@ -861,6 +866,11 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
 
         private MemoryStringTermIterator(final String field) {
             map = stringFields.get(field);
+            keys = map.entrySet().iterator();
+        }
+
+        private MemoryStringTermIterator() {
+            map = new TreeMap<>();
             keys = map.entrySet().iterator();
         }
 
