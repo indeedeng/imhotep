@@ -5,6 +5,7 @@ import com.google.common.base.Preconditions;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
@@ -24,9 +25,9 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 class MultiThreadFileLock {
     private final Path path;
     // Process-local read-write lock
-    private final ReentrantReadWriteLock threadLock;
+    private final ReentrantReadWriteLock processLocalLock;
     // absent iff there are no thread that acquires the resource currently.
-    private Optional<FileLockUtil.FileLockWithChannel> fileLock;
+    private Optional<FileChannel> fileLock;
     // Process-local exclusive lock to make sure there is only one thread going to acquire/release fileLock at the same moment.
     private final ReentrantLock fileAccessLock;
 
@@ -36,7 +37,7 @@ class MultiThreadFileLock {
 
     MultiThreadFileLock(@Nonnull final Path path, final boolean fair) {
         this.path = path;
-        this.threadLock = new ReentrantReadWriteLock(fair);
+        this.processLocalLock = new ReentrantReadWriteLock(fair);
         this.fileLock = Optional.absent();
         this.fileAccessLock = new ReentrantLock(fair);
     }
@@ -47,24 +48,24 @@ class MultiThreadFileLock {
     private void acquireFileLock(@Nonnull final Lock lock) throws IOException {
         //noinspection LockAcquiredButNotSafelyReleased
         lock.lock();
-        fileAccessLock.lock();
         try {
-            // This block takes a time =>  !fileLock.isPresent() <=> all locks had already been closed.
-            // So, this doesn't blocks unlock() method long time.
-            Preconditions.checkState(threadLock.isWriteLockedByCurrentThread() || (threadLock.getReadHoldCount() > 0));
+            fileAccessLock.lock();
             try {
-                if (threadLock.isWriteLocked()) {
+                // This block takes a time =>  !fileLock.isPresent() <=> all locks had already been closed.
+                // So, this doesn't blocks unlock() method long time.
+                Preconditions.checkState(processLocalLock.isWriteLockedByCurrentThread() || (processLocalLock.getReadHoldCount() > 0));
+                if (processLocalLock.isWriteLocked()) {
                     Preconditions.checkState(!fileLock.isPresent());
                     fileLock = Optional.of(FileLockUtil.writeLock(path));
                 } else if (!fileLock.isPresent()) {
                     fileLock = Optional.of(FileLockUtil.readLock(path));
                 }
-            } catch (final IOException e) {
-                lock.unlock();
-                throw e;
+            } finally {
+                fileAccessLock.unlock();
             }
-        } finally {
-            fileAccessLock.unlock();
+        } catch (final IOException e) {
+            lock.unlock();
+            throw e;
         }
     }
 
@@ -74,7 +75,7 @@ class MultiThreadFileLock {
     private void unlock(@Nonnull final Lock lock) throws IOException {
         fileAccessLock.lock();
         try {
-            if (threadLock.isWriteLockedByCurrentThread() || (threadLock.getReadLockCount() == 1)) {
+            if (processLocalLock.isWriteLockedByCurrentThread() || (processLocalLock.getReadLockCount() == 1)) {
                 Preconditions.checkState(fileLock.isPresent());
                 //noinspection OptionalGetWithoutIsPresent
                 fileLock.get().close();
@@ -117,21 +118,21 @@ class MultiThreadFileLock {
 
     @Nonnull
     MultiThreadLock readLock() throws IOException {
-        final Lock lock = threadLock.readLock();
+        final Lock lock = processLocalLock.readLock();
         acquireFileLock(lock);
         return new MultiThreadLockImpl(true, lock);
     }
 
     @Nonnull
     MultiThreadLock writeLock() throws IOException {
-        final Lock lock = threadLock.writeLock();
+        final Lock lock = processLocalLock.writeLock();
         acquireFileLock(lock);
         return new MultiThreadLockImpl(false, lock);
     }
 
     @Nonnull
     Optional<MultiThreadLock> tryWriteLock() throws IOException {
-        final Lock lock = threadLock.writeLock();
+        final Lock lock = processLocalLock.writeLock();
         if (!lock.tryLock()) {
             return Optional.absent();
         }

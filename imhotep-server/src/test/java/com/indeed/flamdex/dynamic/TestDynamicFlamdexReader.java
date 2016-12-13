@@ -21,11 +21,12 @@ import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.lang.reflect.InvocationTargetException;
+import java.nio.channels.ByteChannel;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -209,8 +210,8 @@ public class TestDynamicFlamdexReader {
                             tombstone.set(docId, true);
                         }
                     }
-                    try (final ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(tombstonePath.toFile()))) {
-                        oos.writeObject(tombstone);
+                    try (final ByteChannel byteChannel = Files.newByteChannel(tombstonePath, StandardOpenOption.WRITE, StandardOpenOption.CREATE)){
+                        byteChannel.write(tombstone.serialize());
                     }
                 }
             }

@@ -1,7 +1,6 @@
 package com.indeed.flamdex.dynamic;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
@@ -14,8 +13,6 @@ import com.indeed.flamdex.api.StringValueLookup;
 import com.indeed.flamdex.api.TermIterator;
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.flamdex.dynamic.locks.MultiThreadLock;
-import com.indeed.flamdex.query.Query;
-import com.indeed.flamdex.search.FlamdexSearcher;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
@@ -54,7 +51,7 @@ class SegmentReader implements FlamdexReader {
 
     @Override
     public void close() throws IOException {
-        Closeables2.closeAll(ImmutableList.of(flamdexReader, segmentReaderLock), LOG);
+        Closeables2.closeAll(LOG, flamdexReader, segmentReaderLock);
     }
 
     @Override

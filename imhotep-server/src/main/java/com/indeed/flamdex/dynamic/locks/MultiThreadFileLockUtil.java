@@ -6,7 +6,6 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 
 import javax.annotation.Nonnull;
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -31,12 +30,7 @@ public final class MultiThreadFileLockUtil {
 
     @Nonnull
     private static MultiThreadFileLock getReadWriteLockImpl(@Nonnull final Path path) throws IOException {
-        final File file = path.toFile();
-        //noinspection ResultOfMethodCallIgnored
-        file.getParentFile().mkdirs();
-        //noinspection ResultOfMethodCallIgnored
-        file.createNewFile();
-        final String canonicalPath = file.getCanonicalPath();
+        final String canonicalPath = path.normalize().toString();
         try {
             return CACHE.get(canonicalPath);
         } catch (final ExecutionException e) {

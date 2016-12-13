@@ -7,10 +7,9 @@ import com.indeed.flamdex.dynamic.locks.MultiThreadFileLockUtil;
 import com.indeed.flamdex.dynamic.locks.MultiThreadLock;
 
 import javax.annotation.Nonnull;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
+import java.nio.ByteBuffer;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
 
@@ -64,12 +63,8 @@ class SegmentInfo implements Comparable<SegmentInfo> {
         if (!tombstonePath.isPresent()) {
             return Optional.absent();
         }
-        final File tombstoneFile = tombstonePath.get().toFile();
-        try (final ObjectInputStream ois = new ObjectInputStream(new FileInputStream(tombstoneFile))) {
-            return Optional.of((FastBitSet) ois.readObject());
-        } catch (final ClassNotFoundException e) {
-            throw new IOException(e);
-        }
+        final ByteBuffer byteBuffer = ByteBuffer.wrap(Files.readAllBytes(tombstonePath.get()));
+        return Optional.of(FastBitSet.deserialize(byteBuffer));
     }
 
     @Nonnull

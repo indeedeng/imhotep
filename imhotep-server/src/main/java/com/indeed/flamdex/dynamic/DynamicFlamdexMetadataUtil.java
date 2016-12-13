@@ -12,7 +12,6 @@ import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -25,7 +24,7 @@ final class DynamicFlamdexMetadataUtil {
     private static final Logger LOG = Logger.getLogger(DynamicFlamdexMetadataUtil.class);
 
     private static final String METADATA_FILENAME = "shard.metadata.txt";
-    private static final String BUILD_SEGMENT_LOCK_FILENAME = "build.locck";
+    private static final String BUILD_SEGMENT_LOCK_FILENAME = "build.lock";
 
     private DynamicFlamdexMetadataUtil() {
     }
@@ -34,9 +33,8 @@ final class DynamicFlamdexMetadataUtil {
     private static ImmutableList<SegmentInfo> readSegments(@Nonnull final MultiThreadLock lock, @Nonnull final Path directory) throws IOException {
         Preconditions.checkArgument(!lock.isClosed());
         return FluentIterable.from(Files.asCharSource(directory.resolve(METADATA_FILENAME).toFile(), Charsets.UTF_8).readLines()).transform(new Function<String, SegmentInfo>() {
-            @Nullable
             @Override
-            public SegmentInfo apply(@Nullable final String line) {
+            public SegmentInfo apply(final String line) {
                 return SegmentInfo.decodeFromLine(directory, line);
             }
         }).toList();
@@ -47,9 +45,8 @@ final class DynamicFlamdexMetadataUtil {
         Preconditions.checkArgument(!lock.isShared());
         Files.asCharSink(directory.resolve(METADATA_FILENAME).toFile(), Charsets.UTF_8).writeLines(
                 FluentIterable.from(segmentInfos).transform(new Function<SegmentInfo, String>() {
-                    @Nullable
                     @Override
-                    public String apply(@Nullable final SegmentInfo segmentInfo) {
+                    public String apply(final SegmentInfo segmentInfo) {
                         return segmentInfo.encodeAsLine();
                     }
                 }).toList());

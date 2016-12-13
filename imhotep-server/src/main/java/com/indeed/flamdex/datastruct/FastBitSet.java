@@ -13,14 +13,14 @@
  */
  package com.indeed.flamdex.datastruct;
 
-import java.io.Serializable;
+import javax.annotation.Nonnull;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 /**
  * @author jsgroth
  */
-public final class FastBitSet implements Serializable {
-    private static final long serialVersionUID = 9146568940233876479L;
+public final class FastBitSet {
     private final int size;
     private final long[] bits;
 
@@ -174,5 +174,30 @@ public final class FastBitSet implements Serializable {
         public int getValue() {
             return value;
         }
+    }
+
+    @Nonnull
+    public ByteBuffer serialize() {
+        final int cardinality = cardinality();
+        final int numBytes = (Integer.SIZE / Byte.SIZE) * (cardinality + 2);
+        final ByteBuffer byteBuffer = ByteBuffer.allocate(numBytes);
+        byteBuffer.putInt(size);
+        byteBuffer.putInt(cardinality);
+        for (final IntIterator it = iterator(); it.next(); ) {
+            byteBuffer.putInt(it.getValue());
+        }
+        byteBuffer.flip();
+        return byteBuffer;
+    }
+
+    @Nonnull
+    public static FastBitSet deserialize(@Nonnull final ByteBuffer byteBuffer) {
+        final int size = byteBuffer.getInt();
+        final int cardinality = byteBuffer.getInt();
+        final FastBitSet result = new FastBitSet(size);
+        for (int i = 0; i < cardinality; ++i) {
+            result.set(byteBuffer.getInt());
+        }
+        return result;
     }
 }

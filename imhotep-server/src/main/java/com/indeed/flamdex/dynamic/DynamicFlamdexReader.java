@@ -20,14 +20,11 @@ import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-
-import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * FlamdexReader for dynamic shards.
@@ -55,10 +52,9 @@ public class DynamicFlamdexReader implements FlamdexReader {
     @Override
     public Collection<String> getIntFields() {
         return FluentIterable.from(segmentReaders).transformAndConcat(new Function<SegmentReader, Collection<String>>() {
-            @Nullable
             @Override
-            public Collection<String> apply(@Nullable final SegmentReader segmentReader) {
-                return checkNotNull(segmentReader).getIntFields();
+            public Collection<String> apply(final SegmentReader segmentReader) {
+                return segmentReader.getIntFields();
             }
         }).toSortedSet(Ordering.natural());
     }
@@ -66,10 +62,8 @@ public class DynamicFlamdexReader implements FlamdexReader {
     @Override
     public Collection<String> getStringFields() {
         return FluentIterable.from(segmentReaders).transformAndConcat(new Function<SegmentReader, Collection<String>>() {
-            @Nullable
             @Override
-            public Collection<String> apply(@Nullable final SegmentReader segmentReader) {
-                //noinspection ConstantConditions
+            public Collection<String> apply(final SegmentReader segmentReader) {
                 return segmentReader.getStringFields();
             }
         }).toSortedSet(Ordering.natural());
@@ -90,10 +84,8 @@ public class DynamicFlamdexReader implements FlamdexReader {
     public DocIdStream getDocIdStream() {
         return new MergedDocIdStream(
                 FluentIterable.from(segmentReaders).transform(new Function<SegmentReader, DocIdStream>() {
-                    @Nullable
                     @Override
-                    public DocIdStream apply(@Nullable final SegmentReader segmentReader) {
-                        //noinspection ConstantConditions
+                    public DocIdStream apply(final SegmentReader segmentReader) {
                         return segmentReader.getDocIdStream();
                     }
                 }).toList(),
@@ -110,10 +102,8 @@ public class DynamicFlamdexReader implements FlamdexReader {
     public IntTermIterator getIntTermIterator(final String field) {
         return new MergedIntTermIterator(
                 FluentIterable.from(segmentReaders).transform(new Function<SegmentReader, IntTermIterator>() {
-                    @Nullable
                     @Override
-                    public IntTermIterator apply(@Nullable final SegmentReader segmentReader) {
-                        //noinspection ConstantConditions
+                    public IntTermIterator apply(final SegmentReader segmentReader) {
                         return segmentReader.getIntTermIterator(field);
                     }
                 }).toList()
@@ -124,10 +114,8 @@ public class DynamicFlamdexReader implements FlamdexReader {
     public StringTermIterator getStringTermIterator(final String field) {
         return new MergedStringTermIterator(
                 FluentIterable.from(segmentReaders).transform(new Function<SegmentReader, StringTermIterator>() {
-                    @Nullable
                     @Override
-                    public StringTermIterator apply(@Nullable final SegmentReader segmentReader) {
-                        //noinspection ConstantConditions
+                    public StringTermIterator apply(final SegmentReader segmentReader) {
                         return segmentReader.getStringTermIterator(field);
                     }
                 }).toList()
@@ -165,10 +153,8 @@ public class DynamicFlamdexReader implements FlamdexReader {
     @Override
     public Collection<String> getAvailableMetrics() {
         return FluentIterable.from(segmentReaders).transformAndConcat(new Function<SegmentReader, Collection<String>>() {
-            @Nullable
             @Override
-            public Collection<String> apply(@Nullable final SegmentReader segmentReader) {
-                //noinspection ConstantConditions
+            public Collection<String> apply(final SegmentReader segmentReader) {
                 return segmentReader.getAvailableMetrics();
             }
         }).toSortedSet(Ordering.<String>natural());
