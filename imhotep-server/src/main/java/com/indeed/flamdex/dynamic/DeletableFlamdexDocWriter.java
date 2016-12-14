@@ -9,6 +9,6 @@ import java.io.IOException;
 /**
  * @author michihiko
  */
-public interface DeletableFlmadexDocWriter extends FlamdexDocWriter {
+public interface DeletableFlamdexDocWriter extends FlamdexDocWriter {
     void deleteDocuments(@Nonnull final Query query) throws IOException;
 }
