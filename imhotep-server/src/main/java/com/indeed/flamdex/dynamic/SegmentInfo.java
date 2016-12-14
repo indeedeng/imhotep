@@ -22,12 +22,12 @@ class SegmentInfo implements Comparable<SegmentInfo> {
 
     private final Path shardDirectory;
     private final String segmentName;
-    private final Optional<String> tombstoneFileName;
+    private final Optional<String> tombstoneSetFileName;
 
-    SegmentInfo(@Nonnull final Path shardDirectory, @Nonnull final String segmentName, @Nonnull final Optional<String> tombstoneFileName) {
+    SegmentInfo(@Nonnull final Path shardDirectory, @Nonnull final String segmentName, @Nonnull final Optional<String> tombstoneSetFileName) {
         this.shardDirectory = shardDirectory;
         this.segmentName = segmentName;
-        this.tombstoneFileName = tombstoneFileName;
+        this.tombstoneSetFileName = tombstoneSetFileName;
     }
 
     MultiThreadLock acquireReaderLock() throws IOException {
@@ -50,27 +50,27 @@ class SegmentInfo implements Comparable<SegmentInfo> {
     }
 
     @Nonnull
-    Optional<Path> getTombstonePath() {
-        if (!this.tombstoneFileName.isPresent()) {
+    Optional<Path> getTombstoneSetPath() {
+        if (!this.tombstoneSetFileName.isPresent()) {
             return Optional.absent();
         }
-        return Optional.of(getDirectory().resolve(this.tombstoneFileName.get()));
+        return Optional.of(getDirectory().resolve(this.tombstoneSetFileName.get()));
     }
 
     @Nonnull
-    Optional<FastBitSet> readTombstone() throws IOException {
-        final Optional<Path> tombstonePath = getTombstonePath();
-        if (!tombstonePath.isPresent()) {
+    Optional<FastBitSet> readTombstoneSet() throws IOException {
+        final Optional<Path> tombstoneSetPath = getTombstoneSetPath();
+        if (!tombstoneSetPath.isPresent()) {
             return Optional.absent();
         }
-        final ByteBuffer byteBuffer = ByteBuffer.wrap(Files.readAllBytes(tombstonePath.get()));
+        final ByteBuffer byteBuffer = ByteBuffer.wrap(Files.readAllBytes(tombstoneSetPath.get()));
         return Optional.of(FastBitSet.deserialize(byteBuffer));
     }
 
     @Nonnull
     String encodeAsLine() {
-        if (this.tombstoneFileName.isPresent()) {
-            return this.segmentName + "\t" + this.tombstoneFileName.get();
+        if (this.tombstoneSetFileName.isPresent()) {
+            return this.segmentName + "\t" + this.tombstoneSetFileName.get();
         } else {
             return this.segmentName;
         }
@@ -80,13 +80,13 @@ class SegmentInfo implements Comparable<SegmentInfo> {
         final String[] tokens = line.split("\t");
         Preconditions.checkState((tokens.length == 1) || (tokens.length == 2));
         final String segmentName = tokens[0];
-        final Optional<String> tombstoneName;
+        final Optional<String> tombstoneSetName;
         if (tokens.length == 1) {
-            tombstoneName = Optional.absent();
+            tombstoneSetName = Optional.absent();
         } else {
-            tombstoneName = Optional.of(tokens[1]);
+            tombstoneSetName = Optional.of(tokens[1]);
         }
-        return new SegmentInfo(shardDirectory, segmentName, tombstoneName);
+        return new SegmentInfo(shardDirectory, segmentName, tombstoneSetName);
     }
 
     @Override
@@ -94,7 +94,7 @@ class SegmentInfo implements Comparable<SegmentInfo> {
         Preconditions.checkArgument(this.shardDirectory.equals(that.shardDirectory), "Don't compare segments in other shards");
         final int result = this.segmentName.compareTo(that.segmentName);
         if (result == 0) {
-            Preconditions.checkArgument(this.tombstoneFileName.equals(that.tombstoneFileName), "Don't compare different version of the same segment");
+            Preconditions.checkArgument(this.tombstoneSetFileName.equals(that.tombstoneSetFileName), "Don't compare different version of the same segment");
         }
         return result;
     }
@@ -110,11 +110,11 @@ class SegmentInfo implements Comparable<SegmentInfo> {
         final SegmentInfo that = (SegmentInfo) o;
         return Objects.equals(shardDirectory, that.shardDirectory) &&
                 Objects.equals(segmentName, that.segmentName) &&
-                Objects.equals(tombstoneFileName, that.tombstoneFileName);
+                Objects.equals(tombstoneSetFileName, that.tombstoneSetFileName);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(shardDirectory, segmentName, tombstoneFileName);
+        return Objects.hash(shardDirectory, segmentName, tombstoneSetFileName);
     }
 }

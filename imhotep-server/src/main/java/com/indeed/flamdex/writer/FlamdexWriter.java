@@ -13,13 +13,14 @@
  */
  package com.indeed.flamdex.writer;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Path;
 
 /**
  * @author jsgroth
  */
-public interface FlamdexWriter extends AutoCloseable {
+public interface FlamdexWriter extends Closeable {
     Path getOutputDirectory();
     void resetMaxDocs(long maxDocs);
     IntFieldWriter getIntFieldWriter(String field) throws IOException;

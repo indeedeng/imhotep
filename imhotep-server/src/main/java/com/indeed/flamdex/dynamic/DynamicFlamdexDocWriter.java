@@ -27,13 +27,13 @@ import org.apache.log4j.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.Closeable;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
+import java.nio.channels.ByteChannel;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
+import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
@@ -151,13 +151,14 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
         this.flamdexSearcher = new FlamdexSearcher(this.memoryFlamdex);
     }
 
-    private String outputTombstone(@Nonnull final Path segmentDirectory, @Nonnull final String newSegmentName, @Nonnull final FastBitSet tombstone) throws IOException {
-        final String tombstoneFilename = "tombstone." + newSegmentName + ".bin";
-        final Path path = segmentDirectory.resolve(tombstoneFilename);
-        try (final ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(path.toFile()))) {
-            oos.writeObject(tombstone);
+    private String outputTombstoneSet(@Nonnull final Path segmentDirectory, @Nonnull final String newSegmentName, @Nonnull final FastBitSet tombstoneSet) throws IOException {
+        final String tombstoneSetFilename = "tombstoneSet." + newSegmentName + ".bin";
+        final Path path = segmentDirectory.resolve(tombstoneSetFilename);
+
+        try (final ByteChannel byteChannel = Files.newByteChannel(path, StandardOpenOption.WRITE, StandardOpenOption.CREATE)){
+            byteChannel.write(tombstoneSet.serialize());
         }
-        return tombstoneFilename;
+        return tombstoneSetFilename;
     }
 
     private static class DeleteOnClose implements Closeable {
@@ -211,12 +212,12 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
                 if (this.removedDocIds.isEmpty()) {
                     newSegmentInfo = new SegmentInfo(this.shardDirectory, segmentName, Optional.<String>absent());
                 } else {
-                    final FastBitSet tombstone = new FastBitSet(this.memoryFlamdex.getNumDocs());
+                    final FastBitSet tombstoneSet = new FastBitSet(this.memoryFlamdex.getNumDocs());
                     for (final IntIterator iterator = this.removedDocIds.iterator(); iterator.hasNext(); ) {
-                        tombstone.set(iterator.nextInt());
+                        tombstoneSet.set(iterator.nextInt());
                     }
-                    final String tombstoneFileName = outputTombstone(segmentDirectory, segmentName, tombstone);
-                    newSegmentInfo = new SegmentInfo(this.shardDirectory, segmentName, Optional.of(tombstoneFileName));
+                    final String tombstoneSetFileName = outputTombstoneSet(segmentDirectory, segmentName, tombstoneSet);
+                    newSegmentInfo = new SegmentInfo(this.shardDirectory, segmentName, Optional.of(tombstoneSetFileName));
                 }
 
                 if (removeQueries.isEmpty()) {
@@ -238,12 +239,12 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
                     }
 
                     for (final SegmentReader segmentReader : segmentReaders) {
-                        final Optional<FastBitSet> updatedTombstone = segmentReader.getUpdatedTombstone(query);
-                        if (updatedTombstone.isPresent()) {
-                            final String tombstoneFileName = outputTombstone(segmentReader.getDirectory(), segmentName, updatedTombstone.get());
-                            final SegmentInfo segmentInfo = new SegmentInfo(this.shardDirectory, segmentReader.getSegmentInfo().getName(), Optional.of(tombstoneFileName));
+                        final Optional<FastBitSet> updatedTombstoneSet = segmentReader.getUpdatedTombstoneSet(query);
+                        if (updatedTombstoneSet.isPresent()) {
+                            final String tombstoneSetFileName = outputTombstoneSet(segmentReader.getDirectory(), segmentName, updatedTombstoneSet.get());
+                            final SegmentInfo segmentInfo = new SegmentInfo(this.shardDirectory, segmentReader.getSegmentInfo().getName(), Optional.of(tombstoneSetFileName));
                             //noinspection OptionalGetWithoutIsPresent
-                            closerOnFailure.register(new DeleteOnClose(segmentInfo.getTombstonePath().get()));
+                            closerOnFailure.register(new DeleteOnClose(segmentInfo.getTombstoneSetPath().get()));
                             newSegments.add(segmentInfo);
                         } else {
                             newSegments.add(segmentReader.getSegmentInfo());
