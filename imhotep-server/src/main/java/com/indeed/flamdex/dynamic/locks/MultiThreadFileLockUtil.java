@@ -19,20 +19,19 @@ public final class MultiThreadFileLockUtil {
 
     }
 
-    private static final LoadingCache<String, MultiThreadFileLock> CACHE =
+    private static final LoadingCache<Path, MultiThreadFileLock> CACHE =
             CacheBuilder.newBuilder()
-                    .build(new CacheLoader<String, MultiThreadFileLock>() {
+                    .build(new CacheLoader<Path, MultiThreadFileLock>() {
                         @Override
-                        public MultiThreadFileLock load(@Nonnull final String path) throws IOException {
-                            return new MultiThreadFileLock(Paths.get(path));
+                        public MultiThreadFileLock load(@Nonnull final Path path) throws IOException {
+                            return new MultiThreadFileLock(path);
                         }
                     });
 
     @Nonnull
     private static MultiThreadFileLock getReadWriteLockImpl(@Nonnull final Path path) throws IOException {
-        final String canonicalPath = path.normalize().toString();
         try {
-            return CACHE.get(canonicalPath);
+            return CACHE.get(path.normalize());
         } catch (final ExecutionException e) {
             throw new IOException(e.getCause());
         }

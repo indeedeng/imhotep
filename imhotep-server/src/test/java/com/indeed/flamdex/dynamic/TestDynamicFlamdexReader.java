@@ -74,7 +74,9 @@ public class TestDynamicFlamdexReader {
         segmentInfos = ImmutableList.of(
                 new SegmentInfo(directory, "segment1", Optional.<String>absent()),
                 new SegmentInfo(directory, "segment2", Optional.<String>absent()),
-                new SegmentInfo(directory, "segment3", Optional.<String>absent()));
+                new SegmentInfo(directory, "segment3", Optional.<String>absent()),
+                new SegmentInfo(directory, "segment4", Optional.<String>absent()) // empty segment
+        );
         DynamicFlamdexMetadataUtil.modifyMetadata(directory, new Function<List<SegmentInfo>, List<SegmentInfo>>() {
             @Nullable
             @Override
@@ -90,7 +92,7 @@ public class TestDynamicFlamdexReader {
                     new SimpleFlamdexDocWriter.Config()));
         }
         for (int i = 0; i < NUM_DOCS; ++i) {
-            writers.get(random.nextInt(writers.size())).addDocument(makeDocument(i));
+            writers.get(random.nextInt(writers.size() - 1)).addDocument(makeDocument(i));
         }
         for (final FlamdexDocWriter writer : writers) {
             writer.close();
