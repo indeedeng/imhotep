@@ -24,7 +24,7 @@ public final class FastBitSet {
     private final int size;
     private final long[] bits;
 
-    public FastBitSet(int size) {
+    public FastBitSet(final int size) {
         this.size = size;
         bits = new long[(size + 64) >> 6];
     }
@@ -34,26 +34,27 @@ public final class FastBitSet {
         return this.bits;
     }
 
-    public final boolean get(final int i) {
+    public boolean get(final int i) {
         return (bits[i >> 6] & (1L << (i & 0x3F))) != 0;
     }
 
-    public final void set(final int i) {
+    public void set(final int i) {
         bits[i >> 6] |= (1L << (i & 0x3F));
     }
 
-    public final void clear(final int i) {
+    public void clear(final int i) {
         bits[i >> 6] &= ~(1L << (i & 0x3F));
     }
 
-    public final void set(final int i, final boolean v) {
-        if (v)
+    public void set(final int i, final boolean v) {
+        if (v) {
             set(i);
-        else
+        } else {
             clear(i);
+        }
     }
 
-    public final void setRange(final int b, final int e) {
+    public void setRange(final int b, final int e) {
         final int bt = b >> 6;
         final int et = e >> 6;
         if (bt != et) {
@@ -65,7 +66,7 @@ public final class FastBitSet {
         }
     }
 
-    public final void clearRange(final int b, final int e) {
+    public void clearRange(final int b, final int e) {
         final int bt = b >> 6;
         final int et = e >> 6;
         if (bt != et) {
@@ -77,78 +78,123 @@ public final class FastBitSet {
         }
     }
 
-    public final void setAll() {
+    public void setAll() {
         Arrays.fill(bits, -1L);
     }
 
-    public final void clearAll() {
+    public void clearAll() {
         Arrays.fill(bits, 0L);
     }
 
-    public final void invertAll() {
-        for (int i = 0; i < bits.length; ++i)
+    public void invertAll() {
+        for (int i = 0; i < bits.length; ++i) {
             bits[i] = ~bits[i];
+        }
     }
 
-    public final void and(final FastBitSet other) {
+    public void and(final FastBitSet other) {
         final int end = Math.min(other.bits.length, bits.length);
-        for (int i = 0; i < end; ++i)
+        for (int i = 0; i < end; ++i) {
             bits[i] &= other.bits[i];
+        }
     }
 
-    public final void or(final FastBitSet other) {
+    public void or(final FastBitSet other) {
         final int end = Math.min(other.bits.length, bits.length);
-        for (int i = 0; i < end; ++i)
+        for (int i = 0; i < end; ++i) {
             bits[i] |= other.bits[i];
+        }
     }
 
-    public final void nand(final FastBitSet other) {
+    public void nand(final FastBitSet other) {
         final int end = Math.min(other.bits.length, bits.length);
-        for (int i = 0; i < end; ++i)
+        for (int i = 0; i < end; ++i) {
             bits[i] = ~(bits[i] & other.bits[i]);
+        }
     }
 
-    public final void nor(final FastBitSet other) {
+    public void nor(final FastBitSet other) {
         final int end = Math.min(other.bits.length, bits.length);
-        for (int i = 0; i < end; ++i)
+        for (int i = 0; i < end; ++i) {
             bits[i] = ~(bits[i] | other.bits[i]);
+        }
     }
 
-    public final void xor(final FastBitSet other) {
+    public void xor(final FastBitSet other) {
         final int end = Math.min(other.bits.length, bits.length);
-        for (int i = 0; i < end; ++i)
+        for (int i = 0; i < end; ++i) {
             bits[i] ^= other.bits[i];
+        }
     }
 
-    public final int cardinality() {
-        if (size == 0) return 0;
-        int count = 0;
-        for (int i = 0; i < bits.length - 1; ++i)
+    public int cardinality() {
+        if (size == 0) {
+            return 0;
+        }
+        int count = Long.bitCount(bits[bits.length - 1] & ~(-1L << (size & 0x3F)));
+        for (int i = (bits.length - 2); i >= 0 ; --i) {
             count += Long.bitCount(bits[i]);
-        return count + Long.bitCount(bits[bits.length - 1] & ~(-1L << (size & 0x3F)));
+        }
+        return count;
     }
 
-    public final int size() {
+    public boolean isEmpty() {
+        if (size == 0) {
+            return true;
+        }
+        for (int i = bits.length - 2; i >= 0; --i){
+            if (bits[i] != 0) {
+                return false;
+            }
+        }
+        return (bits[bits.length - 1] & ~(1L << (size & 0x3f))) == 0;
+    }
+
+    public int size() {
         return size;
     }
 
-    public final long memoryUsage() {
+    public long memoryUsage() {
         return 8L * bits.length;
     }
 
     // copied from Arrays.fill(...) with the bounds check removed
     private static void fill(final long[] a, final int b, final int e, final long l) {
-        for (int i = b; i < e; ++i)
+        for (int i = b; i < e; ++i) {
             a[i] = l;
+        }
     }
 
-    public static long calculateMemoryUsage(int entries) {
+    public static long calculateMemoryUsage(final int entries) {
         final int numLongs = (entries + 64) >> 6;
         return 8L * numLongs;
     }
 
     public IntIterator iterator() {
         return new IntIterator();
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+        if (this == o) {
+            return true;
+        }
+        if ((o == null) || (getClass() != o.getClass())) {
+            return false;
+        }
+        final FastBitSet that = (FastBitSet) o;
+        if ((size != that.size) || (bits.length != that.bits.length)) {
+            return false;
+        }
+        if((bits[bits.length - 1] & ~(-1L << (size & 0x3F))) != (that.bits[that.bits.length - 1] & ~(1L << (that.size & 0x3F)))){
+            return false;
+        }
+        for (int i = (bits.length - 2); i >= 0 ; --i) {
+            if (bits[i] != that.bits[i]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public final class IntIterator {
@@ -167,7 +213,7 @@ public final class FastBitSet {
             final long lowBit = Long.lowestOneBit(bitBuffer);
             final int bitIndex = Long.bitCount(lowBit-1);
             value = ((index-1)<<6)+bitIndex;
-            bitBuffer = bitBuffer ^ lowBit;
+            bitBuffer ^= lowBit;
             return true;
         }
 

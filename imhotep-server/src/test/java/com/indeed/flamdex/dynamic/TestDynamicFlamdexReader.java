@@ -198,22 +198,22 @@ public class TestDynamicFlamdexReader {
     }
 
     @Test
-    public void testTombstone() throws IOException, FlamdexOutOfMemoryException, NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException {
+    public void testTombstoneSet() throws IOException, FlamdexOutOfMemoryException, NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException {
         for (final SegmentInfo segmentInfo : segmentInfos) {
             try (final Closer closer = Closer.create()) {
                 final Path segmentPath = segmentInfo.getDirectory();
-                final Path tombstonePath = segmentPath.resolve("tombstone");
+                final Path tombstoneSetPath = segmentPath.resolve("tombstoneSet");
                 try (final SegmentReader segmentReader = new SegmentReader(segmentInfo)) {
                     final int numDoc = segmentReader.maxNumDocs();
-                    final FastBitSet tombstone = new FastBitSet(numDoc);
+                    final FastBitSet tombstoneSet = new FastBitSet(numDoc);
                     for (int docId = 0; docId < numDoc; ++docId) {
                         final int n = restoreNum(segmentReader, docId);
                         if ((n % 5) == 4) {
-                            tombstone.set(docId, true);
+                            tombstoneSet.set(docId, true);
                         }
                     }
-                    try (final ByteChannel byteChannel = Files.newByteChannel(tombstonePath, StandardOpenOption.WRITE, StandardOpenOption.CREATE)){
-                        byteChannel.write(tombstone.serialize());
+                    try (final ByteChannel byteChannel = Files.newByteChannel(tombstoneSetPath, StandardOpenOption.WRITE, StandardOpenOption.CREATE)){
+                        byteChannel.write(tombstoneSet.serialize());
                     }
                 }
             }
@@ -224,7 +224,7 @@ public class TestDynamicFlamdexReader {
             public List<SegmentInfo> apply(@Nullable final List<SegmentInfo> segmentInfo) {
                 final List<SegmentInfo> newSegmentInfo = new ArrayList<>();
                 for (final SegmentInfo data : Preconditions.checkNotNull(segmentInfo)) {
-                    newSegmentInfo.add(new SegmentInfo(data.getShardDirectory(), data.getName(), Optional.of("tombstone")));
+                    newSegmentInfo.add(new SegmentInfo(data.getShardDirectory(), data.getName(), Optional.of("tombstoneSet")));
                 }
                 return newSegmentInfo;
             }
