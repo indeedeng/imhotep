@@ -3,6 +3,17 @@ layout: default
 title: Quick Start
 permalink: /docs/quick-start/
 ---
+  <div style="
+    color: #a94442;
+    background-color: #f2dede;
+    border-color: #ebccd1;
+    padding: 15px;   
+    border: 1px solid transparent;
+    border-radius: 4px;">
+    These instructions do not currently work due to the deletion of an S3 bucket. We will be reinstating this bucket soon.
+    In the meantime, if you need help using CloudFormation with your own builds of the Imhotep components, please ask here:
+    https://groups.google.com/forum/#!forum/indeedeng-imhotep-users
+  </div>
 
 This section guides you through the process of configuring an Imhotep cluster on AWS, uploading your data files, and exploring your data in Imhotep using Imhotep Query Language (IQL).
 
@@ -32,7 +43,16 @@ Use AWS CloudFormation to create a stack on AWS.
   <li>Select **CloudFormation** and **Create Stack**.</li>
   <li>From the **Select Template** page, enter the name of your new stack.</li>
   <li>From this same page, in **Template**, select **Specify an Amazon S3 template URL** and enter this URL:<br><br>
-  <pre>http://imhotep-cloud-setup.s3.amazonaws.com/cloudFormation_cluster_launch.json</pre></li>
+  <div style="
+    color: #a94442;
+    background-color: #f2dede;
+    border-color: #ebccd1;
+    padding: 15px;   
+    border: 1px solid transparent;
+    border-radius: 4px;">
+    NOTE: This script is currently not working due to the deletion of an S3 bucket. It will be back online soon. If you need workaround instructions, please ask on https://groups.google.com/forum/#!forum/indeedeng-imhotep-users.
+  </div>
+  <pre style="text-decoration: line-through">http://imhotep-cloud-setup.s3.amazonaws.com/cloudFormation_cluster_launch.json</pre></li>
   <li>Click **Next** to define the following parameters:
  <br><br></li>
 <table>
