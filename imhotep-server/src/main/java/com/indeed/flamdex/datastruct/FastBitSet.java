@@ -13,6 +13,8 @@
  */
  package com.indeed.flamdex.datastruct;
 
+import javax.annotation.Nonnull;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 /**
@@ -172,5 +174,30 @@ public final class FastBitSet {
         public int getValue() {
             return value;
         }
+    }
+
+    @Nonnull
+    public ByteBuffer serialize() {
+        final int cardinality = cardinality();
+        final int numBytes = (Integer.SIZE / Byte.SIZE) * (cardinality + 2);
+        final ByteBuffer byteBuffer = ByteBuffer.allocate(numBytes);
+        byteBuffer.putInt(size);
+        byteBuffer.putInt(cardinality);
+        for (final IntIterator it = iterator(); it.next(); ) {
+            byteBuffer.putInt(it.getValue());
+        }
+        byteBuffer.flip();
+        return byteBuffer;
+    }
+
+    @Nonnull
+    public static FastBitSet deserialize(@Nonnull final ByteBuffer byteBuffer) {
+        final int size = byteBuffer.getInt();
+        final int cardinality = byteBuffer.getInt();
+        final FastBitSet result = new FastBitSet(size);
+        for (int i = 0; i < cardinality; ++i) {
+            result.set(byteBuffer.getInt());
+        }
+        return result;
     }
 }
