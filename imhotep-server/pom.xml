@@ -69,7 +69,7 @@
 		<dependency>
 			<groupId>com.indeed</groupId>
 			<artifactId>lsmtree-core</artifactId>
-			<version>1.0.4</version>
+			<version>${indeed-lsmtree-core.version}</version>
 		</dependency>
 
 		<dependency>
@@ -185,7 +185,8 @@
 
 		<!-- releases of our own projects to use -->
 		<!-- these should only be SNAPSHOTs when no release is available -->
-		<indeed-util.version>1.0.12</indeed-util.version>
+		<indeed-util.version>1.0.23</indeed-util.version>
+                <indeed-lsmtree-core.version>1.0.5</indeed-lsmtree-core.version>
 	</properties>
 
 </project>
