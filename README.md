@@ -15,6 +15,9 @@ See the [quick start page](http://indeedeng.github.io/imhotep/docs/quick-start/)
 ## Documentation
 http://indeedeng.github.io/imhotep
 
+## Continuous Build
+https://travis-ci.org/indeedeng/imhotep
+
 ## Discussion
 Ask and answer questions in our Q&A forum for Imhotep: [indeedeng-imhotep-users](https://groups.google.com/forum/#!forum/indeedeng-imhotep-users)
 
