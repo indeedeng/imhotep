@@ -31,8 +31,8 @@
 
 	<pluginRepositories>
 		<pluginRepository>
-			<id>protoc-plugin</id>
-			<url>http://sergei-ivanov.github.com/maven-protoc-plugin/repo/releases/</url>
+			<id>bintry-sergei-ivanov-maven</id>
+			<url>https://dl.bintray.com/sergei-ivanov/maven</url>
 		</pluginRepository>
 	</pluginRepositories>
 
@@ -122,7 +122,7 @@
 		<gnu-trove.version>3.0.3</gnu-trove.version>
 		<lucene.version>2.4.1</lucene.version>
 		<joda-time.version>2.0</joda-time.version>
-		<protobuf-java.version>2.4.1</protobuf-java.version>
+		<protobuf-java.version>2.5.0</protobuf-java.version>
 		<snakeyaml.version>1.10</snakeyaml.version>
 		<zookeeper.version>3.4.5-cdh4.4.0</zookeeper.version>
 
