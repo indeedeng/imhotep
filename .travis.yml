@@ -12,8 +12,17 @@ install:
     - tar -xzvf snappy-1.1.3.tar.gz
     - pushd snappy-1.1.3 && ./configure --prefix=/usr && make && sudo make install && popd
 
-addons:
-    artifacts:
-        s3_region: "us-west-2"
-        paths:
-        - $(git ls-files -o */target/imhotep*.* | tr "\n" ":")
+before_deploy:
+    - mkdir deploy
+    - cp */target/imhotep*.* deploy/
+
+deploy:
+    provider: s3
+    access_key_id: AKIAID3AAXWWTV2KQYEA
+    secret_access_key:
+      secure: Hqwm+Cx2Bqhq/19HXXOPu3Cib8AJ4ABMKw/5pC+hape9jegF+27rN1LGXf/mUE4vXU2QdNhf7jKVRC7i2k7RiBYTrwgygPaaSoZq7T4jZ0A5BpU4F/dpi3ONOUtBb1cnoE9VqqqYiMXp41vUGdoebkW7PoYnD49QKHEhgZlBUG4=
+    bucket: imhotep-build
+    local-dir: deploy
+    skip_cleanup: true
+    region: us-west-2
+
