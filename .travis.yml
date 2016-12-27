@@ -15,6 +15,7 @@ install:
 before_deploy:
     - mkdir deploy
     - cp */target/imhotep*.* deploy/
+    - cp pom.xml deploy/imhotep.pom
     - cp imhotep-archive/pom.xml deploy/imhotep-archive.pom
     - cp imhotep-client/pom.xml deploy/imhotep-client.pom
     - cp imhotep-server/pom.xml deploy/imhotep-server.pom
