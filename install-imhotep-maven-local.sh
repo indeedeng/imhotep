@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 AWS="https://s3-us-west-2.amazonaws.com/imhotep-build"
 VERSION=`curl -s $AWS | egrep -o "imhotep-server-[0-9\.]+(-\w+)?.jar" | head -1 | egrep -o "([0-9]+\.?)+(-\w+)"`
 
@@ -7,7 +7,7 @@ function install_maven {
 	type=$2
 
 	jarfile=$artifact-$VERSION.$type
-	pomfile=imhotep-server.pom
+	pomfile=$artifact.pom
 	
 	wget $AWS/$jarfile
 	wget $AWS/$pomfile
