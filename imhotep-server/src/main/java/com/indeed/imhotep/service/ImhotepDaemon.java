@@ -22,6 +22,7 @@ import com.google.common.collect.UnmodifiableIterator;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
+import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupRemapRule;
@@ -45,6 +46,7 @@ import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.IntFieldAndTerms;
+import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
@@ -64,6 +66,7 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -706,6 +709,23 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             return builder.build();
         }
 
+        private final ImhotepResponse
+        groupQueryUpdateDynamicMetric(final ImhotepRequest          request,
+                                            final ImhotepResponse.Builder builder)
+                throws ImhotepOutOfMemoryException {
+            final Query[] queries = new Query[request.getQueryMessagesCount()];
+            for (int i = 0; i < request.getQueryMessagesCount(); i++) {
+                final QueryMessage queryMessage = request.getQueryMessages(i);
+                queries[i] = ImhotepDaemonMarshaller.marshal(queryMessage);
+            }
+            final int[] deltas = Ints.toArray(request.getDynamicMetricDeltasList());
+            service.handleGroupQueryUpdateDynamicMetric(request.getSessionId(),
+                    request.getDynamicMetricName(),
+                    Ints.toArray(request.getGroupsList()),
+                    queries, deltas);
+            return builder.build();
+        }
+
         private final ImhotepResponse optimizeSession(final ImhotepRequest          request,
                                                       final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
@@ -926,6 +946,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                             break;
                         case GROUP_CONDITIONAL_UPDATE_DYNAMIC_METRIC:
                             response = groupConditionalUpdateDynamicMetric(request, builder);
+                            break;
+                        case GROUP_QUERY_UPDATE_DYNAMIC_METRIC:
+                            response = groupQueryUpdateDynamicMetric(request, builder);
                             break;
                         case OPTIMIZE_SESSION:
                             response = optimizeSession(request, builder);

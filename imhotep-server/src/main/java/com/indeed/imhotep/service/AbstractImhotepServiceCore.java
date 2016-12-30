@@ -16,6 +16,7 @@
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupRemapRule;
@@ -533,6 +534,15 @@ public abstract class AbstractImhotepServiceCore
         doWithSession(sessionId, new Function<ImhotepSession, Void>() {
             public Void apply(final ImhotepSession session) {
                 session.groupConditionalUpdateDynamicMetric(dynamicMetricName, groups, conditions, deltas);
+                return null;
+            }
+        });
+    }
+
+    public void handleGroupQueryUpdateDynamicMetric(String sessionId, final String dynamicMetricName, final int[] groups, final Query[] queries, final int[] deltas) throws ImhotepOutOfMemoryException {
+        doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Void, ImhotepOutOfMemoryException>() {
+            public Void apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
+                session.groupQueryUpdateDynamicMetric(dynamicMetricName, groups, queries, deltas);
                 return null;
             }
         });

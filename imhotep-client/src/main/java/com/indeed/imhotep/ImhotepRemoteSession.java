@@ -22,6 +22,7 @@ import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
+import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.Instrumentation.Keys;
 import com.indeed.imhotep.api.DocIterator;
 import com.indeed.imhotep.api.FTGSIterator;
@@ -41,6 +42,7 @@ import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.IntFieldAndTerms;
+import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
 import com.indeed.imhotep.protobuf.ShardInfoMessage;
@@ -978,6 +980,29 @@ public class ImhotepRemoteSession
                 .setDynamicMetricName(name)
                 .addAllGroups(Ints.asList(groups))
                 .addAllConditions(conditionMessages)
+                .addAllDynamicMetricDeltas(Ints.asList(deltas))
+                .build();
+        try {
+            sendRequest(request, host, port, socketTimeout);
+            timer.complete(request);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void groupQueryUpdateDynamicMetric(String name, int[] groups, Query[] conditions, int[] deltas) {
+        final Timer timer = new Timer();
+        final List<QueryMessage> queryMessages = new ArrayList<>();
+        for (Query q : conditions) {
+            queryMessages.add(ImhotepClientMarshaller.marshal(q));
+        }
+
+        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GROUP_QUERY_UPDATE_DYNAMIC_METRIC)
+                .setSessionId(sessionId)
+                .setDynamicMetricName(name)
+                .addAllGroups(Ints.asList(groups))
+                .addAllQueryMessages(queryMessages)
                 .addAllDynamicMetricDeltas(Ints.asList(deltas))
                 .build();
         try {
