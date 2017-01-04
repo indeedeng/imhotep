@@ -23,10 +23,10 @@ before_deploy:
 
 deploy:
     provider: s3
-    access_key_id: AKIAID3AAXWWTV2KQYEA
+    access_key_id: AKIAJVZNZT5TTB2Y4BNA
     secret_access_key:
-      secure: LbLkJBqUN6NrgrLC80LodsUMxQq8s4pSx6ShMzYLPITmkL/AN2wMVoz142Z6SDELDZZYfnrWDRDTsTQqQkO7ow+uQAF83aaFNw4bYeaJvZYq3eiiLMpMV/5Tf9BXW7jYAGh4vDAqRXkpEMTNe3SFjjJyTCzGNvIXWkG3i+tK8Lc=
-    bucket: imhotep-build
+      secure: Vo7OxKdcfdeLSQ97IterIj0F+hWH17m+8YnAuPzMO9oLVaY6kqzNyIXz2mLl2VVHlKIRIH9Yn8cBE131BHI09fiikH7No81ubRSvagd6HUucYuVsHcwvT34DYS1/M5zSa345O83lX67ekiF5TGKcKiNoCA9t1eE5UgKLGB3rVHA=
+    bucket: indeedeng-imhotep-build
     local-dir: deploy
     skip_cleanup: true
     region: us-west-2
