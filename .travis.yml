@@ -25,7 +25,7 @@ deploy:
     provider: s3
     access_key_id: AKIAJVZNZT5TTB2Y4BNA
     secret_access_key:
-      secure: Vo7OxKdcfdeLSQ97IterIj0F+hWH17m+8YnAuPzMO9oLVaY6kqzNyIXz2mLl2VVHlKIRIH9Yn8cBE131BHI09fiikH7No81ubRSvagd6HUucYuVsHcwvT34DYS1/M5zSa345O83lX67ekiF5TGKcKiNoCA9t1eE5UgKLGB3rVHA=
+      secure: FLV4Zf11wjfEIMgVjiIvx8Q0IUZqxLspcwAZRu9tROby79vs8mKC/eEfgq+VIGKaLTL+U6bA6i9Dp6NJ4r+8JLCNRez4AEYHbTPDnJ+m6FcvVuBSamDHN1bEey1PTkhXsJ3hTBrBA4msZ7VFkfiiqYuyGbMcwGazEq3UcHevo0M=
     bucket: indeedeng-imhotep-build
     local-dir: deploy
     skip_cleanup: true
