@@ -6,7 +6,6 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.indeed.util.core.Pair;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import org.apache.log4j.Logger;
 
@@ -17,10 +16,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.Map;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
@@ -266,50 +263,39 @@ class LocalFileCache {
     }
 
     private class UnusedFileCache extends AbstractCache<RemoteCachingPath, FileCacheEntry> {
-        private final Map<RemoteCachingPath, Pair<FileCacheEntry, Long>> map = new HashMap<>();
-        private long epochCounter;
-        private final Deque<Pair<RemoteCachingPath, Long>> entriesByInsertOrder = new LinkedList<>();
+        private final LinkedHashMap<RemoteCachingPath, FileCacheEntry> updateOrderMap = new LinkedHashMap<>();
 
         @Override
         public synchronized void cleanUp() {
-            while ((diskSpaceUsage.get() > diskSpaceCapacity) && !entriesByInsertOrder.isEmpty()) {
-                final Pair<RemoteCachingPath, Long> element = entriesByInsertOrder.poll();
-                final RemoteCachingPath path = element.getFirst();
-                final Pair<FileCacheEntry, Long> entry = map.get(path);
-                if ((entry != null) && (entry.getSecond().longValue() == element.getSecond().longValue())) {
-                    evictCacheFile(entry.getFirst());
-                    map.remove(path);
-                }
+            while ((diskSpaceUsage.get() > diskSpaceCapacity) && !updateOrderMap.isEmpty()) {
+                final Iterator<FileCacheEntry> iterator = updateOrderMap.values().iterator();
+                final FileCacheEntry entry = iterator.next();
+                evictCacheFile(entry);
+                iterator.remove();
             }
         }
 
         @Override
         public synchronized void put(final RemoteCachingPath key, final FileCacheEntry value) {
-            final long epoch = epochCounter++;
-            map.put(key, Pair.of(value, epoch));
-            entriesByInsertOrder.addLast(Pair.of(key, epoch));
+            updateOrderMap.remove(key);
+            updateOrderMap.put(key, value);
 
             cleanUp();
         }
 
         @Override
         public synchronized void invalidateAll() {
-            map.clear();
+            updateOrderMap.clear();
         }
 
         @Override
         public synchronized void invalidate(final Object key) {
-            map.remove(key);
+            updateOrderMap.remove(key);
         }
 
         @Override
         public synchronized FileCacheEntry getIfPresent(final Object key) {
-            final Pair<FileCacheEntry, Long> entry = map.get(key);
-            if (entry != null) {
-                return entry.getFirst();
-            } else {
-                return null;
-            }
+            return updateOrderMap.get(key);
         }
     }
 }

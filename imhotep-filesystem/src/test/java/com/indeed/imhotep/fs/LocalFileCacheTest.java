@@ -161,6 +161,72 @@ public class LocalFileCacheTest {
     }
 
     @Test
+    public void testCacheEvictOrder() throws IOException, ExecutionException {
+        final int fileSize = 128;
+        final int maxEntries = 8;
+        final int maxCapacity = maxEntries * fileSize;
+
+        final RemoteCachingFileSystem fs = testContext.getFs();
+        final RemoteCachingPath rootPath = RemoteCachingPath.getRoot(fs);
+        final Path cacheBasePath = testContext.getCacheDir().toPath();
+
+        final RandomCacheFileLoader cacheFileLoader = new RandomCacheFileLoader(fileSize);
+        final LocalFileCache localFileCache = new LocalFileCache(fs, cacheBasePath, maxCapacity, cacheFileLoader);
+
+        Assert.assertEquals(0, getCacheUsage(cacheBasePath));
+        Assert.assertEquals(getCacheUsage(cacheBasePath), localFileCache.getCacheUsage());
+
+        // fill up the cache, and have some entries evicted along the way
+        final List<RemoteCachingPath> cacheInsertOrder = new ArrayList<>();
+        int cacheCount = 0;
+        for (int i = 1; i <= maxEntries; i++) {
+            final RemoteCachingPath file = rootPath.resolve("cachedOnly").resolve("cacheOnly." + i + ".file");
+            cacheInsertOrder.add(file);
+            Assert.assertEquals(generateFileData(file, fileSize), readPath(localFileCache.cache(file)));
+            Assert.assertTrue(getCacheUsage(cacheBasePath) <= maxCapacity);
+            ++cacheCount;
+        }
+        Assert.assertEquals(cacheCount, cacheFileLoader.loadCount.get());
+
+        // access elements in random order to reshuffle
+        final Random rand = new Random(0);
+        for (int i = 0; i < (maxEntries * 10); i++) {
+            final RemoteCachingPath file = cacheInsertOrder.get(rand.nextInt(cacheInsertOrder.size()));
+            Assert.assertEquals(generateFileData(file, fileSize), readPath(localFileCache.cache(file)));
+            cacheInsertOrder.remove(file);
+            cacheInsertOrder.add(file);
+            Assert.assertTrue(getCacheUsage(cacheBasePath) <= maxCapacity);
+        }
+        Assert.assertEquals(cacheCount, cacheFileLoader.loadCount.get());
+
+        final List<LocalFileCache.ScopedCacheFile> scopedCacheFiles = new ArrayList<>();
+
+        // open some files to evict the cache only files
+        // ensure that cache files are evicted in the order they are cached
+        for (int i = 1; i <= (maxEntries * 2); i++) {
+            final RemoteCachingPath file = rootPath.resolve("opened").resolve("opened." + i + ".file");
+            final LocalFileCache.ScopedCacheFile openedFile = localFileCache.getForOpen(file);
+            Assert.assertEquals(generateFileData(file, fileSize), readPath(openedFile.getCachePath()));
+            scopedCacheFiles.add(openedFile);
+            ++cacheCount;
+
+            for (int j = 0; j < cacheInsertOrder.size(); j++) {
+                final Path cacheFile = cacheBasePath.resolve(cacheInsertOrder.get(j).asRelativePath().toString());
+                if (java.nio.file.Files.exists(cacheFile)) {
+                    for (int k = j + 1; k < cacheInsertOrder.size(); k++) {
+                        Assert.assertTrue(java.nio.file.Files.exists(cacheBasePath.resolve(cacheInsertOrder.get(k).asRelativePath().toString())));
+                    }
+                    break;
+                }
+            }
+        }
+        for (final LocalFileCache.ScopedCacheFile scopedCacheFile : scopedCacheFiles) {
+            Assert.assertTrue(java.nio.file.Files.exists(scopedCacheFile.getCachePath()));
+        }
+        Assert.assertEquals(cacheCount, cacheFileLoader.loadCount.get());
+    }
+
+    @Test
     public void testCacheOpenAndEvict() throws IOException, ExecutionException {
         final int fileSize = 128;
         final int maxEntries = 8;
