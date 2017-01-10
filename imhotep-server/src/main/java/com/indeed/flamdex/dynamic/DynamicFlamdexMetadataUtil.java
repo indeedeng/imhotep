@@ -3,7 +3,6 @@ package com.indeed.flamdex.dynamic;
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Ordering;
@@ -18,7 +17,6 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 /**
  * @author michihiko
@@ -32,7 +30,7 @@ final class DynamicFlamdexMetadataUtil {
     private DynamicFlamdexMetadataUtil() {
     }
 
-    // Don't forget to read-lock or write-lock the matadata.
+    // Don't forget to read-lock or write-lock the metadata.
     private static ImmutableList<SegmentInfo> readMetadata(@Nonnull final MultiThreadLock lock, @Nonnull final Path directory) throws IOException {
         Preconditions.checkArgument(!lock.isClosed());
         return FluentIterable.from(Files.asCharSource(directory.resolve(METADATA_FILENAME).toFile(), Charsets.UTF_8).readLines()).transform(new Function<String, SegmentInfo>() {

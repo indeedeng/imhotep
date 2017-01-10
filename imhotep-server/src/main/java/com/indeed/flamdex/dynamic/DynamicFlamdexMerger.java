@@ -285,7 +285,7 @@ class DynamicFlamdexMerger implements Closeable {
     }
 
     @Nullable
-    private synchronized Future<?> firstIncompleteFuture(){
+    private synchronized Future<?> firstIncompleteFuture() {
         final Iterator<Future<?>> iterator = futuresForCancellation.iterator();
         while (iterator.hasNext()) {
             final Future<?> future = iterator.next();
@@ -330,7 +330,7 @@ class DynamicFlamdexMerger implements Closeable {
         }
     }
 
-    void cancel() throws InterruptedException, ExecutionException {
+    void cancel() {
         while (true) {
             final Future<?> future = firstIncompleteFuture();
             if (future == null) {

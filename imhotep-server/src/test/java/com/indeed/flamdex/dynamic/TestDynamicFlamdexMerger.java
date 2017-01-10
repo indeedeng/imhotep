@@ -46,13 +46,6 @@ public class TestDynamicFlamdexMerger {
     private static final int NUM_DOCS = (2 * 3 * 5 * 7 * 11) + 10;
     private Path directory;
 
-    private int restoreNum(@Nonnull final FlamdexReader flamdexReader, final int docId) throws FlamdexOutOfMemoryException {
-        final long[] num = new long[1];
-        flamdexReader.getMetric("original").lookup(new int[]{docId}, num, 1);
-        assertTrue((Integer.MIN_VALUE <= num[0]) && (num[0] <= Integer.MAX_VALUE));
-        return (int) num[0];
-    }
-
     @Nonnull
     private FlamdexDocument makeDocument(final int n) {
         final FlamdexDocument.Builder builder = new FlamdexDocument.Builder();
@@ -95,7 +88,7 @@ public class TestDynamicFlamdexMerger {
         }
     }
 
-    private void checkDocuments(@Nonnull final FlamdexReader reader, @Nonnull final Set<FlamdexDocument> naive) throws IOException {
+    private void checkDocuments(@Nonnull final FlamdexReader reader, @Nonnull final Set<FlamdexDocument> naive) {
         final LongSet result = new LongOpenHashSet(naive.size());
         final LongSet expected = new LongOpenHashSet(naive.size());
         for (final FlamdexDocument document : naive) {
@@ -142,7 +135,6 @@ public class TestDynamicFlamdexMerger {
         final Random random = new Random(0);
         final Set<FlamdexDocument> naive = new HashSet<>();
         try (final DynamicFlamdexDocWriter flamdexDocWriterWithoutMerger = new DynamicFlamdexDocWriter(directory)) {
-            int cnt = 0;
             for (final FlamdexDocument document : documents) {
                 addDocument(flamdexDocWriterWithoutMerger, naive, document);
                 if (random.nextInt(200) == 0) {
@@ -174,7 +166,6 @@ public class TestDynamicFlamdexMerger {
             final Random random = new Random(0);
             final Set<FlamdexDocument> naive = new HashSet<>();
             try (final DynamicFlamdexDocWriter flamdexDocWriterWithoutMerger = new DynamicFlamdexDocWriter(directory)) {
-                int cnt = 0;
                 for (final FlamdexDocument document : documents) {
                     addDocument(flamdexDocWriterWithoutMerger, naive, document);
                     if (random.nextInt(100) == 0) {

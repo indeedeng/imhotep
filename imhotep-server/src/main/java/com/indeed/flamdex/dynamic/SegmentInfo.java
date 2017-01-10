@@ -47,7 +47,6 @@ class SegmentInfo implements Comparable<SegmentInfo> {
         return segmentName;
     }
 
-    @Nonnull
     int getNumDocs() {
         return this.numDocs;
     }

@@ -226,7 +226,7 @@ public class TestDynamicFlamdexReader {
                             tombstoneSet.set(docId, true);
                         }
                     }
-                    try (final ByteChannel byteChannel = Files.newByteChannel(tombstoneSetPath, StandardOpenOption.WRITE, StandardOpenOption.CREATE)){
+                    try (final ByteChannel byteChannel = Files.newByteChannel(tombstoneSetPath, StandardOpenOption.WRITE, StandardOpenOption.CREATE)) {
                         byteChannel.write(tombstoneSet.serialize());
                     }
                 }

@@ -44,13 +44,6 @@ public class TestDynamicFlamdexWriter {
     private static final int NUM_DOCS = (2 * 3 * 5 * 7 * 11) + 10;
     private Path directory;
 
-    private int restoreNum(@Nonnull final FlamdexReader flamdexReader, final int docId) throws FlamdexOutOfMemoryException {
-        final long[] num = new long[1];
-        flamdexReader.getMetric("original").lookup(new int[]{docId}, num, 1);
-        assertTrue((Integer.MIN_VALUE <= num[0]) && (num[0] <= Integer.MAX_VALUE));
-        return (int) num[0];
-    }
-
     @Nonnull
     private FlamdexDocument makeDocument(final int n) {
         final FlamdexDocument.Builder builder = new FlamdexDocument.Builder();
@@ -130,24 +123,7 @@ public class TestDynamicFlamdexWriter {
         }
     }
 
-    private void removeDocument(@Nonnull final DynamicFlamdexDocWriter writer, @Nonnull final Set<FlamdexDocument> naive, @Nonnull final String field, final String term) throws IOException {
-        writer.deleteDocuments(Query.newTermQuery(Term.stringTerm(field, term)));
-        for (final Iterator<FlamdexDocument> iter = naive.iterator(); iter.hasNext(); ) {
-            final FlamdexDocument flamdexDocument = iter.next();
-            final List<String> terms = flamdexDocument.getStringTerms(field);
-            if (terms == null) {
-                continue;
-            }
-            for (final String value : terms) {
-                if (term.equals(value)) {
-                    iter.remove();
-                    break;
-                }
-            }
-        }
-    }
-
-    private void checkDocuments(@Nonnull final FlamdexReader reader, @Nonnull final Set<FlamdexDocument> naive) throws IOException {
+    private void checkDocuments(@Nonnull final FlamdexReader reader, @Nonnull final Set<FlamdexDocument> naive) {
         final LongSet result = new LongOpenHashSet(naive.size());
         final LongSet expected = new LongOpenHashSet(naive.size());
         for (final FlamdexDocument document : naive) {
