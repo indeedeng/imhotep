@@ -28,16 +28,14 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
-import java.nio.channels.ByteChannel;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
-import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
+import java.util.concurrent.ExecutorService;
 
 /**
  * @author michihiko
@@ -46,9 +44,10 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
     private static final Logger LOG = Logger.getLogger(DynamicFlamdexDocWriter.class);
 
     private static final int DOC_ID_BUFFER_SIZE = 128;
-    private static final String WRITER_LOCK = "writer.writerLock";
+    private static final String WRITER_LOCK = "writer.lock";
 
     private final MultiThreadLock writerLock;
+    private final DynamicFlamdexMerger merger;
     private final Path shardDirectory;
     private MemoryFlamdex memoryFlamdex;
     private FlamdexSearcher flamdexSearcher;
@@ -56,9 +55,20 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
     private final List<Query> removeQueries;
     private final int[] docIdBuf = new int[DOC_ID_BUFFER_SIZE];
 
-    public DynamicFlamdexDocWriter(final Path shardDirectory) throws IOException {
+    // Don't merge at all
+    public DynamicFlamdexDocWriter(@Nonnull final Path shardDirectory) throws IOException {
         this.shardDirectory = shardDirectory;
         this.writerLock = MultiThreadFileLockUtil.writeLock(this.shardDirectory, WRITER_LOCK);
+        this.merger = null;
+        this.removedDocIds = new IntOpenHashSet();
+        this.removeQueries = new ArrayList<>();
+        renew();
+    }
+
+    public DynamicFlamdexDocWriter(@Nonnull final Path shardDirectory, @Nonnull final MergeStrategy mergeStrategy, @Nonnull final ExecutorService executorService) throws IOException {
+        this.shardDirectory = shardDirectory;
+        this.writerLock = MultiThreadFileLockUtil.writeLock(this.shardDirectory, WRITER_LOCK);
+        this.merger = new DynamicFlamdexMerger(this.shardDirectory, mergeStrategy, executorService);
         this.removedDocIds = new IntOpenHashSet();
         this.removeQueries = new ArrayList<>();
         renew();
@@ -151,16 +161,6 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
         this.flamdexSearcher = new FlamdexSearcher(this.memoryFlamdex);
     }
 
-    private String outputTombstoneSet(@Nonnull final Path segmentDirectory, @Nonnull final String newSegmentName, @Nonnull final FastBitSet tombstoneSet) throws IOException {
-        final String tombstoneSetFilename = "tombstoneSet." + newSegmentName + ".bin";
-        final Path path = segmentDirectory.resolve(tombstoneSetFilename);
-
-        try (final ByteChannel byteChannel = Files.newByteChannel(path, StandardOpenOption.WRITE, StandardOpenOption.CREATE)){
-            byteChannel.write(tombstoneSet.serialize());
-        }
-        return tombstoneSetFilename;
-    }
-
     private static class DeleteOnClose implements Closeable {
         private final Path path;
 
@@ -201,7 +201,7 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
             // there are no other thread that modifies segment metadata / currentDeleted-ids.
             final MultiThreadLock lock = closer.register(DynamicFlamdexMetadataUtil.acquireSegmentBuildLock(this.shardDirectory));
             try {
-                final String segmentName = newSegmentName();
+                final String segmentName = DynamicFlamdexSegmentUtil.generateSegmentName();
                 final Path segmentDirectory = this.shardDirectory.resolve(segmentName);
                 try (final SimpleFlamdexWriter flamdexWriter = new SimpleFlamdexWriter(segmentDirectory, this.memoryFlamdex.getNumDocs())) {
                     SimpleFlamdexWriter.writeFlamdex(this.memoryFlamdex, flamdexWriter);
@@ -216,7 +216,7 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
                     for (final IntIterator iterator = this.removedDocIds.iterator(); iterator.hasNext(); ) {
                         tombstoneSet.set(iterator.nextInt());
                     }
-                    final String tombstoneSetFileName = outputTombstoneSet(segmentDirectory, segmentName, tombstoneSet);
+                    final String tombstoneSetFileName = DynamicFlamdexSegmentUtil.outputTombstoneSet(segmentDirectory, segmentName, tombstoneSet);
                     newSegmentInfo = new SegmentInfo(this.shardDirectory, segmentName, this.memoryFlamdex.getNumDocs(), Optional.of(tombstoneSetFileName));
                 }
 
@@ -241,7 +241,7 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
                     for (final SegmentReader segmentReader : segmentReaders) {
                         final Optional<FastBitSet> updatedTombstoneSet = segmentReader.getUpdatedTombstoneSet(query);
                         if (updatedTombstoneSet.isPresent()) {
-                            final String tombstoneSetFileName = outputTombstoneSet(segmentReader.getDirectory(), segmentName, updatedTombstoneSet.get());
+                            final String tombstoneSetFileName = DynamicFlamdexSegmentUtil.outputTombstoneSet(segmentReader.getDirectory(), segmentName, updatedTombstoneSet.get());
                             final SegmentInfo segmentInfo = new SegmentInfo(this.shardDirectory, segmentReader.getSegmentInfo().getName(), segmentReader.maxNumDocs(), Optional.of(tombstoneSetFileName));
                             //noinspection OptionalGetWithoutIsPresent
                             closerOnFailure.register(new DeleteOnClose(segmentInfo.getTombstoneSetPath().get()));
@@ -277,17 +277,16 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
             return;
         }
         buildSegment();
+        if (merger != null) {
+            merger.updated();
+        }
         renew();
     }
 
     @Override
     public void close() throws IOException {
         flush();
-        Closeables2.closeAll(LOG, this.memoryFlamdex, writerLock);
-    }
-
-    private String newSegmentName() {
-        return UUID.randomUUID().toString();
+        Closeables2.closeAll(LOG, this.memoryFlamdex, this.merger, writerLock);
     }
 
     @Override

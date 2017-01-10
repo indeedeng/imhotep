@@ -26,6 +26,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -217,5 +220,34 @@ public class TestDynamicFlamdexWriter {
         }
         final FlamdexReader reader = new DynamicFlamdexReader(directory);
         checkDocuments(reader, naive);
+    }
+
+    @Test
+    public void testWithDeletionAndMerge() throws IOException, InterruptedException {
+        final ExecutorService executorService = Executors.newFixedThreadPool(4);
+        final List<FlamdexDocument> documents = new ArrayList<>();
+        for (int i = 0; i < NUM_DOCS; ++i) {
+            documents.add(makeDocument(i));
+        }
+        Collections.shuffle(documents);
+
+        final Random random = new Random(0);
+        final Set<FlamdexDocument> naive = new HashSet<>();
+        try (final DynamicFlamdexDocWriter flamdexDocWriter = new DynamicFlamdexDocWriter(directory, new MergeStrategy.ExponentialMergeStrategy(4, 5), executorService)) {
+            int cnt = 0;
+            for (final FlamdexDocument document : documents) {
+                addDocument(flamdexDocWriter, naive, document);
+                if (((++cnt) % 500) == 0) {
+                    removeDocument(flamdexDocWriter, naive, "mod7mod11i", random.nextInt(7));
+                }
+                if (random.nextInt(50) == 0) {
+                    flamdexDocWriter.flush(random.nextBoolean());
+                }
+            }
+        }
+        final FlamdexReader reader = new DynamicFlamdexReader(directory);
+        checkDocuments(reader, naive);
+        executorService.shutdown();
+        executorService.awaitTermination(1, TimeUnit.MINUTES);
     }
 }

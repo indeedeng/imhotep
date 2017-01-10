@@ -30,6 +30,7 @@ import java.util.SortedSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -187,6 +188,8 @@ public class TestDynamicFlamdexMerger {
             final FlamdexReader reader = new DynamicFlamdexReader(directory);
             checkDocuments(reader, naive);
         }
+        executorService.shutdown();
+        executorService.awaitTermination(1, TimeUnit.MINUTES);
     }
 
     @Test
@@ -228,5 +231,7 @@ public class TestDynamicFlamdexMerger {
             final FlamdexReader reader = new DynamicFlamdexReader(directory);
             checkDocuments(reader, naive);
         }
+        executorService.shutdown();
+        executorService.awaitTermination(1, TimeUnit.MINUTES);
     }
 }
