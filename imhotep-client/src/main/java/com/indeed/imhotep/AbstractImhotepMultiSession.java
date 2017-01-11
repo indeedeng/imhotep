@@ -17,6 +17,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.google.common.primitives.Longs;
+import com.indeed.flamdex.query.Query;
 import com.indeed.flamdex.query.Term;
 import com.indeed.imhotep.api.DocIterator;
 import com.indeed.imhotep.api.FTGSIterator;
@@ -542,6 +543,17 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
             @Override
             public Object apply(ImhotepSession imhotepSession) throws Exception {
                 imhotepSession.groupConditionalUpdateDynamicMetric(name, groups, conditions, deltas);
+                return null;
+            }
+        });
+    }
+
+    @Override
+    public void groupQueryUpdateDynamicMetric(final String name, final int[] groups, final Query[] conditions, final int[] deltas) {
+        executeRuntimeException(nullBuf, new ThrowingFunction<ImhotepSession, Object>() {
+            @Override
+            public Object apply(ImhotepSession imhotepSession) throws Exception {
+                imhotepSession.groupQueryUpdateDynamicMetric(name, groups, conditions, deltas);
                 return null;
             }
         });

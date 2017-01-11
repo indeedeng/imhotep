@@ -122,6 +122,7 @@ message ImhotepRequest {
     GET_NUM_GROUPS = 38;
     REGEX_REGROUP = 39;
     GET_FTGS_SPLIT_NATIVE=40;
+    GROUP_QUERY_UPDATE_DYNAMIC_METRIC = 41;
     SHUTDOWN = 255;
   }
 
@@ -250,6 +251,9 @@ message ImhotepRequest {
 
   // for getStatusDump
   optional bool includeShardList = 57 [default = false];
+
+  // for groupQueryUpdateDynamicMetric
+  repeated QueryMessage queryMessages = 58;
 }
 
 message ImhotepResponse {

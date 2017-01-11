@@ -13,6 +13,7 @@
  */
  package com.indeed.imhotep.api;
 
+import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.Instrumentation;
@@ -372,6 +373,8 @@ public interface ImhotepSession
     void conditionalUpdateDynamicMetric(String name, RegroupCondition[] conditions, int[] deltas);
 
     void groupConditionalUpdateDynamicMetric(String name, int[] groups, RegroupCondition[] conditions, int[] deltas);
+
+    void groupQueryUpdateDynamicMetric(String name, int[] groups, Query[] conditions, int[] deltas) throws ImhotepOutOfMemoryException;
 
     /**
      * close the session and free up any associated resources

@@ -33,7 +33,6 @@ import com.indeed.flamdex.api.RawFlamdexReader;
 import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.StringValueLookup;
-import com.indeed.flamdex.api.TermDocIterator;
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.flamdex.datastruct.FastBitSetPooler;
 import com.indeed.flamdex.fieldcache.ByteArrayIntValueLookup;
@@ -104,7 +103,6 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
 import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.lang.IllegalClassException;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
@@ -211,34 +209,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 .putAll(ImhotepLocalSession.this.instrumentedFlamdexReader.sample().getProperties());
             getProperties().put(Instrumentation.Keys.MAX_USED_MEMORY,
                                 ImhotepLocalSession.this.memory.maxUsedMemory());
-        }
-    }
-
-    private interface DocIdHandler {
-        void handle(final int[] docIdBuf, final int index);
-    }
-
-    private static void streamDocIds(final DocIdStream  docIdStream,
-                                     final int[]        docIdBuf,
-                                     final DocIdHandler handler) {
-        while (true) {
-            final int n = docIdStream.fillDocIdBuffer(docIdBuf);
-            for (int i = 0; i < n; ++i) {
-                handler.handle(docIdBuf, i);
-            }
-            if (n < docIdBuf.length) break;
-        }
-    }
-
-    private static void iterateDocIds(final TermDocIterator docIdStream,
-                                      final int[]           docIdBuf,
-                                      final DocIdHandler    handler) {
-        while (true) {
-            final int n = docIdStream.fillDocIdBuffer(docIdBuf);
-            for (int i = 0; i < n; ++i) {
-                handler.handle(docIdBuf, i);
-            }
-            if (n < docIdBuf.length) break;
         }
     }
 
@@ -968,31 +938,20 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     private void remapPositiveDocs(DocIdStream docIdStream,
-                                   final FastBitSet docRemapped,
-                                   final int targetGroup,
-                                   final int positiveGroup) {
-        streamDocIds(docIdStream, docIdBuf, new DocIdHandler() {
-                         public void handle(final int[] docIdBuf, final int index) {
-                             final int doc = docIdBuf[index];
-                             if (docIdToGroup.get(doc) == targetGroup) {
-                                 docIdToGroup.set(doc, positiveGroup);
-                                 docRemapped.set(doc);
-                             }
-                         }
-                     });
-    }
-
-    class ChangeGroupHandler implements DocIdHandler {
-        private final int targetGroup;
-        private final int newGroup;
-        public ChangeGroupHandler(final int targetGroup, final int newGroup) {
-            this.targetGroup = targetGroup;
-            this.newGroup = newGroup;
-        }
-        public void handle(final int[] docIdBuf, final int index) {
-            final int doc = docIdBuf[index];
-            if (docIdToGroup.get(doc) == targetGroup) {
-                docIdToGroup.set(doc, newGroup);
+                                   FastBitSet docRemapped,
+                                   int targetGroup,
+                                   int positiveGroup) {
+        while (true) {
+            final int n = docIdStream.fillDocIdBuffer(docIdBuf);
+            for (int i = 0; i < n; ++i) {
+                final int doc = docIdBuf[i];
+                if (docIdToGroup.get(doc) == targetGroup) {
+                    docIdToGroup.set(doc, positiveGroup);
+                    docRemapped.set(doc);
+                }
+            }
+            if (n < docIdBuf.length) {
+                break;
             }
         }
     }
@@ -1020,7 +979,19 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 final int newGroup =
                         chooser.choose(Long.toString(term)) ? positiveGroup : negativeGroup;
                 docIdStream.reset(iter);
-                streamDocIds(docIdStream, docIdBuf, new ChangeGroupHandler(targetGroup, newGroup));
+                while (true) {
+                    final int n = docIdStream.fillDocIdBuffer(docIdBuf);
+                    for (int i = 0; i < n; ++i) {
+                        final int doc = docIdBuf[i];
+                        if (docIdToGroup.get(doc) == targetGroup) {
+                            docIdToGroup.set(doc, newGroup);
+                        }
+                    }
+
+                    if (n < docIdBuf.length) {
+                        break;
+                    }
+                }
             }
             iter.close();
         } else {
@@ -1029,7 +1000,19 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 final String term = iter.term();
                 final int newGroup = chooser.choose(term) ? positiveGroup : negativeGroup;
                 docIdStream.reset(iter);
-                streamDocIds(docIdStream, docIdBuf, new ChangeGroupHandler(targetGroup, newGroup));
+                while (true) {
+                    final int n = docIdStream.fillDocIdBuffer(docIdBuf);
+                    for (int i = 0; i < n; ++i) {
+                        final int doc = docIdBuf[i];
+                        if (docIdToGroup.get(doc) == targetGroup) {
+                            docIdToGroup.set(doc, newGroup);
+                        }
+                    }
+
+                    if (n < docIdBuf.length) {
+                        break;
+                    }
+                }
             }
             iter.close();
         }
@@ -1059,7 +1042,19 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 final int groupIndex = indexOfFirstLessThan(chooser.getValue(Long.toString(term)), percentages);
                 final int newGroup = resultGroups[groupIndex];
                 docIdStream.reset(iter);
-                streamDocIds(docIdStream, docIdBuf, new ChangeGroupHandler(targetGroup, newGroup));
+                while (true) {
+                    final int n = docIdStream.fillDocIdBuffer(docIdBuf);
+                    for (int i = 0; i < n; ++i) {
+                        final int doc = docIdBuf[i];
+                        if (docIdToGroup.get(doc) == targetGroup) {
+                            docIdToGroup.set(doc, newGroup);
+                        }
+                    }
+
+                    if (n < docIdBuf.length) {
+                        break;
+                    }
+                }
             }
             iter.close();
         } else {
@@ -1069,7 +1064,19 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 final int groupIndex = indexOfFirstLessThan(chooser.getValue(term), percentages);
                 final int newGroup = resultGroups[groupIndex];
                 docIdStream.reset(iter);
-                streamDocIds(docIdStream, docIdBuf, new ChangeGroupHandler(targetGroup, newGroup));
+                while (true) {
+                    final int n = docIdStream.fillDocIdBuffer(docIdBuf);
+                    for (int i = 0; i < n; ++i) {
+                        final int doc = docIdBuf[i];
+                        if (docIdToGroup.get(doc) == targetGroup) {
+                            docIdToGroup.set(doc, newGroup);
+                        }
+                    }
+
+                    if (n < docIdBuf.length) {
+                        break;
+                    }
+                }
             }
             iter.close();
         }
@@ -1993,6 +2000,13 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
     }
 
+    private void validateQueryUpdateDynamicMetricInput(Query[] conditions,
+                                                             int[] deltas) {
+        if (conditions.length != deltas.length) {
+            throw new IllegalArgumentException("conditions and deltas must be of the same length");
+        }
+    }
+
     public void groupConditionalUpdateDynamicMetric(String name, int[] groups,
                                                     RegroupCondition[] conditions, int[] deltas) {
         if (groups.length != conditions.length) {
@@ -2114,27 +2128,110 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
     }
 
-    private void updateDocsWithTermDynamicMetric(final DynamicMetric metric,
-                                                 final FastBitSet groupsWithCurrentTerm,
-                                                 final int[] groupToDelta,
-                                                 final DocIdStream docIdStream) {
-        streamDocIds(docIdStream, docIdBuf, new DocIdHandler() {
-                         public void handle(final int[] docIdBuf, final int index) {
-                             if (groupsWithCurrentTerm.get(docGroupBuffer[index])) {
-                                 metric.add(docIdBuf[index], groupToDelta[docGroupBuffer[index]]);
-                             }
-                         }
-                     });
+    private void updateDocsWithTermDynamicMetric(DynamicMetric metric, FastBitSet groupsWithCurrentTerm, int[] groupToDelta, DocIdStream docIdStream) {
+        while (true) {
+            final int n = docIdStream.fillDocIdBuffer(docIdBuf);
+            groupAdjustDeltas(metric, groupsWithCurrentTerm, groupToDelta, docIdBuf, n);
+            if (n < docIdBuf.length) break;
+        }
     }
 
-    private synchronized void adjustDeltas(final DynamicMetric metric,
-                                           final DocIdStream docIdStream,
-                                           final int delta) {
-        streamDocIds(docIdStream, docIdBuf, new DocIdHandler() {
-                         public void handle(final int[] docIdBuf, final int index) {
-                             metric.add(docIdBuf[index], delta);
-                         }
-                     });
+    @Override
+    public void groupQueryUpdateDynamicMetric(String name, int[] groups, Query[] conditions, int[] deltas) throws ImhotepOutOfMemoryException {
+        if (groups.length != conditions.length) {
+            throw new IllegalArgumentException("groups and conditions must be the same length");
+        }
+        validateQueryUpdateDynamicMetricInput(conditions, deltas);
+        final DynamicMetric metric = getDynamicMetrics().get(name);
+        if (metric == null) {
+            throw new RuntimeException("dynamic metric \"" + name + "\" does not exist");
+        }
+        final IntArrayList groupsSet = new IntArrayList();
+
+
+        final int[] groupToDelta = new int[docIdToGroup.getNumGroups()];
+        final Map<Query, Pair<IntArrayList, IntArrayList>> queryToGroupDeltas = Maps.newHashMap();
+        for (int i = 0; i < groups.length; i++) {
+            //if the last group(s) exist on other shards but not this one docIdToGroup.getNumGroups() is wrong
+            if (groups[i] >= groupToDelta.length) continue;
+            final Query condition = conditions[i];
+            Pair<IntArrayList, IntArrayList> groupDeltas;
+            groupDeltas = queryToGroupDeltas.get(condition);
+            if (groupDeltas == null) {
+                groupDeltas = Pair.of(new IntArrayList(), new IntArrayList());
+                queryToGroupDeltas.put(condition, groupDeltas);
+            }
+            groupDeltas.getFirst().add(groups[i]);
+            groupDeltas.getSecond().add(deltas[i]);
+        }
+
+        final FastBitSetPooler bitSetPooler = new ImhotepBitSetPooler(memory);
+        FastBitSet bitSet = null;
+        FastBitSet groupsWithCurrentTerm = null;
+
+        try {
+            bitSet = bitSetPooler.create(flamdexReader.getNumDocs());
+            groupsWithCurrentTerm = bitSetPooler.create(docIdToGroup.getNumGroups());
+            final FlamdexSearcher searcher = new FlamdexSearcher(flamdexReader);
+            for (Map.Entry<Query, Pair<IntArrayList, IntArrayList>> entry :
+                    queryToGroupDeltas.entrySet()) {
+                for (int i = 0; i < groupsSet.size(); i++) {
+                    groupsWithCurrentTerm.clear(groupsSet.getInt(i));
+                }
+                groupsSet.clear();
+                final Pair<IntArrayList, IntArrayList> groupDeltas = entry.getValue();
+                final IntArrayList termGroups = groupDeltas.getFirst();
+                final IntArrayList termDeltas = groupDeltas.getSecond();
+                for (int i = 0; i < termGroups.size(); i++) {
+                    final int group = termGroups.getInt(i);
+                    groupsWithCurrentTerm.set(group);
+                    groupToDelta[group] = termDeltas.getInt(i);
+                    groupsSet.add(group);
+                }
+                final Query query = entry.getKey();
+                searcher.search(query, bitSet, bitSetPooler);
+
+                final FastBitSet.IntIterator iterator = bitSet.iterator();
+                while (true) {
+                    int n;
+                    for (n = 0; n < docIdBuf.length; n++) {
+                        if (!iterator.next()) break;
+                        docIdBuf[n] = iterator.getValue();
+                    }
+                    groupAdjustDeltas(metric, groupsWithCurrentTerm, groupToDelta, docIdBuf, n);
+                    if (n < docIdBuf.length) break;
+                }
+            }
+            // pessimistically recompute all stats -- other metrics may
+            // indirectly refer to this one
+            groupStats.reset(numStats, docIdToGroup.getNumGroups());
+        } catch (FlamdexOutOfMemoryException e) {
+            throw new ImhotepOutOfMemoryException(e);
+        } finally {
+            if (groupsWithCurrentTerm != null) bitSetPooler.release(groupsWithCurrentTerm.memoryUsage());
+            if (bitSet != null) bitSetPooler.release(bitSet.memoryUsage());
+        }
+    }
+
+    private void groupAdjustDeltas(DynamicMetric metric, FastBitSet groupsWithCurrentTerm, int[] groupToDelta, int[] docIdBuf, int n) {
+        docIdToGroup.fillDocGrpBuffer(docIdBuf, docGroupBuffer, n);
+        for (int i = 0; i < n; i++) {
+            if (groupsWithCurrentTerm.get(docGroupBuffer[i])) {
+                metric.add(docIdBuf[i], groupToDelta[docGroupBuffer[i]]);
+            }
+        }
+    }
+
+    private synchronized void adjustDeltas(DynamicMetric metric, DocIdStream docIdStream, int delta) {
+        while (true) {
+            final int n = docIdStream.fillDocIdBuffer(docIdBuf);
+            for (int i = 0; i < n; i++) {
+                metric.add(docIdBuf[i], delta);
+            }
+            if (n != docIdBuf.length) {
+                break;
+            }
+        }
     }
 
     @Override
@@ -2676,14 +2773,18 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             try {
                 while (iterator.next()) {
                     docIdStream.reset(iterator);
-                    streamDocIds(docIdStream, docIdBuf, new DocIdHandler() {
-                                     public void handle(final int[] docIdBuf, final int index) {
-                                         final int doc = docIdBuf[index];
-                                         if (array[doc] != (byte) 255) {
-                                             ++array[doc];
-                                         }
-                                     }
-                                 });
+                    while (true) {
+                        final int n = docIdStream.fillDocIdBuffer(docIdBuf);
+                        for (int i = 0; i < n; ++i) {
+                            final int doc = docIdBuf[i];
+                            if (array[doc] != (byte) 255) {
+                                ++array[doc];
+                            }
+                        }
+                        if (n < BUFFER_SIZE) {
+                            break;
+                        }
+                    }
                 }
             } finally {
                 docIdStream.close();
@@ -2708,14 +2809,18 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         final StringTermDocIterator iterator = flamdexReader.getStringTermDocIterator(field);
         try {
             while (iterator.nextTerm()) {
-                iterateDocIds(iterator, docIdBuf, new DocIdHandler() {
-                                 public void handle(final int[] docIdBuf, final int index) {
-                                     final int doc = docIdBuf[index];
-                                     if (array[doc] != (byte) 255) {
-                                         ++array[doc];
-                                     }
-                                 }
-                             });
+                while (true) {
+                    final int n = iterator.fillDocIdBuffer(docIdBuf);
+                    for (int i = 0; i < n; ++i) {
+                        final int doc = docIdBuf[i];
+                        if (array[doc] != (byte) 255) {
+                            ++array[doc];
+                        }
+                    }
+                    if (n < BUFFER_SIZE) {
+                        break;
+                    }
+                }
             }
         } finally {
             Closeables2.closeQuietly(iterator, log);
@@ -2753,12 +2858,17 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 final int number = parseAndRound(term, scale, offset);
                 min = Math.min(min, number);
                 max = Math.max(max, number);
-                iterateDocIds(iterator, docIdBuf, new DocIdHandler() {
-                                 public void handle(final int[] docIdBuf, final int index) {
-                                     final int doc = docIdBuf[index];
-                                     array[doc] = number;
-                                 }
-                             });
+
+                while (true) {
+                    final int n = iterator.fillDocIdBuffer(docIdBuf);
+                    for (int i = 0; i < n; i++) {
+                        final int doc = docIdBuf[i];
+                        array[doc] = number;
+                    }
+                    if (n < BUFFER_SIZE) {
+                        break;
+                    }
+                }
             }
         } finally {
             Closeables2.closeQuietly(iterator, log);
