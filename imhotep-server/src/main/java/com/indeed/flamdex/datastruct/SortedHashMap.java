@@ -1,5 +1,6 @@
 package com.indeed.flamdex.datastruct;
 
+import javax.annotation.Nonnull;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -15,15 +16,15 @@ import java.util.TreeMap;
  * @author michihiko
  */
 
-public class SortedMapWithHash<K, V> implements SortedMap<K, V> {
+public class SortedHashMap<K, V> implements SortedMap<K, V> {
     private final SortedMap<K, V> sortedMap;
     private final Map<K, V> hashMap;
 
-    public SortedMapWithHash() {
+    public SortedHashMap() {
         this(new TreeMap<K, V>(), new HashMap<K, V>());
     }
 
-    public SortedMapWithHash(final SortedMap<K, V> sortedMap, final Map<K, V> hashMap) {
+    public SortedHashMap(final SortedMap<K, V> sortedMap, final Map<K, V> hashMap) {
         this.sortedMap = sortedMap;
         this.hashMap = hashMap;
     }
@@ -33,16 +34,19 @@ public class SortedMapWithHash<K, V> implements SortedMap<K, V> {
         return sortedMap.comparator();
     }
 
+    @Nonnull
     @Override
     public SortedMap<K, V> subMap(final K fromKey, final K toKey) {
         return Collections.unmodifiableSortedMap(sortedMap.subMap(fromKey, toKey));
     }
 
+    @Nonnull
     @Override
     public SortedMap<K, V> headMap(final K toKey) {
         return Collections.unmodifiableSortedMap(sortedMap.headMap(toKey));
     }
 
+    @Nonnull
     @Override
     public SortedMap<K, V> tailMap(final K fromKey) {
         return Collections.unmodifiableSortedMap(sortedMap.tailMap(fromKey));
@@ -96,7 +100,7 @@ public class SortedMapWithHash<K, V> implements SortedMap<K, V> {
     }
 
     @Override
-    public void putAll(final Map<? extends K, ? extends V> m) {
+    public void putAll(@Nonnull final Map<? extends K, ? extends V> m) {
         sortedMap.putAll(m);
         hashMap.putAll(m);
     }
@@ -107,27 +111,30 @@ public class SortedMapWithHash<K, V> implements SortedMap<K, V> {
         hashMap.clear();
     }
 
+    @Nonnull
     @Override
     public Set<K> keySet() {
-        return sortedMap.keySet();
+        return Collections.unmodifiableSet(sortedMap.keySet());
     }
 
+    @Nonnull
     @Override
     public Collection<V> values() {
-        return sortedMap.values();
+        return Collections.unmodifiableCollection(sortedMap.values());
     }
 
+    @Nonnull
     @Override
     public Set<Entry<K, V>> entrySet() {
         return Collections.unmodifiableSet(sortedMap.entrySet());
     }
 
     public Set<K> unorderedKeySet() {
-        return hashMap.keySet();
+        return Collections.unmodifiableSet(hashMap.keySet());
     }
 
     public Collection<V> unorderedValues() {
-        return hashMap.values();
+        return Collections.unmodifiableCollection(hashMap.values());
     }
 
     public Set<Entry<K, V>> unorderedEntrySet() {

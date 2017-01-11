@@ -29,8 +29,8 @@ import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.StringValueLookup;
 import com.indeed.flamdex.api.TermIterator;
-import com.indeed.flamdex.datastruct.Long2ObjectSortedMapWithHash;
-import com.indeed.flamdex.datastruct.SortedMapWithHash;
+import com.indeed.flamdex.datastruct.Long2ObjectSortedHashMap;
+import com.indeed.flamdex.datastruct.SortedHashMap;
 import com.indeed.flamdex.fieldcache.IntArrayIntValueLookup;
 import com.indeed.flamdex.utils.FlamdexUtils;
 import com.indeed.flamdex.writer.FlamdexDocWriter;
@@ -107,8 +107,8 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
         return usage + ((8 - (usage % 8)) % 8);
     }
 
-    private final SortedMap<String, Long2ObjectSortedMap<IntArrayList>> intFields = new SortedMapWithHash<>();
-    private final SortedMap<String, SortedMap<String, IntArrayList>> stringFields = new SortedMapWithHash<>();
+    private final SortedMap<String, Long2ObjectSortedMap<IntArrayList>> intFields = new SortedHashMap<>();
+    private final SortedMap<String, SortedMap<String, IntArrayList>> stringFields = new SortedHashMap<>();
 
     private int numDocs;
 
@@ -220,7 +220,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
     @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
     public IntFieldWriter getIntFieldWriter(final String field) throws IOException {
         return new IntFieldWriter() {
-            private final Long2ObjectSortedMap<IntArrayList> terms = new Long2ObjectSortedMapWithHash<>();
+            private final Long2ObjectSortedMap<IntArrayList> terms = new Long2ObjectSortedHashMap<>();
             private IntArrayList currentDocList;
             private long term;
 
@@ -256,7 +256,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
     @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
     public StringFieldWriter getStringFieldWriter(final String field) throws IOException {
         return new StringFieldWriter() {
-            private final SortedMap<String, IntArrayList> terms = new SortedMapWithHash<>();
+            private final SortedMap<String, IntArrayList> terms = new SortedHashMap<>();
             private IntArrayList currentDocList;
             private String term;
 
@@ -294,7 +294,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
         for (final Map.Entry<String, LongList> intField : docIntFields.entrySet()) {
             Long2ObjectSortedMap<IntArrayList> myIntTerms = intFields.get(intField.getKey());
             if (myIntTerms == null) {
-                intFields.put(intField.getKey(), myIntTerms = new Long2ObjectSortedMapWithHash<>());
+                intFields.put(intField.getKey(), myIntTerms = new Long2ObjectSortedHashMap<>());
                 memoryUsageEstimate += TREE_MAP_WITH_HASH_MAP_ENTRY_USAGE + usage(intField.getKey()) + LONG_2_OBJECT_RB_TREE_MAP_WITH_HASH_MAP_USAGE;
             }
             final LongSet seenIntTerms = new LongOpenHashSet();
@@ -321,7 +321,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
         for (final Map.Entry<String, List<String>> stringField : docStringFields.entrySet()) {
             SortedMap<String, IntArrayList> myStringTerms = stringFields.get(stringField.getKey());
             if (myStringTerms == null) {
-                stringFields.put(stringField.getKey(), myStringTerms = new SortedMapWithHash<>());
+                stringFields.put(stringField.getKey(), myStringTerms = new SortedHashMap<>());
                 memoryUsageEstimate += TREE_MAP_WITH_HASH_MAP_ENTRY_USAGE + usage(stringField.getKey()) + TREE_MAP_WITH_HASH_MAP_USAGE;
             }
             final Set<String> seenStringTerms = new HashSet<>();
@@ -436,7 +436,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
 
         for (int z = 0; z < numIntFields; ++z) {
             final String intField = readString(in);
-            intFields.put(intField, new Long2ObjectSortedMapWithHash<IntArrayList>());
+            intFields.put(intField, new Long2ObjectSortedHashMap<IntArrayList>());
         }
 
         final int numStringFields = in.readInt();
@@ -444,7 +444,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
 
         for (int z = 0; z < numStringFields; ++z) {
             final String stringField = readString(in);
-            stringFields.put(stringField, new SortedMapWithHash<String, IntArrayList>());
+            stringFields.put(stringField, new SortedHashMap<String, IntArrayList>());
         }
 
         for (final Long2ObjectMap<IntArrayList> terms : intFields.values()) {
@@ -850,6 +850,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
             keys = map.long2ObjectEntrySet().iterator();
         }
 
+        @SuppressWarnings("unchecked")
         private MemoryIntTermIterator() {
             map = (Long2ObjectSortedMap<IntArrayList>) Long2ObjectSortedMaps.EMPTY_MAP;
             keys = map.long2ObjectEntrySet().iterator();
@@ -907,6 +908,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
             keys = map.entrySet().iterator();
         }
 
+        @SuppressWarnings("unchecked")
         private MemoryStringTermIterator() {
             map = Object2ObjectSortedMaps.EMPTY_MAP;
             keys = map.entrySet().iterator();

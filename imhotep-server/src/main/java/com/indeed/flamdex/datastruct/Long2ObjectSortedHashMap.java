@@ -7,15 +7,18 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectSortedMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectSortedMaps;
 import it.unimi.dsi.fastutil.longs.LongComparator;
 import it.unimi.dsi.fastutil.longs.LongSet;
+import it.unimi.dsi.fastutil.longs.LongSets;
 import it.unimi.dsi.fastutil.longs.LongSortedSet;
+import it.unimi.dsi.fastutil.longs.LongSortedSets;
 import it.unimi.dsi.fastutil.objects.ObjectCollection;
+import it.unimi.dsi.fastutil.objects.ObjectCollections;
+import it.unimi.dsi.fastutil.objects.ObjectSet;
+import it.unimi.dsi.fastutil.objects.ObjectSets;
 import it.unimi.dsi.fastutil.objects.ObjectSortedSet;
 import it.unimi.dsi.fastutil.objects.ObjectSortedSets;
 
-import java.util.Collection;
-import java.util.Collections;
+import javax.annotation.Nonnull;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * HashMap that can iterate by sorted order, to be able to make get() faster
@@ -23,31 +26,32 @@ import java.util.Set;
  * @author michihiko
  */
 
-public class Long2ObjectSortedMapWithHash<V> implements Long2ObjectSortedMap<V> {
+public class Long2ObjectSortedHashMap<V> implements Long2ObjectSortedMap<V> {
     private final Long2ObjectSortedMap<V> sortedMap;
     private final Long2ObjectMap<V> hashMap;
 
-    public Long2ObjectSortedMapWithHash() {
+    public Long2ObjectSortedHashMap() {
         this(new Long2ObjectRBTreeMap<V>(), new Long2ObjectOpenHashMap<V>());
     }
 
-    public Long2ObjectSortedMapWithHash(final Long2ObjectSortedMap<V> sortedMap, final Long2ObjectMap<V> hashMap) {
+    public Long2ObjectSortedHashMap(final Long2ObjectSortedMap<V> sortedMap, final Long2ObjectMap<V> hashMap) {
         this.sortedMap = sortedMap;
         this.hashMap = hashMap;
     }
 
     public LongSet unorderedLongKeySet() {
-        return hashMap.keySet();
+        return LongSets.unmodifiable(hashMap.keySet());
     }
 
-    public Collection<V> unorderedValues() {
-        return hashMap.values();
+    public ObjectCollection<V> unorderedValues() {
+        return ObjectCollections.unmodifiable(hashMap.values());
     }
 
-    public Set<Long2ObjectMap.Entry<V>> unorderedLong2ObjectEntrySet() {
-        return Collections.unmodifiableSet(hashMap.long2ObjectEntrySet());
+    public ObjectSet<Long2ObjectMap.Entry<V>> unorderedLong2ObjectEntrySet() {
+        return ObjectSets.unmodifiable(hashMap.long2ObjectEntrySet());
     }
 
+    @Nonnull
     @Override
     public ObjectSortedSet<Map.Entry<Long, V>> entrySet() {
         return ObjectSortedSets.unmodifiable(sortedMap.entrySet());
@@ -58,14 +62,16 @@ public class Long2ObjectSortedMapWithHash<V> implements Long2ObjectSortedMap<V> 
         return ObjectSortedSets.unmodifiable(sortedMap.long2ObjectEntrySet());
     }
 
+    @Nonnull
     @Override
     public LongSortedSet keySet() {
-        return sortedMap.keySet();
+        return LongSortedSets.unmodifiable(sortedMap.keySet());
     }
 
+    @Nonnull
     @Override
     public ObjectCollection<V> values() {
-        return sortedMap.values();
+        return ObjectCollections.unmodifiable(sortedMap.values());
     }
 
     @Override
@@ -73,16 +79,19 @@ public class Long2ObjectSortedMapWithHash<V> implements Long2ObjectSortedMap<V> 
         return sortedMap.comparator();
     }
 
+    @Nonnull
     @Override
     public Long2ObjectSortedMap<V> subMap(final Long fromKey, final Long toKey) {
         return Long2ObjectSortedMaps.unmodifiable(sortedMap.subMap(fromKey, toKey));
     }
 
+    @Nonnull
     @Override
     public Long2ObjectSortedMap<V> headMap(final Long toKey) {
         return Long2ObjectSortedMaps.unmodifiable(sortedMap.headMap(toKey));
     }
 
+    @Nonnull
     @Override
     public Long2ObjectSortedMap<V> tailMap(final Long fromKey) {
         return Long2ObjectSortedMaps.unmodifiable(sortedMap.tailMap(fromKey));
@@ -184,7 +193,7 @@ public class Long2ObjectSortedMapWithHash<V> implements Long2ObjectSortedMap<V> 
     }
 
     @Override
-    public void putAll(final Map<? extends Long, ? extends V> m) {
+    public void putAll(@Nonnull final Map<? extends Long, ? extends V> m) {
         sortedMap.putAll(m);
         hashMap.putAll(m);
     }
