@@ -15,7 +15,6 @@ package com.indeed.flamdex;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import com.indeed.flamdex.api.DocIdStream;
@@ -30,6 +29,8 @@ import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.StringValueLookup;
 import com.indeed.flamdex.api.TermIterator;
+import com.indeed.flamdex.datastruct.Long2ObjectSortedMapWithHash;
+import com.indeed.flamdex.datastruct.SortedMapWithHash;
 import com.indeed.flamdex.fieldcache.IntArrayIntValueLookup;
 import com.indeed.flamdex.utils.FlamdexUtils;
 import com.indeed.flamdex.writer.FlamdexDocWriter;
@@ -40,11 +41,12 @@ import com.indeed.flamdex.writer.StringFieldWriter;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectRBTreeMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectSortedMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectSortedMaps;
 import it.unimi.dsi.fastutil.longs.LongList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
+import it.unimi.dsi.fastutil.objects.Object2ObjectSortedMaps;
 
 import java.io.Closeable;
 import java.io.DataInput;
@@ -68,22 +70,45 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
-import java.util.TreeMap;
 
 /**
  * @author jsgroth
  */
 public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, FlamdexDocWriter {
-    private static final long TREE_MAP_USAGE = 8 + 4 + 4 + 4 + 4 + 12 + 16 + 4 + 4 + 12;
-    private static final long TREE_MAP_ENTRY_USAGE = 8 + 4 + 4 + 4 + 4 + 4 + 1;
-    //todo jeffp fix this for longs (or don't)
-    private static final long INT_2_OBJECT_RB_TREE_MAP_USAGE = 8 + 4 + 4 + 4 + 4 + 12 + 12 + 12 + 1 + 4 + 12 + 4 + 12 + 64 + 4 + 12 + 256 + 4;
-    private static final long INT_2_OBJECT_RB_TREE_MAP_ENTRY_USAGE = 8 + 4 + 4 + 4 + 4 + 4;
-    private static final long STRING_USAGE = 8 + 4 + 12 + 4 + 4 + 4;
-    private static final long INT_ARRAY_LIST_USAGE = 8 + 12 + 4;
+    private static final long OBJECT_REFERENCE_USAGE = 8;
+    private static final long OBJECT_HEADER_USAGE = 16;
+    private static final long INT_USAGE = Integer.SIZE / Byte.SIZE;
+    private static final long ARRAY_HEADER_USAGE = OBJECT_HEADER_USAGE + INT_USAGE;
+    private static final long BOOLEAN_USAGE = 1;
+    private static final long FLOAT_USAGE = Float.SIZE / Byte.SIZE;
+    private static final long LONG_USAGE = Long.SIZE / Byte.SIZE;
 
-    private final SortedMap<String, Long2ObjectSortedMap<IntArrayList>> intFields = Maps.newTreeMap();
-    private final SortedMap<String, SortedMap<String, IntArrayList>> stringFields = Maps.newTreeMap();
+    private static final float HASH_MAP_LOAD_BALANCE = 0.75f;
+
+    private static final long TREE_MAP_USAGE = addPadding(OBJECT_HEADER_USAGE + (7 * OBJECT_REFERENCE_USAGE) + (2 * INT_USAGE));
+    private static final long TREE_MAP_ENTRY_USAGE = addPadding(OBJECT_HEADER_USAGE + (5 * OBJECT_REFERENCE_USAGE) + BOOLEAN_USAGE);
+    private static final long HASH_MAP_USAGE = addPadding(OBJECT_HEADER_USAGE + (4 * OBJECT_REFERENCE_USAGE) + ARRAY_HEADER_USAGE + (4 * INT_USAGE) + FLOAT_USAGE);
+    private static final long HASH_MAP_ENTRY_USAGE = (long) (addPadding(OBJECT_HEADER_USAGE + (3 * OBJECT_REFERENCE_USAGE) + INT_USAGE) / HASH_MAP_LOAD_BALANCE);
+    private static final long TREE_MAP_WITH_HASH_MAP_USAGE = addPadding(OBJECT_HEADER_USAGE + (2 * OBJECT_REFERENCE_USAGE) + TREE_MAP_USAGE + HASH_MAP_USAGE);
+    private static final long TREE_MAP_WITH_HASH_MAP_ENTRY_USAGE = addPadding(TREE_MAP_ENTRY_USAGE + HASH_MAP_ENTRY_USAGE);
+
+    private static final long LONG_2_OBJECT_RB_TREE_MAP_USAGE = addPadding(OBJECT_HEADER_USAGE + (11 * OBJECT_REFERENCE_USAGE) + INT_USAGE + BOOLEAN_USAGE + (2 * ARRAY_HEADER_USAGE) + (64 * BOOLEAN_USAGE) + (64 * OBJECT_REFERENCE_USAGE));
+    private static final long LONG_2_OBJECT_RB_TREE_MAP_ENTRY_USAGE = addPadding(OBJECT_HEADER_USAGE + LONG_USAGE + (3 * OBJECT_REFERENCE_USAGE) + INT_USAGE);
+    private static final long LONG_2_OBJECT_OPEN_HASH_MAP_USAGE = addPadding(OBJECT_HEADER_USAGE + (6 * OBJECT_REFERENCE_USAGE) + (3 * ARRAY_HEADER_USAGE) + FLOAT_USAGE + (4 * INT_USAGE) + FLOAT_USAGE);
+    private static final long LONG_2_OBJECT_OPEN_HASH_MAP_ENTRY_USAGE = (long) (addPadding(LONG_USAGE + OBJECT_REFERENCE_USAGE) / HASH_MAP_LOAD_BALANCE);
+
+    private static final long LONG_2_OBJECT_RB_TREE_MAP_WITH_HASH_MAP_USAGE = addPadding(OBJECT_HEADER_USAGE + (2 * OBJECT_REFERENCE_USAGE) + LONG_2_OBJECT_RB_TREE_MAP_USAGE + LONG_2_OBJECT_OPEN_HASH_MAP_USAGE);
+    private static final long LONG_2_OBJECT_RB_TREE_MAP_WITH_HASH_MAP_ENTRY_USAGE = addPadding(LONG_2_OBJECT_RB_TREE_MAP_ENTRY_USAGE + LONG_2_OBJECT_OPEN_HASH_MAP_ENTRY_USAGE);
+
+    private static final long STRING_USAGE = addPadding(OBJECT_HEADER_USAGE + OBJECT_REFERENCE_USAGE + INT_USAGE + ARRAY_HEADER_USAGE);
+    private static final long INT_ARRAY_LIST_USAGE = addPadding(OBJECT_HEADER_USAGE + OBJECT_REFERENCE_USAGE + ARRAY_HEADER_USAGE + INT_USAGE);
+
+    private static long addPadding(final long usage) {
+        return usage + ((8 - (usage % 8)) % 8);
+    }
+
+    private final SortedMap<String, Long2ObjectSortedMap<IntArrayList>> intFields = new SortedMapWithHash<>();
+    private final SortedMap<String, SortedMap<String, IntArrayList>> stringFields = new SortedMapWithHash<>();
 
     private int numDocs;
 
@@ -195,7 +220,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
     @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
     public IntFieldWriter getIntFieldWriter(final String field) throws IOException {
         return new IntFieldWriter() {
-            private final Long2ObjectSortedMap<IntArrayList> terms = new Long2ObjectRBTreeMap<IntArrayList>();
+            private final Long2ObjectSortedMap<IntArrayList> terms = new Long2ObjectSortedMapWithHash<>();
             private IntArrayList currentDocList;
             private long term;
 
@@ -231,7 +256,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
     @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
     public StringFieldWriter getStringFieldWriter(final String field) throws IOException {
         return new StringFieldWriter() {
-            private final SortedMap<String, IntArrayList> terms = Maps.newTreeMap();
+            private final SortedMap<String, IntArrayList> terms = new SortedMapWithHash<>();
             private IntArrayList currentDocList;
             private String term;
 
@@ -269,8 +294,8 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
         for (final Map.Entry<String, LongList> intField : docIntFields.entrySet()) {
             Long2ObjectSortedMap<IntArrayList> myIntTerms = intFields.get(intField.getKey());
             if (myIntTerms == null) {
-                intFields.put(intField.getKey(), myIntTerms = new Long2ObjectRBTreeMap<IntArrayList>());
-                memoryUsageEstimate += TREE_MAP_ENTRY_USAGE + usage(intField.getKey()) + INT_2_OBJECT_RB_TREE_MAP_USAGE;
+                intFields.put(intField.getKey(), myIntTerms = new Long2ObjectSortedMapWithHash<>());
+                memoryUsageEstimate += TREE_MAP_WITH_HASH_MAP_ENTRY_USAGE + usage(intField.getKey()) + LONG_2_OBJECT_RB_TREE_MAP_WITH_HASH_MAP_USAGE;
             }
             final LongSet seenIntTerms = new LongOpenHashSet();
             final LongList terms = intField.getValue();
@@ -284,7 +309,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
                 IntArrayList docList = myIntTerms.get(term);
                 if (docList == null) {
                     myIntTerms.put(term, docList = new IntArrayList());
-                    memoryUsageEstimate += INT_2_OBJECT_RB_TREE_MAP_ENTRY_USAGE + INT_ARRAY_LIST_USAGE + (4 * docList.elements().length);
+                    memoryUsageEstimate += LONG_2_OBJECT_RB_TREE_MAP_WITH_HASH_MAP_ENTRY_USAGE + INT_ARRAY_LIST_USAGE + (4 * docList.elements().length);
                 }
                 memoryUsageEstimate -= 4 * docList.elements().length;
                 docList.add(numDocs);
@@ -296,8 +321,8 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
         for (final Map.Entry<String, List<String>> stringField : docStringFields.entrySet()) {
             SortedMap<String, IntArrayList> myStringTerms = stringFields.get(stringField.getKey());
             if (myStringTerms == null) {
-                stringFields.put(stringField.getKey(), myStringTerms = new TreeMap<String, IntArrayList>());
-                memoryUsageEstimate += TREE_MAP_ENTRY_USAGE + usage(stringField.getKey()) + TREE_MAP_USAGE;
+                stringFields.put(stringField.getKey(), myStringTerms = new SortedMapWithHash<>());
+                memoryUsageEstimate += TREE_MAP_WITH_HASH_MAP_ENTRY_USAGE + usage(stringField.getKey()) + TREE_MAP_WITH_HASH_MAP_USAGE;
             }
             final Set<String> seenStringTerms = new HashSet<>();
             final List<String> terms = stringField.getValue();
@@ -310,7 +335,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
                 IntArrayList docList = myStringTerms.get(term);
                 if (docList == null) {
                     myStringTerms.put(term, docList = new IntArrayList());
-                    memoryUsageEstimate += TREE_MAP_ENTRY_USAGE + usage(term) + INT_ARRAY_LIST_USAGE + (4 * docList.elements().length);
+                    memoryUsageEstimate += TREE_MAP_WITH_HASH_MAP_ENTRY_USAGE + usage(term) + INT_ARRAY_LIST_USAGE + (4 * docList.elements().length);
                 }
                 memoryUsageEstimate -= 4 * docList.elements().length;
                 docList.add(numDocs);
@@ -411,7 +436,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
 
         for (int z = 0; z < numIntFields; ++z) {
             final String intField = readString(in);
-            intFields.put(intField, new Long2ObjectRBTreeMap<IntArrayList>());
+            intFields.put(intField, new Long2ObjectSortedMapWithHash<IntArrayList>());
         }
 
         final int numStringFields = in.readInt();
@@ -419,7 +444,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
 
         for (int z = 0; z < numStringFields; ++z) {
             final String stringField = readString(in);
-            stringFields.put(stringField, new TreeMap<String, IntArrayList>());
+            stringFields.put(stringField, new SortedMapWithHash<String, IntArrayList>());
         }
 
         for (final Long2ObjectMap<IntArrayList> terms : intFields.values()) {
@@ -485,19 +510,19 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
 
     private static long initialMemoryUsageEstimate() {
         long size = 20;
-        size += 2 * TREE_MAP_USAGE;
+        size += 2 * TREE_MAP_WITH_HASH_MAP_USAGE;
         return size;
     }
 
     private static long usage(final String intField, final Long2ObjectMap<IntArrayList> terms) {
-        long size = TREE_MAP_ENTRY_USAGE;
+        long size = TREE_MAP_WITH_HASH_MAP_ENTRY_USAGE;
         size += usage(intField);
         size += usage(terms);
         return size;
     }
 
     private static long usage(final String stringField, final SortedMap<String, IntArrayList> terms) {
-        long size = TREE_MAP_ENTRY_USAGE;
+        long size = TREE_MAP_WITH_HASH_MAP_ENTRY_USAGE;
         size += usage(stringField);
         size += usage(terms);
         return size;
@@ -508,8 +533,8 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
     }
 
     private static long usage(final Long2ObjectMap<IntArrayList> map) {
-        long size = INT_2_OBJECT_RB_TREE_MAP_USAGE;
-        size += map.size() * INT_2_OBJECT_RB_TREE_MAP_ENTRY_USAGE;
+        long size = LONG_2_OBJECT_RB_TREE_MAP_WITH_HASH_MAP_USAGE;
+        size += map.size() * LONG_2_OBJECT_RB_TREE_MAP_WITH_HASH_MAP_ENTRY_USAGE;
         for (final IntArrayList list : map.values()) {
             size += INT_ARRAY_LIST_USAGE + 4 * list.elements().length;
         }
@@ -517,9 +542,9 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
     }
 
     private static long usage(final SortedMap<String, IntArrayList> map) {
-        long size = TREE_MAP_USAGE;
+        long size = TREE_MAP_WITH_HASH_MAP_USAGE;
         for (final Map.Entry<String, IntArrayList> e : map.entrySet()) {
-            size += TREE_MAP_ENTRY_USAGE;
+            size += TREE_MAP_WITH_HASH_MAP_ENTRY_USAGE;
             size += usage(e.getKey());
             size += INT_ARRAY_LIST_USAGE + 4 * e.getValue().elements().length;
         }
@@ -826,7 +851,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
         }
 
         private MemoryIntTermIterator() {
-            map = new Long2ObjectRBTreeMap<>();
+            map = (Long2ObjectSortedMap<IntArrayList>) Long2ObjectSortedMaps.EMPTY_MAP;
             keys = map.long2ObjectEntrySet().iterator();
         }
 
@@ -883,7 +908,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
         }
 
         private MemoryStringTermIterator() {
-            map = new TreeMap<>();
+            map = Object2ObjectSortedMaps.EMPTY_MAP;
             keys = map.entrySet().iterator();
         }
 
