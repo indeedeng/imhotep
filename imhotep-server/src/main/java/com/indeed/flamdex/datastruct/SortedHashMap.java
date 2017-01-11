@@ -140,4 +140,14 @@ public class SortedHashMap<K, V> implements SortedMap<K, V> {
     public Set<Entry<K, V>> unorderedEntrySet() {
         return Collections.unmodifiableSet(hashMap.entrySet());
     }
+
+    @Override
+    public int hashCode() {
+        return sortedMap.hashCode();
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+        return hashMap.equals(o);
+    }
 }

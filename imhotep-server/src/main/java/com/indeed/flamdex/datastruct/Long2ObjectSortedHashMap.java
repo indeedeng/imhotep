@@ -213,4 +213,14 @@ public class Long2ObjectSortedHashMap<V> implements Long2ObjectSortedMap<V> {
         sortedMap.clear();
         hashMap.clear();
     }
+
+    @Override
+    public int hashCode() {
+        return sortedMap.hashCode();
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+        return hashMap.equals(o);
+    }
 }
