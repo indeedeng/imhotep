@@ -20,6 +20,7 @@ import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
+import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -34,23 +35,44 @@ import java.util.List;
  */
 
 public class DynamicFlamdexReader implements FlamdexReader {
-    private static final Logger LOGGER = Logger.getLogger(DynamicFlamdexReader.class);
+    private static final Logger LOG = Logger.getLogger(DynamicFlamdexReader.class);
 
-    private final Path directory;
+    private final Path shardDirectory;
+    private final Closeable lock;
     private final List<SegmentReader> segmentReaders;
     private final int[] offsets;
 
     public DynamicFlamdexReader(@Nonnull final Path directory) throws IOException {
-        this(directory, DynamicFlamdexMetadataUtil.openSegmentReaders(directory));
+        this.lock = DynamicFlamdexShardUtil.acquireReaderLock(directory);
+        this.shardDirectory = directory;
+        final ImmutableList.Builder<SegmentReader> segmentReadersBuilder = ImmutableList.builder();
+        try {
+            for (final Path segmentDirectory : DynamicFlamdexShardUtil.listSegmentDirectories(directory)) {
+                segmentReadersBuilder.add(new SegmentReader(segmentDirectory));
+            }
+        } catch (final Throwable e) {
+            Closeables2.closeAll(LOG, segmentReadersBuilder.build());
+            throw e;
+        }
+        this.segmentReaders = segmentReadersBuilder.build();
+        this.offsets = new int[this.segmentReaders.size() + 1];
+        for (int i = 0; i < this.segmentReaders.size(); ++i) {
+            this.offsets[i + 1] = this.offsets[i] + this.segmentReaders.get(i).maxNumDocs();
+        }
     }
 
     DynamicFlamdexReader(@Nonnull final Path directory, @Nonnull final List<SegmentReader> segmentReaders) {
-        this.directory = directory;
+        this.shardDirectory = directory;
+        this.lock = null;
         this.segmentReaders = segmentReaders;
-        this.offsets = new int[segmentReaders.size() + 1];
-        for (int i = 0; i < segmentReaders.size(); ++i) {
+        this.offsets = new int[this.segmentReaders.size() + 1];
+        for (int i = 0; i < this.segmentReaders.size(); ++i) {
             this.offsets[i + 1] = this.offsets[i] + this.segmentReaders.get(i).maxNumDocs();
         }
+    }
+
+    int getNumberOfSegments() {
+        return segmentReaders.size();
     }
 
     @Override
@@ -81,7 +103,7 @@ public class DynamicFlamdexReader implements FlamdexReader {
 
     @Override
     public Path getDirectory() {
-        return directory;
+        return shardDirectory;
     }
 
     @Override
@@ -325,6 +347,6 @@ public class DynamicFlamdexReader implements FlamdexReader {
 
     @Override
     public void close() throws IOException {
-        Closeables2.closeAll(segmentReaders, LOGGER);
+        Closeables2.closeAll(LOG, Closeables2.forIterable(LOG, segmentReaders), lock);
     }
 }

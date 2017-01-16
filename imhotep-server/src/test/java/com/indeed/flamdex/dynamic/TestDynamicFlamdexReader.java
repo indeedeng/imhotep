@@ -1,8 +1,5 @@
 package com.indeed.flamdex.dynamic;
 
-import com.google.common.base.Function;
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
@@ -13,14 +10,11 @@ import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.flamdex.simple.SimpleFlamdexDocWriter;
 import com.indeed.flamdex.writer.FlamdexDocWriter;
-import com.indeed.flamdex.writer.FlamdexDocument;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.channels.ByteChannel;
@@ -32,90 +26,50 @@ import java.util.List;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 /**
  * @author michihiko
  */
+
 public class TestDynamicFlamdexReader {
     @Rule
     public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     private static final int NUM_DOCS = (2 * 3 * 5 * 7 * 11) + 10;
-    private Path directory;
+    private Path shardDirectory;
 
-    private int restoreNum(@Nonnull final FlamdexReader flamdexReader, final int docId) throws FlamdexOutOfMemoryException {
-        final long[] num = new long[1];
-        flamdexReader.getMetric("original").lookup(new int[]{docId}, num, 1);
-        assertTrue((Integer.MIN_VALUE <= num[0]) && (num[0] <= Integer.MAX_VALUE));
-        return (int) num[0];
-    }
-
-    @Nonnull
-    private FlamdexDocument makeDocument(final int n) {
-        final FlamdexDocument.Builder builder = new FlamdexDocument.Builder();
-        builder.addIntTerm("original", n);
-        builder.addIntTerm("mod2i", n % 2);
-        builder.addIntTerm("mod3i", n % 3);
-        builder.addStringTerm("mod5s", Integer.toString(n % 5));
-        builder.addIntTerms("mod7mod11i", n % 7, n % 11);
-        builder.addStringTerms("mod7mod11s", Integer.toString(n % 7), Integer.toString(n % 11));
-        if (((n % 3) != 0) && ((n % 5) != 0)) {
-            builder.addIntTerms("mod3mod5i_nonzero", n % 3, n % 5);
-        }
-        return builder.build();
-    }
-
-    private List<SegmentInfo> segmentInfos;
+    private List<Path> segmentDirectories;
 
     @Before
     public void setUp() throws IOException {
-        directory = temporaryFolder.getRoot().toPath();
-        segmentInfos = Lists.newArrayList(
-                new SegmentInfo(directory, "segment1", 0, Optional.<String>absent()),
-                new SegmentInfo(directory, "segment2", 0, Optional.<String>absent()),
-                new SegmentInfo(directory, "segment3", 0, Optional.<String>absent()),
-                new SegmentInfo(directory, "segment4", 0, Optional.<String>absent()) // empty segment
+        shardDirectory = temporaryFolder.getRoot().toPath();
+        segmentDirectories = Lists.newArrayList(
+                shardDirectory.resolve("segment1"),
+                shardDirectory.resolve("segment2"),
+                shardDirectory.resolve("segment3"),
+                shardDirectory.resolve("segment4") // empty segment
         );
-        DynamicFlamdexMetadataUtil.modifyMetadata(directory, new Function<List<SegmentInfo>, List<SegmentInfo>>() {
-            @Nullable
-            @Override
-            public List<SegmentInfo> apply(@Nullable final List<SegmentInfo> empty) {
-                return segmentInfos;
-            }
-        });
         final Random random = new Random(3);
         final List<FlamdexDocWriter> writers = new ArrayList<>();
-        for (final SegmentInfo segmentInfo : segmentInfos) {
+        for (final Path segmentDirectory : segmentDirectories) {
             writers.add(new SimpleFlamdexDocWriter(
-                    segmentInfo.getDirectory(),
+                    segmentDirectory,
                     new SimpleFlamdexDocWriter.Config()));
         }
-        final int[] numDocs = new int[segmentInfos.size()];
+        final int[] numDocs = new int[segmentDirectories.size()];
         for (int i = 0; i < NUM_DOCS; ++i) {
             final int segment = random.nextInt(writers.size() - 1);
             ++numDocs[segment];
-            writers.get(segment).addDocument(makeDocument(i));
+            writers.get(segment).addDocument(DynamicFlamdexTestUtils.makeDocument(i));
         }
         for (final FlamdexDocWriter writer : writers) {
             writer.close();
         }
-        for (int i = 0; i < segmentInfos.size(); ++i) {
-            final SegmentInfo old = segmentInfos.get(i);
-            segmentInfos.set(i, new SegmentInfo(old.getShardDirectory(), old.getName(), numDocs[i], Optional.<String>absent()));
-        }
-        DynamicFlamdexMetadataUtil.modifyMetadata(directory, new Function<List<SegmentInfo>, List<SegmentInfo>>() {
-            @Nullable
-            @Override
-            public List<SegmentInfo> apply(@Nullable final List<SegmentInfo> empty) {
-                return segmentInfos;
-            }
-        });
     }
 
     @Test
     public void testSimpleStats() throws IOException, FlamdexOutOfMemoryException {
-        try (final FlamdexReader flamdexReader = new DynamicFlamdexReader(directory)) {
+        try (final FlamdexReader flamdexReader = new DynamicFlamdexReader(shardDirectory)) {
             assertEquals(NUM_DOCS, flamdexReader.getNumDocs());
             assertEquals(NUM_DOCS, flamdexReader.getIntTotalDocFreq("original"));
             int numMod7Mod11i = 0;
@@ -141,7 +95,7 @@ public class TestDynamicFlamdexReader {
                 final int[] buf = new int[10];
                 final int numDocs = iterator.nextDocs(buf);
                 assertEquals(1, numDocs);
-                assertEquals(term, restoreNum(flamdexReader, buf[0]));
+                assertEquals(term, DynamicFlamdexTestUtils.restoreOriginalNumber(flamdexReader, buf[0]));
             }
             assertEquals(NUM_DOCS, id);
         }
@@ -149,7 +103,7 @@ public class TestDynamicFlamdexReader {
 
     @Test
     public void testIntTermDocIterator() throws IOException, FlamdexOutOfMemoryException {
-        try (final FlamdexReader flamdexReader = new DynamicFlamdexReader(directory)) {
+        try (final FlamdexReader flamdexReader = new DynamicFlamdexReader(shardDirectory)) {
             final int[] okBit = new int[flamdexReader.getNumDocs()];
             {
                 final IntTermDocIterator intTermDocIterator = flamdexReader.getIntTermDocIterator("mod7mod11i");
@@ -162,7 +116,7 @@ public class TestDynamicFlamdexReader {
                             break;
                         }
                         for (int i = 0; i < numFilled; ++i) {
-                            final int num = restoreNum(flamdexReader, docIds[i]);
+                            final int num = DynamicFlamdexTestUtils.restoreOriginalNumber(flamdexReader, docIds[i]);
                             if ((num % 7) == term) {
                                 okBit[docIds[i]] |= 1;
                             }
@@ -181,7 +135,7 @@ public class TestDynamicFlamdexReader {
 
     @Test
     public void testStringTermDocIterator() throws IOException, FlamdexOutOfMemoryException {
-        try (final FlamdexReader flamdexReader = new DynamicFlamdexReader(directory)) {
+        try (final FlamdexReader flamdexReader = new DynamicFlamdexReader(shardDirectory)) {
             final int[] okBit = new int[flamdexReader.getNumDocs()];
             {
                 final StringTermDocIterator stringTermDocIterator = flamdexReader.getStringTermDocIterator("mod7mod11s");
@@ -194,7 +148,7 @@ public class TestDynamicFlamdexReader {
                             break;
                         }
                         for (int i = 0; i < numFilled; ++i) {
-                            final int num = restoreNum(flamdexReader, docIds[i]);
+                            final int num = DynamicFlamdexTestUtils.restoreOriginalNumber(flamdexReader, docIds[i]);
                             if ((num % 7) == term) {
                                 okBit[docIds[i]] |= 1;
                             }
@@ -213,15 +167,14 @@ public class TestDynamicFlamdexReader {
 
     @Test
     public void testTombstoneSet() throws IOException, FlamdexOutOfMemoryException, NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException {
-        for (final SegmentInfo segmentInfo : segmentInfos) {
+        for (final Path segmentDirectory : segmentDirectories) {
             try (final Closer closer = Closer.create()) {
-                final Path segmentPath = segmentInfo.getDirectory();
-                final Path tombstoneSetPath = segmentPath.resolve("tombstoneSet");
-                try (final SegmentReader segmentReader = new SegmentReader(segmentInfo)) {
+                final Path tombstoneSetPath = segmentDirectory.resolve("tombstoneSet.bin");
+                try (final SegmentReader segmentReader = new SegmentReader(segmentDirectory)) {
                     final int numDoc = segmentReader.maxNumDocs();
                     final FastBitSet tombstoneSet = new FastBitSet(numDoc);
                     for (int docId = 0; docId < numDoc; ++docId) {
-                        final int n = restoreNum(segmentReader, docId);
+                        final int n = DynamicFlamdexTestUtils.restoreOriginalNumber(segmentReader, docId);
                         if ((n % 5) == 4) {
                             tombstoneSet.set(docId, true);
                         }
@@ -232,19 +185,8 @@ public class TestDynamicFlamdexReader {
                 }
             }
         }
-        DynamicFlamdexMetadataUtil.modifyMetadata(directory, new Function<List<SegmentInfo>, List<SegmentInfo>>() {
-            @Nullable
-            @Override
-            public List<SegmentInfo> apply(@Nullable final List<SegmentInfo> segmentInfo) {
-                final List<SegmentInfo> newSegmentInfo = new ArrayList<>();
-                for (final SegmentInfo data : Preconditions.checkNotNull(segmentInfo)) {
-                    newSegmentInfo.add(new SegmentInfo(data.getShardDirectory(), data.getName(), data.getNumDocs(), Optional.of("tombstoneSet")));
-                }
-                return newSegmentInfo;
-            }
-        });
 
-        try (final FlamdexReader flamdexReader = new DynamicFlamdexReader(directory)) {
+        try (final FlamdexReader flamdexReader = new DynamicFlamdexReader(shardDirectory)) {
             final int[] okBit = new int[flamdexReader.getNumDocs()];
             {
                 final IntTermDocIterator intTermDocIterator = flamdexReader.getIntTermDocIterator("mod7mod11i");
@@ -257,7 +199,7 @@ public class TestDynamicFlamdexReader {
                             break;
                         }
                         for (int i = 0; i < numFilled; ++i) {
-                            final int num = restoreNum(flamdexReader, docIds[i]);
+                            final int num = DynamicFlamdexTestUtils.restoreOriginalNumber(flamdexReader, docIds[i]);
                             if ((num % 7) == term) {
                                 okBit[num] |= 1;
                             }

@@ -1,38 +1,43 @@
 package com.indeed.flamdex.dynamic;
 
+import com.google.common.base.Optional;
 import com.indeed.flamdex.datastruct.FastBitSet;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.ByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.UUID;
 
 /**
  * @author michihiko
  */
+
 final class DynamicFlamdexSegmentUtil {
-    private static final String TOMBSTONE_FILENAME = "tombstoneSet.%s.bin";
+
+    private static final String TOMBSTONE_FILENAME = "tombstoneSet.bin";
 
     private DynamicFlamdexSegmentUtil() {
     }
 
     @Nonnull
-    public static String generateSegmentName() {
-        return UUID.randomUUID().toString();
+    static Optional<FastBitSet> readTombstoneSet(@Nonnull final Path segmentDirectory) throws IOException {
+        final Path path = segmentDirectory.resolve(TOMBSTONE_FILENAME);
+        if (Files.exists(path)) {
+            final ByteBuffer byteBuffer = ByteBuffer.wrap(Files.readAllBytes(path));
+            return Optional.of(FastBitSet.deserialize(byteBuffer));
+        } else {
+            return Optional.absent();
+        }
     }
 
-    @Nonnull
-    public static String outputTombstoneSet(@Nonnull final Path segmentDirectory, @Nonnull final String newSegmentName, @Nonnull final FastBitSet tombstoneSet) throws IOException {
-        final String tombstoneFilename = String.format(TOMBSTONE_FILENAME, newSegmentName);
-        final Path path = segmentDirectory.resolve(tombstoneFilename);
-
+    static void writeTombstoneSet(@Nonnull final Path segmentDirectory, @Nonnull final FastBitSet tombstoneSet) throws IOException {
+        final Path path = segmentDirectory.resolve(TOMBSTONE_FILENAME);
+        Files.deleteIfExists(path);
         try (final ByteChannel byteChannel = Files.newByteChannel(path, StandardOpenOption.WRITE, StandardOpenOption.CREATE)) {
             byteChannel.write(tombstoneSet.serialize());
         }
-        return tombstoneFilename;
     }
-
 }

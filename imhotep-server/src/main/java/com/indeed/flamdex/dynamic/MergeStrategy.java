@@ -1,9 +1,11 @@
 package com.indeed.flamdex.dynamic;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.ImmutableList;
 
 import javax.annotation.Nonnull;
+import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -16,8 +18,35 @@ import java.util.SortedSet;
  */
 
 public abstract class MergeStrategy {
+    public static class Segment implements Comparable<Segment> {
+        private final Path segmentPath;
+        private final int numDocs;
+
+        public Segment(@Nonnull final Path segmentPath, final int numDocs) {
+            this.segmentPath = segmentPath;
+            this.numDocs = numDocs;
+        }
+
+        public int getNumDocs() {
+            return numDocs;
+        }
+
+        @Nonnull
+        Path getSegmentDirectory() {
+            return segmentPath;
+        }
+
+        @Override
+        public int compareTo(@Nonnull final Segment o) {
+            return ComparisonChain.start()
+                    .compare(numDocs, o.numDocs)
+                    .compare(segmentPath, o.segmentPath)
+                    .result();
+        }
+    }
+
     @Nonnull
-    abstract Collection<? extends Collection<SegmentInfo>> splitSegmentsToMerge(@Nonnull final SortedSet<SegmentInfo> segments);
+    abstract Collection<? extends Collection<Segment>> splitSegmentsToMerge(@Nonnull final SortedSet<Segment> segments);
 
     public static class ExponentialMergeStrategy extends MergeStrategy {
         private final int exp;
@@ -31,10 +60,10 @@ public abstract class MergeStrategy {
 
         @Nonnull
         @Override
-        List<List<SegmentInfo>> splitSegmentsToMerge(@Nonnull final SortedSet<SegmentInfo> segments) {
-            final List<List<SegmentInfo>> segmentsToMerge = new ArrayList<>();
-            final Queue<SegmentInfo> currentSegments = new ArrayDeque<>();
-            for (final SegmentInfo segment : segments) {
+        List<List<Segment>> splitSegmentsToMerge(@Nonnull final SortedSet<Segment> segments) {
+            final List<List<Segment>> segmentsToMerge = new ArrayList<>();
+            final Queue<Segment> currentSegments = new ArrayDeque<>();
+            for (final Segment segment : segments) {
                 while (!currentSegments.isEmpty() && ((currentSegments.element().getNumDocs() * exp) < segment.getNumDocs())) {
                     currentSegments.remove();
                 }

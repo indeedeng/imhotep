@@ -78,6 +78,11 @@ public final class FileLockUtil {
     }
 
     @Nonnull
+    public static Optional<FileChannel> tryReadLock(@Nonnull final Path path) throws IOException {
+        return tryLock(true, path);
+    }
+
+    @Nonnull
     public static Optional<FileChannel> tryWriteLock(@Nonnull final Path path) throws IOException {
         return tryLock(false, path);
     }

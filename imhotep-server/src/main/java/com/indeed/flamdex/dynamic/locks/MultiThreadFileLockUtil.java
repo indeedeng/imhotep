@@ -61,6 +61,11 @@ public final class MultiThreadFileLockUtil {
     }
 
     @Nonnull
+    public static Optional<MultiThreadLock> tryReadLock(@Nonnull final Path directory, @Nonnull final String fileName) throws IOException {
+        return getReadWriteLockImpl(directory.resolve(fileName)).tryReadLock();
+    }
+
+    @Nonnull
     public static Optional<MultiThreadLock> tryWriteLock(@Nonnull final Path directory, @Nonnull final String fileName) throws IOException {
         return getReadWriteLockImpl(directory.resolve(fileName)).tryWriteLock();
     }

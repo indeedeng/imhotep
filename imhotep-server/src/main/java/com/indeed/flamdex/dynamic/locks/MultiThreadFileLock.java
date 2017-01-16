@@ -63,7 +63,7 @@ class MultiThreadFileLock {
             } finally {
                 fileAccessLock.unlock();
             }
-        } catch (final IOException e) {
+        } catch (final Throwable e) {
             lock.unlock();
             throw e;
         }
@@ -131,6 +131,35 @@ class MultiThreadFileLock {
     }
 
     @Nonnull
+    Optional<MultiThreadLock> tryReadLock() throws IOException {
+        final Lock lock = processLocalLock.readLock();
+        if (!lock.tryLock()) {
+            return Optional.absent();
+        }
+        try {
+            if (fileAccessLock.tryLock()) {
+                try {
+                    if (!fileLock.isPresent()) {
+                        fileLock = FileLockUtil.tryReadLock(path);
+                    }
+                    if (fileLock.isPresent()) {
+                        return Optional.<MultiThreadLock>of(new MultiThreadLockImpl(true, lock));
+                    } else {
+                        return Optional.absent();
+                    }
+                } finally {
+                    fileAccessLock.unlock();
+                }
+            } else {
+                return Optional.absent();
+            }
+        } catch (final Throwable e) {
+            lock.unlock();
+            throw e;
+        }
+    }
+
+    @Nonnull
     Optional<MultiThreadLock> tryWriteLock() throws IOException {
         final Lock lock = processLocalLock.writeLock();
         if (!lock.tryLock()) {
@@ -139,12 +168,12 @@ class MultiThreadFileLock {
         Preconditions.checkState(!fileLock.isPresent());
         try {
             fileLock = FileLockUtil.tryWriteLock(path);
-        } catch (final IOException e) {
+        } catch (final Throwable e) {
             lock.unlock();
             throw e;
         }
         if (fileLock.isPresent()) {
-            return Optional.of((MultiThreadLock) new MultiThreadLockImpl(false, lock));
+            return Optional.<MultiThreadLock>of(new MultiThreadLockImpl(false, lock));
         } else {
             lock.unlock();
             return Optional.absent();

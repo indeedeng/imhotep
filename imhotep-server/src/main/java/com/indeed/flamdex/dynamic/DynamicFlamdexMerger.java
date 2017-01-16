@@ -3,16 +3,13 @@ package com.indeed.flamdex.dynamic;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Closer;
-import com.indeed.flamdex.MemoryFlamdex;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.datastruct.FastBitSet;
-import com.indeed.flamdex.dynamic.locks.MultiThreadLock;
 import com.indeed.flamdex.simple.SimpleFlamdexWriter;
 import com.indeed.flamdex.writer.IntFieldWriter;
 import com.indeed.flamdex.writer.StringFieldWriter;
@@ -25,7 +22,6 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -37,24 +33,29 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.locks.Lock;
+
+/**
+ * @author michihiko
+ */
 
 class DynamicFlamdexMerger implements Closeable {
     private static final Logger LOG = Logger.getLogger(DynamicFlamdexMerger.class);
 
     private class MergeTask implements Callable<Void> {
-        private final List<String> segmentsToMerge;
+        private final List<MergeStrategy.Segment> segmentsToMerge;
 
-        MergeTask(@Nonnull final List<String> segmentsToMerge) {
+        MergeTask(@Nonnull final List<MergeStrategy.Segment> segmentsToMerge) {
             this.segmentsToMerge = segmentsToMerge;
         }
 
-        private class IntermediateState {
-            private final MemoryFlamdex mergedIndex;
+        private class DocIdMapping {
+            private final int newNumDocs;
             private final int[] newDocIds;
             private final int[] offset;
 
-            IntermediateState(@Nonnull final MemoryFlamdex mergedIndex, @Nonnull final int[] newDocIds, @Nonnull final int[] offset) {
-                this.mergedIndex = mergedIndex;
+            private DocIdMapping(final int newNumDocs, @Nonnull final int[] newDocIds, @Nonnull final int[] offset) {
+                this.newNumDocs = newNumDocs;
                 this.newDocIds = newDocIds;
                 this.offset = offset;
             }
@@ -64,18 +65,28 @@ class DynamicFlamdexMerger implements Closeable {
             }
 
             int getNewNumDocs() {
-                return mergedIndex.getNumDocs();
-            }
-
-            public MemoryFlamdex getMergedIndex() {
-                return mergedIndex;
+                return newNumDocs;
             }
         }
 
         @Nonnull
-        private IntermediateState mergeIndices(@Nonnull final List<SegmentReader> segmentReaders) throws IOException {
+        private DocIdMapping mergeIndices(@Nonnull final Path outputPath, @Nonnull final List<SegmentReader> segmentReaders) throws IOException {
+            {
+                final StringBuilder logString = new StringBuilder();
+                logString.append("Generating ").append(outputPath.getFileName()).append(" from");
+                for (final SegmentReader segmentReader : segmentReaders) {
+                    logString
+                            .append(' ')
+                            .append(segmentReader.getDirectory().getFileName())
+                            .append('(')
+                            .append(segmentReader.maxNumDocs())
+                            .append(')');
+                }
+                LOG.info(logString.toString());
+            }
+
             final int numSegments = segmentReaders.size();
-            try (final DynamicFlamdexReader reader = new DynamicFlamdexReader(shardDirectory, segmentReaders)) {
+            try (final DynamicFlamdexReader reader = new DynamicFlamdexReader(segmentReaders.get(0).getDirectory().getParent(), segmentReaders)) {
                 final int numDocs = reader.getNumDocs();
                 final int[] newDocIds = new int[numDocs];
 
@@ -94,61 +105,58 @@ class DynamicFlamdexMerger implements Closeable {
                         }
                     }
                 }
-                final MemoryFlamdex writer = new MemoryFlamdex();
-                writer.setNumDocs(newNumDoc);
-
-                final int[] docIdBuf = new int[256];
-
-                try (final DocIdStream docIdStream = reader.getDocIdStream()) {
-                    for (final String field : reader.getIntFields()) {
-                        try (
-                                final IntFieldWriter intFieldWriter = writer.getIntFieldWriter(field);
-                                final IntTermIterator intTermIterator = reader.getIntTermIterator(field);
-                        ) {
-                            while (intTermIterator.next()) {
-                                intFieldWriter.nextTerm(intTermIterator.term());
-                                docIdStream.reset(intTermIterator);
-                                while (true) {
-                                    final int num = docIdStream.fillDocIdBuffer(docIdBuf);
-                                    for (int i = 0; i < num; ++i) {
-                                        final int docId = newDocIds[docIdBuf[i]];
-                                        if (docId >= 0) {
-                                            intFieldWriter.nextDoc(docId);
+                try (final SimpleFlamdexWriter writer = new SimpleFlamdexWriter(outputPath, newNumDoc)) {
+                    final int[] docIdBuf = new int[256];
+                    try (final DocIdStream docIdStream = reader.getDocIdStream()) {
+                        for (final String field : reader.getIntFields()) {
+                            try (
+                                    final IntFieldWriter intFieldWriter = writer.getIntFieldWriter(field);
+                                    final IntTermIterator intTermIterator = reader.getIntTermIterator(field);
+                            ) {
+                                while (intTermIterator.next()) {
+                                    intFieldWriter.nextTerm(intTermIterator.term());
+                                    docIdStream.reset(intTermIterator);
+                                    while (true) {
+                                        final int num = docIdStream.fillDocIdBuffer(docIdBuf);
+                                        for (int i = 0; i < num; ++i) {
+                                            final int docId = newDocIds[docIdBuf[i]];
+                                            if (docId >= 0) {
+                                                intFieldWriter.nextDoc(docId);
+                                            }
+                                        }
+                                        if (num < docIdBuf.length) {
+                                            break;
                                         }
                                     }
-                                    if (num < docIdBuf.length) {
-                                        break;
+                                }
+                            }
+                        }
+                        for (final String field : reader.getStringFields()) {
+                            try (
+                                    final StringFieldWriter stringFieldWriter = writer.getStringFieldWriter(field);
+                                    final StringTermIterator stringTermIterator = reader.getStringTermIterator(field);
+                            ) {
+                                while (stringTermIterator.next()) {
+                                    stringFieldWriter.nextTerm(stringTermIterator.term());
+                                    docIdStream.reset(stringTermIterator);
+                                    while (true) {
+                                        final int num = docIdStream.fillDocIdBuffer(docIdBuf);
+                                        for (int i = 0; i < num; ++i) {
+                                            final int docId = newDocIds[docIdBuf[i]];
+                                            if (docId >= 0) {
+                                                stringFieldWriter.nextDoc(docId);
+                                            }
+                                        }
+                                        if (num < docIdBuf.length) {
+                                            break;
+                                        }
                                     }
                                 }
                             }
                         }
                     }
-                    for (final String field : reader.getStringFields()) {
-                        try (
-                                final StringFieldWriter stringFieldWriter = writer.getStringFieldWriter(field);
-                                final StringTermIterator stringTermIterator = reader.getStringTermIterator(field);
-                        ) {
-                            while (stringTermIterator.next()) {
-                                stringFieldWriter.nextTerm(stringTermIterator.term());
-                                docIdStream.reset(stringTermIterator);
-                                while (true) {
-                                    final int num = docIdStream.fillDocIdBuffer(docIdBuf);
-                                    for (int i = 0; i < num; ++i) {
-                                        final int docId = newDocIds[docIdBuf[i]];
-                                        if (docId >= 0) {
-                                            stringFieldWriter.nextDoc(docId);
-                                        }
-                                    }
-                                    if (num < docIdBuf.length) {
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    return new DocIdMapping(newNumDoc, newDocIds, offset);
                 }
-
-                return new IntermediateState(writer, newDocIds, offset);
             }
         }
 
@@ -158,108 +166,71 @@ class DynamicFlamdexMerger implements Closeable {
             if (!startMerge(segmentsToMerge)) {
                 return null;
             }
-            final List<SegmentInfo> segmentInfosToMerge = FluentIterable.from(DynamicFlamdexMetadataUtil.getMetadata(shardDirectory))
-                    .filter(new Predicate<SegmentInfo>() {
-                        @Override
-                        public boolean apply(final SegmentInfo segmentInfo) {
-                            return segmentsToMerge.contains(segmentInfo.getName());
-                        }
-                    }).toSortedList(new Comparator<SegmentInfo>() {
-                        @Override
-                        public int compare(final SegmentInfo o1, final SegmentInfo o2) {
-                            return Integer.compare(segmentsToMerge.indexOf(o1.getName()), segmentsToMerge.indexOf(o2.getName()));
-                        }
-                    });
-            if (segmentInfosToMerge.size() != segmentsToMerge.size()) {
-                throw new IOException("Failed to read segment information");
-            }
+
             try (final Closer closer = Closer.create()) {
-                final List<SegmentReader> segmentReaders = new ArrayList<>(segmentInfosToMerge.size());
-                for (final SegmentInfo segmentInfo : segmentInfosToMerge) {
-                    segmentReaders.add(closer.register(new SegmentReader(segmentInfo)));
+                final List<SegmentReader> segmentReaders = new ArrayList<>(segmentsToMerge.size());
+                for (final MergeStrategy.Segment segment : segmentsToMerge) {
+                    segmentReaders.add(closer.register(new SegmentReader(segment.getSegmentDirectory())));
                 }
+                final Path newSegmentDirectory = shardCommitter.newSegmentDirectory();
+                final DocIdMapping docIdMapping = mergeIndices(newSegmentDirectory, segmentReaders);
 
-                final String newSegmentName = DynamicFlamdexSegmentUtil.generateSegmentName();
-                {
-                    final StringBuilder logString = new StringBuilder();
-                    logString.append("Making ").append(newSegmentName).append(" from");
-                    for (final SegmentInfo segment : segmentInfosToMerge) {
-                        logString
-                                .append(' ')
-                                .append(segment.getName())
-                                .append('(')
-                                .append(segment.getNumDocs())
-                                .append(')');
-                    }
-                    LOG.info(logString.toString());
-                }
+                final FastBitSet tombstoneSet = new FastBitSet(docIdMapping.getNewNumDocs());
 
-                final IntermediateState intermediateResult = mergeIndices(segmentReaders);
-
-                final Path segmentDirectory = shardDirectory.resolve(newSegmentName);
-                try (final SimpleFlamdexWriter flamdexWriter = new SimpleFlamdexWriter(segmentDirectory, intermediateResult.getNewNumDocs())) {
-                    SimpleFlamdexWriter.writeFlamdex(intermediateResult.getMergedIndex(), flamdexWriter);
-                }
-
-                final FastBitSet tombstone = new FastBitSet(intermediateResult.getNewNumDocs());
-
-                // Wait segment builder to be finished
-                // Inside this try-block, there are no changes for the segment metadata (including tombstone).
-                try (final MultiThreadLock stopSegmentBuilderLock = DynamicFlamdexMetadataUtil.acquireSegmentBuildLock(shardDirectory)) {
-                    // Update tombstone
-                    final ImmutableList.Builder<SegmentInfo> resultBuilder = ImmutableList.builder();
-                    for (final SegmentInfo latestSegmentInfo : DynamicFlamdexMetadataUtil.getMetadata(shardDirectory)) {
-                        final int idx = segmentsToMerge.indexOf(latestSegmentInfo.getName());
-                        if (idx == -1) {
-                            resultBuilder.add(latestSegmentInfo);
-                            continue;
-                        }
-                        final Optional<FastBitSet> optionalLatestTombstoneSet = latestSegmentInfo.readTombstoneSet();
+                // Wait segment builders / other merger
+                final Lock lock = shardCommitter.getChangeSegmentsLock();
+                lock.lock();
+                try {
+                    // Update tombstoneSet
+                    for (int segmentId = 0; segmentId < segmentsToMerge.size(); segmentId++) {
+                        final Optional<FastBitSet> optionalLatestTombstoneSet = DynamicFlamdexSegmentUtil.readTombstoneSet(segmentsToMerge.get(segmentId).getSegmentDirectory());
                         if (!optionalLatestTombstoneSet.isPresent()) {
                             continue;
                         }
-                        final FastBitSet latestTombstone = optionalLatestTombstoneSet.get();
-                        for (int docId = 0; docId < latestTombstone.size(); ++docId) {
-                            if (latestTombstone.get(docId)) {
-                                final int newDocId = intermediateResult.getNewDocId(idx, docId);
-                                if (newDocId >= 0) {
-                                    tombstone.set(newDocId);
-                                }
+                        final FastBitSet latestTombstoneSet = optionalLatestTombstoneSet.get();
+                        for (final FastBitSet.IntIterator it = latestTombstoneSet.iterator(); it.next(); ) {
+                            final int newDocId = docIdMapping.getNewDocId(segmentId, it.getValue());
+                            if (newDocId >= 0) {
+                                tombstoneSet.set(newDocId);
                             }
                         }
                     }
-
-                    final Optional<String> tombstoneFilename;
-                    if (tombstone.isEmpty()) {
-                        tombstoneFilename = Optional.absent();
-                    } else {
-                        final Path segmentPath = shardDirectory.resolve(newSegmentName);
-                        tombstoneFilename = Optional.of(DynamicFlamdexSegmentUtil.outputTombstoneSet(segmentPath, newSegmentName, tombstone));
+                    if (!tombstoneSet.isEmpty()) {
+                        DynamicFlamdexSegmentUtil.writeTombstoneSet(newSegmentDirectory, tombstoneSet);
                     }
-                    resultBuilder.add(new SegmentInfo(shardDirectory, newSegmentName, intermediateResult.getNewNumDocs(), tombstoneFilename));
 
-                    DynamicFlamdexMetadataUtil.modifyMetadata(shardDirectory, new Function<List<SegmentInfo>, List<SegmentInfo>>() {
-                        @Override
-                        public List<SegmentInfo> apply(final List<SegmentInfo> segmentInfos) {
-                            return resultBuilder.build();
-                        }
-                    });
+                    shardCommitter.replaceSegments(
+                            FluentIterable.from(segmentsToMerge).transform(new Function<MergeStrategy.Segment, Path>() {
+                                @Override
+                                public Path apply(final MergeStrategy.Segment segment) {
+                                    return segment.getSegmentDirectory();
+                                }
+                            }).toList(),
+                            newSegmentDirectory
+                    );
+                    shardCommitter.commit();
+                } finally {
+                    lock.unlock();
                 }
+            } catch (final Throwable e) {
+                LOG.error("", e);
+                throw e;
             }
             updated();
+            finishMerge(segmentsToMerge);
             return null;
         }
     }
 
-    private final Path shardDirectory;
+    private final DynamicFlamdexShardCommitter shardCommitter;
     private final MergeStrategy mergeStrategy;
     private final ExecutorService executorService;
-    private final Set<String> queuedSegments = new HashSet<>();
-    private final Set<String> dequeuedSegments = new HashSet<>();
+    private final Set<Path> queuedSegments = new HashSet<>();
+    private final Set<Path> processingSegments = new HashSet<>();
     private final List<Future<?>> futuresForCancellation = new LinkedList<>();
 
-    DynamicFlamdexMerger(@Nonnull final Path shardDirectory, @Nonnull final MergeStrategy mergeStrategy, @Nonnull final ExecutorService executorService) throws IOException {
-        this.shardDirectory = shardDirectory;
+    DynamicFlamdexMerger(@Nonnull final DynamicFlamdexShardCommitter shardCommitter, @Nonnull final MergeStrategy mergeStrategy, @Nonnull final ExecutorService executorService) {
+        this.shardCommitter = shardCommitter;
         this.mergeStrategy = mergeStrategy;
         this.executorService = executorService;
     }
@@ -273,15 +244,23 @@ class DynamicFlamdexMerger implements Closeable {
         }
     }
 
-    private synchronized boolean startMerge(final List<String> segments) {
+    private synchronized boolean startMerge(@Nonnull final List<MergeStrategy.Segment> segments) {
         boolean isValid = true;
-        for (final String segment : segments) {
-            isValid &= queuedSegments.remove(segment);
+        for (final MergeStrategy.Segment segment : segments) {
+            isValid &= queuedSegments.remove(segment.getSegmentDirectory());
         }
         if (isValid) {
-            dequeuedSegments.addAll(segments);
+            for (final MergeStrategy.Segment segment : segments) {
+                processingSegments.add(segment.getSegmentDirectory());
+            }
         }
         return isValid;
+    }
+
+    private synchronized void finishMerge(@Nonnull final List<MergeStrategy.Segment> segments) {
+        for (final MergeStrategy.Segment segment : segments) {
+            processingSegments.remove(segment.getSegmentDirectory());
+        }
     }
 
     @Nullable
@@ -346,29 +325,37 @@ class DynamicFlamdexMerger implements Closeable {
     }
 
     synchronized void updated() throws IOException {
-        final SortedSet<SegmentInfo> availableSegments = new TreeSet<>();
-        for (final SegmentInfo segmentInfo : DynamicFlamdexMetadataUtil.getMetadata(shardDirectory)) {
-            if (!queuedSegments.contains(segmentInfo.getName()) && !dequeuedSegments.contains(segmentInfo.getName())) {
-                availableSegments.add(segmentInfo);
+        final Lock lock = shardCommitter.getChangeSegmentsLock();
+        lock.lock();
+        try {
+            final SortedSet<MergeStrategy.Segment> availableSegments = new TreeSet<>();
+            for (final Path segmentPath : shardCommitter.getCurrentSegmentPaths()) {
+                if (!queuedSegments.contains(segmentPath) && !processingSegments.contains(segmentPath)) {
+                    try (final SegmentReader segmentReader = new SegmentReader(segmentPath)) {
+                        availableSegments.add(new MergeStrategy.Segment(segmentPath, segmentReader.maxNumDocs()));
+                    }
+                }
             }
-        }
+            final Collection<? extends Collection<MergeStrategy.Segment>> segmentsToMerge = mergeStrategy.splitSegmentsToMerge(new TreeSet<>(availableSegments));
+            for (final Collection<MergeStrategy.Segment> segments : segmentsToMerge) {
+                if (segments.size() <= 1) {
+                    continue;
+                }
 
-        final Collection<? extends Collection<SegmentInfo>> segmentInfoSetsToMerge = mergeStrategy.splitSegmentsToMerge(new TreeSet<>(availableSegments));
-        for (final Collection<SegmentInfo> segmentsToMerge : segmentInfoSetsToMerge) {
-            Preconditions.checkState(availableSegments.containsAll(segmentsToMerge), "Invalid segment is selected.");
-        }
-        for (final Collection<SegmentInfo> segmentInfos : segmentInfoSetsToMerge) {
-            if (segmentInfos.size() <= 1) {
-                continue;
+                final ImmutableList.Builder<Path> segmentsToMergeBuilder = ImmutableList.builder();
+                for (final MergeStrategy.Segment segment : segments) {
+                    Preconditions.checkState(availableSegments.remove(segment), "Same segment is selected twice.");
+                    segmentsToMergeBuilder.add(segment.getSegmentDirectory());
+                }
+                final List<Path> segmentNamesToMerge = segmentsToMergeBuilder.build();
+                futuresForCancellation.add(executorService.submit(new MergeTask(ImmutableList.copyOf(segments))));
+                queuedSegments.addAll(segmentNamesToMerge);
             }
-            final ImmutableList.Builder<String> segmentsToMergeBuilder = ImmutableList.builder();
-            for (final SegmentInfo segmentInfo : segmentInfos) {
-                Preconditions.checkState(availableSegments.remove(segmentInfo), "Same segment is selected twice.");
-                segmentsToMergeBuilder.add(segmentInfo.getName());
-            }
-            final List<String> segmentsToMerge = segmentsToMergeBuilder.build();
-            futuresForCancellation.add(executorService.submit(new MergeTask(segmentsToMerge)));
-            queuedSegments.addAll(segmentsToMerge);
+        } catch (final Throwable e) {
+            LOG.error("", e);
+            throw e;
+        } finally {
+            lock.unlock();
         }
     }
 }
