@@ -3,7 +3,7 @@ layout: default
 title: Sample Queries
 permalink: /docs/sample-queries/
 ---
-This page includes sample queries to run on our [demo cluster](http://35.165.119.19/iql/) preloaded with three sample datasets: `nasa`, `wikipedia` and `worldcup2014`. 
+This page includes sample queries to run on our [demo cluster](http://imhotep.indeed.tech/iql/) preloaded with three sample datasets: `nasa`, `wikipedia` and `worldcup2014`. 
 
 [Click here for information about the sample data](../sample-data/).
 
@@ -12,7 +12,7 @@ This page includes sample queries to run on our [demo cluster](http://35.165.119
 The following query on hourly counts returns a graph of the full time range of the dataset with the number of queries every hour:
 
 [<pre>from nasa 1995-06-30 22:00:00 1995-09-02 00:00:00 
-  group by time(1h)</pre>](http://35.165.119.19/iql/#q[]=from+nasa+%221995-06-30+22%3A00%3A00%22+%221995-09-02+00%3A00%3A00%22+group+by+time(1h)&view=graph)
+  group by time(1h)</pre>](http://imhotep.indeed.tech/iql/q/YRACA2)
 
 From the graph, the following insights are available:
 
@@ -22,13 +22,13 @@ From the graph, the following insights are available:
 The following query shows that the top 100 pages accessed during this peak hour were limited to shuttle liftoff coverage:
 
 [<pre>from nasa 1995-07-13 07:00:00 1995-07-13 08:00:00
-  group by url[100]</pre>](http://35.165.119.19/iql/#q[]=from+nasa+%221995-07-13+07%3A00%3A00%22+%221995-07-13+08%3A00%3A00%22+group+by+url[100]&view=table) 
+  group by url[100]</pre>](http://imhotep.indeed.tech/iql/q/R86E6R)
 
 This query lists the most popular non-image URLs on each day in the dataset:
 
 [<pre>from nasa 1995-07-01 00:00:00 1995-09-01 00:00:00 
   where url !=~ ".\*gif"
-  group by time(1d), url[1 by count()]</pre>](http://35.165.119.19/iql/#q[]=from+nasa+%221995-07-01+00%3A00%3A00%22+%221995-09-01+00%3A00%3A00%22+where+url+!%3D~+%22.*gif%22+group+by+time(1d)%2C+url[1+by+count()]&view=table)
+  group by time(1d), url[1 by count()]</pre>](http://imhotep.indeed.tech/iql/q/XHKF46)
 
 ## Wikipedia 
 
@@ -37,7 +37,7 @@ The following query returns the names of the most popular Wikipedia articles tha
 [<pre>from wikipedia 2014-09-13 11:00:00 2014-09-13 12:00:00
   where title=~"E.\*"
   group by title[10 by numRequests]
-  select numRequests</pre>](http://35.165.119.19/iql/#q[]=from+wikipedia+%222014-09-13+11%3A00%3A00%22+%222014-09-13+12%3A00%3A00%22+where+title%3D~%22E.*%22+group+by+title[10+by+numRequests]+select+numRequests&view=table&table_sort[0][]=2&table_sort[0][]=desc) 
+  select numRequests</pre>](http://imhotep.indeed.tech/iql/q/6Y8T2P)
 
 ## World Cup 2014
 
@@ -47,14 +47,14 @@ The following query returns the average age of captains and players of all other
 
 [<pre>from worldcup2014 2014-07-01 2014-07-02 
   group by Captain 
-  select Age/count(), Selections/count()</pre>](http://35.165.119.19/iql/#q[]=from+worldcup2014+2014-07-01+2014-07-02+group+by+Captain+select+Age%2Fcount()%2C+Selections%2Fcount()&view=table)
+  select Age/count(), Selections/count()</pre>](http://imhotep.indeed.tech/iql/q/674A2G)
 
 The following query lists the captains, along with their club, country, position, and number of World Cup appearances.
 
 [<pre>from worldcup2014 2014-07-01 2014-07-02
   where Captain:1 
   group by Player, Country[], Club[], Position[] 
-  select Selections</pre>](http://35.165.119.19/iql/#q[]=from+worldcup2014+2014-07-01+2014-07-02+where+Captain%3A1+group+by+Player%2C+Country[]%2C+Club[]%2C+Position[]+select+Selections&view=table&table_sort[0][]=5&table_sort[0][]=desc)
+  select Selections</pre>](http://imhotep.indeed.tech/iql/q/Z79AKX)
 
 ####<a name="clubs"></a>Clubs
 
@@ -62,7 +62,7 @@ The following query returns data for the top 25 clubs: number of players, number
 
 [<pre>from worldcup2014 2014-07-01 2014-07-02
   group by Club[25] 
-  select count(), Captain, Rank/count(), Age/count()</pre>](http://35.165.119.19/iql/#q[]=from+worldcup2014+2014-07-01+2014-07-02+group+by+Club[25]+select+count()%2C+Captain%2C+Rank%2Fcount()%2C+Age%2Fcount()&view=table)
+  select count(), Captain, Rank/count(), Age/count()</pre>](http://imhotep.indeed.tech/iql/q/NH2ZK4)
 
 ####<a name="countries"></a>Countries
 
@@ -70,7 +70,7 @@ The following query returns data by country: average player age and average numb
 
 [<pre>from worldcup2014 2014-07-01 2014-07-02 
   group by Country 
-  select Age/count(), Selections/count()</pre>](http://35.165.119.19/iql/#q[]=from+worldcup2014+2014-07-01+2014-07-02+group+by+Country+select+Age%2Fcount()%2C+Selections%2Fcount()&view=table&table_sort[0][]=2&table_sort[0][]=desc)
+  select Age/count(), Selections/count()</pre>](http://imhotep.indeed.tech/iql/q/AYFHDC)
 
 ####<a name="age-experience"></a>Age versus Experience
 
@@ -78,7 +78,7 @@ The following query compares player age to the number of World Cup appearances. 
 
 [<pre>from worldcup2014 2014-07-01 2014-07-02 
   group by Age
-  select Selections/count()</pre>](http://35.165.119.19/iql/#q[]=from+worldcup2014+2014-07-01+2014-07-02+group+by+Age+select+Selections%2Fcount()&view=pivot&table_sort[0][]=0&table_sort[0][]=asc&pivot_cols[]=Age&pivot_aggregator=Integer+Sum&pivot_renderer=Line+Chart)
+  select Selections/count()</pre>](http://imhotep.indeed.tech/iql/q/4M3HHX)
 
 ####<a name="jersey"></a>Jersey Numbers
 
@@ -86,12 +86,12 @@ The following query returns the number of players grouped by their jersey number
 
 [<pre>from worldcup2014 2014-07-01 2014-07-02 
   group by Jersey 
-  select count(), Captain</pre>](http://35.165.119.19/iql/#q[]=from+worldcup2014+2014-07-01+2014-07-02+group+by+Jersey+select+count()%2C+Captain&view=table&table_sort[0][]=2&table_sort[0][]=desc)
+  select count(), Captain</pre>](http://imhotep.indeed.tech/iql/q/DWFWPD)
 
 The following query groups documents by the player's jersey number and then, for each jersey number group, returns the most common position for that jersey number. Some numbers are typically associated with a position: #1 is always the goalie, defenders are frequently #2 and #3, and #9 is usually a forward.
 
 [<pre>from worldcup2014 2014-07-01 2014-07-02 
-  group by Jersey, Position[1]</pre>](http://35.165.119.19/iql/#q[]=from+worldcup2014+2014-07-01+2014-07-02+group+by+Jersey%2C+Position[1]&view=table&table_sort[0][]=1&table_sort[0][]=asc)
+  group by Jersey, Position[1]</pre>](http://imhotep.indeed.tech/iql/q/6GE6K3)
 
 ####<a name="positions"></a>Positions
 
@@ -99,7 +99,7 @@ The following query returns the average player age and average number of World C
 
 [<pre>from worldcup2014 2014-07-01 2014-07-02
   group by Position 
-  select count(), 100\*Captain/count(), Age/count(), Selections/count()</pre>](http://35.165.119.19/iql/#q[]=from+worldcup2014+2014-07-01+2014-07-02+group+by+Position[4]+select+count()%2C+100*Captain%2Fcount()%2C+Age%2Fcount()%2C+Selections%2Fcount()&view=table&table_sort[0][]=2&table_sort[0][]=asc)
+  select count(), 100\*Captain/count(), Age/count(), Selections/count()</pre>](http://imhotep.indeed.tech/iql/q/8PMZPK)
 
 ####<a name="groups"></a>Groups
 
@@ -107,4 +107,4 @@ The following query returns data about the World Cup groups: average number of W
 
 [<pre>from worldcup2014 2014-07-01 2014-07-02 
   group by Group 
-  select Selections/count(), Age/count(), Rank/count()</pre>](http://35.165.119.19/iql/#q[]=from+worldcup2014+2014-07-01+2014-07-02+group+by+Group+select+Selections%2Fcount()%2C+Age%2Fcount()%2C+Rank%2Fcount()&view=table&table_sort[0][]=3&table_sort[0][]=desc)
+  select Selections/count(), Age/count(), Rank/count()</pre>](http://imhotep.indeed.tech/iql/q/NRTEE9)
