@@ -18,9 +18,9 @@ import java.util.List;
  */
 
 final class DynamicFlamdexShardUtil {
-    // {dataset}/{shardDirectoryPrefix}.reader.lock : Taken while there is a reader reads from the shard.
-    private static final String READER_LOCK_FILENAME = ".reader.lock";
-    // {dataset}/{shard}.writer.lock : Taken while there is a writer writes into the shard.
+    // {dataset}/{shardDirectory}/reader.lock : Taken while there is a reader reads from the shard.
+    private static final String READER_LOCK_FILENAME = "reader.lock";
+    // {dataset}/{shardName}.writer.lock : Taken while there is a writer writes into the shard.
     private static final String WRITER_LOCK_FILENAME_FORMAT = "%s.writer.lock";
 
     private DynamicFlamdexShardUtil() {

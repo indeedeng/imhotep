@@ -52,6 +52,10 @@ public abstract class MergeStrategy {
         private final int exp;
         private final int maxNumOfTasks;
 
+        public ExponentialMergeStrategy(final int exp) {
+            this(exp, Integer.MAX_VALUE);
+        }
+
         public ExponentialMergeStrategy(final int exp, final int maxNumOfTasks) {
             Preconditions.checkArgument(exp > 1);
             this.exp = exp;
@@ -64,7 +68,7 @@ public abstract class MergeStrategy {
             final List<List<Segment>> segmentsToMerge = new ArrayList<>();
             final Queue<Segment> currentSegments = new ArrayDeque<>();
             for (final Segment segment : segments) {
-                while (!currentSegments.isEmpty() && ((currentSegments.element().getNumDocs() * exp) < segment.getNumDocs())) {
+                while (!currentSegments.isEmpty() && ((currentSegments.element().getNumDocs() * exp) <= segment.getNumDocs())) {
                     currentSegments.remove();
                 }
                 currentSegments.add(segment);

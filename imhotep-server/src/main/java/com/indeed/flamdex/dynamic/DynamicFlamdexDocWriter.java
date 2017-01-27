@@ -175,14 +175,14 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
 
     @Nonnull
     private Path buildSegment(final long version) throws IOException {
+        final Path newSegmentPath = shardCommitter.newSegmentDirectory();
+        try (final SimpleFlamdexWriter flamdexWriter = new SimpleFlamdexWriter(newSegmentPath, memoryFlamdex.getNumDocs())) {
+            SimpleFlamdexWriter.writeFlamdex(memoryFlamdex, flamdexWriter);
+        }
+
         final Lock lock = shardCommitter.getChangeSegmentsLock();
         lock.lock();
         try {
-            final Path newSegmentPath = shardCommitter.newSegmentDirectory();
-
-            try (final SimpleFlamdexWriter flamdexWriter = new SimpleFlamdexWriter(newSegmentPath, memoryFlamdex.getNumDocs())) {
-                SimpleFlamdexWriter.writeFlamdex(memoryFlamdex, flamdexWriter);
-            }
             final Map<Path, FastBitSet> updatedTombstoneSets = new HashMap<>();
             // Make tombstone for the new segment
             if (!removedDocIds.isEmpty()) {

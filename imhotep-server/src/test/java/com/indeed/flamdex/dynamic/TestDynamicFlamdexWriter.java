@@ -2,6 +2,8 @@ package com.indeed.flamdex.dynamic;
 
 import com.google.common.collect.ImmutableSet;
 import com.indeed.flamdex.api.FlamdexReader;
+import com.indeed.flamdex.simple.SimpleFlamdexDocWriter;
+import com.indeed.flamdex.writer.FlamdexDocWriter;
 import com.indeed.flamdex.writer.FlamdexDocument;
 import org.junit.Before;
 import org.junit.Rule;
@@ -44,9 +46,9 @@ public class TestDynamicFlamdexWriter {
         for (int i = 0; i < NUM_DOCS; ++i) {
             documents.add(DynamicFlamdexTestUtils.makeDocument(i));
         }
-        Collections.shuffle(documents);
-
         final Random random = new Random(0);
+        Collections.shuffle(documents, random);
+
         final Path shardDirectory;
         try (final DynamicFlamdexDocWriter flamdexDocWriter = new DynamicFlamdexDocWriter(directory, "shared")) {
             int commitId = 0;
@@ -85,9 +87,9 @@ public class TestDynamicFlamdexWriter {
         for (int i = 0; i < NUM_DOCS; ++i) {
             documents.add(DynamicFlamdexTestUtils.makeDocument(i));
         }
-        Collections.shuffle(documents);
-
         final Random random = new Random(0);
+        Collections.shuffle(documents, random);
+
         final Set<FlamdexDocument> naive = new HashSet<>();
         final Path shardDirectory;
         try (final DynamicFlamdexDocWriter flamdexDocWriter = new DynamicFlamdexDocWriter(directory, "shard")) {
@@ -114,9 +116,9 @@ public class TestDynamicFlamdexWriter {
         for (int i = 0; i < NUM_DOCS; ++i) {
             documents.add(DynamicFlamdexTestUtils.makeDocument(i));
         }
-        Collections.shuffle(documents);
-
         final Random random = new Random(0);
+        Collections.shuffle(documents, random);
+
         final Set<FlamdexDocument> naive = new HashSet<>();
         final Path shardDirectory;
         try (final DynamicFlamdexDocWriter flamdexDocWriter = new DynamicFlamdexDocWriter(directory, "shard")) {
@@ -144,12 +146,12 @@ public class TestDynamicFlamdexWriter {
         for (int i = 0; i < NUM_DOCS; ++i) {
             documents.add(DynamicFlamdexTestUtils.makeDocument(i));
         }
-        Collections.shuffle(documents);
-
         final Random random = new Random(0);
+        Collections.shuffle(documents, random);
+
         final Set<FlamdexDocument> naive = new HashSet<>();
         final Path shardDirectory;
-        try (final DynamicFlamdexDocWriter flamdexDocWriter = new DynamicFlamdexDocWriter(directory, "shard", new MergeStrategy.ExponentialMergeStrategy(4, 5), executorService)) {
+        try (final DynamicFlamdexDocWriter flamdexDocWriter = new DynamicFlamdexDocWriter(directory, "shard", new MergeStrategy.ExponentialMergeStrategy(4), executorService)) {
             int cnt = 0;
             for (final FlamdexDocument document : documents) {
                 if (random.nextInt(50) == 0) {
@@ -166,5 +168,83 @@ public class TestDynamicFlamdexWriter {
         DynamicFlamdexTestUtils.validateIndex(naive, reader);
         executorService.shutdown();
         executorService.awaitTermination(1, TimeUnit.MINUTES);
+    }
+
+    @SuppressWarnings("JUnitTestMethodWithNoAssertions")
+    @Test
+    public void testWriteOnExistingDynamicIndex() throws IOException {
+        final List<FlamdexDocument> documents = new ArrayList<>();
+        for (int i = 0; i < NUM_DOCS; ++i) {
+            documents.add(DynamicFlamdexTestUtils.makeDocument(i));
+        }
+        final Random random = new Random(0);
+        Collections.shuffle(documents, random);
+
+        final Set<FlamdexDocument> naive = new HashSet<>();
+        final Path firstHalf;
+        try (final DynamicFlamdexDocWriter flamdexDocWriter = new DynamicFlamdexDocWriter(directory, "shard", new MergeStrategy.ExponentialMergeStrategy(4), null)) {
+            int cnt = 0;
+            for (final FlamdexDocument document : documents.subList(0, NUM_DOCS / 2)) {
+                if (random.nextInt(50) == 0) {
+                    flamdexDocWriter.commit(cnt, random.nextBoolean());
+                }
+                if (((++cnt) % 500) == 0) {
+                    DynamicFlamdexTestUtils.removeDocument(naive, flamdexDocWriter, "mod7mod11i", random.nextInt(7));
+                }
+                DynamicFlamdexTestUtils.addDocument(naive, flamdexDocWriter, document);
+            }
+            firstHalf = flamdexDocWriter.commit(cnt).get();
+        }
+        final Path shardDirectory;
+        try (final DynamicFlamdexDocWriter flamdexDocWriter = new DynamicFlamdexDocWriter(directory, "shard", firstHalf, new MergeStrategy.ExponentialMergeStrategy(2), null)) {
+            int cnt = 0;
+            for (final FlamdexDocument document : documents.subList(NUM_DOCS / 2, NUM_DOCS)) {
+                if (random.nextInt(50) == 0) {
+                    flamdexDocWriter.commit(cnt, random.nextBoolean());
+                }
+                if (((++cnt) % 500) == 0) {
+                    DynamicFlamdexTestUtils.removeDocument(naive, flamdexDocWriter, "mod7mod11i", random.nextInt(7));
+                }
+                DynamicFlamdexTestUtils.addDocument(naive, flamdexDocWriter, document);
+            }
+            shardDirectory = flamdexDocWriter.commit(cnt).get();
+        }
+        final FlamdexReader reader = new DynamicFlamdexReader(shardDirectory);
+        DynamicFlamdexTestUtils.validateIndex(naive, reader);
+    }
+
+    @SuppressWarnings("JUnitTestMethodWithNoAssertions")
+    @Test
+    public void testWriteOnExistingStaticIndex() throws IOException {
+        final List<FlamdexDocument> documents = new ArrayList<>();
+        for (int i = 0; i < NUM_DOCS; ++i) {
+            documents.add(DynamicFlamdexTestUtils.makeDocument(i));
+        }
+        final Random random = new Random(0);
+        Collections.shuffle(documents, random);
+
+        final Set<FlamdexDocument> naive = new HashSet<>();
+        final Path firstHalf = temporaryFolder.newFolder("static").toPath();
+        try (final FlamdexDocWriter flamdexDocWriter = new SimpleFlamdexDocWriter(firstHalf, new SimpleFlamdexDocWriter.Config())) {
+            for (final FlamdexDocument document : documents.subList(0, NUM_DOCS / 2)) {
+                DynamicFlamdexTestUtils.addDocument(naive, flamdexDocWriter, document);
+            }
+        }
+        final Path shardDirectory;
+        try (final DynamicFlamdexDocWriter flamdexDocWriter = new DynamicFlamdexDocWriter(directory, "shard", firstHalf, new MergeStrategy.ExponentialMergeStrategy(2), null)) {
+            int cnt = 0;
+            for (final FlamdexDocument document : documents.subList(NUM_DOCS / 2, NUM_DOCS)) {
+                if (random.nextInt(50) == 0) {
+                    flamdexDocWriter.commit(cnt, random.nextBoolean());
+                }
+                if (((++cnt) % 500) == 0) {
+                    DynamicFlamdexTestUtils.removeDocument(naive, flamdexDocWriter, "mod7mod11i", random.nextInt(7));
+                }
+                DynamicFlamdexTestUtils.addDocument(naive, flamdexDocWriter, document);
+            }
+            shardDirectory = flamdexDocWriter.commit(cnt).get();
+        }
+        final FlamdexReader reader = new DynamicFlamdexReader(shardDirectory);
+        DynamicFlamdexTestUtils.validateIndex(naive, reader);
     }
 }

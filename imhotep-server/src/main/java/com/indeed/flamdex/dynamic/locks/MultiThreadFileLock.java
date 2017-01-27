@@ -15,7 +15,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 /**
  * FileLock for multi-process multi-thread.
  * Please use from {@link MultiThreadFileLockUtil}.
- * - tryReadLock isn't implemented yet.
  * - ordering policy is a bit weird;
  * even if there is another process that read-locking a file,
  * read-lock might be blocked by a thread in the same process which is waiting for write-lock

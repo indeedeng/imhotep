@@ -10,6 +10,7 @@ import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.datastruct.FastBitSet;
+import com.indeed.flamdex.reader.FlamdexMetadata;
 import com.indeed.flamdex.simple.SimpleFlamdexWriter;
 import com.indeed.flamdex.writer.IntFieldWriter;
 import com.indeed.flamdex.writer.StringFieldWriter;
@@ -331,9 +332,8 @@ class DynamicFlamdexMerger implements Closeable {
             final SortedSet<MergeStrategy.Segment> availableSegments = new TreeSet<>();
             for (final Path segmentPath : shardCommitter.getCurrentSegmentPaths()) {
                 if (!queuedSegments.contains(segmentPath) && !processingSegments.contains(segmentPath)) {
-                    try (final SegmentReader segmentReader = new SegmentReader(segmentPath)) {
-                        availableSegments.add(new MergeStrategy.Segment(segmentPath, segmentReader.maxNumDocs()));
-                    }
+                    final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(segmentPath);
+                    availableSegments.add(new MergeStrategy.Segment(segmentPath, metadata.getNumDocs()));
                 }
             }
             final Collection<? extends Collection<MergeStrategy.Segment>> segmentsToMerge = mergeStrategy.splitSegmentsToMerge(new TreeSet<>(availableSegments));

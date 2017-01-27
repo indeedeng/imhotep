@@ -13,9 +13,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -32,7 +31,7 @@ class DynamicFlamdexShardCommitter implements Closeable {
     private final Path datasetDirectory;
     private final String shardDirectoryPrefix;
     private final Path temporaryShardDirectory;
-    private final List<Path> currentSegments;
+    private final Set<Path> currentSegments;
     private final ReentrantLock changeSegmentsLock = new ReentrantLock(true);
     private String lastGeneratedTimestamp = null;
 
@@ -43,7 +42,7 @@ class DynamicFlamdexShardCommitter implements Closeable {
         temporaryDirectory = Files.createTempDirectory(datasetDirectory.getFileName().toString());
         temporaryShardDirectory = temporaryDirectory.resolve("shard");
         Files.createDirectory(temporaryShardDirectory);
-        currentSegments = new ArrayList<>();
+        currentSegments = new HashSet<>();
         if (latestShardDirectory != null) {
             final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(latestShardDirectory);
             if (metadata.formatVersion == DynamicFlamdexDocWriter.FORMAT_VERSION) {
@@ -147,7 +146,7 @@ class DynamicFlamdexShardCommitter implements Closeable {
     }
 
     @Nonnull
-    public List<Path> getCurrentSegmentPaths() {
+    public Collection<Path> getCurrentSegmentPaths() {
         changeSegmentsLock.lock();
         try {
             return currentSegments;
