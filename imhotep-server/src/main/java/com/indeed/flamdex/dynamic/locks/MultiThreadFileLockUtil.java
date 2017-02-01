@@ -37,27 +37,13 @@ public final class MultiThreadFileLockUtil {
     }
 
     @Nonnull
-    public static MultiThreadLock lock(final boolean shared, @Nonnull final Path path) throws IOException {
-        if (shared) {
-            return getReadWriteLockImpl(path).readLock();
-        } else {
-            return getReadWriteLockImpl(path).writeLock();
-        }
-    }
-
-    @Nonnull
-    public static MultiThreadLock lock(final boolean shared, @Nonnull final Path directory, @Nonnull final String fileName) throws IOException {
-        return lock(shared, directory.resolve(fileName));
-    }
-
-    @Nonnull
     public static MultiThreadLock readLock(@Nonnull final Path directory, @Nonnull final String fileName) throws IOException {
-        return lock(true, directory, fileName);
+        return getReadWriteLockImpl(directory.resolve(directory.resolve(fileName))).readLock();
     }
 
     @Nonnull
     public static MultiThreadLock writeLock(@Nonnull final Path directory, @Nonnull final String fileName) throws IOException {
-        return lock(false, directory, fileName);
+        return getReadWriteLockImpl(directory.resolve(directory.resolve(fileName))).writeLock();
     }
 
     @Nonnull

@@ -143,15 +143,13 @@ class MultiThreadFileLock {
                     }
                     if (fileLock.isPresent()) {
                         return Optional.<MultiThreadLock>of(new MultiThreadLockImpl(true, lock));
-                    } else {
-                        return Optional.absent();
                     }
                 } finally {
                     fileAccessLock.unlock();
                 }
-            } else {
-                return Optional.absent();
             }
+            lock.unlock();
+            return Optional.absent();
         } catch (final Throwable e) {
             lock.unlock();
             throw e;

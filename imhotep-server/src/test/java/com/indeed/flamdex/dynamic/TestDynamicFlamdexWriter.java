@@ -1,6 +1,7 @@
 package com.indeed.flamdex.dynamic;
 
 import com.google.common.collect.ImmutableSet;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexDocWriter;
 import com.indeed.flamdex.writer.FlamdexDocWriter;
@@ -182,7 +183,13 @@ public class TestDynamicFlamdexWriter {
 
         final Set<FlamdexDocument> naive = new HashSet<>();
         final Path firstHalf;
-        try (final DynamicFlamdexDocWriter flamdexDocWriter = new DynamicFlamdexDocWriter(directory, "shard", new MergeStrategy.ExponentialMergeStrategy(4), null)) {
+        try (final DynamicFlamdexDocWriter flamdexDocWriter =
+                     new DynamicFlamdexDocWriter(
+                             directory,
+                             "shard",
+                             new MergeStrategy.ExponentialMergeStrategy(4),
+                             MoreExecutors.sameThreadExecutor())
+        ) {
             int cnt = 0;
             for (final FlamdexDocument document : documents.subList(0, NUM_DOCS / 2)) {
                 if (random.nextInt(50) == 0) {
@@ -196,7 +203,14 @@ public class TestDynamicFlamdexWriter {
             firstHalf = flamdexDocWriter.commit(cnt).get();
         }
         final Path shardDirectory;
-        try (final DynamicFlamdexDocWriter flamdexDocWriter = new DynamicFlamdexDocWriter(directory, "shard", firstHalf, new MergeStrategy.ExponentialMergeStrategy(2), null)) {
+        try (final DynamicFlamdexDocWriter flamdexDocWriter =
+                     new DynamicFlamdexDocWriter(
+                             directory,
+                             "shard",
+                             firstHalf,
+                             new MergeStrategy.ExponentialMergeStrategy(2),
+                             MoreExecutors.sameThreadExecutor())
+        ) {
             int cnt = 0;
             for (final FlamdexDocument document : documents.subList(NUM_DOCS / 2, NUM_DOCS)) {
                 if (random.nextInt(50) == 0) {
@@ -231,7 +245,14 @@ public class TestDynamicFlamdexWriter {
             }
         }
         final Path shardDirectory;
-        try (final DynamicFlamdexDocWriter flamdexDocWriter = new DynamicFlamdexDocWriter(directory, "shard", firstHalf, new MergeStrategy.ExponentialMergeStrategy(2), null)) {
+        try (final DynamicFlamdexDocWriter flamdexDocWriter =
+                     new DynamicFlamdexDocWriter(
+                             directory,
+                             "shard",
+                             firstHalf,
+                             new MergeStrategy.ExponentialMergeStrategy(2),
+                             MoreExecutors.sameThreadExecutor())
+        ) {
             int cnt = 0;
             for (final FlamdexDocument document : documents.subList(NUM_DOCS / 2, NUM_DOCS)) {
                 if (random.nextInt(50) == 0) {

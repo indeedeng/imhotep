@@ -5,6 +5,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Ordering;
+import com.google.common.io.Closer;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
@@ -43,18 +44,21 @@ public class DynamicFlamdexReader implements FlamdexReader {
     private final int[] offsets;
 
     public DynamicFlamdexReader(@Nonnull final Path directory) throws IOException {
-        this.lock = DynamicFlamdexShardUtil.acquireReaderLock(directory);
-        this.shardDirectory = directory;
-        final ImmutableList.Builder<SegmentReader> segmentReadersBuilder = ImmutableList.builder();
+        final Closer closerOnFailure = Closer.create();
         try {
+            this.lock = closerOnFailure.register(DynamicFlamdexShardUtil.acquireReaderLock(directory));
+
+            this.shardDirectory = directory;
+            final ImmutableList.Builder<SegmentReader> segmentReadersBuilder = ImmutableList.builder();
             for (final Path segmentDirectory : DynamicFlamdexShardUtil.listSegmentDirectories(directory)) {
-                segmentReadersBuilder.add(new SegmentReader(segmentDirectory));
+                segmentReadersBuilder.add(closerOnFailure.register(new SegmentReader(segmentDirectory)));
             }
+            this.segmentReaders = segmentReadersBuilder.build();
         } catch (final Throwable e) {
-            Closeables2.closeAll(LOG, segmentReadersBuilder.build());
+            Closeables2.closeQuietly(closerOnFailure, LOG);
             throw e;
         }
-        this.segmentReaders = segmentReadersBuilder.build();
+
         this.offsets = new int[this.segmentReaders.size() + 1];
         for (int i = 0; i < this.segmentReaders.size(); ++i) {
             this.offsets[i + 1] = this.offsets[i] + this.segmentReaders.get(i).maxNumDocs();

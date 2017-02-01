@@ -1,7 +1,8 @@
 package com.indeed.flamdex.dynamic;
 
 import com.google.common.base.Optional;
-import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.base.Preconditions;
+import com.google.common.io.Closer;
 import com.indeed.flamdex.MemoryFlamdex;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.IntTermIterator;
@@ -61,29 +62,36 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
         this(datasetDirectory, shardDirectoryPrefix, latestShardDirectory, null, null);
     }
 
-    public DynamicFlamdexDocWriter(@Nonnull final Path datasetDirectory, @Nonnull final String shardDirectoryPrefix, @Nonnull final MergeStrategy mergeStrategy, @Nullable final ExecutorService executorService) throws IOException {
+    public DynamicFlamdexDocWriter(@Nonnull final Path datasetDirectory, @Nonnull final String shardDirectoryPrefix, @Nonnull final MergeStrategy mergeStrategy, @Nonnull final ExecutorService executorService) throws IOException {
         this(datasetDirectory, shardDirectoryPrefix, null, mergeStrategy, executorService);
     }
 
     /**
      * Creates shard from {@code latestShardDirectory}, and write into {@code datasetDirectory}/{@code shardDirectoryPrefix}.version.timestamp.
-     * Do merge if {@code mergeStrategy} is nonnull, and use other thread to merge segments if {@code executorService} is passed.
+     * Do merge if {@code mergeStrategy} is nonnull, and use {@code executorService} to merge segments .
      */
     public DynamicFlamdexDocWriter(@Nonnull final Path datasetDirectory, @Nonnull final String shardDirectoryPrefix, @Nullable final Path latestShardDirectory, @Nullable final MergeStrategy mergeStrategy, @Nullable final ExecutorService executorService) throws IOException {
-        this.writerLock = DynamicFlamdexShardUtil.acquireWriterLock(datasetDirectory, shardDirectoryPrefix);
-        this.shardCommitter = new DynamicFlamdexShardCommitter(datasetDirectory, shardDirectoryPrefix, latestShardDirectory);
-        if (mergeStrategy == null) {
-            this.merger = null;
-        } else {
-            if (executorService == null) {
-                this.merger = new DynamicFlamdexMerger(shardCommitter, mergeStrategy, MoreExecutors.sameThreadExecutor());
+        final Closer closerOnFailure = Closer.create();
+        try {
+            this.writerLock = closerOnFailure.register(DynamicFlamdexShardUtil.acquireWriterLock(datasetDirectory, shardDirectoryPrefix));
+            this.shardCommitter = closerOnFailure.register(new DynamicFlamdexShardCommitter(datasetDirectory, shardDirectoryPrefix, latestShardDirectory));
+            if (mergeStrategy == null) {
+                this.merger = null;
+                //noinspection VariableNotUsedInsideIf
+                if (executorService != null) {
+                    LOG.warn("Ignore executorService because mergeStrategy is not given.");
+                }
             } else {
-                this.merger = new DynamicFlamdexMerger(shardCommitter, mergeStrategy, executorService);
+                Preconditions.checkNotNull(executorService, "mergeStrategy is passed, but executorService is null.");
+                this.merger = closerOnFailure.register(new DynamicFlamdexMerger(shardCommitter, mergeStrategy, executorService));
             }
+            this.removedDocIds = new IntOpenHashSet();
+            this.removeQueries = new ArrayList<>();
+            renew();
+        } catch (final Throwable e) {
+            Closeables2.closeQuietly(closerOnFailure, LOG);
+            throw e;
         }
-        this.removedDocIds = new IntOpenHashSet();
-        this.removeQueries = new ArrayList<>();
-        renew();
     }
 
     private void renew() throws IOException {
@@ -234,7 +242,7 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
 
     @Override
     public void close() throws IOException {
-        Closeables2.closeAll(LOG, memoryFlamdex, merger, writerLock, shardCommitter);
+        Closeables2.closeAll(LOG, memoryFlamdex, merger, shardCommitter, writerLock);
     }
 
     @Override

@@ -36,7 +36,6 @@ class SegmentReader implements FlamdexReader {
     private final FlamdexReader flamdexReader;
     private final FastBitSet tombstoneSet;
 
-    // Don't open segment reader without locking shard metadata.
     SegmentReader(@Nonnull final Path segmentDirectory) throws IOException {
         this.flamdexReader = GenericFlamdexReader.open(segmentDirectory);
         this.tombstoneSet = DynamicFlamdexSegmentUtil.readTombstoneSet(segmentDirectory).orNull();
