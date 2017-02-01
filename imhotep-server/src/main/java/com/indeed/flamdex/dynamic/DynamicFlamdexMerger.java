@@ -112,7 +112,7 @@ class DynamicFlamdexMerger implements Closeable {
                         for (final String field : reader.getIntFields()) {
                             try (
                                     final IntFieldWriter intFieldWriter = writer.getIntFieldWriter(field);
-                                    final IntTermIterator intTermIterator = reader.getIntTermIterator(field);
+                                    final IntTermIterator intTermIterator = reader.getIntTermIterator(field)
                             ) {
                                 while (intTermIterator.next()) {
                                     intFieldWriter.nextTerm(intTermIterator.term());
@@ -135,7 +135,7 @@ class DynamicFlamdexMerger implements Closeable {
                         for (final String field : reader.getStringFields()) {
                             try (
                                     final StringFieldWriter stringFieldWriter = writer.getStringFieldWriter(field);
-                                    final StringTermIterator stringTermIterator = reader.getStringTermIterator(field);
+                                    final StringTermIterator stringTermIterator = reader.getStringTermIterator(field)
                             ) {
                                 while (stringTermIterator.next()) {
                                     stringFieldWriter.nextTerm(stringTermIterator.term());
@@ -173,13 +173,13 @@ class DynamicFlamdexMerger implements Closeable {
                 for (final MergeStrategy.Segment segment : segmentsToMerge) {
                     segmentReaders.add(closer.register(new SegmentReader(segment.getSegmentDirectory())));
                 }
-                final Path newSegmentDirectory = shardCommitter.newSegmentDirectory();
+                final Path newSegmentDirectory = indexCommitter.newSegmentDirectory();
                 final DocIdMapping docIdMapping = mergeIndices(newSegmentDirectory, segmentReaders);
 
                 final FastBitSet tombstoneSet = new FastBitSet(docIdMapping.getNewNumDocs());
 
                 // Wait segment builders / other merger
-                final Lock lock = shardCommitter.getChangeSegmentsLock();
+                final Lock lock = indexCommitter.getChangeSegmentsLock();
                 lock.lock();
                 try {
                     // Update tombstoneSet
@@ -200,7 +200,7 @@ class DynamicFlamdexMerger implements Closeable {
                         DynamicFlamdexSegmentUtil.writeTombstoneSet(newSegmentDirectory, tombstoneSet);
                     }
 
-                    shardCommitter.replaceSegments(
+                    indexCommitter.replaceSegments(
                             FluentIterable.from(segmentsToMerge).transform(new Function<MergeStrategy.Segment, Path>() {
                                 @Override
                                 public Path apply(final MergeStrategy.Segment segment) {
@@ -209,7 +209,7 @@ class DynamicFlamdexMerger implements Closeable {
                             }).toList(),
                             newSegmentDirectory
                     );
-                    shardCommitter.commit();
+                    indexCommitter.commit();
                 } finally {
                     lock.unlock();
                 }
@@ -223,15 +223,15 @@ class DynamicFlamdexMerger implements Closeable {
         }
     }
 
-    private final DynamicFlamdexShardCommitter shardCommitter;
+    private final DynamicFlamdexIndexCommitter indexCommitter;
     private final MergeStrategy mergeStrategy;
     private final ExecutorService executorService;
     private final Set<Path> queuedSegments = new HashSet<>();
     private final Set<Path> processingSegments = new HashSet<>();
     private final List<Future<?>> futuresForCancellation = new LinkedList<>();
 
-    DynamicFlamdexMerger(@Nonnull final DynamicFlamdexShardCommitter shardCommitter, @Nonnull final MergeStrategy mergeStrategy, @Nonnull final ExecutorService executorService) {
-        this.shardCommitter = shardCommitter;
+    DynamicFlamdexMerger(@Nonnull final DynamicFlamdexIndexCommitter indexCommitter, @Nonnull final MergeStrategy mergeStrategy, @Nonnull final ExecutorService executorService) {
+        this.indexCommitter = indexCommitter;
         this.mergeStrategy = mergeStrategy;
         this.executorService = executorService;
     }
@@ -326,11 +326,11 @@ class DynamicFlamdexMerger implements Closeable {
     }
 
     synchronized void updated() throws IOException {
-        final Lock lock = shardCommitter.getChangeSegmentsLock();
+        final Lock lock = indexCommitter.getChangeSegmentsLock();
         lock.lock();
         try {
             final SortedSet<MergeStrategy.Segment> availableSegments = new TreeSet<>();
-            for (final Path segmentPath : shardCommitter.getCurrentSegmentPaths()) {
+            for (final Path segmentPath : indexCommitter.getCurrentSegmentPaths()) {
                 if (!queuedSegments.contains(segmentPath) && !processingSegments.contains(segmentPath)) {
                     final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(segmentPath);
                     availableSegments.add(new MergeStrategy.Segment(segmentPath, metadata.getNumDocs()));

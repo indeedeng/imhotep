@@ -29,7 +29,7 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * FlamdexReader for dynamic shards.
+ * FlamdexReader for dynamic index.
  * The return values of getNumDocs, docFreq(), ... might be wrong because of lazied deletion.
  *
  * @author michihiko
@@ -38,7 +38,7 @@ import java.util.List;
 public class DynamicFlamdexReader implements FlamdexReader {
     private static final Logger LOG = Logger.getLogger(DynamicFlamdexReader.class);
 
-    private final Path shardDirectory;
+    private final Path indexDirectory;
     private final Closeable lock;
     private final List<SegmentReader> segmentReaders;
     private final int[] offsets;
@@ -46,11 +46,11 @@ public class DynamicFlamdexReader implements FlamdexReader {
     public DynamicFlamdexReader(@Nonnull final Path directory) throws IOException {
         final Closer closerOnFailure = Closer.create();
         try {
-            this.lock = closerOnFailure.register(DynamicFlamdexShardUtil.acquireReaderLock(directory));
+            this.lock = closerOnFailure.register(DynamicFlamdexIndexUtil.acquireReaderLock(directory));
 
-            this.shardDirectory = directory;
+            this.indexDirectory = directory;
             final ImmutableList.Builder<SegmentReader> segmentReadersBuilder = ImmutableList.builder();
-            for (final Path segmentDirectory : DynamicFlamdexShardUtil.listSegmentDirectories(directory)) {
+            for (final Path segmentDirectory : DynamicFlamdexIndexUtil.listSegmentDirectories(directory)) {
                 segmentReadersBuilder.add(closerOnFailure.register(new SegmentReader(segmentDirectory)));
             }
             this.segmentReaders = segmentReadersBuilder.build();
@@ -66,7 +66,7 @@ public class DynamicFlamdexReader implements FlamdexReader {
     }
 
     DynamicFlamdexReader(@Nonnull final Path directory, @Nonnull final List<SegmentReader> segmentReaders) {
-        this.shardDirectory = directory;
+        this.indexDirectory = directory;
         this.lock = null;
         this.segmentReaders = segmentReaders;
         this.offsets = new int[this.segmentReaders.size() + 1];
@@ -107,7 +107,7 @@ public class DynamicFlamdexReader implements FlamdexReader {
 
     @Override
     public Path getDirectory() {
-        return shardDirectory;
+        return indexDirectory;
     }
 
     @Override

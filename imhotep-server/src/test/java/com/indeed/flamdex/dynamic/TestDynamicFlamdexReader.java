@@ -36,18 +36,18 @@ public class TestDynamicFlamdexReader {
     public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     private static final int NUM_DOCS = (2 * 3 * 5 * 7 * 11) + 10;
-    private Path shardDirectory;
+    private Path indexDirectory;
 
     private List<Path> segmentDirectories;
 
     @Before
     public void setUp() throws IOException {
-        shardDirectory = temporaryFolder.getRoot().toPath();
+        indexDirectory = temporaryFolder.getRoot().toPath();
         segmentDirectories = Lists.newArrayList(
-                shardDirectory.resolve("segment1"),
-                shardDirectory.resolve("segment2"),
-                shardDirectory.resolve("segment3"),
-                shardDirectory.resolve("segment4") // empty segment
+                indexDirectory.resolve("segment1"),
+                indexDirectory.resolve("segment2"),
+                indexDirectory.resolve("segment3"),
+                indexDirectory.resolve("segment4") // empty segment
         );
         final Random random = new Random(3);
         final List<FlamdexDocWriter> writers = new ArrayList<>();
@@ -69,7 +69,7 @@ public class TestDynamicFlamdexReader {
 
     @Test
     public void testSimpleStats() throws IOException, FlamdexOutOfMemoryException {
-        try (final FlamdexReader flamdexReader = new DynamicFlamdexReader(shardDirectory)) {
+        try (final FlamdexReader flamdexReader = new DynamicFlamdexReader(indexDirectory)) {
             assertEquals(NUM_DOCS, flamdexReader.getNumDocs());
             assertEquals(NUM_DOCS, flamdexReader.getIntTotalDocFreq("original"));
             int numMod7Mod11i = 0;
@@ -103,7 +103,7 @@ public class TestDynamicFlamdexReader {
 
     @Test
     public void testIntTermDocIterator() throws IOException, FlamdexOutOfMemoryException {
-        try (final FlamdexReader flamdexReader = new DynamicFlamdexReader(shardDirectory)) {
+        try (final FlamdexReader flamdexReader = new DynamicFlamdexReader(indexDirectory)) {
             final int[] okBit = new int[flamdexReader.getNumDocs()];
             {
                 final IntTermDocIterator intTermDocIterator = flamdexReader.getIntTermDocIterator("mod7mod11i");
@@ -135,7 +135,7 @@ public class TestDynamicFlamdexReader {
 
     @Test
     public void testStringTermDocIterator() throws IOException, FlamdexOutOfMemoryException {
-        try (final FlamdexReader flamdexReader = new DynamicFlamdexReader(shardDirectory)) {
+        try (final FlamdexReader flamdexReader = new DynamicFlamdexReader(indexDirectory)) {
             final int[] okBit = new int[flamdexReader.getNumDocs()];
             {
                 final StringTermDocIterator stringTermDocIterator = flamdexReader.getStringTermDocIterator("mod7mod11s");
@@ -186,7 +186,7 @@ public class TestDynamicFlamdexReader {
             }
         }
 
-        try (final FlamdexReader flamdexReader = new DynamicFlamdexReader(shardDirectory)) {
+        try (final FlamdexReader flamdexReader = new DynamicFlamdexReader(indexDirectory)) {
             final int[] okBit = new int[flamdexReader.getNumDocs()];
             {
                 final IntTermDocIterator intTermDocIterator = flamdexReader.getIntTermDocIterator("mod7mod11i");

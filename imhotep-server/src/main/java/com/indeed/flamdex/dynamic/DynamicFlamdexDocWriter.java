@@ -44,7 +44,7 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
 
     private static final int DOC_ID_BUFFER_SIZE = 128;
 
-    private final DynamicFlamdexShardCommitter shardCommitter;
+    private final DynamicFlamdexIndexCommitter indexCommitter;
 
     private final MultiThreadLock writerLock;
     private final DynamicFlamdexMerger merger;
@@ -54,27 +54,27 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
     private final List<Query> removeQueries;
     private final int[] docIdBuf = new int[DOC_ID_BUFFER_SIZE];
 
-    public DynamicFlamdexDocWriter(@Nonnull final Path datasetDirectory, @Nonnull final String shardDirectoryPrefix) throws IOException {
-        this(datasetDirectory, shardDirectoryPrefix, null, null, null);
+    public DynamicFlamdexDocWriter(@Nonnull final Path datasetDirectory, @Nonnull final String indexDirectoryPrefix) throws IOException {
+        this(datasetDirectory, indexDirectoryPrefix, null, null, null);
     }
 
-    public DynamicFlamdexDocWriter(@Nonnull final Path datasetDirectory, @Nonnull final String shardDirectoryPrefix, @Nonnull final Path latestShardDirectory) throws IOException {
-        this(datasetDirectory, shardDirectoryPrefix, latestShardDirectory, null, null);
+    public DynamicFlamdexDocWriter(@Nonnull final Path datasetDirectory, @Nonnull final String indexDirectoryPrefix, @Nonnull final Path latestIndexDirectory) throws IOException {
+        this(datasetDirectory, indexDirectoryPrefix, latestIndexDirectory, null, null);
     }
 
-    public DynamicFlamdexDocWriter(@Nonnull final Path datasetDirectory, @Nonnull final String shardDirectoryPrefix, @Nonnull final MergeStrategy mergeStrategy, @Nonnull final ExecutorService executorService) throws IOException {
-        this(datasetDirectory, shardDirectoryPrefix, null, mergeStrategy, executorService);
+    public DynamicFlamdexDocWriter(@Nonnull final Path datasetDirectory, @Nonnull final String indexDirectoryPrefix, @Nonnull final MergeStrategy mergeStrategy, @Nonnull final ExecutorService executorService) throws IOException {
+        this(datasetDirectory, indexDirectoryPrefix, null, mergeStrategy, executorService);
     }
 
     /**
-     * Creates shard from {@code latestShardDirectory}, and write into {@code datasetDirectory}/{@code shardDirectoryPrefix}.version.timestamp.
+     * Creates index from {@code latestIndexDirectory}, and write into {@code datasetDirectory}/{@code indexDirectoryPrefix}.version.timestamp.
      * Do merge if {@code mergeStrategy} is nonnull, and use {@code executorService} to merge segments .
      */
-    public DynamicFlamdexDocWriter(@Nonnull final Path datasetDirectory, @Nonnull final String shardDirectoryPrefix, @Nullable final Path latestShardDirectory, @Nullable final MergeStrategy mergeStrategy, @Nullable final ExecutorService executorService) throws IOException {
+    public DynamicFlamdexDocWriter(@Nonnull final Path datasetDirectory, @Nonnull final String indexDirectoryPrefix, @Nullable final Path latestIndexDirectory, @Nullable final MergeStrategy mergeStrategy, @Nullable final ExecutorService executorService) throws IOException {
         final Closer closerOnFailure = Closer.create();
         try {
-            this.writerLock = closerOnFailure.register(DynamicFlamdexShardUtil.acquireWriterLock(datasetDirectory, shardDirectoryPrefix));
-            this.shardCommitter = closerOnFailure.register(new DynamicFlamdexShardCommitter(datasetDirectory, shardDirectoryPrefix, latestShardDirectory));
+            this.writerLock = closerOnFailure.register(DynamicFlamdexIndexUtil.acquireWriterLock(datasetDirectory, indexDirectoryPrefix));
+            this.indexCommitter = closerOnFailure.register(new DynamicFlamdexIndexCommitter(datasetDirectory, indexDirectoryPrefix, latestIndexDirectory));
             if (mergeStrategy == null) {
                 this.merger = null;
                 //noinspection VariableNotUsedInsideIf
@@ -83,7 +83,7 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
                 }
             } else {
                 Preconditions.checkNotNull(executorService, "mergeStrategy is passed, but executorService is null.");
-                this.merger = closerOnFailure.register(new DynamicFlamdexMerger(shardCommitter, mergeStrategy, executorService));
+                this.merger = closerOnFailure.register(new DynamicFlamdexMerger(indexCommitter, mergeStrategy, executorService));
             }
             this.removedDocIds = new IntOpenHashSet();
             this.removeQueries = new ArrayList<>();
@@ -183,12 +183,12 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
 
     @Nonnull
     private Path buildSegment(final long version) throws IOException {
-        final Path newSegmentPath = shardCommitter.newSegmentDirectory();
+        final Path newSegmentPath = indexCommitter.newSegmentDirectory();
         try (final SimpleFlamdexWriter flamdexWriter = new SimpleFlamdexWriter(newSegmentPath, memoryFlamdex.getNumDocs())) {
             SimpleFlamdexWriter.writeFlamdex(memoryFlamdex, flamdexWriter);
         }
 
-        final Lock lock = shardCommitter.getChangeSegmentsLock();
+        final Lock lock = indexCommitter.getChangeSegmentsLock();
         lock.lock();
         try {
             final Map<Path, FastBitSet> updatedTombstoneSets = new HashMap<>();
@@ -203,7 +203,7 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
             // Make tombstoneSet for old segments
             if (!removeQueries.isEmpty()) {
                 final Query query = Query.newBooleanQuery(BooleanOp.OR, removeQueries);
-                for (final Path segmentPath : shardCommitter.getCurrentSegmentPaths()) {
+                for (final Path segmentPath : indexCommitter.getCurrentSegmentPaths()) {
                     try (final SegmentReader segmentReader = new SegmentReader(segmentPath)) {
                         final Optional<FastBitSet> updatedTombstoneSet = segmentReader.getUpdatedTombstoneSet(query);
                         if (updatedTombstoneSet.isPresent()) {
@@ -212,8 +212,8 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
                     }
                 }
             }
-            shardCommitter.addSegment(newSegmentPath, updatedTombstoneSets);
-            return shardCommitter.commit(version);
+            indexCommitter.addSegment(newSegmentPath, updatedTombstoneSets);
+            return indexCommitter.commit(version);
         } finally {
             lock.unlock();
         }
@@ -232,17 +232,17 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
         if ((memoryFlamdex.getNumDocs() == 0) && removeQueries.isEmpty()) {
             return Optional.absent();
         }
-        final Path newShardDirectory = buildSegment(version);
+        final Path newIndexDirectory = buildSegment(version);
         renew();
         if (merger != null) {
             merger.updated();
         }
-        return Optional.of(newShardDirectory);
+        return Optional.of(newIndexDirectory);
     }
 
     @Override
     public void close() throws IOException {
-        Closeables2.closeAll(LOG, memoryFlamdex, merger, shardCommitter, writerLock);
+        Closeables2.closeAll(LOG, memoryFlamdex, merger, indexCommitter, writerLock);
     }
 
     @Override

@@ -39,7 +39,7 @@ public class TestDynamicFlamdexMerger {
     private static final int NUM_DOCS = (2 * 3 * 5 * 7 * 11) + 10;
 
     private Set<FlamdexDocument> setupedNaiveResult = null;
-    private Path setupedShardDirectory = null;
+    private Path setupedIndexDirectory = null;
 
     @Before
     public void setUp() throws IOException {
@@ -61,29 +61,29 @@ public class TestDynamicFlamdexMerger {
                 }
                 DynamicFlamdexTestUtils.addDocument(setupedNaiveResult, flamdexDocWriterWithoutMerger, document);
             }
-            setupedShardDirectory = flamdexDocWriterWithoutMerger.commit(commitId++).get();
+            setupedIndexDirectory = flamdexDocWriterWithoutMerger.commit(commitId++).get();
         }
     }
 
-    private Path mergeSegmentsWithValidation(@Nonnull final Path shardDirectory, @Nonnull final Set<FlamdexDocument> naive, @Nonnull final MergeStrategy mergeStrategy, @Nonnull final ExecutorService executorService) throws IOException, ExecutionException, InterruptedException {
+    private Path mergeSegmentsWithValidation(@Nonnull final Path indexDirectory, @Nonnull final Set<FlamdexDocument> naive, @Nonnull final MergeStrategy mergeStrategy, @Nonnull final ExecutorService executorService) throws IOException, ExecutionException, InterruptedException {
         final Path outputDirectory = temporaryFolder.newFolder("output").toPath();
 
-        try (final ShardCommitterWithValidate shardCommitter = new ShardCommitterWithValidate(naive, outputDirectory, "shard", shardDirectory)) {
+        try (final IndexCommitterWithValidate indexCommitter = new IndexCommitterWithValidate(naive, outputDirectory, "index", indexDirectory)) {
             // Set version name to zero.
-            shardCommitter.commit(0L);
-            try (final DynamicFlamdexMerger dynamicFlamdexMerger = new DynamicFlamdexMerger(shardCommitter, mergeStrategy, executorService)) {
+            indexCommitter.commit(0L);
+            try (final DynamicFlamdexMerger dynamicFlamdexMerger = new DynamicFlamdexMerger(indexCommitter, mergeStrategy, executorService)) {
                 dynamicFlamdexMerger.updated();
                 dynamicFlamdexMerger.join();
             }
-            return Iterables.getLast(shardCommitter.getShardDirectories());
+            return Iterables.getLast(indexCommitter.getIndexDirectories());
         }
     }
 
     @Test
     public void testMergeAllSegments() throws IOException, ExecutionException, InterruptedException {
         final ExecutorService executorService = newFixedThreadPool(4);
-        final Path shardDirectory = mergeSegmentsWithValidation(
-                setupedShardDirectory,
+        final Path indexDirectory = mergeSegmentsWithValidation(
+                setupedIndexDirectory,
                 setupedNaiveResult,
                 new MergeStrategy() {
                     @Nonnull
@@ -94,7 +94,7 @@ public class TestDynamicFlamdexMerger {
                 },
                 executorService
         );
-        assertEquals(1, DynamicFlamdexShardUtil.listSegmentDirectories(shardDirectory).size());
+        assertEquals(1, DynamicFlamdexIndexUtil.listSegmentDirectories(indexDirectory).size());
     }
 
     @SuppressWarnings("JUnitTestMethodWithNoAssertions")
@@ -102,7 +102,7 @@ public class TestDynamicFlamdexMerger {
     public void testExponentialMerge() throws IOException, ExecutionException, InterruptedException {
         final ExecutorService executorService = newFixedThreadPool(4);
         mergeSegmentsWithValidation(
-                setupedShardDirectory,
+                setupedIndexDirectory,
                 setupedNaiveResult,
                 new MergeStrategy.ExponentialMergeStrategy(4, 5),
                 executorService
@@ -123,7 +123,7 @@ public class TestDynamicFlamdexMerger {
         }
         Collections.shuffle(documents, random);
 
-        final Path shardDirectory;
+        final Path indexDirectory;
         final Set<FlamdexDocument> naiveResult = new HashSet<>();
         try (final DynamicFlamdexDocWriter flamdexDocWriterWithoutMerger = new DynamicFlamdexDocWriter(datasetDirectory, "test", mergeStrategy, executorService)) {
             long commitId = 0;
@@ -133,11 +133,11 @@ public class TestDynamicFlamdexMerger {
                 }
                 DynamicFlamdexTestUtils.addDocument(naiveResult, flamdexDocWriterWithoutMerger, document);
             }
-            shardDirectory = flamdexDocWriterWithoutMerger.commit(commitId++).get();
+            indexDirectory = flamdexDocWriterWithoutMerger.commit(commitId++).get();
         }
         executorService.shutdown();
         executorService.awaitTermination(1, TimeUnit.MINUTES);
-        try (final FlamdexReader reader = new DynamicFlamdexReader(shardDirectory)) {
+        try (final FlamdexReader reader = new DynamicFlamdexReader(indexDirectory)) {
             DynamicFlamdexTestUtils.validateIndex(naiveResult, reader);
         }
     }
@@ -156,7 +156,7 @@ public class TestDynamicFlamdexMerger {
         }
         Collections.shuffle(documents, random);
 
-        final Path shardDirectory;
+        final Path indexDirectory;
         final Set<FlamdexDocument> naiveResult = new HashSet<>();
         try (final DynamicFlamdexDocWriter flamdexDocWriterWithoutMerger = new DynamicFlamdexDocWriter(datasetDirectory, "test", mergeStrategy, executorService)) {
             long commitId = 0;
@@ -169,11 +169,11 @@ public class TestDynamicFlamdexMerger {
                     DynamicFlamdexTestUtils.removeDocument(naiveResult, flamdexDocWriterWithoutMerger, "mod7mod11i", random.nextInt(7));
                 }
             }
-            shardDirectory = flamdexDocWriterWithoutMerger.commit(commitId++).get();
+            indexDirectory = flamdexDocWriterWithoutMerger.commit(commitId++).get();
         }
         executorService.shutdown();
         executorService.awaitTermination(1, TimeUnit.MINUTES);
-        try (final FlamdexReader reader = new DynamicFlamdexReader(shardDirectory)) {
+        try (final FlamdexReader reader = new DynamicFlamdexReader(indexDirectory)) {
             DynamicFlamdexTestUtils.validateIndex(naiveResult, reader);
         }
     }

@@ -24,38 +24,38 @@ import java.util.concurrent.locks.ReentrantLock;
  * @author michihiko
  */
 
-class DynamicFlamdexShardCommitter implements Closeable {
+class DynamicFlamdexIndexCommitter implements Closeable {
 
     private Long latestVersion;
     private final Path temporaryDirectory;
     private final Path datasetDirectory;
-    private final String shardDirectoryPrefix;
-    private final Path temporaryShardDirectory;
+    private final String indexDirectoryPrefix;
+    private final Path temporaryIndexDirectory;
     private final Set<Path> currentSegments;
     private final ReentrantLock changeSegmentsLock = new ReentrantLock(true);
     private String lastGeneratedTimestamp = null;
 
-    DynamicFlamdexShardCommitter(@Nonnull final Path datasetDirectory, @Nonnull final String shardDirectoryPrefix, @Nullable final Path latestShardDirectory) throws IOException {
+    DynamicFlamdexIndexCommitter(@Nonnull final Path datasetDirectory, @Nonnull final String indexDirectoryPrefix, @Nullable final Path latestIndexDirectory) throws IOException {
         latestVersion = null;
         this.datasetDirectory = datasetDirectory;
-        this.shardDirectoryPrefix = shardDirectoryPrefix;
+        this.indexDirectoryPrefix = indexDirectoryPrefix;
         temporaryDirectory = Files.createTempDirectory(datasetDirectory.getFileName().toString());
-        temporaryShardDirectory = temporaryDirectory.resolve("shard");
-        Files.createDirectory(temporaryShardDirectory);
+        temporaryIndexDirectory = temporaryDirectory.resolve("index");
+        Files.createDirectory(temporaryIndexDirectory);
         currentSegments = new HashSet<>();
-        if (latestShardDirectory != null) {
-            final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(latestShardDirectory);
+        if (latestIndexDirectory != null) {
+            final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(latestIndexDirectory);
             if (metadata.formatVersion == DynamicFlamdexDocWriter.FORMAT_VERSION) {
-                // Write on top of dynamic shard
-                for (final Path segmentDirectory : DynamicFlamdexShardUtil.listSegmentDirectories(latestShardDirectory)) {
-                    final Path copiedSegmentPath = temporaryShardDirectory.resolve(segmentDirectory.getFileName());
+                // Write on top of dynamic index
+                for (final Path segmentDirectory : DynamicFlamdexIndexUtil.listSegmentDirectories(latestIndexDirectory)) {
+                    final Path copiedSegmentPath = temporaryIndexDirectory.resolve(segmentDirectory.getFileName());
                     createHadLinksRecursively(segmentDirectory, copiedSegmentPath);
                     currentSegments.add(copiedSegmentPath);
                 }
             } else {
-                // Write on top of other type of shard
+                // Write on top of other type of index
                 final Path copiedSegmentPath = newSegmentDirectory();
-                createHadLinksRecursively(latestShardDirectory, copiedSegmentPath);
+                createHadLinksRecursively(latestIndexDirectory, copiedSegmentPath);
                 currentSegments.add(copiedSegmentPath);
             }
         }
@@ -90,8 +90,8 @@ class DynamicFlamdexShardCommitter implements Closeable {
     }
 
     @Nonnull
-    private String generateShardDirectoryName(@Nonnull final Long version) {
-        return shardDirectoryPrefix + '.' + version + '.' + generateTimestamp();
+    private String generateIndexDirectoryName(@Nonnull final Long version) {
+        return indexDirectoryPrefix + '.' + version + '.' + generateTimestamp();
     }
 
     public void close() throws IOException {
@@ -140,7 +140,7 @@ class DynamicFlamdexShardCommitter implements Closeable {
     @Nonnull
     public Path newSegmentDirectory() throws IOException {
         final String newSegmentName = generateSegmentName();
-        final Path newSegmentDirectory = temporaryShardDirectory.resolve(newSegmentName);
+        final Path newSegmentDirectory = temporaryIndexDirectory.resolve(newSegmentName);
         Files.createDirectories(newSegmentDirectory);
         return newSegmentDirectory;
     }
@@ -159,7 +159,7 @@ class DynamicFlamdexShardCommitter implements Closeable {
     public Path commit(@Nonnull final Long version) throws IOException {
         changeSegmentsLock.lock();
         try {
-            final Path newShardDirectory = datasetDirectory.resolve(generateShardDirectoryName(version));
+            final Path newIndexDirectory = datasetDirectory.resolve(generateIndexDirectoryName(version));
             final Path tempCommitDirectory = Files.createTempDirectory(temporaryDirectory, "commit");
             for (final Path segmentPath : currentSegments) {
                 final Path segmentName = segmentPath.getFileName();
@@ -167,9 +167,9 @@ class DynamicFlamdexShardCommitter implements Closeable {
             }
             final FlamdexMetadata metadata = generateFlamdexMetadata();
             FlamdexMetadata.writeMetadata(tempCommitDirectory, metadata);
-            Files.move(tempCommitDirectory, newShardDirectory);
+            Files.move(tempCommitDirectory, newIndexDirectory);
             latestVersion = version;
-            return newShardDirectory;
+            return newIndexDirectory;
         } finally {
             changeSegmentsLock.unlock();
         }
@@ -187,7 +187,7 @@ class DynamicFlamdexShardCommitter implements Closeable {
         try {
             for (final Map.Entry<Path, FastBitSet> segmentAndTombstoneSet : updatedTombstoneSets.entrySet()) {
                 final String segmentName = segmentAndTombstoneSet.getKey().getFileName().toString();
-                DynamicFlamdexSegmentUtil.writeTombstoneSet(temporaryShardDirectory.resolve(segmentName), segmentAndTombstoneSet.getValue());
+                DynamicFlamdexSegmentUtil.writeTombstoneSet(temporaryIndexDirectory.resolve(segmentName), segmentAndTombstoneSet.getValue());
             }
             currentSegments.add(newSegmentDirectory);
         } finally {

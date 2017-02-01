@@ -14,32 +14,33 @@ import java.util.Set;
  * @author michihiko
  */
 
-class ShardCommitterWithValidate extends DynamicFlamdexShardCommitter {
+class IndexCommitterWithValidate extends DynamicFlamdexIndexCommitter {
     private final Set<FlamdexDocument> naiveResult;
-    private final List<Path> shardDirectories;
+    private final List<Path> indexDirectories;
 
-    ShardCommitterWithValidate(
+    IndexCommitterWithValidate(
             @Nonnull final Set<FlamdexDocument> naiveResult,
             @Nonnull final Path datasetDirectory,
-            @Nonnull final String shardDirectoryPrefix,
-            @Nullable final Path latestShardDirectory
+            @Nonnull final String indexDirectoryPrefix,
+            @Nullable final Path latestIndexDirectory
     ) throws IOException {
-        super(datasetDirectory, shardDirectoryPrefix, latestShardDirectory);
+        super(datasetDirectory, indexDirectoryPrefix, latestIndexDirectory);
         this.naiveResult = naiveResult;
-        this.shardDirectories = new ArrayList<>();
+        this.indexDirectories = new ArrayList<>();
     }
 
+    @Nonnull
     @Override
     public Path commit(@Nonnull final Long version) throws IOException {
-        final Path shardDirectory = super.commit(version);
-        shardDirectories.add(shardDirectory);
-        try (final DynamicFlamdexReader reader = new DynamicFlamdexReader(shardDirectory)) {
+        final Path indexDirectory = super.commit(version);
+        indexDirectories.add(indexDirectory);
+        try (final DynamicFlamdexReader reader = new DynamicFlamdexReader(indexDirectory)) {
             DynamicFlamdexTestUtils.validateIndex(naiveResult, reader);
         }
-        return shardDirectory;
+        return indexDirectory;
     }
 
-    public List<Path> getShardDirectories() {
-        return shardDirectories;
+    public List<Path> getIndexDirectories() {
+        return indexDirectories;
     }
 }
