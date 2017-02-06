@@ -88,8 +88,8 @@ public class TestDynamicFlamdexMerger {
                 new MergeStrategy() {
                     @Nonnull
                     @Override
-                    public Collection<? extends Collection<Segment>> splitSegmentsToMerge(@Nonnull final SortedSet<Segment> segments) {
-                        return Collections.singleton(segments);
+                    public Collection<? extends Collection<Segment>> splitSegmentsToMerge(@Nonnull final SortedSet<Segment> availableSegments) {
+                        return Collections.singleton(availableSegments);
                     }
                 },
                 executorService
