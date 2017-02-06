@@ -49,19 +49,20 @@ class DynamicFlamdexIndexCommitter implements Closeable {
                 // Write on top of dynamic index
                 for (final Path segmentDirectory : DynamicFlamdexIndexUtil.listSegmentDirectories(latestIndexDirectory)) {
                     final Path copiedSegmentPath = temporaryIndexDirectory.resolve(segmentDirectory.getFileName());
-                    createHadLinksRecursively(segmentDirectory, copiedSegmentPath);
+                    createHardLinksRecursively(segmentDirectory, copiedSegmentPath);
                     currentSegments.add(copiedSegmentPath);
                 }
             } else {
                 // Write on top of other type of index
                 final Path copiedSegmentPath = newSegmentDirectory();
-                createHadLinksRecursively(latestIndexDirectory, copiedSegmentPath);
+                createHardLinksRecursively(latestIndexDirectory, copiedSegmentPath);
                 currentSegments.add(copiedSegmentPath);
             }
         }
     }
 
-    private static void createHadLinksRecursively(@Nonnull final Path source, @Nonnull final Path dest) throws IOException {
+    private static void createHardLinksRecursively(@Nonnull final Path source, @Nonnull final Path dest) throws IOException {
+        Files.createDirectories(dest.getParent());
         Files.walkFileTree(source, new SimpleFileVisitor<Path>() {
             @Override
             public FileVisitResult preVisitDirectory(@Nonnull final Path dir, @Nonnull final BasicFileAttributes attrs) throws IOException {
@@ -72,8 +73,26 @@ class DynamicFlamdexIndexCommitter implements Closeable {
             @Override
             public FileVisitResult visitFile(@Nonnull final Path file, @Nonnull final BasicFileAttributes attributes) throws IOException {
                 final Path destFilePath = dest.resolve(source.relativize(file));
-                Files.createDirectories(destFilePath.getParent());
                 Files.createLink(destFilePath, file);
+                return FileVisitResult.CONTINUE;
+            }
+        });
+    }
+
+    private static void removeDirectoryRecursively(@Nonnull final Path path) throws IOException {
+        Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
+            @Override
+            public FileVisitResult visitFile(@Nonnull final Path file, @Nonnull final BasicFileAttributes attributes) throws IOException {
+                Files.delete(file);
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult postVisitDirectory(@Nonnull final Path dir, @Nullable final IOException exception) throws IOException {
+                if (exception != null) {
+                    throw exception;
+                }
+                Files.delete(dir);
                 return FileVisitResult.CONTINUE;
             }
         });
@@ -95,22 +114,7 @@ class DynamicFlamdexIndexCommitter implements Closeable {
     }
 
     public void close() throws IOException {
-        Files.walkFileTree(temporaryDirectory, new SimpleFileVisitor<Path>() {
-            @Override
-            public FileVisitResult visitFile(@Nonnull final Path file, @Nonnull final BasicFileAttributes attributes) throws IOException {
-                Files.delete(file);
-                return FileVisitResult.CONTINUE;
-            }
-
-            @Override
-            public FileVisitResult postVisitDirectory(@Nonnull final Path dir, @Nullable final IOException exception) throws IOException {
-                if (exception != null) {
-                    throw exception;
-                }
-                Files.delete(dir);
-                return FileVisitResult.CONTINUE;
-            }
-        });
+        removeDirectoryRecursively(temporaryDirectory);
     }
 
     @Nonnull
@@ -157,19 +161,22 @@ class DynamicFlamdexIndexCommitter implements Closeable {
 
     @Nonnull
     public Path commit(@Nonnull final Long version) throws IOException {
+        final Path tempCommitDirectory = Files.createTempDirectory(temporaryDirectory, "commit");
         changeSegmentsLock.lock();
         try {
             final Path newIndexDirectory = datasetDirectory.resolve(generateIndexDirectoryName(version));
-            final Path tempCommitDirectory = Files.createTempDirectory(temporaryDirectory, "commit");
             for (final Path segmentPath : currentSegments) {
                 final Path segmentName = segmentPath.getFileName();
-                createHadLinksRecursively(segmentPath, tempCommitDirectory.resolve(segmentName));
+                createHardLinksRecursively(segmentPath, tempCommitDirectory.resolve(segmentName));
             }
             final FlamdexMetadata metadata = generateFlamdexMetadata();
             FlamdexMetadata.writeMetadata(tempCommitDirectory, metadata);
             Files.move(tempCommitDirectory, newIndexDirectory);
             latestVersion = version;
             return newIndexDirectory;
+        } catch (final Throwable e) {
+            removeDirectoryRecursively(tempCommitDirectory);
+            throw e;
         } finally {
             changeSegmentsLock.unlock();
         }
@@ -186,7 +193,7 @@ class DynamicFlamdexIndexCommitter implements Closeable {
         changeSegmentsLock.lock();
         try {
             for (final Map.Entry<Path, FastBitSet> segmentAndTombstoneSet : updatedTombstoneSets.entrySet()) {
-                final String segmentName = segmentAndTombstoneSet.getKey().getFileName().toString();
+                final Path segmentName = segmentAndTombstoneSet.getKey().getFileName();
                 DynamicFlamdexSegmentUtil.writeTombstoneSet(temporaryIndexDirectory.resolve(segmentName), segmentAndTombstoneSet.getValue());
             }
             currentSegments.add(newSegmentDirectory);

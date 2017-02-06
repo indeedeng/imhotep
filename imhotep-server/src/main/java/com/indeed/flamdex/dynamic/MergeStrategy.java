@@ -17,8 +17,8 @@ import java.util.SortedSet;
  * @author michihiko
  */
 
-public abstract class MergeStrategy {
-    public static class Segment implements Comparable<Segment> {
+public interface MergeStrategy {
+    class Segment implements Comparable<Segment> {
         private final Path segmentPath;
         private final int numDocs;
 
@@ -46,9 +46,9 @@ public abstract class MergeStrategy {
     }
 
     @Nonnull
-    abstract Collection<? extends Collection<Segment>> splitSegmentsToMerge(@Nonnull final SortedSet<Segment> segments);
+    Collection<? extends Collection<Segment>> splitSegmentsToMerge(@Nonnull final SortedSet<Segment> segments);
 
-    public static class ExponentialMergeStrategy extends MergeStrategy {
+    class ExponentialMergeStrategy implements MergeStrategy {
         private final int exp;
         private final int maxNumOfTasks;
 
@@ -64,7 +64,7 @@ public abstract class MergeStrategy {
 
         @Nonnull
         @Override
-        List<List<Segment>> splitSegmentsToMerge(@Nonnull final SortedSet<Segment> segments) {
+        public List<List<Segment>> splitSegmentsToMerge(@Nonnull final SortedSet<Segment> segments) {
             final List<List<Segment>> segmentsToMerge = new ArrayList<>();
             final Queue<Segment> currentSegments = new ArrayDeque<>();
             for (final Segment segment : segments) {

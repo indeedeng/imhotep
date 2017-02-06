@@ -1,6 +1,7 @@
 package com.indeed.flamdex.dynamic;
 
 import com.google.common.base.Function;
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
@@ -14,6 +15,7 @@ import com.indeed.flamdex.reader.FlamdexMetadata;
 import com.indeed.flamdex.simple.SimpleFlamdexWriter;
 import com.indeed.flamdex.writer.IntFieldWriter;
 import com.indeed.flamdex.writer.StringFieldWriter;
+import com.indeed.util.core.Throwables2;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
@@ -61,6 +63,11 @@ class DynamicFlamdexMerger implements Closeable {
                 this.offset = offset;
             }
 
+            /**
+             * @param segmentId      Index of the ald segment.
+             * @param docIdInSegment Segment-local document ID of the document.
+             * @return Segment-local ID of the document in the new segment, or -1 if it has been deleted.
+             */
             int getNewDocId(final int segmentId, final int docIdInSegment) {
                 return newDocIds[docIdInSegment + offset[segmentId]];
             }
@@ -83,7 +90,7 @@ class DynamicFlamdexMerger implements Closeable {
                             .append(segmentReader.maxNumDocs())
                             .append(')');
                 }
-                LOG.info(logString.toString());
+                LOG.debug(logString.toString());
             }
 
             final int numSegments = segmentReaders.size();
@@ -92,17 +99,17 @@ class DynamicFlamdexMerger implements Closeable {
                 final int[] newDocIds = new int[numDocs];
 
                 final int[] offset = new int[numSegments + 1];
-                for (int i = 0; i < segmentReaders.size(); i++) {
-                    offset[i + 1] = offset[i] + segmentReaders.get(i).maxNumDocs();
+                for (int segmentIdx = 0; segmentIdx < segmentReaders.size(); segmentIdx++) {
+                    offset[segmentIdx + 1] = offset[segmentIdx] + segmentReaders.get(segmentIdx).maxNumDocs();
                 }
                 int newNumDoc = 0;
-                for (int i = 0; i < segmentReaders.size(); ++i) {
-                    final SegmentReader segmentReader = segmentReaders.get(i);
-                    for (int id = 0; id < segmentReaders.get(i).maxNumDocs(); ++id) {
-                        if (segmentReader.isDeleted(id)) {
-                            newDocIds[id + offset[i]] = -1;
+                for (int segmentId = 0; segmentId < segmentReaders.size(); ++segmentId) {
+                    final SegmentReader segmentReader = segmentReaders.get(segmentId);
+                    for (int docId = 0; docId < segmentReaders.get(segmentId).maxNumDocs(); ++docId) {
+                        if (segmentReader.isDeleted(docId)) {
+                            newDocIds[docId + offset[segmentId]] = -1;
                         } else {
-                            newDocIds[id + offset[i]] = newNumDoc++;
+                            newDocIds[docId + offset[segmentId]] = newNumDoc++;
                         }
                     }
                 }
@@ -164,11 +171,9 @@ class DynamicFlamdexMerger implements Closeable {
         @Override
         @Nullable
         public Void call() throws IOException {
-            if (!startMerge(segmentsToMerge)) {
-                return null;
-            }
-
             try (final Closer closer = Closer.create()) {
+                startMerge(segmentsToMerge);
+
                 final List<SegmentReader> segmentReaders = new ArrayList<>(segmentsToMerge.size());
                 for (final MergeStrategy.Segment segment : segmentsToMerge) {
                     segmentReaders.add(closer.register(new SegmentReader(segment.getSegmentDirectory())));
@@ -182,8 +187,11 @@ class DynamicFlamdexMerger implements Closeable {
                 final Lock lock = indexCommitter.getChangeSegmentsLock();
                 lock.lock();
                 try {
-                    // Update tombstoneSet
+                    // Update tombstoneSet.
+                    // We've already removed documents which is already in the tombstone set when we opened segment readers,
+                    // but since that time, writer could commit new segment which cause insertion on the tombstone set.
                     for (int segmentId = 0; segmentId < segmentsToMerge.size(); segmentId++) {
+                        // The latest committed tombstone set for the segment
                         final Optional<FastBitSet> optionalLatestTombstoneSet = DynamicFlamdexSegmentUtil.readTombstoneSet(segmentsToMerge.get(segmentId).getSegmentDirectory());
                         if (!optionalLatestTombstoneSet.isPresent()) {
                             continue;
@@ -192,6 +200,8 @@ class DynamicFlamdexMerger implements Closeable {
                         for (final FastBitSet.IntIterator it = latestTombstoneSet.iterator(); it.next(); ) {
                             final int newDocId = docIdMapping.getNewDocId(segmentId, it.getValue());
                             if (newDocId >= 0) {
+                                // If deleted document in the segment is in our new segment (i.e. newDocId is non-negative),
+                                // we should put it into tombstone set of new segment.
                                 tombstoneSet.set(newDocId);
                             }
                         }
@@ -214,11 +224,20 @@ class DynamicFlamdexMerger implements Closeable {
                     lock.unlock();
                 }
             } catch (final Throwable e) {
-                LOG.error("", e);
+                LOG.error("Failed to merge "
+                        + Joiner.on(',').join(FluentIterable.from(segmentsToMerge).transform(
+                        new Function<MergeStrategy.Segment, String>() {
+                            @Override
+                            public String apply(final MergeStrategy.Segment segment) {
+                                return segment.getSegmentDirectory().getFileName().toString();
+                            }
+                        }
+                )), e);
+                abortMerge(segmentsToMerge);
                 throw e;
             }
-            updated();
             finishMerge(segmentsToMerge);
+            updated();
             return null;
         }
     }
@@ -245,21 +264,33 @@ class DynamicFlamdexMerger implements Closeable {
         }
     }
 
-    private synchronized boolean startMerge(@Nonnull final List<MergeStrategy.Segment> segments) {
-        boolean isValid = true;
+    /**
+     * Called when we start to merge the segments, with the segments we're going to merge.
+     */
+    private synchronized void startMerge(@Nonnull final List<MergeStrategy.Segment> segments) {
         for (final MergeStrategy.Segment segment : segments) {
-            isValid &= queuedSegments.remove(segment.getSegmentDirectory());
+            Preconditions.checkState(queuedSegments.remove(segment.getSegmentDirectory()), "It looks there is another merger that already used this segment.");
         }
-        if (isValid) {
-            for (final MergeStrategy.Segment segment : segments) {
-                processingSegments.add(segment.getSegmentDirectory());
-            }
+        for (final MergeStrategy.Segment segment : segments) {
+            processingSegments.add(segment.getSegmentDirectory());
         }
-        return isValid;
     }
 
+    /**
+     * Called after we merged and committed successfully.
+     */
     private synchronized void finishMerge(@Nonnull final List<MergeStrategy.Segment> segments) {
         for (final MergeStrategy.Segment segment : segments) {
+            processingSegments.remove(segment.getSegmentDirectory());
+        }
+    }
+
+    /**
+     * Called after we abort merge, even if exception has been thrown during startMerge.
+     */
+    private synchronized void abortMerge(@Nonnull final List<MergeStrategy.Segment> segments) {
+        for (final MergeStrategy.Segment segment : segments) {
+            queuedSegments.remove(segment.getSegmentDirectory());
             processingSegments.remove(segment.getSegmentDirectory());
         }
     }
@@ -285,7 +316,7 @@ class DynamicFlamdexMerger implements Closeable {
      * @throws ExecutionException
      */
     void join() throws InterruptedException, ExecutionException {
-        Exception exception = null;
+        Throwable throwable = null;
         while (true) {
             final Future<?> future = firstIncompleteFuture();
             if (future == null) {
@@ -293,36 +324,19 @@ class DynamicFlamdexMerger implements Closeable {
             }
             try {
                 future.get();
-            } catch (final InterruptedException | ExecutionException e) {
-                if (exception == null) {
-                    exception = e;
+            } catch (final Throwable e) {
+                if (throwable == null) {
+                    throwable = e;
                 } else {
-                    exception.addSuppressed(e);
+                    throwable.addSuppressed(e);
                 }
             }
         }
-        if (exception != null) {
-            if (exception instanceof InterruptedException) {
-                throw (InterruptedException) exception;
-            } else {
-                throw (ExecutionException) exception;
-            }
-        }
-    }
-
-    void cancel() {
-        while (true) {
-            final Future<?> future = firstIncompleteFuture();
-            if (future == null) {
-                break;
-            }
-            future.cancel(true);
-        }
         queuedSegments.clear();
-    }
-
-    synchronized boolean isDone() {
-        return (firstIncompleteFuture() == null) && queuedSegments.isEmpty();
+        processingSegments.clear();
+        if (throwable != null) {
+            throw Throwables2.propagate(throwable, InterruptedException.class, ExecutionException.class);
+        }
     }
 
     synchronized void updated() throws IOException {
@@ -352,7 +366,7 @@ class DynamicFlamdexMerger implements Closeable {
                 queuedSegments.addAll(segmentNamesToMerge);
             }
         } catch (final Throwable e) {
-            LOG.error("", e);
+            LOG.error("Failed to update merge tasks", e);
             throw e;
         } finally {
             lock.unlock();
