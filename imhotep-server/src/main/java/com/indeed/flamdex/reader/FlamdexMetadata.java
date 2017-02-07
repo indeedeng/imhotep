@@ -28,19 +28,27 @@ import java.util.List;
 * @author jplaisance
 */
 public class FlamdexMetadata {
-    public int numDocs;
-    public List<String> intFields;
-    public List<String> stringFields;
-    public int formatVersion;
+    private int numDocs;
+    private List<String> intFields;
+    private List<String> stringFields;
+    private FlamdexFormatVersion flamdexFormatVersion;
 
     public FlamdexMetadata() {
     }
 
-    public FlamdexMetadata(int numDocs, List<String> intFields, List<String> stringFields, int formatVersion) {
+    public FlamdexMetadata(final int numDocs, final List<String> intFields, final List<String> stringFields, final FlamdexFormatVersion flamdexFormatVersion) {
         this.numDocs = numDocs;
         this.intFields = intFields;
         this.stringFields = stringFields;
-        this.formatVersion = formatVersion;
+        this.flamdexFormatVersion = flamdexFormatVersion;
+    }
+
+    /**
+     * Please use enum version above.
+     */
+    @Deprecated
+    public FlamdexMetadata(final int numDocs, final List<String> intFields, final List<String> stringFields, final int formatVersion) {
+        this(numDocs, intFields, stringFields, FlamdexFormatVersion.fromVersionNumber(formatVersion));
     }
 
     public int getNumDocs() {
@@ -67,12 +75,25 @@ public class FlamdexMetadata {
         this.stringFields = stringFields;
     }
 
+    /**
+     * This is for snakeyaml.
+     * Please consider using getFlamdexFormatVersion instead.
+     */
+    @Deprecated
     public int getFormatVersion() {
-        return formatVersion;
+        return flamdexFormatVersion.getVersionNumber();
     }
 
+    @Deprecated
     public void setFormatVersion(final int formatVersion) {
-        this.formatVersion = formatVersion;
+        flamdexFormatVersion = FlamdexFormatVersion.fromVersionNumber(formatVersion);
+    }
+
+    /**
+     * To prevent YAML format change, please don't add setFlamdexFormatVersion().
+     */
+    public FlamdexFormatVersion getFlamdexFormatVersion() {
+        return flamdexFormatVersion;
     }
 
     public static FlamdexMetadata readMetadata(final Path directory) throws IOException {

@@ -2,6 +2,7 @@ package com.indeed.flamdex.dynamic;
 
 import com.google.common.collect.ImmutableList;
 import com.indeed.flamdex.datastruct.FastBitSet;
+import com.indeed.flamdex.reader.FlamdexFormatVersion;
 import com.indeed.flamdex.reader.FlamdexMetadata;
 
 import javax.annotation.Nonnull;
@@ -45,7 +46,7 @@ class DynamicFlamdexIndexCommitter implements Closeable {
         currentSegments = new HashSet<>();
         if (latestIndexDirectory != null) {
             final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(latestIndexDirectory);
-            if (metadata.formatVersion == DynamicFlamdexDocWriter.FORMAT_VERSION) {
+            if (FlamdexFormatVersion.DYNAMIC == metadata.getFlamdexFormatVersion()) {
                 // Write on top of dynamic index
                 for (final Path segmentDirectory : DynamicFlamdexIndexUtil.listSegmentDirectories(latestIndexDirectory)) {
                     final Path copiedSegmentPath = temporaryIndexDirectory.resolve(segmentDirectory.getFileName());
@@ -138,7 +139,7 @@ class DynamicFlamdexIndexCommitter implements Closeable {
             intFields.addAll(segmentMetadata.getIntFields());
             stringFields.addAll(segmentMetadata.getStringFields());
         }
-        return new FlamdexMetadata(numDocs, ImmutableList.copyOf(intFields), ImmutableList.copyOf(stringFields), DynamicFlamdexDocWriter.FORMAT_VERSION);
+        return new FlamdexMetadata(numDocs, ImmutableList.copyOf(intFields), ImmutableList.copyOf(stringFields), FlamdexFormatVersion.DYNAMIC);
     }
 
     @Nonnull

@@ -40,8 +40,6 @@ import java.util.concurrent.locks.Lock;
 public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
     private static final Logger LOG = Logger.getLogger(DynamicFlamdexDocWriter.class);
 
-    public static final int FORMAT_VERSION = 3;
-
     private static final int DOC_ID_BUFFER_SIZE = 128;
 
     private final DynamicFlamdexIndexCommitter indexCommitter;

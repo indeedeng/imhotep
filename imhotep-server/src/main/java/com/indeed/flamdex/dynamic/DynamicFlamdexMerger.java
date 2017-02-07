@@ -6,6 +6,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.io.Closer;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.IntTermIterator;
@@ -340,6 +341,11 @@ class DynamicFlamdexMerger implements Closeable {
     }
 
     synchronized void updated() throws IOException {
+        // We have to take care about the consistency of data when we submits MergeTask to the ExecutorService
+        // to prevent recursion of updated() in the same thread;
+        // if executorService is something like SameThreadExecutorService, then
+        // it curiously cause recursion on update() method in the same thread.
+
         final Lock lock = indexCommitter.getChangeSegmentsLock();
         lock.lock();
         try {
@@ -350,20 +356,40 @@ class DynamicFlamdexMerger implements Closeable {
                     availableSegments.add(new MergeStrategy.Segment(segmentPath, metadata.getNumDocs()));
                 }
             }
-            final Collection<? extends Collection<MergeStrategy.Segment>> segmentsToMerge = mergeStrategy.splitSegmentsToMerge(new TreeSet<>(availableSegments));
-            for (final Collection<MergeStrategy.Segment> segments : segmentsToMerge) {
+            final ImmutableList.Builder<List<MergeStrategy.Segment>> splittedSegmentsBuilder = ImmutableList.builder();
+
+            for (final Collection<MergeStrategy.Segment> segments : mergeStrategy.splitSegmentsToMerge(new TreeSet<>(availableSegments))) {
                 if (segments.size() <= 1) {
                     continue;
                 }
 
-                final ImmutableList.Builder<Path> segmentsToMergeBuilder = ImmutableList.builder();
                 for (final MergeStrategy.Segment segment : segments) {
-                    Preconditions.checkState(availableSegments.remove(segment), "Same segment is selected twice.");
-                    segmentsToMergeBuilder.add(segment.getSegmentDirectory());
+                    Preconditions.checkState(availableSegments.remove(segment),
+                            "Same segment is selected twice, or non-available segment is selected.");
                 }
-                final List<Path> segmentNamesToMerge = segmentsToMergeBuilder.build();
-                futuresForCancellation.add(executorService.submit(new MergeTask(ImmutableList.copyOf(segments))));
-                queuedSegments.addAll(segmentNamesToMerge);
+                splittedSegmentsBuilder.add(ImmutableList.copyOf(segments));
+            }
+
+            final List<List<MergeStrategy.Segment>> splittedSegments = splittedSegmentsBuilder.build();
+            queuedSegments.addAll(FluentIterable.from(Iterables.concat(splittedSegments)).transform(new Function<MergeStrategy.Segment, Path>() {
+                @Override
+                public Path apply(final MergeStrategy.Segment segment) {
+                    return segment.getSegmentDirectory();
+                }
+            }).toList());
+
+            for (final List<MergeStrategy.Segment> splittedSegment : splittedSegments) {
+                try {
+                    futuresForCancellation.add(executorService.submit(new MergeTask(splittedSegment)));
+                } catch (final Throwable e) {
+                    LOG.error("Failed to submit merge tasks", e);
+                    queuedSegments.removeAll(FluentIterable.from(splittedSegment).transform(new Function<MergeStrategy.Segment, Path>() {
+                        @Override
+                        public Path apply(final MergeStrategy.Segment segment) {
+                            return segment.getSegmentDirectory();
+                        }
+                    }).toList());
+                }
             }
         } catch (final Throwable e) {
             LOG.error("Failed to update merge tasks", e);

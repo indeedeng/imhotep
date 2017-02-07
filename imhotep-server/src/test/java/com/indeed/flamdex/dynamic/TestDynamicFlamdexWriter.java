@@ -183,6 +183,7 @@ public class TestDynamicFlamdexWriter {
 
         final Set<FlamdexDocument> naive = new HashSet<>();
         final Path firstHalf;
+        int cnt = 0;
         try (final DynamicFlamdexDocWriter flamdexDocWriter =
                      new DynamicFlamdexDocWriter(
                              directory,
@@ -190,7 +191,6 @@ public class TestDynamicFlamdexWriter {
                              new MergeStrategy.ExponentialMergeStrategy(4),
                              MoreExecutors.sameThreadExecutor())
         ) {
-            int cnt = 0;
             for (final FlamdexDocument document : documents.subList(0, NUM_DOCS / 2)) {
                 if (random.nextInt(50) == 0) {
                     flamdexDocWriter.commit(cnt, random.nextBoolean());
@@ -202,6 +202,9 @@ public class TestDynamicFlamdexWriter {
             }
             firstHalf = flamdexDocWriter.commit(cnt).get();
         }
+        try(final FlamdexReader reader = new DynamicFlamdexReader(firstHalf)) {
+            DynamicFlamdexTestUtils.validateIndex(naive, reader);
+        }
         final Path indexDirectory;
         try (final DynamicFlamdexDocWriter flamdexDocWriter =
                      new DynamicFlamdexDocWriter(
@@ -211,7 +214,6 @@ public class TestDynamicFlamdexWriter {
                              new MergeStrategy.ExponentialMergeStrategy(2),
                              MoreExecutors.sameThreadExecutor())
         ) {
-            int cnt = 0;
             for (final FlamdexDocument document : documents.subList(NUM_DOCS / 2, NUM_DOCS)) {
                 if (random.nextInt(50) == 0) {
                     flamdexDocWriter.commit(cnt, random.nextBoolean());
@@ -223,8 +225,9 @@ public class TestDynamicFlamdexWriter {
             }
             indexDirectory = flamdexDocWriter.commit(cnt).get();
         }
-        final FlamdexReader reader = new DynamicFlamdexReader(indexDirectory);
-        DynamicFlamdexTestUtils.validateIndex(naive, reader);
+        try(final FlamdexReader reader = new DynamicFlamdexReader(indexDirectory)) {
+            DynamicFlamdexTestUtils.validateIndex(naive, reader);
+        }
     }
 
     @SuppressWarnings("JUnitTestMethodWithNoAssertions")
@@ -265,7 +268,8 @@ public class TestDynamicFlamdexWriter {
             }
             indexDirectory = flamdexDocWriter.commit(cnt).get();
         }
-        final FlamdexReader reader = new DynamicFlamdexReader(indexDirectory);
-        DynamicFlamdexTestUtils.validateIndex(naive, reader);
+        try(final FlamdexReader reader = new DynamicFlamdexReader(indexDirectory)) {
+            DynamicFlamdexTestUtils.validateIndex(naive, reader);
+        }
     }
 }
