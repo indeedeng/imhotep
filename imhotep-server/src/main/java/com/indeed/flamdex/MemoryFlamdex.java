@@ -11,11 +11,10 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.indeed.flamdex;
+package com.indeed.flamdex;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import com.indeed.flamdex.api.DocIdStream;
@@ -30,6 +29,8 @@ import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.StringValueLookup;
 import com.indeed.flamdex.api.TermIterator;
+import com.indeed.flamdex.datastruct.Long2ObjectSortedHashMap;
+import com.indeed.flamdex.datastruct.SortedHashMap;
 import com.indeed.flamdex.fieldcache.IntArrayIntValueLookup;
 import com.indeed.flamdex.utils.FlamdexUtils;
 import com.indeed.flamdex.writer.FlamdexDocWriter;
@@ -37,15 +38,15 @@ import com.indeed.flamdex.writer.FlamdexDocument;
 import com.indeed.flamdex.writer.FlamdexWriter;
 import com.indeed.flamdex.writer.IntFieldWriter;
 import com.indeed.flamdex.writer.StringFieldWriter;
-
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectRBTreeMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectSortedMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectSortedMaps;
 import it.unimi.dsi.fastutil.longs.LongList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
+import it.unimi.dsi.fastutil.objects.Object2ObjectSortedMaps;
 
 import java.io.Closeable;
 import java.io.DataInput;
@@ -69,22 +70,45 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
-import java.util.TreeMap;
 
 /**
  * @author jsgroth
  */
 public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, FlamdexDocWriter {
-    private static final long TREE_MAP_USAGE = 8 + 4 + 4 + 4 + 4 + 12 + 16 + 4 + 4 + 12;
-    private static final long TREE_MAP_ENTRY_USAGE = 8 + 4 + 4 + 4 + 4 + 4 + 1;
-    //todo jeffp fix this for longs (or don't)
-    private static final long INT_2_OBJECT_RB_TREE_MAP_USAGE = 8 + 4 + 4 + 4 + 4 + 12 + 12 + 12 + 1 + 4 + 12 + 4 + 12 + 64 + 4 + 12 + 256 + 4;
-    private static final long INT_2_OBJECT_RB_TREE_MAP_ENTRY_USAGE = 8 + 4 + 4 + 4 + 4 + 4;
-    private static final long STRING_USAGE = 8 + 4 + 12 + 4 + 4 + 4;
-    private static final long INT_ARRAY_LIST_USAGE = 8 + 12 + 4;
+    private static final long OBJECT_REFERENCE_USAGE = 8;
+    private static final long OBJECT_HEADER_USAGE = 16;
+    private static final long INT_USAGE = Integer.SIZE / Byte.SIZE;
+    private static final long ARRAY_HEADER_USAGE = OBJECT_HEADER_USAGE + INT_USAGE;
+    private static final long BOOLEAN_USAGE = 1;
+    private static final long FLOAT_USAGE = Float.SIZE / Byte.SIZE;
+    private static final long LONG_USAGE = Long.SIZE / Byte.SIZE;
 
-    private final SortedMap<String, Long2ObjectSortedMap<IntArrayList>> intFields = Maps.newTreeMap();
-    private final SortedMap<String, SortedMap<String, IntArrayList>> stringFields = Maps.newTreeMap();
+    private static final float HASH_MAP_LOAD_BALANCE = 0.75f;
+
+    private static final long TREE_MAP_USAGE = addPadding(OBJECT_HEADER_USAGE + (7 * OBJECT_REFERENCE_USAGE) + (2 * INT_USAGE));
+    private static final long TREE_MAP_ENTRY_USAGE = addPadding(OBJECT_HEADER_USAGE + (5 * OBJECT_REFERENCE_USAGE) + BOOLEAN_USAGE);
+    private static final long HASH_MAP_USAGE = addPadding(OBJECT_HEADER_USAGE + (4 * OBJECT_REFERENCE_USAGE) + ARRAY_HEADER_USAGE + (4 * INT_USAGE) + FLOAT_USAGE);
+    private static final long HASH_MAP_ENTRY_USAGE = (long) (addPadding(OBJECT_HEADER_USAGE + (3 * OBJECT_REFERENCE_USAGE) + INT_USAGE) / HASH_MAP_LOAD_BALANCE);
+    private static final long TREE_MAP_WITH_HASH_MAP_USAGE = addPadding(OBJECT_HEADER_USAGE + (2 * OBJECT_REFERENCE_USAGE) + TREE_MAP_USAGE + HASH_MAP_USAGE);
+    private static final long TREE_MAP_WITH_HASH_MAP_ENTRY_USAGE = addPadding(TREE_MAP_ENTRY_USAGE + HASH_MAP_ENTRY_USAGE);
+
+    private static final long LONG_2_OBJECT_RB_TREE_MAP_USAGE = addPadding(OBJECT_HEADER_USAGE + (11 * OBJECT_REFERENCE_USAGE) + INT_USAGE + BOOLEAN_USAGE + (2 * ARRAY_HEADER_USAGE) + (64 * BOOLEAN_USAGE) + (64 * OBJECT_REFERENCE_USAGE));
+    private static final long LONG_2_OBJECT_RB_TREE_MAP_ENTRY_USAGE = addPadding(OBJECT_HEADER_USAGE + LONG_USAGE + (3 * OBJECT_REFERENCE_USAGE) + INT_USAGE);
+    private static final long LONG_2_OBJECT_OPEN_HASH_MAP_USAGE = addPadding(OBJECT_HEADER_USAGE + (6 * OBJECT_REFERENCE_USAGE) + (3 * ARRAY_HEADER_USAGE) + FLOAT_USAGE + (4 * INT_USAGE) + FLOAT_USAGE);
+    private static final long LONG_2_OBJECT_OPEN_HASH_MAP_ENTRY_USAGE = (long) (addPadding(LONG_USAGE + OBJECT_REFERENCE_USAGE) / HASH_MAP_LOAD_BALANCE);
+
+    private static final long LONG_2_OBJECT_RB_TREE_MAP_WITH_HASH_MAP_USAGE = addPadding(OBJECT_HEADER_USAGE + (2 * OBJECT_REFERENCE_USAGE) + LONG_2_OBJECT_RB_TREE_MAP_USAGE + LONG_2_OBJECT_OPEN_HASH_MAP_USAGE);
+    private static final long LONG_2_OBJECT_RB_TREE_MAP_WITH_HASH_MAP_ENTRY_USAGE = addPadding(LONG_2_OBJECT_RB_TREE_MAP_ENTRY_USAGE + LONG_2_OBJECT_OPEN_HASH_MAP_ENTRY_USAGE);
+
+    private static final long STRING_USAGE = addPadding(OBJECT_HEADER_USAGE + OBJECT_REFERENCE_USAGE + INT_USAGE + ARRAY_HEADER_USAGE);
+    private static final long INT_ARRAY_LIST_USAGE = addPadding(OBJECT_HEADER_USAGE + OBJECT_REFERENCE_USAGE + ARRAY_HEADER_USAGE + INT_USAGE);
+
+    private static long addPadding(final long usage) {
+        return usage + ((8 - (usage % 8)) % 8);
+    }
+
+    private final SortedMap<String, Long2ObjectSortedMap<IntArrayList>> intFields = new SortedHashMap<>();
+    private final SortedMap<String, SortedMap<String, IntArrayList>> stringFields = new SortedHashMap<>();
 
     private int numDocs;
 
@@ -124,11 +148,11 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
     }
 
     @Override
-    public void resetMaxDocs(long numDocs) {
+    public void resetMaxDocs(final long numDocs) {
         /* does nothing */
     }
 
-    public MemoryFlamdex setNumDocs(int numDocs) {
+    public MemoryFlamdex setNumDocs(final int numDocs) {
         this.numDocs = numDocs;
         return this;
     }
@@ -139,17 +163,17 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
     }
 
     @Override
-    public IntTermIterator getIntTermIterator(String field) {
+    public IntTermIterator getIntTermIterator(final String field) {
         return intFields.containsKey(field) ? new MemoryIntTermIterator(field) : new MemoryIntTermIterator();
     }
 
     @Override
-    public IntTermIterator getUnsortedIntTermIterator(String field) {
+    public IntTermIterator getUnsortedIntTermIterator(final String field) {
         return getIntTermIterator(field);
     }
 
     @Override
-    public StringTermIterator getStringTermIterator(String field) {
+    public StringTermIterator getStringTermIterator(final String field) {
         return stringFields.containsKey(field) ? new MemoryStringTermIterator(field) : new MemoryStringTermIterator();
     }
 
@@ -164,12 +188,12 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
     }
 
     @Override
-    public long getIntTotalDocFreq(String field) {
+    public long getIntTotalDocFreq(final String field) {
         return FlamdexUtils.getIntTotalDocFreq(this, field);
     }
 
     @Override
-    public long getStringTotalDocFreq(String field) {
+    public long getStringTotalDocFreq(final String field) {
         return FlamdexUtils.getStringTotalDocFreq(this, field);
     }
 
@@ -179,7 +203,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
     }
 
     @Override
-    public IntValueLookup getMetric(String metric) throws FlamdexOutOfMemoryException {
+    public IntValueLookup getMetric(final String metric) throws FlamdexOutOfMemoryException {
         return new IntArrayIntValueLookup(FlamdexUtils.cacheIntField(metric, this));
     }
 
@@ -188,7 +212,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
     }
 
     @Override
-    public long memoryRequired(String metric) {
+    public long memoryRequired(final String metric) {
         return 0L;
     }
 
@@ -196,28 +220,32 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
     @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
     public IntFieldWriter getIntFieldWriter(final String field) throws IOException {
         return new IntFieldWriter() {
-            private final Long2ObjectSortedMap<IntArrayList> terms = new Long2ObjectRBTreeMap<IntArrayList>();
+            private final Long2ObjectSortedMap<IntArrayList> terms = new Long2ObjectSortedHashMap<>();
             private IntArrayList currentDocList;
             private long term;
 
             @Override
-            public void nextTerm(long term) throws IOException {
-                if (currentDocList != null && currentDocList.size() > 0) terms.put(this.term, currentDocList);
+            public void nextTerm(final long term) throws IOException {
+                if (currentDocList != null && !currentDocList.isEmpty()) {
+                    terms.put(this.term, currentDocList);
+                }
                 this.term = term;
                 currentDocList = new IntArrayList();
             }
 
             @Override
-            public void nextDoc(int doc) throws IOException {
+            public void nextDoc(final int doc) throws IOException {
                 if (doc >= numDocs) {
-                    throw new IllegalArgumentException("invalid doc: doc="+doc+", numDocs="+numDocs);
+                    throw new IllegalArgumentException("invalid doc: doc=" + doc + ", numDocs=" + numDocs);
                 }
                 currentDocList.add(doc);
             }
 
             @Override
             public void close() throws IOException {
-                if (currentDocList != null && currentDocList.size() > 0) terms.put(term, currentDocList);
+                if (currentDocList != null && !currentDocList.isEmpty()) {
+                    terms.put(term, currentDocList);
+                }
                 intFields.put(field, terms);
                 memoryUsageEstimate += usage(field, terms);
             }
@@ -228,28 +256,32 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
     @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
     public StringFieldWriter getStringFieldWriter(final String field) throws IOException {
         return new StringFieldWriter() {
-            private final SortedMap<String, IntArrayList> terms = Maps.newTreeMap();
+            private final SortedMap<String, IntArrayList> terms = new SortedHashMap<>();
             private IntArrayList currentDocList;
             private String term;
 
             @Override
-            public void nextTerm(String term) throws IOException {
-                if (currentDocList != null && currentDocList.size() > 0) terms.put(this.term, currentDocList);
+            public void nextTerm(final String term) throws IOException {
+                if (currentDocList != null && !currentDocList.isEmpty()) {
+                    terms.put(this.term, currentDocList);
+                }
                 this.term = term;
                 currentDocList = new IntArrayList();
             }
 
             @Override
-            public void nextDoc(int doc) throws IOException {
+            public void nextDoc(final int doc) throws IOException {
                 if (doc >= numDocs) {
-                    throw new IllegalArgumentException("invalid doc: doc="+doc+", numDocs="+numDocs);
+                    throw new IllegalArgumentException("invalid doc: doc=" + doc + ", numDocs=" + numDocs);
                 }
                 currentDocList.add(doc);
             }
 
             @Override
             public void close() throws IOException {
-                if (currentDocList != null && currentDocList.size() > 0) terms.put(term, currentDocList);
+                if (currentDocList != null && !currentDocList.isEmpty()) {
+                    terms.put(term, currentDocList);
+                }
                 stringFields.put(field, terms);
                 memoryUsageEstimate += usage(field, terms);
             }
@@ -257,25 +289,27 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
     }
 
     @Override
-    public void addDocument(FlamdexDocument doc) {
+    public void addDocument(final FlamdexDocument doc) {
         final Map<String, LongList> docIntFields = doc.getIntFields();
-        for (final String intField : docIntFields.keySet()) {
-            Long2ObjectSortedMap<IntArrayList> myIntTerms = intFields.get(intField);
+        for (final Map.Entry<String, LongList> intField : docIntFields.entrySet()) {
+            Long2ObjectSortedMap<IntArrayList> myIntTerms = intFields.get(intField.getKey());
             if (myIntTerms == null) {
-                intFields.put(intField, myIntTerms = new Long2ObjectRBTreeMap<IntArrayList>());
-                memoryUsageEstimate += TREE_MAP_ENTRY_USAGE + usage(intField) + INT_2_OBJECT_RB_TREE_MAP_USAGE;
+                intFields.put(intField.getKey(), myIntTerms = new Long2ObjectSortedHashMap<>());
+                memoryUsageEstimate += TREE_MAP_WITH_HASH_MAP_ENTRY_USAGE + usage(intField.getKey()) + LONG_2_OBJECT_RB_TREE_MAP_WITH_HASH_MAP_USAGE;
             }
             final LongSet seenIntTerms = new LongOpenHashSet();
-            final LongList terms = docIntFields.get(intField);
+            final LongList terms = intField.getValue();
             for (int i = 0; i < terms.size(); ++i) {
                 final long term = terms.getLong(i);
-                if (seenIntTerms.contains(term)) continue;
+                if (seenIntTerms.contains(term)) {
+                    continue;
+                }
                 seenIntTerms.add(term);
 
                 IntArrayList docList = myIntTerms.get(term);
                 if (docList == null) {
                     myIntTerms.put(term, docList = new IntArrayList());
-                    memoryUsageEstimate += INT_2_OBJECT_RB_TREE_MAP_ENTRY_USAGE + INT_ARRAY_LIST_USAGE + (4 * docList.elements().length);
+                    memoryUsageEstimate += LONG_2_OBJECT_RB_TREE_MAP_WITH_HASH_MAP_ENTRY_USAGE + INT_ARRAY_LIST_USAGE + (4 * docList.elements().length);
                 }
                 memoryUsageEstimate -= 4 * docList.elements().length;
                 docList.add(numDocs);
@@ -284,22 +318,24 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
         }
 
         final Map<String, List<String>> docStringFields = doc.getStringFields();
-        for (final String stringField : docStringFields.keySet()) {
-            SortedMap<String, IntArrayList> myStringTerms = stringFields.get(stringField);
+        for (final Map.Entry<String, List<String>> stringField : docStringFields.entrySet()) {
+            SortedMap<String, IntArrayList> myStringTerms = stringFields.get(stringField.getKey());
             if (myStringTerms == null) {
-                stringFields.put(stringField, myStringTerms = new TreeMap<String, IntArrayList>());
-                memoryUsageEstimate += TREE_MAP_ENTRY_USAGE + usage(stringField) + TREE_MAP_USAGE;
+                stringFields.put(stringField.getKey(), myStringTerms = new SortedHashMap<>());
+                memoryUsageEstimate += TREE_MAP_WITH_HASH_MAP_ENTRY_USAGE + usage(stringField.getKey()) + TREE_MAP_WITH_HASH_MAP_USAGE;
             }
-            final Set<String> seenStringTerms = new HashSet<String>();
-            final List<String> terms = docStringFields.get(stringField);
+            final Set<String> seenStringTerms = new HashSet<>();
+            final List<String> terms = stringField.getValue();
             for (final String term : terms) {
-                if (seenStringTerms.contains(term)) continue;
+                if (seenStringTerms.contains(term)) {
+                    continue;
+                }
                 seenStringTerms.add(term);
 
                 IntArrayList docList = myStringTerms.get(term);
                 if (docList == null) {
                     myStringTerms.put(term, docList = new IntArrayList());
-                    memoryUsageEstimate += TREE_MAP_ENTRY_USAGE + usage(term) + INT_ARRAY_LIST_USAGE + (4 * docList.elements().length);
+                    memoryUsageEstimate += TREE_MAP_WITH_HASH_MAP_ENTRY_USAGE + usage(term) + INT_ARRAY_LIST_USAGE + (4 * docList.elements().length);
                 }
                 memoryUsageEstimate -= 4 * docList.elements().length;
                 docList.add(numDocs);
@@ -321,8 +357,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
     public MemoryFlamdex(final boolean replaceMalformedInput) {
         if (replaceMalformedInput) {
             encoder = Charsets.UTF_8.newEncoder().onMalformedInput(CodingErrorAction.REPLACE).onUnmappableCharacter(CodingErrorAction.REPLACE);
-        }
-        else {
+        } else {
             encoder = Charsets.UTF_8.newEncoder();
         }
     }
@@ -331,7 +366,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
         return memoryUsageEstimate;
     }
 
-    public void write(DataOutput out) throws IOException {
+    public void write(final DataOutput out) throws IOException {
         out.writeInt(numDocs);
         out.writeInt(intFields.size());
         for (final String intField : intFields.keySet()) {
@@ -343,8 +378,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
             writeString(out, stringField);
         }
 
-        for (final String intField : intFields.keySet()) {
-            final Long2ObjectSortedMap<IntArrayList> terms = intFields.get(intField);
+        for (final Long2ObjectSortedMap<IntArrayList> terms : intFields.values()) {
             writeVLong(terms.size(), out);
             long lastTerm = 0;
             for (final Long2ObjectMap.Entry<IntArrayList> e : terms.long2ObjectEntrySet()) {
@@ -364,9 +398,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
             }
         }
 
-        for (final String stringField : stringFields.keySet()) {
-            final Map<String, IntArrayList> terms = stringFields.get(stringField);
-
+        for (final Map<String, IntArrayList> terms : stringFields.values()) {
             writeVLong(terms.size(), out);
             byte[] lastTermBytes = new byte[0];
             int lastTermLength = 0;
@@ -396,7 +428,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
         }
     }
 
-    public void readFields(DataInput in) throws IOException {
+    public void readFields(final DataInput in) throws IOException {
         numDocs = in.readInt();
 
         final int numIntFields = in.readInt();
@@ -404,7 +436,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
 
         for (int z = 0; z < numIntFields; ++z) {
             final String intField = readString(in);
-            intFields.put(intField, new Long2ObjectRBTreeMap<IntArrayList>());
+            intFields.put(intField, new Long2ObjectSortedHashMap<IntArrayList>());
         }
 
         final int numStringFields = in.readInt();
@@ -412,24 +444,23 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
 
         for (int z = 0; z < numStringFields; ++z) {
             final String stringField = readString(in);
-            stringFields.put(stringField, new TreeMap<String, IntArrayList>());
+            stringFields.put(stringField, new SortedHashMap<String, IntArrayList>());
         }
 
-        for (final String intField : intFields.keySet()) {
-            final Long2ObjectMap<IntArrayList> terms = intFields.get(intField);
+        for (final Long2ObjectMap<IntArrayList> terms : intFields.values()) {
             final long numTerms = readVLong(in);
             long term = 0;
             for (long l = 0; l < numTerms; l++) {
                 final long termDelta = readVLong(in);
 
                 term += termDelta;
-                final int docFreq = (int)readVLong(in);
+                final int docFreq = (int) readVLong(in);
                 final IntArrayList docList = new IntArrayList(docFreq);
                 terms.put(term, docList);
 
                 int doc = 0;
                 for (int x = 0; x < docFreq; ++x) {
-                    final int docDelta = (int)readVLong(in);
+                    final int docDelta = (int) readVLong(in);
                     doc += docDelta;
                     docList.add(doc);
                 }
@@ -438,38 +469,37 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
 
         final CharsetDecoder decoder = Charsets.UTF_8.newDecoder();
 
-        for (final String stringField : stringFields.keySet()) {
-            final Map<String, IntArrayList> terms = stringFields.get(stringField);
+        for (final Map<String, IntArrayList> terms : stringFields.values()) {
             final long numTerms = readVLong(in);
             byte[] term = new byte[10];
             ByteBuffer termBuf = ByteBuffer.wrap(term);
             for (long l = 0; l < numTerms; l++) {
                 final long prefixLen = readVLong(in);
 
-                final int newLen = (int)readVLong(in);
-                final int termLen = (int)prefixLen + newLen;
+                final int newLen = (int) readVLong(in);
+                final int termLen = (int) prefixLen + newLen;
                 if (termLen > term.length) {
                     term = Arrays.copyOf(term, Math.max(termLen, 2 * term.length));
                     termBuf = ByteBuffer.wrap(term);
                 }
                 if (newLen > 0) {
-                    in.readFully(term, (int)prefixLen, newLen);
+                    in.readFully(term, (int) prefixLen, newLen);
                 }
 
-                final String termStr = decoder.decode((ByteBuffer)termBuf.position(0).limit(termLen)).toString();
-                final int docFreq = (int)readVLong(in);
+                final String termStr = decoder.decode((ByteBuffer) termBuf.position(0).limit(termLen)).toString();
+                final int docFreq = (int) readVLong(in);
                 final IntArrayList docList = new IntArrayList(docFreq);
                 terms.put(termStr, docList);
                 int doc = 0;
                 for (int i = 0; i < docFreq; ++i) {
-                    final int docDelta = (int)readVLong(in);
+                    final int docDelta = (int) readVLong(in);
                     doc += docDelta;
                     docList.add(doc);
                 }
             }
         }
 
-            memoryUsageEstimate = initialMemoryUsageEstimate();
+        memoryUsageEstimate = initialMemoryUsageEstimate();
         for (final Map.Entry<String, Long2ObjectSortedMap<IntArrayList>> e : intFields.entrySet()) {
             memoryUsageEstimate += usage(e.getKey(), e.getValue());
         }
@@ -480,41 +510,41 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
 
     private static long initialMemoryUsageEstimate() {
         long size = 20;
-        size += 2 * TREE_MAP_USAGE;
+        size += 2 * TREE_MAP_WITH_HASH_MAP_USAGE;
         return size;
     }
 
-    private static long usage(String intField, Long2ObjectMap<IntArrayList> terms) {
-        long size = TREE_MAP_ENTRY_USAGE;
+    private static long usage(final String intField, final Long2ObjectMap<IntArrayList> terms) {
+        long size = TREE_MAP_WITH_HASH_MAP_ENTRY_USAGE;
         size += usage(intField);
         size += usage(terms);
         return size;
     }
 
-    private static long usage(String stringField, SortedMap<String, IntArrayList> terms) {
-        long size = TREE_MAP_ENTRY_USAGE;
+    private static long usage(final String stringField, final SortedMap<String, IntArrayList> terms) {
+        long size = TREE_MAP_WITH_HASH_MAP_ENTRY_USAGE;
         size += usage(stringField);
         size += usage(terms);
         return size;
     }
 
-    private static long usage(String s) {
+    private static long usage(final String s) {
         return STRING_USAGE + 2 * s.length();
     }
 
-    private static long usage(Long2ObjectMap<IntArrayList> map) {
-        long size = INT_2_OBJECT_RB_TREE_MAP_USAGE;
-        size += map.size() * INT_2_OBJECT_RB_TREE_MAP_ENTRY_USAGE;
+    private static long usage(final Long2ObjectMap<IntArrayList> map) {
+        long size = LONG_2_OBJECT_RB_TREE_MAP_WITH_HASH_MAP_USAGE;
+        size += map.size() * LONG_2_OBJECT_RB_TREE_MAP_WITH_HASH_MAP_ENTRY_USAGE;
         for (final IntArrayList list : map.values()) {
             size += INT_ARRAY_LIST_USAGE + 4 * list.elements().length;
         }
         return size;
     }
 
-    private static long usage(SortedMap<String, IntArrayList> map) {
-        long size = TREE_MAP_USAGE;
+    private static long usage(final SortedMap<String, IntArrayList> map) {
+        long size = TREE_MAP_WITH_HASH_MAP_USAGE;
         for (final Map.Entry<String, IntArrayList> e : map.entrySet()) {
-            size += TREE_MAP_ENTRY_USAGE;
+            size += TREE_MAP_WITH_HASH_MAP_ENTRY_USAGE;
             size += usage(e.getKey());
             size += INT_ARRAY_LIST_USAGE + 4 * e.getValue().elements().length;
         }
@@ -581,7 +611,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
                     int myDocListSize;
 
                     @Override
-                    public void reset(TermIterator term) {
+                    public void reset(final TermIterator term) {
                         if (docFreq > myDocList.length) {
                             myDocList = new int[Math.max(docFreq, 2 * myDocList.length)];
                         }
@@ -591,7 +621,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
                     }
 
                     @Override
-                    public int fillDocIdBuffer(int[] docIdBuffer) {
+                    public int fillDocIdBuffer(final int[] docIdBuffer) {
                         final int n = Math.min(myDocListSize - pos, docIdBuffer.length);
                         System.arraycopy(myDocList, pos, docIdBuffer, 0, n);
                         pos += n;
@@ -605,11 +635,11 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
             }
 
             @Override
-            public IntTermIterator getIntTermIterator(String field) {
+            public IntTermIterator getIntTermIterator(final String field) {
                 final long numTerms;
                 try {
                     numTerms = readVLong(in);
-                } catch (IOException e) {
+                } catch (final IOException e) {
                     throw Throwables.propagate(e);
                 }
                 intTerm = 0;
@@ -618,7 +648,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
                     long termIndex = 0;
 
                     @Override
-                    public void reset(long term) {
+                    public void reset(final long term) {
                         throw new UnsupportedOperationException();
                     }
 
@@ -629,23 +659,25 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
 
                     @Override
                     public boolean next() {
-                        if (termIndex >= numTerms) return false;
+                        if (termIndex >= numTerms) {
+                            return false;
+                        }
                         termIndex++;
                         try {
                             final long termDelta = readVLong(in);
 
                             intTerm += termDelta;
-                            docFreq = (int)readVLong(in);
+                            docFreq = (int) readVLong(in);
                             if (docFreq > docList.length) {
                                 docList = new int[Math.max(docFreq, 2 * docList.length)];
                             }
                             int doc = 0;
                             for (int i = 0; i < docFreq; ++i) {
-                                doc += (int)readVLong(in);
+                                doc += (int) readVLong(in);
                                 docList[i] = doc;
                             }
                             return true;
-                        } catch (IOException e) {
+                        } catch (final IOException e) {
                             throw new RuntimeException(e);
                         }
                     }
@@ -662,16 +694,16 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
             }
 
             @Override
-            public IntTermIterator getUnsortedIntTermIterator(String field) {
+            public IntTermIterator getUnsortedIntTermIterator(final String field) {
                 return getIntTermIterator(field);
             }
 
             @Override
-            public StringTermIterator getStringTermIterator(String field) {
+            public StringTermIterator getStringTermIterator(final String field) {
                 final long numTerms;
                 try {
                     numTerms = readVLong(in);
-                } catch (IOException e) {
+                } catch (final IOException e) {
                     throw Throwables.propagate(e);
                 }
                 stringTermLen = 0;
@@ -680,7 +712,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
                     long termIndex = 0;
 
                     @Override
-                    public void reset(String term) {
+                    public void reset(final String term) {
                         throw new UnsupportedOperationException();
                     }
 
@@ -691,35 +723,37 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
 
                     @Override
                     public boolean next() {
-                        if (termIndex >= numTerms) return false;
+                        if (termIndex >= numTerms) {
+                            return false;
+                        }
                         termIndex++;
                         try {
                             final long prefixLen = readVLong(in);
 
-                            final int newLen = (int)readVLong(in);
-                            stringTermLen = (int)prefixLen + newLen;
+                            final int newLen = (int) readVLong(in);
+                            stringTermLen = (int) prefixLen + newLen;
                             if (stringTermLen > stringTermBytes.length) {
                                 stringTermBytes = Arrays.copyOf(stringTermBytes, Math.max(stringTermLen, 2 * stringTermBytes.length));
                                 stringTermBuf = ByteBuffer.wrap(stringTermBytes);
                             }
                             if (newLen > 0) {
-                                in.readFully(stringTermBytes, (int)prefixLen, newLen);
+                                in.readFully(stringTermBytes, (int) prefixLen, newLen);
                             }
 
-                            stringTerm = decoder.decode((ByteBuffer)stringTermBuf.position(0).limit(stringTermLen)).toString();
-                            docFreq = (int)readVLong(in);
+                            stringTerm = decoder.decode((ByteBuffer) stringTermBuf.position(0).limit(stringTermLen)).toString();
+                            docFreq = (int) readVLong(in);
                             if (docFreq > docList.length) {
                                 docList = new int[Math.max(docFreq, 2 * docList.length)];
                             }
 
                             int doc = 0;
                             for (int i = 0; i < docFreq; ++i) {
-                                doc += (int)readVLong(in);
+                                doc += (int) readVLong(in);
                                 docList[i] = doc;
                             }
 
                             return true;
-                        } catch (IOException e) {
+                        } catch (final IOException e) {
                             throw new RuntimeException(e);
                         }
                     }
@@ -746,12 +780,12 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
             }
 
             @Override
-            public long getIntTotalDocFreq(String field) {
+            public long getIntTotalDocFreq(final String field) {
                 throw new UnsupportedOperationException();
             }
 
             @Override
-            public long getStringTotalDocFreq(String field) {
+            public long getStringTotalDocFreq(final String field) {
                 throw new UnsupportedOperationException();
             }
 
@@ -761,7 +795,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
             }
 
             @Override
-            public IntValueLookup getMetric(String metric) throws FlamdexOutOfMemoryException {
+            public IntValueLookup getMetric(final String metric) throws FlamdexOutOfMemoryException {
                 throw new UnsupportedOperationException();
             }
 
@@ -770,14 +804,14 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
             }
 
             @Override
-            public long memoryRequired(String metric) {
+            public long memoryRequired(final String metric) {
                 throw new UnsupportedOperationException();
             }
 
             @Override
             public void close() throws IOException {
                 if (in instanceof Closeable) {
-                    ((Closeable)in).close();
+                    ((Closeable) in).close();
                 }
             }
         };
@@ -791,9 +825,11 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
         return ret;
     }
 
-    private static int getPrefixLen(byte[] a, byte[] b, int n) {
+    private static int getPrefixLen(final byte[] a, final byte[] b, final int n) {
         for (int i = 0; i < n; ++i) {
-            if (a[i] != b[i]) return i;
+            if (a[i] != b[i]) {
+                return i;
+            }
         }
         return n;
     }
@@ -814,13 +850,14 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
             keys = map.long2ObjectEntrySet().iterator();
         }
 
+        @SuppressWarnings("unchecked")
         private MemoryIntTermIterator() {
-            map = new Long2ObjectRBTreeMap<>();
+            map = (Long2ObjectSortedMap<IntArrayList>) Long2ObjectSortedMaps.EMPTY_MAP;
             keys = map.long2ObjectEntrySet().iterator();
         }
 
         @Override
-        public void reset(long term) {
+        public void reset(final long term) {
             keys = map.tailMap(term).long2ObjectEntrySet().iterator();
         }
 
@@ -843,7 +880,9 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
             term = e.getLongKey();
             docList = e.getValue();
             // noinspection SimplifiableIfStatement
-            if (docList.isEmpty()) return next();
+            if (docList.isEmpty()) {
+                return next();
+            }
             return true;
         }
 
@@ -869,13 +908,14 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
             keys = map.entrySet().iterator();
         }
 
+        @SuppressWarnings("unchecked")
         private MemoryStringTermIterator() {
-            map = new TreeMap<>();
+            map = Object2ObjectSortedMaps.EMPTY_MAP;
             keys = map.entrySet().iterator();
         }
 
         @Override
-        public void reset(String term) {
+        public void reset(final String term) {
             keys = map.tailMap(term).entrySet().iterator();
         }
 
@@ -898,7 +938,9 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
             term = e.getKey();
             docList = e.getValue();
             // noinspection SimplifiableIfStatement
-            if (docList.isEmpty()) return next();
+            if (docList.isEmpty()) {
+                return next();
+            }
             return true;
         }
 
@@ -917,11 +959,11 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
         private int index;
 
         @Override
-        public void reset(TermIterator term) {
+        public void reset(final TermIterator term) {
             if (!(term instanceof MemoryTermIterator)) {
                 throw new IllegalArgumentException("invalid term iterator");
             }
-            internalReset((MemoryTermIterator)term);
+            internalReset((MemoryTermIterator) term);
         }
 
         private void internalReset(final MemoryTermIterator term) {
@@ -930,7 +972,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
         }
 
         @Override
-        public int fillDocIdBuffer(int[] docIdBuffer) {
+        public int fillDocIdBuffer(final int[] docIdBuffer) {
             final int n = Math.min(docIdBuffer.length, docList.size() - index);
             for (int i = 0; i < n; ++i) {
                 docIdBuffer[i] = docList.getInt(index++);
@@ -959,14 +1001,14 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
         }
     };
 
-    private static String readString(DataInput in) throws IOException {
+    private static String readString(final DataInput in) throws IOException {
         final int len = (int) readVLong(in);
         final byte[] bytes = new byte[len];
         in.readFully(bytes);
         return DECODER.get().decode(ByteBuffer.wrap(bytes)).toString();
     }
 
-    private static void writeString(DataOutput out, String s) throws IOException {
+    private static void writeString(final DataOutput out, final String s) throws IOException {
         final ByteBuffer encoded = ENCODER.get().encode(CharBuffer.wrap(s));
         final int len = encoded.limit();
         writeVLong(len, out);
@@ -977,9 +1019,9 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
      * the following methods were forked from org.apache.hadoop.io.WritableUtils
      */
 
-    private static void writeVLong(long i, DataOutput out) throws IOException {
+    private static void writeVLong(long i, final DataOutput out) throws IOException {
         if (i >= -112 && i <= 127) {
-            out.write((int)(i & 0xFF));
+            out.write((int) (i & 0xFF));
             return;
         }
 
@@ -1000,32 +1042,32 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
         len = (len < -120) ? -(len + 120) : -(len + 112);
 
         for (int idx = len; idx != 0; idx--) {
-            int shiftbits = (idx - 1) * 8;
-            long mask = 0xFFL << shiftbits;
-            out.write((int)((i & mask) >>> shiftbits));
+            final int shiftbits = (idx - 1) * 8;
+            final long mask = 0xFFL << shiftbits;
+            out.write((int) ((i & mask) >>> shiftbits));
         }
     }
 
-    private static long readVLong(DataInput in) throws IOException {
-        byte firstByte = in.readByte();
-        int len = decodeVIntSize(firstByte);
+    private static long readVLong(final DataInput in) throws IOException {
+        final byte firstByte = in.readByte();
+        final int len = decodeVIntSize(firstByte);
         if (len == 1) {
             return firstByte;
         }
         long i = 0;
         for (int idx = 0; idx < len - 1; idx++) {
-            int b = in.readUnsignedByte();
+            final int b = in.readUnsignedByte();
             i = i << 8;
             i = i | b;
         }
         return (isNegativeVInt(firstByte) ? (~i) : i);
     }
 
-    private static boolean isNegativeVInt(byte value) {
+    private static boolean isNegativeVInt(final byte value) {
         return value < -120 || (value >= -112 && value < 0);
     }
 
-    private static int decodeVIntSize(byte value) {
+    private static int decodeVIntSize(final byte value) {
         if (value >= -112) {
             return 1;
         } else if (value < -120) {
@@ -1035,15 +1077,25 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+    public boolean equals(final Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
-        MemoryFlamdex that = (MemoryFlamdex) o;
+        final MemoryFlamdex that = (MemoryFlamdex) o;
 
-        if (numDocs != that.numDocs) return false;
-        if (intFields != null ? !intFields.equals(that.intFields) : that.intFields != null) return false;
-        if (stringFields != null ? !stringFields.equals(that.stringFields) : that.stringFields != null) return false;
+        if (numDocs != that.numDocs) {
+            return false;
+        }
+        if (intFields != null ? !intFields.equals(that.intFields) : that.intFields != null) {
+            return false;
+        }
+        if (stringFields != null ? !stringFields.equals(that.stringFields) : that.stringFields != null) {
+            return false;
+        }
 
         return true;
     }

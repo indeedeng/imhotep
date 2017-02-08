@@ -436,4 +436,14 @@ public class TestMemoryFlamdex {
         assertEquals(1, iter.docFreq());
         assertFalse(iter.next());
     }
+
+    @Test
+    public void testEmptyTerm() throws IOException {
+        final MemoryFlamdex fdx = new MemoryFlamdex();
+        fdx.close();
+        final IntTermIterator iit = fdx.getIntTermIterator("NoSuchField");
+        assertFalse(iit.next());
+        final StringTermIterator sit = fdx.getStringTermIterator("NoSuchField");
+        assertFalse(sit.next());
+    }
 }
