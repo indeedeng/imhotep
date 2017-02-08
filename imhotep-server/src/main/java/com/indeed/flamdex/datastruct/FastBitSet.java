@@ -214,6 +214,8 @@ public final class FastBitSet {
             final int bitIndex = Long.bitCount(lowBit-1);
             value = ((index-1)<<6)+bitIndex;
             bitBuffer ^= lowBit;
+
+            // We need to check this because the state of the next bits of the last bit is unsure. (See setAll() for example)
             return value < size;
         }
 
