@@ -1,5 +1,6 @@
 package com.indeed.flamdex.dynamic;
 
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.ImmutableList;
@@ -21,6 +22,13 @@ public interface MergeStrategy {
     class Segment implements Comparable<Segment> {
         private final Path segmentPath;
         private final int numDocs;
+
+        static final Function<Segment, Path> SEGMENT_PATH_GETTER = new Function<Segment, Path>() {
+            @Override
+            public Path apply(final Segment segment) {
+                return segment.getSegmentDirectory();
+            }
+        };
 
         public Segment(@Nonnull final Path segmentPath, final int numDocs) {
             this.segmentPath = segmentPath;
@@ -59,13 +67,13 @@ public interface MergeStrategy {
      * There are no subset of segments which has
      * - {@code base} number of elements, and
      * - ratio between maximum and minimum size of the segments is less than {@code base}.
-     *
+     * <p>
      * This merge strategy has following feature;
      * - There are no more segments that we can merge by this strategy
-     *   iff the condition above is satisfied,
-     *   and if so, the number of remaining segments is less or equals to ({@code base} - 1) * log_{@code base} (total number of documents)
+     * iff the condition above is satisfied,
+     * and if so, the number of remaining segments is less or equals to ({@code base} - 1) * log_{@code base} (total number of documents)
      * - The segment created by a merge is at least {@code base} times as large as a segment used to that merge.
-     *   Hence, each documents contribute to merge at most log_{@code base} (total number of documents) time.
+     * Hence, each documents contribute to merge at most log_{@code base} (total number of documents) time.
      */
     class ExponentialMergeStrategy implements MergeStrategy {
         private final int base;

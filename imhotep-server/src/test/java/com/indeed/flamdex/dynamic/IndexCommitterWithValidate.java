@@ -1,6 +1,7 @@
 package com.indeed.flamdex.dynamic;
 
 import com.indeed.flamdex.writer.FlamdexDocument;
+import com.indeed.util.core.time.DefaultWallClock;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -22,16 +23,17 @@ class IndexCommitterWithValidate extends DynamicFlamdexIndexCommitter {
             @Nonnull final Set<FlamdexDocument> naiveResult,
             @Nonnull final Path datasetDirectory,
             @Nonnull final String indexDirectoryPrefix,
+            @Nullable final Long latestVersion,
             @Nullable final Path latestIndexDirectory
     ) throws IOException {
-        super(datasetDirectory, indexDirectoryPrefix, latestIndexDirectory);
+        super(datasetDirectory, indexDirectoryPrefix, latestVersion, latestIndexDirectory, new DefaultWallClock());
         this.naiveResult = naiveResult;
         this.indexDirectories = new ArrayList<>();
     }
 
     @Nonnull
     @Override
-    public Path commit(@Nonnull final Long version) throws IOException {
+    protected Path commit(@Nonnull final Long version) throws IOException {
         final Path indexDirectory = super.commit(version);
         indexDirectories.add(indexDirectory);
         try (final DynamicFlamdexReader reader = new DynamicFlamdexReader(indexDirectory)) {

@@ -80,20 +80,6 @@ class DynamicFlamdexMerger implements Closeable {
 
         @Nonnull
         private DocIdMapping mergeIndices(@Nonnull final Path outputPath, @Nonnull final List<SegmentReader> segmentReaders) throws IOException {
-            {
-                final StringBuilder logString = new StringBuilder();
-                logString.append("Generating ").append(outputPath.getFileName()).append(" from");
-                for (final SegmentReader segmentReader : segmentReaders) {
-                    logString
-                            .append(' ')
-                            .append(segmentReader.getDirectory().getFileName())
-                            .append('(')
-                            .append(segmentReader.maxNumDocs())
-                            .append(')');
-                }
-                LOG.debug(logString.toString());
-            }
-
             final int numSegments = segmentReaders.size();
             try (final DynamicFlamdexReader reader = new DynamicFlamdexReader(segmentReaders.get(0).getDirectory().getParent(), segmentReaders)) {
                 final int numDocs = reader.getNumDocs();
@@ -172,6 +158,7 @@ class DynamicFlamdexMerger implements Closeable {
         @Override
         @Nullable
         public Void call() throws IOException {
+            final Path newSegmentDirectory;
             try (final Closer closer = Closer.create()) {
                 startMerge(segmentsToMerge);
 
@@ -179,7 +166,20 @@ class DynamicFlamdexMerger implements Closeable {
                 for (final MergeStrategy.Segment segment : segmentsToMerge) {
                     segmentReaders.add(closer.register(new SegmentReader(segment.getSegmentDirectory())));
                 }
-                final Path newSegmentDirectory = indexCommitter.newSegmentDirectory();
+                newSegmentDirectory = indexCommitter.newSegmentDirectory();
+
+                LOG.debug("Start merge task "
+                        + newSegmentDirectory.getFileName()
+                        + " which merges"
+                        + Joiner.on(',').join(FluentIterable.from(segmentsToMerge).transform(
+                        new Function<MergeStrategy.Segment, String>() {
+                            @Override
+                            public String apply(final MergeStrategy.Segment segment) {
+                                return segment.getSegmentDirectory().getFileName().toString();
+                            }
+                        }
+                )));
+
                 final DocIdMapping docIdMapping = mergeIndices(newSegmentDirectory, segmentReaders);
 
                 final FastBitSet tombstoneSet = new FastBitSet(docIdMapping.getNewNumDocs());
@@ -211,7 +211,7 @@ class DynamicFlamdexMerger implements Closeable {
                         DynamicFlamdexSegmentUtil.writeTombstoneSet(newSegmentDirectory, tombstoneSet);
                     }
 
-                    indexCommitter.replaceSegments(
+                    indexCommitter.replaceSegmentsAndCommitIfPossible(
                             FluentIterable.from(segmentsToMerge).transform(new Function<MergeStrategy.Segment, Path>() {
                                 @Override
                                 public Path apply(final MergeStrategy.Segment segment) {
@@ -220,7 +220,6 @@ class DynamicFlamdexMerger implements Closeable {
                             }).toList(),
                             newSegmentDirectory
                     );
-                    indexCommitter.commit();
                 } finally {
                     lock.unlock();
                 }
@@ -238,6 +237,17 @@ class DynamicFlamdexMerger implements Closeable {
                 throw e;
             }
             finishMerge(segmentsToMerge);
+            LOG.debug("Finished merge task "
+                    + newSegmentDirectory.getFileName()
+                    + " which merges"
+                    + Joiner.on(',').join(FluentIterable.from(segmentsToMerge).transform(
+                    new Function<MergeStrategy.Segment, String>() {
+                        @Override
+                        public String apply(final MergeStrategy.Segment segment) {
+                            return segment.getSegmentDirectory().getFileName().toString();
+                        }
+                    }
+            )));
             updated();
             return null;
         }
@@ -247,8 +257,7 @@ class DynamicFlamdexMerger implements Closeable {
     private final MergeStrategy mergeStrategy;
     private final ExecutorService executorService;
     private final Set<Path> queuedSegments = new HashSet<>();
-    private final Set<Path> processingSegments = new HashSet<>();
-    private final List<Future<?>> futuresForCancellation = new LinkedList<>();
+    private final List<Future<?>> futuresForJoin = new LinkedList<>();
 
     DynamicFlamdexMerger(@Nonnull final DynamicFlamdexIndexCommitter indexCommitter, @Nonnull final MergeStrategy mergeStrategy, @Nonnull final ExecutorService executorService) {
         this.indexCommitter = indexCommitter;
@@ -269,36 +278,36 @@ class DynamicFlamdexMerger implements Closeable {
      * Called when we start to merge the segments, with the segments we're going to merge.
      */
     private synchronized void startMerge(@Nonnull final List<MergeStrategy.Segment> segments) {
-        for (final MergeStrategy.Segment segment : segments) {
-            Preconditions.checkState(queuedSegments.remove(segment.getSegmentDirectory()), "It looks there is another merger that already used this segment.");
-        }
-        for (final MergeStrategy.Segment segment : segments) {
-            processingSegments.add(segment.getSegmentDirectory());
-        }
+        Preconditions.checkState(
+                queuedSegments.containsAll(
+                        FluentIterable.from(segments)
+                                .transform(MergeStrategy.Segment.SEGMENT_PATH_GETTER)
+                                .toList()),
+                "It looks there is another merger that already used this segment"
+        );
     }
 
     /**
      * Called after we merged and committed successfully.
      */
     private synchronized void finishMerge(@Nonnull final List<MergeStrategy.Segment> segments) {
-        for (final MergeStrategy.Segment segment : segments) {
-            processingSegments.remove(segment.getSegmentDirectory());
-        }
+        queuedSegments.removeAll(FluentIterable.from(segments)
+                .transform(MergeStrategy.Segment.SEGMENT_PATH_GETTER)
+                .toList());
     }
 
     /**
      * Called after we abort merge, even if exception has been thrown during startMerge.
      */
     private synchronized void abortMerge(@Nonnull final List<MergeStrategy.Segment> segments) {
-        for (final MergeStrategy.Segment segment : segments) {
-            queuedSegments.remove(segment.getSegmentDirectory());
-            processingSegments.remove(segment.getSegmentDirectory());
-        }
+        queuedSegments.removeAll(FluentIterable.from(segments)
+                .transform(MergeStrategy.Segment.SEGMENT_PATH_GETTER)
+                .toList());
     }
 
     @Nullable
     private synchronized Future<?> firstIncompleteFuture() {
-        final Iterator<Future<?>> iterator = futuresForCancellation.iterator();
+        final Iterator<Future<?>> iterator = futuresForJoin.iterator();
         while (iterator.hasNext()) {
             final Future<?> future = iterator.next();
             if (future.isDone()) {
@@ -334,24 +343,27 @@ class DynamicFlamdexMerger implements Closeable {
             }
         }
         queuedSegments.clear();
-        processingSegments.clear();
         if (throwable != null) {
             throw Throwables2.propagate(throwable, InterruptedException.class, ExecutionException.class);
         }
     }
 
+    /**
+     * Call this method whenever the set of the latest segments has been changed.
+     * <p>
+     * We have to take care about the consistency of data when we submits MergeTask to the ExecutorService
+     * to prevent recursion of updated() in the same thread;
+     * if executorService is something like SameThreadExecutorService, then
+     * it curiously cause recursion on update() method in the same thread.
+     */
     synchronized void updated() throws IOException {
-        // We have to take care about the consistency of data when we submits MergeTask to the ExecutorService
-        // to prevent recursion of updated() in the same thread;
-        // if executorService is something like SameThreadExecutorService, then
-        // it curiously cause recursion on update() method in the same thread.
 
         final Lock lock = indexCommitter.getChangeSegmentsLock();
         lock.lock();
         try {
             final SortedSet<MergeStrategy.Segment> availableSegments = new TreeSet<>();
             for (final Path segmentPath : indexCommitter.getCurrentSegmentPaths()) {
-                if (!queuedSegments.contains(segmentPath) && !processingSegments.contains(segmentPath)) {
+                if (!queuedSegments.contains(segmentPath)) {
                     final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(segmentPath);
                     availableSegments.add(new MergeStrategy.Segment(segmentPath, metadata.getNumDocs()));
                 }
@@ -371,16 +383,14 @@ class DynamicFlamdexMerger implements Closeable {
             }
 
             final List<List<MergeStrategy.Segment>> splittedSegments = splittedSegmentsBuilder.build();
-            queuedSegments.addAll(FluentIterable.from(Iterables.concat(splittedSegments)).transform(new Function<MergeStrategy.Segment, Path>() {
-                @Override
-                public Path apply(final MergeStrategy.Segment segment) {
-                    return segment.getSegmentDirectory();
-                }
-            }).toList());
+
+            queuedSegments.addAll(FluentIterable.from(Iterables.concat(splittedSegments))
+                    .transform(MergeStrategy.Segment.SEGMENT_PATH_GETTER)
+                    .toList());
 
             for (final List<MergeStrategy.Segment> splittedSegment : splittedSegments) {
                 try {
-                    futuresForCancellation.add(executorService.submit(new MergeTask(splittedSegment)));
+                    futuresForJoin.add(executorService.submit(new MergeTask(splittedSegment)));
                 } catch (final Throwable e) {
                     LOG.error("Failed to submit merge tasks", e);
                     queuedSegments.removeAll(FluentIterable.from(splittedSegment).transform(new Function<MergeStrategy.Segment, Path>() {

@@ -27,11 +27,8 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.locks.Lock;
 
 /**
  * @author michihiko
@@ -52,27 +49,27 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
     private final List<Query> removeQueries;
     private final int[] docIdBuf = new int[DOC_ID_BUFFER_SIZE];
 
-    public DynamicFlamdexDocWriter(@Nonnull final Path datasetDirectory, @Nonnull final String indexDirectoryPrefix) throws IOException {
-        this(datasetDirectory, indexDirectoryPrefix, null, null, null);
-    }
-
-    public DynamicFlamdexDocWriter(@Nonnull final Path datasetDirectory, @Nonnull final String indexDirectoryPrefix, @Nonnull final Path latestIndexDirectory) throws IOException {
-        this(datasetDirectory, indexDirectoryPrefix, latestIndexDirectory, null, null);
-    }
-
-    public DynamicFlamdexDocWriter(@Nonnull final Path datasetDirectory, @Nonnull final String indexDirectoryPrefix, @Nonnull final MergeStrategy mergeStrategy, @Nonnull final ExecutorService executorService) throws IOException {
-        this(datasetDirectory, indexDirectoryPrefix, null, mergeStrategy, executorService);
-    }
-
     /**
      * Creates index from {@code latestIndexDirectory}, and write into {@code datasetDirectory}/{@code indexDirectoryPrefix}.version.timestamp.
-     * Do merge if {@code mergeStrategy} is nonnull, and use {@code executorService} to merge segments .
+     * Do merge if {@code mergeStrategy} is nonnull, and use {@code executorService} to merge segments.
+     * If {@code latestIndexDirectory} is given, the writer writes on top of the index.
+     * If the latestIndexDirectory is dynamic index, then the writer treat each segments in the index as the latest segments.
+     * Otherwise, the writer treat it as single segment.
      */
-    public DynamicFlamdexDocWriter(@Nonnull final Path datasetDirectory, @Nonnull final String indexDirectoryPrefix, @Nullable final Path latestIndexDirectory, @Nullable final MergeStrategy mergeStrategy, @Nullable final ExecutorService executorService) throws IOException {
+    private DynamicFlamdexDocWriter(
+            @Nonnull final Path datasetDirectory,
+            @Nonnull final String indexDirectoryPrefix,
+            @Nullable final Long latestVersion,
+            @Nullable final Path latestIndexDirectory,
+            @Nullable final MergeStrategy mergeStrategy,
+            @Nullable final ExecutorService executorService
+    ) throws IOException {
         final Closer closerOnFailure = Closer.create();
         try {
             this.writerLock = closerOnFailure.register(DynamicFlamdexIndexUtil.acquireWriterLock(datasetDirectory, indexDirectoryPrefix));
-            this.indexCommitter = closerOnFailure.register(new DynamicFlamdexIndexCommitter(datasetDirectory, indexDirectoryPrefix, latestIndexDirectory));
+            this.indexCommitter = closerOnFailure.register(
+                    new DynamicFlamdexIndexCommitter(datasetDirectory, indexDirectoryPrefix, latestVersion, latestIndexDirectory)
+            );
             if (mergeStrategy == null) {
                 this.merger = null;
                 //noinspection VariableNotUsedInsideIf
@@ -181,40 +178,22 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
 
     @Nonnull
     private Path buildSegment(final long version) throws IOException {
-        final Path newSegmentPath = indexCommitter.newSegmentDirectory();
-        try (final SimpleFlamdexWriter flamdexWriter = new SimpleFlamdexWriter(newSegmentPath, memoryFlamdex.getNumDocs())) {
+        final Path newSegmentDirectory = indexCommitter.newSegmentDirectory();
+        // Output the segment
+        try (final SimpleFlamdexWriter flamdexWriter = new SimpleFlamdexWriter(newSegmentDirectory, memoryFlamdex.getNumDocs())) {
             SimpleFlamdexWriter.writeFlamdex(memoryFlamdex, flamdexWriter);
         }
-
-        final Lock lock = indexCommitter.getChangeSegmentsLock();
-        lock.lock();
-        try {
-            final Map<Path, FastBitSet> updatedTombstoneSets = new HashMap<>();
-            // Make tombstone for the new segment
-            if (!removedDocIds.isEmpty()) {
-                final FastBitSet tombstoneSet = new FastBitSet(memoryFlamdex.getNumDocs());
-                for (final Integer removedDocId : removedDocIds) {
-                    tombstoneSet.set(removedDocId);
-                }
-                updatedTombstoneSets.put(newSegmentPath, tombstoneSet);
+        // Write tombstone set for the new segment
+        if (!removedDocIds.isEmpty()) {
+            final FastBitSet tombstoneSet = new FastBitSet(memoryFlamdex.getNumDocs());
+            for (final Integer removedDocId : removedDocIds) {
+                tombstoneSet.set(removedDocId);
             }
-            // Make tombstoneSet for old segments
-            if (!removeQueries.isEmpty()) {
-                final Query query = Query.newBooleanQuery(BooleanOp.OR, removeQueries);
-                for (final Path segmentPath : indexCommitter.getCurrentSegmentPaths()) {
-                    try (final SegmentReader segmentReader = new SegmentReader(segmentPath)) {
-                        final Optional<FastBitSet> updatedTombstoneSet = segmentReader.getUpdatedTombstoneSet(query);
-                        if (updatedTombstoneSet.isPresent()) {
-                            updatedTombstoneSets.put(segmentPath, updatedTombstoneSet.get());
-                        }
-                    }
-                }
-            }
-            indexCommitter.addSegment(newSegmentPath, updatedTombstoneSets);
-            return indexCommitter.commit(version);
-        } finally {
-            lock.unlock();
+            DynamicFlamdexSegmentUtil.writeTombstoneSet(newSegmentDirectory, tombstoneSet);
         }
+
+        final Query query = removeQueries.isEmpty() ? null : Query.newBooleanQuery(BooleanOp.OR, removeQueries);
+        return indexCommitter.addSegmentWithDeletionAndCommit(version, newSegmentDirectory, query);
     }
 
     @Nonnull
@@ -254,6 +233,60 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
         final FastBitSet removed = flamdexSearcher.search(query);
         for (final FastBitSet.IntIterator iterator = removed.iterator(); iterator.next(); ) {
             removedDocIds.add(iterator.getValue());
+        }
+    }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    @SuppressWarnings("ParameterHidesMemberVariable")
+    public static class Builder {
+        private Path datasetDirectory;
+        private String indexDirectoryPrefix;
+        private Long latestVersion = null;
+        private Path latestIndexDirectory = null;
+        private MergeStrategy mergeStrategy = null;
+        private ExecutorService executorService = null;
+
+        private Builder() {
+        }
+
+        public Builder setDatasetDirectory(@Nonnull final Path datasetDirectory) {
+            this.datasetDirectory = datasetDirectory;
+            return this;
+        }
+
+        public Builder setIndexDirectoryPrefix(@Nonnull final String indexDirectoryPrefix) {
+            this.indexDirectoryPrefix = indexDirectoryPrefix;
+            return this;
+        }
+
+        public Builder setLatestIndex(final long latestVersion, @Nonnull final Path latestIndexDirectory) {
+            this.latestVersion = latestVersion;
+            this.latestIndexDirectory = latestIndexDirectory;
+            return this;
+        }
+
+        public Builder setMergeStrategy(@Nonnull final MergeStrategy mergeStrategy) {
+            this.mergeStrategy = mergeStrategy;
+            return this;
+        }
+
+        public Builder setExecutorService(@Nonnull final ExecutorService executorService) {
+            this.executorService = executorService;
+            return this;
+        }
+
+        public DynamicFlamdexDocWriter build() throws IOException {
+            return new DynamicFlamdexDocWriter(
+                    Preconditions.checkNotNull(datasetDirectory),
+                    Preconditions.checkNotNull(indexDirectoryPrefix),
+                    latestVersion,
+                    latestIndexDirectory,
+                    mergeStrategy,
+                    executorService
+            );
         }
     }
 }

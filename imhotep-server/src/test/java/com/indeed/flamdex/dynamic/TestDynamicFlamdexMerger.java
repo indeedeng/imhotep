@@ -37,6 +37,7 @@ public class TestDynamicFlamdexMerger {
     public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     private static final int NUM_DOCS = (2 * 3 * 5 * 7 * 11) + 10;
+    private static final String INDEX_DIRECTORY_PREFIX = "testIndex";
 
     private Set<FlamdexDocument> setupedNaiveResult = null;
     private Path setupedIndexDirectory = null;
@@ -53,7 +54,11 @@ public class TestDynamicFlamdexMerger {
         Collections.shuffle(documents, random);
 
         setupedNaiveResult = new HashSet<>();
-        try (final DynamicFlamdexDocWriter flamdexDocWriterWithoutMerger = new DynamicFlamdexDocWriter(datasetDirectory, "test")) {
+        try (final DynamicFlamdexDocWriter flamdexDocWriterWithoutMerger = DynamicFlamdexDocWriter.builder()
+                .setDatasetDirectory(datasetDirectory)
+                .setIndexDirectoryPrefix(INDEX_DIRECTORY_PREFIX)
+                .build()
+        ) {
             long commitId = 0;
             for (final FlamdexDocument document : documents) {
                 if (random.nextInt(100) == 0) {
@@ -68,9 +73,7 @@ public class TestDynamicFlamdexMerger {
     private Path mergeSegmentsWithValidation(@Nonnull final Path indexDirectory, @Nonnull final Set<FlamdexDocument> naive, @Nonnull final MergeStrategy mergeStrategy, @Nonnull final ExecutorService executorService) throws IOException, ExecutionException, InterruptedException {
         final Path outputDirectory = temporaryFolder.newFolder("output").toPath();
 
-        try (final IndexCommitterWithValidate indexCommitter = new IndexCommitterWithValidate(naive, outputDirectory, "index", indexDirectory)) {
-            // Set version name to zero.
-            indexCommitter.commit(0L);
+        try (final IndexCommitterWithValidate indexCommitter = new IndexCommitterWithValidate(naive, outputDirectory, INDEX_DIRECTORY_PREFIX, 0L, indexDirectory)) {
             try (final DynamicFlamdexMerger dynamicFlamdexMerger = new DynamicFlamdexMerger(indexCommitter, mergeStrategy, executorService)) {
                 dynamicFlamdexMerger.updated();
                 dynamicFlamdexMerger.join();
@@ -94,6 +97,8 @@ public class TestDynamicFlamdexMerger {
                 },
                 executorService
         );
+        executorService.shutdown();
+        executorService.awaitTermination(1, TimeUnit.SECONDS);
         assertEquals(1, DynamicFlamdexIndexUtil.listSegmentDirectories(indexDirectory).size());
     }
 
@@ -107,6 +112,8 @@ public class TestDynamicFlamdexMerger {
                 new MergeStrategy.ExponentialMergeStrategy(4, 5),
                 executorService
         );
+        executorService.shutdown();
+        executorService.awaitTermination(1, TimeUnit.SECONDS);
     }
 
     @SuppressWarnings("JUnitTestMethodWithNoAssertions")
@@ -125,15 +132,20 @@ public class TestDynamicFlamdexMerger {
 
         final Path indexDirectory;
         final Set<FlamdexDocument> naiveResult = new HashSet<>();
-        try (final DynamicFlamdexDocWriter flamdexDocWriterWithoutMerger = new DynamicFlamdexDocWriter(datasetDirectory, "test", mergeStrategy, executorService)) {
+        try (final DynamicFlamdexDocWriter flamdexDocWriterWithMerger = DynamicFlamdexDocWriter.builder()
+                .setDatasetDirectory(datasetDirectory)
+                .setIndexDirectoryPrefix(INDEX_DIRECTORY_PREFIX)
+                .setMergeStrategy(mergeStrategy)
+                .setExecutorService(executorService)
+                .build()) {
             long commitId = 0;
             for (final FlamdexDocument document : documents) {
                 if (random.nextInt(100) == 0) {
-                    flamdexDocWriterWithoutMerger.commit(commitId++, random.nextBoolean());
+                    flamdexDocWriterWithMerger.commit(commitId++, random.nextBoolean());
                 }
-                DynamicFlamdexTestUtils.addDocument(naiveResult, flamdexDocWriterWithoutMerger, document);
+                DynamicFlamdexTestUtils.addDocument(naiveResult, flamdexDocWriterWithMerger, document);
             }
-            indexDirectory = flamdexDocWriterWithoutMerger.commit(commitId++).get();
+            indexDirectory = flamdexDocWriterWithMerger.commit(commitId++).get();
         }
         executorService.shutdown();
         executorService.awaitTermination(1, TimeUnit.MINUTES);
@@ -158,7 +170,13 @@ public class TestDynamicFlamdexMerger {
 
         final Path indexDirectory;
         final Set<FlamdexDocument> naiveResult = new HashSet<>();
-        try (final DynamicFlamdexDocWriter flamdexDocWriterWithoutMerger = new DynamicFlamdexDocWriter(datasetDirectory, "test", mergeStrategy, executorService)) {
+        try (final DynamicFlamdexDocWriter flamdexDocWriterWithoutMerger = DynamicFlamdexDocWriter.builder()
+                .setDatasetDirectory(datasetDirectory)
+                .setIndexDirectoryPrefix(INDEX_DIRECTORY_PREFIX)
+                .setMergeStrategy(mergeStrategy)
+                .setExecutorService(executorService)
+                .build()
+        ) {
             long commitId = 0;
             for (final FlamdexDocument document : documents) {
                 if (random.nextInt(100) == 0) {
