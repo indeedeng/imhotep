@@ -214,7 +214,7 @@ public final class FastBitSet {
             final int bitIndex = Long.bitCount(lowBit-1);
             value = ((index-1)<<6)+bitIndex;
             bitBuffer ^= lowBit;
-            return true;
+            return value < size;
         }
 
         public int getValue() {

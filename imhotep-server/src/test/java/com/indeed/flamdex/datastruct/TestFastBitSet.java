@@ -112,4 +112,13 @@ public class TestFastBitSet extends TestCase {
         }
         assertFalse(iterator.next());
     }
+
+    public void testIteratorEnd() {
+        final FastBitSet bitSet = new FastBitSet(1);
+        bitSet.setAll();
+        final FastBitSet.IntIterator iterator = bitSet.iterator();
+        assertTrue(iterator.next());
+        assertEquals(0, iterator.getValue());
+        assertFalse(iterator.next());
+    }
 }
