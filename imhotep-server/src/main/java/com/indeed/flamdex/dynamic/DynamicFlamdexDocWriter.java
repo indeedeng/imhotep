@@ -252,32 +252,38 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
         private Builder() {
         }
 
+        @Nonnull
         public Builder setDatasetDirectory(@Nonnull final Path datasetDirectory) {
             this.datasetDirectory = datasetDirectory;
             return this;
         }
 
+        @Nonnull
         public Builder setIndexDirectoryPrefix(@Nonnull final String indexDirectoryPrefix) {
             this.indexDirectoryPrefix = indexDirectoryPrefix;
             return this;
         }
 
+        @Nonnull
         public Builder setLatestIndex(final long latestVersion, @Nonnull final Path latestIndexDirectory) {
             this.latestVersion = latestVersion;
             this.latestIndexDirectory = latestIndexDirectory;
             return this;
         }
 
+        @Nonnull
         public Builder setMergeStrategy(@Nonnull final MergeStrategy mergeStrategy) {
             this.mergeStrategy = mergeStrategy;
             return this;
         }
 
+        @Nonnull
         public Builder setExecutorService(@Nonnull final ExecutorService executorService) {
             this.executorService = executorService;
             return this;
         }
 
+        @Nonnull
         public DynamicFlamdexDocWriter build() throws IOException {
             return new DynamicFlamdexDocWriter(
                     Preconditions.checkNotNull(datasetDirectory),

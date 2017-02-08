@@ -236,6 +236,7 @@ class DynamicFlamdexIndexCommitter implements Closeable {
      *
      * @return The path of the index made by this commit.
      */
+    @Nonnull
     public Path addSegmentWithDeletionAndCommit(
             final long version,
             @Nonnull final Path newSegmentDirectory,
@@ -268,6 +269,7 @@ class DynamicFlamdexIndexCommitter implements Closeable {
      *
      * @return The path of the index made by this commit, or absent if we couldn't commit.
      */
+    @Nonnull
     public Optional<Path> replaceSegmentsAndCommitIfPossible(@Nonnull final Collection<Path> removeSegmentDirectories, @Nonnull final Path newSegmentDirectory) throws IOException {
         changeSegmentsLock.lock();
         try {
