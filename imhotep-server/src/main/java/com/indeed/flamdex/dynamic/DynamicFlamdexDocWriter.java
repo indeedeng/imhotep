@@ -236,6 +236,7 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
         }
     }
 
+    @Nonnull
     public static Builder builder() {
         return new Builder();
     }

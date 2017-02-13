@@ -29,6 +29,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -217,4 +218,33 @@ public class TestDynamicFlamdexIndexCommitter {
         }
     }
 
+    @Test
+    public void testLazyCommit() throws IOException {
+        final Path datasetDirectory = temporaryFolder.newFolder("temp").toPath();
+        long version = 0;
+        try (
+                final DynamicFlamdexIndexCommitter committer = new DynamicFlamdexIndexCommitter(
+                        datasetDirectory,
+                        INDEX_DIRECTORY_PREFIX,
+                        null,
+                        null)
+        ) {
+            final Set<FlamdexDocument> naiveResult = new HashSet<>();
+            {
+                final Path segmentDirectory = committer.newSegmentDirectory();
+                writeSegment(naiveResult, segmentDirectory, generateDocuments(0, 10));
+                final Optional<Path> indexDirectoryOrAbsent = committer.replaceSegmentsAndCommitIfPossible(Collections.<Path>emptyList(), segmentDirectory);
+                assertFalse(indexDirectoryOrAbsent.isPresent());
+            }
+
+            final Path newSegmentDirectory = committer.newSegmentDirectory();
+            writeSegment(naiveResult, newSegmentDirectory, generateDocuments(10, 20));
+            final Path indexDirectory = committer.addSegmentWithDeletionAndCommit(1, newSegmentDirectory, null);
+
+            try (final DynamicFlamdexReader reader = new DynamicFlamdexReader(indexDirectory)) {
+                DynamicFlamdexTestUtils.validateIndex(naiveResult, reader);
+            }
+        }
+
+    }
 }
