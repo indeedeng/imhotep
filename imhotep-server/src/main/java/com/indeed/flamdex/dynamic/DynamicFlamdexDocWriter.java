@@ -51,15 +51,14 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
 
     /**
      * Creates index from {@code latestIndexDirectory}, and write into {@code datasetDirectory}/{@code indexDirectoryPrefix}.version.timestamp.
-     * Do merge if {@code mergeStrategy} is nonnull, and use {@code executorService} to merge segments.
-     * If {@code latestIndexDirectory} is given, the writer writes on top of the index.
-     * If the latestIndexDirectory is dynamic index, then the writer treat each segments in the index as the latest segments.
-     * Otherwise, the writer treat it as single segment.
+     * Do merge if {@code mergeStrategy} is nonnull, and use {@code executorService} for merge segment work.
+     *
+     * If {@code latestIndexDirectory} is dynamic index, then the writer treat each segments in the index as the latest segments.
+     * Otherwise, the writer treat it as a single segment.
      */
     private DynamicFlamdexDocWriter(
             @Nonnull final Path datasetDirectory,
             @Nonnull final String indexDirectoryPrefix,
-            @Nullable final Long latestVersion,
             @Nullable final Path latestIndexDirectory,
             @Nullable final MergeStrategy mergeStrategy,
             @Nullable final ExecutorService executorService
@@ -68,7 +67,7 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
         try {
             this.writerLock = closerOnFailure.register(DynamicFlamdexIndexUtil.acquireWriterLock(datasetDirectory, indexDirectoryPrefix));
             this.indexCommitter = closerOnFailure.register(
-                    new DynamicFlamdexIndexCommitter(datasetDirectory, indexDirectoryPrefix, latestVersion, latestIndexDirectory)
+                    new DynamicFlamdexIndexCommitter(datasetDirectory, indexDirectoryPrefix, latestIndexDirectory)
             );
             if (mergeStrategy == null) {
                 this.merger = null;
@@ -245,7 +244,6 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
     public static class Builder {
         private Path datasetDirectory;
         private String indexDirectoryPrefix;
-        private Long latestVersion = null;
         private Path latestIndexDirectory = null;
         private MergeStrategy mergeStrategy = null;
         private ExecutorService executorService = null;
@@ -266,8 +264,7 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
         }
 
         @Nonnull
-        public Builder setLatestIndex(final long latestVersion, @Nonnull final Path latestIndexDirectory) {
-            this.latestVersion = latestVersion;
+        public Builder setLatestIndexDirectory(@Nonnull final Path latestIndexDirectory) {
             this.latestIndexDirectory = latestIndexDirectory;
             return this;
         }
@@ -289,7 +286,6 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
             return new DynamicFlamdexDocWriter(
                     Preconditions.checkNotNull(datasetDirectory),
                     Preconditions.checkNotNull(indexDirectoryPrefix),
-                    latestVersion,
                     latestIndexDirectory,
                     mergeStrategy,
                     executorService

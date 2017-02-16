@@ -23,10 +23,9 @@ class IndexCommitterWithValidate extends DynamicFlamdexIndexCommitter {
             @Nonnull final Set<FlamdexDocument> naiveResult,
             @Nonnull final Path datasetDirectory,
             @Nonnull final String indexDirectoryPrefix,
-            @Nullable final Long latestVersion,
             @Nullable final Path latestIndexDirectory
     ) throws IOException {
-        super(datasetDirectory, indexDirectoryPrefix, latestVersion, latestIndexDirectory, new DefaultWallClock());
+        super(datasetDirectory, indexDirectoryPrefix, latestIndexDirectory, new DefaultWallClock());
         this.naiveResult = naiveResult;
         this.indexDirectories = new ArrayList<>();
     }

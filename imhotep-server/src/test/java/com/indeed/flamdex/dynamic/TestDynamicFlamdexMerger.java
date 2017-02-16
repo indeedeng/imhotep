@@ -18,7 +18,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
-import java.util.SortedSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -73,7 +72,7 @@ public class TestDynamicFlamdexMerger {
     private Path mergeSegmentsWithValidation(@Nonnull final Path indexDirectory, @Nonnull final Set<FlamdexDocument> naive, @Nonnull final MergeStrategy mergeStrategy, @Nonnull final ExecutorService executorService) throws IOException, ExecutionException, InterruptedException {
         final Path outputDirectory = temporaryFolder.newFolder("output").toPath();
 
-        try (final IndexCommitterWithValidate indexCommitter = new IndexCommitterWithValidate(naive, outputDirectory, INDEX_DIRECTORY_PREFIX, 0L, indexDirectory)) {
+        try (final IndexCommitterWithValidate indexCommitter = new IndexCommitterWithValidate(naive, outputDirectory, INDEX_DIRECTORY_PREFIX, indexDirectory)) {
             try (final DynamicFlamdexMerger dynamicFlamdexMerger = new DynamicFlamdexMerger(indexCommitter, mergeStrategy, executorService)) {
                 dynamicFlamdexMerger.updated();
                 dynamicFlamdexMerger.join();
@@ -91,7 +90,7 @@ public class TestDynamicFlamdexMerger {
                 new MergeStrategy() {
                     @Nonnull
                     @Override
-                    public Collection<? extends Collection<Segment>> splitSegmentsToMerge(@Nonnull final SortedSet<Segment> availableSegments) {
+                    public Collection<? extends Collection<Segment>> splitSegmentsToMerge(@Nonnull final List<Segment> availableSegments) {
                         return Collections.singleton(availableSegments);
                     }
                 },

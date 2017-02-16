@@ -2,6 +2,7 @@ package com.indeed.flamdex.dynamic;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.flamdex.query.Query;
@@ -35,7 +36,7 @@ class DynamicFlamdexIndexCommitter implements Closeable {
     private static final Logger LOG = Logger.getLogger(DynamicFlamdexIndexCommitter.class);
 
     private Long latestVersion;
-    private final Path temporaryDirectory;
+    private final Path temporaryDirectoryRoot;
     private final Path datasetDirectory;
     private final String indexDirectoryPrefix;
     private final Path temporaryIndexDirectory;
@@ -47,39 +48,42 @@ class DynamicFlamdexIndexCommitter implements Closeable {
     DynamicFlamdexIndexCommitter(
             @Nonnull final Path datasetDirectory,
             @Nonnull final String indexDirectoryPrefix,
-            @Nullable final Long latestVersion,
             @Nullable final Path latestIndexDirectory
     ) throws IOException {
-        this(datasetDirectory, indexDirectoryPrefix, latestVersion, latestIndexDirectory, new DefaultWallClock());
+        this(datasetDirectory, indexDirectoryPrefix, latestIndexDirectory, new DefaultWallClock());
     }
 
     DynamicFlamdexIndexCommitter(
             @Nonnull final Path datasetDirectory,
             @Nonnull final String indexDirectoryPrefix,
-            @Nullable final Long latestVersion,
             @Nullable final Path latestIndexDirectory,
             @Nonnull final WallClock wallClock
     ) throws IOException {
         this.datasetDirectory = datasetDirectory;
         this.indexDirectoryPrefix = indexDirectoryPrefix;
-        this.temporaryDirectory = Files.createTempDirectory(datasetDirectory,
-                "TempDir." + indexDirectoryPrefix);
-        temporaryIndexDirectory = this.temporaryDirectory.resolve("index");
+        this.temporaryDirectoryRoot = Files.createTempDirectory(datasetDirectory,
+                "working." + indexDirectoryPrefix);
+        temporaryIndexDirectory = this.temporaryDirectoryRoot.resolve("index");
         Files.createDirectory(temporaryIndexDirectory);
         currentSegments = new HashSet<>();
-        this.latestVersion = latestVersion;
         this.wallClock = wallClock;
+        this.latestVersion = null;
         if (latestIndexDirectory != null) {
+            try {
+                this.latestVersion = extractVersionFromIndexDirectory(latestIndexDirectory);
+            } catch (final IllegalArgumentException e) {
+                LOG.error("Failed to extract version.", e);
+            }
             final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(latestIndexDirectory);
             if (FlamdexFormatVersion.DYNAMIC == metadata.getFlamdexFormatVersion()) {
-                // Write on top of dynamic index.
+                // Use the dynamic index as a starting point.
                 for (final Path segmentDirectory : DynamicFlamdexIndexUtil.listSegmentDirectories(latestIndexDirectory)) {
                     final Path copiedSegmentPath = temporaryIndexDirectory.resolve(segmentDirectory.getFileName());
                     createHardLinksRecursively(segmentDirectory, copiedSegmentPath);
                     currentSegments.add(copiedSegmentPath);
                 }
             } else {
-                // Write on top of other type of index, treat it as a segment.
+                // Use the dynamic index as a starting point by treating it as a segment.
                 final Path copiedSegmentPath = newSegmentDirectory();
                 createHardLinksRecursively(latestIndexDirectory, copiedSegmentPath);
                 currentSegments.add(copiedSegmentPath);
@@ -134,13 +138,28 @@ class DynamicFlamdexIndexCommitter implements Closeable {
         return timestamp;
     }
 
+    private static long extractVersionFromIndexDirectory(@Nonnull final Path indexDirectory) {
+        final String directoryName = indexDirectory.getFileName().toString();
+        final int versionEnd = directoryName.lastIndexOf('.');
+        final int versionStart = directoryName.lastIndexOf('.', versionEnd - 1);
+        if (versionStart < 0) {
+            throw new IllegalArgumentException("Failed to extract version from path " + indexDirectory);
+        }
+        final String versionString = directoryName.substring(versionStart + 1, versionEnd);
+        try {
+            return Long.parseLong(versionString);
+        } catch (final NumberFormatException e) {
+            throw new IllegalArgumentException("Failed to extract version from path " + indexDirectory, e);
+        }
+    }
+
     @Nonnull
     private String generateIndexDirectoryName(@Nonnull final Long version) {
         return indexDirectoryPrefix + '.' + version + '.' + generateTimestamp();
     }
 
     public void close() throws IOException {
-        removeDirectoryRecursively(temporaryDirectory);
+        removeDirectoryRecursively(temporaryDirectoryRoot);
     }
 
     @Nonnull
@@ -193,7 +212,7 @@ class DynamicFlamdexIndexCommitter implements Closeable {
     @VisibleForTesting
     @Nonnull
     protected Path commit(@Nonnull final Long version) throws IOException {
-        final Path tempCommitDirectory = Files.createTempDirectory(temporaryDirectory, "commit");
+        final Path tempCommitDirectory = Files.createTempDirectory(temporaryDirectoryRoot, "commit");
         changeSegmentsLock.lock();
         try {
             final Path newIndexDirectory = datasetDirectory.resolve(generateIndexDirectoryName(version));

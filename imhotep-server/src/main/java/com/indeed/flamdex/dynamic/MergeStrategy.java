@@ -10,28 +10,39 @@ import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Queue;
-import java.util.SortedSet;
 
 /**
  * @author michihiko
  */
 
 public interface MergeStrategy {
-    class Segment implements Comparable<Segment> {
-        private final Path segmentPath;
+    class Segment {
+        private final Path segmentDirectory;
         private final int numDocs;
 
-        static final Function<Segment, Path> SEGMENT_PATH_GETTER = new Function<Segment, Path>() {
+        static final Function<Segment, Path> SEGMENT_DIRECTORY_GETTER = new Function<Segment, Path>() {
             @Override
             public Path apply(final Segment segment) {
                 return segment.getSegmentDirectory();
             }
         };
 
-        public Segment(@Nonnull final Path segmentPath, final int numDocs) {
-            this.segmentPath = segmentPath;
+        public static final Comparator<Segment> NUM_DOC_COMPARATOR = new Comparator<Segment>() {
+            @Override
+            public int compare(final Segment o1, final Segment o2) {
+                return ComparisonChain.start()
+                        .compare(o1.getNumDocs(), o2.getNumDocs())
+                        .compare(o1.getSegmentDirectory(), o2.getSegmentDirectory())
+                        .result();
+            }
+        };
+
+        public Segment(@Nonnull final Path segmentDirectory, final int numDocs) {
+            this.segmentDirectory = segmentDirectory;
             this.numDocs = numDocs;
         }
 
@@ -41,39 +52,32 @@ public interface MergeStrategy {
 
         @Nonnull
         Path getSegmentDirectory() {
-            return segmentPath;
-        }
-
-        @Override
-        public int compareTo(@Nonnull final Segment o) {
-            return ComparisonChain.start()
-                    .compare(numDocs, o.numDocs)
-                    .compare(segmentPath, o.segmentPath)
-                    .result();
+            return segmentDirectory;
         }
     }
 
     /**
      * This is the method you have to implement;
      * for given available segments, return disjoint subsets of available segments that you want to merge.
-     * Available segments are given in ascending order w.r.t. number of segments.
      */
     @Nonnull
-    Collection<? extends Collection<Segment>> splitSegmentsToMerge(@Nonnull final SortedSet<Segment> availableSegments);
+    Collection<? extends Collection<Segment>> splitSegmentsToMerge(@Nonnull final List<Segment> availableSegments);
 
     /**
      * This implementation merges {@code base} segments which have "almost same size" (w.r.t. {@code base})
      * to satisfy following condition;
      * There are no subset of segments which has
-     * - {@code base} number of elements, and
-     * - ratio between maximum and minimum size of the segments is less than {@code base}.
-     * <p>
+     * <ul>
+     * <li> {@code base} number of elements, and
+     * <li> ratio between maximum and minimum size of the segments is less than {@code base}.
+     * </ul>
      * This merge strategy has following feature;
-     * - There are no more segments that we can merge by this strategy
-     * iff the condition above is satisfied,
+     * <ul>
+     * <li> There are no more segments that we can merge by this strategy iff the condition above is satisfied,
      * and if so, the number of remaining segments is less or equals to ({@code base} - 1) * log_{@code base} (total number of documents)
-     * - The segment created by a merge is at least {@code base} times as large as a segment used to that merge.
-     * Hence, each documents contribute to merge at most log_{@code base} (total number of documents) time.
+     * <li> The segment created by a merge is at least {@code base} times as large as a segment used to that merge.
+     * Hence, each documents contribute to merge at most log_{@code base} (total number of documents) times.
+     * </ul>
      */
     class ExponentialMergeStrategy implements MergeStrategy {
         private final int base;
@@ -91,13 +95,14 @@ public interface MergeStrategy {
 
         @Nonnull
         @Override
-        public List<List<Segment>> splitSegmentsToMerge(@Nonnull final SortedSet<Segment> availableSegments) {
+        public List<List<Segment>> splitSegmentsToMerge(@Nonnull final List<Segment> availableSegments) {
             // Use two-pointer-method to list up segments we can merge.
             // Invariants:
             // - currentSegments stores some segments in ascending order w.r.t. number of docs, and
             //   (number of docs in the first segment in the queue (= smallest)) * base
             //   > (number of docs in the last segment in the queue (= largest))
 
+            Collections.sort(availableSegments, Segment.NUM_DOC_COMPARATOR);
             final List<List<Segment>> segmentsToMerge = new ArrayList<>();
             final Queue<Segment> currentSegments = new ArrayDeque<>();
             for (final Segment segment : availableSegments) {

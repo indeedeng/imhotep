@@ -12,6 +12,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -227,7 +228,7 @@ public class TestDynamicFlamdexWriter {
         try (final DynamicFlamdexDocWriter flamdexDocWriter = DynamicFlamdexDocWriter.builder()
                 .setDatasetDirectory(directory)
                 .setIndexDirectoryPrefix("index")
-                .setLatestIndex(cnt, firstHalf)
+                .setLatestIndexDirectory(firstHalf)
                 .setMergeStrategy(new MergeStrategy.ExponentialMergeStrategy(2))
                 .setExecutorService(MoreExecutors.sameThreadExecutor())
                 .build()
@@ -259,7 +260,12 @@ public class TestDynamicFlamdexWriter {
         Collections.shuffle(documents, random);
 
         final Set<FlamdexDocument> naive = new HashSet<>();
-        final Path firstHalf = temporaryFolder.newFolder("static").toPath();
+        final Path firstHalf;
+        {
+            final Path root = temporaryFolder.newFolder("static").toPath();
+            firstHalf = root.resolve("version.is.0.timestamp");
+            Files.createDirectories(firstHalf);
+        }
         try (final FlamdexDocWriter flamdexDocWriter = new SimpleFlamdexDocWriter(firstHalf, new SimpleFlamdexDocWriter.Config())) {
             for (final FlamdexDocument document : documents.subList(0, NUM_DOCS / 2)) {
                 DynamicFlamdexTestUtils.addDocument(naive, flamdexDocWriter, document);
@@ -269,7 +275,7 @@ public class TestDynamicFlamdexWriter {
         try (final DynamicFlamdexDocWriter flamdexDocWriter = DynamicFlamdexDocWriter.builder()
                 .setDatasetDirectory(directory)
                 .setIndexDirectoryPrefix("index")
-                .setLatestIndex(0L, firstHalf)
+                .setLatestIndexDirectory(firstHalf)
                 .setMergeStrategy(new MergeStrategy.ExponentialMergeStrategy(2))
                 .setExecutorService(MoreExecutors.sameThreadExecutor())
                 .build()

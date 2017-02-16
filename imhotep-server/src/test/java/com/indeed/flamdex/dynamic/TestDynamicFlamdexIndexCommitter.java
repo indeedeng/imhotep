@@ -75,7 +75,6 @@ public class TestDynamicFlamdexIndexCommitter {
                 final DynamicFlamdexIndexCommitter committer = new DynamicFlamdexIndexCommitter(
                         datasetDirectory,
                         INDEX_DIRECTORY_PREFIX,
-                        null,
                         null)
         ) {
             final Set<FlamdexDocument> naiveResult = new HashSet<>();
@@ -108,7 +107,6 @@ public class TestDynamicFlamdexIndexCommitter {
                 final DynamicFlamdexIndexCommitter committer = new DynamicFlamdexIndexCommitter(
                         datasetDirectory,
                         INDEX_DIRECTORY_PREFIX,
-                        null,
                         null)
         ) {
             final Set<FlamdexDocument> naiveResult = new HashSet<>();
@@ -141,7 +139,6 @@ public class TestDynamicFlamdexIndexCommitter {
                 final DynamicFlamdexIndexCommitter committer = new DynamicFlamdexIndexCommitter(
                         datasetDirectory,
                         INDEX_DIRECTORY_PREFIX,
-                        null,
                         null)
         ) {
             final List<Future<List<Path>>> futurePathLists = new ArrayList<>();
@@ -184,7 +181,6 @@ public class TestDynamicFlamdexIndexCommitter {
                 final DynamicFlamdexIndexCommitter committer = new DynamicFlamdexIndexCommitter(
                         datasetDirectory,
                         INDEX_DIRECTORY_PREFIX,
-                        null,
                         null)
         ) {
             final Set<FlamdexDocument> naiveResult = new HashSet<>();
@@ -226,7 +222,6 @@ public class TestDynamicFlamdexIndexCommitter {
                 final DynamicFlamdexIndexCommitter committer = new DynamicFlamdexIndexCommitter(
                         datasetDirectory,
                         INDEX_DIRECTORY_PREFIX,
-                        null,
                         null)
         ) {
             final Set<FlamdexDocument> naiveResult = new HashSet<>();

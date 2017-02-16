@@ -4,6 +4,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicates;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -31,8 +32,6 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -168,17 +167,19 @@ class DynamicFlamdexMerger implements Closeable {
                 }
                 newSegmentDirectory = indexCommitter.newSegmentDirectory();
 
-                LOG.debug("Start merge task "
-                        + newSegmentDirectory.getFileName()
-                        + " which merges"
-                        + Joiner.on(',').join(FluentIterable.from(segmentsToMerge).transform(
-                        new Function<MergeStrategy.Segment, String>() {
-                            @Override
-                            public String apply(final MergeStrategy.Segment segment) {
-                                return segment.getSegmentDirectory().getFileName().toString();
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Start merge task "
+                            + newSegmentDirectory.getFileName()
+                            + " which merges"
+                            + Joiner.on(',').join(FluentIterable.from(segmentsToMerge).transform(
+                            new Function<MergeStrategy.Segment, String>() {
+                                @Override
+                                public String apply(final MergeStrategy.Segment segment) {
+                                    return segment.getSegmentDirectory().getFileName().toString();
+                                }
                             }
-                        }
-                )));
+                    )));
+                }
 
                 final DocIdMapping docIdMapping = mergeIndices(newSegmentDirectory, segmentReaders);
 
@@ -212,12 +213,9 @@ class DynamicFlamdexMerger implements Closeable {
                     }
 
                     indexCommitter.replaceSegmentsAndCommitIfPossible(
-                            FluentIterable.from(segmentsToMerge).transform(new Function<MergeStrategy.Segment, Path>() {
-                                @Override
-                                public Path apply(final MergeStrategy.Segment segment) {
-                                    return segment.getSegmentDirectory();
-                                }
-                            }).toList(),
+                            FluentIterable.from(segmentsToMerge)
+                                    .transform(MergeStrategy.Segment.SEGMENT_DIRECTORY_GETTER)
+                                    .toList(),
                             newSegmentDirectory
                     );
                 } finally {
@@ -237,17 +235,19 @@ class DynamicFlamdexMerger implements Closeable {
                 throw e;
             }
             finishMerge(segmentsToMerge);
-            LOG.debug("Finished merge task "
-                    + newSegmentDirectory.getFileName()
-                    + " which merges"
-                    + Joiner.on(',').join(FluentIterable.from(segmentsToMerge).transform(
-                    new Function<MergeStrategy.Segment, String>() {
-                        @Override
-                        public String apply(final MergeStrategy.Segment segment) {
-                            return segment.getSegmentDirectory().getFileName().toString();
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Finished merge task "
+                        + newSegmentDirectory.getFileName()
+                        + " which merges"
+                        + Joiner.on(',').join(FluentIterable.from(segmentsToMerge).transform(
+                        new Function<MergeStrategy.Segment, String>() {
+                            @Override
+                            public String apply(final MergeStrategy.Segment segment) {
+                                return segment.getSegmentDirectory().getFileName().toString();
+                            }
                         }
-                    }
-            )));
+                )));
+            }
             updated();
             return null;
         }
@@ -278,11 +278,10 @@ class DynamicFlamdexMerger implements Closeable {
      * Called when we start to merge the segments, with the segments we're going to merge.
      */
     private synchronized void startMerge(@Nonnull final List<MergeStrategy.Segment> segments) {
-        Preconditions.checkState(
-                queuedSegments.containsAll(
-                        FluentIterable.from(segments)
-                                .transform(MergeStrategy.Segment.SEGMENT_PATH_GETTER)
-                                .toList()),
+
+        Preconditions.checkState(Iterables.all(
+                FluentIterable.from(segments).transform(MergeStrategy.Segment.SEGMENT_DIRECTORY_GETTER),
+                Predicates.in(queuedSegments)),
                 "It looks there is another merger that already used this segment"
         );
     }
@@ -292,7 +291,7 @@ class DynamicFlamdexMerger implements Closeable {
      */
     private synchronized void finishMerge(@Nonnull final List<MergeStrategy.Segment> segments) {
         queuedSegments.removeAll(FluentIterable.from(segments)
-                .transform(MergeStrategy.Segment.SEGMENT_PATH_GETTER)
+                .transform(MergeStrategy.Segment.SEGMENT_DIRECTORY_GETTER)
                 .toList());
     }
 
@@ -301,7 +300,7 @@ class DynamicFlamdexMerger implements Closeable {
      */
     private synchronized void abortMerge(@Nonnull final List<MergeStrategy.Segment> segments) {
         queuedSegments.removeAll(FluentIterable.from(segments)
-                .transform(MergeStrategy.Segment.SEGMENT_PATH_GETTER)
+                .transform(MergeStrategy.Segment.SEGMENT_DIRECTORY_GETTER)
                 .toList());
     }
 
@@ -361,16 +360,16 @@ class DynamicFlamdexMerger implements Closeable {
         final Lock lock = indexCommitter.getChangeSegmentsLock();
         lock.lock();
         try {
-            final SortedSet<MergeStrategy.Segment> availableSegments = new TreeSet<>();
+            final List<MergeStrategy.Segment> availableSegments = new ArrayList<>();
             for (final Path segmentPath : indexCommitter.getCurrentSegmentPaths()) {
                 if (!queuedSegments.contains(segmentPath)) {
                     final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(segmentPath);
                     availableSegments.add(new MergeStrategy.Segment(segmentPath, metadata.getNumDocs()));
                 }
             }
-            final ImmutableList.Builder<List<MergeStrategy.Segment>> splittedSegmentsBuilder = ImmutableList.builder();
+            final ImmutableList.Builder<List<MergeStrategy.Segment>> splitSegmentsBuilder = ImmutableList.builder();
 
-            for (final Collection<MergeStrategy.Segment> segments : mergeStrategy.splitSegmentsToMerge(new TreeSet<>(availableSegments))) {
+            for (final Collection<MergeStrategy.Segment> segments : mergeStrategy.splitSegmentsToMerge(new ArrayList<>(availableSegments))) {
                 if (segments.size() <= 1) {
                     continue;
                 }
@@ -379,26 +378,23 @@ class DynamicFlamdexMerger implements Closeable {
                     Preconditions.checkState(availableSegments.remove(segment),
                             "Same segment is selected twice, or non-available segment is selected.");
                 }
-                splittedSegmentsBuilder.add(ImmutableList.copyOf(segments));
+                splitSegmentsBuilder.add(ImmutableList.copyOf(segments));
             }
 
-            final List<List<MergeStrategy.Segment>> splittedSegments = splittedSegmentsBuilder.build();
+            final List<List<MergeStrategy.Segment>> splitSegments = splitSegmentsBuilder.build();
 
-            queuedSegments.addAll(FluentIterable.from(Iterables.concat(splittedSegments))
-                    .transform(MergeStrategy.Segment.SEGMENT_PATH_GETTER)
+            queuedSegments.addAll(FluentIterable.from(Iterables.concat(splitSegments))
+                    .transform(MergeStrategy.Segment.SEGMENT_DIRECTORY_GETTER)
                     .toList());
 
-            for (final List<MergeStrategy.Segment> splittedSegment : splittedSegments) {
+            for (final List<MergeStrategy.Segment> splitSegment : splitSegments) {
                 try {
-                    futuresForJoin.add(executorService.submit(new MergeTask(splittedSegment)));
+                    futuresForJoin.add(executorService.submit(new MergeTask(splitSegment)));
                 } catch (final Throwable e) {
                     LOG.error("Failed to submit merge tasks", e);
-                    queuedSegments.removeAll(FluentIterable.from(splittedSegment).transform(new Function<MergeStrategy.Segment, Path>() {
-                        @Override
-                        public Path apply(final MergeStrategy.Segment segment) {
-                            return segment.getSegmentDirectory();
-                        }
-                    }).toList());
+                    queuedSegments.removeAll(FluentIterable.from(splitSegment)
+                            .transform(MergeStrategy.Segment.SEGMENT_DIRECTORY_GETTER)
+                            .toList());
                 }
             }
         } catch (final Throwable e) {
