@@ -4,13 +4,13 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Ordering;
 
 import javax.annotation.Nonnull;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Queue;
@@ -102,10 +102,9 @@ public interface MergeStrategy {
             //   (number of docs in the first segment in the queue (= smallest)) * base
             //   > (number of docs in the last segment in the queue (= largest))
 
-            Collections.sort(availableSegments, Segment.NUM_DOC_COMPARATOR);
             final List<List<Segment>> segmentsToMerge = new ArrayList<>();
             final Queue<Segment> currentSegments = new ArrayDeque<>();
-            for (final Segment segment : availableSegments) {
+            for (final Segment segment : Ordering.from(Segment.NUM_DOC_COMPARATOR).sortedCopy(availableSegments)) {
                 currentSegments.add(segment);
                 // Remove segments to satisfy the invariant.
                 while ((currentSegments.element().getNumDocs() * base) <= segment.getNumDocs()) {

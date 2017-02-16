@@ -2,7 +2,6 @@ package com.indeed.flamdex.dynamic;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.flamdex.query.Query;
@@ -23,6 +22,7 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.locks.ReentrantLock;
@@ -32,6 +32,10 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 
 class DynamicFlamdexIndexCommitter implements Closeable {
+
+    public interface CurrentSegmentConsumer {
+        void accept(@Nonnull final List<Path> currentSegmentPaths) throws IOException;
+    }
 
     private static final Logger LOG = Logger.getLogger(DynamicFlamdexIndexCommitter.class);
 
@@ -163,11 +167,6 @@ class DynamicFlamdexIndexCommitter implements Closeable {
     }
 
     @Nonnull
-    public ReentrantLock getChangeSegmentsLock() {
-        return changeSegmentsLock;
-    }
-
-    @Nonnull
     private String generateSegmentName() {
         return "segment." + generateTimestamp();
     }
@@ -195,10 +194,10 @@ class DynamicFlamdexIndexCommitter implements Closeable {
     }
 
     @Nonnull
-    public Collection<Path> getCurrentSegmentPaths() {
+    public void doWhileLockingSegment(@Nonnull final CurrentSegmentConsumer consumer) throws IOException {
         changeSegmentsLock.lock();
         try {
-            return ImmutableList.copyOf(currentSegments);
+            consumer.accept(ImmutableList.copyOf(currentSegments));
         } finally {
             changeSegmentsLock.unlock();
         }
@@ -214,6 +213,7 @@ class DynamicFlamdexIndexCommitter implements Closeable {
     protected Path commit(@Nonnull final Long version) throws IOException {
         final Path tempCommitDirectory = Files.createTempDirectory(temporaryDirectoryRoot, "commit");
         changeSegmentsLock.lock();
+
         try {
             final Path newIndexDirectory = datasetDirectory.resolve(generateIndexDirectoryName(version));
             for (final Path segmentPath : currentSegments) {

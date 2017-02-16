@@ -67,6 +67,23 @@ public class TestDynamicFlamdexIndexCommitter {
         }
     }
 
+    @Nonnull
+    private List<Path> getCurrentSegmentPaths(@Nonnull final DynamicFlamdexIndexCommitter committer) {
+        final List<Path> paths = new ArrayList<>();
+
+        try {
+            committer.doWhileLockingSegment(new DynamicFlamdexIndexCommitter.CurrentSegmentConsumer() {
+                @Override
+                public void accept(@Nonnull final List<Path> currentSegmentPaths) {
+                    paths.addAll(currentSegmentPaths);
+                }
+            });
+        } catch (final IOException e) {
+            throw new RuntimeException(e);
+        }
+        return paths;
+    }
+
     @Test
     public void testAddSegmentsSimple() throws IOException, ExecutionException, InterruptedException {
         final Path datasetDirectory = temporaryFolder.newFolder("temp").toPath();
@@ -88,13 +105,13 @@ public class TestDynamicFlamdexIndexCommitter {
                 docId += 10;
 
                 final Path indexDirectory = committer.addSegmentWithDeletionAndCommit(++version, newSegmentDirectory, null);
-                assertEquals(segmentId + 1, committer.getCurrentSegmentPaths().size());
+                assertEquals(segmentId + 1, getCurrentSegmentPaths(committer).size());
 
                 try (final DynamicFlamdexReader reader = new DynamicFlamdexReader(indexDirectory)) {
                     DynamicFlamdexTestUtils.validateIndex(naiveResult, reader);
                 }
             }
-            assertEquals(segmentDirectories, new HashSet<>(committer.getCurrentSegmentPaths()));
+            assertEquals(segmentDirectories, new HashSet<>(getCurrentSegmentPaths(committer)));
         }
         assertEquals("Temporary directories must be cleared", version, Directories.count(datasetDirectory));
     }
@@ -122,7 +139,7 @@ public class TestDynamicFlamdexIndexCommitter {
                         newSegmentDirectory,
                         Query.newRangeQuery("original", 0, 100, true) // deletes all previous documents
                 );
-                assertEquals(segmentId + 1, committer.getCurrentSegmentPaths().size());
+                assertEquals(segmentId + 1, getCurrentSegmentPaths(committer).size());
 
                 try (final DynamicFlamdexReader reader = new DynamicFlamdexReader(indexDirectory)) {
                     DynamicFlamdexTestUtils.validateIndex(naiveResult, reader);
@@ -198,14 +215,14 @@ public class TestDynamicFlamdexIndexCommitter {
                         Query.newRangeQuery("original", 0, 100, true) // deletes all previous documents
                 );
             }
-            assertEquals(segmentDirectories, new HashSet<>(committer.getCurrentSegmentPaths()));
+            assertEquals(segmentDirectories, new HashSet<>(getCurrentSegmentPaths(committer)));
 
             final Path mergedSegmentDirectory = committer.newSegmentDirectory();
             // This segment has the same documents as previous three segments.
             writeSegment(null, mergedSegmentDirectory, generateDocuments(0, docId));
             final Optional<Path> indexDirectoryOrAbsent = committer.replaceSegmentsAndCommitIfPossible(segmentDirectories, mergedSegmentDirectory);
 
-            assertEquals(Collections.singleton(mergedSegmentDirectory), new HashSet<>(committer.getCurrentSegmentPaths()));
+            assertEquals(Collections.singleton(mergedSegmentDirectory), new HashSet<>(getCurrentSegmentPaths(committer)));
             assertTrue(indexDirectoryOrAbsent.isPresent());
 
             try (final DynamicFlamdexReader reader = new DynamicFlamdexReader(indexDirectoryOrAbsent.get())) {

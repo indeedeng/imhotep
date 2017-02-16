@@ -36,7 +36,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.concurrent.locks.Lock;
 
 /**
  * @author michihiko
@@ -186,41 +185,44 @@ class DynamicFlamdexMerger implements Closeable {
                 final FastBitSet tombstoneSet = new FastBitSet(docIdMapping.getNewNumDocs());
 
                 // Wait segment builders / other merger
-                final Lock lock = indexCommitter.getChangeSegmentsLock();
-                lock.lock();
-                try {
-                    // Update tombstoneSet.
-                    // We've already removed documents which is already in the tombstone set when we opened segment readers,
-                    // but since that time, writer could commit new segment which cause insertion on the tombstone set.
-                    for (int segmentId = 0; segmentId < segmentsToMerge.size(); segmentId++) {
-                        // The latest committed tombstone set for the segment
-                        final Optional<FastBitSet> optionalLatestTombstoneSet = DynamicFlamdexSegmentUtil.readTombstoneSet(segmentsToMerge.get(segmentId).getSegmentDirectory());
-                        if (!optionalLatestTombstoneSet.isPresent()) {
-                            continue;
-                        }
-                        final FastBitSet latestTombstoneSet = optionalLatestTombstoneSet.get();
-                        for (final FastBitSet.IntIterator it = latestTombstoneSet.iterator(); it.next(); ) {
-                            final int newDocId = docIdMapping.getNewDocId(segmentId, it.getValue());
-                            if (newDocId >= 0) {
-                                // If deleted document in the segment is in our new segment (i.e. newDocId is non-negative),
-                                // we should put it into tombstone set of new segment.
-                                tombstoneSet.set(newDocId);
+                indexCommitter.doWhileLockingSegment(new DynamicFlamdexIndexCommitter.CurrentSegmentConsumer() {
+                    @Override
+                    public void accept(@Nonnull final List<Path> currentSegmentPaths) throws IOException {
+                        Preconditions.checkState(Iterables.all(
+                                FluentIterable.from(segmentsToMerge).transform(MergeStrategy.Segment.SEGMENT_DIRECTORY_GETTER),
+                                Predicates.in(currentSegmentPaths)));
+
+                        // Update tombstoneSet.
+                        // We've already removed documents which is already in the tombstone set when we opened segment readers,
+                        // but since that time, writer could commit new segment which cause insertion on the tombstone set.
+                        for (int segmentId = 0; segmentId < segmentsToMerge.size(); segmentId++) {
+                            // The latest committed tombstone set for the segment
+                            final Optional<FastBitSet> optionalLatestTombstoneSet = DynamicFlamdexSegmentUtil.readTombstoneSet(segmentsToMerge.get(segmentId).getSegmentDirectory());
+                            if (!optionalLatestTombstoneSet.isPresent()) {
+                                continue;
+                            }
+                            final FastBitSet latestTombstoneSet = optionalLatestTombstoneSet.get();
+                            for (final FastBitSet.IntIterator it = latestTombstoneSet.iterator(); it.next(); ) {
+                                final int newDocId = docIdMapping.getNewDocId(segmentId, it.getValue());
+                                if (newDocId >= 0) {
+                                    // If deleted document in the segment is in our new segment (i.e. newDocId is non-negative),
+                                    // we should put it into tombstone set of new segment.
+                                    tombstoneSet.set(newDocId);
+                                }
                             }
                         }
-                    }
-                    if (!tombstoneSet.isEmpty()) {
-                        DynamicFlamdexSegmentUtil.writeTombstoneSet(newSegmentDirectory, tombstoneSet);
-                    }
+                        if (!tombstoneSet.isEmpty()) {
+                            DynamicFlamdexSegmentUtil.writeTombstoneSet(newSegmentDirectory, tombstoneSet);
+                        }
 
-                    indexCommitter.replaceSegmentsAndCommitIfPossible(
-                            FluentIterable.from(segmentsToMerge)
-                                    .transform(MergeStrategy.Segment.SEGMENT_DIRECTORY_GETTER)
-                                    .toList(),
-                            newSegmentDirectory
-                    );
-                } finally {
-                    lock.unlock();
-                }
+                        indexCommitter.replaceSegmentsAndCommitIfPossible(
+                                FluentIterable.from(segmentsToMerge)
+                                        .transform(MergeStrategy.Segment.SEGMENT_DIRECTORY_GETTER)
+                                        .toList(),
+                                newSegmentDirectory
+                        );
+                    }
+                });
             } catch (final Throwable e) {
                 LOG.error("Failed to merge "
                         + Joiner.on(',').join(FluentIterable.from(segmentsToMerge).transform(
@@ -278,7 +280,6 @@ class DynamicFlamdexMerger implements Closeable {
      * Called when we start to merge the segments, with the segments we're going to merge.
      */
     private synchronized void startMerge(@Nonnull final List<MergeStrategy.Segment> segments) {
-
         Preconditions.checkState(Iterables.all(
                 FluentIterable.from(segments).transform(MergeStrategy.Segment.SEGMENT_DIRECTORY_GETTER),
                 Predicates.in(queuedSegments)),
@@ -356,52 +357,47 @@ class DynamicFlamdexMerger implements Closeable {
      * it curiously cause recursion on update() method in the same thread.
      */
     synchronized void updated() throws IOException {
+        indexCommitter.doWhileLockingSegment(new DynamicFlamdexIndexCommitter.CurrentSegmentConsumer() {
+            @Override
+            public void accept(@Nonnull final List<Path> currentSegmentPaths) throws IOException {
+                final List<MergeStrategy.Segment> availableSegments = new ArrayList<>();
+                for (final Path segmentPath : currentSegmentPaths) {
+                    if (!queuedSegments.contains(segmentPath)) {
+                        final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(segmentPath);
+                        availableSegments.add(new MergeStrategy.Segment(segmentPath, metadata.getNumDocs()));
+                    }
+                }
+                final ImmutableList.Builder<List<MergeStrategy.Segment>> splitSegmentsBuilder = ImmutableList.builder();
 
-        final Lock lock = indexCommitter.getChangeSegmentsLock();
-        lock.lock();
-        try {
-            final List<MergeStrategy.Segment> availableSegments = new ArrayList<>();
-            for (final Path segmentPath : indexCommitter.getCurrentSegmentPaths()) {
-                if (!queuedSegments.contains(segmentPath)) {
-                    final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(segmentPath);
-                    availableSegments.add(new MergeStrategy.Segment(segmentPath, metadata.getNumDocs()));
+                for (final Collection<MergeStrategy.Segment> segments : mergeStrategy.splitSegmentsToMerge(new ArrayList<>(availableSegments))) {
+                    if (segments.size() <= 1) {
+                        continue;
+                    }
+
+                    for (final MergeStrategy.Segment segment : segments) {
+                        Preconditions.checkState(availableSegments.remove(segment),
+                                "Same segment is selected twice, or non-available segment is selected.");
+                    }
+                    splitSegmentsBuilder.add(ImmutableList.copyOf(segments));
+                }
+
+                final List<List<MergeStrategy.Segment>> splitSegments = splitSegmentsBuilder.build();
+
+                queuedSegments.addAll(FluentIterable.from(Iterables.concat(splitSegments))
+                        .transform(MergeStrategy.Segment.SEGMENT_DIRECTORY_GETTER)
+                        .toList());
+
+                for (final List<MergeStrategy.Segment> splitSegment : splitSegments) {
+                    try {
+                        futuresForJoin.add(executorService.submit(new MergeTask(splitSegment)));
+                    } catch (final Throwable e) {
+                        LOG.error("Failed to submit merge tasks", e);
+                        queuedSegments.removeAll(FluentIterable.from(splitSegment)
+                                .transform(MergeStrategy.Segment.SEGMENT_DIRECTORY_GETTER)
+                                .toList());
+                    }
                 }
             }
-            final ImmutableList.Builder<List<MergeStrategy.Segment>> splitSegmentsBuilder = ImmutableList.builder();
-
-            for (final Collection<MergeStrategy.Segment> segments : mergeStrategy.splitSegmentsToMerge(new ArrayList<>(availableSegments))) {
-                if (segments.size() <= 1) {
-                    continue;
-                }
-
-                for (final MergeStrategy.Segment segment : segments) {
-                    Preconditions.checkState(availableSegments.remove(segment),
-                            "Same segment is selected twice, or non-available segment is selected.");
-                }
-                splitSegmentsBuilder.add(ImmutableList.copyOf(segments));
-            }
-
-            final List<List<MergeStrategy.Segment>> splitSegments = splitSegmentsBuilder.build();
-
-            queuedSegments.addAll(FluentIterable.from(Iterables.concat(splitSegments))
-                    .transform(MergeStrategy.Segment.SEGMENT_DIRECTORY_GETTER)
-                    .toList());
-
-            for (final List<MergeStrategy.Segment> splitSegment : splitSegments) {
-                try {
-                    futuresForJoin.add(executorService.submit(new MergeTask(splitSegment)));
-                } catch (final Throwable e) {
-                    LOG.error("Failed to submit merge tasks", e);
-                    queuedSegments.removeAll(FluentIterable.from(splitSegment)
-                            .transform(MergeStrategy.Segment.SEGMENT_DIRECTORY_GETTER)
-                            .toList());
-                }
-            }
-        } catch (final Throwable e) {
-            LOG.error("Failed to update merge tasks", e);
-            throw e;
-        } finally {
-            lock.unlock();
-        }
+        });
     }
 }
