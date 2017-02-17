@@ -34,7 +34,7 @@ public final class FileLockUtil {
     }
 
     @Nonnull
-    public static FileChannel lock(final boolean shared, @Nonnull final Path path) throws IOException {
+    private static FileChannel lock(final boolean shared, @Nonnull final Path path) throws IOException {
         Files.createDirectories(path.getParent());
         final FileChannel fileChannel = openChannel(shared, path);
         try {
@@ -44,11 +44,6 @@ public final class FileLockUtil {
             Closeables2.closeQuietly(fileChannel, LOG);
             throw e;
         }
-    }
-
-    @Nonnull
-    public static FileChannel lock(final boolean shared, @Nonnull final Path directory, @Nonnull final String fileName) throws IOException {
-        return lock(shared, directory.resolve(fileName));
     }
 
     @Nonnull
@@ -62,7 +57,7 @@ public final class FileLockUtil {
     }
 
     @Nonnull
-    public static Optional<FileChannel> tryLock(final boolean shared, @Nonnull final Path path) throws IOException {
+    private static Optional<FileChannel> tryLock(final boolean shared, @Nonnull final Path path) throws IOException {
         final FileChannel fileChannel = openChannel(shared, path);
         try {
             final FileLock lock = fileChannel.tryLock(0, Long.MAX_VALUE, shared);
@@ -75,6 +70,11 @@ public final class FileLockUtil {
             Closeables2.closeQuietly(fileChannel, LOG);
             throw e;
         }
+    }
+
+    @Nonnull
+    public static Optional<FileChannel> tryReadLock(@Nonnull final Path path) throws IOException {
+        return tryLock(true, path);
     }
 
     @Nonnull

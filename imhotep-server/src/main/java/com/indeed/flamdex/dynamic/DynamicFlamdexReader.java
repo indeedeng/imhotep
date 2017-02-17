@@ -5,6 +5,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Ordering;
+import com.google.common.io.Closer;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
@@ -20,6 +21,7 @@ import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
+import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -27,26 +29,54 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * FlamdexReader for dynamic shards.
+ * FlamdexReader for dynamic index.
  * The return values of getNumDocs, docFreq(), ... might be wrong because of lazied deletion.
  *
  * @author michihiko
  */
 
 public class DynamicFlamdexReader implements FlamdexReader {
-    private static final Logger LOGGER = Logger.getLogger(DynamicFlamdexReader.class);
+    private static final Logger LOG = Logger.getLogger(DynamicFlamdexReader.class);
 
-    private final Path directory;
+    private final Path indexDirectory;
+    private final Closeable lock;
     private final List<SegmentReader> segmentReaders;
     private final int[] offsets;
 
     public DynamicFlamdexReader(@Nonnull final Path directory) throws IOException {
-        this.directory = directory;
-        this.segmentReaders = DynamicFlamdexMetadataUtil.openSegmentReaders(this.directory);
-        this.offsets = new int[segmentReaders.size() + 1];
-        for (int i = 0; i < segmentReaders.size(); ++i) {
+        final Closer closerOnFailure = Closer.create();
+        try {
+            this.lock = closerOnFailure.register(DynamicFlamdexIndexUtil.acquireReaderLock(directory));
+
+            this.indexDirectory = directory;
+            final ImmutableList.Builder<SegmentReader> segmentReadersBuilder = ImmutableList.builder();
+            for (final Path segmentDirectory : DynamicFlamdexIndexUtil.listSegmentDirectories(directory)) {
+                segmentReadersBuilder.add(closerOnFailure.register(new SegmentReader(segmentDirectory)));
+            }
+            this.segmentReaders = segmentReadersBuilder.build();
+        } catch (final Throwable e) {
+            Closeables2.closeQuietly(closerOnFailure, LOG);
+            throw e;
+        }
+
+        this.offsets = new int[this.segmentReaders.size() + 1];
+        for (int i = 0; i < this.segmentReaders.size(); ++i) {
             this.offsets[i + 1] = this.offsets[i] + this.segmentReaders.get(i).maxNumDocs();
         }
+    }
+
+    DynamicFlamdexReader(@Nonnull final Path directory, @Nonnull final List<SegmentReader> segmentReaders) {
+        this.indexDirectory = directory;
+        this.lock = null;
+        this.segmentReaders = segmentReaders;
+        this.offsets = new int[this.segmentReaders.size() + 1];
+        for (int i = 0; i < this.segmentReaders.size(); ++i) {
+            this.offsets[i + 1] = this.offsets[i] + this.segmentReaders.get(i).maxNumDocs();
+        }
+    }
+
+    int getNumberOfSegments() {
+        return segmentReaders.size();
     }
 
     @Override
@@ -77,7 +107,7 @@ public class DynamicFlamdexReader implements FlamdexReader {
 
     @Override
     public Path getDirectory() {
-        return directory;
+        return indexDirectory;
     }
 
     @Override
@@ -321,6 +351,6 @@ public class DynamicFlamdexReader implements FlamdexReader {
 
     @Override
     public void close() throws IOException {
-        Closeables2.closeAll(segmentReaders, LOGGER);
+        Closeables2.closeAll(LOG, Closeables2.forIterable(LOG, segmentReaders), lock);
     }
 }

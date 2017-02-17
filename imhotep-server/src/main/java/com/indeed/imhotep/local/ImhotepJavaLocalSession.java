@@ -142,7 +142,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
                 buildIntBTrees(directory, Lists.newArrayList(intFields));
                 buildStringBTrees(directory, Lists.newArrayList(stringFields));
             }
-            return new AutoDeletingReader(directory, metadata.numDocs, intFields, stringFields,
+            return new AutoDeletingReader(directory, metadata.getNumDocs(), intFields, stringFields,
                                           config.isUseMMapMetrics(), config.isUseMMapDocIdStream());
         }
 

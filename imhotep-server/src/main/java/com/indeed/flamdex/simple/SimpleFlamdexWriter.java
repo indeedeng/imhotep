@@ -24,6 +24,7 @@ import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.StringTermIterator;
+import com.indeed.flamdex.reader.FlamdexFormatVersion;
 import com.indeed.flamdex.reader.FlamdexMetadata;
 import com.indeed.flamdex.utils.FlamdexUtils;
 import com.indeed.flamdex.writer.FlamdexWriter;
@@ -72,11 +73,9 @@ import java.util.UUID;
 public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
     private static final Logger log = Logger.getLogger(SimpleFlamdexWriter.class);
 
-    public static final int FORMAT_VERSION = 0;
-
     private static final int DOC_ID_BUFFER_SIZE = 32;
 
-    private static final int BLOCK_SIZE = 64;    
+    private static final int BLOCK_SIZE = 64;
 
     private final Path outputDirectory;
     private long maxDocs;
@@ -127,21 +126,21 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
             stringFields = new HashSet<String>();
         } else {
             final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(outputDirectory);
-            if (metadata.numDocs != numDocs) {
+            if (metadata.getNumDocs() != numDocs) {
                 throw new IllegalArgumentException(
                         "numDocs (" + numDocs + ") does not match numDocs in "
-                                + "existing index (" + metadata.numDocs + ")");
+                                + "existing index (" + metadata.getNumDocs() + ")");
             }
-            intFields = new HashSet<String>(metadata.intFields);
-            stringFields = new HashSet<String>(metadata.stringFields);
+            intFields = new HashSet<String>(metadata.getIntFields());
+            stringFields = new HashSet<String>(metadata.getStringFields());
         }
     }
-    
+
     @Override
     public Path getOutputDirectory() {
         return this.outputDirectory;
     }
-    
+
     public void resetMaxDocs(long numDocs) {
         this.maxDocs = numDocs;
     }
@@ -189,7 +188,7 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
         final FlamdexMetadata metadata = new FlamdexMetadata((int) maxDocs,
                                                              intFieldsList,
                                                              stringFieldsList,
-                                                             FORMAT_VERSION);
+                                                             FlamdexFormatVersion.SIMPLE);
         FlamdexMetadata.writeMetadata(outputDirectory, metadata);
     }
 

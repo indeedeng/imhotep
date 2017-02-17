@@ -12,10 +12,9 @@ import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.StringValueLookup;
 import com.indeed.flamdex.api.TermIterator;
 import com.indeed.flamdex.datastruct.FastBitSet;
-import com.indeed.flamdex.dynamic.locks.MultiThreadLock;
 import com.indeed.flamdex.query.Query;
+import com.indeed.flamdex.reader.GenericFlamdexReader;
 import com.indeed.flamdex.search.FlamdexSearcher;
-import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
@@ -34,35 +33,30 @@ import java.util.Collection;
 class SegmentReader implements FlamdexReader {
     private static final Logger LOG = Logger.getLogger(SegmentReader.class);
 
-    private final SegmentInfo segmentInfo;
     private final FlamdexReader flamdexReader;
-    private final Optional<FastBitSet> tombstoneSet;
-    private final MultiThreadLock segmentReaderLock;
+    private final FastBitSet tombstoneSet;
 
-    SegmentReader(@Nonnull final SegmentInfo segmentInfo) throws IOException {
-        this.segmentInfo = segmentInfo;
-        this.flamdexReader = SimpleFlamdexReader.open(this.segmentInfo.getDirectory());
-        this.segmentReaderLock = this.segmentInfo.acquireReaderLock();
-        this.tombstoneSet = this.segmentInfo.readTombstoneSet();
+    SegmentReader(@Nonnull final Path segmentDirectory) throws IOException {
+        this.flamdexReader = GenericFlamdexReader.open(segmentDirectory);
+        this.tombstoneSet = DynamicFlamdexSegmentUtil.readTombstoneSet(segmentDirectory).orNull();
     }
 
-    @Nonnull
-    SegmentInfo getSegmentInfo() {
-        return this.segmentInfo;
+    boolean isDeleted(final int docId) {
+        return (tombstoneSet != null) && tombstoneSet.get(docId);
     }
 
     @Nonnull
     Optional<FastBitSet> getUpdatedTombstoneSet(@Nonnull final Query query) {
         final FlamdexSearcher flamdexSearcher = new FlamdexSearcher(flamdexReader);
         final FastBitSet newTombstoneSet = flamdexSearcher.search(query);
-        if (!this.tombstoneSet.isPresent()) {
+        if (tombstoneSet == null) {
             if (newTombstoneSet.isEmpty()) {
                 return Optional.absent();
             }
             return Optional.of(newTombstoneSet);
         }
-        final int pre = tombstoneSet.get().cardinality();
-        newTombstoneSet.or(tombstoneSet.get());
+        final int pre = tombstoneSet.cardinality();
+        newTombstoneSet.or(tombstoneSet);
         final int post = newTombstoneSet.cardinality();
         if (pre == post) {
             return Optional.absent();
@@ -73,7 +67,7 @@ class SegmentReader implements FlamdexReader {
 
     @Override
     public void close() throws IOException {
-        Closeables2.closeAll(LOG, flamdexReader, segmentReaderLock);
+        Closeables2.closeAll(LOG, flamdexReader);
     }
 
     @Override
@@ -131,7 +125,7 @@ class SegmentReader implements FlamdexReader {
                     }
                     final int docId = internalBuffer[bufferPos];
                     bufferPos++;
-                    if (!tombstoneSet.isPresent() || !tombstoneSet.get().get(docId)) {
+                    if ((tombstoneSet == null) || !tombstoneSet.get(docId)) {
                         docIdBuffer[numFilled] = docId;
                         numFilled++;
                     }

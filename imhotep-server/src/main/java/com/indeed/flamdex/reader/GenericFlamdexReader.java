@@ -11,10 +11,9 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.indeed.flamdex.reader;
+package com.indeed.flamdex.reader;
 
 import com.google.common.base.Throwables;
-import com.indeed.flamdex.fieldcache.FieldCacherUtil;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
@@ -27,22 +26,19 @@ import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.StringValueLookup;
+import com.indeed.flamdex.dynamic.DynamicFlamdexReader;
+import com.indeed.flamdex.fieldcache.FieldCacherUtil;
 import com.indeed.flamdex.fieldcache.IntArrayIntValueLookup;
 import com.indeed.flamdex.lucene.LuceneFlamdexReader;
 import com.indeed.flamdex.ramses.RamsesFlamdexWrapper;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.flamdex.utils.FlamdexUtils;
-
 import org.apache.log4j.Logger;
-import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.ParallelReader;
 
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.nio.file.DirectoryStream;
-import java.nio.file.Path;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
 
@@ -82,8 +78,8 @@ public final class GenericFlamdexReader implements FlamdexReader {
         return open(Paths.get(directory));
     }
 
-    public static FlamdexReader open (Path directory) throws IOException {
-            final FlamdexReader r = internalOpen(directory);
+    public static FlamdexReader open(Path directory) throws IOException {
+        final FlamdexReader r = internalOpen(directory);
         if (RamsesFlamdexWrapper.ramsesFilesExist(directory)) {
             return new RamsesFlamdexWrapper(r, directory);
         }
@@ -106,21 +102,22 @@ public final class GenericFlamdexReader implements FlamdexReader {
         }
 
         final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(directory);
-        switch (metadata.getFormatVersion()) {
-            case 0 :
+        switch (metadata.getFlamdexFormatVersion()) {
+            case SIMPLE:
                 return SimpleFlamdexReader.open(directory);
-            case 1 :
+            case PFORDELTA:
                 throw new UnsupportedOperationException("pfordelta is no longer supported");
-            case 2 : 
+            case LUCENE:
                 return new LuceneFlamdexReader(directory,
-                                               metadata.getIntFields(),
-                                               metadata.getStringFields());
+                        metadata.getIntFields(),
+                        metadata.getStringFields());
+            case DYNAMIC:
+                return new DynamicFlamdexReader(directory);
             default:
                 throw new IllegalArgumentException(
-                        "index format version " + metadata.getFormatVersion() + " not supported");
+                        "GenericFlamdexReader doesn't support " + metadata.getFlamdexFormatVersion().toString() + ".");
         }
     }
-
 
     /**
      * use {@link #open(Path, GenericFlamdexFactory)} instead
@@ -135,10 +132,10 @@ public final class GenericFlamdexReader implements FlamdexReader {
             throws IOException {
         final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(directory);
         return new GenericFlamdexReader(directory,
-                                        factory,
-                                        metadata.numDocs,
-                                        metadata.intFields,
-                                        metadata.stringFields);
+                factory,
+                metadata.getNumDocs(),
+                metadata.getIntFields(),
+                metadata.getStringFields());
     }
 
     @Override

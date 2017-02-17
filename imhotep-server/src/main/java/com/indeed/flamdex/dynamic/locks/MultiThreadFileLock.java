@@ -15,7 +15,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 /**
  * FileLock for multi-process multi-thread.
  * Please use from {@link MultiThreadFileLockUtil}.
- * - tryReadLock isn't implemented yet.
  * - ordering policy is a bit weird;
  * even if there is another process that read-locking a file,
  * read-lock might be blocked by a thread in the same process which is waiting for write-lock
@@ -63,7 +62,7 @@ class MultiThreadFileLock {
             } finally {
                 fileAccessLock.unlock();
             }
-        } catch (final IOException e) {
+        } catch (final Throwable e) {
             lock.unlock();
             throw e;
         }
@@ -131,6 +130,33 @@ class MultiThreadFileLock {
     }
 
     @Nonnull
+    Optional<MultiThreadLock> tryReadLock() throws IOException {
+        final Lock lock = processLocalLock.readLock();
+        if (!lock.tryLock()) {
+            return Optional.absent();
+        }
+        try {
+            if (fileAccessLock.tryLock()) {
+                try {
+                    if (!fileLock.isPresent()) {
+                        fileLock = FileLockUtil.tryReadLock(path);
+                    }
+                    if (fileLock.isPresent()) {
+                        return Optional.<MultiThreadLock>of(new MultiThreadLockImpl(true, lock));
+                    }
+                } finally {
+                    fileAccessLock.unlock();
+                }
+            }
+            lock.unlock();
+            return Optional.absent();
+        } catch (final Throwable e) {
+            lock.unlock();
+            throw e;
+        }
+    }
+
+    @Nonnull
     Optional<MultiThreadLock> tryWriteLock() throws IOException {
         final Lock lock = processLocalLock.writeLock();
         if (!lock.tryLock()) {
@@ -139,12 +165,12 @@ class MultiThreadFileLock {
         Preconditions.checkState(!fileLock.isPresent());
         try {
             fileLock = FileLockUtil.tryWriteLock(path);
-        } catch (final IOException e) {
+        } catch (final Throwable e) {
             lock.unlock();
             throw e;
         }
         if (fileLock.isPresent()) {
-            return Optional.of((MultiThreadLock) new MultiThreadLockImpl(false, lock));
+            return Optional.<MultiThreadLock>of(new MultiThreadLockImpl(false, lock));
         } else {
             lock.unlock();
             return Optional.absent();

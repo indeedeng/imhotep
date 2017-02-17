@@ -18,6 +18,7 @@ import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.StringTermIterator;
+import com.indeed.flamdex.reader.FlamdexFormatVersion;
 import com.indeed.flamdex.reader.FlamdexMetadata;
 
 import java.io.Closeable;
@@ -44,16 +45,16 @@ public final class GenericFlamdexWriter implements FlamdexWriter {
 
     private long maxDocs;
 
-    private final int formatVersion;
+    private final FlamdexFormatVersion formatVersion;
 
     private final Set<String> intFields;
     private final Set<String> stringFields;
 
-    public GenericFlamdexWriter(Path outputDirectory, IntFieldWriterFactory intFieldWriterFactory, StringFieldWriterFactory stringFieldWriterFactory, long numDocs, int formatVersion) throws IOException {
+    public GenericFlamdexWriter(Path outputDirectory, IntFieldWriterFactory intFieldWriterFactory, StringFieldWriterFactory stringFieldWriterFactory, long numDocs, final FlamdexFormatVersion formatVersion) throws IOException {
         this(outputDirectory, intFieldWriterFactory, stringFieldWriterFactory, numDocs, formatVersion, true);
     }
 
-    public GenericFlamdexWriter(Path outputDirectory, IntFieldWriterFactory intFieldWriterFactory, StringFieldWriterFactory stringFieldWriterFactory, long numDocs, int formatVersion, boolean create) throws IOException {
+    public GenericFlamdexWriter(Path outputDirectory, IntFieldWriterFactory intFieldWriterFactory, StringFieldWriterFactory stringFieldWriterFactory, long numDocs, final FlamdexFormatVersion formatVersion, boolean create) throws IOException {
         this.outputDirectory = outputDirectory;
         this.intFieldWriterFactory = intFieldWriterFactory;
         this.stringFieldWriterFactory = stringFieldWriterFactory;
@@ -64,11 +65,11 @@ public final class GenericFlamdexWriter implements FlamdexWriter {
             stringFields = new HashSet<String>();
         } else {
             final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(outputDirectory);
-            if (metadata.numDocs != numDocs) {
+            if (metadata.getNumDocs() != numDocs) {
                 throw new IllegalArgumentException("numDocs does not match numDocs in existing index");
             }
-            intFields = new HashSet<String>(metadata.intFields);
-            stringFields = new HashSet<String>(metadata.stringFields);
+            intFields = new HashSet<String>(metadata.getIntFields());
+            stringFields = new HashSet<String>(metadata.getStringFields());
         }
     }
 
@@ -120,7 +121,7 @@ public final class GenericFlamdexWriter implements FlamdexWriter {
         FlamdexMetadata.writeMetadata(outputDirectory, metadata);
     }
 
-    public static void writeFlamdex(final Path indexDir, final FlamdexReader fdx, final IntFieldWriterFactory intFieldWriterFactory, final StringFieldWriterFactory stringFieldWriterFactory, int formatVersion,
+    public static void writeFlamdex(final Path indexDir, final FlamdexReader fdx, final IntFieldWriterFactory intFieldWriterFactory, final StringFieldWriterFactory stringFieldWriterFactory, final FlamdexFormatVersion formatVersion,
                                     final List<String> intFields, final List<String> stringFields) throws IOException {
         try (Closer closer = Closer.create()) {
             final DocIdStream dis = fdx.getDocIdStream();

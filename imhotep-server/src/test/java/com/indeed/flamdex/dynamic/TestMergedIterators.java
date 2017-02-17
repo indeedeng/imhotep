@@ -29,25 +29,10 @@ import static org.junit.Assert.assertTrue;
 public class TestMergedIterators {
 
     @Nonnull
-    private FlamdexDocument makeDocument(final int n) {
-        final FlamdexDocument.Builder builder = new FlamdexDocument.Builder();
-        builder.addIntTerm("original", n);
-        builder.addIntTerm("mod2i", n % 2);
-        builder.addIntTerm("mod3i", n % 3);
-        builder.addStringTerm("mod5s", Integer.toString(n % 5));
-        builder.addIntTerms("mod7mod11i", n % 7, n % 11);
-        builder.addStringTerms("mod7mod11s", Integer.toString(n % 7), Integer.toString(n % 11));
-        if (((n % 3) != 0) && ((n % 5) != 0)) {
-            builder.addIntTerms("mod3mod5i_nonzero", n % 3, n % 5);
-        }
-        return builder.build();
-    }
-
-    @Nonnull
     private List<FlamdexDocument> buildDocuments(final int n) {
         final ImmutableList.Builder<FlamdexDocument> documentsBuilder = ImmutableList.builder();
         for (int i = 0; i < n; ++i) {
-            documentsBuilder.add(makeDocument(i));
+            documentsBuilder.add(DynamicFlamdexTestUtils.makeDocument(i));
         }
         return documentsBuilder.build();
     }
@@ -134,6 +119,7 @@ public class TestMergedIterators {
         }
     }
 
+    @SuppressWarnings("JUnitTestMethodWithNoAssertions")
     @Test
     public void testMergedDocIdStream() throws IOException, FlamdexOutOfMemoryException {
         final List<FlamdexDocument> documents = buildDocuments(NUM_DOCS);

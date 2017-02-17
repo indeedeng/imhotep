@@ -115,7 +115,7 @@ public class SimpleFlamdexReader
             buildIntBTrees(directory, Lists.newArrayList(intFields));
             buildStringBTrees(directory, Lists.newArrayList(stringFields));
         }
-        return new SimpleFlamdexReader(directory, metadata.numDocs, intFields, stringFields,
+        return new SimpleFlamdexReader(directory, metadata.getNumDocs(), intFields, stringFields,
                 config.useMMapMetrics, config.useMMapDocIdStream);
     }
 
