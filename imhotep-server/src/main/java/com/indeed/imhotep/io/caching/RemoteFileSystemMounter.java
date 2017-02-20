@@ -17,6 +17,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -122,7 +123,7 @@ public class RemoteFileSystemMounter {
 //                fs = new CachedRemoteFileSystem(fsConfig, previous, this);
                 continue;
             } else if (type.equals("HDFS")) {
-                fs = new HDFSRemoteFileSystem(fsConfig);
+                fs = new HDFSRemoteFileSystem(fsConfig, this);
             } else if (type.equals("SQAR_AUTOMOUNTING")) {
                 fs = new SqarAutomountingRemoteFileSystem(fsConfig, previous, this);
             } else {
