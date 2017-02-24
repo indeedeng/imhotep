@@ -4,12 +4,12 @@
 	<parent>
 		<groupId>com.indeed</groupId>
 		<artifactId>imhotep</artifactId>
-		<version>1.0.10-SNAPSHOT</version>
+		<version>1.0.11-SNAPSHOT</version>
 	</parent>
 
 	<groupId>com.indeed</groupId>
 	<artifactId>imhotep-server</artifactId>
-	<version>1.0.10-SNAPSHOT</version>
+	<version>1.0.11-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
 	<licenses>
@@ -132,7 +132,7 @@
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk</artifactId>
-			<version>1.7.11</version>
+			<version>1.7.14</version><!-- in sync with hadoop 2.6.0-cdh5.4.7 -->
 		</dependency>
     
         <dependency>
@@ -167,6 +167,13 @@
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>commons-io</groupId>
+			<artifactId>commons-io</artifactId>
+			<version>1.4</version>
+		</dependency>
+
+
 	</dependencies>
 
 	<properties>
@@ -179,7 +186,7 @@
 		<lucene.version>2.4.1</lucene.version>
 		<joda-time.version>2.0</joda-time.version>
 		<snakeyaml.version>1.10</snakeyaml.version>
-		<zookeeper.version>3.4.5-cdh4.4.0</zookeeper.version>
+		<zookeeper.version>3.4.5-cdh5.4.7</zookeeper.version>
 		<automaton.version>1.11-8</automaton.version>
 
 		<!-- releases of our own projects to use -->
