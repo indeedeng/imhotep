@@ -16,7 +16,7 @@
 import com.google.common.base.Charsets;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
-import org.yaml.snakeyaml.constructor.Constructor;
+import org.yaml.snakeyaml.constructor.CustomClassLoaderConstructor;
 import org.yaml.snakeyaml.nodes.Tag;
 
 import java.io.IOException;
@@ -97,7 +97,7 @@ public class FlamdexMetadata {
     }
 
     public static FlamdexMetadata readMetadata(final Path directory) throws IOException {
-        final Yaml loader = new Yaml(new Constructor(FlamdexMetadata.class));
+        final Yaml loader = new Yaml(new CustomClassLoaderConstructor(FlamdexMetadata.class, FlamdexMetadata.class.getClassLoader()));
 
         final String metadata = new String(Files.readAllBytes(directory.resolve("metadata.txt")), Charsets.UTF_8);
         return loader.loadAs(metadata, FlamdexMetadata.class);
