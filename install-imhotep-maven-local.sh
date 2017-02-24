@@ -1,6 +1,6 @@
 #!/bin/bash
 AWS="https://s3-us-west-2.amazonaws.com/indeedeng-imhotep-build"
-VERSION=`curl -s $AWS | egrep -o "imhotep-server-[0-9\.]+(-\w+)?.jar" | head -1 | egrep -o "([0-9]+\.?)+(-\w+)"`
+VERSION=`curl -s $AWS | egrep -o "imhotep-server-[0-9\.]+(-\w+)?.jar" | tail -1 | egrep -o "([0-9]+\.?)+(-\w+)"`
 
 function install_maven {
 	artifact=$1
