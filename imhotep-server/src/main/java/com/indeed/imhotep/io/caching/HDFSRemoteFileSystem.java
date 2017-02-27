@@ -51,6 +51,10 @@ public class HDFSRemoteFileSystem extends RemoteFileSystem {
                 hdfsBasePath = new Path("/var/imhotep/");
             }
 
+            String kerbPrincipal = (String) settings.get("kerberos.principal");
+            String kerbKeytab = (String) settings.get("kerberos.keytab");
+            KerberosUtils.loginFromKeytab(kerbPrincipal, kerbKeytab);
+
             fs = FileSystem.get(new Configuration());
             log.info("Using path " + hdfsBasePath + " on file system: " + fs);
         } catch (URISyntaxException e) {
