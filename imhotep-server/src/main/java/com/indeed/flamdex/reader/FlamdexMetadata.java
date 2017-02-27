@@ -97,6 +97,9 @@ public class FlamdexMetadata {
     }
 
     public static FlamdexMetadata readMetadata(final Path directory) throws IOException {
+        // Pass the class loader to the constructor, to avoid getting a "class FlamdexMetadata not found exception".
+        // The exception happens because, on the workers, the YAML parser does not know how to create an instance of
+        // FlamdexMetadata because of version mismatch caused by the presence of many jars.
         final Yaml loader = new Yaml(new CustomClassLoaderConstructor(FlamdexMetadata.class, FlamdexMetadata.class.getClassLoader()));
 
         final String metadata = new String(Files.readAllBytes(directory.resolve("metadata.txt")), Charsets.UTF_8);
