@@ -6,6 +6,8 @@ permalink: /docs/quick-start/
 
 This section guides you through the process of configuring an Imhotep cluster on AWS, uploading your data files, and exploring your data in Imhotep using Imhotep Query Language (IQL).
 
+If you prefer to run an evaluation Imhotep stack using Docker, follow the instructions in the [imhotep-docker README](https://github.com/indeedeng/imhotep-docker/blob/master/README.md).
+
 ##Creating a Cluster on AWS
 
 ###Prerequisites
