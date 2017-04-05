@@ -1,20 +1,26 @@
 package com.indeed.imhotep.api;
 
+import org.apache.log4j.Logger;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 public class GroupStatsIteratorCombiner implements GroupStatsIterator {
-    public GroupStatsIteratorCombiner( GroupStatsIterator[] stats_ ) {
-        this.stats = new ArrayList<GroupStatsIterator>();
-        for( GroupStatsIterator stat : stats_ ) {
+
+    private static Logger log = Logger.getLogger( GroupStatsIteratorCombiner.class);
+
+    public GroupStatsIteratorCombiner( final GroupStatsIterator[] stats ) {
+        this.stats = new ArrayList<>();
+        for( final GroupStatsIterator stat : stats ) {
             if( stat.hasNext() ) {
                 this.stats.add( stat );
             } else {
                 try {
                     stat.close();
-                } catch( IOException ex ) {
-                    //log
+                } catch( final IOException ex ) {
+                    log.error("Error while closing GroupStatsIterator");
                 }
             }
         }
@@ -23,11 +29,15 @@ public class GroupStatsIteratorCombiner implements GroupStatsIterator {
 
     @Override
     public boolean hasNext() {
-        return stats.size() > 0;
+        return !stats.isEmpty();
     }
 
     @Override
-    public long nextLong() {
+    public long nextLong() throws NoSuchElementException {
+
+        if( stats.isEmpty() ) {
+            throw new NoSuchElementException();
+        }
 
         long result = 0;
         int count = stats.size();
@@ -48,20 +58,20 @@ public class GroupStatsIteratorCombiner implements GroupStatsIterator {
     }
 
     @Override
-    public Long next() {
+    public Long next() throws NoSuchElementException {
         return nextLong();
     }
 
     @Override
-    public int skip( int skipCount ) {
-        if( stats.size() == 0 ) {
+    public int skip( final int count ) {
+        if( stats.isEmpty() ) {
             return 0;
         }
-        skipCount = stats.get(0).skip(skipCount);
+        int skipCount = stats.get(0).skip(count);
         for( int i = 1; i < stats.size(); i++ ) {
-            int skipped = stats.get( i ).skip( skipCount );
+            final int skipped = stats.get( i ).skip( skipCount );
             if( skipped < skipCount ) {
-                //log
+                log.warn("Can't skip " + skipCount + " bytes. Only " + skipped + " bytes skipped.");
                 skipCount = skipped;
             }
         }
@@ -71,7 +81,7 @@ public class GroupStatsIteratorCombiner implements GroupStatsIterator {
 
     @Override
     public void remove() {
-        for( GroupStatsIterator stat : stats ) {
+        for( final GroupStatsIterator stat : stats ) {
             stat.remove();
         }
     }
@@ -79,11 +89,11 @@ public class GroupStatsIteratorCombiner implements GroupStatsIterator {
     @Override
     public void close(){
 
-        for( GroupStatsIterator stat : stats ) {
+        for( final GroupStatsIterator stat : stats ) {
             try {
                 stat.close();
-            } catch( IOException ex ) {
-                //log
+            } catch( final IOException ex ) {
+                log.error("Error while closing GroupStatsIterator");
             }
         }
     }
