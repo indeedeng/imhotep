@@ -21,6 +21,8 @@ import com.indeed.flamdex.query.Query;
 import com.indeed.flamdex.query.Term;
 import com.indeed.imhotep.api.DocIterator;
 import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.api.GroupStatsIterator;
+import com.indeed.imhotep.api.GroupStatsIteratorCombiner;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.RawFTGSIterator;
@@ -211,6 +213,19 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
             }
         }
         return totalStats;
+    }
+
+    @Override
+    public GroupStatsIterator getGroupStatsIterator(final int stat) {
+        GroupStatsIterator[] statsBuffer = new GroupStatsIterator[sessions.length];
+        executeRuntimeException(statsBuffer, new ThrowingFunction<ImhotepSession, GroupStatsIterator>() {
+            @Override
+            public GroupStatsIterator apply(ImhotepSession session) throws Exception {
+                return session.getGroupStatsIterator(stat);
+            }
+        });
+
+        return new GroupStatsIteratorCombiner( statsBuffer );
     }
 
     @Override

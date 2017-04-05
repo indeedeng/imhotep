@@ -26,6 +26,8 @@ import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.Instrumentation.Keys;
 import com.indeed.imhotep.api.DocIterator;
 import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.api.GroupStatsDummyIterator;
+import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.HasSessionId;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.RawFTGSIterator;
@@ -330,6 +332,11 @@ public class ImhotepRemoteSession
         }
         timer.complete(request);
         return ret;
+    }
+
+    @Override
+    public GroupStatsIterator getGroupStatsIterator(int stat) {
+        return new GroupStatsDummyIterator( this.getGroupStats(stat) );
     }
 
     @Override
