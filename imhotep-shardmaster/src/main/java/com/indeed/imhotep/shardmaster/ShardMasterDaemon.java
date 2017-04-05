@@ -20,6 +20,7 @@ import com.indeed.imhotep.shardmaster.rpc.RequestMetricStatsEmitter;
 import com.indeed.imhotep.shardmaster.rpc.RequestResponseServer;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.KeeperException;
 import org.joda.time.Duration;
@@ -61,7 +62,7 @@ public class ShardMasterDaemon {
         final Timer timer = new Timer(DatasetShardAssignmentRefresher.class.getSimpleName());
 
         final HostsReloader hostsReloader;
-        if (config.isUseStaticHosts()) {
+        if (config.hasHostsOverride()) {
             hostsReloader = config.createStaticHostReloader();
         } else {
             hostsReloader = new CheckpointedHostsReloader(
@@ -160,8 +161,7 @@ public class ShardMasterDaemon {
         private String dbFile;
         private String dbParams = "MULTI_THREADED=TRUE;CACHE_SIZE=" + (1024 * 1024);
         private String hostsFile;
-        private boolean useStaticHosts = false;
-        private String staticHosts;
+        private String hostsOverride;
         private ShardFilter shardFilter = ShardFilter.ACCEPT_ALL;
         private int servicePort = 0;
         private int serviceConcurrency = 10;
@@ -204,13 +204,8 @@ public class ShardMasterDaemon {
             return this;
         }
 
-        public Config setUseStaticHosts(final boolean useStaticHosts) {
-            this.useStaticHosts = useStaticHosts;
-            return this;
-        }
-
-        public Config setStaticHosts(final String staticHosts) {
-            this.staticHosts = staticHosts;
+        public Config setHostsOverride(final String hostsOverride) {
+            this.hostsOverride = hostsOverride;
             return this;
         }
 
@@ -269,8 +264,8 @@ public class ShardMasterDaemon {
             return this;
         }
 
-        boolean isUseStaticHosts() {
-            return useStaticHosts;
+        boolean hasHostsOverride() {
+            return StringUtils.isNotBlank(hostsOverride);
         }
 
         HostsReloader createZkHostsReloader() {
@@ -279,9 +274,9 @@ public class ShardMasterDaemon {
         }
 
         HostsReloader createStaticHostReloader() throws IOException {
-            Preconditions.checkNotNull(staticHosts, "Static hosts config is missing");
+            Preconditions.checkNotNull(hostsOverride, "Static hosts config is missing");
             final ImmutableList.Builder<Host> hostsBuilder = ImmutableList.builder();
-            for (final String hostString : staticHosts.split(",")) {
+            for (final String hostString : hostsOverride.split(",")) {
                 try {
                     final Host host = Host.valueOf(hostString.trim());
                     hostsBuilder.add(host);
