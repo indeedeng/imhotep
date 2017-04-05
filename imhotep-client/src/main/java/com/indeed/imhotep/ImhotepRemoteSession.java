@@ -51,6 +51,7 @@ import com.indeed.imhotep.protobuf.ShardInfoMessage;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
 import com.indeed.imhotep.service.InputStreamDocIterator;
 import com.indeed.util.core.Throwables2;
+import it.unimi.dsi.fastutil.longs.LongIterators;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
@@ -336,7 +337,7 @@ public class ImhotepRemoteSession
 
     @Override
     public GroupStatsIterator getGroupStatsIterator(int stat) {
-        return new GroupStatsDummyIterator( this.getGroupStats(stat) );
+        return new GroupStatsDummyIterator(LongIterators.wrap(this.getGroupStats(stat)));
     }
 
     @Override

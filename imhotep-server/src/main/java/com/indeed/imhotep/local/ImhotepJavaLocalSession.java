@@ -30,6 +30,7 @@ import com.indeed.imhotep.service.CachedFlamdexReader;
 import com.indeed.imhotep.service.RawCachedFlamdexReader;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.core.shell.PosixFileOperations;
+import it.unimi.dsi.fastutil.longs.LongIterators;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
@@ -432,7 +433,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
 
     @Override
     public synchronized GroupStatsIterator getGroupStatsIterator(int stat) {
-        return new GroupStatsDummyIterator( this.getGroupStats(stat) );
+        return new GroupStatsDummyIterator(LongIterators.wrap(this.getGroupStats(stat)));
     }
 
     private static void updateGroupStatsAllDocs(IntValueLookup statLookup,

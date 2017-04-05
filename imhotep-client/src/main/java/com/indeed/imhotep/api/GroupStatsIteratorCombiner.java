@@ -8,7 +8,7 @@ public class GroupStatsIteratorCombiner implements GroupStatsIterator {
     public GroupStatsIteratorCombiner( GroupStatsIterator[] stats_ ) {
         this.stats = new ArrayList<GroupStatsIterator>();
         for( GroupStatsIterator stat : stats_ ) {
-            if( stat.HasNext() ) {
+            if( stat.hasNext() ) {
                 this.stats.add( stat );
             } else {
                 try {
@@ -22,19 +22,19 @@ public class GroupStatsIteratorCombiner implements GroupStatsIterator {
     }
 
     @Override
-    public boolean HasNext() {
+    public boolean hasNext() {
         return stats.size() > 0;
     }
 
     @Override
-    public long Next() {
+    public long nextLong() {
 
         long result = 0;
         int count = stats.size();
         int index = 0;
         while( index < count ) {
-            result += stats.get(index).Next();
-            if( stats.get(index).HasNext() ) {
+            result += stats.get(index).nextLong();
+            if( stats.get(index).hasNext() ) {
                 index++;
             } else {
                 // delete later???
@@ -48,7 +48,36 @@ public class GroupStatsIteratorCombiner implements GroupStatsIterator {
     }
 
     @Override
-    public void close() throws IOException {
+    public Long next() {
+        return nextLong();
+    }
+
+    @Override
+    public int skip( int skipCount ) {
+        if( stats.size() == 0 ) {
+            return 0;
+        }
+        skipCount = stats.get(0).skip(skipCount);
+        for( int i = 1; i < stats.size(); i++ ) {
+            int skipped = stats.get( i ).skip( skipCount );
+            if( skipped < skipCount ) {
+                //log
+                skipCount = skipped;
+            }
+        }
+
+        return skipCount;
+    }
+
+    @Override
+    public void remove() {
+        for( GroupStatsIterator stat : stats ) {
+            stat.remove();
+        }
+    }
+
+    @Override
+    public void close(){
 
         for( GroupStatsIterator stat : stats ) {
             try {

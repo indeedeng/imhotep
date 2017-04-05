@@ -1,27 +1,42 @@
 package com.indeed.imhotep.api;
 
+import it.unimi.dsi.fastutil.longs.LongIterator;
+
 public class GroupStatsDummyIterator implements GroupStatsIterator {
-    public GroupStatsDummyIterator( long[] stats_ ) {
-        stats = stats_;
+    public GroupStatsDummyIterator( LongIterator iterator ) {
+        this.iterator = iterator;
     }
 
     @Override
-    public boolean HasNext() {
-        return stats != null && index < stats.length;
+    public boolean hasNext() {
+        return iterator != null && iterator.hasNext();
     }
 
     @Override
-    public long Next() {
-        return stats[index++];
+    public long nextLong() {
+        return iterator.nextLong();
+    }
+
+    @Override
+    public Long next() {
+        return iterator.next();
+    }
+
+    @Override
+    public int skip( int val ) {
+        return iterator.skip( val );
+    }
+
+    @Override
+    public void remove() {
+        iterator.remove();
     }
 
     @Override
     public void close() {
-        stats = null;
-        index = 0;
+        iterator = null;
     }
 
-    private int index = 0;
-    private long[] stats;
+    private LongIterator iterator;
 }
 
