@@ -2,10 +2,12 @@ package com.indeed.imhotep.shardmaster;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.collect.ImmutableList;
 import com.google.common.io.Closer;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.indeed.imhotep.ZkEndpointPersister;
 import com.indeed.imhotep.client.CheckpointedHostsReloader;
+import com.indeed.imhotep.client.DummyHostsReloader;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.client.HostsReloader;
 import com.indeed.imhotep.client.ZkHostsReloader;
@@ -18,6 +20,7 @@ import com.indeed.imhotep.shardmaster.rpc.RequestMetricStatsEmitter;
 import com.indeed.imhotep.shardmaster.rpc.RequestResponseServer;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.KeeperException;
 import org.joda.time.Duration;
@@ -58,10 +61,15 @@ public class ShardMasterDaemon {
         final ExecutorService executorService = config.createExecutorService();
         final Timer timer = new Timer(DatasetShardAssignmentRefresher.class.getSimpleName());
 
-        final HostsReloader hostsReloader = new CheckpointedHostsReloader(
-                new File(config.getHostsFile()),
-                config.createHostsReloader(),
-                config.getHostsDropThreshold());
+        final HostsReloader hostsReloader;
+        if (config.hasHostsOverride()) {
+            hostsReloader = config.createStaticHostReloader();
+        } else {
+            hostsReloader = new CheckpointedHostsReloader(
+                    new File(config.getHostsFile()),
+                    config.createZkHostsReloader(),
+                    config.getHostsDropThreshold());
+        }
 
         try (Closer closer = Closer.create()) {
             final ShardAssignmentInfoDao shardAssignmentInfoDao;
@@ -153,6 +161,7 @@ public class ShardMasterDaemon {
         private String dbFile;
         private String dbParams = "MULTI_THREADED=TRUE;CACHE_SIZE=" + (1024 * 1024);
         private String hostsFile;
+        private String hostsOverride;
         private ShardFilter shardFilter = ShardFilter.ACCEPT_ALL;
         private int servicePort = 0;
         private int serviceConcurrency = 10;
@@ -192,6 +201,11 @@ public class ShardMasterDaemon {
 
         public Config setHostsFile(final String hostsFile) {
             this.hostsFile = hostsFile;
+            return this;
+        }
+
+        public Config setHostsOverride(final String hostsOverride) {
+            this.hostsOverride = hostsOverride;
             return this;
         }
 
@@ -250,9 +264,27 @@ public class ShardMasterDaemon {
             return this;
         }
 
-        HostsReloader createHostsReloader() {
+        boolean hasHostsOverride() {
+            return StringUtils.isNotBlank(hostsOverride);
+        }
+
+        HostsReloader createZkHostsReloader() {
             Preconditions.checkNotNull(zkNodes, "ZooKeeper nodes config is missing");
             return new ZkHostsReloader(zkNodes, imhotepDaemonsZkPath, false);
+        }
+
+        HostsReloader createStaticHostReloader() throws IOException {
+            Preconditions.checkNotNull(hostsOverride, "Static hosts config is missing");
+            final ImmutableList.Builder<Host> hostsBuilder = ImmutableList.builder();
+            for (final String hostString : hostsOverride.split(",")) {
+                try {
+                    final Host host = Host.valueOf(hostString.trim());
+                    hostsBuilder.add(host);
+                } catch (final IllegalArgumentException e) {
+                    LOGGER.warn("Failed to parse host " + hostString + ". Ignore it.", e);
+                }
+            }
+            return new DummyHostsReloader(hostsBuilder.build());
         }
 
         ExecutorService createExecutorService() {
