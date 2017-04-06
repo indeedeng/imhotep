@@ -51,6 +51,7 @@ import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
 import com.indeed.imhotep.shardmaster.rpc.RequestResponseClientFactory;
+import com.indeed.util.core.Pair;
 import org.apache.log4j.Logger;
 import org.apache.log4j.NDC;
 
@@ -66,7 +67,6 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -232,6 +232,15 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         ImhotepProtobufShipping.sendProtobuf(response, os);
         log.debug("response sent");
     }
+
+    static void sendGroupStat(long[] groupStats, OutputStream os) throws IOException {
+        log.debug("sending group stats");
+        for (long value : groupStats) {
+            os.write(Longs.toByteArray(value));
+        }
+        log.debug("group stats sent");
+    }
+
 
     private class DaemonWorker implements Runnable {
         private final Socket socket;
@@ -435,16 +444,14 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             return builder.build();
         }
 
-        private final ImhotepResponse getGroupStats(final ImhotepRequest          request,
-                                                    final ImhotepResponse.Builder builder)
+        private Pair<ImhotepResponse, long[]> getGroupStats(final ImhotepRequest          request,
+                                                            final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
             long[] groupStats =
                 service.handleGetGroupStats(request.getSessionId(),
                                             request.getStat());
-            for (final long groupStat : groupStats) {
-                builder.addGroupStat(groupStat);
-            }
-            return builder.build();
+            builder.setGroupStatSize(groupStats.length);
+            return Pair.of(builder.build(), groupStats);
         }
 
         private final void getFTGSIterator(final ImhotepRequest          request,
@@ -832,6 +839,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final long requestId = requestIdCounter.incrementAndGet();
 
                 ImhotepResponse response = null;
+                long[] groupStats = null;
 
                 NDC.push("#" + requestId);
 
@@ -882,7 +890,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                             response = getTotalDocFreq(request, builder);
                             break;
                         case GET_GROUP_STATS:
-                            response = getGroupStats(request, builder);
+                            Pair<ImhotepResponse, long[]> responseAndStat = getGroupStats(request, builder);
+                            response = responseAndStat.getFirst();
+                            groupStats = responseAndStat.getSecond();
                             break;
                         case GET_FTGS_ITERATOR:
                             getFTGSIterator(request, builder, os);
@@ -974,6 +984,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     }
                     if (response != null) {
                         sendResponse(response, os);
+                        if( groupStats != null ) {
+                            sendGroupStat(groupStats, os);
+                        }
                     }
                 } catch (ImhotepOutOfMemoryException e) {
                     expireSession(request, e);

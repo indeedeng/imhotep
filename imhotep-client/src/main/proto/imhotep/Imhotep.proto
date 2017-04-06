@@ -281,7 +281,8 @@ message ImhotepResponse {
   optional StatusDumpMessage status_dump = 6;
 
   // for getGroupStats()
-  repeated sint64 group_stat = 7;
+  repeated sint64 group_stat = 7 [deprecated = true];
+  optional uint32 group_stat_size = 15;
 
   // for exportSnapshot()
   repeated string shard_id = 8;

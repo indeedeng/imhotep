@@ -26,7 +26,6 @@ import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.Instrumentation.Keys;
 import com.indeed.imhotep.api.DocIterator;
 import com.indeed.imhotep.api.FTGSIterator;
-import com.indeed.imhotep.api.GroupStatsDummyIterator;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.HasSessionId;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
@@ -51,6 +50,7 @@ import com.indeed.imhotep.protobuf.ShardInfoMessage;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
 import com.indeed.imhotep.service.InputStreamDocIterator;
 import com.indeed.util.core.Throwables2;
+import com.indeed.util.core.io.Closeables2;
 import it.unimi.dsi.fastutil.longs.LongIterators;
 import org.apache.log4j.Logger;
 
@@ -313,7 +313,18 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public long[] getGroupStats(int stat) {
+    public long[] getGroupStats(final int stat) {
+        try {
+            try (GroupStatsIterator reader = getGroupStatsIterator(stat)) {
+                return LongIterators.unwrap(reader, reader.statSize());
+            }
+        } catch(final IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public GroupStatsIterator getGroupStatsIterator(final int stat) {
         final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_GROUP_STATS)
                 .setSessionId(sessionId)
@@ -321,23 +332,17 @@ public class ImhotepRemoteSession
                 .build();
         final ImhotepResponse response;
         try {
-            response = sendRequest(request, host, port, socketTimeout);
-        } catch (IOException e) {
+            final Socket socket = newSocket(host, port, socketTimeout);
+            final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
+            final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
+
+            response = sendRequest(request, is, os, host, port);
+            Closeables2.closeQuietly(os, log);
+            timer.complete(request);
+            return new GroupStatsStreamReader(is, response.getGroupStatSize(), socket);
+        } catch(final IOException e) {
             throw new RuntimeException(e);
         }
-
-        final List<Long> groupStats = response.getGroupStatList();
-        final long[] ret = new long[groupStats.size()];
-        for (int i = 0; i < ret.length; ++i) {
-            ret[i] = groupStats.get(i);
-        }
-        timer.complete(request);
-        return ret;
-    }
-
-    @Override
-    public GroupStatsIterator getGroupStatsIterator(int stat) {
-        return new GroupStatsDummyIterator(LongIterators.wrap(this.getGroupStats(stat)));
     }
 
     @Override
@@ -1196,25 +1201,9 @@ public class ImhotepRemoteSession
     }
 
     private static void closeSocket(Socket socket, InputStream is, OutputStream os) {
-        try {
-            if (os != null) {
-                os.close();
-            }
-        } catch (IOException e) {
-            log.error(e);
-        }
-        try {
-            if (is != null) {
-                is.close();
-            }
-        } catch (IOException e) {
-            log.error(e);
-        }
-        try {
-            socket.close();
-        } catch (IOException e) {
-            log.error(e);
-        }
+        Closeables2.closeQuietly( socket, log );
+        Closeables2.closeQuietly( is, log );
+        Closeables2.closeQuietly( os, log );
     }
 
     private static Socket newSocket(String host, int port) throws IOException {

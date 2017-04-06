@@ -16,14 +16,13 @@ package com.indeed.imhotep.local;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.imhotep.GroupMultiRemapRule;
+import com.indeed.imhotep.GroupStatsDummyIterator;
 import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.MemoryReservationContext;
-import com.indeed.imhotep.api.GroupStatsDummyIterator;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.service.CachedFlamdexReader;
 import com.indeed.imhotep.service.RawCachedFlamdexReaderReference;
-import it.unimi.dsi.fastutil.longs.LongIterators;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
@@ -141,7 +140,7 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
 
     @Override
     public synchronized GroupStatsIterator getGroupStatsIterator(int stat) {
-        return new GroupStatsDummyIterator(LongIterators.wrap( this.getGroupStats(stat) ) );
+        return new GroupStatsDummyIterator(this.getGroupStats(stat));
     }
 
     @Override

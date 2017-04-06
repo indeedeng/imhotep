@@ -1,5 +1,6 @@
-package com.indeed.imhotep.api;
+package com.indeed.imhotep;
 
+import com.indeed.imhotep.api.GroupStatsIterator;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
@@ -7,15 +8,25 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+/**
+ * Combine several iterators to one.
+ * Result iterator values are sum of corresponding input iterator values.
+ *
+ * @author aibragimov
+ */
+
 public class GroupStatsIteratorCombiner implements GroupStatsIterator {
 
     private static Logger log = Logger.getLogger( GroupStatsIteratorCombiner.class);
+    private final int size;
 
     public GroupStatsIteratorCombiner( final GroupStatsIterator[] stats ) {
+        int maxSize = 0;
         this.stats = new ArrayList<>();
         for( final GroupStatsIterator stat : stats ) {
             if( stat.hasNext() ) {
                 this.stats.add( stat );
+                maxSize = Math.max(maxSize, stat.statSize());
             } else {
                 try {
                     stat.close();
@@ -25,6 +36,12 @@ public class GroupStatsIteratorCombiner implements GroupStatsIterator {
             }
         }
 
+        this.size = maxSize;
+    }
+
+    @Override
+    public int statSize() {
+        return size;
     }
 
     @Override
@@ -47,8 +64,8 @@ public class GroupStatsIteratorCombiner implements GroupStatsIterator {
             if( stats.get(index).hasNext() ) {
                 index++;
             } else {
-                // delete later???
-                stats.set(index, stats.get(index));
+                // todo : handle deletion in a less hacky way
+                stats.set(index, stats.get(count-1));
                 stats.remove( count - 1 );
                 count--;
             }
