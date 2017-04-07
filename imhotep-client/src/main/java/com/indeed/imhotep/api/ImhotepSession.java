@@ -54,7 +54,7 @@ public interface ImhotepSession
      * get the current total of a given metric for each group
      * Trailing groups with 0 values can cause the returned array to be shorter than the total number of groups.
      * @param stat the index of the metric
-     * @return an array with the metric values, indexed by group
+     * @return an iterator with the metric values, indexed by group
      */
     GroupStatsIterator getGroupStatsIterator(int stat);
 

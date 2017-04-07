@@ -1,6 +1,7 @@
 package com.indeed.imhotep;
 
 import com.indeed.imhotep.api.GroupStatsIterator;
+import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
@@ -15,28 +16,26 @@ import java.util.NoSuchElementException;
  * @author aibragimov
  */
 
-public class GroupStatsIteratorCombiner implements GroupStatsIterator {
+class GroupStatsIteratorCombiner implements GroupStatsIterator {
 
-    private static Logger log = Logger.getLogger( GroupStatsIteratorCombiner.class);
+    private static final Logger log = Logger.getLogger( GroupStatsIteratorCombiner.class);
+
+    private final List<GroupStatsIterator> stats;
     private final int size;
 
-    public GroupStatsIteratorCombiner( final GroupStatsIterator[] stats ) {
-        int maxSize = 0;
+    GroupStatsIteratorCombiner(final GroupStatsIterator[] stats) {
+        int size = 0;
         this.stats = new ArrayList<>();
         for( final GroupStatsIterator stat : stats ) {
             if( stat.hasNext() ) {
                 this.stats.add( stat );
-                maxSize = Math.max(maxSize, stat.statSize());
+                size = Math.max(size, stat.statSize());
             } else {
-                try {
-                    stat.close();
-                } catch( final IOException ex ) {
-                    log.error("Error while closing GroupStatsIterator");
-                }
+                Closeables2.closeQuietly( stat, log );
             }
         }
 
-        this.size = maxSize;
+        this.size = size;
     }
 
     @Override
@@ -57,17 +56,15 @@ public class GroupStatsIteratorCombiner implements GroupStatsIterator {
         }
 
         long result = 0;
-        int count = stats.size();
         int index = 0;
-        while( index < count ) {
+        while( index < stats.size() ) {
             result += stats.get(index).nextLong();
             if( stats.get(index).hasNext() ) {
                 index++;
             } else {
                 // todo : handle deletion in a less hacky way
-                stats.set(index, stats.get(count-1));
-                stats.remove( count - 1 );
-                count--;
+                stats.set(index, stats.get(stats.size() - 1));
+                stats.remove(stats.size() - 1);
             }
         }
 
@@ -114,6 +111,4 @@ public class GroupStatsIteratorCombiner implements GroupStatsIterator {
             }
         }
     }
-
-    private final List<GroupStatsIterator> stats;
 }
