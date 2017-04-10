@@ -285,7 +285,7 @@ public class ImhotepRemoteSession
                 throw buildExceptionAfterSocketTimeout(e, host, port);
             }
         } finally {
-            closeSocket(socket, is, os);
+            closeSocket(socket);
         }
     }
 
@@ -314,10 +314,8 @@ public class ImhotepRemoteSession
 
     @Override
     public long[] getGroupStats(final int stat) {
-        try {
-            try (GroupStatsIterator reader = getGroupStatsIterator(stat)) {
-                return LongIterators.unwrap(reader, reader.statSize());
-            }
+        try (GroupStatsIterator reader = getGroupStatsIterator(stat)) {
+            return LongIterators.unwrap(reader, reader.statSize());
         } catch(final IOException e) {
             throw new RuntimeException(e);
         }
@@ -330,16 +328,14 @@ public class ImhotepRemoteSession
                 .setSessionId(sessionId)
                 .setStat(stat)
                 .build();
-        final ImhotepResponse response;
         try {
             final Socket socket = newSocket(host, port, socketTimeout);
             final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
             final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
 
-            response = sendRequest(request, is, os, host, port);
-            Closeables2.closeQuietly(os, log);
+            final ImhotepResponse response = sendRequest(request, is, os, host, port);
             timer.complete(request);
-            return new GroupStatsStreamReader(is, response.getGroupStatSize(), socket);
+            return new GroupStatsStreamReader(is, response.getGroupStatSize());
         } catch(final IOException e) {
             throw new RuntimeException(e);
         }
@@ -414,7 +410,7 @@ public class ImhotepRemoteSession
             try {
                 sendRequest(request, is, os, host, port);
             } catch (IOException e) {
-                closeSocket(socket, is, os);
+                closeSocket(socket);
                 throw e;
             }
             final DocIterator result = 
@@ -473,7 +469,7 @@ public class ImhotepRemoteSession
             try {
                 sendRequest(request, is, os, host, port);
             } catch (IOException e) {
-                closeSocket(socket, is, os);
+                closeSocket(socket);
                 throw e;
             }
             return new ClosingInputStreamFTGSIterator(socket, is, os, numStats);
@@ -530,7 +526,7 @@ public class ImhotepRemoteSession
             try {
                 sendRequest(request, is, os, host, port);
             } catch (IOException e) {
-                closeSocket(socket, is, os);
+                closeSocket(socket);
                 throw e;
             }
             Path tmp = null;
@@ -567,7 +563,7 @@ public class ImhotepRemoteSession
                 if (tmp != null) {
                     Files.delete(tmp);
                 }
-                closeSocket(socket, is, os);
+                closeSocket(socket);
             }
         } catch (IOException e) {
             throw new RuntimeException(e); // TODO
@@ -1097,7 +1093,7 @@ public class ImhotepRemoteSession
         try {
             return sendRequest(request, is, os, host, port);
         } finally {
-            closeSocket(socket, is, os);
+            closeSocket(socket);
         }
     }
 
@@ -1139,7 +1135,7 @@ public class ImhotepRemoteSession
             log.error("error sending exploded multisplit regroup request to " + host + ":" + port, e);
             throw e;
         } finally {
-            closeSocket(socket, is, os);
+            closeSocket(socket);
         }
     }
 
@@ -1200,10 +1196,8 @@ public class ImhotepRemoteSession
         return new IOException(msg.toString());
     }
 
-    private static void closeSocket(Socket socket, InputStream is, OutputStream os) {
+    private static void closeSocket(Socket socket) {
         Closeables2.closeQuietly( socket, log );
-        Closeables2.closeQuietly( is, log );
-        Closeables2.closeQuietly( os, log );
     }
 
     private static Socket newSocket(String host, int port) throws IOException {

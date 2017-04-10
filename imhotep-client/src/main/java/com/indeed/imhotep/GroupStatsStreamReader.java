@@ -7,7 +7,6 @@ import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.Socket;
 import java.util.NoSuchElementException;
 
 /**
@@ -24,12 +23,10 @@ class GroupStatsStreamReader implements GroupStatsIterator {
     private InputStream stream;
     private final int count;
     private int index;
-    private Socket socket;
 
-    public GroupStatsStreamReader(final InputStream stream, final int count, final Socket socket ) {
+    public GroupStatsStreamReader(final InputStream stream, final int count) {
         this.stream = stream;
         this.count = count;
-        this.socket = socket;
         index = 0;
     }
 
@@ -88,9 +85,7 @@ class GroupStatsStreamReader implements GroupStatsIterator {
     @Override
     public void close() {
         Closeables2.closeQuietly( stream, log );
-        Closeables2.closeQuietly( socket, log );
         stream = null;
-        socket = null;
     }
 
     @Override
