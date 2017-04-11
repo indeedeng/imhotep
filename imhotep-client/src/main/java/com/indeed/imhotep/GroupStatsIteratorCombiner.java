@@ -4,8 +4,8 @@ import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
-import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -25,11 +25,11 @@ class GroupStatsIteratorCombiner implements GroupStatsIterator {
 
     GroupStatsIteratorCombiner(final GroupStatsIterator[] stats) {
         int size = 0;
-        this.stats = new ArrayList<>();
+        this.stats = new LinkedList<>();
         for( final GroupStatsIterator stat : stats ) {
             if( stat.hasNext() ) {
                 this.stats.add( stat );
-                size = Math.max(size, stat.statSize());
+                size = Math.max(size, stat.getGroupsCount());
             } else {
                 Closeables2.closeQuietly( stat, log );
             }
@@ -39,7 +39,7 @@ class GroupStatsIteratorCombiner implements GroupStatsIterator {
     }
 
     @Override
-    public int statSize() {
+    public int getGroupsCount() {
         return size;
     }
 
@@ -56,15 +56,11 @@ class GroupStatsIteratorCombiner implements GroupStatsIterator {
         }
 
         long result = 0;
-        int index = 0;
-        while( index < stats.size() ) {
-            result += stats.get(index).nextLong();
-            if( stats.get(index).hasNext() ) {
-                index++;
-            } else {
-                // todo : handle deletion in a less hacky way
-                stats.set(index, stats.get(stats.size() - 1));
-                stats.remove(stats.size() - 1);
+        for(final Iterator<GroupStatsIterator> iter = stats.iterator(); iter.hasNext(); ) {
+            final  GroupStatsIterator stat = iter.next();
+            result += stat.nextLong();
+            if( !stat.hasNext() ) {
+                iter.remove();
             }
         }
 
@@ -81,16 +77,16 @@ class GroupStatsIteratorCombiner implements GroupStatsIterator {
         if( stats.isEmpty() ) {
             return 0;
         }
-        int skipCount = stats.get(0).skip(count);
-        for( int i = 1; i < stats.size(); i++ ) {
-            final int skipped = stats.get( i ).skip( skipCount );
-            if( skipped < skipCount ) {
-                log.warn("Can't skip " + skipCount + " bytes. Only " + skipped + " bytes skipped.");
-                skipCount = skipped;
+        int skippedMax = Integer.MIN_VALUE;
+        for( GroupStatsIterator stat : stats ) {
+            final int skipped = stat.skip( count );
+            if( skipped < count ) {
+                log.warn("Can't skip " + count + " bytes. Only " + skipped + " bytes skipped.");
             }
+            skippedMax = Math.max(skipped, skippedMax);
         }
 
-        return skipCount;
+        return skippedMax;
     }
 
     @Override
@@ -102,13 +98,6 @@ class GroupStatsIteratorCombiner implements GroupStatsIterator {
 
     @Override
     public void close(){
-
-        for( final GroupStatsIterator stat : stats ) {
-            try {
-                stat.close();
-            } catch( final IOException ex ) {
-                log.error("Error while closing GroupStatsIterator");
-            }
-        }
+        Closeables2.closeAll( stats, log );
     }
 }

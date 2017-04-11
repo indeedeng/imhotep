@@ -315,7 +315,7 @@ public class ImhotepRemoteSession
     @Override
     public long[] getGroupStats(final int stat) {
         try (GroupStatsIterator reader = getGroupStatsIterator(stat)) {
-            return LongIterators.unwrap(reader, reader.statSize());
+            return LongIterators.unwrap(reader, reader.getGroupsCount());
         } catch(final IOException e) {
             throw new RuntimeException(e);
         }

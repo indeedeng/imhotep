@@ -55,6 +55,7 @@ import com.indeed.util.core.Pair;
 import org.apache.log4j.Logger;
 import org.apache.log4j.NDC;
 
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -235,12 +236,12 @@ public class ImhotepDaemon implements Instrumentation.Provider {
 
     static void sendGroupStat(long[] groupStats, OutputStream os) throws IOException {
         log.debug("sending group stats");
+        DataOutputStream stream = new DataOutputStream(os);
         for (long value : groupStats) {
-            os.write(Longs.toByteArray(value));
+            stream.writeLong(value);
         }
         log.debug("group stats sent");
     }
-
 
     private class DaemonWorker implements Runnable {
         private final Socket socket;

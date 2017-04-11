@@ -2,6 +2,8 @@ package com.indeed.imhotep;
 
 import com.indeed.imhotep.api.GroupStatsIterator;
 
+import java.util.NoSuchElementException;
+
 /**
  * Simple wrapper for GroupStatsIterator over array of longs
  *
@@ -18,7 +20,7 @@ public class GroupStatsDummyIterator implements GroupStatsIterator {
     }
 
     @Override
-    public int statSize() {
+    public int getGroupsCount() {
         return data.length;
     }
 
@@ -29,6 +31,9 @@ public class GroupStatsDummyIterator implements GroupStatsIterator {
 
     @Override
     public long nextLong() {
+        if( index >= data.length ) {
+            throw new NoSuchElementException();
+        }
         return data[index++];
     }
 

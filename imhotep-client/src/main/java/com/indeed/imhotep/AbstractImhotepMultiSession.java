@@ -32,6 +32,7 @@ import com.indeed.util.core.threads.LogOnUncaughtExceptionHandler;
 import it.unimi.dsi.fastutil.longs.Long2LongMap;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongIterator;
+import it.unimi.dsi.fastutil.longs.LongIterators;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import org.apache.log4j.Logger;
@@ -191,40 +192,29 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
 
     @Override
     public long[] getGroupStats(final int stat) {
-        executeRuntimeException(groupStatsBuf, new ThrowingFunction<ImhotepSession, long[]>() {
-            @Override
-            public long[] apply(ImhotepSession session) throws Exception {
-                return session.getGroupStats(stat);
-            }
-        });
-
-        int numGroups = 0;
-        for (int i = 0; i < sessions.length; ++i) {
-            final long[] statsBuf = groupStatsBuf[i];
-            final int statsBufLength = statsBuf.length;
-            numGroups = Math.max(numGroups, statsBufLength);
+        try( GroupStatsIterator it = getGroupStatsIterator(stat) ) {
+            return LongIterators.unwrap(it, it.getGroupsCount());
+        } catch (final IOException e) {
+            log.error(e);
+            throw Throwables.propagate(e);
         }
-
-        final long[] totalStats = new long[numGroups];
-        for (final long[] stats : groupStatsBuf) {
-            for (int group = 1; group < stats.length; ++group) {
-                totalStats[group] += stats[group];
-            }
-        }
-        return totalStats;
     }
 
     @Override
     public GroupStatsIterator getGroupStatsIterator(final int stat) {
-        GroupStatsIterator[] statsBuffer = new GroupStatsIterator[sessions.length];
+        final GroupStatsIterator[] statsBuffer = new GroupStatsIterator[sessions.length];
         executeRuntimeException(statsBuffer, new ThrowingFunction<ImhotepSession, GroupStatsIterator>() {
             @Override
-            public GroupStatsIterator apply(ImhotepSession session) throws Exception {
+            public GroupStatsIterator apply(final ImhotepSession session) throws Exception {
                 return session.getGroupStatsIterator(stat);
             }
         });
 
-        return new GroupStatsIteratorCombiner( statsBuffer );
+        if( statsBuffer.length == 1 ) {
+            return statsBuffer[0];
+        } else {
+            return new GroupStatsIteratorCombiner(statsBuffer);
+        }
     }
 
     @Override
