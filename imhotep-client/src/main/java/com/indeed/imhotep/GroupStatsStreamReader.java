@@ -3,12 +3,12 @@ package com.indeed.imhotep;
 import com.google.common.base.Throwables;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.util.core.io.Closeables2;
+import it.unimi.dsi.fastutil.longs.AbstractLongIterator;
 import org.apache.log4j.Logger;
 
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.NoSuchElementException;
 
 /**
  * Implementation of GroupStatsIterator over a socket's Inputstream
@@ -16,10 +16,9 @@ import java.util.NoSuchElementException;
  * @author aibragimov
  */
 
-class GroupStatsStreamReader implements GroupStatsIterator {
+class GroupStatsStreamReader extends AbstractLongIterator implements GroupStatsIterator {
 
     private static Logger log = Logger.getLogger(GroupStatsStreamReader.class);
-    private final byte[] buffer = new byte[Long.BYTES];
 
     private DataInputStream stream;
     private final int count;
@@ -42,11 +41,6 @@ class GroupStatsStreamReader implements GroupStatsIterator {
     }
 
     @Override
-    public Long next() {
-        return nextLong();
-    }
-
-    @Override
     public long nextLong() {
         try {
             index++;
@@ -58,29 +52,8 @@ class GroupStatsStreamReader implements GroupStatsIterator {
     }
 
     @Override
-    public int skip(final int value) {
-        final long skipped;
-        try {
-            skipped = stream.skip(value * Long.BYTES);
-        } catch ( final IOException e ) {
-            log.error(e);
-            throw Throwables.propagate(e);
-        }
-        if( skipped % Long.BYTES != 0 ) {
-            log.error("GroupStatsStreamReader: unexpected bytes count in stream");
-            throw new NoSuchElementException();
-        }
-        return (int) skipped / Long.BYTES;
-    }
-
-    @Override
     public void close() {
         Closeables2.closeQuietly( stream, log );
         stream = null;
-    }
-
-    @Override
-    public void remove() {
-        throw new UnsupportedOperationException("remove");
     }
 }

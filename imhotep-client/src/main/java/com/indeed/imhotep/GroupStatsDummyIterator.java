@@ -1,6 +1,7 @@
 package com.indeed.imhotep;
 
 import com.indeed.imhotep.api.GroupStatsIterator;
+import it.unimi.dsi.fastutil.longs.AbstractLongIterator;
 
 import java.util.NoSuchElementException;
 
@@ -10,13 +11,14 @@ import java.util.NoSuchElementException;
  * @author aibragimov
  */
 
-public class GroupStatsDummyIterator implements GroupStatsIterator {
+public class GroupStatsDummyIterator extends AbstractLongIterator implements GroupStatsIterator {
 
     private long[] data;
     private int index;
 
     public GroupStatsDummyIterator( final long[] data ) {
         this.data = data;
+        this.index = 0;
     }
 
     @Override
@@ -35,24 +37,6 @@ public class GroupStatsDummyIterator implements GroupStatsIterator {
             throw new NoSuchElementException();
         }
         return data[index++];
-    }
-
-    @Override
-    public Long next() {
-        return nextLong();
-    }
-
-    @Override
-    public int skip( final int val ) {
-        final int newIndex = Math.min( index + val, data.length );
-        final int skipped = newIndex - index;
-        index = newIndex;
-        return skipped;
-    }
-
-    @Override
-    public void remove() {
-        throw new UnsupportedOperationException("remove");
     }
 
     @Override

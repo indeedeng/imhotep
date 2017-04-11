@@ -2,6 +2,7 @@ package com.indeed.imhotep;
 
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.util.core.io.Closeables2;
+import it.unimi.dsi.fastutil.longs.AbstractLongIterator;
 import org.apache.log4j.Logger;
 
 import java.util.Iterator;
@@ -16,7 +17,7 @@ import java.util.NoSuchElementException;
  * @author aibragimov
  */
 
-class GroupStatsIteratorCombiner implements GroupStatsIterator {
+class GroupStatsIteratorCombiner extends AbstractLongIterator implements GroupStatsIterator {
 
     private static final Logger log = Logger.getLogger( GroupStatsIteratorCombiner.class);
 
@@ -57,7 +58,7 @@ class GroupStatsIteratorCombiner implements GroupStatsIterator {
 
         long result = 0;
         for(final Iterator<GroupStatsIterator> iter = stats.iterator(); iter.hasNext(); ) {
-            final  GroupStatsIterator stat = iter.next();
+            final GroupStatsIterator stat = iter.next();
             result += stat.nextLong();
             if( !stat.hasNext() ) {
                 iter.remove();
@@ -65,35 +66,6 @@ class GroupStatsIteratorCombiner implements GroupStatsIterator {
         }
 
         return result;
-    }
-
-    @Override
-    public Long next() throws NoSuchElementException {
-        return nextLong();
-    }
-
-    @Override
-    public int skip( final int count ) {
-        if( stats.isEmpty() ) {
-            return 0;
-        }
-        int skippedMax = Integer.MIN_VALUE;
-        for( GroupStatsIterator stat : stats ) {
-            final int skipped = stat.skip( count );
-            if( skipped < count ) {
-                log.warn("Can't skip " + count + " bytes. Only " + skipped + " bytes skipped.");
-            }
-            skippedMax = Math.max(skipped, skippedMax);
-        }
-
-        return skippedMax;
-    }
-
-    @Override
-    public void remove() {
-        for( final GroupStatsIterator stat : stats ) {
-            stat.remove();
-        }
     }
 
     @Override
