@@ -445,7 +445,20 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             return builder.build();
         }
 
-        private Pair<ImhotepResponse, long[]> getGroupStats(final ImhotepRequest          request,
+        private ImhotepResponse getGroupStats(final ImhotepRequest          request,
+                                              final ImhotepResponse.Builder builder)
+            throws ImhotepOutOfMemoryException {
+            long[] groupStats =
+                    service.handleGetGroupStats(request.getSessionId(),
+                            request.getStat());
+            builder.setGroupStatSize(groupStats.length);
+            for(final long groupStat : groupStats) {
+                builder.addGroupStat(groupStat);
+            }
+            return builder.build();
+        }
+
+        private Pair<ImhotepResponse, long[]> getStreamingGroupStats(final ImhotepRequest request,
                                                             final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
             long[] groupStats =
@@ -891,7 +904,10 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                             response = getTotalDocFreq(request, builder);
                             break;
                         case GET_GROUP_STATS:
-                            Pair<ImhotepResponse, long[]> responseAndStat = getGroupStats(request, builder);
+                            response = getGroupStats(request, builder);
+                            break;
+                        case STREAMING_GET_GROUP_STATS:
+                            final Pair<ImhotepResponse, long[]> responseAndStat = getStreamingGroupStats(request, builder);
                             response = responseAndStat.getFirst();
                             groupStats = responseAndStat.getSecond();
                             break;

@@ -324,7 +324,7 @@ public class ImhotepRemoteSession
     @Override
     public GroupStatsIterator getGroupStatsIterator(final int stat) {
         final Timer timer = new Timer();
-        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_GROUP_STATS)
+        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.STREAMING_GET_GROUP_STATS)
                 .setSessionId(sessionId)
                 .setStat(stat)
                 .build();
