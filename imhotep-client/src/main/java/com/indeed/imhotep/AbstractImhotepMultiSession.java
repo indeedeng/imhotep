@@ -193,9 +193,8 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
     @Override
     public long[] getGroupStats(final int stat) {
         try( GroupStatsIterator it = getGroupStatsIterator(stat) ) {
-            return LongIterators.unwrap(it, it.getGroupsCount());
+            return LongIterators.unwrap(it, it.getNumGroups());
         } catch (final IOException e) {
-            log.error(e);
             throw Throwables.propagate(e);
         }
     }

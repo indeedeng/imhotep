@@ -30,7 +30,7 @@ class GroupStatsIteratorCombiner extends AbstractLongIterator implements GroupSt
         for( final GroupStatsIterator stat : stats ) {
             if( stat.hasNext() ) {
                 this.stats.add( stat );
-                size = Math.max(size, stat.getGroupsCount());
+                size = Math.max(size, stat.getNumGroups());
             } else {
                 Closeables2.closeQuietly( stat, log );
             }
@@ -40,7 +40,7 @@ class GroupStatsIteratorCombiner extends AbstractLongIterator implements GroupSt
     }
 
     @Override
-    public int getGroupsCount() {
+    public int getNumGroups() {
         return size;
     }
 

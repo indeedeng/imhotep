@@ -31,7 +31,7 @@ class GroupStatsStreamReader extends AbstractLongIterator implements GroupStatsI
     }
 
     @Override
-    public int getGroupsCount() {
+    public int getNumGroups() {
         return count;
     }
 
@@ -45,8 +45,7 @@ class GroupStatsStreamReader extends AbstractLongIterator implements GroupStatsI
         try {
             index++;
             return stream.readLong();
-        } catch ( IOException e ) {
-            log.error(e);
+        } catch ( final IOException e ) {
             throw Throwables.propagate(e);
         }
     }

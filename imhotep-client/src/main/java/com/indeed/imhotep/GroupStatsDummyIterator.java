@@ -22,7 +22,7 @@ public class GroupStatsDummyIterator extends AbstractLongIterator implements Gro
     }
 
     @Override
-    public int getGroupsCount() {
+    public int getNumGroups() {
         return data.length;
     }
 
