@@ -15,6 +15,7 @@ package com.indeed.imhotep.service;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -909,7 +910,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                         case STREAMING_GET_GROUP_STATS:
                             final Pair<ImhotepResponse, long[]> responseAndStat = getStreamingGroupStats(request, builder);
                             response = responseAndStat.getFirst();
-                            groupStats = responseAndStat.getSecond();
+                            groupStats = Preconditions.checkNotNull(responseAndStat.getSecond());
                             break;
                         case GET_FTGS_ITERATOR:
                             getFTGSIterator(request, builder, os);

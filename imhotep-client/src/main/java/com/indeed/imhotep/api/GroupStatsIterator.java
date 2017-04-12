@@ -26,7 +26,9 @@ import java.io.Closeable;
  */
 
 public interface GroupStatsIterator extends LongIterator, Closeable {
-    /** @return elements count in a iterator, can be smaller that total group count due to skipping trailing zeros. */
+    /** @return elements count in a iterator
+     * Can be smaller than total group count in the entire session due to skipping trailing zeros.
+     * */
     public int getNumGroups();
 }
 
