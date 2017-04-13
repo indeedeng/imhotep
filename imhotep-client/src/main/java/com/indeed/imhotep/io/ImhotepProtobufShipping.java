@@ -15,6 +15,8 @@
 
 import com.google.common.io.ByteStreams;
 import com.google.protobuf.Message;
+import com.indeed.imhotep.GroupStatsStreamReader;
+import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.frontend.protobuf.ImhotepFrontendRequest;
 import com.indeed.imhotep.frontend.protobuf.ImhotepFrontendResponse;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
@@ -22,13 +24,14 @@ import com.indeed.imhotep.protobuf.GroupRemapMessage;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
  * @author jsgroth
- * 
+ *
  * static utility methods for sending and receiving imhotep protobufs
  */
 public final class ImhotepProtobufShipping {
@@ -38,6 +41,18 @@ public final class ImhotepProtobufShipping {
         os.write(Bytes.intToBytes(request.getSerializedSize()));
         request.writeTo(os);
         os.flush();
+    }
+
+    public static void writeArray(long[] array, OutputStream os) throws IOException {
+        DataOutputStream stream = new DataOutputStream(os);
+        for (long value : array) {
+            stream.writeLong(value);
+        }
+        stream.flush();
+    }
+
+    public static GroupStatsIterator readArray(InputStream is, int len) {
+        return new GroupStatsStreamReader(is, len);
     }
 
     public static ImhotepRequest readRequest(InputStream is) throws IOException {

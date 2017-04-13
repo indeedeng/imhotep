@@ -16,7 +16,7 @@ import java.io.InputStream;
  * @author aibragimov
  */
 
-class GroupStatsStreamReader extends AbstractLongIterator implements GroupStatsIterator {
+public class GroupStatsStreamReader extends AbstractLongIterator implements GroupStatsIterator {
 
     private static Logger log = Logger.getLogger(GroupStatsStreamReader.class);
 
