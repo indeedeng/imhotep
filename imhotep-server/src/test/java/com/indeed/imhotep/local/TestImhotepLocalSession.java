@@ -17,6 +17,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
+import com.indeed.flamdex.MakeAFlamdex;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.query.Query;
 import com.indeed.flamdex.query.Term;
@@ -29,9 +30,7 @@ import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
-import com.indeed.flamdex.MakeAFlamdex;
 import com.indeed.imhotep.group.ImhotepChooser;
-
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -44,7 +43,8 @@ import java.util.Map;
 
 import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.fail;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertNotNull;
 
 /**
  * @author jsgroth
@@ -1632,7 +1632,7 @@ public class TestImhotepLocalSession {
             session1.updateDynamicMetric("foo", fo);
 
             long[] stats1 = session1.getGroupStats(0);
-            assertEquals(10, stats1[0]);
+            assertEquals(0, stats1[0]);
             assertEquals(0, stats1[1]);
             assertEquals(5, stats1[2]);
             assertEquals(4, stats1[3]);
@@ -1717,7 +1717,7 @@ public class TestImhotepLocalSession {
                             false),
                             2, 7)});
             stats1 = session1.getGroupStats(0);
-            assertEquals(1, stats1[0]);
+            assertEquals(0, stats1[0]);
             assertEquals(5, stats1[1]);
             assertEquals(4, stats1[2]);
 

@@ -13,16 +13,6 @@
  */
  package com.indeed.imhotep.local;
 
-import static junit.framework.Assert.assertEquals;
-import static org.junit.Assert.*;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Map;
-
-import org.junit.Test;
-
 import com.indeed.flamdex.MakeAFlamdex;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.reader.MockFlamdexReader;
@@ -33,6 +23,15 @@ import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import org.junit.Test;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Map;
+
+import static junit.framework.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 public class TestIndexReWriter {
 
@@ -467,7 +466,7 @@ public class TestIndexReWriter {
                                                                                           false),
                                                                   3, 4) });
         long[] stats1 = session1.getGroupStats(0);
-        assertEquals(10, stats1[0]);
+        assertEquals(0, stats1[0]);
         assertEquals(0, stats1[1]);
         assertEquals(5, stats1[2]);
         assertEquals(4, stats1[3]);

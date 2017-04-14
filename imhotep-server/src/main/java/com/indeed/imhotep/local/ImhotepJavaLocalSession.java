@@ -425,6 +425,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
                                     docGroupBuffer,
                                     docIdBuf,
                                     valBuf);
+            groupStats.get(stat)[0] = 0; // clearing value for filtered-out group.
             groupStats.validate(stat);
         }
         return groupStats.get(stat);

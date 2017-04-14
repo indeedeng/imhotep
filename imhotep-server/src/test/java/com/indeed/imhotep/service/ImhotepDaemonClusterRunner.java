@@ -2,7 +2,7 @@ package com.indeed.imhotep.service;
 
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
-import com.indeed.flamdex.MemoryFlamdex;
+import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.client.ImhotepClient;
 import com.indeed.imhotep.client.ShardTimeUtils;
@@ -40,15 +40,15 @@ public class ImhotepDaemonClusterRunner {
         this(shardsDir, tempRootDir, ImhotepShardCreator.DEFAULT);
     }
 
-    public void createDailyShard(final String dataset, final DateTime dateTime, final MemoryFlamdex memoryFlamdex) throws IOException {
-        createShard(dataset, ShardTimeUtils.toDailyShardPrefix(dateTime) + SHARD_VERSION_FORMAT.print(DateTime.now()), memoryFlamdex);
+    public void createDailyShard(final String dataset, final DateTime dateTime, final FlamdexReader flamdexReader) throws IOException {
+        createShard(dataset, ShardTimeUtils.toDailyShardPrefix(dateTime) + SHARD_VERSION_FORMAT.print(DateTime.now()), flamdexReader);
     }
 
-    public void createHourlyShard(final String dataset, final DateTime dateTime, final MemoryFlamdex memoryFlamdex) throws IOException {
-        createShard(dataset, ShardTimeUtils.toHourlyShardPrefix(dateTime) + SHARD_VERSION_FORMAT.print(DateTime.now()), memoryFlamdex);
+    public void createHourlyShard(final String dataset, final DateTime dateTime, final FlamdexReader flamdexReader) throws IOException {
+        createShard(dataset, ShardTimeUtils.toHourlyShardPrefix(dateTime) + SHARD_VERSION_FORMAT.print(DateTime.now()), flamdexReader);
     }
 
-    private void createShard(final String dataset, final String shardId, final MemoryFlamdex memoryFlamdex) throws IOException {
+    private void createShard(final String dataset, final String shardId, final FlamdexReader memoryFlamdex) throws IOException {
         shardCreator.create(shardsDir, dataset, shardId, memoryFlamdex);
     }
 
