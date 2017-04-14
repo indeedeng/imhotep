@@ -335,7 +335,7 @@ public class ImhotepRemoteSession
 
             final ImhotepResponse response = sendRequest(request, is, os, host, port);
             timer.complete(request);
-            return ImhotepProtobufShipping.readArray(is, response.getGroupStatSize());
+            return ImhotepProtobufShipping.readGroupStatsIterator(is, response.getGroupStatSize());
         } catch(final IOException e) {
             throw new RuntimeException(e);
         }
