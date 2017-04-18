@@ -59,14 +59,14 @@ public class TestShardStore {
                }
 
                final Map<ShardStore.Key, ShardStore.Value> after =
-                   new TreeMap<ShardStore.Key, ShardStore.Value>();
+                   new TreeMap<>();
                final Iterator<Store.Entry<ShardStore.Key, ShardStore.Value>> it =
                    store.iterator();
                while (it.hasNext()) {
                    final Store.Entry<ShardStore.Key, ShardStore.Value> entry = it.next();
                    after.put(entry.getKey(), entry.getValue());
                }
-               assertEquals(before, after);
+               assertEquals(after, before);
             }
 
             /* !@# There's currently a bug in LSMTree close() that can cause
@@ -77,14 +77,14 @@ public class TestShardStore {
             /* Reopen the store and verify that it has everything in it. */
             try (ShardStore store = new ShardStore(storeDir)) {
                final Map<ShardStore.Key, ShardStore.Value> after =
-                   new TreeMap<ShardStore.Key, ShardStore.Value>();
+                   new TreeMap<>();
                final Iterator<Store.Entry<ShardStore.Key, ShardStore.Value>> it =
                    store.iterator();
                while (it.hasNext()) {
                    final Store.Entry<ShardStore.Key, ShardStore.Value> entry = it.next();
                    after.put(entry.getKey(), entry.getValue());
                }
-               assertEquals(before, after);
+               assertEquals(after, before);
             }
         }
         catch (final Exception ex) {
@@ -96,7 +96,7 @@ public class TestShardStore {
         try {
             final SortedMap<ShardStore.Key, ShardStore.Value> entries = generateRandomEntries(64, 512);
 
-            final List<ShardInfo> expected = new ObjectArrayList<ShardInfo>(entries.size());
+            final List<ShardInfo> expected = new ObjectArrayList<>(entries.size());
             for (final Map.Entry<ShardStore.Key, ShardStore.Value> entry: entries.entrySet()) {
                 final ShardStore.Key   key   = entry.getKey();
                 final ShardStore.Value value = entry.getValue();
@@ -160,7 +160,7 @@ public class TestShardStore {
 
     private ObjectArrayList<String> newRandomFieldList() {
         final int numFields = rng.nextInt(128);
-        final ObjectArrayList<String> result = new ObjectArrayList<String>(numFields);
+        final ObjectArrayList<String> result = new ObjectArrayList<>(numFields);
         for (int count = 0; count < numFields; ++count) {
             final String field = RandomStringUtils.randomAlphanumeric(8 + rng.nextInt(32));
             result.add(field);
