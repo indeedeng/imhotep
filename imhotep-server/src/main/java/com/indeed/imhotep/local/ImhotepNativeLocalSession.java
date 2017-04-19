@@ -16,8 +16,10 @@ package com.indeed.imhotep.local;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.imhotep.GroupMultiRemapRule;
+import com.indeed.imhotep.GroupStatsDummyIterator;
 import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.MemoryReservationContext;
+import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.service.CachedFlamdexReader;
 import com.indeed.imhotep.service.RawCachedFlamdexReaderReference;
@@ -131,9 +133,15 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
         long[] result = groupStats.get(stat);
         if (groupStats.isDirty(stat)) {
             multiCache.nativeGetGroupStats(stat, result);
+            groupStats.get(stat)[0] = 0; // clearing value for filtered-out group.
             groupStats.validate(stat);
         }
         return result;
+    }
+
+    @Override
+    public synchronized GroupStatsIterator getGroupStatsIterator(int stat) {
+        return new GroupStatsDummyIterator(this.getGroupStats(stat));
     }
 
     @Override

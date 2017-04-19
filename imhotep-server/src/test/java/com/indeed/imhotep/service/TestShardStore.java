@@ -72,7 +72,7 @@ public class TestShardStore {
             /* !@# There's currently a bug in LSMTree close() that can cause
                this test to fail if we try to reopen too soon. Until the fix
                for it gets merged, we need this ugly workaround. */
-            Thread.sleep(1000);
+            Thread.sleep(10000);
 
             /* Reopen the store and verify that it has everything in it. */
             try (ShardStore store = new ShardStore(storeDir)) {
@@ -118,7 +118,7 @@ public class TestShardStore {
             /* !@# There's currently a bug in LSMTree close() that can cause
                this test to fail if we try to reopen too soon. Until the fix
                for it gets merged, we need this ugly workaround. */
-            Thread.sleep(1000);
+            Thread.sleep(10000);
 
             /* Reopen the store and verify that it has everything in it. */
             try (ShardStore store = new ShardStore(storeDir)) {
@@ -144,7 +144,7 @@ public class TestShardStore {
             /* !@# There's currently a bug in LSMTree close() that can cause
                this test to fail if we try to reopen too soon. Until the fix
                for it gets merged, we need this ugly workaround. */
-            Thread.sleep(1000);
+            Thread.sleep(10000);
 
             /* Reopen the store and verify that it has everything in it. */
             try (ShardStore store = new ShardStore(storeDir)) {

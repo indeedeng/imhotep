@@ -15,6 +15,8 @@
 
 import com.google.common.io.ByteStreams;
 import com.google.protobuf.Message;
+import com.indeed.imhotep.GroupStatsStreamReader;
+import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.frontend.protobuf.ImhotepFrontendRequest;
 import com.indeed.imhotep.frontend.protobuf.ImhotepFrontendResponse;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
@@ -22,49 +24,62 @@ import com.indeed.imhotep.protobuf.GroupRemapMessage;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
  * @author jsgroth
- * 
+ *
  * static utility methods for sending and receiving imhotep protobufs
  */
 public final class ImhotepProtobufShipping {
     private ImhotepProtobufShipping() {}
 
-    public static void sendProtobuf(Message request, OutputStream os) throws IOException {
+    public static void sendProtobuf(final Message request, final OutputStream os) throws IOException {
         os.write(Bytes.intToBytes(request.getSerializedSize()));
         request.writeTo(os);
         os.flush();
     }
 
-    public static ImhotepRequest readRequest(InputStream is) throws IOException {
+    public static void writeArray(final long[] array, final OutputStream os) throws IOException {
+        final DataOutputStream stream = new DataOutputStream(os);
+        for (final long value : array) {
+            stream.writeLong(value);
+        }
+        stream.flush();
+    }
+
+    public static GroupStatsIterator readGroupStatsIterator(final InputStream is, final int len) {
+        return new GroupStatsStreamReader(is, len);
+    }
+
+    public static ImhotepRequest readRequest(final InputStream is) throws IOException {
         return ImhotepRequest.parseFrom(readPayloadStream(is));
     }
 
-    public static GroupMultiRemapMessage readGroupMultiRemapMessage(InputStream is) throws IOException {
+    public static GroupMultiRemapMessage readGroupMultiRemapMessage(final InputStream is) throws IOException {
         return GroupMultiRemapMessage.parseFrom(readPayloadStream(is));
     }
 
-    public static GroupRemapMessage readGroupRemapMessage(InputStream is) throws IOException {
+    public static GroupRemapMessage readGroupRemapMessage(final InputStream is) throws IOException {
         return GroupRemapMessage.parseFrom(readPayloadStream(is));
     }
 
-    public static ImhotepResponse readResponse(InputStream is) throws IOException {
+    public static ImhotepResponse readResponse(final InputStream is) throws IOException {
         return ImhotepResponse.parseFrom(readPayloadStream(is));
     }
 
-    public static ImhotepFrontendRequest readFrontendRequest(InputStream is) throws IOException {
+    public static ImhotepFrontendRequest readFrontendRequest(final InputStream is) throws IOException {
         return ImhotepFrontendRequest.parseFrom(readPayloadStream(is));
     }
 
-    public static ImhotepFrontendResponse readFrontendResponse(InputStream is) throws IOException {
+    public static ImhotepFrontendResponse readFrontendResponse(final InputStream is) throws IOException {
         return ImhotepFrontendResponse.parseFrom(readPayloadStream(is));
     }
 
-    private static InputStream readPayloadStream(InputStream is) throws IOException {
+    private static InputStream readPayloadStream(final InputStream is) throws IOException {
         final byte[] payloadLengthBytes = new byte[4];
         ByteStreams.readFully(is, payloadLengthBytes);
         final int payloadLength = Bytes.bytesToInt(payloadLengthBytes);

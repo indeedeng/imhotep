@@ -51,6 +51,14 @@ public interface ImhotepSession
     long[] getGroupStats(int stat);
 
     /**
+     * get the current total of a given metric for each group
+     * Trailing groups with 0 values can cause the returned array to be shorter than the total number of groups.
+     * @param stat the index of the metric
+     * @return an iterator with the metric values, indexed by group
+     */
+    GroupStatsIterator getGroupStatsIterator(int stat);
+
+    /**
      * get an iterator over all (field, term, group, stat) tuples for the given fields
      * @param intFields list of int fields
      * @param stringFields list of string fields
@@ -389,7 +397,7 @@ public interface ImhotepSession
     /**
      * Rebuilds the Indexes and removes all docs in group 0. May make 
      * future FTGS passes more efficent.
-     * @throws ImhotepOutOfMemoryException 
+     * @throws ImhotepOutOfMemoryException in case there's not enough memory
      */
     void rebuildAndFilterIndexes(List<String> intFields, List<String> stringFields) throws ImhotepOutOfMemoryException;
 

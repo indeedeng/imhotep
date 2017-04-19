@@ -21,8 +21,10 @@ import com.indeed.flamdex.api.RawFlamdexReader;
 import com.indeed.flamdex.reader.FlamdexMetadata;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexWriter;
+import com.indeed.imhotep.GroupStatsDummyIterator;
 import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.MemoryReservationContext;
+import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.service.CachedFlamdexReader;
 import com.indeed.imhotep.service.RawCachedFlamdexReader;
@@ -428,6 +430,11 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
         return groupStats.get(stat);
     }
 
+    @Override
+    public synchronized GroupStatsIterator getGroupStatsIterator(int stat) {
+        return new GroupStatsDummyIterator(this.getGroupStats(stat));
+    }
+
     private static void updateGroupStatsAllDocs(IntValueLookup statLookup,
                                                 long[]         results,
                                                 GroupLookup    docIdToGroup,
@@ -467,6 +474,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
                 results[docGrpBuffer[i]] += valBuf[i];
             }
         }
+        results[0] = 0; // clearing value for filtered-out group.
     }
 
     @Override
