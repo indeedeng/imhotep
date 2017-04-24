@@ -1598,6 +1598,28 @@ public class TestImhotepLocalSession {
     }
 
     @Test
+    public void testPushStatLen() throws ImhotepOutOfMemoryException {
+        final FlamdexReader r = MakeAFlamdex.make();
+        try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
+
+            session.pushStat("len sf1");
+            final long[] stats = session.getGroupStats(0);
+            // 37 == "a".length() * 4 + "hello world".length() * 3
+            Assert.assertEquals( "Sum of len for 'sf1' field", 37, stats[1]);
+            session.popStat();
+
+            boolean hasException = false;
+            try {
+                // 'sf4' is multi-valued field for docId == 6, we expect exception to be thrown.
+                session.pushStat("len sf4");
+            } catch ( final Throwable t ) {
+                hasException = true;
+            }
+            Assert.assertTrue("Exception must be thrown for multi-valued field", hasException);
+        }
+    }
+
+    @Test
     public void testGroup0Filtering() throws ImhotepOutOfMemoryException, IOException {
         /* make session 1 */
         final FlamdexReader r1 = MakeAFlamdex.make();
