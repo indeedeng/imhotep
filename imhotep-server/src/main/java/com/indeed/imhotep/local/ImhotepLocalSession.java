@@ -36,6 +36,7 @@ import com.indeed.flamdex.api.StringValueLookup;
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.flamdex.datastruct.FastBitSetPooler;
 import com.indeed.flamdex.fieldcache.ByteArrayIntValueLookup;
+import com.indeed.flamdex.fieldcache.CharArrayIntValueLookup;
 import com.indeed.flamdex.fieldcache.IntArrayIntValueLookup;
 import com.indeed.flamdex.query.Query;
 import com.indeed.flamdex.query.Term;
@@ -2800,29 +2801,30 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     private IntValueLookup stringLenLookup(final String field) throws ImhotepOutOfMemoryException {
-        final long memoryUsage = flamdexReader.getNumDocs();
+        final long memoryUsage = 2 * flamdexReader.getNumDocs();
 
         if (!memory.claimMemory(memoryUsage)) {
             throw new ImhotepOutOfMemoryException();
         }
 
-        final int[] result = new int[flamdexReader.getNumDocs()];
-        int max = Integer.MAX_VALUE;
-        int min = Integer.MIN_VALUE;
+        final char[] result = new char[flamdexReader.getNumDocs()];
+        char max = Character.MAX_VALUE;
+        char min = Character.MIN_VALUE;
 
         try (StringTermIterator iterator = flamdexReader.getStringTermIterator(field);
                     DocIdStream docIdStream = flamdexReader.getDocIdStream()) {
             while (iterator.next()) {
-                final int len = iterator.term().length();
-                min = Math.min(min, len);
-                max = Math.max(max, len);
+                final char len = (char) Math.min(iterator.term().length(), Character.MAX_VALUE);
+                min = (char) Math.min(min, len);
+                max = (char) Math.max(max, len);
                 docIdStream.reset(iterator);
                 while (true) {
                     final int n = docIdStream.fillDocIdBuffer(docIdBuf);
                     for (int i = 0; i < n; ++i) {
                         final int doc = docIdBuf[i];
                         if (result[doc] != 0) {
-                            throw new IllegalArgumentException("");
+                            memory.releaseMemory(memoryUsage);
+                            throw new IllegalArgumentException("String len operator is not supported for multi-valued fields");
                         }
                         result[doc] = len;
                     }
@@ -2833,7 +2835,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             }
         }
 
-        return new MemoryReservingIntValueLookupWrapper(new IntArrayIntValueLookup(result, min, max));
+        return new MemoryReservingIntValueLookupWrapper(new CharArrayIntValueLookup(result, min, max));
     }
 
     private IntValueLookup stringTermCountLookup(final String field)
