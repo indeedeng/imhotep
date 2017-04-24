@@ -60,6 +60,8 @@ import com.indeed.imhotep.api.DocIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.RawFTGSIterator;
+import com.indeed.imhotep.automaton.Automaton;
+import com.indeed.imhotep.automaton.RegExp;
 import com.indeed.imhotep.group.ImhotepChooser;
 import com.indeed.imhotep.marshal.ImhotepDaemonMarshaller;
 import com.indeed.imhotep.metrics.AbsoluteValue;
@@ -95,8 +97,6 @@ import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.core.threads.LogOnUncaughtExceptionHandler;
 import com.indeed.util.core.threads.ThreadSafeBitSet;
-import com.indeed.imhotep.automaton.Automaton;
-import com.indeed.imhotep.automaton.RegExp;
 import it.unimi.dsi.fastutil.PriorityQueue;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -1605,6 +1605,9 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         } else if (statName.startsWith("ref ")) {
             final int depth = Integer.valueOf(statName.substring(4).trim());
             statLookup.set(numStats, statName, new DelegatingMetric(statLookup.get(numStats - depth - 1)));
+        } else if (statName.startsWith("len ")) {
+            final String field = statName.substring("len ".length()).trim();
+            statLookup.set(numStats, statName, stringLenLookup(field));
         } else if (is32BitInteger(statName)) {
             final int constant = Integer.parseInt(statName); // guaranteed not to fail
             statLookup.set(numStats, statName, new Constant(constant));
@@ -2794,6 +2797,43 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
 
         return new MemoryReservingIntValueLookupWrapper(new ByteArrayIntValueLookup(array, 0, 255));
+    }
+
+    private IntValueLookup stringLenLookup(final String field) throws ImhotepOutOfMemoryException {
+        final long memoryUsage = flamdexReader.getNumDocs();
+
+        if (!memory.claimMemory(memoryUsage)) {
+            throw new ImhotepOutOfMemoryException();
+        }
+
+        final int[] result = new int[flamdexReader.getNumDocs()];
+        int max = Integer.MAX_VALUE;
+        int min = Integer.MIN_VALUE;
+
+        try (StringTermIterator iterator = flamdexReader.getStringTermIterator(field);
+                    DocIdStream docIdStream = flamdexReader.getDocIdStream()) {
+            while (iterator.next()) {
+                final int len = iterator.term().length();
+                min = Math.min(min, len);
+                max = Math.max(max, len);
+                docIdStream.reset(iterator);
+                while (true) {
+                    final int n = docIdStream.fillDocIdBuffer(docIdBuf);
+                    for (int i = 0; i < n; ++i) {
+                        final int doc = docIdBuf[i];
+                        if (result[doc] != 0) {
+                            throw new IllegalArgumentException("");
+                        }
+                        result[doc] = len;
+                    }
+                    if (n < docIdBuf.length) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        return new MemoryReservingIntValueLookupWrapper(new IntArrayIntValueLookup(result, min, max));
     }
 
     private IntValueLookup stringTermCountLookup(final String field)
