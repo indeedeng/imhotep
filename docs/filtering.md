@@ -9,15 +9,18 @@ Use the optional <strong>where</strong> filter to limit the query to only those 
 Use these rules when constructing the <strong>where</strong> statement:
 
 <ul>
-<li>Join separate filters with the default and optional AND operator or a space. For example, the following two <strong>where</strong> statements are identical:<br><br><ul> 
-  <li><code>country=us and language=en</code></li>
-  <li><code>country=us language=en</code></li></ul>
-<li>You cannot join separate filters with the OR operator.</li>
-<li>To negate a filter, precede the definition with <code>-</code> (minus sign).</li>
-<li>If you leave this control empty, IQL considers all documents.</li></ul><br><br> 
+  <li>Join separate filters with the default and optional AND operator or a space. For example, the following two <strong>where</strong> statements are identical: <br><br>
+    <ul>
+      <li><code>country=us and language=en</code></li>
+      <li><code>country=us language=en</code></li>
+    </ul>
+  </li>
+  <li>You cannot join separate filters with the OR operator.</li>
+  <li>To negate a filter, precede the definition with <code>-</code> (minus sign).</li>
+  <li>If you leave this control empty, IQL considers all documents.</li>
+</ul>
 
 <p>The following filters are available:</p>
-
 <table>
   <tr>
   <th>Filter</th>
@@ -36,8 +39,8 @@ Use these rules when constructing the <strong>where</strong> statement:
   </tr>
   <tr>
     <td>Metric/integer pairs</td>
-   <td>metric=integer<br>metric!=integer<br>metric&#92;&#60;integer<br>metric&#60;=integer<br>metric&#62;integer<br>metric&#62;=integer</td>
-    <td><code>clicks+impressions>5</code></td>
+   <td>metric=integer<br>metric!=integer<br>metric\&lt;integer<br>metric&lt;=integer<br>metric&gt;integer<br>metric&gt;=integer</td>
+    <td><code>clicks+impressions&gt;5</code></td>
   </tr>
   <tr>
     <td>IN construction for including more than one term</td>
@@ -45,14 +48,13 @@ Use these rules when constructing the <strong>where</strong> statement:
     <td><code>country in (greatbritain,france)</code><br><code>country in ("great britain",france)</code><br><code>country not in (canada,us,germany)</code></td>
   </tr>
   <tr>
-  	<td>To construct the following two filters, you must use the lucene() function:<ul>
-  	<li>a logical OR of conditions on different fields</li>
-        <li>filter by a range of strings like <code>field:[a TO b]</code></li>
-        </ul></td>
+  	<td>To construct the following two filters, you must use the lucene() function:
+    <ul><li>a logical OR of conditions on different fields</li>
+        <li>filter by a range of strings like <code>field:[a TO b]</code></li></ul></td>
         <td>lucene("luceneQueryStr")</td>
         <td><code>lucene("(-resultA:0) OR (-resultB:0)")</code> returns the number of documents in the dataset that result in at least one <code>resultA</code> or one <code>resultB</code>.</td>
     
-   <tr>
+   </tr><tr>
     <td>The sample() function allows you to retain a portion of the documents. The sampling denominator is 100 if you don't specify a value. <br><br>By default, rerunning the query retrieves a different set of documents. Provide a consistent value for the randomSeed parameter to retrieve the same documents when you rerun the query.</td>
     <td>sample(field, samplingRatioNumerator, [samplingRatioDenominator=100])<br><br>sample(field, samplingRatioNumerator, [samplingRatioDenominator=100], [randomSeed])</td>
     <td><code>sample(accountid, 1)</code> returns 1% of account IDs.<br> <code>sample(accountid, 1, 1000)</code> returns .1% of account IDs.</td>
