@@ -21,7 +21,8 @@ Use these sample data files as models for preparing your data for upload:<br>
 
 ## Filenames
 
-#### <a name="shard-timerange"></a>Include the shard time range in the filename 
+
+### <strong><a name="shard-timerange"></a>Include the shard time range in the filename</strong> 
 Imhotep partitions your data into shards by the time denoted in the filename. When you [specify a time range in IQL][timerange], Imhotep selects the shards to search based on the time period associated with each shard, not the [timestamps in the documents themselves](#time).
 
 You can specify one full day, one full hour, or a range. If you specify a range, the end time is exclusive to the range.
@@ -50,25 +51,26 @@ The time denoted in the filename must be expressed in UTC-6. For example, for a 
    </tr>
   </table>
   
-#### Optional prefixes and suffixes in the filename must be strings
+### <strong>Optional prefixes and suffixes in the filename must be strings</strong>
+
 You can add a string prefix or suffix, or both, to your filename. The builder ignores prefixes and suffixes that are strings. For example, the builder correctly ignores `QA_report` and `_combined` in the  `QA_report_20141013_combined.tsv` filename.
 
 Digits are not supported in a prefix or suffix. For example, the `QA_report_20141013_parts1_2.tsv` filename is invalid because it includes digits in the suffix.
 
 ## Field Headers
 
-#### The first line of your file represents the header that defines fields in the resulting dataset 
+### <strong>The first line of your file represents the header that defines fields in the resulting dataset</strong>
 
 Use field names that contain uppercase `A-Z`, lowercase `a-z`, digits, or `_` (underscore). A field name cannot start with a digit.
 
 
-#### <a name="time"></a>A document's timestamp must be in the same range as the filename
+### <strong><a name="time"></a>A document's timestamp must be in the same range as the filename</strong>
 
 If the field name is `time` or `unixtime`, the builder parses that field’s values as Unix timestamps and uses them as the document’s timestamps in the dataset. A timestamp can be in seconds or milliseconds since Unix epoch time (UTC). If you don't include a `time` or `unixtime` field, the builder uses the start of the [shard time range](#shard-timerange) as the timestamp for all of the documents in the file.
 
 NOTE: Do not use floating-point values in a `time` or `unixtime` field, because floating-point values are treated as strings. [Read more](#floating).
 
-#### Field names with the * suffix
+### <strong>Field names with the * suffix</strong>
 
 Adding the `*` suffix to the field name in the header also indexes a tokenized version of that field. 
 <table>
@@ -85,7 +87,7 @@ Adding the `*` suffix to the field name in the header also indexes a tokenized v
  
 </table>
 
-#### Field names with the ** suffix
+### <strong>Field names with the ** suffix</strong>
 
 Adding the `**` suffix to the field name in the header also indexes bigrams from the field value. 
 <table>
@@ -101,7 +103,7 @@ Adding the `**` suffix to the field name in the header also indexes bigrams from
   </tr> 
 </table>
 
-#### Field names with the + suffix
+### <strong>Field names with the + suffix</strong>
 Adding the `+` suffix to the field name in the header indexes the tokens in the field instead of the entire field. 
 <table>
   <tr>
@@ -120,18 +122,18 @@ Adding the `+` suffix to the field name in the header indexes the tokens in the 
 
 ## Field Values
 
-#### Prepare the values in your data file
+### <strong>Prepare the values in your data file</strong>
 
 Ensure that you remove tabs and newlines from your values.
 
 *CSV Only:* Do not use quotations around field values. 
 
-####Imhotep has two data types: string and integer(long)
+### <strong>Imhotep has two data types: string and integer(long)</strong>
 For Imhotep to treat a field’s value as an integer, at least 90% of the values must be integers or blanks, and at least 20% of the total values must be valid integers.
 
 Once set, a field's type must remain consistent. That is, once a field is indexed as an integer, the field must remain an integer. Likewise, if a field is indexed as a string, the field must remain a string. If a field's type is not the same in every shard for that dataset, data for one or the other type will not be accessible through IQL.
 
-#### <a name="floating"></a>Floating-point values become strings
+### <strong><a name="floating"></a>Floating-point values become strings</strong>
 
 Floating-point values like 1.0 or 1.5 are not supported as integers and are treated as strings. To use floating-point values as metrics, consider the following methods:
 <table>
@@ -149,7 +151,7 @@ Floating-point values like 1.0 or 1.5 are not supported as integers and are trea
    </tr> 
 </table>
 
-#### Empty values
+### <strong>Empty values</strong>
 
 An empty value for a string field is indexed as an empty string term and can be queried. For example, `location:""` returns the queries with an empty value for the string field `location`. For integer fields, all non-integer values including the empty value are not indexed and cannot be queried.
 
