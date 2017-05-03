@@ -24,7 +24,7 @@ The required **timerange** filter allows you to specify a time range with a cale
   <tr>
     <td>Enter a relative value.</td>
     <td>Natural language terms: <br>yesterday <br>today <br>tomorrow<br><br>Terms for some time period ago: <br>Nyears <br>Nmonths<br>Nweeks <br>Ndays <br>Nhours <br>Nminutes <br>Nseconds</td>
-    <<td><code>yesterday</code><br><code>5d</code><br><code>5days</code><br><code>5daysago</code><br><code>"5 days ago"</code></td>
+    <td><code>yesterday</code><br><code>5d</code><br><code>5days</code><br><code>5daysago</code><br><code>"5 days ago"</code></td>
   </tr>
 </table>
 
