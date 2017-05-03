@@ -4,18 +4,20 @@ title: Filtering the Query
 permalink: /docs/filtering/
 ---
 
-Use the optional **where** filter to limit the query to only those documents that match the criteria you specify. Available fields are specific to the dataset you selected in **from**. 
+Use the optional <strong>where</strong> filter to limit the query to only those documents that match the criteria you specify. Available fields are specific to the dataset you selected in <strong>from</strong>. 
 
-Use these rules when constructing the **where** statement:
+Use these rules when constructing the <strong>where</strong> statement:
 
-- Join separate filters with the default and optional AND operator or a space. For example, the following two **where** statements are identical: <br><br>
-  * <code>country=us and language=en</code>
-  * <code>country=us language=en</code>
-- You cannot join separate filters with the OR operator.
-- To negate a filter, precede the definition with <code>-</code> (minus sign).
-- If you leave this control empty, IQL considers all documents. 
+<ul>
+<li>Join separate filters with the default and optional AND operator or a space. For example, the following two <strong>where</strong> statements are identical:<br><br><ul> 
+  <li><code>country=us and language=en</code></li>
+  <li><code>country=us language=en</code></li></ul>
+<li>You cannot join separate filters with the OR operator.</li>
+<li>To negate a filter, precede the definition with <code>-</code> (minus sign).</li>
+<li>If you leave this control empty, IQL considers all documents.</li></ul><br><br> 
 
-The following filters are available:
+<p>The following filters are available:</p>
+
 <table>
   <tr>
   <th>Filter</th>
@@ -43,9 +45,10 @@ The following filters are available:
     <td><code>country in (greatbritain,france)</code><br><code>country in ("great britain",france)</code><br><code>country not in (canada,us,germany)</code></td>
   </tr>
   <tr>
-  	<td>To construct the following two filters, you must use the lucene() function:
-    <ul><li>a logical OR of conditions on different fields</li>
-        <li>filter by a range of strings like <code>field:[a TO b]</code></li></ul></td>
+  	<td>To construct the following two filters, you must use the lucene() function:<ul>
+  	<li>a logical OR of conditions on different fields</li>
+        <li>filter by a range of strings like <code>field:[a TO b]</code></li>
+        </ul></td>
         <td>lucene("luceneQueryStr")</td>
         <td><code>lucene("(-resultA:0) OR (-resultB:0)")</code> returns the number of documents in the dataset that result in at least one <code>resultA</code> or one <code>resultB</code>.</td>
     
