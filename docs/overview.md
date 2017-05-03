@@ -20,16 +20,16 @@ The query editor includes the following controls:
     <td valign="top">The name of the dataset you created in Imhotep TSV Uploader. You cannot edit the list of datasets in the client. </td></tr>
   <tr>
     <td valign="top"><code>timerange</code></td>
-    <td valign="top">The required time range filter. <a href="https://agrover-indeed.github.io/imhotep/docs/timerange/">Read more</a>. </td></tr>
+    <td valign="top">The required time range filter. [Read more][timerange]. </td></tr>
   <tr>
     <td valign="top"><code>where</code></td>
-    <td valign="top">A conditional expression that specifies which documents to include in the results. Available fields are specific to the dataset you selected in **from**. If you leave this control empty, IQL considers all documents in the time range given. <a href="https:/agrover-indeed.github.io/imhotep/docs/filtering/">Read more</a>.  </td></tr>
+    <td valign="top">A conditional expression that specifies which documents to include in the results. Available fields are specific to the dataset you selected in <strong>from</strong>. If you leave this control empty, IQL considers all documents in the time range given. [Read more][filtering].  </td></tr>
   <tr>
     <td valign="top"><code>group by</code></td>
-    <td valign="top">A list of expressions that specify how to group the documents for aggregated stats. If you leave this control empty, the client places all documents into a single group. <a href="https:/agrover-indeed.github.io/imhotep/docs/aggregating/">Read more</a>. </td></tr>
+    <td valign="top">A list of expressions that specify how to group the documents for aggregated stats. If you leave this control empty, the client places all documents into a single group. [Read more][aggregating]. </td></tr>
   <tr>
     <td valign="top"><code>select</code></td>
-    <td valign="top">A comma-separated list of the metrics to compute for each aggregated group. If you leave this control empty (equivalent to entering the `count()` expression), the client returns a count of all documents in each group. <a href="https:/agrover-indeed.github.io/imhotep/docs/metrics/">Read more</a>.</td></tr>
+    <td valign="top">A comma-separated list of the metrics to compute for each aggregated group. If you leave this control empty (equivalent to entering the <code>count()</code> expression), the client returns a count of all documents in each group. [Read more][metrics].</td></tr>
   <tr>
     <td valign="top"><code>Settings > Row limit</code></td>
     <td valign="top">The maximum number of rows to return. When you run any query, all rows are computed and cached, even if you specify a row limit. This means that specifying a row limit has no effect on the load the query places on the backend.</td></tr>
