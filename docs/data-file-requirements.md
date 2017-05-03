@@ -36,17 +36,17 @@ The time denoted in the filename must be expressed in UTC-6. For example, for a 
   </tr>
   <tr>
     <td valign="top">yyyyMMdd</td>
-    <td valign="top">`20131201.tsv`</td>
+    <td valign="top"><code>20131201.tsv</code></td>
     <td valign="top">The file contains data for one day. </td>
   </tr>
    <tr>
     <td valign="top">yyyyMMdd.HH</td>
-    <td valign="top">`20131201.01.tsv`<br>`20131201.02.tsv`</td>
+    <td valign="top"><code>20131201.01.tsv</code><br><code>20131201.02.tsv</code></td>
     <td valign="top">The file contains data for one hour of the day: 1-2 AM.<br>The file contains data for one hour of the day: 2-3 AM.</td>
   </tr>
   <tr>
     <td valign="top">yyyyMMdd.HH-yyyyMMdd.HH</td>
-    <td valign="top">`20131201.00-20131201.03.tsv`<br>`20140901.00-20140903.00.tsv`</td>
+    <td valign="top"><code>20131201.00-20131201.03.tsv</code><br><code>20140901.00-20140903.00.tsv</code></td>
     <td valign="top">The file contains data for the first 3 hours of one day.<br>The file contains data for two full days.</td>
    </tr>
   </table>
@@ -143,11 +143,11 @@ Floating-point values like 1.0 or 1.5 are not supported as integers and are trea
   </tr>
   <tr>
     <td valign="top">Round the values.</td>
-    <td valign="top">`1.0 => 1`<br>`1.5 => 2`</td>
+    <td valign="top"><code>1.0 => 1</code><br><code>1.5 => 2</code></td>
    </tr> 
   <tr>
     <td valign="top">Multiply all values by a decimal constant.</td>
-    <td valign="top">`1.0 => 10`<br>`1.5 => 15`</td>
+    <td valign="top"><code>1.0 => 10</code><br><code>1.5 => 15</code></td>
    </tr> 
 </table>
 
