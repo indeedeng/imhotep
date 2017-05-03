@@ -8,7 +8,7 @@ After you run your query, click **Pivot** to summarize the results and highlight
 
 The following format and aggregation options are available:
 
-###Format
+### Format
 
 - Table
 - Table Barchart
@@ -24,7 +24,7 @@ The following format and aggregation options are available:
 
 
 
-###Aggregation
+### Aggregation
 
 - Count
 - Count Unique Values
