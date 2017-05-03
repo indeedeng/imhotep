@@ -4,7 +4,7 @@ title: Overview
 permalink: /docs/overview/
 ---
 
-To explore your Imhotep data, you can use IQL, a query language similar to SQL. You can use the IQL web client to send queries to your Imhotep cluster. The client is a single page interface with a query editor at the top of the page. Each IQL query produces a result table below the editor.
+To explore your Imhotep data, use IQL, which is a query language similar to SQL. You can use the IQL web client to send queries to your Imhotep cluster. The client is a single page interface with a query editor at the top of the page. Each IQL query produces a result table below the editor.
 
 Logging into the IQL web client:
 
@@ -16,28 +16,29 @@ Logging into the IQL web client:
 The query editor includes the following controls:
 <table>
    <tr>
-    <td valign="top">`from`</td>
-    <td valign="top">The name of the dataset you created in Imhotep TSV Uploader. You cannot edit the list of datasets in the client. </td>
+    <td valign="top"><code>from</code></td>
+    <td valign="top">The name of the dataset you created in Imhotep TSV Uploader. You cannot edit the list of datasets in the client. </td></tr>
   <tr>
-    <td valign="top">`timerange`</td>
-    <td valign="top">The required time range filter. [Read more][timerange]. </td>
+    <td valign="top"><code>timerange</code></td>
+    <td valign="top">The required time range filter. <a href="https://agrover-indeed.github.io/imhotep/docs/timerange/">Read more</a>. </td></tr>
   <tr>
-    <td valign="top">`where`</td>
-    <td valign="top">A conditional expression that specifies which documents to include in the results. Available fields are specific to the dataset you selected in **from**. If you leave this control empty, IQL considers all documents in the time range given. [Read more][filtering].  </td>
+    <td valign="top"><code>where</code></td>
+    <td valign="top">A conditional expression that specifies which documents to include in the results. Available fields are specific to the dataset you selected in **from**. If you leave this control empty, IQL considers all documents in the time range given. <a href="https:/agrover-indeed.github.io/imhotep/docs/filtering/">Read more</a>.  </td></tr>
   <tr>
-    <td valign="top">`group by`</td>
-    <td valign="top">A list of expressions that specify how to group the documents for aggregated stats. If you leave this control empty, the client places all documents into a single group. [Read more][aggregating]. </td>
+    <td valign="top"><code>group by</code></td>
+    <td valign="top">A list of expressions that specify how to group the documents for aggregated stats. If you leave this control empty, the client places all documents into a single group. <a href="https:/agrover-indeed.github.io/imhotep/docs/aggregating/">Read more</a>. </td></tr>
   <tr>
-    <td valign="top">`select`</td>
-    <td valign="top">A comma-separated list of the metrics to compute for each aggregated group. If you leave this control empty (equivalent to entering the `count()` expression), the client returns a count of all documents in each group. [Read more][metrics].</td>
+    <td valign="top"><code>select</code></td>
+    <td valign="top">A comma-separated list of the metrics to compute for each aggregated group. If you leave this control empty (equivalent to entering the `count()` expression), the client returns a count of all documents in each group. <a href="https:/agrover-indeed.github.io/imhotep/docs/metrics/">Read more</a>.</td></tr>
   <tr>
-    <td valign="top">`Settings > Row limit`</td>
-    <td valign="top">The maximum number of rows to return. When you run any query, all rows are computed and cached, even if you specify a row limit. This means that specifying a row limit has no effect on the load the query places on the backend.</td>
+    <td valign="top"><code>Settings > Row limit</code></td>
+    <td valign="top">The maximum number of rows to return. When you run any query, all rows are computed and cached, even if you specify a row limit. This means that specifying a row limit has no effect on the load the query places on the backend.</td></tr>
 </table>
+<br>
 
 As you construct your query, an autocomplete list shows available fields.
 
-###Additional options
+### Additional options
 
 | | |
 | ---- | ----- |
@@ -47,10 +48,10 @@ As you construct your query, an autocomplete list shows available fields.
 | `Pivot` allows you to summarize your query results and change views. [Read more][pivot]. |
 | `Graph` allows you to present your query results in a graph format. |
 
-###Sharing a Query
+### Sharing a Query
 To share a query with others, copy the URL.
 
-###Running Multiple Queries Simultaneously
+### Running Multiple Queries Simultaneously
 The IQL web client can implicitly join multiple result tables from multiple IQL queries. This feature allows you to see data from multiple datasets and time ranges or filtered in different ways at one time. 
 
 By default, the client shows a single row for a single IQL query. To specify an additional query in a new row, click **+** to the right of the query. This action copies the contents of all cells from the original query in the new query. 
