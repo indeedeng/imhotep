@@ -12,10 +12,7 @@ header {
   padding-top: 20px;
 }
 
-h2 {
-  font-size: 1.5em;
-  padding-top: 20px;
-}
+h3 {
 
 header, section, article, footer {
   padding-left: 0;
@@ -44,7 +41,7 @@ h3, h4, h5, h6 {
 }
 
 a {
-  color:#00c;
+  color:#00c;	
   text-decoration:none;
 }
 
@@ -71,9 +68,9 @@ blockquote {
 }
 
 code, pre {
-  font-family:Monaco, Bitstream Vera Sans Mono, Lucida Console, Terminal;
+  font-family:Monospace, Bitstream Vera Sans Mono, Lucida Console, Terminal;
   color:#333;
-  font-size:12px;
+  font-size:14px;
 }
 
 pre {
