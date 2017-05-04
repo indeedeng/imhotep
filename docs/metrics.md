@@ -19,15 +19,15 @@ The following metrics are available:
   <tr>
     <td valign="top">Simple metric name</td>
     <td valign="top">metric</td>
-    <td valign="top">`revenue`</td>
+    <td valign="top"><code>revenue</code></td>
   </tr>
   <tr>
-    <td valign="top">Arithmetic expression of two metrics (+, -, *, %) executed on each document. <br>The divide operation (/) is executed in aggregate after everything else is computed. If you require a per document divide, use a reverse slash (\\). </td>
-    <td valign="top">metric+metric<br>metric\-metric<br>metric\*metric<br>metric%metric<br>metric/metric</td>
-    <td valign="top">`clicks/impressions`<br>`revenue-expenses`</td>
+    <td>Arithmetic expression of two metrics (+, -, *, %) executed on each document. <br>The divide operation (/) is executed in aggregate after everything else is computed. If you require a per document divide, use a reverse slash (\\). </td>
+    <td>metric+metric<br>metric\-metric<br>metric\*metric<br>metric%metric<br>metric/metric</td>
+    <td><code>clicks/impressions</code><br><code>revenue-expenses</code></td>
   </tr>
   <tr>
-    <td valign="top">Function calls:
+    <td>Function calls:
     <ul>
        <li>count() returns the number of documents in the group. Each document has an implicit value of 1.</li>
        <li>exp(...) applies the Math.exp() function to the specified metric. The scalingFactor defaults to 1.  </li>
@@ -35,23 +35,23 @@ The following metrics are available:
      </ul>
        
 </td>
-    <td valign="top">count()<br>exp(metric,scalingFactor)<br>floatscale(field,scale,offset)</td>
-    <td valign="top">`count()` <br>`floatscale(float,10,5)` multiplies each value in `float` by 10 and then adds 5 to each product.</td>
+    <td>count()<br>exp(metric,scalingFactor)<br>floatscale(field,scale,offset)</td>
+    <td><code>count()</code> <br><code>floatscale(float,10,5)</code> multiplies each value in <code>float</code> by 10 and then adds 5 to each product.</td>
   </tr>
   <tr>
-    <td valign="top">distinct()</td>
-    <td valign="top">distinct(field)</td>
-    <td valign="top">`distinct(country)` returns a count of distinct terms for the `country` field in each grouping.</td>
+    <td>distinct()</td>
+    <td>distinct(field)</td>
+    <td><code>distinct(country)</code> returns a count of distinct terms for the <code>country</code> field in each grouping.</td>
   </tr>
   <tr>
-    <td valign="top">percentile()</td>
-    <td valign="top">percentile(field,&nbsp;N)</td>
-    <td valign="top">`percentile(totaltime, 50)` returns the median value of `totaltime`.</td>
+    <td>percentile()</td>
+    <td>percentile(field,&nbsp;N)</td>
+    <td><code>percentile(totaltime, 50)</code> returns the median value of <code>totaltime</code>.</td>
   </tr>
     <tr>
-    <td valign="top">Return a count of all of the documents that match the expression. Adding `/count()` returns the average. You must include `""` around a string term. </td>
-    <td valign="top">field="term"<br>field=integer<br>metric!=integer<br>metric\<integer<br>metric<=integer<br>metric>integer<br>metric>=integer<br>lucene("luceneQueryStr")</td>
-    <td valign="top">`country="us"` returns the number of documents with a value of `us` for `country`. <br><br>`clicks=1` returns the number of documents with a value of `1` for `clicks`.<br><br>`revenue>500`<br>`group="mobile"/count()`</td>
+    <td>Return a count of all of the documents that match the expression. Adding <code>/count()</code> returns the average. You must include <code>""</code> around a string term. </td>
+    <td>field="term"<br>field=integer<br>metric!=integer<br>metric\<integer<br>metric<=integer<br>metric>integer<br>metric>=integer<br>lucene("luceneQueryStr")</td>
+    <td><code>country="us"</code> returns the number of documents with a value of <code>us</code> for <code>country</code>. <br><br><code>clicks=1</code> returns the number of documents with a value of <code>1</code> for <code>clicks</code>.<br><br><code>revenue>500</code><br><code>group="mobile"/count()</code></td>
   </tr>
 
 </table>
