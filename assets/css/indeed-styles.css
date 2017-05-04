@@ -1009,9 +1009,8 @@ background-color: white!important;
 }
 
 #headerNavLinks a {
-  font-family: Arial,'Helvetica Neue',Helvetica,sans-serif;
-  font-size: 14px;
-  font-weight: bold;
+  font-family: 'Avenir',Arial,Helvetica Neue,Helvetica,sans-serif;
+  font-size: 16px;
   line-height: 96px;
   color: #fff;
 }
@@ -1563,9 +1562,7 @@ max-width: 600px;
   #sidebar .sidebar-item {
     margin-bottom: 12px;
   }
-  
- 
-	
+
   #headerNavLinks ul {
     margin-left: -12px;
     margin-right: -12px;
@@ -1580,7 +1577,7 @@ max-width: 600px;
   #headerNavLinks ul li a:hover {
     text-decoration: none;
     color: #00c;
-    background-color: #ffffff;
+    background-color: #e8e8e8;
   }
 
   body.single-post #ssba a:first-child img {
@@ -1698,7 +1695,7 @@ max-width: 600px;
   #headerNavLinks ul li a:hover {
     text-decoration: none;
     color: #00c;
-    background-color: #ffffff;
+    background-color: #e8e8e8;
   }
 
   h1 {
@@ -1750,9 +1747,8 @@ max-width: 600px;
 
 @media (max-width: 767px) {
 
-
   h1 {
-      font-size: 2.0em !important;
+      font-size: 22px !important;
   }
 
   #blogHeader .navbar {
@@ -1794,7 +1790,7 @@ max-width: 600px;
   #headerNavLinks ul li a:hover {
     text-decoration: none;
     color: #00c;
-    background-color: #ffffff;
+    background-color: #e8e8e8;
   }
 
   #blogHeader .navbar-brand {
@@ -1833,7 +1829,6 @@ max-width: 600px;
     padding-right: 0;
     padding-left: 0;
   }
-  
 
   /* hide vertical line background image */
   #mainContent>div.row {
@@ -1843,8 +1838,6 @@ max-width: 600px;
   .post-cta-button a.btn {
     width: 100%;
   }
-  
-
 
 }
 
@@ -1855,7 +1848,7 @@ max-width: 600px;
 @media (min-width: 768px) and (max-width: 991px) {
 
   h1 {
-   font-size: 22px !important;
+    font-size: 22px !important;
   }
 
   .post-ad-thumb {
@@ -1990,6 +1983,7 @@ max-width: 800px;
 }
 input {
         max-width: 700px;
+        position: top;
 }
 
 
