@@ -3,9 +3,55 @@ layout: default
 title: Sample Queries
 permalink: /docs/sample-queries/
 ---
-This page includes sample queries to run on our [demo cluster](http://imhotep.indeed.tech/iql/) preloaded with three sample datasets: `nasa`, `wikipedia` and `worldcup2014`. 
+This page includes sample queries to run on our [demo cluster](http://imhotep.indeed.tech/iql/) preloaded with three sample datasets: `apachejira`, `nasa`, `wikipedia` and `worldcup2014`. 
 
 [Click here for information about the sample data](../sample-data/).
+
+## apachejira
+
+The following query shows the users who reported the most bugs in Apache Software Foundation projects:
+
+<pre><code><a href="http://imhotep.indeed.tech/iql/q/78P8NE">from apachejira 2016-01-01 2017-05-01
+   where action="create" issuetype="Bug"
+   group by actor</a></code></pre>
+
+The following query shows the 10 projects with the most reported bugs:
+
+<pre><code><a href="http://imhotep.indeed.tech/iql/q/ENH6GG">from apachejira 2016-01-01 2017-05-01
+   where action="create" issuetype="Bug"
+   group by project[10]</a></code></pre>
+
+The following query returns the number of unique contributors per project:
+
+<pre><code><a href="http://imhotep.indeed.tech/iql/q/942RAY">from apachejira 2016-01-01 2017-05-01
+   where status="Patch Available" fieldschangedtok="status"
+   group by project
+   select distinct(actor)</a></code></pre>
+   
+The following query shows the number of contributions per person in Hadoop Common, which is a very active project:
+
+<pre><code><a href="http://imhotep.indeed.tech/iql/q/FA7ND3">from apachejira 2016-01-01 2017-05-01
+   where status=”Patch Available”  fieldschangedtok=”status” project=”Hadoop Common”
+   group by actor
+   select distinct(issuekey)</a></code></pre>
+   
+From the graph (as of 2017-05-01), the following insights are available:
+
+- There are 200 different people who have contributed a patch.
+- Only 50 people have contributed 5 or more patches.
+- On average, each person contributes 5 patches.
+
+
+The following query shows the average number of hours it takes for a patch to be accepted per project:
+
+<pre><code><a href="http://imhotep.indeed.tech/iql/q/XC7PGP">from apachejira 2016-01-01 2017-05-01
+   where prevstatus="Patch Available" status="Resolved" fieldschangedtok="status"
+   group by project
+   select timesinceaction\3600/count()</a></code></pre>
+
+
+
+
 
 ## NASA 
 
