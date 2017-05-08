@@ -30,7 +30,7 @@ The following query returns the number of unique contributors per project:
    
 The following query shows the number of contributions per person in Hadoop Common, which is a very active project:
 
-<pre><code><a href="http://imhotep.indeed.tech/iql/q/FA7ND3">from apachejira 2016-01-01 2017-05-01
+<pre><code><a href=" http://imhotep.indeed.tech/iql/q/WZ727K">from apachejira 2016-01-01 2017-05-01
    where status=”Patch Available”  fieldschangedtok=”status” project=”Hadoop Common”
    group by actor
    select distinct(issuekey)</a></code></pre>
