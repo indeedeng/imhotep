@@ -3,7 +3,7 @@ layout: default
 title: Sample Queries
 permalink: /docs/sample-queries/
 ---
-This page includes sample queries to run on our [demo cluster](http://imhotep.indeed.tech/iql/) preloaded with three sample datasets: `apachejira`, `nasa`, `wikipedia` and `worldcup2014`. 
+This page includes sample queries to run on our [demo cluster](http://imhotep.indeed.tech/iql/) preloaded with four sample datasets: `apachejira`, `nasa`, `wikipedia` and `worldcup2014`. 
 
 [Click here for information about the sample data](../sample-data/).
 
