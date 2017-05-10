@@ -11,7 +11,7 @@ This page includes sample queries to run on our [demo cluster](http://imhotep.in
 
 The following query shows the users who reported the most bugs in Apache Software Foundation projects:
 
-<pre><code><a href="http://imhotep.indeed.tech/iql/q/78P8NE">from apachejira 2016-01-01 2017-05-01
+<pre><code><a href="http://imhotep.indeed.tech/iql/q/XHG22Z">from apachejira 2016-01-01 2017-05-01
    where action="create" issuetype="Bug"
    group by actor</a></code></pre>
 
@@ -30,7 +30,7 @@ The following query returns the number of unique contributors per project:
    
 The following query shows the number of contributions per person in Hadoop Common, which is a very active project:
 
-<pre><code><a href=" http://imhotep.indeed.tech/iql/q/WZ727K">from apachejira 2016-01-01 2017-05-01
+<pre><code><a href="http://imhotep.indeed.tech/iql/q/EAHDHM">from apachejira 2016-01-01 2017-05-01
    where status=”Patch Available”  fieldschangedtok=”status” project=”Hadoop Common”
    group by actor
    select distinct(issuekey)</a></code></pre>
@@ -44,7 +44,7 @@ From the graph (as of 2017-05-01), the following insights are available:
 
 The following query shows the average number of hours it takes for a patch to be accepted per project:
 
-<pre><code><a href="http://imhotep.indeed.tech/iql/q/XC7PGP">from apachejira 2016-01-01 2017-05-01
+<pre><code><a href="http://imhotep.indeed.tech/iql/q/3FRWMR">from apachejira 2016-01-01 2017-05-01
    where prevstatus="Patch Available" status="Resolved" fieldschangedtok="status"
    group by project
    select timesinceaction\3600/count()</a></code></pre>
