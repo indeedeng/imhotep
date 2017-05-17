@@ -227,7 +227,7 @@
 		<colt.version>1.2.0</colt.version>
 		<lucene.version>2.4.1</lucene.version>
 		<snakeyaml.version>1.10</snakeyaml.version>
-		<indeed-lsmtree.version>[1.0.5-internal-20160908114104,)</indeed-lsmtree.version>
+		<indeed-lsmtree.version>[1.0.7,)</indeed-lsmtree.version>
 	</properties>
 
 </project>
