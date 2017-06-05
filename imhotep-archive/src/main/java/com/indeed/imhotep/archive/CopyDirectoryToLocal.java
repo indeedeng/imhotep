@@ -49,7 +49,7 @@ public class CopyDirectoryToLocal {
         }
 
         for (final FileStatus status : fs.listStatus(from)) {
-            if (status.isDir()) {
+            if (status.isDirectory()) {
                 final Path path = status.getPath();
                 System.out.println("copying " + path);
                 final String pathName = path.getName();

@@ -56,7 +56,7 @@ public class CopyFilteredDirectoryToLocal {
                 return path.getName().startsWith("index20130709");
             }
         })) {
-            if (status.isDir()) {
+            if (status.isDirectory()) {
                 final Path path = status.getPath();
                 System.out.println("copying " + path);
                 final String pathName = path.getName();

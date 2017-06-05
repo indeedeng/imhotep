@@ -15,7 +15,6 @@
 
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Longs;
-import com.indeed.util.core.reference.AtomicSharedReference;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntValueLookup;
@@ -26,6 +25,7 @@ import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.MemoryReserver;
 import com.indeed.imhotep.MetricKey;
+import com.indeed.util.core.reference.AtomicSharedReference;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -34,7 +34,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author jsgroth
@@ -54,14 +56,14 @@ public class TestCachedFlamdexReader {
         final MemoryReserver memory = new CachedMemoryReserver(new ImhotepMemoryPool(Long.MAX_VALUE), cache);
         final AtomicSharedReference<CachedFlamdexReader> resource = AtomicSharedReference.create(new CachedFlamdexReader(new MemoryReservationContext(memory), r, "test", "test", cache));
         assertFalse(closed.get());
-        CachedFlamdexReaderReference cfr2 = new CachedFlamdexReaderReference(resource.get());
+        CachedFlamdexReaderReference cfr2 = new CachedFlamdexReaderReference(resource.getCopy());
         assertFalse(closed.get());
         cfr2.close();
         assertFalse(closed.get());
         for (int i = 2; i < 10; ++i) {
             List<CachedFlamdexReaderReference> l = Lists.newArrayList();
             for (int j = 0; j < i; ++j) {
-                l.add(new CachedFlamdexReaderReference(resource.get()));
+                l.add(new CachedFlamdexReaderReference(resource.getCopy()));
                 assertFalse(closed.get());
             }
             for (CachedFlamdexReaderReference cfr : l) {
@@ -69,7 +71,7 @@ public class TestCachedFlamdexReader {
                 assertFalse(closed.get());
             }
         }
-        final CachedFlamdexReaderReference cfr3 = new CachedFlamdexReaderReference(resource.get());
+        final CachedFlamdexReaderReference cfr3 = new CachedFlamdexReaderReference(resource.getCopy());
         assertFalse(closed.get());
         resource.unset();
         assertFalse(closed.get());
@@ -84,7 +86,7 @@ public class TestCachedFlamdexReader {
             }
         };
         resource.set(new CachedFlamdexReader(new MemoryReservationContext(memory), r, "test", "test", cache));
-        cfr2 = new CachedFlamdexReaderReference(resource.get());
+        cfr2 = new CachedFlamdexReaderReference(resource.getCopy());
         assertFalse(closed.get());
         cfr2.close();
         assertFalse(closed.get());
@@ -142,9 +144,9 @@ public class TestCachedFlamdexReader {
         MemoryReserver memory = new CachedMemoryReserver(new ImhotepMemoryPool(7L), cache);
         AtomicSharedReference<CachedFlamdexReader> resource = AtomicSharedReference.create(new CachedFlamdexReader(new MemoryReservationContext(memory), r, "test", "test", cache));
         try (
-                final CachedFlamdexReaderReference cfr = new CachedFlamdexReaderReference(resource.get());
-                final CachedFlamdexReaderReference cfr1 = new CachedFlamdexReaderReference(resource.get());
-                final CachedFlamdexReaderReference cfr2 = new CachedFlamdexReaderReference(resource.get());
+                final CachedFlamdexReaderReference cfr = new CachedFlamdexReaderReference(resource.getCopy());
+                final CachedFlamdexReaderReference cfr1 = new CachedFlamdexReaderReference(resource.getCopy());
+                final CachedFlamdexReaderReference cfr2 = new CachedFlamdexReaderReference(resource.getCopy());
         ) {
             IntValueLookup l1 = cfr1.getMetric("m1");
             assertEquals(5L, memory.usedMemory());

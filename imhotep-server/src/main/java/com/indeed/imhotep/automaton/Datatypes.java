@@ -29,9 +29,20 @@
 
 package com.indeed.imhotep.automaton;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.StreamTokenizer;
 import java.net.URL;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * Basic automata for representing common datatypes
@@ -251,14 +262,14 @@ final public class Datatypes {
  	 * (Typically, the pre-built automata are stored in the same jar as this class.)
  	 * <p>
 	 * The following automata are available:
-	 * <table border=1>
+	 * <table border=1 summary="list of available automata">
 	 * <tr><th>Name</th><th>Description</th></tr>
 	 * <tr><td><tt>NCName</tt></td><td><a target="_top" href="http://www.w3.org/TR/REC-xml-names/#NT-NCName">NCName</a> from XML Namespaces 1.0</td></tr>
 	 * <tr><td><tt>QName</tt></td><td><a target="_top" href="http://www.w3.org/TR/REC-xml-names/#NT-QName">QName</a> from XML Namespaces 1.0</td></tr>
 	 * <tr><td><tt>Char</tt></td><td><a target="_top" href="http://www.w3.org/TR/REC-xml/#NT-Char">Char</a> from XML 1.0</td></tr>
 	 * <tr><td><tt>NameChar</tt></td><td><a target="_top" href="http://www.w3.org/TR/REC-xml/#NT-NameChar">NameChar</a> from XML 1.0</td></tr>
 	 * <tr><td><tt>URI</tt></td><td><a target="_top" href="http://rfc.net/rfc2396.html#sA%2e">URI</a> from RFC2396 with
-	 * amendments from <a target="_top" href="http://www.faqs.org/rfcs/rfc2373.html">RFC2373</td></tr>
+	 * amendments from <a target="_top" href="http://www.faqs.org/rfcs/rfc2373.html">RFC2373</a></td></tr>
 	 * <tr><td><tt>anyname</tt></td><td>optional URI enclosed by brackets, followed by NCName</td></tr>
 	 * <tr><td><tt>noap</tt></td><td>strings not containing '@' and '%'</td></tr>
 	 * <tr><td><tt>whitespace</tt></td><td>optional <a target="_top" href="http://www.w3.org/TR/REC-xml/#NT-S">S</a> from XML 1.0</td></tr>

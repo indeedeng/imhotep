@@ -40,7 +40,7 @@ import java.util.Set;
  * Regular Expression extension to <code>Automaton</code>.
  * <p>
  * Regular expressions are built from the following abstract syntax:<p>
- * <table border=0>
+ * <table border=0 summary="Regular expressions are built from the following abstract syntax">
  * <tr><td><i>regexp</i></td><td>::=</td><td><i>unionexp</i></td><td></td><td></td></tr>
  * <tr><td></td><td>|</td><td></td><td></td><td></td></tr>
  *

@@ -49,7 +49,7 @@ import java.util.concurrent.TimeUnit;
 
 /** ShardMap is the data structure used by LocalImhotepServiceCore to keep track
     of which shards reside on the host on which it is running. It's an unordered
-    map of unordered maps, (dataset->(shardid->shard)).
+    map of unordered maps, (dataset-&gt;(shardid-&gt;shard)).
 
     Conceptually, instances of this class are immutable, however nothing in
     practice prevents them from being modified, a property which is useful in
