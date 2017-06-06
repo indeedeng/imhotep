@@ -248,7 +248,7 @@ public interface ImhotepSession
     /**
      * perform a random regrouping of documents based on a specific field
      * this is done by applying the salt to each term, hashing, and mapping the hash to a value between 0 and 1
-     * all terms with value < p go in negativeGroup, all terms with value >= p go in positiveGroup
+     * all terms with value &lt; p go in negativeGroup, all terms with value &gt;= p go in positiveGroup
      * the actual grouping is only as random as the salt
      *
      * @param field the field to use
@@ -256,8 +256,8 @@ public interface ImhotepSession
      * @param salt the salt to use
      * @param p the minimum value to go into positiveGroup
      * @param targetGroup the group to apply the random regroup to
-     * @param negativeGroup the group where terms with values < p will go
-     * @param positiveGroup the group where terms with values >= p will go
+     * @param negativeGroup the group where terms with values &lt; p will go
+     * @param positiveGroup the group where terms with values &gt;= p will go
      * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to go out of memory
      */
     void randomRegroup(String field, boolean isIntField, String salt, double p, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;

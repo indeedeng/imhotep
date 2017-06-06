@@ -69,7 +69,7 @@ public final class CopyIndexTimeRangeToLocal {
                 return dateTime.getMillis() >= start.getMillis() && dateTime.getMillis() < end.getMillis();
             }
         })) {
-            if (status.isDir()) {
+            if (status.isDirectory()) {
                 final Path path = status.getPath();
                 System.out.println("copying " + path);
                 final String pathName = path.getName();

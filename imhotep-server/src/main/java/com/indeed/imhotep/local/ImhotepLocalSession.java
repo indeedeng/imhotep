@@ -265,7 +265,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     /**
-     * export the current docId -> group lookup into an array
+     * export the current docId -&gt; group lookup into an array
      *
      * @param array
      *            the array to export docIdToGroup into
@@ -1190,7 +1190,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     /**
      * Requires that array is non-null and sorted in ascending order.
      *
-     * Returns the lowest index in the array such that value < array[index]. If
+     * Returns the lowest index in the array such that value &lt; array[index]. If
      * value is greater than every element in array, returns array.length.
      * Essentially, a wrapper around binarySearch to return an index in all
      * cases.
@@ -1216,7 +1216,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
      * Specifically, checks to make sure
      * <ul>
      * <li>percentages is in ascending order,</li>
-     * <li>percentages contains only values between 0.0 & 1.0, and</li>
+     * <li>percentages contains only values between 0.0 &amp; 1.0, and</li>
      * <li>len(percentages) == len(resultGroups) - 1</li>
      * </ul>
      *
