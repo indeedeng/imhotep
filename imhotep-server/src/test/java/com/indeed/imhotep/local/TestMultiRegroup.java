@@ -51,9 +51,9 @@ public class TestMultiRegroup {
     @Rule
     public final TemporaryFolder tempDir = new TemporaryFolder();
 
-    Path shardDir;
-    Random random;
-    List<String> fields;
+    private Path shardDir;
+    private Random random;
+    private List<String> fields;
 
     private void setUpFields() {
         fields = new ArrayList<>();
@@ -63,7 +63,7 @@ public class TestMultiRegroup {
     }
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() throws IOException {
 
         MTImhotepLocalMultiSession.loadNativeLibrary();
 
@@ -77,12 +77,12 @@ public class TestMultiRegroup {
                 final IntFieldWriter ifw = shardWriter.getIntFieldWriter(field);
                 final int nTerms = random.nextInt(MAX_N_TERMS);
                 final long[] terms = generateTerms(nTerms);
-                SortedSetMultimap<Long, Integer> termsToDocIds = generateTermsToDocIds(terms);
-                for (long term : terms) {
+                final SortedSetMultimap<Long, Integer> termsToDocIds = generateTermsToDocIds(terms);
+                for (final long term : terms) {
                     ifw.nextTerm(term);
-                    SortedSet<Integer> docIds = termsToDocIds.get(Long.valueOf(term));
-                    for (Integer docId : docIds) {
-                        ifw.nextDoc(docId.intValue());
+                    final SortedSet<Integer> docIds = termsToDocIds.get(term);
+                    for (final Integer docId : docIds) {
+                        ifw.nextDoc(docId);
                     }
                 }
                 ifw.close();
@@ -91,16 +91,16 @@ public class TestMultiRegroup {
     }
 
     private SortedSetMultimap<Long, Integer> generateTermsToDocIds(final long[] terms) {
-        SortedSetMultimap<Long, Integer> result = TreeMultimap.create();
+        final SortedSetMultimap<Long, Integer> result = TreeMultimap.create();
         for (int nId = 0; nId < N_DOCS; ++nId) {
             final long term = terms[random.nextInt(terms.length)];
-            result.put(Long.valueOf(term), Integer.valueOf(nId));
+            result.put(term, nId);
         }
         return result;
     }
 
     private long[] generateTerms(final int count) {
-        long[] result = new long[count];
+        final long[] result = new long[count];
         for (int nTerm = 0; nTerm < result.length; ++nTerm) {
             result[nTerm] = nTerm + 1;
         }
@@ -108,36 +108,38 @@ public class TestMultiRegroup {
         return result;
     }
 
-    private int[] normalRegroup(GroupMultiRemapRule[] regroupRule)
+    private int[] normalRegroup(final GroupMultiRemapRule[] regroupRule)
             throws IOException, ImhotepOutOfMemoryException {
         try (final SimpleFlamdexReader reader = SimpleFlamdexReader.open(shardDir);
              final ImhotepLocalSession session = new ImhotepJavaLocalSession(reader)) {
-            int[] result = new int[N_DOCS];
+            final int[] result = new int[N_DOCS];
             session.regroup(regroupRule);
             session.exportDocIdToGroupId(result);
             return result;
         }
     }
 
-    private int[] nativeRegroup(GroupMultiRemapRule[] regroupRule)
+    private int[] nativeRegroup(final GroupMultiRemapRule[] regroupRule)
             throws IOException, ImhotepOutOfMemoryException {
         try (final SimpleFlamdexReader reader = SimpleFlamdexReader.open(shardDir);
              final ImhotepNativeLocalSession session =
                      new ImhotepNativeLocalSession(reader)) {
-            int[] result = new int[N_DOCS];
+            final int[] result = new int[N_DOCS];
             final MultiCacheConfig config = new MultiCacheConfig();
             config.calcOrdering(new StatLookup[]{session.statLookup}, session.numStats);
             session.buildMultiCache(config);
 
-            AtomicLong theAtomicPunk = new AtomicLong(100000);
-            ImhotepLocalSession[] localSessions = new ImhotepLocalSession[]{session};
-            ImhotepMemoryPool memoryPool = new ImhotepMemoryPool(Long.MAX_VALUE);
-            final MTImhotepLocalMultiSession mtSession =
+            final AtomicLong theAtomicPunk = new AtomicLong(100000);
+            final ImhotepLocalSession[] localSessions = new ImhotepLocalSession[]{session};
+
+            try( final ImhotepMemoryPool memoryPool = new ImhotepMemoryPool(Long.MAX_VALUE);
+                 final MTImhotepLocalMultiSession mtSession =
                     new MTImhotepLocalMultiSession(localSessions,
                             new MemoryReservationContext(memoryPool),
-                            theAtomicPunk, true);
-            mtSession.regroup(regroupRule);
-            session.exportDocIdToGroupId(result);
+                            theAtomicPunk, true) ) {
+                mtSession.regroup(regroupRule);
+                session.exportDocIdToGroupId(result);
+            }
             return result;
         }
     }

@@ -17,8 +17,8 @@ import com.google.common.base.Charsets;
 import com.google.common.collect.Maps;
 import com.google.common.io.InputSupplier;
 import com.google.common.io.Resources;
-import com.indeed.util.core.io.Closeables2;
 import com.indeed.flamdex.reader.MockFlamdexReader;
+import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.introspector.BeanAccess;
@@ -68,8 +68,8 @@ public class YamlFlamdexParser {
     }
 
     private static class YamlFlamdexReader {
-        private Map<String, SortedMap<Integer, List<Integer>>> intFields = Maps.newHashMap();
-        private Map<String, SortedMap<String, List<Integer>>> stringFields = Maps.newHashMap();
+        private final Map<String, SortedMap<Integer, List<Integer>>> intFields = Maps.newHashMap();
+        private final Map<String, SortedMap<String, List<Integer>>> stringFields = Maps.newHashMap();
         private int numDocs = 0;
     }
 }

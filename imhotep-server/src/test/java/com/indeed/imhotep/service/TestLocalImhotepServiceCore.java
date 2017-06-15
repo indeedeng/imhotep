@@ -37,7 +37,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -81,26 +80,31 @@ public class TestLocalImhotepServiceCore {
 
     @Test
     public void testCleanupOnFTGSFailure() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
-        Path directory = Files.createTempDirectory("asdf");
-        Path tempDir = Files.createTempDirectory("asdf");
-        Path datasetDir = directory.resolve("dataset");
+        final Path directory = Files.createTempDirectory("asdf");
+        final Path tempDir = Files.createTempDirectory("asdf");
+        final Path datasetDir = directory.resolve("dataset");
         Files.createDirectories(datasetDir);
         Files.createDirectories(datasetDir.resolve("index20150601"));
         try {
             final LocalImhotepServiceCore service = new LocalImhotepServiceCore(directory, tempDir, 9999999999999L, false, new FlamdexReaderSource() {
                 @Override
-                public FlamdexReader openReader(Path directory) throws IOException {
-                    MockFlamdexReader r = new MockFlamdexReader(Arrays.asList("if1"), Collections.<String>emptyList(), Collections.<String>emptyList(), 10000);
+                public FlamdexReader openReader(final Path directory) throws IOException {
+                    final MockFlamdexReader r =
+                            new MockFlamdexReader(
+                                    Collections.singletonList("if1"),
+                                    Collections.<String>emptyList(),
+                                    Collections.<String>emptyList(),
+                                    10000);
                     for (int i = 0; i < 1000; ++i) {
                         for (int j = 0; j < 1000; ++j) {
-                            r.addIntTerm("if1", i * 1000 + j, Arrays.asList(0));
+                            r.addIntTerm("if1", i * 1000 + j, Collections.singletonList(0));
                         }
                     }
                     return r;
                 }
             }, new LocalImhotepServiceConfig());
 
-            final String sessionId = service.handleOpenSession("dataset", Arrays.asList("index20150601"), "", "", "", 0, 0, false, "", null, false, 0);
+            final String sessionId = service.handleOpenSession("dataset", Collections.singletonList("index20150601"), "", "", "", 0, 0, false, "", null, false, 0);
             service.handlePushStat(sessionId, "count()");
             final OutputStream os = new CloseableNullOutputStream();
             final Thread t = new Thread(new Runnable() {
@@ -109,8 +113,8 @@ public class TestLocalImhotepServiceCore {
                     try {
                         service.handleGetFTGSIterator(sessionId, new String[]{"if1"}, new String[0], 0, -1, os);
                         fail();
-                    } catch (Exception e) {
-                        e.printStackTrace();
+                    } catch (final Exception expected) {
+                        expected.printStackTrace();
                     }
                 }
             });
@@ -133,8 +137,10 @@ public class TestLocalImhotepServiceCore {
         private volatile boolean closed = false;
 
         @Override
-        public void write(int b) throws IOException {
-            if (closed) throw new IOException("closed");
+        public void write(final int b) throws IOException {
+            if (closed) {
+                throw new IOException("closed");
+            }
         }
 
         @Override
@@ -146,10 +152,10 @@ public class TestLocalImhotepServiceCore {
     @Test
     @SuppressWarnings({"ResultOfMethodCallIgnored"})
     public void testVersionization() throws IOException {
-        Path directory = Files.createTempDirectory("imhotep-test");
-        Path tempDir = Files.createTempDirectory("imhotep-temp");
+        final Path directory = Files.createTempDirectory("imhotep-test");
+        final Path tempDir = Files.createTempDirectory("imhotep-temp");
         try {
-            Path datasetDir = directory.resolve("dataset");
+            final Path datasetDir = directory.resolve("dataset");
             Files.createDirectory(datasetDir);
             Files.createDirectory(datasetDir.resolve("index20160101"));
             Files.createDirectory(datasetDir.resolve("index20160101.20120101000000"));
@@ -158,21 +164,21 @@ public class TestLocalImhotepServiceCore {
             Files.createDirectory(datasetDir.resolve("index20160102.20120101123456"));
             Files.createDirectory(datasetDir.resolve("index20160103.20120102000000"));
 
-            LocalImhotepServiceCore service =
+            final LocalImhotepServiceCore service =
                 new LocalImhotepServiceCore(directory, tempDir, Long.MAX_VALUE,
                                             false, new FlamdexReaderSource() {
                 @Override
-                public FlamdexReader openReader(Path directory) throws IOException {
-                    return new MockFlamdexReader(Arrays.asList("if1"),
-                                                 Arrays.asList("sf1"),
-                                                 Arrays.asList("if1"), 5);
+                public FlamdexReader openReader(final Path directory) throws IOException {
+                    return new MockFlamdexReader(Collections.singletonList("if1"),
+                                                 Collections.singletonList("sf1"),
+                                                 Collections.singletonList("if1"), 5);
                 }
             }, new LocalImhotepServiceConfig());
-            List<ShardInfo> shards = service.handleGetShardList();
+            final List<ShardInfo> shards = service.handleGetShardList();
             assertEquals(3, shards.size());
             Collections.sort(shards, new Comparator<ShardInfo>() {
                 @Override
-                public int compare(ShardInfo o1, ShardInfo o2) {
+                public int compare(final ShardInfo o1, final ShardInfo o2) {
                     return o1.getShardId().compareTo(o2.getShardId());
                 }
             });
@@ -250,24 +256,24 @@ public class TestLocalImhotepServiceCore {
         checkExpectedFields(localShards, expectedIntFields, expectedStringFields);
     }
 
-    private void checkExpectedFields(ShardMap localShards,
-                                     Set<String> expectedIntFields,
-                                     Set<String> expectedStringFields) throws IOException {
+    private void checkExpectedFields(final ShardMap localShards,
+                                     final Set<String> expectedIntFields,
+                                     final Set<String> expectedStringFields) throws IOException {
         final DatasetInfoList datasetInfos = new DatasetInfoList(localShards);
         assertEquals(1, datasetInfos.size());
 
-        DatasetInfo datasetInfo = datasetInfos.get(0);
+        final DatasetInfo datasetInfo = datasetInfos.get(0);
         assertEquals(expectedIntFields, datasetInfo.getIntFields());
         assertEquals(expectedStringFields, datasetInfo.getStringFields());
     }
 
-    private void addShard(ShardMap localShards,
-                          String dataset,
-                          long version,
-                          ImmutableSet<String> intFields,
-                          ImmutableSet<String> stringFields) throws IOException {
-        String shardId = "index" + Long.toString(version).substring(0, 8);
-        Shard shard = new MockShard(new ShardId(dataset, shardId, version, null),
+    private void addShard(final ShardMap localShards,
+                          final String dataset,
+                          final long version,
+                          final ImmutableSet<String> intFields,
+                          final ImmutableSet<String> stringFields) throws IOException {
+        final String shardId = "index" + Long.toString(version).substring(0, 8);
+        final Shard shard = new MockShard(new ShardId(dataset, shardId, version, null),
                                     0, intFields, stringFields, Collections.<String>emptyList());
         localShards.putShard(dataset, shard);
     }

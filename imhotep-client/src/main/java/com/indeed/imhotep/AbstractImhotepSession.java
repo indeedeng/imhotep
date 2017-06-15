@@ -27,40 +27,46 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
     protected final Instrumentation.ProviderSupport instrumentation =
         new Instrumentation.ProviderSupport();
 
+    @Override
     public int regroup(final int numRawRules, final Iterator<GroupMultiRemapRule> rawRules) throws ImhotepOutOfMemoryException {
         return regroup(numRawRules, rawRules, false);
     }
 
     @Override
-    public int regroup(int numRules, Iterator<GroupMultiRemapRule> rules, boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
-        final GroupMultiRemapRuleArray rulesArray = new GroupMultiRemapRuleArray(numRules, rules);
+    public int regroup(final int numRawRules, final Iterator<GroupMultiRemapRule> rawRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
+        final GroupMultiRemapRuleArray rulesArray = new GroupMultiRemapRuleArray(numRawRules, rawRules);
         return regroup(rulesArray.elements(), errorOnCollisions);
     }
 
-    public int regroup2(final int numRules, final Iterator<GroupRemapRule> rules) throws ImhotepOutOfMemoryException {
-        final GroupRemapRuleArray rulesArray = new GroupRemapRuleArray(numRules, rules);
+    @Override
+    public int regroup2(final int numRawRules, final Iterator<GroupRemapRule> iterator) throws ImhotepOutOfMemoryException {
+        final GroupRemapRuleArray rulesArray = new GroupRemapRuleArray(numRawRules, iterator);
         return regroup(rulesArray.elements());
     }
 
+    @Override
     public int regroup(final GroupMultiRemapRule[] rawRules) throws ImhotepOutOfMemoryException {
         return regroup(rawRules, false);
     }
 
-    public int regroupWithProtos(GroupMultiRemapMessage[] rawRuleMessages,
-                          boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
+    @Override
+    public int regroupWithProtos(final GroupMultiRemapMessage[] rawRuleMessages,
+                          final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
         throw new UnsupportedOperationException("Local imhotep sessions don't use protobufs, only remote sessions do");
     }
 
     @Override
-    public int metricRegroup(int stat, long min, long max, long intervalSize) throws ImhotepOutOfMemoryException {
+    public int metricRegroup(final int stat, final long min, final long max, final long intervalSize) throws ImhotepOutOfMemoryException {
         return metricRegroup(stat, min, max, intervalSize, false);
     }
 
-    public void addObserver(Instrumentation.Observer observer) {
+    @Override
+    public void addObserver(final Instrumentation.Observer observer) {
         instrumentation.addObserver(observer);
     }
 
-    public void removeObserver(Instrumentation.Observer observer) {
+    @Override
+    public void removeObserver(final Instrumentation.Observer observer) {
         instrumentation.removeObserver(observer);
     }
 }

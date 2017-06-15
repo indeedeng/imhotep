@@ -34,8 +34,8 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
 
     private static final Logger log = Logger.getLogger(AbstractSessionManager.class);
 
-    private static int MAX_SESSION_COUNT = 64;
-    private static int MAX_SESSION_COUNT_PER_USER = 8;
+    private static final int MAX_SESSION_COUNT = 64;
+    private static final int MAX_SESSION_COUNT_PER_USER = 8;
 
     private final Map<String, Session<E>> sessionMap = new HashMap<String, Session<E>>();
     private final Map<String, Exception> failureCauseMap = CacheBuilder.newBuilder().maximumSize(200).<String, Exception>build().asMap();

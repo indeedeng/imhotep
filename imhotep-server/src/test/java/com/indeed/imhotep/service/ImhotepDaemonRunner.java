@@ -37,14 +37,14 @@ public class ImhotepDaemonRunner {
                                                                                       TimeoutException {
         this(dir, tempDir, port, new FlamdexReaderSource() {
             @Override
-            public FlamdexReader openReader(Path directory) throws IOException {
+            public FlamdexReader openReader(final Path directory) throws IOException {
                 return new MockFlamdexReader();
             }
         });
     }
 
     public ImhotepDaemonRunner(final Path dir,
-                               Path tempDir,
+                               final Path tempDir,
                                final int port,
                                final FlamdexReaderSource flamdexFactory) throws IOException,
                                                                         TimeoutException {

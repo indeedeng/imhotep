@@ -26,7 +26,7 @@ public final class MemoryReservationContext extends MemoryReserver {
 
     private boolean closed = false;
 
-    public MemoryReservationContext(MemoryReserver memoryReserver) {
+    public MemoryReservationContext(final MemoryReserver memoryReserver) {
         this.memoryReserver = memoryReserver;
     }
 
@@ -42,7 +42,7 @@ public final class MemoryReservationContext extends MemoryReserver {
         return memoryReserver.totalMemory();
     }
 
-    public synchronized boolean claimMemory(long numBytes) {
+    public synchronized boolean claimMemory(final long numBytes) {
         if (closed) throw new IllegalStateException("cannot allocate memory after reservation context has been closed");
         if (memoryReserver.claimMemory(numBytes)) {
             reservationSize += numBytes;
@@ -52,7 +52,7 @@ public final class MemoryReservationContext extends MemoryReserver {
         return false;
     }
 
-    public synchronized void releaseMemory(long numBytes) {
+    public synchronized void releaseMemory(final long numBytes) {
         if (closed) throw new IllegalStateException("cannot free memory after reservation context has been closed");
         if (numBytes > reservationSize) {
             throw new IllegalArgumentException("trying to free too many bytes: " + numBytes + ", current size: " + (reservationSize));
@@ -66,7 +66,7 @@ public final class MemoryReservationContext extends MemoryReserver {
         }
     }
 
-    public synchronized void hoist(long numBytes) {
+    public synchronized void hoist(final long numBytes) {
         if (closed) throw new IllegalStateException("cannot hoist memory after reservation context has been closed");
         if (numBytes > reservationSize) {
             throw new IllegalArgumentException("trying to hoist too many bytes: " + numBytes + ", current size: " + reservationSize);
@@ -74,7 +74,7 @@ public final class MemoryReservationContext extends MemoryReserver {
         reservationSize -= numBytes;
     }
 
-    public synchronized void dehoist(long numBytes) {
+    public synchronized void dehoist(final long numBytes) {
         if (closed) throw new IllegalStateException("cannot dehoist memory after reservation context has been closed");
         reservationSize += numBytes;
         maxUsedMemory = Math.max(maxUsedMemory, reservationSize);

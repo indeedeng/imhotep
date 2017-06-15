@@ -14,7 +14,6 @@
 package com.indeed.imhotep.local;
 
 import com.google.common.io.ByteStreams;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.MemoryReservationContext;
@@ -34,8 +33,6 @@ import java.net.Socket;
 import java.util.Arrays;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -78,11 +75,9 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     }
 
     private final AtomicReference<CyclicBarrier> writeFTGSSplitBarrier = new AtomicReference<>();
-    private Socket[] ftgsOutputSockets = new Socket[256];
+    private final Socket[] ftgsOutputSockets = new Socket[256];
 
     private final MemoryReservationContext memory;
-
-    private final ExecutorService ftgsExecutor;
 
     private final AtomicReference<Boolean> closed = new AtomicReference<>();
 
@@ -95,18 +90,13 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     public MTImhotepLocalMultiSession(final ImhotepLocalSession[] sessions,
                                       final MemoryReservationContext memory,
                                       final AtomicLong tempFileSizeBytesLeft,
-                                      boolean useNativeFtgs)
+                                      final boolean useNativeFtgs)
         throws ImhotepOutOfMemoryException {
         super(sessions, tempFileSizeBytesLeft);
         this.useNativeFtgs = useNativeFtgs;
         this.memory = memory;
         this.memoryClaimed = 0;
         this.closed.set(false);
-
-        final ThreadFactoryBuilder builder = new ThreadFactoryBuilder();
-        builder.setDaemon(true);
-        builder.setNameFormat("Native-FTGS-Thread -%d");
-        this.ftgsExecutor = Executors.newCachedThreadPool(builder.build());
 
         if (!memory.claimMemory(memoryClaimed)) {
             //noinspection NewExceptionWithoutArguments
@@ -185,11 +175,11 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         final CyclicBarrier newBarrier = new CyclicBarrier(numSplits, new Runnable() {
                 @Override
                 public void run() {
-                    NativeShard[] shards;
+                    final NativeShard[] shards;
                     try {
                         shards = updateMulticaches();
                     }
-                    catch (ImhotepOutOfMemoryException e) {
+                    catch (final ImhotepOutOfMemoryException e) {
                         throw new RuntimeException(e);
                     }
 

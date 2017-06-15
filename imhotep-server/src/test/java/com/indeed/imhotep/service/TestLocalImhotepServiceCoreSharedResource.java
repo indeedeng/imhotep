@@ -17,72 +17,73 @@ import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.reader.MockFlamdexReader;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.util.core.shell.PosixFileOperations;
-import junit.framework.TestCase;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 /**
  * @author jsgroth
  */
-public class TestLocalImhotepServiceCoreSharedResource extends TestCase {
+public class TestLocalImhotepServiceCoreSharedResource {
     private static final long TIMEOUT = 5000L;
 
     private Path tempDir;
-    private Path directory;
     private Path optDirectory;
+    private static final String shardName = "index20160601";
 
-    @Override
-    protected void setUp() throws Exception {
+    @Before
+    public void setUp() throws IOException {
         tempDir = Files.createTempDirectory(this.getClass().getName());
-        Path datasetDir = Files.createDirectory(tempDir.resolve("dataset"));
-        Path shardDir = Files.createDirectory(datasetDir.resolve("index20160601"));
-        Path optDir = Files.createDirectory(tempDir.resolve("temp"));
+        final Path datasetDir = Files.createDirectory(tempDir.resolve("dataset"));
+        Files.createDirectory(datasetDir.resolve(shardName));
 
-        directory = tempDir;
-        optDirectory = optDir;
+        optDirectory = Files.createDirectory(tempDir.resolve("temp"));
     }
 
-    @SuppressWarnings("ResultOfMethodCallIgnored")
-    @Override
-    protected void tearDown() throws Exception {
+    @After
+    public void tearDown() throws IOException {
         PosixFileOperations.rmrf(tempDir);
     }
 
     @Test
     public void testNoDoubleClose() throws IOException, ImhotepOutOfMemoryException {
-        FlamdexReaderSource factory = new FlamdexReaderSource() {
+        final FlamdexReaderSource factory = new FlamdexReaderSource() {
             @Override
-            public FlamdexReader openReader(Path directory) throws IOException {
-                return new MockFlamdexReader(Arrays.asList("if1"),
-                                             Arrays.asList("sf1"),
-                                             Arrays.asList("if1"), 10) {
+            public FlamdexReader openReader(final Path directory) throws IOException {
+                return new MockFlamdexReader(Collections.singletonList("if1"),
+                                             Collections.singletonList("sf1"),
+                                             Collections.singletonList("if1"), 10) {
                     @Override
-                    public long memoryRequired(String metric) {
+                    public long memoryRequired(final String metric) {
                         return Long.MAX_VALUE;
                     }
                 };
             }
         };
 
-        LocalImhotepServiceCore service =
-                new LocalImhotepServiceCore(directory, optDirectory, 1024L * 1024 * 1024, false,
+        final LocalImhotepServiceCore service =
+                new LocalImhotepServiceCore(tempDir, optDirectory, 1024L * 1024 * 1024, false,
                                             factory, new LocalImhotepServiceConfig());
-        String sessionId = service.handleOpenSession("dataset", Arrays.asList("index20160601"), "", "", "", 0, 0, false, "", null, false, 0);
+        final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(shardName), "", "", "", 0, 0, false, "", null, false, 0);
         try {
             service.handlePushStat(sessionId, "if1");
-            assertTrue("pushStat didn't throw ImhotepOutOfMemory when it should have", false);
-        } catch (ImhotepOutOfMemoryException e) {
+            fail("pushStat didn't throw ImhotepOutOfMemory when it should have");
+        } catch (final ImhotepOutOfMemoryException e) {
             // pass
         }
         service.handleCloseSession(sessionId);
-        String sessionId2 = service.handleOpenSession("dataset", Arrays.asList("index20160601"), "", "", "", 0, 0, false, "", null, false, 0);
+        final String sessionId2 = service.handleOpenSession("dataset", Collections.singletonList(shardName), "", "", "", 0, 0, false, "", null, false, 0);
         service.handleCloseSession(sessionId2);
         service.close();
     }
@@ -91,22 +92,24 @@ public class TestLocalImhotepServiceCoreSharedResource extends TestCase {
     public void testReloadCloses() throws IOException, InterruptedException {
         final AtomicBoolean closed = new AtomicBoolean(false);
         final AtomicBoolean created = new AtomicBoolean(false);
-        FlamdexReaderSource factory = new FlamdexReaderSource() {
+        final FlamdexReaderSource factory = new FlamdexReaderSource() {
             int i = 0;
 
             @Override
-            public FlamdexReader openReader(Path directory) throws IOException {
+            public FlamdexReader openReader(final Path directory) throws IOException {
                 while (!created.compareAndSet(false, true)) {}
 
                 if (((i++) & 1) == 0) {
-                    return new MockFlamdexReader(Arrays.asList("if1"), Collections.<String>emptyList(), Arrays.asList("if1"), 10) {
+                    return new MockFlamdexReader(Collections.singletonList("if1"),
+                                                 Collections.<String>emptyList(),
+                                                 Collections.singletonList("if1"), 10) {
                         @Override
                         public void close() throws IOException {
                             while (!closed.compareAndSet(false, true)) {}
                         }
                     };
                 } else {
-                    return new MockFlamdexReader(Collections.<String>emptyList(), Arrays.asList("sf1"), Collections.<String>emptyList(), 10) {
+                    return new MockFlamdexReader(Collections.<String>emptyList(), Collections.singletonList("sf1"), Collections.<String>emptyList(), 10) {
                         @Override
                         public void close() throws IOException {
                             while (!closed.compareAndSet(false, true)) {}
@@ -115,9 +118,9 @@ public class TestLocalImhotepServiceCoreSharedResource extends TestCase {
                 }
             }
         };
-        LocalImhotepServiceCore service =
+        final LocalImhotepServiceCore service =
                 new LocalImhotepServiceCore(
-                                            directory,
+                                            tempDir,
                                             optDirectory,
                                             Long.MAX_VALUE,
                                             false,
@@ -125,7 +128,7 @@ public class TestLocalImhotepServiceCoreSharedResource extends TestCase {
                                             new LocalImhotepServiceConfig().setUpdateShardsFrequencySeconds(1));
 
         try {
-            long initial = System.currentTimeMillis();
+            final long initial = System.currentTimeMillis();
             boolean b;
             while (!(b = created.compareAndSet(true, false)) && (System.currentTimeMillis() - initial) < TIMEOUT) {
             }
@@ -143,33 +146,34 @@ public class TestLocalImhotepServiceCoreSharedResource extends TestCase {
     public void testNoReloadNoClose() throws IOException {
         final AtomicInteger createCount = new AtomicInteger(0);
         final AtomicBoolean error = new AtomicBoolean(false);
-        FlamdexReaderSource factory = new FlamdexReaderSource() {
+        final FlamdexReaderSource factory = new FlamdexReaderSource() {
             FlamdexReader lastOpened = null;
 
             @Override
-            public FlamdexReader openReader(Path directory) throws IOException {
+            public FlamdexReader openReader(final Path directory) throws IOException {
                 createCount.incrementAndGet();
 
-                return (lastOpened = new MockFlamdexReader(Collections.<String>emptyList(), Collections.<String>emptyList(), Collections.<String>emptyList(), 10) {
+                lastOpened = new MockFlamdexReader(Collections.<String>emptyList(), Collections.<String>emptyList(), Collections.<String>emptyList(), 10) {
                     @Override
                     public void close() throws IOException {
                         if (lastOpened != this) {
                             error.set(true);
                         }
                     }
-                });
+                };
+                return lastOpened;
             }
         };
-        LocalImhotepServiceCore service =
+        final LocalImhotepServiceCore service =
                 new LocalImhotepServiceCore(
-                                            directory,
+                                            tempDir,
                                             optDirectory,
                                             Long.MAX_VALUE,
                                             false,
                                             factory,
                                             new LocalImhotepServiceConfig().setUpdateShardsFrequencySeconds(1));
         try {
-            long t = System.currentTimeMillis();
+            final long t = System.currentTimeMillis();
             boolean b = true;
             boolean problem;
             while (!(problem = error.get()) && (b = createCount.get() < 1) && (System.currentTimeMillis() - t) < TIMEOUT) {
@@ -188,11 +192,13 @@ public class TestLocalImhotepServiceCoreSharedResource extends TestCase {
         final AtomicBoolean error = new AtomicBoolean(false);
         final AtomicBoolean done = new AtomicBoolean(false);
 
-        FlamdexReaderSource factory = new FlamdexReaderSource() {
+        final FlamdexReaderSource factory = new FlamdexReaderSource() {
 
             @Override
             public FlamdexReader openReader(final Path directory) throws IOException {
-                return new MockFlamdexReader(Arrays.asList("if1"), Arrays.asList("sf1"), Arrays.asList("if1"), 10) {
+                return new MockFlamdexReader(Collections.singletonList("if1"),
+                                             Collections.singletonList("sf1"),
+                                             Collections.singletonList("if1"), 10) {
                     @Override
                     public void close() throws IOException {
                         if (sessionOpened.get() && !sessionClosed.get()) {
@@ -205,16 +211,16 @@ public class TestLocalImhotepServiceCoreSharedResource extends TestCase {
             }
         };
 
-        LocalImhotepServiceCore service =
+        final LocalImhotepServiceCore service =
                 new LocalImhotepServiceCore(
-                                            directory,
+                                            tempDir,
                                             optDirectory,
                                             Long.MAX_VALUE,
                                             false,
                                             factory,
                                             new LocalImhotepServiceConfig().setUpdateShardsFrequencySeconds(1));
         try {
-            String sessionId = service.handleOpenSession("dataset", Arrays.asList("index20160601"), "", "", "", 0, 0, false, "", null, false, 0);
+            final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(shardName), "", "", "", 0, 0, false, "", null, false, 0);
             sessionOpened.set(true);
             try {
                 for (int i = 0; i < 5; ++i) {

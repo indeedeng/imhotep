@@ -76,8 +76,6 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
 
     private final Object[] nullBuf;
 
-    private final long[][] groupStatsBuf;
-
     private final List<TermCount>[] termCountListBuf;
 
     private FTGSIterator lastIterator;
@@ -117,10 +115,6 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
                 AbstractImhotepMultiSession.this.instrumentation.fire(event);
             }
         }
-    }
-
-    private final ExecutorService buildExecutorService(String namePrefix) {
-        return Executors.newCachedThreadPool(new SessionThreadFactory(namePrefix));
     }
 
     private final SessionThreadFactory localThreadFactory =
@@ -163,7 +157,6 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
         integerBuf = new Integer[sessions.length];
         longBuf = new Long[sessions.length];
         nullBuf = new Object[sessions.length];
-        groupStatsBuf = new long[sessions.length][];
         termCountListBuf = new List[sessions.length];
     }
 
@@ -915,7 +908,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
     protected <R> void executeRuntimeException(final R[] ret, final ThrowingFunction<? super T, ? extends R> function) {
         try {
             executeSessions(ret, function);
-        } catch (ExecutionException e) {
+        } catch (final ExecutionException e) {
             throw Throwables.propagate(e.getCause());
         }
     }

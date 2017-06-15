@@ -48,9 +48,9 @@ public class GroupLookupFactory {
         return newLookup;
     }
 
-    public static GroupLookup resize(GroupLookup existingGL,
-                                     int maxGroup,
-                                     MemoryReservationContext memory) throws ImhotepOutOfMemoryException {
+    public static GroupLookup resize(final GroupLookup existingGL,
+                                     final int maxGroup,
+                                     final MemoryReservationContext memory) throws ImhotepOutOfMemoryException {
         final GroupLookup newGL;
 
         if (maxGroup > existingGL.maxGroup()) {
@@ -58,7 +58,7 @@ public class GroupLookupFactory {
             newGL = create(maxGroup, existingGL.size(), existingGL.getSession(), memory);
         } else {
             /* maybe the group lookup can be shrunk */
-            int newMaxgroup = Math.max(maxGroup, existingGL.getNumGroups());
+            final int newMaxgroup = Math.max(maxGroup, existingGL.getNumGroups());
             if ((float) newMaxgroup > 0.7f * existingGL.maxGroup()) {
                 return existingGL;
             }
@@ -66,7 +66,7 @@ public class GroupLookupFactory {
             /* try to shrink the GroupLookup */
             try {
                 newGL = create(newMaxgroup, existingGL.size(), existingGL.getSession(), memory);
-            } catch (ImhotepOutOfMemoryException e) {
+            } catch (final ImhotepOutOfMemoryException e) {
                 return existingGL;
             }
         }
