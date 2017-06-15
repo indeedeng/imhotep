@@ -15,11 +15,7 @@
 
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
-import com.indeed.imhotep.archive.CopyDirectoryToLocal;
-import com.indeed.imhotep.archive.CopyFromLocal;
-
 import junit.framework.TestCase;
-
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.junit.Test;
@@ -53,6 +49,7 @@ public class TestCopyDirectoryToLocal extends TestCase {
 
     @Override
     protected void tearDown() throws Exception {
+        fs.delete(new Path(preFrom), true);
         fs.delete(new Path(from), true);
         fs.delete(new Path(to), true);
     }
