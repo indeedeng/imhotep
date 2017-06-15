@@ -39,7 +39,7 @@ import java.util.Map;
  */
 class NativeShard implements AutoCloseable {
 
-    private final long shardPtr;
+    private long shardPtr;
 
     public NativeShard(final SimpleFlamdexReader reader,
                        final long                packedTablePtr)
@@ -69,7 +69,14 @@ class NativeShard implements AutoCloseable {
         }
     }
 
-    public void close() { nativeReleaseShard(shardPtr); }
+    @Override
+    public void close() {
+        try {
+            nativeReleaseShard(shardPtr);
+        } finally {
+            shardPtr = 0;
+        }
+    }
 
     public long getPtr() { return shardPtr; }
 
@@ -87,12 +94,12 @@ class NativeShard implements AutoCloseable {
         return reader.getDirectory();
     }
 
-    private native static long nativeGetShard(final String   shardDir,
+    private static native long nativeGetShard(final String   shardDir,
                                               final long     packedTablePtr,
                                               final String[] mappedFiles,
                                               final long[]   mappedPtrs);
 
-    private native static void nativeReleaseShard(long shardPtr);
+    private static native void nativeReleaseShard(long shardPtr);
 
-    private native static String nativeToString(long shardPtr);
+    private static native String nativeToString(long shardPtr);
 }

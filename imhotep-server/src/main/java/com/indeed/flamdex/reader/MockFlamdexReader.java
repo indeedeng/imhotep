@@ -100,7 +100,7 @@ public class MockFlamdexReader implements FlamdexReader {
         }
 
         @Override
-        public void reset(long term) {
+        public void reset(final long term) {
             iterator = set.iterator();
             while (iterator.hasNext()) {
                 final Map.Entry<Long, List<Integer>> entry = iterator.next();
@@ -124,7 +124,9 @@ public class MockFlamdexReader implements FlamdexReader {
                 bufferNext = false;
                 return true;
             }
-            if (!iterator.hasNext()) return false;
+            if (!iterator.hasNext()) {
+                return false;
+            }
             final Map.Entry<Long, List<Integer>> e = iterator.next();
             term = e.getKey();
             docs = e.getValue();
@@ -156,7 +158,7 @@ public class MockFlamdexReader implements FlamdexReader {
         }
 
         @Override
-        public void reset(String term) {
+        public void reset(final String term) {
             iterator = set.iterator();
             bufferNext = false;
             while (iterator.hasNext()) {
@@ -181,7 +183,9 @@ public class MockFlamdexReader implements FlamdexReader {
                 bufferNext = false;
                 return true;
             }
-            if (!iterator.hasNext()) return false;
+            if (!iterator.hasNext()) {
+                return false;
+            }
             final Map.Entry<String, List<Integer>> e = iterator.next();
             term = e.getKey();
             docs = e.getValue();
@@ -216,7 +220,7 @@ public class MockFlamdexReader implements FlamdexReader {
 
     private class MockEmptyIntTermIterator extends AbstractMockEmptyIterator implements IntTermIterator {
         @Override
-        public void reset(long term) {
+        public void reset(final long term) {
         }
 
         @Override
@@ -227,7 +231,7 @@ public class MockFlamdexReader implements FlamdexReader {
 
     private class MockEmptyStringTermIterator extends AbstractMockEmptyIterator implements StringTermIterator {
         @Override
-        public void reset(String term) {
+        public void reset(final String term) {
         }
 
         @Override
@@ -241,7 +245,7 @@ public class MockFlamdexReader implements FlamdexReader {
         private int index;
 
         @Override
-        public void reset(TermIterator term) {
+        public void reset(final TermIterator term) {
             if (term instanceof MockIntTermIterator) {
                 docs = ((MockIntTermIterator)term).docs;
             } else if (term instanceof MockStringTermIterator) {
@@ -253,11 +257,12 @@ public class MockFlamdexReader implements FlamdexReader {
         }
 
         @Override
-        public int fillDocIdBuffer(int[] docIdBuffer) {
+        public int fillDocIdBuffer(final int[] docIdBuffer) {
             final int n = Math.min(docs.size() - index, docIdBuffer.length);
             for (int i = 0; i < n; ++i) {
-                docIdBuffer[i] = docs.get(index++);
+                docIdBuffer[i] = docs.get(index+i);
             }
+            index += n;
             return n;
         }
 
@@ -271,7 +276,7 @@ public class MockFlamdexReader implements FlamdexReader {
         private final long min;
         private final long max;
 
-        private MockIntValueLookup(String metric) {
+        private MockIntValueLookup(final String metric) {
             if (!intTerms.containsKey(metric)) {
                 throw new IllegalArgumentException("don't have int field "+metric);
             }
@@ -302,7 +307,7 @@ public class MockFlamdexReader implements FlamdexReader {
         }
 
         @Override
-        public void lookup(int[] docIds, long[] values, int n) {
+        public void lookup(final int[] docIds, final long[] values, final int n) {
             for (int i = 0; i < n; ++i) {
                 values[i] = lookup[docIds[i]];
             }
@@ -321,7 +326,7 @@ public class MockFlamdexReader implements FlamdexReader {
     private class MockStringValueLookup implements StringValueLookup {
         private final String[] lookup;
 
-        private MockStringValueLookup(String metric) {
+        private MockStringValueLookup(final String metric) {
             if (!stringTerms.containsKey(metric)) {
                 throw new IllegalArgumentException("don't have int field "+metric);
             }
@@ -375,17 +380,17 @@ public class MockFlamdexReader implements FlamdexReader {
     }
 
     @Override
-    public IntTermIterator getIntTermIterator(String field) {
+    public IntTermIterator getIntTermIterator(final String field) {
         return intTerms.containsKey(field) ? new MockIntTermIterator(field) : new MockEmptyIntTermIterator();
     }
 
     @Override
-    public IntTermIterator getUnsortedIntTermIterator(String field) {
+    public IntTermIterator getUnsortedIntTermIterator(final String field) {
         return getIntTermIterator(field);
     }
 
     @Override
-    public StringTermIterator getStringTermIterator(String field) {
+    public StringTermIterator getStringTermIterator(final String field) {
         return stringTerms.containsKey(field) ? new MockStringTermIterator(field) : new MockEmptyStringTermIterator();
     }
 
@@ -400,12 +405,12 @@ public class MockFlamdexReader implements FlamdexReader {
     }
 
     @Override
-    public long getIntTotalDocFreq(String field) {
+    public long getIntTotalDocFreq(final String field) {
         return FlamdexUtils.getIntTotalDocFreq(this, field);
     }
 
     @Override
-    public long getStringTotalDocFreq(String field) {
+    public long getStringTotalDocFreq(final String field) {
         return FlamdexUtils.getStringTotalDocFreq(this, field);
     }
 
@@ -415,7 +420,7 @@ public class MockFlamdexReader implements FlamdexReader {
     }
 
     @Override
-    public IntValueLookup getMetric(String metric) throws FlamdexOutOfMemoryException {
+    public IntValueLookup getMetric(final String metric) throws FlamdexOutOfMemoryException {
         return new MockIntValueLookup(metric);
     }
 
@@ -424,7 +429,7 @@ public class MockFlamdexReader implements FlamdexReader {
     }
 
     @Override
-    public long memoryRequired(String metric) {
+    public long memoryRequired(final String metric) {
         return 0L;
     }
 
