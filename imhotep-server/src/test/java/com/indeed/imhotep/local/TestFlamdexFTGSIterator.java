@@ -13,19 +13,22 @@
  */
  package com.indeed.imhotep.local;
 
-import com.indeed.util.core.Pair;
 import com.indeed.flamdex.reader.MockFlamdexReader;
 import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.util.core.Pair;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author jwolfe
@@ -44,13 +47,13 @@ public class TestFlamdexFTGSIterator {
 
     @Test
     public void testSimpleIteration() throws ImhotepOutOfMemoryException {
-        for (BitsetOptimizationLevel level : BitsetOptimizationLevel.values()) {
-            ImhotepLocalSession session = makeTestSession(level);
-            FTGSIterator ftgsIterator = session.getFTGSIterator(new String[]{INT_ITERATION_FIELD}, new String[]{STRING_ITERATION_FIELD});
+        for (final BitsetOptimizationLevel level : BitsetOptimizationLevel.values()) {
+            final ImhotepLocalSession session = makeTestSession(level);
+            final FTGSIterator ftgsIterator = session.getFTGSIterator(new String[]{INT_ITERATION_FIELD}, new String[]{STRING_ITERATION_FIELD});
             try {
                 testExpectedIntField(ftgsIterator);
                 testExpectedStringField(ftgsIterator);
-                assertEquals(false, ftgsIterator.nextField());
+                assertFalse(ftgsIterator.nextField());
             }  finally {
                 ftgsIterator.close();
                 session.close();
@@ -60,13 +63,13 @@ public class TestFlamdexFTGSIterator {
 
     @Test
     public void testSkippingField() throws ImhotepOutOfMemoryException {
-        for (BitsetOptimizationLevel level : BitsetOptimizationLevel.values()) {
-            ImhotepLocalSession session = makeTestSession(level);
-            FTGSIterator ftgsIterator = session.getFTGSIterator(new String[]{INT_ITERATION_FIELD}, new String[]{STRING_ITERATION_FIELD});
+        for (final BitsetOptimizationLevel level : BitsetOptimizationLevel.values()) {
+            final ImhotepLocalSession session = makeTestSession(level);
+            final FTGSIterator ftgsIterator = session.getFTGSIterator(new String[]{INT_ITERATION_FIELD}, new String[]{STRING_ITERATION_FIELD});
             try {
-                assertEquals(true, ftgsIterator.nextField());
+                assertTrue(ftgsIterator.nextField());
                 testExpectedStringField(ftgsIterator);
-                assertEquals(false, ftgsIterator.nextField());
+                assertFalse(ftgsIterator.nextField());
             } finally {
                 ftgsIterator.close();
                 session.close();
@@ -76,13 +79,13 @@ public class TestFlamdexFTGSIterator {
 
     @Test
     public void testSkippingTerm() throws ImhotepOutOfMemoryException {
-        for (BitsetOptimizationLevel level : BitsetOptimizationLevel.values()) {
-            MockFlamdexReader r = new MockFlamdexReader();
+        for (final BitsetOptimizationLevel level : BitsetOptimizationLevel.values()) {
+            final MockFlamdexReader r = new MockFlamdexReader();
             r.addIntTerm("if1", 0, 1, 2);
             r.addIntTerm("if1", 1, 3, 4);
-            ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
+            final ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
             session.pushStat("count()");
-            FTGSIterator ftgsIterator = session.getFTGSIterator(new String[]{"if1"}, new String[]{});
+            final FTGSIterator ftgsIterator = session.getFTGSIterator(new String[]{"if1"}, new String[]{});
 
             try {
                 final long[] stats = new long[1];
@@ -90,12 +93,12 @@ public class TestFlamdexFTGSIterator {
                 ftgsIterator.nextTerm();
                 ftgsIterator.nextTerm();
                 assertEquals(1, ftgsIterator.termIntVal());
-                assertEquals(true, ftgsIterator.nextGroup());
+                assertTrue(ftgsIterator.nextGroup());
                 assertEquals(1, ftgsIterator.group());
                 ftgsIterator.groupStats(stats);
                 assertArrayEquals(new long[]{2}, stats);
-                assertEquals(false, ftgsIterator.nextTerm());
-                assertEquals(false, ftgsIterator.nextField());
+                assertFalse(ftgsIterator.nextTerm());
+                assertFalse(ftgsIterator.nextField());
             } finally {
                 ftgsIterator.close();
                 session.close();
@@ -105,17 +108,17 @@ public class TestFlamdexFTGSIterator {
 
     @Test
     public void testEmptyField() throws ImhotepOutOfMemoryException {
-        for (BitsetOptimizationLevel level : BitsetOptimizationLevel.values()) {
-            MockFlamdexReader r = new MockFlamdexReader();
-            ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
-            FTGSIterator ftgsIterator = session.getFTGSIterator(new String[]{"if1"}, new String[]{"sf1"});
+        for (final BitsetOptimizationLevel level : BitsetOptimizationLevel.values()) {
+            final MockFlamdexReader r = new MockFlamdexReader();
+            final ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
+            final FTGSIterator ftgsIterator = session.getFTGSIterator(new String[]{"if1"}, new String[]{"sf1"});
             try {
-                assertEquals(true, ftgsIterator.nextField());
+                assertTrue(ftgsIterator.nextField());
                 assertEquals("if1", ftgsIterator.fieldName());
-                assertEquals(false, ftgsIterator.nextTerm());
-                assertEquals(true, ftgsIterator.nextField());
+                assertFalse(ftgsIterator.nextTerm());
+                assertTrue(ftgsIterator.nextField());
                 assertEquals("sf1", ftgsIterator.fieldName());
-                assertEquals(false, ftgsIterator.nextTerm());
+                assertFalse(ftgsIterator.nextTerm());
             } finally {
                 ftgsIterator.close();
                 session.close();
@@ -125,15 +128,15 @@ public class TestFlamdexFTGSIterator {
 
     @Test
     public void testZeroStats() throws ImhotepOutOfMemoryException {
-        for (BitsetOptimizationLevel level : BitsetOptimizationLevel.values()) {
-            MockFlamdexReader r = new MockFlamdexReader();
+        for (final BitsetOptimizationLevel level : BitsetOptimizationLevel.values()) {
+            final MockFlamdexReader r = new MockFlamdexReader();
             r.addIntTerm("if1", 1, 0, 1, 2);
-            ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
-            FTGSIterator ftgsIterator = session.getFTGSIterator(new String[]{"if1"}, new String[]{});
+            final ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
+            final FTGSIterator ftgsIterator = session.getFTGSIterator(new String[]{"if1"}, new String[]{});
 
             try {
                 final long[] emptyBuff = new long[0];
-                assertEquals(true, ftgsIterator.nextField());
+                assertTrue(ftgsIterator.nextField());
                 ftgsIterator.nextTerm();
                 ftgsIterator.group();
                 ftgsIterator.groupStats(emptyBuff);
@@ -147,18 +150,18 @@ public class TestFlamdexFTGSIterator {
 
     @Test
     public void testMultipleStats() throws ImhotepOutOfMemoryException {
-        for (BitsetOptimizationLevel level : BitsetOptimizationLevel.values()) {
-            ImhotepLocalSession session = makeTestSession(level);
+        for (final BitsetOptimizationLevel level : BitsetOptimizationLevel.values()) {
+            final ImhotepLocalSession session = makeTestSession(level);
             session.pushStat("count()");
-            FTGSIterator ftgsIterator = session.getFTGSIterator(new String[]{INT_ITERATION_FIELD}, new String[]{});
+            final FTGSIterator ftgsIterator = session.getFTGSIterator(new String[]{INT_ITERATION_FIELD}, new String[]{});
             try {
                 ftgsIterator.nextField();
                 expectTerms(Arrays.asList(
-                        new IntTerm(Integer.MIN_VALUE, Arrays.asList(Pair.of(2, new long[]{1, 3}))),
-                        new IntTerm(-1, Arrays.asList(Pair.of(1, new long[]{11, 3}))),
+                        new IntTerm(Integer.MIN_VALUE, Collections.singletonList(Pair.of(2, new long[]{1, 3}))),
+                        new IntTerm(-1, Collections.singletonList(Pair.of(1, new long[]{11, 3}))),
                         new IntTerm(0, Arrays.asList(Pair.of(1, new long[]{0, 1}), Pair.of(2, new long[]{0, 2}))),
-                        new IntTerm(1, Arrays.asList(Pair.of(1, new long[]{11, 3}))),
-                        new IntTerm(Integer.MAX_VALUE, Arrays.asList(Pair.of(2, new long[]{1, 3})))
+                        new IntTerm(1, Collections.singletonList(Pair.of(1, new long[]{11, 3}))),
+                        new IntTerm(Integer.MAX_VALUE, Collections.singletonList(Pair.of(2, new long[]{1, 3})))
                 ), ftgsIterator);
             } finally {
                 ftgsIterator.close();
@@ -167,18 +170,18 @@ public class TestFlamdexFTGSIterator {
         }
     }
 
-    private ImhotepLocalSession makeTestSession(BitsetOptimizationLevel level) throws ImhotepOutOfMemoryException {
-        MockFlamdexReader r = makeTestFlamdexReader();
-        ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
+    private ImhotepLocalSession makeTestSession(final BitsetOptimizationLevel level) throws ImhotepOutOfMemoryException {
+        final MockFlamdexReader r = makeTestFlamdexReader();
+        final ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
         session.regroup(new GroupRemapRule[]{new GroupRemapRule(1, new RegroupCondition(DOCID_FIELD, true, 4, null, true), 2, 1)});
         session.pushStat(METRIC_FIELD);
         return session;
     }
 
     private MockFlamdexReader makeTestFlamdexReader() {
-        MockFlamdexReader r = new MockFlamdexReader(
+        final MockFlamdexReader r = new MockFlamdexReader(
                 Arrays.asList(INT_ITERATION_FIELD, METRIC_FIELD, DOCID_FIELD),
-                Arrays.<String>asList(STRING_ITERATION_FIELD),
+                Collections.singletonList(STRING_ITERATION_FIELD),
                 Arrays.asList(INT_ITERATION_FIELD, METRIC_FIELD, DOCID_FIELD),
                 10
         );
@@ -210,19 +213,19 @@ public class TestFlamdexFTGSIterator {
         int term;
         List<Pair<Integer, long[]>> groupStats;
 
-        private IntTerm(int term, List<Pair<Integer, long[]>> groupStats) {
+        private IntTerm(final int term, final List<Pair<Integer, long[]>> groupStats) {
             this.term = term;
             this.groupStats = groupStats;
         }
     }
 
-    private void expectTerms(List<IntTerm> terms, FTGSIterator ftgsIterator) {
-        long[] stats = new long[terms.get(0).groupStats.get(0).getSecond().length];
-        for (IntTerm term : terms) {
-            assertEquals(true, ftgsIterator.nextTerm());
+    private void expectTerms(final List<IntTerm> terms, final FTGSIterator ftgsIterator) {
+        final long[] stats = new long[terms.get(0).groupStats.get(0).getSecond().length];
+        for (final IntTerm term : terms) {
+            assertTrue(ftgsIterator.nextTerm());
             assertEquals(term.term, ftgsIterator.termIntVal());
-            for (Pair<Integer, long[]> group : term.groupStats) {
-                assertEquals(true, ftgsIterator.nextGroup());
+            for (final Pair<Integer, long[]> group : term.groupStats) {
+                assertTrue(ftgsIterator.nextGroup());
                 assertEquals((int)group.getFirst(), ftgsIterator.group());
                 ftgsIterator.groupStats(stats);
                 assertArrayEquals(group.getSecond(), stats);
@@ -231,59 +234,59 @@ public class TestFlamdexFTGSIterator {
 
     }
 
-    private void testExpectedIntField(FTGSIterator ftgsIterator) {
-        assertEquals(true, ftgsIterator.nextField());
+    private void testExpectedIntField(final FTGSIterator ftgsIterator) {
+        assertTrue(ftgsIterator.nextField());
         assertEquals(INT_ITERATION_FIELD, ftgsIterator.fieldName());
-        assertEquals(true, ftgsIterator.fieldIsIntType());
+        assertTrue(ftgsIterator.fieldIsIntType());
         expectTerms(Arrays.asList(
-                new IntTerm(Integer.MIN_VALUE, Arrays.asList(Pair.of(2, new long[]{1}))),
-                new IntTerm(-1, Arrays.asList(Pair.of(1, new long[]{11}))),
+                new IntTerm(Integer.MIN_VALUE, Collections.singletonList(Pair.of(2, new long[]{1}))),
+                new IntTerm(-1, Collections.singletonList(Pair.of(1, new long[]{11}))),
                 new IntTerm(0, Arrays.asList(Pair.of(1, new long[]{0}), Pair.of(2, new long[]{0}))),
-                new IntTerm(1, Arrays.asList(Pair.of(1, new long[]{11}))),
-                new IntTerm(Integer.MAX_VALUE, Arrays.asList(Pair.of(2, new long[]{1})))
+                new IntTerm(1, Collections.singletonList(Pair.of(1, new long[]{11}))),
+                new IntTerm(Integer.MAX_VALUE, Collections.singletonList(Pair.of(2, new long[]{1})))
         ), ftgsIterator);
-        assertEquals(false, ftgsIterator.nextGroup());
-        assertEquals(false, ftgsIterator.nextTerm());
+        assertFalse(ftgsIterator.nextGroup());
+        assertFalse(ftgsIterator.nextTerm());
     }
 
-    private void testExpectedStringField(FTGSIterator ftgsIterator) {
-        long[] stats = new long[1];
+    private void testExpectedStringField(final FTGSIterator ftgsIterator) {
+        final long[] stats = new long[1];
 
-        assertEquals(true, ftgsIterator.nextField());
+        assertTrue(ftgsIterator.nextField());
         assertEquals(STRING_ITERATION_FIELD, ftgsIterator.fieldName());
-        assertEquals(false, ftgsIterator.fieldIsIntType());
+        assertFalse(ftgsIterator.fieldIsIntType());
 
-        assertEquals(true, ftgsIterator.nextTerm());
+        assertTrue(ftgsIterator.nextTerm());
         assertEquals("", ftgsIterator.termStringVal());
-        assertEquals(true, ftgsIterator.nextGroup());
+        assertTrue(ftgsIterator.nextGroup());
         assertEquals(1, ftgsIterator.group());
         ftgsIterator.groupStats(stats);
         assertArrayEquals(new long[]{5}, stats);
-        assertEquals(true, ftgsIterator.nextGroup());
+        assertTrue(ftgsIterator.nextGroup());
         assertEquals(2, ftgsIterator.group());
         ftgsIterator.groupStats(stats);
         assertArrayEquals(new long[]{0}, stats);
-        assertEquals(false, ftgsIterator.nextGroup());
+        assertFalse(ftgsIterator.nextGroup());
 
-        assertEquals(true, ftgsIterator.nextTerm());
+        assertTrue(ftgsIterator.nextTerm());
         assertEquals("english", ftgsIterator.termStringVal());
-        assertEquals(true, ftgsIterator.nextGroup());
+        assertTrue(ftgsIterator.nextGroup());
         assertEquals(1, ftgsIterator.group());
         ftgsIterator.groupStats(stats);
         assertArrayEquals(new long[]{11}, stats);
-        assertEquals(false, ftgsIterator.nextGroup());
+        assertFalse(ftgsIterator.nextGroup());
 
-        assertEquals(true, ftgsIterator.nextTerm());
+        assertTrue(ftgsIterator.nextTerm());
         assertEquals("日本語", ftgsIterator.termStringVal());
-        assertEquals(true, ftgsIterator.nextGroup());
+        assertTrue(ftgsIterator.nextGroup());
         assertEquals(1, ftgsIterator.group());
         ftgsIterator.groupStats(stats);
         assertArrayEquals(new long[]{0}, stats);
-        assertEquals(true, ftgsIterator.nextGroup());
+        assertTrue(ftgsIterator.nextGroup());
         assertEquals(2, ftgsIterator.group());
         ftgsIterator.groupStats(stats);
         assertArrayEquals(new long[]{2}, stats);
-        assertEquals(false, ftgsIterator.nextGroup());
-        assertEquals(false, ftgsIterator.nextTerm());
+        assertFalse(ftgsIterator.nextGroup());
+        assertFalse(ftgsIterator.nextTerm());
     }
 }

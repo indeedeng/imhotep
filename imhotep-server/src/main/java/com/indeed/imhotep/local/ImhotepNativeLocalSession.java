@@ -145,7 +145,7 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
     }
 
     @Override
-    protected GroupLookup resizeGroupLookup(GroupLookup lookup, final int size,
+    protected GroupLookup resizeGroupLookup(final GroupLookup lookup, final int size,
                                             final MemoryReservationContext memory)
         throws ImhotepOutOfMemoryException {
         return multiCache != null ? multiCache.getGroupLookup() : lookup;
@@ -167,7 +167,7 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
     }
 
     @Override
-    public synchronized int regroup(final GroupMultiRemapRule[] rules, boolean errorOnCollisions)
+    public synchronized int regroup(final GroupMultiRemapRule[] rules, final boolean errorOnCollisions)
         throws ImhotepOutOfMemoryException {
 
         int result = 0;
@@ -185,9 +185,9 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
         return result;
     }
 
-    private native static long nativeGetRules(final GroupMultiRemapRule[] rules);
-    private native static void nativeReleaseRules(final long nativeRulesPtr);
-    private native static int  nativeRegroup(final long nativeRulesPtr,
+    private static native long nativeGetRules(final GroupMultiRemapRule[] rules);
+    private static native void nativeReleaseRules(final long nativeRulesPtr);
+    private static native int  nativeRegroup(final long nativeRulesPtr,
                                              final long nativeShardDataPtr,
                                              final boolean errorOnCollisions);
 }

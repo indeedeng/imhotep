@@ -13,8 +13,6 @@
  */
 package com.indeed.flamdex.simple;
 
-import static org.junit.Assert.*;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Longs;
@@ -36,24 +34,27 @@ import com.indeed.imhotep.io.TestFileUtils;
 import com.indeed.imhotep.local.ImhotepJavaLocalSession;
 import com.indeed.imhotep.local.ImhotepLocalSession;
 import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
-
 import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.WhitespaceAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.index.CorruptIndexException;
-import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * @author jsgroth
@@ -66,17 +67,17 @@ public class SimpleFlamdexTest {
      */
     @BeforeClass
     public static void loadLibrary() throws ImhotepOutOfMemoryException, CorruptIndexException, IOException {
-        Path tempDir = Files.createTempDirectory("asdf");
+        final Path tempDir = Files.createTempDirectory("asdf");
         try {
-            IndexWriter w = new IndexWriter(tempDir.toFile(),
+            final IndexWriter w = new IndexWriter(tempDir.toFile(),
                                             new WhitespaceAnalyzer(),
                                             true,
                                             IndexWriter.MaxFieldLength.LIMITED);
 
-            Random rand = new Random();
+            final Random rand = new Random();
             for (int i = 0; i < 10; ++i) {
-                int numTerms = rand.nextInt(5) + 5;
-                Document doc = new Document();
+                final int numTerms = rand.nextInt(5) + 5;
+                final Document doc = new Document();
                 for (int t = 0; t < numTerms; ++t) {
                     doc.add(new Field("sf1", Integer.toString(rand.nextInt(10)), Field.Store.NO, Field.Index.NOT_ANALYZED_NO_NORMS));
                 }
@@ -85,7 +86,7 @@ public class SimpleFlamdexTest {
 
             w.close();
 
-            FlamdexReader r = new LuceneFlamdexReader(tempDir);
+            final FlamdexReader r = new LuceneFlamdexReader(tempDir);
             final ImhotepSession session =
                 new MTImhotepLocalMultiSession(new ImhotepLocalSession[] {
                         new ImhotepJavaLocalSession(r) },
@@ -104,15 +105,15 @@ public class SimpleFlamdexTest {
     public void testEmptyFields() throws IOException {
         final Path dir = Files.createTempDirectory("flamdex-test");
         try {
-            SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, 5L, true);
+            final SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, 5L, true);
             w.getIntFieldWriter("if1").close();
             w.getStringFieldWriter("sf1").close();
             w.close();
 
-            SimpleFlamdexReader r = SimpleFlamdexReader.open(dir);
-            IntTermIterator it = r.getIntTermIterator("if1");
+            final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir);
+            final IntTermIterator it = r.getIntTermIterator("if1");
             assertFalse(it.next());
-            StringTermIterator sit = r.getStringTermIterator("sf1");
+            final StringTermIterator sit = r.getStringTermIterator("sf1");
             assertFalse(sit.next());
             it.close();
             sit.close();
@@ -147,7 +148,7 @@ public class SimpleFlamdexTest {
     public void testValidFieldName() throws IOException, FlamdexOutOfMemoryException {
         final Path dir = Files.createTempDirectory("flamdex-test");
         try {
-            SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, 5L, true);
+            final SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, 5L, true);
             w.getIntFieldWriter("if1").close();
             w.getStringFieldWriter("sf1").close();
 
@@ -169,24 +170,24 @@ public class SimpleFlamdexTest {
         }
     }
 
-    private void internalTestGetMetric(Path dir) throws IOException, FlamdexOutOfMemoryException {
+    private void internalTestGetMetric(final Path dir) throws IOException, FlamdexOutOfMemoryException {
         getMetricCase(dir, 2);
         getMetricCase(dir, 256);
         getMetricCase(dir, 65536);
         getMetricCase(dir, Integer.MAX_VALUE);
     }
 
-    private void getMetricCase(Path dir, int maxTermVal) throws IOException, FlamdexOutOfMemoryException {
+    private void getMetricCase(final Path dir, final int maxTermVal) throws IOException, FlamdexOutOfMemoryException {
         for (int i = 0; i < 20; ++i) {
-            long[] cache = writeGetMetricIndex(dir, maxTermVal);
-            SimpleFlamdexReader r = SimpleFlamdexReader.open(dir);
+            final long[] cache = writeGetMetricIndex(dir, maxTermVal);
+            final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir);
             // do it multiple times because these methods update internal state, make sure nothing unexpectedly weird happens
             for (int j = 0; j < 3; ++j) {
-                long memReq = r.memoryRequired("if1");
-                IntValueLookup ivl = r.getMetric("if1");
+                final long memReq = r.memoryRequired("if1");
+                final IntValueLookup ivl = r.getMetric("if1");
                 assertEquals(memReq, ivl.memoryUsed());
-                int[] docIds = new int[r.getNumDocs()];
-                long[] values = new long[r.getNumDocs()];
+                final int[] docIds = new int[r.getNumDocs()];
+                final long[] values = new long[r.getNumDocs()];
                 for (int doc = 0; doc < docIds.length; ++doc) docIds[doc] = doc;
                 ivl.lookup(docIds, values, r.getNumDocs());
                 assertEquals(Longs.asList(cache), Longs.asList(values));
@@ -196,38 +197,38 @@ public class SimpleFlamdexTest {
         }
     }
 
-    private long[] writeGetMetricIndex(Path dir, int maxTermVal) throws IOException {
-        SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, 20000L, true);
-        IntFieldWriter ifw = w.getIntFieldWriter("if1");
-        List<Integer> docs = Lists.newArrayListWithCapacity(20000);
+    private long[] writeGetMetricIndex(final Path dir, final int maxTermVal) throws IOException {
+        final SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, 20000L, true);
+        final IntFieldWriter ifw = w.getIntFieldWriter("if1");
+        final List<Integer> docs = Lists.newArrayListWithCapacity(20000);
         for (int i = 0; i < 20000; i++) {
             docs.add(i);
         }
-        long[] cache = new long[20000];
+        final long[] cache = new long[20000];
         if (maxTermVal < docs.size()) {
-            int term = rand.nextInt(maxTermVal);
+            final int term = rand.nextInt(maxTermVal);
             ifw.nextTerm(term);
-            for (int doc : docs) {
+            for (final int doc : docs) {
                 ifw.nextDoc(doc);
                 cache[doc] = term;
             }
         } else {
-            Map<Integer, List<Integer>> map = Maps.newTreeMap();
+            final Map<Integer, List<Integer>> map = Maps.newTreeMap();
             while (!docs.isEmpty()) {
-                int term = rand.nextInt(maxTermVal);
+                final int term = rand.nextInt(maxTermVal);
                 if (map.containsKey(term)) continue;
-                int numDocs = docs.size() > 1 ? rand.nextInt(docs.size() - 1) + 1 : 1;
-                List<Integer> selectedDocs = Lists.newArrayList();
+                final int numDocs = docs.size() > 1 ? rand.nextInt(docs.size() - 1) + 1 : 1;
+                final List<Integer> selectedDocs = Lists.newArrayList();
                 for (int i = 0; i < numDocs; ++i) {
                     selectedDocs.add(docs.remove(rand.nextInt(docs.size())));
                 }
                 Collections.sort(selectedDocs);
                 map.put(term, selectedDocs);
             }
-            for (int term : map.keySet()) {
+            for (final int term : map.keySet()) {
                 ifw.nextTerm(term);
-                List<Integer> selectedDocs = map.get(term);
-                for (int doc : selectedDocs) {
+                final List<Integer> selectedDocs = map.get(term);
+                for (final int doc : selectedDocs) {
                     ifw.nextDoc(doc);
                     cache[doc] = term;
                 }
@@ -239,7 +240,7 @@ public class SimpleFlamdexTest {
         return cache;
     }
 
-    public void writeAndRead(Path dir) throws IOException {
+    public void writeAndRead(final Path dir) throws IOException {
         writeIndex(dir);
 
         readCase1(dir);
@@ -249,7 +250,7 @@ public class SimpleFlamdexTest {
         readCase3(dir);
     }
 
-    private void readCase3(Path dir) throws IOException {
+    private void readCase3(final Path dir) throws IOException {
         final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir);
         final RawStringTermDocIterator it = r.getStringTermDocIterator("f2");
         final int[] docBuffer = new int[20];
@@ -293,7 +294,7 @@ public class SimpleFlamdexTest {
         r.close();
     }
 
-    private void readCase2(Path dir) throws IOException {
+    private void readCase2(final Path dir) throws IOException {
         final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir);
         final DocIdStream dis = r.getDocIdStream();
         final int[] docIdBuf = new int[2];
@@ -350,7 +351,7 @@ public class SimpleFlamdexTest {
         r.close();
     }
 
-    private void readCase1(Path dir) throws IOException {
+    private void readCase1(final Path dir) throws IOException {
         final SimpleFlamdexReader reader = SimpleFlamdexReader.open(dir);
 
         assertEquals(1, reader.getIntFields().size());
@@ -456,7 +457,7 @@ public class SimpleFlamdexTest {
         reader.close();
     }
 
-    private void writeIndex(Path dir) throws IOException {
+    private void writeIndex(final Path dir) throws IOException {
         final SimpleFlamdexWriter writer = new SimpleFlamdexWriter(dir, 10);
         final IntFieldWriter ifw = writer.getIntFieldWriter("f1");
         ifw.nextTerm(2);
@@ -465,15 +466,15 @@ public class SimpleFlamdexTest {
         ifw.nextDoc(9);
         try {
             ifw.nextDoc(10); // doc >= numDocs
-            assertTrue(false);
-        } catch (IllegalArgumentException e) {
+            fail();
+        } catch (final IllegalArgumentException e) {
             // pass
         }
 
         try {
             ifw.nextDoc(5); // doc out of order
-            assertTrue(false);
-        } catch (IllegalArgumentException e) {
+            fail();
+        } catch (final IllegalArgumentException e) {
             // pass
         }
 
@@ -488,8 +489,8 @@ public class SimpleFlamdexTest {
 
         try {
             ifw.nextTerm(10); // term out of order
-            assertTrue(false);
-        } catch (IllegalArgumentException e) {
+            fail();
+        } catch (final IllegalArgumentException e) {
             // pass
         }
 
@@ -515,8 +516,8 @@ public class SimpleFlamdexTest {
 
         try {
             sfw.nextTerm("eeeeeeeeeeeeeeeeeeeeeeeee"); // term out of order
-            assertTrue(false);
-        } catch (IllegalArgumentException e) {
+            fail();
+        } catch (final IllegalArgumentException e) {
             // pass
         }
 

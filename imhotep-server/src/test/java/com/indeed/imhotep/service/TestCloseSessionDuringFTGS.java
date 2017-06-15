@@ -14,8 +14,7 @@
  package com.indeed.imhotep.service;
 
 //import com.indeed.common.search.directory.MMapBufferDirectory;
-import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
-import com.indeed.util.io.Files;
+
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.lucene.LuceneFlamdexReader;
 import com.indeed.imhotep.ImhotepMemoryPool;
@@ -24,6 +23,8 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.local.ImhotepJavaLocalSession;
 import com.indeed.imhotep.local.ImhotepLocalSession;
+import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
+import com.indeed.util.io.Files;
 import org.apache.lucene.analysis.WhitespaceAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -51,14 +52,14 @@ public class TestCloseSessionDuringFTGS {
 
     @Test
     public void testCloseSessionDuringFTGS() throws ImhotepOutOfMemoryException, IOException, InterruptedException {
-        String tempDir = Files.getTempDirectory("asdf", "");
+        final String tempDir = Files.getTempDirectory("asdf", "");
         try {
-            IndexWriter w = new IndexWriter(tempDir, new WhitespaceAnalyzer(), true, IndexWriter.MaxFieldLength.LIMITED);
+            final IndexWriter w = new IndexWriter(tempDir, new WhitespaceAnalyzer(), true, IndexWriter.MaxFieldLength.LIMITED);
 
-            Random rand = new Random();
+            final Random rand = new Random();
             for (int i = 0; i < 1000000; ++i) {
-                int numTerms = rand.nextInt(5) + 5;
-                Document doc = new Document();
+                final int numTerms = rand.nextInt(5) + 5;
+                final Document doc = new Document();
                 for (int t = 0; t < numTerms; ++t) {
                     doc.add(new Field("sf1",
                                       Integer.toString(rand.nextInt(10000)),
@@ -71,7 +72,7 @@ public class TestCloseSessionDuringFTGS {
             w.close();
 
             final AtomicBoolean closed = new AtomicBoolean(false);
-            FlamdexReader r = new LuceneFlamdexReader(Paths.get(tempDir)) {
+            final FlamdexReader r = new LuceneFlamdexReader(Paths.get(tempDir)) {
                 @Override
                 public void close() throws IOException {
                     super.close();

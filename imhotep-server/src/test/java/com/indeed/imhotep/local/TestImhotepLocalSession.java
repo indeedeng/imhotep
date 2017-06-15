@@ -41,10 +41,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
-import static junit.framework.Assert.assertEquals;
-import static junit.framework.Assert.fail;
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
 
 /**
  * @author jsgroth
@@ -84,8 +84,9 @@ public class TestImhotepLocalSession {
     @Test
     public void testMoreConditionsThanTargetGroups() throws ImhotepOutOfMemoryException {
         final MockFlamdexReader r =
-                new MockFlamdexReader(Arrays.asList("if1"), Arrays.<String> asList(),
-                                      Arrays.<String> asList(), 16);
+                new MockFlamdexReader(Collections.singletonList("if1"),
+                                      Collections.<String>emptyList(),
+                                      Collections.<String>emptyList(), 16);
         r.addIntTerm("if1", 1, 1, 3, 5, 7, 9, 11, 13, 15); // 0th bit
         r.addIntTerm("if1", 2, 2, 3, 6, 7, 10, 11, 14, 15); // 1st bit
         r.addIntTerm("if1", 4, 4, 5, 6, 7, 12, 13, 14, 15); // 2nd bit
@@ -102,18 +103,19 @@ public class TestImhotepLocalSession {
                             new RegroupCondition("if1", true, 4, null, false),
                             new RegroupCondition("if1", true, 8, null, false),});
             session.regroup(new GroupMultiRemapRule[]{gmrr});
-            int[] arr = new int[16];
+            final int[] arr = new int[16];
             session.exportDocIdToGroupId(arr);
-            System.out.println(Arrays.toString(arr));
-            assertArrayEquals(new int[]{0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, arr);
+            final int[] expected = new int[]{0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+            assertArrayEquals(expected, arr);
         }
     }
 
     @Test
     public void testResetThenRegroup() throws ImhotepOutOfMemoryException {
-        MockFlamdexReader r =
-                new MockFlamdexReader(Arrays.asList("if1"), Collections.<String> emptyList(),
-                                      Arrays.asList("if1"), 10);
+        final MockFlamdexReader r =
+                new MockFlamdexReader(Collections.singletonList("if1"),
+                                      Collections.<String> emptyList(),
+                                      Collections.singletonList("if1"), 10);
         r.addIntTerm("if1", 0, 1, 3, 5, 7, 9);
         r.addIntTerm("if1", 5, 0, 2, 4, 6, 8);
 
@@ -125,7 +127,7 @@ public class TestImhotepLocalSession {
                     0, 1)});
             session.resetGroups();
             session.pushStat("count()");
-            int numGroups =
+            final int numGroups =
                     session.regroup(new GroupRemapRule[]{new GroupRemapRule(
                             99999,
                             new RegroupCondition(
@@ -141,14 +143,14 @@ public class TestImhotepLocalSession {
 
     @Test
     public void testMetricRegroup() throws ImhotepOutOfMemoryException {
-        MockFlamdexReader r = newMetricRegroupTestReader();
+        final MockFlamdexReader r = newMetricRegroupTestReader();
 
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
             session.pushStat("if1");
-            int numGroups = session.metricRegroup(0, 0, 20, 5);
+            final int numGroups = session.metricRegroup(0, 0, 20, 5);
             assertEquals(7, numGroups); // 4 buckets, 2 gutters, group 0
 
-            int[] docIdToGroup = new int[10];
+            final int[] docIdToGroup = new int[10];
             session.exportDocIdToGroupId(docIdToGroup);
             assertEquals(Arrays.asList(2, 3, 2, 4, 2, 4, 2, 3, 2, 6), Ints.asList(docIdToGroup));
         }
@@ -181,13 +183,14 @@ public class TestImhotepLocalSession {
     }
 
     private static MockFlamdexReader newMetricRegroupTestReader() {
-        MockFlamdexReader r =
-                new MockFlamdexReader(Arrays.asList("if1"), Arrays.asList("sf1"),
-                                      Arrays.asList("if1"), 10);
+        final MockFlamdexReader r =
+                new MockFlamdexReader(Collections.singletonList("if1"),
+                                      Collections.singletonList("sf1"),
+                                      Collections.singletonList("if1"), 10);
         r.addIntTerm("if1", 5, Arrays.asList(0, 2, 4, 6, 8));
         r.addIntTerm("if1", 10, Arrays.asList(1, 7));
         r.addIntTerm("if1", 15, Arrays.asList(3, 5));
-        r.addIntTerm("if1", 20, Arrays.asList(9));
+        r.addIntTerm("if1", 20, Collections.singletonList(9));
         r.addStringTerm("sf1", "☃", Arrays.asList(3, 4, 8));
         return r;
     }
@@ -328,8 +331,9 @@ public class TestImhotepLocalSession {
     }
 
     private static MockFlamdexReader new2DMetricRegroupTestReader() {
-        MockFlamdexReader r =
-                new MockFlamdexReader(Arrays.asList("if1", "if2", "if3"), Arrays.asList("sf1"),
+        final MockFlamdexReader r =
+                new MockFlamdexReader(Arrays.asList("if1", "if2", "if3"),
+                                      Collections.singletonList("sf1"),
                                       Arrays.asList("if1", "if2", "if3"), 10);
 
         r.addIntTerm("if1", 0, 0);
@@ -601,11 +605,12 @@ public class TestImhotepLocalSession {
 
     @Test
     public void testSingleMultisplitIntRegroup() throws ImhotepOutOfMemoryException {
-        MockFlamdexReader r =
-                new MockFlamdexReader(Arrays.asList("if1"), Arrays.<String> asList(),
-                                      Arrays.<String> asList(), 11);
+        final MockFlamdexReader r =
+                new MockFlamdexReader(Collections.singletonList("if1"),
+                                      Collections.<String>emptyList(),
+                                      Collections.<String>emptyList(), 11);
         for (int i = 1; i <= 10; i++) {
-            List<Integer> l = Lists.newArrayList();
+            final List<Integer> l = Lists.newArrayList();
             for (int j = 1; j <= i; j++) {
                 l.add(j - 1);
             }
@@ -620,7 +625,7 @@ public class TestImhotepLocalSession {
             }
             session.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(1, 0, positiveGroups,
                     conditions)});
-            int[] docIdToGroup = new int[11];
+            final int[] docIdToGroup = new int[11];
             session.exportDocIdToGroupId(docIdToGroup);
             for (int docId = 0; docId < 10; docId++) {
                 final int actualGroup = docIdToGroup[docId];
@@ -633,11 +638,12 @@ public class TestImhotepLocalSession {
 
     @Test
     public void testSingleMultisplitStringRegroup() throws ImhotepOutOfMemoryException {
-        MockFlamdexReader r =
-                new MockFlamdexReader(Arrays.<String> asList(), Arrays.asList("sf1"),
-                                      Arrays.<String> asList(), 11);
+        final MockFlamdexReader r =
+                new MockFlamdexReader(Collections.<String>emptyList(),
+                                      Collections.singletonList("sf1"),
+                                      Collections.<String>emptyList(), 11);
         for (int i = 1; i <= 10; i++) {
-            List<Integer> l = Lists.newArrayList();
+            final List<Integer> l = Lists.newArrayList();
             for (int j = 1; j <= i; j++) {
                 l.add(j - 1);
             }
@@ -652,7 +658,7 @@ public class TestImhotepLocalSession {
             }
             session.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(1, 0, positiveGroups,
                     conditions)});
-            int[] docIdToGroup = new int[11];
+            final int[] docIdToGroup = new int[11];
             session.exportDocIdToGroupId(docIdToGroup);
             for (int docId = 0; docId < 10; docId++) {
                 final int actualGroup = docIdToGroup[docId];
@@ -665,11 +671,12 @@ public class TestImhotepLocalSession {
 
     @Test
     public void testParallelMultisplitIntRegroup() throws ImhotepOutOfMemoryException {
-        MockFlamdexReader r =
-                new MockFlamdexReader(Arrays.asList("if1", "if2"), Arrays.<String> asList(),
-                                      Arrays.<String> asList(), 22);
+        final MockFlamdexReader r =
+                new MockFlamdexReader(Arrays.asList("if1", "if2"),
+                                      Collections.<String>emptyList(),
+                                      Collections.<String>emptyList(), 22);
         for (int i = 1; i <= 10; i++) {
-            List<Integer> l = Lists.newArrayList();
+            final List<Integer> l = Lists.newArrayList();
             for (int j = 1; j <= i; j++) {
                 l.add(j - 1);
                 l.add(10 + (j - 1));
@@ -678,7 +685,7 @@ public class TestImhotepLocalSession {
         }
 
         // Add 0-9 to if2 so we can split it out
-        List<Integer> l = Lists.newArrayList();
+        final List<Integer> l = Lists.newArrayList();
         for (int i = 0; i < 11; i++) {
             l.add(10 + i);
         }
@@ -698,7 +705,7 @@ public class TestImhotepLocalSession {
                             conditions),
                     new GroupMultiRemapRule(2, 0, positiveGroups,
                             conditions)});
-            int[] docIdToGroup = new int[22];
+            final int[] docIdToGroup = new int[22];
             session.exportDocIdToGroupId(docIdToGroup);
             for (int docId = 0; docId < 10; docId++) {
                 final int actualGroup = docIdToGroup[docId];
@@ -713,11 +720,12 @@ public class TestImhotepLocalSession {
 
     @Test
     public void testParallelMultisplitStringRegroup() throws ImhotepOutOfMemoryException {
-        MockFlamdexReader r =
-                new MockFlamdexReader(Arrays.<String> asList(), Arrays.asList("sf1", "sf2"),
-                                      Arrays.<String> asList(), 22);
+        final MockFlamdexReader r =
+                new MockFlamdexReader(Collections.<String>emptyList(),
+                                      Arrays.asList("sf1", "sf2"),
+                                      Collections.<String>emptyList(), 22);
         for (int i = 1; i <= 10; i++) {
-            List<Integer> l = Lists.newArrayList();
+            final List<Integer> l = Lists.newArrayList();
             for (int j = 1; j <= i; j++) {
                 l.add(j - 1);
                 l.add(10 + (j - 1));
@@ -726,7 +734,7 @@ public class TestImhotepLocalSession {
         }
 
         // Add 0-9 to if2 so we can split it out
-        List<Integer> l = Lists.newArrayList();
+        final List<Integer> l = Lists.newArrayList();
         for (int i = 0; i < 11; i++) {
             l.add(10 + i);
         }
@@ -746,7 +754,7 @@ public class TestImhotepLocalSession {
                             conditions),
                     new GroupMultiRemapRule(2, 0, positiveGroups,
                             conditions)});
-            int[] docIdToGroup = new int[22];
+            final int[] docIdToGroup = new int[22];
             session.exportDocIdToGroupId(docIdToGroup);
             for (int docId = 0; docId < 10; docId++) {
                 final int actualGroup = docIdToGroup[docId];
@@ -761,9 +769,10 @@ public class TestImhotepLocalSession {
 
     @Test
     public void testMultisplitTargetingNonexistentGroup() throws ImhotepOutOfMemoryException {
-        MockFlamdexReader r =
-                new MockFlamdexReader(Arrays.asList("if1"), Arrays.<String> asList(),
-                                      Arrays.<String> asList(), 11);
+        final MockFlamdexReader r =
+                new MockFlamdexReader(Collections.singletonList("if1"),
+                                      Collections.<String>emptyList(),
+                                      Collections.<String>emptyList(), 11);
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
             session.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(
                     1000,
@@ -780,9 +789,10 @@ public class TestImhotepLocalSession {
 
     @Test
     public void testIntMultiInequalitySplit() throws ImhotepOutOfMemoryException {
-        MockFlamdexReader r =
-                new MockFlamdexReader(Arrays.asList("if1", "if2"), Arrays.<String> asList(),
-                                      Arrays.<String> asList(), 10);
+        final MockFlamdexReader r =
+                new MockFlamdexReader(Arrays.asList("if1", "if2"),
+                                      Collections.<String>emptyList(),
+                                      Collections.<String>emptyList(), 10);
         for (int i = 0; i < 10; i++) {
             r.addIntTerm("if1", i, i);
             r.addIntTerm("if2", i, i);
@@ -834,9 +844,10 @@ public class TestImhotepLocalSession {
     public void testMultisplitGeneralInputValidation() throws ImhotepOutOfMemoryException {
         // count mismatch #1
         {
-            MockFlamdexReader r =
-                    new MockFlamdexReader(Arrays.asList("if1"), Arrays.<String> asList(),
-                                          Arrays.<String> asList(), 10);
+            final MockFlamdexReader r =
+                    new MockFlamdexReader(Collections.singletonList("if1"),
+                                          Collections.<String>emptyList(),
+                                          Collections.<String>emptyList(), 10);
             try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
                 try {
                     session.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(
@@ -857,16 +868,17 @@ public class TestImhotepLocalSession {
                                             null,
                                             true),})});
                     fail("Improperly handles having more conditions than positive groups");
-                } catch (IllegalArgumentException e) {
+                } catch (final IllegalArgumentException e) {
                 }
             }
         }
 
         // count mismatch #2
         {
-            MockFlamdexReader r =
-                    new MockFlamdexReader(Arrays.asList("if1"), Arrays.<String> asList(),
-                                          Arrays.<String> asList(), 10);
+            final MockFlamdexReader r =
+                    new MockFlamdexReader(Collections.singletonList("if1"),
+                                          Collections.<String>emptyList(),
+                                          Collections.<String>emptyList(), 10);
             try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
                 try {
                     session.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(
@@ -881,7 +893,7 @@ public class TestImhotepLocalSession {
                                     null,
                                     true),})});
                     fail("Improperly handles having fewer conditions than positive groups");
-                } catch (IllegalArgumentException e) {
+                } catch (final IllegalArgumentException e) {
                 }
             }
         }
@@ -890,9 +902,10 @@ public class TestImhotepLocalSession {
 
     @Test
     public void testIntMultisplitInequalityInputValidation() throws ImhotepOutOfMemoryException {
-        MockFlamdexReader r =
-                new MockFlamdexReader(Arrays.asList("if1"), Arrays.<String> asList(),
-                                      Arrays.<String> asList(), 10);
+        final MockFlamdexReader r =
+                new MockFlamdexReader(Collections.singletonList("if1"),
+                                      Collections.<String>emptyList(),
+                                      Collections.<String>emptyList(), 10);
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
             try {
                 session.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(
@@ -920,9 +933,9 @@ public class TestImhotepLocalSession {
 
     @Test
     public void testStringMultisplitInequalityInputValidation() throws ImhotepOutOfMemoryException {
-        final List<String> fields = Arrays.asList("sf1");
-        final List<String> emptyList = Arrays.<String> asList();
-        MockFlamdexReader r = new MockFlamdexReader(emptyList, fields, emptyList, 10);
+        final List<String> fields = Collections.singletonList("sf1");
+        final List<String> emptyList = Collections.emptyList();
+        final MockFlamdexReader r = new MockFlamdexReader(emptyList, fields, emptyList, 10);
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
             try {
                 session.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(
@@ -950,9 +963,9 @@ public class TestImhotepLocalSession {
 
     @Test
     public void testStringMultisplitEqualityInputValidation() throws ImhotepOutOfMemoryException {
-        final List<String> fields = Arrays.asList("sf1");
-        final List<String> emptyList = Arrays.<String> asList();
-        MockFlamdexReader r = new MockFlamdexReader(emptyList, fields, emptyList, 10);
+        final List<String> fields = Collections.singletonList("sf1");
+        final List<String> emptyList = Collections.emptyList();
+        final MockFlamdexReader r = new MockFlamdexReader(emptyList, fields, emptyList, 10);
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
             // verify doesn't fail
             session.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(
@@ -1000,9 +1013,9 @@ public class TestImhotepLocalSession {
 
     @Test
     public void testIntMultisplitEqualityInputValidation() throws ImhotepOutOfMemoryException {
-        final List<String> fields = Arrays.asList("if1");
-        final List<String> emptyList = Arrays.<String> asList();
-        MockFlamdexReader r = new MockFlamdexReader(fields, emptyList, emptyList, 10);
+        final List<String> fields = Collections.singletonList("if1");
+        final List<String> emptyList = Collections.emptyList();
+        final MockFlamdexReader r = new MockFlamdexReader(fields, emptyList, emptyList, 10);
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
             // verify doesn't fail
             session.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(
@@ -1050,9 +1063,10 @@ public class TestImhotepLocalSession {
 
     @Test
     public void testIntMultiParallelInequalitySplit() throws ImhotepOutOfMemoryException {
-        MockFlamdexReader r =
-                new MockFlamdexReader(Arrays.asList("if1", "if2"), Arrays.<String> asList(),
-                                      Arrays.<String> asList(), 20);
+        final MockFlamdexReader r =
+                new MockFlamdexReader(Arrays.asList("if1", "if2"),
+                                      Collections.<String>emptyList(),
+                                      Collections.<String>emptyList(), 20);
         for (int i = 0; i < 10; i++) {
             r.addIntTerm("if1", i, i, i + 10);
         }
@@ -1140,8 +1154,8 @@ public class TestImhotepLocalSession {
     @Test
     public void testStringMultiInequalitySplit() throws ImhotepOutOfMemoryException {
         final List<String> fields = Arrays.asList("sf1", "sf2");
-        final List<String> emptyList = Arrays.<String> asList();
-        MockFlamdexReader r = new MockFlamdexReader(emptyList, fields, emptyList, 10);
+        final List<String> emptyList = Collections.emptyList();
+        final MockFlamdexReader r = new MockFlamdexReader(emptyList, fields, emptyList, 10);
         for (int i = 0; i < 10; i++) {
             r.addStringTerm("sf1", "" + i, i);
             r.addStringTerm("sf2", "" + i, i);
@@ -1189,8 +1203,8 @@ public class TestImhotepLocalSession {
     @Test
     public void testStringMultiParallelInequalitySplit() throws ImhotepOutOfMemoryException {
         final List<String> fields = Arrays.asList("sf1", "sf2");
-        final List<String> empty = Arrays.<String> asList();
-        MockFlamdexReader r = new MockFlamdexReader(empty, fields, empty, 20);
+        final List<String> empty = Collections.emptyList();
+        final MockFlamdexReader r = new MockFlamdexReader(empty, fields, empty, 20);
         for (int i = 0; i < 10; i++) {
             r.addStringTerm("sf1", "" + i, i, i + 10);
         }
@@ -1279,13 +1293,13 @@ public class TestImhotepLocalSession {
     public void testManyGroupMultiRemapRuleThings() throws ImhotepOutOfMemoryException {
         final List<String> intFields = Arrays.asList("if1", "if2");
         final List<String> stringFields = Arrays.asList("sf1", "sf2");
-        final List<String> emptyList = Arrays.<String> asList();
+        final List<String> emptyList = Collections.emptyList();
         final int numDocs = 7;
-        MockFlamdexReader r = new MockFlamdexReader(intFields, stringFields, emptyList, numDocs);
-        int[] i1terms = new int[] { 1, 2, 3, 4, 5, 6 };
-        int[] i2terms = new int[] { 5, 1, 2, 3, 8, 7 };
-        String[] s1terms = new String[] { "e", "d", "c", "bc", "b", "a" };
-        String[] s2terms = new String[] { "foo", "bar", "baz", "foo", "bar", "baz" };
+        final MockFlamdexReader r = new MockFlamdexReader(intFields, stringFields, emptyList, numDocs);
+        final int[] i1terms = new int[] { 1, 2, 3, 4, 5, 6 };
+        final int[] i2terms = new int[] { 5, 1, 2, 3, 8, 7 };
+        final String[] s1terms = new String[] { "e", "d", "c", "bc", "b", "a" };
+        final String[] s2terms = new String[] { "foo", "bar", "baz", "foo", "bar", "baz" };
         addIntField(r, "if1", i1terms);
         addIntField(r, "if2", i2terms);
         addStringField(r, "sf1", s1terms);
@@ -1366,9 +1380,10 @@ public class TestImhotepLocalSession {
 
     @Test
     public void testEmptyMultisplit() throws ImhotepOutOfMemoryException {
-        MockFlamdexReader r =
-                new MockFlamdexReader(Arrays.asList("if1"), Arrays.<String> asList(),
-                                      Arrays.<String> asList(), 10);
+        final MockFlamdexReader r =
+                new MockFlamdexReader(Collections.singletonList("if1"),
+                                      Collections.<String>emptyList(),
+                                      Collections.<String>emptyList(), 10);
         for (int i = 0; i < 10; i++) {
             r.addIntTerm("if1", i, i);
         }
@@ -1386,7 +1401,7 @@ public class TestImhotepLocalSession {
             session.regroup(new GroupMultiRemapRule[]{});
             final int[] docIdToGroup = new int[10];
             session.exportDocIdToGroupId(docIdToGroup);
-            for (int group : docIdToGroup) {
+            for (final int group : docIdToGroup) {
                 assertEquals(0, group);
             }
         }
@@ -1394,9 +1409,10 @@ public class TestImhotepLocalSession {
 
     @Test
     public void testUntargetedGroup() throws ImhotepOutOfMemoryException {
-        MockFlamdexReader r =
-                new MockFlamdexReader(Arrays.asList("if1"), Arrays.<String> asList(),
-                                      Arrays.<String> asList(), 10);
+        final MockFlamdexReader r =
+                new MockFlamdexReader(Collections.singletonList("if1"),
+                                      Collections.<String>emptyList(),
+                                      Collections.<String>emptyList(), 10);
         for (int i = 0; i < 10; i++) {
             r.addIntTerm("if1", i, i);
         }
@@ -1413,7 +1429,7 @@ public class TestImhotepLocalSession {
                             false)})});
             final int[] docIdToGroup = new int[10];
             session.exportDocIdToGroupId(docIdToGroup);
-            for (int group : docIdToGroup) {
+            for (final int group : docIdToGroup) {
                 assertEquals(0, group);
             }
         }
@@ -1591,9 +1607,9 @@ public class TestImhotepLocalSession {
             long[] stats = session.getGroupStats(0);
             long scaledSum = stats[1];
             // we have 5 documents for each of 4 values: 1.5, 2.5, 0 and 18000
-            long expectedSum =
+            final long expectedSum =
                     (long) ((1.5 * 100 + 9000) + (2.5 * 100 + 9000) + (0 * 100 + 9000) + (18000 * 100 + 9000)) * 5;
-            Assert.assertEquals("Sum of scaled values", expectedSum, scaledSum, 0.001);
+            assertEquals("Sum of scaled values", expectedSum, scaledSum, 0.001);
         }
     }
 
@@ -1605,7 +1621,7 @@ public class TestImhotepLocalSession {
             session.pushStat("len sf1");
             final long[] stats = session.getGroupStats(0);
             // 37 == "a".length() * 4 + "hello world".length() * 3
-            Assert.assertEquals( "Sum of len for 'sf1' field", 37, stats[1]);
+            assertEquals( "Sum of len for 'sf1' field", 37, stats[1]);
             session.popStat();
 
             boolean hasException = false;

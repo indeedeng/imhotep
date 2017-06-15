@@ -221,7 +221,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     public ImhotepLocalSession(final FlamdexReader flamdexReader,
                                final MemoryReservationContext memory,
-                               AtomicLong tempFileSizeBytesLeft)
+                               final AtomicLong tempFileSizeBytesLeft)
         throws ImhotepOutOfMemoryException {
         this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
         constructorStackTrace = new Exception();
@@ -2273,7 +2273,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             freeDocIdToGroup();
 
             long dynamicMetricUsage = 0;
-            for (DynamicMetric metric : getDynamicMetrics().values()) {
+            for (final DynamicMetric metric : getDynamicMetrics().values()) {
                 dynamicMetricUsage += metric.memoryUsed();
             }
             getDynamicMetrics().clear();
@@ -2313,7 +2313,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         memory.releaseMemory(bytesToFree);
     }
 
-    private static int[] clearAndResize(int[] a, int newSize, MemoryReserver memory)
+    private static int[] clearAndResize(final int[] a, final int newSize, final MemoryReserver memory)
         throws ImhotepOutOfMemoryException {
         if (a == null || newSize > a.length) {
             if (!memory.claimMemory(newSize * 4)) {

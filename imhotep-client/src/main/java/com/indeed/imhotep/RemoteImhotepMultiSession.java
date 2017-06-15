@@ -23,6 +23,7 @@ import com.indeed.imhotep.marshal.ImhotepClientMarshaller;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.util.core.Pair;
 import org.apache.log4j.Logger;
+
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.Arrays;
@@ -81,6 +82,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         return interleaver;
     }
 
+    @Override
     public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields, final long termLimit) {
         return getFTGSIteratorSplits(intFields, stringFields, termLimit, -1);
     }

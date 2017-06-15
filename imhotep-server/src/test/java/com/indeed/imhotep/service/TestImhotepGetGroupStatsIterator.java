@@ -46,7 +46,7 @@ public class TestImhotepGetGroupStatsIterator {
         clusterRunner.stop();
     }
 
-    private Pair<MemoryFlamdex[], GroupMultiRemapRule> createTestData(int shardsCount, int docsCount) {
+    private Pair<MemoryFlamdex[], GroupMultiRemapRule> createTestData(final int shardsCount, final int docsCount) {
 
         final MemoryFlamdex[] memoryDocs = new MemoryFlamdex[shardsCount];
         for (int i = 0; i < memoryDocs.length; i++) {

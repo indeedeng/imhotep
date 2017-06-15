@@ -21,10 +21,12 @@ import java.io.IOException;
  * @author jsgroth
  */
 public class MakeAFlamdex {
+    private MakeAFlamdex() {}
+
     public static MockFlamdexReader make() {
         try {
             return YamlFlamdexParser.parseFromClasspathResource("test.yml");
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new RuntimeException(e);
         }
     }

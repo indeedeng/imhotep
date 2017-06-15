@@ -71,9 +71,9 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
     }
 
     public ImhotepJavaLocalSession(final FlamdexReader flamdexReader,
-                                   String optimizedIndexDirectory,
+                                   final String optimizedIndexDirectory,
                                    final MemoryReservationContext memory,
-                                   AtomicLong tempFileSizeBytesLeft)
+                                   final AtomicLong tempFileSizeBytesLeft)
         throws ImhotepOutOfMemoryException {
 
         super(flamdexReader, memory, tempFileSizeBytesLeft);

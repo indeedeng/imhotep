@@ -74,16 +74,12 @@ public class LocalImhotepServiceCore
     private final ScheduledExecutorService shardReload;
     private final ScheduledExecutorService shardStoreSync;
     private final ScheduledExecutorService heartBeat;
-    private final Path shardsDir;
     private final Path shardTempDir;
     private final Path shardStoreDir;
 
     private boolean cleanupShardStoreDir = false; // 'true' only in test codepaths
 
     private final MemoryReserver memory;
-    private final ImhotepMemoryCache<MetricKey, IntValueLookup> freeCache;
-
-    private final FlamdexReaderSource flamdexReaderFactory;
 
     private final ShardUpdateListenerIf shardUpdateListener;
 
@@ -121,7 +117,6 @@ public class LocalImhotepServiceCore
                                    LocalImhotepServiceConfig config,
                                    ShardUpdateListenerIf shardUpdateListener)
         throws IOException {
-        this.shardsDir = shardsDir;
         this.shardUpdateListener = shardUpdateListener;
 
         /* check if the temp dir exists, try to create it if it does not */
@@ -135,7 +130,7 @@ public class LocalImhotepServiceCore
         }
         this.shardTempDir = shardTempDir;
 
-        this.flamdexReaderFactory = flamdexReaderFactory;
+        final ImhotepMemoryCache<MetricKey, IntValueLookup> freeCache;
         if (useCache) {
             freeCache = new ImhotepMemoryCache<MetricKey, IntValueLookup>();
             memory = new CachedMemoryReserver(new ImhotepMemoryPool(memoryCapacity), freeCache);
