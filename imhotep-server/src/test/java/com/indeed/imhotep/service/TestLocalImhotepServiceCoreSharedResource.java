@@ -63,7 +63,7 @@ public class TestLocalImhotepServiceCoreSharedResource {
             public FlamdexReader openReader(final Path directory) throws IOException {
                 return new MockFlamdexReader(Collections.singletonList("if1"),
                                              Collections.singletonList("sf1"),
-                                             Collections.singletonList("if1"), 10) {
+                                             Collections.singletonList("if1"), 10, directory) {
                     @Override
                     public long memoryRequired(final String metric) {
                         return Long.MAX_VALUE;
@@ -198,7 +198,7 @@ public class TestLocalImhotepServiceCoreSharedResource {
             public FlamdexReader openReader(final Path directory) throws IOException {
                 return new MockFlamdexReader(Collections.singletonList("if1"),
                                              Collections.singletonList("sf1"),
-                                             Collections.singletonList("if1"), 10) {
+                                             Collections.singletonList("if1"), 10, directory) {
                     @Override
                     public void close() throws IOException {
                         if (sessionOpened.get() && !sessionClosed.get()) {

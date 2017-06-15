@@ -94,7 +94,7 @@ public class TestLocalImhotepServiceCore {
                                     Collections.singletonList("if1"),
                                     Collections.<String>emptyList(),
                                     Collections.<String>emptyList(),
-                                    10000);
+                                    10000, directory);
                     for (int i = 0; i < 1000; ++i) {
                         for (int j = 0; j < 1000; ++j) {
                             r.addIntTerm("if1", i * 1000 + j, Collections.singletonList(0));

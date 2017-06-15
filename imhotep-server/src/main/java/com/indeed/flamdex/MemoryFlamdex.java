@@ -38,6 +38,7 @@ import com.indeed.flamdex.writer.FlamdexDocument;
 import com.indeed.flamdex.writer.FlamdexWriter;
 import com.indeed.flamdex.writer.IntFieldWriter;
 import com.indeed.flamdex.writer.StringFieldWriter;
+import com.indeed.util.core.shell.PosixFileOperations;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -51,7 +52,6 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectSortedMaps;
 import java.io.Closeable;
 import java.io.DataInput;
 import java.io.DataOutput;
-import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -114,6 +114,8 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
 
     private long memoryUsageEstimate = initialMemoryUsageEstimate();
 
+    private Path tempDir;
+
     @Override
     public Collection<String> getIntFields() {
         return intFields.keySet();
@@ -134,9 +136,11 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
      */
     @Override
     public Path getDirectory() {
-        final File tempDir;
-        tempDir = Files.createTempDir();
-        return tempDir.toPath();
+        if(tempDir == null) {
+            tempDir = Files.createTempDir().toPath();
+        }
+
+        return tempDir;
     }
 
     /*
@@ -348,6 +352,9 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
 
     @Override
     public void close() throws IOException {
+        if(tempDir != null) {
+            PosixFileOperations.rmrf(tempDir);
+        }
     }
 
     public MemoryFlamdex() {

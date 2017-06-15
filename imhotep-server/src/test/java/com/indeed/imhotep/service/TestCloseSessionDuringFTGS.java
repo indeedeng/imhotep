@@ -21,10 +21,10 @@ import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.io.TestFileUtils;
 import com.indeed.imhotep.local.ImhotepJavaLocalSession;
 import com.indeed.imhotep.local.ImhotepLocalSession;
 import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
-import com.indeed.util.io.Files;
 import org.apache.lucene.analysis.WhitespaceAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -33,7 +33,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -52,9 +52,9 @@ public class TestCloseSessionDuringFTGS {
 
     @Test
     public void testCloseSessionDuringFTGS() throws ImhotepOutOfMemoryException, IOException, InterruptedException {
-        final String tempDir = Files.getTempDirectory("asdf", "");
-        try {
-            final IndexWriter w = new IndexWriter(tempDir, new WhitespaceAnalyzer(), true, IndexWriter.MaxFieldLength.LIMITED);
+        final Path shardDir = TestFileUtils.createTempShard();
+        {
+            final IndexWriter w = new IndexWriter(shardDir.toFile(), new WhitespaceAnalyzer(), true, IndexWriter.MaxFieldLength.LIMITED);
 
             final Random rand = new Random();
             for (int i = 0; i < 1000000; ++i) {
@@ -72,7 +72,7 @@ public class TestCloseSessionDuringFTGS {
             w.close();
 
             final AtomicBoolean closed = new AtomicBoolean(false);
-            final FlamdexReader r = new LuceneFlamdexReader(Paths.get(tempDir)) {
+            final FlamdexReader r = new LuceneFlamdexReader(shardDir) {
                 @Override
                 public void close() throws IOException {
                     super.close();
@@ -89,8 +89,6 @@ public class TestCloseSessionDuringFTGS {
 //                FTGSIterator iter = session.getFTGSIterator(new String[]{}, new String[]{"sf1"}); //TODO fix this
             session.close();
             assertTrue(closed.get());
-        } finally {
-            Files.delete(tempDir);
         }
     }
 }

@@ -31,8 +31,8 @@ import com.indeed.flamdex.utils.FlamdexUtils;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -49,20 +49,35 @@ public class MockFlamdexReader implements FlamdexReader {
     private final Collection<String> stringFields;
     private final Collection<String> metrics;
     private final int numDocs;
-    private Path directory;
+    private final Path directory;
 
-    private final Map<String, SortedMap<Long, List<Integer>>> intTerms = new HashMap<String, SortedMap<Long, List<Integer>>>();
-    private final Map<String, SortedMap<String, List<Integer>>> stringTerms = new HashMap<String, SortedMap<String, List<Integer>>>();
+    private final Map<String, SortedMap<Long, List<Integer>>> intTerms = new HashMap<>();
+    private final Map<String, SortedMap<String, List<Integer>>> stringTerms = new HashMap<>();
 
     public MockFlamdexReader() {
-        this(Arrays.asList("if1"), Arrays.asList("sf1"), Arrays.asList("if1"), 10);
+        this(Paths.get("."));
     }
 
-    public MockFlamdexReader(Collection<String> intFields,
-                             Collection<String> stringFields,
-                             Collection<String> metrics,
-                             int numDocs) {
-        this.directory = Paths.get(".");
+    public MockFlamdexReader(final Path dir) {
+        this(Collections.singletonList("if1"),
+                Collections.singletonList("sf1"),
+                Collections.singletonList("if1"),
+                10, dir);
+    }
+
+    public MockFlamdexReader(final Collection<String> intFields,
+                             final Collection<String> stringFields,
+                             final Collection<String> metrics,
+                             final int numDocs) {
+        this(intFields, stringFields, metrics, numDocs, Paths.get("."));
+    }
+
+    public MockFlamdexReader(final Collection<String> intFields,
+                             final Collection<String> stringFields,
+                             final Collection<String> metrics,
+                             final int numDocs,
+                             final Path directory) {
+        this.directory = directory;
         this.intFields = intFields;
         this.stringFields = stringFields;
         this.metrics = metrics;
@@ -74,15 +89,6 @@ public class MockFlamdexReader implements FlamdexReader {
         for (final String stringField : stringFields) {
             stringTerms.put(stringField, new TreeMap<String, List<Integer>>());
         }
-    }
-
-    public MockFlamdexReader(Collection<String> intFields,
-                             Collection<String> stringFields,
-                             Collection<String> metrics,
-                             int numDocs,
-                             Path directory) {
-        this(intFields, stringFields, metrics, numDocs);
-        this.directory = directory;
     }
 
     private class MockIntTermIterator implements IntTermIterator {

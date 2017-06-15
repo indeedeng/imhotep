@@ -18,9 +18,11 @@ import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.io.TestFileUtils;
 import com.indeed.util.core.Pair;
 import org.junit.Test;
 
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -80,7 +82,8 @@ public class TestFlamdexFTGSIterator {
     @Test
     public void testSkippingTerm() throws ImhotepOutOfMemoryException {
         for (final BitsetOptimizationLevel level : BitsetOptimizationLevel.values()) {
-            final MockFlamdexReader r = new MockFlamdexReader();
+            final Path shardDir = TestFileUtils.createTempShard();
+            final MockFlamdexReader r = new MockFlamdexReader(shardDir);
             r.addIntTerm("if1", 0, 1, 2);
             r.addIntTerm("if1", 1, 3, 4);
             final ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
@@ -109,7 +112,8 @@ public class TestFlamdexFTGSIterator {
     @Test
     public void testEmptyField() throws ImhotepOutOfMemoryException {
         for (final BitsetOptimizationLevel level : BitsetOptimizationLevel.values()) {
-            final MockFlamdexReader r = new MockFlamdexReader();
+            final Path shardDir = TestFileUtils.createTempShard();
+            final MockFlamdexReader r = new MockFlamdexReader(shardDir);
             final ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
             final FTGSIterator ftgsIterator = session.getFTGSIterator(new String[]{"if1"}, new String[]{"sf1"});
             try {
@@ -129,7 +133,8 @@ public class TestFlamdexFTGSIterator {
     @Test
     public void testZeroStats() throws ImhotepOutOfMemoryException {
         for (final BitsetOptimizationLevel level : BitsetOptimizationLevel.values()) {
-            final MockFlamdexReader r = new MockFlamdexReader();
+            final Path shardDir = TestFileUtils.createTempShard();
+            final MockFlamdexReader r = new MockFlamdexReader(shardDir);
             r.addIntTerm("if1", 1, 0, 1, 2);
             final ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
             final FTGSIterator ftgsIterator = session.getFTGSIterator(new String[]{"if1"}, new String[]{});
@@ -179,11 +184,13 @@ public class TestFlamdexFTGSIterator {
     }
 
     private MockFlamdexReader makeTestFlamdexReader() {
+        final Path shardDir = TestFileUtils.createTempShard();
         final MockFlamdexReader r = new MockFlamdexReader(
                 Arrays.asList(INT_ITERATION_FIELD, METRIC_FIELD, DOCID_FIELD),
                 Collections.singletonList(STRING_ITERATION_FIELD),
                 Arrays.asList(INT_ITERATION_FIELD, METRIC_FIELD, DOCID_FIELD),
-                10
+                10,
+                shardDir
         );
         r.addIntTerm(INT_ITERATION_FIELD, Integer.MIN_VALUE, 5, 7, 8);
         r.addIntTerm(INT_ITERATION_FIELD, -1, 1, 2, 3);

@@ -23,10 +23,9 @@ import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.io.TestFileUtils;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -48,9 +47,6 @@ public class TestMultiRegroup {
     private static final int N_FIELDS = 7;
     private static final int MAX_N_TERMS = 1024;
 
-    @Rule
-    public final TemporaryFolder tempDir = new TemporaryFolder();
-
     private Path shardDir;
     private Random random;
     private List<String> fields;
@@ -69,7 +65,7 @@ public class TestMultiRegroup {
 
         random = new Random(42);
 
-        shardDir = tempDir.getRoot().toPath();
+        shardDir = TestFileUtils.createTempShard();
 
         try (final SimpleFlamdexWriter shardWriter = new SimpleFlamdexWriter(shardDir, N_DOCS)) {
             setUpFields();
