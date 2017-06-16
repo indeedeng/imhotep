@@ -13,6 +13,8 @@ aside h1, aside h2, aside h3, aside h4, aside h5, aside h6 {
 
 table code {
     white-space: nowrap;
+    color: #000000;
+    background-color: #E8E8EE;
 }
 
 td {
