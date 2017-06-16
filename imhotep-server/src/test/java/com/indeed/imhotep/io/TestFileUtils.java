@@ -77,7 +77,7 @@ public class TestFileUtils {
         }
     }
 
-    public static Path createTempShard(final Path rootDir, final DateTime date, final String suffix ) throws IOException {
+    public static Path createTempShard(final Path rootDir, final DateTime date, final String suffix) throws IOException {
 
         final String shardName = ShardTimeUtils.toHourlyShardPrefix(date);
         final Path shardDir;

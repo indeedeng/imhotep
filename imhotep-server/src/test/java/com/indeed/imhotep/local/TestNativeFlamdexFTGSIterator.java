@@ -31,9 +31,7 @@ import com.indeed.imhotep.io.TestFileUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.RandomStringUtils;
 import org.joda.time.DateTime;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -57,9 +55,6 @@ import static org.junit.Assert.assertTrue;
  * @author darren
  */
 public class TestNativeFlamdexFTGSIterator {
-
-    @Rule
-    public final TemporaryFolder rootTestDir = new TemporaryFolder();
 
     public static class ClusterSimulator {
         private static final int PORT = 8138;
@@ -286,7 +281,7 @@ public class TestNativeFlamdexFTGSIterator {
         }
 
         final DateTime shardDate = new DateTime(2017, 1, 1, index, 0, 0 );
-        final Path dir = TestFileUtils.createTempShard(rootTestDir.getRoot().toPath(), shardDate, ".native-ftgs-test.test-dir.");
+        final Path dir = TestFileUtils.createTempShard(null, shardDate, ".native-ftgs-test.test-dir.");
         // find max # of docs
         long nDocs = 0;
         for (final FieldDesc fd : fieldDescs) {
@@ -313,7 +308,7 @@ public class TestNativeFlamdexFTGSIterator {
 
         final String srcShardName = dir.getFileName().toString();
         final DateTime shardTime = ShardTimeUtils.parseStart(srcShardName);
-        final Path newDir = TestFileUtils.createTempShard(rootTestDir.getRoot().toPath(), shardTime, ".native-ftgs-test.verify-dir.");
+        final Path newDir = TestFileUtils.createTempShard(null, shardTime, ".native-ftgs-test.verify-dir.");
 
         FileUtils.copyDirectory(dir.toFile(), newDir.toFile());
 
