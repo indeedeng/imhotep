@@ -3,7 +3,7 @@ name: Imhotep - Data Analytics Platform by Indeed
 markdown: kramdown
 highlighter: rouge
 # jekyll serve --watch --baseurl=
-baseurl: "http://indeedeng.github.io/imhotep"
+baseurl: "https://indeedeng.github.io/imhotep"
 # permalinks are relative to their parent folder
 relative_permalinks: false
 redcarpet:
