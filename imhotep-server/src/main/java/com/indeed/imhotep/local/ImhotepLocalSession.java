@@ -146,6 +146,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     final int[] docIdBuf = new int[BUFFER_SIZE];
     final long[] valBuf = new long[BUFFER_SIZE];
     final int[] docGroupBuffer = new int[BUFFER_SIZE];
+    // total size of all buffers (docIdBuf + valBuf + docGroupBuffer)
+    private static final long BUFFERS_TOTAL_SIZE = BUFFER_SIZE * (4 + 8 + 4);
 
     // do not close flamdexReader, it is separately refcounted
     protected FlamdexReader flamdexReader;
@@ -219,10 +221,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         this(flamdexReader, new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), null);
     }
 
-    private long getMemoryUsageForBuffers() {
-        return BUFFER_SIZE * (4 + 8 + 4);
-    }
-
     public ImhotepLocalSession(final FlamdexReader flamdexReader,
                                final MemoryReservationContext memory,
                                final AtomicLong tempFileSizeBytesLeft)
@@ -237,7 +235,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
         // Technically, we should claim memory used by docIdToGroup as well.
         // But we know that ConstantGroupLookup uses 0 memory
-        if (!memory.claimMemory(getMemoryUsageForBuffers())) {
+        if (!memory.claimMemory(BUFFERS_TOTAL_SIZE)) {
             throw new ImhotepOutOfMemoryException();
         }
 
@@ -2258,7 +2256,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     protected void freeDocIdToGroup() {
-        final long memFreed = getMemoryUsageForBuffers() + docIdToGroup.memoryUsed();
+        final long memFreed = BUFFERS_TOTAL_SIZE + docIdToGroup.memoryUsed();
         memory.releaseMemory(memFreed);
 
         try {

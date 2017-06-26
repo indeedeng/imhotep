@@ -80,9 +80,10 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
             if (multiCache != null) {
                 multiCache.close();
             }
-            memory.releaseMemory(docIdToGroup.memoryUsed());
+            final long releaseBytes = docIdToGroup.memoryUsed();
             multiCache = new MultiCache(this, (int)getNumDocs(), config, statLookup, docIdToGroup, memory);
             docIdToGroup = multiCache.getGroupLookup();
+            memory.releaseMemory(releaseBytes);
             rebuildMultiCache = false;
         }
         return multiCache;
