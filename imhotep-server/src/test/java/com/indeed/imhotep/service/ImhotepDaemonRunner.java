@@ -38,7 +38,7 @@ public class ImhotepDaemonRunner {
         this(dir, tempDir, port, new FlamdexReaderSource() {
             @Override
             public FlamdexReader openReader(final Path directory) throws IOException {
-                return new MockFlamdexReader(directory);
+                return new MockFlamdexReader();
             }
         });
     }

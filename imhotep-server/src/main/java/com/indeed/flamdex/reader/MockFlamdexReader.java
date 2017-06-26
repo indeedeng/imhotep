@@ -30,7 +30,6 @@ import com.indeed.flamdex.utils.FlamdexUtils;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -55,21 +54,17 @@ public class MockFlamdexReader implements FlamdexReader {
     private final Map<String, SortedMap<String, List<Integer>>> stringTerms = new HashMap<>();
 
     public MockFlamdexReader() {
-        this(Paths.get("."));
-    }
-
-    public MockFlamdexReader(final Path dir) {
         this(Collections.singletonList("if1"),
                 Collections.singletonList("sf1"),
                 Collections.singletonList("if1"),
-                10, dir);
+                10);
     }
 
     public MockFlamdexReader(final Collection<String> intFields,
                              final Collection<String> stringFields,
                              final Collection<String> metrics,
                              final int numDocs) {
-        this(intFields, stringFields, metrics, numDocs, Paths.get("."));
+        this(intFields, stringFields, metrics, numDocs, null);
     }
 
     public MockFlamdexReader(final Collection<String> intFields,
@@ -374,7 +369,7 @@ public class MockFlamdexReader implements FlamdexReader {
     public int getNumDocs() {
         return numDocs;
     }
-    
+
     @Override
     public Path getDirectory() {
         return directory;

@@ -43,7 +43,7 @@ public class DynamicFlamdexReader implements FlamdexReader {
     private final List<SegmentReader> segmentReaders;
     private final int[] offsets;
 
-    public DynamicFlamdexReader(@Nonnull final Path directory) throws IOException {
+    public DynamicFlamdexReader(final Path directory) throws IOException {
         final Closer closerOnFailure = Closer.create();
         try {
             this.lock = closerOnFailure.register(DynamicFlamdexIndexUtil.acquireReaderLock(directory));
@@ -65,7 +65,7 @@ public class DynamicFlamdexReader implements FlamdexReader {
         }
     }
 
-    DynamicFlamdexReader(@Nonnull final Path directory, @Nonnull final List<SegmentReader> segmentReaders) {
+    DynamicFlamdexReader(final Path directory, @Nonnull final List<SegmentReader> segmentReaders) {
         this.indexDirectory = directory;
         this.lock = null;
         this.segmentReaders = segmentReaders;

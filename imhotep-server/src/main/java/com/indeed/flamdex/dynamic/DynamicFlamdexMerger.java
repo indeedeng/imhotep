@@ -79,7 +79,11 @@ class DynamicFlamdexMerger implements Closeable {
         @Nonnull
         private DocIdMapping mergeIndices(@Nonnull final Path outputPath, @Nonnull final List<SegmentReader> segmentReaders) throws IOException {
             final int numSegments = segmentReaders.size();
-            try (final DynamicFlamdexReader reader = new DynamicFlamdexReader(segmentReaders.get(0).getDirectory().getParent(), segmentReaders)) {
+            Path dir = segmentReaders.get(0).getDirectory();
+            if(dir != null) {
+                dir = dir.getParent();
+            }
+            try (final DynamicFlamdexReader reader = new DynamicFlamdexReader(dir, segmentReaders)) {
                 final int numDocs = reader.getNumDocs();
                 final int[] newDocIds = new int[numDocs];
 

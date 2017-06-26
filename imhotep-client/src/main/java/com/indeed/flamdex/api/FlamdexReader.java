@@ -21,7 +21,11 @@ public interface FlamdexReader extends Closeable {
     Collection<String> getIntFields();
     Collection<String> getStringFields();
     int getNumDocs();
+
+    /** @return Path to directory with flamdex data.
+     * Can be null in case of memory flamdex or another special flamdex */
     Path getDirectory();
+
     DocIdStream getDocIdStream();
     IntTermIterator getUnsortedIntTermIterator(String field);
     IntTermIterator getIntTermIterator(String field);

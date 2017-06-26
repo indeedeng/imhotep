@@ -1584,8 +1584,7 @@ public class TestImhotepLocalSession {
         for (int i = 0; i < iCanCount.length; i++) {
             iCanCount[i] = i;
         }
-        final Path shardDir = TestFileUtils.createTempShard();
-        final MockFlamdexReader r = new MockFlamdexReader(shardDir);
+        final MockFlamdexReader r = new MockFlamdexReader();
         r.addIntTerm("if1", 0, 0, 2, 4, 6, 8);
         r.addIntTerm("if1", 1, 1, 3, 5, 7, 9);
         r.addStringTerm("sf1", "even", 0, 2, 4, 6, 8);

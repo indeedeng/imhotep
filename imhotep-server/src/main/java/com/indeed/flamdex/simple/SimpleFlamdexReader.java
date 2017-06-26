@@ -34,6 +34,7 @@ import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIterator;
 import com.indeed.flamdex.reader.FlamdexMetadata;
 import com.indeed.flamdex.utils.FlamdexUtils;
 
+import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
@@ -95,7 +96,7 @@ public class SimpleFlamdexReader
         return open(new File(directory).toPath());
     }
 
-    public static SimpleFlamdexReader open(final Path directory) throws IOException {
+    public static SimpleFlamdexReader open(@Nonnull final Path directory) throws IOException {
         return open(directory, new Config());
     }
 
@@ -107,7 +108,7 @@ public class SimpleFlamdexReader
         return open(new File(directory).toPath(), config);
     }
 
-    public static SimpleFlamdexReader open(final Path directory, final Config config) throws IOException {
+    public static SimpleFlamdexReader open(@Nonnull final Path directory, final Config config) throws IOException {
         final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(directory);
         final Collection<String> intFields = scan(directory, ".intterms");
         final Collection<String> stringFields = scan(directory, ".strterms");

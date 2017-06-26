@@ -16,7 +16,6 @@ package com.indeed.flamdex;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Sets;
-import com.google.common.io.Files;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
@@ -38,7 +37,6 @@ import com.indeed.flamdex.writer.FlamdexDocument;
 import com.indeed.flamdex.writer.FlamdexWriter;
 import com.indeed.flamdex.writer.IntFieldWriter;
 import com.indeed.flamdex.writer.StringFieldWriter;
-import com.indeed.util.core.shell.PosixFileOperations;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -59,7 +57,6 @@ import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.CodingErrorAction;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -114,8 +111,6 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
 
     private long memoryUsageEstimate = initialMemoryUsageEstimate();
 
-    private Path tempDir;
-
     @Override
     public Collection<String> getIntFields() {
         return intFields.keySet();
@@ -136,11 +131,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
      */
     @Override
     public Path getDirectory() {
-        if(tempDir == null) {
-            tempDir = Files.createTempDir().toPath();
-        }
-
-        return tempDir;
+        return null;
     }
 
     /*
@@ -352,9 +343,6 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
 
     @Override
     public void close() throws IOException {
-        if(tempDir != null) {
-            PosixFileOperations.rmrf(tempDir);
-        }
     }
 
     public MemoryFlamdex() {
@@ -607,7 +595,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
              */
             @Override
             public Path getDirectory() {
-                return Paths.get(".");
+                return null;
             }
 
             @Override

@@ -110,7 +110,7 @@ public class TestIndexReWriter {
         final ImhotepJavaLocalSession session3 = new ImhotepJavaLocalSession(r3);
 
         /* merge sessions */
-        final MockFlamdexWriter w = new MockFlamdexWriter("foo");
+        final MockFlamdexWriter w = new MockFlamdexWriter();
         final IndexReWriter irw =
                 new IndexReWriter(
                                   Arrays.asList(session3, session1, session2),
@@ -230,7 +230,7 @@ public class TestIndexReWriter {
         final ImhotepJavaLocalSession session3 = new ImhotepJavaLocalSession(r3);
 
         /* merge sessions */
-        final MockFlamdexWriter w = new MockFlamdexWriter("foo");
+        final MockFlamdexWriter w = new MockFlamdexWriter();
         final IndexReWriter irw =
                 new IndexReWriter(
                                   Arrays.asList(session3, session1, session2),
@@ -348,7 +348,7 @@ public class TestIndexReWriter {
         assertEquals(1, stats2[4]);
 
         /* merge sessions */
-        final FlamdexWriter w = new MockFlamdexWriter("foo");
+        final FlamdexWriter w = new MockFlamdexWriter();
         final IndexReWriter irw =
                 new IndexReWriter(
                                   Arrays.asList(session1, session2),
@@ -526,7 +526,7 @@ public class TestIndexReWriter {
         assertEquals(1, stats2[4]);
 
         /* merge sessions */
-        final FlamdexWriter w = new MockFlamdexWriter("foo");
+        final FlamdexWriter w = new MockFlamdexWriter();
         final IndexReWriter irw =
                 new IndexReWriter(
                                   Arrays.asList(session1, session2),

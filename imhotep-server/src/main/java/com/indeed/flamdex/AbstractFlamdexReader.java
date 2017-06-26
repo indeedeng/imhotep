@@ -59,7 +59,7 @@ public abstract class AbstractFlamdexReader implements FlamdexReader {
     protected AbstractFlamdexReader(Path directory, int numDocs, boolean useMMapMetrics) {
         this.directory = directory;
         this.numDocs = numDocs;
-        this.useMMapMetrics = useMMapMetrics;
+        this.useMMapMetrics = useMMapMetrics && directory != null;
 
         this.intFieldCachers = Maps.newHashMap();
         this.metricMinMaxes = Maps.newHashMap();

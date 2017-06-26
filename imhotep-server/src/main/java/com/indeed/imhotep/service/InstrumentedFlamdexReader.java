@@ -25,11 +25,10 @@ import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.StringValueLookup;
 import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.Instrumentation.Keys;
-
 import it.unimi.dsi.fastutil.objects.Object2LongArrayMap;
-
 import org.apache.log4j.Logger;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Iterator;
@@ -92,14 +91,26 @@ public class InstrumentedFlamdexReader
         fields.put(field, fields.getLong(field));
     }
 
-    public void close() throws java.io.IOException { wrapped.close(); }
+    @Override
+    public void close() throws IOException { wrapped.close(); }
 
     public Collection<String>    getIntFields() { return wrapped.getIntFields();    }
     public Collection<String> getStringFields() { return wrapped.getStringFields(); }
 
-    public int             getNumDocs() { return wrapped.getNumDocs();     }
-    public Path getDirectory() { return wrapped.getDirectory();   }
-    public DocIdStream getDocIdStream() { return wrapped.getDocIdStream(); }
+    @Override
+    public int getNumDocs() {
+        return wrapped.getNumDocs();
+    }
+
+    @Override
+    public Path getDirectory() {
+        return wrapped.getDirectory();
+    }
+
+    @Override
+    public DocIdStream getDocIdStream() {
+        return wrapped.getDocIdStream();
+    }
 
     public IntTermIterator getIntTermIterator(String field) {
         onField(field);
