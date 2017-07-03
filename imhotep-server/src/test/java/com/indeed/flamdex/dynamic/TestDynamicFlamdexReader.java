@@ -219,4 +219,37 @@ public class TestDynamicFlamdexReader {
             }
         }
     }
+
+
+    @Test
+    public void testStringToIntTermDocIterator() throws IOException, FlamdexOutOfMemoryException {
+        try (final FlamdexReader flamdexReader = new DynamicFlamdexReader(indexDirectory)) {
+            final int[] okBit = new int[flamdexReader.getNumDocs()];
+            {
+                final IntTermDocIterator intTermDocIterator = flamdexReader.getIntTermDocIterator("mod7mod11s");
+                while (intTermDocIterator.nextTerm()) {
+                    final long term = intTermDocIterator.term();
+                    final int[] docIds = new int[100];
+                    while (true) {
+                        final int numFilled = intTermDocIterator.fillDocIdBuffer(docIds);
+                        if (numFilled == 0) {
+                            break;
+                        }
+                        for (int i = 0; i < numFilled; ++i) {
+                            final int num = DynamicFlamdexTestUtils.restoreOriginalNumber(flamdexReader, docIds[i]);
+                            if ((num % 7) == term) {
+                                okBit[docIds[i]] |= 1;
+                            }
+                            if ((num % 11) == term) {
+                                okBit[docIds[i]] |= 2;
+                            }
+                        }
+                    }
+                }
+            }
+            for (final int i : okBit) {
+                assertEquals(3, i);
+            }
+        }
+    }
 }

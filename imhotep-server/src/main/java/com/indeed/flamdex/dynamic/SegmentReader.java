@@ -1,6 +1,7 @@
 package com.indeed.flamdex.dynamic;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Supplier;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
@@ -14,6 +15,7 @@ import com.indeed.flamdex.api.TermIterator;
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.flamdex.query.Query;
 import com.indeed.flamdex.reader.GenericFlamdexReader;
+import com.indeed.flamdex.reader.GenericStringToIntTermIterator;
 import com.indeed.flamdex.search.FlamdexSearcher;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
@@ -104,7 +106,11 @@ class SegmentReader implements FlamdexReader {
 
             @Override
             public void reset(final TermIterator term) {
-                docIdStream.reset(term);
+                if (term instanceof GenericStringToIntTermIterator) {
+                    docIdStream.reset(((GenericStringToIntTermIterator) term).getCurrentStringTermIterator());
+                } else {
+                    docIdStream.reset(term);
+                }
             }
 
             @Override
@@ -153,6 +159,18 @@ class SegmentReader implements FlamdexReader {
     @Override
     public StringTermIterator getStringTermIterator(final String field) {
         return flamdexReader.getStringTermIterator(field);
+    }
+
+    IntTermIterator getStringToIntTermIterator(final String field) {
+        return new GenericStringToIntTermIterator<>(
+                getStringTermIterator(field),
+                new Supplier<StringTermIterator>() {
+                    @Override
+                    public StringTermIterator get() {
+                        return getStringTermIterator(field);
+                    }
+                }
+        );
     }
 
     @Override

@@ -154,18 +154,29 @@ public class DynamicFlamdexReader implements FlamdexReader {
 
     @Override
     public IntTermIterator getIntTermIterator(final String field) {
-        return new MergedIntTermIterator(
-                FluentIterable.from(segmentReaders).transform(new Function<SegmentReader, IntTermIterator>() {
-                    @Override
-                    public IntTermIterator apply(final SegmentReader segmentReader) {
-                        if (segmentReader.getIntFields().contains(field)) {
-                            return segmentReader.getIntTermIterator(field);
-                        } else {
-                            return EMPTY_INTTERM_ITERATOR;
+        if (this.getIntFields().contains(field)) {
+            return new MergedIntTermIterator(
+                    FluentIterable.from(segmentReaders).transform(new Function<SegmentReader, IntTermIterator>() {
+                        @Override
+                        public IntTermIterator apply(final SegmentReader segmentReader) {
+                            if (segmentReader.getIntFields().contains(field)) {
+                                return segmentReader.getIntTermIterator(field);
+                            } else {
+                                return EMPTY_INTTERM_ITERATOR;
+                            }
                         }
-                    }
-                }).toList()
-        );
+                    }).toList()
+            );
+        } else {
+            return new MergedIntTermIterator(
+                    FluentIterable.from(segmentReaders).transform(new Function<SegmentReader, IntTermIterator>() {
+                        @Override
+                        public IntTermIterator apply(final SegmentReader segmentReader) {
+                            return segmentReader.getStringToIntTermIterator(field);
+                        }
+                    }).toList()
+            );
+        }
     }
 
     @Override

@@ -1,9 +1,11 @@
-package com.indeed.flamdex.simple;
+package com.indeed.flamdex.reader;
 
 import com.google.common.base.Supplier;
+import com.indeed.flamdex.api.IntTermIterator;
+import com.indeed.flamdex.api.StringTermIterator;
+import com.indeed.flamdex.api.TermIterator;
 
-import java.io.IOException;
-import java.nio.file.Path;
+import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -11,28 +13,25 @@ import java.util.PriorityQueue;
 
 /**
  * Allows iteration over string Flamdex fields in numeric order.
+ * <p>
+ * You may need to add some code to the concrete class of {@link com.indeed.flamdex.api.DocIdStream#reset(TermIterator)}.
+ *
  * @author vladimir
  */
-
-public class StringToIntTermIterator implements SimpleIntTermIterator  {
-    private final SimpleStringTermIterator stringTermIterator;
-    private final Supplier<SimpleStringTermIterator> stringTermIteratorSupplier;
-    private final Path filename;
+public class GenericStringToIntTermIterator<I extends StringTermIterator> implements IntTermIterator {
+    protected final I stringTermIterator;
+    protected final Supplier<I> stringTermIteratorSupplier;
 
     /**
-     * @param stringTermIterator initial iterator used for initialization
+     * @param stringTermIterator         initial iterator used for initialization
      * @param stringTermIteratorSupplier used to create new SimpleStringTermIterator instances to have multiple iteration cursors in parallel
      */
-    public StringToIntTermIterator(
-            SimpleStringTermIterator stringTermIterator, Supplier<SimpleStringTermIterator> stringTermIteratorSupplier) {
+    public GenericStringToIntTermIterator(
+            final I stringTermIterator,
+            final Supplier<I> stringTermIteratorSupplier
+    ) {
         this.stringTermIterator = stringTermIterator;
         this.stringTermIteratorSupplier = stringTermIteratorSupplier;
-        this.filename = stringTermIterator.getFilename();
-    }
-
-    @Override
-    public Path getFilename() {
-        return filename;
     }
 
     // the rest of the code was adapted from com/indeed/flamdex/lucene/LuceneIntTermIterator.java
@@ -41,12 +40,12 @@ public class StringToIntTermIterator implements SimpleIntTermIterator  {
     private static final List<String> intPrefixes;
 
     static {
-        final List<String> temp = new ArrayList<String>();
+        final List<String> temp = new ArrayList<>();
         temp.add("0");
         // TODO: support negative values
         for (int i = 1; i <= 9; i++) {
-            for (long m = 1; m > 0 && m*i > 0; m *= 10) {
-                temp.add(""+(m*i));
+            for (long m = 1; m > 0 && m * i > 0; m *= 10) {
+                temp.add("" + (m * i));
             }
         }
         // should already be sorted but re-sorting in case I screwed up -ahudson
@@ -54,17 +53,17 @@ public class StringToIntTermIterator implements SimpleIntTermIterator  {
         intPrefixes = Collections.unmodifiableList(temp);
     }
 
-    static class Prefix implements Comparable<Prefix> {
-        final String firstTerm;
-        final int length;
-        final char prefix;
-        private final Supplier<SimpleStringTermIterator> stringTermIteratorSupplier;
+    private static class Prefix<I extends StringTermIterator> implements Comparable<Prefix<I>> {
+        private final String firstTerm;
+        private final int length;
+        private final char prefix;
+        private final Supplier<I> stringTermIteratorSupplier;
 
-        SimpleStringTermIterator termEnum;
-        boolean endOfStream = false;
-        long val;
+        private I stringTermIterator;
+        private boolean endOfStream = false;
+        private long val;
 
-        public Prefix(final Supplier<SimpleStringTermIterator> stringTermIteratorSupplier, final String firstTerm) {
+        public Prefix(final Supplier<I> stringTermIteratorSupplier, final String firstTerm) {
             this.stringTermIteratorSupplier = stringTermIteratorSupplier;
             this.prefix = firstTerm.charAt(0);
             this.length = firstTerm.length();
@@ -72,54 +71,56 @@ public class StringToIntTermIterator implements SimpleIntTermIterator  {
         }
 
         private void reset() {
-            closeTermEnum();
+            closeStringTermIterator();
             endOfStream = false;
         }
 
-        private void closeTermEnum() {
-            if (termEnum != null) {
-                termEnum.close();
+        private void closeStringTermIterator() {
+            if (stringTermIterator != null) {
+                stringTermIterator.close();
             }
-            termEnum = null;
+            stringTermIterator = null;
         }
 
         private void initialize() {
-            termEnum = stringTermIteratorSupplier.get();
-            termEnum.reset(firstTerm);
-            if (!termEnum.next() || !firstTerm.equals(termEnum.term())) {
-                throw new RuntimeException("Serious bug detected, term was "+termEnum.term()+", expected "+firstTerm);
+            stringTermIterator = stringTermIteratorSupplier.get();
+            stringTermIterator.reset(firstTerm);
+            if (!stringTermIterator.next() || !firstTerm.equals(stringTermIterator.term())) {
+                throw new RuntimeException("Serious bug detected, term was " + stringTermIterator.term() + ", expected " + firstTerm);
             }
             val = Long.parseLong(firstTerm);
         }
 
         public boolean next() {
-            if (endOfStream) return false;
+            if (endOfStream) {
+                return false;
+            }
 
-            if (termEnum == null) {
+            if (stringTermIterator == null) {
                 initialize();
                 return true; // guaranteed to always work
             }
 
-            String nextTargetString = Long.toString(val+1);
+            String nextTargetString = Long.toString(val + 1);
             while (true) {
                 if (nextTargetString.length() != length || nextTargetString.charAt(0) != prefix) {
-                    closeTermEnum();
+                    closeStringTermIterator();
                     endOfStream = true;
                     return false;
                 }
 
-                termEnum.reset(nextTargetString);
-                final boolean skipSuccess = termEnum.next();
+                stringTermIterator.reset(nextTargetString);
+                final boolean skipSuccess = stringTermIterator.next();
 
                 if (!skipSuccess ||
-                        termEnum.term() == null ||
-                        termEnum.term().charAt(0) != prefix) {
-                    closeTermEnum();
+                        stringTermIterator.term() == null ||
+                        stringTermIterator.term().charAt(0) != prefix) {
+                    closeStringTermIterator();
                     endOfStream = true;
                     return false;
                 }
 
-                final String currentTerm = termEnum.term();
+                final String currentTerm = stringTermIterator.term();
                 if (currentTerm.length() == length) {
                     val = Long.parseLong(currentTerm);
                     // todo deal with potential parse int errors?
@@ -128,39 +129,47 @@ public class StringToIntTermIterator implements SimpleIntTermIterator  {
 
                 // length is either longer or shorter, either way find the next targetString w/ prefix and length
                 if (currentTerm.length() > length) {
-                    nextTargetString = Long.toString(Long.parseLong(currentTerm.substring(0, length))+1);
+                    nextTargetString = Long.toString(Long.parseLong(currentTerm.substring(0, length)) + 1);
                 } else {
                     final StringBuilder sb = new StringBuilder(length);
                     sb.append(currentTerm);
-                    while (sb.length() != length) sb.append('0');
+                    while (sb.length() != length) {
+                        sb.append('0');
+                    }
                     nextTargetString = sb.toString();
                 }
             }
         }
 
         @Override
-        public int compareTo(final Prefix o) {
-            if (val < o.val) return -1;
-            if (val > o.val) return 1;
+        public int compareTo(@Nonnull final Prefix<I> o) {
+            if (val < o.val) {
+                return -1;
+            }
+            if (val > o.val) {
+                return 1;
+            }
             throw new RuntimeException("Impossible condition occurred");
         }
     }
 
-    private PriorityQueue<Prefix> prefixQueue;
-    private List<Prefix> prefixes;
+    private PriorityQueue<Prefix<I>> prefixQueue;
+    private List<Prefix<I>> prefixes;
     private long firstTerm = 0;
 
-    private List<Prefix> determineAppropriatePrefixes() {
+    private List<Prefix<I>> determineAppropriatePrefixes() {
         final String[][] firstTerm = new String[19][10];
         stringTermIterator.reset("0");
 
         while (stringTermIterator.next()) {
             final String term = stringTermIterator.term();
-            if (term == null || term.charAt(0) > '9') break;
+            if (term == null || term.charAt(0) > '9') {
+                break;
+            }
 
-            final int x = term.length()-1;
+            final int x = term.length() - 1;
             if (x >= 0 && x < firstTerm.length) {
-                final int y = term.charAt(0)-'0';
+                final int y = term.charAt(0) - '0';
                 if (y >= 0 && y < firstTerm[x].length) {
                     if (firstTerm[x][y] == null) {
                         firstTerm[x][y] = term;
@@ -169,14 +178,12 @@ public class StringToIntTermIterator implements SimpleIntTermIterator  {
             }
         }
 
-        stringTermIterator.close();
-
-        final List<Prefix> ret = new ArrayList<Prefix>();
+        final List<Prefix<I>> ret = new ArrayList<>();
         for (final String intPrefix : intPrefixes) {
-            final int x = intPrefix.length()-1;
-            final int y = intPrefix.charAt(0)-'0';
+            final int x = intPrefix.length() - 1;
+            final int y = intPrefix.charAt(0) - '0';
             if (firstTerm[x][y] != null) {
-                ret.add(new Prefix(stringTermIteratorSupplier, firstTerm[x][y]));
+                ret.add(new Prefix<>(stringTermIteratorSupplier, firstTerm[x][y]));
                 firstTerm[x][y] = null;
             }
         }
@@ -193,22 +200,28 @@ public class StringToIntTermIterator implements SimpleIntTermIterator  {
             }
         }
         if (prefixes.isEmpty()) {
-            prefixQueue = new PriorityQueue<Prefix>(1);
+            prefixQueue = new PriorityQueue<>(1);
             return;
         }
-        prefixQueue = new PriorityQueue<Prefix>(prefixes.size());
-        for (final Prefix prefix : prefixes) {
+        prefixQueue = new PriorityQueue<>(prefixes.size());
+        for (final Prefix<I> prefix : prefixes) {
             if (prefix.next()) {
                 prefixQueue.add(prefix);
             }
         }
         while (!prefixQueue.isEmpty()) {
-            if (prefixQueue.element().val >= term) break;
-            final Prefix prefix = prefixQueue.remove();
+            if (prefixQueue.element().val >= term) {
+                break;
+            }
+            final Prefix<I> prefix = prefixQueue.remove();
             if (prefix.next()) {
                 prefixQueue.add(prefix);
             }
         }
+    }
+
+    public I getCurrentStringTermIterator() {
+        return prefixQueue.element().stringTermIterator;
     }
 
     @Override
@@ -216,8 +229,10 @@ public class StringToIntTermIterator implements SimpleIntTermIterator  {
         if (prefixQueue == null) {
             initialize(firstTerm);
         } else if (!prefixQueue.isEmpty()) {
-            final Prefix prefix = prefixQueue.remove();
-            if (prefix.next()) prefixQueue.add(prefix);
+            final Prefix<I> prefix = prefixQueue.remove();
+            if (prefix.next()) {
+                prefixQueue.add(prefix);
+            }
         }
 
         return !prefixQueue.isEmpty();
@@ -226,15 +241,15 @@ public class StringToIntTermIterator implements SimpleIntTermIterator  {
     @Override
     public int docFreq() {
         sanityCheck();
-        return prefixQueue.element().termEnum.docFreq();
+        return getCurrentStringTermIterator().docFreq();
     }
 
     @Override
     public void close() {
         stringTermIterator.close();
-        if(prefixes != null) {
+        if (prefixes != null) {
             for (Prefix prefix : prefixes) {
-                prefix.closeTermEnum();
+                prefix.closeStringTermIterator();
             }
         }
     }
@@ -251,20 +266,9 @@ public class StringToIntTermIterator implements SimpleIntTermIterator  {
         return prefixQueue.element().val;
     }
 
-    @Override
-    public long getOffset() {
-        sanityCheck();
-        return prefixQueue.element().termEnum.getOffset();
-    }
-
-    private void sanityCheck() {
+    protected void sanityCheck() {
         if (prefixQueue == null || prefixQueue.isEmpty()) {
             throw new IllegalArgumentException("Invalid operation given iterators current state");
         }
-    }
-
-    @Override
-    public long getDocListAddress() throws IOException {
-        return stringTermIterator.getDocListAddress();
     }
 }

@@ -186,7 +186,7 @@ public class SimpleFlamdexReader
                                         return getStringTermIterator(field);
                                     }
                                 };
-                        return new StringToIntTermIterator(stringTermIterator,
+                        return new SimpleStringToIntTermIterator(stringTermIterator,
                                 stringTermIteratorSupplier);
                     }
                 }
@@ -239,9 +239,9 @@ public class SimpleFlamdexReader
     public IntTermDocIterator getIntTermDocIterator(final String field, final boolean unsorted) {
         final SimpleIntTermIterator termIterator = getIntTermIterator(field, unsorted);
         final Path termsPath = termIterator.getFilename();
-        // NativeIntTermDocIterator doesn't work reliably with reordering like StringToIntTermIterator
+        // NativeIntTermDocIterator doesn't work reliably with reordering like SimpleStringToIntTermIterator
         try {
-            if (useNativeDocIdStream && !(termIterator instanceof StringToIntTermIterator) &&
+            if (useNativeDocIdStream && !(termIterator instanceof SimpleStringToIntTermIterator) &&
                     (Files.exists(termsPath) && (Files.size(termsPath) > 0))) {
                 return new NativeIntTermDocIterator(termIterator, mapCache);
             } else {
