@@ -33,24 +33,22 @@ class MergedIntTermIterator implements MergedTermIterator, IntTermIterator {
         this.currentMinimums = new IntArrayList(this.intTermIterators.size());
         this.currentTerms = new long[intTermIterators.size()];
         this.priorityQueue = new LongHeapSemiIndirectPriorityQueue(this.currentTerms);
-        // Until first call of next(), this iterator should be invalid.
-        // This state can be consider as "we have -inf as the term before the first call of next(), and call next() to skip it".
-        // So, initially, all iterators are in currentMinimums
-        for (int i = 0; i < this.intTermIterators.size(); ++i) {
-            this.currentMinimums.add(i);
-        }
+        innerReset();
     }
 
+    /**
+     * For given {@code intTermIterators} which are invalid until next call of {@link IntTermIterator#next()},
+     * reset current status to match those iterators.
+     * This iterator is invalid until next call of {@link MergedIntTermIterator#next()}
+     */
     private void innerReset() {
         priorityQueue.clear();
+        // All iterators must be in currentMinimums since they're waiting for call of next().
+        currentMinimums.clear();
         for (int i = 0; i < intTermIterators.size(); ++i) {
-            final IntTermIterator iterator = intTermIterators.get(i);
-            if (iterator.next()) {
-                currentTerms[i] = iterator.term();
-                priorityQueue.enqueue(i);
-            }
+            currentMinimums.add(i);
         }
-        prepareNext();
+        // We reset other states (current{Term, TermFreq, Terms}) in the next call of next().
     }
 
     private void prepareNext() {

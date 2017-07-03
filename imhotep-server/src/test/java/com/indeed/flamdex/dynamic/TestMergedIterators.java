@@ -87,6 +87,16 @@ public class TestMergedIterators {
                 assertTrue(actualIntTermIterator.next());
                 assertEquals(expectedIntTermIterator.term(), actualIntTermIterator.term());
             }
+
+            for (final int term : new int[]{0, 1, 2, -1, 9999}) {
+                expectedIntTermIterator.reset(term);
+                actualIntTermIterator.reset(term);
+                while (expectedIntTermIterator.next()) {
+                    assertTrue(actualIntTermIterator.next());
+                    assertEquals(expectedIntTermIterator.term(), actualIntTermIterator.term());
+                }
+                assertFalse(actualIntTermIterator.next());
+            }
             assertFalse(actualIntTermIterator.next());
             expectedIntTermIterator.close();
             actualIntTermIterator.close();
@@ -114,6 +124,16 @@ public class TestMergedIterators {
                 assertEquals(expectedStringTermIterator.term(), actualStringTermIterator.term());
             }
             assertFalse(actualStringTermIterator.next());
+
+            for (final String term : new String[]{"0", "1", "2", "-", "9999"}) {
+                expectedStringTermIterator.reset(term);
+                actualStringTermIterator.reset(term);
+                while (expectedStringTermIterator.next()) {
+                    assertTrue(actualStringTermIterator.next());
+                    assertEquals(expectedStringTermIterator.term(), actualStringTermIterator.term());
+                }
+                assertFalse(actualStringTermIterator.next());
+            }
             expectedStringTermIterator.close();
             actualStringTermIterator.close();
         }
