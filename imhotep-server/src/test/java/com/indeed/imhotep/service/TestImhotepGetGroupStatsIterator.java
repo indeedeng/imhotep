@@ -85,33 +85,33 @@ public class TestImhotepGetGroupStatsIterator {
             clusterRunner.startDaemon();
         }
 
-        final ImhotepClient client = clusterRunner.createClient();
+        try(
+                final ImhotepClient client = clusterRunner.createClient();
+                final ImhotepSession dataset = client.sessionBuilder(DATASET, TODAY.minusDays(1 + data.getFirst().length), TODAY).build()
+        ) {
+            dataset.regroup(new GroupMultiRemapRule[]{data.getSecond()});
 
-        final ImhotepSession dataset = client.sessionBuilder(DATASET, TODAY.minusDays(1 + data.getFirst().length), TODAY).build();
+            dataset.pushStat("id");
+            dataset.pushStat("shardId");
 
-        dataset.regroup(new GroupMultiRemapRule[]{data.getSecond()});
+            final long[] idSum = dataset.getGroupStats(0);
+            final long[] shardIdSum = dataset.getGroupStats(1);
 
-        dataset.pushStat("id");
-        dataset.pushStat("shardId");
+            assertEquals(idSum.length, docCount);
+            assertEquals(shardIdSum.length, docCount);
 
-        final long[] idSum = dataset.getGroupStats(0);
-        final long[] shardIdSum = dataset.getGroupStats(1);
+            assertEquals(idSum[0], 0);
+            for (int i = 1; i < idSum.length; i++) {
+                assertEquals(idSum[i], i * shardCount);
+            }
 
-        assertEquals(idSum.length, docCount);
-        assertEquals(shardIdSum.length, docCount);
-
-        assertEquals(idSum[0], 0);
-        for (int i = 1; i < idSum.length; i++) {
-            assertEquals(idSum[i], i * shardCount);
+            // sum [0..shardCount-1]
+            final int expectedShardIdSum = shardCount * (shardCount - 1) / 2;
+            assertEquals(shardIdSum[0], 0);
+            for (int i = 1; i < shardIdSum.length; i++) {
+                assertEquals(shardIdSum[i], expectedShardIdSum);
+            }
         }
-
-        // sum [0..shardCount-1]
-        final int expectedShardIdSum = shardCount * (shardCount - 1) / 2;
-        assertEquals(shardIdSum[0], 0);
-        for (int i = 1; i < shardIdSum.length; i++) {
-            assertEquals(shardIdSum[i], expectedShardIdSum);
-        }
-
     }
 
     @Test
