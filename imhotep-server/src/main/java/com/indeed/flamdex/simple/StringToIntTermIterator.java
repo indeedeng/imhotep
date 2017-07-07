@@ -12,14 +12,14 @@ import java.nio.file.Path;
  * @author vladimir
  */
 
-public class SimpleStringToIntTermIterator extends GenericStringToIntTermIterator<SimpleStringTermIterator> implements SimpleIntTermIterator {
+public class StringToIntTermIterator extends GenericStringToIntTermIterator<SimpleStringTermIterator> implements SimpleIntTermIterator {
     private final Path filename;
 
     /**
      * @param stringTermIterator         initial iterator used for initialization
      * @param stringTermIteratorSupplier used to create new SimpleStringTermIterator instances to have multiple iteration cursors in parallel
      */
-    public SimpleStringToIntTermIterator(SimpleStringTermIterator stringTermIterator, Supplier<SimpleStringTermIterator> stringTermIteratorSupplier) {
+    public StringToIntTermIterator(SimpleStringTermIterator stringTermIterator, Supplier<SimpleStringTermIterator> stringTermIteratorSupplier) {
         super(stringTermIterator, stringTermIteratorSupplier);
         this.filename = stringTermIterator.getFilename();
     }

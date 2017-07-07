@@ -51,20 +51,6 @@ class MergedIntTermIterator implements MergedTermIterator, IntTermIterator {
         // We reset other states (current{Term, TermFreq, Terms}) in the next call of next().
     }
 
-    private void prepareNext() {
-        currentTermFreq = 0;
-        currentMinimums.clear();
-        if (!priorityQueue.isEmpty()) {
-            currentTerm = currentTerms[priorityQueue.first()];
-            while (!priorityQueue.isEmpty() && (currentTerm == currentTerms[priorityQueue.first()])) {
-                final int i = priorityQueue.dequeue();
-                currentTermFreq += intTermIterators.get(i).docFreq();
-                currentMinimums.add(i);
-            }
-        }
-        IntArrays.quickSort(currentMinimums.elements(), 0, currentMinimums.size());
-    }
-
     @Nonnull
     @Override
     public IntTermIterator getInnerTermIterator(final int idx) {
@@ -99,7 +85,17 @@ class MergedIntTermIterator implements MergedTermIterator, IntTermIterator {
                 priorityQueue.enqueue(i);
             }
         }
-        prepareNext();
+        currentMinimums.clear();
+        currentTermFreq = 0;
+        if (!priorityQueue.isEmpty()) {
+            currentTerm = currentTerms[priorityQueue.first()];
+            while (!priorityQueue.isEmpty() && (currentTerm == currentTerms[priorityQueue.first()])) {
+                final int i = priorityQueue.dequeue();
+                currentTermFreq += intTermIterators.get(i).docFreq();
+                currentMinimums.add(i);
+            }
+        }
+        IntArrays.quickSort(currentMinimums.elements(), 0, currentMinimums.size());
         return !currentMinimums.isEmpty();
     }
 
