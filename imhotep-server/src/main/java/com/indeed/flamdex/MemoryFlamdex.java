@@ -16,7 +16,6 @@ package com.indeed.flamdex;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Sets;
-import com.google.common.io.Files;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
@@ -51,7 +50,6 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectSortedMaps;
 import java.io.Closeable;
 import java.io.DataInput;
 import java.io.DataOutput;
-import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -59,7 +57,6 @@ import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.CodingErrorAction;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -134,9 +131,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
      */
     @Override
     public Path getDirectory() {
-        final File tempDir;
-        tempDir = Files.createTempDir();
-        return tempDir.toPath();
+        return null;
     }
 
     /*
@@ -600,7 +595,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
              */
             @Override
             public Path getDirectory() {
-                return Paths.get(".");
+                return null;
             }
 
             @Override

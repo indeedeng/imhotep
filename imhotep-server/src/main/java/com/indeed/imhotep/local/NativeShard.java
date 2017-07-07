@@ -90,8 +90,14 @@ class NativeShard implements AutoCloseable {
      */
     private Path getDirectory(final FlamdexReader reader)
         throws IOException {
-        Files.isDirectory(reader.getDirectory());
-        return reader.getDirectory();
+        final Path dir = reader.getDirectory();
+        if(dir == null) {
+            throw new IllegalArgumentException("NativeShard: FlamdexReader is expected to have non-null path.");
+        }
+        if(!Files.isDirectory(dir)) {
+            throw new RuntimeException("NativeShard: " + dir.toString() + " is not a directory.");
+        }
+        return dir;
     }
 
     private static native long nativeGetShard(final String   shardDir,

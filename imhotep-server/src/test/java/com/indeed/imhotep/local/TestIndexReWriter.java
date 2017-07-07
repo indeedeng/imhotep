@@ -23,6 +23,7 @@ import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.io.TestFileUtils;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -43,7 +44,8 @@ public class TestIndexReWriter {
                 new MockFlamdexReader(Arrays.asList("if1", "if2", "if3"),
                                       Collections.singletonList("sf1"),
                                       Arrays.asList("if1", "if2"),
-                                      10);
+                                      10,
+                                      TestFileUtils.createTempShard());
 
         r1.addIntTerm("if1", 0, 0);
         r1.addIntTerm("if1", 1, 1);
@@ -72,7 +74,8 @@ public class TestIndexReWriter {
                 new MockFlamdexReader(Arrays.asList("if1", "if2"),
                                       Collections.singletonList("sf1"),
                                       Arrays.asList("if1", "if2"),
-                                      10);
+                                      10,
+                                      TestFileUtils.createTempShard());
         r2.addIntTerm("if1", 0, 5);
         r2.addIntTerm("if1", 1, 6);
         r2.addIntTerm("if1", 2, 7);
@@ -94,7 +97,8 @@ public class TestIndexReWriter {
                 new MockFlamdexReader(Arrays.asList("if1", "if2"),
                                       Collections.singletonList("sf1"),
                                       Arrays.asList("if1", "if2"),
-                                      5);
+                                      5,
+                                      TestFileUtils.createTempShard());
         r3.addIntTerm("if2", 0, 0);
         r3.addIntTerm("if2", 1, 1);
         r3.addIntTerm("if2", 2, 2);
@@ -106,7 +110,7 @@ public class TestIndexReWriter {
         final ImhotepJavaLocalSession session3 = new ImhotepJavaLocalSession(r3);
 
         /* merge sessions */
-        final MockFlamdexWriter w = new MockFlamdexWriter("foo");
+        final MockFlamdexWriter w = new MockFlamdexWriter();
         final IndexReWriter irw =
                 new IndexReWriter(
                                   Arrays.asList(session3, session1, session2),
@@ -160,7 +164,8 @@ public class TestIndexReWriter {
                 new MockFlamdexReader(Collections.singletonList("if1"),
                                       Arrays.asList("sf1", "sf2", "sf3"),
                                       Collections.singletonList("if1"),
-                                      10);
+                                      10,
+                                      TestFileUtils.createTempShard());
 
         r1.addStringTerm("sf1", "0", 0);
         r1.addStringTerm("sf1", "1", 1);
@@ -189,7 +194,8 @@ public class TestIndexReWriter {
                 new MockFlamdexReader(Collections.singletonList("if1"),
                                       Arrays.asList("sf1", "sf2"),
                                       Collections.singletonList("if1"),
-                                      10);
+                                      10,
+                                      TestFileUtils.createTempShard());
         r2.addStringTerm("sf1", "0", 5);
         r2.addStringTerm("sf1", "1", 6);
         r2.addStringTerm("sf1", "2", 7);
@@ -211,7 +217,8 @@ public class TestIndexReWriter {
                 new MockFlamdexReader(Collections.singletonList("if1"),
                                       Collections.singletonList("sf2"),
                                       Collections.singletonList("if1"),
-                                      5);
+                                      5,
+                                      TestFileUtils.createTempShard());
         r3.addStringTerm("sf2", "0", 0);
         r3.addStringTerm("sf2", "1", 1);
         r3.addStringTerm("sf2", "2", 2);
@@ -223,7 +230,7 @@ public class TestIndexReWriter {
         final ImhotepJavaLocalSession session3 = new ImhotepJavaLocalSession(r3);
 
         /* merge sessions */
-        final MockFlamdexWriter w = new MockFlamdexWriter("foo");
+        final MockFlamdexWriter w = new MockFlamdexWriter();
         final IndexReWriter irw =
                 new IndexReWriter(
                                   Arrays.asList(session3, session1, session2),
@@ -341,7 +348,7 @@ public class TestIndexReWriter {
         assertEquals(1, stats2[4]);
 
         /* merge sessions */
-        final FlamdexWriter w = new MockFlamdexWriter("foo");
+        final FlamdexWriter w = new MockFlamdexWriter();
         final IndexReWriter irw =
                 new IndexReWriter(
                                   Arrays.asList(session1, session2),
@@ -519,7 +526,7 @@ public class TestIndexReWriter {
         assertEquals(1, stats2[4]);
 
         /* merge sessions */
-        final FlamdexWriter w = new MockFlamdexWriter("foo");
+        final FlamdexWriter w = new MockFlamdexWriter();
         final IndexReWriter irw =
                 new IndexReWriter(
                                   Arrays.asList(session1, session2),

@@ -31,10 +31,13 @@ import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.group.ImhotepChooser;
+import com.indeed.imhotep.io.TestFileUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -83,10 +86,11 @@ public class TestImhotepLocalSession {
 
     @Test
     public void testMoreConditionsThanTargetGroups() throws ImhotepOutOfMemoryException {
+        final Path shardDir = TestFileUtils.createTempShard();
         final MockFlamdexReader r =
                 new MockFlamdexReader(Collections.singletonList("if1"),
                                       Collections.<String>emptyList(),
-                                      Collections.<String>emptyList(), 16);
+                                      Collections.<String>emptyList(), 16, shardDir);
         r.addIntTerm("if1", 1, 1, 3, 5, 7, 9, 11, 13, 15); // 0th bit
         r.addIntTerm("if1", 2, 2, 3, 6, 7, 10, 11, 14, 15); // 1st bit
         r.addIntTerm("if1", 4, 4, 5, 6, 7, 12, 13, 14, 15); // 2nd bit
@@ -112,10 +116,11 @@ public class TestImhotepLocalSession {
 
     @Test
     public void testResetThenRegroup() throws ImhotepOutOfMemoryException {
+        final Path shardDir = TestFileUtils.createTempShard();
         final MockFlamdexReader r =
                 new MockFlamdexReader(Collections.singletonList("if1"),
                                       Collections.<String> emptyList(),
-                                      Collections.singletonList("if1"), 10);
+                                      Collections.singletonList("if1"), 10, shardDir);
         r.addIntTerm("if1", 0, 1, 3, 5, 7, 9);
         r.addIntTerm("if1", 5, 0, 2, 4, 6, 8);
 
@@ -183,10 +188,11 @@ public class TestImhotepLocalSession {
     }
 
     private static MockFlamdexReader newMetricRegroupTestReader() {
+        final Path shardDir = TestFileUtils.createTempShard();
         final MockFlamdexReader r =
                 new MockFlamdexReader(Collections.singletonList("if1"),
                                       Collections.singletonList("sf1"),
-                                      Collections.singletonList("if1"), 10);
+                                      Collections.singletonList("if1"), 10, shardDir);
         r.addIntTerm("if1", 5, Arrays.asList(0, 2, 4, 6, 8));
         r.addIntTerm("if1", 10, Arrays.asList(1, 7));
         r.addIntTerm("if1", 15, Arrays.asList(3, 5));
@@ -331,10 +337,11 @@ public class TestImhotepLocalSession {
     }
 
     private static MockFlamdexReader new2DMetricRegroupTestReader() {
+        final Path shardDir = TestFileUtils.createTempShard();
         final MockFlamdexReader r =
                 new MockFlamdexReader(Arrays.asList("if1", "if2", "if3"),
                                       Collections.singletonList("sf1"),
-                                      Arrays.asList("if1", "if2", "if3"), 10);
+                                      Arrays.asList("if1", "if2", "if3"), 10, shardDir);
 
         r.addIntTerm("if1", 0, 0);
         r.addIntTerm("if1", 1, 1);
@@ -605,10 +612,11 @@ public class TestImhotepLocalSession {
 
     @Test
     public void testSingleMultisplitIntRegroup() throws ImhotepOutOfMemoryException {
+        final Path shardDir = TestFileUtils.createTempShard();
         final MockFlamdexReader r =
                 new MockFlamdexReader(Collections.singletonList("if1"),
                                       Collections.<String>emptyList(),
-                                      Collections.<String>emptyList(), 11);
+                                      Collections.<String>emptyList(), 11, shardDir);
         for (int i = 1; i <= 10; i++) {
             final List<Integer> l = Lists.newArrayList();
             for (int j = 1; j <= i; j++) {
@@ -638,10 +646,11 @@ public class TestImhotepLocalSession {
 
     @Test
     public void testSingleMultisplitStringRegroup() throws ImhotepOutOfMemoryException {
+        final Path shardDir = TestFileUtils.createTempShard();
         final MockFlamdexReader r =
                 new MockFlamdexReader(Collections.<String>emptyList(),
                                       Collections.singletonList("sf1"),
-                                      Collections.<String>emptyList(), 11);
+                                      Collections.<String>emptyList(), 11, shardDir);
         for (int i = 1; i <= 10; i++) {
             final List<Integer> l = Lists.newArrayList();
             for (int j = 1; j <= i; j++) {
@@ -671,10 +680,11 @@ public class TestImhotepLocalSession {
 
     @Test
     public void testParallelMultisplitIntRegroup() throws ImhotepOutOfMemoryException {
+        final Path shardDir = TestFileUtils.createTempShard();
         final MockFlamdexReader r =
                 new MockFlamdexReader(Arrays.asList("if1", "if2"),
                                       Collections.<String>emptyList(),
-                                      Collections.<String>emptyList(), 22);
+                                      Collections.<String>emptyList(), 22, shardDir);
         for (int i = 1; i <= 10; i++) {
             final List<Integer> l = Lists.newArrayList();
             for (int j = 1; j <= i; j++) {
@@ -720,10 +730,11 @@ public class TestImhotepLocalSession {
 
     @Test
     public void testParallelMultisplitStringRegroup() throws ImhotepOutOfMemoryException {
+        final Path shardDir = TestFileUtils.createTempShard();
         final MockFlamdexReader r =
                 new MockFlamdexReader(Collections.<String>emptyList(),
                                       Arrays.asList("sf1", "sf2"),
-                                      Collections.<String>emptyList(), 22);
+                                      Collections.<String>emptyList(), 22, shardDir);
         for (int i = 1; i <= 10; i++) {
             final List<Integer> l = Lists.newArrayList();
             for (int j = 1; j <= i; j++) {
@@ -769,10 +780,11 @@ public class TestImhotepLocalSession {
 
     @Test
     public void testMultisplitTargetingNonexistentGroup() throws ImhotepOutOfMemoryException {
+        final Path shardDir = TestFileUtils.createTempShard();
         final MockFlamdexReader r =
                 new MockFlamdexReader(Collections.singletonList("if1"),
                                       Collections.<String>emptyList(),
-                                      Collections.<String>emptyList(), 11);
+                                      Collections.<String>emptyList(), 11, shardDir);
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
             session.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(
                     1000,
@@ -789,10 +801,11 @@ public class TestImhotepLocalSession {
 
     @Test
     public void testIntMultiInequalitySplit() throws ImhotepOutOfMemoryException {
+        final Path shardDir = TestFileUtils.createTempShard();
         final MockFlamdexReader r =
                 new MockFlamdexReader(Arrays.asList("if1", "if2"),
                                       Collections.<String>emptyList(),
-                                      Collections.<String>emptyList(), 10);
+                                      Collections.<String>emptyList(), 10, shardDir);
         for (int i = 0; i < 10; i++) {
             r.addIntTerm("if1", i, i);
             r.addIntTerm("if2", i, i);
@@ -842,12 +855,13 @@ public class TestImhotepLocalSession {
 
     @Test
     public void testMultisplitGeneralInputValidation() throws ImhotepOutOfMemoryException {
+        final Path shardDir = TestFileUtils.createTempShard();
         // count mismatch #1
         {
             final MockFlamdexReader r =
                     new MockFlamdexReader(Collections.singletonList("if1"),
                                           Collections.<String>emptyList(),
-                                          Collections.<String>emptyList(), 10);
+                                          Collections.<String>emptyList(), 10, shardDir);
             try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
                 try {
                     session.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(
@@ -878,7 +892,7 @@ public class TestImhotepLocalSession {
             final MockFlamdexReader r =
                     new MockFlamdexReader(Collections.singletonList("if1"),
                                           Collections.<String>emptyList(),
-                                          Collections.<String>emptyList(), 10);
+                                          Collections.<String>emptyList(), 10, shardDir);
             try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
                 try {
                     session.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(
@@ -902,10 +916,11 @@ public class TestImhotepLocalSession {
 
     @Test
     public void testIntMultisplitInequalityInputValidation() throws ImhotepOutOfMemoryException {
+        final Path shardDir = TestFileUtils.createTempShard();
         final MockFlamdexReader r =
                 new MockFlamdexReader(Collections.singletonList("if1"),
                                       Collections.<String>emptyList(),
-                                      Collections.<String>emptyList(), 10);
+                                      Collections.<String>emptyList(), 10, shardDir);
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
             try {
                 session.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(
@@ -935,7 +950,8 @@ public class TestImhotepLocalSession {
     public void testStringMultisplitInequalityInputValidation() throws ImhotepOutOfMemoryException {
         final List<String> fields = Collections.singletonList("sf1");
         final List<String> emptyList = Collections.emptyList();
-        final MockFlamdexReader r = new MockFlamdexReader(emptyList, fields, emptyList, 10);
+        final Path shardDir = TestFileUtils.createTempShard();
+        final MockFlamdexReader r = new MockFlamdexReader(emptyList, fields, emptyList, 10, shardDir);
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
             try {
                 session.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(
@@ -965,7 +981,8 @@ public class TestImhotepLocalSession {
     public void testStringMultisplitEqualityInputValidation() throws ImhotepOutOfMemoryException {
         final List<String> fields = Collections.singletonList("sf1");
         final List<String> emptyList = Collections.emptyList();
-        final MockFlamdexReader r = new MockFlamdexReader(emptyList, fields, emptyList, 10);
+        final Path shardDir = TestFileUtils.createTempShard();
+        final MockFlamdexReader r = new MockFlamdexReader(emptyList, fields, emptyList, 10, shardDir);
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
             // verify doesn't fail
             session.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(
@@ -1015,7 +1032,8 @@ public class TestImhotepLocalSession {
     public void testIntMultisplitEqualityInputValidation() throws ImhotepOutOfMemoryException {
         final List<String> fields = Collections.singletonList("if1");
         final List<String> emptyList = Collections.emptyList();
-        final MockFlamdexReader r = new MockFlamdexReader(fields, emptyList, emptyList, 10);
+        final Path shardDir = TestFileUtils.createTempShard();
+        final MockFlamdexReader r = new MockFlamdexReader(fields, emptyList, emptyList, 10, shardDir);
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
             // verify doesn't fail
             session.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(
@@ -1063,10 +1081,11 @@ public class TestImhotepLocalSession {
 
     @Test
     public void testIntMultiParallelInequalitySplit() throws ImhotepOutOfMemoryException {
+        final Path shardDir = TestFileUtils.createTempShard();
         final MockFlamdexReader r =
                 new MockFlamdexReader(Arrays.asList("if1", "if2"),
                                       Collections.<String>emptyList(),
-                                      Collections.<String>emptyList(), 20);
+                                      Collections.<String>emptyList(), 20, shardDir);
         for (int i = 0; i < 10; i++) {
             r.addIntTerm("if1", i, i, i + 10);
         }
@@ -1155,7 +1174,8 @@ public class TestImhotepLocalSession {
     public void testStringMultiInequalitySplit() throws ImhotepOutOfMemoryException {
         final List<String> fields = Arrays.asList("sf1", "sf2");
         final List<String> emptyList = Collections.emptyList();
-        final MockFlamdexReader r = new MockFlamdexReader(emptyList, fields, emptyList, 10);
+        final Path shardDir = TestFileUtils.createTempShard();
+        final MockFlamdexReader r = new MockFlamdexReader(emptyList, fields, emptyList, 10, shardDir);
         for (int i = 0; i < 10; i++) {
             r.addStringTerm("sf1", "" + i, i);
             r.addStringTerm("sf2", "" + i, i);
@@ -1204,7 +1224,8 @@ public class TestImhotepLocalSession {
     public void testStringMultiParallelInequalitySplit() throws ImhotepOutOfMemoryException {
         final List<String> fields = Arrays.asList("sf1", "sf2");
         final List<String> empty = Collections.emptyList();
-        final MockFlamdexReader r = new MockFlamdexReader(empty, fields, empty, 20);
+        final Path shardDir = TestFileUtils.createTempShard();
+        final MockFlamdexReader r = new MockFlamdexReader(empty, fields, empty, 20, shardDir);
         for (int i = 0; i < 10; i++) {
             r.addStringTerm("sf1", "" + i, i, i + 10);
         }
@@ -1295,7 +1316,8 @@ public class TestImhotepLocalSession {
         final List<String> stringFields = Arrays.asList("sf1", "sf2");
         final List<String> emptyList = Collections.emptyList();
         final int numDocs = 7;
-        final MockFlamdexReader r = new MockFlamdexReader(intFields, stringFields, emptyList, numDocs);
+        final Path shardDir = TestFileUtils.createTempShard();
+        final MockFlamdexReader r = new MockFlamdexReader(intFields, stringFields, emptyList, numDocs, shardDir);
         final int[] i1terms = new int[] { 1, 2, 3, 4, 5, 6 };
         final int[] i2terms = new int[] { 5, 1, 2, 3, 8, 7 };
         final String[] s1terms = new String[] { "e", "d", "c", "bc", "b", "a" };
@@ -1380,10 +1402,11 @@ public class TestImhotepLocalSession {
 
     @Test
     public void testEmptyMultisplit() throws ImhotepOutOfMemoryException {
+        final Path shardDir = TestFileUtils.createTempShard();
         final MockFlamdexReader r =
                 new MockFlamdexReader(Collections.singletonList("if1"),
                                       Collections.<String>emptyList(),
-                                      Collections.<String>emptyList(), 10);
+                                      Collections.<String>emptyList(), 10, shardDir);
         for (int i = 0; i < 10; i++) {
             r.addIntTerm("if1", i, i);
         }
@@ -1409,10 +1432,11 @@ public class TestImhotepLocalSession {
 
     @Test
     public void testUntargetedGroup() throws ImhotepOutOfMemoryException {
+        final Path shardDir = TestFileUtils.createTempShard();
         final MockFlamdexReader r =
                 new MockFlamdexReader(Collections.singletonList("if1"),
                                       Collections.<String>emptyList(),
-                                      Collections.<String>emptyList(), 10);
+                                      Collections.<String>emptyList(), 10, shardDir);
         for (int i = 0; i < 10; i++) {
             r.addIntTerm("if1", i, i);
         }
@@ -1639,7 +1663,9 @@ public class TestImhotepLocalSession {
     public void testGroup0Filtering() throws ImhotepOutOfMemoryException, IOException {
         /* make session 1 */
         final FlamdexReader r1 = MakeAFlamdex.make();
-        try (ImhotepLocalSession session1 = new ImhotepJavaLocalSession(r1, "/tmp/imhotep.test",
+        final Path testDir = Files.createTempDirectory("imhotep.test");
+
+        try (ImhotepLocalSession session1 = new ImhotepJavaLocalSession(r1, testDir.toString(),
                 new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
                 null)) {
             session1.pushStat("count()");
@@ -1806,6 +1832,8 @@ public class TestImhotepLocalSession {
                             dm.lookupSingleVal(i));
                 }
             }
+        } finally {
+            TestFileUtils.deleteDirTree(testDir);
         }
     }
 
@@ -1813,8 +1841,9 @@ public class TestImhotepLocalSession {
     public void testOptimizeThenReset() throws ImhotepOutOfMemoryException, IOException {
         /* make session 1 */
         final FlamdexReader r1 = MakeAFlamdex.make();
+        final Path testDir = Files.createTempDirectory("imhotep.test");
         try (ImhotepLocalSession session1 = new ImhotepJavaLocalSession(r1,
-                "/tmp/imhotep.test",
+                testDir.toString(),
                 new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
                 null)) {
             session1.pushStat("count()");
@@ -1953,14 +1982,17 @@ public class TestImhotepLocalSession {
                             dm.lookupSingleVal(i));
                 }
             }
+        } finally {
+            TestFileUtils.deleteDirTree(testDir);
         }
     }
 
     @Test
-    public void testRegexMetric() throws ImhotepOutOfMemoryException {
+    public void testRegexMetric() throws ImhotepOutOfMemoryException, IOException {
         final FlamdexReader r = MakeAFlamdex.make();
+        final Path testDir = Files.createTempDirectory("imhotep.test");
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r,
-                "/tmp/imhotep.test",
+                testDir.toString(),
                 new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
                 null)) {
 
@@ -1991,6 +2023,8 @@ public class TestImhotepLocalSession {
             session.pushStat("regex nonexistent:anything");
             Assert.assertArrayEquals(new long[]{0, 0}, session.getGroupStats(0));
             session.popStat();
+        } finally {
+            TestFileUtils.deleteDirTree(testDir);
         }
     }
 }

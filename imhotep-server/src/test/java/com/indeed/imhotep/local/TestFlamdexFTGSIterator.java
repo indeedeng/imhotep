@@ -18,9 +18,11 @@ import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.io.TestFileUtils;
 import com.indeed.util.core.Pair;
 import org.junit.Test;
 
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -179,11 +181,13 @@ public class TestFlamdexFTGSIterator {
     }
 
     private MockFlamdexReader makeTestFlamdexReader() {
+        final Path shardDir = TestFileUtils.createTempShard();
         final MockFlamdexReader r = new MockFlamdexReader(
                 Arrays.asList(INT_ITERATION_FIELD, METRIC_FIELD, DOCID_FIELD),
                 Collections.singletonList(STRING_ITERATION_FIELD),
                 Arrays.asList(INT_ITERATION_FIELD, METRIC_FIELD, DOCID_FIELD),
-                10
+                10,
+                shardDir
         );
         r.addIntTerm(INT_ITERATION_FIELD, Integer.MIN_VALUE, 5, 7, 8);
         r.addIntTerm(INT_ITERATION_FIELD, -1, 1, 2, 3);

@@ -26,6 +26,7 @@ import com.indeed.flamdex.api.StringValueLookup;
 import com.indeed.flamdex.fieldcache.FieldCacherUtil;
 import com.indeed.imhotep.metrics.Count;
 
+import javax.annotation.Nonnull;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -50,7 +51,7 @@ public class RamsesFlamdexWrapper implements FlamdexReader {
 
     private final long memoryOverhead;
 
-    public RamsesFlamdexWrapper(FlamdexReader wrapped, Path directory) throws IOException {
+    public RamsesFlamdexWrapper(final FlamdexReader wrapped, @Nonnull final Path directory) throws IOException {
         this.wrapped = wrapped;
         this.directory = directory;
 

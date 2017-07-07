@@ -13,6 +13,7 @@
  */
  package com.indeed.flamdex.api;
 
+import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.nio.file.Path;
 import java.util.Collection;
@@ -21,7 +22,12 @@ public interface FlamdexReader extends Closeable {
     Collection<String> getIntFields();
     Collection<String> getStringFields();
     int getNumDocs();
+
+    /** @return Path to directory with flamdex data.
+     * Can be null in case of memory flamdex or another special flamdex */
+    @Nullable
     Path getDirectory();
+
     DocIdStream getDocIdStream();
     IntTermIterator getUnsortedIntTermIterator(String field);
     IntTermIterator getIntTermIterator(String field);

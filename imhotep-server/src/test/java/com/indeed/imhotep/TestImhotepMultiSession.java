@@ -17,6 +17,7 @@ import com.google.common.primitives.Longs;
 import com.indeed.flamdex.reader.MockFlamdexReader;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.io.TestFileUtils;
 import com.indeed.imhotep.local.ImhotepJavaLocalSession;
 import com.indeed.imhotep.local.ImhotepLocalSession;
 import org.junit.Test;
@@ -34,13 +35,13 @@ public class TestImhotepMultiSession {
     public void testShardGrouping() throws ImhotepOutOfMemoryException {
         final MockFlamdexReader r1 = new MockFlamdexReader(Collections.<String>emptyList(),
                 Collections.singletonList("f"), Collections.<String>emptyList(),
-                1);
+                1, TestFileUtils.createTempShard());
         r1.addStringTerm("f", "foo", Collections.singletonList(0));
         r1.addStringTerm("f", "bar", Collections.singletonList(0));
 
         final MockFlamdexReader r2 = new MockFlamdexReader(Collections.<String>emptyList(),
                 Collections.singletonList("f"), Collections.<String>emptyList(),
-                1);
+                1, TestFileUtils.createTempShard());
         r2.addStringTerm("f", "foo", Collections.singletonList(0));
         r2.addStringTerm("f", "baz", Collections.singletonList(0));
 

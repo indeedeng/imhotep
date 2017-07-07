@@ -48,10 +48,17 @@ class FlamdexInfo {
     private static final Set<String> fieldExtensions =
         new ObjectArraySet<String>(FIELD_EXTENSIONS);
 
-    FlamdexInfo(FlamdexReader reader) {
-        this.shardId     = reader.getDirectory().getFileName().toString();
-        this.date        = dateOf();
-        this.sizeInBytes = initFieldSizes(reader);
+    FlamdexInfo(final FlamdexReader reader) {
+        final Path shardDir = reader.getDirectory();
+        if( shardDir != null ) {
+            this.shardId     = shardDir.getFileName().toString();
+            this.date        = dateOf();
+            this.sizeInBytes = initFieldSizes(reader);
+        } else {
+            this.shardId     = null;
+            this.date        = null;
+            this.sizeInBytes = 0;
+        }
     }
 
     String       getShardId() { return shardId;     }

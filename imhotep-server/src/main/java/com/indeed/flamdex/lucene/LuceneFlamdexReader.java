@@ -28,6 +28,7 @@ import org.apache.log4j.Logger;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.ParallelReader;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
@@ -55,11 +56,11 @@ public class LuceneFlamdexReader extends AbstractFlamdexReader {
      * use {@link #LuceneFlamdexReader(Path)} instead
      */
     @Deprecated
-    public LuceneFlamdexReader(final String directory) throws IOException {
+    public LuceneFlamdexReader(@Nonnull final String directory) throws IOException {
         this(Paths.get(directory));
     }
 
-    public LuceneFlamdexReader( final Path directory) throws IOException {
+    public LuceneFlamdexReader(@Nonnull final Path directory) throws IOException {
             this(directory, null, null);
     }
 
@@ -67,13 +68,13 @@ public class LuceneFlamdexReader extends AbstractFlamdexReader {
      * use {@link #LuceneFlamdexReader(Path, Collection, Collection)} instead
      */
     @Deprecated
-    public LuceneFlamdexReader(final String directory,
+    public LuceneFlamdexReader(@Nonnull String directory,
                                @Nullable  final Collection<String> intFields,
                                @Nullable  final Collection<String> stringFields) throws IOException {
         this(Paths.get(directory), intFields, stringFields);
     }
 
-    public LuceneFlamdexReader( final Path directory, @Nullable final Collection<String> intFields,
+    public LuceneFlamdexReader(@Nonnull final Path directory, @Nullable final Collection<String> intFields,
         @Nullable final Collection<String> stringFields) throws IOException {
             super(directory);
 

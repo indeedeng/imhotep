@@ -26,13 +26,11 @@ public class MockFlamdexWriter implements FlamdexWriter {
     private final Collection<String> intFields;
     private final Collection<String> stringFields;
     private int numDocs;
-    private String directory;
 
     private final Map<String, Map<Long, List<Integer>>> intTerms = new HashMap<String, Map<Long, List<Integer>>>();
     private final Map<String, Map<String, List<Integer>>> stringTerms = new HashMap<String, Map<String, List<Integer>>>();
 
-    public MockFlamdexWriter(String directory) {
-        this.directory = directory;
+    public MockFlamdexWriter() {
         this.intFields = new ArrayList<String>();
         this.stringFields = new ArrayList<String>();
         this.numDocs = 0;
@@ -153,10 +151,6 @@ public class MockFlamdexWriter implements FlamdexWriter {
 
     public int getNumDocs() {
         return numDocs;
-    }
-
-    public String getDirectory() {
-        return directory;
     }
 
     public Map<String, Map<Long, List<Integer>>> getIntTerms() {

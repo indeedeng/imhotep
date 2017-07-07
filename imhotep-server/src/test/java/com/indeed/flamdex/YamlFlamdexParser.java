@@ -18,6 +18,7 @@ import com.google.common.collect.Maps;
 import com.google.common.io.InputSupplier;
 import com.google.common.io.Resources;
 import com.indeed.flamdex.reader.MockFlamdexReader;
+import com.indeed.imhotep.io.TestFileUtils;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 import org.yaml.snakeyaml.Yaml;
@@ -25,6 +26,7 @@ import org.yaml.snakeyaml.introspector.BeanAccess;
 
 import java.io.IOException;
 import java.io.Reader;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
@@ -53,7 +55,8 @@ public class YamlFlamdexParser {
             Closeables2.closeQuietly(reader, LOG);
         }
 
-        final MockFlamdexReader r = new MockFlamdexReader(yfr.intFields.keySet(), yfr.stringFields.keySet(), yfr.intFields.keySet(), yfr.numDocs);
+        final Path shardDir = TestFileUtils.createTempShard();
+        final MockFlamdexReader r = new MockFlamdexReader(yfr.intFields.keySet(), yfr.stringFields.keySet(), yfr.intFields.keySet(), yfr.numDocs, shardDir);
         for (final String field : yfr.intFields.keySet()) {
             for (final Map.Entry<Integer, List<Integer>> e : yfr.intFields.get(field).entrySet()) {
                 r.addIntTerm(field, e.getKey(), e.getValue());

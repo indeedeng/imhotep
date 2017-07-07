@@ -44,6 +44,7 @@ public class DbDataFixture extends ExternalResource {
     @Override
     protected void after() {
         dataSource.close();
+        tempDir.delete();
         super.after();
     }
 }

@@ -61,44 +61,40 @@ import static org.junit.Assert.fail;
  */
 public class SimpleFlamdexTest {
     private static final Logger log = Logger.getLogger(SimpleFlamdexTest.class);
-    
+
     /*
      * Need this to force the native library to be loaded - which happens in MTImhotepLocalMultiSession
      */
     @BeforeClass
     public static void loadLibrary() throws ImhotepOutOfMemoryException, CorruptIndexException, IOException {
-        final Path tempDir = Files.createTempDirectory("asdf");
-        try {
-            final IndexWriter w = new IndexWriter(tempDir.toFile(),
-                                            new WhitespaceAnalyzer(),
-                                            true,
-                                            IndexWriter.MaxFieldLength.LIMITED);
+        final Path tempDir = TestFileUtils.createTempShard();
+        final IndexWriter w = new IndexWriter(tempDir.toFile(),
+                                        new WhitespaceAnalyzer(),
+                                        true,
+                                        IndexWriter.MaxFieldLength.LIMITED);
 
-            final Random rand = new Random();
-            for (int i = 0; i < 10; ++i) {
-                final int numTerms = rand.nextInt(5) + 5;
-                final Document doc = new Document();
-                for (int t = 0; t < numTerms; ++t) {
-                    doc.add(new Field("sf1", Integer.toString(rand.nextInt(10)), Field.Store.NO, Field.Index.NOT_ANALYZED_NO_NORMS));
-                }
-                w.addDocument(doc);
+        final Random rand = new Random();
+        for (int i = 0; i < 10; ++i) {
+            final int numTerms = rand.nextInt(5) + 5;
+            final Document doc = new Document();
+            for (int t = 0; t < numTerms; ++t) {
+                doc.add(new Field("sf1", Integer.toString(rand.nextInt(10)), Field.Store.NO, Field.Index.NOT_ANALYZED_NO_NORMS));
             }
-
-            w.close();
-
-            final FlamdexReader r = new LuceneFlamdexReader(tempDir);
-            final ImhotepSession session =
-                new MTImhotepLocalMultiSession(new ImhotepLocalSession[] {
-                        new ImhotepJavaLocalSession(r) },
-                        new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
-                        null,
-                        false
-                );
-
-            session.close();
-        } finally {
-            TestFileUtils.deleteDirTree(tempDir);
+            w.addDocument(doc);
         }
+
+        w.close();
+
+        final FlamdexReader r = new LuceneFlamdexReader(tempDir);
+        final ImhotepSession session =
+            new MTImhotepLocalMultiSession(new ImhotepLocalSession[] {
+                    new ImhotepJavaLocalSession(r) },
+                    new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
+                    null,
+                    false
+            );
+
+        session.close();
     }
     
     @Test
