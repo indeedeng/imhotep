@@ -173,7 +173,7 @@ class DynamicFlamdexMerger implements Closeable {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Start merge task "
                             + newSegmentDirectory.getFileName()
-                            + " which merges"
+                            + " which merges "
                             + Joiner.on(',').join(FluentIterable.from(segmentsToMerge).transform(
                             new Function<MergeStrategy.Segment, String>() {
                                 @Override
@@ -244,7 +244,7 @@ class DynamicFlamdexMerger implements Closeable {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Finished merge task "
                         + newSegmentDirectory.getFileName()
-                        + " which merges"
+                        + " which merges "
                         + Joiner.on(',').join(FluentIterable.from(segmentsToMerge).transform(
                         new Function<MergeStrategy.Segment, String>() {
                             @Override

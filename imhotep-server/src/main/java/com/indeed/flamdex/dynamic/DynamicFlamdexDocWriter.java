@@ -235,6 +235,10 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
         }
     }
 
+    public Optional<Path> getLatestIndexDirectory() {
+        return indexCommitter.getLatestIndexDirectory();
+    }
+
     @Nonnull
     public static Builder builder() {
         return new Builder();

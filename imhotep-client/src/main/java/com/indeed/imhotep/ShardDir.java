@@ -20,7 +20,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ShardDir {
-    private static final Pattern VERSION_PATTERN = Pattern.compile("^(.+)\\.(\\d{14})$");
+    private static final Pattern VERSION_PATTERN = Pattern.compile("^(index.+)\\.(\\d{14})$");
 
     private final String name;
     private final Path indexDir;
@@ -28,7 +28,6 @@ public class ShardDir {
     private final long version;
 
     public ShardDir(final Path path) {
-
         this.name = path.getFileName().toString();
         this.indexDir = path;
 
@@ -36,6 +35,10 @@ public class ShardDir {
         if (matcher.matches()) {
             this.id = matcher.group(1);
             this.version = Long.parseLong(matcher.group(2));
+        } else if (DynamicIndexSubshardDirnameUtil.isValidName(this.name)) {
+            final DynamicIndexSubshardDirnameUtil.ParseResult parseResult = DynamicIndexSubshardDirnameUtil.parse(this.name);
+            this.id = parseResult.getId();
+            this.version = parseResult.getUpdateId();
         } else {
             this.id = name;
             this.version = 0L;
