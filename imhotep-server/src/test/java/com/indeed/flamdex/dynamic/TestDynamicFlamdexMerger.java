@@ -1,8 +1,12 @@
 package com.indeed.flamdex.dynamic;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.writer.FlamdexDocument;
+import it.unimi.dsi.fastutil.longs.LongList;
+import it.unimi.dsi.fastutil.longs.LongLists;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -187,6 +191,61 @@ public class TestDynamicFlamdexMerger {
                 }
             }
             indexDirectory = flamdexDocWriterWithoutMerger.commit(commitId++).get();
+        }
+        executorService.shutdown();
+        executorService.awaitTermination(1, TimeUnit.MINUTES);
+        try (final FlamdexReader reader = new DynamicFlamdexReader(indexDirectory)) {
+            DynamicFlamdexTestUtils.validateIndex(naiveResult, reader);
+        }
+    }
+
+    @Test
+    public void testMergeDifferentType() throws IOException, InterruptedException {
+        final MergeStrategy mergeStrategy = new MergeStrategy() {
+            @Nonnull
+            @Override
+            public Collection<? extends Collection<Segment>> splitSegmentsToMerge(@Nonnull final List<Segment> availableSegments) {
+                return Collections.singleton(availableSegments);
+            }
+        };
+        final ExecutorService executorService = Executors.newSingleThreadExecutor();
+
+        final Path datasetDirectory = temporaryFolder.newFolder("dataset").toPath();
+        final Random random = new Random(0);
+        final List<FlamdexDocument> documents = ImmutableList.of(
+                new FlamdexDocument(
+                        ImmutableMap.of("foo", LongLists.singleton(0)),
+                        Collections.<String, List<String>>emptyMap()
+                ),
+                new FlamdexDocument(
+                        Collections.<String, LongList>emptyMap(),
+                        ImmutableMap.of("foo", (List<String>) ImmutableList.of("123fizz"))
+                ),
+                new FlamdexDocument(
+                        Collections.<String, LongList>emptyMap(),
+                        ImmutableMap.of("foo", (List<String>) ImmutableList.of("345fizz"))
+                ),
+
+                new FlamdexDocument(
+                        ImmutableMap.of("foo", LongLists.singleton(0)),
+                        Collections.<String, List<String>>emptyMap()
+                )
+        );
+
+        final Path indexDirectory;
+        final Set<FlamdexDocument> naiveResult = new HashSet<>();
+        try (final DynamicFlamdexDocWriter flamdexDocWriterWithMerger = DynamicFlamdexDocWriter.builder()
+                .setDatasetDirectory(datasetDirectory)
+                .setIndexDirectoryPrefix(INDEX_DIRECTORY_PREFIX)
+                .setMergeStrategy(mergeStrategy)
+                .setExecutorService(executorService)
+                .build()) {
+            long commitId = 0;
+            for (final FlamdexDocument document : documents) {
+                flamdexDocWriterWithMerger.commit(commitId++, random.nextBoolean());
+                DynamicFlamdexTestUtils.addDocument(naiveResult, flamdexDocWriterWithMerger, document);
+            }
+            indexDirectory = flamdexDocWriterWithMerger.commit(commitId++).get();
         }
         executorService.shutdown();
         executorService.awaitTermination(1, TimeUnit.MINUTES);

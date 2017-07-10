@@ -37,6 +37,30 @@ import java.util.List;
 
 public class DynamicFlamdexReader implements FlamdexReader {
     private static final Logger LOG = Logger.getLogger(DynamicFlamdexReader.class);
+    private static final IntTermIterator EMPTY_INTTERM_ITERATOR = new IntTermIterator() {
+        @Override
+        public void reset(final long term) {
+        }
+
+        @Override
+        public long term() {
+            return 0;
+        }
+
+        @Override
+        public boolean next() {
+            return false;
+        }
+
+        @Override
+        public int docFreq() {
+            return 0;
+        }
+
+        @Override
+        public void close() {
+        }
+    };
 
     private final Path indexDirectory;
     private final Closeable lock;
@@ -130,14 +154,29 @@ public class DynamicFlamdexReader implements FlamdexReader {
 
     @Override
     public IntTermIterator getIntTermIterator(final String field) {
-        return new MergedIntTermIterator(
-                FluentIterable.from(segmentReaders).transform(new Function<SegmentReader, IntTermIterator>() {
-                    @Override
-                    public IntTermIterator apply(final SegmentReader segmentReader) {
-                        return segmentReader.getIntTermIterator(field);
-                    }
-                }).toList()
-        );
+        if (this.getIntFields().contains(field)) {
+            return new MergedIntTermIterator(
+                    FluentIterable.from(segmentReaders).transform(new Function<SegmentReader, IntTermIterator>() {
+                        @Override
+                        public IntTermIterator apply(final SegmentReader segmentReader) {
+                            if (segmentReader.getIntFields().contains(field)) {
+                                return segmentReader.getIntTermIterator(field);
+                            } else {
+                                return EMPTY_INTTERM_ITERATOR;
+                            }
+                        }
+                    }).toList()
+            );
+        } else {
+            return new MergedIntTermIterator(
+                    FluentIterable.from(segmentReaders).transform(new Function<SegmentReader, IntTermIterator>() {
+                        @Override
+                        public IntTermIterator apply(final SegmentReader segmentReader) {
+                            return segmentReader.getStringToIntTermIterator(field);
+                        }
+                    }).toList()
+            );
+        }
     }
 
     @Override

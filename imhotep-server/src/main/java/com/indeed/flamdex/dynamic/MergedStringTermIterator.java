@@ -33,38 +33,22 @@ class MergedStringTermIterator implements MergedTermIterator, StringTermIterator
         this.currentMinimums = new IntArrayList(this.stringTermIterators.size());
         this.currentTerms = new String[stringTermIterators.size()];
         this.priorityQueue = new ObjectHeapSemiIndirectPriorityQueue<>(this.currentTerms);
-        // Until first call of next(), this iterator should be invalid.
-        // This state can be consider as "we have sentinel (lexicographically less than all possible string) as the term before the first call of next(), and call next() to skip it".
-        // So, initially, all iterators are in currentMinimums
-        for (int i = 0; i < this.stringTermIterators.size(); ++i) {
-            currentMinimums.add(i);
-        }
+        innerReset();
     }
 
+    /**
+     * For given {@code stringTermIterators} which are invalid until next call of {@link StringTermIterator#next()},
+     * reset current status to match those iterators.
+     * This iterator is invalid until next call of {@link MergedStringTermIterator#next()}
+     */
     private void innerReset() {
         priorityQueue.clear();
-        for (int i = 0; i < stringTermIterators.size(); ++i) {
-            final StringTermIterator iterator = stringTermIterators.get(i);
-            if (iterator.next()) {
-                currentTerms[i] = iterator.term();
-                priorityQueue.enqueue(i);
-            }
-        }
-        prepareNext();
-    }
-
-    private void prepareNext() {
-        currentTermFreq = 0;
+        // All iterators must be in currentMinimums since they're waiting for call of next().
         currentMinimums.clear();
-        if (!priorityQueue.isEmpty()) {
-            currentTerm = currentTerms[priorityQueue.first()];
-            while (!priorityQueue.isEmpty() && (currentTerm.equals(currentTerms[priorityQueue.first()]))) {
-                final int i = priorityQueue.dequeue();
-                currentTermFreq += stringTermIterators.get(i).docFreq();
-                currentMinimums.add(i);
-            }
+        for (int i = 0; i < stringTermIterators.size(); ++i) {
+            currentMinimums.add(i);
         }
-        IntArrays.quickSort(currentMinimums.elements(), 0, currentMinimums.size());
+        // We reset other states (current{Term, TermFreq, Terms}) in the next call of next().
     }
 
     @Nonnull
@@ -101,7 +85,17 @@ class MergedStringTermIterator implements MergedTermIterator, StringTermIterator
                 priorityQueue.enqueue(i);
             }
         }
-        prepareNext();
+        currentMinimums.clear();
+        currentTermFreq = 0;
+        if (!priorityQueue.isEmpty()) {
+            currentTerm = currentTerms[priorityQueue.first()];
+            while (!priorityQueue.isEmpty() && (currentTerm.equals(currentTerms[priorityQueue.first()]))) {
+                final int i = priorityQueue.dequeue();
+                currentTermFreq += stringTermIterators.get(i).docFreq();
+                currentMinimums.add(i);
+            }
+        }
+        IntArrays.quickSort(currentMinimums.elements(), 0, currentMinimums.size());
         return !currentMinimums.isEmpty();
     }
 
