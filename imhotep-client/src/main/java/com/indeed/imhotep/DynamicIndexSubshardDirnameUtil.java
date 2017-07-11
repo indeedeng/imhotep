@@ -2,6 +2,7 @@ package com.indeed.imhotep;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ComparisonChain;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -17,7 +18,8 @@ import java.util.regex.Pattern;
  * @author michihiko
  */
 public final class DynamicIndexSubshardDirnameUtil {
-    private static final Pattern DYNAMIC_INDEX_VERSION_PATTERN = Pattern.compile("^(dindex.+\\.(\\d{1,9})\\.(\\d{1,9}))\\.(\\d{1,18})\\.(\\d{1,18})+$");
+    private static final Pattern DYNAMIC_INDEX_ID_PATTERN = Pattern.compile("^(dindex.+\\.(\\d{1,9})\\.(\\d{1,9}))$");
+    private static final Pattern DYNAMIC_INDEX_NAME_PATTERN = Pattern.compile("^(dindex.+\\.(\\d{1,9})\\.(\\d{1,9}))\\.(\\d{1,18})\\.(\\d{1,18})$");
     private static final DateTimeZone ZONE = DateTimeZone.forOffsetHours(-6);
     private static final DateTimeFormatter yyyymmddhh = DateTimeFormat.forPattern("yyyyMMdd.HH").withZone(ZONE);
 
@@ -45,7 +47,7 @@ public final class DynamicIndexSubshardDirnameUtil {
 
         private ParseResult(@Nonnull final String name) throws IllegalArgumentException {
             this.name = name;
-            final Matcher dynamicMatcher = DYNAMIC_INDEX_VERSION_PATTERN.matcher(name);
+            final Matcher dynamicMatcher = DYNAMIC_INDEX_NAME_PATTERN.matcher(name);
             if (dynamicMatcher.matches()) {
                 this.id = dynamicMatcher.group(1);
                 this.updateId = Long.parseLong(dynamicMatcher.group(4));
@@ -91,16 +93,16 @@ public final class DynamicIndexSubshardDirnameUtil {
             return id;
         }
 
-        public long getUpdateId() {
-            return updateId;
-        }
-
         public int getSubshardId() {
             return subshardId;
         }
 
         public int getNumSubshards() {
             return numSubshards;
+        }
+
+        public long getUpdateId() {
+            return updateId;
         }
 
         public long getTimestamp() {
@@ -121,7 +123,17 @@ public final class DynamicIndexSubshardDirnameUtil {
     }
 
     public static boolean isValidName(final String name) {
-        return DYNAMIC_INDEX_VERSION_PATTERN.matcher(name).matches();
+        return DYNAMIC_INDEX_NAME_PATTERN.matcher(name).matches();
+    }
+
+    public static boolean isValidShardId(final String shardId) {
+        return DYNAMIC_INDEX_ID_PATTERN.matcher(shardId).matches();
+    }
+
+    public static int parseSubshardIdFromShardId(final String shardId) {
+        final Matcher matcher = DYNAMIC_INDEX_ID_PATTERN.matcher(shardId);
+        Preconditions.checkArgument(matcher.matches());
+        return Integer.parseInt(matcher.group(2));
     }
 
     /**
