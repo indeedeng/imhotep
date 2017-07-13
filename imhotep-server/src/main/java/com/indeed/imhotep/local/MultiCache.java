@@ -3,11 +3,11 @@ package com.indeed.imhotep.local;
 import com.google.common.io.ByteStreams;
 import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.datastruct.FastBitSet;
-import com.indeed.flamdex.fieldcache.NativeFlamdexFieldCacher;
 import com.indeed.imhotep.BitTree;
 import com.indeed.imhotep.GroupRemapRule;
+import com.indeed.imhotep.MemoryReservationContext;
+import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.util.core.threads.ThreadSafeBitSet;
-
 import org.apache.log4j.Logger;
 
 import java.io.Closeable;
@@ -16,7 +16,6 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -73,7 +72,8 @@ public final class MultiCache implements Closeable {
                       int numDocsInShard,
                       MultiCacheConfig config,
                       StatLookup stats,
-                      GroupLookup groupLookup) {
+                      GroupLookup groupLookup,
+                      final MemoryReservationContext memory) throws ImhotepOutOfMemoryException {
         MultiCacheConfig.StatsOrderingInfo[] ordering = config.getOrdering();
         this.session = session;
         this.numDocsInShard = numDocsInShard;
@@ -83,7 +83,7 @@ public final class MultiCache implements Closeable {
         this.packedTable = new PackedTableView(ordering, this.nativeShardDataPtr);
 
         /* create the group lookup and populate the groups */
-        this.nativeGroupLookup = new MultiCacheGroupLookup();
+        this.nativeGroupLookup = new MultiCacheGroupLookup(memory);
         copyGroups(groupLookup, numDocsInShard);
 
         /* create the metric IntValueLookups, and populate the metrics in the multicache */
@@ -284,8 +284,17 @@ public final class MultiCache implements Closeable {
 
     public final class MultiCacheGroupLookup extends GroupLookup {
         /* should be as large as the buffer passed into nextGroupCallback() */
-        private final int[] groups_buffer = new int[ImhotepLocalSession.BUFFER_SIZE];
-        private final int[] remap_buffer = new int[ImhotepLocalSession.BUFFER_SIZE];
+        private final int[] groups_buffer;
+        private final int[] remap_buffer;
+
+        MultiCacheGroupLookup(final MemoryReservationContext memory) throws ImhotepOutOfMemoryException {
+            if(!memory.claimMemory(2 * 4 * ImhotepLocalSession.BUFFER_SIZE)) {
+                throw new ImhotepOutOfMemoryException();
+            }
+
+            groups_buffer = new int[ImhotepLocalSession.BUFFER_SIZE];
+            remap_buffer = new int[ImhotepLocalSession.BUFFER_SIZE];
+        }
 
         @Override
         public void nextGroupCallback(int n, long[][] termGrpStats, BitTree groupsSeen) {

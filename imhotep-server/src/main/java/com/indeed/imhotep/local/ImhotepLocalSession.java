@@ -146,6 +146,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     final int[] docIdBuf = new int[BUFFER_SIZE];
     final long[] valBuf = new long[BUFFER_SIZE];
     final int[] docGroupBuffer = new int[BUFFER_SIZE];
+    // total size of all buffers (docIdBuf + valBuf + docGroupBuffer)
+    private static final long BUFFERS_TOTAL_SIZE = BUFFER_SIZE * (4 + 8 + 4);
 
     // do not close flamdexReader, it is separately refcounted
     protected FlamdexReader flamdexReader;
@@ -155,7 +157,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     final MemoryReservationContext memory;
 
-    GroupLookup docIdToGroup;
+    protected GroupLookup docIdToGroup;
 
     int[] groupDocCount;
 
@@ -231,7 +233,9 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         this.memory = memory;
         this.numDocs = flamdexReader.getNumDocs();
 
-        if (!memory.claimMemory(BUFFER_SIZE * (4 + 4 + 4) + 12 * 2)) {
+        // Technically, we should claim memory used by docIdToGroup as well.
+        // But we know that ConstantGroupLookup uses 0 memory
+        if (!memory.claimMemory(BUFFERS_TOTAL_SIZE)) {
             throw new ImhotepOutOfMemoryException();
         }
 
@@ -239,6 +243,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         docIdToGroup.recalculateNumGroups();
         groupDocCount = clearAndResize((int[]) null, docIdToGroup.getNumGroups(), memory);
         groupDocCount[1] = numDocs;
+
+        accountForFlamdexFTGSIteratorMemChange(0, docIdToGroup.getNumGroups());
 
         this.groupStats = new GroupStatCache(MAX_NUMBER_STATS, memory);
 
@@ -733,7 +739,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         groupStats.reset(numStats, newNumGroups);
     }
 
-    private void accountForFlamdexFTGSIteratorMemChange(final int oldNumGroups,
+    protected void accountForFlamdexFTGSIteratorMemChange(final int oldNumGroups,
                                                         final int newNumGroups)
         throws ImhotepOutOfMemoryException {
         if (newNumGroups > oldNumGroups) {
@@ -2250,14 +2256,19 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     protected void freeDocIdToGroup() {
-        if (docIdToGroup != null) {
-            final long memFreed =
-                docIdToGroup.memoryUsed() + groupDocCount.length * 4L + BUFFER_SIZE
-                * (4 + 4 + 4) + 12L * docIdToGroup.getNumGroups();
-            docIdToGroup = null;
-            groupDocCount = null;
-            memory.releaseMemory(memFreed);
+        final long memFreed = BUFFERS_TOTAL_SIZE + docIdToGroup.memoryUsed();
+        memory.releaseMemory(memFreed);
+
+        try {
+            accountForFlamdexFTGSIteratorMemChange(docIdToGroup.getNumGroups(), 0);
+        } catch(final ImhotepOutOfMemoryException e) {
+            throw new RuntimeException("Unexpected ImhotepOutOfMemoryException while releasing memory" ,e);
         }
+
+        docIdToGroup = null;
+
+        memory.releaseMemory(groupDocCount.length * 4);
+        groupDocCount = null;
     }
 
     protected void tryClose() {

@@ -75,13 +75,15 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
             });
     }
 
-    public MultiCache buildMultiCache(final MultiCacheConfig config) {
+    public MultiCache buildMultiCache(final MultiCacheConfig config) throws ImhotepOutOfMemoryException {
         if (rebuildMultiCache) {
             if (multiCache != null) {
                 multiCache.close();
             }
-            multiCache = new MultiCache(this, (int)getNumDocs(), config, statLookup, docIdToGroup);
+            final long releaseBytes = docIdToGroup.memoryUsed();
+            multiCache = new MultiCache(this, (int)getNumDocs(), config, statLookup, docIdToGroup, memory);
             docIdToGroup = multiCache.getGroupLookup();
+            memory.releaseMemory(releaseBytes);
             rebuildMultiCache = false;
         }
         return multiCache;
@@ -102,7 +104,12 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
             final StatLookup[] statLookups = new StatLookup[1];
             statLookups[0] = statLookup;
             config.calcOrdering(statLookups, numStats);
-            buildMultiCache(config);
+            try {
+                buildMultiCache(config);
+            } catch (final ImhotepOutOfMemoryException ex ) {
+                throw new RuntimeException("failed to create multi cache", ex);
+            }
+
             if (nativeShard != null) {
                 nativeShard.close();
                 nativeShard = null;
@@ -148,11 +155,17 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
     protected GroupLookup resizeGroupLookup(final GroupLookup lookup, final int size,
                                             final MemoryReservationContext memory)
         throws ImhotepOutOfMemoryException {
-        return multiCache != null ? multiCache.getGroupLookup() : lookup;
-    }
+        if( multiCache == null ) {
+            return super.resizeGroupLookup(lookup, size, memory);
+        }
 
-    @Override
-    protected void freeDocIdToGroup() { }
+        memory.releaseMemory(lookup.memoryUsed());
+        final GroupLookup cache = multiCache.getGroupLookup();
+        if(!memory.claimMemory(cache.memoryUsed())) {
+            throw new ImhotepOutOfMemoryException();
+        }
+        return cache;
+    }
 
     @Override
     protected void tryClose() {
@@ -175,8 +188,11 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
 
         final long rulesPtr = nativeGetRules(rules);
         try {
+            final int oldNumGroups = docIdToGroup.getNumGroups();
             result = nativeRegroup(rulesPtr, nativeShard.getPtr(), errorOnCollisions);
             docIdToGroup.recalculateNumGroups();
+            final int newNumGroups = docIdToGroup.getNumGroups();
+            accountForFlamdexFTGSIteratorMemChange(oldNumGroups, newNumGroups);
             groupStats.reset(numStats, result);
         }
         finally {
