@@ -92,13 +92,22 @@ public final class DynamicFlamdexIndexUtil {
             }
         });
     }
-
-    public static void removeIndex(@Nonnull final Path indexDirectory) throws IOException {
-        final Path tempDirectory = Files.createTempDirectory(indexDirectory.getParent(), "deleting." + indexDirectory.getFileName().toString());
-        try (final MultiThreadLock lock = MultiThreadFileLockUtil.writeLock(indexDirectory, READER_LOCK_FILENAME)) {
-            Files.move(indexDirectory, tempDirectory.resolve(indexDirectory.getFileName()));
-        } finally {
-            removeDirectoryRecursively(tempDirectory);
+    public static boolean tryRemoveIndex(@Nonnull final Path indexDirectory) throws IOException {
+        final Optional<MultiThreadLock> lockOrEmpty = MultiThreadFileLockUtil.tryWriteLock(indexDirectory, READER_LOCK_FILENAME);
+        if (lockOrEmpty.isPresent()) {
+            try {
+                final Path tempDirectory = Files.createTempDirectory(indexDirectory.getParent(), "deleting." + indexDirectory.getFileName().toString());
+                try {
+                    Files.move(indexDirectory, tempDirectory.resolve(indexDirectory.getFileName()));
+                } finally {
+                    removeDirectoryRecursively(tempDirectory);
+                }
+                return true;
+            } finally {
+                lockOrEmpty.get().close();
+            }
+        } else {
+            return false;
         }
     }
 }

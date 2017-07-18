@@ -38,12 +38,12 @@ public final class MultiThreadFileLockUtil {
 
     @Nonnull
     public static MultiThreadLock readLock(@Nonnull final Path directory, @Nonnull final String fileName) throws IOException {
-        return getReadWriteLockImpl(directory.resolve(directory.resolve(fileName))).readLock();
+        return getReadWriteLockImpl(directory.resolve(fileName)).readLock();
     }
 
     @Nonnull
     public static MultiThreadLock writeLock(@Nonnull final Path directory, @Nonnull final String fileName) throws IOException {
-        return getReadWriteLockImpl(directory.resolve(directory.resolve(fileName))).writeLock();
+        return getReadWriteLockImpl(directory.resolve(fileName)).writeLock();
     }
 
     @Nonnull
