@@ -116,7 +116,7 @@ public final class KerberosUtils {
     /**
      * Use for testing keytab logins
      */
-    public static void main(final String[] args) throws Exception {
+    public static void main(final String[] args) throws IOException {
         KerberosUtils.loginFromKeytab(new BaseConfiguration());
         final FileSystem fileSystem = FileSystem.get(new org.apache.hadoop.conf.Configuration());
         final Path path = new Path("/CLUSTERNAME");

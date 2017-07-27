@@ -45,7 +45,7 @@ public class GenericStringToIntTermIterator<I extends StringTermIterator> implem
         // TODO: support negative values
         for (int i = 1; i <= 9; i++) {
             for (long m = 1; m > 0 && m * i > 0; m *= 10) {
-                temp.add("" + (m * i));
+                temp.add(String.valueOf(m * i));
             }
         }
         // should already be sorted but re-sorting in case I screwed up -ahudson
@@ -248,14 +248,14 @@ public class GenericStringToIntTermIterator<I extends StringTermIterator> implem
     public void close() {
         stringTermIterator.close();
         if (prefixes != null) {
-            for (Prefix prefix : prefixes) {
+            for (final Prefix prefix : prefixes) {
                 prefix.closeStringTermIterator();
             }
         }
     }
 
     @Override
-    public void reset(long term) {
+    public void reset(final long term) {
         firstTerm = term;
         prefixQueue = null;
     }

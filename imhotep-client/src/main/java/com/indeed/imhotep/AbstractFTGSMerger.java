@@ -13,8 +13,8 @@
  */
  package com.indeed.imhotep;
 
-import com.indeed.util.core.io.Closeables2;
 import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
@@ -47,7 +47,10 @@ public abstract class AbstractFTGSMerger implements FTGSIterator {
 
     protected final GSVector accumulatedVec;
 
-    protected AbstractFTGSMerger(Collection<? extends FTGSIterator> iterators, int numStats, @Nullable Closeable doneCallback) {
+    protected AbstractFTGSMerger(
+            final Collection<? extends FTGSIterator> iterators,
+            final int numStats,
+            @Nullable final Closeable doneCallback) {
         this.doneCallback = doneCallback;
         numIterators = iterators.size();
         this.iterators = iterators.toArray(new FTGSIterator[numIterators]);
@@ -62,7 +65,9 @@ public abstract class AbstractFTGSMerger implements FTGSIterator {
 
     @Override
     public final boolean nextField() {
-        if (done) return false;
+        if (done) {
+            return false;
+        }
 
         numFieldIterators = 0;
 
@@ -81,7 +86,8 @@ public abstract class AbstractFTGSMerger implements FTGSIterator {
         fieldIsIntType = first.fieldIsIntType();
         numFieldIterators = 0;
         if (first.nextTerm()) {
-            fieldIterators[numFieldIterators++] = 0;
+            fieldIterators[numFieldIterators] = 0;
+            numFieldIterators++;
         }
 
         for (int i = 1; i < numIterators; ++i) {
@@ -90,7 +96,8 @@ public abstract class AbstractFTGSMerger implements FTGSIterator {
                 throw new IllegalArgumentException("sub iterator fields do not match");
             }
             if (itr.nextTerm()) {
-                fieldIterators[numFieldIterators++] = i;
+                fieldIterators[numFieldIterators] = i;
+                numFieldIterators++;
             }
         }
         numTermIterators = 0;
@@ -127,7 +134,9 @@ public abstract class AbstractFTGSMerger implements FTGSIterator {
             if (accumulatedVec.nextGroup()) {
                 return true;
             }
-            if (termIteratorsRemaining == 0) return false;
+            if (termIteratorsRemaining == 0) {
+                return false;
+            }
 
             calculateNextGroupBatch();
         }
@@ -148,7 +157,8 @@ public abstract class AbstractFTGSMerger implements FTGSIterator {
             final FTGSIterator itr = iterators[termIterators[i]];
             if ((itr.group()&0xFFFFF000) == baseGroup) {
                 if (!accumulatedVec.mergeFromFtgs(itr)) {
-                    swap(termIterators, i, --termIteratorsRemaining);
+                    termIteratorsRemaining--;
+                    swap(termIterators, i, termIteratorsRemaining);
                     swap(termIteratorIndexes, i, termIteratorsRemaining);
                     --i;
                 }
@@ -162,7 +172,7 @@ public abstract class AbstractFTGSMerger implements FTGSIterator {
     }
 
     @Override
-    public final void groupStats(long[] stats) {
+    public final void groupStats(final long[] stats) {
         accumulatedVec.groupStats(stats);
     }
 
@@ -222,7 +232,7 @@ public abstract class AbstractFTGSMerger implements FTGSIterator {
             group = -1;
         }
 
-        public boolean mergeFromFtgs(FTGSIterator ftgs) {
+        public boolean mergeFromFtgs(final FTGSIterator ftgs) {
             int group = ftgs.group();
             final int newBaseGroup = group & 0xFFFFF000;
             if (baseGroup != -1 && baseGroup != newBaseGroup) {
@@ -238,7 +248,9 @@ public abstract class AbstractFTGSMerger implements FTGSIterator {
                 final int bitset2index = group>>>6;
                 bitset1 |= 1L<<bitset2index;
                 bitset2[bitset2index] |= 1L<<(group&0x3F);
-                if (!ftgs.nextGroup()) return false;
+                if (!ftgs.nextGroup()) {
+                    return false;
+                }
                 group = ftgs.group()-baseGroup;
             } while (group < 4096);
             return true;
@@ -270,7 +282,7 @@ public abstract class AbstractFTGSMerger implements FTGSIterator {
             return group;
         }
 
-        public void groupStats(long buf[]) {
+        public void groupStats(final long[] buf) {
             System.arraycopy(metrics, (group-baseGroup)*numStats, buf, 0, numStats);
         }
     }

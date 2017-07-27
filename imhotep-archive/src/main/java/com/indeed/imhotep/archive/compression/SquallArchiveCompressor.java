@@ -33,37 +33,36 @@ import java.util.Map;
 public enum SquallArchiveCompressor {
     NONE("none") {
         @Override
-        public CompressionInputStream newInputStream(InputStream is) throws IOException {
+        public CompressionInputStream newInputStream(final InputStream is) throws IOException {
             return new NoCompressionInputStream(is);
         }
         @Override
-        public CompressionOutputStream newOutputStream(OutputStream os) throws IOException {
+        public CompressionOutputStream newOutputStream(final OutputStream os) throws IOException {
             return new NoCompressionOutputStream(os);
         }
     },
     GZIP("gzip") {
         @Override
-        public CompressionInputStream newInputStream(InputStream is) throws IOException {
+        public CompressionInputStream newInputStream(final InputStream is) throws IOException {
             return new GzipCompressionInputStream(is);
         }
         @Override
-        public CompressionOutputStream newOutputStream(OutputStream os) throws IOException {
+        public CompressionOutputStream newOutputStream(final OutputStream os) throws IOException {
             return new GzipCompressionOutputStream(os);
         }
     },
     SNAPPY("snappy") {
         @Override
-        public CompressionInputStream newInputStream(InputStream is) throws IOException {
+        public CompressionInputStream newInputStream(final InputStream is) throws IOException {
             return newSnappyCodec().createInputStream(is);
         }
         @Override
-        public CompressionOutputStream newOutputStream(OutputStream os) throws IOException {
+        public CompressionOutputStream newOutputStream(final OutputStream os) throws IOException {
             return newSnappyCodec().createOutputStream(os);
         }
 
         private CompressionCodec newSnappyCodec() {
-            final SnappyCodec codec = new SnappyCodec();
-            return codec;
+            return new SnappyCodec();
         }
     };
 
@@ -78,7 +77,7 @@ public enum SquallArchiveCompressor {
 
     private final String key;
 
-    SquallArchiveCompressor(String key) {
+    SquallArchiveCompressor(final String key) {
         this.key = key;
     }
 
@@ -90,7 +89,7 @@ public enum SquallArchiveCompressor {
         return key;
     }
 
-    public static SquallArchiveCompressor fromKey(String key) {
+    public static SquallArchiveCompressor fromKey(final String key) {
         if (!lookup.containsKey(key)) {
             throw new IllegalArgumentException("invalid key: " + key);
         }

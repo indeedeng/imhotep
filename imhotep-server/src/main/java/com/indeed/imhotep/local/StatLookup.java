@@ -36,7 +36,7 @@ class StatLookup
         void onChange(final StatLookup statLookup, final int index);
     }
 
-    private final List<Observer> observers = new ArrayList<Observer>();
+    private final List<Observer> observers = new ArrayList<>();
 
     private final String[]         names;
     private final IntValueLookup[] lookups;
@@ -54,7 +54,7 @@ class StatLookup
     void set(final int index, final String name, final IntValueLookup lookup) {
         names[index]   = name;
         lookups[index] = lookup;
-        for (Observer observer: observers) {
+        for (final Observer observer: observers) {
             observer.onChange(this, index);
         }
     }

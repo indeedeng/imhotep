@@ -45,7 +45,7 @@ public final class FTGSOutputStreamWriter implements Closeable {
         this.out = out;
     }
 
-    public void switchField(String field, boolean isIntType) throws IOException {
+    public void switchField(final String field, final boolean isIntType) throws IOException {
         endField();
         fieldIsIntType = isIntType;
         startField(fieldIsIntType, field, out);
@@ -54,20 +54,20 @@ public final class FTGSOutputStreamWriter implements Closeable {
         previousTermInt = -1;
     }
 
-    public void switchBytesTerm(byte[] termBytes, int termLength, long termDocFreq) throws IOException {
+    public void switchBytesTerm(final byte[] termBytes, final int termLength, final long termDocFreq) throws IOException {
         endTerm();
         currentTermBytes = copyInto(termBytes, termLength, currentTermBytes);
         currentTermLength = termLength;
         currentTermDocFreq = termDocFreq;
     }
 
-    public void switchIntTerm(long term, long termDocFreq) throws IOException {
+    public void switchIntTerm(final long term, final long termDocFreq) throws IOException {
         endTerm();
         currentTermInt = term;
         currentTermDocFreq = termDocFreq;
     }
 
-    public void switchGroup(int groupId) throws IOException {
+    public void switchGroup(final int groupId) throws IOException {
         if (!termWritten) {
             writeTerm();
         }
@@ -97,7 +97,7 @@ public final class FTGSOutputStreamWriter implements Closeable {
         termWritten = true;
     }
 
-    public void addStat(long stat) throws IOException {
+    public void addStat(final long stat) throws IOException {
         writeSVLong(stat, out);
     }
 
@@ -108,10 +108,14 @@ public final class FTGSOutputStreamWriter implements Closeable {
     }
 
     private void endField() throws IOException {
-        if (!fieldWritten) return;
+        if (!fieldWritten) {
+            return;
+        }
         endTerm();
         out.write(0);
-        if (!fieldIsIntType) out.write(0);
+        if (!fieldIsIntType) {
+            out.write(0);
+        }
     }
 
     private void endTerm() throws IOException {
@@ -127,7 +131,7 @@ public final class FTGSOutputStreamWriter implements Closeable {
         writer.write(buffer, numStats);
     }
 
-    public void write(FTGSIterator buffer, int numStats) throws IOException {
+    public void write(final FTGSIterator buffer, final int numStats) throws IOException {
         final long[] stats = new long[numStats];
         if (buffer instanceof RawFTGSIterator) {
             final RawFTGSIterator rawBuffer = (RawFTGSIterator)buffer;
@@ -144,7 +148,7 @@ public final class FTGSOutputStreamWriter implements Closeable {
                     while (rawBuffer.nextGroup()){
                         switchGroup(rawBuffer.group());
                         rawBuffer.groupStats(stats);
-                        for (long stat : stats) {
+                        for (final long stat : stats) {
                             addStat(stat);
                         }
                     }
@@ -165,7 +169,7 @@ public final class FTGSOutputStreamWriter implements Closeable {
                     while (buffer.nextGroup()){
                         switchGroup(buffer.group());
                         buffer.groupStats(stats);
-                        for (long stat : stats) {
+                        for (final long stat : stats) {
                             addStat(stat);
                         }
                     }
@@ -176,21 +180,21 @@ public final class FTGSOutputStreamWriter implements Closeable {
         close();
     }
 
-    private static void writeVLong(long i, final OutputStream out) throws IOException {
+    private static void writeVLong(final long i, final OutputStream out) throws IOException {
         VIntUtils.writeVInt64(out, i);
     }
 
-    private static void writeSVLong(long i, final OutputStream out) throws IOException {
+    private static void writeSVLong(final long i, final OutputStream out) throws IOException {
         VIntUtils.writeSVInt64(out, i);
     }
 
-    private static void startField(boolean isIntType, String field, final OutputStream out) throws IOException {
+    private static void startField(final boolean isIntType, final String field, final OutputStream out) throws IOException {
         if (isIntType) {
             out.write(1);
         } else {
             out.write(2);
         }
-        byte[] fieldBytes = field.getBytes(Charsets.UTF_8);
+        final byte[] fieldBytes = field.getBytes(Charsets.UTF_8);
         writeVLong(fieldBytes.length, out);
         out.write(fieldBytes);
     }
@@ -202,14 +206,20 @@ public final class FTGSOutputStreamWriter implements Closeable {
     }
 
     private static byte[] ensureCap(final byte[] b, final int len) {
-        if (b == null) return new byte[Math.max(len, 16)];
-        if (b.length >= len) return b;
+        if (b == null) {
+            return new byte[Math.max(len, 16)];
+        }
+        if (b.length >= len) {
+            return b;
+        }
         return new byte[Math.max(b.length*2, len)];
     }
 
     private static int prefixLen(final byte[] a, final byte[] b, final int max) {
         for (int i = 0; i < max; i++) {
-            if (a[i] != b[i]) return i;
+            if (a[i] != b[i]) {
+                return i;
+            }
         }
         return max;
     }

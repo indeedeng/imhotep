@@ -21,11 +21,11 @@ public class UserSessionCountLimitExceededException extends ImhotepKnownExceptio
         super();
     }
 
-    public UserSessionCountLimitExceededException(String s) {
+    public UserSessionCountLimitExceededException(final String s) {
         super(s);
     }
 
-    public UserSessionCountLimitExceededException(String message, Throwable cause) {
+    public UserSessionCountLimitExceededException(final String message, final Throwable cause) {
         super(message, cause);
     }
 }

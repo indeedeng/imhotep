@@ -44,27 +44,31 @@ public final class NativeDocIdStream implements DocIdStream {
 
     private final MapCache mapCache;
 
-    NativeDocIdStream(MapCache mapCache) {
+    NativeDocIdStream(final MapCache mapCache) {
         this.mapCache = mapCache;
     }
 
     @Override
-    public void reset(TermIterator term) {
-        if (!(term instanceof SimpleTermIterator)) throw new IllegalArgumentException("invalid term iterator");
+    public void reset(final TermIterator term) {
+        if (!(term instanceof SimpleTermIterator)) {
+            throw new IllegalArgumentException("invalid term iterator");
+        }
 
         try {
             internalReset((SimpleTermIterator)term);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             close();
             throw new RuntimeException(e);
         }
     }
 
-    private void internalReset(SimpleTermIterator term) throws IOException {
+    private void internalReset(final SimpleTermIterator term) throws IOException {
         final Path filename = term.getFilename();
         if (!filename.equals(currentFileOpen)) {
 
-            if (file != null) file.close();
+            if (file != null) {
+                file.close();
+            }
             file = mapCache.copyOrOpen(filename);
 
             memory = file.get().memory();
@@ -75,7 +79,7 @@ public final class NativeDocIdStream implements DocIdStream {
     }
 
     @Override
-    public int fillDocIdBuffer(int[] docIdBuffer) {
+    public int fillDocIdBuffer(final int[] docIdBuffer) {
         final int n = buffer.fillDocIdBuffer(docIdBuffer, docIdBuffer.length);
         for (int i = 0; i < n; i++) {
             lastDoc += docIdBuffer[i];

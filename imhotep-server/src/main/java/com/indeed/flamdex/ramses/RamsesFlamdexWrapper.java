@@ -91,17 +91,17 @@ public class RamsesFlamdexWrapper implements FlamdexReader {
     }
 
     @Override
-    public IntTermIterator getIntTermIterator(String field) {
+    public IntTermIterator getIntTermIterator(final String field) {
         return wrapped.getIntTermIterator(field);
     }
 
     @Override
-    public IntTermIterator getUnsortedIntTermIterator(String field) {
+    public IntTermIterator getUnsortedIntTermIterator(final String field) {
         return wrapped.getUnsortedIntTermIterator(field);
     }
 
     @Override
-    public StringTermIterator getStringTermIterator(String field) {
+    public StringTermIterator getStringTermIterator(final String field) {
         return wrapped.getStringTermIterator(field);
     }
 
@@ -116,12 +116,12 @@ public class RamsesFlamdexWrapper implements FlamdexReader {
     }
 
     @Override
-    public long getIntTotalDocFreq(String field) {
+    public long getIntTotalDocFreq(final String field) {
         return wrapped.getIntTotalDocFreq(field);
     }
 
     @Override
-    public long getStringTotalDocFreq(String field) {
+    public long getStringTotalDocFreq(final String field) {
         return wrapped.getStringTotalDocFreq(field);
     }
 
@@ -131,7 +131,7 @@ public class RamsesFlamdexWrapper implements FlamdexReader {
     }
 
     @Override
-    public IntValueLookup getMetric(String metric) throws FlamdexOutOfMemoryException {
+    public IntValueLookup getMetric(final String metric) throws FlamdexOutOfMemoryException {
         if ("time".equals(metric)) {
             return newTimeLookup();
         }
@@ -142,7 +142,7 @@ public class RamsesFlamdexWrapper implements FlamdexReader {
     public StringValueLookup getStringLookup(final String field) throws FlamdexOutOfMemoryException {
         try {
             return FieldCacherUtil.newStringValueLookup(field, this);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw Throwables.propagate(e);
         }
     }
@@ -169,10 +169,11 @@ public class RamsesFlamdexWrapper implements FlamdexReader {
     }
 
     @Override
-    public long memoryRequired(String metric) {
+    public long memoryRequired(final String metric) {
         if ("time".equals(metric)) {
             return memoryOverhead;
-        } else if ("counts".equals(metric)) {
+        }
+        if ("counts".equals(metric)) {
             return 0;
         }
         return wrapped.memoryRequired(metric);
@@ -183,7 +184,7 @@ public class RamsesFlamdexWrapper implements FlamdexReader {
         wrapped.close();
     }
 
-    public static boolean ramsesFilesExist(Path dir) {
+    public static boolean ramsesFilesExist(final Path dir) {
         return  Files.exists(dir.resolve(TIME_UPPER_BITS_FILE)) &&
                 Files.exists(dir.resolve(DOC_ID_BOUNDARIES_FILE)) &&
                 Files.exists(dir.resolve(TIME_LOWER_BITS_FILE));
@@ -197,11 +198,11 @@ public class RamsesFlamdexWrapper implements FlamdexReader {
      * @param <T> the return type
      * @return possibly null object of type {@code T}.
      */
-    private static <T> T readObjectFromFile(Path path, Class<T> clazz) {
+    private static <T> T readObjectFromFile(final Path path, final Class<T> clazz) {
         final InputStream is;
         try {
             is = Files.newInputStream(path);
-        } catch (Exception e) {
+        } catch (final Exception e) {
             return null;
         }
 
@@ -209,26 +210,26 @@ public class RamsesFlamdexWrapper implements FlamdexReader {
         final ObjectInputStream objIn;
         try {
             objIn = new ObjectInputStream(bufferedIn);
-        } catch (Exception e) {
+        } catch (final Exception e) {
             try {
                 is.close();
-            } catch (IOException e1) { }
+            } catch (final IOException e1) { }
             return null;
         }
 
         final Object ret;
         try {
             ret = objIn.readObject();
-        } catch (Exception e) {
+        } catch (final Exception e) {
             try {
                 objIn.close();          // objIn.close() also closes fileIn
-            } catch (IOException e2) { }
+            } catch (final IOException e2) { }
             return null;
         }
 
         try {
             objIn.close();          // objIn.close() also closes fileIn
-        } catch (IOException e) { }
+        } catch (final IOException e) { }
         return clazz.cast(ret);
     }
     

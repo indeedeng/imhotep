@@ -25,13 +25,13 @@ public class DateRangeShardFilter implements ShardFilter {
     private final DateTime minDate;
     private final DateTime maxDate;
 
-    public DateRangeShardFilter(DateTime startDate, DateTime endDate) {
+    public DateRangeShardFilter(final DateTime startDate, final DateTime endDate) {
         this.minDate = startDate;
         this.maxDate = endDate;
     }
 
     @Override
-    public boolean accept(ShardInfo shard) {
+    public boolean accept(final ShardInfo shard) {
         final String shardId = shard.getShardId();
         final Interval interval = ShardTimeUtils.parseInterval(shardId);
         return interval.getEnd().isAfter(minDate) && interval.getStart().isBefore(maxDate);

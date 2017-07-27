@@ -23,12 +23,12 @@ import java.util.zip.GZIPInputStream;
  * @author jsgroth
  */
 public class GzipCompressionInputStream extends CompressionInputStream {
-    public GzipCompressionInputStream(InputStream in) throws IOException {
+    public GzipCompressionInputStream(final InputStream in) throws IOException {
         super(new ResettableGZIPInputStream(in));
     }
 
     @Override
-    public int read(byte[] bytes, int off, int len) throws IOException {
+    public int read(final byte[] bytes, final int off, final int len) throws IOException {
         return in.read(bytes, off, len);
     }
 
@@ -43,7 +43,7 @@ public class GzipCompressionInputStream extends CompressionInputStream {
     }
 
     private static class ResettableGZIPInputStream extends GZIPInputStream {
-        private ResettableGZIPInputStream(InputStream in) throws IOException {
+        private ResettableGZIPInputStream(final InputStream in) throws IOException {
             super(in);
         }
 

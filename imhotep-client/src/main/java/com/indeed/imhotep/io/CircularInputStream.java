@@ -15,6 +15,7 @@
 
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
@@ -128,12 +129,14 @@ public final class CircularInputStream extends InputStream {
         long pad8;
     }
 
-    public CircularInputStream(int bufferSize) {
+    public CircularInputStream(final int bufferSize) {
         this(bufferSize, new State());
     }
 
-    public CircularInputStream(int bufferSize, State writer) {
-        if (bufferSize != Integer.lowestOneBit(bufferSize)) throw new IllegalArgumentException();
+    public CircularInputStream(final int bufferSize, final State writer) {
+        if (bufferSize != Integer.lowestOneBit(bufferSize)) {
+            throw new IllegalArgumentException();
+        }
         buffer = new byte[bufferSize];
         bufferMask = bufferSize-1;
         this.writer = writer;
@@ -158,18 +161,19 @@ public final class CircularInputStream extends InputStream {
                 notifyWriter();
                 return ret;
             } else {
-                if (writer.closed.value && reader.pointer.value == writer.pointer.value) return -1;
+                if (writer.closed.value && reader.pointer.value == writer.pointer.value) {
+                    return -1;
+                }
                 waitForInput();
             }
         }
     }
 
-    public int read(final byte[] b, final int off, final int len) throws IOException {
-        if (b == null) {
-            throw new NullPointerException();
-        } else if (off < 0 || len < 0 || len > b.length - off) {
+    public int read(@Nonnull final byte[] b, final int off, final int len) throws IOException {
+        if (off < 0 || len < 0 || len > b.length - off) {
             throw new IndexOutOfBoundsException();
-        } else if (len == 0) {
+        }
+        if (len == 0) {
             return 0;
         }
         while (true) {
@@ -198,7 +202,9 @@ public final class CircularInputStream extends InputStream {
                 notifyWriter();
                 return ret;
             } else {
-                if (writer.closed.value && reader.pointer.value == writer.pointer.value) return -1;
+                if (writer.closed.value && reader.pointer.value == writer.pointer.value) {
+                    return -1;
+                }
                 waitForInput();
             }
         }
@@ -209,10 +215,12 @@ public final class CircularInputStream extends InputStream {
             reader.waiting.value = true;
             try {
                 while (reader.pointer.value == writer.pointer.value) {
-                    if (writer.closed.value) break;
+                    if (writer.closed.value) {
+                        break;
+                    }
                     try {
                         reader.lock.wait();
-                    } catch (InterruptedException e) {
+                    } catch (final InterruptedException e) {
                         throw new InterruptedIOException();
                     }
                 }
@@ -249,7 +257,9 @@ public final class CircularInputStream extends InputStream {
             final int tail = writer.pointer.value;
             final int head = getHeadFromCache(tail);
             if (((tail+1)&bufferMask) == head) {
-                if (reader.closed.value) throw new IOException("InputStream is closed");
+                if (reader.closed.value) {
+                    throw new IOException("InputStream is closed");
+                }
                 waitForSpace();
             } else {
                 buffer[tail] = (byte)b;
@@ -263,17 +273,23 @@ public final class CircularInputStream extends InputStream {
     public void write(final byte[] b, int off, int len) throws IOException {
         if (b == null) {
             throw new NullPointerException();
-        } else if (off < 0 || len < 0 || len > b.length - off) {
+        }
+        if (off < 0 || len < 0 || len > b.length - off) {
             throw new IndexOutOfBoundsException();
-        } else if (len == 0) {
+        }
+        if (len == 0) {
             return;
         }
         while (true) {
-            if (len == 0) return;
+            if (len == 0) {
+                return;
+            }
             final int tail = writer.pointer.value;
             final int head = getHeadFromCache(tail);
             if (((tail+1)&bufferMask) == head) {
-                if (reader.closed.value) throw new IOException("InputStream is closed");
+                if (reader.closed.value) {
+                    throw new IOException("InputStream is closed");
+                }
                 waitForSpace();
             } else {
                 final int copyLen;
@@ -293,13 +309,17 @@ public final class CircularInputStream extends InputStream {
         }
     }
 
-    public boolean writeNonBlocking(ByteBuffer bytes) throws IOException {
+    public boolean writeNonBlocking(final ByteBuffer bytes) throws IOException {
         while (true) {
-            if (bytes.remaining() == 0) return true;
+            if (bytes.remaining() == 0) {
+                return true;
+            }
             final int tail = writer.pointer.value;
             final int head = getHeadFromCache(tail);
             if (((tail+1)&bufferMask) == head) {
-                if (reader.closed.value) throw new IOException("InputStream is closed");
+                if (reader.closed.value) {
+                    throw new IOException("InputStream is closed");
+                }
                 return false;
             } else {
                 final int copyLen;
@@ -322,10 +342,12 @@ public final class CircularInputStream extends InputStream {
             writer.waiting.value = true;
             try {
                 while (((writer.pointer.value+1)&bufferMask) == reader.pointer.value) {
-                    if (reader.closed.value) break;
+                    if (reader.closed.value) {
+                        break;
+                    }
                     try {
                         writer.lock.wait();
-                    } catch (InterruptedException e) {
+                    } catch (final InterruptedException e) {
                         throw new InterruptedIOException();
                     }
                 }

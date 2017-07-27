@@ -29,6 +29,7 @@
 
 package com.indeed.imhotep.automaton;
 
+import javax.annotation.Nonnull;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
@@ -48,8 +49,8 @@ public class State implements Serializable, Comparable<State> {
 	Set<Transition> transitions;
 	
 	int number;
-	
-	int id;
+
+	final int id;
 	static int next_id;
 	
 	/** 
@@ -64,7 +65,7 @@ public class State implements Serializable, Comparable<State> {
 	 * Resets transition set. 
 	 */
 	final void resetTransitions() {
-		transitions = new HashSet<Transition>();
+		transitions = new HashSet<>();
 	}
 	
 	/** 
@@ -80,7 +81,7 @@ public class State implements Serializable, Comparable<State> {
 	 * Adds an outgoing transition.
 	 * @param t transition
 	 */
-	public void addTransition(Transition t)	{
+	public void addTransition(final Transition t)	{
 		transitions.add(t);
 	}
 	
@@ -88,7 +89,7 @@ public class State implements Serializable, Comparable<State> {
 	 * Sets acceptance for this state.
 	 * @param accept if true, this state is an accept state
 	 */
-	public void setAccept(boolean accept) {
+	public void setAccept(final boolean accept) {
 		this.accept = accept;
 	}
 	
@@ -106,10 +107,12 @@ public class State implements Serializable, Comparable<State> {
 	 * @return destination state, null if no matching outgoing transition
 	 * @see #step(char, Collection)
 	 */
-	public State step(char c) {
-		for (Transition t : transitions)
-			if (t.min <= c && c <= t.max)
+	public State step(final char c) {
+		for (final Transition t : transitions) {
+			if (t.min <= c && c <= t.max) {
 				return t.to;
+			}
+		}
 		return null;
 	}
 
@@ -119,22 +122,24 @@ public class State implements Serializable, Comparable<State> {
 	 * @param dest collection where destination states are stored
 	 * @see #step(char)
 	 */
-	public void step(char c, Collection<State> dest) {
-		for (Transition t : transitions)
-			if (t.min <= c && c <= t.max)
+	public void step(final char c, final Collection<State> dest) {
+		for (final Transition t : transitions) {
+			if (t.min <= c && c <= t.max) {
 				dest.add(t.to);
+			}
+		}
 	}
 
-	void addEpsilon(State to) {
-		if (to.accept)
+	void addEpsilon(final State to) {
+		if (to.accept) {
 			accept = true;
-		for (Transition t : to.transitions)
-			transitions.add(t);
+		}
+		transitions.addAll(to.transitions);
 	}
 	
 	/** Returns transitions sorted by (min, reverse max, to) or (to, min, reverse max) */
-	Transition[] getSortedTransitionArray(boolean to_first) {
-		Transition[] e = transitions.toArray(new Transition[transitions.size()]);
+	Transition[] getSortedTransitionArray(final boolean to_first) {
+		final Transition[] e = transitions.toArray(new Transition[transitions.size()]);
 		Arrays.sort(e, new TransitionComparator(to_first));
 		return e;
 	}
@@ -144,7 +149,7 @@ public class State implements Serializable, Comparable<State> {
 	 * @param to_first if true, order by (to, min, reverse max); otherwise (min, reverse max, to)
 	 * @return transition list
 	 */
-	public List<Transition> getSortedTransitions(boolean to_first)	{
+	public List<Transition> getSortedTransitions(final boolean to_first)	{
 		return Arrays.asList(getSortedTransitionArray(to_first));
 	}
 	
@@ -154,15 +159,17 @@ public class State implements Serializable, Comparable<State> {
 	 */
 	@Override
 	public String toString() {
-		StringBuilder b = new StringBuilder();
+		final StringBuilder b = new StringBuilder();
 		b.append("state ").append(number);
-		if (accept)
+		if (accept) {
 			b.append(" [accept]");
-		else
+		} else {
 			b.append(" [reject]");
+		}
 		b.append(":\n");
-		for (Transition t : transitions)
+		for (final Transition t : transitions) {
 			b.append("  ").append(t.toString()).append("\n");
+		}
 		return b.toString();
 	}
 	
@@ -170,7 +177,7 @@ public class State implements Serializable, Comparable<State> {
 	 * Compares this object with the specified object for order.
 	 * States are ordered by the time of construction.
 	 */
-	public int compareTo(State s) {
+	public int compareTo(@Nonnull final State s) {
 		return s.id - id;
 	}
 
@@ -178,7 +185,7 @@ public class State implements Serializable, Comparable<State> {
 	 * See {@link java.lang.Object#equals(java.lang.Object)}.
 	 */
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		return super.equals(obj);
 	}
 

@@ -2,6 +2,7 @@ package com.indeed.flamdex.datastruct;
 
 import sun.misc.Unsafe;
 
+import javax.annotation.Nonnull;
 import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Iterator;
@@ -77,11 +78,11 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements CopyingBloc
             }
         }
 
-        void lazySet(int newValue) {
+        void lazySet(final int newValue) {
             unsafe.putOrderedInt(this, valueOffset, newValue);
         }
 
-        void set(int newValue) {
+        void set(final int newValue) {
             value = newValue;
         }
     }
@@ -154,8 +155,8 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements CopyingBloc
     }
 
     public SingleProducerSingleConsumerBlockingQueue(final int capacity,
-                                                     ObjFactory<E> factory,
-                                                     ObjCopier<E> copier) {
+                                                     final ObjFactory<E> factory,
+                                                     final ObjCopier<E> copier) {
         if (capacity != Integer.highestOneBit(capacity)) {
             throw new RuntimeException("capacity must be a power of two!");
         }
@@ -180,7 +181,7 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements CopyingBloc
     }
 
     @Override
-    public boolean offer(final E e) {
+    public boolean offer(@Nonnull final E e) {
         if (null == e) {
             throw new NullPointerException("Can't write nulls!");
         }
@@ -219,7 +220,7 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements CopyingBloc
     }
 
     @Override
-    public void put(E e) throws InterruptedException {
+    public void put(final E e) throws InterruptedException {
         if (null == e) {
             throw new NullPointerException("Can't write nulls!");
         }
@@ -267,7 +268,7 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements CopyingBloc
     }
 
     @Override
-    public boolean offer(final E e, final long timeout, final TimeUnit unit) throws InterruptedException {
+    public boolean offer(final E e, final long timeout, @Nonnull final TimeUnit unit) throws InterruptedException {
         if (e == null) {
             throw new NullPointerException("Can't accept nulls!");
         }
@@ -291,7 +292,7 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements CopyingBloc
         return takeElement(headPtr);
     }
 
-    public void take(E dest) throws InterruptedException {
+    public void take(final E dest) throws InterruptedException {
         final int headPtr = head.value;
         final int cachedTail = getTailFromCache(headPtr);
         if (headPtr == cachedTail) {
@@ -300,7 +301,7 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements CopyingBloc
         takeElementCopy(headPtr, dest);
     }
 
-    private E takeElement(int headPtr) {
+    private E takeElement(final int headPtr) {
         final E e;
         if (copier == null) {
             e = buffer[headPtr];
@@ -313,7 +314,7 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements CopyingBloc
         return e;
     }
 
-    private void takeElementCopy(int headPtr, E ele) {
+    private void takeElementCopy(final int headPtr, final E ele) {
         final E e = buffer[headPtr];
         copier.copy(ele, e);
         head.lazySet((headPtr + 1) & moduloMask);
@@ -358,7 +359,7 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements CopyingBloc
     }
 
     @Override
-    public E poll(long timeout, TimeUnit unit) throws InterruptedException {
+    public E poll(final long timeout, @Nonnull final TimeUnit unit) throws InterruptedException {
         final int headPtr = head.value;
         if (headPtr == getTailFromCache(headPtr)) {
             if (!waitForInput(unit.toNanos(timeout))) {
@@ -368,7 +369,7 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements CopyingBloc
         return takeElement(headPtr);
     }
 
-    public void poll(long timeout, TimeUnit unit, E dest) throws InterruptedException {
+    public void poll(final long timeout, final TimeUnit unit, final E dest) throws InterruptedException {
         final int headPtr = head.value;
         if (headPtr == getTailFromCache(headPtr)) {
             if (!waitForInput(unit.toNanos(timeout))) {
@@ -401,7 +402,7 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements CopyingBloc
         }
     }
 
-    public void poll(E dest) {
+    public void poll(final E dest) {
         final int headPtr = head.value;
         final int tail = getTailFromCache(headPtr);
         if (headPtr != tail) {
@@ -441,7 +442,7 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements CopyingBloc
         return e;
     }
 
-    public void removeCopy(E dest) {
+    public void removeCopy(final E dest) {
         poll(dest);
         if (factory.equalsNil(dest)) {
             throw new NoSuchElementException("Queue is empty");
@@ -457,7 +458,7 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements CopyingBloc
         return e;
     }
 
-    public void element(E dest) {
+    public void element(final E dest) {
         peek(dest);
         if (factory.equalsNil(dest)) {
             throw new NoSuchElementException("Queue is empty");
@@ -472,7 +473,7 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements CopyingBloc
         return buffer[head.value];
     }
 
-    public void peek(E dest) {
+    public void peek(final E dest) {
         if (head.value == getTailFromCache(head.value)) {
             copier.copy(dest, nil);
         }
@@ -495,7 +496,7 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements CopyingBloc
     }
 
     @Override
-    public int drainTo(Collection<? super E> c) {
+    public int drainTo(@Nonnull final Collection<? super E> c) {
         int count = 0;
         while (true) {
             final E e = poll();
@@ -508,7 +509,7 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements CopyingBloc
     }
 
     @Override
-    public int drainTo(Collection<? super E> c, int maxElements) {
+    public int drainTo(@Nonnull final Collection<? super E> c, final int maxElements) {
         int count = 0;
         while (true) {
             final E e = poll();
@@ -520,18 +521,21 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements CopyingBloc
         }
     }
 
+    @Nonnull
     @Override
     public Iterator<E> iterator() {
         throw new UnsupportedOperationException("unsupported operation");
     }
 
+    @Nonnull
     @Override
     public Object[] toArray() {
         throw new UnsupportedOperationException("unsupported operation");
     }
 
+    @Nonnull
     @Override
-    public <T> T[] toArray(final T[] a) {
+    public <T> T[] toArray(@Nonnull final T[] a) {
         throw new UnsupportedOperationException("unsupported operation");
     }
 
@@ -541,12 +545,12 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements CopyingBloc
     }
 
     @Override
-    public boolean containsAll(final Collection<?> c) {
+    public boolean containsAll(@Nonnull final Collection<?> c) {
         throw new UnsupportedOperationException("unsupported operation");
     }
 
     @Override
-    public boolean addAll(final Collection<? extends E> c) {
+    public boolean addAll(@Nonnull final Collection<? extends E> c) {
         for (final E e : c) {
             add(e);
         }
@@ -554,12 +558,12 @@ public class SingleProducerSingleConsumerBlockingQueue<E> implements CopyingBloc
     }
 
     @Override
-    public boolean removeAll(final Collection<?> c) {
+    public boolean removeAll(@Nonnull final Collection<?> c) {
         throw new UnsupportedOperationException("unsupported operation");
     }
 
     @Override
-    public boolean retainAll(final Collection<?> c) {
+    public boolean retainAll(@Nonnull final Collection<?> c) {
         throw new UnsupportedOperationException("unsupported operation");
     }
 

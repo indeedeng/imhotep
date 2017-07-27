@@ -41,6 +41,7 @@ import com.indeed.util.varexport.Export;
 import com.indeed.util.varexport.VarExporter;
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -108,14 +109,14 @@ public class LocalImhotepServiceCore
      * @throws IOException
      *             if something bad happens
      */
-    public LocalImhotepServiceCore(@Nullable Path shardsDir,
-                                   @Nullable Path shardTempDir,
-                                   @Nullable Path shardStoreDir,
-                                   long memoryCapacity,
-                                   boolean useCache,
-                                   FlamdexReaderSource flamdexReaderFactory,
-                                   LocalImhotepServiceConfig config,
-                                   ShardUpdateListenerIf shardUpdateListener)
+    public LocalImhotepServiceCore(@Nullable final Path shardsDir,
+                                   @Nullable final Path shardTempDir,
+                                   @Nullable final Path shardStoreDir,
+                                   final long memoryCapacity,
+                                   final boolean useCache,
+                                   final FlamdexReaderSource flamdexReaderFactory,
+                                   final LocalImhotepServiceConfig config,
+                                   final ShardUpdateListenerIf shardUpdateListener)
         throws IOException {
         this.shardUpdateListener = shardUpdateListener;
 
@@ -132,7 +133,7 @@ public class LocalImhotepServiceCore
 
         final ImhotepMemoryCache<MetricKey, IntValueLookup> freeCache;
         if (useCache) {
-            freeCache = new ImhotepMemoryCache<MetricKey, IntValueLookup>();
+            freeCache = new ImhotepMemoryCache<>();
             memory = new CachedMemoryReserver(new ImhotepMemoryPool(memoryCapacity), freeCache);
         } else {
             freeCache = null;
@@ -183,25 +184,25 @@ public class LocalImhotepServiceCore
         VarExporter.forNamespace(getClass().getSimpleName()).includeInGlobal().export(this, "");
     }
 
-    public LocalImhotepServiceCore(@Nullable Path shardsDir,
-                                   @Nullable Path shardTempDir,
-                                   long memoryCapacity,
-                                   boolean useCache,
-                                   FlamdexReaderSource flamdexReaderFactory,
-                                   LocalImhotepServiceConfig config,
-                                   ShardUpdateListenerIf shardUpdateListener)
+    public LocalImhotepServiceCore(@Nullable final Path shardsDir,
+                                   @Nullable final Path shardTempDir,
+                                   final long memoryCapacity,
+                                   final boolean useCache,
+                                   final FlamdexReaderSource flamdexReaderFactory,
+                                   final LocalImhotepServiceConfig config,
+                                   final ShardUpdateListenerIf shardUpdateListener)
         throws IOException {
         this(shardsDir, shardTempDir, Paths.get(System.getProperty("imhotep.shard.store")),
              memoryCapacity, useCache, flamdexReaderFactory, config, shardUpdateListener);
     }
 
     @VisibleForTesting
-    public LocalImhotepServiceCore(@Nullable Path shardsDir,
-                                   @Nullable Path shardTempDir,
-                                   long memoryCapacity,
-                                   boolean useCache,
-                                   FlamdexReaderSource flamdexReaderFactory,
-                                   LocalImhotepServiceConfig config)
+    public LocalImhotepServiceCore(@Nullable final Path shardsDir,
+                                   @Nullable final Path shardTempDir,
+                                   final long memoryCapacity,
+                                   final boolean useCache,
+                                   final FlamdexReaderSource flamdexReaderFactory,
+                                   final LocalImhotepServiceConfig config)
         throws IOException {
         this(shardsDir, shardTempDir, Files.createTempDirectory("delete.me-imhotep.shard.store"),
              memoryCapacity, useCache, flamdexReaderFactory, config,
@@ -219,10 +220,10 @@ public class LocalImhotepServiceCore
     private ScheduledExecutorService newFixedRateExecutor(final Runnable runnable,
                                                           final int      freqSeconds) {
         final String name = runnable.getClass().getSimpleName() + "Thread";
-        ScheduledExecutorService result =
+        final ScheduledExecutorService result =
             Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
                     @Override
-                    public Thread newThread(Runnable r) {
+                    public Thread newThread(@Nonnull final Runnable r) {
                         final Thread thread = new Thread(r, name);
                         thread.setDaemon(true);
                         return thread;
@@ -260,10 +261,7 @@ public class LocalImhotepServiceCore
                 final ShardMap currentShardMap = shardMap.get();
                 currentShardMap.sync(shardStore);
             }
-            catch (IOException e) {
-                log.warn("error syncing shard store", e);
-            }
-            catch (RuntimeException e) {
+            catch (final IOException | RuntimeException e) {
                 log.warn("error syncing shard store", e);
             }
         }
@@ -274,7 +272,7 @@ public class LocalImhotepServiceCore
         public void run() {
             final long currentTime = System.currentTimeMillis();
             final Map<String, SessionManager.LastActionTimeLimit> lastActionTimes = getSessionManager().getLastActionTimes();
-            final List<String> sessionsToClose = new ArrayList<String>();
+            final List<String> sessionsToClose = new ArrayList<>();
             for (final String sessionId : lastActionTimes.keySet()) {
                 final SessionManager.LastActionTimeLimit lastActionTimeLimit = lastActionTimes.get(sessionId);
                 if (lastActionTimeLimit.getLastActionTime() < currentTime - lastActionTimeLimit.getSessionTimeoutDuration()) {
@@ -300,7 +298,7 @@ public class LocalImhotepServiceCore
             shardList.set(new ShardInfoList(this.shardMap.get()));
             shardUpdateListener.onShardUpdate(this.shardList.get(), source);
         }
-        catch (IOException ex) {
+        catch (final IOException ex) {
             log.error("could not build ShardInfoList", ex);
         }
         datasetList.set(new DatasetInfoList(this.shardMap.get()));
@@ -334,7 +332,7 @@ public class LocalImhotepServiceCore
         return result;
     }
 
-    private void clearTempDir(Path directory) throws IOException {
+    private void clearTempDir(final Path directory) throws IOException {
         if (Files.notExists(directory)) {
             throw new IOException(directory + " does not exist.");
         }
@@ -372,7 +370,7 @@ public class LocalImhotepServiceCore
     @Override public List<DatasetInfo> handleGetDatasetList() { return datasetList.get(); }
 
     @Override
-    public ImhotepStatusDump handleGetStatusDump(boolean includeShardList) {
+    public ImhotepStatusDump handleGetStatusDump(final boolean includeShardList) {
         final long usedMemory = memory.usedMemory();
         final long totalMemory = memory.totalMemory();
 
@@ -385,13 +383,13 @@ public class LocalImhotepServiceCore
             try {
                 shards = shardMap.get().getShardDump();
                 shardCount = shards.size();
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 throw Throwables.propagate(e);
             }
         } else {
             shards = Collections.emptyList();
             final Map<String, Integer> datasetToShardCounts = shardMap.get().getShardCounts();
-            for (Integer datasetShardCount : datasetToShardCounts.values()) {
+            for (final Integer datasetShardCount : datasetToShardCounts.values()) {
                 shardCount += datasetShardCount;
             }
         }
@@ -399,7 +397,7 @@ public class LocalImhotepServiceCore
     }
 
     @Override
-    public List<String> getShardIdsForSession(String sessionId) {
+    public List<String> getShardIdsForSession(final String sessionId) {
         return getSessionManager().getShardIdsForSession(sessionId);
     }
 
@@ -413,7 +411,7 @@ public class LocalImhotepServiceCore
                                     final int mergeThreadLimit,
                                     final boolean optimizeGroupZeroLookups,
                                     String sessionId,
-                                    AtomicLong tempFileSizeBytesLeft,
+                                    final AtomicLong tempFileSizeBytesLeft,
                                     final boolean useNativeFtgs,
                                     final long sessionTimeout)
         throws ImhotepOutOfMemoryException {
@@ -479,14 +477,10 @@ public class LocalImhotepServiceCore
                                            ipAddress, clientVersion, dataset, sessionTimeout, multiSessionMemoryContext);
             session.addObserver(observer);
         }
-        catch (IOException ex) {
+        catch (final IOException ex) {
             Throwables.propagate(ex);
         }
-        catch (RuntimeException ex) {
-            closeNonNullSessions(localSessions);
-            throw ex;
-        }
-        catch (ImhotepOutOfMemoryException ex) {
+        catch (final RuntimeException | ImhotepOutOfMemoryException ex) {
             closeNonNullSessions(localSessions);
             throw ex;
         }
@@ -515,7 +509,7 @@ public class LocalImhotepServiceCore
             try {
                 shardStore.close();
             }
-            catch (IOException ex) {
+            catch (final IOException ex) {
                 log.warn("failed to close ShardStore", ex);
             }
         }
@@ -523,7 +517,7 @@ public class LocalImhotepServiceCore
             try {
                 ShardStore.deleteExisting(shardStoreDir);
             }
-            catch (IOException ex) {
+            catch (final IOException ex) {
                 log.warn("failed to clean up ShardStore: " + shardStoreDir, ex);
             }
         }
@@ -544,7 +538,7 @@ public class LocalImhotepServiceCore
                                     .append(toHexString(currentCounter)).toString();
     }
 
-    private static String toHexString(long l) {
+    private static String toHexString(final long l) {
         final StringBuilder sb = new StringBuilder(16);
         for (int i = 0; i < 16; ++i) {
             final int nibble = (int) ((l >>> ((15 - i) * 4)) & 0x0F);
@@ -553,7 +547,7 @@ public class LocalImhotepServiceCore
         return sb.toString();
     }
 
-    private static String toHexString(int x) {
+    private static String toHexString(final int x) {
         final StringBuilder sb = new StringBuilder(8);
         for (int i = 0; i < 8; ++i) {
             final int nibble = (x >>> ((7 - i) * 4)) & 0x0F;

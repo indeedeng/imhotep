@@ -58,7 +58,7 @@ public class CachedMemoryReserver extends MemoryReserver {
     }
 
     @Override
-    public synchronized boolean claimMemory(long numBytes) {
+    public synchronized boolean claimMemory(final long numBytes) {
         if (closed) {
             throw new IllegalStateException("already closed");
         }
@@ -74,7 +74,7 @@ public class CachedMemoryReserver extends MemoryReserver {
     }
 
     @Override
-    public synchronized void releaseMemory(long numBytes) {
+    public synchronized void releaseMemory(final long numBytes) {
         if (closed) {
             throw new IllegalStateException("already closed");
         }
@@ -83,7 +83,9 @@ public class CachedMemoryReserver extends MemoryReserver {
 
     @Override
     public synchronized void close() {
-        if (closed) return;
+        if (closed) {
+            return;
+        }
         releaseMemory(cache);
         if (wrapped.usedMemory() > 0) {
             log.error("CachedMemoryReserver is leaking! Memory left: " + wrapped.usedMemory());

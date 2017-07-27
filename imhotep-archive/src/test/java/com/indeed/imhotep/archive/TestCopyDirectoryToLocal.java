@@ -15,9 +15,10 @@
 
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
-import junit.framework.TestCase;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
@@ -28,18 +29,20 @@ import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 
+import static org.junit.Assert.assertTrue;
+
 /**
  * @author jsgroth
  */
-public class TestCopyDirectoryToLocal extends TestCase {
+public class TestCopyDirectoryToLocal {
     private FileSystem fs;
 
     private String preFrom;
     private String from;
     private String to;
 
-    @Override
-    protected void setUp() throws Exception {
+    @Before
+    public void setUp() throws IOException {
         fs = new NicerLocalFileSystem();
         preFrom = Files.createTempDir().getAbsolutePath();
         from = Files.createTempDir().getAbsolutePath();
@@ -47,8 +50,8 @@ public class TestCopyDirectoryToLocal extends TestCase {
         new File(to).delete();
     }
 
-    @Override
-    protected void tearDown() throws Exception {
+    @After
+    public void tearDown() throws IOException {
         fs.delete(new Path(preFrom), true);
         fs.delete(new Path(from), true);
         fs.delete(new Path(to), true);
@@ -58,42 +61,42 @@ public class TestCopyDirectoryToLocal extends TestCase {
     public void testCopy() throws IOException {
         final List<String> dirs = Lists.newArrayList();
         final List<String> rawDirs = Lists.newArrayList();
-        Random rand = new Random();
-        byte[] bytes = new byte[1000];
+        final Random rand = new Random();
+        final byte[] bytes = new byte[1000];
         for (int i = 0; i < 5; ++i) {
             dirs.add(UUID.randomUUID().toString());
             rawDirs.add(dirs.get(dirs.size() - 1));
-            File dir = new File(preFrom, dirs.get(dirs.size() - 1));
-            dir.mkdir();
+            final File dir = new File(preFrom, dirs.get(dirs.size() - 1));
+            assertTrue(dir.mkdir());
             for (int j = 0; j < 5; ++j) {
-                OutputStream os = new FileOutputStream(new File(dir, Integer.toString(j)));
-                rand.nextBytes(bytes);
-                os.write(bytes);
-                os.close();
+                try( OutputStream os = new FileOutputStream(new File(dir, Integer.toString(j))) ) {
+                    rand.nextBytes(bytes);
+                    os.write(bytes);
+                }
             }
         }
 
         for (int i = 0; i < 5; ++i) {
             dirs.add(UUID.randomUUID().toString());
             rawDirs.add(dirs.get(dirs.size() - 1) + ".sqar");
-            File dir = new File(preFrom, rawDirs.get(rawDirs.size() - 1));
-            dir.mkdir();
+            final File dir = new File(preFrom, rawDirs.get(rawDirs.size() - 1));
+            assertTrue(dir.mkdir());
             for (int j = 0; j < 5; ++j) {
-                OutputStream os = new FileOutputStream(new File(dir, Integer.toString(j)));
-                rand.nextBytes(bytes);
-                os.write(bytes);
-                os.close();
+                try( OutputStream os = new FileOutputStream(new File(dir, Integer.toString(j)))) {
+                    rand.nextBytes(bytes);
+                    os.write(bytes);
+                }
             }
         }
 
-        for (File file : new File(preFrom).listFiles()) {
+        for (final File file : new File(preFrom).listFiles()) {
             CopyFromLocal.copy(fs, file, new Path(from, file.getName()), false);
         }
         CopyDirectoryToLocal.copy(fs, new Path(from), new File(to));
 
         for (int i = 0; i < dirs.size(); ++i) {
-            File d1 = new File(preFrom, rawDirs.get(i));
-            File d2 = new File(to, dirs.get(i));
+            final File d1 = new File(preFrom, rawDirs.get(i));
+            final File d2 = new File(to, dirs.get(i));
             for (int j = 0; j < 5; ++j) {
                 assertTrue(Files.equal(new File(d1, Integer.toString(j)), new File(d2, Integer.toString(j))));
             }

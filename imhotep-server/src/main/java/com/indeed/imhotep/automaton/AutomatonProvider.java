@@ -42,5 +42,5 @@ public interface AutomatonProvider {
 	 * @return automaton
 	 * @throws IOException if errors occur
 	 */
-	public Automaton getAutomaton(String name) throws IOException;
+	Automaton getAutomaton(String name) throws IOException;
 }

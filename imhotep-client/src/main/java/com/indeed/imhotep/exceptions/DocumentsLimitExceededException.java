@@ -32,7 +32,7 @@ public class DocumentsLimitExceededException extends LimitExceededException {
      *
      * @param   s   the detail message.
      */
-    public DocumentsLimitExceededException(String s) {
+    public DocumentsLimitExceededException(final String s) {
         super(s);
     }
 
@@ -51,7 +51,7 @@ public class DocumentsLimitExceededException extends LimitExceededException {
      *         is permitted, and indicates that the cause is nonexistent or
      *         unknown.)
      */
-    public DocumentsLimitExceededException(String message, Throwable cause) {
+    public DocumentsLimitExceededException(final String message, final Throwable cause) {
         super(message, cause);
     }
 }

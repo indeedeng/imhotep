@@ -43,7 +43,7 @@ public class TestQueryEvaluator {
     private FastBitSetPooler pooler;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         r = MakeAFlamdex.make();
         bitSet = new FastBitSet(r.getNumDocs());
         pooler = new MockFastBitSetPooler();
@@ -79,7 +79,7 @@ public class TestQueryEvaluator {
         // if3:999999 matches nothing
         final QueryEvaluator evaluator = new BooleanQueryEvaluator(BooleanOp.AND, Arrays.asList(
                 new TermQueryEvaluator(new Term("if3", true, 9999, "")),
-                new BooleanQueryEvaluator(BooleanOp.NOT, Arrays.asList(new TermQueryEvaluator(new Term("if3", true, 999999, ""))))
+                new BooleanQueryEvaluator(BooleanOp.NOT, Collections.singletonList(new TermQueryEvaluator(new Term("if3", true, 999999, ""))))
         ));
 
         bitSet.setAll();
@@ -201,8 +201,9 @@ public class TestQueryEvaluator {
 
     @Test
     public void testNotQuery() throws FlamdexOutOfMemoryException {
-        final QueryEvaluator evaluator = new BooleanQueryEvaluator(BooleanOp.NOT, Arrays.asList(
-                new TermQueryEvaluator(new Term("sf1", false, 0, "hello world"))
+        final QueryEvaluator evaluator = new BooleanQueryEvaluator(
+                BooleanOp.NOT,
+                Collections.singletonList(new TermQueryEvaluator(new Term("sf1", false, 0, "hello world"))
         ));
         bitSet.clearAll();
         evaluator.and(r, bitSet, pooler);
@@ -219,7 +220,7 @@ public class TestQueryEvaluator {
         boolean exc = false;
         try {
             evaluator.not(r, bitSet, pooler);
-        } catch (IllegalArgumentException e) {
+        } catch (final IllegalArgumentException e) {
             exc = true;
         }
         assertTrue(exc);
@@ -318,16 +319,19 @@ public class TestQueryEvaluator {
 
     @Test
     public void testStringRangeQuery() throws FlamdexOutOfMemoryException {
-        MockFlamdexReader r = new MockFlamdexReader(Collections.<String>emptyList(), Arrays.asList("sf1"), Collections.<String>emptyList(), 20);
+        final MockFlamdexReader r = new MockFlamdexReader(
+                Collections.<String>emptyList(),
+                Collections.singletonList("sf1"),
+                Collections.<String>emptyList(), 20);
         r.addStringTerm("sf1", "a", Arrays.asList(0, 5, 9, 13));
         r.addStringTerm("sf1", "aa", Arrays.asList(1, 10, 19));
         r.addStringTerm("sf1", "abasefuhawfoae-0990458v", Arrays.asList(2, 9, 18));
         r.addStringTerm("sf1", "bb", Arrays.asList(3, 4, 8, 16));
         r.addStringTerm("sf1", "c", Arrays.asList(6, 7, 11));
-        r.addStringTerm("sf1", "1", Arrays.asList(12));
+        r.addStringTerm("sf1", "1", Collections.singletonList(12));
         r.addStringTerm("sf1", "A", Arrays.asList(14, 15, 17));
 
-        QueryEvaluator evaluator = new StringRangeQueryEvaluator(
+        final QueryEvaluator evaluator = new StringRangeQueryEvaluator(
                 new Term("sf1", false, 0, "a"),
                 new Term("sf1", false, 0, "bb"),
                 false
@@ -413,16 +417,19 @@ public class TestQueryEvaluator {
 
     @Test
     public void testStringRangeQueryInclusive() throws FlamdexOutOfMemoryException {
-        MockFlamdexReader r = new MockFlamdexReader(Collections.<String>emptyList(), Arrays.asList("sf1"), Collections.<String>emptyList(), 20);
+        final MockFlamdexReader r = new MockFlamdexReader(
+                Collections.<String>emptyList(),
+                Collections.singletonList("sf1"),
+                Collections.<String>emptyList(), 20);
         r.addStringTerm("sf1", "a", Arrays.asList(0, 5, 9, 13));
         r.addStringTerm("sf1", "aa", Arrays.asList(1, 10, 19));
         r.addStringTerm("sf1", "abasefuhawfoae-0990458v", Arrays.asList(2, 9, 18));
         r.addStringTerm("sf1", "bb", Arrays.asList(3, 4, 8, 16));
         r.addStringTerm("sf1", "c", Arrays.asList(6, 7, 11));
-        r.addStringTerm("sf1", "1", Arrays.asList(12));
+        r.addStringTerm("sf1", "1", Collections.singletonList(12));
         r.addStringTerm("sf1", "A", Arrays.asList(14, 15, 17));
 
-        QueryEvaluator evaluator = new StringRangeQueryEvaluator(
+        final QueryEvaluator evaluator = new StringRangeQueryEvaluator(
                 new Term("sf1", false, 0, "a"),
                 new Term("sf1", false, 0, "bb"),
                 true

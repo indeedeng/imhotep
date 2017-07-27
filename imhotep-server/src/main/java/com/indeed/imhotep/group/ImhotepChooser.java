@@ -26,31 +26,31 @@ public class ImhotepChooser {
     private final String salt;
     private final double p;
 
-    public ImhotepChooser(String salt, double p) {
+    public ImhotepChooser(final String salt, final double p) {
         this.salt = salt;
         this.p = p;
     }
 
-    public double getValue(String s) {
+    public double getValue(final String s) {
         final String data = s + "|" + salt;
         long hash;
         
         try {
-            MessageDigest md = MessageDigest.getInstance("MD5");
+            final MessageDigest md = MessageDigest.getInstance("MD5");
             md.update(data.getBytes(UTF_8));
-            byte[] digest = md.digest();
+            final byte[] digest = md.digest();
             hash = 0;
             for (int i = 0; i < 8; i++) {
-                hash = (hash << 8) | (((long) digest[i]) & 0xFFl);
+                hash = (hash << 8) | (((long) digest[i]) & 0xFFL);
             }
             hash = Math.abs(hash);
             return (double)hash / Long.MAX_VALUE;
-        } catch (NoSuchAlgorithmException e) {
+        } catch (final NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public boolean choose(String s) {
+    public boolean choose(final String s) {
         return getValue(s) >= p;
     }
 }

@@ -27,7 +27,11 @@ public class RamsesTimeIntValueLookup implements IntValueLookup {
     private int[] docIdBoundaries;
     private byte[] timeLowerBits;
 
-    public RamsesTimeIntValueLookup(int[] timeUpperBits, int[] docIdBoundaries, byte[] timeLowerBits, long memoryOverhead) {
+    public RamsesTimeIntValueLookup(
+            final int[] timeUpperBits,
+            final int[] docIdBoundaries,
+            final byte[] timeLowerBits,
+            final long memoryOverhead) {
         this.timeUpperBits = timeUpperBits;
         this.docIdBoundaries = docIdBoundaries;
         this.timeLowerBits = timeLowerBits;
@@ -45,7 +49,7 @@ public class RamsesTimeIntValueLookup implements IntValueLookup {
     }
 
     @Override
-    public void lookup(int[] docIds, long[] values, int n) {
+    public void lookup(final int[] docIds, final long[] values, final int n) {
         for (int i = 0; i < n; ++i) {
             values[i] = docIdToValue(timeUpperBits, docIdBoundaries, timeLowerBits, docIds[i]);
         }
@@ -63,9 +67,11 @@ public class RamsesTimeIntValueLookup implements IntValueLookup {
         timeLowerBits = null;
     }
 
-    private static int gteBinarySearch(int[] a, int v) {
+    private static int gteBinarySearch(final int[] a, final int v) {
         final int ret = Arrays.binarySearch(a, v);
-        if (ret >= 0) return ret;
+        if (ret >= 0) {
+            return ret;
+        }
         return -(ret + 2);
     }
 

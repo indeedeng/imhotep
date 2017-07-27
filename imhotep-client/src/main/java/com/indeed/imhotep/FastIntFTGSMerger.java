@@ -28,21 +28,25 @@ import java.util.Collection;
 public final class FastIntFTGSMerger implements FTGSIterator {
     private static final Logger log = Logger.getLogger(FastIntFTGSMerger.class);
 
-    protected final FTGSIterator[] iterators;
+    private final FTGSIterator[] iterators;
     private int numFieldIterators = 0;
 
     private String fieldName;
-    protected boolean fieldIsIntType;
-    protected long termIntVal;
+    private boolean fieldIsIntType;
+    private long termIntVal;
 
     private boolean done;
 
     private final int numGroups;
     private final Closeable doneCallback;
 
-    protected final GSVector accumulatedVec;
+    private final GSVector accumulatedVec;
 
-    public FastIntFTGSMerger(Collection<? extends FTGSIterator> iterators, int numStats, int numGroups, @Nullable Closeable doneCallback) {
+    public FastIntFTGSMerger(
+            final Collection<? extends FTGSIterator> iterators,
+            final int numStats,
+            final int numGroups,
+            @Nullable final Closeable doneCallback) {
         this.numGroups = numGroups;
         this.doneCallback = doneCallback;
         this.iterators = iterators.toArray(new FTGSIterator[iterators.size()]);
@@ -51,8 +55,10 @@ public final class FastIntFTGSMerger implements FTGSIterator {
     }
 
     @Override
-    public final boolean nextField() {
-        if (done) return false;
+    public boolean nextField() {
+        if (done) {
+            return false;
+        }
 
         final FTGSIterator first = iterators[0];
         if (!first.nextField()) {
@@ -93,19 +99,19 @@ public final class FastIntFTGSMerger implements FTGSIterator {
         return true;
     }
 
-    private static void swap(Object[] array, int indexA, int indexB) {
+    private static void swap(final Object[] array, final int indexA, final int indexB) {
         final Object a = array[indexA];
         array[indexA] = array[indexB];
         array[indexB] = a;
     }
 
     @Override
-    public final String fieldName() {
+    public String fieldName() {
         return fieldName;
     }
 
     @Override
-    public final boolean fieldIsIntType() {
+    public boolean fieldIsIntType() {
         return fieldIsIntType;
     }
 
@@ -135,18 +141,20 @@ public final class FastIntFTGSMerger implements FTGSIterator {
             if (accumulatedVec.nextTerm()) {
                 return true;
             }
-            if (numFieldIterators == 0) return false;
+            if (numFieldIterators == 0) {
+                return false;
+            }
             refill();
         }
     }
 
     @Override
-    public final long termDocFreq() {
+    public long termDocFreq() {
         return 1;
     }
 
     @Override
-    public final long termIntVal() {
+    public long termIntVal() {
         return accumulatedVec.term;
     }
 
@@ -155,12 +163,14 @@ public final class FastIntFTGSMerger implements FTGSIterator {
     }
 
     @Override
-    public final boolean nextGroup() {
+    public boolean nextGroup() {
         if (accumulatedVec.nextGroup()) {
             return true;
         }
         if (accumulatedVec.bitset1 == 0 && accumulatedVec.bitset2[accumulatedVec.iteratorIndex] == 0) {
-            if (numFieldIterators == 0) return false;
+            if (numFieldIterators == 0) {
+                return false;
+            }
             refill();
             return accumulatedVec.nextGroup();
         }
@@ -168,12 +178,12 @@ public final class FastIntFTGSMerger implements FTGSIterator {
     }
 
     @Override
-    public final int group() {
+    public int group() {
         return accumulatedVec.group();
     }
 
     @Override
-    public final void groupStats(long[] stats) {
+    public void groupStats(final long[] stats) {
         accumulatedVec.groupStats(stats);
     }
 
@@ -185,7 +195,7 @@ public final class FastIntFTGSMerger implements FTGSIterator {
         }
     }
 
-    protected static void swap(final int[] a, final int b, final int e) {
+    private static void swap(final int[] a, final int b, final int e) {
         final int t = a[b];
         a[b] = a[e];
         a[e] = t;
@@ -241,7 +251,7 @@ public final class FastIntFTGSMerger implements FTGSIterator {
             group = -1;
         }
 
-        public boolean mergeFromFtgs(FTGSIterator ftgs) {
+        public boolean mergeFromFtgs(final FTGSIterator ftgs) {
             final long termGroup = ftgs.termIntVal()*numGroups+ftgs.group();
             final long newBase = termGroup & ~0xFFF;
             if (base != -1 && base != newBase) {
@@ -318,7 +328,7 @@ public final class FastIntFTGSMerger implements FTGSIterator {
             return true;
         }
 
-        public static long lfloordiv( long n, long d ) {
+        public static long lfloordiv(final long n, final long d) {
             if (n >= 0) {
                 return n / d;
             } else {
@@ -334,20 +344,20 @@ public final class FastIntFTGSMerger implements FTGSIterator {
             return group;
         }
 
-        public void groupStats(long buf[]) {
+        public void groupStats(final long[] buf) {
             System.arraycopy(metrics, (int) ((term*numGroups+group-base)*numStats), buf, 0, numStats);
         }
 
         public String toString() {
-            String ret = String.format("%64s", Long.toBinaryString(bitset1)).replace(' ', '0')+"\n";
+            final StringBuilder ret = new StringBuilder(String.format("%64s", Long.toBinaryString(bitset1)).replace(' ', '0') + "\n");
             long tmpBitset1 = bitset1;
             while (tmpBitset1 != 0) {
-                long lsb = tmpBitset1 & -tmpBitset1;
-                int index = Long.bitCount(lsb-1);
+                final long lsb = tmpBitset1 & -tmpBitset1;
+                final int index = Long.bitCount(lsb-1);
                 tmpBitset1 ^= lsb;
-                ret += String.format("%64s", Long.toBinaryString(bitset2[index])).replace(' ', '0')+"\n";
+                ret.append(String.format("%64s", Long.toBinaryString(bitset2[index])).replace(' ', '0')).append("\n");
             }
-            return ret;
+            return ret.toString();
         }
     }
 }

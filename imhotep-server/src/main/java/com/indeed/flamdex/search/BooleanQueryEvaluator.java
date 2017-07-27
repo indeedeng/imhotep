@@ -28,7 +28,7 @@ class BooleanQueryEvaluator implements QueryEvaluator {
     private final BooleanOp operator;
     private final List<? extends QueryEvaluator> operands;
 
-    BooleanQueryEvaluator(BooleanOp operator, List<? extends QueryEvaluator> operands) {
+    BooleanQueryEvaluator(final BooleanOp operator, final List<? extends QueryEvaluator> operands) {
         if (operator == BooleanOp.NOT && operands.size() != 1) {
             throw new IllegalArgumentException("bug, more than one operand is disallowed with NOT");
         }
@@ -37,7 +37,7 @@ class BooleanQueryEvaluator implements QueryEvaluator {
     }
 
     @Override
-    public void and(FlamdexReader r, FastBitSet bitSet, FastBitSetPooler bitSetPooler) throws FlamdexOutOfMemoryException {
+    public void and(final FlamdexReader r, final FastBitSet bitSet, final FastBitSetPooler bitSetPooler) throws FlamdexOutOfMemoryException {
         if (operator == BooleanOp.AND) {
             for (final QueryEvaluator operand : operands) {
                 operand.and(r, bitSet, bitSetPooler);
@@ -62,7 +62,7 @@ class BooleanQueryEvaluator implements QueryEvaluator {
     }
 
     @Override
-    public void or(FlamdexReader r, FastBitSet bitSet, FastBitSetPooler bitSetPooler) throws FlamdexOutOfMemoryException {
+    public void or(final FlamdexReader r, final FastBitSet bitSet, final FastBitSetPooler bitSetPooler) throws FlamdexOutOfMemoryException {
         if (operator == BooleanOp.OR) {
             for (final QueryEvaluator operand : operands) {
                 operand.or(r, bitSet, bitSetPooler);
@@ -88,10 +88,12 @@ class BooleanQueryEvaluator implements QueryEvaluator {
     }
 
     @Override
-    public void not(FlamdexReader r, FastBitSet bitSet, FastBitSetPooler bitSetPooler) throws FlamdexOutOfMemoryException {
+    public void not(final FlamdexReader r, final FastBitSet bitSet, final FastBitSetPooler bitSetPooler) throws FlamdexOutOfMemoryException {
         if (operator == BooleanOp.NOT) {
             throw new IllegalArgumentException("invalid query tree, two NOTs in a row is not allowed");
-        } else if (operator == BooleanOp.AND) {
+        }
+
+        if (operator == BooleanOp.AND) {
             bitSet.setAll();
             for (final QueryEvaluator operand : operands) {
                 operand.and(r, bitSet, bitSetPooler);

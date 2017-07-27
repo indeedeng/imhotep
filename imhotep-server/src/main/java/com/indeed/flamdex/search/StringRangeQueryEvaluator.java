@@ -32,23 +32,23 @@ class StringRangeQueryEvaluator implements QueryEvaluator {
     private final boolean isMaxInclusive;
     private final boolean looksLikeAnIntQuery;
 
-    StringRangeQueryEvaluator(Term startTerm, Term endTerm, boolean maxInclusive) {
+    StringRangeQueryEvaluator(final Term startTerm, final Term endTerm, final boolean maxInclusive) {
         this.startTerm = startTerm;
         this.endTerm = endTerm;
         isMaxInclusive = maxInclusive;
         looksLikeAnIntQuery = isInt(startTerm.getTermStringVal()) && isInt(endTerm.getTermStringVal());
     }
 
-    private static boolean isInt(String s) {
+    private static boolean isInt(final String s) {
         try {
             return Long.parseLong(s) >= 0;
-        } catch (NumberFormatException e) {
+        } catch (final NumberFormatException e) {
             return false;
         }
     }
 
     @Override
-    public void and(FlamdexReader r, FastBitSet bitSet, FastBitSetPooler bitSetPooler) throws FlamdexOutOfMemoryException {
+    public void and(final FlamdexReader r, final FastBitSet bitSet, final FastBitSetPooler bitSetPooler) throws FlamdexOutOfMemoryException {
         FastBitSet localBitSet = bitSetPooler.create(r.getNumDocs());
         try {
             internalSearch(r, localBitSet);
@@ -60,16 +60,14 @@ class StringRangeQueryEvaluator implements QueryEvaluator {
         }
     }
 
-    private void internalSearch(FlamdexReader r, FastBitSet bitSet) {
+    private void internalSearch(final FlamdexReader r, final FastBitSet bitSet) {
         if (looksLikeAnIntQuery) {
             doIntRangeQuery(r, bitSet);
             return;
         }
 
-        final StringTermIterator iterator = r.getStringTermIterator(startTerm.getFieldName());
-        try {
-            final DocIdStream docIdStream = r.getDocIdStream();
-            try {
+        try (StringTermIterator iterator = r.getStringTermIterator(startTerm.getFieldName())) {
+            try (DocIdStream docIdStream = r.getDocIdStream()) {
                 final int[] docIdBuffer = new int[BUFFER_SIZE];
                 iterator.reset(startTerm.getTermStringVal());
                 if (isMaxInclusive) {
@@ -83,61 +81,55 @@ class StringRangeQueryEvaluator implements QueryEvaluator {
                         readDocIdStream(docIdStream, docIdBuffer, bitSet);
                     }
                 }
-            } finally {
-                docIdStream.close();
             }
-        } finally {
-            iterator.close();
         }
     }
 
-    private void readDocIdStream(DocIdStream docIdStream, int[] docIdBuffer, FastBitSet bitSet) {
+    private void readDocIdStream(final DocIdStream docIdStream, final int[] docIdBuffer, final FastBitSet bitSet) {
         while (true) {
             final int n = docIdStream.fillDocIdBuffer(docIdBuffer);
             for (int i = 0; i < n; ++i) {
                 bitSet.set(docIdBuffer[i]);
             }
-            if (n < docIdBuffer.length) break;
+            if (n < docIdBuffer.length) {
+                break;
+            }
         }
     }
 
-    private void doIntRangeQuery(FlamdexReader r, FastBitSet bitSet) {
+    private void doIntRangeQuery(final FlamdexReader r, final FastBitSet bitSet) {
         final long min = Long.parseLong(startTerm.getTermStringVal());
         final long max = Long.parseLong(endTerm.getTermStringVal());
 
-        final StringTermIterator iterator = r.getStringTermIterator(startTerm.getFieldName());
-        try {
-            final DocIdStream docIdStream = r.getDocIdStream();
-            try {
+        try (StringTermIterator iterator = r.getStringTermIterator(startTerm.getFieldName())) {
+            try (DocIdStream docIdStream = r.getDocIdStream()) {
                 final int[] docIdBuffer = new int[BUFFER_SIZE];
                 while (iterator.next()) {
                     final long termIntVal;
                     try {
                         termIntVal = Long.parseLong(iterator.term());
-                    } catch (NumberFormatException e) {
+                    } catch (final NumberFormatException e) {
                         continue;
                     }
 
-                    if (termIntVal < min || (isMaxInclusive && termIntVal > max) || (!isMaxInclusive && termIntVal >= max)) continue;
+                    if (termIntVal < min || (isMaxInclusive && termIntVal > max) || (!isMaxInclusive && termIntVal >= max)) {
+                        continue;
+                    }
 
                     docIdStream.reset(iterator);
                     readDocIdStream(docIdStream, docIdBuffer, bitSet);
                 }
-            } finally {
-                docIdStream.close();
             }
-        } finally {
-            iterator.close();
         }
     }
 
     @Override
-    public void or(FlamdexReader r, FastBitSet bitSet, FastBitSetPooler bitSetPooler) throws FlamdexOutOfMemoryException {
+    public void or(final FlamdexReader r, final FastBitSet bitSet, final FastBitSetPooler bitSetPooler) throws FlamdexOutOfMemoryException {
         internalSearch(r, bitSet);
     }
 
     @Override
-    public void not(FlamdexReader r, FastBitSet bitSet, FastBitSetPooler bitSetPooler) throws FlamdexOutOfMemoryException {
+    public void not(final FlamdexReader r, final FastBitSet bitSet, final FastBitSetPooler bitSetPooler) throws FlamdexOutOfMemoryException {
         bitSet.clearAll();
         internalSearch(r, bitSet);
         bitSet.invertAll();

@@ -24,12 +24,12 @@ import com.indeed.imhotep.MemoryReserver;
 public class ImhotepBitSetPooler implements FastBitSetPooler {
     private final MemoryReserver memory;
 
-    public ImhotepBitSetPooler(MemoryReserver memory) {
+    public ImhotepBitSetPooler(final MemoryReserver memory) {
         this.memory = memory;
     }
 
     @Override
-    public FastBitSet create(int size) throws FlamdexOutOfMemoryException {
+    public FastBitSet create(final int size) throws FlamdexOutOfMemoryException {
         if (!memory.claimMemory(memoryUsage(size))) {
             throw new FlamdexOutOfMemoryException();
         }
@@ -37,7 +37,7 @@ public class ImhotepBitSetPooler implements FastBitSetPooler {
     }
 
     @Override
-    public void release(long bytes) {
+    public void release(final long bytes) {
         memory.releaseMemory(bytes);
     }
 

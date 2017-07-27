@@ -1,6 +1,5 @@
 package com.indeed.flamdex.datastruct;
 
-import junit.framework.Assert;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 import org.junit.Test;
@@ -13,6 +12,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * @author arun.
@@ -28,7 +29,7 @@ public class TestSingleProducerSingleConsumerBlockingQueue {
         final int seq;
         final int work;
 
-        Payload(int seq, int work) {
+        Payload(final int seq, final int work) {
             this.seq = seq;
             this.work = work;
         }
@@ -43,13 +44,13 @@ public class TestSingleProducerSingleConsumerBlockingQueue {
         private final BlockingQueue<Payload> queue;
         private final Random random = new Random();
 
-        Producer(BlockingQueue<Payload> queue) {
+        Producer(final BlockingQueue<Payload> queue) {
             //noinspection AssignmentToCollectionOrArrayFieldFromParameter
             this.queue = queue;
         }
 
         @Override
-        public Integer call() throws Exception {
+        public Integer call() throws InterruptedException {
             int numAdded = 0;
             int numPuts = 0;
             int numOffers = 0;
@@ -63,12 +64,14 @@ public class TestSingleProducerSingleConsumerBlockingQueue {
                         break;
                     case 1:
                         //noinspection StatementWithEmptyBody
-                        while(!queue.offer(payload));
+                        while(!queue.offer(payload)) {
+                        }
                         numOffers++;
                         break;
                     case 2:
                         //noinspection StatementWithEmptyBody
-                        while(!queue.offer(payload, 50, TimeUnit.MILLISECONDS));
+                        while(!queue.offer(payload, 50, TimeUnit.MILLISECONDS)) {
+                        }
                         numOfferTimeouts++;
                 }
                 numAdded++;
@@ -85,13 +88,13 @@ public class TestSingleProducerSingleConsumerBlockingQueue {
         private final BlockingQueue<Payload> queue;
         private final Random random = new Random();
 
-        Consumer(BlockingQueue<Payload> queue) {
+        Consumer(final BlockingQueue<Payload> queue) {
             //noinspection AssignmentToCollectionOrArrayFieldFromParameter
             this.queue = queue;
         }
 
         @Override
-        public Integer call() throws Exception {
+        public Integer call() throws InterruptedException {
             int previousSeqNumber = -1;
             int numConsumed = 0;
             int numTakes = 0;
@@ -107,12 +110,14 @@ public class TestSingleProducerSingleConsumerBlockingQueue {
                         break;
                     case 1:
                         //noinspection NestedAssignment,StatementWithEmptyBody
-                        while((payload = queue.poll()) == null);
+                        while((payload = queue.poll()) == null) {
+                        }
                         numPolls++;
                         break;
                     case 2:
                         //noinspection NestedAssignment,StatementWithEmptyBody
-                        while((payload = queue.poll(50, TimeUnit.MILLISECONDS)) == null);
+                        while((payload = queue.poll(50, TimeUnit.MILLISECONDS)) == null) {
+                        }
                         numPollTimeouts++;
                         break;
                     default:
@@ -122,7 +127,7 @@ public class TestSingleProducerSingleConsumerBlockingQueue {
                 if (payload == TERMINATOR) {
                     break;
                 }
-                Assert.assertTrue(payload.seq == previousSeqNumber + 1);
+                assertEquals(payload.seq, previousSeqNumber + 1);
                 previousSeqNumber = payload.seq;
                 for (int i = 0; i < payload.work; i++) {
                     sum += i;

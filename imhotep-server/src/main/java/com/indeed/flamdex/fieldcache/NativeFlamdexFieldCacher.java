@@ -23,7 +23,6 @@ import com.indeed.flamdex.datastruct.MMapFastBitSet;
 import com.indeed.flamdex.simple.SimpleIntTermIterator;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.mmap.MMapBuffer;
-
 import org.apache.log4j.Logger;
 
 import java.io.Closeable;
@@ -53,7 +52,7 @@ public enum NativeFlamdexFieldCacher {
 
             final SimpleIntTermIterator iter;
 
-            Buffer(SimpleIntTermIterator iter) { this.iter = iter; }
+            Buffer(final SimpleIntTermIterator iter) { this.iter = iter; }
 
             public long[]   terms() { return terms;   }
             public  int[]  n_docs() { return n_docs;  }
@@ -72,17 +71,17 @@ public enum NativeFlamdexFieldCacher {
         }
 
         @Override
-        public long memoryRequired(int numDocs) {
+        public long memoryRequired(final int numDocs) {
             return 8L * numDocs;
         }
 
         @Override
-        protected IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter,
-                                                       int numDocs, long min, long max)
+        protected IntValueLookup newFieldCacheInternal(final SimpleIntTermIterator iter,
+                                                       final int numDocs, final long min, final long max)
             throws IOException {
-            long[] backingArray = new long[numDocs];
-            long   address      = iter.getDocListAddress();
-            Buffer buffer       = new Buffer(iter);
+            final long[] backingArray = new long[numDocs];
+            final long   address      = iter.getDocListAddress();
+            final Buffer buffer       = new Buffer(iter);
             int    count        = buffer.fill();
             while (count > 0) {
                 nativeCacheLongMetricValuesInArray(backingArray,
@@ -97,10 +96,10 @@ public enum NativeFlamdexFieldCacher {
         }
 
         @Override
-        protected IntValueLookup newMMapFieldCacheInternal(SimpleIntTermIterator iter,
-                                                           int numDocs,
-                                                           String field,
-                                                           Path directory, long min, long max)
+        protected IntValueLookup newMMapFieldCacheInternal(final SimpleIntTermIterator iter,
+                                                           final int numDocs,
+                                                           final String field,
+                                                           final Path directory, final long min, final long max)
             throws IOException {
             final Path cachePath = directory.resolve(getMMapFileName(field));
             MMapBuffer buffer;
@@ -108,7 +107,7 @@ public enum NativeFlamdexFieldCacher {
                 buffer = new MMapBuffer(cachePath,
                                         FileChannel.MapMode.READ_ONLY,
                                         ByteOrder.LITTLE_ENDIAN);
-            } catch (FileNotFoundException e) {
+            } catch (final FileNotFoundException e) {
                 buffer = cacheToFileAtomically(iter,
                                                numDocs,
                                                field,
@@ -120,24 +119,24 @@ public enum NativeFlamdexFieldCacher {
         }
 
         @Override
-        public String getMMapFileName(String field) {
+        public String getMMapFileName(final String field) {
             return "fld-" + field + ".longcache";
         }
 
         final class MMapLongFieldCacherOp implements CacheToFileOperation<MMapBuffer> {
 
             @Override
-            public MMapBuffer execute(SimpleIntTermIterator iter,
-                                      int numDocs,
-                                      Path p) throws IOException {
+            public MMapBuffer execute(final SimpleIntTermIterator iterator,
+                                      final int numDocs,
+                                      final Path p) throws IOException {
                 final int length = numDocs * 8;
                 final MMapBuffer mmapBuffer =
                     new MMapBuffer(p, 0L, length,
                                    FileChannel.MapMode.READ_WRITE,
                                    ByteOrder.LITTLE_ENDIAN);
 
-                long   address      = iter.getDocListAddress();
-                Buffer buffer       = new Buffer(iter);
+                final long   address      = iterator.getDocListAddress();
+                final Buffer buffer       = new Buffer(iterator);
                 int    count        = buffer.fill();
                 while (count > 0) {
                     nativeCacheLongMetricValuesMMap(mmapBuffer.memory().getAddress(),
@@ -161,7 +160,7 @@ public enum NativeFlamdexFieldCacher {
 
             final SimpleIntTermIterator iter;
 
-            Buffer(SimpleIntTermIterator iter) { this.iter = iter; }
+            Buffer(final SimpleIntTermIterator iter) { this.iter = iter; }
 
             public  int[]   terms() { return terms;   }
             public  int[]  n_docs() { return n_docs;  }
@@ -180,18 +179,18 @@ public enum NativeFlamdexFieldCacher {
         }
 
         @Override
-        public long memoryRequired(int numDocs) {
+        public long memoryRequired(final int numDocs) {
             return 4L * numDocs;
         }
 
         @Override
-        protected IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter,
-                                                       int numDocs, long min, long max)
+        protected IntValueLookup newFieldCacheInternal(final SimpleIntTermIterator iter,
+                                                       final int numDocs, final long min, final long max)
             throws IOException {
-            int[] backingArray = new int[numDocs];
+            final int[] backingArray = new int[numDocs];
 
-            long address = iter.getDocListAddress();
-            Buffer buffer       = new Buffer(iter);
+            final long address = iter.getDocListAddress();
+            final Buffer buffer       = new Buffer(iter);
             int    count        = buffer.fill();
             while (count > 0) {
                 nativeCacheIntMetricValuesInArray(backingArray,
@@ -206,10 +205,10 @@ public enum NativeFlamdexFieldCacher {
         }
 
         @Override
-        protected IntValueLookup newMMapFieldCacheInternal(SimpleIntTermIterator iter,
-                                                           int numDocs,
-                                                           String field,
-                                                           Path directory, long min, long max)
+        protected IntValueLookup newMMapFieldCacheInternal(final SimpleIntTermIterator iter,
+                                                           final int numDocs,
+                                                           final String field,
+                                                           final Path directory, final long min, final long max)
             throws IOException {
             final Path cachePath = directory.resolve(getMMapFileName(field));
             MMapBuffer buffer;
@@ -217,7 +216,7 @@ public enum NativeFlamdexFieldCacher {
                 buffer = new MMapBuffer(cachePath,
                                         FileChannel.MapMode.READ_ONLY,
                                         ByteOrder.LITTLE_ENDIAN);
-            } catch (FileNotFoundException e) {
+            } catch (final FileNotFoundException e) {
                 buffer = cacheToFileAtomically(iter,
                                                numDocs,
                                                field,
@@ -229,23 +228,23 @@ public enum NativeFlamdexFieldCacher {
         }
 
         @Override
-        public String getMMapFileName(String field) {
+        public String getMMapFileName(final String field) {
             return "fld-" + field + ".longcache";
         }
 
         final class MMapIntFieldCacherOp implements CacheToFileOperation<MMapBuffer> {
             @Override
-            public MMapBuffer execute(SimpleIntTermIterator iter,
-                                      int numDocs,
-                                      Path p) throws IOException {
+            public MMapBuffer execute(final SimpleIntTermIterator iterator,
+                                      final int numDocs,
+                                      final Path p) throws IOException {
                 final int length = numDocs * 8;
                 final MMapBuffer mmapBuffer =
                     new MMapBuffer(p, 0L, length,
                                    FileChannel.MapMode.READ_WRITE,
                                    ByteOrder.LITTLE_ENDIAN);
 
-                long   address      = iter.getDocListAddress();
-                Buffer buffer       = new Buffer(iter);
+                final long   address      = iterator.getDocListAddress();
+                final Buffer buffer       = new Buffer(iterator);
                 int    count        = buffer.fill();
                 while (count > 0) {
                     nativeCacheIntMetricValuesMMap(mmapBuffer.memory().getAddress(),
@@ -269,7 +268,7 @@ public enum NativeFlamdexFieldCacher {
 
             final SimpleIntTermIterator iter;
 
-            Buffer(SimpleIntTermIterator iter) { this.iter = iter; }
+            Buffer(final SimpleIntTermIterator iter) { this.iter = iter; }
 
             public short[]   terms() { return terms;   }
             public   int[]  n_docs() { return n_docs;  }
@@ -288,17 +287,17 @@ public enum NativeFlamdexFieldCacher {
         }
 
         @Override
-        public long memoryRequired(int numDocs) {
+        public long memoryRequired(final int numDocs) {
             return 2L * numDocs;
         }
 
         @Override
-        protected IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter,
-                                                       int numDocs, long min, long max)
+        protected IntValueLookup newFieldCacheInternal(final SimpleIntTermIterator iter,
+                                                       final int numDocs, final long min, final long max)
             throws IOException {
-            short[] backingArray = new short[numDocs];
-            long   address       = iter.getDocListAddress();
-            Buffer buffer        = new Buffer(iter);
+            final short[] backingArray = new short[numDocs];
+            final long   address       = iter.getDocListAddress();
+            final Buffer buffer        = new Buffer(iter);
             int    count         = buffer.fill();
             while (count > 0) {
                 nativeCacheShortMetricValuesInArray(backingArray,
@@ -313,10 +312,10 @@ public enum NativeFlamdexFieldCacher {
         }
 
         @Override
-        protected IntValueLookup newMMapFieldCacheInternal(SimpleIntTermIterator iter,
-                                                           int numDocs,
-                                                           String field,
-                                                           Path directory, long min, long max)
+        protected IntValueLookup newMMapFieldCacheInternal(final SimpleIntTermIterator iter,
+                                                           final int numDocs,
+                                                           final String field,
+                                                           final Path directory, final long min, final long max)
             throws IOException {
             final Path cachePath = directory.resolve(getMMapFileName(field));
             MMapBuffer buffer;
@@ -324,7 +323,7 @@ public enum NativeFlamdexFieldCacher {
                 buffer = new MMapBuffer(cachePath,
                                         FileChannel.MapMode.READ_ONLY,
                                         ByteOrder.LITTLE_ENDIAN);
-            } catch (FileNotFoundException e) {
+            } catch (final FileNotFoundException e) {
                 buffer = cacheToFileAtomically(iter,
                                                numDocs,
                                                field,
@@ -336,23 +335,23 @@ public enum NativeFlamdexFieldCacher {
         }
 
         @Override
-        public String getMMapFileName(String field) {
+        public String getMMapFileName(final String field) {
             return "fld-" + field + ".longcache";
         }
 
         final class MMapShortFieldCacherOp implements CacheToFileOperation<MMapBuffer> {
             @Override
-                public MMapBuffer execute(SimpleIntTermIterator iter,
-                                          int numDocs,
-                                          Path p) throws IOException {
+                public MMapBuffer execute(final SimpleIntTermIterator iterator,
+                                          final int numDocs,
+                                          final Path p) throws IOException {
                 final int length = numDocs * 8;
                 final MMapBuffer mmapBuffer =
                     new MMapBuffer(p, 0L, length,
                                    FileChannel.MapMode.READ_WRITE,
                                    ByteOrder.LITTLE_ENDIAN);
 
-                long   address      = iter.getDocListAddress();
-                Buffer buffer       = new Buffer(iter);
+                final long   address      = iterator.getDocListAddress();
+                final Buffer buffer       = new Buffer(iterator);
                 int    count        = buffer.fill();
                 while (count > 0) {
                     nativeCacheShortMetricValuesMMap(mmapBuffer.memory().getAddress(),
@@ -376,7 +375,7 @@ public enum NativeFlamdexFieldCacher {
 
             final SimpleIntTermIterator iter;
 
-            Buffer(SimpleIntTermIterator iter) { this.iter = iter; }
+            Buffer(final SimpleIntTermIterator iter) { this.iter = iter; }
 
             public char[]    terms() { return terms;   }
             public   int[]  n_docs() { return n_docs;  }
@@ -395,17 +394,17 @@ public enum NativeFlamdexFieldCacher {
         }
 
         @Override
-        public long memoryRequired(int numDocs) {
+        public long memoryRequired(final int numDocs) {
             return 2L * numDocs;
         }
 
         @Override
-        protected IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter,
-                                                       int numDocs, long min, long max)
+        protected IntValueLookup newFieldCacheInternal(final SimpleIntTermIterator iter,
+                                                       final int numDocs, final long min, final long max)
             throws IOException  {
-            char[] backingArray = new char[numDocs];
-            long   address      = iter.getDocListAddress();
-            Buffer buffer       = new Buffer(iter);
+            final char[] backingArray = new char[numDocs];
+            final long   address      = iter.getDocListAddress();
+            final Buffer buffer       = new Buffer(iter);
             int    count        = buffer.fill();
             while (count > 0) {
                 nativeCacheCharMetricValuesInArray(backingArray,
@@ -420,10 +419,10 @@ public enum NativeFlamdexFieldCacher {
         }
 
         @Override
-        protected IntValueLookup newMMapFieldCacheInternal(SimpleIntTermIterator iter,
-                                                           int numDocs,
-                                                           String field,
-                                                           Path directory, long min, long max)
+        protected IntValueLookup newMMapFieldCacheInternal(final SimpleIntTermIterator iter,
+                                                           final int numDocs,
+                                                           final String field,
+                                                           final Path directory, final long min, final long max)
             throws IOException {
             final Path cachePath = directory.resolve(getMMapFileName(field));
             MMapBuffer buffer;
@@ -431,7 +430,7 @@ public enum NativeFlamdexFieldCacher {
                 buffer = new MMapBuffer(cachePath,
                                         FileChannel.MapMode.READ_ONLY,
                                         ByteOrder.LITTLE_ENDIAN);
-            } catch (FileNotFoundException e) {
+            } catch (final FileNotFoundException e) {
                 buffer = cacheToFileAtomically(iter,
                                                numDocs,
                                                field,
@@ -443,23 +442,23 @@ public enum NativeFlamdexFieldCacher {
         }
 
         @Override
-        public String getMMapFileName(String field) {
+        public String getMMapFileName(final String field) {
             return "fld-" + field + ".longcache";
         }
 
         final class MMapCharFieldCacherOp implements CacheToFileOperation<MMapBuffer> {
             @Override
-                public MMapBuffer execute(SimpleIntTermIterator iter,
-                                          int numDocs,
-                                          Path p) throws IOException {
+                public MMapBuffer execute(final SimpleIntTermIterator iterator,
+                                          final int numDocs,
+                                          final Path p) throws IOException {
                 final int length = numDocs * 8;
                 final MMapBuffer mmapBuffer =
                     new MMapBuffer(p, 0L, length,
                                    FileChannel.MapMode.READ_WRITE,
                                    ByteOrder.LITTLE_ENDIAN);
 
-                long   address      = iter.getDocListAddress();
-                Buffer buffer       = new Buffer(iter);
+                final long   address      = iterator.getDocListAddress();
+                final Buffer buffer       = new Buffer(iterator);
                 int    count        = buffer.fill();
                 while (count > 0) {
                     nativeCacheCharMetricValuesMMap(mmapBuffer.memory().getAddress(),
@@ -483,7 +482,7 @@ public enum NativeFlamdexFieldCacher {
 
             final SimpleIntTermIterator iter;
 
-            Buffer(SimpleIntTermIterator iter) { this.iter = iter; }
+            Buffer(final SimpleIntTermIterator iter) { this.iter = iter; }
 
             public byte[]    terms() { return terms;   }
             public   int[]  n_docs() { return n_docs;  }
@@ -502,17 +501,17 @@ public enum NativeFlamdexFieldCacher {
         }
 
         @Override
-        public long memoryRequired(int numDocs) {
-            return 1L * numDocs;
+        public long memoryRequired(final int numDocs) {
+            return (long) numDocs;
         }
 
         @Override
-        protected IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter,
-                                                       int numDocs, long min, long max)
+        protected IntValueLookup newFieldCacheInternal(final SimpleIntTermIterator iter,
+                                                       final int numDocs, final long min, final long max)
             throws IOException {
-            byte[] backingArray = new byte[numDocs];
-            long   address      = iter.getDocListAddress();
-            Buffer buffer       = new Buffer(iter);
+            final byte[] backingArray = new byte[numDocs];
+            final long   address      = iter.getDocListAddress();
+            final Buffer buffer       = new Buffer(iter);
             int    count        = buffer.fill();
             while (count > 0) {
                 nativeCacheByteMetricValuesInArray(backingArray,
@@ -527,10 +526,10 @@ public enum NativeFlamdexFieldCacher {
         }
 
         @Override
-        protected IntValueLookup newMMapFieldCacheInternal(SimpleIntTermIterator iter,
-                                                           int numDocs,
-                                                           String field,
-                                                           Path directory, long min, long max)
+        protected IntValueLookup newMMapFieldCacheInternal(final SimpleIntTermIterator iter,
+                                                           final int numDocs,
+                                                           final String field,
+                                                           final Path directory, final long min, final long max)
             throws IOException {
             final Path cachePath = directory.resolve(getMMapFileName(field));
             MMapBuffer buffer;
@@ -538,7 +537,7 @@ public enum NativeFlamdexFieldCacher {
                 buffer = new MMapBuffer(cachePath,
                                         FileChannel.MapMode.READ_ONLY,
                                         ByteOrder.LITTLE_ENDIAN);
-            } catch (FileNotFoundException e) {
+            } catch (final FileNotFoundException e) {
                 buffer = cacheToFileAtomically(iter,
                                                numDocs,
                                                field,
@@ -550,23 +549,23 @@ public enum NativeFlamdexFieldCacher {
         }
 
         @Override
-        public String getMMapFileName(String field) {
+        public String getMMapFileName(final String field) {
             return "fld-" + field + ".longcache";
         }
 
         final class MMapByteFieldCacherOp implements CacheToFileOperation<MMapBuffer> {
             @Override
-                public MMapBuffer execute(SimpleIntTermIterator iter,
-                                          int numDocs,
-                                          Path p) throws IOException {
+                public MMapBuffer execute(final SimpleIntTermIterator iterator,
+                                          final int numDocs,
+                                          final Path p) throws IOException {
                 final int length = numDocs * 8;
                 final MMapBuffer mmapBuffer =
                     new MMapBuffer(p, 0L, length,
                                    FileChannel.MapMode.READ_WRITE,
                                    ByteOrder.LITTLE_ENDIAN);
 
-                long   address      = iter.getDocListAddress();
-                Buffer buffer       = new Buffer(iter);
+                final long   address      = iterator.getDocListAddress();
+                final Buffer buffer       = new Buffer(iterator);
                 int    count        = buffer.fill();
                 while (count > 0) {
                     nativeCacheByteMetricValuesMMap(mmapBuffer.memory().getAddress(),
@@ -590,7 +589,7 @@ public enum NativeFlamdexFieldCacher {
 
             final SimpleIntTermIterator iter;
 
-            Buffer(SimpleIntTermIterator iter) { this.iter = iter; }
+            Buffer(final SimpleIntTermIterator iter) { this.iter = iter; }
 
             public byte[]    terms() { return terms;   }
             public   int[]  n_docs() { return n_docs;  }
@@ -609,17 +608,17 @@ public enum NativeFlamdexFieldCacher {
         }
 
         @Override
-        public long memoryRequired(int numDocs) {
+        public long memoryRequired(final int numDocs) {
             return numDocs;
         }
 
         @Override
-        protected IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter,
-                                                       int numDocs, long min, long max)
+        protected IntValueLookup newFieldCacheInternal(final SimpleIntTermIterator iter,
+                                                       final int numDocs, final long min, final long max)
             throws IOException  {
-            byte[] backingArray = new byte[numDocs];
-            long   address      = iter.getDocListAddress();
-            Buffer buffer       = new Buffer(iter);
+            final byte[] backingArray = new byte[numDocs];
+            final long   address      = iter.getDocListAddress();
+            final Buffer buffer       = new Buffer(iter);
             int    count        = buffer.fill();
             while (count > 0) {
                 nativeCacheByteMetricValuesInArray(backingArray,
@@ -634,10 +633,10 @@ public enum NativeFlamdexFieldCacher {
         }
 
         @Override
-        protected IntValueLookup newMMapFieldCacheInternal(SimpleIntTermIterator iter,
-                                                           int numDocs,
-                                                           String field,
-                                                           Path directory, long min, long max)
+        protected IntValueLookup newMMapFieldCacheInternal(final SimpleIntTermIterator iter,
+                                                           final int numDocs,
+                                                           final String field,
+                                                           final Path directory, final long min, final long max)
             throws IOException {
             final Path cachePath = directory.resolve(getMMapFileName(field));
             MMapBuffer buffer;
@@ -645,7 +644,7 @@ public enum NativeFlamdexFieldCacher {
                 buffer = new MMapBuffer(cachePath,
                                         FileChannel.MapMode.READ_ONLY,
                                         ByteOrder.LITTLE_ENDIAN);
-            } catch (FileNotFoundException e) {
+            } catch (final FileNotFoundException e) {
                 buffer = cacheToFileAtomically(iter,
                                                numDocs,
                                                field,
@@ -657,23 +656,23 @@ public enum NativeFlamdexFieldCacher {
         }
 
         @Override
-        public String getMMapFileName(String field) {
+        public String getMMapFileName(final String field) {
             return "fld-" + field + ".longcache";
         }
 
         final class MMapByteFieldCacherOp implements CacheToFileOperation<MMapBuffer> {
             @Override
-                public MMapBuffer execute(SimpleIntTermIterator iter,
-                                          int numDocs,
-                                          Path p) throws IOException {
+                public MMapBuffer execute(final SimpleIntTermIterator iterator,
+                                          final int numDocs,
+                                          final Path p) throws IOException {
                 final int length = numDocs * 8;
                 final MMapBuffer mmapBuffer =
                     new MMapBuffer(p, 0L, length,
                                    FileChannel.MapMode.READ_WRITE,
                                    ByteOrder.LITTLE_ENDIAN);
 
-                long   address      = iter.getDocListAddress();
-                Buffer buffer       = new Buffer(iter);
+                final long   address      = iterator.getDocListAddress();
+                final Buffer buffer       = new Buffer(iterator);
                 int    count        = buffer.fill();
                 while (count > 0) {
                     nativeCacheByteMetricValuesMMap(mmapBuffer.memory().getAddress(),
@@ -691,23 +690,23 @@ public enum NativeFlamdexFieldCacher {
     },
     BITSET {
         @Override
-        public long memoryRequired(int numDocs) {
+        public long memoryRequired(final int numDocs) {
             return 8L * (((long) numDocs + 64) >> 6);
         }
 
         @Override
-        protected IntValueLookup newFieldCacheInternal(SimpleIntTermIterator iter,
-                                                       int numDocs, long min, long max)
+        protected IntValueLookup newFieldCacheInternal(final SimpleIntTermIterator iter,
+                                                       final int numDocs, final long min, final long max)
             throws IOException  {
-            FastBitSet bitset = new FastBitSet(numDocs);
+            final FastBitSet bitset = new FastBitSet(numDocs);
 
             if (numDocs == 0) {
                 return new BitSetIntValueLookup(bitset);
             }
 
-            int n_docs;
-            long offset;
-            long address = iter.getDocListAddress();
+            final int n_docs;
+            final long offset;
+            final long address = iter.getDocListAddress();
             if (! iter.next()) {
                 return new BitSetIntValueLookup(bitset);
             }
@@ -728,15 +727,15 @@ public enum NativeFlamdexFieldCacher {
         }
 
         @Override
-        protected IntValueLookup newMMapFieldCacheInternal(SimpleIntTermIterator iter,
-                                                           int numDocs,
-                                                           String field,
-                                                           Path directory, long min, long max)
+        protected IntValueLookup newMMapFieldCacheInternal(final SimpleIntTermIterator iter,
+                                                           final int numDocs,
+                                                           final String field,
+                                                           final Path directory, final long min, final long max)
             throws IOException {
             final Path cachePath = directory.resolve(getMMapFileName(field));
             try {
                 return new MMapBitSetIntValueLookup(cachePath, numDocs);
-            } catch (FileNotFoundException e) {
+            } catch (final FileNotFoundException e) {
                 final MMapFastBitSet bitset;
                 bitset = cacheToFileAtomically(iter,
                                                numDocs,
@@ -749,16 +748,16 @@ public enum NativeFlamdexFieldCacher {
         }
 
         @Override
-        public String getMMapFileName(String field) {
+        public String getMMapFileName(final String field) {
             return "fld-" + field + ".longcache";
         }
 
         final class MMapBitsetFieldCacherOp implements CacheToFileOperation<MMapFastBitSet> {
 
             @Override
-            public MMapFastBitSet execute(SimpleIntTermIterator iter,
-                                          int numDocs,
-                                          Path p) throws IOException {
+            public MMapFastBitSet execute(final SimpleIntTermIterator iterator,
+                                          final int numDocs,
+                                          final Path p) throws IOException {
                 final MMapFastBitSet bitset =
                         new MMapFastBitSet(p, numDocs, FileChannel.MapMode.READ_WRITE);
 
@@ -766,24 +765,24 @@ public enum NativeFlamdexFieldCacher {
                     return bitset;
                 }
 
-                int n_docs;
-                long offset;
-                long address = iter.getDocListAddress();
-                if (! iter.next()) {
+                final int n_docs;
+                final long offset;
+                final long address = iterator.getDocListAddress();
+                if (! iterator.next()) {
                     return bitset;
                 }
-                if (iter.term() != 1) {
-                    if (! iter.next()) {
+                if (iterator.term() != 1) {
+                    if (! iterator.next()) {
                         /* field must be all 0s */
                         return bitset;
                     }
-                    if (iter.term() != 1) {
+                    if (iterator.term() != 1) {
                         throw new UnsupportedOperationException(
                                 "BitSet fields should only have term  " + "values of 1 and 0.");
                     }
                 }
-                n_docs = iter.docFreq();
-                offset = iter.getOffset();
+                n_docs = iterator.docFreq();
+                offset = iterator.getOffset();
                 nativeCacheBitsetMetricValuesMmap(bitset.getBackingMemory().getAddress(),
                                                   n_docs,
                                                   address,
@@ -817,7 +816,7 @@ public enum NativeFlamdexFieldCacher {
             is.close();
             System.load(tempFile.getAbsolutePath());
             tempFile.delete();
-        } catch (Throwable e) {
+        } catch (final Throwable e) {
             e.printStackTrace();
             log.warn("unable to load libfieldcache using class loader, looking in java.library.path",
                      e);
@@ -840,7 +839,7 @@ public enum NativeFlamdexFieldCacher {
                                                                 long min,
                                                                 long max) throws IOException;
 
-    public IntValueLookup newFieldCache(IntTermIterator iterator, int numDocs, long min, long max)
+    public IntValueLookup newFieldCache(final IntTermIterator iterator, final int numDocs, final long min, final long max)
     throws IOException {
         if (!(iterator instanceof SimpleIntTermIterator)) {
             throw new UnsupportedOperationException(
@@ -848,50 +847,44 @@ public enum NativeFlamdexFieldCacher {
                             + "Please use FieldCacher instead.");
         }
 
-        SimpleIntTermIterator iter = (SimpleIntTermIterator) iterator;
+        final SimpleIntTermIterator iter = (SimpleIntTermIterator) iterator;
         return newFieldCacheInternal(iter, numDocs, min, max);
     }
 
-    public IntValueLookup newMMapFieldCache(IntTermIterator iterator,
-                                            int numDocs,
-                                            String field,
-                                            Path directory,
-                                            long min,
-                                            long max) throws IOException {
+    public IntValueLookup newMMapFieldCache(final IntTermIterator iterator,
+                                            final int numDocs,
+                                            final String field,
+                                            final Path directory,
+                                            final long min,
+                                            final long max) throws IOException {
         if (!(iterator instanceof SimpleIntTermIterator)) {
             throw new UnsupportedOperationException(
                     "NativeFlamdexFieldCacher only supports SimpleIntTermIterators.  "
                             + "Please use FieldCacher instead.");
         }
 
-        SimpleIntTermIterator iter = (SimpleIntTermIterator) iterator;
+        final SimpleIntTermIterator iter = (SimpleIntTermIterator) iterator;
         return newMMapFieldCacheInternal(iter, numDocs, field, directory, min, max);
     }
 
     @VisibleForTesting
-    private final IntValueLookup newFieldCache(String field,
-                                               FlamdexReader r,
-                                               long min,
-                                               long max) throws IOException {
-        final IntTermIterator iterator = r.getUnsortedIntTermIterator(field);
-        try {
+    private IntValueLookup newFieldCache(final String field,
+                                               final FlamdexReader r,
+                                               final long min,
+                                               final long max) throws IOException {
+        try (IntTermIterator iterator = r.getUnsortedIntTermIterator(field)) {
             return newFieldCache(iterator, r.getNumDocs(), min, max);
-        } finally {
-            iterator.close();
         }
     }
 
     @VisibleForTesting
-    private final IntValueLookup newMMapFieldCache(String field,
-                                                   FlamdexReader r,
-                                                   Path directory,
-                                                   long min,
-                                                   long max) throws IOException {
-        final IntTermIterator iterator = r.getUnsortedIntTermIterator(field);
-        try {
+    private IntValueLookup newMMapFieldCache(final String field,
+                                                   final FlamdexReader r,
+                                                   final Path directory,
+                                                   final long min,
+                                                   final long max) throws IOException {
+        try (IntTermIterator iterator = r.getUnsortedIntTermIterator(field)) {
             return newMMapFieldCache(iterator, r.getNumDocs(), field, directory, min, max);
-        } finally {
-            iterator.close();
         }
     }
 
@@ -906,12 +899,12 @@ public enum NativeFlamdexFieldCacher {
         }
     }
 
-    private static <T extends Closeable> T cacheToFileAtomically(SimpleIntTermIterator iterator,
-                                                                 int numDocs,
-                                                                 String field,
-                                                                 Path directory,
-                                                                 Path cachePath,
-                                                                 CacheToFileOperation<T> op)
+    private static <T extends Closeable> T cacheToFileAtomically(final SimpleIntTermIterator iterator,
+                                                                 final int numDocs,
+                                                                 final String field,
+                                                                 final Path directory,
+                                                                 final Path cachePath,
+                                                                 final CacheToFileOperation<T> op)
     throws IOException {
         final Path tmp = directory.resolve("fld-" + field + ".intcache." + UUID.randomUUID());
         try {
@@ -944,80 +937,80 @@ public enum NativeFlamdexFieldCacher {
      *
      *
      */
-    private native static void nativeCacheBitsetMetricValuesMmap(long save_address,
+    private static native void nativeCacheBitsetMetricValuesMmap(long save_address,
                                                                  int n_docs,
                                                                  long doc_list_address,
                                                                  long offset);
 
-    private native static void nativeCacheBitsetMetricValuesInArray(long[] backingArray,
+    private static native void nativeCacheBitsetMetricValuesInArray(long[] backingArray,
                                                                     int n_docs,
                                                                     long doc_list_address,
                                                                     long offset);
 
-    private native static void nativeCacheCharMetricValuesMMap(long save_address,
+    private static native void nativeCacheCharMetricValuesMMap(long save_address,
                                                                char[] terms,
                                                                int[] n_docs,
                                                                long doc_list_address,
                                                                long[] offsets,
                                                                int j);
 
-    private native static void nativeCacheCharMetricValuesInArray(char[] backingArray,
+    private static native void nativeCacheCharMetricValuesInArray(char[] backingArray,
                                                                   char[] terms,
                                                                   int[] n_docs,
                                                                   long doc_list_address,
                                                                   long[] offsets,
                                                                   int j);
 
-    private native static void nativeCacheByteMetricValuesMMap(long save_address,
+    private static native void nativeCacheByteMetricValuesMMap(long save_address,
                                                                byte[] terms,
                                                                int[] n_docs,
                                                                long doc_list_address,
                                                                long[] offsets,
                                                                int j);
 
-    private native static void nativeCacheByteMetricValuesInArray(byte[] backingArray,
+    private static native void nativeCacheByteMetricValuesInArray(byte[] backingArray,
                                                                   byte[] terms,
                                                                   int[] n_docs,
                                                                   long doc_list_address,
                                                                   long[] offsets,
                                                                   int j);
 
-    private native static void nativeCacheShortMetricValuesMMap(long save_address,
+    private static native void nativeCacheShortMetricValuesMMap(long save_address,
                                                                 short[] terms,
                                                                 int[] n_docs,
                                                                 long doc_list_address,
                                                                 long[] offsets,
                                                                 int j);
 
-    private native static void nativeCacheShortMetricValuesInArray(short[] backingArray,
+    private static native void nativeCacheShortMetricValuesInArray(short[] backingArray,
                                                                    short[] terms,
                                                                    int[] n_docs,
                                                                    long doc_list_address,
                                                                    long[] offsets,
                                                                    int j);
 
-    private native static void nativeCacheIntMetricValuesMMap(long save_address,
+    private static native void nativeCacheIntMetricValuesMMap(long save_address,
                                                               int[] terms,
                                                               int[] n_docs,
                                                               long doc_list_address,
                                                               long[] offsets,
                                                               int j);
 
-    private native static void nativeCacheIntMetricValuesInArray(int[] backingArray,
+    private static native void nativeCacheIntMetricValuesInArray(int[] backingArray,
                                                                  int[] terms,
                                                                  int[] n_docs,
                                                                  long doc_list_address,
                                                                  long[] offsets,
                                                                  int j);
 
-    private native static void nativeCacheLongMetricValuesMMap(long save_address,
+    private static native void nativeCacheLongMetricValuesMMap(long save_address,
                                                                long[] terms,
                                                                int[] n_docs,
                                                                long doc_list_address,
                                                                long[] offsets,
                                                                int j);
 
-    private native static void nativeCacheLongMetricValuesInArray(long[] backingArray,
+    private static native void nativeCacheLongMetricValuesInArray(long[] backingArray,
                                                                   long[] terms,
                                                                   int[] n_docs,
                                                                   long doc_list_address,

@@ -23,12 +23,18 @@ public class GroupMultiRemapRule {
     public final int[] positiveGroups;
     public final RegroupCondition[] conditions;
 
-    public GroupMultiRemapRule(int targetGroup, int negativeGroup, int[] positiveGroups, RegroupCondition[] conditions) {
+    public GroupMultiRemapRule(
+            final int targetGroup,
+            final int negativeGroup,
+            final int[] positiveGroups,
+            final RegroupCondition[] conditions) {
         if (conditions.length != positiveGroups.length) {
             throw new IllegalArgumentException("positiveGroups.length must equal conditions.length");
         }
-        for (RegroupCondition condition : conditions) {
-            if (condition == null) throw new IllegalArgumentException("cannot have null conditions");
+        for (final RegroupCondition condition : conditions) {
+            if (condition == null) {
+                throw new IllegalArgumentException("cannot have null conditions");
+            }
         }
         this.targetGroup = targetGroup;
         this.conditions = Arrays.copyOf(conditions, conditions.length);
@@ -37,18 +43,20 @@ public class GroupMultiRemapRule {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+    public boolean equals(final Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
-        GroupMultiRemapRule that = (GroupMultiRemapRule) o;
+        final GroupMultiRemapRule that = (GroupMultiRemapRule) o;
 
-        if (negativeGroup != that.negativeGroup) return false;
-        if (targetGroup != that.targetGroup) return false;
-        if (!Arrays.equals(conditions, that.conditions)) return false;
-        if (!Arrays.equals(positiveGroups, that.positiveGroups)) return false;
-
-        return true;
+        return (negativeGroup == that.negativeGroup)
+                && (targetGroup == that.targetGroup)
+                && Arrays.equals(conditions, that.conditions)
+                && Arrays.equals(positiveGroups, that.positiveGroups);
     }
 
     @Override
@@ -71,10 +79,9 @@ public class GroupMultiRemapRule {
     }
 
     public String prettyPrint() {
-        int theOneTarget = negativeGroup;
         boolean oneTarget = true;
         for (final int group : positiveGroups) {
-            if (theOneTarget != group) {
+            if (negativeGroup != group) {
                 oneTarget = false;
             }
         }
@@ -96,7 +103,7 @@ public class GroupMultiRemapRule {
               .append(oneField ? " by " + field : "")
               .append(" -> [");
         for (int i = 0; i < conditions.length; i++) {
-            RegroupCondition condition = conditions[i];
+            final RegroupCondition condition = conditions[i];
             result.append(oneField ? "" : condition.field)
                   .append(condition.inequality ? "<=" : "")
                   .append(condition.intType ? condition.intTerm : ("\"" + StringEscapeUtils.escapeJava(condition.stringTerm) + "\""))

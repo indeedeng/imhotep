@@ -22,7 +22,7 @@ import java.util.Arrays;
  */
 public class Count implements IntValueLookup {
     @Override
-    public void lookup(int[] docIds, long[] values, int n) {
+    public void lookup(final int[] docIds, final long[] values, final int n) {
         Arrays.fill(values, 0, n, 1);
     }
 

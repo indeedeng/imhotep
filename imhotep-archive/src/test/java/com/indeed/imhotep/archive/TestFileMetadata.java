@@ -13,23 +13,22 @@
  */
  package com.indeed.imhotep.archive;
 
-import junit.framework.TestCase;
-
 import org.junit.Test;
 
-import com.indeed.imhotep.archive.FileMetadata;
-
 import static com.indeed.imhotep.archive.compression.SquallArchiveCompressor.NONE;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author jsgroth
  *
  * code coverage!
  */
-public class TestFileMetadata extends TestCase {
+public class TestFileMetadata {
     @Test
     public void testEqualsHashCode() {
-        FileMetadata fm = new FileMetadata("a", 0, 0, "abcdef0123456789abcdef0123456789", 0, NONE, "a");
+        final FileMetadata fm = new FileMetadata("a", 0, 0, "abcdef0123456789abcdef0123456789", 0, NONE, "a");
         assertTrue(fm.equals(fm));
         assertFalse(fm.equals(new Object()));
         assertFalse(fm.equals(new FileMetadata("a", 0, 0, "abcdef0123456789abcdef0123456789", 0, NONE, "b")));
@@ -37,7 +36,7 @@ public class TestFileMetadata extends TestCase {
         assertEquals(fm.hashCode(), fm.hashCode());
         assertEquals(fm.toString(), fm.toString());
 
-        FileMetadata fm3 = new FileMetadata("a", 0, 0, "abcdef0123456789abcdef0123456789", 0, NONE, "a");
+        final FileMetadata fm3 = new FileMetadata("a", 0, 0, "abcdef0123456789abcdef0123456789", 0, NONE, "a");
         assertTrue(fm3.equals(fm));
     }
 }

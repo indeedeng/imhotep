@@ -110,7 +110,8 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
         int nextNumDocs = 0;
         for (int i = 0; i < numDocs; ++i) {
             if (newDocId[i] == 0) {
-                newDocId[i] = nextNumDocs++;
+                newDocId[i] = nextNumDocs;
+                nextNumDocs++;
             }
         }
 

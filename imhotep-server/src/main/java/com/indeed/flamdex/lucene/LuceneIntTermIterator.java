@@ -20,6 +20,7 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TermEnum;
 
+import javax.annotation.Nonnull;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -33,12 +34,12 @@ class LuceneIntTermIterator implements IntTermIterator, LuceneTermIterator {
     private static final List<String> intPrefixes;
 
     static {
-        final List<String> temp = new ArrayList<String>();
+        final List<String> temp = new ArrayList<>();
         temp.add("0");
         // TODO: support negative values
         for (int i = 1; i <= 9; i++) {
             for (long m = 1; m > 0 && m*i > 0; m *= 10) {
-                temp.add(""+(m*i));
+                temp.add(String.valueOf(m * i));
             }
         }
         // should already be sorted but re-sorting in case I screwed up -ahudson
@@ -75,7 +76,7 @@ class LuceneIntTermIterator implements IntTermIterator, LuceneTermIterator {
             if (termEnum != null) {
                 try {
                     termEnum.close();
-                } catch (IOException e) {
+                } catch (final IOException e) {
                     throw LuceneUtils.ioRuntimeException(e);
                 }
             }
@@ -85,7 +86,7 @@ class LuceneIntTermIterator implements IntTermIterator, LuceneTermIterator {
         private void initialize() {
             try {
                 termEnum = reader.terms(new Term(field, firstTerm));
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 throw LuceneUtils.ioRuntimeException(e);
             }
             if (termEnum.term() == null || !field.equals(termEnum.term().field()) || !firstTerm.equals(termEnum.term().text())) {
@@ -95,7 +96,9 @@ class LuceneIntTermIterator implements IntTermIterator, LuceneTermIterator {
         }
 
         public boolean next() {
-            if (endOfStream) return false;
+            if (endOfStream) {
+                return false;
+            }
 
             if (termEnum == null) {
                 initialize();
@@ -113,7 +116,7 @@ class LuceneIntTermIterator implements IntTermIterator, LuceneTermIterator {
                 final boolean skipSuccess;
                 try {
                     skipSuccess = termEnum.skipTo(new Term(field, nextTargetString));
-                } catch (IOException e) {
+                } catch (final IOException e) {
                     throw LuceneUtils.ioRuntimeException(e);
                 }
 
@@ -139,16 +142,22 @@ class LuceneIntTermIterator implements IntTermIterator, LuceneTermIterator {
                 } else {
                     final StringBuilder sb = new StringBuilder(length);
                     sb.append(currentTerm);
-                    while (sb.length() != length) sb.append('0');
+                    while (sb.length() != length) {
+                        sb.append('0');
+                    }
                     nextTargetString = sb.toString();
                 }
             }
         }
 
         @Override
-        public int compareTo(final Prefix o) {
-            if (val < o.val) return -1;
-            if (val > o.val) return 1;
+        public int compareTo(@Nonnull final Prefix o) {
+            if (val < o.val) {
+                return -1;
+            }
+            if (val > o.val) {
+                return 1;
+            }
             throw new RuntimeException("Impossible condition occurred");
         }
     }
@@ -170,7 +179,9 @@ class LuceneIntTermIterator implements IntTermIterator, LuceneTermIterator {
             final TermEnum termEnum = reader.terms(new Term(field, "0"));
             while (true) {
                 final Term term = termEnum.term();
-                if (term == null || !field.equals(term.field()) || term.text().charAt(0) > '9') break;
+                if (term == null || !field.equals(term.field()) || term.text().charAt(0) > '9') {
+                    break;
+                }
 
                 final String termText = term.text();
                 final int x = termText.length()-1;
@@ -183,14 +194,16 @@ class LuceneIntTermIterator implements IntTermIterator, LuceneTermIterator {
                     }
                 }
 
-                if (!termEnum.next()) break;
+                if (!termEnum.next()) {
+                    break;
+                }
             }
             termEnum.close();
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw LuceneUtils.ioRuntimeException(e);
         }
 
-        final List<Prefix> ret = new ArrayList<Prefix>();
+        final List<Prefix> ret = new ArrayList<>();
         for (final String intPrefix : intPrefixes) {
             final int x = intPrefix.length()-1;
             final int y = intPrefix.charAt(0)-'0';
@@ -210,17 +223,19 @@ class LuceneIntTermIterator implements IntTermIterator, LuceneTermIterator {
             Closeables2.closeAll(prefixes, LOGGER);
         }
         if (prefixes.isEmpty()) {
-            prefixQueue = new PriorityQueue<Prefix>(1);
+            prefixQueue = new PriorityQueue<>(1);
             return;
         }
-        prefixQueue = new PriorityQueue<Prefix>(prefixes.size());
+        prefixQueue = new PriorityQueue<>(prefixes.size());
         for (final Prefix prefix : prefixes) {
             if (prefix.next()) {
                 prefixQueue.add(prefix);
             }
         }
         while (!prefixQueue.isEmpty()) {
-            if (prefixQueue.element().val >= term) break;
+            if (prefixQueue.element().val >= term) {
+                break;
+            }
             final Prefix prefix = prefixQueue.remove();
             if (prefix.next()) {
                 prefixQueue.add(prefix);
@@ -234,7 +249,9 @@ class LuceneIntTermIterator implements IntTermIterator, LuceneTermIterator {
             initialize(firstTerm);
         } else if (!prefixQueue.isEmpty()) {
             final Prefix prefix = prefixQueue.remove();
-            if (prefix.next()) prefixQueue.add(prefix);
+            if (prefix.next()) {
+                prefixQueue.add(prefix);
+            }
         }
 
         return !prefixQueue.isEmpty();
@@ -252,7 +269,7 @@ class LuceneIntTermIterator implements IntTermIterator, LuceneTermIterator {
     }
 
     @Override
-    public void reset(long term) {
+    public void reset(final long term) {
         firstTerm = term;
         prefixQueue = null;
     }

@@ -31,7 +31,7 @@ public class FTGSIteratorUtilTest {
     private static final Logger LOGGER = Logger.getLogger(FTGSIteratorUtilTest.class);
 
     @Rule
-    public ExpectedException expected = ExpectedException.none();
+    public final ExpectedException expected = ExpectedException.none();
     private File file;
 
     @After
@@ -47,51 +47,50 @@ public class FTGSIteratorUtilTest {
 
         final int numStats = 2;
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
-        final FTGSOutputStreamWriter w = new FTGSOutputStreamWriter(out);
+        try( final FTGSOutputStreamWriter w = new FTGSOutputStreamWriter(out) ) {
 
-        w.switchField("a", true);
+            w.switchField("a", true);
 
-        w.switchIntTerm(1, 5);
+            w.switchIntTerm(1, 5);
 
-        w.switchGroup(0);
-        w.addStat(1000);
-        w.addStat(20);
+            w.switchGroup(0);
+            w.addStat(1000);
+            w.addStat(20);
 
-        w.switchGroup(1);
-        w.addStat(100);
-        w.addStat(200);
+            w.switchGroup(1);
+            w.addStat(100);
+            w.addStat(200);
 
-        w.switchIntTerm(2, 10);
+            w.switchIntTerm(2, 10);
 
-        w.switchGroup(0);
-        w.addStat(10);
-        w.addStat(2000);
+            w.switchGroup(0);
+            w.addStat(10);
+            w.addStat(2000);
 
-        w.switchGroup(1);
-        w.addStat(200);
-        w.addStat(-100);
+            w.switchGroup(1);
+            w.addStat(200);
+            w.addStat(-100);
 
-        w.switchIntTerm(3, 15);
+            w.switchIntTerm(3, 15);
 
-        w.switchGroup(0);
-        w.addStat(100);
-        w.addStat(200);
+            w.switchGroup(0);
+            w.addStat(100);
+            w.addStat(200);
 
-        w.switchGroup(1);
-        w.addStat(300);
-        w.addStat(400);
+            w.switchGroup(1);
+            w.addStat(300);
+            w.addStat(400);
 
-        w.switchIntTerm(4, 20);
+            w.switchIntTerm(4, 20);
 
-        w.switchGroup(0);
-        w.addStat(10000);
-        w.addStat(20000);
+            w.switchGroup(0);
+            w.addStat(10000);
+            w.addStat(20000);
 
-        w.switchGroup(1);
-        w.addStat(-300);
-        w.addStat(500);
-
-        w.close();
+            w.switchGroup(1);
+            w.addStat(-300);
+            w.addStat(500);
+        }
 
         file = FTGSIteratorUtil.persistAsFile(LOGGER, new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), numStats), numStats, new AtomicLong(0));
     }
@@ -100,51 +99,50 @@ public class FTGSIteratorUtilTest {
     public void testIteratorPersist() throws IOException {
         final int numStats = 2;
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
-        final FTGSOutputStreamWriter w = new FTGSOutputStreamWriter(out);
+        try( final FTGSOutputStreamWriter w = new FTGSOutputStreamWriter(out) ) {
 
-        w.switchField("a", true);
+            w.switchField("a", true);
 
-        w.switchIntTerm(1, 5);
+            w.switchIntTerm(1, 5);
 
-        w.switchGroup(0);
-        w.addStat(1000);
-        w.addStat(20);
+            w.switchGroup(0);
+            w.addStat(1000);
+            w.addStat(20);
 
-        w.switchGroup(1);
-        w.addStat(100);
-        w.addStat(200);
+            w.switchGroup(1);
+            w.addStat(100);
+            w.addStat(200);
 
-        w.switchIntTerm(2, 10);
+            w.switchIntTerm(2, 10);
 
-        w.switchGroup(0);
-        w.addStat(10);
-        w.addStat(2000);
+            w.switchGroup(0);
+            w.addStat(10);
+            w.addStat(2000);
 
-        w.switchGroup(1);
-        w.addStat(200);
-        w.addStat(-100);
+            w.switchGroup(1);
+            w.addStat(200);
+            w.addStat(-100);
 
-        w.switchIntTerm(3, 15);
+            w.switchIntTerm(3, 15);
 
-        w.switchGroup(0);
-        w.addStat(100);
-        w.addStat(200);
+            w.switchGroup(0);
+            w.addStat(100);
+            w.addStat(200);
 
-        w.switchGroup(1);
-        w.addStat(300);
-        w.addStat(400);
+            w.switchGroup(1);
+            w.addStat(300);
+            w.addStat(400);
 
-        w.switchIntTerm(4, 20);
+            w.switchIntTerm(4, 20);
 
-        w.switchGroup(0);
-        w.addStat(10000);
-        w.addStat(20000);
+            w.switchGroup(0);
+            w.addStat(10000);
+            w.addStat(20000);
 
-        w.switchGroup(1);
-        w.addStat(-300);
-        w.addStat(500);
-
-        w.close();
+            w.switchGroup(1);
+            w.addStat(-300);
+            w.addStat(500);
+        }
 
         final RawFTGSIterator iter = FTGSIteratorUtil.persist(LOGGER, new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), numStats), numStats, new AtomicLong(Long.MAX_VALUE));
 
@@ -173,159 +171,158 @@ public class FTGSIteratorUtilTest {
     public void testTopTermsByStats() throws IOException {
         final int numStats = 3;
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
-        final FTGSOutputStreamWriter w = new FTGSOutputStreamWriter(out);
+        try( final FTGSOutputStreamWriter w = new FTGSOutputStreamWriter(out) ) {
 
-        w.switchField("a", true);
+            w.switchField("a", true);
 
-        w.switchIntTerm(1, 5);
+            w.switchIntTerm(1, 5);
 
-        w.switchGroup(1);
-        w.addStat(100);
-        w.addStat(200);
-        w.addStat(0);
+            w.switchGroup(1);
+            w.addStat(100);
+            w.addStat(200);
+            w.addStat(0);
 
-        w.switchGroup(2);
-        w.addStat(-300);
-        w.addStat(500);
-        w.addStat(0);
+            w.switchGroup(2);
+            w.addStat(-300);
+            w.addStat(500);
+            w.addStat(0);
 
-        w.switchIntTerm(2, 10);
+            w.switchIntTerm(2, 10);
 
-        w.switchGroup(1);
-        w.addStat(200);
-        w.addStat(-100);
-        w.addStat(0);
+            w.switchGroup(1);
+            w.addStat(200);
+            w.addStat(-100);
+            w.addStat(0);
 
-        w.switchGroup(2);
-        w.addStat(300);
-        w.addStat(400);
-        w.addStat(0);
+            w.switchGroup(2);
+            w.addStat(300);
+            w.addStat(400);
+            w.addStat(0);
 
-        w.switchIntTerm(3, 15);
+            w.switchIntTerm(3, 15);
 
-        w.switchGroup(1);
-        w.addStat(300);
-        w.addStat(400);
-        w.addStat(0);
+            w.switchGroup(1);
+            w.addStat(300);
+            w.addStat(400);
+            w.addStat(0);
 
-        w.switchGroup(2);
-        w.addStat(200);
-        w.addStat(-100);
-        w.addStat(0);
+            w.switchGroup(2);
+            w.addStat(200);
+            w.addStat(-100);
+            w.addStat(0);
 
-        w.switchIntTerm(4, 20);
+            w.switchIntTerm(4, 20);
 
-        w.switchGroup(1);
-        w.addStat(-300);
-        w.addStat(500);
-        w.addStat(0);
+            w.switchGroup(1);
+            w.addStat(-300);
+            w.addStat(500);
+            w.addStat(0);
 
-        w.switchGroup(2);
-        w.addStat(100);
-        w.addStat(200);
-        w.addStat(0);
+            w.switchGroup(2);
+            w.addStat(100);
+            w.addStat(200);
+            w.addStat(0);
 
-        w.switchField("b", true);
+            w.switchField("b", true);
 
-        w.switchIntTerm(11, 5);
+            w.switchIntTerm(11, 5);
 
-        w.switchGroup(1);
-        w.addStat(-100);
-        w.addStat(-200);
-        w.addStat(0);
+            w.switchGroup(1);
+            w.addStat(-100);
+            w.addStat(-200);
+            w.addStat(0);
 
-        w.switchGroup(2);
-        w.addStat(300);
-        w.addStat(-500);
-        w.addStat(0);
+            w.switchGroup(2);
+            w.addStat(300);
+            w.addStat(-500);
+            w.addStat(0);
 
-        w.switchIntTerm(12, 10);
+            w.switchIntTerm(12, 10);
 
-        w.switchGroup(1);
-        w.addStat(-200);
-        w.addStat(100);
-        w.addStat(0);
+            w.switchGroup(1);
+            w.addStat(-200);
+            w.addStat(100);
+            w.addStat(0);
 
-        w.switchGroup(2);
-        w.addStat(-300);
-        w.addStat(-400);
-        w.addStat(0);
+            w.switchGroup(2);
+            w.addStat(-300);
+            w.addStat(-400);
+            w.addStat(0);
 
-        w.switchIntTerm(13, 15);
+            w.switchIntTerm(13, 15);
 
-        w.switchGroup(1);
-        w.addStat(-300);
-        w.addStat(-400);
-        w.addStat(0);
+            w.switchGroup(1);
+            w.addStat(-300);
+            w.addStat(-400);
+            w.addStat(0);
 
-        w.switchGroup(2);
-        w.addStat(-200);
-        w.addStat(100);
-        w.addStat(0);
+            w.switchGroup(2);
+            w.addStat(-200);
+            w.addStat(100);
+            w.addStat(0);
 
-        w.switchIntTerm(14, 20);
+            w.switchIntTerm(14, 20);
 
-        w.switchGroup(1);
-        w.addStat(300);
-        w.addStat(-500);
-        w.addStat(0);
+            w.switchGroup(1);
+            w.addStat(300);
+            w.addStat(-500);
+            w.addStat(0);
 
-        w.switchGroup(2);
-        w.addStat(-100);
-        w.addStat(-200);
-        w.addStat(0);
+            w.switchGroup(2);
+            w.addStat(-100);
+            w.addStat(-200);
+            w.addStat(0);
 
-        w.switchField("b", false);
+            w.switchField("b", false);
 
-        w.switchBytesTerm("aA".getBytes(), "aA".getBytes().length, 5);
+            w.switchBytesTerm("aA".getBytes(), "aA".getBytes().length, 5);
 
-        w.switchGroup(1);
-        w.addStat(100);
-        w.addStat(-250);
-        w.addStat(0);
+            w.switchGroup(1);
+            w.addStat(100);
+            w.addStat(-250);
+            w.addStat(0);
 
-        w.switchGroup(2);
-        w.addStat(300);
-        w.addStat(4000);
-        w.addStat(0);
+            w.switchGroup(2);
+            w.addStat(300);
+            w.addStat(4000);
+            w.addStat(0);
 
-        w.switchBytesTerm("bb".getBytes(), "bb".getBytes().length, 10);
+            w.switchBytesTerm("bb".getBytes(), "bb".getBytes().length, 10);
 
-        w.switchGroup(1);
-        w.addStat(200);
-        w.addStat(1000);
-        w.addStat(0);
+            w.switchGroup(1);
+            w.addStat(200);
+            w.addStat(1000);
+            w.addStat(0);
 
-        w.switchGroup(2);
-        w.addStat(300);
-        w.addStat(-500);
-        w.addStat(0);
+            w.switchGroup(2);
+            w.addStat(300);
+            w.addStat(-500);
+            w.addStat(0);
 
-        w.switchBytesTerm("c".getBytes(), "c".getBytes().length, 15);
+            w.switchBytesTerm("c".getBytes(), "c".getBytes().length, 15);
 
-        w.switchGroup(1);
-        w.addStat(300);
-        w.addStat(4000);
-        w.addStat(0);
+            w.switchGroup(1);
+            w.addStat(300);
+            w.addStat(4000);
+            w.addStat(0);
 
-        w.switchGroup(2);
-        w.addStat(200);
-        w.addStat(1000);
-        w.addStat(0);
+            w.switchGroup(2);
+            w.addStat(200);
+            w.addStat(1000);
+            w.addStat(0);
 
-        w.switchBytesTerm("d".getBytes(), "d".getBytes().length, 20);
+            w.switchBytesTerm("d".getBytes(), "d".getBytes().length, 20);
 
-        w.switchGroup(1);
-        w.addStat(300);
-        w.addStat(-500);
-        w.addStat(0);
+            w.switchGroup(1);
+            w.addStat(300);
+            w.addStat(-500);
+            w.addStat(0);
 
-        w.switchGroup(2);
-        w.addStat(100);
-        w.addStat(-250);
-        w.addStat(0);
-
-        w.close();
+            w.switchGroup(2);
+            w.addStat(100);
+            w.addStat(-250);
+            w.addStat(0);
+        }
 
         {
             final InputStreamFTGSIterator iter = new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), numStats);
@@ -543,87 +540,86 @@ public class FTGSIteratorUtilTest {
     public void testTopTermsByStatsSingleGroup() throws IOException {
         final int numStats = 2;
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
-        final FTGSOutputStreamWriter w = new FTGSOutputStreamWriter(out);
+        try( final FTGSOutputStreamWriter w = new FTGSOutputStreamWriter(out) ) {
 
-        w.switchField("a", true);
+            w.switchField("a", true);
 
-        w.switchIntTerm(1, 5);
+            w.switchIntTerm(1, 5);
 
-        w.switchGroup(1);
-        w.addStat(100);
-        w.addStat(200);
+            w.switchGroup(1);
+            w.addStat(100);
+            w.addStat(200);
 
-        w.switchIntTerm(2, 10);
+            w.switchIntTerm(2, 10);
 
-        w.switchGroup(1);
-        w.addStat(200);
-        w.addStat(-100);
+            w.switchGroup(1);
+            w.addStat(200);
+            w.addStat(-100);
 
-        w.switchIntTerm(3, 15);
+            w.switchIntTerm(3, 15);
 
-        w.switchGroup(1);
-        w.addStat(300);
-        w.addStat(400);
+            w.switchGroup(1);
+            w.addStat(300);
+            w.addStat(400);
 
-        w.switchIntTerm(4, 20);
+            w.switchIntTerm(4, 20);
 
-        w.switchGroup(1);
-        w.addStat(-300);
-        w.addStat(500);
+            w.switchGroup(1);
+            w.addStat(-300);
+            w.addStat(500);
 
-        w.switchField("b", true);
+            w.switchField("b", true);
 
-        w.switchIntTerm(11, 5);
+            w.switchIntTerm(11, 5);
 
-        w.switchGroup(1);
-        w.addStat(-100);
-        w.addStat(-200);
+            w.switchGroup(1);
+            w.addStat(-100);
+            w.addStat(-200);
 
-        w.switchIntTerm(12, 10);
+            w.switchIntTerm(12, 10);
 
-        w.switchGroup(1);
-        w.addStat(-200);
-        w.addStat(100);
+            w.switchGroup(1);
+            w.addStat(-200);
+            w.addStat(100);
 
-        w.switchIntTerm(13, 15);
+            w.switchIntTerm(13, 15);
 
-        w.switchGroup(1);
-        w.addStat(-300);
-        w.addStat(-400);
+            w.switchGroup(1);
+            w.addStat(-300);
+            w.addStat(-400);
 
-        w.switchIntTerm(14, 20);
+            w.switchIntTerm(14, 20);
 
-        w.switchGroup(1);
-        w.addStat(300);
-        w.addStat(-500);
+            w.switchGroup(1);
+            w.addStat(300);
+            w.addStat(-500);
 
-        w.switchField("b", false);
+            w.switchField("b", false);
 
-        w.switchBytesTerm("aA".getBytes(), "aA".getBytes().length, 5);
+            w.switchBytesTerm("aA".getBytes(), "aA".getBytes().length, 5);
 
-        w.switchGroup(1);
-        w.addStat(100);
-        w.addStat(-250);
+            w.switchGroup(1);
+            w.addStat(100);
+            w.addStat(-250);
 
-        w.switchBytesTerm("bb".getBytes(), "bb".getBytes().length, 10);
+            w.switchBytesTerm("bb".getBytes(), "bb".getBytes().length, 10);
 
-        w.switchGroup(1);
-        w.addStat(200);
-        w.addStat(1000);
+            w.switchGroup(1);
+            w.addStat(200);
+            w.addStat(1000);
 
-        w.switchBytesTerm("c".getBytes(), "c".getBytes().length, 15);
+            w.switchBytesTerm("c".getBytes(), "c".getBytes().length, 15);
 
-        w.switchGroup(1);
-        w.addStat(300);
-        w.addStat(4000);
+            w.switchGroup(1);
+            w.addStat(300);
+            w.addStat(4000);
 
-        w.switchBytesTerm("d".getBytes(), "d".getBytes().length, 20);
+            w.switchBytesTerm("d".getBytes(), "d".getBytes().length, 20);
 
-        w.switchGroup(1);
-        w.addStat(300);
-        w.addStat(-500);
-
-        w.close();
+            w.switchGroup(1);
+            w.addStat(300);
+            w.addStat(-500);
+        }
 
         {
             final InputStreamFTGSIterator iter = new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), 2);

@@ -17,11 +17,13 @@ import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 
 public class GroupLookupFactory {
+    private GroupLookupFactory() {
+    }
 
-    public static GroupLookup create(int maxGroup,
-                                     int size,
-                                     ImhotepLocalSession session,
-                                     MemoryReservationContext memory) throws ImhotepOutOfMemoryException {
+    public static GroupLookup create(final int maxGroup,
+                                     final int size,
+                                     final ImhotepLocalSession session,
+                                     final MemoryReservationContext memory) throws ImhotepOutOfMemoryException {
         final GroupLookup newLookup;
         if (maxGroup < 2) { // 8L * ((size + 64) >> 6)
             if (!memory.claimMemory(BitSetGroupLookup.calcMemUsageForSize(size))) {

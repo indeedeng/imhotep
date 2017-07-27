@@ -19,13 +19,12 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteStreams;
 import com.indeed.imhotep.archive.compression.SquallArchiveCompressor;
-
+import com.indeed.util.compress.CompressionOutputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
-import com.indeed.util.compress.CompressionOutputStream;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
@@ -77,11 +76,11 @@ public class SquallArchiveWriter {
      * @param create whether to create from scratch or append to
      * @throws IOException if there is an IO problem
      */
-    public SquallArchiveWriter(FileSystem fs, Path path, boolean create) throws IOException {
+    public SquallArchiveWriter(final FileSystem fs, final Path path, final boolean create) throws IOException {
         this(fs, path, create, SquallArchiveCompressor.NONE);
     }
 
-    public SquallArchiveWriter(FileSystem fs, Path path, boolean create, SquallArchiveCompressor defaultCompressor) throws IOException {
+    public SquallArchiveWriter(final FileSystem fs, final Path path, final boolean create, final SquallArchiveCompressor defaultCompressor) throws IOException {
         this.fs = fs;
         this.path = path;
 
@@ -98,10 +97,10 @@ public class SquallArchiveWriter {
         }
     }
 
-    private static void deleteExistingArchiveFiles(FileSystem fs, Path path) throws IOException {
+    private static void deleteExistingArchiveFiles(final FileSystem fs, final Path path) throws IOException {
         for (final FileStatus status : fs.listStatus(path, new PathFilter() {
             @Override
-            public boolean accept(Path path) {
+            public boolean accept(final Path path) {
                 return ARCHIVE_FILENAME_PATTERN.matcher(path.getName()).matches();
             }
         })) {
@@ -109,7 +108,7 @@ public class SquallArchiveWriter {
         }
     }
 
-    private static int computeCurrentArchivePathCounter(FileSystem fs, Path path) throws IOException {
+    private static int computeCurrentArchivePathCounter(final FileSystem fs, final Path path) throws IOException {
         int max = -1;
         for (final FileStatus status : fs.listStatus(path)) {
             final String pathName = status.getPath().getName();
@@ -134,11 +133,11 @@ public class SquallArchiveWriter {
      * @param file the file or directory to append
      * @throws IOException if there is an IO problem
      */
-    public void append(File file) throws IOException {
+    public void append(final File file) throws IOException {
         append(file, defaultCompressor);
     }
 
-    public void append(File file, SquallArchiveCompressor compressor) throws IOException {
+    public void append(final File file, final SquallArchiveCompressor compressor) throws IOException {
         if (file.isDirectory()) {
             appendDirectory(file, compressor);
         } else {
@@ -154,11 +153,11 @@ public class SquallArchiveWriter {
      * @param directory the directory to append
      * @throws IOException if there is an IO problem
      */
-    public void batchAppendDirectory(File directory) throws IOException {
+    public void batchAppendDirectory(final File directory) throws IOException {
         batchAppendDirectory(directory, defaultCompressor);
     }
 
-    public void batchAppendDirectory(File directory, SquallArchiveCompressor compressor) throws IOException {
+    public void batchAppendDirectory(final File directory, final SquallArchiveCompressor compressor) throws IOException {
         if (!directory.isDirectory()) {
             throw new FileNotFoundException(directory.getAbsolutePath() + " is not a directory");
         }
@@ -173,17 +172,16 @@ public class SquallArchiveWriter {
      * @param files the files to append
      * @throws IOException if there is an IO problem
      */
-    public void batchAppend(Iterable<File> files) throws IOException {
+    public void batchAppend(final Iterable<File> files) throws IOException {
         batchAppend(files, defaultCompressor);
     }
 
-    public void batchAppend(Iterable<File> files, SquallArchiveCompressor compressor) throws IOException {
+    public void batchAppend(final Iterable<File> files, final SquallArchiveCompressor compressor) throws IOException {
         batchAppend(files, compressor, newArchivePath());
     }
 
-    private void batchAppend(Iterable<File> files, SquallArchiveCompressor compressor, Path archivePath) throws IOException {
-        final FSDataOutputStream os = fs.create(archivePath, false);
-        try {
+    private void batchAppend(final Iterable<File> files, final SquallArchiveCompressor compressor, final Path archivePath) throws IOException {
+        try( final FSDataOutputStream os = fs.create(archivePath, false) ) {
             for (final File file : files) {
                 if (file.isDirectory()) {
                     batchAppendDirectory(os, file, Lists.newArrayList(file.getName()), compressor, archivePath.getName());
@@ -192,12 +190,10 @@ public class SquallArchiveWriter {
                 }
             }
             commit();
-        } finally {
-            os.close();
         }
     }
 
-    private void batchAppendDirectory(FSDataOutputStream os, File directory, List<String> parentDirectories, SquallArchiveCompressor compressor, String archiveFilename) throws IOException {
+    private void batchAppendDirectory(final FSDataOutputStream os, final File directory, final List<String> parentDirectories, final SquallArchiveCompressor compressor, final String archiveFilename) throws IOException {
         for (final File file : sorted(directory.listFiles())) {
             if (file.isDirectory()) {
                 final List<String> newParentDirectories = Lists.newArrayList(parentDirectories);
@@ -216,20 +212,20 @@ public class SquallArchiveWriter {
      * @param directory the directory to append
      * @throws IOException if there is an IO problem
      */
-    public void appendDirectory(File directory) throws IOException {
+    public void appendDirectory(final File directory) throws IOException {
         appendDirectory(directory, defaultCompressor);
     }
 
-    public void appendDirectory(File directory, SquallArchiveCompressor compressor) throws IOException {
+    public void appendDirectory(final File directory, final SquallArchiveCompressor compressor) throws IOException {
         appendDirectory(directory, Collections.<String>emptyList(), compressor);
     }
 
-    private void appendDirectory(File directory, List<String> parentDirectories, SquallArchiveCompressor compressor) throws IOException {
+    private void appendDirectory(final File directory, final List<String> parentDirectories, final SquallArchiveCompressor compressor) throws IOException {
         if (!directory.exists() || !directory.isDirectory()) {
             throw new FileNotFoundException(directory.getAbsolutePath() + " either does not exist or is not a directory");
         }
 
-        final List<String> newParentDirectories = new ArrayList<String>(parentDirectories);
+        final List<String> newParentDirectories = new ArrayList<>(parentDirectories);
         newParentDirectories.add(directory.getName().replaceAll("\\s+", "_"));
         for (final File file : sorted(directory.listFiles())) {
             if (file.isDirectory()) {
@@ -247,46 +243,45 @@ public class SquallArchiveWriter {
      * @param file a file on the local file system
      * @throws IOException if the file does not exist or if there is an IO problem
      */
-    public void appendFile(File file) throws IOException {
+    public void appendFile(final File file) throws IOException {
         appendFile(file, defaultCompressor);
     }
 
-    public void appendFile(File file, SquallArchiveCompressor compressor) throws IOException {
+    public void appendFile(final File file, final SquallArchiveCompressor compressor) throws IOException {
         appendFile(file, Collections.<String>emptyList(), compressor);
     }
 
-    private void appendFile(File file, List<String> parentDirectories, SquallArchiveCompressor compressor) throws IOException {
+    private void appendFile(final File file, final List<String> parentDirectories, final SquallArchiveCompressor compressor) throws IOException {
         if (!file.exists() || file.isDirectory()) {
             throw new FileNotFoundException(file.getAbsolutePath() + " either does not exist or is a directory");
         }
 
         final Path archivePath = newArchivePath();
 
-        final FSDataOutputStream os = fs.create(archivePath, false);
-        try {
+        try( final FSDataOutputStream os = fs.create(archivePath, false) ) {
             internalAppendFile(os, file, parentDirectories, compressor, archivePath.getName());
-        } finally {
-            os.close();
         }
     }
 
-    private void internalAppendFile(FSDataOutputStream os, File file, List<String> parentDirectories, SquallArchiveCompressor compressor, String archiveFilename) throws IOException {
+    private void internalAppendFile(
+            final FSDataOutputStream os,
+            final File file,
+            final List<String> parentDirectories,
+            final SquallArchiveCompressor compressor,
+            final String archiveFilename) throws IOException {
         final String baseFilename = file.getName().replaceAll("\\s+", "_");
         final String filename = makeFilename(parentDirectories, baseFilename);
         final long size = file.length();
         final long timestamp = file.lastModified();
         final long startOffset = os.getPos();
 
-        final InputStream is = new BufferedInputStream(new FileInputStream(file));
         final String checksum;
-        try {
+        try( final InputStream is = new BufferedInputStream(new FileInputStream(file)) ) {
             final CompressionOutputStream cos = compressor.newOutputStream(os);
             final DigestOutputStream dos = new DigestOutputStream(cos, ArchiveUtils.getMD5Digest());
             ByteStreams.copy(is, dos);
             checksum = ArchiveUtils.toHex(dos.getMessageDigest().digest());
             cos.finish();
-        } finally {
-            is.close();
         }
 
         pendingMetadataWrites.add(new FileMetadata(filename, size, timestamp, checksum, startOffset, compressor, archiveFilename));
@@ -304,37 +299,30 @@ public class SquallArchiveWriter {
 
         final Path metadataPath = new Path(path, "metadata.txt");
         final Path tmpMetadataPath = new Path(path, "metadata." + UUID.randomUUID() + ".txt.tmp");
-        final BufferedReader r = new BufferedReader(new InputStreamReader(fs.open(metadataPath), Charsets.UTF_8));
-        try {
-            final PrintWriter w = new PrintWriter(new OutputStreamWriter(fs.create(tmpMetadataPath, false), Charsets.UTF_8));
-            try {
+        try( final BufferedReader r = new BufferedReader(new InputStreamReader(fs.open(metadataPath), Charsets.UTF_8));
+            final PrintWriter w = new PrintWriter(new OutputStreamWriter(fs.create(tmpMetadataPath, false), Charsets.UTF_8))) {
                 for (String line = r.readLine(); line != null; line = r.readLine()) {
                     w.println(line);
                 }
                 for (final FileMetadata file : pendingMetadataWrites) {
                     w.println(TAB.join(file.getFilename(), file.getSize(), file.getTimestamp(), file.getChecksum(), file.getStartOffset(), file.getCompressor().getKey(), file.getArchiveFilename()));
                 }
-            } finally {
-                w.close();
-            }
-        } finally {
-            r.close();
         }
         fs.delete(metadataPath, false);
         fs.rename(tmpMetadataPath, metadataPath);
         pendingMetadataWrites.clear();
     }
 
-    private static String makeFilename(List<String> parentDirectories, String baseFilename) {
-        final List<String> stringsToJoin = new ArrayList<String>(parentDirectories);
+    private static String makeFilename(final List<String> parentDirectories, final String baseFilename) {
+        final List<String> stringsToJoin = new ArrayList<>(parentDirectories);
         stringsToJoin.add(baseFilename);
         return SLASH.join(stringsToJoin);
     }
 
-    private static File[] sorted(File[] files) {
+    private static File[] sorted(final File[] files) {
         Arrays.sort(files, new Comparator<File>() {
             @Override
-            public int compare(File o1, File o2) {
+            public int compare(final File o1, final File o2) {
                 return o1.getName().compareTo(o2.getName());
             }
         });

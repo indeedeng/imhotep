@@ -69,7 +69,7 @@ public class TestDynamicFlamdexMerger {
                 }
                 DynamicFlamdexTestUtils.addDocument(setupedNaiveResult, flamdexDocWriterWithoutMerger, document);
             }
-            setupedIndexDirectory = flamdexDocWriterWithoutMerger.commit(commitId++).get();
+            setupedIndexDirectory = flamdexDocWriterWithoutMerger.commit(commitId).get();
         }
     }
 
@@ -148,7 +148,7 @@ public class TestDynamicFlamdexMerger {
                 }
                 DynamicFlamdexTestUtils.addDocument(naiveResult, flamdexDocWriterWithMerger, document);
             }
-            indexDirectory = flamdexDocWriterWithMerger.commit(commitId++).get();
+            indexDirectory = flamdexDocWriterWithMerger.commit(commitId).get();
         }
         executorService.shutdown();
         executorService.awaitTermination(1, TimeUnit.MINUTES);
@@ -190,7 +190,7 @@ public class TestDynamicFlamdexMerger {
                     DynamicFlamdexTestUtils.removeDocument(naiveResult, flamdexDocWriterWithoutMerger, "mod7mod11i", random.nextInt(7));
                 }
             }
-            indexDirectory = flamdexDocWriterWithoutMerger.commit(commitId++).get();
+            indexDirectory = flamdexDocWriterWithoutMerger.commit(commitId).get();
         }
         executorService.shutdown();
         executorService.awaitTermination(1, TimeUnit.MINUTES);
@@ -245,7 +245,7 @@ public class TestDynamicFlamdexMerger {
                 flamdexDocWriterWithMerger.commit(commitId++, random.nextBoolean());
                 DynamicFlamdexTestUtils.addDocument(naiveResult, flamdexDocWriterWithMerger, document);
             }
-            indexDirectory = flamdexDocWriterWithMerger.commit(commitId++).get();
+            indexDirectory = flamdexDocWriterWithMerger.commit(commitId).get();
         }
         executorService.shutdown();
         executorService.awaitTermination(1, TimeUnit.MINUTES);

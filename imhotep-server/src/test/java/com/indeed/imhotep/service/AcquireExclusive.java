@@ -27,10 +27,12 @@ import java.nio.channels.FileLockInterruptionException;
  * @author jplaisance
  */
 public final class AcquireExclusive {
+    private AcquireExclusive() {
+    }
 
     private static final Logger log = Logger.getLogger(AcquireExclusive.class);
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(final String[] args) throws InterruptedException {
         System.out.println(System.getProperty("java.version"));
         final File testlocking = new File("testlocking");
         testlocking.mkdir();
@@ -38,7 +40,7 @@ public final class AcquireExclusive {
         Thread.sleep(Long.MAX_VALUE);
     }
 
-    private static RandomAccessFile acquireExclusive(File indexDir) {
+    private static RandomAccessFile acquireExclusive(final File indexDir) {
         final File writeLock = new File(indexDir, "delete.lock");
         try {
             writeLock.createNewFile();
@@ -53,11 +55,11 @@ public final class AcquireExclusive {
                     }
                     Closeables2.closeQuietly(raf, log);
                     return null;
-                } catch (FileLockInterruptionException e) {
+                } catch (final FileLockInterruptionException e) {
                     Closeables2.closeQuietly(raf, log);
                 }
             }
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw Throwables.propagate(e);
         }
     }

@@ -45,7 +45,7 @@ public class Transition implements Serializable, Cloneable {
 	/* 
 	 * CLASS INVARIANT: min<=max
 	 */
-	
+
 	char min;
 	char max;
 	
@@ -56,8 +56,9 @@ public class Transition implements Serializable, Cloneable {
 	 * @param c transition character
 	 * @param to destination state
 	 */
-	public Transition(char c, State to)	{
-		min = max = c;
+	public Transition(final char c, final State to)	{
+		min = c;
+		max = c;
 		this.to = to;
 	}
 	
@@ -68,9 +69,9 @@ public class Transition implements Serializable, Cloneable {
 	 * @param max transition interval maximum
 	 * @param to destination state
 	 */
-	public Transition(char min, char max, State to)	{
+	public Transition(char min, char max, final State to)	{
 		if (max < min) {
-			char t = max;
+			final char t = max;
 			max = min;
 			min = t;
 		}
@@ -101,12 +102,13 @@ public class Transition implements Serializable, Cloneable {
 	 *         character interval and destination state as this transition.
 	 */
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (obj instanceof Transition) {
-			Transition t = (Transition)obj;
+			final Transition t = (Transition)obj;
 			return t.min == min && t.max == max && t.to == to;
-		} else
+		} else {
 			return false;
+		}
 	}
 	
 	/** 
@@ -127,25 +129,26 @@ public class Transition implements Serializable, Cloneable {
 	public Transition clone() {
 		try {
 			return (Transition)super.clone();
-		} catch (CloneNotSupportedException e) {
+		} catch (final CloneNotSupportedException e) {
 			throw new RuntimeException(e);
 		}
 	}
 	
-	static void appendCharString(char c, StringBuilder b) {
-		if (c >= 0x21 && c <= 0x7e && c != '\\' && c != '"')
+	static void appendCharString(final char c, final StringBuilder b) {
+		if (c >= 0x21 && c <= 0x7e && c != '\\' && c != '"') {
 			b.append(c);
-		else {
+		} else {
 			b.append("\\u");
-			String s = Integer.toHexString(c);
-			if (c < 0x10)
+			final String s = Integer.toHexString(c);
+			if (c < 0x10) {
 				b.append("000").append(s);
-			else if (c < 0x100)
+			} else if (c < 0x100) {
 				b.append("00").append(s);
-			else if (c < 0x1000)
+			} else if (c < 0x1000) {
 				b.append("0").append(s);
-			else
+			} else {
 				b.append(s);
+			}
 		}
 	}
 	
@@ -155,7 +158,7 @@ public class Transition implements Serializable, Cloneable {
 	 */
 	@Override
 	public String toString() {
-		StringBuilder b = new StringBuilder();
+		final StringBuilder b = new StringBuilder();
 		appendCharString(min, b);
 		if (min != max) {
 			b.append("-");
@@ -165,7 +168,7 @@ public class Transition implements Serializable, Cloneable {
 		return b.toString();
 	}
 
-	void appendDot(StringBuilder b) {
+	void appendDot(final StringBuilder b) {
 		b.append(" -> ").append(to.number).append(" [label=\"");
 		appendCharString(min, b);
 		if (min != max) {

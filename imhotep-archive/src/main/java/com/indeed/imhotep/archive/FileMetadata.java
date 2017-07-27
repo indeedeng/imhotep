@@ -29,12 +29,12 @@ public class FileMetadata {
     private final String archiveFilename;
 
     public FileMetadata(final String filename,
-                        long size,
-                        long timestamp,
-                        String checksum,
-                        long startOffset,
-                        SquallArchiveCompressor compressor,
-                        String archiveFilename) {
+                        final long size,
+                        final long timestamp,
+                        final String checksum,
+                        final long startOffset,
+                        final SquallArchiveCompressor compressor,
+                        final String archiveFilename) {
         this.filename = filename;
         this.size = size;
         this.timestamp = timestamp;

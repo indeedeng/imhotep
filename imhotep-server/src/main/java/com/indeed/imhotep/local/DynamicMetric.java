@@ -13,18 +13,18 @@
  */
  package com.indeed.imhotep.local;
 
-import java.io.Serializable;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.primitives.Ints;
 import com.indeed.flamdex.api.IntValueLookup;
+
+import java.io.Serializable;
 
 @VisibleForTesting
 public class DynamicMetric implements IntValueLookup, Serializable {
     private static final long serialVersionUID = 1L;
     private final int[] values;
 
-    public DynamicMetric(int size) {
+    public DynamicMetric(final int size) {
         this.values = new int[size];
     }
 
@@ -39,7 +39,7 @@ public class DynamicMetric implements IntValueLookup, Serializable {
     }
 
     @Override
-    public void lookup(int[] docIds, long[] values, int n) {
+    public void lookup(final int[] docIds, final long[] values, final int n) {
         for (int i = 0; i < n; i++) {
             values[i] = this.values[docIds[i]];
         }
@@ -55,7 +55,7 @@ public class DynamicMetric implements IntValueLookup, Serializable {
         // simply popping this from the metric stack doesn't have any effect
     }
 
-    public void add(int doc, int delta) {
+    public void add(final int doc, final int delta) {
         // TODO optimize this to remove branches
         final long newValue = (long) values[doc] + (long) delta;
         if (newValue < Integer.MIN_VALUE) {
@@ -67,11 +67,11 @@ public class DynamicMetric implements IntValueLookup, Serializable {
         }
     }
     
-    public void set(int doc, int value) {
+    public void set(final int doc, final int value) {
         values[doc] = value;
     }
 
-    public int lookupSingleVal(int docId) {
+    public int lookupSingleVal(final int docId) {
         return this.values[docId];
     }
 

@@ -28,7 +28,7 @@ public final class BucketStats {
      * @param xBuckets the number of x dimension buckets INCLUDING the 2 gutters
      * @param yBuckets the number of y dimension buckets INCLUDING the 2 gutters
      */
-    public BucketStats(long[] array, int xBuckets, int yBuckets) {
+    public BucketStats(final long[] array, final int xBuckets, final int yBuckets) {
         this.xBuckets = xBuckets;
         this.yBuckets = yBuckets;
 
@@ -36,43 +36,43 @@ public final class BucketStats {
         this.array = array.length < requiredArrayLen ? Arrays.copyOf(array, requiredArrayLen) : array;
     }
 
-    public final long get(final int x, final int y) {
+    public long get(final int x, final int y) {
         return array[(y + 1) * xBuckets + x + 2];
     }
 
-    public final long getXUnderflow(final int y) {
+    public long getXUnderflow(final int y) {
         return array[(y + 1) * xBuckets + 1];
     }
 
-    public final long getXOverflow(final int y) {
+    public long getXOverflow(final int y) {
         return array[(y + 2) * xBuckets];
     }
 
-    public final long getYUnderflow(final int x) {
+    public long getYUnderflow(final int x) {
         return array[x + 2];
     }
 
-    public final long getYOverflow(final int x) {
+    public long getYOverflow(final int x) {
         return array[(yBuckets - 1) * xBuckets + x + 2];
     }
 
-    public final long getXYUnderflow() {
+    public long getXYUnderflow() {
         return array[1];
     }
 
-    public final long getXYOverflow() {
+    public long getXYOverflow() {
         return array[xBuckets * yBuckets];
     }
 
-    public final long getXUnderflowYOverflow() {
+    public long getXUnderflowYOverflow() {
         return array[(yBuckets - 1) * xBuckets + 1];
     }
 
-    public final long getXOverflowYUnderflow() {
+    public long getXOverflowYUnderflow() {
         return array[xBuckets];
     }
 
-    public final long[] asArray() {
+    public long[] asArray() {
         return array;
     }
 }

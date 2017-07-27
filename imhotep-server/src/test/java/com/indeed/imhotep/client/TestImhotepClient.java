@@ -32,6 +32,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -57,7 +58,7 @@ public class TestImhotepClient {
     private ImhotepDaemonRunner daemon2;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() throws IOException, TimeoutException {
         final Path tempDir1 = tempDir.newFolder("test1").toPath();
         final Path tempOptDir1 = tempDir.newFolder("optimized.test1").toPath();
         final Path datasetDir = tempDir1.resolve(DATASET);
@@ -92,7 +93,7 @@ public class TestImhotepClient {
     }
 
     @Test
-    public void testFailure() throws Exception {
+    public void testFailure() throws IOException, TimeoutException {
         daemon1.start();
         daemon2.start();
         final ImhotepClient client = new ImhotepClient(Arrays.asList(new Host("localhost", daemon1.getPort()), new Host("localhost", daemon2.getPort())));
@@ -108,7 +109,7 @@ public class TestImhotepClient {
     }
 
     @Test
-    public void testRealFailure() throws Exception {
+    public void testRealFailure() throws IOException {
         daemon1.stop();
         final ImhotepClient client = new ImhotepClient(Collections.singletonList(new Host("localhost", daemon1.getPort())));
         try {
@@ -158,7 +159,10 @@ public class TestImhotepClient {
         final DateTime start = new DateTime(2000, 1, 1, 0, 0);
         removeIntersecingShardsHelper(shardIds, expectedShards, start);
     }
-    private void removeIntersecingShardsHelper(final List<String> shardIds, List<String> expectedShards, final DateTime start) {
+    private void removeIntersecingShardsHelper(
+            final List<String> shardIds,
+            List<String> expectedShards,
+            final DateTime start) {
         final List<ShardIdWithVersion> shards = shardBuilder(shardIds);
         expectedShards = stripVersions(expectedShards);
         final List<ShardIdWithVersion> result = ImhotepClient.removeIntersectingShards(shards, "test", start);

@@ -35,7 +35,7 @@ final class LuceneUnsortedIntTermDocIterator implements UnsortedIntTermDocIterat
     private long currentTerm;
     private boolean first = true;
 
-    LuceneUnsortedIntTermDocIterator(String field, TermEnum terms, TermDocs termDocs) {
+    LuceneUnsortedIntTermDocIterator(final String field, final TermEnum terms, final TermDocs termDocs) {
         this.field = field.intern();
         this.terms = terms;
         this.termDocs = termDocs;
@@ -46,10 +46,10 @@ final class LuceneUnsortedIntTermDocIterator implements UnsortedIntTermDocIterat
         final TermDocs termDocs;
         try {
             termDocs = r.termDocs();
-        } catch (IOException e) {
+        } catch (final IOException e) {
             try {
                 terms.close();
-            } catch (IOException e1) {
+            } catch (final IOException e1) {
                 log.error("error closing TermEnum", e1);
             }
             throw e;
@@ -61,7 +61,7 @@ final class LuceneUnsortedIntTermDocIterator implements UnsortedIntTermDocIterat
     public boolean nextTerm() {
         try {
             return innerNextTerm();
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new RuntimeException(e);
         }
     }
@@ -71,16 +71,20 @@ final class LuceneUnsortedIntTermDocIterator implements UnsortedIntTermDocIterat
         // loop instead of calling itself recursively to avoid potential stack overflow
         while (true) {
             if (!first) {
-                if (!terms.next()) return false;
+                if (!terms.next()) {
+                    return false;
+                }
             } else {
                 first = false;
             }
             final Term term = terms.term();
-            if (term == null || term.field() != field) return false;
+            if (term == null || term.field() != field) {
+                return false;
+            }
 
             try {
                 currentTerm = Long.parseLong(term.text());
-            } catch (NumberFormatException e) {
+            } catch (final NumberFormatException e) {
                 continue;
             }
             
@@ -96,18 +100,19 @@ final class LuceneUnsortedIntTermDocIterator implements UnsortedIntTermDocIterat
     }
 
     @Override
-    public int nextDocs(int[] docIdBuffer) {
+    public int nextDocs(final int[] docIdBuffer) {
         try {
             return innerNextDocs(docIdBuffer);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private int innerNextDocs(int[] docIdBuffer) throws IOException {
+    private int innerNextDocs(final int[] docIdBuffer) throws IOException {
         int i = 0;
         while (i < docIdBuffer.length && termDocs.next()) {
-            docIdBuffer[i++] = termDocs.doc();
+            docIdBuffer[i] = termDocs.doc();
+            i++;
         }
         return i;
     }
@@ -116,12 +121,12 @@ final class LuceneUnsortedIntTermDocIterator implements UnsortedIntTermDocIterat
     public void close() {
         try {
             terms.close();
-        } catch (IOException e) {
+        } catch (final IOException e) {
             log.error("error closing TermEnum", e);
         }
         try {
             termDocs.close();
-        } catch (IOException e) {
+        } catch (final IOException e) {
             log.error("error closing TermDocs", e);
         }
     }

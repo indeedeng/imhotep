@@ -20,7 +20,7 @@ import com.indeed.imhotep.ShardInfo;
  */
 public class AcceptAllShardFilter implements ShardFilter {
     @Override
-    public boolean accept(ShardInfo shard) {
+    public boolean accept(final ShardInfo shard) {
         return true;
     }
 }

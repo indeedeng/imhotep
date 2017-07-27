@@ -23,7 +23,7 @@ public final class LongArrayIntValueLookup implements IntValueLookup {
     private final long min;
     private final long max;
 
-    public LongArrayIntValueLookup(long[] lookupArray) {
+    public LongArrayIntValueLookup(final long[] lookupArray) {
         this.lookupArray = lookupArray;
         long tmin = Long.MAX_VALUE;
         long tmax = Long.MIN_VALUE;
@@ -35,7 +35,7 @@ public final class LongArrayIntValueLookup implements IntValueLookup {
         max = tmax;
     }
 
-    public LongArrayIntValueLookup(long[] lookupArray, long min, long max) {
+    public LongArrayIntValueLookup(final long[] lookupArray, final long min, final long max) {
         this.lookupArray = lookupArray;
         this.min = min;
         this.max = max;
@@ -52,7 +52,7 @@ public final class LongArrayIntValueLookup implements IntValueLookup {
     }
 
     @Override
-    public final void lookup(int[] docIds, long[] values, int n) {
+    public void lookup(final int[] docIds, final long[] values, final int n) {
         for (int i = 0; i < n; ++i) {
             values[i] = lookupArray[docIds[i]];
         }

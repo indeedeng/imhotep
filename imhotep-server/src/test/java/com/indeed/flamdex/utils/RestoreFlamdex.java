@@ -15,15 +15,15 @@
 
 import com.google.common.base.Charsets;
 import com.google.common.primitives.Ints;
-import com.indeed.util.core.shell.PosixFileOperations;
 import com.indeed.flamdex.simple.SimpleFlamdexWriter;
 import com.indeed.flamdex.writer.IntFieldWriter;
 import com.indeed.flamdex.writer.StringFieldWriter;
+import com.indeed.util.core.shell.PosixFileOperations;
 
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
-import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -34,7 +34,10 @@ import java.util.Random;
  * @author dwahler
  */
 public class RestoreFlamdex {
-    public static void main(String[] args) throws Exception {
+    private RestoreFlamdex() {
+    }
+
+    public static void main(final String[] args) throws IOException {
         long elapsed = -System.currentTimeMillis();
 
         final DataInputStream dis = new DataInputStream(new BufferedInputStream(new FileInputStream("/tmp/shard.dat")));

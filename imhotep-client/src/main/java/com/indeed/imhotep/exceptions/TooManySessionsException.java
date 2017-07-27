@@ -21,11 +21,11 @@ public class TooManySessionsException extends ImhotepKnownException {
         super();
     }
 
-    public TooManySessionsException(String s) {
+    public TooManySessionsException(final String s) {
         super(s);
     }
 
-    public TooManySessionsException(String message, Throwable cause) {
+    public TooManySessionsException(final String message, final Throwable cause) {
         super(message, cause);
     }
 }

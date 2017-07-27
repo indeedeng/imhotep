@@ -26,7 +26,7 @@ public abstract class AbstractBinaryOperator implements IntValueLookup {
 
     protected long[] buffer = new long[INITIAL_BUFFER_SIZE];
 
-    protected AbstractBinaryOperator(IntValueLookup a, IntValueLookup b) {
+    protected AbstractBinaryOperator(final IntValueLookup a, final IntValueLookup b) {
         this.a = a;
         this.b = b;
     }
@@ -42,8 +42,10 @@ public abstract class AbstractBinaryOperator implements IntValueLookup {
     }
 
     @Override
-    public void lookup(int[] docIds, long[] values, int n) {
-        if (buffer.length < n) buffer = new long[n];
+    public void lookup(final int[] docIds, final long[] values, final int n) {
+        if (buffer.length < n) {
+            buffer = new long[n];
+        }
         a.lookup(docIds, values, n);
         b.lookup(docIds, buffer, n);
         combine(values, buffer, n);

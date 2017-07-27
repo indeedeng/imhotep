@@ -32,7 +32,7 @@ public class ImhotepOverloadedException extends ImhotepKnownException {
      *
      * @param   s   the detail message.
      */
-    public ImhotepOverloadedException(String s) {
+    public ImhotepOverloadedException(final String s) {
         super(s);
     }
 
@@ -51,7 +51,7 @@ public class ImhotepOverloadedException extends ImhotepKnownException {
      *         is permitted, and indicates that the cause is nonexistent or
      *         unknown.)
      */
-    public ImhotepOverloadedException(String message, Throwable cause) {
+    public ImhotepOverloadedException(final String message, final Throwable cause) {
         super(message, cause);
     }
 }

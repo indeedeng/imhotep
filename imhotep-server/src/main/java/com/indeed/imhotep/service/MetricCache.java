@@ -26,11 +26,12 @@ import java.util.Set;
  */
 public interface MetricCache extends Closeable {
 
-    public IntValueLookup getMetric(String metric) throws FlamdexOutOfMemoryException;
+    IntValueLookup getMetric(String metric) throws FlamdexOutOfMemoryException;
 
-    public List<ImhotepStatusDump.MetricDump> getMetricDump();
+    List<ImhotepStatusDump.MetricDump> getMetricDump();
 
-    public Set<String> getLoadedMetrics();
+    Set<String> getLoadedMetrics();
 
-    public void close();
+    @Override
+    void close();
 }

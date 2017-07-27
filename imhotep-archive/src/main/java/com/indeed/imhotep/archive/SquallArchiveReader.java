@@ -49,7 +49,7 @@ public class SquallArchiveReader {
      * @param fs a file system
      * @param path the directory where the archive is located
      */
-    public SquallArchiveReader(FileSystem fs, Path path) {
+    public SquallArchiveReader(final FileSystem fs, final Path path) {
         this.fs = fs;
         this.path = path;
     }
@@ -88,7 +88,7 @@ public class SquallArchiveReader {
      */
     public static List<FileMetadata> readMetadata(final InputStream is) throws IOException {
         try (BufferedReader r = new BufferedReader(new InputStreamReader(is, Charsets.UTF_8))) {
-            final List<FileMetadata> ret = new ArrayList<FileMetadata>();
+            final List<FileMetadata> ret = new ArrayList<>();
             for (String line = r.readLine(); line != null; line = r.readLine()) {
                 final FileMetadata metadata = parseMetadata(line);
                 ret.add(metadata);
@@ -97,7 +97,7 @@ public class SquallArchiveReader {
         }
     }
 
-    private static FileMetadata parseMetadata(String line) throws IOException {
+    private static FileMetadata parseMetadata(final String line) throws IOException {
         final String[] split = line.split("\t");
         if (split.length < 5) {
             throw new IOException("malformed metadata line: " + line);
@@ -119,7 +119,7 @@ public class SquallArchiveReader {
      * @param localDir the directory to copy files into
      * @throws IOException if there is an IO problem
      */
-    public void copyAllToLocal(String localDir) throws IOException {
+    public void copyAllToLocal(final String localDir) throws IOException {
         copyAllToLocal(new File(localDir), new AcceptAllFileMetadataFilter());
     }
 
@@ -129,7 +129,7 @@ public class SquallArchiveReader {
      * @param localDir the directory to copy files into
      * @throws IOException if there is an IO problem
      */
-    public void copyAllToLocal(File localDir) throws IOException {
+    public void copyAllToLocal(final File localDir) throws IOException {
         copyAllToLocal(localDir, new AcceptAllFileMetadataFilter());
     }
 
@@ -139,7 +139,7 @@ public class SquallArchiveReader {
      * @param filter a function specifying which files should be copied
      * @throws IOException if there is an IO problem
      */
-    public void copyAllToLocal(File localDir, FileMetadataFilter filter) throws IOException {
+    public void copyAllToLocal(final File localDir, final FileMetadataFilter filter) throws IOException {
         for (final FileMetadata metadata : readMetadata()) {
             if (filter.accept(metadata)) {
                 copyToLocal(metadata, localDir);
@@ -154,7 +154,7 @@ public class SquallArchiveReader {
      * @param localDir the directory to copy into
      * @throws IOException if the given file is not in the archive or if there is an IO problem
      */
-    public void copyToLocal(String filename, String localDir) throws IOException {
+    public void copyToLocal(final String filename, final String localDir) throws IOException {
         final List<FileMetadata> metadataList = readMetadata();
         for (final FileMetadata metadata : metadataList) {
             if (filename.equals(metadata.getFilename())) {
@@ -172,25 +172,28 @@ public class SquallArchiveReader {
      * @param localDir the directory to copy into
      * @throws IOException if there is an IO problem
      */
-    public void copyToLocal(FileMetadata file, File localDir) throws IOException {
+    public void copyToLocal(final FileMetadata file, final File localDir) throws IOException {
         int retries = 3;
         while (true) {
             try {
                 tryCopyToLocal(file, localDir);
                 break;
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 log.error(e);
-                if (--retries == 0) throw e;
+                retries--;
+                if (retries == 0) {
+                    throw e;
+                }
                 try {
                     Thread.sleep(10000);
-                } catch (InterruptedException ie) {
+                } catch (final InterruptedException ie) {
                     log.error(e);
                 }
             }
         }
     }
 
-    public void tryCopyToLocal(FileMetadata file, File localDir) throws IOException {
+    public void tryCopyToLocal(final FileMetadata file, final File localDir) throws IOException {
         if (!localDir.exists() && !localDir.mkdirs()) {
             throw new IOException("could not create directory " + localDir);
         }
@@ -212,8 +215,7 @@ public class SquallArchiveReader {
 
         final Path archivePath = new Path(path, file.getArchiveFilename());
         final SquallArchiveCompressor compressor = file.getCompressor();
-        final FSDataInputStream is = fs.open(archivePath);
-        try {
+        try (FSDataInputStream is = fs.open(archivePath)) {
             is.seek(file.getStartOffset());
             final DigestInputStream digestStream = new DigestInputStream(compressor.newInputStream(is), ArchiveUtils.getMD5Digest());
             final OutputStream os = new BufferedOutputStream(new FileOutputStream(targetFile));
@@ -223,8 +225,6 @@ public class SquallArchiveReader {
             if (!checksum.equals(file.getChecksum())) {
                 throw new IOException("invalid checksum for file " + fullFilename + " in archive " + path + ": file checksum = " + checksum + ", checksum in metadata = " + file.getChecksum());
             }
-        } finally {
-            is.close();
         }
     }
 }

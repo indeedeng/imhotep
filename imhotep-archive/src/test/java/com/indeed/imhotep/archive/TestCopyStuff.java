@@ -15,13 +15,10 @@
 
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
-import com.indeed.imhotep.archive.CopyFromLocal;
-import com.indeed.imhotep.archive.CopyToLocal;
-
-import junit.framework.TestCase;
-
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
@@ -32,10 +29,13 @@ import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 /**
  * @author jsgroth
  */
-public class TestCopyStuff extends TestCase {
+public class TestCopyStuff {
     private FileSystem fs;
 
     private File temp1;
@@ -43,8 +43,8 @@ public class TestCopyStuff extends TestCase {
     private File temp3;
     private File temp4;
 
-    @Override
-    protected void setUp() throws Exception {
+    @Before
+    public void setUp() throws IOException{
         fs = new NicerLocalFileSystem();
 
         temp1 = File.createTempFile("sqar-test", "");
@@ -53,8 +53,8 @@ public class TestCopyStuff extends TestCase {
         temp4 = Files.createTempDir();
     }
 
-    @Override
-    protected void tearDown() throws Exception {
+    @After
+    public void tearDown() throws IOException {
         fs.delete(fileToPath(temp1), true);
         fs.delete(temp2, true);
         fs.delete(fileToPath(temp3), true);
@@ -68,8 +68,8 @@ public class TestCopyStuff extends TestCase {
         final String temp1Filename = temp1.getName();
         try {
             CopyFromLocal.copy(fs, temp1, temp2, false);
-            assertTrue(false);
-        } catch (IOException e) {
+            fail();
+        } catch (final IOException e) {
             // pass
         }
         CopyFromLocal.copy(fs, temp1, temp2, true);
@@ -95,20 +95,22 @@ public class TestCopyStuff extends TestCase {
         final Random rand = new Random();
         for (int i = 0; i < 10; ++i) {
             files.add(UUID.randomUUID().toString());
-            final OutputStream os = new FileOutputStream(new File(temp4, files.get(i)));
-            rand.nextBytes(bytes);
-            os.write(bytes);
-            os.close();
+            try( final OutputStream os = new FileOutputStream(new File(temp4, files.get(i))) ) {
+                rand.nextBytes(bytes);
+                os.write(bytes);
+            }
         }
         final List<String> dirs = Lists.newArrayList();
         for (int i = 0; i < 10; ++i) {
             dirs.add(UUID.randomUUID().toString());
             final File dir = new File(temp4, dirs.get(i));
-            if (!dir.mkdir()) throw new IOException();
-            final OutputStream os = new FileOutputStream(new File(dir, "asdf"));
-            rand.nextBytes(bytes);
-            os.write(bytes);
-            os.close();
+            if (!dir.mkdir()) {
+                throw new IOException();
+            }
+            try( final OutputStream os = new FileOutputStream(new File(dir, "asdf")) ) {
+                rand.nextBytes(bytes);
+                os.write(bytes);
+            }
         }
 
         CopyFromLocal.copy(fs, temp4, temp2, true);
@@ -119,13 +121,13 @@ public class TestCopyStuff extends TestCase {
         }
 
         for (final String dir : dirs) {
-            File orig = new File(new File(temp4, dir), "asdf");
-            File copied = new File(new File(temp3.toString(), dir), "asdf");
+            final File orig = new File(new File(temp4, dir), "asdf");
+            final File copied = new File(new File(temp3.toString(), dir), "asdf");
             assertTrue(Files.equal(orig, copied));
         }
     }
 
-    private static Path fileToPath(File f) {
+    private static Path fileToPath(final File f) {
         return new Path(f.getAbsolutePath());
     }
 }

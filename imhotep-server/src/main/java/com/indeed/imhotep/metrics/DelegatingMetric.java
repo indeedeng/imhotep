@@ -22,7 +22,7 @@ import com.indeed.flamdex.api.IntValueLookup;
 public class DelegatingMetric implements IntValueLookup {
     private final IntValueLookup inner;
 
-    public DelegatingMetric(IntValueLookup inner) {
+    public DelegatingMetric(final IntValueLookup inner) {
         this.inner = inner;
     }
 
@@ -37,7 +37,7 @@ public class DelegatingMetric implements IntValueLookup {
     }
 
     @Override
-    public void lookup(int[] docIds, long[] values, int n) {
+    public void lookup(final int[] docIds, final long[] values, final int n) {
         inner.lookup(docIds, values, n);
     }
 

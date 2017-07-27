@@ -16,7 +16,6 @@
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.imhotep.BitTree;
 import com.indeed.imhotep.api.FTGSIterator;
-import com.indeed.util.core.Pair;
 import com.indeed.util.core.reference.SharedReference;
 import org.apache.log4j.Logger;
 
@@ -51,7 +50,9 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
     protected boolean resetGroupStats = false;
     protected int termIndex;
 
-    public AbstractFlamdexFTGSIterator(ImhotepLocalSession imhotepLocalSession, SharedReference<FlamdexReader> flamdexReader) {
+    public AbstractFlamdexFTGSIterator(
+            final ImhotepLocalSession imhotepLocalSession,
+            final SharedReference<FlamdexReader> flamdexReader) {
         this.session = imhotepLocalSession;
         this.termGrpStats = new long[session.numStats][session.docIdToGroup.getNumGroups()];
         this.groupsSeen = new int[session.docIdToGroup.getNumGroups()];
@@ -90,7 +91,9 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
     @Override
     public final boolean nextGroup() {
         if (!resetGroupStats) {
-            if (groupPointer >= groupsSeenCount) return false;
+            if (groupPointer >= groupsSeenCount) {
+                return false;
+            }
             groupPointer++;
             return groupPointer < groupsSeenCount;
         }
@@ -99,14 +102,18 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
 
     private boolean calculateTermGroupStats() {
         // clear out ram from previous iterations if necessary
-        for (final long[] x : termGrpStats) ImhotepLocalSession.clear(x, groupsSeen, groupsSeenCount);
+        for (final long[] x : termGrpStats) {
+            ImhotepLocalSession.clear(x, groupsSeen, groupsSeenCount);
+        }
         groupsSeenCount = 0;
 
         // this is the critical loop of all of imhotep, making this loop faster is very good....
 
         synchronized (session) {
             while (true) {
-                if (ImhotepLocalSession.logTiming) docsTime -= System.nanoTime();
+                if (ImhotepLocalSession.logTiming) {
+                    docsTime -= System.nanoTime();
+                }
                 final int n = fillDocIdBuffer();
                 if (ImhotepLocalSession.logTiming) {
                     docsTime += System.nanoTime();
@@ -118,7 +125,9 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
                     timingErrorTime -= System.nanoTime();
                     timingErrorTime += System.nanoTime();
                 }
-                if (n < ImhotepLocalSession.BUFFER_SIZE) break;
+                if (n < ImhotepLocalSession.BUFFER_SIZE) {
+                    break;
+                }
             }
         }
         groupsSeenCount = bitTree.dump(groupsSeen);
@@ -136,7 +145,7 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
     }
 
     @Override
-    public final void groupStats(long[] stats) {
+    public final void groupStats(final long[] stats) {
         final int group = group();
         for (int i = 0; i < session.numStats; i++) {
             stats[i] = termGrpStats[i][group];

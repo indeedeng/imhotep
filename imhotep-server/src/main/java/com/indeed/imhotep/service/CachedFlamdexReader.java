@@ -54,7 +54,8 @@ import static com.indeed.util.core.Either.Right;
 public class CachedFlamdexReader implements FlamdexReader, MetricCache {
     private static final Logger log = Logger.getLogger(CachedFlamdexReader.class);
 
-    private final @Nullable MemoryReservationContext memory;
+    @Nullable
+    private final MemoryReservationContext memory;
 
     private final int memoryReservedForIndex;
 
@@ -62,14 +63,14 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
 
     private final MetricCache metricCache;
 
-    private final Map<String, Long> intDocFreqCache = new ConcurrentHashMap<String, Long>();
-    private final Map<String, Long> stringDocFreqCache = new ConcurrentHashMap<String, Long>();
+    private final Map<String, Long> intDocFreqCache = new ConcurrentHashMap<>();
+    private final Map<String, Long> stringDocFreqCache = new ConcurrentHashMap<>();
 
     public CachedFlamdexReader(final MemoryReservationContext memory,
                                final FlamdexReader wrapped,
-                               final @Nullable String indexName,
-                               final @Nullable String shardName,
-                               final @Nullable ImhotepMemoryCache<MetricKey, IntValueLookup> freeCache) {
+                               @Nullable final String indexName,
+                               @Nullable final String shardName,
+                               @Nullable final ImhotepMemoryCache<MetricKey, IntValueLookup> freeCache) {
         //closer will free these in the opposite order that they are added
         this.memory = memory;
         this.wrapped = wrapped;
@@ -105,10 +106,10 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
                                     memory.claimMemory(lookup.memoryUsed() - memoryUsed);
                                 }
                             }
-                        } catch (RuntimeException e) {
+                        } catch (final RuntimeException e) {
                             memory.releaseMemory(memoryUsed);
                             throw e;
-                        } catch (FlamdexOutOfMemoryException e) { // not sure why this would be thrown, but just in case...
+                        } catch (final FlamdexOutOfMemoryException e) { // not sure why this would be thrown, but just in case...
                             memory.releaseMemory(memoryUsed);
                             return Left.of(e);
                         }
@@ -155,17 +156,17 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
     }
 
     @Override
-    public IntTermIterator getIntTermIterator(String field) {
+    public IntTermIterator getIntTermIterator(final String field) {
         return wrapped.getIntTermIterator(field);
     }
 
     @Override
-    public IntTermIterator getUnsortedIntTermIterator(String field) {
+    public IntTermIterator getUnsortedIntTermIterator(final String field) {
         return wrapped.getUnsortedIntTermIterator(field);
     }
 
     @Override
-    public StringTermIterator getStringTermIterator(String field) {
+    public StringTermIterator getStringTermIterator(final String field) {
         return wrapped.getStringTermIterator(field);
     }
 
@@ -180,7 +181,7 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
     }
 
     @Override
-    public long getIntTotalDocFreq(String field) {
+    public long getIntTotalDocFreq(final String field) {
         Long docFreq = intDocFreqCache.get(field);
         if (docFreq == null) {
             docFreq = wrapped.getIntTotalDocFreq(field);
@@ -190,7 +191,7 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
     }
 
     @Override
-    public long getStringTotalDocFreq(String field) {
+    public long getStringTotalDocFreq(final String field) {
         Long docFreq = stringDocFreqCache.get(field);
         if (docFreq == null) {
             docFreq = wrapped.getStringTotalDocFreq(field);
@@ -205,7 +206,7 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
     }
 
     @Override
-    public IntValueLookup getMetric(String metric) throws FlamdexOutOfMemoryException {
+    public IntValueLookup getMetric(final String metric) throws FlamdexOutOfMemoryException {
         return metricCache.getMetric(metric);
     }
 
@@ -225,7 +226,7 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
     }
 
     @Override
-    public long memoryRequired(String metric) {
+    public long memoryRequired(final String metric) {
         return wrapped.memoryRequired(metric);
     }
 

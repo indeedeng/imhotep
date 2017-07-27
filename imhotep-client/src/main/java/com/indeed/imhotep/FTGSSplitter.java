@@ -58,7 +58,7 @@ public final class FTGSSplitter implements Runnable {
     private final int numStats;
     private final int largePrime;
 
-    public FTGSSplitter(FTGSIterator ftgsIterator, final int numSplits, final int numStats,
+    public FTGSSplitter(final FTGSIterator ftgsIterator, final int numSplits, final int numStats,
                         final int largePrime, final AtomicLong tempFileSizeBytesLeft,
                         final ThreadFactory threadFactory) throws IOException {
         this.iterator = ftgsIterator;
@@ -78,7 +78,7 @@ public final class FTGSSplitter implements Runnable {
                 outputs[i] = new FTGSOutputStreamWriter(outputStreams[i]);
                 ftgsIterators[i] = new SplitterRawFTGSIterator(multiFile.getInputStream(i), numStats, doneCounter, numSplits);
             }
-        } catch (Throwable t) {
+        } catch (final Throwable t) {
             try {
                 close();
             } finally {
@@ -137,7 +137,7 @@ public final class FTGSSplitter implements Runnable {
                     while (iterator.nextGroup()) {
                         output.switchGroup(iterator.group());
                         iterator.groupStats(statBuf);
-                        for (long stat : statBuf) {
+                        for (final long stat : statBuf) {
                             output.addStat(stat);
                         }
                     }
@@ -146,7 +146,7 @@ public final class FTGSSplitter implements Runnable {
             for (final FTGSOutputStreamWriter output : outputs) {
                 output.close();
             }
-        } catch (Throwable t) {
+        } catch (final Throwable t) {
             close();
             if(t instanceof WriteLimitExceededException) {
                 throw new TempFileSizeLimitExceededException(t);
@@ -157,7 +157,7 @@ public final class FTGSSplitter implements Runnable {
         }
     }
 
-    private int hashStringTerm(byte[] termStringBytes, int termStringLength) {
+    private int hashStringTerm(final byte[] termStringBytes, final int termStringLength) {
         return ((MurmurHash.hash32(termStringBytes, 0, termStringLength) *
                  largePrime+12345 & 0x7FFFFFFF) >> 16) % numSplits;
     }
@@ -170,8 +170,10 @@ public final class FTGSSplitter implements Runnable {
                         try {
                             runThread.interrupt();
                             runThread.join(10);
-                            if (!runThread.isAlive()) break;
-                        } catch (InterruptedException e) {
+                            if (!runThread.isAlive()) {
+                                break;
+                            }
+                        } catch (final InterruptedException e) {
                             //ignore
                         }
                     }
@@ -195,7 +197,7 @@ public final class FTGSSplitter implements Runnable {
         private final InputStreamFTGSIterator delegate;
         private boolean initialized = false;
 
-        public SplitterRawFTGSIterator(InputStream in, int numStats,
+        public SplitterRawFTGSIterator(final InputStream in, final int numStats,
                                        final AtomicInteger doneCounter,
                                        final int numSplits)
             throws FileNotFoundException {
@@ -218,7 +220,7 @@ public final class FTGSSplitter implements Runnable {
             if (!initialized) {
                 try {
                     runThread.join();
-                } catch (InterruptedException e) {
+                } catch (final InterruptedException e) {
                     throw Throwables.propagate(e);
                 }
                 initialized = true;

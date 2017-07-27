@@ -17,6 +17,7 @@ import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -30,25 +31,30 @@ import java.util.StringTokenizer;
  * @author jsgroth
  */
 public class InteractiveShell {
-    public static void main(String[] args) throws ImhotepOutOfMemoryException, IOException {
+    private InteractiveShell() {
+    }
+
+    public static void main(final String[] args) throws ImhotepOutOfMemoryException, IOException {
         final HostsReloader reloader;
-        if (args[0].equals("--hostsfile")) {
-            reloader = new FileHostsReloader(args[1]);
-        } else if (args[0].equals("--zknodes")) {
-            reloader = new ZkHostsReloader(args[1], true);
-        } else {
-            throw new RuntimeException();
+        switch (args[0]) {
+            case "--hostsfile":
+                reloader = new FileHostsReloader(args[1]);
+                break;
+            case "--zknodes":
+                reloader = new ZkHostsReloader(args[1], true);
+                break;
+            default:
+                throw new RuntimeException();
         }
 
         main(reloader);
     }
 
     public static void main(final HostsReloader reloader) throws ImhotepOutOfMemoryException, IOException {
-        final ImhotepClient client = new ImhotepClient(reloader);
-        final Scanner sc = new Scanner(System.in);
         ImhotepSession activeSession = null;
-        int numStats = 0;
-        try {
+        try( final ImhotepClient client = new ImhotepClient(reloader);
+            final Scanner sc = new Scanner(System.in) ) {
+            int numStats = 0;
             while (true) {
                 System.out.print("> ");
                 final String input = sc.nextLine();
@@ -56,19 +62,25 @@ public class InteractiveShell {
                     final StringTokenizer tokenizer = new StringTokenizer(input);
                     tokenizer.nextToken(); // open
                     final String dataset = tokenizer.nextToken();
-                    final List<String> requestedShards = new ArrayList<String>();
+                    final List<String> requestedShards = new ArrayList<>();
                     while (tokenizer.hasMoreTokens()) {
                         requestedShards.add(tokenizer.nextToken());
                     }
                     activeSession = client.sessionBuilder(dataset, null, null).shardsOverride(requestedShards).build();
                 } else if (input.equals("close")) {
-                    if (activeSession != null) activeSession.close();
+                    if (activeSession != null) {
+                        activeSession.close();
+                    }
                     activeSession = null;
                 } else if (input.startsWith("push")) {
                     final String metric = input.split(" ", 2)[1];
-                    if (activeSession != null) numStats = activeSession.pushStat(metric);
+                    if (activeSession != null) {
+                        numStats = activeSession.pushStat(metric);
+                    }
                 } else if (input.equals("pop")) {
-                    if (activeSession != null) numStats = activeSession.popStat();
+                    if (activeSession != null) {
+                        numStats = activeSession.popStat();
+                    }
                 } else if (input.startsWith("top")) {
                     final StringTokenizer tokenizer = new StringTokenizer(input);
                     tokenizer.nextToken(); // top
@@ -83,8 +95,12 @@ public class InteractiveShell {
                             stringFields = token.substring("sf=".length()).split(",");
                         }
                     }
-                    if (intFields == null) intFields = new String[0];
-                    if (stringFields == null) stringFields = new String[0];
+                    if (intFields == null) {
+                        intFields = new String[0];
+                    }
+                    if (stringFields == null) {
+                        stringFields = new String[0];
+                    }
                     final FTGSIterator iterator = activeSession.getFTGSIterator(intFields, stringFields);
                     final List<TGSTuple>[] topk = collectTopK(iterator, k, numStats);
                     for (int i = 0; i < numStats; ++i) {
@@ -98,8 +114,9 @@ public class InteractiveShell {
                 }
             }
         } finally {
-            if (activeSession != null) activeSession.close();
-            client.close();
+            if (activeSession != null) {
+                activeSession.close();
+            }
         }
     }
 
@@ -109,7 +126,7 @@ public class InteractiveShell {
         final long[] statBuf = new long[numStats];
         final PriorityQueue<TGSTuple>[] pqs = new PriorityQueue[numStats];
         for (int i = 0; i < pqs.length; ++i) {
-            pqs[i] = new PriorityQueue<TGSTuple>(k+1);
+            pqs[i] = new PriorityQueue<>(k+1);
         }
 
         while (iterator.nextField()) {
@@ -130,14 +147,16 @@ public class InteractiveShell {
                 for (int i = 0; i < numStats; ++i) {
                     final PriorityQueue<TGSTuple> pq = pqs[i];
                     pq.add(new TGSTuple(fieldName, fieldIsIntType, termIntVal, termStringVal, statAccumBuf[i]));
-                    while (pq.size() > k) pq.remove();
+                    while (pq.size() > k) {
+                        pq.remove();
+                    }
                 }
             }
         }
 
         final List<TGSTuple>[] ret = new List[numStats];
         for (int i = 0; i < numStats; ++i) {
-            ret[i] = new ArrayList<TGSTuple>(pqs[i]);
+            ret[i] = new ArrayList<>(pqs[i]);
             Collections.sort(ret[i]);
             Collections.reverse(ret[i]);
         }
@@ -151,7 +170,7 @@ public class InteractiveShell {
         public final String termStringVal;
         public final long stat;
 
-        public TGSTuple(String field, boolean fieldIsIntType, long termIntVal, String termStringVal, long stat) {
+        public TGSTuple(final String field, final boolean fieldIsIntType, final long termIntVal, final String termStringVal, final long stat) {
             this.field = field;
             this.fieldIsIntType = fieldIsIntType;
             this.termIntVal = termIntVal;
@@ -160,7 +179,7 @@ public class InteractiveShell {
         }
 
         @Override
-        public int compareTo(TGSTuple o) {
+        public int compareTo(@Nonnull final TGSTuple o) {
             return (int)(stat - o.stat);
         }
 

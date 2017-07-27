@@ -36,7 +36,7 @@ public final class NativeStringTermDocIterator extends NativeTermDocIterator imp
 
     private byte[] currentTermBuffer = new byte[128];
 
-    public NativeStringTermDocIterator(SimpleStringTermIterator termIterator, MapCache mapCache)
+    public NativeStringTermDocIterator(final SimpleStringTermIterator termIterator, final MapCache mapCache)
             throws IOException {
         super(termIterator.getFilename(), mapCache);
         this.termIterator = termIterator;
@@ -44,7 +44,9 @@ public final class NativeStringTermDocIterator extends NativeTermDocIterator imp
 
     @Override
     protected boolean bufferNext() {
-        if (!termIterator.next()) return false;
+        if (!termIterator.next()) {
+            return false;
+        }
         final int termLength = termIterator.termStringLength();
         if (bufferLength + termLength > buffer.length) {
             final byte[] newBuffer = new byte[Math.max(buffer.length*2, bufferLength + termLength)];

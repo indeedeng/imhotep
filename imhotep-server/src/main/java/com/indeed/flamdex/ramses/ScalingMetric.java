@@ -22,7 +22,7 @@ public class ScalingMetric implements IntValueLookup {
     private final IntValueLookup metric;
     private final int scaleFactor;
 
-    public ScalingMetric(IntValueLookup metric, int scaleFactor) {
+    public ScalingMetric(final IntValueLookup metric, final int scaleFactor) {
         this.metric = metric;
         this.scaleFactor = scaleFactor;
     }
@@ -38,7 +38,7 @@ public class ScalingMetric implements IntValueLookup {
     }
 
     @Override
-    public void lookup(int[] docIds, long[] values, int n) {
+    public void lookup(final int[] docIds, final long[] values, final int n) {
         metric.lookup(docIds, values, n);
         for (int i = 0; i < n; ++i) {
             values[i] *= scaleFactor;

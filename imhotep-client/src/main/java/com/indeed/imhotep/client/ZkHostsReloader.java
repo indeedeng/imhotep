@@ -50,12 +50,12 @@ public class ZkHostsReloader extends DataLoadingRunnable implements HostsReloade
         zkConnection = new ZooKeeperConnection(zkNodes, TIMEOUT);
         try {
             zkConnection.connect();
-        } catch (Exception e) {
+        } catch (final Exception e) {
             throw Throwables.propagate(e);
         }
         this.zkPath = trimEndingSlash(zkPath);
         closed = false;
-        hosts = new ArrayList<Host>();
+        hosts = new ArrayList<>();
         if (readHostsBeforeReturning) {
             int retries = 0;
             while (true) {
@@ -66,10 +66,11 @@ public class ZkHostsReloader extends DataLoadingRunnable implements HostsReloade
                 }
                 try {
                     Thread.sleep(TIMEOUT);
-                } catch (InterruptedException e) {
+                } catch (final InterruptedException e) {
                     log.error("interrupted", e);
                 }
-                if (++retries == 5) {
+                retries++;
+                if (retries == 5) {
                     throw new RuntimeException("unable to connect to zookeeper");
                 }
             }
@@ -94,17 +95,17 @@ public class ZkHostsReloader extends DataLoadingRunnable implements HostsReloade
                             hosts = newHosts;
                         }
                         return true;
-                    } catch (KeeperException e) {
+                    } catch (final KeeperException e) {
                         log.error("zookeeper exception", e);
                         loadFailed();
                         zkConnection.close();
                         zkConnection.connect();
                     }
-                } catch (IOException e) {
+                } catch (final IOException e) {
                     loadFailed();
                     log.error("io exception", e);
                 }
-            } catch (InterruptedException e) {
+            } catch (final InterruptedException e) {
                 log.error("interrupted", e);
                 loadFailed();
             }
@@ -114,7 +115,7 @@ public class ZkHostsReloader extends DataLoadingRunnable implements HostsReloade
 
     private List<Host> readHostsFromZK() throws KeeperException, InterruptedException {
         final List<String> childNodes = zkConnection.getChildren(zkPath, false);
-        final List<Host> hosts = new ArrayList<Host>(childNodes.size());
+        final List<Host> hosts = new ArrayList<>(childNodes.size());
         for (final String childNode : childNodes) {
             final byte[] data = zkConnection.getData(zkPath + "/" + childNode, false, new Stat());
             final String hostString = new String(data, Charsets.UTF_8);
@@ -134,7 +135,7 @@ public class ZkHostsReloader extends DataLoadingRunnable implements HostsReloade
         closed = true;
         try {
             zkConnection.close();
-        } catch (InterruptedException e) {
+        } catch (final InterruptedException e) {
             log.error(e);
         }
     }

@@ -14,6 +14,7 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
 import org.joda.time.Period;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -41,6 +42,7 @@ class FilteredShardDirIterator implements ShardDirIterator {
         this.config = config;
     }
 
+    @Nonnull
     @Override
     public Iterator<Pair<String, ShardDir>> iterator() {
         final DateTime now = new DateTime(wallClock.currentTimeMillis(), TIME_ZONE);

@@ -1,5 +1,6 @@
 package com.indeed.flamdex.writer;
 
+import org.junit.Before;
 import org.junit.Test;
 
 /**
@@ -8,9 +9,9 @@ import org.junit.Test;
 
 public class TestFlamdexDocument {
     private String longString;
-    @org.junit.Before
+    @Before
     public void setup() {
-        StringBuilder longStringBuilder = new StringBuilder();
+        final StringBuilder longStringBuilder = new StringBuilder();
         for (int i = 0; i < FlamdexDocument.STRING_TERM_LENGTH_LIMIT; i++) {
             longStringBuilder.append("a");
         }
@@ -19,14 +20,14 @@ public class TestFlamdexDocument {
 
     @Test
     public void testStringTermLimits() {
-        FlamdexDocument doc = new FlamdexDocument();
+        final FlamdexDocument doc = new FlamdexDocument();
         doc.addStringTerm("field", longString);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testStringTermLimitsTooLong() {
-        FlamdexDocument doc = new FlamdexDocument();
-        String tooLongString = longString + "A";
+        final FlamdexDocument doc = new FlamdexDocument();
+        final String tooLongString = longString + "A";
         doc.addStringTerm("field", tooLongString);
     }
 }

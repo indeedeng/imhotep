@@ -2,8 +2,10 @@ package com.indeed.imhotep.io;
 
 import com.google.common.base.Throwables;
 import com.indeed.util.core.shell.PosixFileOperations;
-import junit.framework.TestCase;
 import org.apache.log4j.Logger;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -13,27 +15,31 @@ import java.io.OutputStream;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 /**
  * @author jplaisance
  */
-public final class TestMultiFile extends TestCase {
+public final class TestMultiFile {
     private static final Logger log = Logger.getLogger(TestMultiFile.class);
 
     private File tmpDir;
 
-    @Override
-    public void setUp() throws Exception {
+    @Before
+    public void setUp() throws IOException {
         tmpDir = File.createTempFile("tmp", "", new File("."));
         tmpDir.delete();
         tmpDir.mkdir();
         System.out.println(tmpDir.getAbsolutePath());
     }
 
-    @Override
-    public void tearDown() throws Exception {
+    @After
+    public void tearDown() throws IOException {
         PosixFileOperations.rmrf(tmpDir);
     }
 
+    @Test
     public void testStuff() throws IOException, InterruptedException {
 
         final int splits = 17;
@@ -47,7 +53,7 @@ public final class TestMultiFile extends TestCase {
         }
     }
 
-    private byte[][] createData(int splits) throws IOException {
+    private byte[][] createData(final int splits) throws IOException {
         final byte[][] splitData = new byte[splits][];
         for (int i = 0; i < splits; i++) {
             final Random r = new Random();
@@ -61,7 +67,7 @@ public final class TestMultiFile extends TestCase {
         return splitData;
     }
 
-    public void runTest(int splits, final byte[][] splitData, final int maxCopySize, final boolean randomize) throws IOException, InterruptedException {
+    public void runTest(final int splits, final byte[][] splitData, final int maxCopySize, final boolean randomize) throws IOException, InterruptedException {
         final File file = File.createTempFile("tmp", ".bin", tmpDir);
         final MultiFile multiFile = MultiFile.create(file, splits, 4096);
         file.delete();
@@ -88,7 +94,7 @@ public final class TestMultiFile extends TestCase {
                         }
                         out.close();
                         latch.countDown();
-                    } catch (Throwable t) {
+                    } catch (final Throwable t) {
                         log.error("error", t);
                         throw Throwables.propagate(t);
                     }
@@ -132,7 +138,7 @@ public final class TestMultiFile extends TestCase {
                         }
                         in.close();
                         latch2.countDown();
-                    } catch (Throwable t) {
+                    } catch (final Throwable t) {
                         log.error("error", t);
                         throw Throwables.propagate(t);
                     }

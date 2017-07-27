@@ -20,5 +20,5 @@ import java.nio.file.Path;
  * @author jplaisance
  */
 public interface IntFieldWriterFactory {
-    public IntFieldWriter create(Path outputDirectory, String field, long numDocs) throws IOException;
+    IntFieldWriter create(Path outputDirectory, String field, long numDocs) throws IOException;
 }

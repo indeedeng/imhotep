@@ -11,10 +11,16 @@ import java.util.Set;
  */
 
 public class MockShard extends Shard {
-    public MockShard(ShardId shardId, int numDocs, Collection<String> intFields, Collection<String> stringFields, Collection<String> availableMetrics) {
+    public MockShard(
+            final ShardId shardId,
+            final int numDocs,
+            final Collection<String> intFields,
+            final Collection<String> stringFields,
+            final Collection<String> availableMetrics) {
         super(shardId, numDocs, intFields, stringFields, availableMetrics);
     }
 
+    @Override
     public Set<String> getLoadedMetrics() {
         return Collections.emptySet();
     }

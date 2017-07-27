@@ -36,7 +36,7 @@ public final class MMapFastBitSet implements Closeable {
     private final int bufferLength;
     private final LongArray bits;
 
-    public MMapFastBitSet(Path path, int size, FileChannel.MapMode mapMode) throws IOException {
+    public MMapFastBitSet(final Path path, final int size, final FileChannel.MapMode mapMode) throws IOException {
         this.size = size;
         this.arraySize = (size + 64) >> 6;
         this.bufferLength = arraySize * 8;
@@ -49,26 +49,27 @@ public final class MMapFastBitSet implements Closeable {
         return this.buffer.memory();
     }
 
-    public final boolean get(final int i) {
+    public boolean get(final int i) {
         return (bits.get(i >> 6) & (1L << (i & 0x3F))) != 0;
     }
 
-    public final void set(final int i) {
+    public void set(final int i) {
         bits.set(i >> 6, bits.get(i >> 6) | (1L << (i & 0x3F)));
     }
 
-    public final void clear(final int i) {
+    public void clear(final int i) {
         bits.set(i >> 6, bits.get(i >> 6) & ~(1L << (i & 0x3F)));
     }
 
-    public final void set(final int i, final boolean v) {
-        if (v)
-            set(i);
-        else
+    public void set(final int i, final boolean v) {
+        if (!v) {
             clear(i);
+        } else {
+            set(i);
+        }
     }
 
-    public final void setRange(final int b, final int e) {
+    public void setRange(final int b, final int e) {
         final int bt = b >> 6;
         final int et = e >> 6;
         if (bt != et) {
@@ -80,7 +81,7 @@ public final class MMapFastBitSet implements Closeable {
         }
     }
 
-    public final void clearRange(final int b, final int e) {
+    public void clearRange(final int b, final int e) {
         final int bt = b >> 6;
         final int et = e >> 6;
         if (bt != et) {
@@ -92,63 +93,73 @@ public final class MMapFastBitSet implements Closeable {
         }
     }
 
-    public final void setAll() {
+    public void setAll() {
         fill(bits, 0, arraySize, -1L);
     }
 
-    public final void clearAll() {
+    public void clearAll() {
         fill(bits, 0, arraySize, 0L);
     }
 
-    public final void invertAll() {
-        for (int i = 0; i < arraySize; ++i)
+    public void invertAll() {
+        for (int i = 0; i < arraySize; ++i) {
             bits.set(i, ~bits.get(i));
+        }
     }
 
-    public final void and(final MMapFastBitSet other) {
-        for (int i = 0; i < arraySize; ++i)
+    public void and(final MMapFastBitSet other) {
+        for (int i = 0; i < arraySize; ++i) {
             bits.set(i, bits.get(i) & other.bits.get(i));
+        }
     }
 
-    public final void or(final MMapFastBitSet other) {
-        for (int i = 0; i < arraySize; ++i)
+    public void or(final MMapFastBitSet other) {
+        for (int i = 0; i < arraySize; ++i) {
             bits.set(i, bits.get(i) | other.bits.get(i));
+        }
     }
 
-    public final void nand(final MMapFastBitSet other) {
-        for (int i = 0; i < arraySize; ++i)
+    public void nand(final MMapFastBitSet other) {
+        for (int i = 0; i < arraySize; ++i) {
             bits.set(i, ~(bits.get(i) & other.bits.get(i)));
+        }
     }
 
-    public final void nor(final MMapFastBitSet other) {
-        for (int i = 0; i < arraySize; ++i)
+    public void nor(final MMapFastBitSet other) {
+        for (int i = 0; i < arraySize; ++i) {
             bits.set(i, ~(bits.get(i) | other.bits.get(i)));
+        }
     }
 
-    public final void xor(final MMapFastBitSet other) {
-        for (int i = 0; i < arraySize; ++i)
+    public void xor(final MMapFastBitSet other) {
+        for (int i = 0; i < arraySize; ++i) {
             bits.set(i, bits.get(i) ^ other.bits.get(i));
+        }
     }
 
-    public final int cardinality() {
-        if (size == 0) return 0;
+    public int cardinality() {
+        if (size == 0) {
+            return 0;
+        }
         int count = 0;
-        for (int i = 0; i < arraySize - 1; ++i)
+        for (int i = 0; i < arraySize - 1; ++i) {
             count += Long.bitCount(bits.get(i));
+        }
         return count + Long.bitCount(bits.get(arraySize - 1) & ~(-1L << (size & 0x3F)));
     }
 
-    public final int size() {
+    public int size() {
         return size;
     }
 
-    public final long memoryUsage() {
+    public long memoryUsage() {
         return 0;
     }
 
     private static void fill(final LongArray a, final int b, final int e, final long l) {
-        for (int i = b; i < e; ++i)
+        for (int i = b; i < e; ++i) {
             a.set(i, l);
+        }
     }
 
     public void sync() throws IOException {

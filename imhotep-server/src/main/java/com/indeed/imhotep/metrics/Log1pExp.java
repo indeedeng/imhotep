@@ -23,7 +23,7 @@ public class Log1pExp implements IntValueLookup {
     private final IntValueLookup operand;
     private final int scaleFactor;
 
-    public Log1pExp(IntValueLookup operand, int scaleFactor) {
+    public Log1pExp(final IntValueLookup operand, final int scaleFactor) {
         this.operand = operand;
         this.scaleFactor = scaleFactor;
     }
@@ -39,7 +39,7 @@ public class Log1pExp implements IntValueLookup {
     }
 
     @Override
-    public void lookup(int[] docIds, long[] values, int n) {
+    public void lookup(final int[] docIds, final long[] values, final int n) {
         operand.lookup(docIds, values, n);
         for (int i = 0; i < n; i++) {
             final double x = values[i] / (double) scaleFactor;

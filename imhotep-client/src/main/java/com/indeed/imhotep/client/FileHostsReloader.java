@@ -30,14 +30,14 @@ public class FileHostsReloader extends DataLoadingRunnable implements HostsReloa
 
     private volatile List<Host> hosts = Collections.emptyList();
 
-    public FileHostsReloader(String hostsFile) {
+    public FileHostsReloader(final String hostsFile) {
         super("FileHostsReloader");
 
         this.hostsFile = trimProtocol(hostsFile);
         updateHosts();
     }
 
-    private static String trimProtocol(String hostsFile) {
+    private static String trimProtocol(final String hostsFile) {
         if (hostsFile.startsWith("file://")) {
             return hostsFile.substring("file://".length());
         }
@@ -70,7 +70,7 @@ public class FileHostsReloader extends DataLoadingRunnable implements HostsReloa
                 hosts = newHosts;
             }
             return true;
-        } catch (Exception e) {
+        } catch (final Exception e) {
             log.error("error loading hosts file", e);
             return false;
         }

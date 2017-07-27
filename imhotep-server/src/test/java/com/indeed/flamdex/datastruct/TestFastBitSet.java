@@ -13,15 +13,21 @@
  */
  package com.indeed.flamdex.datastruct;
 
-import junit.framework.TestCase;
+import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.Random;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 /**
  * @author jsgroth
  */
-public class TestFastBitSet extends TestCase {
+public class TestFastBitSet {
+
+    @Test
     public void test1() {
         final FastBitSet bs = new FastBitSet(1000);
         for (int i = 0; i < 1000; i += 3) {
@@ -48,6 +54,7 @@ public class TestFastBitSet extends TestCase {
         }
     }
 
+    @Test
     public void test2() {
         final FastBitSet bs = new FastBitSet(128);
         assertEquals(0, bs.cardinality());
@@ -75,6 +82,7 @@ public class TestFastBitSet extends TestCase {
         }
     }
 
+    @Test
     public void test3() {
         final FastBitSet bs = new FastBitSet(64);
         assertEquals(0, bs.cardinality());
@@ -90,10 +98,11 @@ public class TestFastBitSet extends TestCase {
         }
     }
 
+    @Test
     public void testIterator() {
-        FastBitSet bitSet = new FastBitSet(1024*1024);
-        Random r = new Random();
-        int[] ints = new int[bitSet.size()/128];
+        final FastBitSet bitSet = new FastBitSet(1024*1024);
+        final Random r = new Random();
+        final int[] ints = new int[bitSet.size()/128];
         for (int i = 0; i < ints.length; i++) {
             ints[i] = r.nextInt(bitSet.size());
             bitSet.set(ints[i]);
@@ -105,7 +114,7 @@ public class TestFastBitSet extends TestCase {
                 ints[n++] = ints[i];
             }
         }
-        FastBitSet.IntIterator iterator = bitSet.iterator();
+        final FastBitSet.IntIterator iterator = bitSet.iterator();
         for (int i = 0; i < n; i++) {
             assertTrue(iterator.next());
             assertEquals(ints[i], iterator.getValue());
@@ -113,6 +122,7 @@ public class TestFastBitSet extends TestCase {
         assertFalse(iterator.next());
     }
 
+    @Test
     public void testIteratorEnd() {
         final FastBitSet bitSet = new FastBitSet(1);
         bitSet.setAll();

@@ -24,6 +24,8 @@ import java.lang.reflect.Field;
  * @author jplaisance
  */
 public final class NativeMetricRegroupInternals {
+    private NativeMetricRegroupInternals() {
+    }
 
     private static final Logger log = Logger.getLogger(NativeMetricRegroupInternals.class);
 
@@ -37,14 +39,21 @@ public final class NativeMetricRegroupInternals {
             theUnsafe.setAccessible(true);
             UNSAFE = (Unsafe)theUnsafe.get(null);
             INT_ARRAY_BASE_OFFSET = UNSAFE.arrayBaseOffset(int[].class);
-        } catch (NoSuchFieldException e) {
-            throw new RuntimeException(e);
-        } catch (IllegalAccessException e) {
+        } catch (NoSuchFieldException | IllegalAccessException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public static void calculateGroups(final int min, final int max, final long magicNumber, final int numBuckets, final int n, int[] valBuf, int[] docGroupBuffer, DirectMemory nativeValBuf, DirectMemory nativeDocGroupBuffer) {
+    public static void calculateGroups(
+            final int min,
+            final int max,
+            final long magicNumber,
+            final int numBuckets,
+            final int n,
+            final int[] valBuf,
+            final int[] docGroupBuffer,
+            final DirectMemory nativeValBuf,
+            final DirectMemory nativeDocGroupBuffer) {
         final long valBufAddress = nativeValBuf.getAddress();
         UNSAFE.copyMemory(valBuf, INT_ARRAY_BASE_OFFSET, null, valBufAddress, 4*n);
         final long docGroupBufferAddress = nativeDocGroupBuffer.getAddress();

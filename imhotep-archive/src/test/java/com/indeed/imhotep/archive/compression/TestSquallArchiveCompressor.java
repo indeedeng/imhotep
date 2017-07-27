@@ -11,16 +11,12 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.indeed.imhotep.archive.compression;
-
-import junit.framework.TestCase;
+package com.indeed.imhotep.archive.compression;
 
 import com.indeed.util.compress.CompressionInputStream;
 import com.indeed.util.compress.CompressionOutputStream;
 import org.apache.log4j.Logger;
 import org.junit.Test;
-
-import com.indeed.imhotep.archive.compression.SquallArchiveCompressor;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -29,11 +25,12 @@ import java.util.Random;
 
 import static com.indeed.imhotep.archive.compression.SquallArchiveCompressor.GZIP;
 import static com.indeed.imhotep.archive.compression.SquallArchiveCompressor.NONE;
+import static org.junit.Assert.assertEquals;
 
 /**
  * @author jsgroth
  */
-public class TestSquallArchiveCompressor extends TestCase {
+public class TestSquallArchiveCompressor {
     private static final Logger log = Logger.getLogger(TestSquallArchiveCompressor.class);
 
     @Test
@@ -42,7 +39,7 @@ public class TestSquallArchiveCompressor extends TestCase {
         compressorTestCase(GZIP);
     }
 
-    private void compressorTestCase(SquallArchiveCompressor compressor) throws IOException {
+    private void compressorTestCase(final SquallArchiveCompressor compressor) throws IOException {
         compressorTestCase(compressor, generateFixedData());
         compressorTestCase(compressor, generateRandomData());
     }
@@ -70,7 +67,7 @@ public class TestSquallArchiveCompressor extends TestCase {
         return data;
     }
 
-    private void compressorTestCase(SquallArchiveCompressor compressor, int[][] data) throws IOException {
+    private void compressorTestCase(final SquallArchiveCompressor compressor, final int[][] data) throws IOException {
         final ByteArrayOutputStream baos = new ByteArrayOutputStream();
         final int[] offsets = new int[1000];
         for (int i = 0; i < 1000; ++i) {
@@ -98,11 +95,11 @@ public class TestSquallArchiveCompressor extends TestCase {
     }
 
     private static class SeekableByteArrayInputStream extends ByteArrayInputStream {
-        private SeekableByteArrayInputStream(byte buf[]) {
+        private SeekableByteArrayInputStream(final byte[] buf) {
             super(buf);
         }
 
-        public void seek(int pos) {
+        public void seek(final int pos) {
             this.pos = pos;
         }
     }

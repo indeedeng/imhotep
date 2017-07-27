@@ -18,7 +18,6 @@ import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.lucene.LuceneFlamdexReader;
-import org.apache.lucene.index.IndexReader;
 
 import java.io.IOException;
 import java.nio.file.Paths;
@@ -28,7 +27,10 @@ import java.util.Collection;
  * @author jsgroth
  */
 public class Benchmark {
-    public static void main(String[] args) throws IOException, InterruptedException {
+    private Benchmark() {
+    }
+
+    public static void main(final String[] args) throws IOException, InterruptedException {
         final String luceneDir = args[0];
         final String simpleDir = args[1];
 
@@ -38,7 +40,7 @@ public class Benchmark {
         benchmark(reader1, reader2);
     }
 
-    public static void benchmark(FlamdexReader reader1, FlamdexReader reader2) throws InterruptedException {
+    public static void benchmark(final FlamdexReader reader1, final FlamdexReader reader2) throws InterruptedException {
         final Collection<String> intFields = reader2.getIntFields();
 //        final Collection<String> intFields = Collections.emptyList();
         final Collection<String> stringFields = reader2.getStringFields();
@@ -75,7 +77,9 @@ public class Benchmark {
                     for (int i = 0; i < n; ++i) {
                         someVar += docIdBuf[i];
                     }
-                    if (n < docIdBuf.length) break;
+                    if (n < docIdBuf.length) {
+                        break;
+                    }
                 }
             }
         }
@@ -89,7 +93,9 @@ public class Benchmark {
                     for (int i = 0; i < n; ++i) {
                         someVar += docIdBuf[i];
                     }
-                    if (n < docIdBuf.length) break;
+                    if (n < docIdBuf.length) {
+                        break;
+                    }
                 }
             }
         }

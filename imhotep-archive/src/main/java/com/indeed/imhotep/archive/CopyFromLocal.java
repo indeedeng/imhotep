@@ -14,7 +14,6 @@
  package com.indeed.imhotep.archive;
 
 import com.indeed.imhotep.archive.compression.SquallArchiveCompressor;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -26,7 +25,10 @@ import java.io.IOException;
  * @author jsgroth
  */
 public class CopyFromLocal {
-    public static void main(String[] args) throws IOException {
+    private CopyFromLocal() {
+    }
+
+    public static void main(final String[] args) throws IOException {
         if (args.length < 2) {
             System.err.println("ARGS: from to [--overwrite]");
             System.exit(1);
@@ -34,7 +36,7 @@ public class CopyFromLocal {
 
         boolean overwrite = false;
         for (int i = 2; i < args.length; ++i) {
-            if (args[i].equals("--overwrite")) {
+            if ("--overwrite".equals(args[i])) {
                 overwrite = true;
             } else {
                 throw new IllegalArgumentException("unrecognized arg: " + args[i]);
@@ -44,15 +46,15 @@ public class CopyFromLocal {
         copy(new File(args[0]), new Path(args[1]), overwrite);
     }
 
-    public static void copy(File from, Path to, boolean overwrite) throws IOException {
+    public static void copy(final File from, final Path to, final boolean overwrite) throws IOException {
         copy(to.getFileSystem(new Configuration()), from, to, overwrite);
     }
 
-    public static void copy(FileSystem fs, File from, Path to, boolean overwrite) throws IOException {
+    public static void copy(final FileSystem fs, final File from, final Path to, final boolean overwrite) throws IOException {
         copy(fs, from, to, overwrite, SquallArchiveCompressor.GZIP);
     }
 
-    public static void copy(FileSystem fs, File from, Path to, boolean overwrite, SquallArchiveCompressor compressor) throws IOException {
+    public static void copy(final FileSystem fs, final File from, final Path to, final boolean overwrite, final SquallArchiveCompressor compressor) throws IOException {
         if (fs.exists(to)) {
             if (!overwrite) {
                 throw new IOException("path already exists: " + to);

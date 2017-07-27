@@ -14,28 +14,29 @@
 package com.indeed.imhotep.local;
 
 import com.google.common.collect.ComparisonChain;
-import com.indeed.util.core.sort.Quicksortable;
-import com.indeed.util.core.sort.Quicksortables;
-
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.RegroupCondition;
+import com.indeed.util.core.sort.Quicksortable;
+import com.indeed.util.core.sort.Quicksortables;
 
 import java.util.Arrays;
 
 class GroupMultiRemapRules {
+    private GroupMultiRemapRules() {
+    }
 
-    static int countRemapConditions(GroupMultiRemapRule[] rules) {
+    static int countRemapConditions(final GroupMultiRemapRule[] rules) {
         int result = 0;
-        for (GroupMultiRemapRule rule : rules) {
+        for (final GroupMultiRemapRule rule : rules) {
             result += rule.conditions.length;
         }
         return result;
     }
 
-    static int findMaxGroup(GroupMultiRemapRule[] rules) {
+    static int findMaxGroup(final GroupMultiRemapRule[] rules) {
         int maxGroup = 0;
-        for (GroupMultiRemapRule rule : rules) {
-            for (int positiveGroup : rule.positiveGroups) {
+        for (final GroupMultiRemapRule rule : rules) {
+            for (final int positiveGroup : rule.positiveGroups) {
                 maxGroup = Math.max(maxGroup, positiveGroup);
             }
             maxGroup = Math.max(maxGroup, rule.targetGroup);
@@ -44,9 +45,9 @@ class GroupMultiRemapRules {
         return maxGroup;
     }
 
-    static int findMaxIntermediateGroup(GroupMultiRemapRule[] rules) {
+    static int findMaxIntermediateGroup(final GroupMultiRemapRule[] rules) {
         int max = 0;
-        for (GroupMultiRemapRule rule : rules) {
+        for (final GroupMultiRemapRule rule : rules) {
             max = Math.max(max, rule.conditions.length);
         }
         return max;
@@ -55,7 +56,7 @@ class GroupMultiRemapRules {
     /*
      * Verifies that targetGroups are unique and are >= 1, and returns the highest group found.
      */
-    static int validateTargets(GroupMultiRemapRule[] rules) {
+    static int validateTargets(final GroupMultiRemapRule[] rules) {
         final int[] targetGroups = new int[rules.length];
         for (int i = 0; i < rules.length; i++) {
             targetGroups[i] = rules[i].targetGroup;
@@ -79,8 +80,8 @@ class GroupMultiRemapRules {
      * @throws IllegalArgumentException if the same rule has multiple conditions targeting
      *                                  the same term in the same field
      */
-    static void validateEqualitySplits(GroupMultiRemapRule[] rules) {
-        for (GroupMultiRemapRule rule : rules) {
+    static void validateEqualitySplits(final GroupMultiRemapRule[] rules) {
+        for (final GroupMultiRemapRule rule : rules) {
             final RegroupCondition[] sortedConditions = Arrays.copyOf(rule.conditions, rule.conditions.length);
             sortConditions(sortedConditions);
             for (int i = 0; i < sortedConditions.length-1; i++) {
@@ -109,14 +110,14 @@ class GroupMultiRemapRules {
     private static void sortConditions(final RegroupCondition[] sortedConditions) {
         Quicksortables.sort(new Quicksortable() {
                 @Override
-                public void swap(int i, int j) {
+                public void swap(final int i, final int j) {
                     final RegroupCondition tmp = sortedConditions[i];
                     sortedConditions[i] = sortedConditions[j];
                     sortedConditions[j] = tmp;
                 }
 
                 @Override
-                public int compare(int i, int j) {
+                public int compare(final int i, final int j) {
                     final RegroupCondition s1 = sortedConditions[i];
                     final RegroupCondition s2 = sortedConditions[j];
                     final int r = ComparisonChain.start()

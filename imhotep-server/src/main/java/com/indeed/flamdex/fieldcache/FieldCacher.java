@@ -39,24 +39,24 @@ import java.util.UUID;
 public enum FieldCacher {
     LONG {
         @Override
-        public long memoryRequired(int numDocs) {
+        public long memoryRequired(final int numDocs) {
             return 8L * numDocs;
         }
         @Override
-        public IntValueLookup newFieldCache(UnsortedIntTermDocIterator iterator,
-                                            int numDocs,
-                                            long min,
-                                            long max) {
+        public IntValueLookup newFieldCache(final UnsortedIntTermDocIterator iterator,
+                                            final int numDocs,
+                                            final long min,
+                                            final long max) {
             return new LongArrayIntValueLookup(FlamdexUtils.cacheLongField(iterator, numDocs),
                                                min,
                                                max);
         }
         @Override
-        public IntValueLookup newMMapFieldCache(UnsortedIntTermDocIterator iterator,
-                                                int numDocs,
-                                                String field,
-                                                Path directory,
-                                                long min, long max) throws IOException {
+        public IntValueLookup newMMapFieldCache(final UnsortedIntTermDocIterator iterator,
+                                                final int numDocs,
+                                                final String field,
+                                                final Path directory,
+                                                final long min, final long max) throws IOException {
             final Path cachePath = directory.resolve(getMMapFileName(field));
             MMapBuffer buffer;
             try {
@@ -70,9 +70,9 @@ public enum FieldCacher {
                                                new CacheToFileOperation<MMapBuffer>() {
                                                    @Override
                                                    public MMapBuffer execute(
-                                                           UnsortedIntTermDocIterator iterator,
-                                                           int numDocs,
-                                                           Path p) throws IOException {
+                                                           final UnsortedIntTermDocIterator iterator,
+                                                           final int numDocs,
+                                                           final Path p) throws IOException {
                                                        return FlamdexUtils.cacheLongFieldToFile(
                                                                iterator,
                                                                numDocs,
@@ -83,30 +83,30 @@ public enum FieldCacher {
             return new MMapLongArrayIntValueLookup(buffer, numDocs, min, max);
         }
         @Override
-        public String getMMapFileName(String field) {
+        public String getMMapFileName(final String field) {
             return "fld-" + field + ".longcache";
         }
     },
     INT {
         @Override
-        public long memoryRequired(int numDocs) {
+        public long memoryRequired(final int numDocs) {
             return 4L * numDocs;
         }
         @Override
-        public IntValueLookup newFieldCache(UnsortedIntTermDocIterator iterator,
-                                            int numDocs,
-                                            long min,
-                                            long max) {
+        public IntValueLookup newFieldCache(final UnsortedIntTermDocIterator iterator,
+                                            final int numDocs,
+                                            final long min,
+                                            final long max) {
             return new IntArrayIntValueLookup(FlamdexUtils.cacheIntField(iterator, numDocs),
                                               min,
                                               max);
         }
         @Override
-        public IntValueLookup newMMapFieldCache(UnsortedIntTermDocIterator iterator,
-                                                int numDocs,
-                                                String field,
-                                                Path directory,
-                                                long min, long max) throws IOException {
+        public IntValueLookup newMMapFieldCache(final UnsortedIntTermDocIterator iterator,
+                                                final int numDocs,
+                                                final String field,
+                                                final Path directory,
+                                                final long min, final long max) throws IOException {
             final Path cachePath = directory.resolve(getMMapFileName(field));
             MMapBuffer buffer;
             try {
@@ -120,9 +120,9 @@ public enum FieldCacher {
                                                new CacheToFileOperation<MMapBuffer>() {
                                                    @Override
                                                    public MMapBuffer execute(
-                                                           UnsortedIntTermDocIterator iterator,
-                                                           int numDocs,
-                                                           Path p) throws IOException {
+                                                           final UnsortedIntTermDocIterator iterator,
+                                                           final int numDocs,
+                                                           final Path p) throws IOException {
                                                        return FlamdexUtils.cacheIntFieldToFile(
                                                                iterator,
                                                                numDocs,
@@ -133,30 +133,30 @@ public enum FieldCacher {
             return new MMapIntArrayIntValueLookup(buffer, numDocs, min, max);
         }
         @Override
-        public String getMMapFileName(String field) {
+        public String getMMapFileName(final String field) {
             return "fld-" + field + ".intcache";
         }
     },
     CHAR {
         @Override
-        public long memoryRequired(int numDocs) {
+        public long memoryRequired(final int numDocs) {
             return 2L * numDocs;
         }
         @Override
-        public IntValueLookup newFieldCache(UnsortedIntTermDocIterator iterator,
-                                            int numDocs,
-                                            long min,
-                                            long max) {
+        public IntValueLookup newFieldCache(final UnsortedIntTermDocIterator iterator,
+                                            final int numDocs,
+                                            final long min,
+                                            final long max) {
             return new CharArrayIntValueLookup(FlamdexUtils.cacheCharField(iterator, numDocs),
                                                min,
                                                max);
         }
         @Override
-        public IntValueLookup newMMapFieldCache(UnsortedIntTermDocIterator iterator,
-                                                int numDocs,
-                                                String field,
-                                                Path directory,
-                                                long min, long max) throws IOException {
+        public IntValueLookup newMMapFieldCache(final UnsortedIntTermDocIterator iterator,
+                                                final int numDocs,
+                                                final String field,
+                                                final Path directory,
+                                                final long min, final long max) throws IOException {
             final Path cachePath = directory.resolve(getMMapFileName(field));
             MMapBuffer buffer;
             try {
@@ -170,9 +170,9 @@ public enum FieldCacher {
                                                new CacheToFileOperation<MMapBuffer>() {
                                                    @Override
                                                    public MMapBuffer execute(
-                                                           UnsortedIntTermDocIterator iterator,
-                                                           int numDocs,
-                                                           Path p) throws IOException {
+                                                           final UnsortedIntTermDocIterator iterator,
+                                                           final int numDocs,
+                                                           final Path p) throws IOException {
                                                        return FlamdexUtils.cacheCharFieldToFile(
                                                                iterator,
                                                                numDocs,
@@ -183,30 +183,30 @@ public enum FieldCacher {
             return new MMapCharArrayIntValueLookup(buffer, numDocs, min, max);
         }
         @Override
-        public String getMMapFileName(String field) {
+        public String getMMapFileName(final String field) {
             return "fld-" + field + ".charcache";
         }
     },
     SHORT {
         @Override
-        public long memoryRequired(int numDocs) {
+        public long memoryRequired(final int numDocs) {
             return 2L * numDocs;
         }
         @Override
-        public IntValueLookup newFieldCache(UnsortedIntTermDocIterator iterator,
-                                            int numDocs,
-                                            long min,
-                                            long max) {
+        public IntValueLookup newFieldCache(final UnsortedIntTermDocIterator iterator,
+                                            final int numDocs,
+                                            final long min,
+                                            final long max) {
             return new ShortArrayIntValueLookup(FlamdexUtils.cacheShortField(iterator, numDocs),
                                                 min,
                                                 max);
         }
         @Override
-        public IntValueLookup newMMapFieldCache(UnsortedIntTermDocIterator iterator,
-                                                int numDocs,
-                                                String field,
-                                                Path directory,
-                                                long min, long max) throws IOException {
+        public IntValueLookup newMMapFieldCache(final UnsortedIntTermDocIterator iterator,
+                                                final int numDocs,
+                                                final String field,
+                                                final Path directory,
+                                                final long min, final long max) throws IOException {
             final Path cachePath = directory.resolve(getMMapFileName(field));
             MMapBuffer buffer;
             try {
@@ -220,9 +220,9 @@ public enum FieldCacher {
                                                new CacheToFileOperation<MMapBuffer>() {
                                                    @Override
                                                    public MMapBuffer execute(
-                                                           UnsortedIntTermDocIterator iterator,
-                                                           int numDocs,
-                                                           Path p) throws IOException {
+                                                           final UnsortedIntTermDocIterator iterator,
+                                                           final int numDocs,
+                                                           final Path p) throws IOException {
                                                        return FlamdexUtils.cacheShortFieldToFile(
                                                                iterator,
                                                                numDocs,
@@ -233,30 +233,30 @@ public enum FieldCacher {
             return new MMapShortArrayIntValueLookup(buffer, numDocs, min, max);
         }
         @Override
-        public String getMMapFileName(String field) {
+        public String getMMapFileName(final String field) {
             return "fld-" + field + ".shortcache";
         }
     },
     BYTE {
         @Override
-        public long memoryRequired(int numDocs) {
+        public long memoryRequired(final int numDocs) {
             return numDocs;
         }
         @Override
-        public IntValueLookup newFieldCache(UnsortedIntTermDocIterator iterator,
-                                            int numDocs,
-                                            long min,
-                                            long max) {
+        public IntValueLookup newFieldCache(final UnsortedIntTermDocIterator iterator,
+                                            final int numDocs,
+                                            final long min,
+                                            final long max) {
             return new ByteArrayIntValueLookup(FlamdexUtils.cacheByteField(iterator, numDocs),
                                                min,
                                                max);
         }
         @Override
-        public IntValueLookup newMMapFieldCache(UnsortedIntTermDocIterator iterator,
-                                                int numDocs,
-                                                String field,
-                                                Path directory,
-                                                long min, long max) throws IOException {
+        public IntValueLookup newMMapFieldCache(final UnsortedIntTermDocIterator iterator,
+                                                final int numDocs,
+                                                final String field,
+                                                final Path directory,
+                                                final long min, final long max) throws IOException {
             final Path cachePath = directory.resolve(getMMapFileName(field));
             MMapBuffer buffer;
             try {
@@ -270,9 +270,9 @@ public enum FieldCacher {
                                                new CacheToFileOperation<MMapBuffer>() {
                                                    @Override
                                                    public MMapBuffer execute(
-                                                           UnsortedIntTermDocIterator iterator,
-                                                           int numDocs,
-                                                           Path p) throws IOException {
+                                                           final UnsortedIntTermDocIterator iterator,
+                                                           final int numDocs,
+                                                           final Path p) throws IOException {
                                                        return FlamdexUtils.cacheByteFieldToFile(
                                                                iterator,
                                                                numDocs,
@@ -283,30 +283,30 @@ public enum FieldCacher {
             return new MMapByteArrayIntValueLookup(buffer, numDocs, min, max);
         }
         @Override
-        public String getMMapFileName(String field) {
+        public String getMMapFileName(final String field) {
             return "fld-" + field + ".bytecache";
         }
     },
     SIGNED_BYTE {
         @Override
-        public long memoryRequired(int numDocs) {
+        public long memoryRequired(final int numDocs) {
             return numDocs;
         }
         @Override
-        public IntValueLookup newFieldCache(UnsortedIntTermDocIterator iterator,
-                                            int numDocs,
-                                            long min,
-                                            long max) {
+        public IntValueLookup newFieldCache(final UnsortedIntTermDocIterator iterator,
+                                            final int numDocs,
+                                            final long min,
+                                            final long max) {
             return new SignedByteArrayIntValueLookup(FlamdexUtils.cacheByteField(iterator, numDocs),
                                                      min,
                                                      max);
         }
         @Override
-        public IntValueLookup newMMapFieldCache(UnsortedIntTermDocIterator iterator,
-                                                int numDocs,
-                                                String field,
-                                                Path directory,
-                                                long min, long max) throws IOException {
+        public IntValueLookup newMMapFieldCache(final UnsortedIntTermDocIterator iterator,
+                                                final int numDocs,
+                                                final String field,
+                                                final Path directory,
+                                                final long min, final long max) throws IOException {
             final Path cachePath = directory.resolve(getMMapFileName(field));
             MMapBuffer buffer;
             try {
@@ -320,9 +320,9 @@ public enum FieldCacher {
                                                new CacheToFileOperation<MMapBuffer>() {
                                                    @Override
                                                    public MMapBuffer execute(
-                                                           UnsortedIntTermDocIterator iterator,
-                                                           int numDocs,
-                                                           Path p) throws IOException {
+                                                           final UnsortedIntTermDocIterator iterator,
+                                                           final int numDocs,
+                                                           final Path p) throws IOException {
                                                        return FlamdexUtils.cacheByteFieldToFile(
                                                                iterator,
                                                                numDocs,
@@ -333,28 +333,28 @@ public enum FieldCacher {
             return new MMapSignedByteArrayIntValueLookup(buffer, numDocs, min, max);
         }
         @Override
-        public String getMMapFileName(String field) {
+        public String getMMapFileName(final String field) {
             return "fld-" + field + ".sbytecache";
         }
     },
     BITSET {
         @Override
-        public long memoryRequired(int numDocs) {
+        public long memoryRequired(final int numDocs) {
             return 8L * (((long)numDocs + 64) >> 6);
         }
         @Override
-        public IntValueLookup newFieldCache(UnsortedIntTermDocIterator iterator,
-                                            int numDocs,
-                                            long min,
-                                            long max) {
+        public IntValueLookup newFieldCache(final UnsortedIntTermDocIterator iterator,
+                                            final int numDocs,
+                                            final long min,
+                                            final long max) {
             return new BitSetIntValueLookup(FlamdexUtils.cacheBitSetField(iterator, numDocs));
         }
         @Override
-        public IntValueLookup newMMapFieldCache(UnsortedIntTermDocIterator iterator,
-                                                int numDocs,
-                                                String field,
-                                                Path directory,
-                                                long min, long max) throws IOException {
+        public IntValueLookup newMMapFieldCache(final UnsortedIntTermDocIterator iterator,
+                                                final int numDocs,
+                                                final String field,
+                                                final Path directory,
+                                                final long min, final long max) throws IOException {
             final Path cachePath = directory.resolve(getMMapFileName(field));
             try {
                 return new MMapBitSetIntValueLookup(cachePath, numDocs);
@@ -369,9 +369,9 @@ public enum FieldCacher {
                                                                 new CacheToFileOperation<MMapFastBitSet>() {
                                                                     @Override
                                                                     public MMapFastBitSet execute(
-                                                                            UnsortedIntTermDocIterator iterator,
-                                                                            int numDocs,
-                                                                            Path p) throws IOException {
+                                                                            final UnsortedIntTermDocIterator iterator,
+                                                                            final int numDocs,
+                                                                            final Path p) throws IOException {
                                                                         return FlamdexUtils.cacheBitSetFieldToFile(
                                                                                 iterator,
                                                                                 numDocs,
@@ -381,7 +381,7 @@ public enum FieldCacher {
             return new MMapBitSetIntValueLookup(bitSet);
         }
         @Override
-        public String getMMapFileName(String field) {
+        public String getMMapFileName(final String field) {
             return "fld-" + field + ".bitsetcache";
         }
     };
@@ -390,12 +390,9 @@ public enum FieldCacher {
 
     public abstract long memoryRequired(int numDocs);
 
-    public final IntValueLookup newFieldCache(String field, FlamdexReader r, long min, long max) {
-        final UnsortedIntTermDocIterator iterator = UnsortedIntTermDocIteratorImpl.create(r, field);
-        try {
+    public final IntValueLookup newFieldCache(final String field, final FlamdexReader r, final long min, final long max) {
+        try (UnsortedIntTermDocIterator iterator = UnsortedIntTermDocIteratorImpl.create(r, field)) {
             return newFieldCache(iterator, r.getNumDocs(), min, max);
-        } finally {
-            iterator.close();
         }
     }
 
@@ -404,16 +401,13 @@ public enum FieldCacher {
                                                  long min,
                                                  long max);
 
-    public final IntValueLookup newMMapFieldCache(String field,
-                                                  FlamdexReader r,
-                                                  Path directory,
-                                                  long min,
-                                                  long max) throws IOException {
-        final UnsortedIntTermDocIterator iterator = UnsortedIntTermDocIteratorImpl.create(r, field);
-        try {
+    public final IntValueLookup newMMapFieldCache(final String field,
+                                                  final FlamdexReader r,
+                                                  final Path directory,
+                                                  final long min,
+                                                  final long max) throws IOException {
+        try (UnsortedIntTermDocIterator iterator = UnsortedIntTermDocIteratorImpl.create(r, field)) {
             return newMMapFieldCache(iterator, r.getNumDocs(), field, directory, min, max);
-        } finally {
-            iterator.close();
         }
     }
 
@@ -435,12 +429,12 @@ public enum FieldCacher {
         }
     }
 
-    private static <T extends Closeable> T cacheToFileAtomically(UnsortedIntTermDocIterator iterator,
-                                                         int numDocs,
-                                                         String field,
-                                                         Path directory,
-                                                         Path cachePath,
-                                                         CacheToFileOperation<T> op) throws IOException {
+    private static <T extends Closeable> T cacheToFileAtomically(final UnsortedIntTermDocIterator iterator,
+                                                                 final int numDocs,
+                                                                 final String field,
+                                                                 final Path directory,
+                                                                 final Path cachePath,
+                                                                 final CacheToFileOperation<T> op) throws IOException {
         final Path tmp = directory.resolve("fld-" + field + ".intcache." + UUID.randomUUID());
         try {
             final T ret = op.execute(iterator, numDocs, tmp);

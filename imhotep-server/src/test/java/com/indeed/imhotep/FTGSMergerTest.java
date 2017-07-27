@@ -20,7 +20,9 @@ import java.util.Collection;
 
 public class FTGSMergerTest extends AbstractFTGSMergerCase {
     @Override
-    protected FTGSIterator newFTGSMerger(Collection<? extends RawFTGSIterator> iterators, int numStats) {
+    protected FTGSIterator newFTGSMerger(
+            final Collection<? extends RawFTGSIterator> iterators,
+            final int numStats) {
         return new FTGSMerger(iterators, numStats, null);
     }
 }

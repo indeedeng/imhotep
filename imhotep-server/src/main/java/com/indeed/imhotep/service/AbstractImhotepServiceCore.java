@@ -68,7 +68,7 @@ public abstract class AbstractImhotepServiceCore
 
     protected abstract SessionManager getSessionManager();
 
-    protected Instrumentation.ProviderSupport instrumentation =
+    protected final Instrumentation.ProviderSupport instrumentation =
         new Instrumentation.ProviderSupport();
 
     protected final class SessionObserver implements Instrumentation.Observer {
@@ -78,11 +78,11 @@ public abstract class AbstractImhotepServiceCore
         private final String clientName;
         private final String ipAddress;
 
-        SessionObserver(String dataset,
-                        String sessionId,
-                        String username,
-                        String clientName,
-                        String ipAddress) {
+        SessionObserver(final String dataset,
+                        final String sessionId,
+                        final String username,
+                        final String clientName,
+                        final String ipAddress) {
             this.dataset   = dataset;
             this.sessionId = sessionId;
             this.username  = username;
@@ -90,7 +90,7 @@ public abstract class AbstractImhotepServiceCore
             this.ipAddress = ipAddress;
         }
 
-        public void onEvent(Instrumentation.Event event) {
+        public void onEvent(final Instrumentation.Event event) {
             event.getProperties().put(Keys.DATASET,    dataset);
             event.getProperties().put(Keys.SESSION_ID, sessionId);
             event.getProperties().put(Keys.USERNAME,   username);
@@ -104,16 +104,16 @@ public abstract class AbstractImhotepServiceCore
         ftgsExecutor = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setDaemon(true).setNameFormat("LocalImhotepServiceCore-FTGSWorker-%d").build());
     }
 
-    public void addObserver(Instrumentation.Observer observer) {
+    public void addObserver(final Instrumentation.Observer observer) {
         instrumentation.addObserver(observer);
     }
 
-    public void removeObserver(Instrumentation.Observer observer) {
+    public void removeObserver(final Instrumentation.Observer observer) {
         instrumentation.removeObserver(observer);
     }
 
     @Override
-    public long handleGetTotalDocFreq(String sessionId, final String[] intFields, final String[] stringFields) {
+    public long handleGetTotalDocFreq(final String sessionId, final String[] intFields, final String[] stringFields) {
         return doWithSession(sessionId, new Function<ImhotepSession, Long>() {
             public Long apply(final ImhotepSession session) {
                 return session.getTotalDocFreq(intFields, stringFields);
@@ -122,7 +122,7 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public long[] handleGetGroupStats(String sessionId, final int stat) {
+    public long[] handleGetGroupStats(final String sessionId, final int stat) {
         return doWithSession(sessionId, new Function<ImhotepSession, long[]>() {
             public long[] apply(final ImhotepSession session) {
                 return session.getGroupStats(stat);
@@ -149,7 +149,7 @@ public abstract class AbstractImhotepServiceCore
      * so it has to be sent here and not from ImhotepDaemon.
      * @param os output stream to write the successful response protobuf to.
      */
-    private void sendSuccessResponse(OutputStream os) throws IOException {
+    private void sendSuccessResponse(final OutputStream os) throws IOException {
         final ImhotepResponse.Builder responseBuilder = ImhotepResponse.newBuilder();
         ImhotepDaemon.sendResponse(responseBuilder.build(), os);
     }
@@ -169,10 +169,10 @@ public abstract class AbstractImhotepServiceCore
     private Void writeFTGSIteratorToOutputStream(final int numStats, final FTGSIterator merger, final OutputStream os) throws IOException {
         final Future<?> future = ftgsExecutor.submit(new Callable<Void>() {
             @Override
-            public Void call() throws Exception {
+            public Void call() throws IOException {
                 try {
                     FTGSOutputStreamWriter.write(merger, numStats, os);
-                } catch (Exception e) {
+                } catch (final IOException e) {
                     throw e;
                 } finally {
                     Closeables2.closeQuietly(merger, log);
@@ -183,10 +183,10 @@ public abstract class AbstractImhotepServiceCore
         try {
             // do a timed get so the task doesn't run infinitely
             future.get(30L, TimeUnit.MINUTES);
-        } catch (TimeoutException e) {
+        } catch (final TimeoutException e) {
             future.cancel(true);
             throw new RuntimeException(e);
-        } catch (ExecutionException e) {
+        } catch (final ExecutionException e) {
             final Throwable cause = e.getCause();
             if (cause instanceof RuntimeException) {
                 throw (RuntimeException)cause;
@@ -195,7 +195,7 @@ public abstract class AbstractImhotepServiceCore
                 throw (IOException)cause;
             }
             throw new RuntimeException(cause);
-        } catch (InterruptedException e) {
+        } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }
         return null;
@@ -216,12 +216,12 @@ public abstract class AbstractImhotepServiceCore
     public void handleGetFTGSIteratorSplitNative(final String sessionId, final String[] intFields, final String[] stringFields, final OutputStream os, final int splitIndex, final int numSplits, final long termLimit, final Socket socket) throws IOException {
         doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Void, IOException>() {
             @Override
-            public Void apply(ImhotepSession imhotepSession) throws IOException {
+            public Void apply(final ImhotepSession imhotepSession) throws IOException {
                 try {
                     sendSuccessResponse(os);
                     os.flush();
                     imhotepSession.writeFTGSIteratorSplit(intFields, stringFields, splitIndex, numSplits, termLimit, socket);
-                } catch (ImhotepOutOfMemoryException e) {
+                } catch (final ImhotepOutOfMemoryException e) {
                     throw new RuntimeException(e);
                 }
                 return null;//returns Void
@@ -273,15 +273,19 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public void handleGetDocIterator(String sessionId, final String[] intFields, final String[] stringFields, final OutputStream os) throws
-            ImhotepOutOfMemoryException, IOException {
+    public void handleGetDocIterator(
+            final String sessionId,
+            final String[] intFields,
+            final String[] stringFields,
+            final OutputStream os)
+            throws ImhotepOutOfMemoryException, IOException {
         final SharedReference<ImhotepSession> sessionRef = getSessionManager().getSession(sessionId);
         try {
             final DocIterator iterator = sessionRef.get().getDocIterator(intFields, stringFields);
             sendSuccessResponse(os);
             final Future<?> future = ftgsExecutor.submit(new Callable<Void>() {
                 @Override
-                public Void call() throws Exception {
+                public Void call() throws IOException {
                     try {
                         DocOutputStreamWriter.writeNotThreadSafe(iterator, intFields.length, stringFields.length, os);
                     } finally {
@@ -293,15 +297,13 @@ public abstract class AbstractImhotepServiceCore
             try {
                 // do a timed get so the task doesn't run infinitely
                 future.get(30L, TimeUnit.MINUTES);
-            } catch (TimeoutException e) {
+            } catch (final TimeoutException e) {
                 future.cancel(true);
                 throw Throwables.propagate(e);
-            } catch (ExecutionException e) {
-                throw Throwables.propagate(e);
-            } catch (InterruptedException e) {
+            } catch (final ExecutionException | InterruptedException e) {
                 throw Throwables.propagate(e);
             }
-        } catch (Throwable t) {
+        } catch (final Throwable t) {
             Closeables2.closeQuietly(sessionRef, log);
             throw Throwables2.propagate(t, ImhotepOutOfMemoryException.class, IOException.class);
         }
@@ -314,13 +316,15 @@ public abstract class AbstractImhotepServiceCore
     public abstract List<DatasetInfo> handleGetDatasetList();
 
     @Override
-    public abstract ImhotepStatusDump handleGetStatusDump(boolean includeShards);
+    public abstract ImhotepStatusDump handleGetStatusDump(final boolean includeShardList);
 
     private static interface ThrowingFunction<A, B, T extends Throwable> {
         B apply(A a) throws T;
     }
 
-    public <Z, T extends Throwable> Z doWithSession(String sessionId, ThrowingFunction<ImhotepSession, Z, T> f) throws T {
+    public <Z, T extends Throwable> Z doWithSession(
+            final String sessionId,
+            final ThrowingFunction<ImhotepSession, Z, T> f) throws T {
         final SharedReference<ImhotepSession> sessionRef = getSessionManager().getSession(sessionId);
         try {
             return f.apply(sessionRef.get());
@@ -329,7 +333,7 @@ public abstract class AbstractImhotepServiceCore
         }
     }
 
-    public <Z> Z doWithSession(String sessionId, Function<ImhotepSession, Z> f)  {
+    public <Z> Z doWithSession(final String sessionId, final Function<ImhotepSession, Z> f)  {
         final SharedReference<ImhotepSession> sessionRef = getSessionManager().getSession(sessionId);
         try {
             return f.apply(sessionRef.get());
@@ -339,7 +343,7 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public int handleRegroup(String sessionId, final GroupRemapRule[] remapRules) throws ImhotepOutOfMemoryException {
+    public int handleRegroup(final String sessionId, final GroupRemapRule[] remapRules) throws ImhotepOutOfMemoryException {
         return doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Integer, ImhotepOutOfMemoryException>() {
             public Integer apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
                 return session.regroup(remapRules);
@@ -356,7 +360,7 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public int handleMultisplitRegroup(String sessionId, final GroupMultiRemapRule[] remapRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
+    public int handleMultisplitRegroup(final String sessionId, final GroupMultiRemapRule[] remapRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
         return doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Integer, ImhotepOutOfMemoryException>() {
             public Integer apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
                 return session.regroup(remapRules, errorOnCollisions);
@@ -365,7 +369,7 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public int handleMultisplitRegroup(String sessionId, final int numRemapRules, final Iterator<GroupMultiRemapRule> remapRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
+    public int handleMultisplitRegroup(final String sessionId, final int numRemapRules, final Iterator<GroupMultiRemapRule> remapRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
         return doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Integer, ImhotepOutOfMemoryException>() {
             public Integer apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
                 return session.regroup(numRemapRules, remapRules, errorOnCollisions);
@@ -374,7 +378,7 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public int handleQueryRegroup(String sessionId, final QueryRemapRule remapRule) throws ImhotepOutOfMemoryException {
+    public int handleQueryRegroup(final String sessionId, final QueryRemapRule remapRule) throws ImhotepOutOfMemoryException {
         return doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Integer, ImhotepOutOfMemoryException>() {
             public Integer apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
                 return session.regroup(remapRule);
@@ -383,7 +387,7 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public void handleIntOrRegroup(String sessionId, final String field, final long[] terms, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
+    public void handleIntOrRegroup(final String sessionId, final String field, final long[] terms, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
         doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Void, ImhotepOutOfMemoryException>() {
             public Void apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
                 session.intOrRegroup(field, terms, targetGroup, negativeGroup, positiveGroup);
@@ -393,7 +397,7 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public void handleStringOrRegroup(String sessionId, final String field, final String[] terms, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
+    public void handleStringOrRegroup(final String sessionId, final String field, final String[] terms, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
         doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Void, ImhotepOutOfMemoryException>() {
             public Void apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
                 session.stringOrRegroup(field, terms, targetGroup, negativeGroup, positiveGroup);
@@ -403,7 +407,7 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public void handleRandomRegroup(String sessionId, final String field, final boolean isIntField, final String salt, final double p, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
+    public void handleRandomRegroup(final String sessionId, final String field, final boolean isIntField, final String salt, final double p, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
         doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Void, ImhotepOutOfMemoryException>() {
             public Void apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
                 session.randomRegroup(field, isIntField, salt, p, targetGroup, negativeGroup, positiveGroup);
@@ -413,7 +417,7 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public void handleRandomMultiRegroup(String sessionId, final String field, final boolean isIntField, final String salt, final int targetGroup, final double[] percentages, final int[] resultGroups) throws ImhotepOutOfMemoryException {
+    public void handleRandomMultiRegroup(final String sessionId, final String field, final boolean isIntField, final String salt, final int targetGroup, final double[] percentages, final int[] resultGroups) throws ImhotepOutOfMemoryException {
         doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Void, ImhotepOutOfMemoryException>() {
             public Void apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
                 session.randomMultiRegroup(field, isIntField, salt, targetGroup, percentages, resultGroups);
@@ -423,7 +427,7 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public void handleRegexRegroup(String sessionId, final String field, final String regex, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
+    public void handleRegexRegroup(final String sessionId, final String field, final String regex, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
         doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Void, ImhotepOutOfMemoryException>() {
             public Void apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
                 session.regexRegroup(field, regex, targetGroup, negativeGroup, positiveGroup);
@@ -433,7 +437,7 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public int handleMetricRegroup(String sessionId, final int stat, final long min, final long max, final long intervalSize, final boolean noGutters) throws ImhotepOutOfMemoryException {
+    public int handleMetricRegroup(final String sessionId, final int stat, final long min, final long max, final long intervalSize, final boolean noGutters) throws ImhotepOutOfMemoryException {
         return doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Integer, ImhotepOutOfMemoryException>() {
             public Integer apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
                 return session.metricRegroup(stat, min, max, intervalSize, noGutters);
@@ -442,7 +446,7 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public int handleMetricRegroup2D(String sessionId, final int xStat, final long xMin, final long xMax, final long xIntervalSize, final int yStat, final long yMin, final long yMax, final long yIntervalSize) throws ImhotepOutOfMemoryException {
+    public int handleMetricRegroup2D(final String sessionId, final int xStat, final long xMin, final long xMax, final long xIntervalSize, final int yStat, final long yMin, final long yMax, final long yIntervalSize) throws ImhotepOutOfMemoryException {
         return doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Integer, ImhotepOutOfMemoryException>() {
             public Integer apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
                 return session.metricRegroup2D(xStat, xMin, xMax, xIntervalSize, yStat, yMin, yMax, yIntervalSize);
@@ -450,16 +454,21 @@ public abstract class AbstractImhotepServiceCore
         });
     }
 
-    public int handleMetricFilter(final String sessionId, final int stat, final long min, final long max, final boolean negation) throws ImhotepOutOfMemoryException {
+    public int handleMetricFilter(
+            final String sessionId,
+            final int stat,
+            final long min,
+            final long max,
+            final boolean negate) throws ImhotepOutOfMemoryException {
         return doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Integer, ImhotepOutOfMemoryException>() {
             public Integer apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
-                return session.metricFilter(stat, min, max, negation);
+                return session.metricFilter(stat, min, max, negate);
             }
         });
     }
 
     @Override
-    public List<TermCount> handleApproximateTopTerms(String sessionId, final String field, final boolean isIntField, final int k) {
+    public List<TermCount> handleApproximateTopTerms(final String sessionId, final String field, final boolean isIntField, final int k) {
         return doWithSession(sessionId, new Function<ImhotepSession,List<TermCount>>() {
             public List<TermCount> apply(final ImhotepSession session) {
                 return session.approximateTopTerms(field, isIntField, k);
@@ -490,17 +499,17 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public int handleGetNumGroups(String sessionId) {
+    public int handleGetNumGroups(final String sessionId) {
         return doWithSession(sessionId, new Function<ImhotepSession, Integer>() {
             @Override
-            public Integer apply(ImhotepSession imhotepSession) {
+            public Integer apply(final ImhotepSession imhotepSession) {
                 return imhotepSession.getNumGroups();
             }
         });
     }
 
     @Override
-    public void handleCreateDynamicMetric(String sessionId, final String dynamicMetricName) throws ImhotepOutOfMemoryException {
+    public void handleCreateDynamicMetric(final String sessionId, final String dynamicMetricName) throws ImhotepOutOfMemoryException {
         doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Void, ImhotepOutOfMemoryException>() {
             public Void apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
                 session.createDynamicMetric(dynamicMetricName);
@@ -510,7 +519,7 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public void handleUpdateDynamicMetric(String sessionId, final String dynamicMetricName, final int[] deltas) throws ImhotepOutOfMemoryException {
+    public void handleUpdateDynamicMetric(final String sessionId, final String dynamicMetricName, final int[] deltas) throws ImhotepOutOfMemoryException {
         doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Void, ImhotepOutOfMemoryException>() {
             public Void apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
                 session.updateDynamicMetric(dynamicMetricName, deltas);
@@ -520,7 +529,7 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public void handleConditionalUpdateDynamicMetric(String sessionId, final String dynamicMetricName, final RegroupCondition[] conditions, final int[] deltas) {
+    public void handleConditionalUpdateDynamicMetric(final String sessionId, final String dynamicMetricName, final RegroupCondition[] conditions, final int[] deltas) {
         doWithSession(sessionId, new Function<ImhotepSession, Void>() {
             public Void apply(final ImhotepSession session) {
                 session.conditionalUpdateDynamicMetric(dynamicMetricName, conditions, deltas);
@@ -530,7 +539,7 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public void handleGroupConditionalUpdateDynamicMetric(String sessionId, final String dynamicMetricName, final int[] groups, final RegroupCondition[] conditions, final int[] deltas) {
+    public void handleGroupConditionalUpdateDynamicMetric(final String sessionId, final String dynamicMetricName, final int[] groups, final RegroupCondition[] conditions, final int[] deltas) {
         doWithSession(sessionId, new Function<ImhotepSession, Void>() {
             public Void apply(final ImhotepSession session) {
                 session.groupConditionalUpdateDynamicMetric(dynamicMetricName, groups, conditions, deltas);
@@ -539,7 +548,7 @@ public abstract class AbstractImhotepServiceCore
         });
     }
 
-    public void handleGroupQueryUpdateDynamicMetric(String sessionId, final String dynamicMetricName, final int[] groups, final Query[] queries, final int[] deltas) throws ImhotepOutOfMemoryException {
+    public void handleGroupQueryUpdateDynamicMetric(final String sessionId, final String dynamicMetricName, final int[] groups, final Query[] queries, final int[] deltas) throws ImhotepOutOfMemoryException {
         doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Void, ImhotepOutOfMemoryException>() {
             public Void apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
                 session.groupQueryUpdateDynamicMetric(dynamicMetricName, groups, queries, deltas);
@@ -549,7 +558,7 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public void handleRebuildAndFilterIndexes(String sessionId, final String[] intFields, final String[] stringFields) throws ImhotepOutOfMemoryException {
+    public void handleRebuildAndFilterIndexes(final String sessionId, final String[] intFields, final String[] stringFields) throws ImhotepOutOfMemoryException {
         doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Void, ImhotepOutOfMemoryException>() {
             public Void apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
                 session.rebuildAndFilterIndexes(Arrays.asList(intFields), Arrays.asList(stringFields));
@@ -559,7 +568,7 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public void handleResetGroups(String sessionId) throws ImhotepOutOfMemoryException {
+    public void handleResetGroups(final String sessionId) throws ImhotepOutOfMemoryException {
         doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Void, ImhotepOutOfMemoryException>() {
             public Void apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
                 session.resetGroups();
@@ -587,17 +596,17 @@ public abstract class AbstractImhotepServiceCore
     ) throws ImhotepOutOfMemoryException;
 
     @Override
-    public boolean sessionIsValid(String sessionId) {
+    public boolean sessionIsValid(final String sessionId) {
         return getSessionManager().sessionIsValid(sessionId);
     }
 
     @Override
-    public void handleCloseSession(String sessionId) {
+    public void handleCloseSession(final String sessionId) {
         getSessionManager().removeAndCloseIfExists(sessionId);
     }
 
     @Override
-    public void handleCloseSession(String sessionId, Exception e) {
+    public void handleCloseSession(final String sessionId, final Exception e) {
         getSessionManager().removeAndCloseIfExists(sessionId, e);
     }
 

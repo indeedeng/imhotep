@@ -67,7 +67,11 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
     private boolean bufferNext = false;
     private boolean closed = false;
 
-    SimpleStringTermIteratorImpl(MapCache mapCache, Path filename, Path docListPath, Path indexPath) throws IOException {
+    SimpleStringTermIteratorImpl(
+            final MapCache mapCache,
+            final Path filename,
+            final Path docListPath,
+            final Path indexPath) throws IOException {
         this.mapCache = mapCache;
 
         buffer = new byte[BUFFER_SIZE];
@@ -84,19 +88,19 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
     }
 
     @Override
-    public void reset(String term) {
+    public void reset(final String term) {
         try {
             internalReset(term);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             close();
             throw new RuntimeException(e);
         }
     }
 
-    private void internalReset(String term) throws IOException {
+    private void internalReset(final String term) throws IOException {
         if (indexPath != null) {
             if (index == null) {
-                index = new ImmutableBTreeIndex.Reader<String,LongPair>(indexPath,
+                index = new ImmutableBTreeIndex.Reader<>(indexPath,
                     new StringSerializer(),
                     new LongPairSerializer(),
                     false
@@ -140,7 +144,7 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
         if (lastString == null) {
             try {
                 lastString = decoder.decode((ByteBuffer)lastTermByteBuffer.position(0).limit(lastTermLength)).toString();
-            } catch (CharacterCodingException e) {
+            } catch (final CharacterCodingException e) {
                 throw new RuntimeException(e);
             }
         }
@@ -161,14 +165,16 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
     public boolean next() {
         try {
             return internalNext();
-        } catch (IOException e) {
+        } catch (final IOException e) {
             close();
             throw new RuntimeException(e);
         }
     }
 
     private boolean internalNext() throws IOException {
-        if (done) return false;
+        if (done) {
+            return false;
+        }
         if (bufferNext) {
             bufferNext = false;
             return true;
@@ -196,7 +202,7 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
         return true;
     }
 
-    private void ensureCapacity(int len) {
+    private void ensureCapacity(final int len) {
         // TODO is > sufficient here? I think yes, verify later
         if (len >= lastTermBytes.length) {
             lastTermBytes = Arrays.copyOf(lastTermBytes, Math.max(len, 2*lastTermBytes.length));
@@ -216,19 +222,19 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
                 if (index != null) {
                     index.close();
                 }
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 log.error("error closing index", e);
             }
             try {
                 file.close();
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 log.error("error closing file", e);
             }
             try {
                 if (docListFile != null) {
                     docListFile.close();
                 }
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 log.error("error closing docListFile", e);
             }
             closed = true;
@@ -258,7 +264,9 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
     private int read() throws IOException {
         if (bufferPtr == bufferLen) {
             refillBuffer(bufferOffset + bufferLen);
-            if (bufferLen == 0) return -1;
+            if (bufferLen == 0) {
+                return -1;
+            }
         }
         return buffer[bufferPtr++] & 0xFF;
     }
@@ -293,7 +301,9 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
         int shift = 0;
         do {
             ret |= ((b & 0x7F) << shift);
-            if (b < 0x80) return ret;
+            if (b < 0x80) {
+                return ret;
+            }
             shift += 7;
             b = read();
         } while (true);
@@ -303,9 +313,11 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
         long ret = 0L;
         int shift = 0;
         do {
-            int b = read();
+            final int b = read();
             ret |= ((b & 0x7F) << shift);
-            if (b < 0x80) return ret;
+            if (b < 0x80) {
+                return ret;
+            }
             shift += 7;
         } while (true);
     }

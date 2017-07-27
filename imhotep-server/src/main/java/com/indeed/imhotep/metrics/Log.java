@@ -25,7 +25,7 @@ public final class Log implements IntValueLookup {
     private final int scaleFactor;
     private final double logScaleFactor;
 
-    public Log(IntValueLookup operand, int scaleFactor) {
+    public Log(final IntValueLookup operand, final int scaleFactor) {
         this.operand = operand;
         this.scaleFactor = scaleFactor;
         this.logScaleFactor = Math.log(scaleFactor);
@@ -42,7 +42,7 @@ public final class Log implements IntValueLookup {
     }
 
     @Override
-    public void lookup(int[] docIds, long[] values, int n) {
+    public void lookup(final int[] docIds, final long[] values, final int n) {
         operand.lookup(docIds, values, n);
         for (int i = 0; i < n; i++) {
             values[i] = (long) ((Math.log(values[i]) - logScaleFactor) * scaleFactor);

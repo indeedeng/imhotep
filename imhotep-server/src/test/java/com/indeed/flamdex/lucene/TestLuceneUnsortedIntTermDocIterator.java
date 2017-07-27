@@ -32,18 +32,18 @@ import static org.junit.Assert.assertTrue;
 public class TestLuceneUnsortedIntTermDocIterator {
     @Test
     public void testSingleTerm() throws IOException {
-        RAMDirectory d = new RAMDirectory();
-        IndexWriter w = new IndexWriter(d, null, true, IndexWriter.MaxFieldLength.LIMITED);
-        Document doc = new Document();
+        final RAMDirectory d = new RAMDirectory();
+        final IndexWriter w = new IndexWriter(d, null, true, IndexWriter.MaxFieldLength.LIMITED);
+        final Document doc = new Document();
         doc.add(new Field("int", "1", Field.Store.NO, Field.Index.NOT_ANALYZED_NO_NORMS));
         w.addDocument(doc);
         w.close();
 
-        IndexReader r = IndexReader.open(d);
-        LuceneUnsortedIntTermDocIterator iter = LuceneUnsortedIntTermDocIterator.create(r, "int");
+        final IndexReader r = IndexReader.open(d);
+        final LuceneUnsortedIntTermDocIterator iter = LuceneUnsortedIntTermDocIterator.create(r, "int");
         assertTrue(iter.nextTerm());
         assertEquals(1, iter.term());
-        int[] docs = new int[2];
+        final int[] docs = new int[2];
         assertEquals(1, iter.nextDocs(docs));
         assertEquals(0, docs[0]);
         assertFalse(iter.nextTerm());

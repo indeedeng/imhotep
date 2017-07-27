@@ -37,14 +37,15 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
     private static final int MAX_SESSION_COUNT = 64;
     private static final int MAX_SESSION_COUNT_PER_USER = 8;
 
-    private final Map<String, Session<E>> sessionMap = new HashMap<String, Session<E>>();
+    private final Map<String, Session<E>> sessionMap = new HashMap<>();
     private final Map<String, Exception> failureCauseMap = CacheBuilder.newBuilder().maximumSize(200).<String, Exception>build().asMap();
 
-    protected void addSession(String sessionId, Session<E> session) {
+    protected void addSession(final String sessionId, final Session<E> session) {
         synchronized (sessionMap) {
             if (sessionMap.containsKey(sessionId)) {
                 throw new IllegalArgumentException("there already exists a session with id "+sessionId);
-            } else if (sessionMap.size() >= MAX_SESSION_COUNT) {
+            }
+            if (sessionMap.size() >= MAX_SESSION_COUNT) {
                 throw new TooManySessionsException("Imhotep daemon has reached the maximum number of concurrent sessions: "+sessionMap.size());
             }
 
@@ -91,7 +92,7 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
     }
 
     @Override
-    public void removeAndCloseIfExists(final String sessionId, Exception e) {
+    public void removeAndCloseIfExists(final String sessionId, final Exception e) {
         final SharedReference<ImhotepSession> imhotepSession;
         synchronized (sessionMap) {
             final Session<E> session = sessionMap.remove(sessionId);
@@ -120,7 +121,7 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
     public Map<String, LastActionTimeLimit> getLastActionTimes() {
         final Map<String, Session<E>> sessionMap = cloneSessionMap();
 
-        final Map<String, LastActionTimeLimit> ret = new HashMap<String, LastActionTimeLimit>();
+        final Map<String, LastActionTimeLimit> ret = new HashMap<>();
         for (final Map.Entry<String, Session<E>> e : sessionMap.entrySet()) {
             ret.put(e.getKey(), new LastActionTimeLimit(e.getValue().lastActionTime, e.getValue().getTimeout()));
         }
@@ -130,7 +131,7 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
     protected Map<String, Session<E>> cloneSessionMap() {
         final Map<String, Session<E>> clone;
         synchronized (sessionMap) {
-            clone = new HashMap<String, Session<E>>(sessionMap);
+            clone = new HashMap<>(sessionMap);
         }
         return clone;
     }
@@ -170,15 +171,15 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
         private volatile long lastActionTime;
 
         protected Session(
-                ImhotepSession imhotepSession,
-                E sessionState,
-                String username,
-                String clientName,
-                String ipAddress,
-                int clientVersion,
-                String dataset,
-                long timeout,
-                MemoryReservationContext sessionMemoryContext) {
+                final ImhotepSession imhotepSession,
+                final E sessionState,
+                final String username,
+                final String clientName,
+                final String ipAddress,
+                final int clientVersion,
+                final String dataset,
+                final long timeout,
+                final MemoryReservationContext sessionMemoryContext) {
             this.imhotepSession = SharedReference.create(imhotepSession);
             this.sessionState = sessionState;
             this.username = username;

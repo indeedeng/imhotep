@@ -9,19 +9,23 @@ public abstract class ImhotepKnownException extends RuntimeException {
         super();
     }
 
-    public ImhotepKnownException(String message) {
+    public ImhotepKnownException(final String message) {
         super(message);
     }
 
-    public ImhotepKnownException(String message, Throwable cause) {
+    public ImhotepKnownException(final String message, final Throwable cause) {
         super(message, cause);
     }
 
-    public ImhotepKnownException(Throwable cause) {
+    public ImhotepKnownException(final Throwable cause) {
         super(cause);
     }
 
-    protected ImhotepKnownException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
+    protected ImhotepKnownException(
+            final String message,
+            final Throwable cause,
+            final boolean enableSuppression,
+            final boolean writableStackTrace) {
         super(message, cause, enableSuppression, writableStackTrace);
     }
 }

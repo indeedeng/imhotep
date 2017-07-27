@@ -36,7 +36,11 @@ class FlamdexSubsetFTGSIterator extends AbstractFlamdexFTGSIterator {
     private String[] currentStringFieldTerms;
     private int currentFieldTermPtr = -1;
 
-    public FlamdexSubsetFTGSIterator(ImhotepLocalSession imhotepLocalSession, SharedReference<FlamdexReader> flamdexReader, Map<String, long[]> intFieldToTerms, Map<String, String[]> stringFieldToTerms) {
+    public FlamdexSubsetFTGSIterator(
+            final ImhotepLocalSession imhotepLocalSession,
+            final SharedReference<FlamdexReader> flamdexReader,
+            final Map<String, long[]> intFieldToTerms,
+            final Map<String, String[]> stringFieldToTerms) {
         super(imhotepLocalSession, flamdexReader);
         this.intFieldToTermsIterator = intFieldToTerms.entrySet().iterator();
         this.stringFieldToTermsIterator = stringFieldToTerms.entrySet().iterator();
@@ -53,7 +57,9 @@ class FlamdexSubsetFTGSIterator extends AbstractFlamdexFTGSIterator {
                 currentIntFieldTerms = entry.getValue();
                 currentFieldTermPtr = -1;
                 currentFieldIsIntType = true;
-                if (intTermIterator != null) Closeables2.closeQuietly(intTermIterator, ImhotepLocalSession.log);
+                if (intTermIterator != null) {
+                    Closeables2.closeQuietly(intTermIterator, ImhotepLocalSession.log);
+                }
                 intTermIterator = flamdexReader.get().getIntTermIterator(currentField);
                 termIndex = 0;
                 return true;
@@ -64,7 +70,9 @@ class FlamdexSubsetFTGSIterator extends AbstractFlamdexFTGSIterator {
                 currentStringFieldTerms = entry.getValue();
                 currentFieldTermPtr = -1;
                 currentFieldIsIntType = false;
-                if (stringTermIterator != null) Closeables2.closeQuietly(stringTermIterator, ImhotepLocalSession.log);
+                if (stringTermIterator != null) {
+                    Closeables2.closeQuietly(stringTermIterator, ImhotepLocalSession.log);
+                }
                 stringTermIterator = flamdexReader.get().getStringTermIterator(currentField);
                 termIndex = 0;
                 return true;
@@ -93,10 +101,14 @@ class FlamdexSubsetFTGSIterator extends AbstractFlamdexFTGSIterator {
 
     @Override
     public final boolean nextTerm() {
-        if (currentField == null) return false;
+        if (currentField == null) {
+            return false;
+        }
         resetGroupStats = true;
         if (currentFieldIsIntType) {
-            if (ImhotepLocalSession.logTiming) intTermsTime -= System.nanoTime();
+            if (ImhotepLocalSession.logTiming) {
+                intTermsTime -= System.nanoTime();
+            }
             try {
                 while (true) {
                     if (currentFieldTermPtr + 1 >= currentIntFieldTerms.length) {
@@ -110,10 +122,14 @@ class FlamdexSubsetFTGSIterator extends AbstractFlamdexFTGSIterator {
                     }
                 }
             } finally {
-                if (ImhotepLocalSession.logTiming) intTermsTime += System.nanoTime();
+                if (ImhotepLocalSession.logTiming) {
+                    intTermsTime += System.nanoTime();
+                }
             }
         } else {
-            if (ImhotepLocalSession.logTiming) stringTermsTime -= System.nanoTime();
+            if (ImhotepLocalSession.logTiming) {
+                stringTermsTime -= System.nanoTime();
+            }
             try {
                 while (true) {
                     if (currentFieldTermPtr + 1 >= currentStringFieldTerms.length) {
@@ -127,7 +143,9 @@ class FlamdexSubsetFTGSIterator extends AbstractFlamdexFTGSIterator {
                     }
                 }
             } finally {
-                if (ImhotepLocalSession.logTiming) stringTermsTime += System.nanoTime();
+                if (ImhotepLocalSession.logTiming) {
+                    stringTermsTime += System.nanoTime();
+                }
             }
         }
     }

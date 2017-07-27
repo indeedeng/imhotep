@@ -21,11 +21,11 @@ public class RegexTooComplexException extends ImhotepKnownException {
         super();
     }
 
-    public RegexTooComplexException(String s) {
+    public RegexTooComplexException(final String s) {
         super(s);
     }
 
-    public RegexTooComplexException(String message, Throwable cause) {
+    public RegexTooComplexException(final String message, final Throwable cause) {
         super(message, cause);
     }
 }

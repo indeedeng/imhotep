@@ -25,7 +25,7 @@ public final class TermCount {
     // sort by count then by term
     public static final Comparator<TermCount> COUNT_COMPARATOR = new Comparator<TermCount>() {
         @Override
-        public int compare(TermCount o1, TermCount o2) {
+        public int compare(final TermCount o1, final TermCount o2) {
             return ComparisonChain.start()
                     .compare(o1.count, o2.count)
                     .compare(o1.term.getTermIntVal(), o2.term.getTermIntVal())
@@ -36,7 +36,7 @@ public final class TermCount {
 
     public static final Comparator<TermCount> REVERSE_COUNT_COMPARATOR = new Comparator<TermCount>() {
         @Override
-        public int compare(TermCount o1, TermCount o2) {
+        public int compare(final TermCount o1, final TermCount o2) {
             return -COUNT_COMPARATOR.compare(o1, o2);
         }
     };
@@ -44,7 +44,7 @@ public final class TermCount {
     private final Term term;
     private final long count;
 
-    public TermCount(Term term, long count) {
+    public TermCount(final Term term, final long count) {
         this.term = term;
         this.count = count;
     }

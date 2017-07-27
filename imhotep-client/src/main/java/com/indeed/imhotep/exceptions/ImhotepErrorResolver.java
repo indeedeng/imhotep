@@ -9,7 +9,10 @@ import org.apache.commons.lang.exception.ExceptionUtils;
  * @author vladimir
  */
 public class ImhotepErrorResolver {
-    public static Exception resolve(Exception e) {
+    private ImhotepErrorResolver() {
+    }
+
+    public static Exception resolve(final Exception e) {
         final String error = ExceptionUtils.getRootCauseMessage(e);
         if (error.contains(ImhotepOutOfMemoryException.class.getSimpleName())) {
             return new ImhotepOverloadedException("Imhotep is overloaded with all memory in use. " +
@@ -21,7 +24,7 @@ public class ImhotepErrorResolver {
                     "Please wait before retrying.", e);
         }
 
-        if (error.contains(com.indeed.imhotep.exceptions.UserSessionCountLimitExceededException.class.getSimpleName())) {
+        if (error.contains(UserSessionCountLimitExceededException.class.getSimpleName())) {
             return new UserSessionCountLimitExceededException("You have too many concurrent Imhotep sessions running. " +
                     "Please wait for them to complete before retrying.", e);
         }

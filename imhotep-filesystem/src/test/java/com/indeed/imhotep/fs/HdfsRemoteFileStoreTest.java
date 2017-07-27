@@ -26,7 +26,7 @@ import static com.indeed.imhotep.fs.RemoteCachingFileSystemTestUtils.writeToFile
 
 public class HdfsRemoteFileStoreTest {
     @Rule
-    public RemoteCachingFileSystemTestContext testContext = new RemoteCachingFileSystemTestContext(ImmutableMap.of(
+    public final RemoteCachingFileSystemTestContext testContext = new RemoteCachingFileSystemTestContext(ImmutableMap.of(
             "imhotep.fs.store.type", "hdfs"
     ));
 

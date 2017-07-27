@@ -45,7 +45,9 @@ public final class NativeDocIdBuffer implements Closeable {
         loadNativeLibrary();
         nativeInit();
         log.info("libvarint loaded");
-        if (useSSSE3) log.info("using SSSE3! (if the processor in this computer doesn't support SSSE3 this process will fail with SIGILL)");
+        if (useSSSE3) {
+            log.info("using SSSE3! (if the processor in this computer doesn't support SSSE3 this process will fail with SIGILL)");
+        }
     }
 
     static {
@@ -54,9 +56,7 @@ public final class NativeDocIdBuffer implements Closeable {
             theUnsafe.setAccessible(true);
             UNSAFE = (Unsafe)theUnsafe.get(null);
             INT_ARRAY_BASE_OFFSET = UNSAFE.arrayBaseOffset(int[].class);
-        } catch (NoSuchFieldException e) {
-            throw new RuntimeException(e);
-        } catch (IllegalAccessException e) {
+        } catch (final NoSuchFieldException | IllegalAccessException e) {
             throw new RuntimeException(e);
         }
     }
@@ -78,7 +78,7 @@ public final class NativeDocIdBuffer implements Closeable {
             System.load(tempFile.getAbsolutePath());
             // noinspection ResultOfMethodCallIgnored
             tempFile.delete();
-        } catch (Throwable e) {
+        } catch (final Throwable e) {
             log.warn("unable to load libvarint using class loader, looking in java.library.path", e);
             System.loadLibrary("varint"); // if this fails it throws UnsatisfiedLinkError
         }
@@ -96,7 +96,7 @@ public final class NativeDocIdBuffer implements Closeable {
         bufAddress = UNSAFE.allocateMemory(4 * BUFFER_LENGTH);
     }
 
-    public void reset(long newPosition, long newDocsRemaining) {
+    public void reset(final long newPosition, final long newDocsRemaining) {
         position = newPosition;
         docsRemaining = newDocsRemaining;
         // to force a refill
@@ -104,7 +104,7 @@ public final class NativeDocIdBuffer implements Closeable {
         bufLen = 0;
     }
 
-    public int fillDocIdBuffer(int[] docIdBuffer, int limit) {
+    public int fillDocIdBuffer(final int[] docIdBuffer, final int limit) {
         int off = 0;
         do {
             if (bufLen == bufIndex){

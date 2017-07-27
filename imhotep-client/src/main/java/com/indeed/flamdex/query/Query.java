@@ -15,7 +15,7 @@
 
 import com.google.common.base.Joiner;
 
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -29,7 +29,7 @@ public class Query {
     private final Term endTerm;
     private final boolean isMaxInclusive;
 
-    private Query(BooleanOp operator, List<Query> operands) {
+    private Query(final BooleanOp operator, final List<Query> operands) {
         this.operator = operator;
         this.operands = operands;
         startTerm = null;
@@ -37,7 +37,7 @@ public class Query {
         isMaxInclusive = false;
     }
 
-    private Query(Term startTerm) {
+    private Query(final Term startTerm) {
         operator = null;
         operands = null;
         this.startTerm = startTerm;
@@ -45,7 +45,7 @@ public class Query {
         isMaxInclusive = false;
     }
 
-    private Query(Term startTerm, Term endTerm, boolean maxInclusive) {
+    private Query(final Term startTerm, final Term endTerm, final boolean maxInclusive) {
         operator = null;
         operands = null;
         this.startTerm = startTerm;
@@ -53,32 +53,32 @@ public class Query {
         isMaxInclusive = maxInclusive;
     }
 
-    public static Query newBooleanQuery(BooleanOp operator, List<Query> operands) {
+    public static Query newBooleanQuery(final BooleanOp operator, final List<Query> operands) {
         if (operator == null || operands == null || operands.isEmpty()) {
             throw new IllegalArgumentException("invalid arguments: operator=" + operator + ", operands = "+operands);
         }
         if (operator == BooleanOp.NOT && operands.size() > 1) {
-            return new Query(BooleanOp.NOT, Arrays.asList(newBooleanQuery(BooleanOp.OR, operands)));
+            return new Query(BooleanOp.NOT, Collections.singletonList(newBooleanQuery(BooleanOp.OR, operands)));
         }
         return new Query(operator, operands);
     }
 
-    public static Query newTermQuery(Term term) {
+    public static Query newTermQuery(final Term term) {
         if (term == null) {
             throw new IllegalArgumentException("term cannot be null");
         }
         return new Query(term);
     }
 
-    public static Query newRangeQuery(String field, long startTerm, long endTerm, boolean isMaxInclusive) {
+    public static Query newRangeQuery(final String field, final long startTerm, final long endTerm, final boolean isMaxInclusive) {
         return newRangeQuery(new Term(field, true, startTerm, ""), new Term(field, true, endTerm, ""), isMaxInclusive);
     }
 
-    public static Query newRangeQuery(String field, String startTerm, String endTerm, boolean isMaxInclusive) {
+    public static Query newRangeQuery(final String field, final String startTerm, final String endTerm, final boolean isMaxInclusive) {
         return newRangeQuery(new Term(field, false, 0, startTerm), new Term(field, false, 0, endTerm), isMaxInclusive);
     }
 
-    public static Query newRangeQuery(Term startTerm, Term endTerm, boolean isMaxInclusive) {
+    public static Query newRangeQuery(final Term startTerm, final Term endTerm, final boolean isMaxInclusive) {
         if (startTerm == null || endTerm == null) {
             throw new IllegalArgumentException("term arguments cannot be null");
         }
@@ -95,8 +95,12 @@ public class Query {
     }
 
     public QueryType getQueryType() {
-        if (operator != null) return QueryType.BOOLEAN;
-        if (endTerm != null) return QueryType.RANGE;
+        if (operator != null) {
+            return QueryType.BOOLEAN;
+        }
+        if (endTerm != null) {
+            return QueryType.RANGE;
+        }
         return QueryType.TERM;
     }
 
@@ -141,13 +145,17 @@ public class Query {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (!(o instanceof Query)) return false;
+    public boolean equals(final Object o) {
+        if (!(o instanceof Query)) {
+            return false;
+        }
 
-        Query other = (Query) o;
+        final Query other = (Query) o;
 
         final QueryType queryType = getQueryType();
-        if (other.getQueryType() != queryType) return false;
+        if (other.getQueryType() != queryType) {
+            return false;
+        }
 
         switch (queryType) {
             case TERM:

@@ -34,16 +34,16 @@ import java.util.Map;
 public class IndexReWriter {
     private final List<ImhotepJavaLocalSession> sessions;
     private final ImhotepJavaLocalSession newSession;
-    private int[] sessionDocIdOffsets;
+    private final int[] sessionDocIdOffsets;
     private final MemoryReservationContext memory;
     private GroupLookup newGroupLookup;
     private List<int[]> perSessionMappings;
     private Map<String, DynamicMetric> dynamicMetrics;
     private long newMaxDocs;
 
-    public IndexReWriter(List<ImhotepJavaLocalSession> localSessions, 
-                         ImhotepJavaLocalSession newSession,
-                         MemoryReservationContext memory) throws ImhotepOutOfMemoryException {
+    public IndexReWriter(final List<ImhotepJavaLocalSession> localSessions,
+                         final ImhotepJavaLocalSession newSession,
+                         final MemoryReservationContext memory) throws ImhotepOutOfMemoryException {
         this.sessions = localSessions;
         this.newSession = newSession;
         this.memory = memory;
@@ -71,13 +71,11 @@ public class IndexReWriter {
                                 @Nonnull final FlamdexWriter w) throws IOException,
                                                                 ImhotepOutOfMemoryException {
         final int[] docIdBuffer = new int[128];
-        List<IntTermDocIterator> intIters = new ArrayList<IntTermDocIterator>(sessions.size());
-        List<StringTermDocIterator> stringIters =
-                new ArrayList<StringTermDocIterator>(sessions.size());
-        List<Integer> sessionOffsets = new ArrayList<Integer>(this.sessionDocIdOffsets.length);
-        int[] oldToNewDocIdMapping;
-
-        oldToNewDocIdMapping = remapDocIds(this.sessions);
+        final List<IntTermDocIterator> intIters = new ArrayList<>(sessions.size());
+        final List<StringTermDocIterator> stringIters =
+                new ArrayList<>(sessions.size());
+        final List<Integer> sessionOffsets = new ArrayList<>(this.sessionDocIdOffsets.length);
+        final int[] oldToNewDocIdMapping = remapDocIds(this.sessions);
         w.resetMaxDocs(this.newMaxDocs);
 
         for (final String intField : intFields) {
@@ -85,8 +83,8 @@ public class IndexReWriter {
             sessionOffsets.clear();
             try (Closer closer = Closer.create()) {
                 for (int i = 0; i < sessions.size(); i++) {
-                    ImhotepJavaLocalSession session = sessions.get(i);
-                    IntTermDocIterator iter = closer.register(session.getReader().getIntTermDocIterator(intField));
+                    final ImhotepJavaLocalSession session = sessions.get(i);
+                    final IntTermDocIterator iter = closer.register(session.getReader().getIntTermDocIterator(intField));
                     if (iter == null) {
                         continue;
                     }
@@ -129,8 +127,8 @@ public class IndexReWriter {
             sessionOffsets.clear();
             try (Closer closer = Closer.create()) {
                 for (int i = 0; i < sessions.size(); i++) {
-                    ImhotepJavaLocalSession session = sessions.get(i);
-                    StringTermDocIterator iter =
+                    final ImhotepJavaLocalSession session = sessions.get(i);
+                    final StringTermDocIterator iter =
                             closer.register(session.getReader().getStringTermDocIterator(stringField));
                     if (iter == null) {
                         continue;
@@ -184,26 +182,28 @@ public class IndexReWriter {
      * Kinda overkill now that multiple shards are not being merged 
      * anymore 
      */
-    private List<int[]> constructPerSessionNewToOldIdMappings(int[] oldToNewDocIdMapping) throws ImhotepOutOfMemoryException {
-        List<int[]> results = new ArrayList<int[]>(this.sessions.size());
+    private List<int[]> constructPerSessionNewToOldIdMappings(final int[] oldToNewDocIdMapping) throws ImhotepOutOfMemoryException {
+        final List<int[]> results = new ArrayList<>(this.sessions.size());
 
         for (int i = 0; i < this.sessions.size(); i++) {
-            int offset = this.sessionDocIdOffsets[i];
-            int nDocs = (int)this.sessions.get(i).getNumDocs();
-            if (!memory.claimMemory(nDocs * 4L))
+            final int offset = this.sessionDocIdOffsets[i];
+            final int nDocs = (int)this.sessions.get(i).getNumDocs();
+            if (!memory.claimMemory(nDocs * 4L)) {
                 throw new ImhotepOutOfMemoryException();
-            int[] mapping = new int[nDocs];
+            }
+            final int[] mapping = new int[nDocs];
             int last = -1;
             for (int oldDocId = offset; oldDocId < nDocs; oldDocId++) {
-                int newDocId = oldToNewDocIdMapping[oldDocId];
+                final int newDocId = oldToNewDocIdMapping[oldDocId];
                 if (newDocId != -1) {
                     mapping[newDocId] = oldDocId;
                     last = newDocId;
                 }
             }
             /* claim memory for new array that is inserted into results */
-            if (!memory.claimMemory((last + 1) * 4L))
+            if (!memory.claimMemory((last + 1) * 4L)) {
                 throw new ImhotepOutOfMemoryException();
+            }
             results.add(Arrays.copyOf(mapping, last + 1));
             
             /* release memory for mapping[] */
@@ -223,7 +223,7 @@ public class IndexReWriter {
      *          -1 as the doc id for docs to be removed (the ones
      *          in group 0)
      */
-    private int[] remapDocIds(List<ImhotepJavaLocalSession> sessions) throws ImhotepOutOfMemoryException {
+    private int[] remapDocIds(final List<ImhotepJavaLocalSession> sessions) throws ImhotepOutOfMemoryException {
         int nTotalDocs = 0;
         int numGroups = 0;
         int newNumDocs = 0;
@@ -250,7 +250,7 @@ public class IndexReWriter {
         final int[] mapping = new int[nTotalDocs];
 
         /* populate mapping and new GroupLookup */
-        GroupLookup newGL = GroupLookupFactory.create(numGroups, 
+        final GroupLookup newGL = GroupLookupFactory.create(numGroups,
                                                       newNumDocs, 
                                                       this.newSession, 
                                                       memory);
@@ -277,25 +277,26 @@ public class IndexReWriter {
 
         /* allocate the new DynamicMetrics */
         /* all session have the same # of dynamic metrics */
-        int nDynMetrics = sessions.get(0).getDynamicMetrics().size();
+        final int nDynMetrics = sessions.get(0).getDynamicMetrics().size();
         if (!memory.claimMemory((nTotalDocs * 4L) * nDynMetrics)) {
             throw new ImhotepOutOfMemoryException();
         }
         final Map<String, DynamicMetric> newDynMetrics = Maps.newHashMap();
         for (int i = 0; i < sessions.size(); i++) {
-            ImhotepJavaLocalSession s = sessions.get(i);
+            final ImhotepJavaLocalSession s = sessions.get(i);
             final GroupLookup gl = s.docIdToGroup;
             final int offset = this.sessionDocIdOffsets[i];
-            for (Map.Entry<String, DynamicMetric> e : s.getDynamicMetrics().entrySet()) {
-                DynamicMetric oldDM = e.getValue();
+            for (final Map.Entry<String, DynamicMetric> e : s.getDynamicMetrics().entrySet()) {
+                final DynamicMetric oldDM = e.getValue();
                 DynamicMetric newDM = newDynMetrics.get(e.getKey());
                 if (newDM == null) {
                     newDM = new DynamicMetric(newNumDocs);
                 }
                 for (int j = 0; j < gl.size(); j++) {
-                    int docId = mapping[j + offset];
-                    if (docId == -1)
+                    final int docId = mapping[j + offset];
+                    if (docId == -1) {
                         continue;
+                    }
                     newDM.add(docId, oldDM.lookupSingleVal(j));
                 }
                 newDynMetrics.put(e.getKey(), newDM);

@@ -64,7 +64,7 @@ public class TestDynamicFlamdexWriter {
                 }
                 flamdexDocWriter.addDocument(document);
             }
-            indexDirectory = flamdexDocWriter.commit(commitId++).get();
+            indexDirectory = flamdexDocWriter.commit(commitId).get();
         }
         try (final FlamdexReader flamdexReader = new DynamicFlamdexReader(indexDirectory)) {
             assertEquals(NUM_DOCS, flamdexReader.getNumDocs());
@@ -113,7 +113,7 @@ public class TestDynamicFlamdexWriter {
                 }
                 DynamicFlamdexTestUtils.addDocument(naive, flamdexDocWriter, document);
             }
-            indexDirectory = flamdexDocWriter.commit(commitId++).get();
+            indexDirectory = flamdexDocWriter.commit(commitId).get();
         }
         final FlamdexReader reader = new DynamicFlamdexReader(indexDirectory);
         DynamicFlamdexTestUtils.validateIndex(naive, reader);
@@ -146,7 +146,7 @@ public class TestDynamicFlamdexWriter {
                 }
                 DynamicFlamdexTestUtils.addDocument(naive, flamdexDocWriter, document);
             }
-            indexDirectory = flamdexDocWriter.commit(cnt++).get();
+            indexDirectory = flamdexDocWriter.commit(cnt).get();
         }
         final FlamdexReader reader = new DynamicFlamdexReader(indexDirectory);
         DynamicFlamdexTestUtils.validateIndex(naive, reader);
@@ -170,7 +170,7 @@ public class TestDynamicFlamdexWriter {
                 .setIndexDirectoryPrefix("index")
                 .setMergeStrategy(new MergeStrategy.ExponentialMergeStrategy(4))
                 .setExecutorService(executorService)
-                .build();
+                .build()
         ) {
             int cnt = 0;
             for (final FlamdexDocument document : documents) {

@@ -19,7 +19,7 @@ import com.indeed.flamdex.api.IntValueLookup;
  * @author jwolfe
  */
 public class Max extends AbstractBinaryOperator {
-    public Max(IntValueLookup a, IntValueLookup b) {
+    public Max(final IntValueLookup a, final IntValueLookup b) {
         super(a, b);
     }
 
@@ -34,7 +34,7 @@ public class Max extends AbstractBinaryOperator {
     }
 
     @Override
-    protected void combine(long[] values, long[] buffer, int n) {
+    protected void combine(final long[] values, final long[] buffer, final int n) {
         for (int i = 0; i < n; ++i) {
             values[i] = Math.max(values[i], buffer[i]);
         }

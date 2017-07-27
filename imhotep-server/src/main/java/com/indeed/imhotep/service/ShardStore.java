@@ -24,6 +24,7 @@ import com.indeed.util.serialization.Serializer;
 import com.indeed.util.serialization.StringSerializer;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
+import javax.annotation.Nonnull;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -49,10 +50,10 @@ class ShardStore implements AutoCloseable {
     private static final StringSerializer     strSerializer     = new StringSerializer();
     private static final ValueSerializer      valueSerializer   = new ValueSerializer();
 
-    private final Store store;
+    private final Store<Key, Value> store;
 
-    ShardStore(Path root) throws IOException {
-        StoreBuilder<Key, Value> builder =
+    ShardStore(final Path root) throws IOException {
+        final StoreBuilder<Key, Value> builder =
             new StoreBuilder<>(root.toFile(), keySerializer, valueSerializer);
         builder.setCodec(new SnappyCodec());
         builder.setStorageType(StorageType.BLOCK_COMPRESSED);
@@ -67,11 +68,11 @@ class ShardStore implements AutoCloseable {
         return store.iterator();
     }
 
-    boolean containsKey(Key key) throws IOException { return store.containsKey(key); }
+    boolean containsKey(final Key key) throws IOException { return store.containsKey(key); }
 
-    void put(Key key, Value value) throws IOException { store.put(key, value); }
+    void put(final Key key, final Value value) throws IOException { store.put(key, value); }
 
-    void delete(Key key) throws IOException { store.delete(key); }
+    void delete(final Key key) throws IOException { store.delete(key); }
 
     void sync() throws IOException { store.sync(); }
 
@@ -80,16 +81,22 @@ class ShardStore implements AutoCloseable {
      * heuristically confirm that storeDir contains an LSM tree by looking for
      * telltale files within it.
      */
-    static void deleteExisting(Path shardStoreDir) throws IOException {
-        if (shardStoreDir == null) return;
+    static void deleteExisting(final Path shardStoreDir) throws IOException {
+        if (shardStoreDir == null) {
+            return;
+        }
 
-        if (Files.notExists(shardStoreDir)) return;
-        if (!Files.isDirectory(shardStoreDir)) return;
+        if (Files.notExists(shardStoreDir)) {
+            return;
+        }
+        if (!Files.isDirectory(shardStoreDir)) {
+            return;
+        }
 
         boolean foundLatest = false;
         boolean foundData = false;
         try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(shardStoreDir)) {
-            for (Path child : dirStream) {
+            for (final Path child : dirStream) {
                 if (child.getFileName().toString().equals("latest")) {
                     foundLatest = true;
                 }
@@ -104,13 +111,13 @@ class ShardStore implements AutoCloseable {
         }
     }
 
-    static public final class Key
+    public static final class Key
         implements Comparable<Key> {
 
         private final String dataset;
         private final String shardId;
 
-        Key(String dataset, String shardId) {
+        Key(final String dataset, final String shardId) {
             this.dataset = dataset;
             this.shardId = shardId;
         }
@@ -125,16 +132,22 @@ class ShardStore implements AutoCloseable {
             return result;
         }
 
-        @Override public boolean equals(Object otherObject) {
-            if (this == otherObject) return true;
-            if (this.getClass() != otherObject.getClass()) return false;
+        @Override public boolean equals(final Object otherObject) {
+            if (this == otherObject) {
+                return true;
+            }
+            if (this.getClass() != otherObject.getClass()) {
+                return false;
+            }
             final Key other = (Key) otherObject;
             return getDataset().equals(other.getDataset()) && getShardId().equals(other.getShardId());
         }
 
-        @Override public int compareTo(Key other) {
+        @Override public int compareTo(@Nonnull final Key other) {
             int result = getDataset().compareTo(other.getDataset());
-            if (result != 0) return result;
+            if (result != 0) {
+                return result;
+            }
             result = getShardId().compareTo(other.getShardId());
             return result;
         }
@@ -144,7 +157,7 @@ class ShardStore implements AutoCloseable {
         }
     }
 
-    static public final class Value {
+    public static final class Value {
 
         private final String       shardDir; // relative to canonical shard dir
         private final int          numDocs;
@@ -152,11 +165,11 @@ class ShardStore implements AutoCloseable {
         private final List<String> intFields;
         private final List<String> strFields;
 
-        Value(String       shardDir,
-              Integer      numDocs,
-              Long         version,
-              List<String> intFields,
-              List<String> strFields) {
+        Value(final String       shardDir,
+              final Integer      numDocs,
+              final Long         version,
+              final List<String> intFields,
+              final List<String> strFields) {
             this.shardDir  = shardDir;
             this.numDocs   = numDocs;
             this.version   = version;
@@ -181,9 +194,13 @@ class ShardStore implements AutoCloseable {
             return result;
         }
 
-        @Override public boolean equals(Object otherObject) {
-            if (this == otherObject) return true;
-            if (otherObject.getClass() != Value.class) return false;
+        @Override public boolean equals(final Object otherObject) {
+            if (this == otherObject) {
+                return true;
+            }
+            if (otherObject.getClass() != Value.class) {
+                return false;
+            }
             final Value other = (Value) otherObject;
             return shardDir.equals(other.shardDir) &&
                     numDocs == other.numDocs &&
@@ -193,7 +210,7 @@ class ShardStore implements AutoCloseable {
         }
 
         @Override public String toString() {
-            StringBuilder sb = new StringBuilder();
+            final StringBuilder sb = new StringBuilder();
             sb.append("{");
             sb.append(" shardDir: ").append(shardDir).append(", ");
             sb.append(" numDocs: ").append(numDocs).append(", ");
@@ -206,23 +223,25 @@ class ShardStore implements AutoCloseable {
             return sb.toString();
         }
 
-        private static <T> void append(StringBuilder sb, List<T> items) {
-            Iterator<T> it = items.iterator();
+        private static <T> void append(final StringBuilder sb, final List<T> items) {
+            final Iterator<T> it = items.iterator();
             while (it.hasNext()) {
                 sb.append(it.next().toString());
-                if (it.hasNext()) sb.append(", ");
+                if (it.hasNext()) {
+                    sb.append(", ");
+                }
             }
         }
     }
 
     private static final class KeySerializer implements Serializer<Key> {
 
-        public void write(Key key, DataOutput out) throws IOException {
+        public void write(final Key key, final DataOutput out) throws IOException {
             strSerializer.write(key.getDataset(), out);
             strSerializer.write(key.getShardId(), out);
         }
 
-        public Key read(DataInput in) throws IOException {
+        public Key read(final DataInput in) throws IOException {
             final String dataset = strSerializer.read(in);
             final String shard   = strSerializer.read(in);
             return new Key(dataset, shard);
@@ -231,7 +250,7 @@ class ShardStore implements AutoCloseable {
 
     private static final class ValueSerializer implements Serializer<Value> {
 
-        public void write(Value value, DataOutput out) throws IOException {
+        public void write(final Value value, final DataOutput out) throws IOException {
             strSerializer.write(value.getShardDir(), out);
             intSerializer.write(value.getNumDocs(), out);
             longSerializer.write(value.getVersion(), out);
@@ -239,7 +258,7 @@ class ShardStore implements AutoCloseable {
             strListSerializer.write(value.getStrFields(), out);
         }
 
-        public Value read(DataInput in) throws IOException {
+        public Value read(final DataInput in) throws IOException {
             final String shardDir = strSerializer.read(in);
             final int    numDocs  = intSerializer.read(in);
             final long   version  = longSerializer.read(in);
@@ -252,15 +271,15 @@ class ShardStore implements AutoCloseable {
     private static final class StringListSerializer
         implements Serializer<List<String>> {
 
-        public final void write(List<String> values, DataOutput out)
+        public void write(final List<String> values, final DataOutput out)
             throws IOException {
             intSerializer.write(values.size(), out);
-            for (String field: values) {
+            for (final String field: values) {
                 strSerializer.write(field, out);
             }
         }
 
-        public final List<String> read(DataInput in)
+        public List<String> read(final DataInput in)
             throws IOException {
             final int numValues = intSerializer.read(in);
             final List<String> result = new ObjectArrayList<>(numValues);

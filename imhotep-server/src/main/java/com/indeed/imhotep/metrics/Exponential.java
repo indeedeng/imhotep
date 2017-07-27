@@ -23,7 +23,7 @@ public class Exponential implements IntValueLookup {
     private final IntValueLookup operand;
     private final int scaleFactor;
 
-    public Exponential(IntValueLookup operand, int scaleFactor) {
+    public Exponential(final IntValueLookup operand, final int scaleFactor) {
         this.operand = operand;
         this.scaleFactor = scaleFactor;
     }
@@ -39,11 +39,11 @@ public class Exponential implements IntValueLookup {
     }
 
     @Override
-    public void lookup(int[] docIds, long[] values, int n) {
+    public void lookup(final int[] docIds, final long[] values, final int n) {
         operand.lookup(docIds, values, n);
         for (int i = 0; i < n; i++) {
-            double x = values[i] / (double) scaleFactor;
-            double result = Math.exp(x);
+            final double x = values[i] / (double) scaleFactor;
+            final double result = Math.exp(x);
 
             // the output is clamped to [Integer.MIN_VALUE, Integer.MAX_VALUE] (JLS §5.1.3)
             values[i] = (long) (result * scaleFactor);

@@ -30,19 +30,19 @@ public final class RemoteSessionManager extends AbstractSessionManager<List<Stri
     public void addSession(
             final String sessionId,
             final ImhotepSession imhotepSession,
-            final List<String> sessionShardIds,
+            final List<String> sessionState,
             final String username,
             final String clientName,
             final String ipAddress,
             final int clientVersion,
             final String dataset,
             final long sessionTimeout,
-            MemoryReservationContext sessionMemoryContext) {
-        final Session<List<String>> session = new Session<List<String>>(imhotepSession, sessionShardIds, username, clientName, ipAddress, clientVersion, dataset, sessionTimeout, sessionMemoryContext);
+            final MemoryReservationContext sessionMemoryContext) {
+        final Session<List<String>> session = new Session<>(imhotepSession, sessionState, username, clientName, ipAddress, clientVersion, dataset, sessionTimeout, sessionMemoryContext);
         addSession(sessionId, session);
     }
 
-    public List<String> getShardIdsForSession(String sessionId) {
+    public List<String> getShardIdsForSession(final String sessionId) {
         return internalGetSession(sessionId).sessionState;
     }
 }

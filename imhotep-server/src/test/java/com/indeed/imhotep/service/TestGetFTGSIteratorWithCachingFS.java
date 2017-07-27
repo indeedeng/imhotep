@@ -33,7 +33,7 @@ public class TestGetFTGSIteratorWithCachingFS {
     private static final String DATASET = "dataset";
 
     @Rule
-    public RemoteCachingFileSystemTestContext fsTestContext = new RemoteCachingFileSystemTestContext();
+    public final RemoteCachingFileSystemTestContext fsTestContext = new RemoteCachingFileSystemTestContext();
 
     private ImhotepDaemonClusterRunner clusterRunner;
 

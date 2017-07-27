@@ -19,7 +19,7 @@ import com.indeed.flamdex.api.IntValueLookup;
  * @author jsgroth
  */
 public class Multiplication extends AbstractBinaryOperator {
-    public Multiplication(IntValueLookup a, IntValueLookup b) {
+    public Multiplication(final IntValueLookup a, final IntValueLookup b) {
         super(a, b);
     }
 
@@ -38,7 +38,7 @@ public class Multiplication extends AbstractBinaryOperator {
      }
 
     @Override
-    protected void combine(long[] values, long[] buffer, int n) {
+    protected void combine(final long[] values, final long[] buffer, final int n) {
         for (int i = 0; i < n; ++i) {
             values[i] *= buffer[i];
         }

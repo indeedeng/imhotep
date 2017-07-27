@@ -31,6 +31,7 @@ import com.indeed.imhotep.io.TestFileUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.RandomStringUtils;
 import org.joda.time.DateTime;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -76,8 +77,7 @@ public class TestNativeFlamdexFTGSIterator {
                 final RawFTGSIterator ftgs = new InputStreamFTGSIterator(is, nStats);
                 iters.add(ftgs);
             }
-            final RawFTGSMerger merger  = new RawFTGSMerger(iters, nStats, null);
-            return merger;
+            return new RawFTGSMerger(iters, nStats, null);
         }
 
         public Thread simulateServer(final RunnableFactory factory) throws IOException {
@@ -154,13 +154,14 @@ public class TestNativeFlamdexFTGSIterator {
         public List<String> terms;
     }
 
-    private final List<String> stringTerms;
+    private List<String> stringTerms;
     private final Random rand = new Random();
     private static final int MAX_STRING_TERM_LEN = 128;
 
-    public TestNativeFlamdexFTGSIterator() {
+    @Before
+    public void setUp() {
         final int numTerms = (1 << 12);  // 4K
-        stringTerms = new ArrayList<String>(numTerms);
+        stringTerms = new ArrayList<>(numTerms);
 
         final StringBuilder prevStr = new StringBuilder(randomString(rand.nextInt(MAX_STRING_TERM_LEN / 2) + 1));
         for (int j = 0; j < numTerms; j++) {
@@ -485,10 +486,8 @@ public class TestNativeFlamdexFTGSIterator {
 //                                             "/tmp/native-ftgs-test4646832364786817065test",
 //                                             "/tmp/native-ftgs-test4049390234829335463test"});
 
-        final String[] stringFields = stringFieldNames;
-        final String[] intFields = intFieldNames;
-        System.out.println("string fields: \n" + Arrays.toString(stringFields));
-        System.out.println("int fields: \n" + Arrays.toString(intFields));
+        System.out.println("string fields: \n" + Arrays.toString(stringFieldNames));
+        System.out.println("int fields: \n" + Arrays.toString(intFieldNames));
 
         ClusterSimulator simulator = null;
         try (
@@ -502,9 +501,9 @@ public class TestNativeFlamdexFTGSIterator {
                 stringFieldNames,
                 metricNames,
                 new ImhotepNativeLocalSessionFactory());
-            FTGSIterator verificationIter = verificationSession.getFTGSIterator(intFields, stringFields) )
+            FTGSIterator verificationIter = verificationSession.getFTGSIterator(intFieldNames, stringFieldNames) )
         {
-            final RunnableFactory factory = new WriteFTGSRunner(testSession, intFields, stringFields, 8);
+            final RunnableFactory factory = new WriteFTGSRunner(testSession, intFieldNames, stringFieldNames, 8);
 
             simulator = new ClusterSimulator(8, nMetrics);
             final Thread t = simulator.simulateServer(factory);
@@ -562,30 +561,28 @@ public class TestNativeFlamdexFTGSIterator {
 //        final String shardname = "/tmp/native-ftgs-test8719739701043085471test";
 //        final String shardCopy = "/tmp/native-ftgs-test536071247070284384verify-copy";
 
-        final String[] stringFields = stringFieldNames;
-        final String[] intFields = intFieldNames;
-        System.out.println("string fields: \n" + Arrays.toString(stringFields));
-        System.out.println("int fields: \n" + Arrays.toString(intFields));
+        System.out.println("string fields: \n" + Arrays.toString(stringFieldNames));
+        System.out.println("int fields: \n" + Arrays.toString(intFieldNames));
 
 
         ClusterSimulator simulator = null;
         try(
             MTImhotepLocalMultiSession verificationSession = createMultisession(
-                Arrays.asList(shardCopy),
+                Collections.singletonList(shardCopy),
                 intFieldNames,
                 stringFieldNames,
                 metricNames,
                 new ImhotepLocalSessionFactory());
 
             MTImhotepLocalMultiSession testSession = createMultisession(
-                Arrays.asList(shardname),
+                Collections.singletonList(shardname),
                 intFieldNames,
                 stringFieldNames,
                 metricNames,
                 new ImhotepNativeLocalSessionFactory());
-            FTGSIterator verificationIter = verificationSession.getFTGSIterator(intFields, stringFields) )
+            FTGSIterator verificationIter = verificationSession.getFTGSIterator(intFieldNames, stringFieldNames) )
         {
-            final RunnableFactory factory = new WriteFTGSRunner(testSession, intFields, stringFields, 8);
+            final RunnableFactory factory = new WriteFTGSRunner(testSession, intFieldNames, stringFieldNames, 8);
             simulator = new ClusterSimulator(8, nMetrics);
 
             final Thread t = simulator.simulateServer(factory);
@@ -667,10 +664,8 @@ public class TestNativeFlamdexFTGSIterator {
             shardCopies.add(copyShard(shard));
         }
 
-        final String[] stringFields = stringFieldNames;
-        final String[] intFields = intFieldNames;
-        System.out.println("string fields: \n" + Arrays.toString(stringFields));
-        System.out.println("int fields: \n" + Arrays.toString(intFields));
+        System.out.println("string fields: \n" + Arrays.toString(stringFieldNames));
+        System.out.println("int fields: \n" + Arrays.toString(intFieldNames));
 
         ClusterSimulator simulator = null;
         try (
@@ -686,8 +681,8 @@ public class TestNativeFlamdexFTGSIterator {
                 stringFieldNames,
                 metricNames,
                 new ImhotepNativeLocalSessionFactory());
-            FTGSIterator verificationIter = verificationSession.getFTGSIterator(intFields, stringFields) ) {
-            final RunnableFactory factory = new WriteFTGSRunner(testSession, intFields, stringFields, 8);
+            FTGSIterator verificationIter = verificationSession.getFTGSIterator(intFieldNames, stringFieldNames) ) {
+            final RunnableFactory factory = new WriteFTGSRunner(testSession, intFieldNames, stringFieldNames, 8);
 
             simulator = new ClusterSimulator(8, nMetrics);
 
@@ -893,7 +888,7 @@ public class TestNativeFlamdexFTGSIterator {
                     final long v = iterator.termIntVal();
 //                    System.out.println("valid: " + v + ", test: " + t);
                 } else {
-                    String v = iterator.termStringVal();
+                    final String v = iterator.termStringVal();
 //                    System.out.println("valid: " + v + ", test: " + t);
                 }
 //                assertEquals(valid.termDocFreq(), test.termDocFreq());
