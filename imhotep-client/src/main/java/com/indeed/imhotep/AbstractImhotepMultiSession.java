@@ -83,6 +83,8 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
 
     protected final AtomicLong tempFileSizeBytesLeft;
 
+    private boolean closed = false;
+
     private final class RelayObserver implements Instrumentation.Observer {
         public synchronized void onEvent(final Instrumentation.Event event) {
             instrumentation.fire(event);
@@ -850,6 +852,10 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
 
     @Override
     public final void close() {
+        if (closed) {
+            return;
+        }
+        closed = true;
         try {
             preClose();
         } finally {
