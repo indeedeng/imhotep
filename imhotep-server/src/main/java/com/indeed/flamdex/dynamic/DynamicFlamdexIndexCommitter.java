@@ -66,6 +66,8 @@ class DynamicFlamdexIndexCommitter implements Closeable {
         this.indexDirectoryPrefix = indexDirectoryPrefix;
         final String tempDirectoryPrefix = "working." + indexDirectoryPrefix + '.';
         removeTempDirectories(datasetDirectory, tempDirectoryPrefix);
+        // To clean up temp directory for DynamicFlamdexIndexUtil#tryRemoveIndex
+        removeTempDirectories(datasetDirectory, "deleting." + indexDirectoryPrefix);
         this.temporaryDirectoryRoot = Files.createTempDirectory(datasetDirectory, tempDirectoryPrefix);
         temporaryIndexDirectory = this.temporaryDirectoryRoot.resolve("index");
         Files.createDirectory(temporaryIndexDirectory);
@@ -75,6 +77,7 @@ class DynamicFlamdexIndexCommitter implements Closeable {
         if (latestIndexDirectory != null) {
             try {
                 this.latestVersion = extractVersionFromIndexDirectory(latestIndexDirectory);
+                this.latestIndexDirectory = latestIndexDirectory;
             } catch (final IllegalArgumentException e) {
                 LOG.error("Failed to extract version.", e);
             }
@@ -88,7 +91,7 @@ class DynamicFlamdexIndexCommitter implements Closeable {
                 }
             } else {
                 // Use the dynamic index as a starting point by treating it as a segment.
-                final Path copiedSegmentPath = newSegmentDirectory();
+                final Path copiedSegmentPath = newSegmentDirectory(false);
                 DynamicFlamdexIndexUtil.createHardLinksRecursively(latestIndexDirectory, copiedSegmentPath);
                 currentSegments.add(copiedSegmentPath);
             }
@@ -165,14 +168,15 @@ class DynamicFlamdexIndexCommitter implements Closeable {
     }
 
     @Nonnull
-    public Path newSegmentDirectory() throws IOException {
+    public Path newSegmentDirectory(boolean createDirectory) throws IOException {
         final String newSegmentName = generateSegmentName();
         final Path newSegmentDirectory = temporaryIndexDirectory.resolve(newSegmentName);
-        Files.createDirectories(newSegmentDirectory);
+        if (createDirectory) {
+            Files.createDirectories(newSegmentDirectory);
+        }
         return newSegmentDirectory;
     }
 
-    @Nonnull
     public void doWhileLockingSegment(@Nonnull final CurrentSegmentConsumer consumer) throws IOException {
         changeSegmentsLock.lock();
         try {

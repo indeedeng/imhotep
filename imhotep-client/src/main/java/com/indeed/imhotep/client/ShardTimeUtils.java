@@ -13,6 +13,7 @@
  */
 package com.indeed.imhotep.client;
 
+import com.indeed.imhotep.DynamicIndexSubshardDirnameUtil;
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -35,7 +36,7 @@ public final class ShardTimeUtils {
 
     public static DateTime parseStart(String shardId) {
         if (shardId.startsWith(DYNAMIC_SHARD_PREFIX)) {
-            return yyyymmddhh.parseDateTime(shardId.substring("dindex".length(), "dindexyyyymmdd.hh".length()));
+            return DynamicIndexSubshardDirnameUtil.parseStartTimeFromShardId(shardId);
         } else {
             if (shardId.length() > 16) {
                 return yyyymmddhh.parseDateTime(shardId.substring(5, 16));
@@ -57,9 +58,7 @@ public final class ShardTimeUtils {
 
     public static Interval parseInterval(String shardId) {
         if (shardId.startsWith(DYNAMIC_SHARD_PREFIX)) {
-            final DateTime start = yyyymmddhh.parseDateTime(shardId.substring("dindex".length(), "dindexyyyymmdd.hh".length()));
-            final DateTime end = yyyymmddhh.parseDateTime(shardId.substring("dindexyyyymmdd.hh-".length(), "dindexyyyymmdd.hh-yyyymmdd.hh".length()));
-            return new Interval(start, end);
+            return DynamicIndexSubshardDirnameUtil.parseTimeRangeFromShardId(shardId);
         } else {
             if (shardId.length() > 16) {
                 final DateTime start = yyyymmddhh.parseDateTime(shardId.substring(5, 16));

@@ -168,7 +168,7 @@ class DynamicFlamdexMerger implements Closeable {
                 for (final MergeStrategy.Segment segment : segmentsToMerge) {
                     segmentReaders.add(closer.register(new SegmentReader(segment.getSegmentDirectory())));
                 }
-                newSegmentDirectory = indexCommitter.newSegmentDirectory();
+                newSegmentDirectory = indexCommitter.newSegmentDirectory(true);
 
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Start merge task "

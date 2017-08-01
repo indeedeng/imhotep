@@ -98,7 +98,7 @@ public class TestDynamicFlamdexIndexCommitter {
             final Set<Path> segmentDirectories = new HashSet<>();
             int docId = 0;
             for (int segmentId = 0; segmentId < 3; ++segmentId) {
-                final Path newSegmentDirectory = committer.newSegmentDirectory();
+                final Path newSegmentDirectory = committer.newSegmentDirectory(true);
                 segmentDirectories.add(newSegmentDirectory);
 
                 writeSegment(naiveResult, newSegmentDirectory, generateDocuments(docId, docId + 10));
@@ -129,7 +129,7 @@ public class TestDynamicFlamdexIndexCommitter {
             final Set<FlamdexDocument> naiveResult = new HashSet<>();
             int docId = 0;
             for (int segmentId = 0; segmentId < 3; ++segmentId) {
-                final Path newSegmentDirectory = committer.newSegmentDirectory();
+                final Path newSegmentDirectory = committer.newSegmentDirectory(true);
                 naiveResult.clear();
 
                 writeSegment(naiveResult, newSegmentDirectory, generateDocuments(docId, docId + 10));
@@ -165,7 +165,7 @@ public class TestDynamicFlamdexIndexCommitter {
                     public List<Path> call() throws IOException {
                         final List<Path> segmentNames = new ArrayList<>(100);
                         for (int i = 0; i < 200; ++i) {
-                            segmentNames.add(committer.newSegmentDirectory());
+                            segmentNames.add(committer.newSegmentDirectory(true));
                         }
                         return segmentNames;
                     }
@@ -204,7 +204,7 @@ public class TestDynamicFlamdexIndexCommitter {
             final Set<Path> segmentDirectories = new HashSet<>();
             int docId = 0;
             for (int segmentId = 0; segmentId < 3; ++segmentId) {
-                final Path newSegmentDirectory = committer.newSegmentDirectory();
+                final Path newSegmentDirectory = committer.newSegmentDirectory(true);
                 segmentDirectories.add(newSegmentDirectory);
                 writeSegment(naiveResult, newSegmentDirectory, generateDocuments(docId, docId + 10));
                 docId += 10;
@@ -217,7 +217,7 @@ public class TestDynamicFlamdexIndexCommitter {
             }
             assertEquals(segmentDirectories, new HashSet<>(getCurrentSegmentPaths(committer)));
 
-            final Path mergedSegmentDirectory = committer.newSegmentDirectory();
+            final Path mergedSegmentDirectory = committer.newSegmentDirectory(true);
             // This segment has the same documents as previous three segments.
             writeSegment(null, mergedSegmentDirectory, generateDocuments(0, docId));
             final Optional<Path> indexDirectoryOrAbsent = committer.replaceSegmentsAndCommitIfPossible(segmentDirectories, mergedSegmentDirectory);
@@ -243,13 +243,13 @@ public class TestDynamicFlamdexIndexCommitter {
         ) {
             final Set<FlamdexDocument> naiveResult = new HashSet<>();
             {
-                final Path segmentDirectory = committer.newSegmentDirectory();
+                final Path segmentDirectory = committer.newSegmentDirectory(true);
                 writeSegment(naiveResult, segmentDirectory, generateDocuments(0, 10));
                 final Optional<Path> indexDirectoryOrAbsent = committer.replaceSegmentsAndCommitIfPossible(Collections.<Path>emptyList(), segmentDirectory);
                 assertFalse(indexDirectoryOrAbsent.isPresent());
             }
 
-            final Path newSegmentDirectory = committer.newSegmentDirectory();
+            final Path newSegmentDirectory = committer.newSegmentDirectory(true);
             writeSegment(naiveResult, newSegmentDirectory, generateDocuments(10, 20));
             final Path indexDirectory = committer.addSegmentWithDeletionAndCommit(1, newSegmentDirectory, null);
 

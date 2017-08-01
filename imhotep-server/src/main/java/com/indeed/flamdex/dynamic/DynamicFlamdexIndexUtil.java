@@ -3,16 +3,14 @@ package com.indeed.flamdex.dynamic;
 import com.google.common.base.Optional;
 import com.indeed.flamdex.dynamic.locks.MultiThreadFileLockUtil;
 import com.indeed.flamdex.dynamic.locks.MultiThreadLock;
+import com.indeed.util.core.shell.PosixFileOperations;
 import com.indeed.util.io.Directories;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.io.IOException;
-import java.nio.file.FileVisitResult;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -57,52 +55,28 @@ public final class DynamicFlamdexIndexUtil {
     }
 
     static void removeDirectoryRecursively(@Nonnull final Path path) throws IOException {
-        Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
-            @Override
-            public FileVisitResult visitFile(@Nonnull final Path file, @Nonnull final BasicFileAttributes attributes) throws IOException {
-                Files.delete(file);
-                return FileVisitResult.CONTINUE;
-            }
-
-            @Override
-            public FileVisitResult postVisitDirectory(@Nonnull final Path dir, @Nullable final IOException exception) throws IOException {
-                if (exception != null) {
-                    throw exception;
-                }
-                Files.delete(dir);
-                return FileVisitResult.CONTINUE;
-            }
-        });
+        PosixFileOperations.rmrf(path);
     }
 
     static void createHardLinksRecursively(@Nonnull final Path source, @Nonnull final Path dest) throws IOException {
-        Files.createDirectories(dest.getParent());
-        Files.walkFileTree(source, new SimpleFileVisitor<Path>() {
-            @Override
-            public FileVisitResult preVisitDirectory(@Nonnull final Path dir, @Nonnull final BasicFileAttributes attrs) throws IOException {
-                Files.createDirectories(dest.resolve(source.relativize(dir)));
-                return FileVisitResult.CONTINUE;
-            }
-
-            @Override
-            public FileVisitResult visitFile(@Nonnull final Path file, @Nonnull final BasicFileAttributes attributes) throws IOException {
-                final Path destFilePath = dest.resolve(source.relativize(file));
-                Files.createLink(destFilePath, file);
-                return FileVisitResult.CONTINUE;
-            }
-        });
+        PosixFileOperations.cplr(source, dest);
     }
+
     public static boolean tryRemoveIndex(@Nonnull final Path indexDirectory) throws IOException {
         final Optional<MultiThreadLock> lockOrEmpty = MultiThreadFileLockUtil.tryWriteLock(indexDirectory, READER_LOCK_FILENAME);
         if (lockOrEmpty.isPresent()) {
             try {
-                final Path tempDirectory = Files.createTempDirectory(indexDirectory.getParent(), "deleting." + indexDirectory.getFileName().toString());
-                try {
-                    Files.move(indexDirectory, tempDirectory.resolve(indexDirectory.getFileName()));
-                } finally {
-                    removeDirectoryRecursively(tempDirectory);
+                final Path tempDirectoryName = indexDirectory.getParent().resolve("deleting." + indexDirectory.getFileName().toString());
+                while (true) {
+                    try {
+                        Files.move(indexDirectory, tempDirectoryName);
+                        removeDirectoryRecursively(tempDirectoryName);
+                        return true;
+                    } catch (final FileAlreadyExistsException e) {
+                        // In the case we already have that temp directory, remove that first and retry.
+                        removeDirectoryRecursively(tempDirectoryName);
+                    }
                 }
-                return true;
             } finally {
                 lockOrEmpty.get().close();
             }

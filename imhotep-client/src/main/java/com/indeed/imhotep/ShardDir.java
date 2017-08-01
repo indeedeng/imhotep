@@ -36,9 +36,9 @@ public class ShardDir {
             this.id = matcher.group(1);
             this.version = Long.parseLong(matcher.group(2));
         } else if (DynamicIndexSubshardDirnameUtil.isValidName(this.name)) {
-            final DynamicIndexSubshardDirnameUtil.ParseResult parseResult = DynamicIndexSubshardDirnameUtil.parse(this.name);
-            this.id = parseResult.getId();
-            this.version = parseResult.getUpdateId();
+            final DynamicIndexSubshardDirnameUtil.DynamicIndexShardInfo dynamicIndexShardInfo = DynamicIndexSubshardDirnameUtil.parse(this.name);
+            this.id = dynamicIndexShardInfo.getId();
+            this.version = dynamicIndexShardInfo.getTimestamp();
         } else {
             this.id = name;
             this.version = 0L;

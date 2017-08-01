@@ -311,10 +311,9 @@ public class ImhotepClient
             } else {
                 subshardId = 0;
             }
-            if (!shardsForTimeTruncatedPerSubshard.containsKey(subshardId)) {
-                shardsForTimeTruncatedPerSubshard.put(subshardId, new ArrayList<ShardTruncatedStart>());
-            }
-            shardsForTimeTruncatedPerSubshard.get(subshardId).add(new ShardTruncatedStart(shard, shardStart));
+            shardsForTimeTruncatedPerSubshard
+                    .computeIfAbsent(subshardId, (ignored) -> new ArrayList<>())
+                    .add(new ShardTruncatedStart(shard, shardStart));
         }
 
         final List<ShardIdWithVersion> chosenShards = Lists.newArrayList();

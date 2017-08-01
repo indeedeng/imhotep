@@ -177,7 +177,7 @@ public class DynamicFlamdexDocWriter implements DeletableFlamdexDocWriter {
 
     @Nonnull
     private Path buildSegment(final long version) throws IOException {
-        final Path newSegmentDirectory = indexCommitter.newSegmentDirectory();
+        final Path newSegmentDirectory = indexCommitter.newSegmentDirectory(true);
         // Output the segment
         try (final SimpleFlamdexWriter flamdexWriter = new SimpleFlamdexWriter(newSegmentDirectory, memoryFlamdex.getNumDocs())) {
             SimpleFlamdexWriter.writeFlamdex(memoryFlamdex, flamdexWriter);

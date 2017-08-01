@@ -1,12 +1,12 @@
 package com.indeed.imhotep;
 
 import com.google.common.base.Function;
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
@@ -27,15 +27,15 @@ public class DynamicIndexSubshardDirnameUtilTest {
     @Test
     public void testParse() {
         final String shardName = "dindex19700101.00-19700101.01.1.4.1234.5678";
-        final Optional<DynamicIndexSubshardDirnameUtil.ParseResult> resultOrEmpty = DynamicIndexSubshardDirnameUtil.tryParse(shardName);
-        assertTrue(resultOrEmpty.isPresent());
-        final DynamicIndexSubshardDirnameUtil.ParseResult parseResult = resultOrEmpty.get();
-        assertEquals(shardName, parseResult.getName());
-        assertEquals("dindex19700101.00-19700101.01.1.4", parseResult.getId());
-        assertEquals(1234L, parseResult.getUpdateId());
-        assertEquals(5678L, parseResult.getTimestamp());
-        assertEquals(1, parseResult.getSubshardId());
-        assertEquals(4, parseResult.getNumSubshards());
+        final Optional<DynamicIndexSubshardDirnameUtil.DynamicIndexShardInfo> shardInfoOrEmpty = DynamicIndexSubshardDirnameUtil.tryParse(shardName);
+        assertTrue(shardInfoOrEmpty.isPresent());
+        final DynamicIndexSubshardDirnameUtil.DynamicIndexShardInfo dynamicIndexShardInfo = shardInfoOrEmpty.get();
+        assertEquals(shardName, dynamicIndexShardInfo.getName());
+        assertEquals("dindex19700101.00-19700101.01.1.4", dynamicIndexShardInfo.getId());
+        assertEquals(1234L, dynamicIndexShardInfo.getTimestamp());
+        assertEquals(5678L, dynamicIndexShardInfo.getVersion());
+        assertEquals(1, dynamicIndexShardInfo.getSubshardId());
+        assertEquals(4, dynamicIndexShardInfo.getNumSubshards());
 
         // not dindex
         assertFalse(DynamicIndexSubshardDirnameUtil.tryParse("index19700101.00-19700101.01.1.4.1234.5678").isPresent());
