@@ -53,7 +53,7 @@ import static org.junit.Assert.assertTrue;
  */
 public class TestMemoryFlamdex {
 
-    Path tmpDir;
+    private Path tmpDir;
 
     @Before
     public void setUp() throws IOException {
@@ -67,17 +67,17 @@ public class TestMemoryFlamdex {
 
     @Test
     public void testIntMaxValue() throws IOException {
-        MemoryFlamdex fdx = new MemoryFlamdex().setNumDocs(1);
-        IntFieldWriter ifw = fdx.getIntFieldWriter("if1");
+        final MemoryFlamdex fdx = new MemoryFlamdex().setNumDocs(1);
+        final IntFieldWriter ifw = fdx.getIntFieldWriter("if1");
         ifw.nextTerm(Integer.MAX_VALUE);
         ifw.nextDoc(0);
         ifw.close();
         fdx.close();
 
-        ByteArrayDataOutput out = ByteStreams.newDataOutput();
+        final ByteArrayDataOutput out = ByteStreams.newDataOutput();
         fdx.write(out);
 
-        MemoryFlamdex fdx2 = new MemoryFlamdex();
+        final MemoryFlamdex fdx2 = new MemoryFlamdex();
         fdx2.readFields(ByteStreams.newDataInput(out.toByteArray()));
 
         innerTestIntMaxValue(fdx2);
@@ -85,10 +85,10 @@ public class TestMemoryFlamdex {
         innerTestIntMaxValue(MemoryFlamdex.streamer(ByteStreams.newDataInput(out.toByteArray())));
     }
 
-    private void innerTestIntMaxValue(FlamdexReader fdx2) {
-        IntTermIterator iter = fdx2.getIntTermIterator("if1");
-        DocIdStream dis = fdx2.getDocIdStream();
-        int[] buf = new int[2];
+    private void innerTestIntMaxValue(final FlamdexReader fdx2) {
+        final IntTermIterator iter = fdx2.getIntTermIterator("if1");
+        final DocIdStream dis = fdx2.getDocIdStream();
+        final int[] buf = new int[2];
         assertTrue(iter.next());
         assertEquals(Integer.MAX_VALUE, iter.term());
         dis.reset(iter);
@@ -99,24 +99,24 @@ public class TestMemoryFlamdex {
 
     @Test
     public void testStreamerDocIdStream() throws IOException {
-        MemoryFlamdex fdx = new MemoryFlamdex();
-        FlamdexDocument doc = new FlamdexDocument();
+        final MemoryFlamdex fdx = new MemoryFlamdex();
+        final FlamdexDocument doc = new FlamdexDocument();
         doc.setIntField("if1", 5);
         for (int i = 0; i < 5; ++i) {
             fdx.addDocument(doc);
         }
         fdx.close();
 
-        ByteArrayDataOutput out = ByteStreams.newDataOutput();
+        final ByteArrayDataOutput out = ByteStreams.newDataOutput();
         fdx.write(out);
 
-        FlamdexReader r = MemoryFlamdex.streamer(ByteStreams.newDataInput(out.toByteArray()));
-        IntTermIterator iter = r.getIntTermIterator("if1");
+        final FlamdexReader r = MemoryFlamdex.streamer(ByteStreams.newDataInput(out.toByteArray()));
+        final IntTermIterator iter = r.getIntTermIterator("if1");
         assertTrue(iter.next());
         assertEquals(5, iter.term());
-        DocIdStream dis = r.getDocIdStream();
+        final DocIdStream dis = r.getDocIdStream();
         dis.reset(iter);
-        int[] buf = new int[2];
+        final int[] buf = new int[2];
         assertEquals(2, dis.fillDocIdBuffer(buf));
         assertArrayEquals(new int[]{0, 1}, buf);
         assertEquals(2, dis.fillDocIdBuffer(buf));
@@ -127,8 +127,8 @@ public class TestMemoryFlamdex {
 
     @Test
     public void testDocWithRepeatingTerms() throws IOException {
-        MemoryFlamdex fdx = new MemoryFlamdex();
-        FlamdexDocument doc = new FlamdexDocument();
+        final MemoryFlamdex fdx = new MemoryFlamdex();
+        final FlamdexDocument doc = new FlamdexDocument();
         doc.setIntField("if1", new long[]{1, 1, 1, 3, 3});
         fdx.addDocument(doc);
         doc.setIntField("if1", new long[]{1, 2, 2, 2, 4});
@@ -137,20 +137,20 @@ public class TestMemoryFlamdex {
 
         innerTestBadDoc(fdx);
 
-        ByteArrayDataOutput out = ByteStreams.newDataOutput();
+        final ByteArrayDataOutput out = ByteStreams.newDataOutput();
         fdx.write(out);
-        MemoryFlamdex fdx2 = new MemoryFlamdex();
+        final MemoryFlamdex fdx2 = new MemoryFlamdex();
         fdx2.readFields(ByteStreams.newDataInput(out.toByteArray()));
 
         innerTestBadDoc(fdx2);
     }
 
-    private void innerTestBadDoc(MemoryFlamdex fdx) {
+    private void innerTestBadDoc(final MemoryFlamdex fdx) {
         assertEquals(2, fdx.getNumDocs());
-        
-        IntTermIterator iter = fdx.getIntTermIterator("if1");
-        DocIdStream dis = fdx.getDocIdStream();
-        int[] buf = new int[64];
+
+        final IntTermIterator iter = fdx.getIntTermIterator("if1");
+        final DocIdStream dis = fdx.getDocIdStream();
+        final int[] buf = new int[64];
         assertTrue(iter.next());
         assertEquals(1, iter.term());
         assertEquals(2, iter.docFreq());
@@ -182,8 +182,8 @@ public class TestMemoryFlamdex {
 
     @Test
     public void testTermWrite() throws IOException {
-        MemoryFlamdex fdx = new MemoryFlamdex().setNumDocs(10);
-        IntFieldWriter ifw = fdx.getIntFieldWriter("if1");
+        final MemoryFlamdex fdx = new MemoryFlamdex().setNumDocs(10);
+        final IntFieldWriter ifw = fdx.getIntFieldWriter("if1");
         ifw.nextTerm(5);
         ifw.nextDoc(0);
         ifw.nextDoc(3);
@@ -195,7 +195,7 @@ public class TestMemoryFlamdex {
         ifw.nextDoc(2);
         ifw.nextDoc(7);
         ifw.close();
-        StringFieldWriter sfw = fdx.getStringFieldWriter("sf1");
+        final StringFieldWriter sfw = fdx.getStringFieldWriter("sf1");
         sfw.nextTerm("a");
         sfw.nextDoc(2);
         sfw.nextDoc(8);
@@ -210,9 +210,9 @@ public class TestMemoryFlamdex {
         sfw.close();
         fdx.close();
 
-        ByteArrayDataOutput out = ByteStreams.newDataOutput();
+        final ByteArrayDataOutput out = ByteStreams.newDataOutput();
         fdx.write(out);
-        MemoryFlamdex fdx2 = new MemoryFlamdex();
+        final MemoryFlamdex fdx2 = new MemoryFlamdex();
         fdx2.readFields(ByteStreams.newDataInput(out.toByteArray()));
 
         verify(fdx2);
@@ -222,15 +222,15 @@ public class TestMemoryFlamdex {
         verify(fdx.shallowCopy());
     }
 
-    private void verify(FlamdexReader fdx) {
+    private void verify(final FlamdexReader fdx) {
         assertEquals(10, fdx.getNumDocs());
 
-        DocIdStream dis = fdx.getDocIdStream();
-        IntTermIterator iti = fdx.getIntTermIterator("if1");
+        final DocIdStream dis = fdx.getDocIdStream();
+        final IntTermIterator iti = fdx.getIntTermIterator("if1");
         assertTrue(iti.next());
         assertEquals(5, iti.term());
         assertEquals(4, iti.docFreq());
-        int[] buf = new int[64];
+        final int[] buf = new int[64];
         dis.reset(iti);
         assertEquals(4, dis.fillDocIdBuffer(buf));
         assertArrayEquals(new int[]{0, 3, 4, 5}, Arrays.copyOf(buf, 4));
@@ -252,7 +252,7 @@ public class TestMemoryFlamdex {
 
         iti.close();
 
-        StringTermIterator sti = fdx.getStringTermIterator("sf1");
+        final StringTermIterator sti = fdx.getStringTermIterator("sf1");
         assertTrue(sti.next());
         assertEquals("a", sti.term());
         assertEquals(3, sti.docFreq());
@@ -305,27 +305,27 @@ public class TestMemoryFlamdex {
         fdx.readFields(ByteStreams.newDataInput(out.toByteArray()));
         assertEquals(2, fdx.getNumDocs());
 
-        Map<String, List<FlamdexDocument>> ret = Maps.newHashMap();
-        Random r = new Random();
-        StringBuilder sb = new StringBuilder();
+        final Map<String, List<FlamdexDocument>> ret = Maps.newHashMap();
+        final Random r = new Random();
+        final StringBuilder sb = new StringBuilder();
         for (int i = 0; i < 300; ++i) {
-            Map<String, List<Long>> intFields = Maps.newHashMap();
-            int numFields = r.nextInt(5) + 5;
+            final Map<String, List<Long>> intFields = Maps.newHashMap();
+            final int numFields = r.nextInt(5) + 5;
             for (int j = 0; j < numFields; ++j) {
-                int numTerms = r.nextInt(50) + 50;
-                List<Long> terms = Lists.newArrayList();
+                final int numTerms = r.nextInt(50) + 50;
+                final List<Long> terms = Lists.newArrayList();
                 for (int k = 0; k < numTerms; ++k) {
                     terms.add(r.nextLong());
                 }
                 intFields.put("if" + j, terms);
             }
-            Map<String, List<String>> stringFields = Maps.newHashMap();
-            int numSFields = r.nextInt(5) + 5;
+            final Map<String, List<String>> stringFields = Maps.newHashMap();
+            final int numSFields = r.nextInt(5) + 5;
             for (int j = 0; j < numSFields; ++j) {
-                int numTerms = r.nextInt(10) + 10;
-                List<String> terms = Lists.newArrayList();
+                final int numTerms = r.nextInt(10) + 10;
+                final List<String> terms = Lists.newArrayList();
                 for (int k = 0; k < numTerms; ++k) {
-                    int termLen = r.nextInt(10) + 10;
+                    final int termLen = r.nextInt(10) + 10;
                     sb.setLength(0);
                     for (int l = 0; l < termLen; ++l) {
                         sb.append((char)(r.nextInt(26) + 'a'));
@@ -334,11 +334,11 @@ public class TestMemoryFlamdex {
                 }
                 stringFields.put("sf" + j, terms);
             }
-            String key = "foo" + (r.nextInt(3) + 1);
+            final String key = "foo" + (r.nextInt(3) + 1);
             if (!ret.containsKey(key)) {
                 ret.put(key, new ArrayList<FlamdexDocument>());
             }
-            MockDoc doc = new MockDoc(Maps.transformValues(intFields, new Function<List<Long>, List<String>>() {
+            final MockDoc doc = new MockDoc(Maps.transformValues(intFields, new Function<List<Long>, List<String>>() {
                 @Nullable
                 public List<String> apply(@Nullable final List<Long> input) {
                     return Lists.transform(input, new Function<Long, String>() {
@@ -351,37 +351,37 @@ public class TestMemoryFlamdex {
             }), stringFields);
             ret.get(key).add(doc.convert());
         }
-        MemoryFlamdex original = new MemoryFlamdex();
-        for (List<FlamdexDocument> docs : ret.values()) {
-            for (FlamdexDocument doc : docs) {
+        final MemoryFlamdex original = new MemoryFlamdex();
+        for (final List<FlamdexDocument> docs : ret.values()) {
+            for (final FlamdexDocument doc : docs) {
                 original.addDocument(doc);
             }
         }
-        MemoryFlamdex copy = new MemoryFlamdex();
-        ByteArrayDataOutput out2 = ByteStreams.newDataOutput();
+        final MemoryFlamdex copy = new MemoryFlamdex();
+        final ByteArrayDataOutput out2 = ByteStreams.newDataOutput();
         original.write(out2);
         copy.readFields(ByteStreams.newDataInput(out2.toByteArray()));
 
         assertTrue(FlamdexCompare.unorderedEquals(original, copy));
         int numDocs = 0;
-        List<MemoryFlamdex> flamdexes = new ArrayList<MemoryFlamdex>();
-        for (List<FlamdexDocument> docs : ret.values()) {
-            MemoryFlamdex flamdex = new MemoryFlamdex();
-            for (FlamdexDocument doc : docs) {
+        final List<MemoryFlamdex> flamdexes = new ArrayList<>();
+        for (final List<FlamdexDocument> docs : ret.values()) {
+            final MemoryFlamdex flamdex = new MemoryFlamdex();
+            for (final FlamdexDocument doc : docs) {
                 flamdex.addDocument(doc);
             }
             numDocs += flamdex.getNumDocs();
             flamdexes.add(flamdex);
         }
-        MemoryFlamdex merged = new MemoryFlamdex();
+        final MemoryFlamdex merged = new MemoryFlamdex();
         merged.setNumDocs(numDocs);
         SimpleFlamdexWriter.merge(flamdexes, merged);
         assertTrue(FlamdexCompare.unorderedEquals(merged, original));
-        Path tmpFlamdexDir = tmpDir.resolve("tmpfdx");
-        SimpleFlamdexWriter writer = new SimpleFlamdexWriter(tmpFlamdexDir, numDocs, true);
+        final Path tmpFlamdexDir = tmpDir.resolve("tmpfdx");
+        final SimpleFlamdexWriter writer = new SimpleFlamdexWriter(tmpFlamdexDir, numDocs, true);
         SimpleFlamdexWriter.writeFlamdex(merged, writer);
         writer.close();
-        SimpleFlamdexReader reader = SimpleFlamdexReader.open(tmpFlamdexDir);
+        final SimpleFlamdexReader reader = SimpleFlamdexReader.open(tmpFlamdexDir);
         assertTrue(FlamdexCompare.unorderedEquals(reader, original));
         reader.close();
     }
@@ -392,14 +392,16 @@ public class TestMemoryFlamdex {
 
         public MockDoc() {}
 
-        public MockDoc(Map<String, List<String>> intFields, Map<String, List<String>> stringFields) {
+        public MockDoc(
+                final Map<String, List<String>> intFields,
+                final Map<String, List<String>> stringFields) {
             this.intFields = intFields;
             this.stringFields = stringFields;
         }
 
         public FlamdexDocument convert() {
-            FlamdexDocument doc = new FlamdexDocument();
-            for (Map.Entry<String, List<String>> e : intFields.entrySet()) {
+            final FlamdexDocument doc = new FlamdexDocument();
+            for (final Map.Entry<String, List<String>> e : intFields.entrySet()) {
                 doc.setIntField(e.getKey(), Lists.transform(e.getValue(), new Function<String, Long>() {
                     @Nullable
                     public Long apply(@Nullable final String input) {
@@ -407,7 +409,7 @@ public class TestMemoryFlamdex {
                     }
                 }));
             }
-            for (Map.Entry<String, List<String>> e : stringFields.entrySet()) {
+            for (final Map.Entry<String, List<String>> e : stringFields.entrySet()) {
                 doc.setStringField(e.getKey(), e.getValue());
             }
             return doc;
@@ -428,11 +430,11 @@ public class TestMemoryFlamdex {
         assertEquals(1, it.docFreq());
         assertFalse(it.next());
 
-        ByteArrayDataOutput out = ByteStreams.newDataOutput();
+        final ByteArrayDataOutput out = ByteStreams.newDataOutput();
         fdx.write(out);
         final MemoryFlamdex fdx2 = new MemoryFlamdex();
         fdx2.readFields(ByteStreams.newDataInput(out.toByteArray()));
-        IntTermIterator iter = fdx2.getIntTermIterator("clicked");
+        final IntTermIterator iter = fdx2.getIntTermIterator("clicked");
         assertTrue(iter.next());
         assertEquals(1, iter.term());
         assertEquals(1, iter.docFreq());

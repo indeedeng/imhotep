@@ -21,7 +21,7 @@ public class MetricKey {
     private final String shardName;
     private final String metricName;
 
-    public MetricKey(String indexName, String shardName, String metricName) {
+    public MetricKey(final String indexName, final String shardName, final String metricName) {
         this.indexName = indexName;
         this.shardName = shardName;
         this.metricName = metricName;
@@ -40,17 +40,19 @@ public class MetricKey {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+    public boolean equals(final Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
         final MetricKey metricKey = (MetricKey) o;
 
-        if (!indexName.equals(metricKey.indexName)) return false;
-        if (!metricName.equals(metricKey.metricName)) return false;
-        if (!shardName.equals(metricKey.shardName)) return false;
-
-        return true;
+        return indexName.equals(metricKey.indexName)
+                && metricName.equals(metricKey.metricName)
+                && shardName.equals(metricKey.shardName);
     }
 
     @Override

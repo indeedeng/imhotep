@@ -6,6 +6,7 @@ import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.fs.RemoteCachingPath;
 import com.indeed.util.core.Pair;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Path;
@@ -25,6 +26,7 @@ class DataSetScanner implements Iterable<RemoteCachingPath> {
         this.shardFilter = shardFilter;
     }
 
+    @Nonnull
     @Override
     public Iterator<RemoteCachingPath> iterator() {
         // hack to avoid an extra attribute lookup on each list entry

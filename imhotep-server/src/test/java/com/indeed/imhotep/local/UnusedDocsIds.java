@@ -3,12 +3,12 @@ package com.indeed.imhotep.local;
 import java.util.Random;
 
 class UnusedDocsIds {
-    final Random rand;
-    final int[] docIds;
-    int len;
-    int nValidDocs;
+    private final Random rand;
+    private final int[] docIds;
+    private int len;
+    private int nValidDocs;
 
-    UnusedDocsIds(Random rand, int size) {
+    UnusedDocsIds(final Random rand, final int size) {
         this.rand = rand;
         this.docIds = new int[size];
         for (int i = 0; i < size; i++) {

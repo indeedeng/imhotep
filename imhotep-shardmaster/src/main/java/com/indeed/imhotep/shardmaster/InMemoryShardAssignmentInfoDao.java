@@ -11,6 +11,7 @@ import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 
+import javax.annotation.Nonnull;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Queue;
@@ -96,14 +97,14 @@ class InMemoryShardAssignmentInfoDao implements ShardAssignmentInfoDao {
         datasetAssignments = CacheBuilder
                 .newBuilder().build(new CacheLoader<String, ShardAssignments>() {
                     @Override
-                    public ShardAssignments load(final String key) throws Exception {
+                    public ShardAssignments load(@Nonnull final String key) {
                         return new ShardAssignments(stalenessThreshold.getMillis());
                     }
                 });
         nodeAssignments = CacheBuilder
                 .newBuilder().build(new CacheLoader<Host, NodeAssignments>() {
                     @Override
-                    public NodeAssignments load(final Host key) throws Exception {
+                    public NodeAssignments load(@Nonnull final Host key) {
                         return new NodeAssignments();
                     }
                 });

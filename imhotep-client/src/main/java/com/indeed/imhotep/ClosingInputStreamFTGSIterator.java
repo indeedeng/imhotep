@@ -32,7 +32,11 @@ final class ClosingInputStreamFTGSIterator extends InputStreamFTGSIterator {
     private final OutputStream os;
     private boolean closed = false;
 
-    ClosingInputStreamFTGSIterator(@Nullable Socket socket, InputStream is, OutputStream os, int numStats) throws IOException {
+    ClosingInputStreamFTGSIterator(
+            @Nullable final Socket socket,
+            final InputStream is,
+            final OutputStream os,
+            final int numStats) throws IOException {
         super(is, numStats);
         this.socket = socket;
         this.is = is;
@@ -45,19 +49,19 @@ final class ClosingInputStreamFTGSIterator extends InputStreamFTGSIterator {
             if (!closed) {
                 try {
                     os.close();
-                } catch (IOException e) {
+                } catch (final IOException e) {
                     log.error(e);
                 }
                 try {
                     is.close();
-                } catch (IOException e) {
+                } catch (final IOException e) {
                     log.error(e);
                 }
                 try {
                     if (socket != null) {
                         socket.close();
                     }
-                } catch (IOException e) {
+                } catch (final IOException e) {
                     log.error(e);
                 }
                 closed = true;

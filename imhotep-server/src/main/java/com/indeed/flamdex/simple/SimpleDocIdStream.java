@@ -39,7 +39,7 @@ abstract class SimpleDocIdStream implements DocIdStream {
 
     private Path currentFileOpen;
 
-    public SimpleDocIdStream(byte[] buffer) {
+    public SimpleDocIdStream(final byte[] buffer) {
         this.buffer = buffer;
         this.wrappedBuffer = ByteBuffer.wrap(buffer);
 
@@ -49,18 +49,20 @@ abstract class SimpleDocIdStream implements DocIdStream {
     }
 
     @Override
-    public void reset(TermIterator term) {
-        if (!(term instanceof SimpleTermIterator)) throw new IllegalArgumentException("invalid term iterator");
+    public void reset(final TermIterator term) {
+        if (!(term instanceof SimpleTermIterator)) {
+            throw new IllegalArgumentException("invalid term iterator");
+        }
 
         try {
             internalReset((SimpleTermIterator)term);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             close();
             throw new RuntimeException(e);
         }
     }
 
-    private void internalReset(SimpleTermIterator term) throws IOException {
+    private void internalReset(final SimpleTermIterator term) throws IOException {
         final Path filename = term.getFilename();
         if (!filename.equals(currentFileOpen)) {
 
@@ -85,8 +87,10 @@ abstract class SimpleDocIdStream implements DocIdStream {
     }
 
     @Override
-    public int fillDocIdBuffer(int[] docIdBuffer) {
-        if (docsRemaining == 0) return 0;
+    public int fillDocIdBuffer(final int[] docIdBuffer) {
+        if (docsRemaining == 0) {
+            return 0;
+        }
 
         try {
             final int n = Math.min(docsRemaining, docIdBuffer.length);
@@ -97,7 +101,7 @@ abstract class SimpleDocIdStream implements DocIdStream {
             }
             docsRemaining -= n;
             return n;
-        } catch (IOException e) {
+        } catch (final IOException e) {
             close();
             throw new RuntimeException(e);
         }
@@ -107,15 +111,20 @@ abstract class SimpleDocIdStream implements DocIdStream {
         int ret = 0;
         int shift = 0;
         do {
-            if (bufferPtr == bufferLen) refillBuffer(bufferOffset + bufferLen);
-            byte b = buffer[bufferPtr++];
+            if (bufferPtr == bufferLen) {
+                refillBuffer(bufferOffset + bufferLen);
+            }
+            final byte b = buffer[bufferPtr];
+            bufferPtr++;
             ret |= ((b & 0x7F) << shift);
-            if (b >= 0) return ret;
+            if (b >= 0) {
+                return ret;
+            }
             shift += 7;
         } while (true);
     }
 
-    private void refillBuffer(long offset) throws IOException {
+    private void refillBuffer(final long offset) throws IOException {
         bufferLen = (int)Math.min(buffer.length, getLength() - offset);
         if (bufferLen > 0) {
             readBytes(offset);

@@ -25,9 +25,16 @@ import java.io.OutputStream;
  * @author jplaisance
  */
 public final class DocOutputStreamWriter {
+    private DocOutputStreamWriter() {
+    }
+
     private static final Logger log = Logger.getLogger(DocOutputStreamWriter.class);
 
-    public static void writeNotThreadSafe(DocIterator docIterator, int numIntFields, int numStringFields, OutputStream os) throws IOException {
+    public static void writeNotThreadSafe(
+            final DocIterator docIterator,
+            final int numIntFields,
+            final int numStringFields,
+            final OutputStream os) throws IOException {
         final DataOutputStream out = new DataOutputStream(os);
         while (docIterator.next()) {
             writeDoc(docIterator, numIntFields, numStringFields, out);
@@ -55,7 +62,11 @@ public final class DocOutputStreamWriter {
         }
     }
 
-    public static void writeThreadSafe(DocIterator docIterator, int numIntFields, int numStringFields, DataOutputStream os) throws IOException {
+    public static void writeThreadSafe(
+            final DocIterator docIterator,
+            final int numIntFields,
+            final int numStringFields,
+            final DataOutputStream os) throws IOException {
         try {
             while (docIterator.next()) {
                 synchronized (os) {

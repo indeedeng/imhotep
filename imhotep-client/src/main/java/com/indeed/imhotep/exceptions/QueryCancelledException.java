@@ -9,11 +9,11 @@ public class QueryCancelledException extends ImhotepKnownException {
     super();
     }
 
-    public QueryCancelledException(String s) {
+    public QueryCancelledException(final String s) {
         super(s);
     }
 
-    public QueryCancelledException(String message, Throwable cause) {
+    public QueryCancelledException(final String message, final Throwable cause) {
             super(message, cause);
         }
 }

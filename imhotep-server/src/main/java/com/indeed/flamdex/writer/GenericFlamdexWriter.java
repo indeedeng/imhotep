@@ -50,35 +50,46 @@ public final class GenericFlamdexWriter implements FlamdexWriter {
     private final Set<String> intFields;
     private final Set<String> stringFields;
 
-    public GenericFlamdexWriter(Path outputDirectory, IntFieldWriterFactory intFieldWriterFactory, StringFieldWriterFactory stringFieldWriterFactory, long numDocs, final FlamdexFormatVersion formatVersion) throws IOException {
+    public GenericFlamdexWriter(
+            final Path outputDirectory,
+            final IntFieldWriterFactory intFieldWriterFactory,
+            final StringFieldWriterFactory stringFieldWriterFactory,
+            final long numDocs,
+            final FlamdexFormatVersion formatVersion) throws IOException {
         this(outputDirectory, intFieldWriterFactory, stringFieldWriterFactory, numDocs, formatVersion, true);
     }
 
-    public GenericFlamdexWriter(Path outputDirectory, IntFieldWriterFactory intFieldWriterFactory, StringFieldWriterFactory stringFieldWriterFactory, long numDocs, final FlamdexFormatVersion formatVersion, boolean create) throws IOException {
+    public GenericFlamdexWriter(
+            final Path outputDirectory,
+            final IntFieldWriterFactory intFieldWriterFactory,
+            final StringFieldWriterFactory stringFieldWriterFactory,
+            final long numDocs,
+            final FlamdexFormatVersion formatVersion,
+            final boolean create) throws IOException {
         this.outputDirectory = outputDirectory;
         this.intFieldWriterFactory = intFieldWriterFactory;
         this.stringFieldWriterFactory = stringFieldWriterFactory;
         this.maxDocs = numDocs;
         this.formatVersion = formatVersion;
         if (create) {
-            intFields = new HashSet<String>();
-            stringFields = new HashSet<String>();
+            intFields = new HashSet<>();
+            stringFields = new HashSet<>();
         } else {
             final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(outputDirectory);
             if (metadata.getNumDocs() != numDocs) {
                 throw new IllegalArgumentException("numDocs does not match numDocs in existing index");
             }
-            intFields = new HashSet<String>(metadata.getIntFields());
-            stringFields = new HashSet<String>(metadata.getStringFields());
+            intFields = new HashSet<>(metadata.getIntFields());
+            stringFields = new HashSet<>(metadata.getStringFields());
         }
     }
 
     @Override
-    public IntFieldWriter getIntFieldWriter(String field) throws IOException {
+    public IntFieldWriter getIntFieldWriter(final String field) throws IOException {
         return getIntFieldWriter(field, false);
     }
 
-    public IntFieldWriter getIntFieldWriter(String field, boolean blowAway) throws IOException {
+    public IntFieldWriter getIntFieldWriter(final String field, final boolean blowAway) throws IOException {
         if (!blowAway && intFields.contains(field)) {
             throw new IllegalArgumentException("already added int field "+field);
         }
@@ -87,11 +98,11 @@ public final class GenericFlamdexWriter implements FlamdexWriter {
     }
 
     @Override
-    public StringFieldWriter getStringFieldWriter(String field) throws IOException {
+    public StringFieldWriter getStringFieldWriter(final String field) throws IOException {
         return getStringFieldWriter(field, false);
     }
 
-    public StringFieldWriter getStringFieldWriter(String field, boolean blowAway) throws IOException {
+    public StringFieldWriter getStringFieldWriter(final String field, final boolean blowAway) throws IOException {
         if (!blowAway && stringFields.contains(field)) {
             throw new IllegalArgumentException("already added string field "+field);
         }
@@ -105,24 +116,30 @@ public final class GenericFlamdexWriter implements FlamdexWriter {
     }
     
     @Override
-    public void resetMaxDocs(long numDocs) {
-        this.maxDocs = numDocs;
+    public void resetMaxDocs(final long maxDocs) {
+        this.maxDocs = maxDocs;
     }
 
     @Override
     public void close() throws IOException {
-        final List<String> intFieldsList = new ArrayList<String>(intFields);
+        final List<String> intFieldsList = new ArrayList<>(intFields);
         Collections.sort(intFieldsList);
 
-        final List<String> stringFieldsList = new ArrayList<String>(stringFields);
+        final List<String> stringFieldsList = new ArrayList<>(stringFields);
         Collections.sort(stringFieldsList);
 
-        FlamdexMetadata metadata = new FlamdexMetadata((int)maxDocs, intFieldsList, stringFieldsList, formatVersion);
+        final FlamdexMetadata metadata = new FlamdexMetadata((int)maxDocs, intFieldsList, stringFieldsList, formatVersion);
         FlamdexMetadata.writeMetadata(outputDirectory, metadata);
     }
 
-    public static void writeFlamdex(final Path indexDir, final FlamdexReader fdx, final IntFieldWriterFactory intFieldWriterFactory, final StringFieldWriterFactory stringFieldWriterFactory, final FlamdexFormatVersion formatVersion,
-                                    final List<String> intFields, final List<String> stringFields) throws IOException {
+    public static void writeFlamdex(
+            final Path indexDir,
+            final FlamdexReader fdx,
+            final IntFieldWriterFactory intFieldWriterFactory,
+            final StringFieldWriterFactory stringFieldWriterFactory,
+            final FlamdexFormatVersion formatVersion,
+            final List<String> intFields,
+            final List<String> stringFields) throws IOException {
         try (Closer closer = Closer.create()) {
             final DocIdStream dis = fdx.getDocIdStream();
             closer.register(dis);

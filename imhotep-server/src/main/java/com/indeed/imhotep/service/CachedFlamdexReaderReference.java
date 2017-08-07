@@ -148,7 +148,8 @@ public class CachedFlamdexReaderReference implements FlamdexReader, MetricCache 
         }
     }
 
-    protected void finalize() throws Throwable {
+    @Override
+    protected void finalize() {
         if (!closed) {
             log.error(getClass().getSimpleName()+" was not closed!!!!! stack trace at construction:", constructorStackTrace);
             close();

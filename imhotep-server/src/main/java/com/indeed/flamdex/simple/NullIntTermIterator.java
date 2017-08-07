@@ -21,12 +21,12 @@ import java.nio.file.Path;
 final class NullIntTermIterator implements SimpleIntTermIterator {
     private final Path docsFilename;
 
-    NullIntTermIterator(Path docsFilename) {
+    NullIntTermIterator(final Path docsFilename) {
         this.docsFilename = docsFilename;
     }
 
     @Override
-    public void reset(long term) {
+    public void reset(final long term) {
     }
 
     @Override

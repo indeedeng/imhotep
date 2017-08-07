@@ -27,7 +27,7 @@ import static com.indeed.imhotep.fs.RemoteCachingFileSystemTestUtils.readFromPat
 @Ignore("No S3 credentials to run it")
 public class S3RemoteFileStoreTest {
     @Rule
-    public RemoteCachingFileSystemTestContext testContext = new RemoteCachingFileSystemTestContext(ImmutableMap.of(
+    public final RemoteCachingFileSystemTestContext testContext = new RemoteCachingFileSystemTestContext(ImmutableMap.of(
             "imhotep.fs.store.type", "s3"
     ));
 

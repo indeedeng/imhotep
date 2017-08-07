@@ -16,5 +16,5 @@
 import org.apache.lucene.index.TermEnum;
 
 public interface LuceneTermIterator {
-    public TermEnum termEnum();
+    TermEnum termEnum();
 }

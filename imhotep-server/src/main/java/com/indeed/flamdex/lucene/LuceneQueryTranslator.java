@@ -35,7 +35,7 @@ import java.util.Set;
 public final class LuceneQueryTranslator {
     private LuceneQueryTranslator() {}
 
-    public static Query rewrite(org.apache.lucene.search.Query q, Set<String> intFields) {
+    public static Query rewrite(final org.apache.lucene.search.Query q, final Set<String> intFields) {
         if (q instanceof TermQuery) {
             return rewrite((TermQuery)q, intFields);
         } else if (q instanceof BooleanQuery) {
@@ -52,7 +52,7 @@ public final class LuceneQueryTranslator {
         throw new IllegalArgumentException("unsupported lucene query type: " + q.getClass().getSimpleName());
     }
 
-    public static Query rewrite(PrefixQuery pq, Set<String> intFields) {
+    public static Query rewrite(final PrefixQuery pq, final Set<String> intFields) {
         if (intFields.contains(pq.getPrefix().field())) {
             // not really sure what to do here, for now just treat it as an inequality query
             return Query.newRangeQuery(pq.getPrefix().field(), Long.parseLong(pq.getPrefix().text()), Long.MAX_VALUE, true);
@@ -63,7 +63,7 @@ public final class LuceneQueryTranslator {
         }
     }
 
-    public static Query rewrite(BooleanQuery bq, Set<String> intFields) {
+    public static Query rewrite(final BooleanQuery bq, final Set<String> intFields) {
         boolean hasMust = false;
         boolean hasMustNot = false;
         for (final BooleanClause clause : bq.getClauses()) {
@@ -106,36 +106,36 @@ public final class LuceneQueryTranslator {
         }
     }
 
-    public static Query rewrite(TermQuery tq, Set<String> intFields) {
+    public static Query rewrite(final TermQuery tq, final Set<String> intFields) {
         final Term term = rewriteTerm(tq.getTerm(), intFields);
         return Query.newTermQuery(term);
     }
 
-    private static Term rewriteTerm(org.apache.lucene.index.Term lTerm, Set<String> intFields) {
+    private static Term rewriteTerm(final org.apache.lucene.index.Term lTerm, final Set<String> intFields) {
         final String field = lTerm.field();
         final Term term;
         if (intFields.contains(field)) {
             term = new Term(field, true, Long.parseLong(lTerm.text()), "");
         } else {
-            String termText = lTerm.text();
+            final String termText = lTerm.text();
             term = new Term(field, false, 0, termText);
         }
         return term;
     }
 
-    public static Query rewrite(RangeQuery rq, Set<String> intFields) {
+    public static Query rewrite(final RangeQuery rq, final Set<String> intFields) {
         final Term startTerm = rewriteTerm(rq.getLowerTerm(), intFields);
         final Term endTerm = rewriteTerm(rq.getUpperTerm(), intFields);
         return Query.newRangeQuery(startTerm, endTerm, rq.isInclusive());
     }
 
-    public static Query rewrite(ConstantScoreRangeQuery rq, Set<String> intFields) {
+    public static Query rewrite(final ConstantScoreRangeQuery rq, final Set<String> intFields) {
         final Term startTerm = rewriteTerm(new org.apache.lucene.index.Term(rq.getField(), rq.getLowerVal()), intFields);
         final Term endTerm = rewriteTerm(new org.apache.lucene.index.Term(rq.getField(), rq.getUpperVal()), intFields);
         return Query.newRangeQuery(startTerm, endTerm, rq.includesUpper());
     }
 
-    public static Query rewrite(PhraseQuery pq, Set<String> intFields) {
+    public static Query rewrite(final PhraseQuery pq, final Set<String> intFields) {
         final List<Query> termQueries = Lists.newArrayListWithCapacity(pq.getTerms().length);
         for (final org.apache.lucene.index.Term term : pq.getTerms()) {
             termQueries.add(Query.newTermQuery(rewriteTerm(term, intFields)));

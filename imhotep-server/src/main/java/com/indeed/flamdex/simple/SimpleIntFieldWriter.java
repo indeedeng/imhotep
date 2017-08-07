@@ -34,38 +34,38 @@ final class SimpleIntFieldWriter extends SimpleFieldWriter implements IntFieldWr
     private boolean hasCurrentTerm = false;
     private long currentTerm;
 
-    private SimpleIntFieldWriter(Path outputDirectory,
-                                 String field,
-                                 boolean writeBTreesOnClose,
-                                 OutputStream termsOutput,
-                                 OutputStream docsOutput,
-                                 long numDocs) {
+    private SimpleIntFieldWriter(final Path outputDirectory,
+                                 final String field,
+                                 final boolean writeBTreesOnClose,
+                                 final OutputStream termsOutput,
+                                 final OutputStream docsOutput,
+                                 final long numDocs) {
         super(termsOutput, docsOutput, numDocs);
         this.outputDirectory = outputDirectory;
         this.field = field;
         this.writeBTreesOnClose = writeBTreesOnClose;
     }
 
-    public static String getTermsFilename(String field) {
+    public static String getTermsFilename(final String field) {
         return "fld-"+field+".intterms";
     }
 
-    public static String get32IndexFilename(String field) {
+    public static String get32IndexFilename(final String field) {
         return "fld-"+field+".intindex";
     }
 
-    public static String get64IndexFilename(String field) {
+    public static String get64IndexFilename(final String field) {
         return "fld-"+field+".intindex64";
     }
 
-    public static String getDocsFilename(String field) {
+    public static String getDocsFilename(final String field) {
         return "fld-"+field+".intdocs";
     }
 
-    public static SimpleIntFieldWriter open(Path outputDirectory,
-                                            String field,
-                                            long numDocs,
-                                            boolean writeBTreesOnClose) throws
+    public static SimpleIntFieldWriter open(final Path outputDirectory,
+                                            final String field,
+                                            final long numDocs,
+                                            final boolean writeBTreesOnClose) throws
             IOException {
         final OutputStream termsOutput;
         final OutputStream docsOutput;
@@ -89,7 +89,7 @@ final class SimpleIntFieldWriter extends SimpleFieldWriter implements IntFieldWr
      * @throws IllegalArgumentException if term is negative or if term is less than or equal to the previous term added
      */
     @Override
-    public void nextTerm(long term) throws IOException {
+    public void nextTerm(final long term) throws IOException {
         if (hasCurrentTerm && term <= currentTerm) {
             throw new IllegalArgumentException(
                     "terms must be in sorted order: " + term + " is not greater than "

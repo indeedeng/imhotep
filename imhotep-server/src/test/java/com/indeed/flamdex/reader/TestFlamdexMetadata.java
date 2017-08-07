@@ -5,16 +5,17 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.IOException;
 import java.nio.file.Path;
 
 import static org.junit.Assert.assertEquals;
 
 public class TestFlamdexMetadata {
     @Rule
-    public TemporaryFolder folder = new TemporaryFolder();
+    public final TemporaryFolder folder = new TemporaryFolder();
 
     @Test
-    public void testReadWrite() throws Exception {
+    public void testReadWrite() throws IOException {
         final FlamdexMetadata metadata = new FlamdexMetadata(31, ImmutableList.of("int1", "int2"), ImmutableList.of("string1", "string2"), FlamdexFormatVersion.SIMPLE);
 
         final Path tempDir = folder.getRoot().toPath();

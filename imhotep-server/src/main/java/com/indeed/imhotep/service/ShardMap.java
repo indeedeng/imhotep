@@ -145,11 +145,11 @@ class ShardMap
 
     /** This is the preferred way to iterate over a ShardMap. ElementHandler's
         onElement() method will be invoked with each item in the collection. */
-    <E extends Throwable> void map(ElementHandler<E> handler) throws E {
-        for (Map.Entry<String, Object2ObjectOpenHashMap<String, Shard>>
+    <E extends Throwable> void map(final ElementHandler<E> handler) throws E {
+        for (final Map.Entry<String, Object2ObjectOpenHashMap<String, Shard>>
                  datasetToShard : entrySet()) {
             final String dataset = datasetToShard.getKey();
-            for (Map.Entry<String, Shard>
+            for (final Map.Entry<String, Shard>
                      idToShard : datasetToShard.getValue().entrySet()) {
                 handler.onElement(dataset, idToShard.getKey(), idToShard.getValue());
             }
@@ -158,8 +158,10 @@ class ShardMap
 
     /** This method synchronizes a ShardMap with its serialized form, a
         ShardStore. */
-    void sync(ShardStore store) throws IOException {
-        if (store == null) return;
+    void sync(final ShardStore store) throws IOException {
+        if (store == null) {
+            return;
+        }
         saveTo(store);
         prune(store);
         store.sync();
@@ -183,7 +185,7 @@ class ShardMap
     /** Produce a map of (dataset->number of shards). */
     Map<String, Integer> getShardCounts() {
         final Map<String, Integer> result = new Object2IntAVLTreeMap<>();
-        for (Map.Entry<String, Object2ObjectOpenHashMap<String, Shard>>
+        for (final Map.Entry<String, Object2ObjectOpenHashMap<String, Shard>>
                  datasetToShard : entrySet()) {
             result.put(datasetToShard.getKey(), datasetToShard.getValue().size());
         }
@@ -204,7 +206,7 @@ class ShardMap
         final Shard            shard;
         final FlamdexReaderMap result;
 
-        public CreateReader(String request, Shard shard, FlamdexReaderMap result) {
+        public CreateReader(final String request, final Shard shard, final FlamdexReaderMap result) {
             this.request = request;
             this.shard   = shard;
             this.result  = result;
@@ -239,7 +241,7 @@ class ShardMap
     }
 
     /** For each requested shard, return an id and a CachedFlamdexReaderReference. */
-    FlamdexReaderMap getFlamdexReaders(String dataset, List<String> requestedShardIds)
+    FlamdexReaderMap getFlamdexReaders(final String dataset, final List<String> requestedShardIds)
         throws IOException {
 
         final Map<String, Shard> idToShard = get(dataset);
@@ -251,7 +253,7 @@ class ShardMap
 
         final List<CreateReader> createReaders = new ArrayList<>();
 
-        for (String request : requestedShardIds) {
+        for (final String request : requestedShardIds) {
             final Shard shard = idToShard.get(request);
             if (shard == null) {
                 throw new IllegalArgumentException("this service does not have shard " +
@@ -264,16 +266,16 @@ class ShardMap
            involve opening and reading metadata.txt files within shards. Do this
            in parallel, per IMTEPD-188. */
         try {
-            List<Future<Boolean>> outcomes =
+            final List<Future<Boolean>> outcomes =
                 threadPool.invokeAll(createReaders, 5, TimeUnit.MINUTES);
-            for (Future<Boolean> outcome: outcomes) {
+            for (final Future<Boolean> outcome: outcomes) {
                 if (outcome.get() == Boolean.FALSE) {
                     throw new IOException("unable to create all requested FlamdexReaders");
                 }
             }
         }
         catch (final Throwable ex) {
-            for (Pair<ShardId, CachedFlamdexReaderReference> pair : result.values()) {
+            for (final Pair<ShardId, CachedFlamdexReaderReference> pair : result.values()) {
                 final CachedFlamdexReaderReference cachedFlamdexReaderReference = pair.getSecond();
                 Closeables2.closeQuietly(cachedFlamdexReaderReference, log);
             }
@@ -285,14 +287,14 @@ class ShardMap
 
     /** Return the Shard for a given (dataset, shardId) or null of the map
         doesn't contain it. */
-    Shard getShard(String dataset, String shardId) {
+    Shard getShard(final String dataset, final String shardId) {
         final Object2ObjectOpenHashMap<String, Shard> idToShard = get(dataset);
         return idToShard != null ? idToShard.get(shardId) : null;
     }
 
     /** Insert a Shard into the map for a given (dataset, shardId), replacing an
         existing one if present. */
-    void putShard(String dataset, Shard shard) {
+    void putShard(final String dataset, final Shard shard) {
         Object2ObjectOpenHashMap<String, Shard> idToShard = get(dataset);
         if (idToShard == null) {
             idToShard = new Object2ObjectOpenHashMap<>();
@@ -309,7 +311,7 @@ class ShardMap
         );
     }
 
-    private boolean track(ShardMap reference, String dataset, ShardDir shardDir) {
+    private boolean track(final ShardMap reference, final String dataset, final ShardDir shardDir) {
         final Shard referenceShard = reference.getShard(dataset, shardDir.getId());
         final Shard currentShard   = getShard(dataset, shardDir.getId());
 
@@ -328,7 +330,7 @@ class ShardMap
                           " from " + shardDir.getIndexDir());
                 return true;
             }
-            catch (Exception ex) {
+            catch (final Exception ex) {
                 log.warn("error loading shard at " + shardDir.getIndexDir(), ex);
                 return false;
             }
@@ -360,14 +362,14 @@ class ShardMap
                             store.put(key, value);
                         }
                     }
-                    catch (IOException ex) {
+                    catch (final IOException ex) {
                         log.error("failed to sync shard: " + key.toString(), ex);
                     }
                 }
             });
     }
 
-    private void prune(ShardStore store) {
+    private void prune(final ShardStore store) {
         try {
             final Iterator<Store.Entry<ShardStore.Key, ShardStore.Value>> it =
                 store.iterator();
@@ -380,14 +382,14 @@ class ShardMap
                     try {
                         store.delete(key);
                     }
-                    catch (IOException ex) {
+                    catch (final IOException ex) {
                         log.warn("failed to prune ShardStore item key: " +
                                  key.toString(), ex);
                     }
                 }
             }
         }
-        catch (IOException ex) {
+        catch (final IOException ex) {
             log.warn("iteration over ShardStore failed during prune operation", ex);
         }
     }

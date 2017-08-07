@@ -139,16 +139,17 @@ public class Automaton implements Serializable, Cloneable {
 	}
 	
 	boolean isDebug() {
-		if (is_debug == null)
-			is_debug = Boolean.valueOf(System.getProperty("dk.brics.automaton.debug") != null);
-		return is_debug.booleanValue();
+		if (is_debug == null) {
+			is_debug = System.getProperty("dk.brics.automaton.debug") != null;
+		}
+		return is_debug;
 	}
 	
 	/** 
 	 * Selects minimization algorithm (default: <code>MINIMIZE_HOPCROFT</code>). 
 	 * @param algorithm minimization algorithm
 	 */
-	static public void setMinimization(int algorithm) {
+	public static void setMinimization(final int algorithm) {
 		minimization = algorithm;
 	}
 	
@@ -159,7 +160,7 @@ public class Automaton implements Serializable, Cloneable {
 	 * By default, the flag is not set.
 	 * @param flag if true, the flag is set
 	 */
-	static public void setMinimizeAlways(boolean flag) {
+	public static void setMinimizeAlways(final boolean flag) {
 		minimize_always = flag;
 	}
 	
@@ -171,8 +172,8 @@ public class Automaton implements Serializable, Cloneable {
 	 * @param flag if true, the flag is set
 	 * @return previous value of the flag
 	 */
-	static public boolean setAllowMutate(boolean flag) {
-		boolean b = allow_mutation;
+	public static boolean setAllowMutate(final boolean flag) {
+		final boolean b = allow_mutation;
 		allow_mutation = flag;
 		return b;
 	}
@@ -189,8 +190,9 @@ public class Automaton implements Serializable, Cloneable {
 	}
 	
 	void checkMinimizeAlways() {
-		if (minimize_always)
+		if (minimize_always) {
 			minimize();
+		}
 	}
 	
 	boolean isSingleton() {
@@ -211,7 +213,7 @@ public class Automaton implements Serializable, Cloneable {
 	 * Sets initial state. 
 	 * @param s state
 	 */
-	public void setInitialState(State s) {
+	public void setInitialState(final State s) {
 		initial = s;
 		singleton = null;
 	}
@@ -240,7 +242,7 @@ public class Automaton implements Serializable, Cloneable {
 	 * @param deterministic true if the automaton is definitely deterministic, false if the automaton
 	 *                      may be nondeterministic
 	 */
-	public void setDeterministic(boolean deterministic) {
+	public void setDeterministic(final boolean deterministic) {
 		this.deterministic = deterministic;
 	}
 	
@@ -248,7 +250,7 @@ public class Automaton implements Serializable, Cloneable {
 	 * Associates extra information with this automaton. 
 	 * @param info extra information
 	 */
-	public void setInfo(Object info) {
+	public void setInfo(final Object info) {
 		this.info = info;
 	}
 	
@@ -267,26 +269,29 @@ public class Automaton implements Serializable, Cloneable {
 	 */
 	public Set<State> getStates() {
 		expandSingleton();
-		Set<State> visited;
-		if (isDebug())
-			visited = new LinkedHashSet<State>();
-		else
-			visited = new HashSet<State>();
-		LinkedList<State> worklist = new LinkedList<State>();
+		final Set<State> visited;
+		if (isDebug()) {
+			visited = new LinkedHashSet<>();
+		} else {
+			visited = new HashSet<>();
+		}
+		final LinkedList<State> worklist = new LinkedList<>();
 		worklist.add(initial);
 		visited.add(initial);
-		while (worklist.size() > 0) {
-			State s = worklist.removeFirst();
-			Collection<Transition> tr;
-			if (isDebug())
+		while (!worklist.isEmpty()) {
+			final State s = worklist.removeFirst();
+			final Collection<Transition> tr;
+			if (isDebug()) {
 				tr = s.getSortedTransitions(false);
-			else
+			} else {
 				tr = s.transitions;
-			for (Transition t : tr)
+			}
+			for (final Transition t : tr) {
 				if (!visited.contains(t.to)) {
 					visited.add(t.to);
 					worklist.add(t.to);
 				}
+			}
 		}
 		return visited;
 	}
@@ -297,20 +302,22 @@ public class Automaton implements Serializable, Cloneable {
 	 */
 	public Set<State> getAcceptStates() {
 		expandSingleton();
-		HashSet<State> accepts = new HashSet<State>();
-		HashSet<State> visited = new HashSet<State>();
-		LinkedList<State> worklist = new LinkedList<State>();
+		final HashSet<State> accepts = new HashSet<>();
+		final HashSet<State> visited = new HashSet<>();
+		final LinkedList<State> worklist = new LinkedList<>();
 		worklist.add(initial);
 		visited.add(initial);
-		while (worklist.size() > 0) {
-			State s = worklist.removeFirst();
-			if (s.accept)
+		while (!worklist.isEmpty()) {
+			final State s = worklist.removeFirst();
+			if (s.accept) {
 				accepts.add(s);
-			for (Transition t : s.transitions)
+			}
+			for (final Transition t : s.transitions) {
 				if (!visited.contains(t.to)) {
 					visited.add(t.to);
 					worklist.add(t.to);
 				}
+			}
 		}
 		return accepts;
 	}
@@ -318,28 +325,32 @@ public class Automaton implements Serializable, Cloneable {
 	/** 
 	 * Assigns consecutive numbers to the given states. 
 	 */
-	static void setStateNumbers(Set<State> states) {
+	static void setStateNumbers(final Set<State> states) {
 		int number = 0;
-		for (State s : states)
+		for (final State s : states) {
 			s.number = number++;
+		}
 	}
 	
 	/** 
 	 * Adds transitions to explicit crash state to ensure that transition function is total. 
 	 */
 	void totalize() {
-		State s = new State();
+		final State s = new State();
 		s.transitions.add(new Transition(Character.MIN_VALUE, Character.MAX_VALUE, s));
-		for (State p : getStates()) {
+		for (final State p : getStates()) {
 			int maxi = Character.MIN_VALUE;
-			for (Transition t : p.getSortedTransitions(false)) {
-				if (t.min > maxi)
-					p.transitions.add(new Transition((char)maxi, (char)(t.min - 1), s));
-				if (t.max + 1 > maxi)
+			for (final Transition t : p.getSortedTransitions(false)) {
+				if (t.min > maxi) {
+					p.transitions.add(new Transition((char) maxi, (char) (t.min - 1), s));
+				}
+				if (t.max + 1 > maxi) {
 					maxi = t.max + 1;
+				}
 			}
-			if (maxi <= Character.MAX_VALUE)
-				p.transitions.add(new Transition((char)maxi, Character.MAX_VALUE, s));
+			if (maxi <= Character.MAX_VALUE) {
+				p.transitions.add(new Transition((char) maxi, Character.MAX_VALUE, s));
+			}
 		}
 	}
 	
@@ -358,36 +369,41 @@ public class Automaton implements Serializable, Cloneable {
 	 * An automaton is "reduced" by combining overlapping and adjacent edge intervals with same destination. 
 	 */
 	public void reduce() {
-		if (isSingleton())
+		if (isSingleton()) {
 			return;
-		Set<State> states = getStates();
+		}
+		final Set<State> states = getStates();
 		setStateNumbers(states);
-		for (State s : states) {
-			List<Transition> st = s.getSortedTransitions(true);
+		for (final State s : states) {
+			final List<Transition> st = s.getSortedTransitions(true);
 			s.resetTransitions();
 			State p = null;
 			int min = -1, max = -1;
-			for (Transition t : st) {
+			for (final Transition t : st) {
 				if (p == t.to) {
 					if (t.min <= max + 1) {
-						if (t.max > max)
+						if (t.max > max) {
 							max = t.max;
+						}
 					} else {
-						if (p != null)
-							s.transitions.add(new Transition((char)min, (char)max, p));
+						if (p != null) {
+							s.transitions.add(new Transition((char) min, (char) max, p));
+						}
 						min = t.min;
 						max = t.max;
 					}
 				} else {
-					if (p != null)
-						s.transitions.add(new Transition((char)min, (char)max, p));
+					if (p != null) {
+						s.transitions.add(new Transition((char) min, (char) max, p));
+					}
 					p = t.to;
 					min = t.min;
 					max = t.max;
 				}
 			}
-			if (p != null)
-				s.transitions.add(new Transition((char)min, (char)max, p));
+			if (p != null) {
+				s.transitions.add(new Transition((char) min, (char) max, p));
+			}
 		}
 		clearHashCode();
 	}
@@ -396,19 +412,21 @@ public class Automaton implements Serializable, Cloneable {
 	 * Returns sorted array of all interval start points. 
 	 */
 	char[] getStartPoints() {
-		Set<Character> pointset = new HashSet<Character>();
-		for (State s : getStates()) {
+		final Set<Character> pointset = new HashSet<>();
+		for (final State s : getStates()) {
 			pointset.add(Character.MIN_VALUE);
-			for (Transition t : s.transitions) {
+			for (final Transition t : s.transitions) {
 				pointset.add(t.min);
-				if (t.max < Character.MAX_VALUE)
-					pointset.add((char)(t.max + 1));
+				if (t.max < Character.MAX_VALUE) {
+					pointset.add((char) (t.max + 1));
+				}
 			}
 		}
-		char[] points = new char[pointset.size()];
+		final char[] points = new char[pointset.size()];
 		int n = 0;
-		for (Character m : pointset)
+		for (final Character m : pointset) {
 			points[n++] = m;
+		}
 		Arrays.sort(points);
 		return points;
 	}
@@ -422,22 +440,26 @@ public class Automaton implements Serializable, Cloneable {
 		return getLiveStates(getStates());
 	}
 	
-	private Set<State> getLiveStates(Set<State> states) {
-		HashMap<State, Set<State>> map = new HashMap<State, Set<State>>();
-		for (State s : states)
+	private Set<State> getLiveStates(final Set<State> states) {
+		final HashMap<State, Set<State>> map = new HashMap<>();
+		for (final State s : states) {
 			map.put(s, new HashSet<State>());
-		for (State s : states)
-			for (Transition t : s.transitions)
+		}
+		for (final State s : states) {
+			for (final Transition t : s.transitions) {
 				map.get(t.to).add(s);
-		Set<State> live = new HashSet<State>(getAcceptStates());
-		LinkedList<State> worklist = new LinkedList<State>(live);
-		while (worklist.size() > 0) {
-			State s = worklist.removeFirst();
-			for (State p : map.get(s))
+			}
+		}
+		final Set<State> live = new HashSet<>(getAcceptStates());
+		final LinkedList<State> worklist = new LinkedList<>(live);
+		while (!worklist.isEmpty()) {
+			final State s = worklist.removeFirst();
+			for (final State p : map.get(s)) {
 				if (!live.contains(p)) {
 					live.add(p);
 					worklist.add(p);
 				}
+			}
 		}
 		return live;
 	}
@@ -448,16 +470,19 @@ public class Automaton implements Serializable, Cloneable {
 	 */
 	public void removeDeadTransitions() {
 		clearHashCode();
-		if (isSingleton())
+		if (isSingleton()) {
 			return;
-		Set<State> states = getStates();
-		Set<State> live = getLiveStates(states);
-		for (State s : states) {
-			Set<Transition> st = s.transitions;
+		}
+		final Set<State> states = getStates();
+		final Set<State> live = getLiveStates(states);
+		for (final State s : states) {
+			final Set<Transition> st = s.transitions;
 			s.resetTransitions();
-			for (Transition t : st)
-				if (live.contains(t.to))
+			for (final Transition t : st) {
+				if (live.contains(t.to)) {
 					s.transitions.add(t);
+				}
+			}
 		}
 		reduce();
 	}
@@ -465,11 +490,12 @@ public class Automaton implements Serializable, Cloneable {
 	/** 
 	 * Returns a sorted array of transitions for each state (and sets state numbers). 
 	 */
-	static Transition[][] getSortedTransitions(Set<State> states) {
+	static Transition[][] getSortedTransitions(final Set<State> states) {
 		setStateNumbers(states);
-		Transition[][] transitions = new Transition[states.size()][];
-		for (State s : states)
+		final Transition[][] transitions = new Transition[states.size()][];
+		for (final State s : states) {
 			transitions[s.number] = s.getSortedTransitionArray(false);
+		}
 		return transitions;
 	}
 	
@@ -482,7 +508,7 @@ public class Automaton implements Serializable, Cloneable {
 			State p = new State();
 			initial = p;
 			for (int i = 0; i < singleton.length(); i++) {
-				State q = new State();
+				final State q = new State();
 				p.transitions.add(new Transition(singleton.charAt(i), q));
 				p = q;
 			}
@@ -496,8 +522,9 @@ public class Automaton implements Serializable, Cloneable {
 	 * Returns the number of states in this automaton.
 	 */
 	public int getNumberOfStates() {
-		if (isSingleton())
+		if (isSingleton()) {
 			return singleton.length() + 1;
+		}
 		return getStates().size();
 	}
 	
@@ -506,11 +533,13 @@ public class Automaton implements Serializable, Cloneable {
 	 * as the total number of edges, where one edge may be a character interval.
 	 */
 	public int getNumberOfTransitions() {
-		if (isSingleton())
+		if (isSingleton()) {
 			return singleton.length();
+		}
 		int c = 0;
-		for (State s : getStates())
+		for (final State s : getStates()) {
 			c += s.transitions.size();
+		}
 		return c;
 	}
 	
@@ -520,14 +549,17 @@ public class Automaton implements Serializable, Cloneable {
 	 * <code>subsetOf</code>.
 	 */
 	@Override
-	public boolean equals(Object obj) {
-		if (obj == this)
+	public boolean equals(final Object obj) {
+		if (obj == this) {
 			return true;
-		if (!(obj instanceof Automaton))
+		}
+		if (!(obj instanceof Automaton)) {
 			return false;
-		Automaton a = (Automaton)obj;
-		if (isSingleton() && a.isSingleton())
+		}
+		final Automaton a = (Automaton)obj;
+		if (isSingleton() && a.isSingleton()) {
 			return singleton.equals(a.singleton);
+		}
 		return hashCode() == a.hashCode() && subsetOf(a) && a.subsetOf(this);
 	}
 	
@@ -538,8 +570,9 @@ public class Automaton implements Serializable, Cloneable {
 	 */
 	@Override
 	public int hashCode() {
-		if (hash_code == 0)
+		if (hash_code == 0) {
 			minimize();
+		}
 		return hash_code;
 	}
 	
@@ -549,8 +582,9 @@ public class Automaton implements Serializable, Cloneable {
 	 */
 	void recomputeHashCode() {
 		hash_code = getNumberOfStates() * 3 + getNumberOfTransitions() * 2;
-		if (hash_code == 0)
+		if (hash_code == 0) {
 			hash_code = 1;
+		}
 	}
 	
 	/**
@@ -565,18 +599,20 @@ public class Automaton implements Serializable, Cloneable {
 	 */
 	@Override
 	public String toString() {
-		StringBuilder b = new StringBuilder();
+		final StringBuilder b = new StringBuilder();
 		if (isSingleton()) {
 			b.append("singleton: ");
-			for (char c : singleton.toCharArray())
+			for (final char c : singleton.toCharArray()) {
 				Transition.appendCharString(c, b);
+			}
 			b.append("\n");
 		} else {
-			Set<State> states = getStates();
+			final Set<State> states = getStates();
 			setStateNumbers(states);
 			b.append("initial state: ").append(initial.number).append("\n");
-			for (State s : states)
+			for (final State s : states) {
 				b.append(s.toString());
+			}
 		}
 		return b.toString();
 	}
@@ -586,21 +622,22 @@ public class Automaton implements Serializable, Cloneable {
 	 * representation of this automaton.
 	 */
 	public String toDot() {
-		StringBuilder b = new StringBuilder("digraph Automaton {\n");
+		final StringBuilder b = new StringBuilder("digraph Automaton {\n");
 		b.append("  rankdir = LR;\n");
-		Set<State> states = getStates();
+		final Set<State> states = getStates();
 		setStateNumbers(states);
-		for (State s : states) {
+		for (final State s : states) {
 			b.append("  ").append(s.number);
-			if (s.accept)
+			if (s.accept) {
 				b.append(" [shape=doublecircle,label=\"\"];\n");
-			else
+			} else {
 				b.append(" [shape=circle,label=\"\"];\n");
+			}
 			if (s == initial) {
 				b.append("  initial [shape=plaintext,label=\"\"];\n");
 				b.append("  initial -> ").append(s.number).append("\n");
 			}
-			for (Transition t : s.transitions) {
+			for (final Transition t : s.transitions) {
 				b.append("  ").append(s.number);
 				t.appendDot(b);
 			}
@@ -612,7 +649,7 @@ public class Automaton implements Serializable, Cloneable {
 	 * Returns a clone of this automaton, expands if singleton.
 	 */
 	Automaton cloneExpanded() {
-		Automaton a = clone();
+		final Automaton a = clone();
 		a.expandSingleton();
 		return a;
 	}
@@ -624,8 +661,9 @@ public class Automaton implements Serializable, Cloneable {
 		if (allow_mutation) {
 			expandSingleton();
 			return this;
-		} else
+		} else {
 			return cloneExpanded();
+		}
 	}
 
 	/**
@@ -634,23 +672,26 @@ public class Automaton implements Serializable, Cloneable {
 	@Override
 	public Automaton clone() {
 		try {
-			Automaton a = (Automaton)super.clone();
+			final Automaton a = (Automaton)super.clone();
 			if (!isSingleton()) {
-				HashMap<State, State> m = new HashMap<State, State>();
-				Set<State> states = getStates();
-				for (State s : states)
+				final Map<State, State> m = new HashMap<>();
+				final Set<State> states = getStates();
+				for (final State s : states) {
 					m.put(s, new State());
-				for (State s : states) {
-					State p = m.get(s);
+				}
+				for (final State s : states) {
+					final State p = m.get(s);
 					p.accept = s.accept;
-					if (s == initial)
+					if (s == initial) {
 						a.initial = p;
-					for (Transition t : s.transitions)
+					}
+					for (final Transition t : s.transitions) {
 						p.transitions.add(new Transition(t.min, t.max, m.get(t.to)));
+					}
 				}
 			}
 			return a;
-		} catch (CloneNotSupportedException e) {
+		} catch (final CloneNotSupportedException e) {
 			throw new RuntimeException(e);
 		}
 	}
@@ -659,10 +700,11 @@ public class Automaton implements Serializable, Cloneable {
 	 * Returns a clone of this automaton, or this automaton itself if <code>allow_mutation</code> flag is set. 
 	 */
 	Automaton cloneIfRequired() {
-		if (allow_mutation)
+		if (allow_mutation) {
 			return this;
-		else
+		} else {
 			return clone();
+		}
 	}
 	
 	/** 
@@ -674,7 +716,7 @@ public class Automaton implements Serializable, Cloneable {
 	 * @exception ClassCastException if the data is not a serialized <code>Automaton</code>
 	 * @exception ClassNotFoundException if the class of the serialized object cannot be found
 	 */
-	public static Automaton load(URL url) throws IOException, OptionalDataException, ClassCastException, 
+	public static Automaton load(final URL url) throws IOException, OptionalDataException, ClassCastException,
 	                                             ClassNotFoundException, InvalidClassException {
 		return load(url.openStream());
 	}
@@ -688,9 +730,9 @@ public class Automaton implements Serializable, Cloneable {
 	 * @exception ClassCastException if the data is not a serialized <code>Automaton</code>
 	 * @exception ClassNotFoundException if the class of the serialized object cannot be found
 	 */
-	public static Automaton load(InputStream stream) throws IOException, OptionalDataException, ClassCastException, 
+	public static Automaton load(final InputStream stream) throws IOException, OptionalDataException, ClassCastException,
 	                                                        ClassNotFoundException, InvalidClassException {
-		ObjectInputStream s = new ObjectInputStream(stream);
+		final ObjectInputStream s = new ObjectInputStream(stream);
 		return (Automaton)s.readObject();
 	}
 	
@@ -699,8 +741,8 @@ public class Automaton implements Serializable, Cloneable {
 	 * @param stream output stream for serialized automaton
 	 * @exception IOException if input/output related exception occurs
 	 */
-	public void store(OutputStream stream) throws IOException {
-		ObjectOutputStream s = new ObjectOutputStream(stream);
+	public void store(final OutputStream stream) throws IOException {
+		final ObjectOutputStream s = new ObjectOutputStream(stream);
 		s.writeObject(this);
 		s.flush();
 	}
@@ -736,105 +778,105 @@ public class Automaton implements Serializable, Cloneable {
 	/** 
 	 * See {@link BasicAutomata#makeChar(char)}.
 	 */
-	public static Automaton makeChar(char c) {
+	public static Automaton makeChar(final char c) {
 		return BasicAutomata.makeChar(c);
 	}
 	
 	/** 
 	 * See {@link BasicAutomata#makeCharRange(char, char)}.
 	 */
-	public static Automaton makeCharRange(char min, char max) {
+	public static Automaton makeCharRange(final char min, final char max) {
 		return BasicAutomata.makeCharRange(min, max);
 	}
 	
 	/** 
 	 * See {@link BasicAutomata#makeCharSet(String)}.
 	 */
-	public static Automaton makeCharSet(String set) {
+	public static Automaton makeCharSet(final String set) {
 		return BasicAutomata.makeCharSet(set);
 	}
 	
 	/** 
 	 * See {@link BasicAutomata#makeInterval(int, int, int)}.
 	 */
-	public static Automaton makeInterval(int min, int max, int digits) throws IllegalArgumentException {
+	public static Automaton makeInterval(final int min, final int max, final int digits) throws IllegalArgumentException {
 		return BasicAutomata.makeInterval(min, max, digits);
 	}
 	
 	/** 
 	 * See {@link BasicAutomata#makeString(String)}.
 	 */
-	public static Automaton makeString(String s) {
+	public static Automaton makeString(final String s) {
 		return BasicAutomata.makeString(s);
 	}
 	
     /** 
      * See {@link BasicAutomata#makeStringUnion(CharSequence...)}.
      */
-    public static Automaton makeStringUnion(CharSequence... strings) {
+    public static Automaton makeStringUnion(final CharSequence... strings) {
         return BasicAutomata.makeStringUnion(strings);
     }
 
 	/**
 	 * See {@link BasicAutomata#makeMaxInteger(String)}.
 	 */
-	public static Automaton makeMaxInteger(String n) {
+	public static Automaton makeMaxInteger(final String n) {
 		return BasicAutomata.makeMaxInteger(n);
 	}
 	
 	/**
 	 * See {@link BasicAutomata#makeMinInteger(String)}.
 	 */
-	public static Automaton makeMinInteger(String n) {
+	public static Automaton makeMinInteger(final String n) {
 		return BasicAutomata.makeMinInteger(n);
 	}
 
 	/**
 	 * See {@link BasicAutomata#makeTotalDigits(int)}.
 	 */
-	public static Automaton makeTotalDigits(int i) {
+	public static Automaton makeTotalDigits(final int i) {
 		return BasicAutomata.makeTotalDigits(i);
 	}
 
 	/**
 	 * See {@link BasicAutomata#makeFractionDigits(int)}.
 	 */
-	public static Automaton makeFractionDigits(int i) {
+	public static Automaton makeFractionDigits(final int i) {
 		return BasicAutomata.makeFractionDigits(i);
 	}
 	
 	/**
 	 * See {@link BasicAutomata#makeIntegerValue(String)}.
 	 */
-	public static Automaton makeIntegerValue(String value) {
+	public static Automaton makeIntegerValue(final String value) {
 		return BasicAutomata.makeIntegerValue(value);
 	}
 	
 	/**
 	 * See {@link BasicAutomata#makeDecimalValue(String)}.
 	 */
-	public static Automaton makeDecimalValue(String value) {
+	public static Automaton makeDecimalValue(final String value) {
 		return BasicAutomata.makeDecimalValue(value);
 	}
 	
 	/**
 	 * See {@link BasicAutomata#makeStringMatcher(String)}.
 	 */
-	public static Automaton makeStringMatcher(String s) {
+	public static Automaton makeStringMatcher(final String s) {
 		return BasicAutomata.makeStringMatcher(s);
 	}
 	
 	/** 
 	 * See {@link BasicOperations#concatenate(Automaton, Automaton)}.
 	 */
-	public Automaton concatenate(Automaton a) {
+	public Automaton concatenate(final Automaton a) {
 		return BasicOperations.concatenate(this, a);
 	}
 	
 	/**
 	 * See {@link BasicOperations#concatenate(List)}.
 	 */
-	static public Automaton concatenate(List<Automaton> l) {
+	public static Automaton concatenate(final List<Automaton> l) {
 		return BasicOperations.concatenate(l);
 	}
 
@@ -844,7 +886,7 @@ public class Automaton implements Serializable, Cloneable {
 	public Automaton optional() {
 		return BasicOperations.optional(this);
 	}
-	
+
 	/**
 	 * See {@link BasicOperations#repeat(Automaton)}.
 	 */
@@ -855,14 +897,14 @@ public class Automaton implements Serializable, Cloneable {
 	/**
 	 * See {@link BasicOperations#repeat(Automaton, int)}.
 	 */
-	public Automaton repeat(int min) {
+	public Automaton repeat(final int min) {
 		return BasicOperations.repeat(this, min);
 	}
 	
 	/**
 	 * See {@link BasicOperations#repeat(Automaton, int, int)}.
 	 */
-	public Automaton repeat(int min, int max) {
+	public Automaton repeat(final int min, final int max) {
 		return BasicOperations.repeat(this, min, max);
 	}
 
@@ -876,35 +918,35 @@ public class Automaton implements Serializable, Cloneable {
 	/**
 	 * See {@link BasicOperations#minus(Automaton, Automaton)}.
 	 */
-	public Automaton minus(Automaton a) {
+	public Automaton minus(final Automaton a) {
 		return BasicOperations.minus(this, a);
 	}
 
 	/**
 	 * See {@link BasicOperations#intersection(Automaton, Automaton)}.
 	 */
-	public Automaton intersection(Automaton a) {
+	public Automaton intersection(final Automaton a) {
 		return BasicOperations.intersection(this, a);
 	}
 	
 	/**
 	 * See {@link BasicOperations#subsetOf(Automaton, Automaton)}.
 	 */
-	public boolean subsetOf(Automaton a) {
+	public boolean subsetOf(final Automaton a) {
 		return BasicOperations.subsetOf(this, a);
 	}
 	
 	/**
 	 * See {@link BasicOperations#union(Automaton, Automaton)}.
 	 */
-	public Automaton union(Automaton a) {
+	public Automaton union(final Automaton a) {
 		return BasicOperations.union(this, a);
 	}
 	
 	/**
 	 * See {@link BasicOperations#union(Collection)}.
 	 */
-	static public Automaton union(Collection<Automaton> l) {
+    public static Automaton union(final Collection<Automaton> l) {
 		return BasicOperations.union(l);
 	}
 
@@ -918,7 +960,7 @@ public class Automaton implements Serializable, Cloneable {
 	/** 
 	 * See {@link BasicOperations#addEpsilons(Automaton, Collection)}.
 	 */
-	public void addEpsilons(Collection<StatePair> pairs) {
+	public void addEpsilons(final Collection<StatePair> pairs) {
 		BasicOperations.addEpsilons(this, pairs);
 	}
 	
@@ -946,14 +988,14 @@ public class Automaton implements Serializable, Cloneable {
 	/**
 	 * See {@link BasicOperations#getShortestExample(Automaton, boolean)}.
 	 */
-	public String getShortestExample(boolean accepted) {
+	public String getShortestExample(final boolean accepted) {
 		return BasicOperations.getShortestExample(this, accepted);
 	}
 	
 	/**
 	 * See {@link BasicOperations#run(Automaton, String)}.
 	 */
-	public boolean run(String s) {
+	public boolean run(final String s) {
 		return BasicOperations.run(this, s);
 	}
 	
@@ -968,7 +1010,7 @@ public class Automaton implements Serializable, Cloneable {
 	 * See {@link MinimizationOperations#minimize(Automaton)}.
 	 * Returns the automaton being given as argument.
 	 */
-	public static Automaton minimize(Automaton a) {
+	public static Automaton minimize(final Automaton a) {
 		a.minimize();
 		return a;
 	}
@@ -976,7 +1018,7 @@ public class Automaton implements Serializable, Cloneable {
 	/**
 	 * See {@link SpecialOperations#overlap(Automaton, Automaton)}.
 	 */
-	public Automaton overlap(Automaton a) {
+	public Automaton overlap(final Automaton a) {
 		return SpecialOperations.overlap(this, a);
 	}
 	
@@ -990,42 +1032,42 @@ public class Automaton implements Serializable, Cloneable {
 	/**
 	 * See {@link SpecialOperations#trim(Automaton, String, char)}.
 	 */
-	public Automaton trim(String set, char c) {
+	public Automaton trim(final String set, final char c) {
 		return SpecialOperations.trim(this, set, c);
 	}
 	
 	/**
 	 * See {@link SpecialOperations#compress(Automaton, String, char)}.
 	 */
-	public Automaton compress(String set, char c) {
+	public Automaton compress(final String set, final char c) {
 		return SpecialOperations.compress(this, set, c);
 	}
 	
 	/**
 	 * See {@link SpecialOperations#subst(Automaton, Map)}.
 	 */
-	public Automaton subst(Map<Character,Set<Character>> map) {
+	public Automaton subst(final Map<Character,Set<Character>> map) {
 		return SpecialOperations.subst(this, map);
 	}
 
 	/**
 	 * See {@link SpecialOperations#subst(Automaton, char, String)}.
 	 */
-	public Automaton subst(char c, String s) {
+	public Automaton subst(final char c, final String s) {
 		return SpecialOperations.subst(this, c, s);
 	}
 	
 	/**
 	 * See {@link SpecialOperations#homomorph(Automaton, char[], char[])}.
 	 */
-	public Automaton homomorph(char[] source, char[] dest) {
+	public Automaton homomorph(final char[] source, final char[] dest) {
 		return SpecialOperations.homomorph(this, source, dest);
 	}
 	
 	/**
 	 * See {@link SpecialOperations#projectChars(Automaton, Set)}.
 	 */
-	public Automaton projectChars(Set<Character> chars) {
+	public Automaton projectChars(final Set<Character> chars) {
 		return SpecialOperations.projectChars(this, chars);
 	}
 	
@@ -1039,7 +1081,7 @@ public class Automaton implements Serializable, Cloneable {
 	/**
 	 * See {@link SpecialOperations#getStrings(Automaton, int)}.
 	 */
-	public Set<String> getStrings(int length) {
+	public Set<String> getStrings(final int length) {
 		return SpecialOperations.getStrings(this, length);
 	}
 	
@@ -1053,7 +1095,7 @@ public class Automaton implements Serializable, Cloneable {
 	/**
 	 * See {@link SpecialOperations#getFiniteStrings(Automaton, int)}.
 	 */
-	public Set<String> getFiniteStrings(int limit) {
+	public Set<String> getFiniteStrings(final int limit) {
 		return SpecialOperations.getFiniteStrings(this, limit);
 	}
 
@@ -1074,28 +1116,32 @@ public class Automaton implements Serializable, Cloneable {
 	/**
 	 * See {@link SpecialOperations#hexCases(Automaton)}.
 	 */
-	public static Automaton hexCases(Automaton a) {
+	public static Automaton hexCases(final Automaton a) {
 		return SpecialOperations.hexCases(a);
 	}
 	
 	/**
 	 * See {@link SpecialOperations#replaceWhitespace(Automaton)}.
 	 */
-	public static Automaton replaceWhitespace(Automaton a) {
+	public static Automaton replaceWhitespace(final Automaton a) {
 		return SpecialOperations.replaceWhitespace(a);
 	}
 	
 	/**
 	 * See {@link ShuffleOperations#shuffleSubsetOf(Collection, Automaton, Character, Character)}.
 	 */ 
-	public static String shuffleSubsetOf(Collection<Automaton> ca, Automaton a, Character suspend_shuffle, Character resume_shuffle) {
+	public static String shuffleSubsetOf(
+			final Collection<Automaton> ca,
+			final Automaton a,
+			final Character suspend_shuffle,
+			final Character resume_shuffle) {
 		return ShuffleOperations.shuffleSubsetOf(ca, a, suspend_shuffle, resume_shuffle);
 	}
 
 	/** 
 	 * See {@link ShuffleOperations#shuffle(Automaton, Automaton)}.
 	 */
-	public Automaton shuffle(Automaton a) {
+	public Automaton shuffle(final Automaton a) {
 		return ShuffleOperations.shuffle(this, a);
 	}
 }

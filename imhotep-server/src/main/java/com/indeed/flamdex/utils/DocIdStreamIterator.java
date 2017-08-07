@@ -9,21 +9,21 @@ import java.io.Closeable;
  * @author zheli
  */
 public class DocIdStreamIterator implements Closeable {
-    private DocIdStream docIdStream;
-    private int[] docIdBuffer;
+    private final DocIdStream docIdStream;
+    private final int[] docIdBuffer;
     private int nextDocId;
     private int n;
     private int idx;
     private boolean isEnd;
 
-    public DocIdStreamIterator(DocIdStream docIdStream, int bufferSize) {
+    public DocIdStreamIterator(final DocIdStream docIdStream, final int bufferSize) {
         docIdBuffer = new int[bufferSize];
         this.docIdStream = docIdStream;
         nextDocId = -1;
         isEnd = true;
     }
 
-    public void reset(TermIterator termIterator) {
+    public void reset(final TermIterator termIterator) {
         docIdStream.reset(termIterator);
         fillBuffer();
         nextDocId = readNext();
@@ -34,7 +34,7 @@ public class DocIdStreamIterator implements Closeable {
             fillBuffer();
         }
         if (idx < n) {
-            int ret = docIdBuffer[idx];
+            final int ret = docIdBuffer[idx];
             idx++;
             return ret;
         } else {

@@ -30,7 +30,11 @@ class FlamdexFTGSIterator extends AbstractFlamdexFTGSIterator {
     private int intFieldPtr = 0;
     private int stringFieldPtr = 0;
 
-    public FlamdexFTGSIterator(ImhotepLocalSession imhotepLocalSession, SharedReference<FlamdexReader> flamdexReader, String[] intFields, String[] stringFields) {
+    public FlamdexFTGSIterator(
+            final ImhotepLocalSession imhotepLocalSession,
+            final SharedReference<FlamdexReader> flamdexReader,
+            final String[] intFields,
+            final String[] stringFields) {
         super(imhotepLocalSession, flamdexReader);
         this.intFields = intFields;
         this.stringFields = stringFields;
@@ -43,7 +47,9 @@ class FlamdexFTGSIterator extends AbstractFlamdexFTGSIterator {
             if (intFieldPtr < intFields.length) {
                 currentField = intFields[intFieldPtr++];
                 currentFieldIsIntType = true;
-                if (intTermDocIterator != null) Closeables2.closeQuietly(intTermDocIterator, ImhotepLocalSession.log);
+                if (intTermDocIterator != null) {
+                    Closeables2.closeQuietly(intTermDocIterator, ImhotepLocalSession.log);
+                }
                 intTermDocIterator = flamdexReader.get().getIntTermDocIterator(currentField);
                 termIndex = 0;
                 return true;
@@ -51,7 +57,9 @@ class FlamdexFTGSIterator extends AbstractFlamdexFTGSIterator {
             if (stringFieldPtr < stringFields.length) {
                 currentField = stringFields[stringFieldPtr++];
                 currentFieldIsIntType = false;
-                if (stringTermDocIterator != null) Closeables2.closeQuietly(stringTermDocIterator, ImhotepLocalSession.log);
+                if (stringTermDocIterator != null) {
+                    Closeables2.closeQuietly(stringTermDocIterator, ImhotepLocalSession.log);
+                }
                 stringTermDocIterator = flamdexReader.get().getStringTermDocIterator(currentField);
                 termIndex = 0;
                 return true;
@@ -79,17 +87,27 @@ class FlamdexFTGSIterator extends AbstractFlamdexFTGSIterator {
 
     @Override
     public final boolean nextTerm() {
-        if (currentField == null) return false;
+        if (currentField == null) {
+            return false;
+        }
         resetGroupStats = true;
         if (currentFieldIsIntType) {
-            if (ImhotepLocalSession.logTiming) intTermsTime -= System.nanoTime();
+            if (ImhotepLocalSession.logTiming) {
+                intTermsTime -= System.nanoTime();
+            }
             final boolean ret = intTermDocIterator.nextTerm();
-            if (ImhotepLocalSession.logTiming) intTermsTime += System.nanoTime();
+            if (ImhotepLocalSession.logTiming) {
+                intTermsTime += System.nanoTime();
+            }
             return ret;
         } else {
-            if (ImhotepLocalSession.logTiming) stringTermsTime -= System.nanoTime();
+            if (ImhotepLocalSession.logTiming) {
+                stringTermsTime -= System.nanoTime();
+            }
             final boolean ret = stringTermDocIterator.nextTerm();
-            if (ImhotepLocalSession.logTiming) stringTermsTime += System.nanoTime();
+            if (ImhotepLocalSession.logTiming) {
+                stringTermsTime += System.nanoTime();
+            }
             return ret;
         }
     }

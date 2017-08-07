@@ -31,12 +31,14 @@ import java.util.regex.Pattern;
  * @author jplaisance
  */
 public final class CopyIndexTimeRangeToLocal {
+    private CopyIndexTimeRangeToLocal() {
+    }
 
     static {
         DateTimeZone.setDefault(DateTimeZone.forOffsetHours(-6));
     }
 
-    public static void main(String[] args) throws IOException {
+    public static void main(final String[] args) throws IOException {
         if (args.length < 4) {
             System.err.println("ARGS: from to start end");
             System.exit(1);
@@ -47,16 +49,17 @@ public final class CopyIndexTimeRangeToLocal {
         System.out.println("Wrote to: " + args[1]);
     }
 
-    public static void copy(Path from, File to, DateTime start, DateTime end) throws IOException {
+    public static void copy(final Path from, final File to, final DateTime start, final DateTime end) throws IOException {
         copy(from.getFileSystem(new Configuration()), from, to, start, end);
     }
 
     private static final Pattern shardPattern = Pattern.compile("index([0-9]{4})([0-9]{2})([0-9]{2})\\.([0-9]{2})\\.[0-9]{14}\\.sqar");
 
-    public static void copy(FileSystem fs, Path from, File to, final DateTime start, final DateTime end) throws IOException {
+    public static void copy(final FileSystem fs, final Path from, final File to, final DateTime start, final DateTime end) throws IOException {
         if ((to.exists() && !to.isDirectory())) {
             throw new FileNotFoundException(to.getAbsolutePath() + " is not a directory");
-        } else if (!to.exists() && !to.mkdirs()) {
+        }
+        if (!to.exists() && !to.mkdirs()) {
             throw new IOException("unable to create directory " + to.getAbsolutePath());
         }
         for (final FileStatus status : fs.listStatus(from, new PathFilter() {

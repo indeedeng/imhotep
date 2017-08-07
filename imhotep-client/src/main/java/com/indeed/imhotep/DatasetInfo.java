@@ -31,11 +31,11 @@ public class DatasetInfo {
     private final Collection<String> stringFields;
     private final Collection<String> metrics;
 
-    public DatasetInfo(String                dataset,
-                       Collection<ShardInfo> shardList,
-                       Collection<String>    intFields,
-                       Collection<String>    stringFields,
-                       Collection<String>    metrics) {
+    public DatasetInfo(final String                dataset,
+                       final Collection<ShardInfo> shardList,
+                       final Collection<String>    intFields,
+                       final Collection<String>    stringFields,
+                       final Collection<String>    metrics) {
         this.dataset = dataset;
         this.shardList = shardList;
         this.intFields = intFields;
@@ -68,7 +68,7 @@ public class DatasetInfo {
                 .setDataset(dataset)
                 .addAllShardInfo(Collections2.transform(shardList, new Function<ShardInfo, ShardInfoMessage>() {
                     @Override
-                    public ShardInfoMessage apply(ShardInfo input) {
+                    public ShardInfoMessage apply(final ShardInfo input) {
                         return input.toProto();
                     }
                 }))
@@ -85,7 +85,7 @@ public class DatasetInfo {
                 // if many sessions are created we could get a speed up by offering an option to deserialize on update
                 Lists.transform(proto.getShardInfoList(), new Function<ShardInfoMessage, ShardInfo>() {
                     @Override
-                    public ShardInfo apply(ShardInfoMessage input) {
+                    public ShardInfo apply(final ShardInfoMessage input) {
                         return ShardInfo.fromProto(input);
                     }
                 }),

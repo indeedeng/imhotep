@@ -22,10 +22,9 @@ import com.indeed.imhotep.io.TestFileUtils;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -50,56 +49,59 @@ public class TestFieldCacher {
         runCacheTest(1, 0, FieldCacher.BITSET, 8);
     }
 
-    private void runCacheTest(int maxVal,
-                              int lowerMaxVal,
-                              FieldCacher expectedType,
-                              long expectedMemory) throws IOException {
+    private void runCacheTest(final int maxVal,
+                              final int lowerMaxVal,
+                              final FieldCacher expectedType,
+                              final long expectedMemory) throws IOException {
         for (int i = 0; i < 10; ++i) {
-            MockFlamdexReader r = new MockFlamdexReader(Arrays.asList("f"),
-                                                        Collections.<String>emptyList(),
-                                                        Arrays.asList("f"),
-                                                        10);
-            long maxTerm = rand.nextInt(maxVal - lowerMaxVal) + lowerMaxVal + 1;
-            int maxTermDoc = rand.nextInt(10);
+            final MockFlamdexReader r = new MockFlamdexReader(
+                    Collections.singletonList("f"),
+                    Collections.<String>emptyList(),
+                    Collections.singletonList("f"),
+                    10);
+            final long maxTerm = rand.nextInt(maxVal - lowerMaxVal) + lowerMaxVal + 1;
+            final int maxTermDoc = rand.nextInt(10);
             r.addIntTerm("f", maxTerm, maxTermDoc);
-            List<Integer> docs = Lists.newArrayList(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+            final List<Integer> docs = Lists.newArrayList(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
             docs.remove(Integer.valueOf(maxTermDoc));
-            Set<Integer> terms = new HashSet<Integer>();
-            long[] cache = new long[10];
+            final Set<Integer> terms = new HashSet<>();
+            final long[] cache = new long[10];
             cache[maxTermDoc] = maxTerm;
             if (lowerMaxVal >= docs.size()) {
                 while (!docs.isEmpty()) {
-                    int numDocs = docs.size() > 1 ? rand.nextInt(docs.size() - 1) + 1 : 1;
-                    int term = rand.nextInt(lowerMaxVal + 1);
-                    if (terms.contains(term)) continue;
-                    List<Integer> termDocs = new ArrayList<Integer>();
+                    final int numDocs = docs.size() > 1 ? rand.nextInt(docs.size() - 1) + 1 : 1;
+                    final int term = rand.nextInt(lowerMaxVal + 1);
+                    if (terms.contains(term)) {
+                        continue;
+                    }
+                    final List<Integer> termDocs = new ArrayList<>();
                     for (int j = 0; j < numDocs; ++j) {
                         termDocs.add(docs.remove(rand.nextInt(docs.size())));
                     }
                     Collections.sort(termDocs);
                     r.addIntTerm("f", term, termDocs);
                     terms.add(term);
-                    for (int doc : termDocs) {
+                    for (final int doc : termDocs) {
                         cache[doc] = term;
                     }
                 }
             } else {
-                int term = rand.nextInt(lowerMaxVal + 1);
+                final int term = rand.nextInt(lowerMaxVal + 1);
                 r.addIntTerm("f", term, docs);
-                for (int doc : docs) {
+                for (final int doc : docs) {
                     cache[doc] = term;
                 }
             }
 
-            AbstractFlamdexReader.MinMax minMax = new AbstractFlamdexReader.MinMax();
-            FieldCacher fieldCacher = FieldCacherUtil.getCacherForField("f", r, minMax);
+            final AbstractFlamdexReader.MinMax minMax = new AbstractFlamdexReader.MinMax();
+            final FieldCacher fieldCacher = FieldCacherUtil.getCacherForField("f", r, minMax);
             assertEquals(expectedType, fieldCacher);
             assertEquals(expectedMemory, fieldCacher.memoryRequired(r.getNumDocs()));
             assertEquals(maxTerm, minMax.max);
-            IntValueLookup ivl = fieldCacher.newFieldCache("f", r, minMax.min, minMax.max);
+            final IntValueLookup ivl = fieldCacher.newFieldCache("f", r, minMax.min, minMax.max);
             verifyCache(cache, ivl);
 
-            Path tempDir = Files.createTempDirectory("asdf");
+            final Path tempDir = Files.createTempDirectory("asdf");
             try {
                 for (int x = 0; x < 5; ++x) {
                     if (x > 0) {
@@ -107,7 +109,7 @@ public class TestFieldCacher {
                     } else {
                         assertFalse(Files.exists(tempDir.resolve(fieldCacher.getMMapFileName("f"))));
                     }
-                    IntValueLookup mmivl = fieldCacher.newMMapFieldCache("f",
+                    final IntValueLookup mmivl = fieldCacher.newMMapFieldCache("f",
                                                                          r,
                                                                          tempDir,
                                                                          minMax.min,
@@ -124,10 +126,12 @@ public class TestFieldCacher {
         }
     }
 
-    private static void verifyCache(long[] cache, IntValueLookup ivl) {
-        int[] docIds = new int[10];
-        for (int j = 0; j < 10; ++j) docIds[j] = j;
-        long[] values = new long[10];
+    private static void verifyCache(final long[] cache, final IntValueLookup ivl) {
+        final int[] docIds = new int[10];
+        for (int j = 0; j < 10; ++j) {
+            docIds[j] = j;
+        }
+        final long[] values = new long[10];
         ivl.lookup(docIds, values, 10);
         assertEquals(Longs.asList(cache), Longs.asList(values));
     }

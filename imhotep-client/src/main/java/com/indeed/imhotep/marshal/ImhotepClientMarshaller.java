@@ -62,7 +62,7 @@ public final class ImhotepClientMarshaller {
     }
 
     public static List<GroupRemapMessage> marshal(final GroupRemapRule[] remapRules) {
-        final List<GroupRemapMessage> ret = new ArrayList<GroupRemapMessage>(remapRules.length);
+        final List<GroupRemapMessage> ret = new ArrayList<>(remapRules.length);
         for (final GroupRemapRule rule : remapRules) {
             ret.add(GroupRemapMessage.newBuilder()
             .setTargetGroup(rule.targetGroup)
@@ -115,7 +115,7 @@ public final class ImhotepClientMarshaller {
     }
 
     public static GroupMultiRemapMessage marshal(final GroupMultiRemapRule rule) {
-        GroupMultiRemapMessage.Builder builder = GroupMultiRemapMessage.newBuilder();
+        final GroupMultiRemapMessage.Builder builder = GroupMultiRemapMessage.newBuilder();
         builder.setNegativeGroup(rule.negativeGroup).setTargetGroup(rule.targetGroup);
         final int numConditions = rule.conditions.length;
         for (int conditionIx = 0; conditionIx < numConditions; conditionIx++) {
@@ -126,8 +126,8 @@ public final class ImhotepClientMarshaller {
     }
 
     public static List<GroupMultiRemapMessage> marshal(final GroupMultiRemapRule[] rawRules) {
-        List<GroupMultiRemapMessage> result = Lists.newArrayListWithCapacity(rawRules.length);
-        for (GroupMultiRemapRule rule : rawRules) {
+        final List<GroupMultiRemapMessage> result = Lists.newArrayListWithCapacity(rawRules.length);
+        for (final GroupMultiRemapRule rule : rawRules) {
             result.add(marshal(rule));
         }
         return result;
@@ -141,7 +141,7 @@ public final class ImhotepClientMarshaller {
         return ret;
     }
 
-    public static List<RegroupConditionMessage> marshal(RegroupCondition[] conditions) {
+    public static List<RegroupConditionMessage> marshal(final RegroupCondition[] conditions) {
         final List<RegroupConditionMessage> ret = Lists.newArrayList();
         for (final RegroupCondition condition : conditions) {
             ret.add(marshal(condition));

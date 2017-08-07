@@ -55,11 +55,11 @@ public final class SimpleFlamdexDocWriter implements FlamdexDocWriter {
      * use {@link #SimpleFlamdexDocWriter(Path, Config)} instead
      */
     @Deprecated
-    public SimpleFlamdexDocWriter(String outputDirectory, Config config) throws IOException {
+    public SimpleFlamdexDocWriter(final String outputDirectory, final Config config) throws IOException {
         this(Paths.get(outputDirectory), config);
     }
 
-    public SimpleFlamdexDocWriter(Path outputDirectory, Config config) throws IOException {
+    public SimpleFlamdexDocWriter(final Path outputDirectory, final Config config) throws IOException {
         createOutputDir(outputDirectory);
 
         this.outputDirectory = outputDirectory;
@@ -70,20 +70,20 @@ public final class SimpleFlamdexDocWriter implements FlamdexDocWriter {
         segmentsOnDisk.add(new ArrayList<Path>());
     }
 
-    private static void createOutputDir(Path outputDirectory) throws IOException {
+    private static void createOutputDir(final Path outputDirectory) throws IOException {
         if (Files.exists(outputDirectory) && !Files.isDirectory(outputDirectory)) {
             throw new FileNotFoundException(outputDirectory + " is not a directory");
         }
 
         try {
             Files.createDirectories(outputDirectory);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new IOException("unable to create directory " + outputDirectory, e);
         }
     }
 
     @Override
-    public void addDocument(FlamdexDocument doc) throws IOException {
+    public void addDocument(final FlamdexDocument doc) throws IOException {
         currentBuffer.addDocument(doc);
         if (currentBuffer.getNumDocs() == docBufferSize) {
             flush();
@@ -157,7 +157,7 @@ public final class SimpleFlamdexDocWriter implements FlamdexDocWriter {
         flush();
         long numDocs = 0;
         final List<FlamdexReader> allReaders = Lists.newArrayList();
-        Closer closer = Closer.create();
+        final Closer closer = Closer.create();
         try {
             for (final Path file : Iterables.concat(Lists.reverse(segmentsOnDisk.subList(1, segmentsOnDisk.size())))) {
                 final SimpleFlamdexReader reader = SimpleFlamdexReader.open(file,
@@ -190,7 +190,7 @@ public final class SimpleFlamdexDocWriter implements FlamdexDocWriter {
         }
     }
 
-    private static String nextSegmentDirectory(String s) {
+    private static String nextSegmentDirectory(final String s) {
         int i = s.length() - 1;
         while (s.charAt(i) == 'z') {
             --i;
@@ -221,12 +221,12 @@ public final class SimpleFlamdexDocWriter implements FlamdexDocWriter {
             return mergeFactor;
         }
 
-        public Config setDocBufferSize(int docBufferSize) {
+        public Config setDocBufferSize(final int docBufferSize) {
             this.docBufferSize = docBufferSize;
             return this;
         }
 
-        public Config setMergeFactor(int mergeFactor) {
+        public Config setMergeFactor(final int mergeFactor) {
             this.mergeFactor = mergeFactor;
             return this;
         }

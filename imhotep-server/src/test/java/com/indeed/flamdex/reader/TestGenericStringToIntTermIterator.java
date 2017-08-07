@@ -8,10 +8,13 @@ import com.google.common.collect.PeekingIterator;
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.util.core.Pair;
-import junit.framework.Assert;
 import org.junit.Test;
 
 import java.util.List;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author michihiko
@@ -82,37 +85,37 @@ public class TestGenericStringToIntTermIterator {
         );
         final IntTermIterator iterator = createStringToIntTermIterator(strTerms);
 
-        Assert.assertTrue(iterator.next());
-        Assert.assertEquals(1, iterator.term());
-        Assert.assertTrue(iterator.next());
-        Assert.assertEquals(2, iterator.term());
-        Assert.assertTrue(iterator.next());
-        Assert.assertEquals(2189, iterator.term());
-        Assert.assertTrue(iterator.next());
-        Assert.assertEquals(128931, iterator.term());
-        Assert.assertFalse(iterator.next());
+        assertTrue(iterator.next());
+        assertEquals(1, iterator.term());
+        assertTrue(iterator.next());
+        assertEquals(2, iterator.term());
+        assertTrue(iterator.next());
+        assertEquals(2189, iterator.term());
+        assertTrue(iterator.next());
+        assertEquals(128931, iterator.term());
+        assertFalse(iterator.next());
 
         iterator.reset(128932);
-        Assert.assertFalse(iterator.next());
+        assertFalse(iterator.next());
 
         iterator.reset(128931);
-        Assert.assertTrue(iterator.next());
-        Assert.assertEquals(128931, iterator.term());
+        assertTrue(iterator.next());
+        assertEquals(128931, iterator.term());
 
         iterator.reset(3);
-        Assert.assertTrue(iterator.next());
-        Assert.assertEquals(2189, iterator.term());
+        assertTrue(iterator.next());
+        assertEquals(2189, iterator.term());
 
         iterator.reset(2);
-        Assert.assertTrue(iterator.next());
-        Assert.assertEquals(2, iterator.term());
+        assertTrue(iterator.next());
+        assertEquals(2, iterator.term());
 
         iterator.reset(1);
-        Assert.assertTrue(iterator.next());
-        Assert.assertEquals(1, iterator.term());
+        assertTrue(iterator.next());
+        assertEquals(1, iterator.term());
 
         iterator.reset(0);
-        Assert.assertTrue(iterator.next());
-        Assert.assertEquals(1, iterator.term());
+        assertTrue(iterator.next());
+        assertEquals(1, iterator.term());
     }
 }

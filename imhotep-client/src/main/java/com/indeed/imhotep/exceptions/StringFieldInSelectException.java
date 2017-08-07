@@ -22,11 +22,11 @@ public class StringFieldInSelectException extends ImhotepKnownException {
         super();
     }
 
-    public StringFieldInSelectException(String s) {
+    public StringFieldInSelectException(final String s) {
         super(s);
     }
 
-    public StringFieldInSelectException(String message, Throwable cause) {
+    public StringFieldInSelectException(final String message, final Throwable cause) {
         super(message, cause);
     }
 }

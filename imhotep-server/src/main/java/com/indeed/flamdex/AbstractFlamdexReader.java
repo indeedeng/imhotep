@@ -52,11 +52,11 @@ public abstract class AbstractFlamdexReader implements FlamdexReader {
     private final Map<String, FieldCacher> intFieldCachers;
     protected final Map<String, MinMax> metricMinMaxes;
 
-    protected AbstractFlamdexReader(Path directory) {
+    protected AbstractFlamdexReader(final Path directory) {
         this(directory, 0, System.getProperty("flamdex.mmap.fieldcache") != null);
     }
 
-    protected AbstractFlamdexReader(Path directory, int numDocs, boolean useMMapMetrics) {
+    protected AbstractFlamdexReader(final Path directory, final int numDocs, final boolean useMMapMetrics) {
         this.directory = directory;
         this.numDocs = numDocs;
         this.useMMapMetrics = useMMapMetrics && directory != null;
@@ -67,32 +67,29 @@ public abstract class AbstractFlamdexReader implements FlamdexReader {
 
     // this implementation will be correct for any FlamdexReader, but
     // subclasses may want to override for efficiency reasons
-    protected UnsortedIntTermDocIterator createUnsortedIntTermDocIterator(String field) {
+    protected UnsortedIntTermDocIterator createUnsortedIntTermDocIterator(final String field) {
         return UnsortedIntTermDocIteratorImpl.create(this, field);
     }
 
     @Override
-    public IntValueLookup getMetric(String metric) throws FlamdexOutOfMemoryException {
+    public IntValueLookup getMetric(final String metric) throws FlamdexOutOfMemoryException {
         final FieldCacher fieldCacher = getMetricCacher(metric);
-        final UnsortedIntTermDocIterator iterator = createUnsortedIntTermDocIterator(metric);
-        try {
+        try (UnsortedIntTermDocIterator iterator = createUnsortedIntTermDocIterator(metric)) {
             return cacheField(iterator, metric, fieldCacher);
-        } finally {
-            iterator.close();
         }
     }
 
     public StringValueLookup getStringLookup(final String field) throws FlamdexOutOfMemoryException {
         try {
             return FieldCacherUtil.newStringValueLookup(field, this);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    private IntValueLookup cacheField(UnsortedIntTermDocIterator iterator,
-                                      String metric,
-                                      FieldCacher fieldCacher) {
+    private IntValueLookup cacheField(final UnsortedIntTermDocIterator iterator,
+                                      final String metric,
+                                      final FieldCacher fieldCacher) {
         final MinMax minMax = metricMinMaxes.get(metric);
         if (useMMapMetrics) {
             try {
@@ -102,7 +99,7 @@ public abstract class AbstractFlamdexReader implements FlamdexReader {
                                                      directory,
                                                      minMax.min,
                                                      minMax.max);
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 throw new RuntimeException(e);
             }
         }
@@ -110,14 +107,16 @@ public abstract class AbstractFlamdexReader implements FlamdexReader {
     }
 
     @Override
-    public long memoryRequired(String metric) {
-        if (useMMapMetrics) return 0;
+    public long memoryRequired(final String metric) {
+        if (useMMapMetrics) {
+            return 0;
+        }
 
         final FieldCacher fieldCacher = getMetricCacher(metric);
         return fieldCacher.memoryRequired(numDocs);
     }
 
-    private FieldCacher getMetricCacher(String metric) {
+    private FieldCacher getMetricCacher(final String metric) {
         synchronized (intFieldCachers) {
             if (!intFieldCachers.containsKey(metric)) {
                 final MinMax minMax = new MinMax();
@@ -139,7 +138,7 @@ public abstract class AbstractFlamdexReader implements FlamdexReader {
         return new GenericStringTermDocIterator(getStringTermIterator(field), getDocIdStream());
     }
 
-    protected void setNumDocs(int nDocs) {
+    protected void setNumDocs(final int nDocs) {
         this.numDocs = nDocs;
     }
     

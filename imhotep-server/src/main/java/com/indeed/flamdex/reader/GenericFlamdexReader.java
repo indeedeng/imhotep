@@ -57,11 +57,11 @@ public final class GenericFlamdexReader implements FlamdexReader {
     private final Collection<String> stringFields;
 
     private GenericFlamdexReader(
-            Path directory,
-            GenericFlamdexFactory factory,
-            int numDocs,
-            Collection<String> intFields,
-            Collection<String> stringFields
+            final Path directory,
+            final GenericFlamdexFactory factory,
+            final int numDocs,
+            final Collection<String> intFields,
+            final Collection<String> stringFields
     ) {
         this.directory = directory;
         this.factory = factory;
@@ -74,11 +74,11 @@ public final class GenericFlamdexReader implements FlamdexReader {
      * use {@link #open(Path)} instead
      */
     @Deprecated
-    public static FlamdexReader open(String directory) throws IOException {
+    public static FlamdexReader open(final String directory) throws IOException {
         return open(Paths.get(directory));
     }
 
-    public static FlamdexReader open(Path directory) throws IOException {
+    public static FlamdexReader open(final Path directory) throws IOException {
         final FlamdexReader r = internalOpen(directory);
         if (RamsesFlamdexWrapper.ramsesFilesExist(directory)) {
             return new RamsesFlamdexWrapper(r, directory);
@@ -86,7 +86,7 @@ public final class GenericFlamdexReader implements FlamdexReader {
         return r;
     }
 
-    private static FlamdexReader internalOpen(Path directory) throws IOException {
+    private static FlamdexReader internalOpen(final Path directory) throws IOException {
         final Path metadataPath = directory.resolve("metadata.txt");
 
         if (Files.notExists(directory)) {
@@ -123,12 +123,12 @@ public final class GenericFlamdexReader implements FlamdexReader {
      * use {@link #open(Path, GenericFlamdexFactory)} instead
      */
     @Deprecated
-    public static GenericFlamdexReader open(String directory, GenericFlamdexFactory factory)
+    public static GenericFlamdexReader open(final String directory, final GenericFlamdexFactory factory)
             throws IOException {
         return open(Paths.get(directory), factory);
     }
 
-    public static GenericFlamdexReader open(Path directory, GenericFlamdexFactory factory)
+    public static GenericFlamdexReader open(final Path directory, final GenericFlamdexFactory factory)
             throws IOException {
         final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(directory);
         return new GenericFlamdexReader(directory,
@@ -164,29 +164,29 @@ public final class GenericFlamdexReader implements FlamdexReader {
     }
 
     @Override
-    public IntTermIterator getIntTermIterator(String field) {
+    public IntTermIterator getIntTermIterator(final String field) {
         final Path termsPath = directory.resolve(factory.getIntTermsFilename(field));
         final Path docsPath = directory.resolve(factory.getIntDocsFilename(field));
         try {
             return factory.createIntTermIterator(termsPath, docsPath);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new RuntimeException(e);
         }
     }
 
     @Override
-    public IntTermIterator getUnsortedIntTermIterator(String field) {
+    public IntTermIterator getUnsortedIntTermIterator(final String field) {
         // TODO?
         return getIntTermIterator(field);
     }
 
     @Override
-    public StringTermIterator getStringTermIterator(String field) {
+    public StringTermIterator getStringTermIterator(final String field) {
         final Path termsPath = directory.resolve(factory.getStringTermsFilename(field));
         final Path docsPath = directory.resolve(factory.getStringDocsFilename(field));
         try {
             return factory.createStringTermIterator(termsPath, docsPath);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new RuntimeException(e);
         }
     }
@@ -202,12 +202,12 @@ public final class GenericFlamdexReader implements FlamdexReader {
     }
 
     @Override
-    public long getIntTotalDocFreq(String field) {
+    public long getIntTotalDocFreq(final String field) {
         return FlamdexUtils.getIntTotalDocFreq(this, field);
     }
 
     @Override
-    public long getStringTotalDocFreq(String field) {
+    public long getStringTotalDocFreq(final String field) {
         return FlamdexUtils.getStringTotalDocFreq(this, field);
     }
 
@@ -217,20 +217,20 @@ public final class GenericFlamdexReader implements FlamdexReader {
     }
 
     @Override
-    public IntValueLookup getMetric(String metric) throws FlamdexOutOfMemoryException {
+    public IntValueLookup getMetric(final String metric) throws FlamdexOutOfMemoryException {
         return new IntArrayIntValueLookup(FlamdexUtils.cacheIntField(metric, this));
     }
 
     public StringValueLookup getStringLookup(final String field) throws FlamdexOutOfMemoryException {
         try {
             return FieldCacherUtil.newStringValueLookup(field, this);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw Throwables.propagate(e);
         }
     }
 
     @Override
-    public long memoryRequired(String metric) {
+    public long memoryRequired(final String metric) {
         return 4L * getNumDocs();
     }
 

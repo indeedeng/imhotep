@@ -13,12 +13,11 @@
  */
 package com.indeed.imhotep.service;
 
+import com.google.common.collect.Sets;
 import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.io.Shard;
 import com.indeed.lsmtree.core.Store;
-
-import com.google.common.collect.Sets;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -38,18 +37,18 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
 
     private static final Comparator<DatasetInfo> comparator =
         new Comparator<DatasetInfo>() {
-        @Override public int compare(DatasetInfo thing1, DatasetInfo thing2) {
+        @Override public int compare(final DatasetInfo thing1, final DatasetInfo thing2) {
             return thing1.getDataset().compareTo(thing2.getDataset());
         }
     };
 
     /** Build a list of DatasetInfo objects from a ShardMap, sorted by dataset. */
-    DatasetInfoList(ShardMap shardMap) {
-        for (Map.Entry<String, Object2ObjectOpenHashMap<String, Shard>>
+    DatasetInfoList(final ShardMap shardMap) {
+        for (final Map.Entry<String, Object2ObjectOpenHashMap<String, Shard>>
                  datasetToShard : shardMap.entrySet()) {
             final String dataset = datasetToShard.getKey();
             final Element datasetInfo = new Element(dataset);
-            for (Map.Entry<String, Shard>
+            for (final Map.Entry<String, Shard>
                      idToShard : datasetToShard.getValue().entrySet()) {
                 final String id    = idToShard.getKey();
                 final Shard  shard = idToShard.getValue();
@@ -67,7 +66,7 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
     /** Build a list of DatasetInfo objects from a ShardStore, sorted by
         dataset. This method is intended for use by tests, not
         LocalImhotepServiceCore proper. */
-    DatasetInfoList(ShardStore store) throws IOException {
+    DatasetInfoList(final ShardStore store) throws IOException {
         final Map<String, Element> datasetInfos = new Object2ObjectOpenHashMap<>();
         final Iterator<Store.Entry<ShardStore.Key, ShardStore.Value>> it =
             store.iterator();
@@ -103,7 +102,7 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
         private ObjectOpenHashSet<String> newestIntFields = new ObjectOpenHashSet<>();
         private ObjectOpenHashSet<String> newestStrFields = new ObjectOpenHashSet<>();
 
-        Element(String dataset) {
+        Element(final String dataset) {
             super(dataset,
                   new ObjectArrayList<ShardInfo>(),
                   new ObjectOpenHashSet<String>(),
@@ -111,7 +110,7 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
                   new ObjectOpenHashSet<String>());
         }
 
-        void add(ShardInfo shardInfo, ShardStore.Value value) {
+        void add(final ShardInfo shardInfo, final ShardStore.Value value) {
             getShardList().add(shardInfo);
             getIntFields().addAll(value.getIntFields());
             getStringFields().addAll(value.getStrFields());
@@ -120,7 +119,7 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
             filter();
         }
 
-        void add(ShardInfo shardInfo, Shard shard) {
+        void add(final ShardInfo shardInfo, final Shard shard) {
             getShardList().add(shardInfo);
             getIntFields().addAll(shard.getIntFields());
             getStringFields().addAll(shard.getStringFields());
@@ -129,9 +128,9 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
             filter();
         }
 
-        private void track(long version,
-                           Collection<String> intFields,
-                           Collection<String> strFields) {
+        private void track(final long version,
+                           final Collection<String> intFields,
+                           final Collection<String> strFields) {
             if (version > newestVersion) {
                 newestVersion = version;
                 newestIntFields = new ObjectOpenHashSet<>(intFields);

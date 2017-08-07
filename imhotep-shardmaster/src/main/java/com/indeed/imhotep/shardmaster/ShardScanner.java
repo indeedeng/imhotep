@@ -8,6 +8,7 @@ import com.indeed.imhotep.client.ShardTimeUtils;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.fs.RemoteCachingPath;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Path;
@@ -26,6 +27,7 @@ class ShardScanner implements Iterable<ShardDir> {
         this.shardFilter = shardFilter;
     }
 
+    @Nonnull
     @Override
     public Iterator<ShardDir> iterator() {
         // hack to avoid an extra attribute lookup on each list entry

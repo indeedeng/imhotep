@@ -90,14 +90,15 @@ public class AutomatonMatcher implements MatchResult {
 			match_start = -1;
 			match_end = -1;
 		}
-		int l = getChars().length();
+		final int l = getChars().length();
 		while (begin < l) {
 			int p = automaton.getInitialState();
 			for (int i = begin; i < l; i++) {
 				final int new_state = automaton.step(p, getChars().charAt(i));
 				if (new_state == -1) {
 				    break;
-				} else if (automaton.isAccept(new_state)) {
+				}
+				if (automaton.isAccept(new_state)) {
 				    // found a match from begin to (i+1)
 				    match_start = begin;
 				    match_end=(i+1);
@@ -243,7 +244,7 @@ public class AutomatonMatcher implements MatchResult {
 	 * @throws IndexOutOfBoundsException if the specified capturing group does
 	 *  not exist in the underlying automaton.
 	 */
-	public int start(int group) throws IndexOutOfBoundsException, IllegalStateException {
+	public int start(final int group) throws IndexOutOfBoundsException, IllegalStateException {
 		onlyZero(group);
 		return start();
 	}

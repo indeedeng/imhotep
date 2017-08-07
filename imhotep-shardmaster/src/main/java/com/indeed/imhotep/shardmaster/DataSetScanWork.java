@@ -34,7 +34,7 @@ class DataSetScanWork implements Callable<DataSetScanWork.Result> {
     }
 
     @Override
-    public Result call() throws Exception {
+    public Result call() {
         LOGGER.info("Scanning " + datasetsDir + " for all datasets");
         final ImmutableMap.Builder<String, ListenableFuture<ShardScanWork.Result>> datasetShards = ImmutableMap.builder();
         for (final RemoteCachingPath datasetPath : new DataSetScanner(datasetsDir, shardFilter)) {

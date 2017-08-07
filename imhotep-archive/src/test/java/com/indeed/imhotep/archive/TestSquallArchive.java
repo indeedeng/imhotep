@@ -14,12 +14,8 @@
  package com.indeed.imhotep.archive;
 
 import com.google.common.io.ByteStreams;
-import com.indeed.util.io.Files;
-import com.indeed.imhotep.archive.FileMetadata;
-import com.indeed.imhotep.archive.SquallArchiveReader;
-import com.indeed.imhotep.archive.SquallArchiveWriter;
 import com.indeed.imhotep.archive.compression.SquallArchiveCompressor;
-
+import com.indeed.util.io.Files;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -52,7 +48,7 @@ public class TestSquallArchive {
         final Path tempDir = new Path(getTempDir());
         fs.mkdirs(tempDir);
         try {
-            for (SquallArchiveCompressor compressor : Arrays.asList(NONE, GZIP, SNAPPY)) {
+            for (final SquallArchiveCompressor compressor : Arrays.asList(NONE, GZIP, SNAPPY)) {
                 final String localTempDir = getTempDir();
                 try {
                     doTheTest(fs, tempDir, new File(localTempDir), compressor);
@@ -81,15 +77,17 @@ public class TestSquallArchive {
         return com.google.common.io.Files.createTempDir().getAbsolutePath();
     }
 
-    private static void testDirectories(FileSystem fs, Path tempDir, File localTempDir) throws IOException {
+    private static void testDirectories(final FileSystem fs, final Path tempDir, final File localTempDir) throws IOException {
         final File localArchiveDir = new File(localTempDir, "tmp");
-        if (!localArchiveDir.mkdir()) throw new IOException();
-
-        final OutputStream os = new FileOutputStream(new File(localArchiveDir, "tempfile"));
-        for (int i = 1; i <= 10; ++i) {
-            os.write(i);
+        if (!localArchiveDir.mkdir()) {
+            throw new IOException();
         }
-        os.close();
+
+        try( final OutputStream os = new FileOutputStream(new File(localArchiveDir, "tempfile")) ) {
+            for (int i = 1; i <= 10; ++i) {
+                os.write(i);
+            }
+        }
 
         final SquallArchiveWriter writer = new SquallArchiveWriter(fs, tempDir, true);
         writer.appendDirectory(localArchiveDir);
@@ -106,7 +104,7 @@ public class TestSquallArchive {
         checkDirectory(fs, tempDir, localTempDir, localArchiveDir);        
     }
 
-    private static void checkDirectory(FileSystem fs, Path tempDir, File localTempDir, File localArchiveDir) throws IOException {
+    private static void checkDirectory(final FileSystem fs, final Path tempDir, final File localTempDir, final File localArchiveDir) throws IOException {
         Files.delete(localArchiveDir.getAbsolutePath());
         final SquallArchiveReader reader = new SquallArchiveReader(fs, tempDir);
         reader.copyToLocal("tmp/tempfile", localTempDir.getAbsolutePath());
@@ -123,18 +121,18 @@ public class TestSquallArchive {
         ));
     }
 
-    private static void doTheTest(FileSystem fs, Path tempDir, File localTempDir, SquallArchiveCompressor compressor) throws IOException {
+    private static void doTheTest(final FileSystem fs, final Path tempDir, final File localTempDir, final SquallArchiveCompressor compressor) throws IOException {
         final Random rand = new Random();
-        final List<File> tempFiles = new ArrayList<File>();
+        final List<File> tempFiles = new ArrayList<>();
         for (int i = 0; i < 10; ++i) {
             final File tempFile = new File(localTempDir, "tempfile" + i);
             tempFiles.add(tempFile);
             final int len = rand.nextInt(1024) + 1024;
-            final OutputStream os = new FileOutputStream(tempFile);
-            for (int j = 0; j < len; ++j) {
-                os.write(rand.nextInt(256));
+            try( final OutputStream os = new FileOutputStream(tempFile) ) {
+                for (int j = 0; j < len; ++j) {
+                    os.write(rand.nextInt(256));
+                }
             }
-            os.close();
         }
 
         Collections.shuffle(tempFiles);
@@ -156,7 +154,10 @@ public class TestSquallArchive {
             assertEquals(bytesWritten, getArchiveBytesWritten(fs, tempDir));
         }
 
-        if (!localTempDir2.mkdirs()) throw new IOException();
+        if (!localTempDir2.mkdirs()) {
+            throw new IOException();
+        }
+
         try {
             readAllTheFiles(fs, tempDir, localTempDir2, tempFiles);
         } finally {
@@ -164,11 +165,11 @@ public class TestSquallArchive {
         }
     }
 
-    private static long getArchiveBytesWritten(FileSystem fs, Path tempDir) throws IOException {
+    private static long getArchiveBytesWritten(final FileSystem fs, final Path tempDir) throws IOException {
         long sum = 0;
         for (final FileStatus status : fs.listStatus(tempDir, new PathFilter() {
             @Override
-            public boolean accept(Path path) {
+            public boolean accept(final Path path) {
                 return SquallArchiveWriter.ARCHIVE_FILENAME_PATTERN.matcher(path.getName()).matches();
             }
         })) {
@@ -177,7 +178,7 @@ public class TestSquallArchive {
         return sum;
     }
 
-    private static void readAllTheFiles(FileSystem fs, Path tempDir, File localTempDir2, List<File> tempFiles) throws IOException {
+    private static void readAllTheFiles(final FileSystem fs, final Path tempDir, final File localTempDir2, final List<File> tempFiles) throws IOException {
         final SquallArchiveReader reader = new SquallArchiveReader(fs, tempDir);
         final List<FileMetadata> metadata = reader.readMetadata();
         assertEquals(metadata.size(), tempFiles.size());
@@ -190,21 +191,25 @@ public class TestSquallArchive {
         }
 
         for (final File f : localTempDir2.listFiles()) {
-            if (!f.delete()) throw new IOException();
+            if (!f.delete()) {
+                throw new IOException();
+            }
         }
 
         reader.copyToLocal("tempfile3", localTempDir2.getAbsolutePath());
         assertTrue(com.google.common.io.Files.equal(new File(localTempDir2, "tempfile3"), findTempFile3(tempFiles)));
     }
 
-    private static File findTempFile3(List<File> tempFiles) {
+    private static File findTempFile3(final List<File> tempFiles) {
         for (final File f : tempFiles) {
-            if (f.getName().endsWith("3")) return f;
+            if (f.getName().endsWith("3")) {
+                return f;
+            }
         }
         throw new AssertionError("wtf");
     }
 
-    private static void readHalfTheFiles(FileSystem fs, Path tempDir, File localTempDir2, List<File> tempFiles) throws IOException {
+    private static void readHalfTheFiles(final FileSystem fs, final Path tempDir, final File localTempDir2, final List<File> tempFiles) throws IOException {
         final SquallArchiveReader reader = new SquallArchiveReader(fs, tempDir);
         final List<FileMetadata> metadata = reader.readMetadata();
         assertEquals(metadata.size(), tempFiles.size() / 2);
@@ -220,7 +225,7 @@ public class TestSquallArchive {
         }
     }
 
-    private static long writeTheOtherHalf(FileSystem fs, Path tempDir, List<File> tempFiles, SquallArchiveCompressor compressor) throws IOException {
+    private static long writeTheOtherHalf(final FileSystem fs, final Path tempDir, final List<File> tempFiles, final SquallArchiveCompressor compressor) throws IOException {
         final SquallArchiveWriter writer = new SquallArchiveWriter(fs, tempDir, false, compressor);
         long expectedLen = 0L;
         for (int i = tempFiles.size() / 2; i < tempFiles.size(); ++i) {
@@ -232,7 +237,7 @@ public class TestSquallArchive {
         return expectedLen;
     }
 
-    private static long writeHalfTheFiles(FileSystem fs, Path tempDir, List<File> tempFiles, SquallArchiveCompressor compressor) throws IOException {
+    private static long writeHalfTheFiles(final FileSystem fs, final Path tempDir, final List<File> tempFiles, final SquallArchiveCompressor compressor) throws IOException {
         final SquallArchiveWriter writer = new SquallArchiveWriter(fs, tempDir, true, compressor);
         long expectedLen = 0L;
         for (int i = 0; i < tempFiles.size() / 2; ++i) {

@@ -38,6 +38,9 @@ import java.util.SortedMap;
  * this class does not enforce rigorous type safety since it is expected to only be used in test code
  */
 public class YamlFlamdexParser {
+    private YamlFlamdexParser() {
+    }
+
     private static final Logger LOG = Logger.getLogger(YamlFlamdexParser.class);
 
     public static MockFlamdexReader parseFromClasspathResource(final String resource) throws IOException {

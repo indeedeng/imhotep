@@ -57,7 +57,7 @@ public class TestLocalImhotepServiceCore {
 
         final Layout LAYOUT = new PatternLayout("[ %d{ISO8601} %-5p ] [%c{1}] %m%n");
 
-        LevelRangeFilter ERROR_FILTER = new LevelRangeFilter();
+        final LevelRangeFilter ERROR_FILTER = new LevelRangeFilter();
         ERROR_FILTER.setLevelMin(Level.ERROR);
         ERROR_FILTER.setLevelMax(Level.FATAL);
 

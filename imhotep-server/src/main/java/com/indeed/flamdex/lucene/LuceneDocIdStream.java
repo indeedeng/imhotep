@@ -29,7 +29,9 @@ public class LuceneDocIdStream implements DocIdStream {
 
     @Override
     public void reset(final TermIterator term) {
-        if (!(term instanceof LuceneTermIterator)) throw new IllegalArgumentException("This DocIdStream can only function with LuceneTermIterator");
+        if (!(term instanceof LuceneTermIterator)) {
+            throw new IllegalArgumentException("This DocIdStream can only function with LuceneTermIterator");
+        }
         internalReset((LuceneTermIterator)term);
     }
 
@@ -44,10 +46,12 @@ public class LuceneDocIdStream implements DocIdStream {
 
     @Override
     public int fillDocIdBuffer(final int[] docIdBuffer) {
-        if (!valid) throw new IllegalArgumentException("DocIdStream is not in a valid state");
+        if (!valid) {
+            throw new IllegalArgumentException("DocIdStream is not in a valid state");
+        }
         try {
             return internalFillDocIdBuffer(docIdBuffer);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw e(e);
         }
     }
@@ -55,7 +59,9 @@ public class LuceneDocIdStream implements DocIdStream {
     private int internalFillDocIdBuffer(final int[] docIdBuffer) throws IOException {
         int i = 0;
         for (; i < docIdBuffer.length; i++) {
-            if (!termDocs.next()) break; // todo: think about setting valid = false
+            if (!termDocs.next()) {
+                break; // todo: think about setting valid = false
+            }
             docIdBuffer[i] = termDocs.doc();
         }
         return i;
@@ -65,7 +71,7 @@ public class LuceneDocIdStream implements DocIdStream {
     public void close() {
         try {
             termDocs.close();
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw e(e);
         }
     }

@@ -43,11 +43,11 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
 
     private final long localTempFileSizeLimit;
 
-    public RemoteImhotepMultiSession(ImhotepSession[] sessions,
+    public RemoteImhotepMultiSession(final ImhotepSession[] sessions,
                                      final String sessionId,
                                      final InetSocketAddress[] nodes,
-                                     long localTempFileSizeLimit,
-                                     AtomicLong tempFileSizeBytesLeft) {
+                                     final long localTempFileSizeLimit,
+                                     final AtomicLong tempFileSizeBytesLeft) {
         super(sessions, tempFileSizeBytesLeft);
 
         this.sessionId = sessionId;
@@ -61,12 +61,12 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     @Override
-    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, long termLimit) {
+    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit) {
         return getFTGSIterator(intFields, stringFields, termLimit, -1);
     }
 
     @Override
-    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, long termLimit, int sortStat) {
+    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit, final int sortStat) {
         if (sessions.length == 1) {
             return sessions[0].getFTGSIterator(intFields, stringFields, termLimit, sortStat);
         }
@@ -95,13 +95,13 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         final RawFTGSIterator[] mergers = new RawFTGSIterator[sessions.length];
         try {
             execute(mergers, indexesAndSessions, new ThrowingFunction<Pair<Integer, ImhotepSession>, RawFTGSIterator>() {
-                public RawFTGSIterator apply(final Pair<Integer, ImhotepSession> indexSessionPair) throws Exception {
+                public RawFTGSIterator apply(final Pair<Integer, ImhotepSession> indexSessionPair) {
                     final ImhotepSession session = indexSessionPair.getSecond();
                     final int index = indexSessionPair.getFirst();
                     return session.mergeFTGSSplit(intFields, stringFields, sessionId, nodes, index, termLimit, sortStat);
                 }
             });
-        } catch (ExecutionException e) {
+        } catch (final ExecutionException e) {
             throw Throwables.propagate(e);
         }
         return mergers;
@@ -125,13 +125,13 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         final RawFTGSIterator[] mergers = new RawFTGSIterator[sessions.length];
         try {
             execute(mergers, indexesAndSessions, new ThrowingFunction<Pair<Integer, ImhotepSession>, RawFTGSIterator>() {
-                public RawFTGSIterator apply(final Pair<Integer, ImhotepSession> indexSessionPair) throws Exception {
+                public RawFTGSIterator apply(final Pair<Integer, ImhotepSession> indexSessionPair) {
                     final ImhotepSession session = indexSessionPair.getSecond();
                     final int index = indexSessionPair.getFirst();
                     return session.mergeSubsetFTGSSplit(intFields, stringFields, sessionId, nodes, index);
                 }
             });
-        } catch (ExecutionException e) {
+        } catch (final ExecutionException e) {
             throw Throwables.propagate(e);
         }
         return mergers;
@@ -150,11 +150,11 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     @Override
-    public int regroupWithProtos(final GroupMultiRemapMessage[] rawRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
+    public int regroupWithProtos(final GroupMultiRemapMessage[] rawRuleMessages, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
         executeMemoryException(integerBuf, new ThrowingFunction<ImhotepSession, Integer>() {
             @Override
-            public Integer apply(ImhotepSession session) throws Exception {
-                return session.regroupWithProtos(rawRules, errorOnCollisions);
+            public Integer apply(final ImhotepSession session) throws ImhotepOutOfMemoryException{
+                return session.regroupWithProtos(rawRuleMessages, errorOnCollisions);
             }
         });
 
@@ -174,12 +174,12 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     @Override
-    public void writeFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, long termLimit, final Socket socket) {
+    public void writeFTGSIteratorSplit(final String[] intFields, final String[] stringFields, final int splitIndex, final int numSplits, final long termLimit, final Socket socket) {
         throw new UnsupportedOperationException("");
     }
 
     @Override
-    protected ImhotepRemoteSession createImhotepRemoteSession(InetSocketAddress address, String sessionId, AtomicLong tempFileSizeBytesLeft) {
+    protected ImhotepRemoteSession createImhotepRemoteSession(final InetSocketAddress address, final String sessionId, final AtomicLong tempFileSizeBytesLeft) {
         throw new UnsupportedOperationException("RemoteImhotepMultiSession doesn't open any remote imhotep connections!");
     }
 

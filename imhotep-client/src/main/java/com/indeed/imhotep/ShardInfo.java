@@ -21,6 +21,7 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
+import javax.annotation.Nonnull;
 import java.util.Collection;
 
 /**
@@ -39,7 +40,7 @@ public class ShardInfo implements Comparable<ShardInfo> {
 
     private DateTimeRange range;    // lazily computed
 
-    public ShardInfo(String dataset, String shardId, Collection<String> loadedMetrics, int numDocs, long version) {
+    public ShardInfo(final String dataset, final String shardId, final Collection<String> loadedMetrics, final int numDocs, final long version) {
         this.dataset = dataset;
         this.shardId = shardId;
         this.loadedMetrics = loadedMetrics;
@@ -88,7 +89,7 @@ public class ShardInfo implements Comparable<ShardInfo> {
         return range;
     }
 
-    public static ShardInfo fromProto(ShardInfoMessage protoShard) {
+    public static ShardInfo fromProto(final ShardInfoMessage protoShard) {
         return new ShardInfo(
                 protoShard.getDataset(),
                 protoShard.getShardId(),
@@ -109,27 +110,44 @@ public class ShardInfo implements Comparable<ShardInfo> {
     }
 
     @Override
-    public int compareTo(ShardInfo o) {
+    public int compareTo(@Nonnull final ShardInfo o) {
         final int c = dataset.compareTo(o.dataset);
-        if (c != 0) return c;
+        if (c != 0) {
+            return c;
+        }
         final int c2 = shardId.compareTo(o.shardId);
-        if (c2 != 0) return c2;
+        if (c2 != 0) {
+            return c2;
+        }
         return Longs.compare(version, o.version);
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        ShardInfo shardInfo = (ShardInfo) o;
-
-        if (numDocs != shardInfo.numDocs) return false;
-        if (version != shardInfo.version) return false;
-        if (dataset != null ? !dataset.equals(shardInfo.dataset) : shardInfo.dataset != null) return false;
-        if (loadedMetrics != null ? !loadedMetrics.equals(shardInfo.loadedMetrics) : shardInfo.loadedMetrics != null)
+    public boolean equals(final Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
             return false;
-        if (shardId != null ? !shardId.equals(shardInfo.shardId) : shardInfo.shardId != null) return false;
+        }
+
+        final ShardInfo shardInfo = (ShardInfo) o;
+
+        if (numDocs != shardInfo.numDocs) {
+            return false;
+        }
+        if (version != shardInfo.version) {
+            return false;
+        }
+        if (dataset != null ? !dataset.equals(shardInfo.dataset) : shardInfo.dataset != null) {
+            return false;
+        }
+        if (loadedMetrics != null ? !loadedMetrics.equals(shardInfo.loadedMetrics) : shardInfo.loadedMetrics != null) {
+            return false;
+        }
+        if (shardId != null ? !shardId.equals(shardInfo.shardId) : shardInfo.shardId != null) {
+            return false;
+        }
 
         return true;
     }
@@ -149,7 +167,7 @@ public class ShardInfo implements Comparable<ShardInfo> {
         return "["+dataset+":"+shardId+"]";
     }
 
-    public static DateTimeRange parseDateTime(String shardId) {
+    public static DateTimeRange parseDateTime(final String shardId) {
         try {
             if (shardId.length() > 16) {
                 final DateTime start = yyyymmddhh.parseDateTime(shardId.substring(5, 16));
@@ -164,7 +182,7 @@ public class ShardInfo implements Comparable<ShardInfo> {
                 final DateTime end = start.plusDays(1);
                 return new DateTimeRange(start, end);
             }
-        } catch (IllegalArgumentException e) {
+        } catch (final IllegalArgumentException e) {
             return null;
         }
     }
@@ -173,7 +191,7 @@ public class ShardInfo implements Comparable<ShardInfo> {
         public final DateTime start;
         public final DateTime end;
 
-        public DateTimeRange(DateTime start, DateTime end) {
+        public DateTimeRange(final DateTime start, final DateTime end) {
             this.start = start;
             this.end = end;
         }

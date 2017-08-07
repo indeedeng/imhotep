@@ -25,7 +25,10 @@ import java.util.Collection;
 public final class FTGSMerger extends AbstractFTGSMerger {
     private String termStringVal;
 
-    public FTGSMerger(Collection<? extends FTGSIterator> iterators, int numStats, @Nullable Closeable doneCallback) {
+    public FTGSMerger(
+            final Collection<? extends FTGSIterator> iterators,
+            final int numStats,
+            @Nullable final Closeable doneCallback) {
         super(iterators, numStats, doneCallback);
     }
 
@@ -35,7 +38,8 @@ public final class FTGSMerger extends AbstractFTGSMerger {
             final FTGSIterator itr = iterators[termIterators[i]];
             if (!itr.nextTerm()) {
                 final int fi = termIteratorIndexes[i];
-                swap(fieldIterators, fi, --numFieldIterators);
+                numFieldIterators--;
+                swap(fieldIterators, fi, numFieldIterators);
                 for (int j = 0; j < numTermIterators; ++j) {
                     if (termIteratorIndexes[j] == numFieldIterators) {
                         termIteratorIndexes[j] = fi;
@@ -45,7 +49,9 @@ public final class FTGSMerger extends AbstractFTGSMerger {
         }
 
         numTermIterators = 0;
-        if (numFieldIterators == 0) return false;
+        if (numFieldIterators == 0) {
+            return false;
+        }
 
         int newNumTermIterators = 0;
         if (fieldIsIntType) {
@@ -58,7 +64,8 @@ public final class FTGSMerger extends AbstractFTGSMerger {
                     termIteratorIndexes[0] = i;
                     min = term;
                 } else if (term == min) {
-                    termIteratorIndexes[newNumTermIterators++] = i;
+                    termIteratorIndexes[newNumTermIterators] = i;
+                    newNumTermIterators++;
                 }
             }
             termIntVal = min;
@@ -73,7 +80,8 @@ public final class FTGSMerger extends AbstractFTGSMerger {
                     termIteratorIndexes[0] = i;
                     min = term;
                 } else if (c == 0) {
-                    termIteratorIndexes[newNumTermIterators++] = i;
+                    termIteratorIndexes[newNumTermIterators] = i;
+                    newNumTermIterators++;
                 }
             }
             termStringVal = min;
@@ -83,13 +91,15 @@ public final class FTGSMerger extends AbstractFTGSMerger {
             final int fi = termIteratorIndexes[i];
             final int index = fieldIterators[fi];
             termIterators[numTermIterators] = index;
-            termIteratorIndexes[numTermIterators++] = fi;
+            termIteratorIndexes[numTermIterators] = fi;
+            numTermIterators++;
         }
         termIteratorsRemaining = numTermIterators;
         for (int i = 0; i < termIteratorsRemaining; ++i) {
             final FTGSIterator itr = iterators[termIterators[i]];
             if (!itr.nextGroup()) {
-                swap(termIterators, i, --termIteratorsRemaining);
+                termIteratorsRemaining--;
+                swap(termIterators, i, termIteratorsRemaining);
                 swap(termIteratorIndexes, i, termIteratorsRemaining);
                 --i;
             }

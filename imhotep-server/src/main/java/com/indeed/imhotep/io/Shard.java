@@ -13,24 +13,22 @@
  */
  package com.indeed.imhotep.io;
 
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-
-import javax.annotation.Nullable;
-
 import com.google.common.annotations.VisibleForTesting;
-import org.apache.log4j.Logger;
-
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.service.CachedFlamdexReader;
 import com.indeed.imhotep.service.ShardId;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.ReloadableSharedReference;
 import com.indeed.util.core.reference.SharedReference;
+import org.apache.log4j.Logger;
+
+import javax.annotation.Nullable;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
 
 
 public class Shard {
@@ -58,12 +56,12 @@ public class Shard {
         copy.close();
     }
 
-    public Shard(ReloadableSharedReference<CachedFlamdexReader, IOException> ref,
-                 ShardId shardId,
-                 int numDocs,
-                 Collection<String> intFields,
-                 Collection<String> stringFields,
-                 Collection<String> availableMetrics) {
+    public Shard(final ReloadableSharedReference<CachedFlamdexReader, IOException> ref,
+                 final ShardId shardId,
+                 final int numDocs,
+                 final Collection<String> intFields,
+                 final Collection<String> stringFields,
+                 final Collection<String> availableMetrics) {
         this.ref = ref;
         this.shardId = shardId;
         this.numDocs = numDocs;
@@ -73,14 +71,16 @@ public class Shard {
     }
 
     @VisibleForTesting
-    Shard(ShardId shardId, int numDocs,
-          Collection<String> intFields,
-          Collection<String> stringFields,
-          Collection<String> availableMetrics) {
+    Shard(final ShardId shardId,
+          final int numDocs,
+          final Collection<String> intFields,
+          final Collection<String> stringFields,
+          final Collection<String> availableMetrics) {
         this(null, shardId, numDocs, intFields, stringFields, availableMetrics);
     }
 
-    public synchronized @Nullable
+    @Nullable
+    public synchronized
     SharedReference<CachedFlamdexReader> getRef() throws IOException {
         return ref.copy();
     }
@@ -142,7 +142,9 @@ public class Shard {
     }
 
     public boolean isNewerThan(final Shard otherShard) {
-        if (otherShard == null) return true;
+        if (otherShard == null) {
+            return true;
+        }
         return getShardVersion() > otherShard.getShardVersion();
     }
 }

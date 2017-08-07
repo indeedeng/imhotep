@@ -101,7 +101,7 @@ public class CheckpointedHostsReloaderTest {
         }
     }
 
-    List<Host> hosts = new ArrayList<>();
+    private List<Host> hosts = new ArrayList<>();
 
     @Test
     public void testGradualDecrease() throws IOException {

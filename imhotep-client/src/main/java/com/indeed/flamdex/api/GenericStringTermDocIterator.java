@@ -30,7 +30,9 @@ public final class GenericStringTermDocIterator implements StringTermDocIterator
 
     private final DocIdStream docIdStream;
 
-    public GenericStringTermDocIterator(StringTermIterator termIterator, DocIdStream docIdStream) {
+    public GenericStringTermDocIterator(
+            final StringTermIterator termIterator,
+            final DocIdStream docIdStream) {
         this.termIterator = termIterator;
         this.docIdStream = docIdStream;
     }

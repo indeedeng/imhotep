@@ -40,7 +40,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -57,7 +56,7 @@ public class TestImhotepLocalSession {
     public void testPushPopGetDepth() throws ImhotepOutOfMemoryException {
         // This test doesn't really specifically need the 2d test setup,
         // but that setup is good enoguh for this too.
-        FlamdexReader r = new2DMetricRegroupTestReader();
+        final FlamdexReader r = new2DMetricRegroupTestReader();
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
             assertEquals(0, session.getNumStats());
             int numStats = session.pushStat("if1");
@@ -163,7 +162,7 @@ public class TestImhotepLocalSession {
 
     @Test
     public void testMetricRegroup2() throws ImhotepOutOfMemoryException {
-        MockFlamdexReader r = newMetricRegroupTestReader();
+        final MockFlamdexReader r = newMetricRegroupTestReader();
 
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
             assertEquals(2,
@@ -178,10 +177,10 @@ public class TestImhotepLocalSession {
                             1, 0)}));
 
             session.pushStat("if1");
-            int numGroups = session.metricRegroup(0, 9, 17, 4);
+            final int numGroups = session.metricRegroup(0, 9, 17, 4);
             assertEquals(5, numGroups); // 2 buckets, 2 gutters, group 0
 
-            int[] docIdToGroup = new int[10];
+            final int[] docIdToGroup = new int[10];
             session.exportDocIdToGroupId(docIdToGroup);
             assertEquals(Arrays.asList(3, 1, 3, 0, 0, 2, 3, 1, 0, 4), Ints.asList(docIdToGroup));
         }
@@ -203,20 +202,20 @@ public class TestImhotepLocalSession {
 
     @Test
     public void test2DMetricRegroup() throws ImhotepOutOfMemoryException {
-        MockFlamdexReader r = new2DMetricRegroupTestReader();
+        final MockFlamdexReader r = new2DMetricRegroupTestReader();
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
             session.pushStat("if1");
             session.pushStat("if2");
             session.metricRegroup2D(0, 1, 8, 3, 1, 4, 12, 2);
 
-            int[] docIdToGroup = new int[10];
+            final int[] docIdToGroup = new int[10];
             session.exportDocIdToGroupId(docIdToGroup);
             assertEquals(Arrays.asList(1, 2, 7, 7, 13, 13, 18, 19, 25, 25), Ints.asList(docIdToGroup));
 
             session.pushStat("if3");
 
-            long[] if3 = Arrays.copyOf(session.getGroupStats(2), 31);
-            long[] expected = {0, 1, 4, 0, 0, 0, // 1-5
+            final long[] if3 = Arrays.copyOf(session.getGroupStats(2), 31);
+            final long[] expected = {0, 1, 4, 0, 0, 0, // 1-5
                     0, 25, 0, 0, 0, // 6-10
                     0, 0, 61, 0, 0, // 11-15
                     0, 0, 49, 64, 0, // 16-20
@@ -225,7 +224,7 @@ public class TestImhotepLocalSession {
             };
             assertEquals(Longs.asList(expected), Longs.asList(if3));
 
-            BucketStats bs = new BucketStats(if3, 5, 6);
+            final BucketStats bs = new BucketStats(if3, 5, 6);
             assertEquals(25, bs.get(0, 0));
             assertEquals(1, bs.getXYUnderflow());
             assertEquals(4, bs.getYUnderflow(0));
@@ -262,28 +261,28 @@ public class TestImhotepLocalSession {
 
     @Test
     public void test2DMetricRegroup2() throws ImhotepOutOfMemoryException {
-        FlamdexReader r = new2DMetricRegroupTestReader();
+        final FlamdexReader r = new2DMetricRegroupTestReader();
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
             session.pushStat("if1");
             session.pushStat("if2");
 
             session.metricRegroup2D(0, 4, 8, 2, 1, 2, 4, 2);
 
-            int[] docIdToGroup = new int[10];
+            final int[] docIdToGroup = new int[10];
             session.exportDocIdToGroupId(docIdToGroup);
             assertEquals(Ints.asList(5, 5, 9, 9, 10, 10, 11, 11, 12, 12), Ints.asList(docIdToGroup));
 
             session.pushStat("if3");
 
-            long[] if3 = Arrays.copyOf(session.getGroupStats(2), 13);
-            long[] expected = {0, 0, 0, 0, 0, // 1-4
+            final long[] if3 = Arrays.copyOf(session.getGroupStats(2), 13);
+            final long[] expected = {0, 0, 0, 0, 0, // 1-4
                     5, 0, 0, 0, // 5-8
                     25, 61, 113, 181, // 9-12
             };
 
             assertEquals(Longs.asList(expected), Longs.asList(if3));
 
-            BucketStats bs = new BucketStats(if3, 4, 3);
+            final BucketStats bs = new BucketStats(if3, 4, 3);
             assertEquals(5, bs.getXUnderflow(0));
             assertEquals(25, bs.getXUnderflowYOverflow());
             assertEquals(61, bs.getYOverflow(0));
@@ -301,7 +300,7 @@ public class TestImhotepLocalSession {
 
     @Test
     public void test2DMetricRegroup3() throws ImhotepOutOfMemoryException {
-        FlamdexReader r = new2DMetricRegroupTestReader();
+        final FlamdexReader r = new2DMetricRegroupTestReader();
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
             session.pushStat("if1");
             session.pushStat("if2");
@@ -311,19 +310,19 @@ public class TestImhotepLocalSession {
 
             session.metricRegroup2D(0, 0, 1, 90000, 1, 8, 10, 2);
 
-            int[] docIdToGroup = new int[10];
+            final int[] docIdToGroup = new int[10];
             session.exportDocIdToGroupId(docIdToGroup);
             assertEquals(Ints.asList(2, 0, 3, 3, 0, 0, 0, 0, 9, 9), Ints.asList(docIdToGroup));
 
             session.pushStat("if3");
-            long[] if3 = Arrays.copyOf(session.getGroupStats(2), 10);
-            long[] expected = {0, 0, 1, 25, 0, 0, 0, 0, 0, 181,};
+            final long[] if3 = Arrays.copyOf(session.getGroupStats(2), 10);
+            final long[] expected = {0, 0, 1, 25, 0, 0, 0, 0, 0, 181,};
 
             assertEquals(Longs.asList(expected).subList(1, expected.length), Longs.asList(if3)
                     .subList(1,
                             if3.length));
 
-            BucketStats bs = new BucketStats(if3, 3, 3);
+            final BucketStats bs = new BucketStats(if3, 3, 3);
             assertEquals(0, bs.getXYUnderflow());
             assertEquals(1, bs.getYUnderflow(0));
             assertEquals(25, bs.getXOverflowYUnderflow());
@@ -386,7 +385,7 @@ public class TestImhotepLocalSession {
                     (char) 0,
                     (char) 1);
             session.pushStat("count()");
-            long[] stats = session.getGroupStats(0);
+            final long[] stats = session.getGroupStats(0);
             assertEquals(6, stats[1]);
         }
     }
@@ -413,7 +412,7 @@ public class TestImhotepLocalSession {
                             new RegroupCondition("sf2", false,
                                     0, "b", false),
                             3, 4)});
-            long[] stats = session.getGroupStats(0);
+            final long[] stats = session.getGroupStats(0);
             assertEquals(10, stats[1]);
             assertEquals(5, stats[2]);
             assertEquals(4, stats[3]);
@@ -507,20 +506,20 @@ public class TestImhotepLocalSession {
                 session.ensureValidMultiRegroupArrays(new double[]{0.1, 0.2, 0.3}, new int[]{1, 2,
                         3});
                 fail("ensureValidMultiRegroupArrays didn't throw IllegalArgumentException");
-            } catch (IllegalArgumentException e) {
+            } catch (final IllegalArgumentException e) {
             } // expected
             try {
                 session.ensureValidMultiRegroupArrays(new double[]{0.1, 0.5, 0.7}, new int[]{1, 2,
                         3, 4,
                         5, 6});
                 fail("ensureValidMultiRegroupArrays didn't throw IllegalArgumentException");
-            } catch (IllegalArgumentException e) {
+            } catch (final IllegalArgumentException e) {
             } // expected
             try {
                 session.ensureValidMultiRegroupArrays(new double[]{0.1, 0.3, 0.5, 0.7, 0.9},
                         new int[]{1, 2, 3});
                 fail("ensureValidMultiRegroupArrays didn't throw IllegalArgumentException");
-            } catch (IllegalArgumentException e) {
+            } catch (final IllegalArgumentException e) {
             } // expected
 
             // Percentages not in order
@@ -528,7 +527,7 @@ public class TestImhotepLocalSession {
                 session.ensureValidMultiRegroupArrays(new double[]{0.1, 0.5, 0.3}, new int[]{1, 2,
                         3, 4});
                 fail("ensureValidMultiRegroupArrays didn't throw IllegalArgumentException");
-            } catch (IllegalArgumentException e) {
+            } catch (final IllegalArgumentException e) {
             } // expected
 
             // Percentages out of bounds
@@ -536,13 +535,13 @@ public class TestImhotepLocalSession {
                 session.ensureValidMultiRegroupArrays(new double[]{-0.001, 0.1, 0.5, 0.7},
                         new int[]{1, 2, 3, 4, 5});
                 fail("ensureValidMultiRegroupArrays didn't throw IllegalArgumentException");
-            } catch (IllegalArgumentException e) {
+            } catch (final IllegalArgumentException e) {
             } // expected
             try {
                 session.ensureValidMultiRegroupArrays(new double[]{0.1, 0.5, 0.7, 1.00001},
                         new int[]{1, 2, 3, 4, 5});
                 fail("ensureValidMultiRegroupArrays didn't throw IllegalArgumentException");
-            } catch (IllegalArgumentException e) {
+            } catch (final IllegalArgumentException e) {
             } // expected
         }
     }
@@ -556,13 +555,11 @@ public class TestImhotepLocalSession {
             // ( @see MakeAFlamdex.make() )
             final String regroupField = "sf1";
             final ImhotepChooser chooser = new ImhotepChooser("salt", -1.0);
-            final HashSet<Integer> noTerm =
-                    new HashSet<Integer>(Arrays.asList(2, 4, 7, 10, 11, 12, 13, 14, 15, 17, 18));
 
             final double[] percentages = new double[]{0.10, 0.50};
             final int[] resultGroups = new int[]{5, 6, 7};
 
-            String[] docIdToTerm = new String[]{"", // 0
+            final String[] docIdToTerm = new String[]{"", // 0
                     "a", // 1
                     null, // 2
                     "hello world", // 3
@@ -584,8 +581,8 @@ public class TestImhotepLocalSession {
                     "a" // 19
             };
             final Map<String, Integer> termToGroup = Maps.newHashMap();
-            for (String term : Arrays.asList("", "a", "hello world")) {
-                double hashValue = chooser.getValue(term);
+            for (final String term : Arrays.asList("", "a", "hello world")) {
+                final double hashValue = chooser.getValue(term);
                 if (hashValue < 0.10) {
                     termToGroup.put(term, 5);
                 } else if (hashValue < 0.50) {
@@ -600,7 +597,7 @@ public class TestImhotepLocalSession {
             session.randomMultiRegroup(regroupField, false, "salt", 1, percentages, resultGroups);
 
             // Make sure they're in the correct groups
-            int[] docIdToGroup = new int[20];
+            final int[] docIdToGroup = new int[20];
             session.exportDocIdToGroupId(docIdToGroup);
             for (int docId = 0; docId < 20; docId++) {
                 final int actualGroup = docIdToGroup[docId];
@@ -656,13 +653,13 @@ public class TestImhotepLocalSession {
             for (int j = 1; j <= i; j++) {
                 l.add(j - 1);
             }
-            r.addStringTerm("sf1", "" + i, l);
+            r.addStringTerm("sf1", String.valueOf(i), l);
         }
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
             final RegroupCondition[] conditions = new RegroupCondition[10];
             final int[] positiveGroups = new int[10];
             for (int i = 1; i <= 10; i++) {
-                conditions[i - 1] = new RegroupCondition("sf1", false, 0, "" + i, false);
+                conditions[i - 1] = new RegroupCondition("sf1", false, 0, String.valueOf(i), false);
                 positiveGroups[i - 1] = i;
             }
             session.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(1, 0, positiveGroups,
@@ -741,7 +738,7 @@ public class TestImhotepLocalSession {
                 l.add(j - 1);
                 l.add(10 + (j - 1));
             }
-            r.addStringTerm("sf1", "" + i, l);
+            r.addStringTerm("sf1", String.valueOf(i), l);
         }
 
         // Add 0-9 to if2 so we can split it out
@@ -758,7 +755,7 @@ public class TestImhotepLocalSession {
             final RegroupCondition[] conditions = new RegroupCondition[10];
             for (int i = 1; i <= 10; i++) {
                 positiveGroups[i - 1] = i;
-                conditions[i - 1] = new RegroupCondition("sf1", false, 0, "" + i, false);
+                conditions[i - 1] = new RegroupCondition("sf1", false, 0, String.valueOf(i), false);
             }
             session.regroup(new GroupMultiRemapRule[]{
                     new GroupMultiRemapRule(1, 0, positiveGroups,
@@ -941,7 +938,7 @@ public class TestImhotepLocalSession {
                                         null,
                                         true),})});
                 fail("Improperly handles unreachable inequality splits");
-            } catch (IllegalArgumentException e) {
+            } catch (final IllegalArgumentException e) {
             }
         }
     }
@@ -972,7 +969,7 @@ public class TestImhotepLocalSession {
                                         "4",
                                         true),})});
                 fail("Improperly handles unreachable inequality splits");
-            } catch (IllegalArgumentException e) {
+            } catch (final IllegalArgumentException e) {
             }
         }
     }
@@ -1023,7 +1020,7 @@ public class TestImhotepLocalSession {
                                         "a",
                                         false)})});
                 fail("Improperly handles unreachable equality splits");
-            } catch (IllegalArgumentException e) {
+            } catch (final IllegalArgumentException e) {
             }
         }
     }
@@ -1074,7 +1071,7 @@ public class TestImhotepLocalSession {
                                         null,
                                         false)})});
                 fail("Improperly handles unreachable equality splits");
-            } catch (IllegalArgumentException e) {
+            } catch (final IllegalArgumentException e) {
             }
         }
     }
@@ -1177,8 +1174,8 @@ public class TestImhotepLocalSession {
         final Path shardDir = TestFileUtils.createTempShard();
         final MockFlamdexReader r = new MockFlamdexReader(emptyList, fields, emptyList, 10, shardDir);
         for (int i = 0; i < 10; i++) {
-            r.addStringTerm("sf1", "" + i, i);
-            r.addStringTerm("sf2", "" + i, i);
+            r.addStringTerm("sf1", String.valueOf(i), i);
+            r.addStringTerm("sf2", String.valueOf(i), i);
         }
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
             session.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(
@@ -1227,7 +1224,7 @@ public class TestImhotepLocalSession {
         final Path shardDir = TestFileUtils.createTempShard();
         final MockFlamdexReader r = new MockFlamdexReader(empty, fields, empty, 20, shardDir);
         for (int i = 0; i < 10; i++) {
-            r.addStringTerm("sf1", "" + i, i, i + 10);
+            r.addStringTerm("sf1", String.valueOf(i), i, i + 10);
         }
         for (int i = 0; i < 10; i++) {
             r.addStringTerm("sf2", "1", Arrays.asList(10, 11, 12, 13, 14, 15, 16, 17, 18, 19));
@@ -1459,24 +1456,24 @@ public class TestImhotepLocalSession {
         }
     }
 
-    private void testAllInequalitySplits(int numDocs,
-                                         String field,
-                                         int[] terms,
-                                         ImhotepLocalSession session) throws ImhotepOutOfMemoryException {
+    private void testAllInequalitySplits(final int numDocs,
+                                         final String field,
+                                         final int[] terms,
+                                         final ImhotepLocalSession session) throws ImhotepOutOfMemoryException {
         testTermInequalitySplit(numDocs, field, terms, session, Integer.MIN_VALUE);
         testTermInequalitySplit(numDocs, field, terms, session, Integer.MAX_VALUE);
-        for (int term : terms) {
+        for (final int term : terms) {
             testTermInequalitySplit(numDocs, field, terms, session, term);
             testTermInequalitySplit(numDocs, field, terms, session, term - 1);
             testTermInequalitySplit(numDocs, field, terms, session, term + 1);
         }
     }
 
-    private void testTermInequalitySplit(int numDocs,
-                                         String field,
-                                         int[] terms,
-                                         ImhotepLocalSession session,
-                                         int term) throws ImhotepOutOfMemoryException {
+    private void testTermInequalitySplit(final int numDocs,
+                                         final String field,
+                                         final int[] terms,
+                                         final ImhotepLocalSession session,
+                                         final int term) throws ImhotepOutOfMemoryException {
         session.resetGroups();
         session.regroup(new GroupMultiRemapRule[] { new GroupMultiRemapRule(
                                                                             1,
@@ -1502,12 +1499,12 @@ public class TestImhotepLocalSession {
         }
     }
 
-    private void testAllInequalitySplits(int numDocs,
-                                         String field,
-                                         String[] terms,
-                                         ImhotepLocalSession session) throws ImhotepOutOfMemoryException {
+    private void testAllInequalitySplits(final int numDocs,
+                                         final String field,
+                                         final String[] terms,
+                                         final ImhotepLocalSession session) throws ImhotepOutOfMemoryException {
         testTermInequalitySplit(numDocs, field, terms, session, "");
-        for (String term : terms) {
+        for (final String term : terms) {
             if (term.length() >= 1) {
                 testTermInequalitySplit(numDocs,
                                         field,
@@ -1520,11 +1517,11 @@ public class TestImhotepLocalSession {
         }
     }
 
-    private void testTermInequalitySplit(int numDocs,
-                                         String field,
-                                         String[] terms,
-                                         ImhotepLocalSession session,
-                                         String term) throws ImhotepOutOfMemoryException {
+    private void testTermInequalitySplit(final int numDocs,
+                                         final String field,
+                                         final String[] terms,
+                                         final ImhotepLocalSession session,
+                                         final String term) throws ImhotepOutOfMemoryException {
         session.resetGroups();
         session.regroup(new GroupMultiRemapRule[] { new GroupMultiRemapRule(
                                                                             1,
@@ -1550,8 +1547,8 @@ public class TestImhotepLocalSession {
         }
     }
 
-    private void addIntField(MockFlamdexReader r, String fieldName, int[] terms) {
-        Map<Integer, List<Integer>> map = Maps.newHashMap();
+    private void addIntField(final MockFlamdexReader r, final String fieldName, final int[] terms) {
+        final Map<Integer, List<Integer>> map = Maps.newHashMap();
         for (int ix = 0; ix < terms.length; ix++) {
             if (!map.containsKey(terms[ix])) {
                 map.put(terms[ix], Lists.<Integer> newArrayList());
@@ -1564,8 +1561,8 @@ public class TestImhotepLocalSession {
         }
     }
 
-    private void addStringField(MockFlamdexReader r, String fieldName, String[] terms) {
-        Map<String, List<Integer>> map = Maps.newHashMap();
+    private void addStringField(final MockFlamdexReader r, final String fieldName, final String[] terms) {
+        final Map<String, List<Integer>> map = Maps.newHashMap();
         for (int ix = 0; ix < terms.length; ix++) {
             if (!map.containsKey(terms[ix])) {
                 map.put(terms[ix], Lists.<Integer> newArrayList());
@@ -1628,8 +1625,8 @@ public class TestImhotepLocalSession {
         final FlamdexReader r = MakeAFlamdex.make();
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
             session.pushStat("floatscale floatfield*100+9000"); // like iplat
-            long[] stats = session.getGroupStats(0);
-            long scaledSum = stats[1];
+            final long[] stats = session.getGroupStats(0);
+            final long scaledSum = stats[1];
             // we have 5 documents for each of 4 values: 1.5, 2.5, 0 and 18000
             final long expectedSum =
                     (long) ((1.5 * 100 + 9000) + (2.5 * 100 + 9000) + (0 * 100 + 9000) + (18000 * 100 + 9000)) * 5;
@@ -1671,7 +1668,7 @@ public class TestImhotepLocalSession {
             session1.pushStat("count()");
             session1.createDynamicMetric("foo");
             session1.createDynamicMetric("bar");
-            int[] bar = {0, 13};
+            final int[] bar = {0, 13};
             session1.updateDynamicMetric("bar", bar);
             session1.regroup(new GroupRemapRule[]{new GroupRemapRule(1, new RegroupCondition("if3",
                     true,
@@ -1679,7 +1676,7 @@ public class TestImhotepLocalSession {
                     null,
                     false),
                     1, 2)});
-            int[] foo = {0, 1, 2};
+            final int[] foo = {0, 1, 2};
             session1.updateDynamicMetric("foo", foo);
             session1.regroup(new GroupRemapRule[]{
                     new GroupRemapRule(1, new RegroupCondition("if3",
@@ -1692,7 +1689,7 @@ public class TestImhotepLocalSession {
                             "b",
                             false),
                             3, 4)});
-            int[] fo = {0, 0, 0, 0, 1};
+            final int[] fo = {0, 0, 0, 0, 1};
             session1.updateDynamicMetric("foo", fo);
 
             long[] stats1 = session1.getGroupStats(0);
@@ -1766,7 +1763,7 @@ public class TestImhotepLocalSession {
 
         /* try another regroup */
             session1.createDynamicMetric("cat");
-            int[] cat = {0, 17};
+            final int[] cat = {0, 17};
             session1.updateDynamicMetric("cat", cat);
             session1.regroup(new GroupRemapRule[]{
                     new GroupRemapRule(2, new RegroupCondition("if3",
@@ -1785,7 +1782,7 @@ public class TestImhotepLocalSession {
             assertEquals(5, stats1[1]);
             assertEquals(4, stats1[2]);
 
-            int[] foo2 = {0, 7, 11};
+            final int[] foo2 = {0, 7, 11};
             session1.updateDynamicMetric("foo", foo2);
 
         /* optimize session */
@@ -1849,7 +1846,7 @@ public class TestImhotepLocalSession {
             session1.pushStat("count()");
             session1.createDynamicMetric("foo");
             session1.createDynamicMetric("bar");
-            int[] bar = {0, 13};
+            final int[] bar = {0, 13};
             session1.updateDynamicMetric("bar", bar);
             session1.regroup(new GroupRemapRule[]{new GroupRemapRule(1, new RegroupCondition("if3",
                     true,
@@ -1857,7 +1854,7 @@ public class TestImhotepLocalSession {
                     null,
                     false),
                     1, 2)});
-            int[] foo = {0, 1, 2};
+            final int[] foo = {0, 1, 2};
             session1.updateDynamicMetric("foo", foo);
             session1.regroup(new GroupRemapRule[]{
                     new GroupRemapRule(1, new RegroupCondition("if3",
@@ -1870,7 +1867,7 @@ public class TestImhotepLocalSession {
                             "b",
                             false),
                             3, 4)});
-            int[] fo = {0, 0, 0, 0, 1};
+            final int[] fo = {0, 0, 0, 0, 1};
             session1.updateDynamicMetric("foo", fo);
 
         /* optimize session */
@@ -1878,9 +1875,9 @@ public class TestImhotepLocalSession {
 
         /* try another regroup */
             session1.createDynamicMetric("cat");
-            int[] cat = {0, 3, 3, 3, 3};
+            final int[] cat = {0, 3, 3, 3, 3};
             session1.updateDynamicMetric("cat", cat);
-            int[] fo2 = {0, 0, 0, 0, 2};
+            final int[] fo2 = {0, 0, 0, 0, 2};
             session1.updateDynamicMetric("foo", fo2);
             session1.regroup(new GroupRemapRule[]{
                     new GroupRemapRule(2, new RegroupCondition("if3",
@@ -1895,25 +1892,25 @@ public class TestImhotepLocalSession {
                             false),
                             2, 7)});
 
-            int[] foo2 = {0, 7, 11};
+            final int[] foo2 = {0, 7, 11};
             session1.updateDynamicMetric("foo", foo2);
 
         /* optimize session */
             session1.rebuildAndFilterIndexes(Arrays.asList("if1", "if3"), Arrays.asList("sf1", "sf3", "sf4"));
 
-            int[] foo3 = {0, 0, 1};
+            final int[] foo3 = {0, 0, 1};
             session1.updateDynamicMetric("foo", foo3);
 
         /* reset */
             session1.resetGroups();
 
         /* check groups */
-            GroupLookup gl = session1.docIdToGroup;
+            final GroupLookup gl = session1.docIdToGroup;
             assertEquals(2, gl.getNumGroups());
             assertEquals(20, gl.size());
 
         /* check the dynamic metric */
-            Map<String, DynamicMetric> dynamicMetrics = session1.getDynamicMetrics();
+            final Map<String, DynamicMetric> dynamicMetrics = session1.getDynamicMetrics();
         /* check all the groups are there */
             assertEquals(dynamicMetrics.size(), 3);
             assertNotNull(dynamicMetrics.get("foo"));

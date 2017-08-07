@@ -103,7 +103,7 @@ public final class FlamdexDocument {
     public void addIntTerms(@Nonnull final String field, @Nonnull final long[] terms) {
         final LongList list = prepareIntField(field);
         Preconditions.checkNotNull(terms, "terms list cannot be null");
-        for (long term : terms) {
+        for (final long term : terms) {
             list.add(term);
         }
     }
@@ -131,7 +131,7 @@ public final class FlamdexDocument {
     public void addIntTerms(@Nonnull final String field, @Nonnull final Iterable<Long> terms) {
         final LongList list = prepareIntField(field);
         Preconditions.checkNotNull(terms, "terms list cannot be null");
-        for (Long term : terms) {
+        for (final Long term : terms) {
             Preconditions.checkNotNull(term, "null terms not allowed");
             list.add(term);
         }
@@ -151,7 +151,7 @@ public final class FlamdexDocument {
         return list;
     }
 
-    private void checkStringTerm(String field, final CharSequence term) {
+    private void checkStringTerm(final String field, final CharSequence term) {
         Preconditions.checkNotNull(term, "null terms not allowed");
         if (term.length() > STRING_TERM_LENGTH_LIMIT) {
             throw new IllegalArgumentException("Can't add a term string longer than the limit " + term.length() +
@@ -175,7 +175,7 @@ public final class FlamdexDocument {
     public void addStringTerms(@Nonnull final String field, @Nonnull final Iterable<? extends CharSequence> terms) {
         final List<String> list = prepareStringField(field);
         Preconditions.checkNotNull(terms, "terms list cannot be null");
-        for (CharSequence term : terms) {
+        for (final CharSequence term : terms) {
             checkStringTerm(field, term);
             list.add(term.toString());
         }
@@ -188,7 +188,7 @@ public final class FlamdexDocument {
     public void addStringTerms(@Nonnull final String field, @Nonnull final CharSequence[] terms) {
         final List<String> list = prepareStringField(field);
         Preconditions.checkNotNull(terms, "terms list cannot be null");
-        for (CharSequence term : terms) {
+        for (final CharSequence term : terms) {
             checkStringTerm(field, term);
             list.add(term.toString());
         }

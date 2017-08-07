@@ -36,7 +36,7 @@ import java.util.Map;
 public class FlamdexSearcher {
     private final FlamdexReader r;
 
-    public FlamdexSearcher(FlamdexReader r) {
+    public FlamdexSearcher(final FlamdexReader r) {
         this.r = r;
     }
 
@@ -46,7 +46,7 @@ public class FlamdexSearcher {
         final QueryEvaluator evaluator = rewriteQuery(query);
         try {
             evaluator.or(r, ret, new MockFastBitSetPooler());
-        } catch (FlamdexOutOfMemoryException e) {
+        } catch (final FlamdexOutOfMemoryException e) {
             throw new RuntimeException("wtf, DumbFastBitSetPooler doesn't actually throw this exception", e);
         }
         return ret;
@@ -65,7 +65,7 @@ public class FlamdexSearcher {
                 if (query.getOperator() == BooleanOp.OR) {
                     return rewriteOr(query);
                 } else {
-                    final List<QueryEvaluator> operands = new ArrayList<QueryEvaluator>(query.getOperands().size());
+                    final List<QueryEvaluator> operands = new ArrayList<>(query.getOperands().size());
                     for (final Query operand : query.getOperands()) {
                         operands.add(rewriteQuery(operand)); // oh no, recursion :(
                     }
@@ -89,8 +89,8 @@ public class FlamdexSearcher {
     For the term queries, group by field and build a IntTermSetQueryEvaluator or StringTermSetQueryEvaluator.
     For everything else, use whatever we typically use (call rewriteQuery)
      */
-    private static QueryEvaluator rewriteOr(Query query) {
-        final List<QueryEvaluator> operands = new ArrayList<QueryEvaluator>(query.getOperands().size());
+    private static QueryEvaluator rewriteOr(final Query query) {
+        final List<QueryEvaluator> operands = new ArrayList<>(query.getOperands().size());
         final Map<String, List<Query>> stringFieldOperandMap = Maps.newHashMap();
         final Map<String, List<Query>> intFieldOperandMap = Maps.newHashMap();
         // Split out all the immediate terms that can be turned into an optimized OR query
@@ -115,23 +115,23 @@ public class FlamdexSearcher {
         }
 
         // Use those terms that were split out
-        for (final String field : stringFieldOperandMap.keySet()) {
-            final List<Query> queries = stringFieldOperandMap.get(field);
+        for (final Map.Entry<String, List<Query>> stringListEntry : stringFieldOperandMap.entrySet()) {
+            final List<Query> queries = stringListEntry.getValue();
             final String[] terms = new String[queries.size()];
             for (int i=0;i<queries.size();i++) {
                 terms[i] = queries.get(i).getStartTerm().getTermStringVal();
             }
             Arrays.sort(terms);
-            operands.add(new StringTermSetQueryEvaluator(field, terms));
+            operands.add(new StringTermSetQueryEvaluator(stringListEntry.getKey(), terms));
         }
-        for (final String field : intFieldOperandMap.keySet()) {
-            final List<Query> queries = intFieldOperandMap.get(field);
+        for (final Map.Entry<String, List<Query>> stringListEntry : intFieldOperandMap.entrySet()) {
+            final List<Query> queries = stringListEntry.getValue();
             final long[] terms = new long[queries.size()];
             for (int i=0;i<queries.size();i++) {
                 terms[i] = queries.get(i).getStartTerm().getTermIntVal();
             }
             Arrays.sort(terms);
-            operands.add(new IntTermSetQueryEvaluator(field, terms));
+            operands.add(new IntTermSetQueryEvaluator(stringListEntry.getKey(), terms));
         }
 
         return new BooleanQueryEvaluator(BooleanOp.OR, operands);

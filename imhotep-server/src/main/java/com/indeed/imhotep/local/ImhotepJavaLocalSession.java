@@ -26,6 +26,7 @@ import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.metrics.Count;
 import com.indeed.imhotep.service.CachedFlamdexReader;
 import com.indeed.imhotep.service.RawCachedFlamdexReader;
 import com.indeed.util.core.reference.SharedReference;
@@ -47,8 +48,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -107,7 +108,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
      * Finds a good place to store the new, optimized shard and opens a
      * SimpleFlamdexWriter to it.
      */
-    private SimpleFlamdexWriter createNewTempWriter(int maxDocs) throws IOException {
+    private SimpleFlamdexWriter createNewTempWriter(final int maxDocs) throws IOException {
         final Path tempIdxDir;
         final String newShardName;
         final Path newShardDir;
@@ -123,20 +124,20 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
     /* wrapper for SimpleFlamdexReader which deletes the on disk data on close() */
     private static class AutoDeletingReader extends SimpleFlamdexReader {
 
-        public AutoDeletingReader(Path directory,
-                                  int numDocs,
-                                  Collection<String> intFields,
-                                  Collection<String> stringFields,
-                                  boolean useMMapMetrics,
-                                  boolean useMMapDocIdStream) {
+        public AutoDeletingReader(final Path directory,
+                                  final int numDocs,
+                                  final Collection<String> intFields,
+                                  final Collection<String> stringFields,
+                                  final boolean useMMapMetrics,
+                                  final boolean useMMapDocIdStream) {
             super(directory, numDocs, intFields, stringFields, useMMapMetrics, useMMapDocIdStream);
         }
 
-        public static AutoDeletingReader open(Path directory) throws IOException {
+        public static AutoDeletingReader open(@Nonnull final Path directory) throws IOException {
             return open(directory, new Config());
         }
 
-        public static AutoDeletingReader open(Path directory, Config config) throws IOException {
+        public static AutoDeletingReader open(@Nonnull final Path directory, final Config config) throws IOException {
             final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(directory);
             final Collection<String> intFields = scan(directory, ".intterms");
             final Collection<String> stringFields = scan(directory, ".strterms");
@@ -159,7 +160,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
     /* Tweak to ObjectOutputStream which allows it to append to an existing file */
     private static class AppendingObjectOutputStream extends ObjectOutputStream {
 
-        public AppendingObjectOutputStream(OutputStream out) throws IOException {
+        public AppendingObjectOutputStream(final OutputStream out) throws IOException {
             super(out);
         }
 
@@ -176,10 +177,10 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
                                                      @Nonnull final List<String> stringFields)
         throws ImhotepOutOfMemoryException {
 
-        long time = System.currentTimeMillis();
+        final long time = System.currentTimeMillis();
 
         /* pop off all the stats, they will be repushed after the optimization */
-        final List<String> statsCopy = new ArrayList<String>(this.statCommands);
+        final List<String> statsCopy = new ArrayList<>(this.statCommands);
         while (this.numStats > 0) {
             this.popStat();
         }
@@ -188,7 +189,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
         final Path writerOutputDir;
         try {
             try (MemoryReservationContext rewriterMemory = new MemoryReservationContext(memory)) {
-                final IndexReWriter rewriter = new IndexReWriter(Arrays.asList(this), this, rewriterMemory);
+                final IndexReWriter rewriter = new IndexReWriter(Collections.singletonList(this), this, rewriterMemory);
                 final OptimizationRecord record;
                 final ShardMergeInfo info;
                 try (SimpleFlamdexWriter w = createNewTempWriter(this.numDocs)) {
@@ -226,10 +227,10 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
                 rewriterMemory.hoist(rewriter.getNewGroupLookup().memoryUsed());
                 this.docIdToGroup = rewriter.getNewGroupLookup();
 
-                for (DynamicMetric dm : this.dynamicMetrics.values()) {
+                for (final DynamicMetric dm : this.dynamicMetrics.values()) {
                     memory.releaseMemory(dm.memoryUsed());
                 }
-                for (DynamicMetric dm : rewriter.getDynamicMetrics().values()) {
+                for (final DynamicMetric dm : rewriter.getDynamicMetrics().values()) {
                     rewriterMemory.hoist(dm.memoryUsed());
                 }
                 this.dynamicMetrics = rewriter.getDynamicMetrics();
@@ -271,7 +272,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
         this.groupDocCount[0] = 0;
 
         // push the stats back on
-        for (String stat : statsCopy) {
+        for (final String stat : statsCopy) {
             if ("pop".equals(stat)) {
                 this.popStat();
             } else {
@@ -290,7 +291,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
      */
     private synchronized void resetOptimizedReaders() throws ImhotepOutOfMemoryException {
         ObjectInputStream ois = null;
-        ArrayList<OptimizationRecord> records = new ArrayList<OptimizationRecord>();
+        final ArrayList<OptimizationRecord> records = new ArrayList<>();
         final long memoryUse;
         final ArrayList<String> statsCopy;
 
@@ -306,7 +307,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
         }
 
         /* pop off all the stats, they will be repushed after the flamdex reset */
-        statsCopy = new ArrayList<String>(this.statCommands);
+        statsCopy = new ArrayList<>(this.statCommands);
         while (this.numStats > 0) {
             this.popStat();
         }
@@ -322,20 +323,18 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
                  */
                 records.add(0, (OptimizationRecord) ois.readObject());
             }
-        } catch (EOFException e) {
+        } catch (final EOFException e) {
             // read all the records
             try {
                 if (ois != null) {
                     ois.close();
                     this.optimizationLog.delete();
                 }
-            } catch (IOException e1) {
+            } catch (final IOException e1) {
                 /* do nothing */
                 e.printStackTrace();
             }
-        } catch (ClassNotFoundException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
+        } catch (final ClassNotFoundException | IOException e) {
             throw new RuntimeException(e);
         } finally {
             /* the log is no longer needed, so remove it */
@@ -349,20 +348,20 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
         int numOldDocs;
         newMetrics = this.dynamicMetrics;
         numNewDocs = this.flamdexReader.getNumDocs();
-        for (OptimizationRecord opRec : records) {
-            int[] newToOldIdMapping = opRec.mergedShards.get(0).newDocIdToOldDocId;
+        for (final OptimizationRecord opRec : records) {
+            final int[] newToOldIdMapping = opRec.mergedShards.get(0).newDocIdToOldDocId;
             oldMetrics = opRec.mergedShards.get(0).dynamicMetrics;
             numOldDocs = opRec.mergedShards.get(0).numDocs;
 
-            for (Map.Entry<String, DynamicMetric> e : newMetrics.entrySet()) {
+            for (final Map.Entry<String, DynamicMetric> e : newMetrics.entrySet()) {
                 DynamicMetric oldMetric = oldMetrics.get(e.getKey());
-                DynamicMetric newMetric = e.getValue();
+                final DynamicMetric newMetric = e.getValue();
                 if (oldMetric == null) {
                     oldMetric = new DynamicMetric(numOldDocs);
                 }
                 for (int i = 0; i < numNewDocs; i++) {
-                    int oldId = newToOldIdMapping[i];
-                    int value = newMetric.lookupSingleVal(i);
+                    final int oldId = newToOldIdMapping[i];
+                    final int value = newMetric.lookupSingleVal(i);
                     oldMetric.set(oldId, value);
                 }
 
@@ -373,10 +372,10 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
         }
 
         /* adjust the memory tracking */
-        for (DynamicMetric dm : this.dynamicMetrics.values()) {
+        for (final DynamicMetric dm : this.dynamicMetrics.values()) {
             memory.releaseMemory(dm.memoryUsed());
         }
-        for (DynamicMetric dm : newMetrics.values()) {
+        for (final DynamicMetric dm : newMetrics.values()) {
             memory.claimMemory(dm.memoryUsed());
         }
         this.dynamicMetrics = newMetrics;
@@ -384,7 +383,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
         try {
             /* close temp index reader */
             this.flamdexReaderRef.close();
-        } catch (IOException e) {
+        } catch (final IOException e) {
             log.error("Could not close optimized reader");
         }
 
@@ -397,7 +396,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
         this.numDocs = this.flamdexReader.getNumDocs();
 
         /* push the stats back on */
-        for (String stat : statsCopy) {
+        for (final String stat : statsCopy) {
             if ("pop".equals(stat)) {
                 this.popStat();
             } else {
@@ -417,7 +416,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
     }
 
     @Override
-    public synchronized long[] getGroupStats(int stat) {
+    public synchronized long[] getGroupStats(final int stat) {
         if (groupStats.isDirty(stat)) {
             updateGroupStatsAllDocs(statLookup.get(stat),
                                     groupStats.get(stat),
@@ -431,16 +430,16 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
     }
 
     @Override
-    public synchronized GroupStatsIterator getGroupStatsIterator(int stat) {
+    public synchronized GroupStatsIterator getGroupStatsIterator(final int stat) {
         return new GroupStatsDummyIterator(this.getGroupStats(stat));
     }
 
-    private static void updateGroupStatsAllDocs(IntValueLookup statLookup,
-                                                long[]         results,
-                                                GroupLookup    docIdToGroup,
-                                                int[]          docGrpBuffer,
-                                                int[]          docIdBuf,
-                                                long[]         valBuf) {
+    private static void updateGroupStatsAllDocs(final IntValueLookup statLookup,
+                                                final long[]         results,
+                                                final GroupLookup    docIdToGroup,
+                                                final int[]          docGrpBuffer,
+                                                final int[]          docIdBuf,
+                                                final long[]         valBuf) {
         // populate new group stats
         final int numDocs = docIdToGroup.size();
         for (int start = 0; start < numDocs; start += BUFFER_SIZE) {
@@ -453,17 +452,17 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
         }
     }
 
-    static void updateGroupStatsDocIdBuf(IntValueLookup statLookup,
-                                         long[] results,
-                                         int[] docGrpBuffer,
-                                         int[] docIdBuf,
-                                         long[] valBuf,
-                                         int n) {
+    static void updateGroupStatsDocIdBuf(final IntValueLookup statLookup,
+                                         final long[] results,
+                                         final int[] docGrpBuffer,
+                                         final int[] docIdBuf,
+                                         final long[] valBuf,
+                                         final int n) {
         /* This is a hacky optimization, but probably worthwhile, since Count is
          * such a common stat. Rather than have Count fill up an array with ones
          * and then add each in turn to our results, we just increment the
          * results directly. */
-        if (statLookup instanceof com.indeed.imhotep.metrics.Count) {
+        if (statLookup instanceof Count) {
             for (int i = 0; i < n; i++) {
                 results[docGrpBuffer[i]] += 1;
             }
@@ -490,7 +489,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
                 this.flamdexReader = this.originalReader;
                 this.flamdexReaderRef = this.originalReaderRef;
             }
-        } catch (IOException e) {
+        } catch (final IOException e) {
             log.error("Could not close optimized reader");
         }
 

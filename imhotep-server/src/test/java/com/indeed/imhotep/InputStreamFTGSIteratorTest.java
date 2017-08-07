@@ -15,7 +15,6 @@
 
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.service.FTGSOutputStreamWriter;
-import junit.framework.TestCase;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -25,32 +24,36 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
-public class InputStreamFTGSIteratorTest extends TestCase {
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
+public class InputStreamFTGSIteratorTest {
     private void expectIntField(final FTGSIterator iter, final String field) {
-        Assert.assertTrue(iter.nextField());
-        Assert.assertEquals(field, iter.fieldName());
-        Assert.assertTrue(iter.fieldIsIntType());
+        assertTrue(iter.nextField());
+        assertEquals(field, iter.fieldName());
+        assertTrue(iter.fieldIsIntType());
     }
 
     private void expectIntTerm(final FTGSIterator iter, final long term, final long termDocFreq) {
-        Assert.assertTrue(iter.nextTerm());
-        Assert.assertEquals(term, iter.termIntVal());
-        Assert.assertEquals(termDocFreq, iter.termDocFreq());
+        assertTrue(iter.nextTerm());
+        assertEquals(term, iter.termIntVal());
+        assertEquals(termDocFreq, iter.termDocFreq());
     }
 
     private void expectEnd(final FTGSIterator iter) {
         expectFieldEnd(iter);
-        Assert.assertFalse(iter.nextField());
+        assertFalse(iter.nextField());
     }
 
     private void expectFieldEnd(final FTGSIterator iter) {
         expectTermEnd(iter);
-        Assert.assertFalse(iter.nextTerm());
+        assertFalse(iter.nextTerm());
     }
 
     private void expectGroup(final FTGSIterator iter, final long group, final long[] groupStats) {
-        Assert.assertTrue(iter.nextGroup());
-        Assert.assertEquals(group, iter.group());
+        assertTrue(iter.nextGroup());
+        assertEquals(group, iter.group());
 
         final long[] stats = new long[groupStats.length];
         iter.groupStats(stats);
@@ -59,13 +62,13 @@ public class InputStreamFTGSIteratorTest extends TestCase {
     }
 
     private void expectTermEnd(final FTGSIterator iter) {
-        Assert.assertFalse(iter.nextGroup());
+        assertFalse(iter.nextGroup());
     }
 
     @Test
     public void testNegative() throws IOException {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        FTGSOutputStreamWriter w = new FTGSOutputStreamWriter(out);
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        final FTGSOutputStreamWriter w = new FTGSOutputStreamWriter(out);
         w.switchField("a", true);
         w.switchIntTerm(1, 5);
         w.switchGroup(1);
@@ -78,7 +81,7 @@ public class InputStreamFTGSIteratorTest extends TestCase {
         w.addStat(-999999);
         w.close();
 
-        InputStreamFTGSIterator iter = new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), 2);
+        final InputStreamFTGSIterator iter = new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), 2);
         assertTrue(iter.nextField());
         assertEquals("a", iter.fieldName());
         assertTrue(iter.fieldIsIntType());
@@ -87,7 +90,7 @@ public class InputStreamFTGSIteratorTest extends TestCase {
         assertEquals(5L, iter.termDocFreq());
         assertTrue(iter.nextGroup());
         assertEquals(1, iter.group());
-        long[] stats = new long[2];
+        final long[] stats = new long[2];
         iter.groupStats(stats);
         assertEquals(-5L, stats[0]);
         assertEquals(-10L, stats[1]);
@@ -158,7 +161,7 @@ public class InputStreamFTGSIteratorTest extends TestCase {
             writer.switchIntTerm(1, 4);
             writer.switchGroup(3);
             writer.addStat(6);
-            writer.addStat(123456789012345l);
+            writer.addStat(123456789012345L);
             writer.switchIntTerm(3, 3);
             writer.switchGroup(5);
             writer.addStat(3);
@@ -197,7 +200,7 @@ public class InputStreamFTGSIteratorTest extends TestCase {
             final InputStreamFTGSIterator input = new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), 2);
             assertTrue(input.nextField());
             assertEquals("abc", input.fieldName());
-            assertEquals(true, input.fieldIsIntType());
+            assertTrue(input.fieldIsIntType());
             assertTrue(input.nextTerm());
             assertEquals(0, input.termIntVal());
             assertEquals(5, input.termDocFreq());
@@ -224,7 +227,7 @@ public class InputStreamFTGSIteratorTest extends TestCase {
             assertEquals(3, input.group());
             input.groupStats(stats);
             assertEquals(6, stats[0]);
-            assertEquals(123456789012345l, stats[1]);
+            assertEquals(123456789012345L, stats[1]);
             assertFalse(input.nextGroup());
             assertTrue(input.nextTerm());
             assertEquals(3, input.termIntVal());
@@ -238,7 +241,7 @@ public class InputStreamFTGSIteratorTest extends TestCase {
             assertFalse(input.nextTerm());
             assertTrue(input.nextField());
             assertEquals("xyz", input.fieldName());
-            assertEquals(false, input.fieldIsIntType());
+            assertFalse(input.fieldIsIntType());
             assertTrue(input.nextTerm());
             assertEquals("", input.termStringVal());
             assertEquals(3, input.termDocFreq());
@@ -297,10 +300,10 @@ public class InputStreamFTGSIteratorTest extends TestCase {
             final InputStreamFTGSIterator input = new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), 2);
             assertTrue(input.nextField());
             assertEquals("abc", input.fieldName());
-            assertEquals(true, input.fieldIsIntType());
+            assertTrue(input.fieldIsIntType());
             assertTrue(input.nextField());
             assertEquals("xyz", input.fieldName());
-            assertEquals(false, input.fieldIsIntType());
+            assertFalse(input.fieldIsIntType());
             assertFalse(input.nextField());
         }
     }

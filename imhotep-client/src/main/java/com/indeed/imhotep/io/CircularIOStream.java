@@ -15,6 +15,7 @@
 
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nonnull;
 import java.io.Closeable;
 import java.io.FilterInputStream;
 import java.io.IOException;
@@ -33,8 +34,10 @@ public final class CircularIOStream {
     private final InputStream inputStream;
     private final OutputStream outputStream;
 
-    public CircularIOStream(int bufferSize) throws IOException {
-        if (bufferSize <= 0) throw new IllegalArgumentException("bufferSize must be greater than zero");
+    public CircularIOStream(final int bufferSize) throws IOException {
+        if (bufferSize <= 0) {
+            throw new IllegalArgumentException("bufferSize must be greater than zero");
+        }
         final CircularInputStream circularInputStream = new CircularInputStream(bufferSize);
         outputStream = new OutputStream() {
 
@@ -42,7 +45,7 @@ public final class CircularIOStream {
                 circularInputStream.write(b);
             }
 
-            public void write(final byte[] b, final int off, final int len) throws IOException {
+            public void write(@Nonnull final byte[] b, final int off, final int len) throws IOException {
                 circularInputStream.write(b, off, len);
             }
 
@@ -67,7 +70,8 @@ public final class CircularIOStream {
         return outputStream;
     }
 
-    protected void finalize() throws Throwable {
+    @Override
+    protected void finalize() {
         if (!inputClosed) {
             log.error("input was not closed, closing in finalizer");
             closeQuietly(inputStream);
@@ -88,7 +92,7 @@ public final class CircularIOStream {
             if (null != closeable) {
                 closeable.close();
             }
-        } catch (Exception e) {
+        } catch (final Exception e) {
             log.error("Exception during cleanup of a Closeable, ignoring", e);
         }
     }

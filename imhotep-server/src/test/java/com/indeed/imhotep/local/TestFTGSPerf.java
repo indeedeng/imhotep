@@ -38,6 +38,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -51,13 +52,13 @@ public class TestFTGSPerf {
 
     public static class ClusterSimulator {
         public static final int PORT = 8138;
-        private ServerSocket serverSocket;
-        private int nSplits;
-        private int nStats;
+        private final ServerSocket serverSocket;
+        private final int nSplits;
+        private final int nStats;
 
         int port = PORT;
 
-        ClusterSimulator(int nSplits, int nStats, int portmod) throws IOException {
+        ClusterSimulator(final int nSplits, final int nStats, final int portmod) throws IOException {
             this.port += portmod;
             this.nSplits = nSplits;
             this.nStats = nStats;
@@ -66,7 +67,7 @@ public class TestFTGSPerf {
 
         public void readData() throws IOException {
             for (int i = 0; i < nSplits; i++) {
-                Socket sock = new Socket("localhost", PORT);
+                final Socket sock = new Socket("localhost", PORT);
                 final InputStream is = sock.getInputStream();
                 new Thread(new Runnable() {
                     
@@ -77,7 +78,7 @@ public class TestFTGSPerf {
                             while (true) {
                                 is.read(buffer);
                             }
-                        } catch (IOException e) {
+                        } catch (final IOException e) {
                             e.printStackTrace();
                         }
                     }
@@ -90,20 +91,18 @@ public class TestFTGSPerf {
                 @Override
                 public void run() {
                     try {
-                        Thread[] threads = new Thread[nSplits];
+                        final Thread[] threads = new Thread[nSplits];
                         for (int i = 0; i < nSplits; i++) {
-                            Socket sock = serverSocket.accept();
-                            Thread t = new Thread(factory.newRunnable(sock, i));
+                            final Socket sock = serverSocket.accept();
+                            final Thread t = new Thread(factory.newRunnable(sock, i));
                             t.start();
                             threads[i] = t;
                         }
 
-                        for (Thread t : threads) {
+                        for (final Thread t : threads) {
                             t.join();
                         }
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    } catch (InterruptedException e) {
+                    } catch (final IOException | InterruptedException e) {
                         e.printStackTrace();
                     }
                 }
@@ -128,10 +127,10 @@ public class TestFTGSPerf {
         private final String[] stringFields;
         private final int numSplits;
 
-        public WriteFTGSRunner(MTImhotepLocalMultiSession session,
-                               String[] intFields,
-                               String[] stringFields,
-                               int numSplits) {
+        public WriteFTGSRunner(final MTImhotepLocalMultiSession session,
+                               final String[] intFields,
+                               final String[] stringFields,
+                               final int numSplits) {
             this.session = session;
             this.intFields = intFields;
             this.stringFields = stringFields;
@@ -146,9 +145,7 @@ public class TestFTGSPerf {
                     try {
                         session.writeFTGSIteratorSplit(intFields, stringFields, i, numSplits, 0, socket);
                         socket.close();
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    } catch (ImhotepOutOfMemoryException e) {
+                    } catch (final IOException | ImhotepOutOfMemoryException e) {
                         throw new RuntimeException(e);
                     }
                 }
@@ -173,18 +170,17 @@ public class TestFTGSPerf {
     private String[] metricNames;
     private String[] stringFields;
     private String[] intFields;
-    private List<Path> shardNames = new ArrayList<>();
-    private List<String> shardCopies = new ArrayList<>();
+    private final List<Path> shardNames = new ArrayList<>();
+    private final List<String> shardCopies = new ArrayList<>();
 
     private long[] validStats;
-    private long[] testStats;
 
     private class UnusedDocsIds {
         final int[] docIds;
         int len;
         int nValidDocs;
 
-        private UnusedDocsIds(int size) {
+        private UnusedDocsIds(final int size) {
             this.docIds = new int[size];
             for (int i = 0; i < size; i++) {
                 docIds[i] = i;
@@ -234,7 +230,7 @@ public class TestFTGSPerf {
     }
 
     private int[] selectDocIds(final UnusedDocsIds unusedDocsIds,
-                               int nDocsToSelect) {
+                               final int nDocsToSelect) {
         final int[] selectedDocs = new int[nDocsToSelect];
 
         for (int n = 0; n < nDocsToSelect; n++) {
@@ -248,14 +244,14 @@ public class TestFTGSPerf {
     private void createFlamdexIntField(final String intFieldName,
                                        final MetricMaxSizes termGenerator,
                                        final int size,
-                                       SimpleFlamdexWriter w) throws IOException {
+                                       final SimpleFlamdexWriter w) throws IOException {
         final int maxTermDocs = (size < 2000) ? size : size / 1000;
         final int maxUnassignedDocs = (size < 100) ? 10 : 100;
-        IntFieldWriter ifw = w.getIntFieldWriter(intFieldName);
+        final IntFieldWriter ifw = w.getIntFieldWriter(intFieldName);
 
         final UnusedDocsIds unusedDocIds = new UnusedDocsIds(size);
 
-        TreeMap<Long, int[]> map = new TreeMap<>();
+        final TreeMap<Long, int[]> map = new TreeMap<>();
         while (unusedDocIds.size() > maxUnassignedDocs) {
             final long term = termGenerator.randVal();
             if (term == 0) {
@@ -267,9 +263,9 @@ public class TestFTGSPerf {
             map.put(term, docIds);
         }
 
-        for (Long term : map.keySet()) {
-            ifw.nextTerm(term);
-            for (int doc : map.get(term)) {
+        for (final Map.Entry<Long, int[]> terms : map.entrySet()) {
+            ifw.nextTerm(terms.getKey());
+            for (final int doc : terms.getValue()) {
                 ifw.nextDoc(doc);
             }
         }
@@ -278,16 +274,16 @@ public class TestFTGSPerf {
 
     private void createFlamdexStringField(final String stringFieldName,
                                           final int size,
-                                          SimpleFlamdexWriter w,
-                                          List<String> termsList) throws IOException {
+                                          final SimpleFlamdexWriter w,
+                                          final List<String> termsList) throws IOException {
         final int maxTermDocs = (size < 2000) ? size : size / 1000;
         final int maxUnassignedDocs = (size < 100) ? 10 : 100;
-        StringFieldWriter sfw = w.getStringFieldWriter(stringFieldName);
+        final StringFieldWriter sfw = w.getStringFieldWriter(stringFieldName);
 
         final UnusedDocsIds unusedDocIds = new UnusedDocsIds(size);
 
-        int i = 0;
-        TreeMap<String, int[]> map = new TreeMap<>();
+        final int i = 0;
+        final TreeMap<String, int[]> map = new TreeMap<>();
         while (unusedDocIds.size() > maxUnassignedDocs) {
             final String term = termsList.get(i);
 
@@ -297,25 +293,25 @@ public class TestFTGSPerf {
             map.put(term, docIds);
         }
 
-        for (String term : map.keySet()) {
-            sfw.nextTerm(term);
-            for (int doc : map.get(term)) {
+        for (final Map.Entry<String, int[]> termEntry : map.entrySet()) {
+            sfw.nextTerm(termEntry.getKey());
+            for (final int doc : termEntry.getValue()) {
                 sfw.nextDoc(doc);
             }
         }
         sfw.close();
     }
 
-    private void generateShard(final Path dir, List<FieldDesc> fieldDescs) throws IOException {
+    private void generateShard(final Path dir, final List<FieldDesc> fieldDescs) throws IOException {
         // find max # of docs
         long nDocs = 0;
-        for (FieldDesc fd : fieldDescs) {
+        for (final FieldDesc fd : fieldDescs) {
             nDocs = (fd.numDocs > nDocs) ? fd.numDocs : nDocs;
         }
 
         final SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, nDocs, true);
 
-        for (FieldDesc fd : fieldDescs) {
+        for (final FieldDesc fd : fieldDescs) {
             if (fd.isIntfield) {
                 createFlamdexIntField(fd.name, fd.termGenerator, fd.numDocs, w);
             } else {
@@ -354,7 +350,7 @@ public class TestFTGSPerf {
         SIGNED_BYTE(Byte.MAX_VALUE, Byte.MIN_VALUE, "signed byte") {
             @Override
             public long randVal() {
-                byte[] b = new byte[1];
+                final byte[] b = new byte[1];
 
                 this.foo.nextBytes(b);
                 return b[0];
@@ -363,7 +359,7 @@ public class TestFTGSPerf {
         BYTE(255,0,"unsigned byte") {
             @Override
             public long randVal() {
-                byte[] b = new byte[1];
+                final byte[] b = new byte[1];
 
                 this.foo.nextBytes(b);
                 return b[0] - Byte.MIN_VALUE;
@@ -372,10 +368,11 @@ public class TestFTGSPerf {
         BINARY(1, 0, "binary") {
             @Override
             public long randVal() {
-                if (this.foo.nextBoolean())
+                if (this.foo.nextBoolean()) {
                     return 1;
-                else
+                } else {
                     return 0;
+                }
             }
         };
 
@@ -384,13 +381,13 @@ public class TestFTGSPerf {
         protected final String name;
         protected final Random foo = new Random();
 
-        MetricMaxSizes(long maxVal, long minVal, String name) {
+        MetricMaxSizes(final long maxVal, final long minVal, final String name) {
             this.maxVal = maxVal;
             this.minVal = minVal;
             this.name = name;
         }
 
-        MetricMaxSizes(String name) {
+        MetricMaxSizes(final String name) {
             this(Integer.MAX_VALUE, 0, name);
         }
 
@@ -432,11 +429,11 @@ public class TestFTGSPerf {
 
     private static final int MAX_N_METRICS = 64;
 
-    private MTImhotepLocalMultiSession createMultisession(List<Path> shardDirs,
-                                                          String[] metricNames,
-                                                          boolean useNativeFTGS)
+    private MTImhotepLocalMultiSession createMultisession(final List<Path> shardDirs,
+                                                          final String[] metricNames,
+                                                          final boolean useNativeFTGS)
         throws ImhotepOutOfMemoryException, IOException {
-        ImhotepLocalSession[] localSessions = new ImhotepLocalSession[shardDirs.size()];
+        final ImhotepLocalSession[] localSessions = new ImhotepLocalSession[shardDirs.size()];
         for (int i = 0; i < shardDirs.size(); i++) {
             final Path dir = shardDirs.get(i);
             final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir);
@@ -444,7 +441,7 @@ public class TestFTGSPerf {
             localSessions[i] = localSession;
         }
 
-        AtomicLong foo = new AtomicLong(1000000000);
+        final AtomicLong foo = new AtomicLong(1000000000);
         final MTImhotepLocalMultiSession mtSession;
         final MemoryReservationContext mrc =
             new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE));
@@ -457,8 +454,8 @@ public class TestFTGSPerf {
                                      new double[] { 0.1, 0.4, 0.7 },
                                      new int[] { 0, 2, 3, 4 });
 
-        long time = System.nanoTime();
-        for (String metric : metricNames) {
+        final long time = System.nanoTime();
+        for (final String metric : metricNames) {
             mtSession.pushStat(metric);
         }
         System.out.println("push stats: " + timeStamp(System.nanoTime() - time));
@@ -466,7 +463,7 @@ public class TestFTGSPerf {
         return mtSession;
     }
 
-    private String randomString(int len) {
+    private String randomString(final int len) {
         return RandomStringUtils.random(len, 0, 0, true, false, null, rand);
     }
 
@@ -475,7 +472,7 @@ public class TestFTGSPerf {
         System.err.print("building shards...");
         shardDir.mkdir();
 
-        String fieldName = randomString(MAX_STRING_TERM_LEN-1);
+        final String fieldName = randomString(MAX_STRING_TERM_LEN-1);
         metricNames = new String[nMetrics];
         for (int i = 0; i < nMetrics; i++) {
             metricNames[i] = randomString(MAX_STRING_TERM_LEN-1);
@@ -527,14 +524,15 @@ public class TestFTGSPerf {
         System.out.println("Random seed: " + seed);
         System.out.println("nMetrics: " + nMetrics);
 
-        File shardDir = new File("/tmp/shard");
-        if (!shardDir.exists())
+        final File shardDir = new File("/tmp/shard");
+        if (!shardDir.exists()) {
             setUpShards(shardDir);
-        else
+        } else {
             recycleShards(shardDir);
+        }
 
         validStats = new long[nMetrics];
-        testStats = new long[nMetrics];
+        final long[] testStats = new long[nMetrics];
 
         System.gc();
     }
@@ -545,10 +543,10 @@ public class TestFTGSPerf {
 
     private final int ITERATIONS = 1000;
 
-    private List<FieldDesc> createShardProfile(int numDocs,
-                                               int nMetrics,
-                                               String fieldName,
-                                               String[] metricNames) throws IOException {
+    private List<FieldDesc> createShardProfile(final int numDocs,
+                                               final int nMetrics,
+                                               final String fieldName,
+                                               final String[] metricNames) throws IOException {
         final List<FieldDesc> fieldDescs = new ArrayList<>(nMetrics);
 
         // create field
@@ -579,7 +577,7 @@ public class TestFTGSPerf {
         return fieldDescs;
     }
 
-    private void compareIterators(FTGSIterator test, FTGSIterator valid, int numStats) {
+    private void compareIterators(final FTGSIterator test, final FTGSIterator valid, final int numStats) {
         final long[] validStats = new long[numStats];
         final long[] testStats = new long[numStats];
 
@@ -622,13 +620,13 @@ public class TestFTGSPerf {
         assertFalse(test.nextField());
     }
 
-    private void readAllIterator(FTGSIterator iterator, int numStats) {
+    private void readAllIterator(final FTGSIterator iterator, final int numStats) {
         while (iterator.nextField()) {
             while (iterator.nextTerm()) {
                 if (iterator.fieldIsIntType()) {
                     final long v = iterator.termIntVal();
                 } else {
-                    String v = iterator.termStringVal();
+                    final String v = iterator.termStringVal();
                 }
                 while (iterator.nextGroup()) {
                     iterator.groupStats(validStats);
@@ -637,7 +635,7 @@ public class TestFTGSPerf {
         }
     }
 
-    private final String timeStamp(long nanos) {
+    private String timeStamp(final long nanos) {
         final double seconds = nanos / 1000000000.0;
         return String.format("%.6f", seconds);
     }
@@ -684,11 +682,11 @@ public class TestFTGSPerf {
 
             final MTImhotepLocalMultiSession session;
             session = createMultisession(shardNames, metricNames, true);
-            long begin = System.nanoTime();
+            final long begin = System.nanoTime();
             session.updateMulticaches();
             System.out.println("update multicaches: " + timeStamp(System.nanoTime() - begin));
 
-            RunnableFactory factory = new WriteFTGSRunner(session, intFields, stringFields, 8);
+            final RunnableFactory factory = new WriteFTGSRunner(session, intFields, stringFields, 8);
 
             /*
               for (int i = 0; i < ITERATIONS; i++) {

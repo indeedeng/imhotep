@@ -55,7 +55,7 @@ public final class ImhotepDaemonMarshaller {
     public static Query marshal(final QueryMessage protoQuery) {
         if (protoQuery.hasOperator()) {
             final BooleanOp operator = operatorMap.get(protoQuery.getOperator());
-            final List<Query> queryList = new ArrayList<Query>(protoQuery.getOperandCount());
+            final List<Query> queryList = new ArrayList<>(protoQuery.getOperandCount());
             for (final QueryMessage query : protoQuery.getOperandList()) {
                 queryList.add(marshal(query));
             }
@@ -112,7 +112,7 @@ public final class ImhotepDaemonMarshaller {
         return ret;
     }
 
-    public static GroupMultiRemapRule marshal(GroupMultiRemapMessage protoRule) {
+    public static GroupMultiRemapRule marshal(final GroupMultiRemapMessage protoRule) {
         final int numSubRules = protoRule.getPositiveGroupCount();
         final RegroupCondition[] conditions = new RegroupCondition[numSubRules];
         final int[] positiveGroups = new int[numSubRules];

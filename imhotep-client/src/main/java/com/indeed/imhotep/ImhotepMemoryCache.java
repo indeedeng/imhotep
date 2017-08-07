@@ -25,7 +25,8 @@ public class ImhotepMemoryCache<K, V extends MemoryMeasured> implements MemoryMe
     private final Map<K, V> cache = new LinkedHashMap<K, V>();
     private long memoryUsed = 0;
 
-    public synchronized @Nullable V tryRemove(K key) {
+    @Nullable
+    public synchronized V tryRemove(final K key) {
         final V val = cache.remove(key);
         if (val != null) {
             memoryUsed -= val.memoryUsed();
@@ -33,12 +34,13 @@ public class ImhotepMemoryCache<K, V extends MemoryMeasured> implements MemoryMe
         return val;
     }
 
-    public synchronized void put(K key, V value)  {
+    public synchronized void put(final K key, final V value)  {
         memoryUsed += value.memoryUsed();
         cache.put(key, value);
     }
 
-    public synchronized @Nullable V poll() {
+    @Nullable
+    public synchronized V poll() {
         final Iterator<V> iterator = cache.values().iterator();
         if (!iterator.hasNext()) {
             return null;

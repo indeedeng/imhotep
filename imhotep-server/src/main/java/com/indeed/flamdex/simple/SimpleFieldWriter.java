@@ -41,7 +41,7 @@ abstract class SimpleFieldWriter {
     private boolean nextTermCalled = false;
     private boolean nextDocCalled = false;
 
-    protected SimpleFieldWriter(OutputStream termsOutput, OutputStream docsOutput, long numDocs) {
+    protected SimpleFieldWriter(final OutputStream termsOutput, final OutputStream docsOutput, final long numDocs) {
         this.termsOutput = termsOutput;
         this.docsOutput = docsOutput;
         this.numDocs = numDocs;
@@ -65,10 +65,16 @@ abstract class SimpleFieldWriter {
      * @throws IllegalArgumentException if doc is greater than or equal to the number of documents in the index,
      *                                  if doc is negative, or if doc is less than or equal to the previous doc added
      */
-    public void nextDoc(int doc) throws IOException {
-        if (!nextTermCalled) throw new IllegalStateException("nextTerm must be called before nextDoc");
-        if (doc < 0) throw new IllegalArgumentException("doc cannot be negative");
-        if (doc >= numDocs) throw new IllegalArgumentException("doc is >= maxDoc: doc="+doc+", maxDoc="+ numDocs);
+    public void nextDoc(final int doc) throws IOException {
+        if (!nextTermCalled) {
+            throw new IllegalStateException("nextTerm must be called before nextDoc");
+        }
+        if (doc < 0) {
+            throw new IllegalArgumentException("doc cannot be negative");
+        }
+        if (doc >= numDocs) {
+            throw new IllegalArgumentException("doc is >= maxDoc: doc="+doc+", maxDoc="+ numDocs);
+        }
 
         if (nextDocCalled && doc <= lastDocWritten) {
             throw new IllegalArgumentException("docs must be in sorted order: "+doc+" is not greater than "+lastDocWritten);
@@ -82,7 +88,9 @@ abstract class SimpleFieldWriter {
     }
 
     protected void writeTerm() throws IOException {
-        if (currentTermDocFreq == 0) return;
+        if (currentTermDocFreq == 0) {
+            return;
+        }
 
         writeTermDelta();
 

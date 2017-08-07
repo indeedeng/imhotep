@@ -22,5 +22,5 @@ import java.io.IOException;
  */
 public interface SimpleStringTermIterator extends SimpleTermIterator, RawStringTermIterator {
     @Deprecated
-    public long getDocListAddress() throws IOException;
+    long getDocListAddress() throws IOException;
 }

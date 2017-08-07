@@ -15,6 +15,8 @@
 
 import com.google.common.base.Function;
 
+import javax.annotation.Nonnull;
+
 /**
 * @author jsgroth
 */
@@ -22,7 +24,7 @@ public class Host implements Comparable<Host> {
     public final String hostname;
     public final int port;
 
-    public Host(String hostname, int port) {
+    public Host(final String hostname, final int port) {
         this.hostname = hostname;
         this.port = port;
     }
@@ -36,8 +38,8 @@ public class Host implements Comparable<Host> {
     }
 
     @Override
-    public int compareTo(Host o) {
-        int c = hostname.compareTo(o.hostname);
+    public int compareTo(@Nonnull final Host o) {
+        final int c = hostname.compareTo(o.hostname);
         if (c != 0) {
             return c;
         }
@@ -45,14 +47,22 @@ public class Host implements Comparable<Host> {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+    public boolean equals(final Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
-        Host host = (Host) o;
+        final Host host = (Host) o;
 
-        if (port != host.port) return false;
-        if (hostname != null ? !hostname.equals(host.hostname) : host.hostname != null) return false;
+        if (port != host.port) {
+            return false;
+        }
+        if (hostname != null ? !hostname.equals(host.hostname) : host.hostname != null) {
+            return false;
+        }
 
         return true;
     }

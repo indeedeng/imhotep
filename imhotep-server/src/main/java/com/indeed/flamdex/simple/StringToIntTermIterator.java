@@ -19,7 +19,9 @@ public class StringToIntTermIterator extends GenericStringToIntTermIterator<Simp
      * @param stringTermIterator         initial iterator used for initialization
      * @param stringTermIteratorSupplier used to create new SimpleStringTermIterator instances to have multiple iteration cursors in parallel
      */
-    public StringToIntTermIterator(SimpleStringTermIterator stringTermIterator, Supplier<SimpleStringTermIterator> stringTermIteratorSupplier) {
+    public StringToIntTermIterator(
+            final SimpleStringTermIterator stringTermIterator,
+            final Supplier<SimpleStringTermIterator> stringTermIteratorSupplier) {
         super(stringTermIterator, stringTermIteratorSupplier);
         this.filename = stringTermIterator.getFilename();
     }

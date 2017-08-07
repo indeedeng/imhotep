@@ -33,7 +33,7 @@ import static com.indeed.imhotep.fs.RemoteCachingFileSystemTestUtils.writeToFile
 
 public class RemoteCachingFileSystemTest {
     @Rule
-    public RemoteCachingFileSystemTestContext testContext = new RemoteCachingFileSystemTestContext();
+    public final RemoteCachingFileSystemTestContext testContext = new RemoteCachingFileSystemTestContext();
 
     @Test
     public void testPathManipulation() throws IOException {

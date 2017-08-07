@@ -13,7 +13,6 @@
  */
  package com.indeed.imhotep.io;
 
-import junit.framework.TestCase;
 import org.junit.Test;
 
 import java.io.File;
@@ -21,14 +20,16 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Random;
 
+import static org.junit.Assert.assertTrue;
+
 /**
  * @author jsgroth
  */
-public class TestFileSerializers extends TestCase {
+public class TestFileSerializers {
     @Test
     public void testIntArraySerializer() throws IOException {
-        int[] a = newRandomIntArray();
-        int[] a2 = runASerializer(new IntArraySerializer(), a);
+        final int[] a = newRandomIntArray();
+        final int[] a2 = runASerializer(new IntArraySerializer(), a);
         assertTrue(Arrays.equals(a, a2));
     }
 
@@ -60,8 +61,8 @@ public class TestFileSerializers extends TestCase {
 //        assertTrue(Arrays.equals(a, a2));
 //    }
 
-    private <T> T runASerializer(FileSerializer<T> serializer, T t) throws IOException {
-        File tmp = File.createTempFile("temp", ".bin");
+    private <T> T runASerializer(final FileSerializer<T> serializer, final T t) throws IOException {
+        final File tmp = File.createTempFile("temp", ".bin");
         try {
             serializer.serialize(t, tmp.toPath());
             return serializer.deserialize(tmp.toPath());
@@ -71,8 +72,8 @@ public class TestFileSerializers extends TestCase {
     }
 
     private static int[] newRandomIntArray() {
-        int[] ret = new int[12500000];
-        Random rand = new Random();
+        final int[] ret = new int[12500000];
+        final Random rand = new Random();
         for (int i = 0; i < ret.length; ++i) {
             ret[i] = rand.nextInt();
         }
@@ -80,15 +81,15 @@ public class TestFileSerializers extends TestCase {
     }
 
     private static byte[] newRandomByteArray() {
-        byte[] ret = new byte[50000000];
-        Random rand = new Random();
+        final byte[] ret = new byte[50000000];
+        final Random rand = new Random();
         rand.nextBytes(ret);
         return ret;
     }
 
     private static short[] newRandomShortArray() {
-        short[] ret = new short[25000000];
-        Random rand = new Random();
+        final short[] ret = new short[25000000];
+        final Random rand = new Random();
         for (int i = 0; i < ret.length; ++i) {
             ret[i] = (short)rand.nextInt();
         }
@@ -96,8 +97,8 @@ public class TestFileSerializers extends TestCase {
     }
 
     private static char[] newRandomCharArray() {
-        char[] ret = new char[25000000];
-        Random rand = new Random();
+        final char[] ret = new char[25000000];
+        final Random rand = new Random();
         for (int i = 0; i < ret.length; ++i) {
             ret[i] = (char)rand.nextInt();
         }
@@ -105,8 +106,8 @@ public class TestFileSerializers extends TestCase {
     }
 
     private static long[] newRandomLongArray() {
-        long[] ret = new long[6750000];
-        Random rand = new Random();
+        final long[] ret = new long[6750000];
+        final Random rand = new Random();
         for (int i = 0; i < ret.length; ++i) {
             ret[i] = rand.nextLong();
         }

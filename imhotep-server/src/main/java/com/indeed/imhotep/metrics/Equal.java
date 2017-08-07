@@ -9,7 +9,7 @@ import org.apache.log4j.Logger;
 public final class Equal extends AbstractBinaryOperator {
     private static final Logger log = Logger.getLogger(Equal.class);
 
-    public Equal(IntValueLookup a, IntValueLookup b) {
+    public Equal(final IntValueLookup a, final IntValueLookup b) {
         super(a, b);
     }
 
@@ -24,7 +24,7 @@ public final class Equal extends AbstractBinaryOperator {
     }
 
     @Override
-    protected void combine(long[] values, long[] buffer, int n) {
+    protected void combine(final long[] values, final long[] buffer, final int n) {
         for (int i = 0; i < n; i++) {
             values[i] = (values[i] == buffer[i]) ? 1 : 0;
         }

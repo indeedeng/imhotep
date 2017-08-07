@@ -22,18 +22,18 @@ public class Term {
     private final long termIntVal;
     private final String termStringVal;
 
-    public Term(String fieldName, boolean intField, long termIntVal, String termStringVal) {
+    public Term(final String fieldName, final boolean intField, final long termIntVal, final String termStringVal) {
         this.fieldName = fieldName;
         isIntField = intField;
         this.termIntVal = termIntVal;
         this.termStringVal = termStringVal;
     }
 
-    public static Term intTerm(String field, long term) {
+    public static Term intTerm(final String field, final long term) {
         return new Term(field, true, term, "");
     }
 
-    public static Term stringTerm(String field, String term) {
+    public static Term stringTerm(final String field, final String term) {
         return new Term(field, false, 0, term);
     }
 
@@ -59,19 +59,24 @@ public class Term {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (!(o instanceof Term)) return false;
-        Term other = (Term) o;
+    public boolean equals(final Object o) {
+        if (!(o instanceof Term)) {
+            return false;
+        }
+        final Term other = (Term) o;
 
-        if (!fieldName.equals(other.fieldName)) return false;
-        if (isIntField != other.isIntField) return false;
+        if (!fieldName.equals(other.fieldName)) {
+            return false;
+        }
+        if (isIntField != other.isIntField) {
+            return false;
+        }
 
         if (isIntField) {
-            if (termIntVal != other.termIntVal) return false;
-        } else {
-            if (termStringVal == null ? other.termStringVal != null : !termStringVal.equals(other.termStringVal)) {
-                return false;
-            }
+            return termIntVal == other.termIntVal;
+        }
+        if (termStringVal == null ? other.termStringVal != null : !termStringVal.equals(other.termStringVal)) {
+            return false;
         }
 
         return true;
@@ -90,7 +95,9 @@ public class Term {
             hashCode += termIntVal>>>32;
         } else {
             hashCode *= 31;
-            if (termStringVal != null) hashCode += termStringVal.hashCode();
+            if (termStringVal != null) {
+                hashCode += termStringVal.hashCode();
+            }
         }
 
         return hashCode;

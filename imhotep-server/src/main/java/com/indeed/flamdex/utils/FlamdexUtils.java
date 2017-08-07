@@ -22,6 +22,8 @@ import com.indeed.flamdex.datastruct.MMapFastBitSet;
 import com.indeed.flamdex.fieldcache.LongArrayIntValueLookup;
 import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIterator;
 import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIteratorImpl;
+import com.indeed.imhotep.automaton.Automaton;
+import com.indeed.imhotep.automaton.RegExp;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.threads.ThreadSafeBitSet;
 import com.indeed.util.io.VIntUtils;
@@ -31,8 +33,6 @@ import com.indeed.util.mmap.IntArray;
 import com.indeed.util.mmap.LongArray;
 import com.indeed.util.mmap.MMapBuffer;
 import com.indeed.util.mmap.ShortArray;
-import com.indeed.imhotep.automaton.Automaton;
-import com.indeed.imhotep.automaton.RegExp;
 import org.apache.log4j.Logger;
 
 import java.io.EOFException;
@@ -49,29 +49,26 @@ import java.util.regex.Pattern;
  * @author jsgroth
  */
 public class FlamdexUtils {
+    private FlamdexUtils() {
+    }
+
     private static final Logger LOG = Logger.getLogger(FlamdexUtils.class);
 
     private static final int BUFFER_SIZE = 32;
 
-    public static int[] cacheIntField(String field, FlamdexReader reader) {
-        final UnsortedIntTermDocIterator iterator = UnsortedIntTermDocIteratorImpl.create(reader, field);
-        try {
+    public static int[] cacheIntField(final String field, final FlamdexReader reader) {
+        try (UnsortedIntTermDocIterator iterator = UnsortedIntTermDocIteratorImpl.create(reader, field)) {
             return cacheIntField(iterator, reader.getNumDocs());
-        } finally {
-            iterator.close();
         }
     }
 
-    public static long[] cacheLongField(String field, FlamdexReader reader) {
-        final UnsortedIntTermDocIterator iterator = UnsortedIntTermDocIteratorImpl.create(reader, field);
-        try {
+    public static long[] cacheLongField(final String field, final FlamdexReader reader) {
+        try (UnsortedIntTermDocIterator iterator = UnsortedIntTermDocIteratorImpl.create(reader, field)) {
             return cacheLongField(iterator, reader.getNumDocs());
-        } finally {
-            iterator.close();
         }
     }
 
-    public static long[] cacheLongField(UnsortedIntTermDocIterator iterator, int numDocs) {
+    public static long[] cacheLongField(final UnsortedIntTermDocIterator iterator, final int numDocs) {
         final int[] docIdBuf = new int[BUFFER_SIZE];
 
         final long[] cache = new long[numDocs];
@@ -82,16 +79,18 @@ public class FlamdexUtils {
                 for (int i = 0; i < n; ++i) {
                     cache[docIdBuf[i]] = term;
                 }
-                if (n < BUFFER_SIZE) break;
+                if (n < BUFFER_SIZE) {
+                    break;
+                }
             }
         }
 
         return cache;
     }
 
-    public static MMapBuffer cacheLongFieldToFile(UnsortedIntTermDocIterator iterator,
-                                                  int numDocs,
-                                                  Path path) throws IOException {
+    public static MMapBuffer cacheLongFieldToFile(final UnsortedIntTermDocIterator iterator,
+                                                  final int numDocs,
+                                                  final Path path) throws IOException {
         final int[] docIdBuf = new int[BUFFER_SIZE];
 
         final int length = numDocs * 8;
@@ -111,10 +110,7 @@ public class FlamdexUtils {
                 }
             }
             buffer.sync(0, length);
-        } catch (RuntimeException e) {
-            Closeables2.closeQuietly(buffer, LOG);
-            throw e;
-        } catch (IOException e) {
+        } catch (final RuntimeException | IOException e) {
             Closeables2.closeQuietly(buffer, LOG);
             throw e;
         }
@@ -122,7 +118,7 @@ public class FlamdexUtils {
         return buffer;
     }
 
-    public static int[] cacheIntField(UnsortedIntTermDocIterator iterator, int numDocs) {
+    public static int[] cacheIntField(final UnsortedIntTermDocIterator iterator, final int numDocs) {
         final int[] docIdBuf = new int[BUFFER_SIZE];
 
         final int[] cache = new int[numDocs];
@@ -133,16 +129,18 @@ public class FlamdexUtils {
                 for (int i = 0; i < n; ++i) {
                     cache[docIdBuf[i]] = (int)term;
                 }
-                if (n < BUFFER_SIZE) break;
+                if (n < BUFFER_SIZE) {
+                    break;
+                }
             }
         }
 
         return cache;
     }
 
-    public static MMapBuffer cacheIntFieldToFile(UnsortedIntTermDocIterator iterator,
-                                                 int numDocs,
-                                                 Path path) throws IOException {
+    public static MMapBuffer cacheIntFieldToFile(final UnsortedIntTermDocIterator iterator,
+                                                 final int numDocs,
+                                                 final Path path) throws IOException {
         final int[] docIdBuf = new int[BUFFER_SIZE];
 
         final int length = numDocs * 4;
@@ -166,10 +164,7 @@ public class FlamdexUtils {
                 }
             }
             buffer.sync(0, length);
-        } catch (RuntimeException e) {
-            Closeables2.closeQuietly(buffer, LOG);
-            throw e;
-        } catch (IOException e) {
+        } catch (final RuntimeException | IOException e) {
             Closeables2.closeQuietly(buffer, LOG);
             throw e;
         }
@@ -177,16 +172,13 @@ public class FlamdexUtils {
         return buffer;
     }
 
-    public static char[] cacheCharField(String field, FlamdexReader reader) {
-        final UnsortedIntTermDocIterator iterator = UnsortedIntTermDocIteratorImpl.create(reader, field);
-        try {
+    public static char[] cacheCharField(final String field, final FlamdexReader reader) {
+        try (UnsortedIntTermDocIterator iterator = UnsortedIntTermDocIteratorImpl.create(reader, field)) {
             return cacheCharField(iterator, reader.getNumDocs());
-        } finally {
-            iterator.close();
         }
     }
 
-    public static char[] cacheCharField(UnsortedIntTermDocIterator iterator, int numDocs) {
+    public static char[] cacheCharField(final UnsortedIntTermDocIterator iterator, final int numDocs) {
         final int[] docIdBuf = new int[BUFFER_SIZE];
 
         final char[] cache = new char[numDocs];
@@ -198,16 +190,18 @@ public class FlamdexUtils {
                     cache[docIdBuf[i]] = (char)term;
                 }
 
-                if (n < BUFFER_SIZE) break;
+                if (n < BUFFER_SIZE) {
+                    break;
+                }
             }
         }
 
         return cache;
     }
 
-    public static MMapBuffer cacheCharFieldToFile(UnsortedIntTermDocIterator iterator,
-                                                  int numDocs,
-                                                  Path path) throws IOException {
+    public static MMapBuffer cacheCharFieldToFile(final UnsortedIntTermDocIterator iterator,
+                                                  final int numDocs,
+                                                  final Path path) throws IOException {
         final int[] docIdBuf = new int[BUFFER_SIZE];
 
         final int length = numDocs * 2;
@@ -227,10 +221,7 @@ public class FlamdexUtils {
                 }
             }
             buffer.sync(0, length);
-        } catch (RuntimeException e) {
-            Closeables2.closeQuietly(buffer, LOG);
-            throw e;
-        } catch (IOException e) {
+        } catch (final RuntimeException | IOException e) {
             Closeables2.closeQuietly(buffer, LOG);
             throw e;
         }
@@ -238,7 +229,7 @@ public class FlamdexUtils {
         return buffer;
     }
 
-    public static short[] cacheShortField(UnsortedIntTermDocIterator iterator, int numDocs) {
+    public static short[] cacheShortField(final UnsortedIntTermDocIterator iterator, final int numDocs) {
         final int[] docIdBuf = new int[BUFFER_SIZE];
 
         final short[] cache = new short[numDocs];
@@ -250,16 +241,18 @@ public class FlamdexUtils {
                     cache[docIdBuf[i]] = (short)term;
                 }
 
-                if (n < BUFFER_SIZE) break;
+                if (n < BUFFER_SIZE) {
+                    break;
+                }
             }
         }
 
         return cache;
     }
 
-    public static MMapBuffer cacheShortFieldToFile(UnsortedIntTermDocIterator iterator,
-                                                   int numDocs,
-                                                   Path path) throws IOException {
+    public static MMapBuffer cacheShortFieldToFile(final UnsortedIntTermDocIterator iterator,
+                                                   final int numDocs,
+                                                   final Path path) throws IOException {
         final int[] docIdBuf = new int[BUFFER_SIZE];
 
         final int length = numDocs * 2;
@@ -279,10 +272,7 @@ public class FlamdexUtils {
                 }
             }
             buffer.sync(0, length);
-        } catch (RuntimeException e) {
-            Closeables2.closeQuietly(buffer, LOG);
-            throw e;
-        } catch (IOException e) {
+        } catch (final RuntimeException | IOException e) {
             Closeables2.closeQuietly(buffer, LOG);
             throw e;
         }
@@ -290,16 +280,13 @@ public class FlamdexUtils {
         return buffer;
     }
 
-    public static byte[] cacheByteField(String field, FlamdexReader reader) {
-        final UnsortedIntTermDocIterator iterator = UnsortedIntTermDocIteratorImpl.create(reader, field);
-        try {
+    public static byte[] cacheByteField(final String field, final FlamdexReader reader) {
+        try (UnsortedIntTermDocIterator iterator = UnsortedIntTermDocIteratorImpl.create(reader, field)) {
             return cacheByteField(iterator, reader.getNumDocs());
-        } finally {
-            iterator.close();
         }
     }
 
-    public static byte[] cacheByteField(UnsortedIntTermDocIterator iterator, int numDocs) {
+    public static byte[] cacheByteField(final UnsortedIntTermDocIterator iterator, final int numDocs) {
         final int[] docIdBuf = new int[BUFFER_SIZE];
 
         final byte[] cache = new byte[numDocs];
@@ -311,16 +298,18 @@ public class FlamdexUtils {
                     cache[docIdBuf[i]] = (byte)term;
                 }
 
-                if (n < BUFFER_SIZE) break;
+                if (n < BUFFER_SIZE) {
+                    break;
+                }
             }
         }
 
         return cache;
     }
 
-    public static MMapBuffer cacheByteFieldToFile(UnsortedIntTermDocIterator iterator,
-                                                  int numDocs,
-                                                  Path path) throws IOException {
+    public static MMapBuffer cacheByteFieldToFile(final UnsortedIntTermDocIterator iterator,
+                                                  final int numDocs,
+                                                  final Path path) throws IOException {
         final int[] docIdBuf = new int[BUFFER_SIZE];
 
         final MMapBuffer buffer = new MMapBuffer(path,
@@ -343,10 +332,7 @@ public class FlamdexUtils {
                 }
             }
             buffer.sync(0, numDocs);
-        } catch (RuntimeException e) {
-            Closeables2.closeQuietly(buffer, LOG);
-            throw e;
-        } catch (IOException e) {
+        } catch (final RuntimeException | IOException e) {
             Closeables2.closeQuietly(buffer, LOG);
             throw e;
         }
@@ -354,16 +340,13 @@ public class FlamdexUtils {
         return buffer;
     }
 
-    public static FastBitSet cacheBitSetField(String field, FlamdexReader reader) {
-        final UnsortedIntTermDocIterator iterator = UnsortedIntTermDocIteratorImpl.create(reader, field);
-        try {
+    public static FastBitSet cacheBitSetField(final String field, final FlamdexReader reader) {
+        try (UnsortedIntTermDocIterator iterator = UnsortedIntTermDocIteratorImpl.create(reader, field)) {
             return cacheBitSetField(iterator, reader.getNumDocs());
-        } finally {
-            iterator.close();
         }
     }
 
-    public static FastBitSet cacheBitSetField(UnsortedIntTermDocIterator iterator, int numDocs) {
+    public static FastBitSet cacheBitSetField(final UnsortedIntTermDocIterator iterator, final int numDocs) {
         final int[] docIdBuf = new int[BUFFER_SIZE];
 
         final FastBitSet cache = new FastBitSet(numDocs);
@@ -376,16 +359,18 @@ public class FlamdexUtils {
                     cache.set(docIdBuf[i], boolVal);
                 }
 
-                if (n < BUFFER_SIZE) break;
+                if (n < BUFFER_SIZE) {
+                    break;
+                }
             }
         }
 
         return cache;
     }
 
-    public static MMapFastBitSet cacheBitSetFieldToFile(UnsortedIntTermDocIterator iterator,
-                                                        int numDocs,
-                                                        Path path) throws IOException {
+    public static MMapFastBitSet cacheBitSetFieldToFile(final UnsortedIntTermDocIterator iterator,
+                                                        final int numDocs,
+                                                        final Path path) throws IOException {
         final int[] docIdBuf = new int[BUFFER_SIZE];
 
         final MMapFastBitSet cache = new MMapFastBitSet(path, numDocs, FileChannel.MapMode.READ_WRITE);
@@ -399,14 +384,13 @@ public class FlamdexUtils {
                         cache.set(docIdBuf[i], boolVal);
                     }
 
-                    if (n < BUFFER_SIZE) break;
+                    if (n < BUFFER_SIZE) {
+                        break;
+                    }
                 }
             }
             cache.sync();
-        } catch (RuntimeException e) {
-            Closeables2.closeQuietly(cache, LOG);
-            throw e;
-        } catch (IOException e) {
+        } catch (final RuntimeException | IOException e) {
             Closeables2.closeQuietly(cache, LOG);
             throw e;
         }
@@ -414,14 +398,12 @@ public class FlamdexUtils {
         return cache;
     }
 
-    public static String[] cacheStringField(String field, FlamdexReader reader) {
+    public static String[] cacheStringField(final String field, final FlamdexReader reader) {
         final int[] docIdBuf = new int[BUFFER_SIZE];
 
         final String[] cache = new String[reader.getNumDocs()];
-        final DocIdStream docIdStream = reader.getDocIdStream();
-        try {
-            final StringTermIterator it = reader.getStringTermIterator(field);
-            try {
+        try (DocIdStream docIdStream = reader.getDocIdStream()) {
+            try (StringTermIterator it = reader.getStringTermIterator(field)) {
                 while (it.next()) {
                     docIdStream.reset(it);
                     final String term = it.term();
@@ -431,32 +413,28 @@ public class FlamdexUtils {
                             cache[docIdBuf[i]] = term;
                         }
 
-                        if (n < BUFFER_SIZE) break;
+                        if (n < BUFFER_SIZE) {
+                            break;
+                        }
                     }
                 }
-            } finally {
-                it.close();
             }
-        } finally {
-            docIdStream.close();
         }
 
         return cache;
     }
 
-    public static float[] cacheStringFieldAsFloat(String field, FlamdexReader reader, boolean ignoreNonFloats) {
+    public static float[] cacheStringFieldAsFloat(final String field, final FlamdexReader reader, final boolean ignoreNonFloats) {
         final int[] docIdBuf = new int[BUFFER_SIZE];
 
         final float[] cache = new float[reader.getNumDocs()];
-        final DocIdStream docIdStream = reader.getDocIdStream();
-        try {
-            final StringTermIterator it = reader.getStringTermIterator(field);
-            try {
+        try (DocIdStream docIdStream = reader.getDocIdStream()) {
+            try (StringTermIterator it = reader.getStringTermIterator(field)) {
                 while (it.next()) {
                     final float term;
                     try {
                         term = Float.parseFloat(it.term());
-                    } catch (NumberFormatException e) {
+                    } catch (final NumberFormatException e) {
                         if (!ignoreNonFloats) {
                             throw e;
                         }
@@ -469,47 +447,42 @@ public class FlamdexUtils {
                         for (int i = 0; i < n; ++i) {
                             cache[docIdBuf[i]] = term;
                         }
-                        if (n < BUFFER_SIZE) break;
+                        if (n < BUFFER_SIZE) {
+                            break;
+                        }
                     }
                 }
-            } finally {
-                it.close();
             }
-        } finally {
-            docIdStream.close();
         }
 
         return cache;
     }
 
-    public static long[] getMinMaxTerm(String field, FlamdexReader r) {
-        final IntTermIterator iterator = r.getUnsortedIntTermIterator(field);
+    public static long[] getMinMaxTerm(final String field, final FlamdexReader r) {
         /*
          * Docs with no term are defined to have a term of 0,
          * so the min - max range MUST include 0.
          */
         long minTerm = 0;
         long maxTerm = 0;
-        try {
+        try (IntTermIterator iterator = r.getUnsortedIntTermIterator(field)) {
             while (iterator.next()) {
                 maxTerm = Math.max(maxTerm, iterator.term());
                 minTerm = Math.min(minTerm, iterator.term());
             }
-        } finally {
-            iterator.close();
         }
         return new long[]{minTerm, maxTerm};
     }
 
-    public static int writeVLong(long i, OutputStream out) throws IOException {
+    public static int writeVLong(final long i, final OutputStream out) throws IOException {
         return VIntUtils.writeVInt64(out, i);
     }
 
-    public static long readVLong(InputStream in) throws IOException {
+    public static long readVLong(final InputStream in) throws IOException {
         long ret = 0L;
         int shift = 0;
         do {
-            int b = in.read();
+            final int b = in.read();
             if (b < 0) {
                 //sorry
                 if (shift != 0) {
@@ -518,15 +491,16 @@ public class FlamdexUtils {
                 throw new EOFException();
             }
             ret |= ((b & 0x7FL) << shift);
-            if (b < 0x80) return ret;
+            if (b < 0x80) {
+                return ret;
+            }
             shift += 7;
         } while (true);
     }
 
     public static ThreadSafeBitSet cacheHasIntTerm(final String field, final long term, final FlamdexReader reader) {
         final ThreadSafeBitSet ret = new ThreadSafeBitSet(reader.getNumDocs());
-        final IntTermIterator iter = reader.getUnsortedIntTermIterator(field);
-        try {
+        try (IntTermIterator iter = reader.getUnsortedIntTermIterator(field)) {
             iter.reset(term);
             if (iter.next() && iter.term() == term) {
                 final DocIdStream dis = reader.getDocIdStream();
@@ -534,27 +508,26 @@ public class FlamdexUtils {
                 fillBitSet(dis, ret);
                 dis.close();
             }
-        } finally {
-            iter.close();
         }
         return ret;
     }
 
-    private static void fillBitSet(DocIdStream dis, ThreadSafeBitSet ret) {
+    private static void fillBitSet(final DocIdStream dis, final ThreadSafeBitSet ret) {
         final int[] docIdBuffer = new int[64];
         while (true) {
             final int n = dis.fillDocIdBuffer(docIdBuffer);
             for (int i = 0; i < n; ++i) {
                 ret.set(docIdBuffer[i]);
             }
-            if (n < docIdBuffer.length) break;
+            if (n < docIdBuffer.length) {
+                break;
+            }
         }
     }
 
     public static ThreadSafeBitSet cacheHasStringTerm(final String field, final String term, final FlamdexReader reader) {
         final ThreadSafeBitSet ret = new ThreadSafeBitSet(reader.getNumDocs());
-        final StringTermIterator iter = reader.getStringTermIterator(field);
-        try {
+        try (StringTermIterator iter = reader.getStringTermIterator(field)) {
             iter.reset(term);
             if (iter.next() && iter.term().equals(term)) {
                 final DocIdStream dis = reader.getDocIdStream();
@@ -562,8 +535,6 @@ public class FlamdexUtils {
                 fillBitSet(dis, ret);
                 dis.close();
             }
-        } finally {
-            iter.close();
         }
         return ret;
     }
@@ -573,7 +544,7 @@ public class FlamdexUtils {
         final int[] docIdBuffer = new int[64]; // 64 instead of BUFFER_SIZE to be consistent with fillBitSet.
         try (
                 final IntTermIterator iter = reader.getUnsortedIntTermIterator(field);
-                final DocIdStream dis = reader.getDocIdStream();
+                final DocIdStream dis = reader.getDocIdStream()
         ) {
             while (iter.next()) {
                 dis.reset(iter);
@@ -588,7 +559,7 @@ public class FlamdexUtils {
         final int[] docIdBuffer = new int[64]; // 64 instead of BUFFER_SIZE to be consistent with fillBitSet.
         try (
             final StringTermIterator iter = reader.getStringTermIterator(field);
-            final DocIdStream dis = reader.getDocIdStream();
+            final DocIdStream dis = reader.getDocIdStream()
         ) {
             while (iter.next()) {
                 dis.reset(iter);
@@ -598,13 +569,15 @@ public class FlamdexUtils {
         return ret;
     }
 
-    private static void fillBitSetUsingBuffer(DocIdStream dis, ThreadSafeBitSet ret, int[] docIdBuffer) {
+    private static void fillBitSetUsingBuffer(final DocIdStream dis, final ThreadSafeBitSet ret, final int[] docIdBuffer) {
         while (true) {
             final int n = dis.fillDocIdBuffer(docIdBuffer);
             for (int i = 0; i < n; ++i) {
                 ret.set(docIdBuffer[i]);
             }
-            if (n < docIdBuffer.length) break;
+            if (n < docIdBuffer.length) {
+                break;
+            }
         }
     }
 
@@ -622,7 +595,11 @@ public class FlamdexUtils {
         return ret;
     }
 
-    private static void cacheIntFieldRegex(String field, FlamdexReader reader, Automaton automaton, ThreadSafeBitSet ret) {
+    private static void cacheIntFieldRegex(
+            final String field,
+            final FlamdexReader reader,
+            final Automaton automaton,
+            final ThreadSafeBitSet ret) {
         try (final IntTermIterator iter = reader.getUnsortedIntTermIterator(field);
              final DocIdStream dis = reader.getDocIdStream()) {
             while (iter.next()) {
@@ -635,7 +612,11 @@ public class FlamdexUtils {
     }
 
     // TODO: Use automaton.getCommonPrefix() to reset to a start point and short circuit after that prefix?
-    private static void cacheStringFieldRegex(String field, FlamdexReader reader, Automaton automaton, ThreadSafeBitSet ret) {
+    private static void cacheStringFieldRegex(
+            final String field,
+            final FlamdexReader reader,
+            final Automaton automaton,
+            final ThreadSafeBitSet ret) {
         try (final StringTermIterator iter = reader.getStringTermIterator(field);
              final DocIdStream dis = reader.getDocIdStream()) {
             while (iter.next()) {
@@ -676,7 +657,11 @@ public class FlamdexUtils {
         return ret;
     }
 
-    private static void cacheIntFieldEqual(String field1, String field2, FlamdexReader reader, ThreadSafeBitSet ret) {
+    private static void cacheIntFieldEqual(
+            final String field1,
+            final String field2,
+            final FlamdexReader reader,
+            final ThreadSafeBitSet ret) {
         try (final IntTermIterator iter1 = reader.getIntTermIterator(field1);
              final IntTermIterator iter2 = reader.getIntTermIterator(field2);
              final DocIdStreamIterator docIdIter1 = new DocIdStreamIterator(reader.getDocIdStream(), BUFFER_SIZE);
@@ -710,7 +695,11 @@ public class FlamdexUtils {
         }
     }
 
-    private static void cacheStringFieldEqual(String field1, String field2, FlamdexReader reader, ThreadSafeBitSet ret) {
+    private static void cacheStringFieldEqual(
+            final String field1,
+            final String field2,
+            final FlamdexReader reader,
+            final ThreadSafeBitSet ret) {
         try (final StringTermIterator iter1 = reader.getStringTermIterator(field1);
              final StringTermIterator iter2 = reader.getStringTermIterator(field2);
              final DocIdStreamIterator docIdIter1 = new DocIdStreamIterator(reader.getDocIdStream(), BUFFER_SIZE);
@@ -803,27 +792,21 @@ public class FlamdexUtils {
     }
 
     public static long getIntTotalDocFreq(final FlamdexReader r, final String field) {
-        final IntTermIterator iter = r.getUnsortedIntTermIterator(field);
         long totalDocFreq = 0L;
-        try {
+        try (IntTermIterator iter = r.getUnsortedIntTermIterator(field)) {
             while (iter.next()) {
                 totalDocFreq += iter.docFreq();
             }
-        } finally {
-            iter.close();
         }
         return totalDocFreq;
     }
 
     public static long getStringTotalDocFreq(final FlamdexReader r, final String field) {
-        final StringTermIterator iter = r.getStringTermIterator(field);
         long totalDocFreq = 0L;
-        try {
+        try (StringTermIterator iter = r.getStringTermIterator(field)) {
             while (iter.next()) {
                 totalDocFreq += iter.docFreq();
             }
-        } finally {
-            iter.close();
         }
         return totalDocFreq;
     }

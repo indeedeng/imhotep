@@ -18,7 +18,7 @@
  */
 public class AcceptAllFileMetadataFilter implements FileMetadataFilter {
     @Override
-    public boolean accept(FileMetadata file) {
+    public boolean accept(final FileMetadata file) {
         return true;
     }
 }

@@ -43,7 +43,7 @@ import java.util.concurrent.ExecutorService;
 
 public class DatasetShardAssignmentRefresherTest {
     @Rule
-    public TemporaryFolder tempDir = new TemporaryFolder();
+    public final TemporaryFolder tempDir = new TemporaryFolder();
     @Rule
     public final DbDataFixture dbDataFixture = new DbDataFixture(Collections.singletonList(Tables.TBLSHARDASSIGNMENTINFO));
     @Rule

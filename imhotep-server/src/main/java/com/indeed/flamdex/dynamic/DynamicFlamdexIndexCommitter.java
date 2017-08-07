@@ -193,7 +193,6 @@ class DynamicFlamdexIndexCommitter implements Closeable {
         return newSegmentDirectory;
     }
 
-    @Nonnull
     public void doWhileLockingSegment(@Nonnull final CurrentSegmentConsumer consumer) throws IOException {
         changeSegmentsLock.lock();
         try {

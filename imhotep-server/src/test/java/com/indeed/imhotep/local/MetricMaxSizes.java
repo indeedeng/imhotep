@@ -30,7 +30,7 @@ enum MetricMaxSizes {
     SIGNED_BYTE(Byte.MAX_VALUE, Byte.MIN_VALUE, "signed byte") {
         @Override
         public long randVal() {
-            byte[] b = new byte[1];
+            final byte[] b = new byte[1];
 
             this.foo.nextBytes(b);
             return b[0];
@@ -39,7 +39,7 @@ enum MetricMaxSizes {
     BYTE(255,0,"unsigned byte") {
         @Override
         public long randVal() {
-            byte[] b = new byte[1];
+            final byte[] b = new byte[1];
 
             this.foo.nextBytes(b);
             return b[0] - Byte.MIN_VALUE;
@@ -48,10 +48,11 @@ enum MetricMaxSizes {
     BINARY(1, 0, "binary") {
         @Override
         public long randVal() {
-            if (this.foo.nextBoolean())
+            if (this.foo.nextBoolean()) {
                 return 1;
-            else
+            } else {
                 return 0;
+            }
         }
     };
 
@@ -61,13 +62,13 @@ enum MetricMaxSizes {
 //        protected final NotRandom foo = NotRandom.closed(0, 1 << 20);
     protected final Random foo = new Random();
 
-    MetricMaxSizes(long maxVal, long minVal, String name) {
+    MetricMaxSizes(final long maxVal, final long minVal, final String name) {
         this.maxVal = maxVal;
         this.minVal = minVal;
         this.name = name;
     }
 
-    MetricMaxSizes(String name) {
+    MetricMaxSizes(final String name) {
         this(Integer.MAX_VALUE, 0, name);
     }
 

@@ -77,8 +77,8 @@ public class RemoteFileMetadata {
             return false;
         }
         final RemoteFileMetadata that = (RemoteFileMetadata) o;
-        return isFile == that.isFile &&
-                compressedSize == that.compressedSize &&
+        return (isFile == that.isFile) &&
+                (compressedSize == that.compressedSize) &&
                 Objects.equal(fileMetadata, that.fileMetadata);
     }
 

@@ -21,13 +21,17 @@ import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.file.Paths;
 
 /**
  * @author dwahler
  */
 public class DumpFlamdex {
-    public static void main(String[] args) throws Exception {
+    private DumpFlamdex() {
+    }
+
+    public static void main(final String[] args) throws IOException {
         final SimpleFlamdexReader reader = SimpleFlamdexReader.open(Paths.get("/tmp/organicshard"));
         final DataOutputStream dos = new DataOutputStream(new BufferedOutputStream(new FileOutputStream("/tmp/shard.dat")));
 
@@ -37,7 +41,7 @@ public class DumpFlamdex {
         final int[] docIdBuffer = new int[1024];
         int n;
 
-        for (String strField : reader.getStringFields()) {
+        for (final String strField : reader.getStringFields()) {
             System.out.println("strField: " + strField);
             dos.writeBoolean(true);
             dos.writeUTF(strField);
@@ -63,7 +67,7 @@ public class DumpFlamdex {
         }
         dos.writeBoolean(false);
 
-        for (String intField : reader.getIntFields()) {
+        for (final String intField : reader.getIntFields()) {
             System.out.println("intField: " + intField);
             dos.writeBoolean(true);
             dos.writeUTF(intField);

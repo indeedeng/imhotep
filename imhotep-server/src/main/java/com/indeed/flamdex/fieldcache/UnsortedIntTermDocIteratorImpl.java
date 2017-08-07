@@ -24,7 +24,7 @@ public class UnsortedIntTermDocIteratorImpl implements UnsortedIntTermDocIterato
     private final IntTermIterator iterator;
     private final DocIdStream docIdStream;
 
-    public UnsortedIntTermDocIteratorImpl(IntTermIterator iterator, DocIdStream docIdStream) {
+    public UnsortedIntTermDocIteratorImpl(final IntTermIterator iterator, final DocIdStream docIdStream) {
         this.iterator = iterator;
         this.docIdStream = docIdStream;
     }
@@ -34,7 +34,7 @@ public class UnsortedIntTermDocIteratorImpl implements UnsortedIntTermDocIterato
         final DocIdStream docIdStream;
         try {
             docIdStream = r.getDocIdStream();
-        } catch (RuntimeException e) {
+        } catch (final RuntimeException e) {
             iterator.close();
             throw e;
         }
@@ -56,7 +56,7 @@ public class UnsortedIntTermDocIteratorImpl implements UnsortedIntTermDocIterato
     }
 
     @Override
-    public int nextDocs(int[] docIdBuffer) {
+    public int nextDocs(final int[] docIdBuffer) {
         return docIdStream.fillDocIdBuffer(docIdBuffer);
     }
 

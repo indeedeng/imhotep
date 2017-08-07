@@ -29,7 +29,7 @@ public final class GenericIntTermDocIterator implements IntTermDocIterator {
 
     private final DocIdStream docIdStream;
 
-    public GenericIntTermDocIterator(IntTermIterator termIterator, DocIdStream docIdStream) {
+    public GenericIntTermDocIterator(final IntTermIterator termIterator, final DocIdStream docIdStream) {
         this.termIterator = termIterator;
         this.docIdStream = docIdStream;
     }

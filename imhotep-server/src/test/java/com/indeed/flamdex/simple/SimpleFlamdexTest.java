@@ -184,7 +184,9 @@ public class SimpleFlamdexTest {
                 assertEquals(memReq, ivl.memoryUsed());
                 final int[] docIds = new int[r.getNumDocs()];
                 final long[] values = new long[r.getNumDocs()];
-                for (int doc = 0; doc < docIds.length; ++doc) docIds[doc] = doc;
+                for (int doc = 0; doc < docIds.length; ++doc) {
+                    docIds[doc] = doc;
+                }
                 ivl.lookup(docIds, values, r.getNumDocs());
                 assertEquals(Longs.asList(cache), Longs.asList(values));
                 ivl.close();
@@ -212,7 +214,9 @@ public class SimpleFlamdexTest {
             final Map<Integer, List<Integer>> map = Maps.newTreeMap();
             while (!docs.isEmpty()) {
                 final int term = rand.nextInt(maxTermVal);
-                if (map.containsKey(term)) continue;
+                if (map.containsKey(term)) {
+                    continue;
+                }
                 final int numDocs = docs.size() > 1 ? rand.nextInt(docs.size() - 1) + 1 : 1;
                 final List<Integer> selectedDocs = Lists.newArrayList();
                 for (int i = 0; i < numDocs; ++i) {

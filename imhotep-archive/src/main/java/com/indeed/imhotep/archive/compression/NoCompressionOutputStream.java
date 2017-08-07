@@ -22,12 +22,12 @@ import java.io.OutputStream;
  * @author jsgroth
  */
 public class NoCompressionOutputStream extends CompressionOutputStream {
-    public NoCompressionOutputStream(OutputStream out) {
+    public NoCompressionOutputStream(final OutputStream out) {
         super(out);
     }
 
     @Override
-    public void write(byte[] bytes, int off, int len) throws IOException {
+    public void write(final byte[] bytes, final int off, final int len) throws IOException {
         out.write(bytes, off, len);
     }
 
@@ -42,7 +42,7 @@ public class NoCompressionOutputStream extends CompressionOutputStream {
     }
 
     @Override
-    public void write(int b) throws IOException {
+    public void write(final int b) throws IOException {
         out.write(b);
     }
 }

@@ -38,7 +38,7 @@ class FlamdexInfo {
     private final long     sizeInBytes;
 
     private final Object2LongArrayMap<String> fieldSizesInBytes =
-        new Object2LongArrayMap<String>(16);
+        new Object2LongArrayMap<>(16);
 
     private static final String FIELD_PREFIX = "fld-";
     private static final String[] FIELD_EXTENSIONS = {
@@ -46,7 +46,7 @@ class FlamdexInfo {
     };
 
     private static final Set<String> fieldExtensions =
-        new ObjectArraySet<String>(FIELD_EXTENSIONS);
+        new ObjectArraySet<>(FIELD_EXTENSIONS);
 
     FlamdexInfo(final FlamdexReader reader) {
         final Path shardDir = reader.getDirectory();
@@ -77,7 +77,7 @@ class FlamdexInfo {
         try {
             return ShardTimeUtils.parseStart(shardId);
         }
-        catch (Exception ex) {
+        catch (final Exception ex) {
             log.warn("cannot extract date from shard directory: '" + shardId + "'");
             return null;
         }
@@ -100,8 +100,11 @@ class FlamdexInfo {
        @return sum of sizes of all field files in the shard's directory.
      */
     private long initFieldSizes(final FlamdexReader reader) {
-        long result = 0;
         final Path dir = reader.getDirectory();
+        if(dir == null)  {
+            return 0;
+        }
+        long result = 0;
         final SimpleFlamdexFileFilter filter = new SimpleFlamdexFileFilter();
 
         boolean isFlamdex = false;
@@ -145,7 +148,7 @@ class FlamdexInfo {
        @return The field's name or null if the file is not part of a field.
      */
     @Nullable
-    private static final String fieldNameOf(final Path path) {
+    private static String fieldNameOf(final Path path) {
         final String name = path.getFileName().toString();
         if (name.startsWith(FIELD_PREFIX)) {
             final int begin = FIELD_PREFIX.length();

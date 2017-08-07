@@ -13,10 +13,10 @@
  */
  package com.indeed.imhotep.local;
 
-import com.indeed.util.core.threads.ThreadSafeBitSet;
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.imhotep.BitTree;
 import com.indeed.imhotep.GroupRemapRule;
+import com.indeed.util.core.threads.ThreadSafeBitSet;
 
 final class BitSetGroupLookup extends GroupLookup {
     /**
@@ -26,19 +26,21 @@ final class BitSetGroupLookup extends GroupLookup {
     private final FastBitSet bitSet;
     private final int size;
 
-    BitSetGroupLookup(ImhotepLocalSession imhotepLocalSession, final int size) {
+    BitSetGroupLookup(final ImhotepLocalSession imhotepLocalSession, final int size) {
         this.session = imhotepLocalSession;
         this.size = size;
         this.bitSet = new FastBitSet(size);
     }
 
     @Override
-    public void nextGroupCallback(int n, long[][] termGrpStats, BitTree groupsSeen) {
+    public void nextGroupCallback(final int n, final long[][] termGrpStats, final BitTree groupsSeen) {
         int rewriteHead = 0;
         // remap groups and filter out useless docids (ones with group = 0), keep track of groups that were found
         for (int i = 0; i < n; i++) {
             final int docId = session.docIdBuf[i];
-            if (!bitSet.get(docId)) continue;
+            if (!bitSet.get(docId)) {
+                continue;
+            }
 
             session.docGroupBuffer[rewriteHead] = 1;
             session.docIdBuf[rewriteHead] = docId;
@@ -54,50 +56,72 @@ final class BitSetGroupLookup extends GroupLookup {
     }
 
     @Override
-    public void applyIntConditionsCallback(int n, ThreadSafeBitSet docRemapped, GroupRemapRule[] remapRules, String intField, long itrTerm) {
+    public void applyIntConditionsCallback(
+            final int n,
+            final ThreadSafeBitSet docRemapped,
+            final GroupRemapRule[] remapRules,
+            final String intField,
+            final long itrTerm) {
         for (int i = 0; i < n; i++) {
             final int docId = session.docIdBuf[i];
-            if (docRemapped.get(docId)) continue;
+            if (docRemapped.get(docId)) {
+                continue;
+            }
             final int group = bitSet.get(docId) ? 1 : 0;
-            if (remapRules[group] == null) continue;
-            if (ImhotepLocalSession.checkIntCondition(remapRules[group].condition, intField, itrTerm)) continue;
+            if (remapRules[group] == null) {
+                continue;
+            }
+            if (ImhotepLocalSession.checkIntCondition(remapRules[group].condition, intField, itrTerm)) {
+                continue;
+            }
             bitSet.set(docId, remapRules[group].positiveGroup == 1);
             docRemapped.set(docId);
         }
     }
 
     @Override
-    public void applyStringConditionsCallback(int n, ThreadSafeBitSet docRemapped, GroupRemapRule[] remapRules, String stringField, String itrTerm) {
+    public void applyStringConditionsCallback(
+            final int n,
+            final ThreadSafeBitSet docRemapped,
+            final GroupRemapRule[] remapRules,
+            final String stringField,
+            final String itrTerm) {
         for (int i = 0; i < n; i++) {
             final int docId = session.docIdBuf[i];
-            if (docRemapped.get(docId)) continue;
+            if (docRemapped.get(docId)) {
+                continue;
+            }
             final int group = bitSet.get(docId) ? 1 : 0;
-            if (remapRules[group] == null) continue;
-            if (ImhotepLocalSession.checkStringCondition(remapRules[group].condition, stringField, itrTerm)) continue;
+            if (remapRules[group] == null) {
+                continue;
+            }
+            if (ImhotepLocalSession.checkStringCondition(remapRules[group].condition, stringField, itrTerm)) {
+                continue;
+            }
             bitSet.set(docId, remapRules[group].positiveGroup == 1);
             docRemapped.set(docId);
         }
     }
 
     @Override
-    public int get(int doc) {
+    public int get(final int doc) {
         return bitSet.get(doc) ? 1 : 0;
     }
 
     @Override
-    public void set(int doc, int group) {
+    public void set(final int doc, final int group) {
         bitSet.set(doc, group == 1);
     }
 
     @Override
-    public void batchSet(int[] docIdBuf, int[] docGrpBuffer, int n) {
+    public void batchSet(final int[] docIdBuf, final int[] docGrpBuffer, final int n) {
         for (int i = 0; i < n; ++i) {
             bitSet.set(docIdBuf[i], docGrpBuffer[i] == 1);
         }
     }
 
     @Override
-    public void fill(int group) {
+    public void fill(final int group) {
         if (group == 0) {
             bitSet.clearAll();
         } else if (group == 1) {
@@ -108,7 +132,7 @@ final class BitSetGroupLookup extends GroupLookup {
     }
 
     @Override
-    public void copyInto(GroupLookup other) {
+    public void copyInto(final GroupLookup other) {
         if (size != other.size()) {
             throw new IllegalArgumentException("size does not match other.size: size="+size+", other.size="+other.size());
         }
@@ -135,7 +159,7 @@ final class BitSetGroupLookup extends GroupLookup {
     }
 
     @Override
-    public void fillDocGrpBuffer(int[] docIdBuf, int[] docGrpBuffer, int n) {
+    public void fillDocGrpBuffer(final int[] docIdBuf, final int[] docGrpBuffer, final int n) {
         for (int i = 0; i < n; ++i) {
             docGrpBuffer[i] = bitSet.get(docIdBuf[i]) ? 1 : 0;
         }
@@ -149,7 +173,11 @@ final class BitSetGroupLookup extends GroupLookup {
     }
 
     @Override
-    public void bitSetRegroup(FastBitSet bitSet, int targetGroup, int negativeGroup, int positiveGroup) {
+    public void bitSetRegroup(
+            final FastBitSet bitSet,
+            final int targetGroup,
+            final int negativeGroup,
+            final int positiveGroup) {
         // assuming targetGroup == 1 since nothing else would make sense
         if (negativeGroup == 0 && positiveGroup == 1) {
             this.bitSet.and(bitSet);
@@ -171,10 +199,9 @@ final class BitSetGroupLookup extends GroupLookup {
             }
         }
         this.numGroups = 1;
-        return;
     }
 
-    public static long calcMemUsageForSize(int sz) {
+    public static long calcMemUsageForSize(final int sz) {
         return 8L * ((sz + 64) >> 6);
     }
 

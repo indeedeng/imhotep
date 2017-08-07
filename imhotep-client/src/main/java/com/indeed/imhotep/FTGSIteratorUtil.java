@@ -158,7 +158,7 @@ public class FTGSIteratorUtil {
             this.groupStats = groupStats;
         }
 
-        boolean haveSameTerm(FTGSIteratorUtil.TermStat other) {
+        boolean haveSameTerm(final FTGSIteratorUtil.TermStat other) {
             return (fieldIsIntType == other.fieldIsIntType)
                     && (fieldIsIntType ? (intTerm == other.intTerm) : (strTerm.compareTo(other.strTerm) == 0));
         }

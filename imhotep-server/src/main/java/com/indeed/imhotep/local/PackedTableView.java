@@ -30,13 +30,11 @@ public final class PackedTableView {
     /** Metadata from MultiCacheConfig. */
     private final MultiCacheConfig.StatsOrderingInfo[] ordering;
 
-    /**
-     * Metadata that we care about for the packed_table. These should all be
-     * initialized by {@link #nativeBind}.
-     */
-    private long nativeShardDataPtr = 0;
+    // tableDataPtr and rowSizeBytes are set inside nativeBind()
+    @SuppressWarnings("FieldMayBeFinal")
     private long tableDataPtr = 0;
-    private  int rowSizeBytes = 0;
+    @SuppressWarnings("FieldMayBeFinal")
+    private int rowSizeBytes = 0;
 
     /**
      * All our constructor needs to to is cache the 'data' member of the
@@ -48,7 +46,10 @@ public final class PackedTableView {
     public PackedTableView(final MultiCacheConfig.StatsOrderingInfo[] ordering,
                            final long nativeShardDataPtr) {
         this.ordering           = ordering;
-        this.nativeShardDataPtr = nativeShardDataPtr;
+        /*
+      Metadata that we care about for the packed_table. These should all be
+      initialized by {@link #nativeBind}.
+     */
         nativeBind(nativeShardDataPtr);
     }
 
@@ -97,14 +98,14 @@ public final class PackedTableView {
 
     private native void nativeBind(long nativeShardDataPtr);
 
-    private static Unsafe unsafe;
+    private static final Unsafe unsafe;
     static {
         try {
-            java.lang.reflect.Constructor<Unsafe> ctor = Unsafe.class.getDeclaredConstructor();
+            final java.lang.reflect.Constructor<Unsafe> ctor = Unsafe.class.getDeclaredConstructor();
             ctor.setAccessible(true);
             unsafe = ctor.newInstance();
         }
-        catch (Throwable ex) {
+        catch (final Throwable ex) {
             throw ex instanceof RuntimeException ?
                 (RuntimeException) ex : new RuntimeException(ex);
         }

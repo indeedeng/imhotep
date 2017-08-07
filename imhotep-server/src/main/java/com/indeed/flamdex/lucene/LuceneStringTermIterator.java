@@ -42,10 +42,12 @@ class LuceneStringTermIterator implements StringTermIterator, LuceneTermIterator
     }
 
     private void closeTermEnum() {
-        if (termEnum == null) return;
+        if (termEnum == null) {
+            return;
+        }
         try {
            termEnum.close();
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw LuceneUtils.ioRuntimeException(e);
         }
         termEnum = null;
@@ -54,7 +56,7 @@ class LuceneStringTermIterator implements StringTermIterator, LuceneTermIterator
     private boolean initialize() {
         try {
             termEnum = reader.terms(new Term(field, firstTerm));
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw LuceneUtils.ioRuntimeException(e);
         }
         hasNext = termEnum.term() != null && field.equals(termEnum.term().field());
@@ -73,12 +75,14 @@ class LuceneStringTermIterator implements StringTermIterator, LuceneTermIterator
             return initialize();
         }
 
-        if (!hasNext) return false;
+        if (!hasNext) {
+            return false;
+        }
 
         final boolean nextSuccessful;
         try {
             nextSuccessful = termEnum.next();
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw LuceneUtils.ioRuntimeException(e);
         }
         hasNext = nextSuccessful && termEnum.term() != null && field.equals(termEnum.term().field());
@@ -96,7 +100,7 @@ class LuceneStringTermIterator implements StringTermIterator, LuceneTermIterator
         if (termEnum != null) {
             try {
                 closeTermEnum();
-            } catch (RuntimeException e) {
+            } catch (final RuntimeException e) {
                 log.error("error closing TermEnum", e);
             }
         }

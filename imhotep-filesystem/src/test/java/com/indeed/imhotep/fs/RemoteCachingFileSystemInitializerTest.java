@@ -22,7 +22,7 @@ import java.util.Properties;
 
 public class RemoteCachingFileSystemInitializerTest {
     @Rule
-    public TemporaryFolder tempDir = new TemporaryFolder();
+    public final TemporaryFolder tempDir = new TemporaryFolder();
 
     private void mapToProperties(final Map<String, String> config, final File target) throws IOException {
         final Properties properties = new Properties();

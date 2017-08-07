@@ -30,7 +30,7 @@ public final class NativeIntTermDocIterator extends NativeTermDocIterator implem
     private int index = 0;
     private int size = 0;
 
-    public NativeIntTermDocIterator(SimpleIntTermIterator termIterator, MapCache mapCache)
+    public NativeIntTermDocIterator(final SimpleIntTermIterator termIterator, final MapCache mapCache)
             throws IOException {
         super(termIterator.getFilename(), mapCache);
         this.termIterator = termIterator;
@@ -38,7 +38,9 @@ public final class NativeIntTermDocIterator extends NativeTermDocIterator implem
 
     @Override
     protected boolean bufferNext() {
-        if (!termIterator.next()) return false;
+        if (!termIterator.next()) {
+            return false;
+        }
         if (size >= termBuffer.length) {
             final long[] newBuffer = new long[termBuffer.length*2];
             System.arraycopy(termBuffer, 0, newBuffer, 0, size);

@@ -50,10 +50,10 @@ public interface SessionManager<E> {
     Map<String, LastActionTimeLimit> getLastActionTimes();
 
     public class LastActionTimeLimit {
-        final private long lastActionTime;
-        final private long sessionTimeoutDuration;
+        private final long lastActionTime;
+        private final long sessionTimeoutDuration;
 
-        public LastActionTimeLimit(long lastActionTime, long sessionTimeoutDuration) {
+        public LastActionTimeLimit(final long lastActionTime, final long sessionTimeoutDuration) {
             this.lastActionTime = lastActionTime;
             this.sessionTimeoutDuration = sessionTimeoutDuration;
         }

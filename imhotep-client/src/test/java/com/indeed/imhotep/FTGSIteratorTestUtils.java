@@ -8,6 +8,8 @@ import org.junit.Assert;
  */
 
 public class FTGSIteratorTestUtils {
+    private FTGSIteratorTestUtils() {
+    }
 
     public static void expectIntField(final FTGSIterator iter, final String field) {
         expectFieldEnd(iter);

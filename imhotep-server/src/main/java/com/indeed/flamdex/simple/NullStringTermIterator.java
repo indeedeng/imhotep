@@ -25,7 +25,7 @@ final class NullStringTermIterator implements SimpleStringTermIterator {
 
     private final Path docsFilename;
 
-    NullStringTermIterator(Path docsFilename) {
+    NullStringTermIterator(final Path docsFilename) {
         this.docsFilename = docsFilename;
     }
 
@@ -45,7 +45,7 @@ final class NullStringTermIterator implements SimpleStringTermIterator {
     }
 
     @Override
-    public void reset(String term) {
+    public void reset(final String term) {
     }
 
     @Override

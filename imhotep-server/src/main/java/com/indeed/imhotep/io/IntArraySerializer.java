@@ -29,41 +29,38 @@ import java.util.EnumSet;
  */
 public class IntArraySerializer implements FileSerializer<int[]> {
     @Override
-    public void serialize(int[] a, Path path) throws IOException {
+    public void serialize(final int[] a, final Path path) throws IOException {
         final FileSystemProvider provider = path.getFileSystem().provider();
-        final FileChannel ch = provider.newFileChannel(path,
-                                                       EnumSet.of(StandardOpenOption.READ,
-                                                                  StandardOpenOption.WRITE,
-                                                                  StandardOpenOption.CREATE));
 
-        try {
-            ByteBuffer buffer = ByteBuffer.allocateDirect(8192);
+        try (FileChannel ch = provider.newFileChannel(path,
+                EnumSet.of(StandardOpenOption.READ,
+                        StandardOpenOption.WRITE,
+                        StandardOpenOption.CREATE))) {
+            final ByteBuffer buffer = ByteBuffer.allocateDirect(8192);
             buffer.order(ByteOrder.LITTLE_ENDIAN);
-            IntBuffer intBuffer = buffer.asIntBuffer();
+            final IntBuffer intBuffer = buffer.asIntBuffer();
             for (int i = 0; i < a.length; i += 2048) {
                 intBuffer.clear();
-                int lim = Math.min(2048, a.length - i);
+                final int lim = Math.min(2048, a.length - i);
                 intBuffer.put(a, i, lim);
-                buffer.position(0).limit(4*lim);
+                buffer.position(0).limit(4 * lim);
                 ch.write(buffer);
             }
-        } finally {
-            ch.close();
         }
     }
 
     @Override
-    public int[] deserialize(Path path) throws IOException {
+    public int[] deserialize(final Path path) throws IOException {
         final FileSystemProvider provider = path.getFileSystem().provider();
 
         try (FileChannel ch = provider.newFileChannel(path, EnumSet.of(StandardOpenOption.READ))) {
-            int[] ret = new int[(int) (Files.size(path) / 4)];
-            ByteBuffer buffer = ByteBuffer.allocateDirect(8192);
+            final int[] ret = new int[(int) (Files.size(path) / 4)];
+            final ByteBuffer buffer = ByteBuffer.allocateDirect(8192);
             buffer.order(ByteOrder.LITTLE_ENDIAN);
-            IntBuffer intBuffer = buffer.asIntBuffer();
+            final IntBuffer intBuffer = buffer.asIntBuffer();
             for (int i = 0; i < ret.length; i += 2048) {
                 buffer.clear();
-                int lim = ch.read(buffer) / 4;
+                final int lim = ch.read(buffer) / 4;
                 intBuffer.clear();
                 intBuffer.get(ret, i, lim);
             }

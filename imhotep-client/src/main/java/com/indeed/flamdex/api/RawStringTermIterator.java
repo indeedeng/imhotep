@@ -18,7 +18,7 @@
  */
 public interface RawStringTermIterator extends StringTermIterator {
 
-    public byte[] termStringBytes();
+    byte[] termStringBytes();
 
-    public int termStringLength();
+    int termStringLength();
 }

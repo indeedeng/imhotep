@@ -13,24 +13,25 @@
  */
 package com.indeed.imhotep.service;
 
+import javax.annotation.Nonnull;
 import java.util.concurrent.ThreadFactory;
 
 class PinnedThreadFactory implements ThreadFactory {
 
     private final int cpu;
 
-    public PinnedThreadFactory(int cpu) {
+    public PinnedThreadFactory(final int cpu) {
         this.cpu = cpu;
     }
 
     @Override
-    public Thread newThread(Runnable runnable) {
+    public Thread newThread(@Nonnull final Runnable runnable) {
         return new PinnedThread(runnable);
     }
 
     private class PinnedThread extends Thread {
 
-        public PinnedThread(Runnable runnable) {
+        public PinnedThread(final Runnable runnable) {
             super(runnable);
         }
 

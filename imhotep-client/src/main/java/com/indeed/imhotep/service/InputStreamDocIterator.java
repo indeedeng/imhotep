@@ -35,7 +35,7 @@ public final class InputStreamDocIterator implements DocIterator {
     private final String[] stringValues;
     private int group;
 
-    public InputStreamDocIterator(InputStream in, int numIntFields, int numStringFields) {
+    public InputStreamDocIterator(final InputStream in, final int numIntFields, final int numStringFields) {
         this.in = new DataInputStream(in);
         intValues = new long[numIntFields];
         stringValues = new String[numStringFields];
@@ -43,7 +43,9 @@ public final class InputStreamDocIterator implements DocIterator {
 
     public boolean next() {
         try {
-            if (done) return false;
+            if (done) {
+                return false;
+            }
             if (in.readByte() != 1) {
                 done = true;
                 return false;
@@ -54,13 +56,13 @@ public final class InputStreamDocIterator implements DocIterator {
             }
             for (int i = 0; i < stringValues.length; i++) {
                 final int firstByte = in.readByte()&0xFF;
-                final int length = firstByte == 0xFF ? in.readInt() : firstByte;
+                final int length = (firstByte == 0xFF) ? in.readInt() : firstByte;
                 final byte[] bytes = new byte[length];
                 in.readFully(bytes);
                 stringValues[i] = new String(bytes, Charsets.UTF_8);
             }
             return true;
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw Throwables.propagate(e);
         }
     }

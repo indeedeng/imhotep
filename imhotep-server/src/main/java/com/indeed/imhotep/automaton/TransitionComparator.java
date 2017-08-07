@@ -38,44 +38,56 @@ class TransitionComparator implements Comparator<Transition>, Serializable {
 
 	boolean to_first;
 	
-	TransitionComparator(boolean to_first) {
+	TransitionComparator(final boolean to_first) {
 		this.to_first = to_first;
 	}
 	
 	/** 
 	 * Compares by (min, reverse max, to) or (to, min, reverse max). 
 	 */
-	public int compare(Transition t1, Transition t2) {
+	public int compare(final Transition t1, final Transition t2) {
 		if (to_first) {
 			if (t1.to != t2.to) {
-				if (t1.to == null)
+				if (t1.to == null) {
 					return -1;
-				else if (t2.to == null)
+				}
+				if (t2.to == null) {
 					return 1;
-				else if (t1.to.number < t2.to.number)
+				}
+				if (t1.to.number < t2.to.number) {
 					return -1;
-				else if (t1.to.number > t2.to.number)
+				}
+				if (t1.to.number > t2.to.number) {
 					return 1;
+				}
 			}
 		}
-		if (t1.min < t2.min)
+		if (t1.min < t2.min) {
 			return -1;
-		if (t1.min > t2.min)
+		}
+		if (t1.min > t2.min) {
 			return 1;
-		if (t1.max > t2.max)
+		}
+		if (t1.max > t2.max) {
 			return -1;
-		if (t1.max < t2.max)
+		}
+		if (t1.max < t2.max) {
 			return 1;
+		}
 		if (!to_first) {
 			if (t1.to != t2.to) {
-				if (t1.to == null)
+				if (t1.to == null) {
 					return -1;
-				else if (t2.to == null)
+				}
+				if (t2.to == null) {
 					return 1;
-				else if (t1.to.number < t2.to.number)
+				}
+				if (t1.to.number < t2.to.number) {
 					return -1;
-				else if (t1.to.number > t2.to.number)
+				}
+				if (t1.to.number > t2.to.number) {
 					return 1;
+				}
 			}
 		}
 		return 0;

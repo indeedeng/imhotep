@@ -15,6 +15,7 @@
 
 import com.indeed.util.varexport.Export;
 import com.indeed.util.varexport.VarExporter;
+
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -32,24 +33,26 @@ public final class ImhotepMemoryPool extends MemoryReserver {
 
     private final AtomicLong sizeInBytes = new AtomicLong(0);
 
-    public ImhotepMemoryPool(long capacityInBytes) {
+    public ImhotepMemoryPool(final long capacityInBytes) {
         this.capacityInBytes = capacityInBytes;
 
         VarExporter.forNamespace(getClass().getSimpleName()).includeInGlobal().export(this, "");
     }
 
     @Export(name = "used-memory", doc = "claimed memory in bytes")
-    public final long usedMemory() {
+    public long usedMemory() {
         return sizeInBytes.get();
     }
 
     @Export(name = "total-memory", doc = "total memory in bytes")
-    public final long totalMemory() {
+    public long totalMemory() {
         return capacityInBytes;
     }
 
-    public final boolean claimMemory(long numBytes) {
-        if (numBytes < 0) return false;
+    public boolean claimMemory(final long numBytes) {
+        if (numBytes < 0) {
+            return false;
+        }
         final long used = sizeInBytes.addAndGet(numBytes);
         if (used > capacityInBytes || used < 0) {
             sizeInBytes.addAndGet(-numBytes);
@@ -58,7 +61,7 @@ public final class ImhotepMemoryPool extends MemoryReserver {
         return true;
     }
 
-    public final void releaseMemory(long numBytes) {
+    public void releaseMemory(final long numBytes) {
         final long used = sizeInBytes.addAndGet(-numBytes);
         if (used < 0) {
             sizeInBytes.addAndGet(numBytes);

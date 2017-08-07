@@ -18,14 +18,20 @@ import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 
-import java.io.*;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.nio.file.Paths;
 
 /**
  * @author darren
  */
 public class DumpFlamdex2 {
-    public static void main(String[] args) throws Exception {
+    private DumpFlamdex2() {
+
+    }
+
+    public static void main(final String[] args) throws IOException {
         final SimpleFlamdexReader reader = SimpleFlamdexReader.open(Paths.get(args[0])); //"/tmp/native-ftgs-test7045001985093560042test");
         final BufferedWriter w  = new BufferedWriter(new FileWriter(args[1])); //"/tmp/shard3.dat"));
 
@@ -36,7 +42,7 @@ public class DumpFlamdex2 {
         final int[] docIdBuffer = new int[1024];
         int n;
 
-        for (String strField : reader.getStringFields()) {
+        for (final String strField : reader.getStringFields()) {
             System.out.println("strField: " + strField);
             w.write("String Field : " + strField);
             w.newLine();
@@ -64,7 +70,7 @@ public class DumpFlamdex2 {
         }
         w.newLine();
 
-        for (String intField : reader.getIntFields()) {
+        for (final String intField : reader.getIntFields()) {
             System.out.println("intField: " + intField);
             w.write("Int Field : " + intField);
             w.newLine();

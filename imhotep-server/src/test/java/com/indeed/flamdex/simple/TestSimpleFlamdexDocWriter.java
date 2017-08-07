@@ -23,7 +23,6 @@ import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.utils.FlamdexReinverter;
 import com.indeed.flamdex.writer.FlamdexDocWriter;
 import com.indeed.flamdex.writer.FlamdexDocument;
-
 import com.indeed.imhotep.io.TestFileUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Appender;
@@ -40,8 +39,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -64,7 +63,7 @@ public class TestSimpleFlamdexDocWriter {
 
         final Layout LAYOUT = new PatternLayout("[ %d{ISO8601} %-5p ] [%c{1}] %m%n");
 
-        LevelRangeFilter ERROR_FILTER = new LevelRangeFilter();
+        final LevelRangeFilter ERROR_FILTER = new LevelRangeFilter();
         ERROR_FILTER.setLevelMin(Level.ERROR);
         ERROR_FILTER.setLevelMax(Level.FATAL);
 
@@ -86,12 +85,12 @@ public class TestSimpleFlamdexDocWriter {
     }
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() throws IOException {
         tempDir = Files.createTempDirectory("flamdex-test");
     }
 
     @After
-    public void tearDown() throws Exception {
+    public void tearDown() throws IOException {
         TestFileUtils.deleteDirTree(tempDir);
     }
 
@@ -102,7 +101,7 @@ public class TestSimpleFlamdexDocWriter {
         runRandomTest(3);
     }
 
-    private void runRandomTest(int mergeFactor) throws IOException {
+    private void runRandomTest(final int mergeFactor) throws IOException {
         long elapsed = -System.currentTimeMillis();
         final FlamdexDocWriter w = new SimpleFlamdexDocWriter(tempDir, new SimpleFlamdexDocWriter.Config().setDocBufferSize(100).setMergeFactor(mergeFactor));
 
@@ -153,13 +152,19 @@ public class TestSimpleFlamdexDocWriter {
         }
     }
 
-    private static <T> boolean unorderedEquals(Map<String, ? extends List<T>> o1, Map<String, ? extends List<T>> o2) {
-        if (!o1.keySet().equals(o2.keySet())) return false;
+    private static <T> boolean unorderedEquals(
+            final Map<String, ? extends List<T>> o1,
+            final Map<String, ? extends List<T>> o2) {
+        if (!o1.keySet().equals(o2.keySet())) {
+            return false;
+        }
 
-        for (String s : o1.keySet()) {
-            Set<T> s1 = Sets.newHashSet(o1.get(s));
-            Set<T> s2 = Sets.newHashSet(o2.get(s));
-            if (!s1.equals(s2)) return false;
+        for (final String s : o1.keySet()) {
+            final Set<T> s1 = Sets.newHashSet(o1.get(s));
+            final Set<T> s2 = Sets.newHashSet(o2.get(s));
+            if (!s1.equals(s2)) {
+                return false;
+            }
         }
 
         return true;
@@ -170,16 +175,16 @@ public class TestSimpleFlamdexDocWriter {
         final SimpleFlamdexDocWriter.Config config = new SimpleFlamdexDocWriter.Config().setDocBufferSize(999999999).setMergeFactor(999999999);
         writeFlamdex(tempDir, config);
         final FlamdexReader r = SimpleFlamdexReader.open(tempDir);
-        assertTrue(r.getIntFields().size() == 2);
+        assertEquals(2, r.getIntFields().size());
         assertTrue(r.getIntFields().contains("if1"));
         assertTrue(r.getIntFields().contains("if2"));
-        assertTrue(r.getStringFields().size() == 2);
+        assertEquals(2, r.getStringFields().size());
         assertTrue(r.getStringFields().contains("sf1"));
         assertTrue(r.getStringFields().contains("sf2"));
 
-        DocIdStream dis = r.getDocIdStream();
-        int[] docIdBuffer = new int[64];
-        IntTermIterator iter = r.getIntTermIterator("if1");
+        final DocIdStream dis = r.getDocIdStream();
+        final int[] docIdBuffer = new int[64];
+        final IntTermIterator iter = r.getIntTermIterator("if1");
         assertTrue(iter.next());
         assertEquals(0, iter.term());
         assertEquals(2, iter.docFreq());
@@ -200,12 +205,12 @@ public class TestSimpleFlamdexDocWriter {
     @Test
     public void testEmpty() throws IOException {
         new SimpleFlamdexDocWriter(tempDir, new SimpleFlamdexDocWriter.Config()).close();
-        FlamdexReader r = SimpleFlamdexReader.open(tempDir);
+        final FlamdexReader r = SimpleFlamdexReader.open(tempDir);
         assertEquals(0, r.getNumDocs());
         r.close();
     }
 
-    private void writeFlamdex(Path dir, SimpleFlamdexDocWriter.Config config) throws IOException {
+    private void writeFlamdex(final Path dir, final SimpleFlamdexDocWriter.Config config) throws IOException {
         final FlamdexDocWriter w = new SimpleFlamdexDocWriter(dir, config);
 
         final FlamdexDocument doc0 = new FlamdexDocument();

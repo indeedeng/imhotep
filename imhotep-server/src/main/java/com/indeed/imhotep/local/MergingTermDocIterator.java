@@ -13,14 +13,13 @@
  */
  package com.indeed.imhotep.local;
 
+import com.indeed.flamdex.api.TermDocIterator;
+import com.indeed.util.core.Pair;
+import org.apache.log4j.Logger;
+
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.List;
-
-import org.apache.log4j.Logger;
-
-import com.indeed.util.core.Pair;
-import com.indeed.flamdex.api.TermDocIterator;
 
 
 public abstract class MergingTermDocIterator implements TermDocIterator {
@@ -28,20 +27,20 @@ public abstract class MergingTermDocIterator implements TermDocIterator {
 
     protected final List<TermDocIterator> iters;
     protected final ArrayDeque<Pair<Integer, TermDocIterator>> itersAndOffsetsForTerm;
-    protected int[] oldToNewDocIdMapping;
-    protected List<Integer> iterNumToDocOffset;
+    protected final int[] oldToNewDocIdMapping;
+    protected final List<Integer> iterNumToDocOffset;
 
-    public MergingTermDocIterator(List<TermDocIterator> tdIters,
-                                  int[] mapping,
-                                  List<Integer> iterNumToDocOffset) {
+    public MergingTermDocIterator(final List<TermDocIterator> tdIters,
+                                  final int[] mapping,
+                                  final List<Integer> iterNumToDocOffset) {
         this.iters = tdIters;
-        this.itersAndOffsetsForTerm = new ArrayDeque<Pair<Integer, TermDocIterator>>(iters.size());
+        this.itersAndOffsetsForTerm = new ArrayDeque<>(iters.size());
         this.oldToNewDocIdMapping = mapping;
         this.iterNumToDocOffset = iterNumToDocOffset;
     }
 
     @Override
-    public int fillDocIdBuffer(int[] docIdBuffer) {
+    public int fillDocIdBuffer(final int[] docIdBuffer) {
         int len;
         int start;
 
@@ -61,11 +60,9 @@ public abstract class MergingTermDocIterator implements TermDocIterator {
 
             /* copy the rest of the data we need into a new buffer */
             start += len;
-            int[] tmpBuf = new int[docIdBuffer.length - start];
+            final int[] tmpBuf = new int[docIdBuffer.length - start];
             len = pair.getSecond().fillDocIdBuffer(tmpBuf);
-            for (int i = 0; i < len; i++) {
-                docIdBuffer[i + start] = tmpBuf[i];
-            }
+            System.arraycopy(tmpBuf, 0, docIdBuffer, start, len);
             renumberDocIds(pair.getFirst(), docIdBuffer, start, start + len);
         }
 
@@ -77,7 +74,7 @@ public abstract class MergingTermDocIterator implements TermDocIterator {
         return 0;
     }
 
-    private void renumberDocIds(int offset, int[] docIdBuffer, int start, int end) {
+    private void renumberDocIds(final int offset, final int[] docIdBuffer, final int start, final int end) {
         for (int i = start; i < end; ++i) {
             final int oldDocId = docIdBuffer[i];
             final int newDocId = oldToNewDocIdMapping[oldDocId + offset];
@@ -86,10 +83,10 @@ public abstract class MergingTermDocIterator implements TermDocIterator {
     }
     
     public void close() {
-        for (TermDocIterator iter : this.iters) {
+        for (final TermDocIterator iter : this.iters) {
             try {
                 iter.close();
-            } catch(IOException e) {
+            } catch(final IOException e) {
                 log.error("Could not close TermDocIterator while optimizing index", e);
             }
         }

@@ -14,9 +14,9 @@
  package com.indeed.imhotep;
 
 import com.google.common.collect.Lists;
-import junit.framework.TestCase;
 import org.junit.Test;
 
+import javax.annotation.Nonnull;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
@@ -27,10 +27,12 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static org.junit.Assert.assertEquals;
+
 /**
  * @author jsgroth
  */
-public class TestImhotepMemoryPool extends TestCase {
+public class TestImhotepMemoryPool {
     private static final int NUM_THREADS = 100;
 
     @Test
@@ -38,15 +40,15 @@ public class TestImhotepMemoryPool extends TestCase {
         final ImhotepMemoryPool pool = new ImhotepMemoryPool(1024*1024*1024);
         final Random rand = new Random();
         for (int z = 0; z < 100; ++z) {
-            ExecutorService executor = Executors.newFixedThreadPool(NUM_THREADS, new ThreadFactory() {
+            final ExecutorService executor = Executors.newFixedThreadPool(NUM_THREADS, new ThreadFactory() {
                 @Override
-                public Thread newThread(Runnable r) {
-                    Thread t = Executors.defaultThreadFactory().newThread(r);
+                public Thread newThread(@Nonnull final Runnable r) {
+                    final Thread t = Executors.defaultThreadFactory().newThread(r);
                     t.setDaemon(true);
                     return t;
                 }
             });
-            List<Future<?>> futures = Lists.newArrayList();
+            final List<Future<?>> futures = Lists.newArrayList();
             for (int i = 0; i < NUM_THREADS; ++i) {
                 futures.add(executor.submit(new Runnable() {
                     long allocated = 0L;
@@ -54,7 +56,7 @@ public class TestImhotepMemoryPool extends TestCase {
                     @Override
                     public void run() {
                         while (true) {
-                            long l = (rand.nextLong() & Long.MAX_VALUE) % (1024*1024);
+                            final long l = (rand.nextLong() & Long.MAX_VALUE) % (1024*1024);
                             if (!pool.claimMemory(l)) {
                                 break;
                             }
@@ -62,7 +64,7 @@ public class TestImhotepMemoryPool extends TestCase {
                         }
 
                         while (allocated > 0L) {
-                            long l = Math.max((rand.nextLong() & Long.MAX_VALUE) % (Math.max(1, allocated / 4)), Math.min(allocated, 1024));
+                            final long l = Math.max((rand.nextLong() & Long.MAX_VALUE) % (Math.max(1, allocated / 4)), Math.min(allocated, 1024));
                             pool.releaseMemory(l);
                             allocated -= l;
                         }
@@ -70,7 +72,7 @@ public class TestImhotepMemoryPool extends TestCase {
                 }));
             }
             try {
-                for (Future<?> future : futures) {
+                for (final Future<?> future : futures) {
                     future.get(10L, TimeUnit.SECONDS);
                 }
             } finally {

@@ -13,12 +13,11 @@
  */
  package com.indeed.flamdex.fieldcache;
 
-import com.indeed.util.core.io.Closeables2;
 import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.datastruct.MMapFastBitSet;
+import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
@@ -31,11 +30,11 @@ public final class MMapBitSetIntValueLookup implements IntValueLookup {
 
     private final MMapFastBitSet bitSet;
 
-    public MMapBitSetIntValueLookup(MMapFastBitSet bitSet) {
+    public MMapBitSetIntValueLookup(final MMapFastBitSet bitSet) {
         this.bitSet = bitSet;
     }
 
-    public MMapBitSetIntValueLookup(Path path, int length) throws IOException {
+    public MMapBitSetIntValueLookup(final Path path, final int length) throws IOException {
         this(new MMapFastBitSet(path, length, FileChannel.MapMode.READ_ONLY));
     }
 
@@ -50,7 +49,7 @@ public final class MMapBitSetIntValueLookup implements IntValueLookup {
     }
 
     @Override
-    public void lookup(int[] docIds, long[] values, int n) {
+    public void lookup(final int[] docIds, final long[] values, final int n) {
         for (int i = 0; i < n; ++i) {
             values[i] = bitSet.get(docIds[i]) ? 1 : 0;
         }

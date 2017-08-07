@@ -48,7 +48,7 @@ public class TestDatasetInfoCache {
     private Path storeDir   = null;
     private Path unusedDir  = null;
 
-    @Before public void setUp() throws Exception {
+    @Before public void setUp() throws IOException {
         config     = new LocalImhotepServiceConfig();
         datasetDir = Files.createTempDirectory("Datasets.");
         storeDir   = Files.createTempDirectory("ShardStore.");
@@ -56,7 +56,7 @@ public class TestDatasetInfoCache {
         sds        = generateDatasets(16);
     }
 
-    @After public void tearDown() throws Exception {
+    @After public void tearDown() throws IOException {
         TestFileUtils.deleteDirTree(datasetDir);
         TestFileUtils.deleteDirTree(storeDir);
         TestFileUtils.deleteDirTree(unusedDir);
@@ -65,14 +65,14 @@ public class TestDatasetInfoCache {
     /** Verify that LocalImhotepServiceCore can build a ShardMap from datasets
      *  on the filesystem.
      */
-    @Test public void testLoadFromFilesystem() throws Exception {
+    @Test public void testLoadFromFilesystem() {
         checkServiceCore(ShardUpdateListenerIf.Source.FILESYSTEM);
     }
 
     /** Verify that LocalImhotepServiceCore can load a ShardMap from a
      *  ShardStore cache.
      */
-    @Test public void testLoadFromCache() throws Exception {
+    @Test public void testLoadFromCache() {
         /* first time round, we create the cache... */
         checkServiceCore(ShardUpdateListenerIf.Source.FILESYSTEM);
         /* second time we should load it */
@@ -82,7 +82,7 @@ public class TestDatasetInfoCache {
     /** Verify that we correctly fall back to scraping the filesystem in the
      *  face of a corrupt cache.
      */
-    @Test public void testFallback() throws Exception {
+    @Test public void testFallback() throws IOException {
         /* first time round, we create the cache... */
         checkServiceCore(ShardUpdateListenerIf.Source.FILESYSTEM);
         injectCacheCorruption();
@@ -100,8 +100,8 @@ public class TestDatasetInfoCache {
         private final List<SkeletonDataset> expected;
         private final Source expectedSource;
 
-        public CheckDatasetUpdate(List<SkeletonDataset> expected,
-                                  Source expectedSource) {
+        public CheckDatasetUpdate(final List<SkeletonDataset> expected,
+                                  final Source expectedSource) {
             this.expected       = expected;
             this.expectedSource = expectedSource;
         }
@@ -112,49 +112,63 @@ public class TestDatasetInfoCache {
             datasetsMatch.set(compare(expected, datasetList));
         }
 
-        private static boolean compare(Collection<String> thing1, Collection<String> thing2) {
-            if (thing1.size() != thing2.size()) return false;
-            List<String> list1 = new ArrayList<>(thing1);
-            List<String> list2 = new ArrayList<>(thing2);
+        private static boolean compare(final Collection<String> thing1, final Collection<String> thing2) {
+            if (thing1.size() != thing2.size()) {
+                return false;
+            }
+            final List<String> list1 = new ArrayList<>(thing1);
+            final List<String> list2 = new ArrayList<>(thing2);
             Collections.sort(list1);
             Collections.sort(list2);
             return list1.equals(list2);
         }
 
-        private static boolean compare(List<SkeletonDataset> expected, List<DatasetInfo> actual) {
+        private static boolean compare(
+                final List<SkeletonDataset> expected,
+                final List<DatasetInfo> actual) {
 
-            if (expected.size() != actual.size()) return false;
+            if (expected.size() != actual.size()) {
+                return false;
+            }
 
             Collections.sort(expected, new Comparator<SkeletonDataset>() {
-                    public int compare(SkeletonDataset thing1, SkeletonDataset thing2) {
+                    public int compare(final SkeletonDataset thing1, final SkeletonDataset thing2) {
                         return thing1.getDatasetDir().compareTo(thing2.getDatasetDir());
                     }
                 });
 
 
             Collections.sort(actual, new Comparator<DatasetInfo>() {
-                    public int compare(DatasetInfo thing1, DatasetInfo thing2) {
+                    public int compare(final DatasetInfo thing1, final DatasetInfo thing2) {
                         return thing1.getDataset().compareTo(thing2.getDataset());
                     }
                 });
 
-            Iterator<SkeletonDataset> expectedIt = expected.iterator();
-            Iterator<DatasetInfo>     actualIt   = actual.iterator();
+            final Iterator<SkeletonDataset> expectedIt = expected.iterator();
+            final Iterator<DatasetInfo>     actualIt   = actual.iterator();
             while (expectedIt.hasNext() && actualIt.hasNext()) {
                 final SkeletonDataset sd = expectedIt.next();
                 final DatasetInfo     di = actualIt.next();
-                if (! sd.getDatasetDir().getFileName().toString().equals(di.getDataset())) return false;
-                if (sd.getNumShards() != di.getShardList().size()) return false;
-                if (! compare(Arrays.asList(sd.getIntFieldNames()), di.getIntFields())) return false;
-                if (! compare(Arrays.asList(sd.getStrFieldNames()), di.getStringFields())) return false;
+                if (! sd.getDatasetDir().getFileName().toString().equals(di.getDataset())) {
+                    return false;
+                }
+                if (sd.getNumShards() != di.getShardList().size()) {
+                    return false;
+                }
+                if (! compare(Arrays.asList(sd.getIntFieldNames()), di.getIntFields())) {
+                    return false;
+                }
+                if (! compare(Arrays.asList(sd.getStrFieldNames()), di.getStringFields())) {
+                    return false;
+                }
             }
             return true;
         }
     }
 
     private List<SkeletonDataset> generateDatasets(int numDatasets)
-        throws Exception {
-        List<SkeletonDataset> result = new ArrayList<>(numDatasets);
+        throws IOException {
+        final List<SkeletonDataset> result = new ArrayList<>(numDatasets);
         while (--numDatasets >= 0) {
             final int maxNumShards = Math.max(rng.nextInt(256), 16);
             final int maxNumDocs   = Math.max(rng.nextInt(1000000), 1);
@@ -192,11 +206,13 @@ public class TestDatasetInfoCache {
             assertTrue("DatasetInfo lists match",
                        listener.datasetsMatch.get());
         }
-        catch (IOException ex) {
+        catch (final IOException ex) {
             fail(ex.toString());
         }
         finally {
-            if (svcCore != null) svcCore.close();
+            if (svcCore != null) {
+                svcCore.close();
+            }
         }
     }
 

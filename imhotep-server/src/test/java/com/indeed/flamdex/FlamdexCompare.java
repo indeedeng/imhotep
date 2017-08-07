@@ -34,22 +34,29 @@ import java.util.Set;
  * @author jsgroth
  */
 class FlamdexCompare {
-    static boolean unorderedEquals(FlamdexReader r1, FlamdexReader r2) {
+    private FlamdexCompare() {
+    }
+
+    static boolean unorderedEquals(final FlamdexReader r1, final FlamdexReader r2) {
         return unorderedEquals(FlamdexReinverter.reinvertInMemory(r1), FlamdexReinverter.reinvertInMemory(r2));
     }
 
-    static boolean unorderedEquals(List<FlamdexDocument> l1, List<FlamdexDocument> l2) {
-        if (l1.size() != l2.size()) return false;
+    static boolean unorderedEquals(final List<FlamdexDocument> l1, final List<FlamdexDocument> l2) {
+        if (l1.size() != l2.size()) {
+            return false;
+        }
 
-        Multiset<FlamdexDocumentWrapper> s1 = HashMultiset.create(Lists.transform(l1, new Function<FlamdexDocument, FlamdexDocumentWrapper>() {
+        final Multiset<FlamdexDocumentWrapper> s1 = HashMultiset.create(Lists.transform(l1, new Function<FlamdexDocument, FlamdexDocumentWrapper>() {
             @Override
-            public FlamdexDocumentWrapper apply(FlamdexDocument input) {
+            public FlamdexDocumentWrapper apply(final FlamdexDocument input) {
                 return new FlamdexDocumentWrapper(input);
             }
         }));
         for (final FlamdexDocument doc : l2) {
             final FlamdexDocumentWrapper w = new FlamdexDocumentWrapper(doc);
-            if (!s1.remove(w)) return false;
+            if (!s1.remove(w)) {
+                return false;
+            }
         }
         return s1.isEmpty();
     }
@@ -58,21 +65,28 @@ class FlamdexCompare {
         private final Map<String, LongSet> intFields;
         private final Map<String, Set<String>> stringFields;
 
-        private FlamdexDocumentWrapper(FlamdexDocument doc) {
+        private FlamdexDocumentWrapper(final FlamdexDocument doc) {
             intFields = rewriteIntFields(doc.getIntFields());
             stringFields = rewriteStringFields(doc.getStringFields());
         }
 
         @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-
-            FlamdexDocumentWrapper that = (FlamdexDocumentWrapper) o;
-
-            if (intFields != null ? !intFields.equals(that.intFields) : that.intFields != null) return false;
-            if (stringFields != null ? !stringFields.equals(that.stringFields) : that.stringFields != null)
+        public boolean equals(final Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
                 return false;
+            }
+
+            final FlamdexDocumentWrapper that = (FlamdexDocumentWrapper) o;
+
+            if (intFields != null ? !intFields.equals(that.intFields) : that.intFields != null) {
+                return false;
+            }
+            if (stringFields != null ? !stringFields.equals(that.stringFields) : that.stringFields != null) {
+                return false;
+            }
 
             return true;
         }
@@ -92,18 +106,18 @@ class FlamdexCompare {
         }
     }
 
-    private static Map<String, LongSet> rewriteIntFields(Map<String, LongList> map) {
-        Map<String, LongSet> ret = Maps.newHashMapWithExpectedSize(map.size());
-        for (String key : map.keySet()) {
-            ret.put(key, new LongOpenHashSet(map.get(key)));
+    private static Map<String, LongSet> rewriteIntFields(final Map<String, LongList> map) {
+        final Map<String, LongSet> ret = Maps.newHashMapWithExpectedSize(map.size());
+        for (final Map.Entry<String, LongList> mapEntry : map.entrySet()) {
+            ret.put(mapEntry.getKey(), new LongOpenHashSet(mapEntry.getValue()));
         }
         return ret;
     }
 
-    private static Map<String, Set<String>> rewriteStringFields(Map<String, List<String>> map) {
-        Map<String, Set<String>> ret = Maps.newHashMapWithExpectedSize(map.size());
-        for (String key : map.keySet()) {
-            ret.put(key, new HashSet<String>(map.get(key)));
+    private static Map<String, Set<String>> rewriteStringFields(final Map<String, List<String>> map) {
+        final Map<String, Set<String>> ret = Maps.newHashMapWithExpectedSize(map.size());
+        for (final Map.Entry<String, List<String>> mapEntry : map.entrySet()) {
+            ret.put(mapEntry.getKey(), new HashSet<>(mapEntry.getValue()));
         }
         return ret;
     }

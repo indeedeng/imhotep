@@ -21,11 +21,11 @@ public class MultiValuedFieldRegroupException extends ImhotepKnownException {
         super();
     }
 
-    public MultiValuedFieldRegroupException(String s) {
+    public MultiValuedFieldRegroupException(final String s) {
         super(s);
     }
 
-    public MultiValuedFieldRegroupException(String message, Throwable cause) {
+    public MultiValuedFieldRegroupException(final String message, final Throwable cause) {
         super(message, cause);
     }
 }

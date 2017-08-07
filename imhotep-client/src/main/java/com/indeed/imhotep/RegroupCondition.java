@@ -20,7 +20,7 @@ public class RegroupCondition {
     public final String stringTerm;
     public final boolean inequality;
 
-    public RegroupCondition(String field, boolean intType, long intTerm, String stringTerm, boolean inequality) {
+    public RegroupCondition(final String field, final boolean intType, final long intTerm, final String stringTerm, final boolean inequality) {
         this.field = field.intern();
         this.intType = intType;
         this.intTerm = intTerm;
@@ -33,17 +33,31 @@ public class RegroupCondition {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+    public boolean equals(final Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
-        RegroupCondition that = (RegroupCondition) o;
+        final RegroupCondition that = (RegroupCondition) o;
 
-        if (inequality != that.inequality) return false;
-        if (intTerm != that.intTerm) return false;
-        if (intType != that.intType) return false;
-        if (field != null ? !field.equals(that.field) : that.field != null) return false;
-        if (stringTerm != null ? !stringTerm.equals(that.stringTerm) : that.stringTerm != null) return false;
+        if (inequality != that.inequality) {
+            return false;
+        }
+        if (intTerm != that.intTerm) {
+            return false;
+        }
+        if (intType != that.intType) {
+            return false;
+        }
+        if (field != null ? !field.equals(that.field) : that.field != null) {
+            return false;
+        }
+        if (stringTerm != null ? !stringTerm.equals(that.stringTerm) : that.stringTerm != null) {
+            return false;
+        }
 
         return true;
     }
