@@ -38,7 +38,7 @@ public class ShardDir {
         } else if (DynamicIndexSubshardDirnameUtil.isValidName(this.name)) {
             final DynamicIndexSubshardDirnameUtil.DynamicIndexShardInfo dynamicIndexShardInfo = DynamicIndexSubshardDirnameUtil.parse(this.name);
             this.id = dynamicIndexShardInfo.getId();
-            this.version = dynamicIndexShardInfo.getTimestamp();
+            this.version = dynamicIndexShardInfo.getUpdateId();
         } else {
             this.id = name;
             this.version = 0L;

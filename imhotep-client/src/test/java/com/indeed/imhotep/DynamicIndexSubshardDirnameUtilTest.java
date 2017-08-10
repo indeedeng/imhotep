@@ -32,8 +32,8 @@ public class DynamicIndexSubshardDirnameUtilTest {
         final DynamicIndexSubshardDirnameUtil.DynamicIndexShardInfo dynamicIndexShardInfo = shardInfoOrEmpty.get();
         assertEquals(shardName, dynamicIndexShardInfo.getName());
         assertEquals("dindex19700101.00-19700101.01.1.4", dynamicIndexShardInfo.getId());
-        assertEquals(1234L, dynamicIndexShardInfo.getTimestamp());
-        assertEquals(5678L, dynamicIndexShardInfo.getVersion());
+        assertEquals(1234L, dynamicIndexShardInfo.getUpdateId());
+        assertEquals(5678L, dynamicIndexShardInfo.getTimestamp());
         assertEquals(1, dynamicIndexShardInfo.getSubshardId());
         assertEquals(4, dynamicIndexShardInfo.getNumSubshards());
 
