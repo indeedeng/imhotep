@@ -813,23 +813,16 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 final IntTermIterator iter = flamdexReader.getIntTermIterator(field);
                 final DocIdStream docIdStream = flamdexReader.getDocIdStream()
             ) {
-
-                int termsIndex = 0;
-                while (iter.next()) {
-                    final long term = iter.term();
-                    while (termsIndex < terms.length && terms[termsIndex] < term) {
-                        ++termsIndex;
-                    }
-
-                    if (termsIndex < terms.length && term == terms[termsIndex]) {
-                        docIdStream.reset(iter);
-                        remapPositiveDocs(docIdStream, docRemapped, targetGroup, positiveGroup);
-                        ++termsIndex;
-                    }
-
-                    if (termsIndex == terms.length) {
+                for (final long term : terms) {
+                    iter.reset(term);
+                    if (!iter.next()) {
                         break;
                     }
+                    if (iter.term() != term) {
+                        continue;
+                    }
+                    docIdStream.reset(iter);
+                    remapPositiveDocs(docIdStream, docRemapped, targetGroup, positiveGroup);
                 }
             }
             remapNegativeDocs(docRemapped, targetGroup, negativeGroup);
@@ -864,22 +857,16 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 final StringTermIterator iter = flamdexReader.getStringTermIterator(field);
                 final DocIdStream docIdStream = flamdexReader.getDocIdStream()
             ) {
-                int termsIndex = 0;
-                while (iter.next()) {
-                    final String term = iter.term();
-                    while (termsIndex < terms.length && terms[termsIndex].compareTo(term) < 0) {
-                        ++termsIndex;
-                    }
-
-                    if (termsIndex < terms.length && terms[termsIndex].equals(term)) {
-                        docIdStream.reset(iter);
-                        remapPositiveDocs(docIdStream, docRemapped, targetGroup, positiveGroup);
-                        ++termsIndex;
-                    }
-
-                    if (termsIndex == terms.length) {
+                for (final String term : terms) {
+                    iter.reset(term);
+                    if (!iter.next()) {
                         break;
                     }
+                    if (!iter.term().equals(term)) {
+                        continue;
+                    }
+                    docIdStream.reset(iter);
+                    remapPositiveDocs(docIdStream, docRemapped, targetGroup, positiveGroup);
                 }
             }
             remapNegativeDocs(docRemapped, targetGroup, negativeGroup);
