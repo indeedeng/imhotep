@@ -92,6 +92,7 @@ import com.indeed.imhotep.metrics.ShiftRight;
 import com.indeed.imhotep.metrics.Subtraction;
 import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.service.InstrumentedFlamdexReader;
+import com.indeed.imhotep.service.InstrumentedRawFlamdexReader;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
@@ -228,7 +229,9 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         throws ImhotepOutOfMemoryException {
         this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
         constructorStackTrace = new Exception();
-        this.instrumentedFlamdexReader = new InstrumentedFlamdexReader(flamdexReader);
+        this.instrumentedFlamdexReader = (flamdexReader instanceof RawFlamdexReader) ?
+                new InstrumentedRawFlamdexReader((RawFlamdexReader) flamdexReader) :
+                new InstrumentedFlamdexReader(flamdexReader);
         this.flamdexReader = this.instrumentedFlamdexReader; // !@# remove this alias
         this.flamdexReaderRef = SharedReference.create(this.flamdexReader);
         this.memory = memory;
