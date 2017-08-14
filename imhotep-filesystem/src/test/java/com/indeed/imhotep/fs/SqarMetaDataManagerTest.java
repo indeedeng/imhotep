@@ -26,7 +26,7 @@ import static org.junit.Assert.assertTrue;
  */
 public class SqarMetaDataManagerTest {
     @Rule
-    public RemoteCachingFileSystemTestContext testContext = new RemoteCachingFileSystemTestContext(new File(getClass().getResource("/").getFile()));
+    public final RemoteCachingFileSystemTestContext testContext = new RemoteCachingFileSystemTestContext(new File(getClass().getResource("/").getFile()));
 
     @Test
     public void testSqarExists() throws IOException, URISyntaxException {

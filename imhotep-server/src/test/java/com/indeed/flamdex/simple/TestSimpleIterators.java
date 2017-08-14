@@ -37,18 +37,18 @@ public class TestSimpleIterators {
     private Path tempDir;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() throws IOException {
         tempDir = Files.createTempDirectory("flamdex-test");
     }
 
     @After
-    public void tearDown() throws Exception {
+    public void tearDown() throws IOException {
         TestFileUtils.deleteDirTree(tempDir);
     }
 
     @Test
     public void testResetBeforeFirstStringTerm() throws IOException {
-        SimpleFlamdexWriter writer = new SimpleFlamdexWriter(tempDir, 1L);
+        final SimpleFlamdexWriter writer = new SimpleFlamdexWriter(tempDir, 1L);
         final StringFieldWriter w = writer.getStringFieldWriter("stringfield");
         w.nextTerm("a");
         w.nextDoc(0);
@@ -70,7 +70,7 @@ public class TestSimpleIterators {
 
     @Test
     public void testResetBeforeFirstIntTerm() throws IOException {
-        SimpleFlamdexWriter writer = new SimpleFlamdexWriter(tempDir, 1L);
+        final SimpleFlamdexWriter writer = new SimpleFlamdexWriter(tempDir, 1L);
         final IntFieldWriter w = writer.getIntFieldWriter("intfield");
         w.nextTerm(1);
         w.nextDoc(0);

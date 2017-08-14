@@ -1,5 +1,6 @@
 package com.indeed.flamdex.simple;
 
+import java.io.IOException;
 import java.nio.file.Path;
 
 /**
@@ -9,12 +10,12 @@ import java.nio.file.Path;
 public class UnsortedStringToIntTermIterator implements SimpleIntTermIterator  {
     private final SimpleStringTermIterator stringTermIterator;
 
-    public UnsortedStringToIntTermIterator(SimpleStringTermIterator stringTermIterator) {
+    public UnsortedStringToIntTermIterator(final SimpleStringTermIterator stringTermIterator) {
         this.stringTermIterator = stringTermIterator;
     }
 
     @Override
-    public void reset(long term) {
+    public void reset(final long term) {
         stringTermIterator.reset(String.valueOf(term));
     }
 
@@ -22,7 +23,7 @@ public class UnsortedStringToIntTermIterator implements SimpleIntTermIterator  {
     public long term() {
         try {
             return Long.parseLong(stringTermIterator.term());
-        } catch(NumberFormatException ignored) {
+        } catch(final NumberFormatException ignored) {
             return 0;
         }
     }
@@ -53,8 +54,7 @@ public class UnsortedStringToIntTermIterator implements SimpleIntTermIterator  {
     }
 
     @Override
-    public long getDocListAddress()
-        throws java.io.IOException {
+    public long getDocListAddress() throws IOException {
         return stringTermIterator.getDocListAddress();
     }
 }

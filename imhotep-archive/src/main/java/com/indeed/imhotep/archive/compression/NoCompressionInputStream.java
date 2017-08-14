@@ -22,12 +22,12 @@ import java.io.InputStream;
  * @author jsgroth
  */
 public class NoCompressionInputStream extends CompressionInputStream {
-    public NoCompressionInputStream(InputStream in) throws IOException {
+    public NoCompressionInputStream(final InputStream in) throws IOException {
         super(in);
     }
 
     @Override
-    public int read(byte[] bytes, int off, int len) throws IOException {
+    public int read(final byte[] bytes, final int off, final int len) throws IOException {
         return in.read(bytes, off, len);
     }
 

@@ -70,7 +70,7 @@ public class ShardDir {
             return false;
         }
         final ShardDir shardDir = (ShardDir) o;
-        return version == shardDir.version &&
+        return (version == shardDir.version) &&
                 Objects.equal(name, shardDir.name) &&
                 Objects.equal(indexDir, shardDir.indexDir) &&
                 Objects.equal(id, shardDir.id);

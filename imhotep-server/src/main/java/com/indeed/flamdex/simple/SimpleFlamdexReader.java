@@ -66,19 +66,20 @@ public class SimpleFlamdexReader
 
     private final Map<String, NativeFlamdexFieldCacher> intFieldCachers;
 
-    protected SimpleFlamdexReader(Path directory,
-                                  int numDocs,
-                                  Collection<String> intFields,
-                                  Collection<String> stringFields,
-                                  boolean useMMapMetrics) {
+    protected SimpleFlamdexReader(final Path directory,
+                                  final int numDocs,
+                                  final Collection<String> intFields,
+                                  final Collection<String> stringFields,
+                                  final boolean useMMapMetrics) {
         this(directory, numDocs, intFields, stringFields, useMMapMetrics, true);
     }
 
-    protected SimpleFlamdexReader(Path directory,
-                                  int numDocs,
-                                  Collection<String> intFields,
-                                  Collection<String> stringFields,
-                                  boolean useMMapMetrics, boolean useMMapDocIdStream) {
+    protected SimpleFlamdexReader(final Path directory,
+                                  final int numDocs,
+                                  final Collection<String> intFields,
+                                  final Collection<String> stringFields,
+                                  final boolean useMMapMetrics,
+                                  final boolean useMMapDocIdStream) {
         super(directory, numDocs, useMMapMetrics);
 
         this.intFields = intFields;
@@ -159,16 +160,16 @@ public class SimpleFlamdexReader
     }
 
     @Override
-    public SimpleIntTermIterator getUnsortedIntTermIterator(String field) {
+    public SimpleIntTermIterator getUnsortedIntTermIterator(final String field) {
         return getIntTermIterator(field, true);
     }
 
     @Override
-    public SimpleIntTermIterator getIntTermIterator(String field) {
+    public SimpleIntTermIterator getIntTermIterator(final String field) {
         return getIntTermIterator(field, false);
     }
 
-    private SimpleIntTermIterator getIntTermIterator(final String field, boolean unsorted) {
+    private SimpleIntTermIterator getIntTermIterator(final String field, final boolean unsorted) {
         final Path termsPath = directory.resolve(SimpleIntFieldWriter.getTermsFilename(field));
         final Path docsPath = directory.resolve(SimpleIntFieldWriter.getDocsFilename(field));
 
@@ -206,13 +207,13 @@ public class SimpleFlamdexReader
                 indexPath = null;
             }
             return new SimpleIntTermIteratorImpl(mapCache, termsPath, docsPath, indexPath);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new RuntimeException(e);
         }
     }
 
     @Override
-    public SimpleStringTermIterator getStringTermIterator(String field) {
+    public SimpleStringTermIterator getStringTermIterator(final String field) {
         final Path termsPath = directory.resolve(SimpleStringFieldWriter.getTermsFilename(field));
         final Path docsPath = directory.resolve(SimpleStringFieldWriter.getDocsFilename(field));
 
@@ -222,7 +223,7 @@ public class SimpleFlamdexReader
             }
             final Path indexPath = directory.resolve(SimpleStringFieldWriter.getIndexFilename(field));
             return new SimpleStringTermIteratorImpl(mapCache, termsPath, docsPath, indexPath);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new RuntimeException(e);
         }
     }
@@ -264,18 +265,18 @@ public class SimpleFlamdexReader
             } else {
                 return new GenericRawStringTermDocIterator(termIterator, getDocIdStream());
             }
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw Throwables.propagate(e);
         }
     }
 
     @Override
-    public long getIntTotalDocFreq(String field) {
+    public long getIntTotalDocFreq(final String field) {
         return FlamdexUtils.getIntTotalDocFreq(this, field);
     }
 
     @Override
-    public long getStringTotalDocFreq(String field) {
+    public long getStringTotalDocFreq(final String field) {
         return FlamdexUtils.getStringTotalDocFreq(this, field);
     }
 
@@ -285,36 +286,33 @@ public class SimpleFlamdexReader
     }
 
     @Override
-    public final IntValueLookup getMetric(String metric) throws FlamdexOutOfMemoryException {
+    public final IntValueLookup getMetric(final String metric) throws FlamdexOutOfMemoryException {
         final NativeFlamdexFieldCacher fieldCacher = getMetricCacher(metric);
-        final SimpleIntTermIterator iterator = getUnsortedIntTermIterator(metric);
-        try {
+        try (SimpleIntTermIterator iterator = getUnsortedIntTermIterator(metric)) {
             return cacheField(iterator, metric, fieldCacher);
-        } finally {
-            iterator.close();
         }
     }
 
     @VisibleForTesting
-    public final IntValueLookup getMetricJava(String metric) throws FlamdexOutOfMemoryException {
+    public final IntValueLookup getMetricJava(final String metric) throws FlamdexOutOfMemoryException {
         return super.getMetric(metric);
     }
 
-    private IntValueLookup cacheField(SimpleIntTermIterator iterator,
-                                      String metric,
-                                      NativeFlamdexFieldCacher fieldCacher) {
+    private IntValueLookup cacheField(final SimpleIntTermIterator iterator,
+                                      final String metric,
+                                      final NativeFlamdexFieldCacher fieldCacher) {
         final MinMax minMax = metricMinMaxes.get(metric);
         try {
             return useMMapMetrics ?
                     fieldCacher.newMMapFieldCache(iterator, numDocs, metric, directory, minMax.min, minMax.max) :
                     fieldCacher.newFieldCache(iterator, numDocs, minMax.min, minMax.max);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new RuntimeException(e);
         }
     }
 
     @Override
-    public final long memoryRequired(String metric) {
+    public final long memoryRequired(final String metric) {
         if (useMMapMetrics) {
             return 0;
         }
@@ -323,7 +321,7 @@ public class SimpleFlamdexReader
         return fieldCacher.memoryRequired(numDocs);
     }
 
-    private NativeFlamdexFieldCacher getMetricCacher(String metric) {
+    private NativeFlamdexFieldCacher getMetricCacher(final String metric) {
         synchronized (intFieldCachers) {
             if (!intFieldCachers.containsKey(metric)) {
                 final MinMax minMax = new MinMax();
@@ -369,7 +367,7 @@ public class SimpleFlamdexReader
             return writeBTreesIfNotExisting;
         }
 
-        public Config setWriteBTreesIfNotExisting(boolean writeBTreesIfNotExisting) {
+        public Config setWriteBTreesIfNotExisting(final boolean writeBTreesIfNotExisting) {
             this.writeBTreesIfNotExisting = writeBTreesIfNotExisting;
             return this;
         }
@@ -378,7 +376,7 @@ public class SimpleFlamdexReader
             return useMMapMetrics;
         }
 
-        public Config setUseMMapMetrics(boolean useMMapMetrics) {
+        public Config setUseMMapMetrics(final boolean useMMapMetrics) {
             this.useMMapMetrics = useMMapMetrics;
             return this;
         }
@@ -387,7 +385,7 @@ public class SimpleFlamdexReader
             return useMMapDocIdStream;
         }
 
-        public void setUseMMapDocIdStream(boolean useMMapDocIdStream) {
+        public void setUseMMapDocIdStream(final boolean useMMapDocIdStream) {
             this.useMMapDocIdStream = useMMapDocIdStream;
         }
     }

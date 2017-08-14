@@ -26,13 +26,15 @@ import java.io.IOException;
 import java.util.Arrays;
 
 class MultiRegroupInternals {
+    private MultiRegroupInternals() {
+    }
 
-    private static void remapDocsInTargetGroups(GroupLookup docIdToGroup,
-                                                GroupLookup newLookup,
-                                                int[] docIdBuf,
-                                                DocIdStream docIdStream,
-                                                int[] remappings,
-                                                int placeHolderGroup) {
+    private static void remapDocsInTargetGroups(final GroupLookup docIdToGroup,
+                                                final GroupLookup newLookup,
+                                                final int[] docIdBuf,
+                                                final DocIdStream docIdStream,
+                                                final int[] remappings,
+                                                final int placeHolderGroup) {
         while (true) {
             final int n = docIdStream.fillDocIdBuffer(docIdBuf);
             for (int i = 0; i < n; i++) {
@@ -51,14 +53,21 @@ class MultiRegroupInternals {
                     newLookup.set(docId, Math.min(currentGroup, remappings[oldGroup]));
                 }
             }
-            if (n < docIdBuf.length) break;
+            if (n < docIdBuf.length) {
+                break;
+            }
         }
     }
 
-    static void performStringMultiEqualityRegroup(GroupLookup docIdToGroup, GroupLookup newLookup,
-                                                  int[] docIdBuf, DocIdStream docIdStream,
-                                                  StringTermIterator termIterator,
-                                                  int[] remappings, String term, int placeHolderGroup)
+    static void performStringMultiEqualityRegroup(
+            final GroupLookup docIdToGroup,
+            final GroupLookup newLookup,
+            final int[] docIdBuf,
+            final DocIdStream docIdStream,
+            final StringTermIterator termIterator,
+            final int[] remappings,
+            final String term,
+            final int placeHolderGroup)
         throws IOException {
         termIterator.reset(term);
         if (termIterator.next() && termIterator.term().equals(term)) {
@@ -69,10 +78,15 @@ class MultiRegroupInternals {
         }
     }
 
-    static void performIntMultiEqualityRegroup(GroupLookup docIdToGroup, GroupLookup newLookup,
-                                               int[] docIdBuf, DocIdStream docIdStream,
-                                               IntTermIterator termIterator,
-                                               int[] remappings, long term, int placeHolderGroup)
+    static void performIntMultiEqualityRegroup(
+            final GroupLookup docIdToGroup,
+            final GroupLookup newLookup,
+            final int[] docIdBuf,
+            final DocIdStream docIdStream,
+            final IntTermIterator termIterator,
+            final int[] remappings,
+            final long term,
+            final int placeHolderGroup)
         throws IOException {
         termIterator.reset(term);
         if (termIterator.next() && termIterator.term() == term) {
@@ -83,20 +97,20 @@ class MultiRegroupInternals {
         }
     }
 
-    static void internalMultiRegroup(GroupLookup docIdToGroup,
-                                     GroupLookup newDocIdToGroup,
-                                     int[] docIdBuf,
-                                     FlamdexReader flamdexReader,
-                                     GroupMultiRemapRule[] rules,
-                                     int highestTarget,
-                                     int numConditions,
-                                     int placeholderGroup,
-                                     int maxGroup,
-                                     boolean errorOnCollisions)
+    static void internalMultiRegroup(final GroupLookup docIdToGroup,
+                                     final GroupLookup newDocIdToGroup,
+                                     final int[] docIdBuf,
+                                     final FlamdexReader flamdexReader,
+                                     final GroupMultiRemapRule[] rules,
+                                     final int highestTarget,
+                                     final int numConditions,
+                                     final int placeholderGroup,
+                                     final int maxGroup,
+                                     final boolean errorOnCollisions)
         throws IOException, ImhotepOutOfMemoryException {
 
         // Make a bunch of parallel arrays so we can sort. Memory claimed in parallelArrayBytes.
-        FlatRegroupConditions flat = new FlatRegroupConditions(rules);
+        final FlatRegroupConditions flat = new FlatRegroupConditions(rules);
 
         // memory claimed in remappingBytes
         final int[] remappings = new int[maxGroup + 1];
@@ -228,11 +242,15 @@ class MultiRegroupInternals {
         }
     }
 
-    private static void performStringMultiInequalityRegroup(GroupLookup docIdToGroup, GroupLookup newDocIdToGroup,
-                                                            int[] docIdBuf, DocIdStream docIdStream,
-                                                            int[] barrierLengths, String[][] barriers,
-                                                            int[][] resultingIndex,
-                                                            StringTermIterator termIterator)
+    private static void performStringMultiInequalityRegroup(
+            final GroupLookup docIdToGroup,
+            final GroupLookup newDocIdToGroup,
+            final int[] docIdBuf,
+            final DocIdStream docIdStream,
+            final int[] barrierLengths,
+            final String[][] barriers,
+            final int[][] resultingIndex,
+            final StringTermIterator termIterator)
         throws ImhotepOutOfMemoryException {
         while (termIterator.next()) {
             final String term = termIterator.term();
@@ -245,25 +263,35 @@ class MultiRegroupInternals {
                     final int docId = docIdBuf[i];
                     final int group = docIdToGroup.get(docId);
                     final String[] barriersForGroup = barriers[group];
-                    if (barriersForGroup == null) continue;
+                    if (barriersForGroup == null) {
+                        continue;
+                    }
                     while (currentBarrierIndices[group] < barrierLengths[group]
                            && term.compareTo(barriersForGroup[currentBarrierIndices[group]]) > 0) {
                         currentBarrierIndices[group]++;
                     }
-                    if (currentBarrierIndices[group] == barrierLengths[group]) continue;
+                    if (currentBarrierIndices[group] == barrierLengths[group]) {
+                        continue;
+                    }
                     final int newInternalConditionIndex = resultingIndex[group][currentBarrierIndices[group]];
                     newDocIdToGroup.set(docId, Math.min(newDocIdToGroup.get(docId), newInternalConditionIndex));
                 }
-                if (n < docIdBuf.length) break;
+                if (n < docIdBuf.length) {
+                    break;
+                }
             }
         }
     }
 
-    private static void performIntMultiInequalityRegroup(GroupLookup docIdToGroup, GroupLookup newDocIdToGroup,
-                                                         int[] docIdBuf, DocIdStream docIdStream,
-                                                         int[] barrierLengths, long[][] barriers,
-                                                         int[][] resultingIndex,
-                                                         IntTermIterator termIterator)
+    private static void performIntMultiInequalityRegroup(
+            final GroupLookup docIdToGroup,
+            final GroupLookup newDocIdToGroup,
+            final int[] docIdBuf,
+            final DocIdStream docIdStream,
+            final int[] barrierLengths,
+            final long[][] barriers,
+            final int[][] resultingIndex,
+            final IntTermIterator termIterator)
         throws ImhotepOutOfMemoryException {
         while (termIterator.next()) {
             final long term = termIterator.term();
@@ -276,35 +304,43 @@ class MultiRegroupInternals {
                     final int docId = docIdBuf[i];
                     final int group = docIdToGroup.get(docId);
                     final long[] barriersForGroup = barriers[group];
-                    if (barriersForGroup == null) continue;
+                    if (barriersForGroup == null) {
+                        continue;
+                    }
                     while (currentBarrierIndices[group] < barrierLengths[group]
                             && term > barriersForGroup[currentBarrierIndices[group]]) {
                         currentBarrierIndices[group]++;
                     }
-                    if (currentBarrierIndices[group] == barrierLengths[group]) continue;
+                    if (currentBarrierIndices[group] == barrierLengths[group]) {
+                        continue;
+                    }
                     final int newInternalConditionIndex = resultingIndex[group][currentBarrierIndices[group]];
                     newDocIdToGroup.set(docId, Math.min(newDocIdToGroup.get(docId), newInternalConditionIndex));
                 }
-                if (n < docIdBuf.length) break;
+                if (n < docIdBuf.length) {
+                    break;
+                }
             }
         }
     }
 
-    static void internalMultiRegroupCleanup(GroupLookup docIdToGroup,
-                                            int numGroups,
-                                            GroupMultiRemapRule[] rules,
-                                            int highestTarget,
-                                            GroupLookup newDocIdToGroup,
-                                            int placeholderGroup) {
+    static void internalMultiRegroupCleanup(final GroupLookup docIdToGroup,
+                                            final int numGroups,
+                                            final GroupMultiRemapRule[] rules,
+                                            final int highestTarget,
+                                            final GroupLookup newDocIdToGroup,
+                                            final int placeholderGroup) {
         // Memory claimed in regroup(GroupMultiRemapRule[])
         final GroupMultiRemapRule[] targetGroupToRule =
             new GroupMultiRemapRule[Math.max(highestTarget+1, numGroups)];
-        for (GroupMultiRemapRule rule : rules) {
+        for (final GroupMultiRemapRule rule : rules) {
             targetGroupToRule[rule.targetGroup] = rule;
         }
         for (int i = 0; i < docIdToGroup.size(); i++) {
             final GroupMultiRemapRule rule = targetGroupToRule[docIdToGroup.get(i)];
-            if (rule == null) continue;
+            if (rule == null) {
+                continue;
+            }
             final int currentGroup = newDocIdToGroup.get(i);
             if (currentGroup == placeholderGroup) {
                 docIdToGroup.set(i, rule.negativeGroup);
@@ -314,12 +350,12 @@ class MultiRegroupInternals {
         }
     }
 
-    public static void moveUntargeted(GroupLookup docIdToGroup,
-                                      int numGroups,
-                                      GroupMultiRemapRule[] rules) {
+    public static void moveUntargeted(final GroupLookup docIdToGroup,
+                                      final int numGroups,
+                                      final GroupMultiRemapRule[] rules) {
         final FastBitSet moveToZero = new FastBitSet(numGroups);
         moveToZero.setAll();
-        for (GroupMultiRemapRule rule : rules) {
+        for (final GroupMultiRemapRule rule : rules) {
             moveToZero.clear(rule.targetGroup);
         }
         for (int i = 0; i < docIdToGroup.size(); i++) {

@@ -26,7 +26,10 @@ import java.io.IOException;
  * @author jsgroth
  */
 public class CopyDirectoryToLocal {
-    public static void main(String[] args) throws IOException {
+    private CopyDirectoryToLocal() {
+    }
+
+    public static void main(final String[] args) throws IOException {
         if (args.length < 2) {
             System.err.println("ARGS: from to");
             System.exit(1);
@@ -37,14 +40,16 @@ public class CopyDirectoryToLocal {
         System.out.println("Wrote to: " + args[1]);
     }
 
-    public static void copy(Path from, File to) throws IOException {
+    public static void copy(final Path from, final File to) throws IOException {
         copy(from.getFileSystem(new Configuration()), from, to);
     }
 
-    public static void copy(FileSystem fs, Path from, File to) throws IOException {
+    public static void copy(final FileSystem fs, final Path from, final File to) throws IOException {
         if ((to.exists() && !to.isDirectory())) {
             throw new FileNotFoundException(to.getAbsolutePath() + " is not a directory");
-        } else if (!to.exists() && !to.mkdirs()) {
+        }
+
+        if (!to.exists() && !to.mkdirs()) {
             throw new IOException("unable to create directory " + to.getAbsolutePath()); 
         }
 

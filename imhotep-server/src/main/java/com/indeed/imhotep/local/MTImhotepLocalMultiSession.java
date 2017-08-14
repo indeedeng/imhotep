@@ -30,6 +30,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
@@ -67,7 +68,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             is.close();
             System.load(tempFile.getAbsolutePath());
             tempFile.delete();
-        } catch (Throwable e) {
+        } catch (final Throwable e) {
             e.printStackTrace();
             log.warn("unable to load libftgs using class loader, looking in java.library.path", e);
             System.loadLibrary("ftgs"); // if this fails it throws UnsatisfiedLinkError
@@ -146,7 +147,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
         executeMemoryException(result, new ThrowingFunction<ImhotepSession, NativeShard>() {
             @Override
-            public NativeShard apply(ImhotepSession session) throws Exception {
+            public NativeShard apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
                 final ImhotepNativeLocalSession inls = (ImhotepNativeLocalSession) session;
                 inls.buildMultiCache(config);
                 inls.bindNativeReferences(); // !@# blech!!!
@@ -219,9 +220,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         // now run the ftgs on the final thread
         try {
             barrier.await();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        } catch (BrokenBarrierException e) {
+        } catch (InterruptedException | BrokenBarrierException e) {
             throw new RuntimeException(e);
         }
 
@@ -239,9 +238,9 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     }
 
     @Override
-    protected ImhotepRemoteSession createImhotepRemoteSession(InetSocketAddress address,
-                                                              String sessionId,
-                                                              AtomicLong tempFileSizeBytesLeft) {
+    protected ImhotepRemoteSession createImhotepRemoteSession(final InetSocketAddress address,
+                                                              final String sessionId,
+                                                              final AtomicLong tempFileSizeBytesLeft) {
         return new ImhotepRemoteSession(address.getHostName(), address.getPort(),
                                         sessionId, tempFileSizeBytesLeft, useNativeFtgs);
     }
@@ -282,10 +281,9 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             this.numSplits         = numSplits;
 
             final String numWorkersStr = System.getProperty("imhotep.ftgs.num.workers", "8");
-            final int    numWorkers    = Integer.parseInt(numWorkersStr);
-            this.numWorkers = numWorkers;
+            this.numWorkers = Integer.parseInt(numWorkersStr);
 
-            java.util.ArrayList<Integer> socketFDArray = new java.util.ArrayList<Integer>();
+            final ArrayList<Integer> socketFDArray = new ArrayList<>();
             for (final Socket socket: sockets) {
                 final Integer fd = SocketUtils.getOutputDescriptor(socket);
                 if (fd >= 0) {

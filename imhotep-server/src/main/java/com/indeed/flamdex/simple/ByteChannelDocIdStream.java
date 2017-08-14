@@ -40,7 +40,9 @@ final class ByteChannelDocIdStream extends SimpleDocIdStream {
 
     @Override
     protected void openFile(final Path filePath) throws IOException {
-        if (channel != null) channel.close();
+        if (channel != null) {
+            channel.close();
+        }
         channel = Files.newByteChannel(filePath, OPEN_OPTIONS);
         length = channel.size();
     }
@@ -51,11 +53,11 @@ final class ByteChannelDocIdStream extends SimpleDocIdStream {
     }
 
     @Override
-    protected void readBytes(long offset) {
+    protected void readBytes(final long offset) {
         try {
             wrappedBuffer.rewind();
             channel.position(offset).read(wrappedBuffer);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new RuntimeException(e);
         }
     }
@@ -67,7 +69,7 @@ final class ByteChannelDocIdStream extends SimpleDocIdStream {
                 channel.close();
                 channel = null;
             }
-        } catch (IOException e) {
+        } catch (final IOException e) {
             LOG.error("error closing file", e);
         }
     }

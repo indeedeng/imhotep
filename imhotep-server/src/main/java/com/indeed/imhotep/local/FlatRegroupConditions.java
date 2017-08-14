@@ -14,11 +14,10 @@
 package com.indeed.imhotep.local;
 
 import com.google.common.collect.ComparisonChain;
-import com.indeed.util.core.sort.Quicksortable;
-import com.indeed.util.core.sort.Quicksortables;
-
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.RegroupCondition;
+import com.indeed.util.core.sort.Quicksortable;
+import com.indeed.util.core.sort.Quicksortables;
 
 final class FlatRegroupConditions {
     final GroupMultiRemapRule[] rules;
@@ -65,14 +64,14 @@ final class FlatRegroupConditions {
 
     void reorder() {
         Quicksortables.sort(new Quicksortable() {
-                @Override public void swap(int i, int j) {
+                @Override public void swap(final int i, final int j) {
                     Quicksortables.swap(conditions, i, j);
                     Quicksortables.swap(positiveGroups, i, j);
                     Quicksortables.swap(internalIndices, i, j);
                     Quicksortables.swap(ruleIndices, i, j);
                 }
 
-                @Override public int compare(int i, int j) {
+                @Override public int compare(final int i, final int j) {
                     return ComparisonChain.start()
                         .compare(conditions[i].field, conditions[j].field)
                         .compareFalseFirst(conditions[i].intType, conditions[j].intType)
@@ -84,16 +83,16 @@ final class FlatRegroupConditions {
             }, length());
     }
 
-    void reorderOnTerm(final int start, int end, final boolean intType) {
+    void reorderOnTerm(final int start, final int end, final boolean intType) {
         Quicksortables.sort(new Quicksortable() {
-                @Override public void swap(int i, int j) {
+                @Override public void swap(final int i, final int j) {
                     Quicksortables.swap(conditions, start + i, start + j);
                     Quicksortables.swap(positiveGroups, start + i, start + j);
                     Quicksortables.swap(internalIndices, start + i, start + j);
                     Quicksortables.swap(ruleIndices, start + i, start + j);
                 }
 
-                @Override public int compare(int i, int j) {
+                @Override public int compare(final int i, final int j) {
                     if (intType) {
                         return ComparisonChain.start()
                             .compare(conditions[start + i].intTerm, conditions[start + j].intTerm)
@@ -118,8 +117,8 @@ final class FlatRegroupConditions {
      * are full (i.e., the effective length)
      */
     void formIntDividers(final int fieldStartIndex, final int conditionIndex,
-                         int[] barrierLengths, long[][] barriers,
-                         int[][] resultingIndex) {
+                         final int[] barrierLengths, final long[][] barriers,
+                         final int[][] resultingIndex) {
         for (int ix = fieldStartIndex; ix < conditionIndex; ix++) {
             final GroupMultiRemapRule rule         = rules[ruleIndices[ix]];
             final int                 targetGroup  = rule.targetGroup;
@@ -151,8 +150,8 @@ final class FlatRegroupConditions {
      * are full (i.e., the effective length)
      */
     void formStringDividers(final int fieldStartIndex, final int conditionIndex,
-                            int[] barrierLengths, String[][] barriers,
-                            int[][] resultingIndex) {
+                            final int[] barrierLengths, final String[][] barriers,
+                            final int[][] resultingIndex) {
         for (int ix = fieldStartIndex; ix < conditionIndex; ix++) {
             final GroupMultiRemapRule rule         = rules[ruleIndices[ix]];
             final int                 targetGroup  = rule.targetGroup;

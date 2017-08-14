@@ -31,7 +31,10 @@ public class CachedInterleavedMetrics {
     private final BitSet closed;
     private boolean released;
 
-    public CachedInterleavedMetrics(MemoryReserver memory, int numDocs, IntValueLookup... lookups) throws ImhotepOutOfMemoryException {
+    public CachedInterleavedMetrics(
+            final MemoryReserver memory,
+            final int numDocs,
+            final IntValueLookup... lookups) throws ImhotepOutOfMemoryException {
         this.memory = memory;
         this.numDocs = numDocs;
         this.stride = lookups.length;
@@ -53,7 +56,7 @@ public class CachedInterleavedMetrics {
         return result;
     }
 
-    private void fillValues(IntValueLookup... lookups) {
+    private void fillValues(final IntValueLookup... lookups) {
         final int BUFFER_SIZE = 8192;
         final int[] idBuffer = new int[BUFFER_SIZE];
         final long[] valBuffer = new long[BUFFER_SIZE];
@@ -74,7 +77,7 @@ public class CachedInterleavedMetrics {
         }
     }
 
-    private void closeLookup(int offset) {
+    private void closeLookup(final int offset) {
         closed.set(offset);
         if (closed.nextClearBit(0) == stride && !released) {
             // all lookups are closed; release memory from pool
@@ -87,7 +90,7 @@ public class CachedInterleavedMetrics {
     private class InterleavedLookup implements IntValueLookup {
         private final int offset;
 
-        private InterleavedLookup(int offset) {
+        private InterleavedLookup(final int offset) {
             this.offset = offset;
         }
 
@@ -102,7 +105,7 @@ public class CachedInterleavedMetrics {
         }
 
         @Override
-        public void lookup(int[] docIds, long[] values, int n) {
+        public void lookup(final int[] docIds, final long[] values, final int n) {
             final long[] interleavedData = CachedInterleavedMetrics.this.interleavedData;
             final int stride = CachedInterleavedMetrics.this.stride;
             final int offset = this.offset;

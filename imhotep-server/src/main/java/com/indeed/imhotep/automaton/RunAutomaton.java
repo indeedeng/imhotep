@@ -62,8 +62,9 @@ public class RunAutomaton implements Serializable {
 		classmap = new int[Character.MAX_VALUE - Character.MIN_VALUE + 1];
 		int i = 0;
 		for (int j = 0; j <= Character.MAX_VALUE - Character.MIN_VALUE; j++) {
-			if (i + 1 < points.length && j == points[i + 1])
+			if (i + 1 < points.length && j == points[i + 1]) {
 				i++;
+			}
 			classmap[j] = i;
 		}
 	}
@@ -73,23 +74,25 @@ public class RunAutomaton implements Serializable {
 	 */
 	@Override
 	public String toString() {
-		StringBuilder b = new StringBuilder();
+		final StringBuilder b = new StringBuilder();
 		b.append("initial state: ").append(initial).append("\n");
 		for (int i = 0; i < size; i++) {
-			b.append("state " + i);
-			if (accept[i])
+			b.append("state ").append(i);
+			if (accept[i]) {
 				b.append(" [accept]:\n");
-			else
+			} else {
 				b.append(" [reject]:\n");
+			}
 			for (int j = 0; j < points.length; j++) {
-				int k = transitions[i * points.length + j];
+				final int k = transitions[i * points.length + j];
 				if (k != -1) {
-					char min = points[j];
-					char max;
-					if (j + 1 < points.length)
-						max = (char)(points[j + 1] - 1);
-					else
+					final char min = points[j];
+					final char max;
+					if (j + 1 < points.length) {
+						max = (char) (points[j + 1] - 1);
+					} else {
 						max = Character.MAX_VALUE;
+					}
 					b.append(" ");
 					Transition.appendCharString(min, b);
 					if (min != max) {
@@ -113,7 +116,7 @@ public class RunAutomaton implements Serializable {
 	/** 
 	 * Returns acceptance status for given state. 
 	 */
-	public boolean isAccept(int state) {
+	public boolean isAccept(final int state) {
 		return accept[state];
 	}
 
@@ -135,7 +138,7 @@ public class RunAutomaton implements Serializable {
 	/** 
 	 * Gets character class of given char. 
 	 */
-	int getCharClass(char c) {
+	private int getCharClass(final char c) {
 		return SpecialOperations.findIndex(c, points);
 	}
 
@@ -147,7 +150,7 @@ public class RunAutomaton implements Serializable {
 	 * <code>Automaton</code>. Same as <code>RunAutomaton(a, true)</code>.
 	 * @param a an automaton
 	 */
-	public RunAutomaton(Automaton a) {
+	public RunAutomaton(final Automaton a) {
 		this(a, true);
 	}
 
@@ -160,7 +163,7 @@ public class RunAutomaton implements Serializable {
 	 * @exception ClassCastException if the data is not a serialized <code>RunAutomaton</code>
 	 * @exception ClassNotFoundException if the class of the serialized object cannot be found
 	 */
-	public static RunAutomaton load(URL url) throws IOException, OptionalDataException, ClassCastException, 
+	public static RunAutomaton load(final URL url) throws IOException, OptionalDataException, ClassCastException,
 													ClassNotFoundException, InvalidClassException {
 		return load(url.openStream());
 	}
@@ -174,9 +177,9 @@ public class RunAutomaton implements Serializable {
 	 * @exception ClassCastException if the data is not a serialized <code>RunAutomaton</code>
 	 * @exception ClassNotFoundException if the class of the serialized object cannot be found
 	 */
-	public static RunAutomaton load(InputStream stream) throws IOException, OptionalDataException, ClassCastException, 
+	public static RunAutomaton load(final InputStream stream) throws IOException, OptionalDataException, ClassCastException,
 															   ClassNotFoundException, InvalidClassException {
-		ObjectInputStream s = new ObjectInputStream(stream);
+		final ObjectInputStream s = new ObjectInputStream(stream);
 		return (RunAutomaton) s.readObject();
 	}
 
@@ -185,8 +188,8 @@ public class RunAutomaton implements Serializable {
 	 * @param stream output stream for serialized automaton
 	 * @exception IOException if input/output related exception occurs
 	 */
-	public void store(OutputStream stream) throws IOException {
-		ObjectOutputStream s = new ObjectOutputStream(stream);
+	public void store(final OutputStream stream) throws IOException {
+		final ObjectOutputStream s = new ObjectOutputStream(stream);
 		s.writeObject(this);
 		s.flush();
 	}
@@ -199,28 +202,31 @@ public class RunAutomaton implements Serializable {
 	 * @param tableize if true, a transition table is created which makes the <code>run</code> 
 	 *                 method faster in return of a higher memory usage
 	 */
-	public RunAutomaton(Automaton a, boolean tableize) {
+	public RunAutomaton(final Automaton a, final boolean tableize) {
 		a.determinize();
 		points = a.getStartPoints();
-		Set<State> states = a.getStates();
+		final Set<State> states = a.getStates();
 		Automaton.setStateNumbers(states);
 		initial = a.initial.number;
 		size = states.size();
 		accept = new boolean[size];
 		transitions = new int[size * points.length];
-		for (int n = 0; n < size * points.length; n++)
+		for (int n = 0; n < transitions.length; n++) {
 			transitions[n] = -1;
-		for (State s : states) {
-			int n = s.number;
+		}
+		for (final State s : states) {
+			final int n = s.number;
 			accept[n] = s.accept;
 			for (int c = 0; c < points.length; c++) {
-				State q = s.step(points[c]);
-				if (q != null)
+				final State q = s.step(points[c]);
+				if (q != null) {
 					transitions[n * points.length + c] = q.number;
+				}
 			}
 		}
-		if (tableize)
+		if (tableize) {
 			setAlphabet();
+		}
 	}
 
 	/**
@@ -230,23 +236,25 @@ public class RunAutomaton implements Serializable {
 	 * only if a dead state is entered in an equivalent automaton with a total
 	 * transition function.)
 	 */
-	public int step(int state, char c) {
-		if (classmap == null)
+	public int step(final int state, final char c) {
+		if (classmap == null) {
 			return transitions[state * points.length + getCharClass(c)];
-		else
+		} else {
 			return transitions[state * points.length + classmap[c - Character.MIN_VALUE]];
+		}
 	}
 
 	/** 
 	 * Returns true if the given string is accepted by this automaton. 
 	 */
-	public boolean run(String s) {
+	public boolean run(final String s) {
 		int p = initial;
-		int l = s.length();
+		final int l = s.length();
 		for (int i = 0; i < l; i++) {
 			p = step(p, s.charAt(i));
-			if (p == -1)
+			if (p == -1) {
 				return false;
+			}
 		}
 		return accept[p];
 	}
@@ -258,18 +266,21 @@ public class RunAutomaton implements Serializable {
 	 * @param offset offset into <code>s</code> where the run starts
 	 * @return length of the longest accepted run, -1 if no run is accepted
 	 */
-	public int run(String s, int offset) {
+	public int run(final String s, int offset) {
 		int p = initial;
-		int l = s.length();
+		final int l = s.length();
 		int max = -1;
 		for (int r = 0; offset <= l; offset++, r++) {
-			if (accept[p])
+			if (accept[p]) {
 				max = r;
-			if (offset == l)
+			}
+			if (offset == l) {
 				break;
+			}
 			p = step(p, s.charAt(offset));
-			if (p == -1)
+			if (p == -1) {
 				break;
+			}
 		}
 		return max;
 	}
@@ -279,7 +290,7 @@ public class RunAutomaton implements Serializable {
 	 * @param s the CharSequence to search
 	 * @return A new automaton matcher for the given input
 	 */
-	public AutomatonMatcher newMatcher(CharSequence s)  {
+	public AutomatonMatcher newMatcher(final CharSequence s)  {
 		return new AutomatonMatcher(s, this);
 	}
 
@@ -290,7 +301,7 @@ public class RunAutomaton implements Serializable {
 	 * @param endOffset the ending offset of the given character sequence
 	 * @return A new automaton matcher for the given input
 	 */
-	public AutomatonMatcher newMatcher(CharSequence s, int startOffset, int endOffset)  {
+	public AutomatonMatcher newMatcher(final CharSequence s, final int startOffset, final int endOffset)  {
 		return new AutomatonMatcher(s.subSequence(startOffset, endOffset), this);
 	}
 }

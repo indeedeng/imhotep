@@ -13,7 +13,6 @@
  */
  package com.indeed.flamdex.utils;
 
-import com.indeed.util.core.sort.Quicksortables;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermIterator;
@@ -21,6 +20,7 @@ import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.writer.FlamdexWriter;
 import com.indeed.flamdex.writer.IntFieldWriter;
 import com.indeed.flamdex.writer.StringFieldWriter;
+import com.indeed.util.core.sort.Quicksortables;
 import com.indeed.util.core.sort.RadixSort;
 
 import java.io.IOException;
@@ -29,14 +29,22 @@ import java.io.IOException;
  * @author jsgroth
  */
 public class FlamdexSort {
+    private FlamdexSort() {
+    }
+
     private static final int MAGIC_SORTING_NUMBER = 50000;    
 
     // this method DOES close the FlamdexWriter upon completion
-    public static void sort(FlamdexReader r, FlamdexWriter w, int[] oldDocIdToNewDocId) throws IOException {
+    public static void sort(final FlamdexReader r, final FlamdexWriter w, final int[] oldDocIdToNewDocId) throws IOException {
         sort(r, w, oldDocIdToNewDocId, r.getIntFields(), r.getStringFields());
     }
 
-    public static void sort(FlamdexReader r, FlamdexWriter w, int[] oldDocIdToNewDocId, Iterable<String> intFields, Iterable<String> stringFields) throws IOException {
+    public static void sort(
+            final FlamdexReader r,
+            final FlamdexWriter w,
+            final int[] oldDocIdToNewDocId,
+            final Iterable<String> intFields,
+            final Iterable<String> stringFields) throws IOException {
         final int[] docIdBuffer = new int[r.getNumDocs()];
         final int[] scratch = new int[r.getNumDocs()];
         final int[] countScratch = new int[65536]; // magic number

@@ -19,7 +19,7 @@ import com.indeed.flamdex.api.IntValueLookup;
  * @author jsgroth
  */
 public class Division extends AbstractBinaryOperator {
-    public Division(IntValueLookup a, IntValueLookup b) {
+    public Division(final IntValueLookup a, final IntValueLookup b) {
         super(a, b);
     }
 
@@ -50,13 +50,13 @@ public class Division extends AbstractBinaryOperator {
     }
 
     @Override
-    protected void combine(long[] values, long[] buffer, int n) {
+    protected void combine(final long[] values, final long[] buffer, final int n) {
         for (int i = 0; i < n; ++i) {
             values[i] = eval(values[i], buffer[i]);
         }
     }
 
-    private long eval(long a, long b) {
+    private long eval(final long a, final long b) {
         return b != 0 ? a / b : 0;
     }
 }

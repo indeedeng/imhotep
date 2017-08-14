@@ -34,14 +34,18 @@ package com.indeed.imhotep.automaton;
  */
 public class DatatypesAutomatonProvider implements AutomatonProvider {
 	
-	private boolean enable_unicodeblocks, enable_unicodecategories, enable_xml;
+	private final boolean enable_unicodeblocks;
+	private final boolean enable_unicodecategories;
+	private final boolean enable_xml;
 	
 	/**
 	 * Constructs a new automaton provider that recognizes all names
 	 * from {@link Datatypes#get(String)}.
 	 */
 	public DatatypesAutomatonProvider() {
-		enable_unicodeblocks = enable_unicodecategories = enable_xml = true;
+		enable_unicodeblocks = true;
+		enable_unicodecategories = true;
+		enable_xml = true;
 	}
 	
 	/**
@@ -51,17 +55,21 @@ public class DatatypesAutomatonProvider implements AutomatonProvider {
 	 * @param enable_unicodecategories if true, enable Unicode category names
 	 * @param enable_xml if true, enable XML related names
 	 */
-	public DatatypesAutomatonProvider(boolean enable_unicodeblocks, boolean enable_unicodecategories, boolean enable_xml) {
+	public DatatypesAutomatonProvider(
+			final boolean enable_unicodeblocks,
+			final boolean enable_unicodecategories,
+			final boolean enable_xml) {
 		this.enable_unicodeblocks = enable_unicodeblocks; 
 		this.enable_unicodecategories = enable_unicodecategories;
 		this.enable_xml = enable_xml;
 	}
 	
-	public Automaton getAutomaton(String name) {
+	public Automaton getAutomaton(final String name) {
 		if ((enable_unicodeblocks && Datatypes.isUnicodeBlockName(name))
 				|| (enable_unicodecategories && Datatypes.isUnicodeCategoryName(name))
-				|| (enable_xml && Datatypes.isXMLName(name)))
-				return Datatypes.get(name);
+				|| (enable_xml && Datatypes.isXMLName(name))) {
+			return Datatypes.get(name);
+		}
 		return null;
 	}
 }

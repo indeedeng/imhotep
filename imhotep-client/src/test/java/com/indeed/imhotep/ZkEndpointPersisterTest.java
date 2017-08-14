@@ -4,7 +4,6 @@ import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.client.ZkHostsReloader;
-import junit.framework.Assert;
 import org.apache.curator.test.TestingServer;
 import org.apache.zookeeper.KeeperException;
 import org.junit.After;
@@ -13,6 +12,9 @@ import org.junit.Test;
 
 import java.io.Closeable;
 import java.io.IOException;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author kenh
@@ -57,24 +59,24 @@ public class ZkEndpointPersisterTest {
              ZkEndpointPersister daemon2 = new ZkEndpointPersister(zkNodes, zkPath, new Host("DAEMON2", 2340))
         ) {
             try (ClosableReloader reloader = new ClosableReloader(new ZkHostsReloader(zkNodes, zkPath, true))) {
-                Assert.assertEquals(Sets.newHashSet(new Host("DAEMON1", 1230), new Host("DAEMON2", 2340)), Sets.newHashSet(reloader.getReloader().getHosts()));
+                assertEquals(Sets.newHashSet(new Host("DAEMON1", 1230), new Host("DAEMON2", 2340)), Sets.newHashSet(reloader.getReloader().getHosts()));
             }
 
             try (ZkEndpointPersister daemon3 = new ZkEndpointPersister(zkNodes, zkPath, new Host("DAEMON3", 3450))) {
                 try (ClosableReloader reloader = new ClosableReloader(new ZkHostsReloader(zkNodes, zkPath, true))) {
-                    Assert.assertEquals(Sets.newHashSet(new Host("DAEMON1", 1230), new Host("DAEMON2", 2340), new Host("DAEMON3", 3450)), Sets.newHashSet(reloader.getReloader().getHosts()));
+                    assertEquals(Sets.newHashSet(new Host("DAEMON1", 1230), new Host("DAEMON2", 2340), new Host("DAEMON3", 3450)), Sets.newHashSet(reloader.getReloader().getHosts()));
                 }
 
             }
 
             try (ClosableReloader reloader = new ClosableReloader(new ZkHostsReloader(zkNodes, zkPath, true))) {
-                Assert.assertEquals(Sets.newHashSet(new Host("DAEMON1", 1230), new Host("DAEMON2", 2340)), Sets.newHashSet(reloader.getReloader().getHosts()));
+                assertEquals(Sets.newHashSet(new Host("DAEMON1", 1230), new Host("DAEMON2", 2340)), Sets.newHashSet(reloader.getReloader().getHosts()));
             }
 
         }
 
         try (ClosableReloader reloader = new ClosableReloader(new ZkHostsReloader(zkNodes, zkPath, true))) {
-            Assert.assertTrue(reloader.getReloader().getHosts().isEmpty());
+            assertTrue(reloader.getReloader().getHosts().isEmpty());
         }
     }
 

@@ -24,7 +24,7 @@ import java.nio.file.Path;
  */
 public class GenericFlamdexReaderSource implements FlamdexReaderSource {
     @Override
-    public FlamdexReader openReader(Path directory) throws IOException {
+    public FlamdexReader openReader(final Path directory) throws IOException {
         return GenericFlamdexReader.open(directory);
     }
 }

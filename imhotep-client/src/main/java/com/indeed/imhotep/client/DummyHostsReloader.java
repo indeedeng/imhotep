@@ -21,7 +21,7 @@ import java.util.List;
 public class DummyHostsReloader implements HostsReloader {
     private final List<Host> hosts;
 
-    public DummyHostsReloader(List<Host> hosts) {
+    public DummyHostsReloader(final List<Host> hosts) {
         this.hosts = hosts;
     }
 

@@ -68,7 +68,7 @@ public class LuceneFlamdexReader extends AbstractFlamdexReader {
      * use {@link #LuceneFlamdexReader(Path, Collection, Collection)} instead
      */
     @Deprecated
-    public LuceneFlamdexReader(@Nonnull String directory,
+    public LuceneFlamdexReader(@Nonnull final String directory,
                                @Nullable  final Collection<String> intFields,
                                @Nullable  final Collection<String> stringFields) throws IOException {
         this(Paths.get(directory), intFields, stringFields);
@@ -182,7 +182,7 @@ public class LuceneFlamdexReader extends AbstractFlamdexReader {
     }
 
     private static Collection<String> getStringFieldsFromIndex(final IndexReader reader) {
-        final Collection<String> ret = new HashSet<String>();
+        final Collection<String> ret = new HashSet<>();
         // don't like having to use Object and downcast,
         // but in Lucene versions prior to 3 getFieldNames()
         // returns an un-genericized Collection instead of a Collection<String>
@@ -201,7 +201,7 @@ public class LuceneFlamdexReader extends AbstractFlamdexReader {
     public DocIdStream getDocIdStream() {
         try {
             return new LuceneDocIdStream(reader.termDocs());
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw LuceneUtils.ioRuntimeException(e);
         }
     }
@@ -222,12 +222,12 @@ public class LuceneFlamdexReader extends AbstractFlamdexReader {
     }
 
     @Override
-    public long getIntTotalDocFreq(String field) {
+    public long getIntTotalDocFreq(final String field) {
         return FlamdexUtils.getIntTotalDocFreq(this, field);
     }
 
     @Override
-    public long getStringTotalDocFreq(String field) {
+    public long getStringTotalDocFreq(final String field) {
         return FlamdexUtils.getStringTotalDocFreq(this, field);
     }
 
@@ -237,10 +237,10 @@ public class LuceneFlamdexReader extends AbstractFlamdexReader {
     }
 
     @Override
-    protected UnsortedIntTermDocIterator createUnsortedIntTermDocIterator(String field) {
+    protected UnsortedIntTermDocIterator createUnsortedIntTermDocIterator(final String field) {
         try {
             return LuceneUnsortedIntTermDocIterator.create(reader, field);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new RuntimeException(e);
         }
     }

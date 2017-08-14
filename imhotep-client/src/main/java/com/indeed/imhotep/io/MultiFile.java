@@ -9,6 +9,7 @@ import com.indeed.util.mmap.DirectMemory;
 import com.indeed.util.mmap.MMapBuffer;
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
@@ -32,21 +33,22 @@ public final class MultiFile {
     private final File path;
     private final int blockSize;
     private final Split[] splits;
-    private final @Nullable AtomicLong bytesAvailable;
+    @Nullable
+    private final AtomicLong bytesAvailable;
 
-    public static MultiFile create(File path, int splits) throws IOException {
+    public static MultiFile create(final File path, final int splits) throws IOException {
         return create(path, splits, 1024 * 1024);
     }
 
-    public static MultiFile create(File path, int splits, int blockSize) throws IOException {
+    public static MultiFile create(final File path, final int splits, final int blockSize) throws IOException {
         return new MultiFile(path, splits, blockSize, null);
     }
 
-    public static MultiFile create(File path, int splits, int blockSize, @Nullable AtomicLong bytesAvailable) throws IOException {
+    public static MultiFile create(final File path, final int splits, final int blockSize, @Nullable final AtomicLong bytesAvailable) throws IOException {
         return new MultiFile(path, splits, blockSize, bytesAvailable);
     }
 
-    private MultiFile(File path, int splits, int blockSize, @Nullable AtomicLong bytesAvailable) throws IOException {
+    private MultiFile(final File path, final int splits, final int blockSize, @Nullable final AtomicLong bytesAvailable) throws IOException {
         if (blockSize <= 0 || blockSize % 4096 != 0) {
             throw new IllegalArgumentException("block size cannot be "+blockSize+", it must be a positive multiple of 4096");
         }
@@ -67,17 +69,17 @@ public final class MultiFile {
                 this.splits[i] = new Split(i, rafRef, openInputs);
             }
             rafRef.close();
-        } catch (Throwable t) {
+        } catch (final Throwable t) {
             Closeables2.closeQuietly(closer, log);
             throw Throwables2.propagate(t, IOException.class);
         }
     }
 
-    public OutputStream getOutputStream(int split) {
+    public OutputStream getOutputStream(final int split) {
         return splits[split].out;
     }
 
-    public InputStream getInputStream(int split) {
+    public InputStream getInputStream(final int split) {
         return splits[split].in;
     }
 
@@ -86,7 +88,7 @@ public final class MultiFile {
         private final InputStream in;
         private long writePosition;
 
-        private Split(int split, SharedReference<RandomAccessFile> raf, AtomicInteger openInputs) {
+        private Split(final int split, final SharedReference<RandomAccessFile> raf, final AtomicInteger openInputs) {
             out = new MultiFileOutputStream(split, raf);
             in = new MultiFileInputStream(split, openInputs);
         }
@@ -100,7 +102,7 @@ public final class MultiFile {
             long limit;
             Lock currentLock;
 
-            private MultiFileOutputStream(int split, SharedReference<RandomAccessFile> raf) {
+            private MultiFileOutputStream(final int split, final SharedReference<RandomAccessFile> raf) {
                 this.split = split;
                 writePosition = blockSize*split;
                 this.limit = writePosition+blockSize;
@@ -110,7 +112,7 @@ public final class MultiFile {
             }
 
             @Override
-            public void write(int b) throws IOException {
+            public void write(final int b) throws IOException {
                 if (writePosition == limit) {
                     seekToNextBlock();
                 }
@@ -119,7 +121,7 @@ public final class MultiFile {
             }
 
             @Override
-            public void write(byte[] b, int off, int len) throws IOException {
+            public void write(@Nonnull final byte[] b, int off, int len) throws IOException {
                 if (off < 0) {
                     throw new IllegalArgumentException("off is "+off);
                 }
@@ -150,7 +152,7 @@ public final class MultiFile {
                 limit = writePosition+blockSize;
                 if (limit > memory.length()) {
                     currentLock = lock.readLock();
-                    lock.readLock().lock();
+                    currentLock.lock();
                     try {
                         internalSeekToNextBlock(false);
                     } finally {
@@ -160,7 +162,7 @@ public final class MultiFile {
                 }
             }
 
-            private void internalSeekToNextBlock(boolean writeLocked) throws IOException {
+            private void internalSeekToNextBlock(final boolean writeLocked) throws IOException {
                 final SharedReference<MMapBuffer> ref = buffer.copy();
                 try {
                     if (limit <= ref.get().memory().length()) {
@@ -169,7 +171,7 @@ public final class MultiFile {
                         memory = currentBuffer.get().memory();
                         return;
                     }
-                } catch (Throwable t) {
+                } catch (final Throwable t) {
                     Closeables2.closeQuietly(ref, log);
                     throw Throwables.propagate(t);
                 }
@@ -185,7 +187,7 @@ public final class MultiFile {
                 } else {
                     lock.readLock().unlock();
                     currentLock = lock.writeLock();
-                    lock.writeLock().lock();
+                    currentLock.lock();
                     internalSeekToNextBlock(true);
                 }
             }
@@ -210,18 +212,22 @@ public final class MultiFile {
             private SharedReference<MMapBuffer> currentBuffer = null;
             private DirectMemory memory = null;
 
-            private MultiFileInputStream(int split, AtomicInteger openInputs) {
+            private MultiFileInputStream(final int split, final AtomicInteger openInputs) {
                 this.split = split;
                 this.openInputs = openInputs;
             }
 
             @Override
             public int read() throws IOException {
-                if (position >= writePosition) return -1;
+                if (position >= writePosition) {
+                    return -1;
+                }
                 if (position == limit) {
                     seekToNextBlock();
                     //i don't think this check is necessary but it doesn't hurt that much
-                    if (position >= writePosition) return -1;
+                    if (position >= writePosition) {
+                        return -1;
+                    }
                 }
                 final int ret = memory.getByte(position) & 0xFF;
                 position++;
@@ -236,7 +242,9 @@ public final class MultiFile {
                         Closeables2.closeQuietly(currentBuffer, log);
                         currentBuffer = buffer.copy();
                         memory = currentBuffer.get().memory();
-                        if (newLimit > memory.length()) throw new IllegalStateException();
+                        if (newLimit > memory.length()) {
+                            throw new IllegalStateException();
+                        }
                     } finally {
                         lock.readLock().unlock();
                     }
@@ -247,7 +255,7 @@ public final class MultiFile {
             }
 
             @Override
-            public int read(byte[] b, int off, int len) throws IOException {
+            public int read(@Nonnull final byte[] b, int off, int len) throws IOException {
                 if (off < 0) {
                     throw new IllegalArgumentException("off is "+off);
                 }
@@ -257,7 +265,9 @@ public final class MultiFile {
                 if (off+len > b.length) {
                     throw new IllegalArgumentException("off is "+off+", len is "+len+", b.length is "+b.length);
                 }
-                if (len == 0) return 0;
+                if (len == 0) {
+                    return 0;
+                }
                 int ret = 0;
                 while (len > 0 && position < writePosition) {
                     if (position == limit) {
@@ -271,8 +281,7 @@ public final class MultiFile {
                     off += bytesToRead;
                     len -= bytesToRead;
                 }
-                if (ret > 0 ) return ret;
-                return -1;
+                return (ret > 0) ? ret : -1;
             }
 
             @Override

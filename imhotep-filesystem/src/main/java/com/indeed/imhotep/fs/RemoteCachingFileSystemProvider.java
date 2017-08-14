@@ -10,6 +10,7 @@ import com.google.common.collect.Iterables;
 import com.indeed.util.core.Pair;
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -202,6 +203,7 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
         return new DirectoryStream<RemoteCachingPath>() {
             private boolean closed = false;
 
+            @Nonnull
             @Override
             public Iterator<RemoteCachingPath> iterator() {
                 if (closed) {
@@ -235,6 +237,7 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
         return new DirectoryStream<Path>() {
             private boolean closed = false;
 
+            @Nonnull
             @Override
             public Iterator<Path> iterator() {
                 if (closed) {

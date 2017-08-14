@@ -28,12 +28,12 @@ import com.indeed.flamdex.query.Term;
 class TermQueryEvaluator implements QueryEvaluator {
     private final Term term;
 
-    TermQueryEvaluator(Term term) {
+    TermQueryEvaluator(final Term term) {
         this.term = term;
     }
 
     @Override
-    public void and(FlamdexReader r, FastBitSet bitSet, FastBitSetPooler bitSetPooler) {
+    public void and(final FlamdexReader r, final FastBitSet bitSet, final FastBitSetPooler bitSetPooler) {
         final DocIdStream docIdStream = r.getDocIdStream();
         if (term.isIntField()) {
             final IntTermIterator iterator = r.getUnsortedIntTermIterator(term.getFieldName());
@@ -54,7 +54,7 @@ class TermQueryEvaluator implements QueryEvaluator {
         }
     }
 
-    private void intAnd(IntTermIterator iterator, DocIdStream docIdStream, FastBitSet bitSet) {
+    private void intAnd(final IntTermIterator iterator, final DocIdStream docIdStream, final FastBitSet bitSet) {
         final long termIntVal = term.getTermIntVal();
         iterator.reset(termIntVal);
         if (!iterator.next() || iterator.term() != termIntVal) {
@@ -64,7 +64,7 @@ class TermQueryEvaluator implements QueryEvaluator {
         internalAnd(iterator, docIdStream, bitSet);
     }
 
-    private void stringAnd(StringTermIterator iterator, DocIdStream docIdStream, FastBitSet bitSet) {
+    private void stringAnd(final StringTermIterator iterator, final DocIdStream docIdStream, final FastBitSet bitSet) {
         final String termStringVal = term.getTermStringVal();
         iterator.reset(termStringVal);
         if (!iterator.next() || !iterator.term().equals(termStringVal)) {
@@ -74,7 +74,7 @@ class TermQueryEvaluator implements QueryEvaluator {
         internalAnd(iterator, docIdStream, bitSet);
     }
 
-    private void internalAnd(TermIterator iterator, DocIdStream docIdStream, FastBitSet bitSet) {
+    private void internalAnd(final TermIterator iterator, final DocIdStream docIdStream, final FastBitSet bitSet) {
         docIdStream.reset(iterator);
         final int[] docIdBuffer = new int[64];
         int lastDoc = 0;
@@ -85,13 +85,15 @@ class TermQueryEvaluator implements QueryEvaluator {
                 bitSet.clearRange(lastDoc, doc);
                 lastDoc = doc + 1;
             }
-            if (n < docIdBuffer.length) break;
+            if (n < docIdBuffer.length) {
+                break;
+            }
         }
         bitSet.clearRange(lastDoc, bitSet.size());
     }
 
     @Override
-    public void or(FlamdexReader r, FastBitSet bitSet, FastBitSetPooler bitSetPooler) {
+    public void or(final FlamdexReader r, final FastBitSet bitSet, final FastBitSetPooler bitSetPooler) {
         final DocIdStream docIdStream = r.getDocIdStream();
         if (term.isIntField()) {
             final IntTermIterator iterator = r.getUnsortedIntTermIterator(term.getFieldName());
@@ -112,7 +114,7 @@ class TermQueryEvaluator implements QueryEvaluator {
         }
     }
 
-    private void intOr(IntTermIterator iterator, DocIdStream docIdStream, FastBitSet bitSet) {
+    private void intOr(final IntTermIterator iterator, final DocIdStream docIdStream, final FastBitSet bitSet) {
         final long termIntVal = term.getTermIntVal();
         iterator.reset(termIntVal);
         if (!iterator.next() || iterator.term() != termIntVal) {
@@ -121,7 +123,7 @@ class TermQueryEvaluator implements QueryEvaluator {
         internalOr(iterator, docIdStream, bitSet);
     }
 
-    private void stringOr(StringTermIterator iterator, DocIdStream docIdStream, FastBitSet bitSet) {
+    private void stringOr(final StringTermIterator iterator, final DocIdStream docIdStream, final FastBitSet bitSet) {
         final String termStringVal = term.getTermStringVal();
         iterator.reset(termStringVal);
         if (!iterator.next() || !iterator.term().equals(termStringVal)) {
@@ -130,7 +132,7 @@ class TermQueryEvaluator implements QueryEvaluator {
         internalOr(iterator, docIdStream, bitSet);
     }
 
-    private void internalOr(TermIterator iterator, DocIdStream docIdStream, FastBitSet bitSet) {
+    private void internalOr(final TermIterator iterator, final DocIdStream docIdStream, final FastBitSet bitSet) {
         docIdStream.reset(iterator);
         final int[] docIdBuffer = new int[64];
         while (true) {
@@ -138,12 +140,14 @@ class TermQueryEvaluator implements QueryEvaluator {
             for (int i = 0; i < n; ++i) {
                 bitSet.set(docIdBuffer[i]);
             }
-            if (n < docIdBuffer.length) break;
+            if (n < docIdBuffer.length) {
+                break;
+            }
         }
     }
 
     @Override
-    public void not(FlamdexReader r, FastBitSet bitSet, FastBitSetPooler bitSetPooler) {
+    public void not(final FlamdexReader r, final FastBitSet bitSet, final FastBitSetPooler bitSetPooler) {
         final DocIdStream docIdStream = r.getDocIdStream();
         if (term.isIntField()) {
             final IntTermIterator iterator = r.getUnsortedIntTermIterator(term.getFieldName());
@@ -164,7 +168,7 @@ class TermQueryEvaluator implements QueryEvaluator {
         }
     }
 
-    private void intNot(IntTermIterator iterator, DocIdStream docIdStream, FastBitSet bitSet) {
+    private void intNot(final IntTermIterator iterator, final DocIdStream docIdStream, final FastBitSet bitSet) {
         final long termIntVal = term.getTermIntVal();
         iterator.reset(termIntVal);
         if (!iterator.next() || iterator.term() != termIntVal) {
@@ -174,7 +178,7 @@ class TermQueryEvaluator implements QueryEvaluator {
         internalNot(iterator, docIdStream, bitSet);
     }
 
-    private void stringNot(StringTermIterator iterator, DocIdStream docIdStream, FastBitSet bitSet) {
+    private void stringNot(final StringTermIterator iterator, final DocIdStream docIdStream, final FastBitSet bitSet) {
         final String termStringVal = term.getTermStringVal();
         iterator.reset(termStringVal);
         if (!iterator.next() || !iterator.term().equals(termStringVal)) {
@@ -184,7 +188,7 @@ class TermQueryEvaluator implements QueryEvaluator {
         internalNot(iterator, docIdStream, bitSet);
     }
 
-    private void internalNot(TermIterator iterator, DocIdStream docIdStream, FastBitSet bitSet) {
+    private void internalNot(final TermIterator iterator, final DocIdStream docIdStream, final FastBitSet bitSet) {
         docIdStream.reset(iterator);
         final int[] docIdBuffer = new int[64];
         int lastDoc = 0;
@@ -196,7 +200,9 @@ class TermQueryEvaluator implements QueryEvaluator {
                 bitSet.clear(doc);
                 lastDoc = doc + 1;
             }
-            if (n < docIdBuffer.length) break;
+            if (n < docIdBuffer.length) {
+                break;
+            }
         }
         bitSet.setRange(lastDoc, bitSet.size());
     }

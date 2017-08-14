@@ -20,7 +20,7 @@ public class TermLimitedFTGSIterator implements FTGSIterator {
      * @param wrapped The iterator to use
      * @param termLimit Maximum number of terms that will be allowed to iterate through
      */
-    public TermLimitedFTGSIterator(FTGSIterator wrapped, long termLimit) {
+    public TermLimitedFTGSIterator(final FTGSIterator wrapped, final long termLimit) {
         this.wrapped = wrapped;
         this.termLimit = termLimit > 0 ? termLimit : Long.MAX_VALUE;
     }
@@ -45,7 +45,7 @@ public class TermLimitedFTGSIterator implements FTGSIterator {
         if (termsIterated >= termLimit) {
             return false;
         }
-        boolean hasNext = wrapped.nextTerm();
+        final boolean hasNext = wrapped.nextTerm();
         if (hasNext) {
             termDocFreq = wrapped.termDocFreq();
             firstTermGroupConsumed = nextGroup();
@@ -86,7 +86,7 @@ public class TermLimitedFTGSIterator implements FTGSIterator {
     }
 
     @Override
-    public void groupStats(long[] stats) {
+    public void groupStats(final long[] stats) {
         wrapped.groupStats(stats);
     }
 

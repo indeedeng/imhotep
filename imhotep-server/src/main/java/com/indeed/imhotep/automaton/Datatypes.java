@@ -48,7 +48,7 @@ import java.util.TreeSet;
  * Basic automata for representing common datatypes
  * related to Unicode, XML, and XML Schema.
  */
-final public class Datatypes {
+public final class Datatypes {
 	
 	private static final Map<String,Automaton> automata;
 	
@@ -231,11 +231,11 @@ final public class Datatypes {
 	};
 	
 	static {
-		automata = new HashMap<String,Automaton>();
+		automata = new HashMap<>();
 		ws = Automaton.minimize(Automaton.makeCharSet(" \t\n\r").repeat());
-		unicodeblock_names = new HashSet<String>(Arrays.asList(unicodeblock_names_array));
-		unicodecategory_names = new HashSet<String>(Arrays.asList(unicodecategory_names_array));
-		xml_names = new HashSet<String>(Arrays.asList(xml_names_array));
+		unicodeblock_names = new HashSet<>(Arrays.asList(unicodeblock_names_array));
+		unicodecategory_names = new HashSet<>(Arrays.asList(unicodecategory_names_array));
+		xml_names = new HashSet<>(Arrays.asList(xml_names_array));
 	}
 	
 	private Datatypes() {}
@@ -245,14 +245,15 @@ final public class Datatypes {
 	 * Automata are stored in the directory specified by the system property <tt>dk.brics.automaton.datatypes</tt>.
 	 * (Default: <tt>build</tt>, relative to the current working directory.)
 	 */
-	public static void main(String[] args) {
-		long t = System.currentTimeMillis();
-		boolean b = Automaton.setAllowMutate(true);
+	public static void main(final String[] args) {
+		final long t = System.currentTimeMillis();
+		final boolean b = Automaton.setAllowMutate(true);
 		buildAll();
 		Automaton.setAllowMutate(b);
 		System.out.println("Storing automata...");
-		for (Map.Entry<String,Automaton> e : automata.entrySet())
+		for (final Map.Entry<String,Automaton> e : automata.entrySet()) {
 			store(e.getKey(), e.getValue());
+		}
 		System.out.println("Time for building automata: " + (System.currentTimeMillis() - t) + "ms");
 	}
 	
@@ -431,7 +432,7 @@ final public class Datatypes {
 	 * @param name name of automaton
 	 * @return automaton
 	 */
-	public static Automaton get(String name) {
+	public static Automaton get(final String name) {
 		Automaton a = automata.get(name);
 		if (a == null) {
 			a = load(name);
@@ -443,21 +444,21 @@ final public class Datatypes {
 	/**
 	 * Checks whether the given string is the name of a Unicode block (see {@link #get(String)}).
 	 */
-	public static boolean isUnicodeBlockName(String name) {
+	public static boolean isUnicodeBlockName(final String name) {
 		return unicodeblock_names.contains(name);
 	}
 	
 	/**
 	 * Checks whether the given string is the name of a Unicode category (see {@link #get(String)}).
 	 */
-	public static boolean isUnicodeCategoryName(String name) {
+	public static boolean isUnicodeCategoryName(final String name) {
 		return unicodecategory_names.contains(name);
 	}
 	
 	/**
 	 * Checks whether the given string is the name of an XML / XML Schema automaton (see {@link #get(String)}).
 	 */
-	public static boolean isXMLName(String name) {
+	public static boolean isXMLName(final String name) {
 		return xml_names.contains(name);
 	}
 	
@@ -466,41 +467,39 @@ final public class Datatypes {
 	 * @param name automaton name
 	 * @return true if the automaton is available
 	 */
-	public static boolean exists(String name) {
+	public static boolean exists(final String name) {
 		try {
 			Datatypes.class.getClassLoader().getResource(name + ".aut").openStream().close();
-		} catch (IOException e) {
+		} catch (final IOException e) {
 			return false;
 		}
 		return true;
 	}
 
-	private static Automaton load(String name) {
+	private static Automaton load(final String name) {
 		try {
-			URL url = Datatypes.class.getClassLoader().getResource(name + ".aut");
+			final URL url = Datatypes.class.getClassLoader().getResource(name + ".aut");
 			return Automaton.load(url.openStream());
-		} catch (IOException e) {
-			e.printStackTrace();
-			return null;
-		} catch (ClassNotFoundException e) {
+		} catch (final IOException | ClassNotFoundException e) {
 			e.printStackTrace();
 			return null;
 		}
 	}
 	
-	private static void store(String name, Automaton a) {
+	private static void store(final String name, final Automaton a) {
 		String dir = System.getProperty("dk.brics.automaton.datatypes");
-		if (dir == null)
+		if (dir == null) {
 			dir = "build";
+		}
 		try {
 			a.store((new FileOutputStream(dir + "/" + name + ".aut")));
-		} catch (IOException e) {
+		} catch (final IOException e) {
 			e.printStackTrace();
 		}
 	}
 	
 	private static void buildAll() {
-		String[] xmlexps = {
+		final String[] xmlexps = {
 				"Extender",  
 				"[\u3031-\u3035\u309D-\u309E\u30FC-\u30FE\u00B7\u02D0\u02D1\u0387\u0640\u0E46\u0EC6\u3005]",
 				"CombiningChar",
@@ -554,7 +553,7 @@ final public class Datatypes {
 		};
 		
 		System.out.println("Building XML automata...");
-		Map<String,Automaton> t = buildMap(xmlexps);
+		final Map<String,Automaton> t = buildMap(xmlexps);
 		putFrom("NCName", t);
 		putFrom("QName", t);
 		putFrom("Char", t);
@@ -564,7 +563,7 @@ final public class Datatypes {
 		
 		put(automata, "whitespace", ws);
 
-		String[] uriexps = {
+		final String[] uriexps = {
 				"digit", "[0-9]",
 				"upalpha", "[A-Z]",
 				"lowalpha", "[a-z]",
@@ -617,8 +616,8 @@ final public class Datatypes {
 		put(automata, "anyname", Automaton.minimize(Automaton.makeChar('{').concatenate(automata.get("URI").clone()).concatenate(Automaton.makeChar('}')).optional().concatenate(automata.get("NCName").clone())));
 
 		put(automata, "noap", new RegExp("~(@[@%]@)").toAutomaton());
-		
-		String[] xsdmisc = {
+
+		final String[] xsdmisc = {
 				"_", "[ \t\n\r]*",
 				"d", "[0-9]",
 				"Z", "[-+](<00-13>:<00-59>|14:00)|Z",
@@ -633,7 +632,7 @@ final public class Datatypes {
 				"B16S", "<B16> ?",
 				"B64S", "<B64> ?",
 		};
-		String[] xsdexps = {
+		final String[] xsdexps = {
 				"boolean", "<_>(true|false|1|0)<_>",
 				"decimal", "<_>([-+]?<d>+(\\.<d>+)?)<_>",
 				"float", "<_>([-+]?<d>+(\\.<d>+)?([Ee][-+]?<d>+)?|INF|-INF|NaN)<_>",
@@ -656,7 +655,7 @@ final public class Datatypes {
 				"positiveInteger", "<_>([1-9]<d>*)<_>",
 		};
 		System.out.println("Building XML Schema automata...");
-		Map<String,Automaton> m = buildMap(xsdmisc);
+		final Map<String,Automaton> m = buildMap(xsdmisc);
 		putWith(xsdexps, m);
 		
 		put(m, "UNSIGNEDLONG", Automaton.makeMaxInteger("18446744073709551615"));
@@ -671,11 +670,11 @@ final public class Datatypes {
 		put(m, "SHORT_NEG", Automaton.makeMaxInteger("32768"));
 		put(m, "BYTE", Automaton.makeMaxInteger("127"));
 		put(m, "BYTE_NEG", Automaton.makeMaxInteger("128"));
-		
-		Map<String,Automaton> u = new HashMap<String,Automaton>();
+
+		final Map<String,Automaton> u = new HashMap<>();
 		u.putAll(t);
 		u.putAll(m);
-		String[] xsdexps2 = {
+		final String[] xsdexps2 = {
 				"Nmtoken2", "<_><Nmtoken><_>",
 				"Name2", "<_><Name><_>",
 				"NCName2", "<_><NCName><_>",
@@ -801,9 +800,9 @@ final public class Datatypes {
 	                                      .union(Automaton.makeChar('\udbff').concatenate(Automaton.makeCharRange('\udc00', '\udffd')))));
 
 		System.out.println("Building Unicode category automata...");
-		Map<String,Set<Integer>> categories = new HashMap<String,Set<Integer>>();
+		final Map<String,Set<Integer>> categories = new HashMap<>();
 		try {
-			StreamTokenizer st = new StreamTokenizer(new BufferedReader(new FileReader("src/Unicode.txt")));
+			final StreamTokenizer st = new StreamTokenizer(new BufferedReader(new FileReader("src/Unicode.txt")));
 			st.resetSyntax();
 			st.whitespaceChars(';', ';');
 			st.whitespaceChars('\n', ' ');
@@ -811,32 +810,32 @@ final public class Datatypes {
 			st.wordChars('a', 'z');
 			st.wordChars('A', 'Z');
 			while (st.nextToken() != StreamTokenizer.TT_EOF) {
-				int cp = Integer.parseInt(st.sval, 16);
+				final int cp = Integer.parseInt(st.sval, 16);
 				st.nextToken();
-				String cat = st.sval;
+				final String cat = st.sval;
 				Set<Integer> c = categories.get(cat);
 				if (c == null) {
-					c = new TreeSet<Integer>();
+					c = new TreeSet<>();
 					categories.put(cat, c);
 				}
 				c.add(cp);
-				String ccat = cat.substring(0, 1);
+				final String ccat = cat.substring(0, 1);
 				c = categories.get(ccat);
 				if (c == null) {
-					c = new TreeSet<Integer>();
+					c = new TreeSet<>();
 					categories.put(ccat, c);
 				}
 				c.add(cp);
 			}
-		} catch (IOException e) {
+		} catch (final IOException e) {
 			e.printStackTrace();
 			System.exit(-1);
 		}
-		List<Automaton> assigned = new ArrayList<Automaton>();
-		for (Map.Entry<String,Set<Integer>> me : categories.entrySet()) {
-			List<Automaton> la1 = new ArrayList<Automaton>();
-			List<Automaton> la2 = new ArrayList<Automaton>();
-			for (Integer cp : me.getValue()) {
+		final List<Automaton> assigned = new ArrayList<>();
+		for (final Map.Entry<String,Set<Integer>> me : categories.entrySet()) {
+			final List<Automaton> la1 = new ArrayList<>();
+			final List<Automaton> la2 = new ArrayList<>();
+			for (final Integer cp : me.getValue()) {
 				la1.add(makeCodePoint(cp));
 				if (la1.size() == 50) {
 					la2.add(Automaton.minimize(Automaton.union(la1)));
@@ -844,11 +843,11 @@ final public class Datatypes {
 				}
 			}
 			la2.add(Automaton.union(la1));
-			Automaton a = Automaton.minimize(Automaton.union(la2));
+			final Automaton a = Automaton.minimize(Automaton.union(la2));
 			put(automata, me.getKey(), a);
 			assigned.add(a);
 		}
-		Automaton cn = Automaton.minimize(automata.get("Char").clone().intersection(Automaton.union(assigned).complement()));
+		final Automaton cn = Automaton.minimize(automata.get("Char").clone().intersection(Automaton.union(assigned).complement()));
 		put(automata, "Cn", cn);
 		put(automata, "C", automata.get("C").clone().union(cn));
 	}
@@ -856,31 +855,34 @@ final public class Datatypes {
 	private static Automaton makeCodePoint(int cp) {
 		if (cp >= 0x10000) {
 			cp -= 0x10000;
-			char[] cu = { (char)(0xd800 + (cp >> 10)), (char)(0xdc00 + (cp & 0x3ff)) };
+			final char[] cu = { (char)(0xd800 + (cp >> 10)), (char)(0xdc00 + (cp & 0x3ff)) };
 			return Automaton.makeString(new String(cu));
-		} else
-			return Automaton.makeChar((char)cp);
+		} else {
+			return Automaton.makeChar((char) cp);
+		}
 	}
 
-	private static Map<String,Automaton> buildMap(String[] exps) {
-		Map<String,Automaton> map = new HashMap<String,Automaton>();
+	private static Map<String,Automaton> buildMap(final String[] exps) {
+		final Map<String,Automaton> map = new HashMap<>();
 		int i = 0;
-		while (i + 1 < exps.length) 
+		while (i + 1 < exps.length) {
 			put(map, exps[i++], new RegExp(exps[i++]).toAutomaton(map));
+		}
 		return map;
 	}
 	
-	private static void putWith(String[] exps, Map<String,Automaton> use) {
+	private static void putWith(final String[] exps, final Map<String,Automaton> use) {
 		int i = 0;
-		while (i + 1 < exps.length)  
-			put(automata, exps[i++], new RegExp(exps[i++]).toAutomaton(use));	
+		while (i + 1 < exps.length) {
+			put(automata, exps[i++], new RegExp(exps[i++]).toAutomaton(use));
+		}
 	}
 	
-	private static void putFrom(String name, Map<String,Automaton> from) {
+	private static void putFrom(final String name, final Map<String,Automaton> from) {
 		automata.put(name, from.get(name));
 	}
 	
-	private static void put(Map<String,Automaton> map, String name, Automaton a) {
+	private static void put(final Map<String,Automaton> map, final String name, final Automaton a) {
 		map.put(name, a);
 		System.out.println("  " + name + ": " + a.getNumberOfStates() + " states, " + a.getNumberOfTransitions() + " transitions");
 	}

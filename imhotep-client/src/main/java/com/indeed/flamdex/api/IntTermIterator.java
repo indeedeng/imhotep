@@ -19,10 +19,10 @@ public interface IntTermIterator extends TermIterator {
      * no longer valid until the next call to next()
      * @param term The term to reset the iterator to
      */
-    public void reset(long term);
+    void reset(long term);
 
     /**
      * @return  the current term, invalid before next() is called or if next() returned false
      */
-    public long term();
+    long term();
 }

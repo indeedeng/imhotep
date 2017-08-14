@@ -27,39 +27,39 @@ public class MockFlamdexWriter implements FlamdexWriter {
     private final Collection<String> stringFields;
     private int numDocs;
 
-    private final Map<String, Map<Long, List<Integer>>> intTerms = new HashMap<String, Map<Long, List<Integer>>>();
-    private final Map<String, Map<String, List<Integer>>> stringTerms = new HashMap<String, Map<String, List<Integer>>>();
+    private final Map<String, Map<Long, List<Integer>>> intTerms = new HashMap<>();
+    private final Map<String, Map<String, List<Integer>>> stringTerms = new HashMap<>();
 
     public MockFlamdexWriter() {
-        this.intFields = new ArrayList<String>();
-        this.stringFields = new ArrayList<String>();
+        this.intFields = new ArrayList<>();
+        this.stringFields = new ArrayList<>();
         this.numDocs = 0;
     }
     
     private class MockIntFieldWriter implements IntFieldWriter {
         private List<Integer> currentDocList;
-        private Map<Long, List<Integer>> terms;
+        private final Map<Long, List<Integer>> terms;
         private long currentTerm;
         
-        public MockIntFieldWriter(Map<Long, List<Integer>> terms) {
+        public MockIntFieldWriter(final Map<Long, List<Integer>> terms) {
             this.terms = terms;
             this.currentTerm = Integer.MIN_VALUE;
         }
 
         @Override
-        public void nextTerm(long term) throws IOException {
+        public void nextTerm(final long term) throws IOException {
             if (this.currentTerm >= term) {
                 throw new RuntimeException("Terms not inserted in order");
             }
             this.currentTerm = term;
-            this.currentDocList = new ArrayList<Integer>();
+            this.currentDocList = new ArrayList<>();
             this.terms.put(term, this.currentDocList);
         }
 
         @Override
-        public void nextDoc(int doc) throws IOException {
+        public void nextDoc(final int doc) throws IOException {
             numDocs++;
-            if (this.currentDocList.size() > 0 && 
+            if (!this.currentDocList.isEmpty() &&
                     doc < this.currentDocList.get(this.currentDocList.size() - 1)) {
                 throw new RuntimeException("Docs not inserted in order");
             }
@@ -76,28 +76,28 @@ public class MockFlamdexWriter implements FlamdexWriter {
 
     private class MockStringFieldWriter implements StringFieldWriter {
         private List<Integer> currentDocList;
-        private Map<String, List<Integer>> terms;
+        private final Map<String, List<Integer>> terms;
         private String currentTerm;
         
-        public MockStringFieldWriter(Map<String, List<Integer>> terms) {
+        public MockStringFieldWriter(final Map<String, List<Integer>> terms) {
             this.terms = terms;
             this.currentTerm = null;
         }
 
         @Override
-        public void nextTerm(String term) throws IOException {
+        public void nextTerm(final String term) throws IOException {
             if (currentTerm != null && currentTerm.compareTo(term) >= 0) {
                 throw new RuntimeException("Terms not inserted in order");
             }
             this.currentTerm = term;
-            this.currentDocList = new ArrayList<Integer>();
+            this.currentDocList = new ArrayList<>();
             this.terms.put(term, this.currentDocList);
         }
 
         @Override
-        public void nextDoc(int doc) throws IOException {
+        public void nextDoc(final int doc) throws IOException {
             numDocs++;
-            if (this.currentDocList.size() > 0 && 
+            if (!this.currentDocList.isEmpty() &&
                     doc < this.currentDocList.get(this.currentDocList.size() - 1)) {
                 throw new RuntimeException("Docs not inserted in order");
             }
@@ -113,14 +113,14 @@ public class MockFlamdexWriter implements FlamdexWriter {
 
 
     @Override
-    public IntFieldWriter getIntFieldWriter(String field) throws IOException {
+    public IntFieldWriter getIntFieldWriter(final String field) throws IOException {
         this.intFields.add(field);
         this.intTerms.put(field, new LinkedHashMap<Long, List<Integer>>());
         return new MockIntFieldWriter(this.intTerms.get(field));
     }
 
     @Override
-    public StringFieldWriter getStringFieldWriter(String field) throws IOException {
+    public StringFieldWriter getStringFieldWriter(final String field) throws IOException {
         this.stringFields.add(field);
         this.stringTerms.put(field, new LinkedHashMap<String, List<Integer>>());
         return new MockStringFieldWriter(this.stringTerms.get(field));
@@ -145,7 +145,7 @@ public class MockFlamdexWriter implements FlamdexWriter {
     }
 
     @Override
-    public void resetMaxDocs(long numDocs) {
+    public void resetMaxDocs(final long maxDocs) {
         /* does nothing */
     }
 

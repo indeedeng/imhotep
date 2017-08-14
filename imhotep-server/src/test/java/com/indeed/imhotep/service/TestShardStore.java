@@ -44,7 +44,7 @@ public class TestShardStore {
     private Path storeDir = null;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         storeDir = rootTestDir.newFolder("store").toPath();
     }
 

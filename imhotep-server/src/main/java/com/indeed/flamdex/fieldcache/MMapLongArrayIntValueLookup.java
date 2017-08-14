@@ -13,8 +13,8 @@
  */
  package com.indeed.flamdex.fieldcache;
 
-import com.indeed.util.core.io.Closeables2;
 import com.indeed.flamdex.api.IntValueLookup;
+import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.mmap.LongArray;
 import com.indeed.util.mmap.MMapBuffer;
 import org.apache.log4j.Logger;
@@ -30,7 +30,7 @@ public final class MMapLongArrayIntValueLookup implements IntValueLookup {
     private final long min;
     private final long max;
 
-    public MMapLongArrayIntValueLookup(MMapBuffer buffer, int length, long min, long max) {
+    public MMapLongArrayIntValueLookup(final MMapBuffer buffer, final int length, final long min, final long max) {
         this.buffer = buffer;
         this.min = min;
         this.max = max;
@@ -48,7 +48,7 @@ public final class MMapLongArrayIntValueLookup implements IntValueLookup {
     }
 
     @Override
-    public void lookup(int[] docIds, long[] values, int n) {
+    public void lookup(final int[] docIds, final long[] values, final int n) {
         for (int i = 0; i < n; ++i) {
             values[i] = longArray.get(docIds[i]);
         }

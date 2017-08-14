@@ -23,7 +23,7 @@ import java.util.Arrays;
 public class Constant implements IntValueLookup {
     private final long val;
 
-    public Constant(long val) {
+    public Constant(final long val) {
         this.val = val;
     }
 
@@ -38,7 +38,7 @@ public class Constant implements IntValueLookup {
     }
 
     @Override
-    public void lookup(int[] docIds, long[] values, int n) {
+    public void lookup(final int[] docIds, final long[] values, final int n) {
         Arrays.fill(values, 0, n, val);
     }
 

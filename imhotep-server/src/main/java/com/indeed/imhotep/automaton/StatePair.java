@@ -35,10 +35,10 @@ package com.indeed.imhotep.automaton;
  */
 public class StatePair {
 	State s;
-	State s1;
-	State s2;
+	final State s1;
+	final State s2;
 	
-	StatePair(State s, State s1, State s2) {
+	StatePair(final State s, final State s1, final State s2) {
 		this.s = s;
 		this.s1 = s1;
 		this.s2 = s2;
@@ -49,7 +49,7 @@ public class StatePair {
 	 * @param s1 first state
 	 * @param s2 second state
 	 */
-	public StatePair(State s1, State s2) {
+	public StatePair(final State s1, final State s2) {
 		this.s1 = s1;
 		this.s2 = s2;
 	}
@@ -76,13 +76,13 @@ public class StatePair {
 	 * @return true if <tt>obj</tt> represents the same pair of states as this pair
 	 */
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (obj instanceof StatePair) {
-			StatePair p = (StatePair)obj;
+			final StatePair p = (StatePair)obj;
 			return p.s1 == s1 && p.s2 == s2;
 		}
-		else
-			return false;
+
+		return false;
 	}
 	
 	/** 

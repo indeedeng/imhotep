@@ -41,11 +41,11 @@ public class InstrumentedFlamdexReader
     private final FlamdexReader wrapped;
     private final FlamdexInfo   flamdexInfo;
 
-    private final Object2LongArrayMap<String> statsPushed = new Object2LongArrayMap<String>(16);
-    private final Object2LongArrayMap<String> fields      = new Object2LongArrayMap<String>(16);
-    private final Object2LongArrayMap<String> metrics     = new Object2LongArrayMap<String>(16);
+    private final Object2LongArrayMap<String> statsPushed = new Object2LongArrayMap<>(16);
+    private final Object2LongArrayMap<String> fields      = new Object2LongArrayMap<>(16);
+    private final Object2LongArrayMap<String> metrics     = new Object2LongArrayMap<>(16);
 
-    final public class FlamdexReaderEvent extends Instrumentation.Event {
+    public final class FlamdexReaderEvent extends Instrumentation.Event {
         FlamdexReaderEvent() {
             super(FlamdexReaderEvent.class.getSimpleName());
             getProperties().put(Keys.FIELDS,             commaDelimitted(fields.keySet()));
@@ -59,35 +59,37 @@ public class InstrumentedFlamdexReader
             getProperties().put(Keys.STATS_PUSHED_BYTES, commaDelimitted(statsPushed.values()));
         }
 
-        private <T> String commaDelimitted(Collection<T> items) {
-            StringBuilder sb = new StringBuilder();
-            Iterator<T>   it = items.iterator();
+        private <T> String commaDelimitted(final Collection<T> items) {
+            final StringBuilder sb = new StringBuilder();
+            final Iterator<T>   it = items.iterator();
             while (it.hasNext()) {
                 sb.append(it.next().toString());
-                if (it.hasNext()) sb.append(", ");
+                if (it.hasNext()) {
+                    sb.append(", ");
+                }
             }
             return sb.toString();
         }
     }
 
-    public InstrumentedFlamdexReader(FlamdexReader reader) {
+    public InstrumentedFlamdexReader(final FlamdexReader reader) {
         this.wrapped     = reader;
         this.flamdexInfo = new FlamdexInfo(reader);
     }
 
     public Instrumentation.Event sample() { return new FlamdexReaderEvent(); }
 
-    public void onPushStat(String stat, IntValueLookup lookup) {
+    public void onPushStat(final String stat, final IntValueLookup lookup) {
         if (stat != null) {
             statsPushed.put(stat, lookup != null ? lookup.memoryUsed() : 0L);
         }
     }
 
-    private void onMetric(String metric) {
+    private void onMetric(final String metric) {
         metrics.put(metric, memoryRequired(metric));
     }
 
-    private void onField(String field) {
+    private void onField(final String field) {
         fields.put(field, fields.getLong(field));
     }
 
@@ -112,34 +114,34 @@ public class InstrumentedFlamdexReader
         return wrapped.getDocIdStream();
     }
 
-    public IntTermIterator getIntTermIterator(String field) {
+    public IntTermIterator getIntTermIterator(final String field) {
         onField(field);
         return wrapped.getIntTermIterator(field);
     }
 
-    public IntTermIterator getUnsortedIntTermIterator(String field) {
+    public IntTermIterator getUnsortedIntTermIterator(final String field) {
         onField(field);
         return wrapped.getUnsortedIntTermIterator(field);
     }
 
-    public StringTermIterator getStringTermIterator(String field) {
+    public StringTermIterator getStringTermIterator(final String field) {
         onField(field);
         return wrapped.getStringTermIterator(field);
     }
 
-    public IntTermDocIterator getIntTermDocIterator(String field) {
+    public IntTermDocIterator getIntTermDocIterator(final String field) {
         return wrapped.getIntTermDocIterator(field);
     }
 
-    public StringTermDocIterator getStringTermDocIterator(String field) {
+    public StringTermDocIterator getStringTermDocIterator(final String field) {
         return wrapped.getStringTermDocIterator(field);
     }
 
-    public long getIntTotalDocFreq(String field) {
+    public long getIntTotalDocFreq(final String field) {
         return wrapped.getIntTotalDocFreq(field);
     }
 
-    public long getStringTotalDocFreq(String field) {
+    public long getStringTotalDocFreq(final String field) {
         return wrapped.getStringTotalDocFreq(field);
     }
 
@@ -147,18 +149,18 @@ public class InstrumentedFlamdexReader
         return wrapped.getAvailableMetrics();
     }
 
-    public IntValueLookup getMetric(String metric)
+    public IntValueLookup getMetric(final String metric)
         throws FlamdexOutOfMemoryException {
         onMetric(metric);
         return wrapped.getMetric(metric);
     }
 
-    public StringValueLookup getStringLookup(String field)
+    public StringValueLookup getStringLookup(final String field)
         throws FlamdexOutOfMemoryException {
         return wrapped.getStringLookup(field);
     }
 
-    public long memoryRequired(String metric) {
+    public long memoryRequired(final String metric) {
         return wrapped.memoryRequired(metric);
     }
 }

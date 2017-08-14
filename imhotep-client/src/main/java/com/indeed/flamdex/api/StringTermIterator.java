@@ -19,10 +19,10 @@ public interface StringTermIterator extends TermIterator {
      * no longer valid until the next call to next()
      * @param term The term to reset the iterator to
      */
-    public void reset(String term);
+    void reset(String term);
 
     /**
      * @return  the current term, invalid before next() is called or if next() returned false
      */
-    public String term();
+    String term();
 }

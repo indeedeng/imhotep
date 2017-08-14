@@ -11,6 +11,7 @@ import com.indeed.imhotep.shardmaster.ShardMaster;
 import com.indeed.imhotep.shardmaster.protobuf.AssignedShard;
 import com.indeed.util.core.Pair;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
@@ -30,6 +31,7 @@ class ShardMasterShardDirIterator implements  ShardDirIterator {
         this.node = node;
     }
 
+    @Nonnull
     @Override
     public Iterator<Pair<String, ShardDir>> iterator() {
         // use list here to drain all assignments from the shard master

@@ -24,11 +24,11 @@ public final class BitSetIntValueLookup implements IntValueLookup {
     private final long min;
     private final long max;
 
-    public BitSetIntValueLookup(FastBitSet lookupBitSet) {
+    public BitSetIntValueLookup(final FastBitSet lookupBitSet) {
         this(lookupBitSet, 0, 1);
     }
 
-    public BitSetIntValueLookup(FastBitSet lookupBitSet, long min, long max) {
+    public BitSetIntValueLookup(final FastBitSet lookupBitSet, final long min, final long max) {
         this.lookupBitSet = lookupBitSet;
         this.min = min;
         this.max = max;
@@ -45,7 +45,7 @@ public final class BitSetIntValueLookup implements IntValueLookup {
     }
 
     @Override
-    public final void lookup(int[] docIds, long[] values, int n) {
+    public void lookup(final int[] docIds, final long[] values, final int n) {
         for (int i = 0; i < n; ++i) {
             values[i] = lookupBitSet.get(docIds[i]) ? 1 : 0;
         }

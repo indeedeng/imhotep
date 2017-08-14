@@ -214,8 +214,8 @@ public class TestFlamdexFTGSIterator {
     }
 
     private static class IntTerm {
-        int term;
-        List<Pair<Integer, long[]>> groupStats;
+        final int term;
+        final List<Pair<Integer, long[]>> groupStats;
 
         private IntTerm(final int term, final List<Pair<Integer, long[]>> groupStats) {
             this.term = term;

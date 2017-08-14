@@ -28,7 +28,7 @@ public class TestQuery {
     @Test
     public void testEqualsHashCode() {
         @SuppressWarnings("unchecked")
-        List<List<Query>> equivalenceClasses = ImmutableList.<List<Query>>of(
+        final List<List<Query>> equivalenceClasses = ImmutableList.<List<Query>>of(
                 ImmutableList.of(
                         Query.newTermQuery(new Term("abc", true, 123, "foo")),
                         Query.newTermQuery(new Term("abc", true, 123, "bar"))),
@@ -59,11 +59,11 @@ public class TestQuery {
 
         int hashCollisions = 0, hashComparisons = 0;
 
-        for (List<Query> group1 : equivalenceClasses) {
-            for (List<Query> group2 : equivalenceClasses) {
+        for (final List<Query> group1 : equivalenceClasses) {
+            for (final List<Query> group2 : equivalenceClasses) {
 
-                for (Query a : group1) {
-                    for (Query b : group2) {
+                for (final Query a : group1) {
+                    for (final Query b : group2) {
 
                         if (group1 == group2) {
                             // assert equality within class

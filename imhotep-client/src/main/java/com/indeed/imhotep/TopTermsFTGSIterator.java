@@ -9,7 +9,7 @@ import java.util.Iterator;
  */
 
 public class TopTermsFTGSIterator implements FTGSIterator {
-    final Iterator<FTGSIteratorUtil.TopTermsStatsByField.FieldAndTermStats> currentFieldIt;
+    private final Iterator<FTGSIteratorUtil.TopTermsStatsByField.FieldAndTermStats> currentFieldIt;
 
     private FTGSIteratorUtil.TopTermsStatsByField.FieldAndTermStats currentField;
     private int currentTGSIdx;

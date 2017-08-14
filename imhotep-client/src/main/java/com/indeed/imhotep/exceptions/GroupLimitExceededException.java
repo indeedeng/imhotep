@@ -32,7 +32,7 @@ public class GroupLimitExceededException extends LimitExceededException {
      *
      * @param   s   the detail message.
      */
-    public GroupLimitExceededException(String s) {
+    public GroupLimitExceededException(final String s) {
         super(s);
     }
 
@@ -51,7 +51,7 @@ public class GroupLimitExceededException extends LimitExceededException {
      *         is permitted, and indicates that the cause is nonexistent or
      *         unknown.)
      */
-    public GroupLimitExceededException(String message, Throwable cause) {
+    public GroupLimitExceededException(final String message, final Throwable cause) {
         super(message, cause);
     }
 }

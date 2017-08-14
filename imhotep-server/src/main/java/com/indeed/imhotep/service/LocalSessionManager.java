@@ -44,14 +44,14 @@ public final class LocalSessionManager extends AbstractSessionManager<Map<ShardI
             final int clientVersion,
             final String dataset,
             final long sessionTimeout,
-            MemoryReservationContext sessionMemoryContext) {
-        final Session<Map<ShardId, CachedFlamdexReaderReference>> session = new Session(imhotepSession, flamdexes, username, clientName, ipAddress, clientVersion, dataset, sessionTimeout, sessionMemoryContext);
+            final MemoryReservationContext sessionMemoryContext) {
+        final Session<Map<ShardId, CachedFlamdexReaderReference>> session = new Session<>(imhotepSession, flamdexes, username, clientName, ipAddress, clientVersion, dataset, sessionTimeout, sessionMemoryContext);
         addSession(sessionId, session);
     }
 
     public List<String> getShardIdsForSession(final String sessionId) {
         final Session<Map<ShardId, CachedFlamdexReaderReference>> session = internalGetSession(sessionId);
-        final List<String> ret = new ArrayList<String>(session.sessionState.size());
+        final List<String> ret = new ArrayList<>(session.sessionState.size());
         for (final ShardId flamdex : session.sessionState.keySet()) {
             ret.add(flamdex.getId());
         }
@@ -61,11 +61,11 @@ public final class LocalSessionManager extends AbstractSessionManager<Map<ShardI
     public List<ImhotepStatusDump.SessionDump> getSessionDump() {
         final Map<String, Session<Map<ShardId, CachedFlamdexReaderReference>>> clone = cloneSessionMap();
 
-        final List<ImhotepStatusDump.SessionDump> openSessions = new ArrayList<ImhotepStatusDump.SessionDump>(clone.size());
+        final List<ImhotepStatusDump.SessionDump> openSessions = new ArrayList<>(clone.size());
         for (final String sessionId : clone.keySet()) {
             final Session<Map<ShardId, CachedFlamdexReaderReference>> session = clone.get(sessionId);
-            final List<ImhotepStatusDump.ShardDump> openShards = new ArrayList<ImhotepStatusDump.ShardDump>();
-            for (Map.Entry<ShardId, CachedFlamdexReaderReference> entry : session.sessionState.entrySet()) {
+            final List<ImhotepStatusDump.ShardDump> openShards = new ArrayList<>();
+            for (final Map.Entry<ShardId, CachedFlamdexReaderReference> entry : session.sessionState.entrySet()) {
                 openShards.add(new ImhotepStatusDump.ShardDump(entry.getKey().getId(), entry.getKey().getDataset(), entry.getValue().getNumDocs(), entry.getValue().getMetricDump()));
             }
             openSessions.add(new ImhotepStatusDump.SessionDump(sessionId, session.dataset, "", session.username, session.clientName,

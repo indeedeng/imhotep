@@ -38,7 +38,7 @@ class ShardScanWork implements Callable<ShardScanWork.Result> {
     }
 
     @Override
-    public Result call() throws Exception {
+    public Result call() {
         if (!hostsReloader.isLoadedDataSuccessfullyRecently()) {
             LOGGER.warn("Have not loaded hosts recently, will not try to reassign shards for " + datasetDir);
             return new Result(datasetDir, Collections.<ShardDir>emptyList());

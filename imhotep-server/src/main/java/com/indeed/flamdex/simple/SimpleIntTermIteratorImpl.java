@@ -61,9 +61,9 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
 
     private boolean done = false;
     private boolean bufferNext = false;
-    private Closer closer = Closer.create();
+    private final Closer closer = Closer.create();
 
-    SimpleIntTermIteratorImpl(MapCache mapCache, Path filename, Path docListPath, Path indexPath)
+    SimpleIntTermIteratorImpl(final MapCache mapCache, final Path filename, final Path docListPath, final Path indexPath)
         throws IOException {
 
         this.mapCache = mapCache;
@@ -98,25 +98,25 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
     }
 
     @Override
-    public void reset(long term) {
+    public void reset(final long term) {
         try {
             internalReset(term);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             close();
             throw new RuntimeException(e);
-        } catch (IndexOutOfBoundsException e) {
+        } catch (final IndexOutOfBoundsException e) {
             close();
             log.error("IIOB: filename="+filename, e);
             throw e;
         }
     }
 
-    public void internalReset(long term) throws IOException {
+    public void internalReset(final long term) throws IOException {
         if (indexPath != null) {
             final LongPair p;
             if (use64BitIndex) {
                 if (index64 == null) {
-                    index64 = closer.register(new ImmutableBTreeIndex.Reader<Long,LongPair>(indexPath,
+                    index64 = closer.register(new ImmutableBTreeIndex.Reader<>(indexPath,
                             new LongSerializer(),
                             new LongPairSerializer(),
                             false
@@ -130,7 +130,7 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
                 p = e.getValue();
             } else {
                 if (index == null) {
-                    index = closer.register(new ImmutableBTreeIndex.Reader<Integer,LongPair>(indexPath,
+                    index = closer.register(new ImmutableBTreeIndex.Reader<>(indexPath,
                             new IntSerializer(),
                             new LongPairSerializer(),
                             false
@@ -176,14 +176,16 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
     public boolean next() {
         try {
             return internalNext();
-        } catch (IOException e) {
+        } catch (final IOException e) {
             close();
             throw new RuntimeException(e);
         }
     }
 
     private boolean internalNext() throws IOException {
-        if (done) return false;
+        if (done) {
+            return false;
+        }
         if (bufferNext) {
             bufferNext = false;
             return true;
@@ -239,7 +241,9 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
     private int read() throws IOException {
         if (bufferPtr == bufferLen) {
             refillBuffer(bufferOffset + bufferLen);
-            if (bufferLen == 0) return -1;
+            if (bufferLen == 0) {
+                return -1;
+            }
         }
         return buffer[bufferPtr++] & 0xFF;
     }
@@ -258,7 +262,9 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
         int shift = 0;
         do {
             ret |= ((b & 0x7FL) << shift);
-            if (b < 0x80) return ret;
+            if (b < 0x80) {
+                return ret;
+            }
             shift += 7;
             b = read();
         } while (true);
@@ -268,9 +274,11 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
         long ret = 0L;
         int shift = 0;
         do {
-            int b = read();
+            final int b = read();
             ret |= ((b & 0x7FL) << shift);
-            if (b < 0x80) return ret;
+            if (b < 0x80) {
+                return ret;
+            }
             shift += 7;
         } while (true);
     }

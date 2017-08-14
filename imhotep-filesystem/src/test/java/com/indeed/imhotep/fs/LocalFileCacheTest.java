@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class LocalFileCacheTest {
     @Rule
-    public RemoteCachingFileSystemTestContext testContext = new RemoteCachingFileSystemTestContext();
+    public final RemoteCachingFileSystemTestContext testContext = new RemoteCachingFileSystemTestContext();
 
     private static String generateFileData(final RemoteCachingPath path, final int size) {
         return RandomStringUtils.random(size - 1, 0, 0, true, true, null, new Random(path.hashCode()));
@@ -127,7 +127,7 @@ public class LocalFileCacheTest {
         for (int i = 0; i < numThreads; i++) {
             final ListenableFutureTask<Void> openTask = ListenableFutureTask.create(new Callable<Void>() {
                 @Override
-                public Void call() throws Exception {
+                public Void call() throws ExecutionException {
                     for (int i = 1; i <= numIterations; i++) {
                         final RemoteCachingPath file = rootPath.resolve("opened").resolve("opened." + (i % maxEntries * 2) + ".file");
                         try (LocalFileCache.ScopedCacheFile openedFile = localFileCache.getForOpen(file)) {
@@ -142,7 +142,7 @@ public class LocalFileCacheTest {
 
             final ListenableFutureTask<Void> cacheTask = ListenableFutureTask.create(new Callable<Void>() {
                 @Override
-                public Void call() throws Exception {
+                public Void call() throws IOException, ExecutionException {
                     for (int i = 1; i <= numIterations; i++) {
                         final RemoteCachingPath file = rootPath.resolve("cacheOnly").resolve("cacheOnly." + (i % maxEntries * 2) + ".file");
                         localFileCache.cache(file);

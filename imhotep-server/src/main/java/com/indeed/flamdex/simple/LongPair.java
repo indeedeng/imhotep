@@ -20,7 +20,7 @@ public class LongPair {
     private final long first;
     private final long second;
 
-    public LongPair(long first, long second) {
+    public LongPair(final long first, final long second) {
         this.first = first;
         this.second = second;
     }

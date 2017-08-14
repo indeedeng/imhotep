@@ -24,7 +24,7 @@ public final class ShiftLeft implements IntValueLookup {
     private final IntValueLookup operand;
     private final int shift;
 
-    public ShiftLeft(final IntValueLookup operand, int shift) {
+    public ShiftLeft(final IntValueLookup operand, final int shift) {
         this.operand = operand;
         this.shift = shift;
     }
@@ -40,7 +40,7 @@ public final class ShiftLeft implements IntValueLookup {
     }
 
     @Override
-    public void lookup(int[] docIds, long[] values, int n) {
+    public void lookup(final int[] docIds, final long[] values, final int n) {
         operand.lookup(docIds, values, n);
         for (int i = 0; i < n; i++) {
             values[i] <<= this.shift;

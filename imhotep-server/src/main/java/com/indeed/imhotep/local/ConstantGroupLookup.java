@@ -13,10 +13,10 @@
  */
  package com.indeed.imhotep.local;
 
-import com.indeed.util.core.threads.ThreadSafeBitSet;
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.imhotep.BitTree;
 import com.indeed.imhotep.GroupRemapRule;
+import com.indeed.util.core.threads.ThreadSafeBitSet;
 
 final class ConstantGroupLookup extends GroupLookup {
     /**
@@ -26,7 +26,7 @@ final class ConstantGroupLookup extends GroupLookup {
     private final int constant;
     private final int size;
 
-    ConstantGroupLookup(ImhotepLocalSession imhotepLocalSession, int constant, int size) {
+    ConstantGroupLookup(final ImhotepLocalSession imhotepLocalSession, final int constant, final int size) {
         session = imhotepLocalSession;
         this.constant = constant;
         this.size = size;
@@ -34,7 +34,7 @@ final class ConstantGroupLookup extends GroupLookup {
     }
 
     @Override
-    public void nextGroupCallback(int n, long[][] termGrpStats, BitTree groupsSeen) {
+    public void nextGroupCallback(final int n, final long[][] termGrpStats, final BitTree groupsSeen) {
         int rewriteHead = 0;
         // remap groups and filter out useless docids (ones with group = 0), keep track of groups that were found
         for (int i = 0; i < n; i++) {
@@ -54,37 +54,47 @@ final class ConstantGroupLookup extends GroupLookup {
     }
 
     @Override
-    public void applyIntConditionsCallback(int n, ThreadSafeBitSet docRemapped, GroupRemapRule[] remapRules, String intField, long itrTerm) {
+    public void applyIntConditionsCallback(
+            final int n,
+            final ThreadSafeBitSet docRemapped,
+            final GroupRemapRule[] remapRules,
+            final String intField,
+            final long itrTerm) {
         throw new UnsupportedOperationException("bug!");
     }
 
     @Override
-    public void applyStringConditionsCallback(int n, ThreadSafeBitSet docRemapped, GroupRemapRule[] remapRules, String stringField, String itrTerm) {
+    public void applyStringConditionsCallback(
+            final int n,
+            final ThreadSafeBitSet docRemapped,
+            final GroupRemapRule[] remapRules,
+            final String stringField,
+            final String itrTerm) {
         throw new UnsupportedOperationException("bug!");
     }
 
     @Override
-    public int get(int doc) {
+    public int get(final int doc) {
         return constant;
     }
 
     @Override
-    public void set(int doc, int group) {
+    public void set(final int doc, final int group) {
         throw new UnsupportedOperationException("bug!");
     }
 
     @Override
-    public void batchSet(int[] docIdBuf, int[] docGrpBuffer, int n) {
+    public void batchSet(final int[] docIdBuf, final int[] docGrpBuffer, final int n) {
         throw new UnsupportedOperationException("bug!");
     }
 
     @Override
-    public void fill(int group) {
+    public void fill(final int group) {
         // no-op
     }
 
     @Override
-    public void copyInto(GroupLookup other) {
+    public void copyInto(final GroupLookup other) {
         other.fill(constant);
         other.numGroups = this.numGroups;
     }
@@ -105,7 +115,7 @@ final class ConstantGroupLookup extends GroupLookup {
     }
 
     @Override
-    public void fillDocGrpBuffer(int[] docIdBuf, int[] docGrpBuffer, int n) {
+    public void fillDocGrpBuffer(final int[] docIdBuf, final int[] docGrpBuffer, final int n) {
         for (int i = 0; i < n; ++i) {
             docGrpBuffer[i] = constant;
         }
@@ -119,14 +129,17 @@ final class ConstantGroupLookup extends GroupLookup {
     }
 
     @Override
-    public void bitSetRegroup(FastBitSet bitSet, int targetGroup, int negativeGroup, int positiveGroup) {
+    public void bitSetRegroup(
+            final FastBitSet bitSet,
+            final int targetGroup,
+            final int negativeGroup,
+            final int positiveGroup) {
         throw new UnsupportedOperationException("bug!");
     }
 
     @Override
     protected void recalculateNumGroups() {
         this.numGroups = constant + 1;
-        return;
     }
 
     @Override

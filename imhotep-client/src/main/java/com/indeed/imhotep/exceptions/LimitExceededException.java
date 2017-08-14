@@ -22,11 +22,11 @@ public abstract class LimitExceededException extends ImhotepKnownException {
         super();
     }
 
-    public LimitExceededException(String s) {
+    public LimitExceededException(final String s) {
         super(s);
     }
 
-    public LimitExceededException(String message, Throwable cause) {
+    public LimitExceededException(final String message, final Throwable cause) {
         super(message, cause);
     }
 }

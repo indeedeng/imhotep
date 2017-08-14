@@ -18,7 +18,7 @@ import java.io.InputStream;
 
 public class GroupStatsStreamReader extends AbstractLongIterator implements GroupStatsIterator {
 
-    private static Logger log = Logger.getLogger(GroupStatsStreamReader.class);
+    private static final Logger log = Logger.getLogger(GroupStatsStreamReader.class);
 
     private DataInputStream stream;
     private final int count;

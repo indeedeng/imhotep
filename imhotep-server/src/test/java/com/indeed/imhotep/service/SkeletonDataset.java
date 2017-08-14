@@ -23,11 +23,11 @@ class SkeletonDataset {
     private final String[] strFieldNames;
     private final int      numShards;
 
-    SkeletonDataset(Random rng,
-                    Path rootDir,
-                    int maxNumShards,
-                    int maxNumDocs,
-                    int maxNumFields)
+    SkeletonDataset(final Random rng,
+                    final Path rootDir,
+                    final int maxNumShards,
+                    final int maxNumDocs,
+                    final int maxNumFields)
         throws IOException {
 
         this.rng           = rng;
@@ -49,32 +49,36 @@ class SkeletonDataset {
     String[] getStrFieldNames() { return strFieldNames; }
     int          getNumShards() { return numShards;     }
 
-    private void makeShard(Path shardDir, int maxNumDocs)
+    private void makeShard(final Path shardDir, final int maxNumDocs)
         throws IOException {
         final int numDocs = Math.max(rng.nextInt(maxNumDocs), 1);
         try (SimpleFlamdexWriter sflw = new SimpleFlamdexWriter(shardDir, numDocs)) {
-                for (String field: intFieldNames) {
+                for (final String field: intFieldNames) {
                     IntFieldWriter ifw = null;
                     try {
                         ifw = sflw.getIntFieldWriter(field);
                     }
                     finally {
-                        if (ifw != null) ifw.close();
+                        if (ifw != null) {
+                            ifw.close();
+                        }
                     }
                 }
-                for (String field: strFieldNames) {
+                for (final String field: strFieldNames) {
                     StringFieldWriter sfw = null;
                     try {
                         sfw = sflw.getStringFieldWriter(field);
                     }
                     finally {
-                        if (sfw != null) sfw.close();
+                        if (sfw != null) {
+                            sfw.close();
+                        }
                     }
                 }
             }
     }
 
-    private String[] randomFieldNames(int maxNumFields) {
+    private String[] randomFieldNames(final int maxNumFields) {
         final int numFields       = Math.max(rng.nextInt(maxNumFields), 1);
         final     String[] result = new String[numFields];
         for (int idx = 0; idx < result.length; ++idx) {

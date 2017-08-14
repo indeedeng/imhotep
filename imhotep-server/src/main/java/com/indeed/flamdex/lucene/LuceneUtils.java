@@ -16,6 +16,9 @@
 import java.io.IOException;
 
 class LuceneUtils {
+    private LuceneUtils() {
+    }
+
     static RuntimeException ioRuntimeException(final IOException e) {
         return new RuntimeException("IOException in underlying lucene layer", e);
     }

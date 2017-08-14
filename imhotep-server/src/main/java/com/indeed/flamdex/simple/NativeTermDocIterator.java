@@ -52,14 +52,16 @@ public abstract class NativeTermDocIterator implements TermDocIterator {
 
     private boolean closed = false;
 
-    NativeTermDocIterator(Path filename, MapCache mapCache) throws IOException {
+    NativeTermDocIterator(final Path filename, final MapCache mapCache) throws IOException {
         file = mapCache.copyOrOpen(filename);
         memory = file.get().memory();
     }
 
     @Override
     public final boolean nextTerm() {
-        if (currentTermDocsRemaining > 0) throw new IllegalStateException("must iterate over entire doc list for previous term before calling nextTerm");
+        if (currentTermDocsRemaining > 0) {
+            throw new IllegalStateException("must iterate over entire doc list for previous term before calling nextTerm");
+        }
         final int nextTermIndex = termIndex+1;
         if (nextTermIndex < bufferedTerms) {
             termIndex = nextTermIndex;
@@ -74,7 +76,9 @@ public abstract class NativeTermDocIterator implements TermDocIterator {
         long totalDocFreq = 0;
         termIndex = 0;
         bufferedTerms = 0;
-        if (!bufferNext()) return false;
+        if (!bufferNext()) {
+            return false;
+        }
         final long offset = offset();
         do {
             docFreqBuffer[bufferedTerms] = lastDocFreq();

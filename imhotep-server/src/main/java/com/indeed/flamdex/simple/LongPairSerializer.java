@@ -24,13 +24,13 @@ import java.io.IOException;
  */
 public class LongPairSerializer implements Serializer<LongPair> {
     @Override
-    public void write(LongPair o, DataOutput out) throws IOException {
+    public void write(final LongPair o, final DataOutput out) throws IOException {
         out.writeLong(o.getFirst());
         out.writeLong(o.getSecond());
     }
 
     @Override
-    public LongPair read(DataInput in) throws IOException {
+    public LongPair read(final DataInput in) throws IOException {
         final long first = in.readLong();
         final long second = in.readLong();
         return new LongPair(first, second);

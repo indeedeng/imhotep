@@ -17,23 +17,22 @@ import com.indeed.util.mmap.BufferResource;
 import com.indeed.util.mmap.IntArray;
 import com.indeed.util.mmap.NativeBuffer;
 import com.indeed.util.mmap.ZeroCopyOutputStream;
-
 import org.apache.log4j.Logger;
 
 import java.io.BufferedOutputStream;
-import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
 import java.nio.ByteOrder;
-import java.util.UUID;
 
 /**
  * Created by darren on 3/9/15.
  */
 public class FieldCacherUtil {
+    private FieldCacherUtil() {
+    }
+
     private static final Logger log = Logger.getLogger(FieldCacherUtil.class);
 
-    public static StringValueLookup newStringValueLookup(String field, FlamdexReader r) throws IOException {
+    public static StringValueLookup newStringValueLookup(final String field, final FlamdexReader r) throws IOException {
         final Pair<? extends BufferResource, ? extends BufferResource> pair = buildStringValueLookup(field, r);
         return new MMapStringValueLookup(pair.getFirst(), pair.getSecond());
     }
@@ -70,13 +69,15 @@ public class FieldCacherUtil {
                     for (int i = 0; i < n; i++) {
                         intArray.set(docIdBuffer[i], offset);
                     }
-                    if (n < docIdBuffer.length) break;
+                    if (n < docIdBuffer.length) {
+                        break;
+                    }
                 }
             }
             valuesOut.flush();
             final NativeBuffer buffer = valuesFileOut.getBuffer().realloc(valuesFileOut.position());
             return Pair.of(offsets, buffer);
-        } catch (Throwable t) {
+        } catch (final Throwable t) {
             closer.close();
             throw Throwables2.propagate(t, IOException.class);
         } finally {
@@ -84,7 +85,7 @@ public class FieldCacherUtil {
         }
     }
 
-    public static FieldCacher getCacherForField(String field, FlamdexReader r, MinMax minMax) {
+    public static FieldCacher getCacherForField(final String field, final FlamdexReader r, final MinMax minMax) {
         final long[] minMaxTerm = FlamdexUtils.getMinMaxTerm(field, r);
         final long minTermVal = minMaxTerm[0];
         final long maxTermVal = minMaxTerm[1];
@@ -108,9 +109,9 @@ public class FieldCacherUtil {
         }
     }
 
-    public static NativeFlamdexFieldCacher getNativeCacherForField(String field,
-                                                                   SimpleFlamdexReader r, 
-                                                                   MinMax minMax) {
+    public static NativeFlamdexFieldCacher getNativeCacherForField(final String field,
+                                                                   final SimpleFlamdexReader r,
+                                                                   final MinMax minMax) {
         final long[] minMaxTerm = FlamdexUtils.getMinMaxTerm(field, r);
         final long minTermVal = minMaxTerm[0];
         final long maxTermVal = minMaxTerm[1];

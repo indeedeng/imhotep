@@ -41,7 +41,7 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
 
     /* !@# Blech! Egregious hack to access actual SFR wrapped within
         FlamdexReader passed in. */
-    private SimpleFlamdexReader simpleFlamdexReader;
+    private final SimpleFlamdexReader simpleFlamdexReader;
 
     public ImhotepNativeLocalSession(final FlamdexReader flamdexReader)
         throws ImhotepOutOfMemoryException {
@@ -51,7 +51,7 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
 
     public ImhotepNativeLocalSession(final FlamdexReader flamdexReader,
                                      final MemoryReservationContext memory,
-                                     AtomicLong tempFileSizeBytesLeft)
+                                     final AtomicLong tempFileSizeBytesLeft)
         throws ImhotepOutOfMemoryException {
 
         super(flamdexReader, memory, tempFileSizeBytesLeft);
@@ -63,8 +63,8 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
             this.simpleFlamdexReader = (SimpleFlamdexReader) flamdexReader;
         }
         else {
-            RawCachedFlamdexReaderReference rcfrr = (RawCachedFlamdexReaderReference) flamdexReader;
-            CachedFlamdexReader             cfr   = (CachedFlamdexReader) rcfrr.getReader();
+            final RawCachedFlamdexReaderReference rcfrr = (RawCachedFlamdexReaderReference) flamdexReader;
+            final CachedFlamdexReader             cfr   = rcfrr.getReader();
             this.simpleFlamdexReader = (SimpleFlamdexReader) cfr.getWrapped();
         }
 
@@ -75,13 +75,15 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
             });
     }
 
-    public MultiCache buildMultiCache(final MultiCacheConfig config) {
+    public MultiCache buildMultiCache(final MultiCacheConfig config) throws ImhotepOutOfMemoryException {
         if (rebuildMultiCache) {
             if (multiCache != null) {
                 multiCache.close();
             }
-            multiCache = new MultiCache(this, (int)getNumDocs(), config, statLookup, docIdToGroup);
+            final long releaseBytes = docIdToGroup.memoryUsed();
+            multiCache = new MultiCache(this, (int)getNumDocs(), config, statLookup, docIdToGroup, memory);
             docIdToGroup = multiCache.getGroupLookup();
+            memory.releaseMemory(releaseBytes);
             rebuildMultiCache = false;
         }
         return multiCache;
@@ -102,7 +104,12 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
             final StatLookup[] statLookups = new StatLookup[1];
             statLookups[0] = statLookup;
             config.calcOrdering(statLookups, numStats);
-            buildMultiCache(config);
+            try {
+                buildMultiCache(config);
+            } catch (final ImhotepOutOfMemoryException ex ) {
+                throw new RuntimeException("failed to create multi cache", ex);
+            }
+
             if (nativeShard != null) {
                 nativeShard.close();
                 nativeShard = null;
@@ -113,7 +120,7 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
             try {
                 nativeShard = new NativeShard(simpleFlamdexReader, multiCache.getNativeAddress());
             }
-            catch (IOException ex) {
+            catch (final IOException ex) {
                 throw new RuntimeException("failed to create nativeShard", ex);
             }
         }
@@ -126,11 +133,11 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
     }
 
     @Override
-    public synchronized long[] getGroupStats(int stat) {
+    public synchronized long[] getGroupStats(final int stat) {
 
         bindNativeReferences();
 
-        long[] result = groupStats.get(stat);
+        final long[] result = groupStats.get(stat);
         if (groupStats.isDirty(stat)) {
             multiCache.nativeGetGroupStats(stat, result);
             groupStats.get(stat)[0] = 0; // clearing value for filtered-out group.
@@ -140,7 +147,7 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
     }
 
     @Override
-    public synchronized GroupStatsIterator getGroupStatsIterator(int stat) {
+    public synchronized GroupStatsIterator getGroupStatsIterator(final int stat) {
         return new GroupStatsDummyIterator(this.getGroupStats(stat));
     }
 
@@ -148,11 +155,17 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
     protected GroupLookup resizeGroupLookup(final GroupLookup lookup, final int size,
                                             final MemoryReservationContext memory)
         throws ImhotepOutOfMemoryException {
-        return multiCache != null ? multiCache.getGroupLookup() : lookup;
-    }
+        if( multiCache == null ) {
+            return super.resizeGroupLookup(lookup, size, memory);
+        }
 
-    @Override
-    protected void freeDocIdToGroup() { }
+        memory.releaseMemory(lookup.memoryUsed());
+        final GroupLookup cache = multiCache.getGroupLookup();
+        if(!memory.claimMemory(cache.memoryUsed())) {
+            throw new ImhotepOutOfMemoryException();
+        }
+        return cache;
+    }
 
     @Override
     protected void tryClose() {
@@ -175,8 +188,11 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
 
         final long rulesPtr = nativeGetRules(rules);
         try {
+            final int oldNumGroups = docIdToGroup.getNumGroups();
             result = nativeRegroup(rulesPtr, nativeShard.getPtr(), errorOnCollisions);
             docIdToGroup.recalculateNumGroups();
+            final int newNumGroups = docIdToGroup.getNumGroups();
+            accountForFlamdexFTGSIteratorMemChange(oldNumGroups, newNumGroups);
             groupStats.reset(numStats, result);
         }
         finally {

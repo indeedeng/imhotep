@@ -27,7 +27,10 @@ public class CachedMetric implements IntValueLookup {
     private long[] values;
     private long min, max;
 
-    public CachedMetric(IntValueLookup original, int numDocs, MemoryReserver memory) throws ImhotepOutOfMemoryException {
+    public CachedMetric(
+            final IntValueLookup original,
+            final int numDocs,
+            final MemoryReserver memory) throws ImhotepOutOfMemoryException {
         this.memory = memory;
 
         if (!memory.claimMemory(numDocs * 8L)) {
@@ -38,7 +41,7 @@ public class CachedMetric implements IntValueLookup {
         fillValues(original);
     }
 
-    private void fillValues(IntValueLookup original) {
+    private void fillValues(final IntValueLookup original) {
         final int BUFFER_SIZE = 8192;
         final int[] idBuffer = new int[BUFFER_SIZE];
         final long[] valBuffer = new long[BUFFER_SIZE];
@@ -67,7 +70,7 @@ public class CachedMetric implements IntValueLookup {
     }
 
     @Override
-    public void lookup(int[] docIds, long[] values, int n) {
+    public void lookup(final int[] docIds, final long[] values, final int n) {
         for (int i = 0; i < n; i++) {
             values[i] = this.values[docIds[i]];
         }

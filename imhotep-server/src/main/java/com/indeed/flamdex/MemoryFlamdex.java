@@ -143,7 +143,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
     }
 
     @Override
-    public void resetMaxDocs(final long numDocs) {
+    public void resetMaxDocs(final long maxDocs) {
         /* does nothing */
     }
 
@@ -289,7 +289,8 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
         for (final Map.Entry<String, LongList> intField : docIntFields.entrySet()) {
             Long2ObjectSortedMap<IntArrayList> myIntTerms = intFields.get(intField.getKey());
             if (myIntTerms == null) {
-                intFields.put(intField.getKey(), myIntTerms = new Long2ObjectSortedHashMap<>());
+                myIntTerms = new Long2ObjectSortedHashMap<>();
+                intFields.put(intField.getKey(), myIntTerms);
                 memoryUsageEstimate += TREE_MAP_WITH_HASH_MAP_ENTRY_USAGE + usage(intField.getKey()) + LONG_2_OBJECT_RB_TREE_MAP_WITH_HASH_MAP_USAGE;
             }
             final LongSet seenIntTerms = new LongOpenHashSet();
@@ -303,7 +304,8 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
 
                 IntArrayList docList = myIntTerms.get(term);
                 if (docList == null) {
-                    myIntTerms.put(term, docList = new IntArrayList());
+                    docList = new IntArrayList();
+                    myIntTerms.put(term, docList);
                     memoryUsageEstimate += LONG_2_OBJECT_RB_TREE_MAP_WITH_HASH_MAP_ENTRY_USAGE + INT_ARRAY_LIST_USAGE + (4 * docList.elements().length);
                 }
                 memoryUsageEstimate -= 4 * docList.elements().length;
@@ -316,7 +318,8 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
         for (final Map.Entry<String, List<String>> stringField : docStringFields.entrySet()) {
             SortedMap<String, IntArrayList> myStringTerms = stringFields.get(stringField.getKey());
             if (myStringTerms == null) {
-                stringFields.put(stringField.getKey(), myStringTerms = new SortedHashMap<>());
+                myStringTerms = new SortedHashMap<>();
+                stringFields.put(stringField.getKey(), myStringTerms);
                 memoryUsageEstimate += TREE_MAP_WITH_HASH_MAP_ENTRY_USAGE + usage(stringField.getKey()) + TREE_MAP_WITH_HASH_MAP_USAGE;
             }
             final Set<String> seenStringTerms = new HashSet<>();
@@ -329,7 +332,8 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
 
                 IntArrayList docList = myStringTerms.get(term);
                 if (docList == null) {
-                    myStringTerms.put(term, docList = new IntArrayList());
+                    docList = new IntArrayList();
+                    myStringTerms.put(term, docList);
                     memoryUsageEstimate += TREE_MAP_WITH_HASH_MAP_ENTRY_USAGE + usage(term) + INT_ARRAY_LIST_USAGE + (4 * docList.elements().length);
                 }
                 memoryUsageEstimate -= 4 * docList.elements().length;
@@ -1028,7 +1032,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
 
         long tmp = i;
         while (tmp != 0) {
-            tmp = tmp >> 8;
+            tmp >>= 8;
             len--;
         }
 
@@ -1052,8 +1056,8 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
         long i = 0;
         for (int idx = 0; idx < len - 1; idx++) {
             final int b = in.readUnsignedByte();
-            i = i << 8;
-            i = i | b;
+            i <<= 8;
+            i |= b;
         }
         return (isNegativeVInt(firstByte) ? (~i) : i);
     }
@@ -1065,7 +1069,8 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
     private static int decodeVIntSize(final byte value) {
         if (value >= -112) {
             return 1;
-        } else if (value < -120) {
+        }
+        if (value < -120) {
             return -119 - value;
         }
         return -111 - value;

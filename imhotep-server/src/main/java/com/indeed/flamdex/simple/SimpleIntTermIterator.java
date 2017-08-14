@@ -14,6 +14,7 @@
  package com.indeed.flamdex.simple;
 
 import com.indeed.flamdex.api.IntTermIterator;
+
 import java.io.IOException;
 
 /**
@@ -21,5 +22,5 @@ import java.io.IOException;
  */
 public interface SimpleIntTermIterator extends IntTermIterator, SimpleTermIterator {
     @Deprecated
-    public long getDocListAddress() throws IOException;
+    long getDocListAddress() throws IOException;
 }

@@ -30,7 +30,9 @@ public final class GenericRawStringTermDocIterator implements RawStringTermDocIt
 
     private final DocIdStream docIdStream;
 
-    public GenericRawStringTermDocIterator(RawStringTermIterator termIterator, DocIdStream docIdStream) {
+    public GenericRawStringTermDocIterator(
+            final RawStringTermIterator termIterator,
+            final DocIdStream docIdStream) {
         this.termIterator = termIterator;
         this.docIdStream = docIdStream;
     }

@@ -26,7 +26,7 @@ import java.nio.charset.CharsetDecoder;
 
 public class InputStreamFTGSIterator implements RawFTGSIterator {
 
-    private static final Logger log = Logger.getLogger(RawFTGSIterator.class);
+    private static final Logger log = Logger.getLogger(InputStreamFTGSIterator.class);
 
     private final byte[] buffer = new byte[8192];
     private int bufferPtr = 0;
@@ -39,7 +39,7 @@ public class InputStreamFTGSIterator implements RawFTGSIterator {
         return buffer[bufferPtr++];
     }
 
-    private void readBytes(byte[] b, int off, int len) throws IOException {
+    private void readBytes(final byte[] b, int off, int len) throws IOException {
         while (len > 0) {
             if (bufferPtr == bufferLen) {
                 refillBuffer();
@@ -47,7 +47,7 @@ public class InputStreamFTGSIterator implements RawFTGSIterator {
             final int toCopy = Math.min(len, bufferLen - bufferPtr);
             try {
                 System.arraycopy(buffer, bufferPtr, b, off, toCopy);
-            } catch(ArrayIndexOutOfBoundsException e) {
+            } catch(final ArrayIndexOutOfBoundsException e) {
                 e.printStackTrace();
             }
             bufferPtr += toCopy;
@@ -70,19 +70,23 @@ public class InputStreamFTGSIterator implements RawFTGSIterator {
         while (true) {
             final byte val = readByte();
             ret += (val&0x7F)<<shift;
-            if (val >= 0) break;
+            if (val >= 0) {
+                break;
+            }
             shift += 7;
         }
         return ret;
     }
 
-    private long readVLong(byte firstByte) throws IOException {
+    private long readVLong(final byte firstByte) throws IOException {
         long ret = 0;
         int shift = 0;
         byte val = firstByte;
         while (true) {
             ret += (val&0x7FL)<<shift;
-            if (val >= 0) break;
+            if (val >= 0) {
+                break;
+            }
             shift += 7;
             val = readByte();
         }
@@ -97,7 +101,7 @@ public class InputStreamFTGSIterator implements RawFTGSIterator {
     private int iteratorStatus = 1; // 0 = end, 1 = reading fields, 2 = reading terms, 3 = reading groups
     private final InputStream in;
 
-    public InputStreamFTGSIterator(InputStream in, int numStats) {
+    public InputStreamFTGSIterator(final InputStream in, final int numStats) {
         this.in = in;
         this.statsBuf = new long[numStats];
     }
@@ -120,7 +124,9 @@ public class InputStreamFTGSIterator implements RawFTGSIterator {
 
     @Override
     public boolean nextField() {
-        if (iteratorStatus < 1) return false;
+        if (iteratorStatus < 1) {
+            return false;
+        }
 
         while (nextTerm()) {
             // skip until end of current field reached....
@@ -128,7 +134,7 @@ public class InputStreamFTGSIterator implements RawFTGSIterator {
         // try to read next field from input stream...
         try {
             internalNextField();
-        } catch (IOException e) {
+        } catch (final IOException e) {
             iteratorStatus = -1;
             throw new RuntimeException(e);
         }
@@ -167,14 +173,16 @@ public class InputStreamFTGSIterator implements RawFTGSIterator {
 
     @Override
     public boolean nextTerm() {
-        if (iteratorStatus < 2) return false;
+        if (iteratorStatus < 2) {
+            return false;
+        }
         while (nextGroup()) {
             // skip until end of current term
         }
 
         try {
             internalNextTerm();
-        } catch (IOException e) {
+        } catch (final IOException e) {
             iteratorStatus = -1;
             throw new RuntimeException(e);
         }
@@ -230,7 +238,7 @@ public class InputStreamFTGSIterator implements RawFTGSIterator {
         if (stringTermVal == null) {
             try {
                 stringTermVal = decoder.decode((ByteBuffer)byteBuffer.position(0).limit(currentTermLength)).toString();
-            } catch (CharacterCodingException e) {
+            } catch (final CharacterCodingException e) {
                 throw new RuntimeException(e);
             }
         }
@@ -262,7 +270,7 @@ public class InputStreamFTGSIterator implements RawFTGSIterator {
                     statsBuf[i] = readSVLong();
                 }
             }
-        } catch (IOException e) {
+        } catch (final IOException e) {
             iteratorStatus = -1;
             throw new RuntimeException(e);
         }
@@ -275,7 +283,7 @@ public class InputStreamFTGSIterator implements RawFTGSIterator {
     }
 
     @Override
-    public final void groupStats(long[] stats) {
+    public final void groupStats(final long[] stats) {
         System.arraycopy(statsBuf, 0, stats, 0, statsBuf.length);
     }
 

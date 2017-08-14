@@ -4,6 +4,7 @@ import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import org.apache.commons.io.FilenameUtils;
 
+import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.io.ObjectStreamException;
@@ -55,7 +56,8 @@ public class RemoteCachingPath implements Path, Serializable {
 
         if (!pathStr.isEmpty() && !pathStr.startsWith(PATH_SEPARATOR_STR)) {
             // in case of relative path
-            tmp[count++] = 0;
+            tmp[count] = 0;
+            count++;
         }
 
         while (index < pathStr.length()) {
@@ -64,7 +66,8 @@ public class RemoteCachingPath implements Path, Serializable {
                 break;
             }
             index += PATH_SEPARATOR_STR.length();
-            tmp[count++] = index;
+            tmp[count] = index;
+            count++;
         }
         return Arrays.copyOf(tmp, count);
     }
@@ -135,7 +138,8 @@ public class RemoteCachingPath implements Path, Serializable {
     public boolean startsWith(final Path other) {
         if (other.getNameCount() > getNameCount()) {
             return false;
-        } else if (other.isAbsolute() && !isAbsolute()) {
+        }
+        if (other.isAbsolute() && !isAbsolute()) {
             return false;
         }
 
@@ -156,7 +160,8 @@ public class RemoteCachingPath implements Path, Serializable {
     public boolean endsWith(final Path other) {
         if (other.getNameCount() > getNameCount()) {
             return false;
-        } else if (other.isAbsolute() && (!isAbsolute() || (other.getNameCount() < getNameCount()))) {
+        }
+        if (other.isAbsolute() && (!isAbsolute() || (other.getNameCount() < getNameCount()))) {
             return false;
         }
 
@@ -186,7 +191,8 @@ public class RemoteCachingPath implements Path, Serializable {
         final RemoteCachingPath otherPath = RemoteCachingFileSystemProvider.toRemoteCachePath(other);
         if (otherPath.isAbsolute() || path.isEmpty()) {
             return other;
-        } else if (otherPath.path.isEmpty()) {
+        }
+        if (otherPath.path.isEmpty()) {
             return this;
         }
 
@@ -289,6 +295,7 @@ public class RemoteCachingPath implements Path, Serializable {
         throw new UnsupportedOperationException();
     }
 
+    @Nonnull
     @Override
     public Iterator<Path> iterator() {
         return new Iterator<Path>() {

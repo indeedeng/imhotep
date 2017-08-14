@@ -9,6 +9,7 @@ import com.indeed.imhotep.fs.DirectoryStreamFilters;
 import com.indeed.util.core.Pair;
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
@@ -29,6 +30,7 @@ class LocalShardDirIterator implements ShardDirIterator {
         this.shardsPath = shardsPath;
     }
 
+    @Nonnull
     @Override
     public Iterator<Pair<String, ShardDir>> iterator() {
         try (DirectoryStream<Path> datasets = Files.newDirectoryStream(shardsPath, DirectoryStreamFilters.ONLY_DIRS)) {

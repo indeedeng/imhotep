@@ -19,6 +19,7 @@ import com.google.common.primitives.Longs;
 import com.indeed.imhotep.ShardInfo;
 import org.joda.time.DateTime;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.List;
 
@@ -28,7 +29,7 @@ import java.util.List;
 public final class ShardIdWithVersion implements Comparable<ShardIdWithVersion> {
     public static final Function<ShardIdWithVersion, String> SHARD_ID_GETTER = new Function<ShardIdWithVersion, String>() {
         @Override
-        public String apply(@Nullable ShardIdWithVersion input) {
+        public String apply(@Nullable final ShardIdWithVersion input) {
             assert input != null;
             return input.getShardId();
         }
@@ -36,7 +37,7 @@ public final class ShardIdWithVersion implements Comparable<ShardIdWithVersion> 
 
     public static final Function<ShardIdWithVersion, Long> VERSION_GETTER = new Function<ShardIdWithVersion, Long>() {
         @Override
-        public Long apply(@Nullable ShardIdWithVersion input) {
+        public Long apply(@Nullable final ShardIdWithVersion input) {
             assert input != null;
             return input.getVersion();
         }
@@ -47,7 +48,7 @@ public final class ShardIdWithVersion implements Comparable<ShardIdWithVersion> 
 
     private ShardInfo.DateTimeRange range;    // lazily computed
 
-    public ShardIdWithVersion(String shardId, long version) {
+    public ShardIdWithVersion(final String shardId, final long version) {
         this.shardId = shardId;
         this.version = version;
     }
@@ -82,23 +83,29 @@ public final class ShardIdWithVersion implements Comparable<ShardIdWithVersion> 
     }
 
     @Override
-    public int compareTo(ShardIdWithVersion o) {
+    public int compareTo(@Nonnull final ShardIdWithVersion o) {
         final int c = shardId.compareTo(o.shardId);
-        if (c != 0) return c;
+        if (c != 0) {
+            return c;
+        }
         return Longs.compare(version, o.version);
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+    public boolean equals(final Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
-        ShardIdWithVersion that = (ShardIdWithVersion) o;
+        final ShardIdWithVersion that = (ShardIdWithVersion) o;
 
-        if (version != that.version) return false;
-        if (shardId != null ? !shardId.equals(that.shardId) : that.shardId != null) return false;
-
-        return true;
+        if (version != that.version) {
+            return false;
+        }
+        return shardId != null ? shardId.equals(that.shardId) : that.shardId == null;
     }
 
     @Override
@@ -116,9 +123,9 @@ public final class ShardIdWithVersion implements Comparable<ShardIdWithVersion> 
                 '}';
     }
 
-    public static List<String> keepShardIds(List<ShardIdWithVersion> shards) {
+    public static List<String> keepShardIds(final List<ShardIdWithVersion> shards) {
         final List<String> result = Lists.newArrayListWithCapacity(shards.size());
-        for(ShardIdWithVersion shard : shards) {
+        for(final ShardIdWithVersion shard : shards) {
             result.add(shard.getShardId());
         }
         return result;

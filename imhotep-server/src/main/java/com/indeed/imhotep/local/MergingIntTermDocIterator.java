@@ -13,21 +13,21 @@
  */
  package com.indeed.imhotep.local;
 
-import java.util.Arrays;
-import java.util.List;
-
-import com.indeed.util.core.Pair;
 import com.indeed.flamdex.api.IntTermDocIterator;
 import com.indeed.flamdex.api.TermDocIterator;
+import com.indeed.util.core.Pair;
+
+import java.util.Arrays;
+import java.util.List;
 
 public class MergingIntTermDocIterator extends MergingTermDocIterator implements IntTermDocIterator {
     private final long[] nextTerms;
     private long currentTerm;
 
     @SuppressWarnings("unchecked")
-    public MergingIntTermDocIterator(List<IntTermDocIterator> tdIters,
-                                     int[] mapping,
-                                     List<Integer> iterNumToDocOffset) {
+    public MergingIntTermDocIterator(final List<IntTermDocIterator> tdIters,
+                                     final int[] mapping,
+                                     final List<Integer> iterNumToDocOffset) {
         super((List<TermDocIterator>) (List<?>) tdIters, mapping, iterNumToDocOffset);
         this.nextTerms = new long[iters.size()];
         currentTerm = Integer.MAX_VALUE;
@@ -41,36 +41,41 @@ public class MergingIntTermDocIterator extends MergingTermDocIterator implements
          */
         /* first, update the list of next terms for all iterators */
         for (int i = 0; i < nextTerms.length; i++) {
-            if (currentTerm != nextTerms[i])
+            if (currentTerm != nextTerms[i]) {
                 continue;
-            IntTermDocIterator iter = (IntTermDocIterator) iters.get(i);
-            if (iter.nextTerm())
+            }
+            final IntTermDocIterator iter = (IntTermDocIterator) iters.get(i);
+            if (iter.nextTerm()) {
                 nextTerms[i] = iter.term();
-            else
+            } else {
                 nextTerms[i] = Integer.MAX_VALUE;
+            }
         }
 
         /* second find the smallest term */
         long min = Integer.MAX_VALUE;
-        for (int i = 0; i < nextTerms.length; i++) {
-            if (nextTerms[i] == Integer.MAX_VALUE)
+        for (final long nextTerm : nextTerms) {
+            if (nextTerm == Integer.MAX_VALUE) {
                 continue;
-            if (min > nextTerms[i])
-                min = nextTerms[i];
+            }
+            if (min > nextTerm) {
+                min = nextTerm;
+            }
         }
         currentTerm = min;
 
         /* check if all the iterators are done */
-        if (currentTerm == Integer.MAX_VALUE)
+        if (currentTerm == Integer.MAX_VALUE) {
             return false;
+        }
 
         /* track which iterators have this terms */
         itersAndOffsetsForTerm.clear();
         for (int i = 0; i < nextTerms.length; i++) {
             if (nextTerms[i] == currentTerm) {
-                int offset = iterNumToDocOffset.get(i);
+                final int offset = iterNumToDocOffset.get(i);
                 itersAndOffsetsForTerm
-                        .add(new Pair<Integer, TermDocIterator>(offset, iters.get(i)));
+                        .add(new Pair<>(offset, iters.get(i)));
             }
         }
 
@@ -78,7 +83,7 @@ public class MergingIntTermDocIterator extends MergingTermDocIterator implements
     }
 
     @Override
-    public int nextDocs(int[] docIdBuffer) {
+    public int nextDocs(final int[] docIdBuffer) {
         return fillDocIdBuffer(docIdBuffer);
     }
 

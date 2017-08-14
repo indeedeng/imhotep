@@ -15,13 +15,12 @@
 
 import com.google.common.io.ByteStreams;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-
-import javax.annotation.Nonnull;
 
 /**
  * @author jsgroth
@@ -32,12 +31,12 @@ public final class ArchiveUtils {
     public static MessageDigest getMD5Digest() {
         try {
             return MessageDigest.getInstance("MD5");
-        } catch (NoSuchAlgorithmException e) {
+        } catch (final NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public static void streamCopy(InputStream is, OutputStream os, long bytesToCopy) throws IOException {
+    public static void streamCopy(final InputStream is, final OutputStream os, long bytesToCopy) throws IOException {
         final byte[] buf = new byte[8192];
         while (bytesToCopy > 0) {
             final int n = (int)Math.min(bytesToCopy, buf.length);
@@ -54,9 +53,9 @@ public final class ArchiveUtils {
      */
     @Nonnull
     public static String toHex(@Nonnull final byte[] bytes) {
-        StringBuilder buf = new StringBuilder(bytes.length * 2);
-        for (byte b : bytes) {
-            String hexDigits = Integer.toHexString((int) b & 0x00ff);
+        final StringBuilder buf = new StringBuilder(bytes.length * 2);
+        for (final byte b : bytes) {
+            final String hexDigits = Integer.toHexString((int) b & 0x00ff);
             if (hexDigits.length() == 1) {
                 buf.append('0');
             }

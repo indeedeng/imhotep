@@ -34,12 +34,10 @@ public class FlamdexReinverter {
             docs.add(new FlamdexDocument());
         }
 
-        final DocIdStream docIdStream = r.getDocIdStream();
         final int[] docIdBuffer = new int[64];
-        try {
+        try (DocIdStream docIdStream = r.getDocIdStream()) {
             for (final String intField : r.getIntFields()) {
-                final IntTermIterator iter = r.getIntTermIterator(intField);
-                try {
+                try (IntTermIterator iter = r.getIntTermIterator(intField)) {
                     while (iter.next()) {
                         final long term = iter.term();
                         docIdStream.reset(iter);
@@ -53,14 +51,11 @@ public class FlamdexReinverter {
                             }
                         }
                     }
-                } finally {
-                    iter.close();
                 }
             }
 
             for (final String stringField : r.getStringFields()) {
-                final StringTermIterator iter = r.getStringTermIterator(stringField);
-                try {
+                try (StringTermIterator iter = r.getStringTermIterator(stringField)) {
                     while (iter.next()) {
                         final String term = iter.term();
                         docIdStream.reset(iter);
@@ -74,12 +69,8 @@ public class FlamdexReinverter {
                             }
                         }
                     }
-                } finally {
-                    iter.close();
                 }
             }
-        } finally {
-            docIdStream.close();
         }
 
         return docs;

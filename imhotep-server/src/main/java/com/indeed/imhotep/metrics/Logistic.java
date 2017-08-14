@@ -11,7 +11,7 @@ public final class Logistic implements IntValueLookup {
     private final double scaleDown;
     private final double scaleUp;
 
-    public Logistic(IntValueLookup operand, double scaleDown, double scaleUp) {
+    public Logistic(final IntValueLookup operand, final double scaleDown, final double scaleUp) {
         this.operand = operand;
         this.scaleDown = scaleDown;
         this.scaleUp = scaleUp;
@@ -28,7 +28,7 @@ public final class Logistic implements IntValueLookup {
     }
 
     @Override
-    public void lookup(int[] docIds, long[] values, int n) {
+    public void lookup(final int[] docIds, final long[] values, final int n) {
         operand.lookup(docIds, values, n);
         for (int i = 0; i < n; i++) {
             final double x = values[i] / scaleDown;

@@ -13,6 +13,7 @@
  */
 package com.indeed.imhotep.io;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -37,7 +38,7 @@ public class LimitedBufferedOutputStream extends BufferedOutputStream {
      * @param   maxBytesToWrite    byte limit as an AtomicLong can be shared between multiple
      *                             LimitedBufferedOutputStreams running in parallel threads. If null, no limit is applied.
      */
-    public LimitedBufferedOutputStream(OutputStream out, @Nullable AtomicLong maxBytesToWrite) {
+    public LimitedBufferedOutputStream(final OutputStream out, @Nullable final AtomicLong maxBytesToWrite) {
         this(out, maxBytesToWrite, 8192);
     }
 
@@ -53,13 +54,13 @@ public class LimitedBufferedOutputStream extends BufferedOutputStream {
      * @param   size   the buffer size.
      * @exception IllegalArgumentException if size &lt;= 0.
      */
-    public LimitedBufferedOutputStream(OutputStream out, @Nullable AtomicLong maxBytesToWrite, int size) {
+    public LimitedBufferedOutputStream(final OutputStream out, @Nullable final AtomicLong maxBytesToWrite, final int size) {
         super(out, size);
         this.maxBytesToWrite = maxBytesToWrite;
     }
 
     @Override
-    public synchronized void write(int b) throws IOException {
+    public synchronized void write(final int b) throws IOException {
         if(maxBytesToWrite != null && maxBytesToWrite.decrementAndGet() < 0) {
             throw new WriteLimitExceededException();
         }
@@ -67,7 +68,7 @@ public class LimitedBufferedOutputStream extends BufferedOutputStream {
     }
 
     @Override
-    public synchronized void write(byte[] b, int off, int len) throws IOException {
+    public synchronized void write(@Nonnull final byte[] b, final int off, final int len) throws IOException {
         if(maxBytesToWrite != null && maxBytesToWrite.addAndGet(-len) < 0) {
             throw new WriteLimitExceededException();
         }

@@ -19,8 +19,8 @@ import java.io.Closeable;
  * @author jsadun
  */
 public interface MemoryMeasured extends Closeable {
-    public long memoryUsed();
+    long memoryUsed();
 
     @Override
-    public void close();
+    void close();
 }

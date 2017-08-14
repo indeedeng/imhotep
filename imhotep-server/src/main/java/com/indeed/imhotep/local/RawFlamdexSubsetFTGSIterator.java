@@ -27,17 +27,21 @@ import java.util.Map;
 public final class RawFlamdexSubsetFTGSIterator extends FlamdexSubsetFTGSIterator implements RawFTGSIterator {
     private static final Logger log = Logger.getLogger(RawFlamdexSubsetFTGSIterator.class);
 
-    public RawFlamdexSubsetFTGSIterator(ImhotepLocalSession imhotepLocalSession, SharedReference<FlamdexReader> flamdexReader, Map<String, long[]> intFieldToTerms, Map<String, String[]> stringFieldToTerms) {
+    public RawFlamdexSubsetFTGSIterator(
+            final ImhotepLocalSession imhotepLocalSession,
+            final SharedReference<FlamdexReader> flamdexReader,
+            final Map<String, long[]> intFieldToTerms,
+            final Map<String, String[]> stringFieldToTerms) {
         super(imhotepLocalSession, flamdexReader, intFieldToTerms, stringFieldToTerms);
     }
 
     @Override
-    public final byte[] termStringBytes() {
+    public byte[] termStringBytes() {
         return ((RawStringTermIterator)stringTermIterator).termStringBytes();
     }
 
     @Override
-    public final int termStringLength() {
+    public int termStringLength() {
         return ((RawStringTermIterator)stringTermIterator).termStringLength();
     }
 }

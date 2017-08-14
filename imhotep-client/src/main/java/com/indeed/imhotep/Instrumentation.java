@@ -17,7 +17,6 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
 import it.unimi.dsi.fastutil.objects.ObjectArraySet;
 
 import java.util.Iterator;
-import java.util.Map.Entry;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -72,7 +71,7 @@ public class Instrumentation {
         private static final AtomicLong seqNum = new AtomicLong();
 
         private final Object2ObjectArrayMap<String, Object> properties =
-            new Object2ObjectArrayMap<String, Object>(16);
+            new Object2ObjectArrayMap<>(16);
 
         public Event(final String type) {
             properties.put(Keys.EVENT_TYPE, type);
@@ -85,7 +84,7 @@ public class Instrumentation {
 
         public String toString() { return new JSON().format(getProperties()); }
 
-        private final static class JSON {
+        private static final class JSON {
 
             static final String BEGIN_OBJ    = "{ ";
             static final String END_OBJ      = " }";
@@ -93,29 +92,31 @@ public class Instrumentation {
             static final String SEPARATOR    = ", ";
             static final String KV_SEPARATOR = " : ";
 
-            String format(Object value) {
-                StringBuilder result = new StringBuilder();
+            String format(final Object value) {
+                final StringBuilder result = new StringBuilder();
                 result.append(QUOTE);
                 result.append(value != null ? value.toString() : "(null)");
                 result.append(QUOTE);
                 return result.toString();
             }
 
-            String format(Map.Entry<String, Object> entry) {
-                StringBuilder result = new StringBuilder();
+            String format(final Map.Entry<String, Object> entry) {
+                final StringBuilder result = new StringBuilder();
                 result.append(format(entry.getKey()));
                 result.append(KV_SEPARATOR);
                 result.append(format(entry.getValue()));
                 return result.toString();
             }
 
-            String format(Map<String, Object> map) {
-                StringBuilder result = new StringBuilder();
+            String format(final Map<String, Object> map) {
+                final StringBuilder result = new StringBuilder();
                 result.append(BEGIN_OBJ);
                 final Iterator<Map.Entry<String, Object>> it = map.entrySet().iterator();
                 while (it.hasNext()) {
                     result.append(format(it.next()));
-                    if (it.hasNext()) result.append(SEPARATOR);
+                    if (it.hasNext()) {
+                        result.append(SEPARATOR);
+                    }
                 }
                 result.append(END_OBJ);
                 return result.toString();
@@ -134,13 +135,13 @@ public class Instrumentation {
 
     public static class ProviderSupport implements Provider {
 
-        private final ObjectArraySet<Observer> observers = new ObjectArraySet<Observer>();
+        private final ObjectArraySet<Observer> observers = new ObjectArraySet<>();
 
-        public synchronized void    addObserver(Observer observer) { observers.add(observer);    }
-        public synchronized void removeObserver(Observer observer) { observers.remove(observer); }
+        public synchronized void    addObserver(final Observer observer) { observers.add(observer);    }
+        public synchronized void removeObserver(final Observer observer) { observers.remove(observer); }
 
         public synchronized void fire(final Event event) {
-            for (Observer observer: observers) {
+            for (final Observer observer: observers) {
                 observer.onEvent(event);
             }
         }

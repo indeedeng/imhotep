@@ -7,20 +7,20 @@ import java.util.concurrent.TimeUnit;
  * Created by darren on 4/21/15.
  */
 public interface CopyingBlockingQueue<E> extends BlockingQueue<E> {
-    public void take(E dest) throws InterruptedException;
+    void take(E dest) throws InterruptedException;
 
-    public void poll(long timeout, TimeUnit unit, E dest) throws InterruptedException;
+    void poll(long timeout, TimeUnit unit, E dest) throws InterruptedException;
 
-    public void poll(E dest);
+    void poll(E dest);
 
-    public void removeCopy(E dest);
+    void removeCopy(E dest);
 
-    public void element(E dest);
+    void element(E dest);
 
-    public void peek(E dest);
+    void peek(E dest);
 
 
-    public interface ObjFactory<E> {
+    interface ObjFactory<E> {
         E newObj();
 
         E getNil();
@@ -28,7 +28,7 @@ public interface CopyingBlockingQueue<E> extends BlockingQueue<E> {
         boolean equalsNil(E dest);
     }
 
-    public interface ObjCopier<E> {
+    interface ObjCopier<E> {
         void copy(E dest, E src);
     }
 

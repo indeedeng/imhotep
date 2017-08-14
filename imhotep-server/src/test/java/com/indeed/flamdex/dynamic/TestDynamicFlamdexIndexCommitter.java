@@ -234,7 +234,6 @@ public class TestDynamicFlamdexIndexCommitter {
     @Test
     public void testLazyCommit() throws IOException {
         final Path datasetDirectory = temporaryFolder.newFolder("temp").toPath();
-        long version = 0;
         try (
                 final DynamicFlamdexIndexCommitter committer = new DynamicFlamdexIndexCommitter(
                         datasetDirectory,

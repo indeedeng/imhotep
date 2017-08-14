@@ -15,10 +15,9 @@
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
-import com.indeed.util.core.io.Closeables2;
 import com.indeed.imhotep.api.DocIterator;
 import com.indeed.imhotep.io.CircularIOStream;
-
+import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
 import java.io.DataOutputStream;
@@ -42,7 +41,7 @@ public final class DocIteratorMerger implements DocIterator {
     private final List<DocIterator> iterators;
     private final ExecutorService executorService = Executors.newCachedThreadPool();
 
-    public DocIteratorMerger(List<DocIterator> iterators, final int numIntFields, final int numStringFields) throws IOException {
+    public DocIteratorMerger(final List<DocIterator> iterators, final int numIntFields, final int numStringFields) throws IOException {
         circularBuffer = new CircularIOStream(16384);
         this.iterators = iterators;
         final DataOutputStream dataOut = new DataOutputStream(circularBuffer.getOutputStream());
@@ -51,7 +50,7 @@ public final class DocIteratorMerger implements DocIterator {
         for (final DocIterator docIterator : iterators) {
             futures.add(
                     executorService.submit(new Callable<Void>() {
-                        public Void call() throws Exception {
+                        public Void call() throws IOException {
                             DocOutputStreamWriter.writeThreadSafe(docIterator, numIntFields, numStringFields, dataOut);
                             return null;
                         }
@@ -61,10 +60,10 @@ public final class DocIteratorMerger implements DocIterator {
         final Thread monitorThread = new Thread(new Runnable() {
             public void run() {
                 try {
-                    for (Future<Void> future : futures) {
+                    for (final Future<Void> future : futures) {
                         try {
                             future.get();
-                        } catch (ExecutionException e) {
+                        } catch (final ExecutionException e) {
                             log.error("error", e.getCause());
                             synchronized (dataOut) {
                                 dataOut.writeByte(0);
@@ -74,9 +73,7 @@ public final class DocIteratorMerger implements DocIterator {
                     }
                     dataOut.writeByte(0);
                     dataOut.close();
-                } catch (InterruptedException e) {
-                    throw Throwables.propagate(e);
-                } catch (IOException e) {
+                } catch (final InterruptedException | IOException e) {
                     throw Throwables.propagate(e);
                 }
             }
@@ -108,7 +105,7 @@ public final class DocIteratorMerger implements DocIterator {
             try {
                 executorService.shutdownNow();
                 executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException e) {
+            } catch (final InterruptedException e) {
                 throw Throwables.propagate(e);
             } finally {
                 Closeables2.closeAll(log, iterators);

@@ -98,7 +98,8 @@ class DynamicFlamdexMerger implements Closeable {
                         if (segmentReader.isDeleted(docId)) {
                             newDocIds[docId + offset[segmentId]] = -1;
                         } else {
-                            newDocIds[docId + offset[segmentId]] = newNumDoc++;
+                            newDocIds[docId + offset[segmentId]] = newNumDoc;
+                            newNumDoc++;
                         }
                     }
                 }

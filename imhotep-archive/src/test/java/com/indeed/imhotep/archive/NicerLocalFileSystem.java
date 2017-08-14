@@ -34,7 +34,7 @@ public class NicerLocalFileSystem extends RawLocalFileSystem {
     }
 
     @Override
-    public FSDataOutputStream append(Path f, int bufferSize, Progressable progress) throws IOException {
+    public FSDataOutputStream append(final Path f, final int bufferSize, final Progressable progress) throws IOException {
         throw new UnsupportedOperationException();
     }
 }

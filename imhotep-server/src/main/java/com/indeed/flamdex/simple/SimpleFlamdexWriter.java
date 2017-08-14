@@ -45,6 +45,7 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectHeapSemiIndirectPriorityQueue;
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nonnull;
 import java.io.BufferedInputStream;
 import java.io.Closeable;
 import java.io.EOFException;
@@ -70,7 +71,7 @@ import java.util.UUID;
 /**
  * @author jsgroth
  */
-public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
+public class SimpleFlamdexWriter implements FlamdexWriter {
     private static final Logger log = Logger.getLogger(SimpleFlamdexWriter.class);
 
     private static final int DOC_ID_BUFFER_SIZE = 32;
@@ -122,8 +123,8 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
             } else {
                 Files.createDirectories(outputDirectory);
             }
-            intFields = new HashSet<String>();
-            stringFields = new HashSet<String>();
+            intFields = new HashSet<>();
+            stringFields = new HashSet<>();
         } else {
             final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(outputDirectory);
             if (metadata.getNumDocs() != numDocs) {
@@ -131,8 +132,8 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
                         "numDocs (" + numDocs + ") does not match numDocs in "
                                 + "existing index (" + metadata.getNumDocs() + ")");
             }
-            intFields = new HashSet<String>(metadata.getIntFields());
-            stringFields = new HashSet<String>(metadata.getStringFields());
+            intFields = new HashSet<>(metadata.getIntFields());
+            stringFields = new HashSet<>(metadata.getStringFields());
         }
     }
 
@@ -141,16 +142,16 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
         return this.outputDirectory;
     }
 
-    public void resetMaxDocs(long numDocs) {
+    public void resetMaxDocs(final long numDocs) {
         this.maxDocs = numDocs;
     }
 
     @Override
-    public IntFieldWriter getIntFieldWriter(String field) throws IOException {
+    public IntFieldWriter getIntFieldWriter(final String field) throws IOException {
         return getIntFieldWriter(field, false);
     }
 
-    public IntFieldWriter getIntFieldWriter(String field, boolean blowAway) throws IOException {
+    public IntFieldWriter getIntFieldWriter(final String field, final boolean blowAway) throws IOException {
         if (!field.matches("[A-Za-z_][A-Za-z0-9_]*")) {
             throw new IllegalArgumentException("Error: field name must match regex [A-Za-z_][A-Za-z0-9_]*: invalid field: " + field);
         }
@@ -162,11 +163,11 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
     }
 
     @Override
-    public StringFieldWriter getStringFieldWriter(String field) throws IOException {
+    public StringFieldWriter getStringFieldWriter(final String field) throws IOException {
         return getStringFieldWriter(field, false);
     }
 
-    public StringFieldWriter getStringFieldWriter(String field, boolean blowAway) throws IOException {
+    public StringFieldWriter getStringFieldWriter(final String field, final boolean blowAway) throws IOException {
         if (!field.matches("[A-Za-z_][A-Za-z0-9_]*")) {
             throw new IllegalArgumentException("Error: field name must match regex [A-Za-z_][A-Za-z0-9_]*: invalid field: " + field);
         }
@@ -179,10 +180,10 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
 
     @Override
     public void close() throws IOException {
-        final List<String> intFieldsList = new ArrayList<String>(intFields);
+        final List<String> intFieldsList = new ArrayList<>(intFields);
         Collections.sort(intFieldsList);
 
-        final List<String> stringFieldsList = new ArrayList<String>(stringFields);
+        final List<String> stringFieldsList = new ArrayList<>(stringFields);
         Collections.sort(stringFieldsList);
 
         final FlamdexMetadata metadata = new FlamdexMetadata((int) maxDocs,
@@ -192,10 +193,11 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
         FlamdexMetadata.writeMetadata(outputDirectory, metadata);
     }
 
-    public static void writeIntBTree(Path directory, String intField, Path btreeDir) throws IOException {
+    public static void writeIntBTree(final Path directory, final String intField, final Path btreeDir) throws IOException {
         final Path termsPath = directory.resolve(SimpleIntFieldWriter.getTermsFilename(intField));
-        if (Files.notExists(termsPath) || Files.size(termsPath) == 0L)
+        if (Files.notExists(termsPath) || Files.size(termsPath) == 0L) {
             return;
+        }
 
         try (CountingInputStream termsList = new CountingInputStream(new BufferedInputStream(Files.newInputStream(termsPath), 65536))) {
             ImmutableBTreeIndex.Writer.write(btreeDir, new AbstractIterator<Generation.Entry<Long, LongPair>>() {
@@ -209,7 +211,9 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
                 @Override
                 protected Generation.Entry<Long, LongPair> computeNext() {
                     try {
-                        if (!nextTerm()) return endOfData();
+                        if (!nextTerm()) {
+                            return endOfData();
+                        }
 
                         key = lastTerm;
                         value = new LongPair(lastTermFileOffset, lastTermDocOffset);
@@ -221,7 +225,7 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
                         }
 
                         return Generation.Entry.create(key, value);
-                    } catch (IOException e) {
+                    } catch (final IOException e) {
                         throw new RuntimeException(e);
                     }
                 }
@@ -231,7 +235,7 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
                     //sorry
                     try {
                         termDelta = FlamdexUtils.readVLong(termsList);
-                    } catch (EOFException e) {
+                    } catch (final EOFException e) {
                         return false;
                     }
 
@@ -250,9 +254,11 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
         }
     }
 
-    public static void writeStringBTree(Path directory, String stringField, Path btreeDir) throws IOException {
+    public static void writeStringBTree(final Path directory, final String stringField, final Path btreeDir) throws IOException {
         final Path termsPath = directory.resolve(SimpleStringFieldWriter.getTermsFilename(stringField));
-        if (Files.notExists(termsPath) || Files.size(termsPath) == 0L) return;
+        if (Files.notExists(termsPath) || Files.size(termsPath) == 0L) {
+            return;
+        }
 
         try(CountingInputStream termsList = new CountingInputStream(new BufferedInputStream(Files.newInputStream(termsPath), 65536))) {
             ImmutableBTreeIndex.Writer.write(btreeDir, new AbstractIterator<Generation.Entry<String, LongPair>>() {
@@ -267,7 +273,9 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
                 @Override
                 public Generation.Entry<String, LongPair> computeNext() {
                     try {
-                        if (!nextTerm()) return endOfData();
+                        if (!nextTerm()) {
+                            return endOfData();
+                        }
 
                         key = new String(lastTerm, 0, lastTermLen, Charsets.UTF_8);
                         value = new LongPair(lastTermFileOffset, lastTermDocOffset);
@@ -279,7 +287,7 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
                         }
 
                         return Generation.Entry.create(key, value);
-                    } catch (IOException e) {
+                    } catch (final IOException e) {
                         throw new RuntimeException(e);
                     }
                 }
@@ -289,7 +297,7 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
                     //sorry
                     try {
                         removeLen = (int) FlamdexUtils.readVLong(termsList);
-                    } catch (EOFException e) {
+                    } catch (final EOFException e) {
                         return false;
                     }
 
@@ -375,11 +383,11 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
         w.close();
     }
 
-    public static void merge(Collection<? extends FlamdexReader> readers, FlamdexWriter w) throws IOException {
+    public static void merge(final Collection<? extends FlamdexReader> readers, final FlamdexWriter w) throws IOException {
         merge(readers.toArray(new FlamdexReader[readers.size()]), w);
     }
 
-    public static void merge(FlamdexReader[] readers, FlamdexWriter w) throws IOException {
+    public static void merge(final FlamdexReader[] readers, final FlamdexWriter w) throws IOException {
         final DocIdStream[] docIdStreams = new DocIdStream[readers.length];
         final int[] segmentStartDocs = new int[readers.length];
         int totalNumDocs = 0;
@@ -396,12 +404,13 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
             final int[] docIdBuf = new int[64];
 
             for (final String intField : mergeIntFields(readers)) {
-                final IntFieldWriter ifw = w.getIntFieldWriter(intField);
                 final IntTermIteratorWrapper[] iterators = new IntTermIteratorWrapper[readers.length];
-                final IndirectPriorityQueue<IntTermIteratorWrapper> pq = new ObjectHeapSemiIndirectPriorityQueue<IntTermIteratorWrapper>(iterators, iterators.length);
-                try {
+                final IndirectPriorityQueue<IntTermIteratorWrapper> pq = new ObjectHeapSemiIndirectPriorityQueue<>(iterators, iterators.length);
+                try (IntFieldWriter ifw = w.getIntFieldWriter(intField)) {
                     for (int i = 0; i < readers.length; ++i) {
-                        if (!readers[i].getIntFields().contains(intField)) continue;
+                        if (!readers[i].getIntFields().contains(intField)) {
+                            continue;
+                        }
                         final IntTermIterator it = readers[i].getIntTermIterator(intField);
                         if (it.next()) {
                             iterators[i] = new IntTermIteratorWrapper(it, i);
@@ -418,7 +427,8 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
                         while (!pq.isEmpty() && (wrap = iterators[pq.first()]).it.term() == term) {
                             final int index = wrap.index;
                             docIdStreams[index].reset(wrap.it);
-                            indexBuf[numIndexes++] = index;
+                            indexBuf[numIndexes] = index;
+                            numIndexes++;
                             if (wrap.it.next()) {
                                 pq.changed();
                             } else {
@@ -439,7 +449,9 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
                                     ifw.nextDoc(docIdBuf[j] + startDoc);
                                 }
 
-                                if (n < docIdBuf.length) break;
+                                if (n < docIdBuf.length) {
+                                    break;
+                                }
                             }
                         }
                     }
@@ -447,17 +459,17 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
                     while (!pq.isEmpty()) {
                         Closeables2.closeQuietly(iterators[pq.dequeue()].it, log);
                     }
-                    ifw.close();
                 }
             }
 
             for (final String stringField : mergeStringFields(readers)) {
-                final StringFieldWriter sfw = w.getStringFieldWriter(stringField);
                 final StringTermIteratorWrapper[] iterators = new StringTermIteratorWrapper[readers.length];
-                final IndirectPriorityQueue<StringTermIteratorWrapper> pq = new ObjectHeapSemiIndirectPriorityQueue<StringTermIteratorWrapper>(iterators, iterators.length);
-                try {
+                final IndirectPriorityQueue<StringTermIteratorWrapper> pq = new ObjectHeapSemiIndirectPriorityQueue<>(iterators, iterators.length);
+                try (StringFieldWriter sfw = w.getStringFieldWriter(stringField)) {
                     for (int i = 0; i < readers.length; ++i) {
-                        if (!readers[i].getStringFields().contains(stringField)) continue;
+                        if (!readers[i].getStringFields().contains(stringField)) {
+                            continue;
+                        }
                         final StringTermIterator it = readers[i].getStringTermIterator(stringField);
                         if (it.next()) {
                             iterators[i] = new StringTermIteratorWrapper(it, i);
@@ -474,7 +486,8 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
                         while (!pq.isEmpty() && (wrap = iterators[pq.first()]).it.term().equals(term)) {
                             final int index = wrap.index;
                             docIdStreams[index].reset(wrap.it);
-                            indexBuf[numIndexes++] = index;
+                            indexBuf[numIndexes] = index;
+                            numIndexes++;
                             if (wrap.it.next()) {
                                 pq.changed();
                             } else {
@@ -495,7 +508,9 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
                                     sfw.nextDoc(docIdBuf[j] + startDoc);
                                 }
 
-                                if (n < docIdBuf.length) break;
+                                if (n < docIdBuf.length) {
+                                    break;
+                                }
                             }
                         }
                     }
@@ -503,7 +518,6 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
                     while (!pq.isEmpty()) {
                         Closeables2.closeQuietly(iterators[pq.dequeue()].it, log);
                     }
-                    sfw.close();
                 }
             }
         } finally {
@@ -511,16 +525,16 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
         }
     }
 
-    private static Set<String> mergeIntFields(FlamdexReader[] readers) {
-        final Set<String> ret = new TreeSet<String>();
+    private static Set<String> mergeIntFields(final FlamdexReader[] readers) {
+        final Set<String> ret = new TreeSet<>();
         for (final FlamdexReader reader : readers) {
             ret.addAll(reader.getIntFields());
         }
         return ret;
     }
 
-    private static Set<String> mergeStringFields(FlamdexReader[] readers) {
-        final Set<String> ret = new TreeSet<String>();
+    private static Set<String> mergeStringFields(final FlamdexReader[] readers) {
+        final Set<String> ret = new TreeSet<>();
         for (final FlamdexReader reader : readers) {
             ret.addAll(reader.getStringFields());
         }
@@ -531,15 +545,15 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
         private final IntTermIterator it;
         private final int index;
 
-        private IntTermIteratorWrapper(IntTermIterator it, int index) {
+        private IntTermIteratorWrapper(final IntTermIterator it, final int index) {
             this.it = it;
             this.index = index;
         }
 
         @Override
-        public int compareTo(IntTermIteratorWrapper o) {
-            final int cmp;
-            return (cmp = Longs.compare(it.term(), o.it.term())) != 0 ? cmp : Ints.compare(index, o.index);
+        public int compareTo(@Nonnull final IntTermIteratorWrapper o) {
+            final int cmp = Longs.compare(it.term(), o.it.term());
+            return (cmp != 0) ? cmp : Ints.compare(index, o.index);
         }
     }
 
@@ -547,13 +561,13 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
         private final StringTermIterator it;
         private final int index;
 
-        private StringTermIteratorWrapper(StringTermIterator it, int index) {
+        private StringTermIteratorWrapper(final StringTermIterator it, final int index) {
             this.it = it;
             this.index = index;
         }
 
         @Override
-        public int compareTo(StringTermIteratorWrapper o) {
+        public int compareTo(@Nonnull final StringTermIteratorWrapper o) {
             final int c = it.term().compareTo(o.it.term());
             return c != 0 ? c : index - o.index;
         }
@@ -563,12 +577,12 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
      * use {@link #addField(Path, String, FlamdexReader, long[])} instead
      */
     @Deprecated
-    public static void addField(String dir, String fieldName, FlamdexReader r, final long[] cache)
+    public static void addField(final String dir, final String fieldName, final FlamdexReader r, final long[] cache)
             throws IOException {
         addField(Paths.get(dir), fieldName, r, cache);
     }
 
-    public static void addField(Path dir, String fieldName, FlamdexReader r, final long[] cache)
+    public static void addField(final Path dir, final String fieldName, final FlamdexReader r, final long[] cache)
             throws IOException {
         final Path tempPath = dir.resolve("temp-" + fieldName + "-" + UUID.randomUUID() + ".intarray.bin");
 
@@ -586,14 +600,14 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
             log.debug("sorting");
             Quicksortables.sort(new Quicksortable() {
                 @Override
-                public void swap(int i, int j) {
+                public void swap(final int i, final int j) {
                     final int t = indices.get(i);
                     indices.set(i, indices.get(j));
                     indices.set(j, t);
                 }
 
                 @Override
-                public int compare(int i, int j) {
+                public int compare(final int i, final int j) {
                     final long ii = cache[indices.get(i)];
                     final long ij = cache[indices.get(j)];
                     return ii < ij
@@ -638,16 +652,16 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
      * use {@link #addField(Path, String, FlamdexReader, String[])} instead
      */
     @Deprecated
-    public static void addField(String indexDir,
-                                String newFieldName,
-                                FlamdexReader docReader,
+    public static void addField(final String indexDir,
+                                final String newFieldName,
+                                final FlamdexReader docReader,
                                 final String[] values) throws IOException {
         addField(Paths.get(indexDir), newFieldName, docReader, values);
     }
 
-    public static void addField(Path indexDir,
-                                String newFieldName,
-                                FlamdexReader docReader,
+    public static void addField(final Path indexDir,
+                                final String newFieldName,
+                                final FlamdexReader docReader,
                                 final String[] values) throws IOException {
         final int[] indices = new int[docReader.getNumDocs()];
         for (int i = 0; i < indices.length; i++) {
@@ -656,12 +670,12 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
         log.debug("sorting");
         Quicksortables.sort(new Quicksortable() {
             @Override
-            public void swap(int i, int j) {
+            public void swap(final int i, final int j) {
                 Quicksortables.swap(indices, i, j);
             }
 
             @Override
-            public int compare(int i, int j) {
+            public int compare(final int i, final int j) {
                 // Sorting logic: Primarily by value (String), secondarily by document ID (indices[i])
                 final String left = values[indices[i]];
                 final String right = values[indices[j]];
@@ -705,7 +719,7 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
                 }
                 docList.add(indices[i]);
             }
-            if (docList.size() > 0) {
+            if (!docList.isEmpty()) {
                 sfw.nextTerm(values[indices[indices.length - 1]]);
                 for (int j = 0; j < docList.size(); ++j) {
                     sfw.nextDoc(docList.getInt(j));
@@ -719,7 +733,7 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
 
         Files.walkFileTree(dir, new SimpleFileVisitor<Path>() {
             @Override
-            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws
+            public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs) throws
                     IOException {
                 if (filter.accept(file)) {
                     Files.delete(file);
@@ -728,9 +742,9 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
             }
 
             @Override
-            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws
+            public FileVisitResult preVisitDirectory(final Path directory, final BasicFileAttributes attrs) throws
                     IOException {
-                if (filter.accept(dir)) {
+                if (filter.accept(directory)) {
                     return FileVisitResult.CONTINUE;
                 } else {
                     return FileVisitResult.SKIP_SUBTREE;
@@ -738,10 +752,10 @@ public class SimpleFlamdexWriter implements java.io.Closeable, FlamdexWriter {
             }
 
             @Override
-            public FileVisitResult postVisitDirectory(Path dir, IOException e) throws IOException {
+            public FileVisitResult postVisitDirectory(final Path directory, final IOException e) throws IOException {
                 if (e == null) {
-                    if (filter.accept(dir)) {
-                        PosixFileOperations.rmrf(dir);
+                    if (filter.accept(directory)) {
+                        PosixFileOperations.rmrf(directory);
                     }
                     return FileVisitResult.CONTINUE;
                 } else {

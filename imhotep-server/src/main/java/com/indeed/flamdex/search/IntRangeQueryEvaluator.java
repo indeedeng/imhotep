@@ -30,23 +30,20 @@ class IntRangeQueryEvaluator implements QueryEvaluator {
     private final Term endTerm;
     private final boolean isMaxInclusive;
 
-    IntRangeQueryEvaluator(Term startTerm, Term endTerm, boolean maxInclusive) {
+    IntRangeQueryEvaluator(final Term startTerm, final Term endTerm, final boolean maxInclusive) {
         this.startTerm = startTerm;
         this.endTerm = endTerm;
         isMaxInclusive = maxInclusive;
     }
 
     @Override
-    public void and(FlamdexReader r, FastBitSet bitSet, FastBitSetPooler bitSetPooler) throws FlamdexOutOfMemoryException {
-        final IntValueLookup metric = r.getMetric(startTerm.getFieldName());
-        try {
+    public void and(final FlamdexReader r, final FastBitSet bitSet, final FastBitSetPooler bitSetPooler) throws FlamdexOutOfMemoryException {
+        try (IntValueLookup metric = r.getMetric(startTerm.getFieldName())) {
             internalAnd(metric, r.getNumDocs(), bitSet);
-        } finally {
-            metric.close();
         }
     }
 
-    private void internalAnd(IntValueLookup metric, int numDocs, FastBitSet bitSet) {
+    private void internalAnd(final IntValueLookup metric, final int numDocs, final FastBitSet bitSet) {
         final long startVal = startTerm.getTermIntVal();
         final long endVal = endTerm.getTermIntVal();
         if (isMaxInclusive) {
@@ -111,16 +108,13 @@ class IntRangeQueryEvaluator implements QueryEvaluator {
     }
 
     @Override
-    public void or(FlamdexReader r, FastBitSet bitSet, FastBitSetPooler bitSetPooler) throws FlamdexOutOfMemoryException {
-        final IntValueLookup metric = r.getMetric(startTerm.getFieldName());
-        try {
+    public void or(final FlamdexReader r, final FastBitSet bitSet, final FastBitSetPooler bitSetPooler) throws FlamdexOutOfMemoryException {
+        try (IntValueLookup metric = r.getMetric(startTerm.getFieldName())) {
             internalOr(metric, r.getNumDocs(), bitSet);
-        } finally {
-            metric.close();
         }
     }
 
-    private void internalOr(IntValueLookup metric, int numDocs, FastBitSet bitSet) {
+    private void internalOr(final IntValueLookup metric, final int numDocs, final FastBitSet bitSet) {
         final long startVal = startTerm.getTermIntVal();
         final long endVal = endTerm.getTermIntVal();
         if (isMaxInclusive) {
@@ -175,16 +169,13 @@ class IntRangeQueryEvaluator implements QueryEvaluator {
     }
 
     @Override
-    public void not(FlamdexReader r, FastBitSet bitSet, FastBitSetPooler bitSetPooler) throws FlamdexOutOfMemoryException {
-        final IntValueLookup metric = r.getMetric(startTerm.getFieldName());
-        try {
+    public void not(final FlamdexReader r, final FastBitSet bitSet, final FastBitSetPooler bitSetPooler) throws FlamdexOutOfMemoryException {
+        try (IntValueLookup metric = r.getMetric(startTerm.getFieldName())) {
             internalNot(metric, r.getNumDocs(), bitSet);
-        } finally {
-            metric.close();
         }
     }
 
-    private void internalNot(IntValueLookup metric, int numDocs, FastBitSet bitSet) {
+    private void internalNot(final IntValueLookup metric, final int numDocs, final FastBitSet bitSet) {
         final long startVal = startTerm.getTermIntVal();
         final long endVal = endTerm.getTermIntVal();
         if (isMaxInclusive) {

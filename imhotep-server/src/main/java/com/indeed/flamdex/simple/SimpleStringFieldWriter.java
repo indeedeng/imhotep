@@ -37,29 +37,35 @@ class SimpleStringFieldWriter extends SimpleFieldWriter implements StringFieldWr
     private byte[] lastWrittenTermBytes = new byte[0];
     private String currentTerm = null;
 
-    private SimpleStringFieldWriter(Path outputDirectory, String field, boolean writeBTreesOnClose, OutputStream termsOutput, OutputStream docsOutput, long numDocs) {
+    private SimpleStringFieldWriter(
+            final Path outputDirectory,
+            final String field,
+            final boolean writeBTreesOnClose,
+            final OutputStream termsOutput,
+            final OutputStream docsOutput,
+            final long numDocs) {
         super(termsOutput, docsOutput, numDocs);
         this.outputDirectory = outputDirectory;
         this.field = field;
         this.writeBTreesOnClose = writeBTreesOnClose;
     }
 
-    public static String getTermsFilename(String field) {
+    public static String getTermsFilename(final String field) {
         return "fld-"+field+".strterms";
     }
 
-    public static String getIndexFilename(String field) {
+    public static String getIndexFilename(final String field) {
         return "fld-"+field+".strindex";
     }
 
-    public static String getDocsFilename(String field) {
+    public static String getDocsFilename(final String field) {
         return "fld-"+field+".strdocs";
     }
 
-    public static SimpleStringFieldWriter open(Path outputDirectory,
-                                               String field,
-                                               long numDocs,
-                                               boolean writeBTreesOnClose) throws IOException {
+    public static SimpleStringFieldWriter open(final Path outputDirectory,
+                                               final String field,
+                                               final long numDocs,
+                                               final boolean writeBTreesOnClose) throws IOException {
         final OutputStream termsOutput;
         final OutputStream docsOutput;
 
@@ -88,8 +94,10 @@ class SimpleStringFieldWriter extends SimpleFieldWriter implements StringFieldWr
      * @throws IllegalArgumentException if term is not lexicographically greater than the previous term added
      */
     @Override
-    public void nextTerm(String term) throws IOException {
-        if (term == null) throw new NullPointerException("you just had to try, didn't you?");
+    public void nextTerm(final String term) throws IOException {
+        if (term == null) {
+            throw new NullPointerException("you just had to try, didn't you?");
+        }
         if (currentTerm != null && currentTerm.compareTo(term) >= 0) {
             throw new IllegalArgumentException("terms must be in sorted order: " + term
                                                        + " is not lexicographically greater than "
@@ -123,9 +131,11 @@ class SimpleStringFieldWriter extends SimpleFieldWriter implements StringFieldWr
         }
     }
 
-    private static int getPrefixLen(byte[] a, byte[] b, int n) {
+    private static int getPrefixLen(final byte[] a, final byte[] b, final int n) {
         for (int i = 0; i < n; ++i) {
-            if (a[i] != b[i]) return i;
+            if (a[i] != b[i]) {
+                return i;
+            }
         }
         return n;
     }

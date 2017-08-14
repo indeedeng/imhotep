@@ -74,7 +74,8 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
             final RemoteFileMetadata sqarMetadata = getSqarMetadata(path);
             if (sqarMetadata == null) {
                 throw new NoSuchFileException(path.toString());
-            } else if (sqarMetadata.isFile()) {
+            }
+            if (sqarMetadata.isFile()) {
                 throw new NotDirectoryException(path.toString());
             }
             return sqarMetaDataManager.readDir(path);
@@ -140,10 +141,7 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
         }
 
         final RemoteFileMetadata metadata = getSqarMetadata(shardPath);
-        if (metadata != null) {
-            return !metadata.isFile();
-        }
-        return false;
+        return (metadata != null) && !metadata.isFile();
     }
 
     @Override

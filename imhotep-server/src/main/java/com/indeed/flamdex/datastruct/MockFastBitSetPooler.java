@@ -20,11 +20,11 @@ import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
  */
 public class MockFastBitSetPooler implements FastBitSetPooler {
     @Override
-    public FastBitSet create(int size) throws FlamdexOutOfMemoryException {
+    public FastBitSet create(final int size) throws FlamdexOutOfMemoryException {
         return new FastBitSet(size);
     }
 
     @Override
-    public void release(long bytes) {
+    public void release(final long bytes) {
     }
 }

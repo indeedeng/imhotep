@@ -9,6 +9,7 @@ import com.google.common.cache.LoadingCache;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nonnull;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
@@ -48,7 +49,7 @@ class LocalFileCache {
         referencedFilesCache = CacheBuilder.newBuilder()
                 .build(new CacheLoader<RemoteCachingPath, FileCacheEntry>() {
                     @Override
-                    public FileCacheEntry load(final RemoteCachingPath path) throws Exception {
+                    public FileCacheEntry load(@Nonnull final RemoteCachingPath path) throws IOException {
                         final Path cachePath = toCachePath(path);
                         final Path cacheParentPath = cachePath.getParent();
 
@@ -276,7 +277,7 @@ class LocalFileCache {
         }
 
         @Override
-        public synchronized void put(final RemoteCachingPath key, final FileCacheEntry value) {
+        public synchronized void put(@Nonnull final RemoteCachingPath key, @Nonnull final FileCacheEntry value) {
             updateOrderMap.remove(key);
             updateOrderMap.put(key, value);
 
@@ -294,7 +295,7 @@ class LocalFileCache {
         }
 
         @Override
-        public synchronized FileCacheEntry getIfPresent(final Object key) {
+        public synchronized FileCacheEntry getIfPresent(@Nonnull final Object key) {
             return updateOrderMap.get(key);
         }
     }

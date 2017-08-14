@@ -28,28 +28,31 @@ import java.util.List;
  * @author jsgroth
  */
 public class FTGSFileBenchmark {
-    static final String inputDir = "/home/jsgroth/ftgs";
+    private FTGSFileBenchmark() {
+    }
 
-    public static void main(String[] args) throws FileNotFoundException {
+    private static final String inputDir = "/home/jsgroth/ftgs";
+
+    public static void main(final String[] args) throws FileNotFoundException {
         for (int i = 0; i < 5; ++i) {
             runBenchmark();
         }
     }
 
     private static void runBenchmark() throws FileNotFoundException {
-        List<RawFTGSIterator> iterators = Lists.newArrayList();
-        for (File file : new File(inputDir).listFiles(new FilenameFilter() {
+        final List<RawFTGSIterator> iterators = Lists.newArrayList();
+        for (final File file : new File(inputDir).listFiles(new FilenameFilter() {
             @Override
-            public boolean accept(File dir, String name) {
+            public boolean accept(final File dir, final String name) {
                 return name.endsWith(".ftgs");
             }
         })) {
             iterators.add(new InputStreamFTGSIterator(new BufferedInputStream(new FileInputStream(file)), 4));
         }
-        FTGSIterator merger = new RawFTGSMerger(iterators, 4, null);
+        final FTGSIterator merger = new RawFTGSMerger(iterators, 4, null);
 
         long elapsed = -System.currentTimeMillis();
-        long[] stats = new long[4];
+        final long[] stats = new long[4];
         while (merger.nextField()) {
             while (merger.nextTerm()) {
                 while (merger.nextGroup()) {

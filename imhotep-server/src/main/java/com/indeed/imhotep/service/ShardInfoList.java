@@ -16,7 +16,6 @@ package com.indeed.imhotep.service;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.io.Shard;
 import com.indeed.lsmtree.core.Store;
-
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import java.io.IOException;
@@ -30,14 +29,14 @@ import java.util.Iterator;
 class ShardInfoList extends ObjectArrayList<ShardInfo> {
 
     static final Comparator<ShardInfo> comparator = new Comparator<ShardInfo>() {
-        @Override public int compare(ShardInfo thing1, ShardInfo thing2) {
+        @Override public int compare(final ShardInfo thing1, final ShardInfo thing2) {
             final int result = thing1.dataset.compareTo(thing2.dataset);
             return result != 0 ? result : thing1.shardId.compareTo(thing2.shardId);
         }
     };
 
     /** Build a list of ShardInfo objects from a ShardMap, sorted by shardId. */
-    ShardInfoList(ShardMap shardMap) throws IOException {
+    ShardInfoList(final ShardMap shardMap) throws IOException {
         shardMap.map(new ShardMap.ElementHandler<IOException>() {
                 public void onElement(final String dataset,
                                       final String shardId,
@@ -56,7 +55,7 @@ class ShardInfoList extends ObjectArrayList<ShardInfo> {
     /** Build a list of ShardInfo objects from a ShardStore, sorted by
         shardId. This method is intended for use by tests, not
         LocalImhotepServiceCore proper. */
-    ShardInfoList(ShardStore store) throws IOException {
+    ShardInfoList(final ShardStore store) throws IOException {
         final Iterator<Store.Entry<ShardStore.Key, ShardStore.Value>> it =
             store.iterator();
         while (it.hasNext()) {

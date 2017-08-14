@@ -38,7 +38,7 @@ public final class RawFTGSMerger extends AbstractFTGSMerger implements RawFTGSIt
     private int currentTermLength;
     private String termStringVal;
 
-    public RawFTGSMerger(Collection<? extends RawFTGSIterator> iterators, int numStats, @Nullable Closeable doneCallback) {
+    public RawFTGSMerger(final Collection<? extends RawFTGSIterator> iterators, final int numStats, @Nullable final Closeable doneCallback) {
         super(iterators, numStats, doneCallback);
         rawIteratorRefs = iterators.toArray(new RawFTGSIterator[iterators.size()]);
         currentTermBytes = new byte[100];
@@ -52,7 +52,7 @@ public final class RawFTGSMerger extends AbstractFTGSMerger implements RawFTGSIt
         if (termStringVal == null) {
             try {
                 termStringVal = decoder.decode((ByteBuffer)byteBuffer.position(0).limit(currentTermLength)).toString();
-            } catch (CharacterCodingException e) {
+            } catch (final CharacterCodingException e) {
                 throw new RuntimeException(e);
             }
         }
@@ -75,7 +75,8 @@ public final class RawFTGSMerger extends AbstractFTGSMerger implements RawFTGSIt
             final FTGSIterator itr = iterators[termIterators[i]];
             if (!itr.nextTerm()) {
                 final int fi = termIteratorIndexes[i];
-                swap(fieldIterators, fi, --numFieldIterators);
+                numFieldIterators--;
+                swap(fieldIterators, fi, numFieldIterators);
                 for (int j = 0; j < numTermIterators; ++j) {
                     if (termIteratorIndexes[j] == numFieldIterators) {
                         termIteratorIndexes[j] = fi;
@@ -85,7 +86,9 @@ public final class RawFTGSMerger extends AbstractFTGSMerger implements RawFTGSIt
         }
 
         numTermIterators = 0;
-        if (numFieldIterators == 0) return false;
+        if (numFieldIterators == 0) {
+            return false;
+        }
 
         int newNumTermIterators = 0;
         if (fieldIsIntType) {
@@ -98,7 +101,8 @@ public final class RawFTGSMerger extends AbstractFTGSMerger implements RawFTGSIt
                     termIteratorIndexes[0] = i;
                     min = term;
                 } else if (term == min) {
-                    termIteratorIndexes[newNumTermIterators++] = i;
+                    termIteratorIndexes[newNumTermIterators] = i;
+                    newNumTermIterators++;
                 }
             }
             termIntVal = min;
@@ -116,7 +120,8 @@ public final class RawFTGSMerger extends AbstractFTGSMerger implements RawFTGSIt
                     minTermBytes = termBytes;
                     minTermLength = termLength;
                 } else if (c == 0) {
-                    termIteratorIndexes[newNumTermIterators++] = i;
+                    termIteratorIndexes[newNumTermIterators] = i;
+                    newNumTermIterators++;
                 }
             }
             if (currentTermBytes.length < minTermLength) {
@@ -133,13 +138,15 @@ public final class RawFTGSMerger extends AbstractFTGSMerger implements RawFTGSIt
             final int fi = termIteratorIndexes[i];
             final int index = fieldIterators[fi];
             termIterators[numTermIterators] = index;
-            termIteratorIndexes[numTermIterators++] = fi;
+            termIteratorIndexes[numTermIterators] = fi;
+            numTermIterators++;
         }
         termIteratorsRemaining = numTermIterators;
         for (int i = 0; i < termIteratorsRemaining; ++i) {
             final FTGSIterator itr = iterators[termIterators[i]];
             if (!itr.nextGroup()) {
-                swap(termIterators, i, --termIteratorsRemaining);
+                termIteratorsRemaining--;
+                swap(termIterators, i, termIteratorsRemaining);
                 swap(termIteratorIndexes, i, termIteratorsRemaining);
                 --i;
             }
@@ -155,7 +162,9 @@ public final class RawFTGSMerger extends AbstractFTGSMerger implements RawFTGSIt
             final int v2 = b2[j] & 0xFF;
             if (v1 != v2) {
                 if (((v1 & 0xF0) == 0xF0 || (v2 & 0xF0) == 0xF0) && ((v1 & 0xF0) != (v2 & 0xF0))) {
-                    if ((v1 & 0xF0) == 0xF0) return UTF8ToCodePoint(v2, b2, j + 1, l2) > 0xDFFF ? -1 : 1;
+                    if ((v1 & 0xF0) == 0xF0) {
+                        return UTF8ToCodePoint(v2, b2, j + 1, l2) > 0xDFFF ? -1 : 1;
+                    }
                     return UTF8ToCodePoint(v1, b1, i + 1, l1) > 0xDFFF ? 1 : -1;
                 }
                 return v1 - v2;
@@ -165,7 +174,9 @@ public final class RawFTGSMerger extends AbstractFTGSMerger implements RawFTGSIt
     }
 
     static int UTF8ToCodePoint(final int firstByte, final byte[] b, int off, final int len) {
-        if (firstByte < 128) return firstByte;
+        if (firstByte < 128) {
+            return firstByte;
+        }
 
         int cp;
         final int cpl;
@@ -188,7 +199,9 @@ public final class RawFTGSMerger extends AbstractFTGSMerger implements RawFTGSIt
             throw new RuntimeException("invalid UTF-8");
         }
 
-        if (off + cpl > len) throw new RuntimeException("invalid UTF-8");
+        if (off + cpl > len) {
+            throw new RuntimeException("invalid UTF-8");
+        }
 
         for (int k = cpl - 1; k >= 0; --k) {
             cp |= ((b[off++] & 0x3F) << (6*k));

@@ -32,7 +32,7 @@ public class FTGSLimitExceededException extends LimitExceededException {
      *
      * @param   s   the detail message.
      */
-    public FTGSLimitExceededException(String s) {
+    public FTGSLimitExceededException(final String s) {
         super(s);
     }
 
@@ -51,7 +51,7 @@ public class FTGSLimitExceededException extends LimitExceededException {
      *         is permitted, and indicates that the cause is nonexistent or
      *         unknown.)
      */
-    public FTGSLimitExceededException(String message, Throwable cause) {
+    public FTGSLimitExceededException(final String message, final Throwable cause) {
         super(message, cause);
     }
 }

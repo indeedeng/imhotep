@@ -41,9 +41,12 @@ import java.util.Random;
  * @author jsgroth
  */
 public class FileSerializationBenchmark {
-    public static void main(String[] args) throws IOException {
-        int[] a = new int[100000000];
-        Random rand = new Random();
+    private FileSerializationBenchmark() {
+    }
+
+    public static void main(final String[] args) throws IOException {
+        final int[] a = new int[100000000];
+        final Random rand = new Random();
         for (int i = 0; i < a.length; ++i) {
             a[i] = rand.nextInt();
         }
@@ -56,12 +59,12 @@ public class FileSerializationBenchmark {
         time(new MMapBESerializer(), a);
     }
 
-    private static void time(FileSerializer<int[]> s, int[] a) throws IOException {
+    private static void time(final FileSerializer<int[]> s, final int[] a) throws IOException {
         time(s, a, new IntArrayChecker());
     }
 
-    private static <T> void time(FileSerializer<T> s, T a, EqualityChecker<T> equalsMethod) throws IOException {
-        File temp = File.createTempFile("temp", ".tmp");
+    private static <T> void time(final FileSerializer<T> s, final T a, final EqualityChecker<T> equalsMethod) throws IOException {
+        final File temp = File.createTempFile("temp", ".tmp");
         try {
             long serial = 0L;
             long deserial = 0L;
@@ -72,7 +75,7 @@ public class FileSerializationBenchmark {
                 s.serialize(a, temp.toPath());
                 serial += System.currentTimeMillis();
                 deserial -= System.currentTimeMillis();
-                T a2 = s.deserialize(temp.toPath());
+                final T a2 = s.deserialize(temp.toPath());
                 deserial += System.currentTimeMillis();
                 if (!equalsMethod.equals(a, a2)) {
                     System.err.println(s.getClass().getSimpleName() + " doesn't work");
@@ -88,27 +91,27 @@ public class FileSerializationBenchmark {
         }
     }
 
-    private static interface IntArraySerializer extends FileSerializer<int[]> {
+    private interface IntArraySerializer extends FileSerializer<int[]> {
     }
 
     private static class DataStreamSerializer implements IntArraySerializer {
         @Override
-        public void serialize(int[] a, Path path) throws IOException {
+        public void serialize(final int[] a, final Path path) throws IOException {
             final BufferedOutputStream bos;
             bos = new BufferedOutputStream(java.nio.file.Files.newOutputStream(path));
-            DataOutputStream os = new DataOutputStream(bos);
-            for (int val : a) {
+            final DataOutputStream os = new DataOutputStream(bos);
+            for (final int val : a) {
                 os.writeInt(val);
             }
             os.close();
         }
 
         @Override
-        public int[] deserialize(Path path) throws IOException {
-            BufferedInputStream bis;
+        public int[] deserialize(final Path path) throws IOException {
+            final BufferedInputStream bis;
             bis = new BufferedInputStream(java.nio.file.Files.newInputStream(path));
-            DataInputStream is = new DataInputStream(bis);
-            int[] ret = new int[(int)(java.nio.file.Files.size(path) / 4)];
+            final DataInputStream is = new DataInputStream(bis);
+            final int[] ret = new int[(int)(java.nio.file.Files.size(path) / 4)];
             for (int i = 0; i < ret.length; ++i) {
                 ret[i] = is.readInt();
             }
@@ -118,24 +121,24 @@ public class FileSerializationBenchmark {
 
     private static class LEDataStreamSerializer implements IntArraySerializer {
         @Override
-        public void serialize(int[] a, Path path) throws IOException {
-            BufferedOutputStream bos;
+        public void serialize(final int[] a, final Path path) throws IOException {
+            final BufferedOutputStream bos;
             bos = new BufferedOutputStream(java.nio.file.Files.newOutputStream(path));
-            LittleEndianDataOutputStream os;
+            final LittleEndianDataOutputStream os;
             os = new LittleEndianDataOutputStream(bos);
-            for (int val : a) {
+            for (final int val : a) {
                 os.writeInt(val);
             }
             os.close();
         }
 
         @Override
-        public int[] deserialize(Path path) throws IOException {
-            BufferedInputStream bis;
+        public int[] deserialize(final Path path) throws IOException {
+            final BufferedInputStream bis;
             bis = new BufferedInputStream(java.nio.file.Files.newInputStream(path));
-            LittleEndianDataInputStream is;
+            final LittleEndianDataInputStream is;
             is = new LittleEndianDataInputStream(bis);
-            int[] ret = new int[(int)(java.nio.file.Files.size(path) / 4)];
+            final int[] ret = new int[(int)(java.nio.file.Files.size(path) / 4)];
             for (int i = 0; i < ret.length; ++i) {
                 ret[i] = is.readInt();
             }
@@ -145,62 +148,56 @@ public class FileSerializationBenchmark {
 
     private static class ObjectStreamSerializer implements IntArraySerializer {
         @Override
-        public void serialize(int[] a, Path path) throws IOException {
+        public void serialize(final int[] a, final Path path) throws IOException {
             writeObjectToFile(a, path);
         }
 
         @Override
-        public int[] deserialize(Path path) throws IOException {
+        public int[] deserialize(final Path path) throws IOException {
             return readObjectFromFile(path);
         }
     }
 
-    private static void writeObjectToFile(Object o, Path path) throws IOException {
-        OutputStream fos = java.nio.file.Files.newOutputStream(path);
-        try {
-            ObjectOutputStream oos = new ObjectOutputStream(new BufferedOutputStream(fos));
+    private static void writeObjectToFile(final Object o, final Path path) throws IOException {
+        try (OutputStream fos = java.nio.file.Files.newOutputStream(path)) {
+            final ObjectOutputStream oos = new ObjectOutputStream(new BufferedOutputStream(fos));
             oos.writeObject(o);
             oos.flush();
-        } finally {
-            fos.close();
         }
     }
 
-    private static int[] readObjectFromFile(Path path) throws IOException {
-        InputStream fis = java.nio.file.Files.newInputStream(path);
-        try {
-            ObjectInputStream ois = new ObjectInputStream(new BufferedInputStream(fis));
+    private static int[] readObjectFromFile(final Path path) throws IOException {
+        try (InputStream fis = java.nio.file.Files.newInputStream(path)) {
+            final ObjectInputStream ois = new ObjectInputStream(new BufferedInputStream(fis));
             try {
-                return (int[])ois.readObject();
-            } catch (ClassNotFoundException e) {
+                return (int[]) ois.readObject();
+            } catch (final ClassNotFoundException e) {
                 throw new IOException(e);
             }
-        } finally {
-            fis.close();
         }
     }
 
     private static class MMapBESerializer implements IntArraySerializer {
         @Override
-        public void serialize(int[] a, Path path) throws IOException {
-            MappedByteBuffer buffer = Files.map(path.toFile(),
+        public void serialize(final int[] a, final Path path) throws IOException {
+            final MappedByteBuffer buffer = Files.map(path.toFile(),
                                                 FileChannel.MapMode.READ_WRITE,
                                                 a.length * 4);
             buffer.order(ByteOrder.BIG_ENDIAN);
-            IntBuffer intBuffer = buffer.asIntBuffer();
+            final IntBuffer intBuffer = buffer.asIntBuffer();
             for (int i = 0; i < a.length; ++i) {
                 intBuffer.put(i, a[i]);
             }
         }
 
         @Override
-        public int[] deserialize(Path path) throws IOException {
-            MappedByteBuffer buffer = Files.map(path.toFile(),
+        public int[] deserialize(final Path path) throws IOException {
+            final MappedByteBuffer buffer = Files.map(path.toFile(),
                                                 FileChannel.MapMode.READ_ONLY,
                                                 java.nio.file.Files.size(path));
             buffer.order(ByteOrder.BIG_ENDIAN);
-            IntBuffer intBuffer = buffer.asIntBuffer();
-            int[] ret = new int[(int)(java.nio.file.Files.size(path) / 4)];
+            final IntBuffer intBuffer = buffer.asIntBuffer();
+            final int[] ret = new int[(int)(java.nio.file.Files.size(path) / 4)];
             intBuffer.get(ret);
             return ret;
         }
@@ -208,14 +205,14 @@ public class FileSerializationBenchmark {
 
     private static class NIOBESerializer implements IntArraySerializer {
         @Override
-        public void serialize(int[] a, Path path) throws IOException {
-            FileChannel ch = new RandomAccessFile(path.toFile(), "rw").getChannel();
-            ByteBuffer buffer = ByteBuffer.allocateDirect(8192);
+        public void serialize(final int[] a, final Path path) throws IOException {
+            final FileChannel ch = new RandomAccessFile(path.toFile(), "rw").getChannel();
+            final ByteBuffer buffer = ByteBuffer.allocateDirect(8192);
             buffer.order(ByteOrder.BIG_ENDIAN);
-            IntBuffer intBuffer = buffer.asIntBuffer();
+            final IntBuffer intBuffer = buffer.asIntBuffer();
             for (int i = 0; i < a.length; i += 2048) {
                 intBuffer.clear();
-                int lim = Math.min(2048, a.length - i);
+                final int lim = Math.min(2048, a.length - i);
                 for (int j = 0; j < lim; ++j) {
                     intBuffer.put(j, a[i+j]);
                 }
@@ -226,15 +223,15 @@ public class FileSerializationBenchmark {
         }
 
         @Override
-        public int[] deserialize(Path path) throws IOException {
-            FileChannel ch = new RandomAccessFile(path.toFile(), "r").getChannel();
-            int[] ret = new int[(int)(java.nio.file.Files.size(path) / 4)];
-            ByteBuffer buffer = ByteBuffer.allocateDirect(8192);
+        public int[] deserialize(final Path path) throws IOException {
+            final FileChannel ch = new RandomAccessFile(path.toFile(), "r").getChannel();
+            final int[] ret = new int[(int)(java.nio.file.Files.size(path) / 4)];
+            final ByteBuffer buffer = ByteBuffer.allocateDirect(8192);
             buffer.order(ByteOrder.BIG_ENDIAN);
-            IntBuffer intBuffer = buffer.asIntBuffer();
+            final IntBuffer intBuffer = buffer.asIntBuffer();
             for (int i = 0; i < ret.length; i += 2048) {
                 buffer.clear();
-                int lim = ch.read(buffer) / 4;
+                final int lim = ch.read(buffer) / 4;
                 intBuffer.clear();
                 intBuffer.get(ret, i, lim);
             }
@@ -245,14 +242,14 @@ public class FileSerializationBenchmark {
 
     private static class NIOLESerializer implements IntArraySerializer {
         @Override
-        public void serialize(int[] a, Path path) throws IOException {
-            FileChannel ch = new RandomAccessFile(path.toFile(), "rw").getChannel();
-            ByteBuffer buffer = ByteBuffer.allocateDirect(8192);
+        public void serialize(final int[] a, final Path path) throws IOException {
+            final FileChannel ch = new RandomAccessFile(path.toFile(), "rw").getChannel();
+            final ByteBuffer buffer = ByteBuffer.allocateDirect(8192);
             buffer.order(ByteOrder.LITTLE_ENDIAN);
-            IntBuffer intBuffer = buffer.asIntBuffer();
+            final IntBuffer intBuffer = buffer.asIntBuffer();
             for (int i = 0; i < a.length; i += 2048) {
                 intBuffer.clear();
-                int lim = Math.min(2048, a.length - i);
+                final int lim = Math.min(2048, a.length - i);
                 intBuffer.put(a, i, lim);
                 buffer.position(0).limit(4*lim);
                 ch.write(buffer);
@@ -261,15 +258,15 @@ public class FileSerializationBenchmark {
         }
 
         @Override
-        public int[] deserialize(Path path) throws IOException {
-            FileChannel ch = new RandomAccessFile(path.toFile(), "r").getChannel();
-            int[] ret = new int[(int)(java.nio.file.Files.size(path) / 4)];
-            ByteBuffer buffer = ByteBuffer.allocateDirect(8192);
+        public int[] deserialize(final Path path) throws IOException {
+            final FileChannel ch = new RandomAccessFile(path.toFile(), "r").getChannel();
+            final int[] ret = new int[(int)(java.nio.file.Files.size(path) / 4)];
+            final ByteBuffer buffer = ByteBuffer.allocateDirect(8192);
             buffer.order(ByteOrder.LITTLE_ENDIAN);
-            IntBuffer intBuffer = buffer.asIntBuffer();
+            final IntBuffer intBuffer = buffer.asIntBuffer();
             for (int i = 0; i < ret.length; i += 2048) {
                 buffer.clear();
-                int lim = ch.read(buffer) / 4;
+                final int lim = ch.read(buffer) / 4;
                 intBuffer.clear();
                 intBuffer.get(ret, i, lim);
             }
@@ -280,37 +277,37 @@ public class FileSerializationBenchmark {
 
     private static class MMapLESerializer implements IntArraySerializer {
         @Override
-        public void serialize(int[] a, Path path) throws IOException {
-            MappedByteBuffer buffer = Files.map(path.toFile(),
+        public void serialize(final int[] a, final Path path) throws IOException {
+            final MappedByteBuffer buffer = Files.map(path.toFile(),
                                                 FileChannel.MapMode.READ_WRITE,
                                                 a.length * 4);
             buffer.order(ByteOrder.LITTLE_ENDIAN);
-            IntBuffer intBuffer = buffer.asIntBuffer();
+            final IntBuffer intBuffer = buffer.asIntBuffer();
             for (int i = 0; i < a.length; ++i) {
                 intBuffer.put(i, a[i]);
             }
         }
 
         @Override
-        public int[] deserialize(Path path) throws IOException {
-            MappedByteBuffer buffer = Files.map(path.toFile(),
+        public int[] deserialize(final Path path) throws IOException {
+            final MappedByteBuffer buffer = Files.map(path.toFile(),
                                                 FileChannel.MapMode.READ_ONLY,
                                                 java.nio.file.Files.size(path));
             buffer.order(ByteOrder.LITTLE_ENDIAN);
-            IntBuffer intBuffer = buffer.asIntBuffer();
-            int[] ret = new int[(int)(java.nio.file.Files.size(path) / 4)];
+            final IntBuffer intBuffer = buffer.asIntBuffer();
+            final int[] ret = new int[(int)(java.nio.file.Files.size(path) / 4)];
             intBuffer.get(ret);
             return ret;
         }
     }
 
-    private static interface EqualityChecker<T> {
+    private interface EqualityChecker<T> {
         boolean equals(T t1, T t2);
     }
 
     private static class IntArrayChecker implements EqualityChecker<int[]> {
         @Override
-        public boolean equals(int[] t1, int[] t2) {
+        public boolean equals(final int[] t1, final int[] t2) {
             return Arrays.equals(t1, t2);
         }
     }

@@ -24,7 +24,7 @@ public class QueryRemapRule {
     private final int negativeGroup;
     private final int positiveGroup;
 
-    public QueryRemapRule(int targetGroup, Query query, int negativeGroup, int positiveGroup) {
+    public QueryRemapRule(final int targetGroup, final Query query, final int negativeGroup, final int positiveGroup) {
         this.targetGroup = targetGroup;
         this.query = query;
         this.negativeGroup = negativeGroup;

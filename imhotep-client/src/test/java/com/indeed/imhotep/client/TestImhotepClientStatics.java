@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static junit.framework.Assert.assertEquals;
+import static org.junit.Assert.assertEquals;
 
 /**
  * @author vladimir
@@ -61,23 +61,31 @@ public class TestImhotepClientStatics {
         checkExpectedFields(hostsDatasets, expectedIntFields, expectedStringFields);
     }
 
-    private void checkExpectedFields(Collection<List<DatasetInfo>> hostsDatasets, Set<String> expectedIntFields, Set<String> expectedStringFields) throws IOException {
-        Map<String, DatasetInfo> datasetInfos = ImhotepClient.getDatasetToShardList(hostsDatasets);
+    private void checkExpectedFields(
+            final Collection<List<DatasetInfo>> hostsDatasets,
+            final Set<String> expectedIntFields,
+            final Set<String> expectedStringFields) throws IOException {
+        final Map<String, DatasetInfo> datasetInfos = ImhotepClient.getDatasetToShardList(hostsDatasets);
         assertEquals(1, datasetInfos.size());
 
-        DatasetInfo datasetInfo = datasetInfos.values().iterator().next();
+        final DatasetInfo datasetInfo = datasetInfos.values().iterator().next();
         assertEquals(expectedIntFields, datasetInfo.getIntFields());
         assertEquals(expectedStringFields, datasetInfo.getStringFields());
     }
 
-    private void addHostShards(Collection<List<DatasetInfo>> hostsDatasets, String dataset, long[] versions, ImmutableSet<String> intFields, ImmutableSet<String> stringFields) throws IOException {
-        List<ShardInfo> shardInfos = Lists.newArrayList();
-        for(long version: versions) {
-            String shardId = "index" + Long.toString(version).substring(0, 8);
-            ShardInfo shardInfo = new ShardInfo(dataset, shardId, Collections.<String>emptyList(), 0, version);
+    private void addHostShards(
+            final Collection<List<DatasetInfo>> hostsDatasets,
+            final String dataset,
+            final long[] versions,
+            final ImmutableSet<String> intFields,
+            final ImmutableSet<String> stringFields) throws IOException {
+        final List<ShardInfo> shardInfos = Lists.newArrayList();
+        for(final long version: versions) {
+            final String shardId = "index" + Long.toString(version).substring(0, 8);
+            final ShardInfo shardInfo = new ShardInfo(dataset, shardId, Collections.<String>emptyList(), 0, version);
             shardInfos.add(shardInfo);
         }
-        DatasetInfo datasetInfo = new DatasetInfo(dataset, shardInfos, intFields, stringFields, Collections.<String>emptyList());
+        final DatasetInfo datasetInfo = new DatasetInfo(dataset, shardInfos, intFields, stringFields, Collections.<String>emptyList());
         hostsDatasets.add(Lists.newArrayList(datasetInfo));
     }
 }

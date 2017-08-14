@@ -16,7 +16,7 @@ public class TermLimitedRawFTGSIterator extends TermLimitedFTGSIterator implemen
      * @param wrapped The iterator to use
      * @param termLimit Maximum number of terms that will be allowed to iterate through
      */
-    public TermLimitedRawFTGSIterator(RawFTGSIterator wrapped, long termLimit) {
+    public TermLimitedRawFTGSIterator(final RawFTGSIterator wrapped, final long termLimit) {
         super(wrapped, termLimit);
 
         this.wrapped = wrapped;

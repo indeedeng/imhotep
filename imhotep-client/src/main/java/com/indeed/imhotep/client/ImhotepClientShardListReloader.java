@@ -14,11 +14,12 @@
  package com.indeed.imhotep.client;
 
 import com.google.common.collect.Maps;
-import com.indeed.util.core.DataLoadingRunnable;
 import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.ImhotepRemoteSession;
+import com.indeed.util.core.DataLoadingRunnable;
 import org.apache.log4j.Logger;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -40,7 +41,7 @@ class ImhotepClientShardListReloader extends DataLoadingRunnable {
 
     private volatile Map<Host, List<DatasetInfo>> shardList = Collections.emptyMap();
 
-    ImhotepClientShardListReloader(HostsReloader hostsReloader, ExecutorService rpcExecutor) {
+    ImhotepClientShardListReloader(final HostsReloader hostsReloader, final ExecutorService rpcExecutor) {
         super("ImhotepClientShardListReloader");
         
         this.hostsReloader = hostsReloader;
@@ -60,7 +61,7 @@ class ImhotepClientShardListReloader extends DataLoadingRunnable {
                 shardList = newShardList;
             }
             return true;
-        } catch (Exception e) {
+        } catch (final Exception e) {
             log.error("Error reloading hosts", e);
             loadFailed();
             return false;
@@ -79,7 +80,7 @@ class ImhotepClientShardListReloader extends DataLoadingRunnable {
             for (final Host host : hosts) {
                 final Future<List<DatasetInfo>> future = rpcExecutor.submit(new Callable<List<DatasetInfo>>() {
                     @Override
-                    public List<DatasetInfo> call() throws Exception {
+                    public List<DatasetInfo> call() throws IOException {
                         return ImhotepRemoteSession.getShardInfoList(host.hostname, host.port);
                     }
                 });
@@ -87,14 +88,12 @@ class ImhotepClientShardListReloader extends DataLoadingRunnable {
             }
 
             final Map<Host, List<DatasetInfo>> ret = Maps.newHashMapWithExpectedSize(hosts.size());
-            for (final Host host : futures.keySet()) {
+            for (final Map.Entry<Host, Future<List<DatasetInfo>>> hostFutureEntry : futures.entrySet()) {
                 try {
-                    final List<DatasetInfo> shardList = futures.get(host).get();
-                    ret.put(host, shardList);
-                } catch (ExecutionException e) {
-                    log.error("error getting shard list from " + host, e);
-                } catch (InterruptedException e) {
-                    log.error("error getting shard list from " + host, e);
+                    final List<DatasetInfo> shards = hostFutureEntry.getValue().get();
+                    ret.put(hostFutureEntry.getKey(), shards);
+                } catch (ExecutionException | InterruptedException e) {
+                    log.error("error getting shard list from " + hostFutureEntry.getKey(), e);
                 }
             }
 

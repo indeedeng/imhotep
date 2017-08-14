@@ -30,34 +30,36 @@ import java.util.Map;
  * @author jplaisance
  */
 public final class AcquireShared {
+    private AcquireShared() {
+    }
 
     private static final Logger log = Logger.getLogger(AcquireShared.class);
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(final String[] args) throws InterruptedException {
         System.out.println(System.getProperty("java.version"));
         final File testlocking = new File("testlocking");
         testlocking.mkdir();
-        final Map<File, RandomAccessFile> lockFileMap = new HashMap<File, RandomAccessFile>();
+        final Map<File, RandomAccessFile> lockFileMap = new HashMap<>();
         try {
             acquireReadLock(lockFileMap, testlocking);
-        } catch (AlreadyOpenException e) {
+        } catch (final AlreadyOpenException e) {
             System.out.println("already open");
-        } catch (LockAquisitionException e) {
+        } catch (final LockAquisitionException e) {
             System.out.println("deleted");
         }
 
         try {
             acquireReadLock(lockFileMap, testlocking);
             System.out.println("should've failed");
-        } catch (AlreadyOpenException e) {
+        } catch (final AlreadyOpenException e) {
             //ignore
-        } catch (LockAquisitionException e) {
+        } catch (final LockAquisitionException e) {
             System.out.println("deleted");
         }
         Thread.sleep(Long.MAX_VALUE);
     }
 
-    private static void acquireReadLock(Map<File, RandomAccessFile> lockFileMap, File indexDir) throws LockAquisitionException {
+    private static void acquireReadLock(final Map<File, RandomAccessFile> lockFileMap, final File indexDir) throws LockAquisitionException {
         final File writeLock = new File(indexDir, "delete.lock");
         try {
             writeLock.createNewFile();
@@ -81,17 +83,17 @@ public final class AcquireShared {
                         lockFileMap.remove(indexDir);
                         Closeables2.closeQuietly(raf, log);
                         throw new ShardDeletedException();
-                    } catch (OverlappingFileLockException e) {
+                    } catch (final OverlappingFileLockException e) {
                         lockFileMap.remove(indexDir);
                         Closeables2.closeQuietly(raf, log);
                         throw Throwables.propagate(e);
-                    } catch (FileLockInterruptionException e) {
+                    } catch (final FileLockInterruptionException e) {
                         lockFileMap.remove(indexDir);
                         Closeables2.closeQuietly(raf, log);
                     }
                 }
             }
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new ShardDeletedException();
         }
     }

@@ -32,7 +32,7 @@ public class TestImhotepGetGroupStatsIterator {
     private static final String DATASET = "dataset";
 
     @Rule
-    public TemporaryFolder rootDir = new TemporaryFolder();
+    public final TemporaryFolder rootDir = new TemporaryFolder();
 
     private ImhotepDaemonClusterRunner clusterRunner;
 

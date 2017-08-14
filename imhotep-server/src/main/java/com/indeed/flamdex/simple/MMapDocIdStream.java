@@ -35,18 +35,20 @@ final class MMapDocIdStream extends SimpleDocIdStream {
 
     public static final int BUFFER_SIZE = 8192;
 
-    MMapDocIdStream(MapCache mapCache) {
+    MMapDocIdStream(final MapCache mapCache) {
         this(mapCache, new byte[BUFFER_SIZE]);
     }
 
-    MMapDocIdStream(MapCache mapCache, byte[] buffer) {
+    MMapDocIdStream(final MapCache mapCache, final byte[] buffer) {
         super(buffer);
         this.mapCache = mapCache;
     }
 
     @Override
     protected void openFile(final Path filePath) throws IOException {
-        if (file != null) file.close();
+        if (file != null) {
+            file.close();
+        }
         file = mapCache.copyOrOpen(filePath);
         memory = file.get().memory();
     }
@@ -57,7 +59,7 @@ final class MMapDocIdStream extends SimpleDocIdStream {
     }
 
     @Override
-    protected void readBytes(long offset) {
+    protected void readBytes(final long offset) {
         memory.getBytes(offset, buffer, 0, bufferLen);
     }
 
@@ -68,7 +70,7 @@ final class MMapDocIdStream extends SimpleDocIdStream {
                 file.close();
                 file = null;
             }
-        } catch (IOException e) {
+        } catch (final IOException e) {
             LOG.error("error closing file", e);
         }
     }

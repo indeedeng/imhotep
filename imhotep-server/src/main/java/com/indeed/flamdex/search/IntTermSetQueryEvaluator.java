@@ -31,7 +31,7 @@ public class IntTermSetQueryEvaluator implements QueryEvaluator {
     private final String field;
     private final long[] terms;
 
-    public IntTermSetQueryEvaluator(String field, long[] terms) {
+    public IntTermSetQueryEvaluator(final String field, final long[] terms) {
         this.field = field;
         this.terms = new long[terms.length];
         System.arraycopy(terms, 0, this.terms, 0, terms.length);
@@ -39,7 +39,7 @@ public class IntTermSetQueryEvaluator implements QueryEvaluator {
     }
 
     @Override
-    public void and(FlamdexReader r, FastBitSet bitSet, FastBitSetPooler bitSetPooler) throws FlamdexOutOfMemoryException {
+    public void and(final FlamdexReader r, final FastBitSet bitSet, final FastBitSetPooler bitSetPooler) throws FlamdexOutOfMemoryException {
         FastBitSet localBitSet = bitSetPooler.create(r.getNumDocs());
         try {
             internalSearch(r, localBitSet);
@@ -52,46 +52,47 @@ public class IntTermSetQueryEvaluator implements QueryEvaluator {
     }
 
     @Override
-    public void or(FlamdexReader r, FastBitSet bitSet, FastBitSetPooler bitSetPooler) throws FlamdexOutOfMemoryException {
+    public void or(final FlamdexReader r, final FastBitSet bitSet, final FastBitSetPooler bitSetPooler) throws FlamdexOutOfMemoryException {
         internalSearch(r, bitSet);
     }
 
     @Override
-    public void not(FlamdexReader r, FastBitSet bitSet, FastBitSetPooler bitSetPooler) throws FlamdexOutOfMemoryException {
+    public void not(final FlamdexReader r, final FastBitSet bitSet, final FastBitSetPooler bitSetPooler) throws FlamdexOutOfMemoryException {
         bitSet.clearAll();
         internalSearch(r, bitSet);
         bitSet.invertAll();
     }
 
-    private void internalSearch(FlamdexReader r, FastBitSet bitSet) {
-        final IntTermIterator iterator = r.getIntTermIterator(field);
+    private void internalSearch(final FlamdexReader r, final FastBitSet bitSet) {
         int ix = 0;
-        try {
-            final DocIdStream docIdStream = r.getDocIdStream();
-            try {
+        try (IntTermIterator iterator = r.getIntTermIterator(field)) {
+            try (DocIdStream docIdStream = r.getDocIdStream()) {
                 while (ix < terms.length) {
                     final int[] docIdBuffer = new int[BUFFER_SIZE];
-                    iterator.reset(terms[ix++]);
-                    if (!iterator.next()) break;
-                    if(iterator.term() != terms[ix-1]) continue;
+                    iterator.reset(terms[ix]);
+                    ix++;
+                    if (!iterator.next()) {
+                        break;
+                    }
+                    if (iterator.term() != terms[ix - 1]) {
+                        continue;
+                    }
                     docIdStream.reset(iterator);
                     readDocIdStream(docIdStream, docIdBuffer, bitSet);
                 }
-            } finally {
-                docIdStream.close();
             }
-        } finally {
-            iterator.close();
         }
     }
 
-    private void readDocIdStream(DocIdStream docIdStream, int[] docIdBuffer, FastBitSet bitSet) {
+    private void readDocIdStream(final DocIdStream docIdStream, final int[] docIdBuffer, final FastBitSet bitSet) {
         while (true) {
             final int n = docIdStream.fillDocIdBuffer(docIdBuffer);
             for (int i = 0; i < n; ++i) {
                 bitSet.set(docIdBuffer[i]);
             }
-            if (n < docIdBuffer.length) break;
+            if (n < docIdBuffer.length) {
+                break;
+            }
         }
     }
 }

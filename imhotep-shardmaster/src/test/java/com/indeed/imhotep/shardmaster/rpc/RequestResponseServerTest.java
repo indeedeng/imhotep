@@ -56,7 +56,7 @@ public class RequestResponseServerTest {
         private int processed = 0;
 
         @Override
-        public synchronized void processed(final String requestKey, final ShardMasterRequest.RequestType requestType, final long millis) {
+        public synchronized void processed(final String metricKey, final ShardMasterRequest.RequestType requestType, final long millis) {
             ++processed;
         }
 
@@ -105,7 +105,7 @@ public class RequestResponseServerTest {
 
             executorService.submit(new Callable<Void>() {
                 @Override
-                public Void call() throws Exception {
+                public Void call() throws IOException {
                     requestResponseServer.run();
                     return null;
                 }
