@@ -23,6 +23,7 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Longs;
 import com.indeed.imhotep.DatasetInfo;
+import com.indeed.imhotep.DynamicIndexSubshardDirnameUtil;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.Instrumentation;
@@ -294,40 +295,52 @@ public class ImhotepClient
     static List<ShardIdWithVersion> removeIntersectingShards(final List<ShardIdWithVersion> shardsForTime, final String dataset, final DateTime start) {
         // we have to limit shard start times to the requested start time to avoid
         // longer shards with the earlier start time taking precedence over newer smaller shards
-        final List<ShardTruncatedStart> shardsForTimeTruncated = new ArrayList<>(shardsForTime.size());
-        for(final ShardIdWithVersion shard : shardsForTime) {
-            final ShardInfo.DateTimeRange range = shard.getRange();
-            if(range == null) {
+        final Map<Integer, List<ShardTruncatedStart>> shardsForTimeTruncatedPerSubshard = new HashMap<>();
+        for (final ShardIdWithVersion shard : shardsForTime) {
+            ShardInfo.DateTimeRange range = shard.getRange();
+            if (range == null) {
                 log.warn("Unparseable shard id encountered in dataset '" + dataset + "': " + shard.getShardId());
                 continue;
             }
             DateTime shardStart = range.start;
-            if(start.isAfter(range.start)) {
+            if (start.isAfter(range.start)) {
                 shardStart = start;
             }
-            shardsForTimeTruncated.add(new ShardTruncatedStart(shard, shardStart));
+
+            // For the case of sub-sharded indexes (i.e. dynamic indexes)
+            final int subshardId;
+            if (DynamicIndexSubshardDirnameUtil.isValidShardId(shard.getShardId())) {
+                subshardId = DynamicIndexSubshardDirnameUtil.parseSubshardIdFromShardId(shard.getShardId());
+            } else {
+                subshardId = 0;
+            }
+            shardsForTimeTruncatedPerSubshard
+                    .computeIfAbsent(subshardId, (ignored) -> new ArrayList<>())
+                    .add(new ShardTruncatedStart(shard, shardStart));
         }
 
-        // now we need to resolve potential time overlaps in shards
-        // sort by: start date asc, version desc
-        Collections.sort(shardsForTimeTruncated, new Comparator<ShardTruncatedStart>() {
-            @Override
-            public int compare(final ShardTruncatedStart o1, final ShardTruncatedStart o2) {
-                final int c = o1.start.compareTo(o2.start);
-                if(c != 0) {
-                    return c;
-                }
-                return -Longs.compare(o1.version, o2.version);
-            }
-        });
-
         final List<ShardIdWithVersion> chosenShards = Lists.newArrayList();
-        DateTime processedUpTo = new DateTime(-2000000,1,1,0,0);  // 2M BC
+        for (final List<ShardTruncatedStart> shardsForTimeTruncated : shardsForTimeTruncatedPerSubshard.values()) {
+            // now we need to resolve potential time overlaps in shards
+            // sort by: start date asc, version desc
+            Collections.sort(shardsForTimeTruncated, new Comparator<ShardTruncatedStart>() {
+                @Override
+                public int compare(final ShardTruncatedStart o1, final ShardTruncatedStart o2) {
+                    final int c = o1.start.compareTo(o2.start);
+                    if (c != 0) {
+                        return c;
+                    }
+                    return -Longs.compare(o1.version, o2.version);
+                }
+            });
 
-        for(final ShardTruncatedStart shard : shardsForTimeTruncated) {
-            if(!shard.start.isBefore(processedUpTo)) {
-                chosenShards.add(shard.shard);
-                processedUpTo = shard.end;
+            DateTime processedUpTo = new DateTime(-2000000, 1, 1, 0, 0);  // 2M BC
+
+            for (final ShardTruncatedStart shard : shardsForTimeTruncated) {
+                if (!shard.start.isBefore(processedUpTo)) {
+                    chosenShards.add(shard.shard);
+                    processedUpTo = shard.end;
+                }
             }
         }
         return chosenShards;

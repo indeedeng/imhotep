@@ -11,8 +11,9 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.indeed.imhotep.client;
+package com.indeed.imhotep.client;
 
+import com.indeed.imhotep.DynamicIndexSubshardDirnameUtil;
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -30,18 +31,23 @@ public final class ShardTimeUtils {
     private static final Logger log = Logger.getLogger(ShardTimeUtils.class);
     private static final DateTimeZone ZONE = DateTimeZone.forOffsetHours(-6);
     private static final String SHARD_PREFIX = "index";
+    private static final String DYNAMIC_SHARD_PREFIX = "dindex";
     private static final DateTimeFormatter yyyymmdd =
-        DateTimeFormat.forPattern("yyyyMMdd").withZone(ZONE);
+            DateTimeFormat.forPattern("yyyyMMdd").withZone(ZONE);
     private static final DateTimeFormatter yyyymmddhh =
-        DateTimeFormat.forPattern("yyyyMMdd.HH").withZone(ZONE);
+            DateTimeFormat.forPattern("yyyyMMdd.HH").withZone(ZONE);
 
     public static DateTime parseStart(final String shardId) {
-        if (shardId.length() > 16) {
-            return yyyymmddhh.parseDateTime(shardId.substring(5, 16));
-        } else if (shardId.length() > 13) {
-            return yyyymmddhh.parseDateTime(shardId.substring(5, 16));
+        if (shardId.startsWith(DYNAMIC_SHARD_PREFIX)) {
+            return DynamicIndexSubshardDirnameUtil.parseStartTimeFromShardId(shardId);
         } else {
-            return yyyymmdd.parseDateTime(shardId.substring(5, 13));
+            if (shardId.length() > 16) {
+                return yyyymmddhh.parseDateTime(shardId.substring(5, 16));
+            } else if (shardId.length() > 13) {
+                return yyyymmddhh.parseDateTime(shardId.substring(5, 16));
+            } else {
+                return yyyymmdd.parseDateTime(shardId.substring(5, 13));
+            }
         }
     }
 
@@ -54,18 +60,22 @@ public final class ShardTimeUtils {
     }
 
     public static Interval parseInterval(final String shardId) {
-        if (shardId.length() > 16) {
-            final DateTime start = yyyymmddhh.parseDateTime(shardId.substring(5, 16));
-            final DateTime end = yyyymmddhh.parseDateTime(shardId.substring(17, 28));
-            return new Interval(start, end);
-        } else if (shardId.length() > 13) {
-            final DateTime start = yyyymmddhh.parseDateTime(shardId.substring(5, 16));
-            final DateTime end = start.plusHours(1);
-            return new Interval(start, end);
+        if (shardId.startsWith(DYNAMIC_SHARD_PREFIX)) {
+            return DynamicIndexSubshardDirnameUtil.parseTimeRangeFromShardId(shardId);
         } else {
-            final DateTime start = yyyymmdd.parseDateTime(shardId.substring(5, 13));
-            final DateTime end = start.plusDays(1);
-            return new Interval(start, end);
+            if (shardId.length() > 16) {
+                final DateTime start = yyyymmddhh.parseDateTime(shardId.substring(5, 16));
+                final DateTime end = yyyymmddhh.parseDateTime(shardId.substring(17, 28));
+                return new Interval(start, end);
+            } else if (shardId.length() > 13) {
+                final DateTime start = yyyymmddhh.parseDateTime(shardId.substring(5, 16));
+                final DateTime end = start.plusHours(1);
+                return new Interval(start, end);
+            } else {
+                final DateTime start = yyyymmdd.parseDateTime(shardId.substring(5, 13));
+                final DateTime end = start.plusDays(1);
+                return new Interval(start, end);
+            }
         }
     }
 

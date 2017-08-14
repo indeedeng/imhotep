@@ -14,10 +14,12 @@
  package com.indeed.imhotep;
 
 import com.google.common.primitives.Longs;
+import com.indeed.imhotep.client.ShardTimeUtils;
 import com.indeed.imhotep.protobuf.ShardInfoMessage;
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+import org.joda.time.Interval;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
@@ -169,19 +171,8 @@ public class ShardInfo implements Comparable<ShardInfo> {
 
     public static DateTimeRange parseDateTime(final String shardId) {
         try {
-            if (shardId.length() > 16) {
-                final DateTime start = yyyymmddhh.parseDateTime(shardId.substring(5, 16));
-                final DateTime end = yyyymmddhh.parseDateTime(shardId.substring(17, 28));
-                return new DateTimeRange(start, end);
-            } else if (shardId.length() > 13) {
-                final DateTime start = yyyymmddhh.parseDateTime(shardId.substring(5, 16));
-                final DateTime end = start.plusHours(1);
-                return new DateTimeRange(start, end);
-            } else {
-                final DateTime start = yyyymmdd.parseDateTime(shardId.substring(5, 13));
-                final DateTime end = start.plusDays(1);
-                return new DateTimeRange(start, end);
-            }
+            final Interval interval = ShardTimeUtils.parseInterval(shardId);
+            return new DateTimeRange(interval.getStart(), interval.getEnd());
         } catch (final IllegalArgumentException e) {
             return null;
         }

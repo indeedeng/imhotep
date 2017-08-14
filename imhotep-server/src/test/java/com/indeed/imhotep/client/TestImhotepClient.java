@@ -15,6 +15,7 @@
 
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.service.ImhotepDaemonRunner;
 import org.joda.time.DateTime;
@@ -29,6 +30,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -155,10 +157,23 @@ public class TestImhotepClient {
         removeIntersecingShardsHelper(shardIds, expectedShards, new DateTime(2013, 4, 18, 18, 0));
     }
 
+    @Test
+    public void testRemoveIntersectingShardsDynamicShards() {
+        final String shard1subshard1 = "dindex20130418.00-20130419.00.0.2.10.10";
+        final String shard1subshard2 = "dindex20130418.00-20130419.00.1.2.10.10";
+        final String shard2subshard1 = "dindex20130419.01-20130420.00.0.2.10.10";
+        final String shard2subshard2older = "dindex20130419.01-20130420.00.1.2.10.10";
+        final String shard2subshard2newer = "dindex20130419.01-20130420.00.1.2.1000.10";
+        final List<String> shardIds = Lists.newArrayList(shard1subshard1, shard1subshard2, shard2subshard1, shard2subshard2older, shard2subshard2newer);
+        final List<String> expectedShards = Lists.newArrayList(shard1subshard1, shard1subshard2, shard2subshard1, shard2subshard2newer);
+        removeIntersecingShardsHelper(shardIds, expectedShards);
+    }
+
     private void removeIntersecingShardsHelper(final List<String> shardIds, final List<String> expectedShards) {
         final DateTime start = new DateTime(2000, 1, 1, 0, 0);
         removeIntersecingShardsHelper(shardIds, expectedShards, start);
     }
+
     private void removeIntersecingShardsHelper(
             final List<String> shardIds,
             List<String> expectedShards,
@@ -181,11 +196,8 @@ public class TestImhotepClient {
     private static List<String> stripVersions(final List<String> shardIds) {
         final List<String> stripped = Lists.newArrayList();
         for(String shardId : shardIds) {
-            if(shardId.length() > 28) {
-                final int dotIndex = shardId.lastIndexOf('.');
-                shardId = shardId.substring(0, dotIndex);
-            }
-            stripped.add(shardId);
+            final ShardDir shardDir = new ShardDir(Paths.get("/").resolve(shardId));
+            stripped.add(shardDir.getId());
         }
         return stripped;
     }
@@ -193,14 +205,8 @@ public class TestImhotepClient {
     private static List<ShardIdWithVersion> shardBuilder(final List<String> shardIds) {
         final List<ShardIdWithVersion> shards = Lists.newArrayList();
         for(String shardId : shardIds) {
-            long version = 0;
-            if(shardId.length() > 28) {
-                final int dotIndex = shardId.lastIndexOf('.');
-                final String versionStr = shardId.substring(dotIndex + 1);
-                version = Long.parseLong(versionStr);
-                shardId = shardId.substring(0, dotIndex);
-            }
-            shards.add(new ShardIdWithVersion(shardId, version));
+            final ShardDir shardDir = new ShardDir(Paths.get("/").resolve(shardId));
+            shards.add(new ShardIdWithVersion(shardDir.getId(), shardDir.getVersion()));
         }
         return shards;
     }
