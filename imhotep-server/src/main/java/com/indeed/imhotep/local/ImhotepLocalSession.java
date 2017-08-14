@@ -160,7 +160,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     protected GroupLookup docIdToGroup;
 
-    int[] groupDocCount;
+    private Boolean hasOnlyZeroGroup; // lazy-evaluated
+    private Integer zeroGroupDocCount; // lazy-evaluated
 
     int numStats;
 
@@ -242,8 +243,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
         docIdToGroup = new ConstantGroupLookup(this, 1, numDocs);
         docIdToGroup.recalculateNumGroups();
-        groupDocCount = clearAndResize((int[]) null, docIdToGroup.getNumGroups(), memory);
-        groupDocCount[1] = numDocs;
+        hasOnlyZeroGroup = Boolean.FALSE;
+        zeroGroupDocCount = 0;
 
         accountForFlamdexFTGSIteratorMemChange(0, docIdToGroup.getNumGroups());
 
@@ -347,10 +348,21 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     private boolean shardOnlyContainsGroupZero() {
-        for (int group = 1; group < groupDocCount.length; group++) {
-            if (groupDocCount[group] != 0) {
+        if (hasOnlyZeroGroup != null) {
+            return hasOnlyZeroGroup;
+        }
+
+        for (int index = 0; index < numDocs; index++ ) {
+            if (docIdToGroup.get(index)!=0) {
+                hasOnlyZeroGroup = Boolean.FALSE;
                 return false;
             }
+        }
+
+        hasOnlyZeroGroup = Boolean.TRUE;
+        // if zeroGroupDocCount is not null it can be updates with setZeroGroupDocCount method
+        if (zeroGroupDocCount == null) {
+           zeroGroupDocCount = numDocs;
         }
         return true;
     }
@@ -736,7 +748,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         newNumGroups = docIdToGroup.getNumGroups();
         accountForFlamdexFTGSIteratorMemChange(oldNumGroups, newNumGroups);
         docIdToGroup = resizeGroupLookup(docIdToGroup, 0, memory);
-        recalcGroupCounts(newNumGroups);
+        resetLazyValues();
         groupStats.reset(numStats, newNumGroups);
     }
 
@@ -1500,12 +1512,29 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         return cleanRules;
     }
 
-    private void recalcGroupCounts(final int numGroups)
-        throws ImhotepOutOfMemoryException {
-        groupDocCount = clearAndResize(groupDocCount, numGroups, memory);
-        for (int i = 0; i < numDocs; i++) {
-            groupDocCount[docIdToGroup.get(i)]++;
+    private void resetLazyValues() {
+        hasOnlyZeroGroup = null;
+        zeroGroupDocCount = null;
+    }
+
+    int getZeroGroupDocCount() {
+        if (zeroGroupDocCount == null) {
+            int result = 0;
+            for (int i = 0; i < numDocs; i++) {
+                if (docIdToGroup.get(i) == 0) {
+                    result++;
+                }
+            }
+            zeroGroupDocCount = result;
+            // since we iterated through all docs,
+            // we can update hasOnlyZeroGroup
+            hasOnlyZeroGroup = (result == numDocs);
         }
+        return zeroGroupDocCount;
+    }
+
+    void setZeroGroupDocCount(final int newValue) {
+        zeroGroupDocCount = newValue;
     }
 
     private static final String decimalPattern = "-?[0-9]*\\.?[0-9]+";
@@ -2313,9 +2342,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
 
         docIdToGroup = null;
-
-        memory.releaseMemory(groupDocCount.length * 4);
-        groupDocCount = null;
     }
 
     protected void tryClose() {
@@ -2367,7 +2393,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
         accountForFlamdexFTGSIteratorMemChange(docIdToGroup.getNumGroups(), newNumGroups);
         docIdToGroup = new ConstantGroupLookup(this, group, numDocs);
-        recalcGroupCounts(newNumGroups);
+        resetLazyValues();
         groupStats.reset(numStats, newNumGroups);
         memory.releaseMemory(bytesToFree);
     }

@@ -269,7 +269,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
 
         // alter tracking fields to reflect the removal of group 0 docs
         this.numDocs = this.flamdexReader.getNumDocs();
-        this.groupDocCount[0] = 0;
+        this.setZeroGroupDocCount(0);
 
         // push the stats back on
         for (final String stat : statsCopy) {

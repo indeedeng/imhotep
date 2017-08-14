@@ -235,7 +235,7 @@ public class IndexReWriter {
             final ImhotepJavaLocalSession session = sessions.get(i);
             final GroupLookup gl = session.docIdToGroup;
             final int numDocs = gl.size();
-            final int grp0Docs = session.groupDocCount[0];
+            final int grp0Docs = session.getZeroGroupDocCount();
             nTotalDocs += numDocs;
             newNumDocs += numDocs - grp0Docs;
             numGroups = Math.max(numGroups, gl.getNumGroups());
