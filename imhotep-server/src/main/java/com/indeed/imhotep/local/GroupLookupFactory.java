@@ -13,7 +13,7 @@
  */
  package com.indeed.imhotep.local;
 
-import com.indeed.imhotep.MemoryReservationContext;
+import com.indeed.imhotep.MemoryReserver;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 
 public class GroupLookupFactory {
@@ -113,7 +113,7 @@ public class GroupLookupFactory {
     public static GroupLookup create(final int maxGroup,
                                      final int size,
                                      final ImhotepLocalSession session,
-                                     final MemoryReservationContext memory) throws ImhotepOutOfMemoryException {
+                                     final MemoryReserver memory) throws ImhotepOutOfMemoryException {
 
         final GroupLookupCreator lookupCreator = findCreator(maxGroup);
         final long memoryUsage = lookupCreator.calcMemUsageForSize(size);
@@ -125,7 +125,7 @@ public class GroupLookupFactory {
 
     public static GroupLookup resize(final GroupLookup existingGL,
                                      final int maxGroup,
-                                     final MemoryReservationContext memory) throws ImhotepOutOfMemoryException {
+                                     final MemoryReserver memory) throws ImhotepOutOfMemoryException {
         final GroupLookup newGL;
 
         if (maxGroup > existingGL.maxGroup()) {
