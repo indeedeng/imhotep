@@ -6,7 +6,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -50,43 +49,48 @@ public class TestGroupLookupFactory {
         memory = null;
     }
 
+    // max group for known lookups
+    static final int[] MAX_SIZE = { 1, 255, Character.MAX_VALUE, Integer.MAX_VALUE };
+
     @Test
     public void testBitSetGroupLookup() {
-        testLookup(1);
+        testLookup(0);
     }
 
     @Test
     public void testByteGroupLookup() {
-        testLookup(255);
+        testLookup(1);
     }
 
     @Test
     public void testCharGroupLookup() {
-        testLookup(65535);
+        testLookup(2);
     }
 
     @Test
     public void testIntGroupLookup() {
-        testLookup(65536);
+        testLookup(3);
     }
 
-    private void testLookup(final int groupCount) {
+    private void testLookup(final int index) {
         try {
-            final GroupLookup lookup = GroupLookupFactory.create(groupCount, 10, null, memory);
+            final GroupLookup lookup = GroupLookupFactory.create(MAX_SIZE[index], 10, null, memory);
 
-            // lookup is extending if we overflow current max size
-            if (lookup.maxGroup() < Integer.MAX_VALUE) {
-                final GroupLookup big = GroupLookupFactory.resize(lookup, lookup.maxGroup() + 1, memory);
-                assertTrue(lookup.maxGroup() < big.maxGroup());
+            // lookup is extending to every bigger lookup
+            for(int i = index + 1; i < MAX_SIZE.length; i++) {
+                final GroupLookup bigger = GroupLookupFactory.resize(lookup, MAX_SIZE[i], memory);
+                assertTrue(lookup.maxGroup() < bigger.maxGroup());
             }
 
             // lookup stays the same if maxGroup is not changing
             final GroupLookup same = GroupLookupFactory.resize(lookup, lookup.maxGroup(), memory);
             assertSame(same, lookup);
 
-            // lookup is shrinking to BitSetGroupLookup
-            final GroupLookup small = GroupLookupFactory.resize(lookup, -1, memory);
-            assertEquals(1, small.maxGroup());
+            // lookup is shrinking to every lower lookup
+            for(int i = 0; i < index; i++) {
+                final GroupLookup smaller = GroupLookupFactory.resize(lookup, MAX_SIZE[i], memory);
+                assertTrue(smaller.maxGroup() < lookup.maxGroup());
+            }
         } catch (final ImhotepOutOfMemoryException e) {
             fail();
         }
