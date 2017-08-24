@@ -786,6 +786,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
         try {
             final RawFTGSIterator[] mergers = shuffleFTGSSplits(closer, splits);
             final RawFTGSIterator[] iterators = new RawFTGSIterator[mergers.length];
+            closer.register(Closeables2.forArray(log, iterators));
             execute(mergeSplitBufferThreads, iterators, mergers,
                     new ThrowingFunction<RawFTGSIterator, RawFTGSIterator>() {
                 public RawFTGSIterator apply(final RawFTGSIterator iterator) throws IOException {
@@ -808,6 +809,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
         try {
             final RawFTGSIterator[] mergers = shuffleFTGSSplits(closer, splits);
             final RawFTGSIterator[] iterators = new RawFTGSIterator[mergers.length];
+            closer.register(Closeables2.forArray(log, iterators));
             execute(mergeSplitBufferThreads, iterators, mergers,
                     new ThrowingFunction<RawFTGSIterator, RawFTGSIterator>() {
                         public RawFTGSIterator apply(final RawFTGSIterator iterator) throws IOException {
