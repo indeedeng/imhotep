@@ -524,12 +524,14 @@ public abstract class AbstractImhotepServiceCore
         if(!getSessionManager().sessionIsValid(sessionId)) {
             return null;
         }
-        return doWithSession(sessionId, new Function<ImhotepSession, PerformanceStats>() {
+        final PerformanceStats stats = doWithSession(sessionId, new Function<ImhotepSession, PerformanceStats>() {
             @Override
             public PerformanceStats apply(final ImhotepSession imhotepSession) {
                 return imhotepSession.closeAndGetPerformanceStats();
             }
         });
+        getSessionManager().removeAndCloseIfExists(sessionId);
+        return stats;
     }
 
     @Override

@@ -899,7 +899,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
     @Override
     public PerformanceStats getPerformanceStats(final boolean reset) {
         final PerformanceStats[] stats = new PerformanceStats[sessions.length];
-        executeRuntimeException(stats, (ThrowingFunction<ImhotepSession, PerformanceStats>) imhotepSession -> imhotepSession.getPerformanceStats(reset));
+        executeRuntimeException(stats, imhotepSession -> imhotepSession.getPerformanceStats(reset));
 
         PerformanceStats result = stats[0];
         for (int i = 1; i < stats.length; i++) {
