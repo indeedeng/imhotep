@@ -520,7 +520,10 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public PerformanceStats handleCloseAndGetPerformanceStats(String sessionId) {
+    public PerformanceStats handleCloseAndGetPerformanceStats(final String sessionId) {
+        if(!getSessionManager().sessionIsValid(sessionId)) {
+            return null;
+        }
         return doWithSession(sessionId, new Function<ImhotepSession, PerformanceStats>() {
             @Override
             public PerformanceStats apply(final ImhotepSession imhotepSession) {
