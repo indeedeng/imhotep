@@ -23,9 +23,11 @@ import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.TermCount;
+import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.GroupRemapMessage;
 import com.indeed.imhotep.protobuf.Operator;
+import com.indeed.imhotep.protobuf.PerformanceStatsMessage;
 import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
@@ -147,5 +149,9 @@ public final class ImhotepClientMarshaller {
             ret.add(marshal(condition));
         }
         return ret;
+    }
+
+    public static PerformanceStats marshal(final PerformanceStatsMessage stat) {
+        return new PerformanceStats(stat.getCpuTime(), stat.getMaxMemoryUsed());
     }
 }

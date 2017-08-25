@@ -60,6 +60,7 @@ import com.indeed.imhotep.TermLimitedRawFTGSIterator;
 import com.indeed.imhotep.api.DocIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.imhotep.automaton.Automaton;
 import com.indeed.imhotep.automaton.RegExp;
@@ -273,6 +274,23 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     public long getNumDocs() {
         return this.numDocs;
+    }
+
+    @Override
+    public PerformanceStats getPerformanceStats(final boolean reset) {
+        // todo: support reset.
+        return new PerformanceStats(0, memory.maxUsedMemory());
+    }
+
+    @Override
+    public synchronized PerformanceStats closeAndGetPerformanceStats() {
+        if(closed) {
+            return null;
+        }
+
+        final PerformanceStats stats = getPerformanceStats(false);
+        close();
+        return stats;
     }
 
     /**

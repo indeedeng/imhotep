@@ -24,6 +24,7 @@ import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.imhotep.service.DocIteratorMerger;
 import com.indeed.util.core.Throwables2;
@@ -893,6 +894,30 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
             numDocs += session.getNumDocs();
         }
         return numDocs;
+    }
+
+    @Override
+    public PerformanceStats getPerformanceStats(final boolean reset) {
+        final PerformanceStats[] stats = new PerformanceStats[sessions.length];
+        executeRuntimeException(stats, (ThrowingFunction<ImhotepSession, PerformanceStats>) imhotepSession -> imhotepSession.getPerformanceStats(reset));
+
+        PerformanceStats result = stats[0];
+        for (int i = 1; i < stats.length; i++) {
+            result = PerformanceStats.combine(result, stats[i]);
+        }
+
+        return result;
+    }
+
+    @Override
+    public PerformanceStats closeAndGetPerformanceStats() {
+        if(closed) {
+            return null;
+        }
+
+        final PerformanceStats stats = getPerformanceStats(false);
+        close();
+        return stats;
     }
 
     protected void preClose() {

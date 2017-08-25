@@ -124,6 +124,7 @@ message ImhotepRequest {
     GET_FTGS_SPLIT_NATIVE=40;
     GROUP_QUERY_UPDATE_DYNAMIC_METRIC = 41;
     STREAMING_GET_GROUP_STATS = 42;
+    GET_PERFORMANCE_STATS = 43;
     SHUTDOWN = 255;
   }
 
@@ -255,6 +256,12 @@ message ImhotepRequest {
 
   // for groupQueryUpdateDynamicMetric
   repeated QueryMessage queryMessages = 58;
+
+  // for getPerformanceStats
+  optional bool resetPerformanceStats = 59;
+
+  // for closeSession
+  optional bool returnStatsOnClose = 60;
 }
 
 message ImhotepResponse {
@@ -301,6 +308,9 @@ message ImhotepResponse {
 
   // for approximateTopTerms()
   repeated TermCountMessage top_terms = 13;
+
+  // for getPerformanceStats()
+  optional PerformanceStatsMessage performance_stats = 16;
 }
 
 enum Operator {
@@ -351,4 +361,9 @@ message IntFieldAndTerms {
 message StringFieldAndTerms {
   optional string field = 1;
   repeated string terms = 2;
+}
+
+message PerformanceStatsMessage {
+  required int64 cpu_time = 1;
+  required int64 max_memory_used = 2;
 }
