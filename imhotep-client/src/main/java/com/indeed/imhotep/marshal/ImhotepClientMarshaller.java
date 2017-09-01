@@ -31,10 +31,12 @@ import com.indeed.imhotep.protobuf.PerformanceStatsMessage;
 import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
+import com.indeed.imhotep.protobuf.StringPairMessage;
 import com.indeed.imhotep.protobuf.TermCountMessage;
 import com.indeed.imhotep.protobuf.TermMessage;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -152,6 +154,15 @@ public final class ImhotepClientMarshaller {
     }
 
     public static PerformanceStats marshal(final PerformanceStatsMessage stat) {
-        return new PerformanceStats(stat.getCpuTime(), stat.getMaxMemoryUsed());
+        final Map<String, String> customStringStats = new HashMap<>();
+        for (final StringPairMessage pairMessage : stat.getCustomStatsList()) {
+            customStringStats.put(pairMessage.getKey(), pairMessage.getValue());
+        }
+        return new PerformanceStats(
+                stat.getCpuTime(),
+                stat.getMaxMemoryUsed(),
+                stat.getFtgsTempFileSize(),
+                stat.getFieldFilesReadSize(),
+                ImmutableMap.copyOf(customStringStats));
     }
 }

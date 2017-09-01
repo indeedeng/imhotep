@@ -364,6 +364,14 @@ message StringFieldAndTerms {
 }
 
 message PerformanceStatsMessage {
-  required int64 cpu_time = 1;
-  required int64 max_memory_used = 2;
+  optional int64 cpu_time = 1;
+  optional int64 max_memory_used = 2;
+  optional int64 ftgs_temp_file_size = 3;
+  optional int64 field_files_read_size = 4;
+  repeated StringPairMessage custom_stats = 5;
+}
+
+message StringPairMessage {
+  required string Key = 1;
+  required string Value = 2;
 }

@@ -143,6 +143,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     static final int MAX_NUMBER_STATS = 64;
     static final int BUFFER_SIZE = 2048;
     private final AtomicLong tempFileSizeBytesLeft;
+    private long savedTempFileSizeValue;
 
     protected int numDocs;
     // buffers that will be reused to avoid excessive allocations
@@ -215,7 +216,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             getProperties()
                 .putAll(ImhotepLocalSession.this.instrumentedFlamdexReader.sample().getProperties());
             getProperties().put(Instrumentation.Keys.MAX_USED_MEMORY,
-                                ImhotepLocalSession.this.memory.maxUsedMemory());
+                                ImhotepLocalSession.this.memory.getGlobalMaxUsedMemory());
         }
     }
 
@@ -230,6 +231,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                                final AtomicLong tempFileSizeBytesLeft)
         throws ImhotepOutOfMemoryException {
         this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
+        this.savedTempFileSizeValue = (this.tempFileSizeBytesLeft == null) ? 0 : this.tempFileSizeBytesLeft.get();
         constructorStackTrace = new Exception();
         this.instrumentedFlamdexReader = (flamdexReader instanceof RawFlamdexReader) ?
                 new InstrumentedRawFlamdexReader((RawFlamdexReader) flamdexReader) :
@@ -277,9 +279,20 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     @Override
-    public PerformanceStats getPerformanceStats(final boolean reset) {
-        // todo: support reset.
-        return new PerformanceStats(0, memory.maxUsedMemory());
+    public synchronized PerformanceStats getPerformanceStats(final boolean reset) {
+        final long tempFileSize = (tempFileSizeBytesLeft == null) ? 0 : tempFileSizeBytesLeft.get();
+        final PerformanceStats result =
+                new PerformanceStats(
+                        0, // todo: support cpu time calculation
+                        memory.getCurrentMaxUsedMemory(),
+                        savedTempFileSizeValue - tempFileSize,
+                        0, // todo: support field file read calculation
+                        ImmutableMap.of());
+        if (reset) {
+            memory.resetCurrentMaxUsedMemory();
+            savedTempFileSizeValue = tempFileSize;
+        }
+        return result;
     }
 
     @Override

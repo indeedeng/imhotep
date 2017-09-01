@@ -1109,7 +1109,7 @@ public class ImhotepRemoteSession
             return null;
         }
         final Timer timer = new Timer();
-        ImhotepRequest.Builder builder = getBuilderForType(ImhotepRequest.RequestType.CLOSE_SESSION);
+        final ImhotepRequest.Builder builder = getBuilderForType(ImhotepRequest.RequestType.CLOSE_SESSION);
         builder.setSessionId(sessionId);
         if(getStats) {
             // adding only if it's true to save bytes in request.
