@@ -430,6 +430,7 @@ public class ImhotepRemoteSession
     }
 
     public RawFTGSIterator getFTGSIteratorSplit(final String[] intFields, final String[] stringFields, final int splitIndex, final int numSplits, final long termLimit) {
+        // TODO: disable timer to reduce logrepo logging volume of SubmitRequestEvent?
         final Timer timer = new Timer();
         final ImhotepRequest.RequestType requestType = useNativeFtgs ? GET_FTGS_SPLIT_NATIVE : GET_FTGS_SPLIT;
         final ImhotepRequest request = getBuilderForType(requestType)
@@ -561,7 +562,6 @@ public class ImhotepRemoteSession
                                 - start) + " ms, file length: " + Files.size(tmp));
                     }
                 } catch (final Throwable t) {
-                    Files.delete(tmp);
                     if(t instanceof WriteLimitExceededException) {
                         throw new TempFileSizeLimitExceededException(t);
                     }
@@ -580,7 +580,11 @@ public class ImhotepRemoteSession
                 return new InputStreamFTGSIterator(in, numStats);
             } finally {
                 if (tmp != null) {
-                    Files.delete(tmp);
+                    try {
+                        Files.delete(tmp);
+                    } catch (Exception e) {
+                        log.warn("Failed to delete temp file " + tmp);
+                    }
                 }
                 closeSocket(socket);
             }
