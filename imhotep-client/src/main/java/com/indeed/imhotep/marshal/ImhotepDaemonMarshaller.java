@@ -31,7 +31,7 @@ import com.indeed.imhotep.protobuf.PerformanceStatsMessage;
 import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
-import com.indeed.imhotep.protobuf.StringPairMessage;
+import com.indeed.imhotep.protobuf.StringLongMessage;
 import com.indeed.imhotep.protobuf.TermCountMessage;
 import com.indeed.imhotep.protobuf.TermMessage;
 
@@ -154,9 +154,9 @@ public final class ImhotepDaemonMarshaller {
                 .setMaxMemoryUsed(stats.maxMemoryUsage)
                 .setFtgsTempFileSize(stats.ftgsTempFileSize)
                 .setFieldFilesReadSize(stats.fieldFilesReadSize);
-        for (final Map.Entry<String, String> entry : stats.customStats.entrySet()) {
+        for (final Map.Entry<String, Long> entry : stats.customStats.entrySet()) {
             builder.addCustomStats(
-                    StringPairMessage.newBuilder()
+                    StringLongMessage.newBuilder()
                             .setKey(entry.getKey())
                             .setValue(entry.getValue())
                             .build());

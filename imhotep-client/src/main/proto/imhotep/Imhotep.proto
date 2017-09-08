@@ -368,10 +368,10 @@ message PerformanceStatsMessage {
   optional int64 max_memory_used = 2;
   optional int64 ftgs_temp_file_size = 3;
   optional int64 field_files_read_size = 4;
-  repeated StringPairMessage custom_stats = 5;
+  repeated StringLongMessage custom_stats = 5;
 }
 
-message StringPairMessage {
+message StringLongMessage {
   required string Key = 1;
-  required string Value = 2;
+  required int64 Value = 2;
 }

@@ -10,14 +10,14 @@ public class PerformanceStats {
     public final long maxMemoryUsage;
     public final long ftgsTempFileSize;
     public final long fieldFilesReadSize;
-    public final ImmutableMap<String, String> customStats;
+    public final ImmutableMap<String, Long> customStats;
 
     public PerformanceStats(
             final long cpuTime,
             final long maxMemoryUsage,
             final long ftgsTempFileSize,
             final long fieldFilesFeadSize,
-            final ImmutableMap<String, String> customStats) {
+            final ImmutableMap<String, Long> customStats) {
         this.cpuTime = cpuTime;
         this.maxMemoryUsage = maxMemoryUsage;
         this.ftgsTempFileSize = ftgsTempFileSize;
@@ -35,11 +35,11 @@ public class PerformanceStats {
             return first;
         }
 
-        final Map<String, String> joinedStats = new HashMap<>();
+        final Map<String, Long> joinedStats = new HashMap<>();
         joinedStats.putAll(first.customStats);
-        for (final Map.Entry<String, String> entry : second.customStats.entrySet() ) {
-            String value = joinedStats.get(entry.getKey());
-            value = (value != null) ? (value + "\n" + entry.getValue()) : entry.getValue();
+        for (final Map.Entry<String, Long> entry : second.customStats.entrySet() ) {
+            Long value = joinedStats.get(entry.getKey());
+            value = (value != null) ? (value + entry.getValue()) : entry.getValue();
             joinedStats.put(entry.getKey(), value);
         }
 
