@@ -163,70 +163,70 @@ class MultiRegroupInternals {
                 // Handle term splits by going to the term directly and applying the rule.
                 flat.reorderOnTerm(fieldStartIndex, iCondition, intType);
                 if (intType) {
-                    final IntTermIterator termIterator = flamdexReader.getUnsortedIntTermIterator(field);
-                    long currentTerm = flat.conditions[fieldStartIndex].intTerm;
-                    int termStartIndex = fieldStartIndex;
-                    final int fieldEndIndex = iCondition;
-                    for (int ix = fieldStartIndex; ix <= fieldEndIndex; ix++) {
-                        if (ix != fieldEndIndex) {
-                            if (flat.conditions[ix].intTerm == currentTerm) {
+                    try (final IntTermIterator termIterator = flamdexReader.getUnsortedIntTermIterator(field)) {
+                        long currentTerm = flat.conditions[fieldStartIndex].intTerm;
+                        int termStartIndex = fieldStartIndex;
+                        final int fieldEndIndex = iCondition;
+                        for (int ix = fieldStartIndex; ix <= fieldEndIndex; ix++) {
+                            if (ix != fieldEndIndex) {
+                                if (flat.conditions[ix].intTerm == currentTerm) {
+                                    final int targetGroup = rules[flat.ruleIndices[ix]].targetGroup;
+                                    remappings[targetGroup] = flat.internalIndices[ix];
+                                    continue;
+                                }
+                            }
+
+                            performIntMultiEqualityRegroup(docIdToGroup, newDocIdToGroup,
+                                    docIdBuf, docIdStream, termIterator,
+                                    remappings, currentTerm,
+                                    errorOnCollisions ? placeholderGroup : -1);
+
+                            for (int ix2 = termStartIndex; ix2 < ix; ix2++) {
+                                final int targetGroup = rules[flat.ruleIndices[ix2]].targetGroup;
+                                remappings[targetGroup] = placeholderGroup;
+                            }
+
+                            if (ix != fieldEndIndex) {
+                                termStartIndex = ix;
+                                currentTerm = flat.conditions[ix].intTerm;
                                 final int targetGroup = rules[flat.ruleIndices[ix]].targetGroup;
                                 remappings[targetGroup] = flat.internalIndices[ix];
-                                continue;
                             }
                         }
-
-                        performIntMultiEqualityRegroup(docIdToGroup, newDocIdToGroup,
-                                                       docIdBuf, docIdStream, termIterator,
-                                                       remappings, currentTerm,
-                                                       errorOnCollisions ? placeholderGroup: -1);
-
-                        for (int ix2 = termStartIndex; ix2 < ix; ix2++) {
-                            final int targetGroup = rules[flat.ruleIndices[ix2]].targetGroup;
-                            remappings[targetGroup] = placeholderGroup;
-                        }
-
-                        if (ix != fieldEndIndex) {
-                            termStartIndex = ix;
-                            currentTerm = flat.conditions[ix].intTerm;
-                            final int targetGroup = rules[flat.ruleIndices[ix]].targetGroup;
-                            remappings[targetGroup] = flat.internalIndices[ix];
-                        }
                     }
-                    termIterator.close();
                 } else {
-                    final StringTermIterator termIterator = flamdexReader.getStringTermIterator(field);
-                    String currentTerm = flat.conditions[fieldStartIndex].stringTerm;
-                    int termStartIndex = fieldStartIndex;
-                    final int fieldEndIndex = iCondition;
-                    for (int ix = fieldStartIndex; ix <= fieldEndIndex; ix++) {
-                        if (ix != fieldEndIndex) {
-                            if (flat.conditions[ix].stringTerm.equals(currentTerm)) {
+                    try (final StringTermIterator termIterator = flamdexReader.getStringTermIterator(field)) {
+                        String currentTerm = flat.conditions[fieldStartIndex].stringTerm;
+                        int termStartIndex = fieldStartIndex;
+                        final int fieldEndIndex = iCondition;
+                        for (int ix = fieldStartIndex; ix <= fieldEndIndex; ix++) {
+                            if (ix != fieldEndIndex) {
+                                if (flat.conditions[ix].stringTerm.equals(currentTerm)) {
+                                    final int targetGroup = rules[flat.ruleIndices[ix]].targetGroup;
+                                    remappings[targetGroup] = flat.internalIndices[ix];
+                                    continue;
+                                }
+                            }
+
+                            performStringMultiEqualityRegroup(docIdToGroup, newDocIdToGroup,
+                                    docIdBuf, docIdStream, termIterator,
+                                    remappings, currentTerm,
+                                    errorOnCollisions ? placeholderGroup : -1);
+
+                            // Reset the remapping entries to placeholderGroup
+                            for (int ix2 = termStartIndex; ix2 < ix; ix2++) {
+                                final int targetGroup = rules[flat.ruleIndices[ix2]].targetGroup;
+                                remappings[targetGroup] = placeholderGroup;
+                            }
+
+                            if (ix != fieldEndIndex) {
+                                termStartIndex = ix;
+                                currentTerm = flat.conditions[ix].stringTerm;
                                 final int targetGroup = rules[flat.ruleIndices[ix]].targetGroup;
                                 remappings[targetGroup] = flat.internalIndices[ix];
-                                continue;
                             }
                         }
-
-                        performStringMultiEqualityRegroup(docIdToGroup, newDocIdToGroup,
-                                                          docIdBuf, docIdStream, termIterator,
-                                                          remappings, currentTerm,
-                                                          errorOnCollisions ? placeholderGroup : -1);
-
-                        // Reset the remapping entries to placeholderGroup
-                        for (int ix2 = termStartIndex; ix2 < ix; ix2++) {
-                            final int targetGroup = rules[flat.ruleIndices[ix2]].targetGroup;
-                            remappings[targetGroup] = placeholderGroup;
-                        }
-
-                        if (ix != fieldEndIndex) {
-                            termStartIndex = ix;
-                            currentTerm = flat.conditions[ix].stringTerm;
-                            final int targetGroup = rules[flat.ruleIndices[ix]].targetGroup;
-                            remappings[targetGroup] = flat.internalIndices[ix];
-                        }
                     }
-                    termIterator.close();
                 }
             }
 
