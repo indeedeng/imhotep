@@ -2,6 +2,7 @@ package com.indeed.imhotep.exceptions;
 
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.io.TempFileSizeLimitExceededException;
+import com.indeed.imhotep.io.WriteLimitExceededException;
 import org.apache.commons.lang.exception.ExceptionUtils;
 
 /**
@@ -29,7 +30,8 @@ public class ImhotepErrorResolver {
                     "Please wait for them to complete before retrying.", e);
         }
 
-        if (error.contains(TempFileSizeLimitExceededException.class.getSimpleName())) {
+        if (error.contains(TempFileSizeLimitExceededException.class.getSimpleName()) ||
+                error.contains(WriteLimitExceededException.class.getSimpleName())) {
             return new FTGSLimitExceededException("The query tried to iterate over too much data. " +
                     "Please simplify the query.", e);
         }
