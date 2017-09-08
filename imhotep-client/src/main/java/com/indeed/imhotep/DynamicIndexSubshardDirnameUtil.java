@@ -189,7 +189,7 @@ public final class DynamicIndexSubshardDirnameUtil {
      *
      * @param shardId       Id of the subshard to search, e.g. dindex20170705.02-20170705.03.1.4
      * @param candidates    Iterable of T, e.g. List&lt;Path&gt;. nulls are ignored.
-     * @param dirNameGetter Converter from T to the name of the subshard, e.g. (path) -> path.getFileName().toString(). Ignored if the return value is null.
+     * @param dirNameGetter Converter from T to the name of the subshard, e.g. (path) -&gt; path.getFileName().toString(). Ignored if the return value is null.
      */
     public static <T> Optional<T> selectLatest(final String shardId, final Iterable<T> candidates, final Function<T, String> dirNameGetter) {
         T maximum = null;
