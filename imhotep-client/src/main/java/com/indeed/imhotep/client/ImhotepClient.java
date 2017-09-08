@@ -225,8 +225,11 @@ public class ImhotepClient
         final SortedSet<String> set = new TreeSet<>();
         for (final List<DatasetInfo> datasetList : shardListMap.values()) {
             for (final DatasetInfo datasetInfo : datasetList) {
+                if (!dataset.equals(datasetInfo.getDataset())) {
+                    continue;
+                }
                 for (final ShardInfo shard : datasetInfo.getShardList()) {
-                    if (dataset.equals(shard.dataset) && filterFunc.accept(shard)) {
+                    if (filterFunc.accept(shard)) {
                         set.add(shard.shardId);
                     }
                 }
