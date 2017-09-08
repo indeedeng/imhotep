@@ -9,7 +9,7 @@ public class PerformanceStats {
     public final long cpuTime;
     public final long maxMemoryUsage;
     public final long ftgsTempFileSize;
-    public final long fieldFilesFeadSize;
+    public final long fieldFilesReadSize;
     public final ImmutableMap<String, String> customStats;
 
     public PerformanceStats(
@@ -21,7 +21,7 @@ public class PerformanceStats {
         this.cpuTime = cpuTime;
         this.maxMemoryUsage = maxMemoryUsage;
         this.ftgsTempFileSize = ftgsTempFileSize;
-        this.fieldFilesFeadSize = fieldFilesFeadSize;
+        this.fieldFilesReadSize = fieldFilesFeadSize;
         this.customStats = customStats;
     }
 
@@ -47,7 +47,7 @@ public class PerformanceStats {
                 first.cpuTime + second.cpuTime,
                 first.maxMemoryUsage + second.maxMemoryUsage,
                 first.ftgsTempFileSize + second.ftgsTempFileSize,
-                first.fieldFilesFeadSize + second.fieldFilesFeadSize,
+                first.fieldFilesReadSize + second.fieldFilesReadSize,
                 ImmutableMap.copyOf(joinedStats));
     }
 }

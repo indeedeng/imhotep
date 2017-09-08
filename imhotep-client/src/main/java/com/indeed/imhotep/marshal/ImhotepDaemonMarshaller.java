@@ -153,7 +153,7 @@ public final class ImhotepDaemonMarshaller {
                 .setCpuTime(stats.cpuTime)
                 .setMaxMemoryUsed(stats.maxMemoryUsage)
                 .setFtgsTempFileSize(stats.ftgsTempFileSize)
-                .setFtgsTempFileSize(stats.fieldFilesFeadSize);
+                .setFieldFilesReadSize(stats.fieldFilesReadSize);
         for (final Map.Entry<String, String> entry : stats.customStats.entrySet()) {
             builder.addCustomStats(
                     StringPairMessage.newBuilder()
