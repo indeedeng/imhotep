@@ -101,7 +101,7 @@ public class TestShardStore {
                 final ShardStore.Key   key   = entry.getKey();
                 final ShardStore.Value value = entry.getValue();
                 final ShardInfo shardInfo =
-                    new ShardInfo(key.getDataset(), key.getShardId(),
+                    new ShardInfo(key.getShardId(),
                                   value.getNumDocs(),
                                   value.getVersion());
                 expected.add(shardInfo);

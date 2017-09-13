@@ -25,22 +25,16 @@ import javax.annotation.Nonnull;
  * @author jsgroth
  */
 public class ShardInfo implements Comparable<ShardInfo> {
-    public final String dataset;
     public final String shardId;
     public final int numDocs;
     public final long version;
 
     private DateTimeRange range;    // lazily computed
 
-    public ShardInfo(final String dataset, final String shardId, final int numDocs, final long version) {
-        this.dataset = dataset;
+    public ShardInfo(final String shardId, final int numDocs, final long version) {
         this.shardId = shardId;
         this.numDocs = numDocs;
         this.version = version;
-    }
-
-    public String getDataset() {
-        return dataset;
     }
 
     public String getShardId() {
@@ -78,7 +72,6 @@ public class ShardInfo implements Comparable<ShardInfo> {
 
     public static ShardInfo fromProto(final ShardInfoMessage protoShard) {
         return new ShardInfo(
-                protoShard.getDataset(),
                 protoShard.getShardId(),
                 protoShard.getNumDocs(),
                 protoShard.getVersion()
@@ -87,7 +80,6 @@ public class ShardInfo implements Comparable<ShardInfo> {
 
     public ShardInfoMessage toProto() {
         return ShardInfoMessage.newBuilder()
-                .setDataset(dataset)
                 .setShardId(shardId)
                 .setNumDocs(numDocs)
                 .setVersion(version)
@@ -96,10 +88,6 @@ public class ShardInfo implements Comparable<ShardInfo> {
 
     @Override
     public int compareTo(@Nonnull final ShardInfo o) {
-        final int c = dataset.compareTo(o.dataset);
-        if (c != 0) {
-            return c;
-        }
         final int c2 = shardId.compareTo(o.shardId);
         if (c2 != 0) {
             return c2;
@@ -124,9 +112,6 @@ public class ShardInfo implements Comparable<ShardInfo> {
         if (version != shardInfo.version) {
             return false;
         }
-        if (dataset != null ? !dataset.equals(shardInfo.dataset) : shardInfo.dataset != null) {
-            return false;
-        }
         if (shardId != null ? !shardId.equals(shardInfo.shardId) : shardInfo.shardId != null) {
             return false;
         }
@@ -136,8 +121,7 @@ public class ShardInfo implements Comparable<ShardInfo> {
 
     @Override
     public int hashCode() {
-        int result = dataset != null ? dataset.hashCode() : 0;
-        result = 31 * result + (shardId != null ? shardId.hashCode() : 0);
+        int result = shardId != null ? shardId.hashCode() : 0;
         result = 31 * result + numDocs;
         result = 31 * result + (int) (version ^ (version >>> 32));
         return result;
@@ -145,7 +129,7 @@ public class ShardInfo implements Comparable<ShardInfo> {
 
     @Override
     public String toString() {
-        return "["+dataset+":"+shardId+"]";
+        return shardId;
     }
 
     public static DateTimeRange parseDateTime(final String shardId) {
