@@ -104,7 +104,6 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
             super(dataset,
                   new ObjectArrayList<ShardInfo>(),
                   new ObjectOpenHashSet<String>(),
-                  new ObjectOpenHashSet<String>(),
                   new ObjectOpenHashSet<String>());
         }
 
@@ -112,7 +111,6 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
             getShardList().add(shardInfo);
             getIntFields().addAll(value.getIntFields());
             getStringFields().addAll(value.getStrFields());
-            getMetrics().addAll(value.getIntFields());
             track(shardInfo.getVersion(), value.getIntFields(), value.getStrFields());
             filter();
         }
@@ -121,7 +119,6 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
             getShardList().add(shardInfo);
             getIntFields().addAll(shard.getIntFields());
             getStringFields().addAll(shard.getStringFields());
-            getMetrics().addAll(shard.getIntFields());
             track(shardInfo.getVersion(), shard.getIntFields(), shard.getStringFields());
             filter();
         }

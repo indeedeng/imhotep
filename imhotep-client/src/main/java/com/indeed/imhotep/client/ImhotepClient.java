@@ -176,7 +176,7 @@ public class ImhotepClient
                 }
                 DatasetInfo current = ret.get(dataset.getDataset());
                 if (current == null) {
-                    current = new DatasetInfo(dataset.getDataset(), new HashSet<ShardInfo>(), new HashSet<String>(), new HashSet<String>(), new HashSet<String>());
+                    current = new DatasetInfo(dataset.getDataset(), new HashSet<ShardInfo>(), new HashSet<String>(), new HashSet<String>());
                     ret.put(dataset.getDataset(), current);
                 }
                 final Collection<ShardInfo> shardList = dataset.getShardList();
@@ -195,7 +195,6 @@ public class ImhotepClient
                 current.getShardList().addAll(shardList);
                 current.getIntFields().addAll(dataset.getIntFields());
                 current.getStringFields().addAll(dataset.getStringFields());
-                current.getMetrics().addAll(dataset.getMetrics());
             }
         }
 
