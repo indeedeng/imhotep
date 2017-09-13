@@ -53,8 +53,7 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
                 final String id    = idToShard.getKey();
                 final Shard  shard = idToShard.getValue();
                 final ShardInfo shardInfo =
-                    new ShardInfo(dataset, id, shard.getLoadedMetrics(),
-                                  shard.getNumDocs(), shard.getShardVersion());
+                    new ShardInfo(dataset, id, shard.getNumDocs(), shard.getShardVersion());
                 datasetInfo.add(shardInfo, shard);
             }
             datasetInfo.filter();
@@ -79,7 +78,6 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
 
             final ShardInfo shardInfo =
                 new ShardInfo(dataset, key.getShardId(),
-                              new ObjectArrayList<String>(0),
                               value.getNumDocs(), value.getVersion());
 
             Element datasetInfo = datasetInfos.get(dataset);

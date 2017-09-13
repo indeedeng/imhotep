@@ -43,7 +43,6 @@ class ShardInfoList extends ObjectArrayList<ShardInfo> {
                                       final Shard  shard) throws IOException {
                     final ShardInfo shardInfo =
                         new ShardInfo(dataset, shardId,
-                                      shard.getLoadedMetrics(),
                                       shard.getNumDocs(),
                                       shard.getShardVersion());
                     add(shardInfo);
@@ -64,7 +63,6 @@ class ShardInfoList extends ObjectArrayList<ShardInfo> {
             final ShardStore.Value value = entry.getValue();
             final ShardInfo shardInfo =
                 new ShardInfo(key.getDataset(), key.getShardId(),
-                              new ObjectArrayList<String>(0),
                               value.getNumDocs(),
                               value.getVersion());
             add(shardInfo);

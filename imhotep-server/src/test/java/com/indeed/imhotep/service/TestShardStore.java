@@ -102,7 +102,6 @@ public class TestShardStore {
                 final ShardStore.Value value = entry.getValue();
                 final ShardInfo shardInfo =
                     new ShardInfo(key.getDataset(), key.getShardId(),
-                                  new ObjectArrayList<String>(0),
                                   value.getNumDocs(),
                                   value.getVersion());
                 expected.add(shardInfo);

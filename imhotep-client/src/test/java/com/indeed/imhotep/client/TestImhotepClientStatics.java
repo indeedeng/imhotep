@@ -82,7 +82,7 @@ public class TestImhotepClientStatics {
         final List<ShardInfo> shardInfos = Lists.newArrayList();
         for(final long version: versions) {
             final String shardId = "index" + Long.toString(version).substring(0, 8);
-            final ShardInfo shardInfo = new ShardInfo(dataset, shardId, Collections.<String>emptyList(), 0, version);
+            final ShardInfo shardInfo = new ShardInfo(dataset, shardId, 0, version);
             shardInfos.add(shardInfo);
         }
         final DatasetInfo datasetInfo = new DatasetInfo(dataset, shardInfos, intFields, stringFields, Collections.<String>emptyList());

@@ -366,7 +366,6 @@ public class ImhotepClient
         private final DateTime start;
         private final DateTime end;
 
-        private Collection<String> requestedMetrics = Collections.emptyList();
         private int mergeThreadLimit = ImhotepRemoteSession.DEFAULT_MERGE_THREAD_LIMIT;
         private String username = "";
         private String clientName = "";
@@ -384,11 +383,6 @@ public class ImhotepClient
             this.dataset = dataset;
             this.start = start;
             this.end = end;
-        }
-
-        public SessionBuilder requestedMetrics(final Collection<String> newRequestedMetrics) {
-            this.requestedMetrics = Lists.newArrayList(newRequestedMetrics);
-            return this;
         }
 
         public SessionBuilder mergeThreadLimit(final int newMergeThreadLimit) {
@@ -498,7 +492,7 @@ public class ImhotepClient
                 username = ImhotepRemoteSession.getUsername();
             }
             final List<String> chosenShardIDs = shardsOverride != null ? shardsOverride : ShardIdWithVersion.keepShardIds(getChosenShards());
-            return getSessionForShards(dataset, chosenShardIDs, requestedMetrics, mergeThreadLimit, username, clientName,
+            return getSessionForShards(dataset, chosenShardIDs, mergeThreadLimit, username, clientName,
                     optimizeGroupZeroLookups, socketTimeout, localTempFileSizeLimit, daemonTempFileSizeLimit, useNativeFTGS, sessionTimeout);
         }
     }
@@ -580,10 +574,10 @@ public class ImhotepClient
                                      final int mergeThreadLimit, final int priority, final String username,
                                      final boolean optimizeGroupZeroLookups, final int socketTimeout) {
 
-        return getSessionForShards(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, "", optimizeGroupZeroLookups, socketTimeout, -1, -1, false, 0);
+        return getSessionForShards(dataset, requestedShards, mergeThreadLimit, username, "", optimizeGroupZeroLookups, socketTimeout, -1, -1, false, 0);
     }
 
-    private ImhotepSession getSessionForShards(final String dataset, final Collection<String> requestedShards, final Collection<String> requestedMetrics,
+    private ImhotepSession getSessionForShards(final String dataset, final Collection<String> requestedShards,
                                                final int mergeThreadLimit, final String username, final String clientName,
                                                final boolean optimizeGroupZeroLookups, final int socketTimeout,
                                                final long localTempFileSizeLimit, final long daemonTempFileSizeLimit,
@@ -599,7 +593,7 @@ public class ImhotepClient
             final String sessionId = UUID.randomUUID().toString();
             ImhotepRemoteSession[] remoteSessions = null;
             try {
-                remoteSessions = internalGetSession(dataset, requestedShards, requestedMetrics, mergeThreadLimit, username, clientName, optimizeGroupZeroLookups, socketTimeout, sessionId, daemonTempFileSizeLimit, localTempFileSizeBytesLeft, useNativeFtgs, sessionTimeout);
+                remoteSessions = internalGetSession(dataset, requestedShards, mergeThreadLimit, username, clientName, optimizeGroupZeroLookups, socketTimeout, sessionId, daemonTempFileSizeLimit, localTempFileSizeBytesLeft, useNativeFtgs, sessionTimeout);
             } catch (final Exception e) {
                 error = e;
             }
@@ -630,12 +624,11 @@ public class ImhotepClient
             unprocessedShardsByHost = HashMultimap.create();
             for (final Map.Entry<String, ShardData> entry : shards.entrySet()) {
                 final String shardId = entry.getKey();
-                for (final Pair<Host, Integer> pair : entry.getValue().hostToLoadedMetrics) {
-                    final Host host = pair.getFirst();
+                for (final Host host : entry.getValue().hosts) {
                     unprocessedShardsByHost.put(host, shardId);
                 }
-                if (entry.getValue().hostToLoadedMetrics.isEmpty()) {
-                    throw new IllegalStateException("no shards for host " + entry.getKey());
+                if (entry.getValue().hosts.isEmpty()) {
+                    throw new IllegalStateException("no hosts for shard " + entry.getKey());
                 }
             }
         }
@@ -658,8 +651,8 @@ public class ImhotepClient
 
             for (final String shard : result) {
                 final ShardData data = unprocessedShards.remove(shard);
-                for (final Pair<Host, Integer> pair : data.hostToLoadedMetrics) {
-                    unprocessedShardsByHost.remove(pair.getFirst(), shard);
+                for (final Host hostToRemove : data.hosts) {
+                    unprocessedShardsByHost.remove(hostToRemove, shard);
                 }
             }
 
@@ -672,21 +665,14 @@ public class ImhotepClient
             final String dataset,
             final Collection<String> requestedShards,
             final long maxDocsPerSession) {
-
-        // construct
-        Map<String, ShardData> shardMap = constructPotentialShardMap(dataset, Collections.<String>emptySet());
-        shardMap = Maps.newHashMap(
-                Maps.filterKeys(shardMap, Predicates.in(ImmutableSet.copyOf(
-                        requestedShards))));
+        final Map<String, ShardData> shardIdToHostsAndDocs = findHostsForShardIds(dataset, requestedShards);
 
         final Set<Host> hosts = Sets.newTreeSet();
-        for (final ShardData data : shardMap.values()) {
-            for (final Pair<Host, Integer> pair : data.hostToLoadedMetrics) {
-                hosts.add(pair.getFirst());
-            }
+        for (final ShardData data : shardIdToHostsAndDocs.values()) {
+            hosts.addAll(data.hosts);
         }
 
-        final IncrementalEvaluationState state = new IncrementalEvaluationState(shardMap);
+        final IncrementalEvaluationState state = new IncrementalEvaluationState(shardIdToHostsAndDocs);
 
         final ExecutorService executor = Executors.newCachedThreadPool();
         final ExecutorCompletionService<Void> completionService = new ExecutorCompletionService<>(executor);
@@ -741,12 +727,12 @@ public class ImhotepClient
     private static class ShardData {
         final int numDocs;
         final long highestVersion;
-        final List<Pair<Host, Integer>> hostToLoadedMetrics;
+        final List<Host> hosts;
 
-        private ShardData(final int numDocs, final long highestVersion, final List<Pair<Host, Integer>> hostToLoadedMetrics) {
+        private ShardData(final int numDocs, final long highestVersion, final List<Host> hosts) {
             this.numDocs = numDocs;
             this.highestVersion = highestVersion;
-            this.hostToLoadedMetrics = hostToLoadedMetrics;
+            this.hosts = hosts;
         }
     }
 
@@ -754,7 +740,6 @@ public class ImhotepClient
     private ImhotepRemoteSession[]
         internalGetSession(final String dataset,
                            final Collection<String> requestedShards,
-                           final Collection<String> requestedMetrics,
                            final int mergeThreadLimit,
                            final String username,
                            final String clientName,
@@ -766,7 +751,7 @@ public class ImhotepClient
                            final boolean useNativeFtgs,
                            final long sessionTimeout) {
 
-        final ShardsAndDocCounts shardsAndDocCounts = buildShardRequestMap(dataset, requestedShards, requestedMetrics);
+        final ShardsAndDocCounts shardsAndDocCounts = buildShardRequestMap(dataset, requestedShards);
         final Map<Host, List<String>> shardRequestMap = shardsAndDocCounts.shardRequestMap;
         final Map<Host, Integer> hostsToDocCounts = shardsAndDocCounts.hostDocCounts;
 
@@ -853,13 +838,12 @@ public class ImhotepClient
         }
     }
 
-    private ShardsAndDocCounts buildShardRequestMap(final String dataset, final Collection<String> requestedShards, final Collection<String> requestedMetrics) {
-        final Set<String> requestedMetricsSet = new HashSet<>(requestedMetrics);
-        final Map<String, ShardData> shardMap = constructPotentialShardMap(dataset, requestedMetricsSet);
+    private ShardsAndDocCounts buildShardRequestMap(final String dataset, final Collection<String> requestedShards) {
+        final Map<String, ShardData> shardIdToHostsAndDocs = findHostsForShardIds(dataset, requestedShards);
 
         boolean error = false;
         for (final String shard : requestedShards) {
-            if (!shardMap.containsKey(shard)) {
+            if (!shardIdToHostsAndDocs.containsKey(shard)) {
                 log.error("shard " + shard + " not found");
                 error = true;
             }
@@ -873,8 +857,8 @@ public class ImhotepClient
         Collections.sort(sortedShards, new Comparator<String>() {
             @Override
             public int compare(final String o1, final String o2) {
-                final int c1 = shardMap.get(o1).numDocs;
-                final int c2 = shardMap.get(o2).numDocs;
+                final int c1 = shardIdToHostsAndDocs.get(o1).numDocs;
+                final int c2 = shardIdToHostsAndDocs.get(o2).numDocs;
                 return -(c1 < c2 ? -1 : c1 > c2 ? 1 : 0);
             }
         });
@@ -882,20 +866,15 @@ public class ImhotepClient
         final Map<Host, Integer> hostDocCounts = new HashMap<>();
         final Map<Host, List<String>> shardRequestMap = new TreeMap<>();
         for (final String shard : sortedShards) {
-            final List<Pair<Host, Integer>> potentialHosts = shardMap.get(shard).hostToLoadedMetrics;
+            final List<Host> potentialHosts = shardIdToHostsAndDocs.get(shard).hosts;
             int minHostDocCount = Integer.MAX_VALUE;
-            int minHostLoadedMetricCount = 0;
             Host minHost = null;
-            for (final Pair<Host, Integer> p : potentialHosts) {
-                final Host host = p.getFirst();
-                final int loadedMetricCount = p.getSecond();
-
+            for (final Host host : potentialHosts) {
                 if (!hostDocCounts.containsKey(host)) {
                     hostDocCounts.put(host, 0);
                 }
-                if (loadedMetricCount > minHostLoadedMetricCount || hostDocCounts.get(host) < minHostDocCount) {
+                if (hostDocCounts.get(host) < minHostDocCount) {
                     minHostDocCount = hostDocCounts.get(host);
-                    minHostLoadedMetricCount = loadedMetricCount;
                     minHost = host;
                 }
             }
@@ -907,20 +886,16 @@ public class ImhotepClient
                 shardRequestMap.put(minHost, new ArrayList<String>());
             }
             shardRequestMap.get(minHost).add(shard);
-            hostDocCounts.put(minHost, hostDocCounts.get(minHost) + shardMap.get(shard).numDocs);
+            hostDocCounts.put(minHost, hostDocCounts.get(minHost) + shardIdToHostsAndDocs.get(shard).numDocs);
         }
         return new ShardsAndDocCounts(shardRequestMap, hostDocCounts);
     }
 
     /**
-     * Given a dataset and a list of requested metrics, compute a map from shard IDs to lists of
-     * (host, # of loaded metrics) pairs.
-     *
-     * @param dataset The dataset name
-     * @param requestedMetricsSet The set of metrics whose loaded status should be counted
-     * @return The resulting map
+     * Given a dataset and a list of requested shards, compute a map from shard IDs to lists of hosts
      */
-    private Map<String, ShardData> constructPotentialShardMap(final String dataset, final Set<String> requestedMetricsSet) {
+    private Map<String, ShardData> findHostsForShardIds(final String dataset, final Collection<String> shardIds) {
+        final Set<String> shardIdsSet = Sets.newHashSet(shardIds);
         final Map<String, ShardData> shardMap = Maps.newHashMap();
         final Map<Host, List<DatasetInfo>> shardListMap = getShardList();
         for (final Map.Entry<Host, List<DatasetInfo>> e : shardListMap.entrySet()) {
@@ -928,24 +903,26 @@ public class ImhotepClient
             final List<DatasetInfo> shardList = e.getValue();
             for (final DatasetInfo datasetInfo : shardList) {
                 if (!dataset.equals(datasetInfo.getDataset())) {
-                    continue;
+                    continue;   // not the dataset we are looking for
                 }
 
                 for (final ShardInfo shard : datasetInfo.getShardList()) {
+                    if(!shardIdsSet.contains(shard.shardId)) {
+                        continue;   // not a shard we care about
+                    }
                     if (!shardMap.containsKey(shard.shardId)) {
-                        shardMap.put(shard.shardId, new ShardData(shard.numDocs, shard.version, new ArrayList<Pair<Host, Integer>>()));
+                        shardMap.put(shard.shardId, new ShardData(shard.numDocs, shard.version, new ArrayList<Host>()));
                     } else {
                         final ShardData shardData = shardMap.get(shard.shardId);
                         final long highestKnownVersion = shardData.highestVersion;
                         if (highestKnownVersion < shard.version) {
                             // a newer version was found and all the previously encountered data for this shard should be removed
-                            shardMap.put(shard.shardId, new ShardData(shard.numDocs, shard.version, new ArrayList<Pair<Host, Integer>>()));
+                            shardMap.put(shard.shardId, new ShardData(shard.numDocs, shard.version, new ArrayList<Host>()));
                         } else if (highestKnownVersion > shard.version) {
                             continue; // this shard has an outdated version and should be skipped
                         } // else if (highestKnownVersion == shard.version) // just continue
                     }
-                    final int loadedMetricsCount = Sets.intersection(requestedMetricsSet, new HashSet<>(shard.loadedMetrics)).size();
-                    shardMap.get(shard.shardId).hostToLoadedMetrics.add(Pair.of(host, loadedMetricsCount));
+                    shardMap.get(shard.shardId).hosts.add(host);
                 }
             }
         }
