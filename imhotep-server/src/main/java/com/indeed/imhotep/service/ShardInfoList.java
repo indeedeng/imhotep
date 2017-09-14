@@ -30,8 +30,7 @@ class ShardInfoList extends ObjectArrayList<ShardInfo> {
 
     static final Comparator<ShardInfo> comparator = new Comparator<ShardInfo>() {
         @Override public int compare(final ShardInfo thing1, final ShardInfo thing2) {
-            final int result = thing1.dataset.compareTo(thing2.dataset);
-            return result != 0 ? result : thing1.shardId.compareTo(thing2.shardId);
+            return thing1.shardId.compareTo(thing2.shardId);
         }
     };
 
@@ -42,8 +41,7 @@ class ShardInfoList extends ObjectArrayList<ShardInfo> {
                                       final String shardId,
                                       final Shard  shard) throws IOException {
                     final ShardInfo shardInfo =
-                        new ShardInfo(dataset, shardId,
-                                      shard.getLoadedMetrics(),
+                        new ShardInfo(shardId,
                                       shard.getNumDocs(),
                                       shard.getShardVersion());
                     add(shardInfo);
@@ -63,8 +61,7 @@ class ShardInfoList extends ObjectArrayList<ShardInfo> {
             final ShardStore.Key   key   = entry.getKey();
             final ShardStore.Value value = entry.getValue();
             final ShardInfo shardInfo =
-                new ShardInfo(key.getDataset(), key.getShardId(),
-                              new ObjectArrayList<String>(0),
+                new ShardInfo(key.getShardId(),
                               value.getNumDocs(),
                               value.getVersion());
             add(shardInfo);

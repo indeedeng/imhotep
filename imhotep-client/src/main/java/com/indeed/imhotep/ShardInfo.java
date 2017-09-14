@@ -16,50 +16,29 @@
 import com.google.common.primitives.Longs;
 import com.indeed.imhotep.client.ShardTimeUtils;
 import com.indeed.imhotep.protobuf.ShardInfoMessage;
-import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 
 import javax.annotation.Nonnull;
-import java.util.Collection;
 
 /**
  * @author jsgroth
  */
 public class ShardInfo implements Comparable<ShardInfo> {
-    private static final Logger log = Logger.getLogger(ShardInfo.class);
-    private static final DateTimeFormatter yyyymmdd = DateTimeFormat.forPattern("yyyyMMdd").withZone(DateTimeZone.forOffsetHours(-6));
-    private static final DateTimeFormatter yyyymmddhh = DateTimeFormat.forPattern("yyyyMMdd.HH").withZone(DateTimeZone.forOffsetHours(-6));
-
-    public final String dataset;
     public final String shardId;
-    public final Collection<String> loadedMetrics;
     public final int numDocs;
     public final long version;
 
     private DateTimeRange range;    // lazily computed
 
-    public ShardInfo(final String dataset, final String shardId, final Collection<String> loadedMetrics, final int numDocs, final long version) {
-        this.dataset = dataset;
+    public ShardInfo(final String shardId, final int numDocs, final long version) {
         this.shardId = shardId;
-        this.loadedMetrics = loadedMetrics;
         this.numDocs = numDocs;
         this.version = version;
     }
 
-    public String getDataset() {
-        return dataset;
-    }
-
     public String getShardId() {
         return shardId;
-    }
-
-    public Collection<String> getLoadedMetrics() {
-        return loadedMetrics;
     }
 
     public int getNumDocs() {
@@ -93,9 +72,7 @@ public class ShardInfo implements Comparable<ShardInfo> {
 
     public static ShardInfo fromProto(final ShardInfoMessage protoShard) {
         return new ShardInfo(
-                protoShard.getDataset(),
                 protoShard.getShardId(),
-                protoShard.getLoadedMetricList(),
                 protoShard.getNumDocs(),
                 protoShard.getVersion()
         );
@@ -103,9 +80,7 @@ public class ShardInfo implements Comparable<ShardInfo> {
 
     public ShardInfoMessage toProto() {
         return ShardInfoMessage.newBuilder()
-                .setDataset(dataset)
                 .setShardId(shardId)
-                .addAllLoadedMetric(loadedMetrics)
                 .setNumDocs(numDocs)
                 .setVersion(version)
                 .build();
@@ -113,10 +88,6 @@ public class ShardInfo implements Comparable<ShardInfo> {
 
     @Override
     public int compareTo(@Nonnull final ShardInfo o) {
-        final int c = dataset.compareTo(o.dataset);
-        if (c != 0) {
-            return c;
-        }
         final int c2 = shardId.compareTo(o.shardId);
         if (c2 != 0) {
             return c2;
@@ -141,12 +112,6 @@ public class ShardInfo implements Comparable<ShardInfo> {
         if (version != shardInfo.version) {
             return false;
         }
-        if (dataset != null ? !dataset.equals(shardInfo.dataset) : shardInfo.dataset != null) {
-            return false;
-        }
-        if (loadedMetrics != null ? !loadedMetrics.equals(shardInfo.loadedMetrics) : shardInfo.loadedMetrics != null) {
-            return false;
-        }
         if (shardId != null ? !shardId.equals(shardInfo.shardId) : shardInfo.shardId != null) {
             return false;
         }
@@ -156,9 +121,7 @@ public class ShardInfo implements Comparable<ShardInfo> {
 
     @Override
     public int hashCode() {
-        int result = dataset != null ? dataset.hashCode() : 0;
-        result = 31 * result + (shardId != null ? shardId.hashCode() : 0);
-        result = 31 * result + (loadedMetrics != null ? loadedMetrics.hashCode() : 0);
+        int result = shardId != null ? shardId.hashCode() : 0;
         result = 31 * result + numDocs;
         result = 31 * result + (int) (version ^ (version >>> 32));
         return result;
@@ -166,7 +129,7 @@ public class ShardInfo implements Comparable<ShardInfo> {
 
     @Override
     public String toString() {
-        return "["+dataset+":"+shardId+"]";
+        return shardId;
     }
 
     public static DateTimeRange parseDateTime(final String shardId) {

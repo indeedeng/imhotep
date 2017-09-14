@@ -20,34 +20,54 @@ import com.indeed.imhotep.protobuf.DatasetInfoMessage;
 import com.indeed.imhotep.protobuf.ShardInfoMessage;
 
 import java.util.Collection;
+import java.util.List;
 
 /**
  * @author jsgroth
  */
 public class DatasetInfo {
     private final String dataset;
-    private final Collection<ShardInfo> shardList;
+    private Collection<ShardInfo> shardList;
+    private List<ShardInfoMessage> shardListRawMessages;
     private final Collection<String> intFields;
     private final Collection<String> stringFields;
-    private final Collection<String> metrics;
 
     public DatasetInfo(final String                dataset,
                        final Collection<ShardInfo> shardList,
                        final Collection<String>    intFields,
-                       final Collection<String>    stringFields,
-                       final Collection<String>    metrics) {
+                       final Collection<String>    stringFields) {
         this.dataset = dataset;
         this.shardList = shardList;
+        this.shardListRawMessages = null;
         this.intFields = intFields;
         this.stringFields = stringFields;
-        this.metrics = metrics;
+    }
+
+    public DatasetInfo(final String                dataset,
+                       final List<ShardInfoMessage> shardListRawMessages,
+                       final Collection<String>    intFields,
+                       final Collection<String>    stringFields) {
+        this.dataset = dataset;
+        this.shardListRawMessages = shardListRawMessages;
+        this.shardList = null;
+        this.intFields = intFields;
+        this.stringFields = stringFields;
     }
 
     public String getDataset() {
         return dataset;
     }
 
+    // this is deserialized on first access and then cached
     public Collection<ShardInfo> getShardList() {
+        if(shardList == null) {
+            List<ShardInfo> deserializedShardList = Lists.newArrayListWithCapacity(shardListRawMessages.size());
+            for(ShardInfoMessage shardInfoMessage : shardListRawMessages) {
+                deserializedShardList.add(ShardInfo.fromProto(shardInfoMessage));
+            }
+            shardList = deserializedShardList;
+            shardListRawMessages = null;
+        }
         return shardList;
     }
 
@@ -57,10 +77,6 @@ public class DatasetInfo {
 
     public Collection<String> getStringFields() {
         return stringFields;
-    }
-
-    public Collection<String> getMetrics() {
-        return metrics;
     }
 
     public DatasetInfoMessage toProto() {
@@ -74,24 +90,15 @@ public class DatasetInfo {
                 }))
                 .addAllIntField(intFields)
                 .addAllStringField(stringFields)
-                .addAllMetric(metrics)
                 .build();
     }
 
     public static DatasetInfo fromProto(final DatasetInfoMessage proto) {
         return new DatasetInfo(
                 proto.getDataset(),
-                // TODO: this transform is lazy.
-                // if many sessions are created we could get a speed up by offering an option to deserialize on update
-                Lists.transform(proto.getShardInfoList(), new Function<ShardInfoMessage, ShardInfo>() {
-                    @Override
-                    public ShardInfo apply(final ShardInfoMessage input) {
-                        return ShardInfo.fromProto(input);
-                    }
-                }),
+                proto.getShardInfoList(),
                 proto.getIntFieldList(),
-                proto.getStringFieldList(),
-                proto.getMetricList()
+                proto.getStringFieldList()
         );
     }
 }

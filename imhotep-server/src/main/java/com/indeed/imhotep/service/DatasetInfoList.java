@@ -53,8 +53,7 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
                 final String id    = idToShard.getKey();
                 final Shard  shard = idToShard.getValue();
                 final ShardInfo shardInfo =
-                    new ShardInfo(dataset, id, shard.getLoadedMetrics(),
-                                  shard.getNumDocs(), shard.getShardVersion());
+                    new ShardInfo(id, shard.getNumDocs(), shard.getShardVersion());
                 datasetInfo.add(shardInfo, shard);
             }
             datasetInfo.filter();
@@ -78,8 +77,7 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
             final String           dataset = key.getDataset();
 
             final ShardInfo shardInfo =
-                new ShardInfo(dataset, key.getShardId(),
-                              new ObjectArrayList<String>(0),
+                new ShardInfo(key.getShardId(),
                               value.getNumDocs(), value.getVersion());
 
             Element datasetInfo = datasetInfos.get(dataset);
@@ -106,7 +104,6 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
             super(dataset,
                   new ObjectArrayList<ShardInfo>(),
                   new ObjectOpenHashSet<String>(),
-                  new ObjectOpenHashSet<String>(),
                   new ObjectOpenHashSet<String>());
         }
 
@@ -114,7 +111,6 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
             getShardList().add(shardInfo);
             getIntFields().addAll(value.getIntFields());
             getStringFields().addAll(value.getStrFields());
-            getMetrics().addAll(value.getIntFields());
             track(shardInfo.getVersion(), value.getIntFields(), value.getStrFields());
             filter();
         }
@@ -123,7 +119,6 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
             getShardList().add(shardInfo);
             getIntFields().addAll(shard.getIntFields());
             getStringFields().addAll(shard.getStringFields());
-            getMetrics().addAll(shard.getIntFields());
             track(shardInfo.getVersion(), shard.getIntFields(), shard.getStringFields());
             filter();
         }
