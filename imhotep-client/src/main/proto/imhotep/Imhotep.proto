@@ -13,7 +13,7 @@ message DatasetInfoMessage {
 }
 
 message ShardInfoMessage {
-  required string dataset = 1;
+  optional string dataset = 1;
   required string shard_id = 2;
   repeated string loaded_metric = 6;
   required uint32 num_docs = 7;
