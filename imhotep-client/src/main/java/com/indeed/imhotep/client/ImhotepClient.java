@@ -553,6 +553,86 @@ public class ImhotepClient
         }
     }
 
+    /**
+     * @deprecated replaced by {@link #sessionBuilder}().build()
+     */
+    @Deprecated
+    public ImhotepSession getSession(final String dataset, final Collection<String> requestedShards) {
+        return getSession(dataset, requestedShards, Collections.<String>emptyList(), ImhotepRemoteSession.DEFAULT_MERGE_THREAD_LIMIT, -1);
+    }
+
+    /**
+     * @deprecated replaced by {@link #sessionBuilder}().build()
+     */
+    @Deprecated
+    public ImhotepSession getSession(final String dataset, final Collection<String> requestedShards, final int socketTimeout) {
+        return getSession(dataset, requestedShards, Collections.<String>emptyList(), ImhotepRemoteSession.DEFAULT_MERGE_THREAD_LIMIT, socketTimeout);
+    }
+
+    /**
+     * @deprecated replaced by {@link #sessionBuilder}().build()
+     */
+    @Deprecated
+    public ImhotepSession getSession(final String dataset, final Collection<String> requestedShards, final Collection<String> requestedMetrics) {
+        return getSession(dataset, requestedShards, requestedMetrics, ImhotepRemoteSession.DEFAULT_MERGE_THREAD_LIMIT, -1);
+    }
+
+    /**
+     * @deprecated replaced by {@link #sessionBuilder}().build()
+     */
+    @Deprecated
+    public ImhotepSession getSession(final String dataset, final Collection<String> requestedShards, final Collection<String> requestedMetrics,
+                                     final int mergeThreadLimit) {
+        return getSession(dataset, requestedShards, requestedMetrics, mergeThreadLimit, -1);
+    }
+
+    /**
+     * @deprecated replaced by {@link #sessionBuilder}().build()
+     */
+    @Deprecated
+    public ImhotepSession getSession(final String dataset, final Collection<String> requestedShards, final Collection<String> requestedMetrics,
+            final int mergeThreadLimit, final int priority) {
+            return getSession(dataset, requestedShards, requestedMetrics, mergeThreadLimit, priority, ImhotepRemoteSession.getUsername(), false, -1);
+    }
+
+    /**
+     * @deprecated replaced by {@link #sessionBuilder}().build()
+     */
+    @Deprecated
+    public ImhotepSession getSession(final String dataset, final Collection<String> requestedShards, final Collection<String> requestedMetrics,
+                                     final int mergeThreadLimit, final int priority, final int socketTimeout) {
+        return getSession(dataset, requestedShards, requestedMetrics, mergeThreadLimit, priority, ImhotepRemoteSession.getUsername(), false, socketTimeout);
+    }
+
+    /**
+     * @deprecated replaced by {@link #sessionBuilder}().build()
+     */
+    @Deprecated
+    public ImhotepSession getSession(final String dataset, final Collection<String> requestedShards, final Collection<String> requestedMetrics,
+                                     final int mergeThreadLimit, final int priority, final String username) {
+        return getSession(dataset, requestedShards, requestedMetrics, mergeThreadLimit, priority, username, false, -1);
+    }
+
+    /**
+     * @deprecated replaced by {@link #sessionBuilder}().build()
+     */
+    @Deprecated
+    public ImhotepSession getSession(final String dataset, final Collection<String> requestedShards, final Collection<String> requestedMetrics,
+                                     final int mergeThreadLimit, final int priority, final String username, final boolean optimizeGroupZeroLookups) {
+        return getSession(dataset, requestedShards, requestedMetrics, mergeThreadLimit, priority, username, optimizeGroupZeroLookups, -1);
+    }
+
+    /**
+     * @deprecated replaced by {@link #sessionBuilder}().build()
+     */
+    @Deprecated
+    public ImhotepSession getSession(final String dataset, final Collection<String> requestedShards, final Collection<String> requestedMetrics,
+                                     final int mergeThreadLimit, final int priority, final String username,
+                                     final boolean optimizeGroupZeroLookups, final int socketTimeout) {
+
+        return getSessionForShards(dataset, requestedShards, mergeThreadLimit, username, "", optimizeGroupZeroLookups, socketTimeout, -1, -1, false, 0);
+    }
+
     private ImhotepSession getSessionForShards(final String dataset, final Collection<String> requestedShards,
                                                final int mergeThreadLimit, final String username, final String clientName,
                                                final boolean optimizeGroupZeroLookups, final int socketTimeout,
