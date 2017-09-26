@@ -8,7 +8,6 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -65,7 +64,7 @@ public class TestImhotepClientStatics {
             final Collection<List<DatasetInfo>> hostsDatasets,
             final Set<String> expectedIntFields,
             final Set<String> expectedStringFields) throws IOException {
-        final Map<String, DatasetInfo> datasetInfos = ImhotepClient.getDatasetToShardList(hostsDatasets);
+        final Map<String, DatasetInfo> datasetInfos = ImhotepClient.getDatasetToDatasetInfo(hostsDatasets, false);
         assertEquals(1, datasetInfos.size());
 
         final DatasetInfo datasetInfo = datasetInfos.values().iterator().next();
