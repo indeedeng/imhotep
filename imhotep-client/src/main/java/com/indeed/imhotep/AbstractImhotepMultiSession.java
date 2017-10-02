@@ -83,6 +83,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
     private FTGSIterator lastIterator;
 
     protected final AtomicLong tempFileSizeBytesLeft;
+    private long savedTempFileSizeValue;
 
     private boolean closed = false;
 
@@ -151,6 +152,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
     @SuppressWarnings({"unchecked"})
     protected AbstractImhotepMultiSession(final T[] sessions, final AtomicLong tempFileSizeBytesLeft) {
         this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
+        this.savedTempFileSizeValue = (tempFileSizeBytesLeft == null) ? 0 : tempFileSizeBytesLeft.get();
         if (sessions == null || sessions.length == 0) {
             throw new IllegalArgumentException("at least one session is required");
         }
@@ -901,12 +903,21 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
         final PerformanceStats[] stats = new PerformanceStats[sessions.length];
         executeRuntimeException(stats, imhotepSession -> imhotepSession.getPerformanceStats(reset));
 
-        PerformanceStats result = stats[0];
-        for (int i = 1; i < stats.length; i++) {
-            result = PerformanceStats.combine(result, stats[i]);
+        final PerformanceStats.Builder builder = PerformanceStats.builder();
+        for (final PerformanceStats stat : stats) {
+            builder.add(stat);
         }
 
-        return result;
+        // All sessions share the same AtomicLong tempFileSizeBytesLeft,
+        // so value accumulated in builder::ftgsTempFileSize is wrong
+        // Calculating and setting correct value.
+        final long tempFileSize = (tempFileSizeBytesLeft == null)? 0 : tempFileSizeBytesLeft.get();
+        builder.setFtgsTempFileSize(savedTempFileSizeValue - tempFileSize);
+        if (reset) {
+           savedTempFileSizeValue = tempFileSize;
+        }
+
+        return builder.build();
     }
 
     @Override

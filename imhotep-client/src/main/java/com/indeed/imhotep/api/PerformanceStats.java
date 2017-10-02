@@ -25,29 +25,57 @@ public class PerformanceStats {
         this.customStats = customStats;
     }
 
-    public static PerformanceStats combine(
-            final PerformanceStats first,
-            final PerformanceStats second) {
-        if(first == null) {
-            return second;
-        }
-        if(second == null) {
-            return first;
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public static class Builder {
+        private long cpuTime = 0;
+        private long maxMemoryUsage = 0;
+        private long ftgsTempFileSize = 0;
+        private long fieldFilesReadSize = 0;
+        private Map<String, Long> customStats = new HashMap<>();
+
+        public void setCpuTime(final long cpuTime) {
+            this.cpuTime = cpuTime;
         }
 
-        final Map<String, Long> joinedStats = new HashMap<>();
-        joinedStats.putAll(first.customStats);
-        for (final Map.Entry<String, Long> entry : second.customStats.entrySet() ) {
-            Long value = joinedStats.get(entry.getKey());
-            value = (value != null) ? (value + entry.getValue()) : entry.getValue();
-            joinedStats.put(entry.getKey(), value);
+        public void setMaxMemoryUsage(final long maxMemoryUsage) {
+            this.maxMemoryUsage = maxMemoryUsage;
         }
 
-        return new PerformanceStats(
-                first.cpuTime + second.cpuTime,
-                first.maxMemoryUsage + second.maxMemoryUsage,
-                first.ftgsTempFileSize + second.ftgsTempFileSize,
-                first.fieldFilesReadSize + second.fieldFilesReadSize,
-                ImmutableMap.copyOf(joinedStats));
+        public void setFtgsTempFileSize(final long ftgsTempFileSize) {
+            this.ftgsTempFileSize = ftgsTempFileSize;
+        }
+
+        public void setFieldFilesReadSize(final long fieldFilesReadSize) {
+            this.fieldFilesReadSize = fieldFilesReadSize;
+        }
+
+        public void add(final PerformanceStats stats) {
+            if(stats == null) {
+                return;
+            }
+
+            cpuTime += stats.cpuTime;
+            maxMemoryUsage += stats.maxMemoryUsage;
+            fieldFilesReadSize += stats.fieldFilesReadSize;
+            ftgsTempFileSize += stats.ftgsTempFileSize;
+
+            for(final Map.Entry<String, Long> entry : stats.customStats.entrySet()) {
+                Long value = customStats.get(entry.getKey());
+                value = (value != null) ? (value + entry.getValue()) : entry.getValue();
+                customStats.put(entry.getKey(), value);
+            }
+        }
+
+        public PerformanceStats build() {
+            return new PerformanceStats(
+                    cpuTime,
+                    maxMemoryUsage,
+                    ftgsTempFileSize,
+                    fieldFilesReadSize,
+                    ImmutableMap.copyOf(customStats));
+        }
     }
 }
