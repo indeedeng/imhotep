@@ -255,6 +255,9 @@ message ImhotepRequest {
 
   // for groupQueryUpdateDynamicMetric
   repeated QueryMessage queryMessages = 58;
+
+  // allow session forwarding
+  optional bool allowSessionForwarding = 59 [default = false];
 }
 
 message ImhotepResponse {
@@ -301,6 +304,12 @@ message ImhotepResponse {
 
   // for approximateTopTerms()
   repeated TermCountMessage top_terms = 13;
+
+  // 14 is used above for exception_stack_trace
+  // 15 is used above for group_stat_size
+
+  // for openSession() forwarding the session to a different port
+  optional uint32 new_port = 16;
 }
 
 enum Operator {

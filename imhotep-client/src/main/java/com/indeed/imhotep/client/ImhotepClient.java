@@ -430,6 +430,8 @@ public class ImhotepClient
         private List<String> shardsOverride = null;
         private boolean useNativeFTGS;
 
+        private boolean allowSessionForwarding = false;
+
         public SessionBuilder(final String dataset, final DateTime start, final DateTime end) {
             this.dataset = dataset;
             this.start = start;
@@ -483,6 +485,11 @@ public class ImhotepClient
 
         public SessionBuilder useNativeFtgs() {
             useNativeFTGS = true;
+            return this;
+        }
+
+        public SessionBuilder allowSessionForwarding(boolean allow) {
+            this.allowSessionForwarding = allow;
             return this;
         }
 
@@ -548,8 +555,11 @@ public class ImhotepClient
                 username = ImhotepRemoteSession.getUsername();
             }
             final List<String> chosenShardIDs = shardsOverride != null ? shardsOverride : ShardIdWithVersion.keepShardIds(getChosenShards());
-            return getSessionForShards(dataset, chosenShardIDs, mergeThreadLimit, username, clientName,
-                    optimizeGroupZeroLookups, socketTimeout, localTempFileSizeLimit, daemonTempFileSizeLimit, useNativeFTGS, sessionTimeout);
+            return getSessionForShards(
+                    dataset, chosenShardIDs, mergeThreadLimit, username, clientName, optimizeGroupZeroLookups,
+                    socketTimeout, localTempFileSizeLimit, daemonTempFileSizeLimit, useNativeFTGS, sessionTimeout,
+                    allowSessionForwarding
+            );
         }
     }
 
@@ -630,14 +640,15 @@ public class ImhotepClient
                                      final int mergeThreadLimit, final int priority, final String username,
                                      final boolean optimizeGroupZeroLookups, final int socketTimeout) {
 
-        return getSessionForShards(dataset, requestedShards, mergeThreadLimit, username, "", optimizeGroupZeroLookups, socketTimeout, -1, -1, false, 0);
+        return getSessionForShards(dataset, requestedShards, mergeThreadLimit, username, "", optimizeGroupZeroLookups, socketTimeout, -1, -1, false, 0, false);
     }
 
     private ImhotepSession getSessionForShards(final String dataset, final Collection<String> requestedShards,
                                                final int mergeThreadLimit, final String username, final String clientName,
                                                final boolean optimizeGroupZeroLookups, final int socketTimeout,
                                                final long localTempFileSizeLimit, final long daemonTempFileSizeLimit,
-                                               final boolean useNativeFtgs, final long sessionTimeout) {
+                                               final boolean useNativeFtgs, final long sessionTimeout,
+                                               final boolean allowSessionForwarding) {
 
         if(requestedShards == null || requestedShards.isEmpty()) {
             throw new IllegalArgumentException("No shards");
@@ -649,7 +660,7 @@ public class ImhotepClient
             final String sessionId = UUID.randomUUID().toString();
             ImhotepRemoteSession[] remoteSessions = null;
             try {
-                remoteSessions = internalGetSession(dataset, requestedShards, mergeThreadLimit, username, clientName, optimizeGroupZeroLookups, socketTimeout, sessionId, daemonTempFileSizeLimit, localTempFileSizeBytesLeft, useNativeFtgs, sessionTimeout);
+                remoteSessions = internalGetSession(dataset, requestedShards, mergeThreadLimit, username, clientName, optimizeGroupZeroLookups, socketTimeout, sessionId, daemonTempFileSizeLimit, localTempFileSizeBytesLeft, useNativeFtgs, sessionTimeout, allowSessionForwarding);
             } catch (final Exception e) {
                 error = e;
             }
@@ -810,7 +821,8 @@ public class ImhotepClient
                            final long tempFileSizeLimit,
                            @Nullable final AtomicLong tempFileSizeBytesLeft,
                            final boolean useNativeFtgs,
-                           final long sessionTimeout) {
+                           final long sessionTimeout,
+                           boolean allowSessionForwarding) {
 
         final ShardsAndDocCounts shardsAndDocCounts = buildShardRequestMap(dataset, requestedShards);
         final Map<Host, List<String>> shardRequestMap = shardsAndDocCounts.shardRequestMap;
@@ -846,6 +858,7 @@ public class ImhotepClient
                                                                 tempFileSizeBytesLeft,
                                                                 useNativeFtgs,
                                                                 sessionTimeout,
+                                                                allowSessionForwarding,
                                                                 numDocs);
                     }
                 }));
