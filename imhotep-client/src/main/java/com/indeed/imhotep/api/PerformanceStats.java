@@ -16,12 +16,12 @@ public class PerformanceStats {
             final long cpuTime,
             final long maxMemoryUsage,
             final long ftgsTempFileSize,
-            final long fieldFilesFeadSize,
+            final long fieldFilesReadSize,
             final ImmutableMap<String, Long> customStats) {
         this.cpuTime = cpuTime;
         this.maxMemoryUsage = maxMemoryUsage;
         this.ftgsTempFileSize = ftgsTempFileSize;
-        this.fieldFilesReadSize = fieldFilesFeadSize;
+        this.fieldFilesReadSize = fieldFilesReadSize;
         this.customStats = customStats;
     }
 
@@ -34,7 +34,7 @@ public class PerformanceStats {
         private long maxMemoryUsage = 0;
         private long ftgsTempFileSize = 0;
         private long fieldFilesReadSize = 0;
-        private Map<String, Long> customStats = new HashMap<>();
+        private final Map<String, Long> customStats = new HashMap<>();
 
         public void setCpuTime(final long cpuTime) {
             this.cpuTime = cpuTime;
