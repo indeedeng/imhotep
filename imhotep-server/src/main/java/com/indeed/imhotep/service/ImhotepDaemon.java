@@ -97,8 +97,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
 
     private final ShardUpdateListener shardUpdateListener;
 
-    @Nullable
-    private final Integer sessionForwardingPort;
+    private final @Nullable Integer sessionForwardingPort;
 
     private final InstrumentationProvider instrumentation =
         new InstrumentationProvider();
