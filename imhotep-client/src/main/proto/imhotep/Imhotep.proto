@@ -309,7 +309,7 @@ message ImhotepResponse {
   // 15 is used above for group_stat_size
 
   // for openSession() forwarding the session to a different port
-  optional uint32 new_port = 16;
+  optional uint32 new_port = 16 [default = 0];
 }
 
 enum Operator {

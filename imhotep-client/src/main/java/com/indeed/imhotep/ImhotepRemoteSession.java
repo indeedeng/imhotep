@@ -285,7 +285,7 @@ public class ImhotepRemoteSession
                 }
 
                 final int actualPort;
-                if (response.hasNewPort()) {
+                if (response.getNewPort() != 0) {
                     actualPort = response.getNewPort();
                 } else {
                     actualPort = port;
