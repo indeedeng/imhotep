@@ -488,6 +488,10 @@ public class ImhotepClient
             return this;
         }
 
+        /**
+         * IMTEPD-314: Indicates whether the request is allowed to be forwarded to another instance of Imhotep running
+         *             on a different port. Used for development simplicity of alternate implementations.
+         */
         public SessionBuilder allowSessionForwarding(boolean allow) {
             this.allowSessionForwarding = allow;
             return this;
