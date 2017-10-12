@@ -262,6 +262,9 @@ message ImhotepRequest {
 
   // for closeSession
   optional bool returnStatsOnClose = 60;
+
+  // allow session forwarding
+  optional bool allowSessionForwarding = 61 [default = false];
 }
 
 message ImhotepResponse {
@@ -309,8 +312,14 @@ message ImhotepResponse {
   // for approximateTopTerms()
   repeated TermCountMessage top_terms = 13;
 
+  // 14 is used above for exception_stack_trace
+  // 15 is used above for group_stat_size
+
   // for getPerformanceStats()
   optional PerformanceStatsMessage performance_stats = 16;
+
+  // for openSession() forwarding the session to a different port
+  optional uint32 new_port = 17 [default = 0];
 }
 
 enum Operator {

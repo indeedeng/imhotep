@@ -72,7 +72,7 @@ public class ImhotepDaemonRunner {
                                                               1024L * 1024 * 1024 * 1024, false,
                                                               flamdexFactory,
                                                               new LocalImhotepServiceConfig()),
-                                  null, null, "localhost", port);
+                                  null, null, "localhost", port, null);
         actualPort = currentlyRunning.getPort();
 
         new Thread(new Runnable() {

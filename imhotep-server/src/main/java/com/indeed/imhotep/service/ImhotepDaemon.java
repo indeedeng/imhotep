@@ -27,6 +27,7 @@ import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupRemapRule;
+import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.Instrumentation.Keys;
@@ -58,6 +59,7 @@ import org.apache.log4j.Logger;
 import org.apache.log4j.NDC;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -95,6 +97,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
     private volatile boolean isStarted = false;
 
     private final ShardUpdateListener shardUpdateListener;
+
+    private final @Nullable Integer sessionForwardingPort;
 
     private final InstrumentationProvider instrumentation =
         new InstrumentationProvider();
@@ -169,10 +173,12 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             final String zkPath,
             final String hostname,
             final int port,
-            final ShardUpdateListener shardUpdateListener) {
+            final ShardUpdateListener shardUpdateListener,
+            final @Nullable Integer sessionForwardingPort) {
         this.ss = ss;
         this.service = service;
         this.shardUpdateListener = shardUpdateListener;
+        this.sessionForwardingPort = sessionForwardingPort;
         executor = Executors.newCachedThreadPool(new ThreadFactory() {
             int i = 0;
             @Override
@@ -193,8 +199,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             final String zkNodes,
             final String zkPath,
             final String hostname,
-            final int port) {
-        this(ss, service, zkNodes, zkPath, hostname, port, new ShardUpdateListener());
+            final int port,
+            final @Nullable Integer sessionForwardingPort) {
+        this(ss, service, zkNodes, zkPath, hostname, port, new ShardUpdateListener(), sessionForwardingPort);
     }
 
     public void addObserver(final Instrumentation.Observer observer) {
@@ -295,28 +302,51 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         private ImhotepResponse openSession(
                 final ImhotepRequest          request,
                 final ImhotepResponse.Builder builder)
-            throws ImhotepOutOfMemoryException {
-            final InetAddress inetAddress = socket.getInetAddress();
-            final AtomicLong tempFileSizeBytesLeft =
-                request.getTempFileSizeLimit() > 0 ?
-                new AtomicLong(request.getTempFileSizeLimit()) : null;
+            throws ImhotepOutOfMemoryException, IOException {
 
-            final String sessionId =
-                service.handleOpenSession(request.getDataset(),
-                                          request.getShardRequestList(),
-                                          request.getUsername(),
-                                          request.getClientName(),
-                                          inetAddress.getHostAddress(),
-                                          request.getClientVersion(),
-                                          request.getMergeThreadLimit(),
-                                          request.getOptimizeGroupZeroLookups(),
-                                          request.getSessionId(),
-                                          tempFileSizeBytesLeft,
-                                          request.getUseNativeFtgs(),
-                                          request.getSessionTimeout());
-            NDC.push(sessionId);
-            builder.setSessionId(sessionId);
-            return builder.build();
+            if (ImhotepDaemon.this.sessionForwardingPort != null && request.getAllowSessionForwarding()) {
+                final String host = "127.0.0.1";
+                final int port = ImhotepDaemon.this.sessionForwardingPort;
+                log.trace("Forwarding OPEN_SESSION request to " + host + ":" + port);
+
+                try (Socket socket = ImhotepRemoteSession.newSocket(host, port, 0)) {
+                    final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
+                    final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
+
+                    final List<String> shards = request.getShardRequestList();
+                    log.trace("sending open request to "+host+":"+port+" for shards "+ shards);
+
+                    ImhotepProtobufShipping.sendProtobuf(request, os);
+
+                    log.trace("waiting for confirmation from "+host+":"+port);
+                    final ImhotepResponse initialResponse = ImhotepProtobufShipping.readResponse(is);
+
+                    final ImhotepResponse newResponse = initialResponse.toBuilder().setNewPort(port).build();
+                    return newResponse;
+                }
+            } else {
+                final InetAddress inetAddress = socket.getInetAddress();
+                final AtomicLong tempFileSizeBytesLeft =
+                        request.getTempFileSizeLimit() > 0 ?
+                                new AtomicLong(request.getTempFileSizeLimit()) : null;
+
+                final String sessionId =
+                        service.handleOpenSession(request.getDataset(),
+                                request.getShardRequestList(),
+                                request.getUsername(),
+                                request.getClientName(),
+                                inetAddress.getHostAddress(),
+                                request.getClientVersion(),
+                                request.getMergeThreadLimit(),
+                                request.getOptimizeGroupZeroLookups(),
+                                request.getSessionId(),
+                                tempFileSizeBytesLeft,
+                                request.getUseNativeFtgs(),
+                                request.getSessionTimeout());
+                NDC.push(sessionId);
+                builder.setSessionId(sessionId);
+                return builder.build();
+            }
         }
 
         private ImhotepResponse closeSession(final ImhotepRequest          request,
@@ -1310,7 +1340,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                       memoryCapacityInMB,
                                       useCache,
                                       zkNodes,
-                                      zkPath);
+                                      zkPath,
+                                      null);
             daemon.run();
         } finally {
             if (daemon != null) {
@@ -1332,7 +1363,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                           final long memoryCapacityInMB,
                                           final boolean useCache,
                                           final String zkNodes,
-                                          final String zkPath) throws IOException, URISyntaxException {
+                                          final String zkPath,
+                                          final @Nullable Integer sessionForwardingPort) throws IOException, URISyntaxException {
         final AbstractImhotepServiceCore localService;
         final ShardUpdateListener shardUpdateListener = new ShardUpdateListener();
 
@@ -1359,8 +1391,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                                    ),
                                                    shardUpdateListener);
         final ImhotepDaemon result =
-            new ImhotepDaemon(ss, localService, zkNodes, zkPath,
-                              myHostname, port, shardUpdateListener);
+            new ImhotepDaemon(ss, localService, zkNodes, zkPath, myHostname, port, shardUpdateListener, sessionForwardingPort);
         localService.addObserver(result.getServiceCoreObserver());
         return result;
     }

@@ -240,7 +240,7 @@ public class ImhotepRemoteSession
                                                    @Nullable final AtomicLong tempFileSizeBytesLeft,
                                                    final boolean useNativeFtgs, final long sessionTimeout, final long numDocs) throws ImhotepOutOfMemoryException, IOException {
 
-        return openSession(host, port, dataset, shards, mergeThreadLimit, username, "", optimizeGroupZeroLookups, socketTimeout, sessionId, tempFileSizeLimit, tempFileSizeBytesLeft, useNativeFtgs, sessionTimeout, numDocs);
+        return openSession(host, port, dataset, shards, mergeThreadLimit, username, "", optimizeGroupZeroLookups, socketTimeout, sessionId, tempFileSizeLimit, tempFileSizeBytesLeft, useNativeFtgs, sessionTimeout, false, numDocs);
     }
 
 
@@ -249,7 +249,8 @@ public class ImhotepRemoteSession
                                                    final boolean optimizeGroupZeroLookups, final int socketTimeout,
                                                    @Nullable String sessionId, final long tempFileSizeLimit,
                                                    @Nullable final AtomicLong tempFileSizeBytesLeft,
-                                                   final boolean useNativeFtgs, final long sessionTimeout, final long numDocs) throws ImhotepOutOfMemoryException, IOException {
+                                                   final boolean useNativeFtgs, final long sessionTimeout,
+                                                   boolean allowSessionForwarding, final long numDocs) throws ImhotepOutOfMemoryException, IOException {
         final Socket socket = newSocket(host, port, socketTimeout);
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
@@ -268,6 +269,7 @@ public class ImhotepRemoteSession
                     .setTempFileSizeLimit(tempFileSizeLimit)
                     .setUseNativeFtgs(useNativeFtgs)
                     .setSessionTimeout(sessionTimeout)
+                    .setAllowSessionForwarding(allowSessionForwarding)
                     .build();
             try {
                 ImhotepProtobufShipping.sendProtobuf(openSessionRequest, os);
@@ -284,8 +286,15 @@ public class ImhotepRemoteSession
                     sessionId = response.getSessionId();
                 }
 
+                final int actualPort;
+                if (response.getNewPort() != 0) {
+                    actualPort = response.getNewPort();
+                } else {
+                    actualPort = port;
+                }
+
                 log.trace("session created, id "+sessionId);
-                return new ImhotepRemoteSession(host, port, sessionId, tempFileSizeBytesLeft, socketTimeout, useNativeFtgs, numDocs);
+                return new ImhotepRemoteSession(host, actualPort, sessionId, tempFileSizeBytesLeft, socketTimeout, useNativeFtgs, numDocs);
             } catch (final SocketTimeoutException e) {
                 throw buildExceptionAfterSocketTimeout(e, host, port);
             }
@@ -1336,7 +1345,7 @@ public class ImhotepRemoteSession
         return newSocket(host, port, DEFAULT_SOCKET_TIMEOUT);
     }
 
-    private static Socket newSocket(final String host, final int port, final int timeout) throws IOException {
+    public static Socket newSocket(final String host, final int port, final int timeout) throws IOException {
         final Socket socket = new Socket(host, port);
         socket.setReceiveBufferSize(65536);
         socket.setSoTimeout(timeout >= 0 ? timeout : DEFAULT_SOCKET_TIMEOUT);
