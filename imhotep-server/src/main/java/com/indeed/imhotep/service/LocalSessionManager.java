@@ -70,7 +70,7 @@ public final class LocalSessionManager extends AbstractSessionManager<Map<ShardI
             }
             openSessions.add(new ImhotepStatusDump.SessionDump(sessionId, session.dataset, "", session.username, session.clientName,
                     session.ipAddress, session.clientVersion, session.creationTime, openShards,
-                    session.sessionMemoryContext.usedMemory(), session.sessionMemoryContext.maxUsedMemory()));
+                    session.sessionMemoryContext.usedMemory(), session.sessionMemoryContext.getGlobalMaxUsedMemory()));
         }
         return openSessions;
     }

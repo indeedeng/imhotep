@@ -35,6 +35,7 @@ import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepServiceCore;
+import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
@@ -320,7 +321,15 @@ public class ImhotepDaemon implements Instrumentation.Provider {
 
         private ImhotepResponse closeSession(final ImhotepRequest          request,
                                              final ImhotepResponse.Builder builder) {
-            service.handleCloseSession(request.getSessionId());
+            final String sessionId = request.getSessionId();
+            if(request.getReturnStatsOnClose()) {
+                final PerformanceStats stats = service.handleCloseAndGetPerformanceStats(request.getSessionId());
+                if (stats != null) {
+                    builder.setPerformanceStats(ImhotepDaemonMarshaller.marshal(stats));
+                }
+            } else {
+                service.handleCloseSession(sessionId);
+            }
             return builder.build();
         }
 
@@ -867,6 +876,17 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             return builder.build();
         }
 
+        private ImhotepResponse getPerformanceStats(
+                final ImhotepRequest request,
+                final ImhotepResponse.Builder builder) {
+            final PerformanceStats stats =
+                    service.handleGetPerformanceStats(
+                            request.getSessionId(),
+                            request.getResetPerformanceStats());
+            builder.setPerformanceStats(ImhotepDaemonMarshaller.marshal(stats));
+            return builder.build();
+        }
+
         private void shutdown(
                 final ImhotepRequest request,
                 final InputStream    is,
@@ -1032,6 +1052,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                             break;
                         case APPROXIMATE_TOP_TERMS:
                             response = approximateTopTerms(request, builder);
+                            break;
+                        case GET_PERFORMANCE_STATS:
+                            response = getPerformanceStats(request, builder);
                             break;
                         case SHUTDOWN:
                             shutdown(request, is, os);

@@ -73,6 +73,8 @@ public interface ImhotepServiceCore {
     void handleRebuildAndFilterIndexes(String sessionId, String[] intFields, String[] stringFields) throws ImhotepOutOfMemoryException;
     void handleResetGroups(String sessionId) throws ImhotepOutOfMemoryException;
     int handleGetNumGroups(String sessionId);
+    PerformanceStats handleGetPerformanceStats(String sessionId, boolean reset);
+    PerformanceStats handleCloseAndGetPerformanceStats(String sessionId);
 
     // open session methods return session id
     String handleOpenSession(String dataset, List<String> shardRequestList, String username, String clientName, String ipAddress, int clientVersion, int mergeThreadLimit, boolean optimizeGroupZeroLookups, String sessionId, AtomicLong tempFileSizeBytesLeft, boolean useNativeFtgs, long sessionTimeout) throws ImhotepOutOfMemoryException;

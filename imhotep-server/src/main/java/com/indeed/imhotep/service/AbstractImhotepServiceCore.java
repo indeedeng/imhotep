@@ -32,6 +32,7 @@ import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepServiceCore;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
@@ -506,6 +507,31 @@ public abstract class AbstractImhotepServiceCore
                 return imhotepSession.getNumGroups();
             }
         });
+    }
+
+    @Override
+    public PerformanceStats handleGetPerformanceStats(final String sessionId, final boolean reset) {
+        return doWithSession(sessionId, new Function<ImhotepSession, PerformanceStats>() {
+            @Override
+            public PerformanceStats apply(final ImhotepSession imhotepSession) {
+                return imhotepSession.getPerformanceStats(reset);
+            }
+        });
+    }
+
+    @Override
+    public PerformanceStats handleCloseAndGetPerformanceStats(final String sessionId) {
+        if(!getSessionManager().sessionIsValid(sessionId)) {
+            return null;
+        }
+        final PerformanceStats stats = doWithSession(sessionId, new Function<ImhotepSession, PerformanceStats>() {
+            @Override
+            public PerformanceStats apply(final ImhotepSession imhotepSession) {
+                return imhotepSession.closeAndGetPerformanceStats();
+            }
+        });
+        getSessionManager().removeAndCloseIfExists(sessionId);
+        return stats;
     }
 
     @Override

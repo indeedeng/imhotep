@@ -24,6 +24,7 @@ import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.imhotep.service.DocIteratorMerger;
 import com.indeed.util.core.Throwables2;
@@ -82,6 +83,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
     private FTGSIterator lastIterator;
 
     protected final AtomicLong tempFileSizeBytesLeft;
+    private long savedTempFileSizeValue;
 
     private boolean closed = false;
 
@@ -150,6 +152,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
     @SuppressWarnings({"unchecked"})
     protected AbstractImhotepMultiSession(final T[] sessions, final AtomicLong tempFileSizeBytesLeft) {
         this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
+        this.savedTempFileSizeValue = (tempFileSizeBytesLeft == null) ? 0 : tempFileSizeBytesLeft.get();
         if (sessions == null || sessions.length == 0) {
             throw new IllegalArgumentException("at least one session is required");
         }
@@ -914,6 +917,39 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
             numDocs += session.getNumDocs();
         }
         return numDocs;
+    }
+
+    @Override
+    public PerformanceStats getPerformanceStats(final boolean reset) {
+        final PerformanceStats[] stats = new PerformanceStats[sessions.length];
+        executeRuntimeException(stats, imhotepSession -> imhotepSession.getPerformanceStats(reset));
+
+        final PerformanceStats.Builder builder = PerformanceStats.builder();
+        for (final PerformanceStats stat : stats) {
+            builder.add(stat);
+        }
+
+        // All sessions share the same AtomicLong tempFileSizeBytesLeft,
+        // so value accumulated in builder::ftgsTempFileSize is wrong
+        // Calculating and setting correct value.
+        final long tempFileSize = (tempFileSizeBytesLeft == null)? 0 : tempFileSizeBytesLeft.get();
+        builder.setFtgsTempFileSize(savedTempFileSizeValue - tempFileSize);
+        if (reset) {
+           savedTempFileSizeValue = tempFileSize;
+        }
+
+        return builder.build();
+    }
+
+    @Override
+    public PerformanceStats closeAndGetPerformanceStats() {
+        if(closed) {
+            return null;
+        }
+
+        final PerformanceStats stats = getPerformanceStats(false);
+        close();
+        return stats;
     }
 
     protected void preClose() {

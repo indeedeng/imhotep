@@ -23,16 +23,20 @@ import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.TermCount;
+import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.GroupRemapMessage;
 import com.indeed.imhotep.protobuf.Operator;
+import com.indeed.imhotep.protobuf.PerformanceStatsMessage;
 import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
+import com.indeed.imhotep.protobuf.StringLongMessage;
 import com.indeed.imhotep.protobuf.TermCountMessage;
 import com.indeed.imhotep.protobuf.TermMessage;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -147,5 +151,18 @@ public final class ImhotepClientMarshaller {
             ret.add(marshal(condition));
         }
         return ret;
+    }
+
+    public static PerformanceStats marshal(final PerformanceStatsMessage stat) {
+        final Map<String, Long> customStringStats = new HashMap<>();
+        for (final StringLongMessage pairMessage : stat.getCustomStatsList()) {
+            customStringStats.put(pairMessage.getKey(), pairMessage.getValue());
+        }
+        return new PerformanceStats(
+                stat.getCpuTime(),
+                stat.getMaxMemoryUsed(),
+                stat.getFtgsTempFileSize(),
+                stat.getFieldFilesReadSize(),
+                ImmutableMap.copyOf(customStringStats));
     }
 }

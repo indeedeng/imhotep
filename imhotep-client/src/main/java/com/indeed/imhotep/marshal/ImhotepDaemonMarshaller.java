@@ -23,12 +23,15 @@ import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.TermCount;
+import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.GroupRemapMessage;
 import com.indeed.imhotep.protobuf.Operator;
+import com.indeed.imhotep.protobuf.PerformanceStatsMessage;
 import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
+import com.indeed.imhotep.protobuf.StringLongMessage;
 import com.indeed.imhotep.protobuf.TermCountMessage;
 import com.indeed.imhotep.protobuf.TermMessage;
 
@@ -143,5 +146,22 @@ public final class ImhotepDaemonMarshaller {
             );
         }
         return ret;
+    }
+
+    public static PerformanceStatsMessage marshal(final PerformanceStats stats) {
+        final PerformanceStatsMessage.Builder builder = PerformanceStatsMessage.newBuilder()
+                .setCpuTime(stats.cpuTime)
+                .setMaxMemoryUsed(stats.maxMemoryUsage)
+                .setFtgsTempFileSize(stats.ftgsTempFileSize)
+                .setFieldFilesReadSize(stats.fieldFilesReadSize);
+        for (final Map.Entry<String, Long> entry : stats.customStats.entrySet()) {
+            builder.addCustomStats(
+                    StringLongMessage.newBuilder()
+                            .setKey(entry.getKey())
+                            .setValue(entry.getValue())
+                            .build());
+        }
+
+        return builder.build();
     }
 }

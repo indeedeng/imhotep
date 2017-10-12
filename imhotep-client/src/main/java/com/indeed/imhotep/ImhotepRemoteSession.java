@@ -29,6 +29,7 @@ import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.HasSessionId;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.LimitedBufferedOutputStream;
@@ -100,6 +101,7 @@ public class ImhotepRemoteSession
     private final int socketTimeout;
     private final AtomicLong tempFileSizeBytesLeft;
     private final boolean useNativeFtgs;
+    private boolean closed = false;
 
     private int numStats = 0;
 
@@ -1103,17 +1105,36 @@ public class ImhotepRemoteSession
 
     @Override
     public void close() {
-        final Timer timer = new Timer();
-        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.CLOSE_SESSION)
-                .setSessionId(sessionId)
-                .build();
+        internalClose(false);
+    }
 
+    private PerformanceStats internalClose(final boolean getStats) {
+        if(closed) {
+            return null;
+        }
+        final Timer timer = new Timer();
+        final ImhotepRequest.Builder builder = getBuilderForType(ImhotepRequest.RequestType.CLOSE_SESSION);
+        builder.setSessionId(sessionId);
+        if(getStats) {
+            // adding only if it's true to save bytes in request.
+            builder.setReturnStatsOnClose(true);
+        }
+
+        final ImhotepRequest request = builder.build();
+
+        PerformanceStats stats = null;
         try {
-            sendRequest(request, host, port, socketTimeout);
+            final ImhotepResponse response = sendRequest(request, host, port, socketTimeout);
+            if(response.hasPerformanceStats()) {
+                stats = ImhotepClientMarshaller.marshal(response.getPerformanceStats());
+            }
             timer.complete(request);
         } catch (final IOException e) {
             log.error("error closing session", e);
+        } finally {
+            closed = true;
         }
+        return stats;
     }
 
     @Override
@@ -1134,6 +1155,29 @@ public class ImhotepRemoteSession
     @Override
     public long getNumDocs() {
         return numDocs;
+    }
+
+    @Override
+    public PerformanceStats getPerformanceStats(final boolean reset) {
+        final Timer timer = new Timer();
+        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_PERFORMANCE_STATS)
+                .setSessionId(sessionId)
+                .setResetPerformanceStats(reset)
+                .build();
+
+        try {
+            final ImhotepResponse response = sendRequest(request, host, port, socketTimeout);
+            final PerformanceStats stats = ImhotepClientMarshaller.marshal(response.getPerformanceStats());
+            timer.complete(request);
+            return stats;
+        } catch (final IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public PerformanceStats closeAndGetPerformanceStats() {
+        return internalClose(true);
     }
 
     public String getHost() {

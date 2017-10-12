@@ -30,6 +30,7 @@ import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.group.ImhotepChooser;
 import com.indeed.imhotep.io.TestFileUtils;
 import org.junit.Assert;
@@ -2020,6 +2021,50 @@ public class TestImhotepLocalSession {
             session.pushStat("regex nonexistent:anything");
             Assert.assertArrayEquals(new long[]{0, 0}, session.getGroupStats(0));
             session.popStat();
+        } finally {
+            TestFileUtils.deleteDirTree(testDir);
+        }
+    }
+
+    @Test
+    public void testGetPerformanceStats() throws ImhotepOutOfMemoryException, IOException {
+        final FlamdexReader r = MakeAFlamdex.make();
+        final Path testDir = Files.createTempDirectory("imhotep.test");
+        try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r,
+                testDir.toString(),
+                new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
+                null)) {
+
+            final PerformanceStats stats = session.getPerformanceStats(false);
+            // It's hard to create reasonable test for getPerformanceStats.
+            // Just checking that all values make sence.
+            Assert.assertTrue(stats.cpuTime >= 0);
+            Assert.assertTrue(stats.maxMemoryUsage >= 0);
+            Assert.assertTrue(stats.ftgsTempFileSize >= 0);
+            Assert.assertTrue(stats.fieldFilesReadSize >= 0);
+
+        } finally {
+            TestFileUtils.deleteDirTree(testDir);
+        }
+    }
+
+    @Test
+    public void testCloseAndGetPerformanceStats() throws ImhotepOutOfMemoryException, IOException {
+        final FlamdexReader r = MakeAFlamdex.make();
+        final Path testDir = Files.createTempDirectory("imhotep.test");
+        try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r,
+                testDir.toString(),
+                new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
+                null)) {
+
+
+            PerformanceStats stats = session.closeAndGetPerformanceStats();
+            Assert.assertNotNull(stats);
+
+            // closeAndGetPerformanceStats returns null after session is closed
+            stats = session.closeAndGetPerformanceStats();
+            Assert.assertNull(stats);
+
         } finally {
             TestFileUtils.deleteDirTree(testDir);
         }

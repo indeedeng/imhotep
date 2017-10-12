@@ -22,7 +22,12 @@ public final class MemoryReservationContext extends MemoryReserver {
     private final MemoryReserver memoryReserver;
 
     private long reservationSize = 0;
-    private long maxUsedMemory = 0;
+    /* We track two maximum memory values:
+        1. Maximum of used memory since creation of class or since last reset.
+        2. Global maximum of used memory
+     */
+    private long currentMaxUsedMemory = 0;
+    private long globalMaxUsedMemory = 0;
 
     private boolean closed = false;
 
@@ -30,8 +35,16 @@ public final class MemoryReservationContext extends MemoryReserver {
         this.memoryReserver = memoryReserver;
     }
 
-    public long maxUsedMemory() {
-        return maxUsedMemory;
+    public void resetCurrentMaxUsedMemory() {
+        currentMaxUsedMemory = reservationSize;
+    }
+
+    public long getCurrentMaxUsedMemory() {
+        return currentMaxUsedMemory;
+    }
+
+    public long getGlobalMaxUsedMemory() {
+        return globalMaxUsedMemory;
     }
 
     public long usedMemory() {
@@ -48,7 +61,7 @@ public final class MemoryReservationContext extends MemoryReserver {
         }
         if (memoryReserver.claimMemory(numBytes)) {
             reservationSize += numBytes;
-            maxUsedMemory = Math.max(maxUsedMemory, reservationSize);
+            updateMax(reservationSize);
             return true;
         }
         return false;
@@ -85,7 +98,7 @@ public final class MemoryReservationContext extends MemoryReserver {
             throw new IllegalStateException("cannot dehoist memory after reservation context has been closed");
         }
         reservationSize += numBytes;
-        maxUsedMemory = Math.max(maxUsedMemory, reservationSize);
+        updateMax(reservationSize);
     }
 
     @Override
@@ -95,5 +108,14 @@ public final class MemoryReservationContext extends MemoryReserver {
             reservationSize = 0;
         }
         closed = true;
+    }
+
+    private void updateMax(final long memorySize) {
+        if (memorySize > currentMaxUsedMemory) {
+            currentMaxUsedMemory = memorySize;
+            if (memorySize > globalMaxUsedMemory) {
+                globalMaxUsedMemory = memorySize;
+            }
+        }
     }
 }
