@@ -856,15 +856,12 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
         try {
             try (
-                final IntTermIterator iter = flamdexReader.getIntTermIterator(field);
+                final IntTermIterator iter = flamdexReader.getUnsortedIntTermIterator(field);
                 final DocIdStream docIdStream = flamdexReader.getDocIdStream()
             ) {
                 for (final long term : terms) {
                     iter.reset(term);
-                    if (!iter.next()) {
-                        break;
-                    }
-                    if (iter.term() != term) {
+                    if (!iter.next() || iter.term() != term) {
                         continue;
                     }
                     docIdStream.reset(iter);
