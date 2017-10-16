@@ -156,6 +156,22 @@ public class ImhotepClient
     }
 
     /**
+     * Returns a sorted list of dataset names.
+     */
+    public List<String> getDatasetNames() {
+        final Set<String> datasetsSet = new HashSet<>();
+        for (final List<DatasetInfo> perHostDatasetInfoList : getShardListInternal().values()) {
+            for (final DatasetInfo datasetInfo : perHostDatasetInfoList) {
+                datasetsSet.add(datasetInfo.getDataset());
+            }
+        }
+
+        final List<String> result = new ArrayList<>(datasetsSet);
+        Collections.sort(result);
+        return result;
+    }
+
+    /**
      * Returns a map of dataset names to their field lists. Doesn't include shard lists.
      */
     public Map<String, DatasetInfo> getDatasetToDatasetInfo() {
