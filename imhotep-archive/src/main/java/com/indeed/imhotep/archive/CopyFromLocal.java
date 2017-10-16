@@ -47,7 +47,7 @@ public class CopyFromLocal {
     }
 
     public static void copy(final File from, final Path to, final boolean overwrite) throws IOException {
-        copy(to.getFileSystem(new Configuration()), from, to, overwrite);
+        copy(to.getFileSystem(new Configuration()), from, to, overwrite, SquallArchiveCompressor.GZIP);
     }
 
     public static void copy(final FileSystem fs, final File from, final Path to, final boolean overwrite) throws IOException {
