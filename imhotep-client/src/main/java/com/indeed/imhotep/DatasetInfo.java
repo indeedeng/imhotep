@@ -27,8 +27,8 @@ import java.util.List;
  */
 public class DatasetInfo {
     private final String dataset;
-    private Collection<ShardInfo> shardList;
-    private List<ShardInfoMessage> shardListRawMessages;
+    volatile private Collection<ShardInfo> shardList;
+    volatile private List<ShardInfoMessage> shardListRawMessages;
     private final Collection<String> intFields;
     private final Collection<String> stringFields;
 
