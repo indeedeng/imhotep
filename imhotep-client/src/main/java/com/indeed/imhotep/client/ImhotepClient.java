@@ -183,8 +183,23 @@ public class ImhotepClient
      * Returns an object containing field lists for the requested dataset. Doesn't include shard list.
      */
     public DatasetInfo getDatasetInfo(String datasetName) {
-        Map<String, DatasetInfo> datasetToDatasetInfo = getDatasetToDatasetInfo();
-        if(!datasetToDatasetInfo.containsKey(datasetName)) {
+        final Map<Host, List<DatasetInfo>> shardListMap = getShardListInternal();
+        final List<DatasetInfo> infoForRequestedDataset = Lists.newArrayList();
+        for(List<DatasetInfo> perHostDatasetInfoList: shardListMap.values()) {
+            for(DatasetInfo datasetInfo: perHostDatasetInfoList) {
+                if(datasetInfo.getDataset().equals(datasetName)) {
+                    infoForRequestedDataset.add(datasetInfo);
+                }
+            }
+        }
+        if(infoForRequestedDataset.size() == 0) {
+            throw new IllegalArgumentException("Dataset not found: " + datasetName);
+        }
+        final List<List<DatasetInfo>> wrappedInfoForRequestedDataset = Lists.newArrayList();
+        wrappedInfoForRequestedDataset.add(infoForRequestedDataset);
+        // combine the info from different hosts
+        final Map<String, DatasetInfo> datasetToDatasetInfo = getDatasetToDatasetInfo(wrappedInfoForRequestedDataset, false);
+        if (!datasetToDatasetInfo.containsKey(datasetName)) {
             throw new IllegalArgumentException("Dataset not found: " + datasetName);
         }
         return datasetToDatasetInfo.get(datasetName);
