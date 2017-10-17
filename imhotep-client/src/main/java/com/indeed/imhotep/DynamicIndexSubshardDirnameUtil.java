@@ -156,11 +156,11 @@ public final class DynamicIndexSubshardDirnameUtil {
         }
     }
 
-    public static boolean isValidName(final String name) {
+    public static boolean isValidDynamicIndexName(final String name) {
         return DynamicIndexPattern.INDEX_NAME.matcher(name).matches();
     }
 
-    public static boolean isValidShardId(final String shardId) {
+    public static boolean isValidDynamicShardId(final String shardId) {
         return DynamicIndexPattern.SHARD_ID.matcher(shardId).matches();
     }
 
