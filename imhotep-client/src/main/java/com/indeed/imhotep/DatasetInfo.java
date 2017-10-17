@@ -27,8 +27,8 @@ import java.util.List;
  */
 public class DatasetInfo {
     private final String dataset;
-    volatile private Collection<ShardInfo> shardList;
-    volatile private List<ShardInfoMessage> shardListRawMessages;
+    private Collection<ShardInfo> shardList;
+    private List<ShardInfoMessage> shardListRawMessages;
     private final Collection<String> intFields;
     private final Collection<String> stringFields;
 
@@ -59,7 +59,7 @@ public class DatasetInfo {
     }
 
     // this is deserialized on first access and then cached
-    public Collection<ShardInfo> getShardList() {
+    public synchronized Collection<ShardInfo> getShardList() {
         if(shardList == null) {
             List<ShardInfo> deserializedShardList = Lists.newArrayListWithCapacity(shardListRawMessages.size());
             for(ShardInfoMessage shardInfoMessage : shardListRawMessages) {
