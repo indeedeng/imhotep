@@ -64,17 +64,16 @@ public class StringTermSetQueryEvaluator implements QueryEvaluator {
     }
 
     private void internalSearch(final FlamdexReader r, final FastBitSet bitSet) {
-        int ix = 0;
         try (StringTermIterator iterator = r.getStringTermIterator(field)) {
             try (DocIdStream docIdStream = r.getDocIdStream()) {
-                while (ix < terms.length) {
-                    final int[] docIdBuffer = new int[BUFFER_SIZE];
-                    iterator.reset(terms[ix]);
-                    ix++;
+                final int[] docIdBuffer = new int[BUFFER_SIZE];
+                for (final String term : terms) {
+                    iterator.reset(term);
+
                     if (!iterator.next()) {
                         break;
                     }
-                    if (!iterator.term().equals(terms[ix - 1])) {
+                    if (!iterator.term().equals(term)) {
                         continue;
                     }
                     docIdStream.reset(iterator);
