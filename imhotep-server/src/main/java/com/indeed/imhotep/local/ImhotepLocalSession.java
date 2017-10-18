@@ -2131,7 +2131,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                      intFields.entrySet()) {
                 final String field = entry.getKey();
                 final Long2ObjectMap<Pair<IntArrayList, IntArrayList>> termToGroupDeltas = entry.getValue();
-                intTermIterator = flamdexReader.getIntTermIterator(field);
+                intTermIterator = flamdexReader.getUnsortedIntTermIterator(field);
                 for (final Long2ObjectMap.Entry<Pair<IntArrayList, IntArrayList>> entry2 :
                          termToGroupDeltas.long2ObjectEntrySet()) {
                     for (int i = 0; i < groupsSet.size(); i++) {

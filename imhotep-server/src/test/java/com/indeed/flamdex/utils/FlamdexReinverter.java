@@ -37,7 +37,7 @@ public class FlamdexReinverter {
         final int[] docIdBuffer = new int[64];
         try (DocIdStream docIdStream = r.getDocIdStream()) {
             for (final String intField : r.getIntFields()) {
-                try (IntTermIterator iter = r.getIntTermIterator(intField)) {
+                try (IntTermIterator iter = r.getUnsortedIntTermIterator(intField)) {
                     while (iter.next()) {
                         final long term = iter.term();
                         docIdStream.reset(iter);
