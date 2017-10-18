@@ -15,9 +15,8 @@ public class MockShard extends Shard {
             final ShardId shardId,
             final int numDocs,
             final Collection<String> intFields,
-            final Collection<String> stringFields,
-            final Collection<String> availableMetrics) {
-        super(shardId, numDocs, intFields, stringFields, availableMetrics);
+            final Collection<String> stringFields) {
+        super(shardId, numDocs, intFields, stringFields);
     }
 
     @Override

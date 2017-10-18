@@ -274,7 +274,7 @@ public class TestLocalImhotepServiceCore {
                           final ImmutableSet<String> stringFields) throws IOException {
         final String shardId = "index" + Long.toString(version).substring(0, 8);
         final Shard shard = new MockShard(new ShardId(dataset, shardId, version, null),
-                                    0, intFields, stringFields, Collections.<String>emptyList());
+                                    0, intFields, stringFields);
         localShards.putShard(dataset, shard);
     }
 }

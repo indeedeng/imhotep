@@ -39,7 +39,6 @@ public class Shard {
     private final int numDocs;
     private final Collection<String> intFields;
     private final Collection<String> stringFields;
-    private final Collection<String> availableMetrics;
 
     public Shard(final ReloadableSharedReference<CachedFlamdexReader, IOException> ref,
                   final long shardVersion,
@@ -52,7 +51,6 @@ public class Shard {
         numDocs = copy.get().getNumDocs();
         intFields = copy.get().getIntFields();
         stringFields = copy.get().getStringFields();
-        availableMetrics = copy.get().getAvailableMetrics();
         copy.close();
     }
 
@@ -60,23 +58,20 @@ public class Shard {
                  final ShardId shardId,
                  final int numDocs,
                  final Collection<String> intFields,
-                 final Collection<String> stringFields,
-                 final Collection<String> availableMetrics) {
+                 final Collection<String> stringFields) {
         this.ref = ref;
         this.shardId = shardId;
         this.numDocs = numDocs;
         this.intFields = intFields;
         this.stringFields = stringFields;
-        this.availableMetrics = availableMetrics;
     }
 
     @VisibleForTesting
     Shard(final ShardId shardId,
           final int numDocs,
           final Collection<String> intFields,
-          final Collection<String> stringFields,
-          final Collection<String> availableMetrics) {
-        this(null, shardId, numDocs, intFields, stringFields, availableMetrics);
+          final Collection<String> stringFields) {
+        this(null, shardId, numDocs, intFields, stringFields);
     }
 
     @Nullable
@@ -123,10 +118,6 @@ public class Shard {
 
     public Collection<String> getStringFields() {
         return stringFields;
-    }
-
-    public Collection<String> getAvailableMetrics() {
-        return availableMetrics;
     }
 
     public List<ImhotepStatusDump.MetricDump> getMetricDump() {

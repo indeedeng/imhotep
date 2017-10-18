@@ -122,8 +122,7 @@ class ShardMap
             final Shard shard =
                 new Shard(ReloadableSharedReference.create(loader),
                           shardId, value.getNumDocs(),
-                          value.getIntFields(), value.getStrFields(),
-                          value.getIntFields());
+                          value.getIntFields(), value.getStrFields());
             putShard(key.getDataset(), shard);
         }
     }
