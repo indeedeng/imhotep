@@ -2,12 +2,17 @@ name: Imhotep - Data Analytics Platform by Indeed
 # http://stackoverflow.com/questions/10759577/underscore-issues-jekyll-redcarpet-github-flavored-markdown
 markdown: kramdown
 highlighter: rouge
+kramdown:
+    input: GFM #Enable GitHub Flavored Markdown (fenced code blocks)
+    auto_ids: true
+    hard_wrap: false
+    syntax_highlighter: rouge
+
+    exclude: ['Gemfile', 'Gemfile.lock', 'Rakefile.rb', 'README.md']
+
 # jekyll serve --watch --baseurl=
 # baseurl: "https://indeedeng.github.io/imhotep"
 baseurl: "https://tate-indeed.github.io/imhotep-tate-working"
-# permalinks are relative to their parent folder
-relative_permalinks: false
-redcarpet:
-  extensions: ["fenced_code_blocks", "no_intra_emphasis", "autolink", "tables", "with_toc_data"]
 
-  exclude: ['Gemfile', 'Gemfile.lock', 'Rakefile.rb', 'README.md']
+# permalinks are relative to their parent folder
+#relative_permalinks: false
