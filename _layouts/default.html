@@ -60,11 +60,11 @@
         <section>
             <div class="grid">
               <div class="unit one-fifth">
-                {% include sidenav_items.html %}
                 <nav id="toc" data-spy="affix" data-toggle="toc" data-offset-top="175"></nav>
               </div>
               <div class="unit four-fifths">
                 <article>
+                    {% include sidenav_items.html %}
 				  <h1>{{ page.title }}</h1> 
                   {{ content }}
                 </article>
@@ -79,9 +79,9 @@
           </footer>
         </div>
 
-        {% if page.exclude_toc == nil or page.exclude_toc == false %}
+        <!--{% if page.exclude_toc == nil or page.exclude_toc == false %}
         <script src="{{ site.baseurl }}/assets/js/toc.js"></script>
-        {% endif %}
+        {% endif %}-->
         
 {% include analytics.html %}
     </body>
