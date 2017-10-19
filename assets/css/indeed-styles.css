@@ -2277,6 +2277,6 @@ line-height: 14px;
     }
 
 /* overriding the bootstrap style for the left nav in order to keep long titles from overflowing into body content */    
-nav[data-toggle=toc] .nav .nav>li>a {
-    width: 225px;
+nav a {
+    width: 200px;
     }
