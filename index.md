@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Imhotep
+title: Imhotep - Data Analytics Platform by Indeed
 exclude_toc: true
 ---
 
