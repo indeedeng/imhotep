@@ -60,17 +60,21 @@
         <section>
             <div class="grid">
               <div class="unit one-fifth">
-                <nav id="toc" data-spy="affix" data-toggle="toc" data-offset-top="108"></nav>
+              <div data-spy="affix" data-offset-top="108">
+              {% include sidenav_items.html %}
+            <nav id="toc" data-toggle="toc"></nav>
+                </div>
               </div>
               <div class="unit four-fifths">
                 <article>
-                    {% include sidenav_items.html %}
+                    
 				  <h1>{{ page.title }}</h1> 
                   {{ content }}
                 </article>
               </div>
               <div class="clear"></div>
             </div>
+            
           </section>
 
           <footer>
