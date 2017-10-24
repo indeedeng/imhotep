@@ -84,7 +84,11 @@ public class TestImhotepClientStatics {
             final ShardInfo shardInfo = new ShardInfo(shardId, 0, version);
             shardInfos.add(shardInfo);
         }
-        final DatasetInfo datasetInfo = new DatasetInfo(dataset, shardInfos, intFields, stringFields);
+        long latestVersion = 0;
+        for (long version: versions) {
+            latestVersion = Math.max(latestVersion, version);
+        }
+        final DatasetInfo datasetInfo = new DatasetInfo(dataset, shardInfos, intFields, stringFields, latestVersion);
         hostsDatasets.add(Lists.newArrayList(datasetInfo));
     }
 }

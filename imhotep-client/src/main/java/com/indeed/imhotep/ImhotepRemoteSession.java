@@ -176,24 +176,22 @@ public class ImhotepRemoteSession
 
     public String getSessionId() { return sessionId; }
 
-    @Deprecated
-    public static List<ShardInfo> getShardList(final String host, final int port) throws IOException {
-        log.trace("sending get shard request to "+host+":"+port);
-        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_SHARD_LIST)
+    public static List<DatasetInfo> getShardInfoList(final String host, final int port) throws IOException {
+        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_SHARD_INFO_LIST)
                 .build();
 
         final ImhotepResponse response = sendRequest(request, host, port);
 
-        final List<ShardInfoMessage> protoShardInfo = response.getShardInfoList();
-        final List<ShardInfo> ret = new ArrayList<>(protoShardInfo.size());
-        for (final ShardInfoMessage shardInfo : protoShardInfo) {
-            ret.add(ShardInfo.fromProto(shardInfo));
+        final List<DatasetInfoMessage> protoShardInfo = response.getDatasetInfoList();
+        final List<DatasetInfo> ret = Lists.newArrayListWithCapacity(protoShardInfo.size());
+        for (final DatasetInfoMessage datasetInfo : protoShardInfo) {
+            ret.add(DatasetInfo.fromProto(datasetInfo));
         }
         return ret;
     }
 
-    public static List<DatasetInfo> getShardInfoList(final String host, final int port) throws IOException {
-        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_SHARD_INFO_LIST)
+    public static List<DatasetInfo> getDatasetMetadata(final String host, final int port) throws IOException {
+        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_DATASET_METADATA)
                 .build();
 
         final ImhotepResponse response = sendRequest(request, host, port);

@@ -129,33 +129,31 @@ public class ImhotepDaemon implements Instrumentation.Provider {
     private static final class ShardUpdateListener
         implements ShardUpdateListenerIf {
 
-        private final AtomicReference<ImhotepResponse> shardListResponse =
+        private final AtomicReference<ImhotepResponse> datasetMetadataResponse =
             new AtomicReference<>();
 
         private final AtomicReference<ImhotepResponse> datasetListResponse =
             new AtomicReference<>();
 
-        public void onShardUpdate(final List<ShardInfo> shardList,
-                                  final Source unusedSource) {
-            final ImhotepResponse.Builder builder = ImhotepResponse.newBuilder();
-            for (final ShardInfo shard : shardList) {
-                builder.addShardInfo(shard.toProto());
-            }
-            final ImhotepResponse response = builder.build();
-            shardListResponse.set(response);
-        }
-
         public void onDatasetUpdate(final List<DatasetInfo> datasetList,
                                     final Source unusedSource) {
-            final ImhotepResponse.Builder builder = ImhotepResponse.newBuilder();
+            final ImhotepResponse.Builder shardListBuilder = ImhotepResponse.newBuilder();
             for (final DatasetInfo dataset : datasetList) {
-                builder.addDatasetInfo(dataset.toProto());
+                shardListBuilder.addDatasetInfo(dataset.toProto());
             }
-            final ImhotepResponse response = builder.build();
-            datasetListResponse.set(response);
+            final ImhotepResponse shardListReponse = shardListBuilder.build();
+            datasetListResponse.set(shardListReponse);
+
+
+            final ImhotepResponse.Builder metadataBuilder = ImhotepResponse.newBuilder();
+            for (final DatasetInfo dataset : datasetList) {
+                metadataBuilder.addDatasetInfo(dataset.toProtoNoShards());
+            }
+            final ImhotepResponse metadataResponse = metadataBuilder.build();
+            datasetListResponse.set(metadataResponse);
         }
 
-        public ImhotepResponse   getShardListResponse() { return shardListResponse.get();   }
+        public ImhotepResponse getDatasetMetadataResponse() { return datasetMetadataResponse.get();   }
         public ImhotepResponse getDatasetListResponse() { return datasetListResponse.get(); }
     }
 
@@ -674,21 +672,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             return builder.build();
         }
 
-        private ImhotepResponse getShardList(
-                final ImhotepRequest          request,
-                final ImhotepResponse.Builder builder)
-            throws ImhotepOutOfMemoryException {
-            ImhotepResponse response = shardUpdateListener.getShardListResponse();
-            if (response == null) {
-                final List<ShardInfo> shards = service.handleGetShardList();
-                for (final ShardInfo shard : shards) {
-                    builder.addShardInfo(shard.toProto());
-                }
-                response = builder.build();
-            }
-            return response;
-        }
-
         private ImhotepResponse getShardInfoList(
                 final ImhotepRequest          request,
                 final ImhotepResponse.Builder builder)
@@ -698,6 +681,21 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final List<DatasetInfo> datasets = service.handleGetDatasetList();
                 for (final DatasetInfo dataset : datasets) {
                     builder.addDatasetInfo(dataset.toProto());
+                }
+                response = builder.build();
+            }
+            return response;
+        }
+
+        private ImhotepResponse getDatasetMetadata(
+                final ImhotepRequest          request,
+                final ImhotepResponse.Builder builder)
+                throws ImhotepOutOfMemoryException {
+            ImhotepResponse response = shardUpdateListener.getDatasetMetadataResponse();
+            if (response == null) {
+                final List<DatasetInfo> datasets = service.handleGetDatasetList();
+                for (final DatasetInfo dataset : datasets) {
+                    builder.addDatasetInfo(dataset.toProtoNoShards());
                 }
                 response = builder.build();
             }
@@ -1035,11 +1033,11 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                         case GET_NUM_GROUPS:
                             response = getNumGroups(request, builder);
                             break;
-                        case GET_SHARD_LIST:
-                            response = getShardList(request, builder);
-                            break;
                         case GET_SHARD_INFO_LIST:
                             response = getShardInfoList(request, builder);
+                            break;
+                        case GET_DATASET_METADATA:
+                            response = getDatasetMetadata(request, builder);
                             break;
                         case GET_STATUS_DUMP:
                             response = getStatusDump(request, builder);

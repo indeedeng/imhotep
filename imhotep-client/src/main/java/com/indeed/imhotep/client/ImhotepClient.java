@@ -240,25 +240,30 @@ public class ImhotepClient
                 }
                 DatasetInfo current = ret.get(dataset.getDataset());
                 if (current == null) {
-                    current = new DatasetInfo(dataset.getDataset(), new HashSet<ShardInfo>(), new HashSet<String>(), new HashSet<String>());
+                    current = new DatasetInfo(dataset.getDataset(), new HashSet<ShardInfo>(), new HashSet<String>(), new HashSet<String>(), dataset.getLatestShardVersion());
                     ret.put(dataset.getDataset(), current);
                 }
-                final Collection<ShardInfo> shardList = dataset.getShardList();
-                long newestShardVersionForHost = 0;
-                for(final ShardInfo shard : shardList) {
-                    final long shardVersion = shard.getVersion();
-                    if(shardVersion > newestShardVersionForHost) {
-                        newestShardVersionForHost = shardVersion;
+                long newestShardVersionForHost = dataset.getLatestShardVersion();
+                if (newestShardVersionForHost == 0) {
+                    final Collection<ShardInfo> shardList = dataset.getShardList();
+                    for (final ShardInfo shard : shardList) {
+                        final long shardVersion = shard.getVersion();
+                        if (shardVersion > newestShardVersionForHost) {
+                            newestShardVersionForHost = shardVersion;
+                        }
                     }
+                    if(keepShards) {
+                        current.getShardList().addAll(shardList);
+                    }
+                } else if (keepShards) {
+                    current.getShardList().addAll(dataset.getShardList());
                 }
                 if(newestShardVersionForHost > datasetNewestShardMetadata.newestShardVersion) {
                     datasetNewestShardMetadata.newestShardVersion = newestShardVersionForHost;
                     datasetNewestShardMetadata.intFields = dataset.getIntFields();
                     datasetNewestShardMetadata.stringFields = dataset.getStringFields();
                 }
-                if(keepShards) {
-                    current.getShardList().addAll(shardList);
-                }
+
                 current.getIntFields().addAll(dataset.getIntFields());
                 current.getStringFields().addAll(dataset.getStringFields());
             }
@@ -277,6 +282,7 @@ public class ImhotepClient
             final Set<String> lastShardConflictingFields = Sets.intersection(Sets.newHashSet(newestMetadata.intFields), Sets.newHashSet(newestMetadata.stringFields));
             datasetInfo.getStringFields().addAll(lastShardConflictingFields);
             datasetInfo.getIntFields().addAll(lastShardConflictingFields);
+            datasetInfo.setLatestShardVersion(newestMetadata.newestShardVersion);
         }
         return ret;
     }

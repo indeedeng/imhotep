@@ -87,7 +87,6 @@ public class LocalImhotepServiceCore
     private final ShardStore shardStore;
 
     private final AtomicReference<ShardMap>        shardMap    = new AtomicReference<>();
-    private final AtomicReference<ShardInfoList>   shardList   = new AtomicReference<>();
     private final AtomicReference<DatasetInfoList> datasetList = new AtomicReference<>();
 
     /**
@@ -294,13 +293,6 @@ public class LocalImhotepServiceCore
     private void setShardMap(final ShardMap                     newShardMap,
                              final ShardUpdateListenerIf.Source source) {
         shardMap.set(newShardMap);
-        try {
-            shardList.set(new ShardInfoList(this.shardMap.get()));
-            shardUpdateListener.onShardUpdate(this.shardList.get(), source);
-        }
-        catch (final IOException ex) {
-            log.error("could not build ShardInfoList", ex);
-        }
         datasetList.set(new DatasetInfoList(this.shardMap.get()));
         shardUpdateListener.onDatasetUpdate(this.datasetList.get(), source);
     }
@@ -366,7 +358,6 @@ public class LocalImhotepServiceCore
         }
     }
 
-    @Override public List<ShardInfo>     handleGetShardList() { return shardList.get();   }
     @Override public List<DatasetInfo> handleGetDatasetList() { return datasetList.get(); }
 
     @Override

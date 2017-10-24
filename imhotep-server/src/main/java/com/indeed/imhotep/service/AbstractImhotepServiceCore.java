@@ -311,9 +311,6 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public abstract List<ShardInfo> handleGetShardList();
-
-    @Override
     public abstract List<DatasetInfo> handleGetDatasetList();
 
     @Override

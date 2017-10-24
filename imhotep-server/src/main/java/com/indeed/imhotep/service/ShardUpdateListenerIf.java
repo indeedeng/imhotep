@@ -26,6 +26,5 @@ public interface ShardUpdateListenerIf {
      * examination or was loaded from a ShardStore cache. */
     enum Source { FILESYSTEM, CACHE }
 
-    void onShardUpdate(final List<ShardInfo> shardList, final Source source);
     void onDatasetUpdate(final List<DatasetInfo> datasetList, final Source source);
 }

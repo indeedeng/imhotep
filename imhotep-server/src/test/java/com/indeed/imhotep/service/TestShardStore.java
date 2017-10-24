@@ -15,6 +15,7 @@ package com.indeed.imhotep.service;
 
 import com.google.common.base.Throwables;
 import com.indeed.imhotep.ShardInfo;
+import com.indeed.imhotep.io.Shard;
 import com.indeed.lsmtree.core.Store;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.apache.commons.lang.RandomStringUtils;
@@ -23,8 +24,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -189,4 +192,52 @@ public class TestShardStore {
         }
         return result;
     }
+
+
+
+    /** A custom view of the ShardMap */
+    static class ShardInfoList extends ObjectArrayList<ShardInfo> {
+
+        static final Comparator<ShardInfo> comparator = new Comparator<ShardInfo>() {
+            @Override public int compare(final ShardInfo thing1, final ShardInfo thing2) {
+                return thing1.shardId.compareTo(thing2.shardId);
+            }
+        };
+
+        /** Build a list of ShardInfo objects from a ShardMap, sorted by shardId. */
+        ShardInfoList(final ShardMap shardMap) throws IOException {
+            shardMap.map(new ShardMap.ElementHandler<IOException>() {
+                public void onElement(final String dataset,
+                                      final String shardId,
+                                      final Shard shard) throws IOException {
+                    final ShardInfo shardInfo =
+                            new ShardInfo(shardId,
+                                    shard.getNumDocs(),
+                                    shard.getShardVersion());
+                    add(shardInfo);
+                }
+            });
+            Collections.sort(this, comparator);
+        }
+
+        /** Build a list of ShardInfo objects from a ShardStore, sorted by
+         shardId. This method is intended for use by tests, not
+         LocalImhotepServiceCore proper. */
+        ShardInfoList(final ShardStore store) throws IOException {
+            final Iterator<Store.Entry<ShardStore.Key, ShardStore.Value>> it =
+                    store.iterator();
+            while (it.hasNext()) {
+                final Store.Entry<ShardStore.Key, ShardStore.Value> entry = it.next();
+                final ShardStore.Key   key   = entry.getKey();
+                final ShardStore.Value value = entry.getValue();
+                final ShardInfo shardInfo =
+                        new ShardInfo(key.getShardId(),
+                                value.getNumDocs(),
+                                value.getVersion());
+                add(shardInfo);
+            }
+            Collections.sort(this, comparator);
+        }
+    }
+
 }

@@ -10,6 +10,7 @@ message DatasetInfoMessage {
   repeated string int_field = 3;
   repeated string string_field = 4;
   repeated string metric = 5;
+  optional uint64 latest_shard_version = 6;
 }
 
 message ShardInfoMessage {
@@ -125,6 +126,7 @@ message ImhotepRequest {
     GROUP_QUERY_UPDATE_DYNAMIC_METRIC = 41;
     STREAMING_GET_GROUP_STATS = 42;
     GET_PERFORMANCE_STATS = 43;
+    GET_DATASET_METADATA = 44;
     SHUTDOWN = 255;
   }
 
