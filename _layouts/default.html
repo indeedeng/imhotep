@@ -60,12 +60,12 @@
         <section>
             <div class="grid">
               <div class="unit one-fifth">
-              <div data-spy="affix" data-offset-top="108">
+              <div data-spy="affix" data-offset-top="108" style="affix-bottom:relative;">
               {% include sidenav_items.html %}
             <nav id="toc" data-toggle="toc"></nav>
                 </div>
               </div>
-              <div class="unit four-fifths">
+              <div class="unit four-fifths" style="min-height:800px">
                 <article>
                     
 				  <h1>{{ page.title }}</h1> 
@@ -78,8 +78,7 @@
           </section>
 
           <footer>
-            <div>This site is maintained by <a href="http://github.com/indeedeng">Indeed.com</a> (<a href="http://engineering.indeedblog.com/blog">engineering.indeedblog.com</a>)</div>
-            <div><small>Hosted on GitHub Pages &mdash; Theme adapted from <a href="https://github.com/orderedlist/minimal">minimal by orderedlist</a></small></div>
+            {% include footer.html %}
           </footer>
         </div>
 
