@@ -55,7 +55,3 @@ Ask and answer questions in our Q&A forum for Imhotep: [indeedeng-imhotep-users]
 [Apache Hadoop with Pig](http://pig.apache.org/)<br>
 [Druid](http://druid.io/)<br>
 [OpenDremel](https://code.google.com/p/dremel/)
-
-## License
-
-[Apache License Version 2.0](https://github.com/indeedeng/imhotep/blob/master/LICENSE) 
