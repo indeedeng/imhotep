@@ -26,7 +26,7 @@ import java.util.Map;
 class FlamdexSubsetFTGSIterator extends AbstractFlamdexFTGSIterator {
 
     protected StringTermIterator stringTermIterator;
-    protected IntTermIterator intTermIterator;
+    private IntTermIterator intTermIterator;
     private final DocIdStream docIdStream;
 
     private final Iterator<Map.Entry<String, long[]>> intFieldToTermsIterator;
@@ -60,7 +60,7 @@ class FlamdexSubsetFTGSIterator extends AbstractFlamdexFTGSIterator {
                 if (intTermIterator != null) {
                     Closeables2.closeQuietly(intTermIterator, ImhotepLocalSession.log);
                 }
-                intTermIterator = flamdexReader.get().getIntTermIterator(currentField);
+                intTermIterator = flamdexReader.get().getUnsortedIntTermIterator(currentField);
                 termIndex = 0;
                 return true;
             }
