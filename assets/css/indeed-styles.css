@@ -2274,13 +2274,7 @@ line-height: 14px;
 
    #toc.affix {         
 
-    position: static;   
-    width: auto;        
+    position: static;        
     top: 0;              
     }  
-    }
-
-/* overriding the bootstrap style for the left nav in order to keep long titles from overflowing into body content */    
-nav a {
-    width: 200px;
     }
