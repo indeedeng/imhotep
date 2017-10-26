@@ -3,7 +3,9 @@ layout: default
 title: Imhotep - Data Analytics Platform by Indeed
 exclude_toc: true
 ---
-<img src="{{ site.baseurl }}/images/Imhotep.png" style="max-width:200px;max-height:200px;clear:both;padding:10px;" />
+<div style="position:relative;">
+<img src="{{ site.baseurl }}/images/Imhotep.png" style="max-width:15%;max-height:15%;clear:both;padding:10px;" />
+</div>
 
 Imhotep is a large-scale analytics platform built by Indeed. This platform enables you to perform fast, interactive, ad hoc queries and aggregate results for large datasets.
 
