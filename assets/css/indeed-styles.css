@@ -2272,7 +2272,7 @@ line-height: 14px;
 
 @media (max-width: 767px){
 
-   #toc.affix {         
+   .affix {         
 
     position: static;        
     top: 0;              
