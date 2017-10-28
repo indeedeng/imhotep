@@ -82,6 +82,7 @@ public interface ImhotepServiceCore {
     // non-session-based methods
     List<DatasetInfo> handleGetDatasetList();
     ImhotepStatusDump handleGetStatusDump(boolean includeShardList);
+    List<ShardInfo> handleGetShardlistForTime(String dataset, long startUnixtime, long endUnixtime);
 
     void close();
 }

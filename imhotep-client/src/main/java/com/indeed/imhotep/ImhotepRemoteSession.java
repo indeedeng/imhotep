@@ -204,6 +204,26 @@ public class ImhotepRemoteSession
         return ret;
     }
 
+    public static List<ShardInfo> getShardlistForTime(final String host, final int port, final String dataset, final long startUnixtime, final long endUnixtime) throws IOException {
+        if (endUnixtime <= startUnixtime) {
+            throw new IllegalArgumentException("Start time must be before end time. Given start: " + startUnixtime + ", end: " + endUnixtime);
+        }
+        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_SHARD_LIST_FOR_TIME)
+                .setDataset(dataset)
+                .setStartUnixtime(startUnixtime)
+                .setEndUnixtime(endUnixtime)
+                .build();
+
+        final ImhotepResponse response = sendRequest(request, host, port);
+
+        final List<ShardInfoMessage> protoShardInfo = response.getShardInfoList();
+        final List<ShardInfo> ret = Lists.newArrayListWithCapacity(protoShardInfo.size());
+        for (final ShardInfoMessage shardInfo : protoShardInfo) {
+            ret.add(ShardInfo.fromProto(shardInfo));
+        }
+        return ret;
+    }
+
     public static ImhotepStatusDump getStatusDump(final String host, final int port) throws IOException {
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_STATUS_DUMP)
                 .build();

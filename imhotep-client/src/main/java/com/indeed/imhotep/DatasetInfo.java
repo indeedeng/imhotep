@@ -63,7 +63,7 @@ public class DatasetInfo {
 
     // this is deserialized on first access and then cached
     public synchronized Collection<ShardInfo> getShardList() {
-        if(shardList == null) {
+        if(shardList == null && shardListRawMessages != null) {
             List<ShardInfo> deserializedShardList = Lists.newArrayListWithCapacity(shardListRawMessages.size());
             for(ShardInfoMessage shardInfoMessage : shardListRawMessages) {
                 deserializedShardList.add(ShardInfo.fromProto(shardInfoMessage));

@@ -17,6 +17,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.imhotep.CachedMemoryReserver;
@@ -40,6 +41,8 @@ import com.indeed.util.core.shell.PosixFileOperations;
 import com.indeed.util.varexport.Export;
 import com.indeed.util.varexport.VarExporter;
 import org.apache.log4j.Logger;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -69,6 +72,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class LocalImhotepServiceCore
     extends AbstractImhotepServiceCore {
     private static final Logger log = Logger.getLogger(LocalImhotepServiceCore.class);
+    private static final DateTimeZone ZONE = DateTimeZone.forOffsetHours(-6);
 
     private final LocalSessionManager sessionManager;
 
@@ -359,6 +363,28 @@ public class LocalImhotepServiceCore
     }
 
     @Override public List<DatasetInfo> handleGetDatasetList() { return datasetList.get(); }
+
+    @Override public List<ShardInfo> handleGetShardlistForTime(String dataset, long startUnixtime, long endUnixtime) {
+        final List<ShardInfo> result = Lists.newArrayList();
+        final List<DatasetInfo> datasetInfoList = datasetList.get();
+        if(endUnixtime <= startUnixtime) {
+            throw new IllegalArgumentException("Start time must be before end time. Given start: " + startUnixtime + ", end: " + endUnixtime);
+        }
+        final DateTime startTime = new DateTime(startUnixtime, ZONE);
+        final DateTime endTime = new DateTime(endUnixtime, ZONE);
+        for(DatasetInfo datasetInfo: datasetInfoList) {
+            if(!datasetInfo.getDataset().equals(dataset)) {
+                continue;
+            }
+            for(ShardInfo shardInfo : datasetInfo.getShardList()) {
+                final ShardInfo.DateTimeRange shardTimeRange = shardInfo.getRange();
+                if(shardTimeRange.start.isBefore(endTime) && shardTimeRange.end.isAfter(startTime)) {
+                    result.add(shardInfo);
+                }
+            }
+        }
+        return result;
+    }
 
     @Override
     public ImhotepStatusDump handleGetStatusDump(final boolean includeShardList) {

@@ -15,17 +15,15 @@
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
-import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Sets;
 import com.google.common.primitives.Longs;
 import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.DynamicIndexSubshardDirnameUtil;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.Instrumentation;
+import com.indeed.imhotep.LocatedShardInfo;
 import com.indeed.imhotep.RemoteImhotepMultiSession;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
@@ -44,17 +42,12 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.SortedSet;
 import java.util.TreeMap;
-import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -73,7 +66,7 @@ public class ImhotepClient
     private final HostsReloader hostsSource;
     private final ExecutorService rpcExecutor;
     private final ScheduledExecutorService reloader;
-    private final ImhotepClientShardListReloader shardListReloader;
+    private final ImhotepClientMetadataReloader datasetMetadataReloader;
 
     private final Instrumentation.ProviderSupport instrumentation =
         new Instrumentation.ProviderSupport();
@@ -123,50 +116,17 @@ public class ImhotepClient
             }
         });
         reloader.scheduleAtFixedRate(hostsSource, 60L, 60L, TimeUnit.SECONDS);
-        shardListReloader = new ImhotepClientShardListReloader(hostsSource, rpcExecutor);
-        shardListReloader.run();
-        reloader.scheduleAtFixedRate(shardListReloader, 60L, 60L, TimeUnit.SECONDS);
-    }
 
-    /**
-     * @deprecated use getDatasetToDatasetInfo() to get dataset metadata or shardBuilder() to select shards
-     */
-    @Deprecated
-    public Map<Host, List<DatasetInfo>> getShardList() {
-        return shardListReloader.getShardList();
-    }
-
-    private Map<Host, List<DatasetInfo>> getShardListInternal() {
-        return shardListReloader.getShardList();
-    }
-
-    private static class DatasetNewestShardMetadata {
-        long newestShardVersion = Long.MIN_VALUE;
-        Collection<String> intFields = Collections.emptyList();
-        Collection<String> stringFields = Collections.emptyList();
-    }
-
-    /**
-     * @deprecated use getDatasetToDatasetInfo() to get dataset metadata or shardBuilder() to select shards
-     */
-    @Deprecated
-    public Map<String, DatasetInfo> getDatasetToShardList() {
-        final Map<Host, List<DatasetInfo>> shardListMap = getShardListInternal();
-        return getDatasetToDatasetInfo(shardListMap.values(), true);
+        datasetMetadataReloader = new ImhotepClientMetadataReloader(hostsSource, rpcExecutor);
+        datasetMetadataReloader.run();
+        reloader.scheduleAtFixedRate(datasetMetadataReloader, 60L, 60L, TimeUnit.SECONDS);
     }
 
     /**
      * Returns a sorted list of dataset names.
      */
     public List<String> getDatasetNames() {
-        final Set<String> datasetsSet = new HashSet<>();
-        for (final List<DatasetInfo> perHostDatasetInfoList : getShardListInternal().values()) {
-            for (final DatasetInfo datasetInfo : perHostDatasetInfoList) {
-                datasetsSet.add(datasetInfo.getDataset());
-            }
-        }
-
-        final List<String> result = new ArrayList<>(datasetsSet);
+        final List<String> result = new ArrayList<>(getDatasetToDatasetInfo().keySet());
         Collections.sort(result);
         return result;
     }
@@ -175,180 +135,29 @@ public class ImhotepClient
      * Returns a map of dataset names to their field lists. Doesn't include shard lists.
      */
     public Map<String, DatasetInfo> getDatasetToDatasetInfo() {
-        final Map<Host, List<DatasetInfo>> shardListMap = getShardListInternal();
-        return getDatasetToDatasetInfo(shardListMap.values(), false);
+        return datasetMetadataReloader.getDatasetToDatasetInfo();
     }
 
     /**
      * Returns an object containing field lists for the requested dataset. Doesn't include shard list.
      */
     public DatasetInfo getDatasetInfo(String datasetName) {
-        final Map<Host, List<DatasetInfo>> shardListMap = getShardListInternal();
-        final List<DatasetInfo> infoForRequestedDataset = Lists.newArrayList();
-        for(List<DatasetInfo> perHostDatasetInfoList: shardListMap.values()) {
-            for(DatasetInfo datasetInfo: perHostDatasetInfoList) {
-                if(datasetInfo.getDataset().equals(datasetName)) {
-                    infoForRequestedDataset.add(datasetInfo);
-                }
-            }
-        }
-        if(infoForRequestedDataset.size() == 0) {
+        final DatasetInfo datasetInfo = getDatasetToDatasetInfo().get(datasetName);
+        if(datasetInfo == null) {
             throw new IllegalArgumentException("Dataset not found: " + datasetName);
         }
-        final List<List<DatasetInfo>> wrappedInfoForRequestedDataset = Lists.newArrayList();
-        wrappedInfoForRequestedDataset.add(infoForRequestedDataset);
-        // combine the info from different hosts
-        final Map<String, DatasetInfo> datasetToDatasetInfo = getDatasetToDatasetInfo(wrappedInfoForRequestedDataset, false);
-        if (!datasetToDatasetInfo.containsKey(datasetName)) {
-            throw new IllegalArgumentException("Dataset not found: " + datasetName);
-        }
-        return datasetToDatasetInfo.get(datasetName);
+        return datasetInfo;
     }
 
-    /**
-     * @deprecated use getDatasetToDatasetInfo() to get dataset metadata or shardBuilder() to select shards
-     */
-    @Deprecated
-    public DatasetInfo getDatasetShardInfo(final String dataset) {
-        final List<List<DatasetInfo>> restrictedDatasetInfos = new ArrayList<>();
-        outer: for (final List<DatasetInfo> hostDatasetInfo : getShardListInternal().values()) {
-            for (final DatasetInfo datasetInfo : hostDatasetInfo) {
-                if (datasetInfo.getDataset().equals(dataset)) {
-                    restrictedDatasetInfos.add(Collections.singletonList(datasetInfo));
-                    // Making the assumption that a given dataset only shows up once for a given host.
-                    continue outer;
-                }
-            }
-        }
-        if (restrictedDatasetInfos.isEmpty()) {
-            throw new IllegalArgumentException("Dataset not present in shard lists: " + dataset);
-        }
-        return getDatasetToDatasetInfo(restrictedDatasetInfos, true).get(dataset);
-    }
-
-    @VisibleForTesting
-    static Map<String, DatasetInfo> getDatasetToDatasetInfo(final Collection<List<DatasetInfo>> hostsDatasets, boolean keepShards) {
-        final Map<String, DatasetInfo> ret = Maps.newHashMap();
-        final Map<String, DatasetNewestShardMetadata> datasetNameToMetadata = Maps.newHashMap();
-
-        for (final List<DatasetInfo> datasetList : hostsDatasets) {
-            for (final DatasetInfo dataset : datasetList) {
-                ImhotepClient.DatasetNewestShardMetadata datasetNewestShardMetadata = datasetNameToMetadata.get(dataset.getDataset());
-                if(datasetNewestShardMetadata == null) {
-                    datasetNewestShardMetadata = new ImhotepClient.DatasetNewestShardMetadata();
-                    datasetNameToMetadata.put(dataset.getDataset(), datasetNewestShardMetadata);
-                }
-                DatasetInfo current = ret.get(dataset.getDataset());
-                if (current == null) {
-                    current = new DatasetInfo(dataset.getDataset(), new HashSet<ShardInfo>(), new HashSet<String>(), new HashSet<String>(), dataset.getLatestShardVersion());
-                    ret.put(dataset.getDataset(), current);
-                }
-                long newestShardVersionForHost = dataset.getLatestShardVersion();
-                if (newestShardVersionForHost == 0) {
-                    final Collection<ShardInfo> shardList = dataset.getShardList();
-                    for (final ShardInfo shard : shardList) {
-                        final long shardVersion = shard.getVersion();
-                        if (shardVersion > newestShardVersionForHost) {
-                            newestShardVersionForHost = shardVersion;
-                        }
-                    }
-                    if(keepShards) {
-                        current.getShardList().addAll(shardList);
-                    }
-                } else if (keepShards) {
-                    current.getShardList().addAll(dataset.getShardList());
-                }
-                if(newestShardVersionForHost > datasetNewestShardMetadata.newestShardVersion) {
-                    datasetNewestShardMetadata.newestShardVersion = newestShardVersionForHost;
-                    datasetNewestShardMetadata.intFields = dataset.getIntFields();
-                    datasetNewestShardMetadata.stringFields = dataset.getStringFields();
-                }
-
-                current.getIntFields().addAll(dataset.getIntFields());
-                current.getStringFields().addAll(dataset.getStringFields());
+    private static List<LocatedShardInfo> keepLatestVersionsOnly(List<LocatedShardInfo> shardList) {
+        final Map<String,LocatedShardInfo> latestVersionMap = new HashMap<>();
+        for(LocatedShardInfo shard: shardList) {
+            if(!latestVersionMap.containsKey(shard.shardId) || latestVersionMap.get(shard.shardId).version < shard.version) {
+                latestVersionMap.put(shard.shardId, shard);
             }
         }
 
-        // use the newest shard to disambiguate fields that have both String and Int types
-        for(final Map.Entry<String, DatasetNewestShardMetadata> entry: datasetNameToMetadata.entrySet()) {
-            final String datasetName = entry.getKey();
-            final ImhotepClient.DatasetNewestShardMetadata newestMetadata = entry.getValue();
-            final DatasetInfo datasetInfo = ret.get(datasetName);
-
-            datasetInfo.getStringFields().removeAll(newestMetadata.intFields);
-            datasetInfo.getIntFields().removeAll(newestMetadata.stringFields);
-
-            // for the fields that still conflict in the newest shard, let the clients decide
-            final Set<String> lastShardConflictingFields = Sets.intersection(Sets.newHashSet(newestMetadata.intFields), Sets.newHashSet(newestMetadata.stringFields));
-            datasetInfo.getStringFields().addAll(lastShardConflictingFields);
-            datasetInfo.getIntFields().addAll(lastShardConflictingFields);
-            datasetInfo.setLatestShardVersion(newestMetadata.newestShardVersion);
-        }
-        return ret;
-    }
-
-    /**
-     * @deprecated use getDatasetToDatasetInfo() to get dataset metadata or shardBuilder() to select shards
-     */
-    @Deprecated
-    public List<String> getShardList(final String dataset) {
-        return getShardList(dataset, new AcceptAllShardFilter());
-    }
-
-    /**
-     * @deprecated use getDatasetToDatasetInfo() to get dataset metadata or shardBuilder() to select shards
-     */
-    @Deprecated
-    public List<String> getShardList(final String dataset, final ShardFilter filterFunc) {
-        final Map<Host, List<DatasetInfo>> shardListMap = getShardListInternal();
-        final SortedSet<String> set = new TreeSet<>();
-        for (final List<DatasetInfo> datasetList : shardListMap.values()) {
-            for (final DatasetInfo datasetInfo : datasetList) {
-                if (!dataset.equals(datasetInfo.getDataset())) {
-                    continue;
-                }
-                for (final ShardInfo shard : datasetInfo.getShardList()) {
-                    if (filterFunc.accept(shard)) {
-                        set.add(shard.shardId);
-                    }
-                }
-            }
-        }
-        return Lists.newArrayList(set);
-    }
-
-    /**
-     * @deprecated use getDatasetToDatasetInfo() to get dataset metadata or shardBuilder() to select shards
-     */
-    @Deprecated
-    public List<ShardIdWithVersion> getShardListWithVersion(final String dataset, final ShardFilter filterFunc) {
-        return getShardListWithVersionInternal(dataset, filterFunc);
-    }
-
-    private List<ShardIdWithVersion> getShardListWithVersionInternal(final String dataset, final ShardFilter filterFunc) {
-        final Map<Host, List<DatasetInfo>> shardListMap = getShardListInternal();
-
-        final Map<String,Long> latestVersionMap = new HashMap<>();
-        for (final List<DatasetInfo> datasetList : shardListMap.values()) {
-            for (final DatasetInfo datasetInfo : datasetList) {
-                if (!dataset.equals(datasetInfo.getDataset())) {
-                    continue;
-                }
-                for (final ShardInfo shard : datasetInfo.getShardList()) {
-                    if (filterFunc.accept(shard)) {
-                        //is in time range, check version
-                        if(!latestVersionMap.containsKey(shard.shardId) || latestVersionMap.get(shard.shardId) < shard.version) {
-                            latestVersionMap.put(shard.shardId, shard.version);
-                        }
-                    }
-                }
-            }
-        }
-
-        final List<ShardIdWithVersion> ret = Lists.newArrayListWithCapacity(latestVersionMap.size());
-        for (final Map.Entry<String, Long> e : latestVersionMap.entrySet()) {
-            ret.add(new ShardIdWithVersion(e.getKey(), e.getValue()));
-        }
+        final List<LocatedShardInfo> ret = Lists.newArrayList(latestVersionMap.values());
         Collections.sort(ret);
         return ret;
     }
@@ -357,20 +166,55 @@ public class ImhotepClient
      * Returns a list of non-overlapping Imhotep shards for the specified dataset and time range.
      * Shards in the list are sorted chronologically.
      */
-    public List<ShardIdWithVersion> findShardsForTimeRange(final String dataset, final DateTime start, final DateTime end) {
+    public List<LocatedShardInfo> findShardsForTimeRange(final String dataset, final DateTime start, final DateTime end) {
         // get shards intersecting with (start,end) time range
-        final List<ShardIdWithVersion> shardsForTime = getShardListWithVersionInternal(dataset, new DateRangeShardFilter(start, end));
+        final List<LocatedShardInfo> allShards = getAllShardsForTimeRange(dataset, start, end);
+        final List<LocatedShardInfo> shardsForTime = keepLatestVersionsOnly(allShards);
         return removeIntersectingShards(shardsForTime, dataset, start);
     }
 
-    // we are truncating the shard start point as part of removeIntersectingShards so we make a wrapper for the ShardIdWithVersion
+    /** Returns all the shards that exist for the specified dataset and overlap with the provided time range */
+    private List<LocatedShardInfo> getAllShardsForTimeRange(String dataset, DateTime start, DateTime end) {
+        final long startUnixtime = start.getMillis();
+        final long endUnixtime = end.getMillis();
+
+        final List<Host> hosts = hostsSource.getHosts();
+
+        final Map<Host, Future<List<ShardInfo>>> futures = Maps.newHashMap();
+        for (final Host host : hosts) {
+            final Future<List<ShardInfo>> future = rpcExecutor.submit(new Callable<List<ShardInfo>>() {
+                @Override
+                public List<ShardInfo> call() throws IOException {
+                    return ImhotepRemoteSession.getShardlistForTime(host.hostname, host.port, dataset, startUnixtime, endUnixtime);
+                }
+            });
+            futures.put(host, future);
+        }
+
+        final Map<ShardInfo, LocatedShardInfo> allShards = Maps.newHashMap();
+        for (final Host host : hosts) {
+            try {
+                final List<ShardInfo> shards = futures.get(host).get();
+                for(ShardInfo shard: shards) {
+                    final LocatedShardInfo locatedShardInfo = allShards.computeIfAbsent(shard,
+                            k -> new LocatedShardInfo(shard.shardId, shard.numDocs, shard.version));
+                    locatedShardInfo.getServers().add(host);
+                }
+            } catch (final ExecutionException | InterruptedException e) {
+                throw new RuntimeException("Error getting shard list from " + host, e);
+            }
+        }
+        return Lists.newArrayList(allShards.values());
+    }
+
+    // we are truncating the shard start point as part of removeIntersectingShards so we make a wrapper for the LocatedShardInfo
     private static class ShardTruncatedStart {
-        private final ShardIdWithVersion shard;
+        private final LocatedShardInfo shard;
         private final DateTime start;
         private final DateTime end;
         private final long version;
 
-        private ShardTruncatedStart(final ShardIdWithVersion shard, final DateTime start) {
+        private ShardTruncatedStart(final LocatedShardInfo shard, final DateTime start) {
             this.shard = shard;
             this.start = start;
             this.end = shard.getEnd();
@@ -383,11 +227,11 @@ public class ImhotepClient
      * Shards in the list are sorted chronologically.
      */
     @VisibleForTesting
-    static List<ShardIdWithVersion> removeIntersectingShards(final List<ShardIdWithVersion> shardsForTime, final String dataset, final DateTime start) {
+    static List<LocatedShardInfo> removeIntersectingShards(final List<LocatedShardInfo> shardsForTime, final String dataset, final DateTime start) {
         // we have to limit shard start times to the requested start time to avoid
         // longer shards with the earlier start time taking precedence over newer smaller shards
         final Map<Integer, List<ShardTruncatedStart>> shardsForTimeTruncatedPerSubshard = new HashMap<>();
-        for (final ShardIdWithVersion shard : shardsForTime) {
+        for (final LocatedShardInfo shard : shardsForTime) {
             ShardInfo.DateTimeRange range = shard.getRange();
             if (range == null) {
                 log.warn("Unparseable shard id encountered in dataset '" + dataset + "': " + shard.getShardId());
@@ -410,7 +254,7 @@ public class ImhotepClient
                     .add(new ShardTruncatedStart(shard, shardStart));
         }
 
-        final List<ShardIdWithVersion> chosenShards = Lists.newArrayList();
+        final List<LocatedShardInfo> chosenShards = Lists.newArrayList();
         for (final List<ShardTruncatedStart> shardsForTimeTruncated : shardsForTimeTruncatedPerSubshard.values()) {
             // now we need to resolve potential time overlaps in shards
             // sort by: start date asc, version desc
@@ -463,8 +307,8 @@ public class ImhotepClient
         private long daemonTempFileSizeLimit = -1;
         private long sessionTimeout = -1;
 
-        private List<ShardIdWithVersion> chosenShards = null;
-        private List<String> shardsOverride = null;
+        private List<LocatedShardInfo> chosenShards = null;
+        private List<LocatedShardInfo> shardsOverride = null;
         private boolean useNativeFTGS;
 
         private boolean allowSessionForwarding = false;
@@ -479,10 +323,7 @@ public class ImhotepClient
             this.mergeThreadLimit = newMergeThreadLimit;
             return this;
         }
-        @Deprecated
-        public SessionBuilder priority(final int priority) {
-            return this;
-        }
+
         public SessionBuilder socketTimeout(final int newSocketTimeout) {
             socketTimeout = newSocketTimeout;
             return this;
@@ -510,13 +351,8 @@ public class ImhotepClient
             return this;
         }
 
-        public SessionBuilder shardsOverride(final Collection<String> requiredShards) {
+        public SessionBuilder shardsOverride(final Collection<LocatedShardInfo> requiredShards) {
             this.shardsOverride = Lists.newArrayList(requiredShards);
-            return this;
-        }
-
-        public SessionBuilder shardsOverride(final List<ShardIdWithVersion> requiredShards) {
-            this.shardsOverride = ShardIdWithVersion.keepShardIds(requiredShards);
             return this;
         }
 
@@ -552,7 +388,7 @@ public class ImhotepClient
          * Returns shards that were selected for the time range requested in the constructor.
          * Shards in the list are sorted chronologically.
          */
-        public List<ShardIdWithVersion> getChosenShards() {
+        public List<LocatedShardInfo> getChosenShards() {
             if(chosenShards == null) {
                 if(start == null || end == null) {
                     throw new IllegalArgumentException("start and end times can't be null");
@@ -571,11 +407,11 @@ public class ImhotepClient
          */
         public List<Interval> getTimeIntervalsMissingShards() {
             // expects the returned shards to be sorted by start time
-            final List<ShardIdWithVersion> chosenShards = getChosenShards();
+            final List<LocatedShardInfo> chosenShards = getChosenShards();
 
             final List<Interval> timeIntervalsMissingShards = Lists.newArrayList();
             DateTime processedUpTo = start;
-            for(final ShardIdWithVersion shard : chosenShards) {
+            for(final LocatedShardInfo shard : chosenShards) {
                 if(processedUpTo.isBefore(shard.getStart())) {
                     timeIntervalsMissingShards.add(new Interval(processedUpTo, shard.getStart()));
                 }
@@ -595,264 +431,45 @@ public class ImhotepClient
             if(username == null) {
                 username = ImhotepRemoteSession.getUsername();
             }
-            final List<String> chosenShardIDs = shardsOverride != null ? shardsOverride : ShardIdWithVersion.keepShardIds(getChosenShards());
+            final List<LocatedShardInfo> locatedShards = shardsOverride != null ? shardsOverride : getChosenShards();
+            if(locatedShards == null || locatedShards.isEmpty()) {
+                throw new IllegalArgumentException("No shards");
+            }
+            final ShardsAndDocCounts shardsAndDocCounts = selectHostsForShards(locatedShards);
             return getSessionForShards(
-                    dataset, chosenShardIDs, mergeThreadLimit, username, clientName, optimizeGroupZeroLookups,
+                    dataset, shardsAndDocCounts, mergeThreadLimit, username, clientName, optimizeGroupZeroLookups,
                     socketTimeout, localTempFileSizeLimit, daemonTempFileSizeLimit, useNativeFTGS, sessionTimeout,
                     allowSessionForwarding
             );
         }
     }
 
-    /**
-     * @deprecated replaced by {@link #sessionBuilder}().build()
-     */
-    @Deprecated
-    public ImhotepSession getSession(final String dataset, final Collection<String> requestedShards) {
-        return getSession(dataset, requestedShards, Collections.<String>emptyList(), ImhotepRemoteSession.DEFAULT_MERGE_THREAD_LIMIT, -1);
-    }
-
-    /**
-     * @deprecated replaced by {@link #sessionBuilder}().build()
-     */
-    @Deprecated
-    public ImhotepSession getSession(final String dataset, final Collection<String> requestedShards, final int socketTimeout) {
-        return getSession(dataset, requestedShards, Collections.<String>emptyList(), ImhotepRemoteSession.DEFAULT_MERGE_THREAD_LIMIT, socketTimeout);
-    }
-
-    /**
-     * @deprecated replaced by {@link #sessionBuilder}().build()
-     */
-    @Deprecated
-    public ImhotepSession getSession(final String dataset, final Collection<String> requestedShards, final Collection<String> requestedMetrics) {
-        return getSession(dataset, requestedShards, requestedMetrics, ImhotepRemoteSession.DEFAULT_MERGE_THREAD_LIMIT, -1);
-    }
-
-    /**
-     * @deprecated replaced by {@link #sessionBuilder}().build()
-     */
-    @Deprecated
-    public ImhotepSession getSession(final String dataset, final Collection<String> requestedShards, final Collection<String> requestedMetrics,
-                                     final int mergeThreadLimit) {
-        return getSession(dataset, requestedShards, requestedMetrics, mergeThreadLimit, -1);
-    }
-
-    /**
-     * @deprecated replaced by {@link #sessionBuilder}().build()
-     */
-    @Deprecated
-    public ImhotepSession getSession(final String dataset, final Collection<String> requestedShards, final Collection<String> requestedMetrics,
-            final int mergeThreadLimit, final int priority) {
-            return getSession(dataset, requestedShards, requestedMetrics, mergeThreadLimit, priority, ImhotepRemoteSession.getUsername(), false, -1);
-    }
-
-    /**
-     * @deprecated replaced by {@link #sessionBuilder}().build()
-     */
-    @Deprecated
-    public ImhotepSession getSession(final String dataset, final Collection<String> requestedShards, final Collection<String> requestedMetrics,
-                                     final int mergeThreadLimit, final int priority, final int socketTimeout) {
-        return getSession(dataset, requestedShards, requestedMetrics, mergeThreadLimit, priority, ImhotepRemoteSession.getUsername(), false, socketTimeout);
-    }
-
-    /**
-     * @deprecated replaced by {@link #sessionBuilder}().build()
-     */
-    @Deprecated
-    public ImhotepSession getSession(final String dataset, final Collection<String> requestedShards, final Collection<String> requestedMetrics,
-                                     final int mergeThreadLimit, final int priority, final String username) {
-        return getSession(dataset, requestedShards, requestedMetrics, mergeThreadLimit, priority, username, false, -1);
-    }
-
-    /**
-     * @deprecated replaced by {@link #sessionBuilder}().build()
-     */
-    @Deprecated
-    public ImhotepSession getSession(final String dataset, final Collection<String> requestedShards, final Collection<String> requestedMetrics,
-                                     final int mergeThreadLimit, final int priority, final String username, final boolean optimizeGroupZeroLookups) {
-        return getSession(dataset, requestedShards, requestedMetrics, mergeThreadLimit, priority, username, optimizeGroupZeroLookups, -1);
-    }
-
-    /**
-     * @deprecated replaced by {@link #sessionBuilder}().build()
-     */
-    @Deprecated
-    public ImhotepSession getSession(final String dataset, final Collection<String> requestedShards, final Collection<String> requestedMetrics,
-                                     final int mergeThreadLimit, final int priority, final String username,
-                                     final boolean optimizeGroupZeroLookups, final int socketTimeout) {
-
-        return getSessionForShards(dataset, requestedShards, mergeThreadLimit, username, "", optimizeGroupZeroLookups, socketTimeout, -1, -1, false, 0, false);
-    }
-
-    private ImhotepSession getSessionForShards(final String dataset, final Collection<String> requestedShards,
+    private ImhotepSession getSessionForShards(final String dataset, final ShardsAndDocCounts shardsAndDocCounts,
                                                final int mergeThreadLimit, final String username, final String clientName,
                                                final boolean optimizeGroupZeroLookups, final int socketTimeout,
                                                final long localTempFileSizeLimit, final long daemonTempFileSizeLimit,
                                                final boolean useNativeFtgs, final long sessionTimeout,
                                                final boolean allowSessionForwarding) {
 
-        if(requestedShards == null || requestedShards.isEmpty()) {
-            throw new IllegalArgumentException("No shards");
-        }
-        int retries = 2;
         final AtomicLong localTempFileSizeBytesLeft = localTempFileSizeLimit > 0 ? new AtomicLong(localTempFileSizeLimit) : null;
-        Exception error = null;
-        while (retries > 0) {
+        try {
             final String sessionId = UUID.randomUUID().toString();
-            ImhotepRemoteSession[] remoteSessions = null;
-            try {
-                remoteSessions = internalGetSession(dataset, requestedShards, mergeThreadLimit, username, clientName, optimizeGroupZeroLookups, socketTimeout, sessionId, daemonTempFileSizeLimit, localTempFileSizeBytesLeft, useNativeFtgs, sessionTimeout, allowSessionForwarding);
-            } catch (final Exception e) {
-                error = e;
-            }
-            if (remoteSessions == null) {
-                --retries;
-                if (retries > 0) {
-                    shardListReloader.run();
-                }
-                continue;
-            }
+            ImhotepRemoteSession[] remoteSessions = internalGetSession(dataset, shardsAndDocCounts, mergeThreadLimit, username, clientName, optimizeGroupZeroLookups, socketTimeout, sessionId, daemonTempFileSizeLimit, localTempFileSizeBytesLeft, useNativeFtgs, sessionTimeout, allowSessionForwarding);
+
             final InetSocketAddress[] nodes = new InetSocketAddress[remoteSessions.length];
             for (int i = 0; i < remoteSessions.length; i++) {
                 nodes[i] = remoteSessions[i].getInetSocketAddress();
             }
             return new RemoteImhotepMultiSession(remoteSessions, sessionId, nodes, localTempFileSizeLimit, localTempFileSizeBytesLeft);
-        }
-        throw new RuntimeException("unable to open session", error);
-    }
-
-    private static class IncrementalEvaluationState {
-
-        private final Map<String, ShardData> unprocessedShards;
-        private final Multimap<Host, String> unprocessedShardsByHost;
-
-        public IncrementalEvaluationState(final Map<String, ShardData> shards) {
-            unprocessedShards = shards;
-
-            unprocessedShardsByHost = HashMultimap.create();
-            for (final Map.Entry<String, ShardData> entry : shards.entrySet()) {
-                final String shardId = entry.getKey();
-                for (final Host host : entry.getValue().hosts) {
-                    unprocessedShardsByHost.put(host, shardId);
-                }
-                if (entry.getValue().hosts.isEmpty()) {
-                    throw new IllegalStateException("no hosts for shard " + entry.getKey());
-                }
-            }
-        }
-
-        public synchronized List<String> getBatch(final Host host, final long maxDocs) {
-            final List<String> result = new ArrayList<>();
-            int docCount = 0;
-
-            for (final String shard : unprocessedShardsByHost.get(host)) {
-                if (docCount >= maxDocs) {
-                    break;
-                }
-
-                final ShardData data = unprocessedShards.get(shard);
-                assert data != null;
-
-                result.add(shard);
-                docCount += data.numDocs;
-            }
-
-            for (final String shard : result) {
-                final ShardData data = unprocessedShards.remove(shard);
-                for (final Host hostToRemove : data.hosts) {
-                    unprocessedShardsByHost.remove(hostToRemove, shard);
-                }
-            }
-
-            return result;
+        } catch (Exception e) {
+            throw new RuntimeException("unable to open session",  e);
         }
     }
 
-
-    /**
-     * @deprecated This is no longer used. Use sessionBuilder()
-     */
-    @Deprecated
-    public void evaluateOnSessions(
-            final SessionCallback callback,
-            final String dataset,
-            final Collection<String> requestedShards,
-            final long maxDocsPerSession) {
-        final Map<String, ShardData> shardIdToHostsAndDocs = findHostsForShardIds(dataset, requestedShards);
-
-        final Set<Host> hosts = Sets.newTreeSet();
-        for (final ShardData data : shardIdToHostsAndDocs.values()) {
-            hosts.addAll(data.hosts);
-        }
-
-        final IncrementalEvaluationState state = new IncrementalEvaluationState(shardIdToHostsAndDocs);
-
-        final ExecutorService executor = Executors.newCachedThreadPool();
-        final ExecutorCompletionService<Void> completionService = new ExecutorCompletionService<>(executor);
-        final List<Callable<Void>> callables = Lists.newArrayList();
-        final String sessionId = UUID.randomUUID().toString();
-        for (final Host host : hosts) {
-            callables.add(new Callable<Void>() {
-                @Override
-                public Void call() throws Exception {
-                    try {
-                        while (true) {
-                            if (Thread.interrupted()) {
-                                throw new InterruptedException();
-                            }
-
-                            final List<String> shards = state.getBatch(host, maxDocsPerSession);
-                            if (shards.isEmpty()) {
-                                break;
-                            }
-                            log.info("Processing " + shards.size() + " for " + host);
-
-                            final ImhotepRemoteSession session = ImhotepRemoteSession.openSession(host.getHostname(),
-                                    host.getPort(), dataset, shards, sessionId, 0);
-                            callback.handle(session);
-                        }
-                        return null;
-                    } catch (final Exception e) {
-                        throw new Exception("failed to get results for host " + host, e);
-                    }
-                }
-            });
-        }
-
-        try {
-            for (final Callable<Void> callable : callables) {
-                completionService.submit(callable);
-            }
-
-            for (int i = 0; i < callables.size(); i++) {
-                final Future<?> future = completionService.take(); // to wait for completion
-                future.get(); // to propagate exceptions
-            }
-        } catch (final ExecutionException e) {
-            throw new RuntimeException("exception while executing operation", e);
-        } catch (final InterruptedException e) {
-            throw new RuntimeException("interrupted while waiting for operation", e);
-        } finally {
-            executor.shutdownNow();
-        }
-    }
-
-    private static class ShardData {
-        final int numDocs;
-        final long highestVersion;
-        final List<Host> hosts;
-
-        private ShardData(final int numDocs, final long highestVersion, final List<Host> hosts) {
-            this.numDocs = numDocs;
-            this.highestVersion = highestVersion;
-            this.hosts = hosts;
-        }
-    }
-
-    // returns null on error
+    @Nonnull
     private ImhotepRemoteSession[]
         internalGetSession(final String dataset,
-                           final Collection<String> requestedShards,
+                           final ShardsAndDocCounts shardsAndDocCounts,
                            final int mergeThreadLimit,
                            final String username,
                            final String clientName,
@@ -864,17 +481,8 @@ public class ImhotepClient
                            final boolean useNativeFtgs,
                            final long sessionTimeout,
                            boolean allowSessionForwarding) {
-
-        final ShardsAndDocCounts shardsAndDocCounts = buildShardRequestMap(dataset, requestedShards);
         final Map<Host, List<String>> shardRequestMap = shardsAndDocCounts.shardRequestMap;
         final Map<Host, Integer> hostsToDocCounts = shardsAndDocCounts.hostDocCounts;
-
-
-        if (shardRequestMap.isEmpty()) {
-            log.error("unable to find all of the requested shards in dataset " + dataset +
-                      " (shard list = " + requestedShards + ")");
-            return null;
-        }
 
         final ExecutorService executor = Executors.newCachedThreadPool();
         final List<Future<ImhotepRemoteSession>> futures = new ArrayList<>(shardRequestMap.size());
@@ -953,35 +561,19 @@ public class ImhotepClient
         }
     }
 
-    private ShardsAndDocCounts buildShardRequestMap(final String dataset, final Collection<String> requestedShards) {
-        final Map<String, ShardData> shardIdToHostsAndDocs = findHostsForShardIds(dataset, requestedShards);
-
-        boolean error = false;
-        for (final String shard : requestedShards) {
-            if (!shardIdToHostsAndDocs.containsKey(shard)) {
-                log.error("shard " + shard + " not found");
-                error = true;
-            }
-        }
-
-        if (error) {
-            return new ShardsAndDocCounts(Maps.<Host, List<String>>newHashMap(), Maps.<Host, Integer>newHashMap());
-        }
-
-        final List<String> sortedShards = new ArrayList<>(requestedShards);
-        Collections.sort(sortedShards, new Comparator<String>() {
+    private ShardsAndDocCounts selectHostsForShards(final Collection<LocatedShardInfo> requestedShards) {
+        final List<LocatedShardInfo> sortedShards = new ArrayList<>(requestedShards);
+        sortedShards.sort(new Comparator<LocatedShardInfo>() {
             @Override
-            public int compare(final String o1, final String o2) {
-                final int c1 = shardIdToHostsAndDocs.get(o1).numDocs;
-                final int c2 = shardIdToHostsAndDocs.get(o2).numDocs;
-                return -(c1 < c2 ? -1 : c1 > c2 ? 1 : 0);
+            public int compare(final LocatedShardInfo o1, final LocatedShardInfo o2) {
+                return -(Integer.compare(o1.numDocs, o2.numDocs));
             }
         });
 
         final Map<Host, Integer> hostDocCounts = new HashMap<>();
         final Map<Host, List<String>> shardRequestMap = new TreeMap<>();
-        for (final String shard : sortedShards) {
-            final List<Host> potentialHosts = shardIdToHostsAndDocs.get(shard).hosts;
+        for (final LocatedShardInfo shard : sortedShards) {
+            final List<Host> potentialHosts = shard.getServers();
             int minHostDocCount = Integer.MAX_VALUE;
             Host minHost = null;
             for (final Host host : potentialHosts) {
@@ -1000,48 +592,65 @@ public class ImhotepClient
             if (!shardRequestMap.containsKey(minHost)) {
                 shardRequestMap.put(minHost, new ArrayList<String>());
             }
-            shardRequestMap.get(minHost).add(shard);
-            hostDocCounts.put(minHost, hostDocCounts.get(minHost) + shardIdToHostsAndDocs.get(shard).numDocs);
+            shardRequestMap.get(minHost).add(shard.shardId);
+            hostDocCounts.put(minHost, hostDocCounts.get(minHost) + shard.numDocs);
         }
         return new ShardsAndDocCounts(shardRequestMap, hostDocCounts);
     }
 
     /**
-     * Given a dataset and a list of requested shards, compute a map from shard IDs to lists of hosts
+     * Queries a completed shard list from the servers and returns it grouped by dataset.
+     * Note that with a millions of shards this request is slow and can use gigabytes of RAM.
      */
-    private Map<String, ShardData> findHostsForShardIds(final String dataset, final Collection<String> shardIds) {
-        final Set<String> shardIdsSet = Sets.newHashSet(shardIds);
-        final Map<String, ShardData> shardMap = Maps.newHashMap();
-        final Map<Host, List<DatasetInfo>> shardListMap = getShardListInternal();
-        for (final Map.Entry<Host, List<DatasetInfo>> e : shardListMap.entrySet()) {
-            final Host host = e.getKey();
-            final List<DatasetInfo> shardList = e.getValue();
-            for (final DatasetInfo datasetInfo : shardList) {
-                if (!dataset.equals(datasetInfo.getDataset())) {
-                    continue;   // not the dataset we are looking for
-                }
-
-                for (final ShardInfo shard : datasetInfo.getShardList()) {
-                    if(!shardIdsSet.contains(shard.shardId)) {
-                        continue;   // not a shard we care about
-                    }
-                    if (!shardMap.containsKey(shard.shardId)) {
-                        shardMap.put(shard.shardId, new ShardData(shard.numDocs, shard.version, new ArrayList<Host>()));
-                    } else {
-                        final ShardData shardData = shardMap.get(shard.shardId);
-                        final long highestKnownVersion = shardData.highestVersion;
-                        if (highestKnownVersion < shard.version) {
-                            // a newer version was found and all the previously encountered data for this shard should be removed
-                            shardMap.put(shard.shardId, new ShardData(shard.numDocs, shard.version, new ArrayList<Host>()));
-                        } else if (highestKnownVersion > shard.version) {
-                            continue; // this shard has an outdated version and should be skipped
-                        } // else if (highestKnownVersion == shard.version) // just continue
-                    }
-                    shardMap.get(shard.shardId).hosts.add(host);
+    public Map<String, List<LocatedShardInfo>> queryDatasetToFullShardList() {
+        final Map<Host, List<DatasetInfo>> hostToDatasets= shardListRpc();
+        final Map<String, Map<ShardInfo, LocatedShardInfo>> datasetToAllShards = Maps.newHashMap();
+        for (Map.Entry<Host, List<DatasetInfo>> entry: hostToDatasets.entrySet()) {
+            final Host host = entry.getKey();
+            for(DatasetInfo datasetInfo: entry.getValue()) {
+                final String datasetName = datasetInfo.getDataset();
+                Map<ShardInfo, LocatedShardInfo> shardmapForDataset = datasetToAllShards.computeIfAbsent(datasetName, k -> Maps.newHashMap());
+                final Collection<ShardInfo> shards = datasetInfo.getShardList();
+                for (ShardInfo shard : shards) {
+                    final LocatedShardInfo locatedShardInfo = shardmapForDataset.computeIfAbsent(shard,
+                            k -> new LocatedShardInfo(shard.shardId, shard.numDocs, shard.version));
+                    locatedShardInfo.getServers().add(host);
                 }
             }
         }
-        return shardMap;
+
+        final Map<String, List<LocatedShardInfo>> result = Maps.newHashMap();
+        for(Map.Entry<String, Map<ShardInfo, LocatedShardInfo>> entry: datasetToAllShards.entrySet()) {
+            result.put(entry.getKey(), Lists.newArrayList(entry.getValue().values()));
+        }
+        return result;
+    }
+
+    private Map<Host, List<DatasetInfo>> shardListRpc() {
+        final List<Host> hosts = hostsSource.getHosts();
+
+        final Map<Host, Future<List<DatasetInfo>>> futures = Maps.newHashMap();
+        for (final Host host : hosts) {
+            final Future<List<DatasetInfo>> future = rpcExecutor.submit(new Callable<List<DatasetInfo>>() {
+                @Override
+                public List<DatasetInfo> call() throws IOException {
+                    return ImhotepRemoteSession.getShardInfoList(host.hostname, host.port);
+                }
+            });
+            futures.put(host, future);
+        }
+
+        final Map<Host, List<DatasetInfo>> ret = Maps.newHashMapWithExpectedSize(hosts.size());
+        for (final Map.Entry<Host, Future<List<DatasetInfo>>> hostFutureEntry : futures.entrySet()) {
+            try {
+                final List<DatasetInfo> shards = hostFutureEntry.getValue().get();
+                ret.put(hostFutureEntry.getKey(), shards);
+            } catch (ExecutionException | InterruptedException e) {
+                log.error("error getting shard list from " + hostFutureEntry.getKey(), e);
+            }
+        }
+
+        return ret;
     }
 
     public Map<Host, ImhotepStatusDump> getStatusDumps() {
@@ -1089,7 +698,7 @@ public class ImhotepClient
     }
 
     public boolean isConnectionHealthy() {
-        return hostsSource.isLoadedDataSuccessfullyRecently() && shardListReloader.isLoadedDataSuccessfullyRecently();
+        return hostsSource.isLoadedDataSuccessfullyRecently() && datasetMetadataReloader.isLoadedDataSuccessfullyRecently();
     }
 
     public void addObserver(final Instrumentation.Observer observer) {

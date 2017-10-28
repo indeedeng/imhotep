@@ -314,6 +314,9 @@ public abstract class AbstractImhotepServiceCore
     public abstract List<DatasetInfo> handleGetDatasetList();
 
     @Override
+    public abstract List<ShardInfo> handleGetShardlistForTime(String dataset, long startUnixtime, long endUnixtime);
+
+    @Override
     public abstract ImhotepStatusDump handleGetStatusDump(final boolean includeShardList);
 
     private static interface ThrowingFunction<A, B, T extends Throwable> {

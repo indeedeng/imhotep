@@ -64,7 +64,7 @@ public class TestImhotepClientStatics {
             final Collection<List<DatasetInfo>> hostsDatasets,
             final Set<String> expectedIntFields,
             final Set<String> expectedStringFields) throws IOException {
-        final Map<String, DatasetInfo> datasetInfos = ImhotepClient.getDatasetToDatasetInfo(hostsDatasets, false);
+        final Map<String, DatasetInfo> datasetInfos = ImhotepClientMetadataReloader.combineMetadataFromDifferentHosts(hostsDatasets);
         assertEquals(1, datasetInfos.size());
 
         final DatasetInfo datasetInfo = datasetInfos.values().iterator().next();

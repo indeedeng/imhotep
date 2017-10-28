@@ -150,7 +150,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 metadataBuilder.addDatasetInfo(dataset.toProtoNoShards());
             }
             final ImhotepResponse metadataResponse = metadataBuilder.build();
-            datasetListResponse.set(metadataResponse);
+            datasetMetadataResponse.set(metadataResponse);
         }
 
         public ImhotepResponse getDatasetMetadataResponse() { return datasetMetadataResponse.get();   }
@@ -687,6 +687,18 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             return response;
         }
 
+        private ImhotepResponse getShardlistForTime(
+                final ImhotepRequest          request,
+                final ImhotepResponse.Builder builder)
+                throws ImhotepOutOfMemoryException {
+
+            final List<ShardInfo> shards = service.handleGetShardlistForTime(request.getDataset(), request.getStartUnixtime(), request.getEndUnixtime());
+            for (final ShardInfo shardInfo: shards) {
+                builder.addShardInfo(shardInfo.toProto());
+            }
+            return builder.build();
+        }
+
         private ImhotepResponse getDatasetMetadata(
                 final ImhotepRequest          request,
                 final ImhotepResponse.Builder builder)
@@ -1035,6 +1047,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                             break;
                         case GET_SHARD_INFO_LIST:
                             response = getShardInfoList(request, builder);
+                            break;
+                        case GET_SHARD_LIST_FOR_TIME:
+                            response = getShardlistForTime(request, builder);
                             break;
                         case GET_DATASET_METADATA:
                             response = getDatasetMetadata(request, builder);
