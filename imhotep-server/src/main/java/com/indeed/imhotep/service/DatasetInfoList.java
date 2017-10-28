@@ -95,8 +95,6 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
     /** This internal specialization of DatasetInfo handles the case
         of fields which have changed type between shard versions. */
     private static final class Element extends DatasetInfo {
-
-        private long newestVersion = -1;
         private ObjectOpenHashSet<String> newestIntFields = new ObjectOpenHashSet<>();
         private ObjectOpenHashSet<String> newestStrFields = new ObjectOpenHashSet<>();
 
@@ -104,7 +102,8 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
             super(dataset,
                   new ObjectArrayList<ShardInfo>(),
                   new ObjectOpenHashSet<String>(),
-                  new ObjectOpenHashSet<String>());
+                  new ObjectOpenHashSet<String>(),
+                  0);
         }
 
         void add(final ShardInfo shardInfo, final ShardStore.Value value) {
@@ -126,8 +125,8 @@ class DatasetInfoList extends ObjectArrayList<DatasetInfo> {
         private void track(final long version,
                            final Collection<String> intFields,
                            final Collection<String> strFields) {
-            if (version > newestVersion) {
-                newestVersion = version;
+            if (version > latestShardVersion) {
+                latestShardVersion = version;
                 newestIntFields = new ObjectOpenHashSet<>(intFields);
                 newestStrFields = new ObjectOpenHashSet<>(strFields);
             }

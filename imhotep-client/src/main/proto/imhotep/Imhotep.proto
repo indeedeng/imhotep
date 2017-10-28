@@ -10,6 +10,7 @@ message DatasetInfoMessage {
   repeated string int_field = 3;
   repeated string string_field = 4;
   repeated string metric = 5;
+  optional uint64 latest_shard_version = 6;
 }
 
 message ShardInfoMessage {
@@ -125,6 +126,8 @@ message ImhotepRequest {
     GROUP_QUERY_UPDATE_DYNAMIC_METRIC = 41;
     STREAMING_GET_GROUP_STATS = 42;
     GET_PERFORMANCE_STATS = 43;
+    GET_DATASET_METADATA = 44;
+    GET_SHARD_LIST_FOR_TIME = 45;
     SHUTDOWN = 255;
   }
 
@@ -265,6 +268,11 @@ message ImhotepRequest {
 
   // allow session forwarding
   optional bool allowSessionForwarding = 61 [default = false];
+
+  // for getShardlistForTime
+  optional uint64 startUnixtime = 62;
+  optional uint64 endUnixtime = 63;
+
 }
 
 message ImhotepResponse {
@@ -279,8 +287,8 @@ message ImhotepResponse {
   // for openSession()
   optional string session_id = 2;
 
-  // for getShardList()
-  repeated ShardInfoMessage shard_info = 3 [deprecated = true];
+  // for getShardlistForTime()
+  repeated ShardInfoMessage shard_info = 3;
 
   // for pushStat()/popStat()
   optional uint32 num_stats = 4;

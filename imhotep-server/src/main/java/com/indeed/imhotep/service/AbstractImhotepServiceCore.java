@@ -311,10 +311,10 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public abstract List<ShardInfo> handleGetShardList();
+    public abstract List<DatasetInfo> handleGetDatasetList();
 
     @Override
-    public abstract List<DatasetInfo> handleGetDatasetList();
+    public abstract List<ShardInfo> handleGetShardlistForTime(String dataset, long startUnixtime, long endUnixtime);
 
     @Override
     public abstract ImhotepStatusDump handleGetStatusDump(final boolean includeShardList);

@@ -14,6 +14,7 @@
  package com.indeed.imhotep.service;
 
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.reader.MockFlamdexReader;
 import com.indeed.imhotep.DatasetInfo;
@@ -174,7 +175,7 @@ public class TestLocalImhotepServiceCore {
                                                  Collections.singletonList("if1"), 5);
                 }
             }, new LocalImhotepServiceConfig());
-            final List<ShardInfo> shards = service.handleGetShardList();
+            final List<ShardInfo> shards = Lists.newArrayList(service.handleGetDatasetList().get(0).getShardList());
             assertEquals(3, shards.size());
             Collections.sort(shards, new Comparator<ShardInfo>() {
                 @Override

@@ -80,9 +80,9 @@ public interface ImhotepServiceCore {
     String handleOpenSession(String dataset, List<String> shardRequestList, String username, String clientName, String ipAddress, int clientVersion, int mergeThreadLimit, boolean optimizeGroupZeroLookups, String sessionId, AtomicLong tempFileSizeBytesLeft, boolean useNativeFtgs, long sessionTimeout) throws ImhotepOutOfMemoryException;
 
     // non-session-based methods
-    @Deprecated List<ShardInfo> handleGetShardList();
     List<DatasetInfo> handleGetDatasetList();
     ImhotepStatusDump handleGetStatusDump(boolean includeShardList);
+    List<ShardInfo> handleGetShardlistForTime(String dataset, long startUnixtime, long endUnixtime);
 
     void close();
 }
