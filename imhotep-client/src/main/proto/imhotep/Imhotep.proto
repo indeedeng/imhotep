@@ -87,7 +87,7 @@ message ImhotepRequest {
     GET_FTGS_ITERATOR = 2;
     PUSH_STAT = 3;
     POP_STAT = 4;
-    GET_SHARD_LIST = 5;
+    GET_SHARD_LIST = 5; // No longer implemented. Use GET_SHARD_INFO_LIST
     OPEN_SESSION = 6;
     CLOSE_SESSION = 7;
     GET_TOTAL_DOC_FREQ = 8;
