@@ -29,12 +29,19 @@ public class CopyToLocal {
 
     public static void main(final String[] args) throws IOException {
         if (args.length < 2) {
-            System.err.println("ARGS: from to");
+            System.err.println("ARGS: fromShard1 fromShard2 fromShard3... toParentDir");
             System.exit(1);
         }
 
-        copy(new Path(args[0]), new File(args[1]));
-        System.out.println("Wrote: " + args[1]);
+        final File toParentDir = new File(args[args.length-1]);
+
+        for(int i = 0; i < args.length - 1; i ++) {
+            final Path from = new Path(args[i]);
+            final File to = new File(toParentDir, from.getName().replace(".sqar", ""));
+            copy(from, to);
+            System.out.println("Downloaded " + from + " to " + to);
+        }
+
     }
 
     public static void copy(final Path from, final File to) throws IOException {
