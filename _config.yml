@@ -11,8 +11,8 @@ kramdown:
     exclude: ['Gemfile', 'Gemfile.lock', 'Rakefile.rb', 'README.md']
 
 # jekyll serve --watch --baseurl=
-baseurl: "https://indeedeng.github.io/imhotep"
-# baseurl: "https://tate-indeed.github.io/imhotep-tate-working"
+# baseurl: "https://indeedeng.github.io/imhotep"
+baseurl: "https://tate-indeed.github.io/imhotep-tate-working"
 
 # permalinks are relative to their parent folder
 #relative_permalinks: false
