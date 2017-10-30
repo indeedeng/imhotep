@@ -1,8 +1,9 @@
 ---
 layout: default
-title: Imhotep
+title: Imhotep - Data Analytics Platform by Indeed
 exclude_toc: true
 ---
+<img src="{{ site.baseurl }}/images/Imhotep.png" style="max-width:125px;max-height:125px;clear:both;padding:10px;" />
 
 Imhotep is a large-scale analytics platform built by Indeed. This platform enables you to perform fast, interactive, ad hoc queries and aggregate results for large datasets.
 
@@ -55,7 +56,3 @@ Ask and answer questions in our Q&A forum for Imhotep: [indeedeng-imhotep-users]
 [Apache Hadoop with Pig](http://pig.apache.org/)<br>
 [Druid](http://druid.io/)<br>
 [OpenDremel](https://code.google.com/p/dremel/)
-
-## License
-
-[Apache License Version 2.0](https://github.com/indeedeng/imhotep/blob/master/LICENSE) 
