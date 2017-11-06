@@ -18,12 +18,13 @@ import com.indeed.imhotep.client.Host;
 
 import javax.annotation.Nonnull;
 import java.util.List;
+import java.util.stream.Collectors;
 
-public class LocatedShardInfo extends ShardInfo {
+public class Shard extends ShardInfo {
     public final List<Host> servers = Lists.newArrayList();
 
 
-    public LocatedShardInfo(String shardId, int numDocs, long version) {
+    public Shard(String shardId, int numDocs, long version) {
         super(shardId, numDocs, version);
     }
 
@@ -53,9 +54,9 @@ public class LocatedShardInfo extends ShardInfo {
         return super.toString();
     }
 
-    public static List<String> keepShardIds(final List<LocatedShardInfo> shards) {
+    public static List<String> keepShardIds(final List<Shard> shards) {
         final List<String> result = Lists.newArrayListWithCapacity(shards.size());
-        for(final LocatedShardInfo shard : shards) {
+        for(final Shard shard : shards) {
             result.add(shard.getShardId());
         }
         return result;

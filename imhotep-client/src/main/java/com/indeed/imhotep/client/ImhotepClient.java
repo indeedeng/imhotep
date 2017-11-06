@@ -23,7 +23,7 @@ import com.indeed.imhotep.DynamicIndexSubshardDirnameUtil;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.Instrumentation;
-import com.indeed.imhotep.LocatedShardInfo;
+import com.indeed.imhotep.Shard;
 import com.indeed.imhotep.RemoteImhotepMultiSession;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
@@ -149,15 +149,15 @@ public class ImhotepClient
         return datasetInfo;
     }
 
-    private static List<LocatedShardInfo> keepLatestVersionsOnly(List<LocatedShardInfo> shardList) {
-        final Map<String,LocatedShardInfo> latestVersionMap = new HashMap<>();
-        for(LocatedShardInfo shard: shardList) {
+    private static List<Shard> keepLatestVersionsOnly(List<Shard> shardList) {
+        final Map<String,Shard> latestVersionMap = new HashMap<>();
+        for(Shard shard: shardList) {
             if(!latestVersionMap.containsKey(shard.shardId) || latestVersionMap.get(shard.shardId).version < shard.version) {
                 latestVersionMap.put(shard.shardId, shard);
             }
         }
 
-        final List<LocatedShardInfo> ret = Lists.newArrayList(latestVersionMap.values());
+        final List<Shard> ret = Lists.newArrayList(latestVersionMap.values());
         Collections.sort(ret);
         return ret;
     }
@@ -166,15 +166,15 @@ public class ImhotepClient
      * Returns a list of non-overlapping Imhotep shards for the specified dataset and time range.
      * Shards in the list are sorted chronologically.
      */
-    public List<LocatedShardInfo> findShardsForTimeRange(final String dataset, final DateTime start, final DateTime end) {
+    public List<Shard> findShardsForTimeRange(final String dataset, final DateTime start, final DateTime end) {
         // get shards intersecting with (start,end) time range
-        final List<LocatedShardInfo> allShards = getAllShardsForTimeRange(dataset, start, end);
-        final List<LocatedShardInfo> shardsForTime = keepLatestVersionsOnly(allShards);
+        final List<Shard> allShards = getAllShardsForTimeRange(dataset, start, end);
+        final List<Shard> shardsForTime = keepLatestVersionsOnly(allShards);
         return removeIntersectingShards(shardsForTime, dataset, start);
     }
 
     /** Returns all the shards that exist for the specified dataset and overlap with the provided time range */
-    private List<LocatedShardInfo> getAllShardsForTimeRange(String dataset, DateTime start, DateTime end) {
+    private List<Shard> getAllShardsForTimeRange(String dataset, DateTime start, DateTime end) {
         final long startUnixtime = start.getMillis();
         final long endUnixtime = end.getMillis();
 
@@ -191,13 +191,13 @@ public class ImhotepClient
             futures.put(host, future);
         }
 
-        final Map<ShardInfo, LocatedShardInfo> allShards = Maps.newHashMap();
+        final Map<ShardInfo, Shard> allShards = Maps.newHashMap();
         for (final Host host : hosts) {
             try {
                 final List<ShardInfo> shards = futures.get(host).get();
                 for(ShardInfo shard: shards) {
-                    final LocatedShardInfo locatedShardInfo = allShards.computeIfAbsent(shard,
-                            k -> new LocatedShardInfo(shard.shardId, shard.numDocs, shard.version));
+                    final Shard locatedShardInfo = allShards.computeIfAbsent(shard,
+                            k -> new Shard(shard.shardId, shard.numDocs, shard.version));
                     locatedShardInfo.getServers().add(host);
                 }
             } catch (final ExecutionException | InterruptedException e) {
@@ -209,12 +209,12 @@ public class ImhotepClient
 
     // we are truncating the shard start point as part of removeIntersectingShards so we make a wrapper for the LocatedShardInfo
     private static class ShardTruncatedStart {
-        private final LocatedShardInfo shard;
+        private final Shard shard;
         private final DateTime start;
         private final DateTime end;
         private final long version;
 
-        private ShardTruncatedStart(final LocatedShardInfo shard, final DateTime start) {
+        private ShardTruncatedStart(final Shard shard, final DateTime start) {
             this.shard = shard;
             this.start = start;
             this.end = shard.getEnd();
@@ -227,11 +227,11 @@ public class ImhotepClient
      * Shards in the list are sorted chronologically.
      */
     @VisibleForTesting
-    static List<LocatedShardInfo> removeIntersectingShards(final List<LocatedShardInfo> shardsForTime, final String dataset, final DateTime start) {
+    static List<Shard> removeIntersectingShards(final List<Shard> shardsForTime, final String dataset, final DateTime start) {
         // we have to limit shard start times to the requested start time to avoid
         // longer shards with the earlier start time taking precedence over newer smaller shards
         final Map<Integer, List<ShardTruncatedStart>> shardsForTimeTruncatedPerSubshard = new HashMap<>();
-        for (final LocatedShardInfo shard : shardsForTime) {
+        for (final Shard shard : shardsForTime) {
             ShardInfo.DateTimeRange range = shard.getRange();
             if (range == null) {
                 log.warn("Unparseable shard id encountered in dataset '" + dataset + "': " + shard.getShardId());
@@ -254,7 +254,7 @@ public class ImhotepClient
                     .add(new ShardTruncatedStart(shard, shardStart));
         }
 
-        final List<LocatedShardInfo> chosenShards = Lists.newArrayList();
+        final List<Shard> chosenShards = Lists.newArrayList();
         for (final List<ShardTruncatedStart> shardsForTimeTruncated : shardsForTimeTruncatedPerSubshard.values()) {
             // now we need to resolve potential time overlaps in shards
             // sort by: start date asc, version desc
@@ -307,8 +307,8 @@ public class ImhotepClient
         private long daemonTempFileSizeLimit = -1;
         private long sessionTimeout = -1;
 
-        private List<LocatedShardInfo> chosenShards = null;
-        private List<LocatedShardInfo> shardsOverride = null;
+        private List<Shard> chosenShards = null;
+        private List<Shard> shardsOverride = null;
         private boolean useNativeFTGS;
 
         private boolean allowSessionForwarding = false;
@@ -351,7 +351,7 @@ public class ImhotepClient
             return this;
         }
 
-        public SessionBuilder shardsOverride(final Collection<LocatedShardInfo> requiredShards) {
+        public SessionBuilder shardsOverride(final Collection<Shard> requiredShards) {
             this.shardsOverride = Lists.newArrayList(requiredShards);
             return this;
         }
@@ -388,7 +388,7 @@ public class ImhotepClient
          * Returns shards that were selected for the time range requested in the constructor.
          * Shards in the list are sorted chronologically.
          */
-        public List<LocatedShardInfo> getChosenShards() {
+        public List<Shard> getChosenShards() {
             if(chosenShards == null) {
                 if(start == null || end == null) {
                     throw new IllegalArgumentException("start and end times can't be null");
@@ -407,11 +407,11 @@ public class ImhotepClient
          */
         public List<Interval> getTimeIntervalsMissingShards() {
             // expects the returned shards to be sorted by start time
-            final List<LocatedShardInfo> chosenShards = getChosenShards();
+            final List<Shard> chosenShards = getChosenShards();
 
             final List<Interval> timeIntervalsMissingShards = Lists.newArrayList();
             DateTime processedUpTo = start;
-            for(final LocatedShardInfo shard : chosenShards) {
+            for(final Shard shard : chosenShards) {
                 if(processedUpTo.isBefore(shard.getStart())) {
                     timeIntervalsMissingShards.add(new Interval(processedUpTo, shard.getStart()));
                 }
@@ -431,7 +431,7 @@ public class ImhotepClient
             if(username == null) {
                 username = ImhotepRemoteSession.getUsername();
             }
-            final List<LocatedShardInfo> locatedShards = shardsOverride != null ? shardsOverride : getChosenShards();
+            final List<Shard> locatedShards = shardsOverride != null ? shardsOverride : getChosenShards();
             if(locatedShards == null || locatedShards.isEmpty()) {
                 throw new IllegalArgumentException("No shards");
             }
@@ -561,18 +561,18 @@ public class ImhotepClient
         }
     }
 
-    private ShardsAndDocCounts selectHostsForShards(final Collection<LocatedShardInfo> requestedShards) {
-        final List<LocatedShardInfo> sortedShards = new ArrayList<>(requestedShards);
-        sortedShards.sort(new Comparator<LocatedShardInfo>() {
+    private ShardsAndDocCounts selectHostsForShards(final Collection<Shard> requestedShards) {
+        final List<Shard> sortedShards = new ArrayList<>(requestedShards);
+        sortedShards.sort(new Comparator<Shard>() {
             @Override
-            public int compare(final LocatedShardInfo o1, final LocatedShardInfo o2) {
+            public int compare(final Shard o1, final Shard o2) {
                 return -(Integer.compare(o1.numDocs, o2.numDocs));
             }
         });
 
         final Map<Host, Integer> hostDocCounts = new HashMap<>();
         final Map<Host, List<String>> shardRequestMap = new TreeMap<>();
-        for (final LocatedShardInfo shard : sortedShards) {
+        for (final Shard shard : sortedShards) {
             final List<Host> potentialHosts = shard.getServers();
             int minHostDocCount = Integer.MAX_VALUE;
             Host minHost = null;
@@ -602,25 +602,25 @@ public class ImhotepClient
      * Queries a completed shard list from the servers and returns it grouped by dataset.
      * Note that with a millions of shards this request is slow and can use gigabytes of RAM.
      */
-    public Map<String, List<LocatedShardInfo>> queryDatasetToFullShardList() {
+    public Map<String, List<Shard>> queryDatasetToFullShardList() {
         final Map<Host, List<DatasetInfo>> hostToDatasets= shardListRpc();
-        final Map<String, Map<ShardInfo, LocatedShardInfo>> datasetToAllShards = Maps.newHashMap();
+        final Map<String, Map<ShardInfo, Shard>> datasetToAllShards = Maps.newHashMap();
         for (Map.Entry<Host, List<DatasetInfo>> entry: hostToDatasets.entrySet()) {
             final Host host = entry.getKey();
             for(DatasetInfo datasetInfo: entry.getValue()) {
                 final String datasetName = datasetInfo.getDataset();
-                Map<ShardInfo, LocatedShardInfo> shardmapForDataset = datasetToAllShards.computeIfAbsent(datasetName, k -> Maps.newHashMap());
+                Map<ShardInfo, Shard> shardmapForDataset = datasetToAllShards.computeIfAbsent(datasetName, k -> Maps.newHashMap());
                 final Collection<ShardInfo> shards = datasetInfo.getShardList();
                 for (ShardInfo shard : shards) {
-                    final LocatedShardInfo locatedShardInfo = shardmapForDataset.computeIfAbsent(shard,
-                            k -> new LocatedShardInfo(shard.shardId, shard.numDocs, shard.version));
+                    final Shard locatedShardInfo = shardmapForDataset.computeIfAbsent(shard,
+                            k -> new Shard(shard.shardId, shard.numDocs, shard.version));
                     locatedShardInfo.getServers().add(host);
                 }
             }
         }
 
-        final Map<String, List<LocatedShardInfo>> result = Maps.newHashMap();
-        for(Map.Entry<String, Map<ShardInfo, LocatedShardInfo>> entry: datasetToAllShards.entrySet()) {
+        final Map<String, List<Shard>> result = Maps.newHashMap();
+        for(Map.Entry<String, Map<ShardInfo, Shard>> entry: datasetToAllShards.entrySet()) {
             result.put(entry.getKey(), Lists.newArrayList(entry.getValue().values()));
         }
         return result;

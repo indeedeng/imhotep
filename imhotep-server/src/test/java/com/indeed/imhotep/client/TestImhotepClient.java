@@ -15,9 +15,8 @@
 
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.indeed.imhotep.LocatedShardInfo;
+import com.indeed.imhotep.Shard;
 import com.indeed.imhotep.ShardDir;
-import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.service.ImhotepDaemonRunner;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -127,7 +126,7 @@ public class TestImhotepClient {
         Host host1 = new Host("localhost", daemon1.getPort());
         final ImhotepClient client = new ImhotepClient(Collections.singletonList(host1));
         try {
-            LocatedShardInfo shard0 = new LocatedShardInfo(SHARD0, 0, 0);
+            Shard shard0 = new Shard(SHARD0, 0, 0);
             shard0.getServers().add(host1);
             client.sessionBuilder(DATASET, null, null).shardsOverride(Collections.singletonList(shard0)).build();
             fail("session opening did not fail when it should have");
@@ -192,9 +191,9 @@ public class TestImhotepClient {
             final List<String> shardIds,
             List<String> expectedShards,
             final DateTime start) {
-        final List<LocatedShardInfo> shards = shardBuilder(shardIds);
+        final List<Shard> shards = shardBuilder(shardIds);
         expectedShards = stripVersions(expectedShards);
-        final List<LocatedShardInfo> result = ImhotepClient.removeIntersectingShards(shards, "test", start);
+        final List<Shard> result = ImhotepClient.removeIntersectingShards(shards, "test", start);
 
         final String noMatchMsg = "chosen shard list doesn't match the expected." +
                 "\nChosen: " + Arrays.toString(result.toArray()) +
@@ -202,7 +201,7 @@ public class TestImhotepClient {
 
         assertEquals(noMatchMsg, result.size(), expectedShards.size());
 
-        for(final LocatedShardInfo shard : result) {
+        for(final Shard shard : result) {
             assertTrue(noMatchMsg, expectedShards.contains(shard.getShardId()));
         }
     }
@@ -216,11 +215,11 @@ public class TestImhotepClient {
         return stripped;
     }
 
-    private static List<LocatedShardInfo> shardBuilder(final List<String> shardIds) {
-        final List<LocatedShardInfo> shards = Lists.newArrayList();
+    private static List<Shard> shardBuilder(final List<String> shardIds) {
+        final List<Shard> shards = Lists.newArrayList();
         for(String shardId : shardIds) {
             final ShardDir shardDir = new ShardDir(Paths.get("/").resolve(shardId));
-            shards.add(new LocatedShardInfo(shardDir.getId(), 0, shardDir.getVersion()));
+            shards.add(new Shard(shardDir.getId(), 0, shardDir.getVersion()));
         }
         return shards;
     }
