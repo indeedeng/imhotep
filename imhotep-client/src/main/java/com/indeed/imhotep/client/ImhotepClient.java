@@ -174,7 +174,8 @@ public class ImhotepClient
     }
 
     /** Returns all the shards that exist for the specified dataset and overlap with the provided time range */
-    private List<Shard> getAllShardsForTimeRange(String dataset, DateTime start, DateTime end) {
+    @VisibleForTesting
+    protected List<Shard> getAllShardsForTimeRange(String dataset, DateTime start, DateTime end) {
         final long startUnixtime = start.getMillis();
         final long endUnixtime = end.getMillis();
 
