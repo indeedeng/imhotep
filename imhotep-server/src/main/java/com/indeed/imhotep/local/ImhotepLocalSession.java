@@ -144,6 +144,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     static final int BUFFER_SIZE = 2048;
     private final AtomicLong tempFileSizeBytesLeft;
     private long savedTempFileSizeValue;
+    private long savedCPUTime;
 
     protected int numDocs;
     // buffers that will be reused to avoid excessive allocations
@@ -281,9 +282,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     @Override
     public synchronized PerformanceStats getPerformanceStats(final boolean reset) {
         final long tempFileSize = (tempFileSizeBytesLeft == null) ? 0 : tempFileSizeBytesLeft.get();
+        final InstrumentedThreadFactory.PerformanceStats factoryPerformanceStats = threadFactory.getPerformanceStats();
+        final long cpuTime = factoryPerformanceStats != null ? factoryPerformanceStats.cpuTotalTime : 0;
         final PerformanceStats result =
                 new PerformanceStats(
-                        0, // todo: support cpu time calculation
+                        cpuTime - savedCPUTime,
                         memory.getCurrentMaxUsedMemory(),
                         savedTempFileSizeValue - tempFileSize,
                         0, // todo: support field file read calculation
@@ -291,6 +294,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         if (reset) {
             memory.resetCurrentMaxUsedMemory();
             savedTempFileSizeValue = tempFileSize;
+            savedCPUTime = cpuTime;
         }
         return result;
     }

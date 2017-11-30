@@ -18,6 +18,7 @@ import it.unimi.dsi.fastutil.longs.LongRBTreeSet;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -136,6 +137,43 @@ public class InstrumentedThreadFactory
 
     public void removeObserver(final Instrumentation.Observer observer) {
         instrumentation.removeObserver(observer);
+    }
+
+    public static class PerformanceStats {
+        public final long cpuTotalTime;
+        public final long cpuUserTime;
+        public final long threadCount;
+
+        public PerformanceStats(long cpuTotalTime, long cpuUserTime, long threadCount) {
+            this.cpuTotalTime = cpuTotalTime;
+            this.cpuUserTime = cpuUserTime;
+            this.threadCount = threadCount;
+        }
+    }
+
+    @Nullable
+    public PerformanceStats getPerformanceStats() {
+        try {
+            final ThreadMXBean mxb = ManagementFactory.getThreadMXBean();
+            long totalCpuTime  = 0;
+            long totalUserTime = 0;
+
+            synchronized(ids) {
+                final LongBidirectionalIterator it = ids.iterator();
+                while (it.hasNext()) {
+                    final long id        = it.next();
+                    final long userTime  = cpuUser(mxb, id);
+                    final long cpuTime   = cpuTotal(mxb, id);
+                    totalUserTime       += userTime;
+                    totalCpuTime        += cpuTime;
+                }
+            }
+            return new PerformanceStats(totalUserTime, totalCpuTime, ids.size());
+        }
+        catch (final Exception ex) {
+            log.warn("problem while capturing per-thread cpu use", ex);
+            return null;
+        }
     }
 
     public void close() throws IOException {

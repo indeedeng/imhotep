@@ -52,6 +52,26 @@ public class PerformanceStats {
             this.fieldFilesReadSize = fieldFilesReadSize;
         }
 
+        public long getCpuTime() {
+            return cpuTime;
+        }
+
+        public long getMaxMemoryUsage() {
+            return maxMemoryUsage;
+        }
+
+        public long getFtgsTempFileSize() {
+            return ftgsTempFileSize;
+        }
+
+        public long getFieldFilesReadSize() {
+            return fieldFilesReadSize;
+        }
+
+        public Map<String, Long> getCustomStats() {
+            return customStats;
+        }
+
         public void add(final PerformanceStats stats) {
             if(stats == null) {
                 return;

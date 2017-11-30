@@ -84,6 +84,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
 
     protected final AtomicLong tempFileSizeBytesLeft;
     private long savedTempFileSizeValue;
+    private long savedCPUTime;
 
     private boolean closed = false;
 
@@ -928,6 +929,15 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
         for (final PerformanceStats stat : stats) {
             builder.add(stat);
         }
+        long cpuTotalTime = builder.getCpuTime();
+        for (final InstrumentedThreadFactory factory: threadFactories) {
+            final InstrumentedThreadFactory.PerformanceStats factoryPerformanceStats = factory.getPerformanceStats();
+            if (factoryPerformanceStats != null) {
+                cpuTotalTime += factoryPerformanceStats.cpuTotalTime;
+            }
+        }
+        builder.setCpuTime(cpuTotalTime - savedCPUTime);
+
 
         // All sessions share the same AtomicLong tempFileSizeBytesLeft,
         // so value accumulated in builder::ftgsTempFileSize is wrong
@@ -936,6 +946,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
         builder.setFtgsTempFileSize(savedTempFileSizeValue - tempFileSize);
         if (reset) {
            savedTempFileSizeValue = tempFileSize;
+           savedCPUTime = cpuTotalTime;
         }
 
         return builder.build();
