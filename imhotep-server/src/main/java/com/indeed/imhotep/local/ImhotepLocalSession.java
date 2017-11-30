@@ -144,7 +144,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     static final int BUFFER_SIZE = 2048;
     private final AtomicLong tempFileSizeBytesLeft;
     private long savedTempFileSizeValue;
-    private long savedCPUTime;
+    private PerformanceStats resetPerformanceStats = new PerformanceStats(0, 0, 0, 0, ImmutableMap.of());
 
     protected int numDocs;
     // buffers that will be reused to avoid excessive allocations
@@ -281,20 +281,23 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     @Override
     public synchronized PerformanceStats getPerformanceStats(final boolean reset) {
+        final InstrumentedFlamdexReader.PerformanceStats flamdexPerformanceStats = instrumentedFlamdexReader.getPerformanceStats();
+        final long fieldFilesReadSize = flamdexPerformanceStats.fieldFilesReadSize;
+        final long metricsMemorySize = flamdexPerformanceStats.metricsMemorySize;
         final long tempFileSize = (tempFileSizeBytesLeft == null) ? 0 : tempFileSizeBytesLeft.get();
         final InstrumentedThreadFactory.PerformanceStats factoryPerformanceStats = threadFactory.getPerformanceStats();
         final long cpuTime = factoryPerformanceStats != null ? factoryPerformanceStats.cpuTotalTime : 0;
         final PerformanceStats result =
                 new PerformanceStats(
-                        cpuTime - savedCPUTime,
-                        memory.getCurrentMaxUsedMemory(),
+                        cpuTime - resetPerformanceStats.cpuTime,
+                        memory.getCurrentMaxUsedMemory() + metricsMemorySize,
                         savedTempFileSizeValue - tempFileSize,
-                        0, // todo: support field file read calculation
+                        fieldFilesReadSize - resetPerformanceStats.fieldFilesReadSize,
                         ImmutableMap.of());
         if (reset) {
+            resetPerformanceStats = result;
             memory.resetCurrentMaxUsedMemory();
             savedTempFileSizeValue = tempFileSize;
-            savedCPUTime = cpuTime;
         }
         return result;
     }

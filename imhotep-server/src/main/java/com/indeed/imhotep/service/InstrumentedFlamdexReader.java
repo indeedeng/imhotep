@@ -90,7 +90,7 @@ public class InstrumentedFlamdexReader
     }
 
     private void onField(final String field) {
-        fields.put(field, fields.getLong(field));
+        fields.put(field, flamdexInfo.getFieldSizeInBytes(field));
     }
 
     @Override
@@ -162,5 +162,27 @@ public class InstrumentedFlamdexReader
 
     public long memoryRequired(final String metric) {
         return wrapped.memoryRequired(metric);
+    }
+
+    public static class PerformanceStats {
+        public final long fieldFilesReadSize;
+        public final long metricsMemorySize;
+
+        public PerformanceStats(long fieldFilesReadSize, long metricsMemorySize) {
+            this.fieldFilesReadSize = fieldFilesReadSize;
+            this.metricsMemorySize = metricsMemorySize;
+        }
+    }
+
+    public PerformanceStats getPerformanceStats() {
+        long fieldFilesReadSize = 0;
+        for (long fieldSize : fields.values()) {
+            fieldFilesReadSize += fieldSize;
+        }
+        long metricsMemorySize = 0;
+        for (long metricMemorySize : metrics.values()) {
+            metricsMemorySize += metricMemorySize;
+        }
+        return new PerformanceStats(fieldFilesReadSize, metricsMemorySize);
     }
 }
