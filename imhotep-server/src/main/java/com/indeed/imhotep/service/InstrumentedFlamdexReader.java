@@ -130,10 +130,12 @@ public class InstrumentedFlamdexReader
     }
 
     public IntTermDocIterator getIntTermDocIterator(final String field) {
+        onField(field);
         return wrapped.getIntTermDocIterator(field);
     }
 
     public StringTermDocIterator getStringTermDocIterator(final String field) {
+        onField(field);
         return wrapped.getStringTermDocIterator(field);
     }
 
