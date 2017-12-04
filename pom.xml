@@ -4,7 +4,7 @@
     <parent>
         <groupId>com.indeed</groupId>
         <artifactId>proprietary-parent</artifactId>
-        <version>11</version>
+        <version>12</version>
     </parent>
 
     <artifactId>imhotep</artifactId>
@@ -63,6 +63,9 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <autoVersionSubmodules>true</autoVersionSubmodules>
+
+        <maven.compiler.target>1.8</maven.compiler.target>
+        <maven.compiler.source>1.8</maven.compiler.source>
 
         <joda-time.version>2.0</joda-time.version>
         <h2database.version>1.4.191</h2database.version>
