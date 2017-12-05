@@ -39,6 +39,7 @@ import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -879,25 +880,32 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
 
     @Override
     public final void close() {
+        closeWithOptionalPerformanceStats(false);
+    }
+
+    @Nullable
+    private PerformanceStats[] closeWithOptionalPerformanceStats(boolean getPerformanceStats) {
         if (closed) {
-            return;
+            return null;
         }
         closed = true;
+        final PerformanceStats[] perSessionStats;
         try {
             preClose();
         } finally {
             try {
-                executeRuntimeException(nullBuf, new ThrowingFunction<ImhotepSession, Object>() {
-                    @Override
-                    public Object apply(final ImhotepSession imhotepSession) {
-                        imhotepSession.close();
-                        return null;
-                    }
-                });
+                if(getPerformanceStats) {
+                    perSessionStats = new PerformanceStats[sessions.length];
+                    executeRuntimeException(perSessionStats, ImhotepSession::closeAndGetPerformanceStats);
+                } else {
+                    perSessionStats = null;
+                    executeRuntimeException(nullBuf, imhotepSession -> { imhotepSession.close(); return null;});
+                }
             } finally {
                 postClose();
             }
         }
+        return perSessionStats;
     }
 
     @Override
@@ -925,9 +933,19 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
         final PerformanceStats[] stats = new PerformanceStats[sessions.length];
         executeRuntimeException(stats, imhotepSession -> imhotepSession.getPerformanceStats(reset));
 
+        return combinePerformanceStats(reset, stats);
+    }
+
+    // Combination rules are different for local sessions vs what is done in RemoteImhotepMultiSession for remote sessions
+    protected PerformanceStats combinePerformanceStats(boolean reset, PerformanceStats[] stats) {
+        if(stats == null) {
+            return null;
+        }
         final PerformanceStats.Builder builder = PerformanceStats.builder();
         for (final PerformanceStats stat : stats) {
-            builder.add(stat);
+            if(stat != null) {
+                builder.add(stat);
+            }
         }
         long cpuTotalTime = builder.getCpuTime();
         for (final InstrumentedThreadFactory factory: threadFactories) {
@@ -954,13 +972,8 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
 
     @Override
     public PerformanceStats closeAndGetPerformanceStats() {
-        if(closed) {
-            return null;
-        }
-
-        final PerformanceStats stats = getPerformanceStats(false);
-        close();
-        return stats;
+        final PerformanceStats[] perSessionStats = closeWithOptionalPerformanceStats(true);
+        return combinePerformanceStats(false, perSessionStats);
     }
 
     protected void preClose() {

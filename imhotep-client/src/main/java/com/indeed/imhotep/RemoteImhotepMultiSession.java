@@ -19,6 +19,7 @@ import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.HasSessionId;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.imhotep.marshal.ImhotepClientMarshaller;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
@@ -193,5 +194,20 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     @Override
     public String getSessionId() {
         return sessionId;
+    }
+
+    // Combination rules are different for remote sessions vs what is done in AbstractImhotepMultiSession for local sessions
+    @Override
+    protected PerformanceStats combinePerformanceStats(boolean reset, PerformanceStats[] stats) {
+        if(stats == null) {
+            return null;
+        }
+        final PerformanceStats.Builder builder = PerformanceStats.builder();
+        for (final PerformanceStats stat : stats) {
+            if(stat != null) {
+                builder.add(stat);
+            }
+        }
+        return builder.build();
     }
 }
