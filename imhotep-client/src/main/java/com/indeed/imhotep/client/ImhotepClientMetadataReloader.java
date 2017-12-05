@@ -98,7 +98,7 @@ class ImhotepClientMetadataReloader extends DataLoadingRunnable {
                     final List<DatasetInfo> datasetInfos = hostFutureEntry.getValue().get();
                     perHostDatasets.add(datasetInfos);
                 } catch (ExecutionException | InterruptedException e) {
-                    log.error("error getting shard list from " + hostFutureEntry.getKey(), e);
+                    log.error("error getting datasets metadata from " + hostFutureEntry.getKey(), e);
                 }
             }
 
