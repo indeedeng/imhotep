@@ -245,7 +245,7 @@ public class ImhotepClient
 
             // For the case of sub-sharded indexes (i.e. dynamic indexes)
             final int subshardId;
-            if (DynamicIndexSubshardDirnameUtil.isValidShardId(shard.getShardId())) {
+            if (DynamicIndexSubshardDirnameUtil.isValidDynamicShardId(shard.getShardId())) {
                 subshardId = DynamicIndexSubshardDirnameUtil.parseSubshardIdFromShardId(shard.getShardId());
             } else {
                 subshardId = 0;
