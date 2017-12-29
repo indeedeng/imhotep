@@ -178,26 +178,30 @@ public class InstrumentedThreadFactory
 
     public void close() throws IOException {
         try {
-            final ThreadMXBean mxb = ManagementFactory.getThreadMXBean();
-            long totalCpuTime  = 0;
-            long totalUserTime = 0;
-
-            synchronized(ids) {
-                final LongBidirectionalIterator it = ids.iterator();
-                while (it.hasNext()) {
-                    final long id        = it.next();
-                    final long userTime  = cpuUser(mxb, id);
-                    final long cpuTime   = cpuTotal(mxb, id);
-                    totalUserTime       += userTime;
-                    totalCpuTime        += cpuTime;
-
-                    final PerThreadCPUEvent ptcpu = new PerThreadCPUEvent(id, userTime, cpuTime);
-                    instrumentation.fire(ptcpu);
-                }
+            // Per thread CPU event generation disabled as it becomes too spammy
+//            final ThreadMXBean mxb = ManagementFactory.getThreadMXBean();
+//            long totalCpuTime  = 0;
+//            long totalUserTime = 0;
+//
+//            synchronized(ids) {
+//                final LongBidirectionalIterator it = ids.iterator();
+//                while (it.hasNext()) {
+//                    final long id        = it.next();
+//                    final long userTime  = cpuUser(mxb, id);
+//                    final long cpuTime   = cpuTotal(mxb, id);
+//                    totalUserTime       += userTime;
+//                    totalCpuTime        += cpuTime;
+//
+//                    final PerThreadCPUEvent ptcpu = new PerThreadCPUEvent(id, userTime, cpuTime);
+//                    instrumentation.fire(ptcpu);
+//                }
+//            }
+            final PerformanceStats totalStats = getPerformanceStats();
+            if(totalStats != null) {
+                final TotalCPUEvent tcpu =
+                        new TotalCPUEvent(totalStats.cpuUserTime, totalStats.cpuTotalTime, ids.size());
+                instrumentation.fire(tcpu);
             }
-            final TotalCPUEvent tcpu =
-                new TotalCPUEvent(totalUserTime, totalCpuTime, ids.size());
-            instrumentation.fire(tcpu);
         }
         catch (final Exception ex) {
             log.warn("problem while capturing per-thread cpu use", ex);
