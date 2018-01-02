@@ -35,6 +35,9 @@ final class ConstantGroupLookup extends GroupLookup {
 
     @Override
     public void nextGroupCallback(final int n, final long[][] termGrpStats, final BitTree groupsSeen) {
+        if (constant == 0) {
+            return;
+        }
         int rewriteHead = 0;
         // remap groups and filter out useless docids (ones with group = 0), keep track of groups that were found
         for (int i = 0; i < n; i++) {
