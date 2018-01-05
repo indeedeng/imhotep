@@ -1,20 +1,17 @@
 package com.indeed.imhotep.shardmaster;
 
-import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
-import com.google.common.primitives.Longs;
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
 import com.indeed.imhotep.ShardDir;
-import com.indeed.imhotep.archive.ArchiveUtils;
 import com.indeed.imhotep.client.Host;
-import com.indeed.imhotep.io.Bytes;
 import com.indeed.imhotep.shardmaster.model.ShardAssignmentInfo;
 import com.indeed.util.core.Pair;
 
 import javax.annotation.concurrent.ThreadSafe;
-import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -27,10 +24,11 @@ import java.util.Set;
 @ThreadSafe
 class MinHashShardAssigner implements ShardAssigner {
     private final int replicationFactor;
-    private static final ThreadLocal<MessageDigest> MD5_DIGEST = new ThreadLocal<MessageDigest>() {
+
+    private static final ThreadLocal<HashFunction> HASH_FUNCTION = new ThreadLocal<HashFunction>() {
         @Override
-        protected MessageDigest initialValue() {
-            return ArchiveUtils.getMD5Digest();
+        protected HashFunction initialValue() {
+            return Hashing.goodFastHash(32);
         }
     };
 
@@ -39,12 +37,12 @@ class MinHashShardAssigner implements ShardAssigner {
     }
 
     private long getMinHash(final String dataset, final ShardDir shard, final Host host) {
-        final MessageDigest messageDigest = MD5_DIGEST.get();
-        messageDigest.reset();
-        messageDigest.update(dataset.getBytes(Charsets.UTF_8));
-        messageDigest.update(shard.getId().getBytes(Charsets.UTF_8));
-        messageDigest.update(host.getHostname().getBytes(Charsets.UTF_8));
-        return Longs.fromByteArray(messageDigest.digest(Bytes.intToBytes(host.getPort())));
+        return HASH_FUNCTION.get().newHasher()
+                .putInt(dataset.hashCode())
+                .putInt(shard.getId().hashCode())
+                .putInt(host.getHostname().hashCode())
+                .putInt(host.getPort())
+                .hash().asInt();
     }
 
     @Override
