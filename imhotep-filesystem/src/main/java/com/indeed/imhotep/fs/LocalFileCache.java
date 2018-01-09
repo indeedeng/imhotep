@@ -12,6 +12,7 @@ import org.apache.log4j.Logger;
 import javax.annotation.Nonnull;
 import java.io.Closeable;
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -107,6 +108,18 @@ class LocalFileCache {
                     unusedFilesCache.put(path, new FileCacheEntry(cachePath, (int) localCacheSize));
 
                     return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+                    // Delete empty directories separately since it's not handled by cleanUp() below
+                    try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(dir)) {
+                        final boolean dirIsEmpty = !dirStream.iterator().hasNext();
+                        if (dirIsEmpty) {
+                            Files.delete(dir);
+                        }
+                    }
+                    return super.postVisitDirectory(dir, exc);
                 }
             });
             // force clean up
