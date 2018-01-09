@@ -248,8 +248,12 @@ public class LocalImhotepServiceCore
             try {
                 log.info("Attempting reload of shards");
                 final ShardMap newShardMap = new ShardMap(shardMap.get(), shardDirIterator);
-                setShardMap(newShardMap, ShardUpdateListenerIf.Source.FILESYSTEM);
-                log.debug("Finished reloading shards");
+                if(newShardMap.size() > 0) {
+                    setShardMap(newShardMap, ShardUpdateListenerIf.Source.FILESYSTEM);
+                    log.debug("Finished reloading shards");
+                } else {
+                    log.warn("ShardMaster returned 0 shards. Going to keep using the old ShardMap instead.");
+                }
             } catch (final Throwable e) {
                 log.error("error updating shards", e);
             }
