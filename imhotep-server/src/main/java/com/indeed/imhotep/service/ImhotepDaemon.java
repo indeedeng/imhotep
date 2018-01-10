@@ -16,6 +16,7 @@ package com.indeed.imhotep.service;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -53,6 +54,8 @@ import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
+import com.indeed.imhotep.shardmaster.ShardMaster;
+import com.indeed.imhotep.shardmaster.rpc.RequestResponseClient;
 import com.indeed.imhotep.shardmaster.rpc.RequestResponseClientFactory;
 import com.indeed.util.core.Pair;
 import org.apache.log4j.Logger;
@@ -1390,16 +1393,15 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         final String myHostname = InetAddress.getLocalHost().getCanonicalHostName();
         final ServerSocket ss = new ServerSocket(port);
         final Host myHost = new Host(myHostname, ss.getLocalPort());
+        final Supplier<ShardMaster> shardMasterSupplier = getShardMasterSupplier(zkNodes, myHost);
+
         localService = new LocalImhotepServiceCore(shardsDir,
                                                    tmpDir,
                                                    memoryCapacityInMB * 1024 * 1024,
                                                    useCache,
                                                    new GenericFlamdexReaderSource(),
                                                    new LocalImhotepServiceConfig(
-                                                           new ShardDirIteratorFactory(
-                                                                   new RequestResponseClientFactory(zkNodes,
-                                                                           System.getProperty("imhotep.shardmaster.zookeeper.path"),
-                                                                           myHost),
+                                                           new ShardDirIteratorFactory(shardMasterSupplier,
                                                                    myHost)
                                                    ),
                                                    shardUpdateListener);
@@ -1407,6 +1409,20 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             new ImhotepDaemon(ss, localService, zkNodes, zkPath, myHostname, port, shardUpdateListener, sessionForwardingPort);
         localService.addObserver(result.getServiceCoreObserver());
         return result;
+    }
+
+    private static Supplier<ShardMaster> getShardMasterSupplier(String zkNodes, Host myHost) {
+        final String shardMasterHost = System.getProperty("imhotep.shardmaster.host");
+        if(shardMasterHost != null) {
+            // we have an exact host:port combination provided so use that
+            return () -> new RequestResponseClient(
+                    new Host(shardMasterHost.split(":")[0],
+                    Integer.valueOf(shardMasterHost.split(":")[1]))
+            );
+        } else {
+            // Use ZooKeeper to locate ShardMaster
+            return new RequestResponseClientFactory(zkNodes, System.getProperty("imhotep.shardmaster.zookeeper.path"), myHost);
+        }
     }
 
     public ImhotepServiceCore getService() {
