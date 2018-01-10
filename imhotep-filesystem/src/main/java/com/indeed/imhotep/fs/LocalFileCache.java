@@ -122,6 +122,8 @@ class LocalFileCache {
                     return super.postVisitDirectory(dir, exc);
                 }
             });
+            // recreate in case it was empty and got deleted above
+            Files.createDirectories(cacheRootDir);
             // force clean up
             unusedFilesCache.cleanUp();
         }
