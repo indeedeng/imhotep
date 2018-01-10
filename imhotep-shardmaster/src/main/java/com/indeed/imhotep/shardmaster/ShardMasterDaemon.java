@@ -105,9 +105,10 @@ public class ShardMasterDaemon {
                 @Override
                 public void run() {
                     try {
+                        long start = System.currentTimeMillis();
                         shardScanResults.get();
                         shardScanComplete.set(true);
-                        LOGGER.info("Successfully scanned all shards on initialization");
+                        LOGGER.info("Successfully scanned all shards on initialization in " + (System.currentTimeMillis() - start)/1000 + " seconds");
                     } catch (final InterruptedException | ExecutionException e) {
                         LOGGER.fatal("Failed while scanning shards", e);
                         System.exit(1);
@@ -131,8 +132,7 @@ public class ShardMasterDaemon {
                     new DatabaseShardMaster(shardAssignmentInfoDao, shardScanComplete),
                     config.shardsResponseBatchSize
             ), config.serviceConcurrency);
-            try (ZkEndpointPersister endpointPersister = new ZkEndpointPersister(config.zkNodes, config.shardMastersZkPath,
-                    new Host(InetAddress.getLocalHost().getCanonicalHostName(), server.getActualPort()))
+            try (ZkEndpointPersister endpointPersister = getZKEndpointPersister()
             ) {
                 LOGGER.info("Starting service");
                 server.run();
@@ -145,6 +145,15 @@ public class ShardMasterDaemon {
             executorService.shutdown();
             hostsReloader.shutdown();
         }
+    }
+
+    private ZkEndpointPersister getZKEndpointPersister() throws IOException, InterruptedException, KeeperException {
+        if(config.zkNodes == null || config.shardMastersZkPath == null) {
+            LOGGER.info("Not registering in ZooKeeper as not configured for it");
+            return null;
+        }
+        return new ZkEndpointPersister(config.zkNodes, config.shardMastersZkPath,
+                new Host(InetAddress.getLocalHost().getCanonicalHostName(), server.getActualPort()));
     }
 
     @VisibleForTesting
