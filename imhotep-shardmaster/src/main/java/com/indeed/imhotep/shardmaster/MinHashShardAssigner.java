@@ -28,7 +28,7 @@ class MinHashShardAssigner implements ShardAssigner {
     private static final ThreadLocal<HashFunction> HASH_FUNCTION = new ThreadLocal<HashFunction>() {
         @Override
         protected HashFunction initialValue() {
-            return Hashing.goodFastHash(32);
+            return Hashing.murmur3_32((int)1515546902721L);
         }
     };
 
