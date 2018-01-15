@@ -132,8 +132,20 @@
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk</artifactId>
-			<version>1.11.262</version><!-- in sync with hadoop 2.6.0-cdh5.4.11 -->
+			<version>${aws-java.version}</version>
 		</dependency>
+
+                <dependency>
+                    <groupId>com.fasterxml.jackson.core</groupId>
+                    <artifactId>jackson-databind</artifactId>
+                    <version>${jackson.databind.version}</version>
+                </dependency>
+    
+                <dependency>
+                    <groupId>com.fasterxml.jackson.core</groupId>
+                    <artifactId>jackson-annotations</artifactId>
+                    <version>${jackson.annotations.version}</version>
+                </dependency>
     
         <dependency>
             <groupId>org.yaml</groupId>
@@ -188,6 +200,11 @@
 		<snakeyaml.version>1.10</snakeyaml.version>
 		<zookeeper.version>3.4.5-cdh5.4.11</zookeeper.version>
 		<automaton.version>1.11-8</automaton.version>
+
+		<aws-java.version>1.11.262</aws-java.version>
+        	<!-- keep jackson in sync with aws-java-sdk versions -->
+        	<jackson.databind.version>2.6.7.1</jackson.databind.version>
+        	<jackson.annotations.version>2.6.7</jackson.annotations.version>
 
 		<!-- releases of our own projects to use -->
 		<!-- these should only be SNAPSHOTs when no release is available -->
