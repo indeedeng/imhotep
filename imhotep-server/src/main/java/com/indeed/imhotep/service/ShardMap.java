@@ -17,6 +17,7 @@ package com.indeed.imhotep.service;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.api.RawFlamdexReader;
+import com.indeed.imhotep.DynamicIndexSubshardDirnameUtil;
 import com.indeed.imhotep.ImhotepMemoryCache;
 import com.indeed.imhotep.ImhotepStatusDump.ShardDump;
 import com.indeed.imhotep.MemoryReservationContext;
@@ -41,6 +42,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -303,11 +305,21 @@ class ShardMap
     }
 
     private static boolean isNewerThan(@Nullable final ShardDir shardDir, @Nullable final Shard shard) {
-        return (shardDir != null) &&
-                ((shard == null) ||
-                        (shardDir.getVersion() > shard.getShardVersion()) ||
-                        ((shardDir.getVersion() == shard.getShardVersion()) && !shardDir.getIndexDir().equals(shard.getIndexDir()))
-        );
+        if (shardDir == null) {
+            return false;
+        }
+        if (shard == null) {
+            return true;
+        }
+        if (shardDir.getVersion() != shard.getShardVersion()) {
+            return shardDir.getVersion() > shard.getShardVersion();
+        }
+        final Optional<DynamicIndexSubshardDirnameUtil.DynamicIndexShardInfo> firstInfo = DynamicIndexSubshardDirnameUtil.tryParse(shardDir.getName());
+        final Optional<DynamicIndexSubshardDirnameUtil.DynamicIndexShardInfo> secondInfo = DynamicIndexSubshardDirnameUtil.tryParse(shard.getIndexDir().getFileName().toString());
+        if (firstInfo.isPresent() && secondInfo.isPresent()) {
+            return firstInfo.get().compareTo(secondInfo.get()) > 0;
+        }
+        return !shardDir.getIndexDir().equals(shard.getIndexDir());
     }
 
     private boolean track(final ShardMap reference, final String dataset, final ShardDir shardDir) {
