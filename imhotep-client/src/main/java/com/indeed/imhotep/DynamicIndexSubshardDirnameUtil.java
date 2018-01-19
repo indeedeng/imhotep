@@ -71,6 +71,10 @@ public final class DynamicIndexSubshardDirnameUtil {
                 + numSubshards;
     }
 
+    private static boolean checkPrefix(final String shardId) {
+        return shardId.startsWith("d");
+    }
+
     public static class DynamicIndexShardInfo implements Comparable<DynamicIndexShardInfo> {
         private final String name;
         private final String id;
@@ -149,6 +153,9 @@ public final class DynamicIndexSubshardDirnameUtil {
     }
 
     public static Optional<DynamicIndexShardInfo> tryParse(final String name) {
+        if (!checkPrefix(name)) {
+            return Optional.empty();
+        }
         try {
             return Optional.of(parse(name));
         } catch (final IllegalArgumentException e) {
@@ -157,11 +164,11 @@ public final class DynamicIndexSubshardDirnameUtil {
     }
 
     public static boolean isValidName(final String name) {
-        return DynamicIndexPattern.INDEX_NAME.matcher(name).matches();
+        return checkPrefix(name) && DynamicIndexPattern.INDEX_NAME.matcher(name).matches();
     }
 
     public static boolean isValidShardId(final String shardId) {
-        return DynamicIndexPattern.SHARD_ID.matcher(shardId).matches();
+        return checkPrefix(shardId) && DynamicIndexPattern.SHARD_ID.matcher(shardId).matches();
     }
 
     public static DateTime parseStartTimeFromShardId(final String shardId) {
@@ -204,7 +211,7 @@ public final class DynamicIndexSubshardDirnameUtil {
             }
             final Optional<DynamicIndexShardInfo> parsed = tryParse(name);
             if (parsed.isPresent() && parsed.get().getId().equals(shardId)) {
-                if (maximum == null || parsedMaximum.compareTo(parsed.get()) < 0) {
+                if ((maximum == null) || (parsedMaximum.compareTo(parsed.get()) < 0)) {
                     maximum = candidate;
                     parsedMaximum = parsed.get();
                 }
