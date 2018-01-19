@@ -14,6 +14,7 @@
  package com.indeed.imhotep.io;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.indeed.imhotep.DynamicIndexSubshardDirnameUtil;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.service.CachedFlamdexReader;
 import com.indeed.imhotep.service.ShardId;
@@ -28,6 +29,7 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 
@@ -136,6 +138,14 @@ public class Shard {
         if (otherShard == null) {
             return true;
         }
-        return getShardVersion() > otherShard.getShardVersion();
+        if (getShardVersion() != otherShard.getShardVersion()) {
+            return getShardVersion() > otherShard.getShardVersion();
+        }
+        final Optional<DynamicIndexSubshardDirnameUtil.DynamicIndexShardInfo> thisInfo = DynamicIndexSubshardDirnameUtil.tryParse(getIndexDir().getFileName().toString());
+        final Optional<DynamicIndexSubshardDirnameUtil.DynamicIndexShardInfo> otherInfo = DynamicIndexSubshardDirnameUtil.tryParse(otherShard.getIndexDir().getFileName().toString());
+        if (thisInfo.isPresent() && otherInfo.isPresent()) {
+            return thisInfo.get().compareTo(otherInfo.get()) > 0;
+        }
+        return false;
     }
 }
