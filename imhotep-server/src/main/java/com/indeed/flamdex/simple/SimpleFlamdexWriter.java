@@ -82,6 +82,7 @@ public class SimpleFlamdexWriter implements FlamdexWriter {
     private long maxDocs;
 
     private final boolean writeBTreesOnClose;
+    private final boolean writeFieldCardinalityOnClose;
 
     private final Set<String> intFields;
     private final Set<String> stringFields;
@@ -114,9 +115,20 @@ public class SimpleFlamdexWriter implements FlamdexWriter {
                                final long numDocs,
                                final boolean create,
                                final boolean writeBTreesOnClose) throws IOException {
+        // TODO: make writeFieldCardinalityOnClose param 'true' when we are ready.
+        this(outputDirectory, numDocs, create, writeBTreesOnClose, false);
+    }
+
+
+    public SimpleFlamdexWriter(final Path outputDirectory,
+                               final long numDocs,
+                               final boolean create,
+                               final boolean writeBTreesOnClose,
+                               final boolean writeFieldCardinalityOnClose) throws IOException {
         this.outputDirectory = outputDirectory;
         this.maxDocs = numDocs;
         this.writeBTreesOnClose = writeBTreesOnClose;
+        this.writeFieldCardinalityOnClose = writeFieldCardinalityOnClose;
         if (create) {
             if (Files.exists(outputDirectory)) {
                 deleteIndex(outputDirectory);
@@ -191,6 +203,12 @@ public class SimpleFlamdexWriter implements FlamdexWriter {
                                                              stringFieldsList,
                                                              FlamdexFormatVersion.SIMPLE);
         FlamdexMetadata.writeMetadata(outputDirectory, metadata);
+        if (writeFieldCardinalityOnClose) {
+            try (SimpleFlamdexReader reader = SimpleFlamdexReader.open(outputDirectory)) {
+                // force metadata rewriting
+                reader.buildAndWriteCardinalityCache(false);
+            }
+        }
     }
 
     public static void writeIntBTree(final Path directory, final String intField, final Path btreeDir) throws IOException {

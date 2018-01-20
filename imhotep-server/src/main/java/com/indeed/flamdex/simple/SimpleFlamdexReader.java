@@ -372,7 +372,7 @@ public class SimpleFlamdexReader
         }
     }
 
-    protected void buildAndWriteCardinalityCache(final boolean skipIfExist) throws IOException {
+    public void buildAndWriteCardinalityCache(final boolean skipIfExist) throws IOException {
         if (skipIfExist && FieldsCardinalityMetadata.hasMetadataFile(getDirectory())) {
             return;
         }

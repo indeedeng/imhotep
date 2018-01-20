@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * author: aibragimov
@@ -48,6 +49,20 @@ public class FieldsCardinalityMetadata {
             hasSingleTermDoc = single;
             hasMultipleTermDoc = multiple;
         }
+
+        @Override
+        public boolean equals(final Object object) {
+            if(!(object instanceof FieldInfo)) {
+                return false;
+            }
+
+            final FieldInfo other = (FieldInfo)object;
+
+            return Objects.equals(hasZeroTermDoc, other.hasZeroTermDoc)
+                    && Objects.equals(hasSingleTermDoc , other.hasSingleTermDoc)
+                    && Objects.equals(hasMultipleTermDoc, other.hasMultipleTermDoc);
+        }
+
     }
 
     @Nullable
@@ -103,6 +118,17 @@ public class FieldsCardinalityMetadata {
             // in case of error return empty metadata
             return new FieldsCardinalityMetadata(new HashMap<>());
         }
+    }
+
+    @Override
+    public boolean equals(final Object object) {
+        if(!(object instanceof FieldsCardinalityMetadata)) {
+            return false;
+        }
+
+        final FieldsCardinalityMetadata other = (FieldsCardinalityMetadata)object;
+
+        return fieldsInfo.equals(other.fieldsInfo);
     }
 
     public static class Builder {
