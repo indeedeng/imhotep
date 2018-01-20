@@ -15,6 +15,7 @@ package com.indeed.imhotep.service;
 
 import com.google.common.base.Function;
 import com.indeed.flamdex.api.DocIdStream;
+import com.indeed.flamdex.api.FieldsCardinalityMetadata;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermDocIterator;
@@ -228,6 +229,11 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
     @Override
     public long memoryRequired(final String metric) {
         return wrapped.memoryRequired(metric);
+    }
+
+    @Override
+    public FieldsCardinalityMetadata getFieldsMetadata() {
+        return wrapped.getFieldsMetadata();
     }
 
     @Override

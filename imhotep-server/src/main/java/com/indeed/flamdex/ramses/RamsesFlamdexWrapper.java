@@ -15,6 +15,7 @@
 
 import com.google.common.base.Throwables;
 import com.indeed.flamdex.api.DocIdStream;
+import com.indeed.flamdex.api.FieldsCardinalityMetadata;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermDocIterator;
@@ -177,6 +178,11 @@ public class RamsesFlamdexWrapper implements FlamdexReader {
             return 0;
         }
         return wrapped.memoryRequired(metric);
+    }
+
+    @Override
+    public FieldsCardinalityMetadata getFieldsMetadata() {
+        return wrapped.getFieldsMetadata();
     }
 
     @Override

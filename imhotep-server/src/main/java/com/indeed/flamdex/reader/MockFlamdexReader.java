@@ -15,6 +15,7 @@
 
 import com.google.common.primitives.Ints;
 import com.indeed.flamdex.api.DocIdStream;
+import com.indeed.flamdex.api.FieldsCardinalityMetadata;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.GenericIntTermDocIterator;
@@ -432,6 +433,11 @@ public class MockFlamdexReader implements FlamdexReader {
     @Override
     public long memoryRequired(final String metric) {
         return 0L;
+    }
+
+    @Override
+    public FieldsCardinalityMetadata getFieldsMetadata() {
+        return null;
     }
 
     @Override

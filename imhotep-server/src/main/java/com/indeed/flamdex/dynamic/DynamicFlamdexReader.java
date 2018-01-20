@@ -7,6 +7,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Ordering;
 import com.google.common.io.Closer;
 import com.indeed.flamdex.api.DocIdStream;
+import com.indeed.flamdex.api.FieldsCardinalityMetadata;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.GenericIntTermDocIterator;
@@ -386,6 +387,11 @@ public class DynamicFlamdexReader implements FlamdexReader {
             memoryRequired += segmentReader.memoryRequired(metric);
         }
         return memoryRequired;
+    }
+
+    @Override
+    public FieldsCardinalityMetadata getFieldsMetadata() {
+        return null;
     }
 
     @Override
