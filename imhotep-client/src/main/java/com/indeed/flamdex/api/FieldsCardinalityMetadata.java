@@ -63,6 +63,10 @@ public class FieldsCardinalityMetadata {
                     && Objects.equals(hasMultipleTermDoc, other.hasMultipleTermDoc);
         }
 
+        @Override
+        public int hashCode() {
+            return Objects.hash(hasZeroTermDoc, hasSingleTermDoc, hasMultipleTermDoc);
+        }
     }
 
     @Nullable
@@ -102,6 +106,7 @@ public class FieldsCardinalityMetadata {
         this.fieldsInfo = fieldsInfo;
     }
 
+    @Nullable
     public static FieldsCardinalityMetadata open(final Path directory) {
         final Path metadataFile = getMetadataFile(directory);
 
@@ -129,6 +134,11 @@ public class FieldsCardinalityMetadata {
         final FieldsCardinalityMetadata other = (FieldsCardinalityMetadata)object;
 
         return fieldsInfo.equals(other.fieldsInfo);
+    }
+
+    @Override
+    public int hashCode() {
+        return fieldsInfo.hashCode();
     }
 
     public static class Builder {

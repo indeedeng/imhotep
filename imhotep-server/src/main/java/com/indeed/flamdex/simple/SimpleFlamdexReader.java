@@ -373,15 +373,12 @@ public class SimpleFlamdexReader
     }
 
     public void buildAndWriteCardinalityCache(final boolean skipIfExist) throws IOException {
-        if (skipIfExist && FieldsCardinalityMetadata.hasMetadataFile(getDirectory())) {
+        if (getDirectory().getFileSystem().isReadOnly()) {
+            // TODO: throw IOException?
             return;
         }
 
-        try {
-            // Check if directory is writable.
-            final FieldsCardinalityMetadata md = new FieldsCardinalityMetadata.Builder().build();
-            md.writeToDirectory(getDirectory());
-        } catch (final Exception ex) {
+        if (skipIfExist && FieldsCardinalityMetadata.hasMetadataFile(getDirectory())) {
             return;
         }
 
