@@ -395,12 +395,8 @@ public class SimpleFlamdexReader
         }
 
         final FieldsCardinalityMetadata metadata = builder.build();
-        try {
-            metadata.writeToDirectory(getDirectory());
-        } catch (final Exception ex) {
-            // do nothing.
-        }
         cardinalityMetadata = metadata;
+        metadata.writeToDirectory(getDirectory());
     }
 
     public static final class Config {
