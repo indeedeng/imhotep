@@ -403,8 +403,8 @@ class ShardMap
                                  key.toString(), ex);
                     }
                 } else {
-                    final ShardDir shardDir = new ShardDir(shard.getIndexDir());
-                    if (!entry.getValue().getShardDir().equals(shardDir.getName())) {
+                    if (!entry.getValue().getShardDir().equals(shard.getIndexDir().getFileName().toString())) {
+                        final ShardDir shardDir = new ShardDir(shard.getIndexDir());
                         putShardToShardStore(store, key, shardDir, shard);
                     }
                 }
