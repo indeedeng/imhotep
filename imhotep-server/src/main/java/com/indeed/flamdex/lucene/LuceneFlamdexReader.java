@@ -18,6 +18,7 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 import com.indeed.flamdex.AbstractFlamdexReader;
 import com.indeed.flamdex.api.DocIdStream;
+import com.indeed.flamdex.api.FieldsCardinalityMetadata;
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIterator;
@@ -234,6 +235,11 @@ public class LuceneFlamdexReader extends AbstractFlamdexReader {
     @Override
     public Collection<String> getAvailableMetrics() {
         return intFields;
+    }
+
+    @Override
+    public FieldsCardinalityMetadata getFieldsMetadata() {
+        return null;
     }
 
     @Override

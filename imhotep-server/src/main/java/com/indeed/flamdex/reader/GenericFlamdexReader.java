@@ -13,69 +13,26 @@
  */
 package com.indeed.flamdex.reader;
 
-import com.google.common.base.Throwables;
-import com.indeed.flamdex.api.DocIdStream;
-import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
-import com.indeed.flamdex.api.GenericFlamdexFactory;
-import com.indeed.flamdex.api.GenericIntTermDocIterator;
-import com.indeed.flamdex.api.GenericStringTermDocIterator;
-import com.indeed.flamdex.api.IntTermDocIterator;
-import com.indeed.flamdex.api.IntTermIterator;
-import com.indeed.flamdex.api.IntValueLookup;
-import com.indeed.flamdex.api.StringTermDocIterator;
-import com.indeed.flamdex.api.StringTermIterator;
-import com.indeed.flamdex.api.StringValueLookup;
 import com.indeed.flamdex.dynamic.DynamicFlamdexReader;
-import com.indeed.flamdex.fieldcache.FieldCacherUtil;
-import com.indeed.flamdex.fieldcache.IntArrayIntValueLookup;
 import com.indeed.flamdex.lucene.LuceneFlamdexReader;
 import com.indeed.flamdex.ramses.RamsesFlamdexWrapper;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
-import com.indeed.flamdex.utils.FlamdexUtils;
-import org.apache.log4j.Logger;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Collection;
 
 /**
  * @author jplaisance
  */
-public final class GenericFlamdexReader implements FlamdexReader {
-    private static final Logger log = Logger.getLogger(GenericFlamdexReader.class);
 
-    private final Path directory;
-
-    private final GenericFlamdexFactory factory;
-
-    private final int numDocs;
-    private final Collection<String> intFields;
-    private final Collection<String> stringFields;
-
-    private GenericFlamdexReader(
-            final Path directory,
-            final GenericFlamdexFactory factory,
-            final int numDocs,
-            final Collection<String> intFields,
-            final Collection<String> stringFields
-    ) {
-        this.directory = directory;
-        this.factory = factory;
-        this.numDocs = numDocs;
-        this.intFields = intFields;
-        this.stringFields = stringFields;
-    }
-
-    /**
-     * use {@link #open(Path)} instead
-     */
-    @Deprecated
-    public static FlamdexReader open(final String directory) throws IOException {
-        return open(Paths.get(directory));
+// This class was an implementation of FlamdexReader,
+// But now it is used only for FlamdexReader opening,
+// so all except opening is deleted.
+public class GenericFlamdexReader {
+    private GenericFlamdexReader() {
     }
 
     public static FlamdexReader open(final Path directory) throws IOException {
@@ -117,124 +74,5 @@ public final class GenericFlamdexReader implements FlamdexReader {
                 throw new IllegalArgumentException(
                         "GenericFlamdexReader doesn't support " + metadata.getFlamdexFormatVersion().toString() + ".");
         }
-    }
-
-    /**
-     * use {@link #open(Path, GenericFlamdexFactory)} instead
-     */
-    @Deprecated
-    public static GenericFlamdexReader open(final String directory, final GenericFlamdexFactory factory)
-            throws IOException {
-        return open(Paths.get(directory), factory);
-    }
-
-    public static GenericFlamdexReader open(final Path directory, final GenericFlamdexFactory factory)
-            throws IOException {
-        final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(directory);
-        return new GenericFlamdexReader(directory,
-                factory,
-                metadata.getNumDocs(),
-                metadata.getIntFields(),
-                metadata.getStringFields());
-    }
-
-    @Override
-    public Collection<String> getIntFields() {
-        return intFields;
-    }
-
-    @Override
-    public Collection<String> getStringFields() {
-        return stringFields;
-    }
-
-    @Override
-    public int getNumDocs() {
-        return numDocs;
-    }
-
-    @Override
-    public Path getDirectory() {
-        return directory;
-    }
-
-    @Override
-    public DocIdStream getDocIdStream() {
-        return factory.createDocIdStream();
-    }
-
-    @Override
-    public IntTermIterator getIntTermIterator(final String field) {
-        final Path termsPath = directory.resolve(factory.getIntTermsFilename(field));
-        final Path docsPath = directory.resolve(factory.getIntDocsFilename(field));
-        try {
-            return factory.createIntTermIterator(termsPath, docsPath);
-        } catch (final IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Override
-    public IntTermIterator getUnsortedIntTermIterator(final String field) {
-        // TODO?
-        return getIntTermIterator(field);
-    }
-
-    @Override
-    public StringTermIterator getStringTermIterator(final String field) {
-        final Path termsPath = directory.resolve(factory.getStringTermsFilename(field));
-        final Path docsPath = directory.resolve(factory.getStringDocsFilename(field));
-        try {
-            return factory.createStringTermIterator(termsPath, docsPath);
-        } catch (final IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Override
-    public IntTermDocIterator getIntTermDocIterator(final String field) {
-        return new GenericIntTermDocIterator(getIntTermIterator(field), getDocIdStream());
-    }
-
-    @Override
-    public StringTermDocIterator getStringTermDocIterator(final String field) {
-        return new GenericStringTermDocIterator(getStringTermIterator(field), getDocIdStream());
-    }
-
-    @Override
-    public long getIntTotalDocFreq(final String field) {
-        return FlamdexUtils.getIntTotalDocFreq(this, field);
-    }
-
-    @Override
-    public long getStringTotalDocFreq(final String field) {
-        return FlamdexUtils.getStringTotalDocFreq(this, field);
-    }
-
-    @Override
-    public Collection<String> getAvailableMetrics() {
-        return intFields;
-    }
-
-    @Override
-    public IntValueLookup getMetric(final String metric) throws FlamdexOutOfMemoryException {
-        return new IntArrayIntValueLookup(FlamdexUtils.cacheIntField(metric, this));
-    }
-
-    public StringValueLookup getStringLookup(final String field) throws FlamdexOutOfMemoryException {
-        try {
-            return FieldCacherUtil.newStringValueLookup(field, this);
-        } catch (final IOException e) {
-            throw Throwables.propagate(e);
-        }
-    }
-
-    @Override
-    public long memoryRequired(final String metric) {
-        return 4L * getNumDocs();
-    }
-
-    @Override
-    public void close() throws IOException {
     }
 }

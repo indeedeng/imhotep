@@ -138,6 +138,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
         }
 
         public static AutoDeletingReader open(@Nonnull final Path directory, final Config config) throws IOException {
+            // TODO: this is a copy-paste of SimpleFlamdexReader::open
             final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(directory);
             final Collection<String> intFields = scan(directory, ".intterms");
             final Collection<String> stringFields = scan(directory, ".strterms");
@@ -145,8 +146,13 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
                 buildIntBTrees(directory, Lists.newArrayList(intFields));
                 buildStringBTrees(directory, Lists.newArrayList(stringFields));
             }
-            return new AutoDeletingReader(directory, metadata.getNumDocs(), intFields, stringFields,
-                                          config.isUseMMapMetrics(), config.isUseMMapDocIdStream());
+            final AutoDeletingReader result = new AutoDeletingReader(directory, metadata.getNumDocs(), intFields, stringFields,
+                    config.isUseMMapMetrics(), config.isUseMMapDocIdStream());
+            if (config.isWriteCardinalityIfNotExisting()) {
+                // try to build and store cache
+                result.buildAndWriteCardinalityCache(true);
+            }
+            return result;
         }
 
         @Override

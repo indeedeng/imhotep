@@ -15,6 +15,7 @@
 package com.indeed.imhotep.service;
 
 import com.indeed.flamdex.api.DocIdStream;
+import com.indeed.flamdex.api.FieldsCardinalityMetadata;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermDocIterator;
@@ -164,6 +165,11 @@ public class InstrumentedFlamdexReader
 
     public long memoryRequired(final String metric) {
         return wrapped.memoryRequired(metric);
+    }
+
+    @Override
+    public FieldsCardinalityMetadata getFieldsMetadata() {
+        return wrapped.getFieldsMetadata();
     }
 
     public static class PerformanceStats {

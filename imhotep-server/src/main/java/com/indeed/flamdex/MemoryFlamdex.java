@@ -17,6 +17,7 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Sets;
 import com.indeed.flamdex.api.DocIdStream;
+import com.indeed.flamdex.api.FieldsCardinalityMetadata;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.GenericIntTermDocIterator;
@@ -209,6 +210,11 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
     @Override
     public long memoryRequired(final String metric) {
         return 0L;
+    }
+
+    @Override
+    public FieldsCardinalityMetadata getFieldsMetadata() {
+        return null;
     }
 
     @Override
@@ -805,6 +811,11 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
             @Override
             public long memoryRequired(final String metric) {
                 throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public FieldsCardinalityMetadata getFieldsMetadata() {
+                return null;
             }
 
             @Override

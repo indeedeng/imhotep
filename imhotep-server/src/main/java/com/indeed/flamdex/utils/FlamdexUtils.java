@@ -14,9 +14,11 @@
 package com.indeed.flamdex.utils;
 
 import com.indeed.flamdex.api.DocIdStream;
+import com.indeed.flamdex.api.FieldsCardinalityMetadata;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.StringTermIterator;
+import com.indeed.flamdex.api.TermIterator;
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.flamdex.datastruct.MMapFastBitSet;
 import com.indeed.flamdex.fieldcache.LongArrayIntValueLookup;
@@ -567,6 +569,56 @@ public class FlamdexUtils {
             }
         }
         return ret;
+    }
+
+    public static FieldsCardinalityMetadata.FieldInfo calculateFieldCardinality(
+            final TermIterator iter, final DocIdStream dis, final int size) {
+        final int[] docIdBuffer = new int[BUFFER_SIZE];
+        final FastBitSet single = new FastBitSet(size);
+        final FastBitSet multi = new FastBitSet(size);
+        int singles = 0;
+        int multiples = 0;
+        while (iter.next()) {
+            dis.reset(iter);
+            while(true) {
+                final int n = dis.fillDocIdBuffer(docIdBuffer);
+                for (int i = 0; i < n; i++) {
+                    final int doc = docIdBuffer[i];
+                    if (!single.get(doc)) {
+                        single.set(doc);
+                        singles++;
+                    } else if (!multi.get(doc)) {
+                        multi.set(doc);
+                        multiples++;
+                    }
+                }
+                if (n < docIdBuffer.length) {
+                    break;
+                }
+            }
+        }
+        final boolean zero = size > singles;
+        final boolean one = singles > multiples;
+        final boolean two = multiples > 0;
+        return new FieldsCardinalityMetadata.FieldInfo(zero, one, two);
+    }
+
+    public static FieldsCardinalityMetadata.FieldInfo cacheIntFieldCardinality(final String field, final FlamdexReader reader) {
+        try (
+                final TermIterator iter = reader.getIntTermIterator(field);
+                final DocIdStream dis = reader.getDocIdStream()
+        ) {
+            return calculateFieldCardinality(iter, dis, reader.getNumDocs());
+        }
+    }
+
+    public static FieldsCardinalityMetadata.FieldInfo cacheStringFieldCardinality(final String field, final FlamdexReader reader) {
+        try (
+                final TermIterator iter = reader.getStringTermIterator(field);
+                final DocIdStream dis = reader.getDocIdStream()
+        ) {
+            return calculateFieldCardinality(iter, dis, reader.getNumDocs());
+        }
     }
 
     private static void fillBitSetUsingBuffer(final DocIdStream dis, final ThreadSafeBitSet ret, final int[] docIdBuffer) {

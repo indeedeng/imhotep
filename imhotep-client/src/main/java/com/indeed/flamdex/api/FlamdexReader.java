@@ -40,4 +40,9 @@ public interface FlamdexReader extends Closeable {
     IntValueLookup getMetric(String metric) throws FlamdexOutOfMemoryException;
     StringValueLookup getStringLookup(String field) throws FlamdexOutOfMemoryException;
     long memoryRequired(String metric);
+
+    /** @return cardinality info or null
+     */
+    @Nullable
+    FieldsCardinalityMetadata getFieldsMetadata();
 }

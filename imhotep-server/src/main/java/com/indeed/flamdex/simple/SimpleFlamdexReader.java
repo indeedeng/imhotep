@@ -21,6 +21,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.indeed.flamdex.AbstractFlamdexReader;
 import com.indeed.flamdex.api.DocIdStream;
+import com.indeed.flamdex.api.FieldsCardinalityMetadata;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.GenericIntTermDocIterator;
 import com.indeed.flamdex.api.GenericRawStringTermDocIterator;
@@ -55,6 +56,7 @@ public class SimpleFlamdexReader
     private final Collection<String> intFields;
     private final Collection<String> stringFields;
     private final MapCache mapCache = new MapCache();
+    private FieldsCardinalityMetadata cardinalityMetadata;
 
     private static final boolean useNativeDocIdStream;
     private final boolean useMMapDocIdStream;
@@ -87,6 +89,8 @@ public class SimpleFlamdexReader
         this.intFieldCachers = Maps.newHashMap();
 
         this.useMMapDocIdStream = useMMapDocIdStream;
+
+        this.cardinalityMetadata = FieldsCardinalityMetadata.open(directory);
     }
 
     /**
@@ -113,12 +117,17 @@ public class SimpleFlamdexReader
         final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(directory);
         final Collection<String> intFields = scan(directory, ".intterms");
         final Collection<String> stringFields = scan(directory, ".strterms");
-        if (config.writeBTreesIfNotExisting) {
+        if (config.isWriteBTreesIfNotExisting()) {
             buildIntBTrees(directory, Lists.newArrayList(intFields));
             buildStringBTrees(directory, Lists.newArrayList(stringFields));
         }
-        return new SimpleFlamdexReader(directory, metadata.getNumDocs(), intFields, stringFields,
+        final SimpleFlamdexReader result = new SimpleFlamdexReader(directory, metadata.getNumDocs(), intFields, stringFields,
                 config.useMMapMetrics, config.useMMapDocIdStream);
+        if (config.isWriteCardinalityIfNotExisting()) {
+            // try to build and store cache
+            result.buildAndWriteCardinalityCache(true);
+        }
+        return result;
     }
 
     protected static Collection<String> scan(final Path directory, final String ending) throws IOException {
@@ -335,6 +344,11 @@ public class SimpleFlamdexReader
     }
 
     @Override
+    public FieldsCardinalityMetadata getFieldsMetadata() {
+        return cardinalityMetadata;
+    }
+
+    @Override
     public void close() throws IOException {
         mapCache.close();
     }
@@ -358,8 +372,40 @@ public class SimpleFlamdexReader
         }
     }
 
+    public void buildAndWriteCardinalityCache(final boolean skipIfExist) throws IOException {
+        if (getDirectory().getFileSystem().isReadOnly()) {
+            // TODO: throw IOException?
+            return;
+        }
+
+        if (skipIfExist && FieldsCardinalityMetadata.hasMetadataFile(getDirectory())) {
+            return;
+        }
+
+        final FieldsCardinalityMetadata.Builder builder = new FieldsCardinalityMetadata.Builder();
+
+        for (final String intField : intFields) {
+            final FieldsCardinalityMetadata.FieldInfo info = FlamdexUtils.cacheIntFieldCardinality(intField, this);
+            builder.addIntField(intField, info);
+        }
+
+        for (final String stringField : stringFields) {
+            final FieldsCardinalityMetadata.FieldInfo info = FlamdexUtils.cacheStringFieldCardinality(stringField, this);
+            builder.addStringField(stringField, info);
+        }
+
+        final FieldsCardinalityMetadata metadata = builder.build();
+        cardinalityMetadata = metadata;
+        metadata.writeToDirectory(getDirectory());
+    }
+
     public static final class Config {
         private boolean writeBTreesIfNotExisting = true;
+        // Calculating cardinality is very expensive.
+        // If defauld value of this is 'true' then there will huge cpu-load on shards opening.
+        // TODO: change default to true when cardinality metadata is integrated
+        // in shards building and metadata have been created for old shards.
+        private boolean writeCardinalityIfNotExisting = false;
         private boolean useMMapMetrics = System.getProperty("flamdex.mmap.fieldcache") != null;
         private boolean useMMapDocIdStream = false;
 
@@ -367,8 +413,17 @@ public class SimpleFlamdexReader
             return writeBTreesIfNotExisting;
         }
 
+        public boolean isWriteCardinalityIfNotExisting() {
+            return writeCardinalityIfNotExisting;
+        }
+
         public Config setWriteBTreesIfNotExisting(final boolean writeBTreesIfNotExisting) {
             this.writeBTreesIfNotExisting = writeBTreesIfNotExisting;
+            return this;
+        }
+
+        public Config setWriteCardinalityIfNotExisting( final boolean writeFieldCapacityIfNotExisting) {
+            this.writeCardinalityIfNotExisting = writeFieldCapacityIfNotExisting;
             return this;
         }
 

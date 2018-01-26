@@ -3,6 +3,7 @@ package com.indeed.flamdex.dynamic;
 import com.google.common.base.Optional;
 import com.google.common.base.Supplier;
 import com.indeed.flamdex.api.DocIdStream;
+import com.indeed.flamdex.api.FieldsCardinalityMetadata;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermDocIterator;
@@ -186,6 +187,11 @@ class SegmentReader implements FlamdexReader {
     @Override
     public long memoryRequired(final String metric) {
         return flamdexReader.memoryRequired(metric);
+    }
+
+    @Override
+    public FieldsCardinalityMetadata getFieldsMetadata() {
+        return null;
     }
 
     @Override
