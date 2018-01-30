@@ -430,6 +430,7 @@ public enum FieldCacher {
                         });
             }
             final long value = buffer.memory().getLong(0);
+            Closeables2.closeQuietly(buffer, log);
             return new Constant(value);
         }
         @Override
