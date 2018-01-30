@@ -92,7 +92,9 @@ public class FieldCacherUtil {
         minMax.min = minTermVal;
         minMax.max = maxTermVal;
 
-        if (minTermVal >= 0 && maxTermVal <= 1) {
+        if (minTermVal == maxTermVal) {
+            return FieldCacher.CONSTANT;
+        } else if (minTermVal >= 0 && maxTermVal <= 1) {
             return FieldCacher.BITSET;
         } else if (minTermVal >= 0 && maxTermVal <= 255) {
             return FieldCacher.BYTE;
@@ -118,7 +120,9 @@ public class FieldCacherUtil {
         minMax.min = minTermVal;
         minMax.max = maxTermVal;
 
-        if (minTermVal >= 0 && maxTermVal <= 1) {
+        if (minTermVal == maxTermVal) {
+            return NativeFlamdexFieldCacher.CONSTANT;
+        } else if (minTermVal >= 0 && maxTermVal <= 1) {
             return NativeFlamdexFieldCacher.BITSET;
         } else if (minTermVal >= 0 && maxTermVal <= 255) {
             return NativeFlamdexFieldCacher.BYTE;

@@ -56,6 +56,11 @@ public class UnsortedIntTermDocIteratorImpl implements UnsortedIntTermDocIterato
     }
 
     @Override
+    public int docFreq() {
+        return iterator.docFreq();
+    }
+
+    @Override
     public int nextDocs(final int[] docIdBuffer) {
         return docIdStream.fillDocIdBuffer(docIdBuffer);
     }

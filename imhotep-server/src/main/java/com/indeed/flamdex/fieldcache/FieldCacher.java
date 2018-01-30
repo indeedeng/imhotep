@@ -18,6 +18,7 @@ import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.datastruct.MMapFastBitSet;
 import com.indeed.flamdex.utils.FlamdexUtils;
+import com.indeed.imhotep.metrics.Constant;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.mmap.MMapBuffer;
 import org.apache.log4j.Logger;
@@ -383,6 +384,57 @@ public enum FieldCacher {
         @Override
         public String getMMapFileName(final String field) {
             return "fld-" + field + ".bitsetcache";
+        }
+    },
+    CONSTANT {
+        @Override
+        public long memoryRequired(final int numDocs) {
+            return 0L;
+        }
+        @Override
+        public IntValueLookup newFieldCache(final UnsortedIntTermDocIterator iterator,
+                                            final int numDocs,
+                                            final long min,
+                                            final long max) {
+            final long value = FlamdexUtils.getConstantField(iterator, numDocs);
+            return new Constant(value);
+        }
+        @Override
+        public IntValueLookup newMMapFieldCache(final UnsortedIntTermDocIterator iterator,
+                                                final int numDocs,
+                                                final String field,
+                                                final Path directory,
+                                                final long min, final long max) throws IOException {
+            final Path cachePath = directory.resolve(getMMapFileName(field));
+            MMapBuffer buffer;
+            try {
+                buffer = new MMapBuffer(cachePath, FileChannel.MapMode.READ_ONLY, ByteOrder.LITTLE_ENDIAN);
+            } catch (final NoSuchFileException|FileNotFoundException e) {
+                buffer = cacheToFileAtomically(iterator,
+                        numDocs,
+                        field,
+                        directory,
+                        cachePath,
+                        new CacheToFileOperation<MMapBuffer>() {
+                            @Override
+                            public MMapBuffer execute(
+                                    final UnsortedIntTermDocIterator iterator,
+                                    final int numDocs,
+                                    final Path p) throws IOException {
+                                final long term = FlamdexUtils.getConstantField(iterator, numDocs);
+                                return FlamdexUtils.cacheConstantFieldToFile(
+                                        term,
+                                        numDocs,
+                                        p);
+                            }
+                        });
+            }
+            final long value = buffer.memory().getLong(0);
+            return new Constant(value);
+        }
+        @Override
+        public String getMMapFileName(final String field) {
+            return "fld-" + field + ".constcache";
         }
     };
 

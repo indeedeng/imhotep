@@ -90,6 +90,51 @@ public class FlamdexUtils {
         return cache;
     }
 
+    public static long getConstantField(final UnsortedIntTermDocIterator iterator, final int numDocs) {
+        if (!iterator.nextTerm()) {
+            // if there is no term then all docs have metric value 0
+            return 0;
+        }
+        final long term = iterator.term();
+        if (!iterator.nextTerm() && (iterator.docFreq() == numDocs)) {
+            // only one term and all docs has this term.
+            return term;
+        }
+
+        throw new IllegalStateException("Iterator expected to be constant, i.e. zero or one term and all docs have this term");
+    }
+
+    public static long getConstantField(final IntTermIterator iterator, final int numDocs) {
+        if (!iterator.next()) {
+            // if there is no term then all docs have metric value 0
+            return 0;
+        }
+        final long term = iterator.term();
+        if (!iterator.next() && (iterator.docFreq() == numDocs)) {
+            // only one term and all docs has this term.
+            return term;
+        }
+
+        throw new IllegalStateException("Iterator expected to be constant, i.e. zero or one term and all docs have this term");
+    }
+
+    public static MMapBuffer cacheConstantFieldToFile(final long term,
+                                                  final int numDocs,
+                                                  final Path path) throws IOException {
+        final int length = 8;
+        final MMapBuffer buffer = new MMapBuffer(path, 0L, length, FileChannel.MapMode.READ_WRITE, ByteOrder.LITTLE_ENDIAN);
+        final LongArray longArray = buffer.memory().longArray(0, 1);
+        try {
+            longArray.set(0, term);
+            buffer.sync(0, length);
+        } catch (final RuntimeException | IOException e) {
+            Closeables2.closeQuietly(buffer, LOG);
+            throw e;
+        }
+
+        return buffer;
+    }
+
     public static MMapBuffer cacheLongFieldToFile(final UnsortedIntTermDocIterator iterator,
                                                   final int numDocs,
                                                   final Path path) throws IOException {
@@ -467,12 +512,24 @@ public class FlamdexUtils {
          */
         long minTerm = 0;
         long maxTerm = 0;
+        long termsCount = 0;
+        long lastTerm = 0;
+        long lastTermFreq = 0;
         try (IntTermIterator iterator = r.getUnsortedIntTermIterator(field)) {
             while (iterator.next()) {
-                maxTerm = Math.max(maxTerm, iterator.term());
-                minTerm = Math.min(minTerm, iterator.term());
+                lastTerm = iterator.term();
+                maxTerm = Math.max(maxTerm, lastTerm);
+                minTerm = Math.min(minTerm, lastTerm);
+                termsCount++;
+                lastTermFreq = iterator.docFreq();
             }
         }
+
+        // check if all docs have same value
+        if ((termsCount == 1) && (lastTermFreq == r.getNumDocs())) {
+            return new long[]{lastTerm, lastTerm};
+        }
+
         return new long[]{minTerm, maxTerm};
     }
 
