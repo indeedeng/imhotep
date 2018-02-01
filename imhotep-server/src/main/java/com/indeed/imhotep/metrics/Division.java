@@ -25,28 +25,66 @@ public class Division extends AbstractBinaryOperator {
 
     @Override
     public long getMin() {
-        if (b.getMin() >= 0) {
-            return Math.min(eval(a.getMin(), b.getMin()), eval(a.getMin(), b.getMax()));
+        final long maxB = b.getMax();
+        final long minB = b.getMin();
+        long result = Long.MAX_VALUE;
+        if (maxB > 0) {
+            // at least part of B range is positive
+            final long minPositive = Math.max(minB, 1);
+            // A / [minPositive..maxB]
+            // min is one of minA/minPositive and minA/maxB
+            final long minA = a.getMin();
+            result = Math.min(result,
+                    Math.min(eval(minA, minPositive), eval(minA, maxB)));
         }
-        else if (b.getMax() <= 0) {
-            return Math.max(eval(a.getMax(), b.getMax()), eval(a.getMax(), b.getMin()));
+
+        if (minB < 0) {
+            // at least part of B range is negative
+            final long maxNegative = Math.min(maxB, -1);
+            // A / [minB..maxNegative] == [-maxA..-minA] / [-maxNegative..-minB] where divider is positive
+            // min is one of (-maxA)/(-maxNegative) and (-maxA)/(-minB), we can omit negate signs.
+            final long maxA = a.getMax();
+            result = Math.min(result,
+                    Math.min(eval(maxA, maxNegative), eval(maxA, minB)));
         }
-        else {
-            return Math.min(-Math.abs(a.getMax()), -Math.abs(a.getMin()));
+
+        // check if zero is in B range and update result if so.
+        if (maxB >= 0 && minB <= 0) {
+            result = Math.min(result, 0);
         }
+        return result;
     }
 
     @Override
     public long getMax() {
-        if (b.getMin() >= 0) {
-            return Math.max(eval(a.getMax(), b.getMax()), eval(a.getMax(), b.getMin()));
+        final long maxB = b.getMax();
+        final long minB = b.getMin();
+        long result = Long.MIN_VALUE;
+        if (maxB > 0) {
+            // at least part of B range is positive
+            final long minPositive = Math.max(minB, 1);
+            // A / [minPositive..maxB]
+            // max is one of maxA/minPositive and maxA/maxB
+            final long maxA = a.getMax();
+            result = Math.max(result,
+                    Math.max(eval(maxA, minPositive), eval(maxA, maxB)));
         }
-        else if (b.getMax() <= 0) {
-            return Math.min(eval(a.getMin(), b.getMin()), eval(a.getMin(), b.getMax()));
+
+        if (minB < 0) {
+            // at least part of B range is negative
+            final long maxNegative = Math.min(maxB, -1);
+            // A / [minB..maxNegative] == [-maxA..-minA] / [-maxNegative..-minB] where divider is positive
+            // max is one of (-minA)/(-maxNegative) and (-minA)/(-minB), we can omit negate signs.
+            final long minA = a.getMin();
+            result = Math.max(result,
+                    Math.max(eval(minA, maxNegative), eval(minA, minB)));
         }
-        else {
-            return Math.max(Math.abs(a.getMax()), Math.abs(a.getMin()));
+
+        // check if zero is in B range and update result if so.
+        if (maxB >= 0 && minB <= 0) {
+            result = Math.max(result, 0);
         }
+        return result;
     }
 
     @Override
