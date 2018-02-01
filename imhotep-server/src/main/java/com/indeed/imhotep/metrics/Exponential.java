@@ -18,35 +18,33 @@ import com.indeed.flamdex.api.IntValueLookup;
 /**
  * Fixed-point exponential function
  * @author dwahler
+ * f(x) = scale * e^(x/scale)
+ * f(x) is increasing function for any value of scale
  */
 public class Exponential implements IntValueLookup {
     private final IntValueLookup operand;
-    private final int scaleFactor;
+    private final double scaleFactor;
 
     public Exponential(final IntValueLookup operand, final int scaleFactor) {
         this.operand = operand;
-        this.scaleFactor = scaleFactor;
+        this.scaleFactor = (double) scaleFactor;
     }
 
     @Override
     public long getMin() {
-        return 0;
+        return eval(operand.getMin(), scaleFactor);
     }
 
     @Override
     public long getMax() {
-        return scaleFactor;
+        return eval(operand.getMax(), scaleFactor);
     }
 
     @Override
     public void lookup(final int[] docIds, final long[] values, final int n) {
         operand.lookup(docIds, values, n);
         for (int i = 0; i < n; i++) {
-            final double x = values[i] / (double) scaleFactor;
-            final double result = Math.exp(x);
-
-            // the output is clamped to [Integer.MIN_VALUE, Integer.MAX_VALUE] (JLS §5.1.3)
-            values[i] = (long) (result * scaleFactor);
+            values[i] = eval(values[i], scaleFactor);
         }
     }
 
@@ -58,5 +56,13 @@ public class Exponential implements IntValueLookup {
     @Override
     public void close() {
         operand.close();
+    }
+
+    private static long eval(final long value, final double scale) {
+        final double x = value / scale;
+        final double result = Math.exp(x);
+
+        // the output is clamped to [Integer.MIN_VALUE, Integer.MAX_VALUE] (JLS §5.1.3)
+        return (long) (result * scale);
     }
 }

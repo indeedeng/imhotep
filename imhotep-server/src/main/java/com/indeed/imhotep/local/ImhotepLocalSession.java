@@ -1978,6 +1978,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
 
         final int numDocs = flamdexReader.getNumDocs();
+        metric.resetMinMax();
         for (int doc = 0; doc < numDocs; doc++) {
             final int group = docIdToGroup.get(doc);
             if (group >= 0 && group < deltas.length) {
@@ -2323,6 +2324,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             final int[] docIdBuf,
             final int n) {
         docIdToGroup.fillDocGrpBuffer(docIdBuf, docGroupBuffer, n);
+        metric.resetMinMax();
         for (int i = 0; i < n; i++) {
             if (groupsWithCurrentTerm.get(docGroupBuffer[i])) {
                 metric.add(docIdBuf[i], groupToDelta[docGroupBuffer[i]]);
@@ -2334,6 +2336,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             final DynamicMetric metric,
             final DocIdStream docIdStream,
             final int delta) {
+        metric.resetMinMax();
         while (true) {
             final int n = docIdStream.fillDocIdBuffer(docIdBuf);
             for (int i = 0; i < n; i++) {

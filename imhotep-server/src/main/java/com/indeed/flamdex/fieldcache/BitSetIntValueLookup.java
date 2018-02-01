@@ -21,27 +21,19 @@ import com.indeed.flamdex.datastruct.FastBitSet;
  */
 public final class BitSetIntValueLookup implements IntValueLookup {
     private FastBitSet lookupBitSet;
-    private final long min;
-    private final long max;
 
     public BitSetIntValueLookup(final FastBitSet lookupBitSet) {
-        this(lookupBitSet, 0, 1);
-    }
-
-    public BitSetIntValueLookup(final FastBitSet lookupBitSet, final long min, final long max) {
         this.lookupBitSet = lookupBitSet;
-        this.min = min;
-        this.max = max;
     }
 
     @Override
     public long getMin() {
-        return min;
+        return 0;
     }
 
     @Override
     public long getMax() {
-        return max;
+        return 1;
     }
 
     @Override

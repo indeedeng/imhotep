@@ -292,6 +292,7 @@ public class IndexReWriter {
                 if (newDM == null) {
                     newDM = new DynamicMetric(newNumDocs);
                 }
+                newDM.resetMinMax();
                 for (int j = 0; j < gl.size(); j++) {
                     final int docId = mapping[j + offset];
                     if (docId == -1) {

@@ -32,16 +32,6 @@ public abstract class AbstractBinaryOperator implements IntValueLookup {
     }
 
     @Override
-    public long getMin() {
-        return Long.MIN_VALUE;
-    }
-
-    @Override
-    public long getMax() {
-        return Long.MAX_VALUE;
-    }
-
-    @Override
     public void lookup(final int[] docIds, final long[] values, final int n) {
         if (buffer.length < n) {
             buffer = new long[n];

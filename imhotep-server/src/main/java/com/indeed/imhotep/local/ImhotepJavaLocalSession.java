@@ -365,6 +365,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
                 if (oldMetric == null) {
                     oldMetric = new DynamicMetric(numOldDocs);
                 }
+                oldMetric.resetMinMax();
                 for (int i = 0; i < numNewDocs; i++) {
                     final int oldId = newToOldIdMapping[i];
                     final int value = newMetric.lookupSingleVal(i);

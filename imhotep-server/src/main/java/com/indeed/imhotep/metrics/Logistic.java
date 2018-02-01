@@ -3,7 +3,8 @@ package com.indeed.imhotep.metrics;
 import com.indeed.flamdex.api.IntValueLookup;
 
 /**
- * 1/(1+e^-x)
+ * f(x) = scaleUp / (1 + e^(-x / scaleDown))
+ * f(x) is monotonic but if it's increasing or decreasing depends on scaleUp and scaleDown
  * @author jplaisance
  */
 public final class Logistic implements IntValueLookup {
@@ -19,20 +20,21 @@ public final class Logistic implements IntValueLookup {
 
     @Override
     public long getMin() {
-        return 0;
+        // since f(x) is monotonic min is on range border.
+        return Math.min(eval(operand.getMin()), eval(operand.getMax()));
     }
 
     @Override
     public long getMax() {
-        return (long)scaleUp;
+        // since f(x) is monotonic max is on range border.
+        return Math.max(eval(operand.getMin()), eval(operand.getMax()));
     }
 
     @Override
     public void lookup(final int[] docIds, final long[] values, final int n) {
         operand.lookup(docIds, values, n);
         for (int i = 0; i < n; i++) {
-            final double x = values[i] / scaleDown;
-            values[i] = (long)(scaleUp/(1+Math.exp(-x)));
+            values[i] = eval(values[i]);
         }
     }
 
@@ -44,5 +46,10 @@ public final class Logistic implements IntValueLookup {
     @Override
     public void close() {
         operand.close();
+    }
+
+    private long eval(final long value) {
+        final double x = value / scaleDown;
+        return (long)(scaleUp/(1+Math.exp(-x)));
     }
 }

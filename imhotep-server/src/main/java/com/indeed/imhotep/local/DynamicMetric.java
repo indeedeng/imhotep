@@ -23,6 +23,8 @@ import java.io.Serializable;
 public class DynamicMetric implements IntValueLookup, Serializable {
     private static final long serialVersionUID = 1L;
     private final int[] values;
+    private Integer min;
+    private Integer max;
 
     public DynamicMetric(final int size) {
         this.values = new int[size];
@@ -30,12 +32,18 @@ public class DynamicMetric implements IntValueLookup, Serializable {
 
     @Override
     public long getMin() {
-        return Ints.min(values);
+        if (min == null) {
+            min = Ints.min(values);
+        }
+        return min;
     }
 
     @Override
     public long getMax() {
-        return Ints.max(values);
+        if (max == null) {
+            max = Ints.max(values);
+        }
+        return max;
     }
 
     @Override
@@ -55,6 +63,7 @@ public class DynamicMetric implements IntValueLookup, Serializable {
         // simply popping this from the metric stack doesn't have any effect
     }
 
+    // don't forget to call resetMinMax!
     public void add(final int doc, final int delta) {
         // TODO optimize this to remove branches
         final long newValue = (long) values[doc] + (long) delta;
@@ -66,7 +75,8 @@ public class DynamicMetric implements IntValueLookup, Serializable {
             values[doc] = (int) newValue;
         }
     }
-    
+
+    // don't forget to call resetMinMax!
     public void set(final int doc, final int value) {
         values[doc] = value;
     }
@@ -75,4 +85,8 @@ public class DynamicMetric implements IntValueLookup, Serializable {
         return this.values[docId];
     }
 
+    public void resetMinMax() {
+        min = null;
+        max = null;
+    }
 }

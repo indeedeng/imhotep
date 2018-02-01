@@ -56,7 +56,7 @@ public class Division extends AbstractBinaryOperator {
         }
     }
 
-    private long eval(final long a, final long b) {
+    private static long eval(final long a, final long b) {
         return b != 0 ? a / b : 0;
     }
 }
