@@ -57,7 +57,7 @@ public class Modulus extends AbstractBinaryOperator {
             // result can be positive
             return Math.max(Math.abs(b.getMin()), Math.abs(b.getMax())) - 1;
         } else {
-            // result can be regative or zero.
+            // result is always negative or zero.
             return 0;
         }
      }
