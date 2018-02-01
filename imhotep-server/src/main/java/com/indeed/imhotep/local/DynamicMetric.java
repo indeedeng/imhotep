@@ -63,30 +63,32 @@ public class DynamicMetric implements IntValueLookup, Serializable {
         // simply popping this from the metric stack doesn't have any effect
     }
 
-    // don't forget to call resetMinMax!
-    public void add(final int doc, final int delta) {
-        // TODO optimize this to remove branches
-        final long newValue = (long) values[doc] + (long) delta;
-        if (newValue < Integer.MIN_VALUE) {
-            values[doc] = Integer.MIN_VALUE;
-        } else if (newValue > Integer.MAX_VALUE) {
-            values[doc] = Integer.MAX_VALUE;
-        } else {
-            values[doc] = (int) newValue;
-        }
-    }
-
-    // don't forget to call resetMinMax!
-    public void set(final int doc, final int value) {
-        values[doc] = value;
-    }
-
     public int lookupSingleVal(final int docId) {
         return this.values[docId];
     }
 
-    public void resetMinMax() {
+    public Editor getEditor() {
         min = null;
         max = null;
+        return new Editor();
+    }
+
+    // helper class not to forget reset min and max when changing values.
+    public class Editor {
+        public void add(final int doc, final int delta) {
+            // TODO optimize this to remove branches
+            final long newValue = (long) values[doc] + (long) delta;
+            if (newValue < Integer.MIN_VALUE) {
+                values[doc] = Integer.MIN_VALUE;
+            } else if (newValue > Integer.MAX_VALUE) {
+                values[doc] = Integer.MAX_VALUE;
+            } else {
+                values[doc] = (int) newValue;
+            }
+        }
+
+        public void set(final int doc, final int value) {
+            values[doc] = value;
+        }
     }
 }

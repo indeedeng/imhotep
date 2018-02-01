@@ -1978,11 +1978,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
 
         final int numDocs = flamdexReader.getNumDocs();
-        metric.resetMinMax();
+        final DynamicMetric.Editor editor = metric.getEditor();
         for (int doc = 0; doc < numDocs; doc++) {
             final int group = docIdToGroup.get(doc);
             if (group >= 0 && group < deltas.length) {
-                metric.add(doc, deltas[group]);
+                editor.add(doc, deltas[group]);
             }
         }
 
@@ -2324,10 +2324,10 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             final int[] docIdBuf,
             final int n) {
         docIdToGroup.fillDocGrpBuffer(docIdBuf, docGroupBuffer, n);
-        metric.resetMinMax();
+        final DynamicMetric.Editor editor = metric.getEditor();
         for (int i = 0; i < n; i++) {
             if (groupsWithCurrentTerm.get(docGroupBuffer[i])) {
-                metric.add(docIdBuf[i], groupToDelta[docGroupBuffer[i]]);
+                editor.add(docIdBuf[i], groupToDelta[docGroupBuffer[i]]);
             }
         }
     }
@@ -2336,11 +2336,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             final DynamicMetric metric,
             final DocIdStream docIdStream,
             final int delta) {
-        metric.resetMinMax();
+        final DynamicMetric.Editor editor = metric.getEditor();
         while (true) {
             final int n = docIdStream.fillDocIdBuffer(docIdBuf);
             for (int i = 0; i < n; i++) {
-                metric.add(docIdBuf[i], delta);
+                editor.add(docIdBuf[i], delta);
             }
             if (n != docIdBuf.length) {
                 break;

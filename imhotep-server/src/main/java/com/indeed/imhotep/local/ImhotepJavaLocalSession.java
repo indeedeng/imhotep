@@ -365,11 +365,11 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
                 if (oldMetric == null) {
                     oldMetric = new DynamicMetric(numOldDocs);
                 }
-                oldMetric.resetMinMax();
+                final DynamicMetric.Editor editor = oldMetric.getEditor();
                 for (int i = 0; i < numNewDocs; i++) {
                     final int oldId = newToOldIdMapping[i];
                     final int value = newMetric.lookupSingleVal(i);
-                    oldMetric.set(oldId, value);
+                    editor.set(oldId, value);
                 }
 
                 oldMetrics.put(e.getKey(), oldMetric);
