@@ -18,6 +18,7 @@ import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.datastruct.FastBitSet;
+import com.indeed.flamdex.utils.FlamdexUtils;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.exceptions.MultiValuedFieldRegroupException;
@@ -164,6 +165,10 @@ class MultiRegroupInternals {
                 flat.reorderOnTerm(fieldStartIndex, iCondition, intType);
                 if (intType) {
                     try (final IntTermIterator termIterator = flamdexReader.getUnsortedIntTermIterator(field)) {
+                        // If we sure that there are no multi terms for docs,
+                        // then errorOnCollision value is unimportant
+                        final boolean errorOnCollisionsExt = errorOnCollisions &&
+                                (FlamdexUtils.hasMultipleTermDoc(flamdexReader, field, true) != Boolean.FALSE);
                         long currentTerm = flat.conditions[fieldStartIndex].intTerm;
                         int termStartIndex = fieldStartIndex;
                         final int fieldEndIndex = iCondition;
@@ -179,7 +184,7 @@ class MultiRegroupInternals {
                             performIntMultiEqualityRegroup(docIdToGroup, newDocIdToGroup,
                                     docIdBuf, docIdStream, termIterator,
                                     remappings, currentTerm,
-                                    errorOnCollisions ? placeholderGroup : -1);
+                                    errorOnCollisionsExt ? placeholderGroup : -1);
 
                             for (int ix2 = termStartIndex; ix2 < ix; ix2++) {
                                 final int targetGroup = rules[flat.ruleIndices[ix2]].targetGroup;
@@ -196,6 +201,10 @@ class MultiRegroupInternals {
                     }
                 } else {
                     try (final StringTermIterator termIterator = flamdexReader.getStringTermIterator(field)) {
+                        // If we sure that there are no multi terms for docs,
+                        // then errorOnCollision value is unimportant
+                        final boolean errorOnCollisionsExt = errorOnCollisions &&
+                                (FlamdexUtils.hasMultipleTermDoc(flamdexReader, field, false) != Boolean.FALSE);
                         String currentTerm = flat.conditions[fieldStartIndex].stringTerm;
                         int termStartIndex = fieldStartIndex;
                         final int fieldEndIndex = iCondition;
@@ -211,7 +220,7 @@ class MultiRegroupInternals {
                             performStringMultiEqualityRegroup(docIdToGroup, newDocIdToGroup,
                                     docIdBuf, docIdStream, termIterator,
                                     remappings, currentTerm,
-                                    errorOnCollisions ? placeholderGroup : -1);
+                                    errorOnCollisionsExt ? placeholderGroup : -1);
 
                             // Reset the remapping entries to placeholderGroup
                             for (int ix2 = termStartIndex; ix2 < ix; ix2++) {

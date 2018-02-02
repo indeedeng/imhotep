@@ -2816,6 +2816,10 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     private IntValueLookup hasIntFieldFilter(final String field) throws ImhotepOutOfMemoryException {
+        if (FlamdexUtils.hasZeroTermDoc(flamdexReader, field, true) == Boolean.FALSE) {
+            return new Constant(1);
+        }
+
         final long memoryUsage = getBitSetMemoryUsage();
 
         if (!memory.claimMemory(memoryUsage)) {
@@ -2829,6 +2833,10 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     private IntValueLookup hasStringFieldFilter(final String field) throws ImhotepOutOfMemoryException {
+        if (FlamdexUtils.hasZeroTermDoc(flamdexReader, field, false) == Boolean.FALSE) {
+            return new Constant(1);
+        }
+
         final long memoryUsage = getBitSetMemoryUsage();
 
         if (!memory.claimMemory(memoryUsage)) {

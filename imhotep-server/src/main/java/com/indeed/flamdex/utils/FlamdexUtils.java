@@ -866,4 +866,36 @@ public class FlamdexUtils {
     private enum FieldType {
         INT, STR, NULL
     }
+
+    public static Boolean hasZeroTermDoc(final FlamdexReader reader,
+                                         final String field,
+                                         final boolean isIntField) {
+        final FieldsCardinalityMetadata metadata = reader.getFieldsMetadata();
+        if (metadata == null) {
+            return false;
+        }
+
+        final FieldsCardinalityMetadata.FieldInfo info =
+                isIntField ? metadata.intFieldInfo(field) : metadata.stringFieldInfo(field);
+        if (info == null) {
+            return null;
+        }
+        return info.hasZeroTermDoc;
+    }
+
+    public static Boolean hasMultipleTermDoc(final FlamdexReader reader,
+                                             final String field,
+                                             final boolean isIntField) {
+        final FieldsCardinalityMetadata metadata = reader.getFieldsMetadata();
+        if (metadata == null) {
+            return false;
+        }
+
+        final FieldsCardinalityMetadata.FieldInfo info =
+                isIntField ? metadata.intFieldInfo(field) : metadata.stringFieldInfo(field);
+        if (info == null) {
+            return null;
+        }
+        return info.hasMultipleTermDoc;
+    }
 }
