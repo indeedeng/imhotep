@@ -25,12 +25,12 @@ public class Subtraction extends AbstractBinaryOperator {
 
     @Override
     public long getMin() {
-        return Math.min(a.getMin() - b.getMin(), a.getMin() - b.getMax());
+        return a.getMin() - b.getMax();
     }
 
     @Override
     public long getMax() {
-        return Math.max(a.getMax() - b.getMin(), a.getMax() - b.getMax());
+        return a.getMax() - b.getMin();
     }
 
     @Override

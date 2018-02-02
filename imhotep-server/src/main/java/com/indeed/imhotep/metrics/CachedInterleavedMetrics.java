@@ -27,6 +27,8 @@ public class CachedInterleavedMetrics {
 
     private final int numDocs, stride;
     private long[] interleavedData;
+    private long[] mins;
+    private long[] maxes;
 
     private final BitSet closed;
     private boolean released;
@@ -43,6 +45,12 @@ public class CachedInterleavedMetrics {
             throw new ImhotepOutOfMemoryException();
         }
         interleavedData = new long[numDocs * stride];
+        mins = new long[stride];
+        maxes = new long[stride];
+        for (int i = 0; i < stride; i++) {
+            mins[i] = lookups[i].getMin();
+            maxes[i] = lookups[i].getMax();
+        }
         fillValues(lookups);
 
         closed = new BitSet(stride);
@@ -96,12 +104,12 @@ public class CachedInterleavedMetrics {
 
         @Override
         public long getMin() {
-            return Long.MIN_VALUE; // TODO compute this
+            return mins[offset];
         }
 
         @Override
         public long getMax() {
-            return Long.MAX_VALUE; // TODO compute this;
+            return maxes[offset];
         }
 
         @Override

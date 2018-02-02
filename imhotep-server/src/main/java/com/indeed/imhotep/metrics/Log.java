@@ -17,6 +17,8 @@ import com.indeed.flamdex.api.IntValueLookup;
 
 /**
  * User: arun
+ * f(x) = scale * log(x/scale) = scale * (log(x)- log(scale))
+ * f(x) is increasing function for any scale
  * Note: Since the result is stored as an int, Log(0) will be INTEGER.MIN_VALUE.(JLS §5.1.3)
  */
 public final class Log implements IntValueLookup {
@@ -33,19 +35,19 @@ public final class Log implements IntValueLookup {
 
     @Override
     public long getMin() {
-        return Long.MIN_VALUE;
+        return eval(operand.getMin());
     }
 
     @Override
     public long getMax() {
-        return Long.MAX_VALUE;
+        return eval(operand.getMax());
     }
 
     @Override
     public void lookup(final int[] docIds, final long[] values, final int n) {
         operand.lookup(docIds, values, n);
         for (int i = 0; i < n; i++) {
-            values[i] = (long) ((Math.log(values[i]) - logScaleFactor) * scaleFactor);
+            values[i] = eval(values[i]);
         }
     }
 
@@ -57,5 +59,9 @@ public final class Log implements IntValueLookup {
     @Override
     public void close() {
         operand.close();
+    }
+
+    private long eval(final long value) {
+        return (long) ((Math.log(value) - logScaleFactor) * scaleFactor);
     }
 }

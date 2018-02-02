@@ -292,12 +292,13 @@ public class IndexReWriter {
                 if (newDM == null) {
                     newDM = new DynamicMetric(newNumDocs);
                 }
+                final DynamicMetric.Editor editor = newDM.getEditor();
                 for (int j = 0; j < gl.size(); j++) {
                     final int docId = mapping[j + offset];
                     if (docId == -1) {
                         continue;
                     }
-                    newDM.add(docId, oldDM.lookupSingleVal(j));
+                    editor.add(docId, oldDM.lookupSingleVal(j));
                 }
                 newDynMetrics.put(e.getKey(), newDM);
             }
