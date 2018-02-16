@@ -396,8 +396,11 @@ public enum FieldCacher {
                                             final int numDocs,
                                             final long min,
                                             final long max) {
-            final long value = FlamdexUtils.getConstantField(iterator, numDocs);
-            return new Constant(value);
+            if (min != max) {
+                throw new IllegalStateException(
+                        "Constant field creation with min=" + min + " and max=" + max);
+            }
+            return new Constant(min);
         }
         @Override
         public IntValueLookup newMMapFieldCache(final UnsortedIntTermDocIterator iterator,
@@ -405,33 +408,7 @@ public enum FieldCacher {
                                                 final String field,
                                                 final Path directory,
                                                 final long min, final long max) throws IOException {
-            final Path cachePath = directory.resolve(getMMapFileName(field));
-            MMapBuffer buffer;
-            try {
-                buffer = new MMapBuffer(cachePath, FileChannel.MapMode.READ_ONLY, ByteOrder.LITTLE_ENDIAN);
-            } catch (final NoSuchFileException|FileNotFoundException e) {
-                buffer = cacheToFileAtomically(iterator,
-                        numDocs,
-                        field,
-                        directory,
-                        cachePath,
-                        new CacheToFileOperation<MMapBuffer>() {
-                            @Override
-                            public MMapBuffer execute(
-                                    final UnsortedIntTermDocIterator iterator,
-                                    final int numDocs,
-                                    final Path p) throws IOException {
-                                final long term = FlamdexUtils.getConstantField(iterator, numDocs);
-                                return FlamdexUtils.cacheConstantFieldToFile(
-                                        term,
-                                        numDocs,
-                                        p);
-                            }
-                        });
-            }
-            final long value = buffer.memory().getLong(0);
-            Closeables2.closeQuietly(buffer, log);
-            return new Constant(value);
+            return newFieldCache(iterator, numDocs, min, max);
         }
         @Override
         public String getMMapFileName(final String field) {

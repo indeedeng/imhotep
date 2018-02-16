@@ -21,7 +21,6 @@ import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.flamdex.datastruct.MMapFastBitSet;
 import com.indeed.flamdex.simple.SimpleIntTermIterator;
-import com.indeed.flamdex.utils.FlamdexUtils;
 import com.indeed.imhotep.metrics.Constant;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.mmap.MMapBuffer;
@@ -803,8 +802,11 @@ public enum NativeFlamdexFieldCacher {
         protected IntValueLookup newFieldCacheInternal(final SimpleIntTermIterator iter,
                                                        final int numDocs, final long min, final long max)
                 throws IOException {
-            final long value = FlamdexUtils.getConstantField(iter, numDocs);
-            return new Constant(value);
+            if (min != max) {
+                throw new IllegalStateException(
+                        "Constant field creation with min=" + min + " and max=" + max);
+            }
+            return new Constant(min);
         }
 
         @Override
@@ -813,39 +815,12 @@ public enum NativeFlamdexFieldCacher {
                                                            final String field,
                                                            final Path directory, final long min, final long max)
                 throws IOException {
-            final Path cachePath = directory.resolve(getMMapFileName(field));
-            MMapBuffer buffer;
-            try {
-                buffer = new MMapBuffer(cachePath,
-                        FileChannel.MapMode.READ_ONLY,
-                        ByteOrder.LITTLE_ENDIAN);
-            } catch (final FileNotFoundException e) {
-                buffer = cacheToFileAtomically(iter,
-                        numDocs,
-                        field,
-                        directory,
-                        cachePath,
-                        new MMapConstFieldCacherOp());
-            }
-            final long value = buffer.memory().getLong(0);
-            Closeables2.closeQuietly(buffer, log);
-            return new Constant(value);
+            return newFieldCacheInternal(iter, numDocs, min, max);
         }
 
         @Override
         public String getMMapFileName(final String field) {
             return "fld-" + field + ".constcache";
-        }
-
-        final class MMapConstFieldCacherOp implements CacheToFileOperation<MMapBuffer> {
-
-            @Override
-            public MMapBuffer execute(final SimpleIntTermIterator iterator,
-                                      final int numDocs,
-                                      final Path p) throws IOException {
-                final long term = FlamdexUtils.getConstantField(iterator, numDocs);
-                return FlamdexUtils.cacheConstantFieldToFile(term, numDocs, p);
-            }
         }
     };
 
