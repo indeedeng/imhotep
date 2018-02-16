@@ -100,6 +100,11 @@ final class LuceneUnsortedIntTermDocIterator implements UnsortedIntTermDocIterat
     }
 
     @Override
+    public int docFreq() {
+        return termDocs.freq();
+    }
+
+    @Override
     public int nextDocs(final int[] docIdBuffer) {
         try {
             return innerNextDocs(docIdBuffer);

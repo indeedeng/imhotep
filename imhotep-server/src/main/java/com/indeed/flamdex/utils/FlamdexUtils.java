@@ -467,12 +467,24 @@ public class FlamdexUtils {
          */
         long minTerm = 0;
         long maxTerm = 0;
+        long termsCount = 0;
+        long lastTerm = 0;
+        long lastTermFreq = 0;
         try (IntTermIterator iterator = r.getUnsortedIntTermIterator(field)) {
             while (iterator.next()) {
-                maxTerm = Math.max(maxTerm, iterator.term());
-                minTerm = Math.min(minTerm, iterator.term());
+                lastTerm = iterator.term();
+                maxTerm = Math.max(maxTerm, lastTerm);
+                minTerm = Math.min(minTerm, lastTerm);
+                termsCount++;
+                lastTermFreq = iterator.docFreq();
             }
         }
+
+        // check if all docs have same value
+        if ((termsCount == 1) && (lastTermFreq == r.getNumDocs())) {
+            return new long[]{lastTerm, lastTerm};
+        }
+
         return new long[]{minTerm, maxTerm};
     }
 

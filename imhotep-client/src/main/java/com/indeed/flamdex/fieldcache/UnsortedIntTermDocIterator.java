@@ -27,6 +27,7 @@ import java.io.Closeable;
 public interface UnsortedIntTermDocIterator extends Closeable {
     boolean nextTerm();
     long term();
+    int docFreq();
     int nextDocs(int[] docIdBuffer);
     void close();
 }

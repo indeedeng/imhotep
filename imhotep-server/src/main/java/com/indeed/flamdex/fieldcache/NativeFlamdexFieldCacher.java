@@ -21,6 +21,7 @@ import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.flamdex.datastruct.MMapFastBitSet;
 import com.indeed.flamdex.simple.SimpleIntTermIterator;
+import com.indeed.imhotep.metrics.Constant;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.mmap.MMapBuffer;
 import org.apache.log4j.Logger;
@@ -789,6 +790,37 @@ public enum NativeFlamdexFieldCacher {
                                                   offset);
                 return bitset;
             }
+        }
+    },
+    CONSTANT {
+        @Override
+        public long memoryRequired(final int numDocs) {
+            return 0L;
+        }
+
+        @Override
+        protected IntValueLookup newFieldCacheInternal(final SimpleIntTermIterator iter,
+                                                       final int numDocs, final long min, final long max)
+                throws IOException {
+            if (min != max) {
+                throw new IllegalStateException(
+                        "Constant field creation with min=" + min + " and max=" + max);
+            }
+            return new Constant(min);
+        }
+
+        @Override
+        protected IntValueLookup newMMapFieldCacheInternal(final SimpleIntTermIterator iter,
+                                                           final int numDocs,
+                                                           final String field,
+                                                           final Path directory, final long min, final long max)
+                throws IOException {
+            return newFieldCacheInternal(iter, numDocs, min, max);
+        }
+
+        @Override
+        public String getMMapFileName(final String field) {
+            return "fld-" + field + ".constcache";
         }
     };
 
