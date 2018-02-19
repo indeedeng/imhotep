@@ -617,7 +617,7 @@ public class FlamdexUtils {
 
     public static FieldsCardinalityMetadata.FieldInfo cacheIntFieldCardinality(final String field, final FlamdexReader reader) {
         try (
-                final TermIterator iter = reader.getIntTermIterator(field);
+                final TermIterator iter = reader.getUnsortedIntTermIterator(field);
                 final DocIdStream dis = reader.getDocIdStream()
         ) {
             return calculateFieldCardinality(iter, dis, reader.getNumDocs());
