@@ -32,7 +32,7 @@ public abstract class IterativeHasher {
     private static final byte ZERO = '0';
     private static final byte MINUS = '-';
     // LOWER_BOUND is sorted array of values
-    // with property String.valueOf(x-1) != String.valueOf(x)
+    // with property String.valueOf(x-1).length() != String.valueOf(x).length()
     // STRING_LEN is len of corresponding value from LOWER_BOUND
     private static final long[] LOWER_BOUND;
     private static final int[] STRING_LEN;
@@ -104,7 +104,7 @@ public abstract class IterativeHasher {
 
     public abstract int hashStep(final int value, final int prevHash);
 
-    private int getStrLen(final long value) {
+    private static int getStrLen(final long value) {
         int pos = Arrays.binarySearch(LOWER_BOUND, value);
         if (pos < 0) {
             pos = -(pos + 1)-1;
@@ -134,7 +134,7 @@ public abstract class IterativeHasher {
 
             final long diff = value ^ lastValue;
             if ((diff >> 32) != 0) {
-                resultHigh = hashStep((int) (value >> 32), seed);
+                resultHigh = hashStep((int) (value >>> 32), seed);
             }
             resultLow = hashStep((int)(value), resultHigh);
             lastValue = value;
