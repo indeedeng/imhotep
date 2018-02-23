@@ -434,7 +434,7 @@ public class ImhotepClient
             }
             final List<Shard> locatedShards = shardsOverride != null ? shardsOverride : getChosenShards();
             if(locatedShards == null || locatedShards.isEmpty()) {
-                throw new IllegalArgumentException("No shards");
+                throw new IllegalArgumentException("No shards: no data available for the requested dataset and time range");
             }
             final ShardsAndDocCounts shardsAndDocCounts = selectHostsForShards(locatedShards);
             return getSessionForShards(
