@@ -1,11 +1,10 @@
 package com.indeed.imhotep.group;
 
 import com.google.common.base.Charsets;
-import com.google.common.primitives.Ints;
+import com.google.common.math.LongMath;
 
-import java.util.ArrayList;
+import java.math.RoundingMode;
 import java.util.Arrays;
-import java.util.List;
 
 /*
     Class for hashing string and long values.
@@ -28,57 +27,9 @@ public abstract class IterativeHasher {
 
     // Static data for long to string (utf-8) conversion.
     // Max string len for long
-    private static final int MAX_LONG_LENGTH;
+    private static final int MAX_LONG_LENGTH = String.valueOf(Long.MIN_VALUE).length();
     private static final byte ZERO = '0';
     private static final byte MINUS = '-';
-    // LOWER_BOUND is sorted array of values
-    // with property String.valueOf(x-1).length() != String.valueOf(x).length()
-    // STRING_LEN is len of corresponding value from LOWER_BOUND
-    private static final long[] LOWER_BOUND;
-    private static final int[] STRING_LEN;
-
-    static {
-        // Gathering all lower bounds.
-        final List<Long> values = new ArrayList<>();
-        // we have single value with len==1
-        values.add(0L);
-        // Gathering positive values. Iterating while we can.
-        String str = "10";
-        while(true) {
-            try {
-                values.add(Long.parseLong(str));
-                str += "0";
-            } catch (final NumberFormatException ex) {
-                break;
-            }
-        }
-
-        // Gathering negative values. Iterating while we can.
-        str = "-9";
-        while(true) {
-            try {
-                values.add(Long.parseLong(str));
-                str += "9";
-            } catch (final NumberFormatException ex) {
-                break;
-            }
-        }
-
-        // Add lowest possible value.
-        values.add(Long.MIN_VALUE);
-
-        // sorting and filling arrays.
-        values.sort(Long::compare);
-        final int size = values.size();
-        LOWER_BOUND = new long[size];
-        STRING_LEN = new int[size];
-        for (int i = 0; i < size; i++ ) {
-            LOWER_BOUND[i] = values.get(i);
-            STRING_LEN[i] = String.valueOf(LOWER_BOUND[i]).length();
-        }
-
-        MAX_LONG_LENGTH = Ints.max(STRING_LEN);
-    }
 
     private final int seed;
 
@@ -105,11 +56,18 @@ public abstract class IterativeHasher {
     public abstract int hashStep(final int value, final int prevHash);
 
     private static int getStrLen(final long value) {
-        int pos = Arrays.binarySearch(LOWER_BOUND, value);
-        if (pos < 0) {
-            pos = -(pos + 1)-1;
+        // LongMath.log10 expects positive argument.
+        if (value > 0) {
+            return LongMath.log10(value, RoundingMode.FLOOR) + 1;
+        } else if (value < 0) {
+            if (value == Long.MIN_VALUE ) {
+                // -value for Long.MIN_VALUE is Long.MIN_VALUE
+                return MAX_LONG_LENGTH;
+            }
+            return LongMath.log10(-value, RoundingMode.FLOOR) + 2;
+        } else {
+            return 1;
         }
-        return STRING_LEN[pos];
     }
 
     // hasher that represents long as two ints,
