@@ -64,13 +64,13 @@ public class IntTermSetQueryEvaluator implements QueryEvaluator {
     }
 
     private void internalSearch(final FlamdexReader r, final FastBitSet bitSet) {
-        try (IntTermIterator iterator = r.getIntTermIterator(field)) {
+        try (IntTermIterator iterator = r.getUnsortedIntTermIterator(field)) {
             try (DocIdStream docIdStream = r.getDocIdStream()) {
                 final int[] docIdBuffer = new int[BUFFER_SIZE];
                 for (final long term : terms) {
                     iterator.reset(term);
                     if (!iterator.next()) {
-                        break;
+                        continue;
                     }
                     if (iterator.term() != term) {
                         continue;

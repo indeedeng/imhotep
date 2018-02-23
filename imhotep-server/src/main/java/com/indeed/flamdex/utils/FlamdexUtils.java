@@ -617,7 +617,7 @@ public class FlamdexUtils {
 
     public static FieldsCardinalityMetadata.FieldInfo cacheIntFieldCardinality(final String field, final FlamdexReader reader) {
         try (
-                final TermIterator iter = reader.getIntTermIterator(field);
+                final TermIterator iter = reader.getUnsortedIntTermIterator(field);
                 final DocIdStream dis = reader.getDocIdStream()
         ) {
             return calculateFieldCardinality(iter, dis, reader.getNumDocs());
@@ -726,6 +726,16 @@ public class FlamdexUtils {
             final String field2,
             final FlamdexReader reader,
             final ThreadSafeBitSet ret) {
+        // for int fields iterators next() is cheap, reset() might be expensive.
+        // So for int fields it's better to iterate through sorted iterators.
+        // for string-to-int sorted iterators reset() is cheaper than next() and next() is very expensive.
+        // So if at least one of fields is not integer then use unsorted iterators.
+        if (!reader.getIntFields().contains(field1) || !reader.getIntFields().contains(field2)) {
+            cacheUnsortedIntFieldEqual(field1, field2, reader, ret);
+            return;
+        }
+
+        // both fields are int fields
         try (final IntTermIterator iter1 = reader.getIntTermIterator(field1);
              final IntTermIterator iter2 = reader.getIntTermIterator(field2);
              final DocIdStreamIterator docIdIter1 = new DocIdStreamIterator(reader.getDocIdStream(), BUFFER_SIZE);
@@ -754,6 +764,27 @@ public class FlamdexUtils {
                             break;
                         }
                     }
+                }
+            }
+        }
+    }
+
+    private static void cacheUnsortedIntFieldEqual(
+            final String field1,
+            final String field2,
+            final FlamdexReader reader,
+            final ThreadSafeBitSet ret) {
+        try (final IntTermIterator iter1 = reader.getUnsortedIntTermIterator(field1);
+             final IntTermIterator iter2 = reader.getUnsortedIntTermIterator(field2);
+             final DocIdStreamIterator docIdIter1 = new DocIdStreamIterator(reader.getDocIdStream(), BUFFER_SIZE);
+             final DocIdStreamIterator docIdIter2 = new DocIdStreamIterator(reader.getDocIdStream(), BUFFER_SIZE)) {
+            while (iter1.next()) {
+                final long term = iter1.term();
+                iter2.reset(term);
+                if (iter2.next() && (iter2.term() == term)) {
+                    docIdIter1.reset(iter1);
+                    docIdIter2.reset(iter2);
+                    mergeAndFillBitSet(docIdIter1, docIdIter2, ret);
                 }
             }
         }

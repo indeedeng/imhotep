@@ -2482,7 +2482,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         for (final String intField : intFields.keySet()) {
             final IntFieldConditionSummary summary = intFields.get(intField);
             log.debug("Splitting groups using int field: " + intField);
-            final IntTermIterator itr = flamdexReader.getIntTermIterator(intField);
+            final IntTermIterator itr = flamdexReader.getUnsortedIntTermIterator(intField);
 
             if (summary.maxInequalityTerm >= 0) {
                 while (itr.next()) {
