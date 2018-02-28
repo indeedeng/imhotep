@@ -78,6 +78,10 @@ public class InstrumentedFlamdexReader
         this.flamdexInfo = new FlamdexInfo(reader);
     }
 
+    public FlamdexReader getWrapped() {
+        return wrapped;
+    }
+
     public Instrumentation.Event sample() { return new FlamdexReaderEvent(); }
 
     public void onPushStat(final String stat, final IntValueLookup lookup) {

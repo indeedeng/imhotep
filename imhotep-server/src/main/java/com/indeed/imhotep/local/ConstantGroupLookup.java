@@ -35,6 +35,10 @@ final class ConstantGroupLookup extends GroupLookup {
         this.numGroups = constant + 1;
     }
 
+    public int getConstantGroup() {
+        return constant;
+    }
+
     @Override
     public int nextGroupCallback(final int n, final long[][] termGrpStats, final BitTree groupsSeen) {
         if (constant == 0) {
