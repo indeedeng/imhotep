@@ -35,7 +35,7 @@ final class CharGroupLookup extends GroupLookup implements ArrayBasedGroupLookup
     char[] getDocIdToGroup() { return docIdToGroup; }
 
     @Override
-    public void nextGroupCallback(final int n, final long[][] termGrpStats, final BitTree groupsSeen) {
+    public int nextGroupCallback(final int n, final long[][] termGrpStats, final BitTree groupsSeen) {
         int rewriteHead = 0;
         // remap groups and filter out useless docids (ones with group = 0), keep track of groups that were found
         for (int i = 0; i < n; i++) {
@@ -56,6 +56,8 @@ final class CharGroupLookup extends GroupLookup implements ArrayBasedGroupLookup
                 ImhotepJavaLocalSession.updateGroupStatsDocIdBuf(session.statLookup.get(statIndex), termGrpStats[statIndex], session.docGroupBuffer, session.docIdBuf, session.valBuf, rewriteHead);
             }
         }
+
+        return rewriteHead;
     }
 
     @Override
