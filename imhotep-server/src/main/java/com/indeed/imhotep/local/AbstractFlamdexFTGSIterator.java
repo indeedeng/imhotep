@@ -13,9 +13,20 @@
  */
  package com.indeed.imhotep.local;
 
+import com.indeed.flamdex.MemoryFlamdex;
 import com.indeed.flamdex.api.FlamdexReader;
+import com.indeed.flamdex.dynamic.DynamicFlamdexReader;
+import com.indeed.flamdex.dynamic.SegmentReader;
+import com.indeed.flamdex.lucene.LuceneFlamdexReader;
+import com.indeed.flamdex.ramses.RamsesFlamdexWrapper;
+import com.indeed.flamdex.reader.MockFlamdexReader;
+import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.imhotep.BitTree;
 import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.metrics.Count;
+import com.indeed.imhotep.service.CachedFlamdexReader;
+import com.indeed.imhotep.service.CachedFlamdexReaderReference;
+import com.indeed.imhotep.service.InstrumentedFlamdexReader;
 import com.indeed.util.core.reference.SharedReference;
 import org.apache.log4j.Logger;
 
@@ -40,6 +51,7 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
     long intTermsTime = 0;
     long stringTermsTime = 0;
     long docsTime = 0;
+    long termFreqTime = 0;
     long lookupsTime = 0;
     long timingErrorTime = 0;
 
@@ -49,6 +61,7 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
     private int groupsSeenCount;
     protected boolean resetGroupStats = false;
     protected int termIndex;
+    private final TermGroupStatsCalculator calculator;
 
     public AbstractFlamdexFTGSIterator(
             final ImhotepLocalSession imhotepLocalSession,
@@ -58,6 +71,7 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
         this.groupsSeen = new int[session.docIdToGroup.getNumGroups()];
         this.bitTree = new BitTree(session.docIdToGroup.getNumGroups());
         this.flamdexReader = flamdexReader;
+        this.calculator = getCalculator();
     }
 
     @Override
@@ -97,44 +111,56 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
             groupPointer++;
             return groupPointer < groupsSeenCount;
         }
-        return calculateTermGroupStats();
+        return calculator.calculateTermGroupStats();
     }
 
-    private boolean calculateTermGroupStats() {
-        // clear out ram from previous iterations if necessary
-        for (final long[] x : termGrpStats) {
-            ImhotepLocalSession.clear(x, groupsSeen, groupsSeenCount);
-        }
-        groupsSeenCount = 0;
+    private interface TermGroupStatsCalculator {
+        boolean calculateTermGroupStats();
+    }
 
-        // this is the critical loop of all of imhotep, making this loop faster is very good....
+    private class DefaultCalculator implements TermGroupStatsCalculator {
+        @Override
+        public boolean calculateTermGroupStats() {
+            // clear out ram from previous iterations if necessary
+            for (final long[] x : termGrpStats) {
+                ImhotepLocalSession.clear(x, groupsSeen, groupsSeenCount);
+            }
+            groupsSeenCount = 0;
 
-        synchronized (session) {
-            while (true) {
-                if (ImhotepLocalSession.logTiming) {
-                    docsTime -= System.nanoTime();
-                }
-                final int n = fillDocIdBuffer();
-                if (ImhotepLocalSession.logTiming) {
-                    docsTime += System.nanoTime();
-                    lookupsTime -= System.nanoTime();
-                }
-                session.docIdToGroup.nextGroupCallback(n, termGrpStats, bitTree);
-                if (ImhotepLocalSession.logTiming) {
-                    lookupsTime += System.nanoTime();
-                    timingErrorTime -= System.nanoTime();
-                    timingErrorTime += System.nanoTime();
-                }
-                if (n < ImhotepLocalSession.BUFFER_SIZE) {
-                    break;
+            // this is the critical loop of all of imhotep, making this loop faster is very good....
+
+            // todo: refactor AbstractFlamdexFTGSIterator to be independent with ImhotepLocalSession internals.
+            // we do synchronization over session here,
+            // because in fillDocIdBuffer() use session.docIdBuf
+            // and docIdToGroup.nextGroupCallback use session.docGroupBuffer, session.docIdBuf,
+            // session.numStats, session.statLookup, session.valBuf
+            synchronized (session) {
+                while (true) {
+                    if (ImhotepLocalSession.logTiming) {
+                        docsTime -= System.nanoTime();
+                    }
+                    final int n = fillDocIdBuffer();
+                    if (ImhotepLocalSession.logTiming) {
+                        docsTime += System.nanoTime();
+                        lookupsTime -= System.nanoTime();
+                    }
+                    session.docIdToGroup.nextGroupCallback(n, termGrpStats, bitTree);
+                    if (ImhotepLocalSession.logTiming) {
+                        lookupsTime += System.nanoTime();
+                        timingErrorTime -= System.nanoTime();
+                        timingErrorTime += System.nanoTime();
+                    }
+                    if (n < ImhotepLocalSession.BUFFER_SIZE) {
+                        break;
+                    }
                 }
             }
-        }
-        groupsSeenCount = bitTree.dump(groupsSeen);
+            groupsSeenCount = bitTree.dump(groupsSeen);
 
-        groupPointer = 0;
-        resetGroupStats = false;
-        return groupsSeenCount > 0;
+            groupPointer = 0;
+            resetGroupStats = false;
+            return groupsSeenCount > 0;
+        }
     }
 
     protected abstract int fillDocIdBuffer();
@@ -150,5 +176,154 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
         for (int i = 0; i < session.numStats; i++) {
             stats[i] = termGrpStats[i][group];
         }
+    }
+
+    // All docs in one group (no zero group docs)
+    // no stats or only one stat which is Count()
+    private class ConstGroupCalculator implements TermGroupStatsCalculator {
+        private final int group;
+        private final boolean saveStat;
+        private ConstGroupCalculator(final int group) {
+            this.group = group;
+            if ((session.numStats > 1)
+                    || ((session.numStats == 1) && !(session.statLookup.get(0) instanceof Count)) ) {
+                throw new IllegalStateException("Only no stats or Count() stat is expected");
+            }
+            this.saveStat = session.numStats == 1;
+            // only one group can appear in result.
+            // filling it here and managing existence of group with groupsSeenCount = 0 or 1
+            groupsSeen[0] = group;
+        }
+
+        @Override
+        public boolean calculateTermGroupStats() {
+            if (group == 0) {
+                // All docs are filtered out.
+                // todo: check if all docs are filtered before
+                // FTGSIterator creation and return empty iterator
+                return false;
+            }
+
+            groupPointer = 0;
+            resetGroupStats = false;
+
+            if (ImhotepLocalSession.logTiming) {
+                termFreqTime -= System.nanoTime();
+            }
+            final long n = termDocFreq();
+            if (ImhotepLocalSession.logTiming) {
+                termFreqTime += System.nanoTime();
+            }
+            if (saveStat) {
+                termGrpStats[0][group] = n;
+            }
+            if (n > 0) {
+                groupsSeenCount = 1;
+                return true;
+            } else {
+                groupsSeenCount = 0;
+                return false;
+            }
+        }
+    }
+
+    // All documents in one group or in zero group, no stats
+    private class BitSetGroupNoStatsCalculator implements TermGroupStatsCalculator {
+        private BitSetGroupNoStatsCalculator(final int group) {
+            // only one group can appear in result.
+            // filling it here and managing existence of group with groupsSeenCount = 0 or 1
+            groupsSeen[0] = group;
+        }
+
+        @Override
+        public boolean calculateTermGroupStats() {
+            groupPointer = 0;
+            resetGroupStats = false;
+
+            synchronized (session) {
+                while (true) {
+                    if (ImhotepLocalSession.logTiming) {
+                        docsTime -= System.nanoTime();
+                    }
+                    final int n = fillDocIdBuffer();
+                    if (ImhotepLocalSession.logTiming) {
+                        docsTime += System.nanoTime();
+                        lookupsTime -= System.nanoTime();
+                    }
+                    final int processed = session.docIdToGroup.nextGroupCallback(n, termGrpStats, bitTree);
+                    if (ImhotepLocalSession.logTiming) {
+                        lookupsTime += System.nanoTime();
+                        timingErrorTime -= System.nanoTime();
+                        timingErrorTime += System.nanoTime();
+                    }
+                    if (processed > 0) {
+                        // at least one doc for this term exists.
+                        // no need to iterate further, exiting
+                        groupsSeenCount = 1;
+                        return true;
+                    }
+                    if (n < ImhotepLocalSession.BUFFER_SIZE) {
+                        // no docs for term
+                        groupsSeenCount = 0;
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+
+    // choose calculator based on groups and stats
+    private TermGroupStatsCalculator getCalculator() {
+        if (session.docIdToGroup instanceof ConstantGroupLookup) {
+            if ((session.numStats == 0)
+                    || ((session.numStats == 1) && (session.statLookup.get(0) instanceof Count))) {
+                if (isCountMethodsReliable(flamdexReader.get())) {
+                    final int group = ((ConstantGroupLookup) session.docIdToGroup).getConstantGroup();
+                    return new ConstGroupCalculator(group);
+                }
+            }
+        }
+
+        if (session.docIdToGroup instanceof BitSetGroupLookup) {
+            if(session.numStats == 0) {
+                return new BitSetGroupNoStatsCalculator(1);
+            }
+        }
+
+        return new DefaultCalculator();
+    }
+
+    // Check if we can trust terms frequency and documents count information from flamdex.
+    private static boolean isCountMethodsReliable(final FlamdexReader reader) {
+        // These classes we trust.
+        if ((reader instanceof LuceneFlamdexReader)
+                || (reader instanceof SimpleFlamdexReader)
+                || (reader instanceof MemoryFlamdex)
+                || (reader instanceof MockFlamdexReader)
+                || (reader instanceof RamsesFlamdexWrapper)) {
+            return true;
+        }
+
+        // These classes might be wrong.
+        if ((reader instanceof DynamicFlamdexReader)
+                || (reader instanceof SegmentReader)) {
+            return false;
+        }
+
+        // Unwrapping helper classes.
+        if (reader instanceof CachedFlamdexReader) {
+            return isCountMethodsReliable (((CachedFlamdexReader)reader).getWrapped());
+        }
+
+        if (reader instanceof CachedFlamdexReaderReference) {
+            return isCountMethodsReliable(((CachedFlamdexReaderReference)reader).getReader().getWrapped());
+        }
+
+        if (reader instanceof InstrumentedFlamdexReader) {
+            return isCountMethodsReliable(((InstrumentedFlamdexReader)reader).getWrapped());
+        }
+
+        // Don't trust unknown class
+        return false;
     }
 }

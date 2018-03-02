@@ -296,7 +296,7 @@ public final class MultiCache implements Closeable {
         }
 
         @Override
-        public void nextGroupCallback(final int n, final long[][] termGrpStats, final BitTree groupsSeen) {
+        public int nextGroupCallback(final int n, final long[][] termGrpStats, final BitTree groupsSeen) {
             /* collect group ids for docs */
             nativeFillGroupsBuffer(MultiCache.this.nativeShardDataPtr,
                                    MultiCache.this.session.docIdBuf,
@@ -329,6 +329,8 @@ public final class MultiCache implements Closeable {
                                                                      rewriteHead);
                 }
             }
+
+            return rewriteHead;
         }
 
         public long nativeShardDataPtr() { return MultiCache.this.nativeShardDataPtr; }

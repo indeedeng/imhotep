@@ -18,6 +18,8 @@ import com.indeed.imhotep.BitTree;
 import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.util.core.threads.ThreadSafeBitSet;
 
+import java.util.Arrays;
+
 final class ConstantGroupLookup extends GroupLookup {
     /**
      *
@@ -33,27 +35,26 @@ final class ConstantGroupLookup extends GroupLookup {
         this.numGroups = constant + 1;
     }
 
+    public int getConstantGroup() {
+        return constant;
+    }
+
     @Override
-    public void nextGroupCallback(final int n, final long[][] termGrpStats, final BitTree groupsSeen) {
+    public int nextGroupCallback(final int n, final long[][] termGrpStats, final BitTree groupsSeen) {
         if (constant == 0) {
-            return;
+            return 0;
         }
-        int rewriteHead = 0;
-        // remap groups and filter out useless docids (ones with group = 0), keep track of groups that were found
-        for (int i = 0; i < n; i++) {
-            final int docId = session.docIdBuf[i];
 
-            session.docGroupBuffer[rewriteHead] = constant;
-            session.docIdBuf[rewriteHead] = docId;
-            rewriteHead++;
-        }
-        groupsSeen.set(session.docGroupBuffer, rewriteHead);
-
-        if (rewriteHead > 0) {
-            for (int statIndex = 0; statIndex < session.numStats; statIndex++) {
-                ImhotepJavaLocalSession.updateGroupStatsDocIdBuf(session.statLookup.get(statIndex), termGrpStats[statIndex], session.docGroupBuffer, session.docIdBuf, session.valBuf, rewriteHead);
+        if (n > 0) {
+            groupsSeen.set(constant);
+            if (session.numStats > 0) {
+                Arrays.fill(session.docGroupBuffer, 0, n, constant);
+                for (int statIndex = 0; statIndex < session.numStats; statIndex++) {
+                    ImhotepJavaLocalSession.updateGroupStatsDocIdBuf(session.statLookup.get(statIndex), termGrpStats[statIndex], session.docGroupBuffer, session.docIdBuf, session.valBuf, n);
+                }
             }
         }
+        return n;
     }
 
     @Override

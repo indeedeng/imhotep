@@ -33,7 +33,7 @@ import java.util.Collection;
  * @author michihiko
  */
 
-class SegmentReader implements FlamdexReader {
+public class SegmentReader implements FlamdexReader {
     private static final Logger LOG = Logger.getLogger(SegmentReader.class);
 
     private final FlamdexReader flamdexReader;

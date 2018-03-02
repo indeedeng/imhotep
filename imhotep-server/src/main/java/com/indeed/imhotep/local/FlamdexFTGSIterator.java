@@ -67,7 +67,12 @@ class FlamdexFTGSIterator extends AbstractFlamdexFTGSIterator {
             currentField = null;
             close();
             if (ImhotepLocalSession.logTiming) {
-                ImhotepLocalSession.log.info("intTermsTime: "+intTermsTime/1000000d+" ms, stringTermsTime: "+stringTermsTime/1000000d+" ms, docsTime: "+docsTime/1000000d+" ms, lookupsTime: "+lookupsTime/1000000d+" ms, timingErrorTime: "+timingErrorTime/1000000d+" ms");
+                ImhotepLocalSession.log.info("intTermsTime: "+intTermsTime/1000000d
+                        +" ms, stringTermsTime: "+stringTermsTime/1000000d
+                        +" ms, docsTime: "+docsTime/1000000d
+                        +" ms, lookupsTime: "+lookupsTime/1000000d
+                        +" ms, termFreqTime: "+termFreqTime/1000000d
+                        +" ms, timingErrorTime: "+timingErrorTime/1000000d+" ms");
             }
             return false;
         }

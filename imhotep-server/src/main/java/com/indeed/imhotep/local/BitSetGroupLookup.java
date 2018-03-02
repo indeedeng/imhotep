@@ -18,6 +18,8 @@ import com.indeed.imhotep.BitTree;
 import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.util.core.threads.ThreadSafeBitSet;
 
+import java.util.Arrays;
+
 final class BitSetGroupLookup extends GroupLookup {
     /**
      *
@@ -33,7 +35,7 @@ final class BitSetGroupLookup extends GroupLookup {
     }
 
     @Override
-    public void nextGroupCallback(final int n, final long[][] termGrpStats, final BitTree groupsSeen) {
+    public int nextGroupCallback(final int n, final long[][] termGrpStats, final BitTree groupsSeen) {
         int rewriteHead = 0;
         // remap groups and filter out useless docids (ones with group = 0), keep track of groups that were found
         for (int i = 0; i < n; i++) {
@@ -42,17 +44,21 @@ final class BitSetGroupLookup extends GroupLookup {
                 continue;
             }
 
-            session.docGroupBuffer[rewriteHead] = 1;
             session.docIdBuf[rewriteHead] = docId;
             rewriteHead++;
         }
-        groupsSeen.set(session.docGroupBuffer, rewriteHead);
 
         if (rewriteHead > 0) {
-            for (int statIndex = 0; statIndex < session.numStats; statIndex++) {
-                ImhotepJavaLocalSession.updateGroupStatsDocIdBuf(session.statLookup.get(statIndex), termGrpStats[statIndex], session.docGroupBuffer, session.docIdBuf, session.valBuf, rewriteHead);
+            groupsSeen.set(1);
+            if (session.numStats > 0) {
+                Arrays.fill(session.docGroupBuffer, 0, rewriteHead, 1);
+                for (int statIndex = 0; statIndex < session.numStats; statIndex++) {
+                    ImhotepJavaLocalSession.updateGroupStatsDocIdBuf(session.statLookup.get(statIndex), termGrpStats[statIndex], session.docGroupBuffer, session.docIdBuf, session.valBuf, rewriteHead);
+                }
             }
         }
+
+        return rewriteHead;
     }
 
     @Override
