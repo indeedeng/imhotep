@@ -189,9 +189,9 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
                     || ((session.numStats == 1) && !(session.statLookup.get(0) instanceof Count)) ) {
                 throw new IllegalStateException("Only no stats or Count() stat is expected");
             }
-            this.saveStat = termGrpStats.length == 1;
+            this.saveStat = session.numStats == 1;
             // only one group can appear in result.
-            // filling it here and managing existence for terms with groupsSeenCount = 0 or 1
+            // filling it here and managing existence of group with groupsSeenCount = 0 or 1
             groupsSeen[0] = group;
         }
 
@@ -231,7 +231,7 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
     private class BitSetGroupNoStatsCalculator implements TermGroupStatsCalculator {
         private BitSetGroupNoStatsCalculator(final int group) {
             // only one group can appear in result.
-            // filling it here and managing existence for terms with groupsSeenCount = 0 or 1
+            // filling it here and managing existence of group with groupsSeenCount = 0 or 1
             groupsSeen[0] = group;
         }
 
@@ -277,7 +277,7 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
         if (session.docIdToGroup instanceof ConstantGroupLookup) {
             if ((session.numStats == 0)
                     || ((session.numStats == 1) && (session.statLookup.get(0) instanceof Count))) {
-                if (isTermFreqReliable(flamdexReader.get())) {
+                if (isCountMethodsReliable(flamdexReader.get())) {
                     final int group = ((ConstantGroupLookup) session.docIdToGroup).getConstantGroup();
                     return new ConstGroupCalculator(group);
                 }
@@ -293,8 +293,8 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
         return new DefaultCalculator();
     }
 
-    // Check if we can trust termDocFreq() method.
-    private static boolean isTermFreqReliable(final FlamdexReader reader) {
+    // Check if we can trust terms frequency and documents count information from flamdex.
+    private static boolean isCountMethodsReliable(final FlamdexReader reader) {
         // These classes we trust.
         if ((reader instanceof LuceneFlamdexReader)
                 || (reader instanceof SimpleFlamdexReader)
@@ -312,15 +312,15 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
 
         // Unwrapping helper classes.
         if (reader instanceof CachedFlamdexReader) {
-            return isTermFreqReliable (((CachedFlamdexReader)reader).getWrapped());
+            return isCountMethodsReliable (((CachedFlamdexReader)reader).getWrapped());
         }
 
         if (reader instanceof CachedFlamdexReaderReference) {
-            return isTermFreqReliable(((CachedFlamdexReaderReference)reader).getReader().getWrapped());
+            return isCountMethodsReliable(((CachedFlamdexReaderReference)reader).getReader().getWrapped());
         }
 
         if (reader instanceof InstrumentedFlamdexReader) {
-            return isTermFreqReliable(((InstrumentedFlamdexReader)reader).getWrapped());
+            return isCountMethodsReliable(((InstrumentedFlamdexReader)reader).getWrapped());
         }
 
         // Don't trust unknown class
