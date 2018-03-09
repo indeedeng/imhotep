@@ -4,11 +4,11 @@
     <parent>
         <groupId>com.indeed</groupId>
         <artifactId>proprietary-parent</artifactId>
-        <version>12</version>
+        <version>15</version>
     </parent>
 
     <artifactId>imhotep</artifactId>
-    <version>3.1.80-SNAPSHOT</version>
+    <version>0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>Imhotep Metapackage</name>
