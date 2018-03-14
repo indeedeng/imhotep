@@ -74,6 +74,7 @@ import com.indeed.imhotep.metrics.Constant;
 import com.indeed.imhotep.metrics.Count;
 import com.indeed.imhotep.metrics.DelegatingMetric;
 import com.indeed.imhotep.metrics.Division;
+import com.indeed.imhotep.metrics.DocIdMetric;
 import com.indeed.imhotep.metrics.Equal;
 import com.indeed.imhotep.metrics.Exponential;
 import com.indeed.imhotep.metrics.GreaterThan;
@@ -1850,6 +1851,9 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 a = popLookup();
                 statLookup.set(numStats, statName, new GreaterThanOrEqual(a, b));
                 break;
+            case DOCID:
+                statLookup.set(numStats, statName, new DocIdMetric(numDocs));
+                break;
             default:
                 throw new RuntimeException("this is a bug");
             }
@@ -2768,7 +2772,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         LT("<"),
         LTE("<="),
         GT(">"),
-        GTE(">=");
+        GTE(">="),
+        DOCID("docId()");
 
         private final String key;
 
