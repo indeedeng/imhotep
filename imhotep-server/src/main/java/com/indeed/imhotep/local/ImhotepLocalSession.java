@@ -64,7 +64,7 @@ import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.imhotep.automaton.Automaton;
 import com.indeed.imhotep.automaton.RegExp;
-import com.indeed.imhotep.group.ImhotepChooser;
+import com.indeed.imhotep.group.IterativeHasherUtils;
 import com.indeed.imhotep.marshal.ImhotepDaemonMarshaller;
 import com.indeed.imhotep.metrics.AbsoluteValue;
 import com.indeed.imhotep.metrics.Addition;
@@ -1002,6 +1002,23 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
     }
 
+    private void remapDocs(final DocIdStream docIdStream,
+                           final int from,
+                           final int to) {
+        while (true) {
+            final int n = docIdStream.fillDocIdBuffer(docIdBuf);
+            for (int i = 0; i < n; ++i) {
+                final int doc = docIdBuf[i];
+                if (docIdToGroup.get(doc) == from) {
+                    docIdToGroup.set(doc, to);
+                }
+            }
+            if (n < docIdBuf.length) {
+                break;
+            }
+        }
+    }
+
     @Override
     public synchronized void randomRegroup(final String field,
                                            final boolean isIntField,
@@ -1011,58 +1028,37 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                                            final int negativeGroup,
                                            final int positiveGroup)
         throws ImhotepOutOfMemoryException {
+        if ((p < 0.0) || (p > 1.0)) {
+            throw new IllegalArgumentException("p must be in range [0.0, 1.0]");
+        }
         docIdToGroup =
             GroupLookupFactory.resize(docIdToGroup,
                                       Math.max(negativeGroup, positiveGroup),
                                       memory);
 
-        final ImhotepChooser chooser = new ImhotepChooser(salt, p);
-        final DocIdStream docIdStream = flamdexReader.getDocIdStream();
-        if (isIntField) {
-            final IntTermIterator iter = flamdexReader.getUnsortedIntTermIterator(field);
-            while (iter.next()) {
-                final long term = iter.term();
-                final int newGroup =
-                        chooser.choose(Long.toString(term)) ? positiveGroup : negativeGroup;
-                docIdStream.reset(iter);
-                while (true) {
-                    final int n = docIdStream.fillDocIdBuffer(docIdBuf);
-                    for (int i = 0; i < n; ++i) {
-                        final int doc = docIdBuf[i];
-                        if (docIdToGroup.get(doc) == targetGroup) {
-                            docIdToGroup.set(doc, newGroup);
-                        }
-                    }
+        final int threshold = (int)(p * Integer.MAX_VALUE);
 
-                    if (n < docIdBuf.length) {
-                        break;
-                    }
-                }
-            }
-            iter.close();
-        } else {
-            final StringTermIterator iter = flamdexReader.getStringTermIterator(field);
-            while (iter.next()) {
-                final String term = iter.term();
-                final int newGroup = chooser.choose(term) ? positiveGroup : negativeGroup;
-                docIdStream.reset(iter);
-                while (true) {
-                    final int n = docIdStream.fillDocIdBuffer(docIdBuf);
-                    for (int i = 0; i < n; ++i) {
-                        final int doc = docIdBuf[i];
-                        if (docIdToGroup.get(doc) == targetGroup) {
-                            docIdToGroup.set(doc, newGroup);
-                        }
-                    }
-
-                    if (n < docIdBuf.length) {
-                        break;
-                    }
-                }
-            }
-            iter.close();
+        final FastBitSetPooler bitSetPooler = new ImhotepBitSetPooler(memory);
+        final FastBitSet docRemapped;
+        try {
+            docRemapped = bitSetPooler.create(numDocs);
+        } catch (final FlamdexOutOfMemoryException e) {
+            throw new ImhotepOutOfMemoryException(e);
         }
-        docIdStream.close();
+        try(final IterativeHasherUtils.TermHashIterator iterator =
+                    IterativeHasherUtils.create(flamdexReader, field, isIntField, salt)) {
+            final IterativeHasherUtils.GroupChooser chooser = new IterativeHasherUtils.TwoGroupChooser(threshold);
+            while (iterator.hasNext()) {
+                final int hash = iterator.getHash();
+                if (chooser.getGroup(hash) == 1) {
+                    final DocIdStream stream = iterator.getDocIdStream();
+                    remapPositiveDocs(stream, docRemapped, targetGroup, positiveGroup);
+                }
+            }
+            remapNegativeDocs(docRemapped, targetGroup, negativeGroup);
+        } finally {
+            bitSetPooler.release(docRemapped.memoryUsage());
+        }
 
         finalizeRegroup();
     }
@@ -1078,55 +1074,18 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         ensureValidMultiRegroupArrays(percentages, resultGroups);
         docIdToGroup = GroupLookupFactory.resize(docIdToGroup, Ints.max(resultGroups), memory);
 
-        // We're not using the chooser's percentage
-        final ImhotepChooser chooser = new ImhotepChooser(salt, -1.0);
-        final DocIdStream docIdStream = flamdexReader.getDocIdStream();
-        if (isIntField) {
-            final IntTermIterator iter = flamdexReader.getUnsortedIntTermIterator(field);
-            while (iter.next()) {
-                final long term = iter.term();
-                final int groupIndex = indexOfFirstLessThan(chooser.getValue(Long.toString(term)), percentages);
+        try(final IterativeHasherUtils.TermHashIterator iterator =
+                    IterativeHasherUtils.create(flamdexReader, field, isIntField, salt)) {
+            final IterativeHasherUtils.GroupChooser groupChooser =
+                    IterativeHasherUtils.createChooser(percentages);
+            while (iterator.hasNext()) {
+                final int hash = iterator.getHash();
+                final int groupIndex = groupChooser.getGroup(hash);
                 final int newGroup = resultGroups[groupIndex];
-                docIdStream.reset(iter);
-                while (true) {
-                    final int n = docIdStream.fillDocIdBuffer(docIdBuf);
-                    for (int i = 0; i < n; ++i) {
-                        final int doc = docIdBuf[i];
-                        if (docIdToGroup.get(doc) == targetGroup) {
-                            docIdToGroup.set(doc, newGroup);
-                        }
-                    }
-
-                    if (n < docIdBuf.length) {
-                        break;
-                    }
-                }
+                final DocIdStream stream = iterator.getDocIdStream();
+                remapDocs(stream, targetGroup, newGroup);
             }
-            iter.close();
-        } else {
-            final StringTermIterator iter = flamdexReader.getStringTermIterator(field);
-            while (iter.next()) {
-                final String term = iter.term();
-                final int groupIndex = indexOfFirstLessThan(chooser.getValue(term), percentages);
-                final int newGroup = resultGroups[groupIndex];
-                docIdStream.reset(iter);
-                while (true) {
-                    final int n = docIdStream.fillDocIdBuffer(docIdBuf);
-                    for (int i = 0; i < n; ++i) {
-                        final int doc = docIdBuf[i];
-                        if (docIdToGroup.get(doc) == targetGroup) {
-                            docIdToGroup.set(doc, newGroup);
-                        }
-                    }
-
-                    if (n < docIdBuf.length) {
-                        break;
-                    }
-                }
-            }
-            iter.close();
         }
-        docIdStream.close();
 
         finalizeRegroup();
     }
@@ -1223,29 +1182,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         private StringTermWithFreq(final String term, final int docFreq) {
             this.term = term;
             this.docFreq = docFreq;
-        }
-    }
-
-    /**
-     * Requires that array is non-null and sorted in ascending order.
-     *
-     * Returns the lowest index in the array such that value &lt; array[index]. If
-     * value is greater than every element in array, returns array.length.
-     * Essentially, a wrapper around binarySearch to return an index in all
-     * cases.
-     */
-    protected int indexOfFirstLessThan(final double value,
-                                       final double[] array) {
-        int pos = Arrays.binarySearch(array, value);
-        if (pos > 0) { // if pos > 0, then value == array[pos] --> continue
-                       // until we find a greater element & break
-            while (pos < array.length && array[pos] == value) {
-                pos++;
-            }
-            return pos;
-        } else {
-            // when pos < 0, pos = (-(insertion point) - 1)
-            return -(pos + 1);
         }
     }
 

@@ -31,7 +31,8 @@ import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
-import com.indeed.imhotep.group.ImhotepChooser;
+import com.indeed.imhotep.group.IterativeHasher;
+import com.indeed.imhotep.group.IterativeHasherUtils;
 import com.indeed.imhotep.io.TestFileUtils;
 import org.junit.Assert;
 import org.junit.Test;
@@ -459,36 +460,47 @@ public class TestImhotepLocalSession {
         }
     }
 
+    private static int getGroupIndex(final double value, final double[] percentages) {
+        final IterativeHasherUtils.GroupChooser chooser =
+                IterativeHasherUtils.createChooser(percentages);
+        final int hash = (int)(value * Integer.MAX_VALUE);
+        return chooser.getGroup(hash);
+    }
+
     @Test
-    public void testRandomMultiRegroup_firstIndexLessThan() throws ImhotepOutOfMemoryException {
-        final FlamdexReader r = MakeAFlamdex.make();
-        try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
+    public void testRandomMultiRegroupIndexCalculation() throws ImhotepOutOfMemoryException {
 
-            // normal case -- 0.5 falls in the [0.4, 0.7) bucket, which is the
-            // fourth (index == 3) in the list of:
-            // [0.0, 0.1)
-            // [0.1, 0.3)
-            // [0.3, 0.4)
-            // [0.4, 0.7)
-            // [0.7, 0.9)
-            // [0.9, 1.0]
-            assertEquals(3, session.indexOfFirstLessThan(0.5, new double[]{0.1, 0.3, 0.4, 0.7, 0.9}));
+        // normal case -- 0.5 falls in the [0.4, 0.7) bucket, which is the
+        // fourth (index == 3) in the list of:
+        // [0.0, 0.1)
+        // [0.1, 0.3)
+        // [0.3, 0.4)
+        // [0.4, 0.7)
+        // [0.7, 0.9)
+        // [0.9, 1.0]
+        assertEquals(3, getGroupIndex(0.5, new double[]{0.1, 0.3, 0.4, 0.7, 0.9}));
 
-            // less than all
-            assertEquals(0, session.indexOfFirstLessThan(0.0, new double[]{0.1, 0.2, 0.3}));
+        // less than all
+        assertEquals(0, getGroupIndex(0.0, new double[]{0.1, 0.2, 0.3}));
 
-            // empty array
-            assertEquals(0, session.indexOfFirstLessThan(0.5, new double[]{}));
+        // empty array
+        assertEquals(0, getGroupIndex(0.5, new double[]{}));
 
-            // less than last element
-            assertEquals(3, session.indexOfFirstLessThan(0.8, new double[]{0.1, 0.4, 0.5, 0.9}));
+        // less than last element
+        assertEquals(3, getGroupIndex(0.8, new double[]{0.1, 0.4, 0.5, 0.9}));
 
-            // greater than all
-            assertEquals(4, session.indexOfFirstLessThan(0.95, new double[]{0.1, 0.4, 0.5, 0.9}));
+        // greater than all
+        assertEquals(4, getGroupIndex(0.95, new double[]{0.1, 0.4, 0.5, 0.9}));
 
-            // equal to last (at index 4)
-            assertEquals(4, session.indexOfFirstLessThan(0.9, new double[]{0.1, 0.4, 0.5, 0.9}));
-        }
+        // same as above but make sure than MultiGroupChooser is created
+        // to do so make one of values have 6 digits after comma.
+        final double x = 1e-6;
+        assertEquals(3, getGroupIndex(0.5, new double[]{0.1+x, 0.3, 0.4, 0.7, 0.9}));
+        assertEquals(0, getGroupIndex(0.0, new double[]{0.1+x, 0.2, 0.3}));
+        assertEquals(0, getGroupIndex(0.5, new double[]{}));
+        assertEquals(3, getGroupIndex(0.8, new double[]{0.1+x, 0.4, 0.5, 0.9}));
+        assertEquals(4, getGroupIndex(0.95, new double[]{0.1+x, 0.4, 0.5, 0.9}));
+        assertEquals(4, getGroupIndex(0.9, new double[]{0.1+x, 0.4, 0.5, 0.9}));
     }
 
     @Test
@@ -555,8 +567,6 @@ public class TestImhotepLocalSession {
             // Expected
             // ( @see MakeAFlamdex.make() )
             final String regroupField = "sf1";
-            final ImhotepChooser chooser = new ImhotepChooser("salt", -1.0);
-
             final double[] percentages = new double[]{0.10, 0.50};
             final int[] resultGroups = new int[]{5, 6, 7};
 
@@ -581,21 +591,22 @@ public class TestImhotepLocalSession {
                     null, // 18
                     "a" // 19
             };
+
+            final String salt = "mySalt";
+            final IterativeHasher.StringHasher hasher =
+                    new IterativeHasher.Murmur3Hasher(salt).stringHasher();
+
+            final IterativeHasherUtils.GroupChooser chooser = IterativeHasherUtils.createChooser(percentages);
             final Map<String, Integer> termToGroup = Maps.newHashMap();
             for (final String term : Arrays.asList("", "a", "hello world")) {
-                final double hashValue = chooser.getValue(term);
-                if (hashValue < 0.10) {
-                    termToGroup.put(term, 5);
-                } else if (hashValue < 0.50) {
-                    termToGroup.put(term, 6);
-                } else {
-                    termToGroup.put(term, 7);
-                }
+                final int hash = hasher.calculateHash(term);
+                final int groupIndex = chooser.getGroup(hash);
+                termToGroup.put(term, resultGroups[groupIndex]);
             }
             termToGroup.put(null, 1);
 
             // Actual
-            session.randomMultiRegroup(regroupField, false, "salt", 1, percentages, resultGroups);
+            session.randomMultiRegroup(regroupField, false, salt, 1, percentages, resultGroups);
 
             // Make sure they're in the correct groups
             final int[] docIdToGroup = new int[20];
