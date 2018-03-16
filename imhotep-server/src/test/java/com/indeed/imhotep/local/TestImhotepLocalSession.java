@@ -463,7 +463,7 @@ public class TestImhotepLocalSession {
     private static int getGroupIndex(final double value, final double[] percentages) {
         final IterativeHasherUtils.GroupChooser chooser =
                 IterativeHasherUtils.createChooser(percentages);
-        final int hash = (int)(value * Integer.MAX_VALUE);
+        final int hash = IterativeHasherUtils.percentileToThreshold (value);
         return chooser.getGroup(hash);
     }
 

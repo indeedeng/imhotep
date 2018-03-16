@@ -1036,8 +1036,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                                       Math.max(negativeGroup, positiveGroup),
                                       memory);
 
-        final int threshold = (int)(p * Integer.MAX_VALUE);
-
         final FastBitSetPooler bitSetPooler = new ImhotepBitSetPooler(memory);
         final FastBitSet docRemapped;
         try {
@@ -1047,6 +1045,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
         try(final IterativeHasherUtils.TermHashIterator iterator =
                     IterativeHasherUtils.create(flamdexReader, field, isIntField, salt)) {
+            final int threshold = IterativeHasherUtils.percentileToThreshold(p);
             final IterativeHasherUtils.GroupChooser chooser = new IterativeHasherUtils.TwoGroupChooser(threshold);
             while (iterator.hasNext()) {
                 final int hash = iterator.getHash();

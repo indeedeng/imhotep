@@ -148,7 +148,7 @@ public class IterativeHasherUtils {
 
         @Override
         public int getGroup(final int hash) {
-            return (Math.abs(hash) >= threshold) ? 1 : 0;
+            return (hash >= threshold) ? 1 : 0;
         }
     }
 
@@ -177,35 +177,31 @@ public class IterativeHasherUtils {
                 // another class should be used
                 return null;
             }
+            begin:
             for (int size = percentiles.length; size < maxSize; size++) {
-                boolean isOk = true;
                 for (final double p: percentiles) {
                     if (Math.abs((p * size) - (int)(p*size)) > maxError) {
-                        isOk = false;
-                        break;
+                        continue begin;
                     }
                 }
-                if (isOk) {
-                    final int[] groups = new int[size];
-                    final int[] pAsInt = new int[percentiles.length + 1];
-                    for (int i = 0; i < percentiles.length; i++) {
-                        pAsInt[i] = (int)(percentiles[i] * size);
-                    }
-                    pAsInt[percentiles.length] = size;
-                    for (int i = 0; i < pAsInt.length; i++) {
-                        final int from = (i == 0) ? 0 : pAsInt[i-1];
-                        final int to = pAsInt[i];
-                        for (int pos = from; pos < to; pos++) {
-                            groups[pos] = i;
-                        }
-                    }
-                    // getGroup(Integer.MAX_VALUE) should return last group
-                    // so we need to round result of division up.
-                    // Since Integer.MAX_VALUE is prime and percentiles.length is greater than 1
-                    // rounding must be applied every time.
-                    final int divisor = (Integer.MAX_VALUE / size) + 1;
-                    return new ProportionalMultiGroupChooser(divisor, groups);
+                final int[] groups = new int[size];
+                final int[] pAsInt = new int[percentiles.length + 1];
+                for (int i = 0; i < percentiles.length; i++) {
+                    pAsInt[i] = (int)(percentiles[i] * size);
                 }
+                pAsInt[percentiles.length] = size;
+                for (int i = 0; i < pAsInt.length; i++) {
+                    final int from = (i == 0) ? 0 : pAsInt[i-1];
+                    final int to = pAsInt[i];
+                    for (int pos = from; pos < to; pos++) {
+                        groups[pos] = i;
+                    }
+                }
+                // getGroup(Integer.MAX_VALUE) should return last group
+                // so we need to round result of division up.
+                final long fullRange = ((long)Integer.MAX_VALUE) - ((long)Integer.MIN_VALUE);
+                final int divisor = (int)((fullRange + size - 1)/size);
+                return new ProportionalMultiGroupChooser(divisor, groups);
             }
 
             return null;
@@ -213,7 +209,8 @@ public class IterativeHasherUtils {
 
         @Override
         public int getGroup(final int hash) {
-            return indexes[Math.abs(hash)/divisor];
+            final long shiftedHash = ((long)hash) - Integer.MIN_VALUE;
+            return indexes[(int)(shiftedHash/divisor)];
         }
     }
 
@@ -227,8 +224,7 @@ public class IterativeHasherUtils {
 
         @Override
         public int getGroup(final int hash) {
-            final int absHash = Math.abs(hash);
-            final int pos = Arrays.binarySearch(groupBounds, absHash);
+            final int pos = Arrays.binarySearch(groupBounds, hash);
             if (pos >= 0) {
                 // if pos >= 0, then absHash == thresholds[pos] --> add 1
                 return pos + 1;
@@ -237,6 +233,14 @@ public class IterativeHasherUtils {
                 return -(pos + 1);
             }
         }
+
+        public static MultiGroupChooser create(final double[] p) {
+            final int[] groupBounds = new int[p.length];
+            for (int i = 0; i < groupBounds.length; i++) {
+                groupBounds[i] = percentileToThreshold(p[i]);
+            }
+            return new MultiGroupChooser(groupBounds);
+        }
     }
 
     public static GroupChooser createChooser(final double[] percentages) {
@@ -244,7 +248,8 @@ public class IterativeHasherUtils {
             return new OneGroupChooser();
         }
         if (percentages.length == 1) {
-            return new TwoGroupChooser((int)(percentages[0]*Integer.MAX_VALUE));
+            final int threshold = percentileToThreshold(percentages[0]);
+            return new TwoGroupChooser(threshold);
         }
 
         final ProportionalMultiGroupChooser proportionalGroupChooser =
@@ -253,10 +258,19 @@ public class IterativeHasherUtils {
             return proportionalGroupChooser;
         }
 
-        final int[] groupBounds = new int[percentages.length];
-        for (int i = 0; i < groupBounds.length; i++) {
-            groupBounds[i] = (int)(percentages[i]*Integer.MAX_VALUE);
+        return MultiGroupChooser.create(percentages);
+    }
+
+    // converting double range [0.0, 1.0] to int range [Integer.MIN_VALUE, Integer.MAX_VALUE]
+    public static int percentileToThreshold(final double p) {
+        final double fullRange = ((double) Integer.MAX_VALUE) - ((double)Integer.MIN_VALUE);
+        final long result = Math.round(Integer.MIN_VALUE + (p * fullRange));
+        if (result < Integer.MIN_VALUE) {
+            return Integer.MIN_VALUE;
         }
-        return new MultiGroupChooser(groupBounds);
+        if (result > Integer.MAX_VALUE) {
+            return Integer.MAX_VALUE;
+        }
+        return (int)result;
     }
 }
