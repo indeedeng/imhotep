@@ -64,6 +64,7 @@ import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.imhotep.automaton.Automaton;
 import com.indeed.imhotep.automaton.RegExp;
+import com.indeed.imhotep.group.IterativeHasher;
 import com.indeed.imhotep.group.IterativeHasherUtils;
 import com.indeed.imhotep.marshal.ImhotepDaemonMarshaller;
 import com.indeed.imhotep.metrics.AbsoluteValue;
@@ -988,6 +989,9 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                                    final FastBitSet docRemapped,
                                    final int targetGroup,
                                    final int positiveGroup) {
+        // todo: refactor
+        // replace remapPositiveDocs/remapNegativeDocs with
+        // adding all docs to bitset and call GroupLookup.bitSetRegroup
         while (true) {
             final int n = docIdStream.fillDocIdBuffer(docIdBuf);
             for (int i = 0; i < n; ++i) {
@@ -1087,6 +1091,59 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             }
         }
 
+        finalizeRegroup();
+    }
+
+    @Override
+    public synchronized void randomMetricRegroup(final int stat,
+                                    final String salt,
+                                    final double p,
+                                    final int targetGroup,
+                                    final int negativeGroup,
+                                    final int positiveGroup) throws ImhotepOutOfMemoryException {
+        randomMetricMultiRegroup(
+                stat,
+                salt,
+                targetGroup,
+                new double[] {p},
+                new int[] {negativeGroup, positiveGroup});
+    }
+
+    @Override
+    public synchronized void randomMetricMultiRegroup(final int stat,
+                                         final String salt,
+                                         final int targetGroup,
+                                         final double[] percentages,
+                                         final int[] resultGroups) throws ImhotepOutOfMemoryException {
+        final IntValueLookup lookup = statLookup.get(stat);
+        docIdToGroup = GroupLookupFactory.resize(
+                docIdToGroup,
+                Ints.max(resultGroups),
+                memory);
+
+        // we want two ways of random regrouping to be equivalent
+        // 1. session.pushStat(metric) + session.randomMetricMultiRegroup(metricIndex, ...)
+        // 2. session.randomMultiRegroup(metric, ...)
+        // That's why ConsistentLongHasher here.
+        final IterativeHasher.ConsistentLongHasher hasher = new IterativeHasher.Murmur3Hasher(salt).consistentLongHasher();
+        final IterativeHasherUtils.GroupChooser chooser = IterativeHasherUtils.createChooser(percentages);
+
+        for (int startDoc = 0; startDoc < numDocs; startDoc += BUFFER_SIZE) {
+            final int n = Math.min(BUFFER_SIZE, numDocs - startDoc);
+            for (int i = 0; i < n; i++) {
+                docIdBuf[i] = startDoc + i;
+            }
+            lookup.lookup(docIdBuf, valBuf, n);
+            for (int i = 0; i < n; i++) {
+                if (docIdToGroup.get(docIdBuf[i]) == targetGroup) {
+                    final long val = valBuf[i];
+                    final int hash = hasher.calculateHash(val);
+                    final int groupIndex = chooser.getGroup(hash);
+                    final int newGroup = resultGroups[groupIndex];
+                    docIdToGroup.set(docIdBuf[i], newGroup);
+                }
+            }
+        }
         finalizeRegroup();
     }
 

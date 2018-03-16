@@ -477,6 +477,33 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             return builder.build();
         }
 
+        private ImhotepResponse randomMetricRegroup(
+                final ImhotepRequest          request,
+                final ImhotepResponse.Builder builder)
+                throws ImhotepOutOfMemoryException {
+            service.handleRandomMetricRegroup(request.getSessionId(),
+                    request.getStat(),
+                    request.getSalt(),
+                    request.getP(),
+                    request.getTargetGroup(),
+                    request.getNegativeGroup(),
+                    request.getPositiveGroup());
+            return builder.build();
+        }
+
+        private ImhotepResponse randomMetricMultiRegroup(
+                final ImhotepRequest          request,
+                final ImhotepResponse.Builder builder)
+                throws ImhotepOutOfMemoryException {
+            service.handleRandomMetricMultiRegroup(request.getSessionId(),
+                    request.getStat(),
+                    request.getSalt(),
+                    request.getTargetGroup(),
+                    Doubles.toArray(request.getPercentagesList()),
+                    Ints.toArray(request.getResultGroupsList()));
+            return builder.build();
+        }
+
         private ImhotepResponse regexRegroup(
                 final ImhotepRequest          request,
                 final ImhotepResponse.Builder builder)
@@ -1000,6 +1027,12 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                             break;
                         case RANDOM_MULTI_REGROUP:
                             response = randomMultiRegroup(request, builder);
+                            break;
+                        case RANDOM_METRIC_REGROUP:
+                            response = randomMetricRegroup(request, builder);
+                            break;
+                        case RANDOM_METRIC_MULTI_REGROUP:
+                            response = randomMetricMultiRegroup(request, builder);
                             break;
                         case REGEX_REGROUP:
                             response = regexRegroup(request, builder);

@@ -335,6 +335,31 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
     }
 
     @Override
+    public void randomMetricRegroup(final int stat,
+                                    final String salt,
+                                    final double p,
+                                    final int targetGroup,
+                                    final int negativeGroup,
+                                    final int positiveGroup) throws ImhotepOutOfMemoryException {
+        executeMemoryException(nullBuf, (ThrowingFunction<ImhotepSession, Object>) session -> {
+            session.randomMetricRegroup(stat, salt, p, targetGroup, negativeGroup, positiveGroup);
+            return null;
+        });
+    }
+
+    @Override
+    public void randomMetricMultiRegroup(final int stat,
+                                         final String salt,
+                                         final int targetGroup,
+                                         final double[] percentages,
+                                         final int[] resultGroups) throws ImhotepOutOfMemoryException {
+        executeMemoryException(nullBuf, (ThrowingFunction<ImhotepSession, Object>) session -> {
+            session.randomMetricMultiRegroup(stat, salt, targetGroup, percentages, resultGroups);
+            return null;
+        });
+    }
+
+    @Override
     public int metricRegroup(final int stat, final long min, final long max, final long intervalSize, final boolean noGutters) throws ImhotepOutOfMemoryException {
         executeMemoryException(integerBuf, new ThrowingFunction<ImhotepSession, Integer>() {
             @Override
