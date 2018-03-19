@@ -1,3 +1,9 @@
+---
+layout: default
+title: Evaluating Imhotep with Docker
+permalink: /docs/evaluate_docker/
+---
+
 ## Table of Contents
 
 * [Introduction](#introduction)
@@ -12,9 +18,6 @@
 
 <sub>Created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc.go)</sub>
 
-## Introduction
-
-Imhotep is a large-scale analytics platform built by Indeed. To learn more, look at the [Imhotep documentation](http://opensource.indeedeng.io/imhotep/).
 
 If you want to quickly evaluate Imhotep, you can install all the components on a single machine using docker. The [Architecture section](#appendix-a-architecture) below describes the components in more detail.
 
