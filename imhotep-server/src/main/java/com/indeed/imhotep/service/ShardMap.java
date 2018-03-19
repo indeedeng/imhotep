@@ -164,7 +164,7 @@ class ShardMap
             return;
         }
         saveTo(store);
-        prune(store);
+        updateAndPrune(store);
         store.sync();
     }
 
@@ -346,13 +346,24 @@ class ShardMap
                 return false;
             }
         }
-        else if (currentShard != null && currentShard.isNewerThan(referenceShard)) {
+        else if ((currentShard != null) && currentShard.isNewerThan(referenceShard)) {
             putShard(dataset, currentShard);
         }
         else {
             putShard(dataset, referenceShard);
         }
         return false;
+    }
+
+    private void putShardToShardStore(final ShardStore shardStore, final ShardStore.Key key, final ShardDir shardDir, final Shard shard) throws IOException {
+        final ShardStore.Value value = new ShardStore.Value(
+                shardDir.getName(),
+                shard.getNumDocs(),
+                shard.getShardVersion(),
+                new ObjectArrayList<>(shard.getIntFields()),
+                new ObjectArrayList<>(shard.getStringFields())
+        );
+        shardStore.put(key, value);
     }
 
     private void saveTo(final ShardStore store) {
@@ -364,13 +375,7 @@ class ShardMap
                     try {
                         if (!store.containsKey(key)) {
                             final ShardDir shardDir = new ShardDir(shard.getIndexDir());
-                            final ShardStore.Value value =
-                                new ShardStore.Value(shardDir.getName(),
-                                                     shard.getNumDocs(),
-                                                     shard.getShardVersion(),
-                                                     new ObjectArrayList(shard.getIntFields()),
-                                                     new ObjectArrayList(shard.getStringFields()));
-                            store.put(key, value);
+                            putShardToShardStore(store, key, shardDir, shard);
                         }
                     }
                     catch (final IOException ex) {
@@ -380,7 +385,7 @@ class ShardMap
             });
     }
 
-    private void prune(final ShardStore store) {
+    private void updateAndPrune(final ShardStore store) {
         try {
             final Iterator<Store.Entry<ShardStore.Key, ShardStore.Value>> it =
                 store.iterator();
@@ -394,14 +399,19 @@ class ShardMap
                         store.delete(key);
                     }
                     catch (final IOException ex) {
-                        log.warn("failed to prune ShardStore item key: " +
+                        log.warn("failed to updateAndPrune ShardStore item key: " +
                                  key.toString(), ex);
+                    }
+                } else {
+                    if (!entry.getValue().getShardDir().equals(shard.getIndexDir().getFileName().toString())) {
+                        final ShardDir shardDir = new ShardDir(shard.getIndexDir());
+                        putShardToShardStore(store, key, shardDir, shard);
                     }
                 }
             }
         }
         catch (final IOException ex) {
-            log.warn("iteration over ShardStore failed during prune operation", ex);
+            log.warn("iteration over ShardStore failed during updateAndPrune operation", ex);
         }
     }
 
