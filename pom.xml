@@ -4,7 +4,7 @@
     <parent>
         <groupId>com.indeed</groupId>
         <artifactId>proprietary-parent</artifactId>
-        <version>15</version>
+        <version>16</version>
     </parent>
 
     <artifactId>imhotep</artifactId>
