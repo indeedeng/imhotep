@@ -843,6 +843,58 @@ public class ImhotepRemoteSession
     }
 
     @Override
+    public void randomMetricRegroup(
+            final int stat,
+            final String salt,
+            final double p,
+            final int targetGroup,
+            final int negativeGroup,
+            final int positiveGroup) throws ImhotepOutOfMemoryException {
+        final Timer timer = new Timer();
+        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.RANDOM_METRIC_REGROUP)
+                .setSessionId(sessionId)
+                .setStat(stat)
+                .setSalt(salt)
+                .setP(p)
+                .setTargetGroup(targetGroup)
+                .setNegativeGroup(negativeGroup)
+                .setPositiveGroup(positiveGroup)
+                .build();
+
+        try {
+            sendRequestWithMemoryException(request, host, port, socketTimeout);
+            timer.complete(request);
+        } catch (final IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void randomMetricMultiRegroup(
+            final int stat,
+            final String salt,
+            final int targetGroup,
+            final double[] percentages,
+            final int[] resultGroups) throws ImhotepOutOfMemoryException {
+        final Timer timer = new Timer();
+        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.RANDOM_METRIC_MULTI_REGROUP)
+                .setSessionId(sessionId)
+                .setStat(stat)
+                .setSalt(salt)
+                .setTargetGroup(targetGroup)
+                .addAllPercentages(Doubles.asList(percentages))
+                .addAllResultGroups(Ints.asList(resultGroups))
+                .build();
+
+        try {
+            sendRequestWithMemoryException(request, host, port, socketTimeout);
+            timer.complete(request);
+        } catch (final IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
     public int metricRegroup(final int stat, final long min, final long max, final long intervalSize, final boolean noGutters) throws ImhotepOutOfMemoryException {
         final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.METRIC_REGROUP)

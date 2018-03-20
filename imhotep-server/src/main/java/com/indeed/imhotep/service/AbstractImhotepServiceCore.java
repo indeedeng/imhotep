@@ -428,6 +428,33 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
+    public void handleRandomMetricRegroup(final String sessionId,
+                                          final int stat,
+                                          final String salt,
+                                          final double p,
+                                          final int targetGroup,
+                                          final int negativeGroup,
+                                          final int positiveGroup) throws ImhotepOutOfMemoryException {
+        doWithSession(sessionId, (ThrowingFunction<ImhotepSession, Void, ImhotepOutOfMemoryException>) session -> {
+            session.randomMetricRegroup(stat, salt, p, targetGroup, negativeGroup, positiveGroup);
+            return null;
+        });
+    }
+
+    @Override
+    public void handleRandomMetricMultiRegroup(final String sessionId,
+                                               final int stat,
+                                               final String salt,
+                                               final int targetGroup,
+                                               final double[] percentages,
+                                               final int[] resultGroups) throws ImhotepOutOfMemoryException {
+        doWithSession(sessionId, (ThrowingFunction<ImhotepSession, Void, ImhotepOutOfMemoryException>) session -> {
+            session.randomMetricMultiRegroup(stat, salt, targetGroup, percentages, resultGroups);
+            return null;
+        });
+    }
+
+    @Override
     public void handleRegexRegroup(final String sessionId, final String field, final String regex, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
         doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Void, ImhotepOutOfMemoryException>() {
             public Void apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {

@@ -281,8 +281,32 @@ public interface ImhotepSession
      * @param targetGroup The group to apply the random regroup to
      * @param percentages The group cutoff percentages, works together with resultGroups
      * @param resultGroups The groups to regroup into, works together with percentages
+     * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to go out of memory
      */
     void randomMultiRegroup(String field, boolean isIntField, String salt, int targetGroup, double[] percentages, int[] resultGroups) throws ImhotepOutOfMemoryException;
+
+    /**
+     * Same as <code>randomRegroup</code> but regrouping is based on metric value
+     * @param stat the index of the metric
+     * @param salt the salt to use
+     * @param p the minimum value to go into positiveGroup
+     * @param targetGroup the group to apply the random regroup to
+     * @param negativeGroup the group where terms with values &lt; p will go
+     * @param positiveGroup the group where terms with values &gt;= p will go
+     * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to go out of memory
+     */
+    void randomMetricRegroup(int stat, String salt, double p, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
+
+    /**
+     * Same as <code>randomMultiRegroup</code> but regrouping is based on metric value
+     * @param stat the index of the metric
+     * @param salt The salt to use
+     * @param targetGroup The group to apply the random regroup to
+     * @param percentages The group cutoff percentages, works together with resultGroups
+     * @param resultGroups The groups to regroup into, works together with percentages
+     * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to go out of memory
+     */
+    void randomMetricMultiRegroup(int stat, String salt, int targetGroup, double[] percentages, int[] resultGroups) throws ImhotepOutOfMemoryException;
 
     int metricRegroup(int stat, long min, long max, long intervalSize) throws ImhotepOutOfMemoryException;
 

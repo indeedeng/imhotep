@@ -18,6 +18,7 @@ import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.indeed.flamdex.MakeAFlamdex;
+import com.indeed.flamdex.MemoryFlamdex;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.query.Query;
 import com.indeed.flamdex.query.Term;
@@ -48,6 +49,7 @@ import java.util.Map;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -617,6 +619,43 @@ public class TestImhotepLocalSession {
                 assertEquals("doc id #" + docId + " was misgrouped", expectedGroup, actualGroup);
             }
         }
+    }
+
+    private boolean testRandomMetricMultiRegroup(
+                                final int groupCount,
+                                final int groupSize,
+                                final String salt,
+                                final double maxError) throws ImhotepOutOfMemoryException {
+        final FlamdexReader r = new MemoryFlamdex().setNumDocs(groupCount * groupSize);
+        try (ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
+            session.pushStat("docId()");
+            final double[] p = new double[groupCount-1];
+            for (int i = 0; i < (groupCount-1); i++) {
+                p[i] = ((double)i+1)/groupCount;
+            }
+            final int[] groups = new int[groupCount];
+            for (int i = 0; i < groupCount; i++) {
+                groups[i] = i + 2;
+            }
+            session.randomMetricMultiRegroup(0, salt, 1, p, groups);
+            session.popStat();
+            session.pushStat("count()");
+            final long[] stats = session.getGroupStats(0);
+            for (final int group : groups) {
+                final long stat = stats[group];
+                if (Math.abs(stat - groupSize) > (maxError * groupSize)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    @Test
+    public void testRandomMetricMultiRegroup() throws ImhotepOutOfMemoryException {
+        assertTrue(testRandomMetricMultiRegroup(10, 100000, "g;slkdjglskdfj", 0.01));
+        assertTrue(testRandomMetricMultiRegroup(10, 1000000, "s;lgjsldkfjslfjk", 0.01));
+        assertTrue(testRandomMetricMultiRegroup(10, 10000000, "lskdgjlskfjslkdfj", 0.01));
     }
 
     @Test
