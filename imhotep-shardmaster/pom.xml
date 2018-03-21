@@ -3,7 +3,7 @@
     <parent>
         <artifactId>imhotep</artifactId>
         <groupId>com.indeed</groupId>
-        <version>0-SNAPSHOT</version>
+        <version>3.1.82</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
