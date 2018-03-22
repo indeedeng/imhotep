@@ -4,17 +4,18 @@ title: Quick Start
 permalink: /docs/quick-start/
 ---
 
-This section guides you through the process of configuring an Imhotep cluster on AWS, uploading your data files, and exploring your data in Imhotep using Imhotep Query Language (IQL).
+<div style="color: #000000; background-color: #f5f5f5; border-color: #f5f5f5; padding: 15px; border: 1px solid transparent; border-radius: 4px; font-size: 16px; margin-top: 20px; margin-bottom: 20px;">This Quick Start guides you through the process of configuring an Imhotep cluster on AWS, uploading your data files, and exploring your data in Imhotep using Imhotep Query Language (IQL).</div>
 
-If you prefer to run an evaluation Imhotep stack using Docker, follow the instructions for [Evaluating Imhotep with Docker]({{ site.baseurl }}/docs/evaluate_docker).
+<div style="color: #000000; background-color: #f5f5f5; border-color: #f5f5f5; padding: 15px; border: 1px solid transparent; border-radius: 4px; font-size: 16px; margin-top: 20px; margin-bottom: 20px;">If you prefer to run an evaluation Imhotep stack using Docker, follow the instructions for <a href="http://opensource.indeedeng.io/imhotep/docs/evaluate-docker">Evaluating Imhotep with Docker</a>.</div>
 
-You can also manually install and configure Imhotep on AWS without CloudFormation scripts using [Installing Imhotep on AWS]({{ site.baseurl }}/docs/aws/) documentation.
+<div style="color: #000000; background-color: #f5f5f5; border-color: #f5f5f5; padding: 15px; border: 1px solid transparent; border-radius: 4px; font-size: 16px; margin-top: 20px; margin-bottom: 20px;">You can also manually install and configure Imhotep on AWS without CloudFormation scripts using <a href="http://opensource.indeedeng.io/imhotep/docs/aws"> Installing Imhotep on AWS</a> documentation.</div>
+
 
 ## Table of Contents
 
 * [Create a Cluster on AWS](#creating-a-cluster-on-aws)
 * [Make Data Available in Imhotep](#imhotep-tsv-uploader)
-* [Query your Imhotep Cluster](#iql-web-client)
+* [Query your Imhotep Cluster using IQL](#iql-web-client)
 
 <sub>Created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc.go)</sub>
 
