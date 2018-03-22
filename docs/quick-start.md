@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Quick Start
+title: Quick Start - Installing Imhotep on AWS with CloudFormation
 permalink: /docs/quick-start/
 ---
 

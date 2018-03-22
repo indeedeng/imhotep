@@ -1,8 +1,21 @@
 ---
 layout: default
-title: How to Convert TSVs into Flamdex Shards for Imhotep on the Command Line
+title: Convert TSVs into Flamdex Shards for Imhotep on the Command Line
 permalink: /docs/tsv/
 ---
+
+## Table of Contents
+
+* [Introduction](#introduction)
+* [Install Java](#install-java)
+* [Install TSV Converter](#install-tsv-converter)
+* [Create a Temporary Directory Structure Containing your TSV](#create-a-temporary-directory-structure-containing-your-tsv)
+* [Run the Converter](#run-the-converter)
+* [Check the Results](#check-the-results)
+* [Package and Deploy](#package-and-deploy)
+
+<sub>Created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc.go)</sub>
+
 
 ## Introduction
 
@@ -34,7 +47,7 @@ have been tested with Java version 1.8.0_102, but should also work on Java 1.7.
     curl https://raw.githubusercontent.com/indeedeng/imhotep-tsv-converter/master/tsv-converter/src/main/resources/log4j.xml > conf/log4j.xml
     sed -i "s#/opt/imhotepTsvConverter#$PWD#" conf/log4j.xml
 
-## Create a temporary directory structure containing your TSV
+## Create a Temporary Directory Structure Containing your TSV
 
 This example shows creating a structure for importing into a dataset called `nasa`. A single
 day of TSV data for this dataset is placed into the directory structure for processing.
@@ -45,7 +58,7 @@ day of TSV data for this dataset is placed into the directory structure for proc
     mkdir $d/tsv/incoming/nasa
     curl https://raw.githubusercontent.com/indeedeng/imhotep/gh-pages/files/nasa_19950801.tsv > $d/tsv/incoming/nasa/nasa_19950801.tsv
 
-## Run the converter
+## Run the Converter
 
     export CLASSPATH="./shardBuilder/lib/*:./conf:"$CLASSPATH
     java -Dlog4j.configuration=conf/log4j.xml com.indeed.imhotep.builder.tsv.TsvConverter --index-loc $d/tsv/incoming --success-loc $d/tsv/success --failure-loc $d/tsv/failed --data-loc $d/index --build-loc $d/build
@@ -67,7 +80,7 @@ For the nasa example above, you should see the following lines in your output:
 
 You can also review the log of the run in the `logs/shardBuilder.log` file.
 
-## Check the results
+## Check the Results
 
 If your build was successful, you will have a new dataset shard directory (Flamdex format)
 for the import. Here's what it looks like for the NASA example:
@@ -85,7 +98,7 @@ for the import. Here's what it looks like for the NASA example:
     fld-host.strdocs      fld-method.strterms   fld-unixtime.intindex64  metadata.txt
     fld-host.strindex     fld-referer.strdocs   fld-unixtime.intterms
 
-## Package and deploy
+## Package and Deploy
 
 Current there is no command-line utility to package the contents built by TsvConverter into the compressed sqar file format. You have two options:
 

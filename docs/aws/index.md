@@ -1,8 +1,15 @@
 ---
 layout: default
-title: Installing Imhotep on AWS
+title: Manually Installing Imhotep on AWS
 permalink: /docs/aws/
 ---
+## Table of Contents
+
+* [Introduction](#introduction)
+* [Setup the Imhotep Cluster](#set-up-the-imhotep-cluster)
+
+
+<sub>Created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc.go)</sub>
 
 ## Introduction
 
@@ -20,7 +27,7 @@ For fault tolerance, you should run replicated Zookeeper instances in a quorum. 
 
 For scalability, you may want to adapt these instructions to create an auto scaling group to run multiple ImhotepDaemon instances as needed.
 
-## Instructions
+## Set up the Imhotep Cluster
 
 1. [Set up S3 storage](s3-storage/)
 1. [Set up SSH access and security groups](security/)
