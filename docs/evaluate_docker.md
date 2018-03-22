@@ -159,13 +159,13 @@ Now you are ready to upload TSV time-series data (using IUpload, [start here](ht
 
 ## Appendix A: Architecture
 
-### **mhotepDaemon (a.k.a. Imhotep Server)**
+### **ImhotepDaemon (a.k.a. Imhotep Server)**
 
 The ImhotepDaemon is the back-end component responsible for looking servicing query requests. Adding instances of ImhotepDaemon is the primary way to maintain high performance with large amounts of data and increased load.
 
 This component is implemented in Java and depends on the zookeeper cluster (to coordinate with other components) and the storage layer (HDFS or S3, to pull down data shards for serving).
 
-### **mhotep Frontend Components**
+### **Imhotep Frontend Components**
 
 ### IQL Webapp
 
