@@ -108,11 +108,10 @@ public final class MetricCacheImpl implements MetricCache {
     public List<ImhotepStatusDump.MetricDump> getMetricDump() {
         final List<ImhotepStatusDump.MetricDump> ret = Lists.newArrayList();
         synchronized (loadedMetrics) {
-            if (closed) {
-                throw new IllegalStateException("already closed");
-            }
-            for (final Map.Entry<String, IntValueLookup> entry : loadedMetrics.entrySet()) {
-                ret.add(new ImhotepStatusDump.MetricDump(entry.getKey(), entry.getValue().memoryUsed()));
+            if (!closed) {
+                for (final Map.Entry<String, IntValueLookup> entry : loadedMetrics.entrySet()) {
+                    ret.add(new ImhotepStatusDump.MetricDump(entry.getKey(), entry.getValue().memoryUsed()));
+                }
             }
         }
         return ret;
