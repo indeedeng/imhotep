@@ -51,8 +51,6 @@ public class DatasetShardAssignmentRefresherTest {
 
     private final ExecutorService executorService = ShardMasterExecutors.newBlockingFixedThreadPool(10);
 
-    private static final DateTime TODAY = DateTime.now().withTimeAtStartOfDay();
-
     private static void mapToProperties(final Map<String, String> config, final File target) throws IOException {
         final Properties properties = new Properties();
         for (final Map.Entry<String, String> entry : config.entrySet()) {
@@ -91,10 +89,12 @@ public class DatasetShardAssignmentRefresherTest {
     public void testRefresh() throws ExecutionException, InterruptedException {
         final int numDataSets = 100;
         final int numShards = 15;
+        final DateTime endDate = new DateTime(2018, 1, 1, 0, 0);
+
         for (int i = 0; i < numDataSets; i++) {
             final String dataset = "dataset" + i;
             for (int j = 0; j < numShards; j++) {
-                final DateTime shard = TODAY.minusDays(j);
+                final DateTime shard = endDate.minusDays(j);
                 createShard(fsTestContext.getLocalStoreDir(), dataset, shard, (Objects.hash(dataset, shard) % 10) + 11);
                 // each shard has two versions, only 1 should be picked up
                 createShard(fsTestContext.getLocalStoreDir(), dataset, shard, (Objects.hash(dataset, shard) % 10) + 13);

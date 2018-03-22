@@ -1,14 +1,21 @@
 package com.indeed.imhotep.shardmaster;
 
 import com.google.common.base.Function;
+import com.google.common.base.Joiner;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.client.Host;
+import com.indeed.imhotep.client.ShardTimeUtils;
 import com.indeed.imhotep.shardmaster.model.ShardAssignmentInfo;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -26,6 +33,7 @@ import java.util.Set;
  */
 
 public class MinHashShardAssignerTest {
+    private static final DateTimeFormatter SHARD_VERSION_FORMAT = DateTimeFormat.forPattern(".yyyyMMddHHmmss");
 
     private static List<String> getListWithPrefix(final String prefix, final int start, final int end) {
         final List<String> list = new ArrayList<>();
@@ -38,14 +46,15 @@ public class MinHashShardAssignerTest {
     @Test
     public void testEvenDistribution() {
         final int numShards = 10000;
-        final List<ShardDir> shards = FluentIterable.from(getListWithPrefix("SHARD", 1, numShards))
-                .transform(new Function<String, ShardDir>() {
-                    @Override
-                    public ShardDir apply(final String shard) {
-                        return new ShardDir(Paths.get(shard));
-                    }
-                }).toList();
+        DateTime shardTime = new DateTime(2018, 1, 1, 0, 0, DateTimeZone.forOffsetHours(-6));
+        final List<ShardDir> shards = Lists.newArrayList();
+        for(int i = 0; i < numShards; i++) {
+            final String shardId = ShardTimeUtils.toHourlyShardPrefix(shardTime) + shardTime.toString(SHARD_VERSION_FORMAT);
+            shards.add(new ShardDir(Paths.get(shardId)));
+            shardTime = shardTime.plusHours(1);
+        }
 
+        // Note that this quickly gets unbalances when the number of hosts increases
         final List<Host> hosts = FluentIterable.from(getListWithPrefix("HOST", 1, 10))
                 .transformAndConcat(new Function<String, List<Host>>() {
                     @Override
@@ -71,9 +80,18 @@ public class MinHashShardAssignerTest {
 
         Assert.assertEquals(shards.size(), assignedShards.size());
 
-        final double shardsPerHost = ((double) numShards * replicationFactor) / numHosts;
+        List<Integer> shardCountPerHost = Lists.newArrayList();
         for (final Map.Entry<Host, Collection<String>> entry : hostToShardCount.asMap().entrySet()) {
-            Assert.assertEquals(entry.getKey() + ":" + entry.getValue().size(), 0, (shardsPerHost - entry.getValue().size()) / shardsPerHost, 0.05);
+            shardCountPerHost.add(entry.getValue().size());
+        }
+//        Collections.sort(shardCountPerHost);
+//        System.out.println(Joiner.on(',').join(shardCountPerHost));
+
+        final double averageShardsPerHost = ((double) numShards * replicationFactor) / numHosts;
+        for (final Integer shardCount : shardCountPerHost) {
+            Assert.assertEquals("Uneven shard distribution detected. Average shards per host: " +
+                            (int)averageShardsPerHost + ", shards at unbalanced host: " + shardCount,
+                    0, (averageShardsPerHost - shardCount) / averageShardsPerHost, 0.05);
         }
     }
 
