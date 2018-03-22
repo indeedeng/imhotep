@@ -3,6 +3,15 @@ layout: default
 title: Data File Requirements
 permalink: /docs/data-file-requirements/
 ---
+## Table of Contents
+
+* [Helper Script for Uploads](#helper-script-for-uploads)
+* [Sample Data Files](#sample-data-files)
+* [Filenames](#filenames)
+* [Field Headers](#field-headers)
+* [Field Values](#field-values)
+
+<sub>Created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc.go)</sub>
 
 Each data file you create to upload to your dataset must follow requirements for field and header names and for field values. If you use gzip to compress your TSV file, you must use the `.tsv.gz` extension.
 
