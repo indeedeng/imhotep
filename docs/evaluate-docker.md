@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Evaluating Imhotep with Docker
-permalink: /docs/evaluate_docker/
+permalink: /docs/evaluate-docker/
 ---
 
 ## Table of Contents
