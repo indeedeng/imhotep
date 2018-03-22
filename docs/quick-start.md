@@ -8,6 +8,16 @@ This section guides you through the process of configuring an Imhotep cluster on
 
 If you prefer to run an evaluation Imhotep stack using Docker, follow the instructions for [Evaluating Imhotep with Docker]({{ site.baseurl }}/docs/evaluate_docker).
 
+You can also manually install and configure Imhotep on AWS without CloudFormation scripts using [Installing Imhotep on AWS]({{ site.baseurl }}/docs/aws/) documentation.
+
+## Table of Contents
+
+* [Create a Cluster on AWS](#creating-a-cluster-on-aws)
+* [Make Data Available in Imhotep](#imhotep-tsv-uploader)
+* [Query your Imhotep Cluster](#iql-web-client)
+
+<sub>Created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc.go)</sub>
+
 
 ## Creating a Cluster on AWS
 
