@@ -3,8 +3,8 @@
 
     <parent>
         <groupId>com.indeed</groupId>
-        <artifactId>proprietary-parent</artifactId>
-        <version>16</version>
+        <artifactId>common-parent</artifactId>
+        <version>19</version>
     </parent>
 
     <artifactId>imhotep</artifactId>
