@@ -1,12 +1,23 @@
 ---
 layout: default
-title: Overview
+title: IQL Overview
 permalink: /docs/overview/
 ---
+## Page Contents
+
+* [Introduction](#introduction)
+* [Logging into the IQL web client](#logging-into-the-IQL-web-client)
+* [Additional Options](#additional-options)
+* [Sharing a Query](#sharing-a-query)
+* [Running Multiple Queries Simultaneously](#running-multiple-queries-simultaneously)
+
+<sub>Created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc.go)</sub>
+
+## Introduction
 
 To explore your Imhotep data, use IQL, which is a query language similar to SQL. You can use the IQL web client to send queries to your Imhotep cluster. The client is a single page interface with a query editor at the top of the page. Each IQL query produces a result table below the editor.
 
-Logging into the IQL web client:
+## Logging into the IQL web client
 
 1. Open a browser and navigate to the IQL URL provided when you created the stack on AWS. 
 2. Bypass the SSL warning to reach the login screen.
@@ -38,7 +49,7 @@ The query editor includes the following controls:
 
 As you construct your query, an autocomplete list shows available fields.
 
-### Additional options
+## Additional options
 
 | | |
 | ---- | ----- |
@@ -48,10 +59,10 @@ As you construct your query, an autocomplete list shows available fields.
 | `Pivot` allows you to summarize your query results and change views. [Read more][pivot]. |
 | `Graph` allows you to present your query results in a graph format. |
 
-### Sharing a Query
+## Sharing a Query
 To share a query with others, copy the URL.
 
-### Running Multiple Queries Simultaneously
+## Running Multiple Queries Simultaneously
 The IQL web client can implicitly join multiple result tables from multiple IQL queries. This feature allows you to see data from multiple datasets and time ranges or filtered in different ways at one time. 
 
 By default, the client shows a single row for a single IQL query. To specify an additional query in a new row, click **+** to the right of the query. This action copies the contents of all cells from the original query in the new query. 

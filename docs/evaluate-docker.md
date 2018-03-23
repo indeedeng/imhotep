@@ -5,7 +5,7 @@ permalink: /docs/evaluate-docker/
 ---
 
 
-## Table of Contents
+## Page Contents
 
 * [What You’ll Need](#what-youll-need)
 * [Install Docker](#install-docker)

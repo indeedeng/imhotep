@@ -4,7 +4,7 @@ title: Convert TSVs into Flamdex Shards for Imhotep on the Command Line
 permalink: /docs/tsv/
 ---
 
-## Table of Contents
+## Page Contents
 
 * [Introduction](#introduction)
 * [Install Java](#install-java)

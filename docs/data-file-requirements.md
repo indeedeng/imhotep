@@ -3,7 +3,7 @@ layout: default
 title: Data File Requirements
 permalink: /docs/data-file-requirements/
 ---
-## Table of Contents
+## Page Contents
 
 * [Helper Script for Uploads](#helper-script-for-uploads)
 * [Sample Data Files](#sample-data-files)

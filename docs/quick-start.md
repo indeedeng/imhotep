@@ -9,8 +9,8 @@ permalink: /docs/quick-start/
 
 
 <div style="color: #000; background-color: #eeeeee; border-color: #eeeeee; padding: 15px; border: transparent; border-radius: 4px; font-size: 16px; margin-top: 20px; margin-bottom: 20px;">
-If you prefer to run an evaluation Imhotep stack using Docker, follow the instructions for <a href="https://agrover-indeed.github.io/imhotep/docs/evaluate-docker">Evaluating Imhotep with Docker</a>. <br/><br/>
-You can also manually install and configure Imhotep on AWS without CloudFormation scripts using <a href="https://agrover-indeed.github.io/imhotep/docs/aws"> Installing Imhotep on AWS</a> documentation.</div>
+If you prefer to run an evaluation Imhotep stack using Docker, follow the instructions for <a href="http://opensource.indeedeng.io/imhotep/docs/evaluate-docker">Evaluating Imhotep with Docker</a>. <br/><br/>
+You can also manually install and configure Imhotep on AWS without CloudFormation scripts using <a href="http://opensource.indeedeng.io/imhotep/docs/aws"> Installing Imhotep on AWS</a> documentation.</div>
 
 
 ## Page Contents

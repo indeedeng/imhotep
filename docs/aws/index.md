@@ -3,7 +3,7 @@ layout: default
 title: Manually Installing Imhotep on AWS
 permalink: /docs/aws/
 ---
-## Table of Contents
+## Page Contents
 
 * [Introduction](#introduction)
 * [Setup the Imhotep Cluster](#set-up-the-imhotep-cluster)

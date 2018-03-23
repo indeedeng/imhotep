@@ -5,9 +5,23 @@ exclude_toc: true
 ---
 <img src="{{ site.baseurl }}/images/Imhotep.png" style="max-width:125px;max-height:125px;clear:both;padding:10px;" />
 
+## Introduction
+
 Imhotep is a large-scale analytics platform built by Indeed. This platform enables you to perform fast, interactive, ad hoc queries and aggregate results for large datasets.
 
 Additionally, you can combine results from multiple time-series datasets and build your own data tools for analysis, monitoring, reporting, and automated data processing.
+
+## Page Contents
+
+* [Tech Talk Resources](#tech-talk-resources)
+* [How Indeed Uses Imhotep](#how-indeed-uses-imhotep)
+* [Getting Started](#getting-started)
+* [Discussion](#discussion)
+* [See Also for Resources](#see-also-for-resources)
+
+<sub>Created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc.go)</sub>
+
+## Tech Talk Resources
 
 The following Indeed Tech Talks describe Imhotep in more detail:  <br><br>
 <table>
@@ -34,9 +48,9 @@ The following Indeed Tech Talks describe Imhotep in more detail:  <br><br>
 <td>Demonstrates how our engineering and product organizations use Imhotep to focus on key metrics at scale.</td>
 </tr>
   </table> 
-  <br><br>
+  <br>
   
-## How does Indeed use Imhotep?
+## How Indeed Uses Imhotep
 
 At Indeed, we use Imhotep to answer the following and many more questions about how people around the world are using our job search engine:
 
@@ -52,7 +66,7 @@ See the [quick start page]({{ site.baseurl }}/docs/quick-start) for instructions
 ## Discussion
 Ask and answer questions in our Q&A forum for Imhotep: [indeedeng-imhotep-users](https://groups.google.com/forum/#!forum/indeedeng-imhotep-users)
 
-## See Also
+## See Also for Resources
 [Apache Hadoop with Pig](http://pig.apache.org/)<br>
 [Druid](http://druid.io/)<br>
 [OpenDremel](https://code.google.com/p/dremel/)

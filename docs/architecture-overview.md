@@ -4,7 +4,7 @@ title: Imhotep Architecture
 permalink: /docs/architecture-overview/
 ---
 
-## Table of Contents
+## Page Contents
 
 * [Imhotep Backend Component](#imhotep-backend-component)
 * [Imhotep Frontend Components](#imhotep-frontend-components)

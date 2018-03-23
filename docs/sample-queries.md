@@ -3,7 +3,18 @@ layout: default
 title: Sample Queries
 permalink: /docs/sample-queries/
 ---
+
 This page includes sample queries to run on our [demo cluster](http://imhotep.indeed.tech/iql/) preloaded with four sample datasets: `apachejira`, `nasa`, `wikipedia` and `worldcup2014`. 
+
+## Page Contents
+* [apachejira](#apachejira)
+* [NASA ](#nasa)
+* [Wikipedia ](#wikipedia )
+* [World Cup 2014](#world-cup-2014)
+
+
+<sub>Created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc.go)</sub>
+
 
 [Click here for information about the sample data](../sample-data/).
 
