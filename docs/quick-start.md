@@ -1,12 +1,26 @@
 ---
 layout: default
-title: Quick Start
+title: Quick Start - Installing Imhotep on AWS with CloudFormation
 permalink: /docs/quick-start/
 ---
 
-This section guides you through the process of configuring an Imhotep cluster on AWS, uploading your data files, and exploring your data in Imhotep using Imhotep Query Language (IQL).
+<div style="color: #FFF; background-color: #ff6600; border-color: #f5f5f5; padding: 15px; border: 1px solid transparent; border-radius: 4px; font-size: 16px; margin-top: 20px; margin-bottom: 20px;">This Quick Start guides you through the process of configuring an Imhotep cluster on AWS, uploading your data files, and exploring your data in Imhotep using Imhotep Query Language (IQL).</div>
 
-If you prefer to run an evaluation Imhotep stack using Docker, follow the instructions in the [imhotep-docker README](https://github.com/indeedeng/imhotep-docker/blob/master/README.md).
+
+
+<div style="color: #000; background-color: #eeeeee; border-color: #eeeeee; padding: 15px; border: transparent; border-radius: 4px; font-size: 16px; margin-top: 20px; margin-bottom: 20px;">
+If you prefer to run an evaluation Imhotep stack using Docker, follow the instructions for <a href="http://opensource.indeedeng.io/imhotep/docs/evaluate-docker">Evaluating Imhotep with Docker</a>. <br/><br/>
+You can also manually install and configure Imhotep on AWS without CloudFormation scripts using <a href="http://opensource.indeedeng.io/imhotep/docs/aws"> Installing Imhotep on AWS</a> documentation.</div>
+
+
+## Page Contents
+
+* [Create a Cluster on AWS](#creating-a-cluster-on-aws)
+* [Make Data Available in Imhotep](#imhotep-tsv-uploader)
+* [Query your Imhotep Cluster using IQL](#iql-web-client)
+
+<sub>Created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc.go)</sub>
+
 
 ## Creating a Cluster on AWS
 

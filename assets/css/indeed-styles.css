@@ -60,6 +60,12 @@ p, ul, ol {
   margin-bottom: 14px;
 }
 
+nav li {
+  display: block;
+  margin-top: 10px;
+}
+
+
 table {
   width:100%;
   border-collapse:collapse;

@@ -4,7 +4,16 @@ title: Troubleshooting
 permalink: /docs/troubleshooting/
 ---
 
-This section highlights file upload and query errors and their workarounds.
+This page highlights file upload and query errors and their workarounds.
+
+## Page Contents
+
+* [AWS Stack Management](#aws-stack-management)
+* [File Upload Errors](#file-upload-errors)
+* [Query Errors](#query-errors)
+* [Slow Queries](#slow-queries)
+
+<sub>Created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc.go)</sub>
 
 ## AWS Stack Management
 

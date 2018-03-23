@@ -3,6 +3,15 @@ layout: default
 title: Sample Data
 permalink: /docs/sample-data/
 ---
+## Page Contents
+
+* [Apache Software Foundation Issue Tracker](#apache-software-foundation-issue-tracker)
+* [NASA Apache Web Logs](#nasa-apache-web-logs)
+* [Wikipedia Web Logs](#wikipedia-web-logs)
+* [World Cup 2014 Player Data](#world-cup-2014-player-data)
+
+
+<sub>Created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc.go)</sub>
 
 ## Apache Software Foundation Issue Tracker
 The sample time-series dataset in apachejira comes from [public Apache instance of JIRA](https://issues.apache.org/jira/). It was converted to a TSV file with a Java program that uses the JIRA API, with the following fields:
