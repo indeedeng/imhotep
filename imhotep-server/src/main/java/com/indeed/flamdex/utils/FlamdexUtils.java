@@ -910,12 +910,14 @@ public class FlamdexUtils {
         INT, STR, NULL
     }
 
+    // returns null if there is no metadata or there is no info for the field
+    // returns FieldInfo.hasZeroTermDoc otherwise
     public static Boolean hasZeroTermDoc(final FlamdexReader reader,
                                          final String field,
                                          final boolean isIntField) {
         final FieldsCardinalityMetadata metadata = reader.getFieldsMetadata();
         if (metadata == null) {
-            return false;
+            return null;
         }
 
         final FieldsCardinalityMetadata.FieldInfo info =
@@ -926,12 +928,14 @@ public class FlamdexUtils {
         return info.hasZeroTermDoc;
     }
 
+    // returns null if there is no metadata or there is no info for the field
+    // returns FieldInfo.hasMultipleTermDoc otherwise
     public static Boolean hasMultipleTermDoc(final FlamdexReader reader,
                                              final String field,
                                              final boolean isIntField) {
         final FieldsCardinalityMetadata metadata = reader.getFieldsMetadata();
         if (metadata == null) {
-            return false;
+            return null;
         }
 
         final FieldsCardinalityMetadata.FieldInfo info =
