@@ -37,6 +37,7 @@ import com.indeed.util.mmap.MMapBuffer;
 import com.indeed.util.mmap.ShortArray;
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nullable;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -912,6 +913,7 @@ public class FlamdexUtils {
 
     // returns null if there is no metadata or there is no info for the field
     // returns FieldInfo.hasZeroTermDoc otherwise
+    @Nullable
     public static Boolean hasZeroTermDoc(final FlamdexReader reader,
                                          final String field,
                                          final boolean isIntField) {
@@ -930,6 +932,7 @@ public class FlamdexUtils {
 
     // returns null if there is no metadata or there is no info for the field
     // returns FieldInfo.hasMultipleTermDoc otherwise
+    @Nullable
     public static Boolean hasMultipleTermDoc(final FlamdexReader reader,
                                              final String field,
                                              final boolean isIntField) {
