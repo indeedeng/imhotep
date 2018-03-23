@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Aggregating Results
+title: IQL Tips
 permalink: /docs/iql-tips/
 ---
 ## Table of Contents
@@ -28,4 +28,9 @@ If you put the largest grouping as the last grouping, the result of the last lar
 ### **Test on a small time range**
 First, test your query on a small time range. Then, you can ramp up to the required range as you gauge that performance is sufficient. For example, "from jobsearch 1h today ..." is a better way to test than "from jobsearch 180d today ...".
 
-###
+### **Consider if a small time range works for your needs**
+If you have created a Superset or Aquarium Dashboard, consider the time range. Do you really need to see "90d - today" worth of data, or is "2w - today" sufficient?
+
+### **Consider time range when saving a query**
+When saving or bookmarking a query, consider a smaller time range. That way, when you come back to that query and it auto-runs, you won't need to wait for it to complete to adjust the time range.
+
