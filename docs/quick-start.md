@@ -4,11 +4,11 @@ title: Quick Start - Installing Imhotep on AWS with CloudFormation
 permalink: /docs/quick-start/
 ---
 
-<div style="color: #000000; background-color: #f5f5f5; border-color: #f5f5f5; padding: 15px; border: 1px solid transparent; border-radius: 4px; font-size: 16px; margin-top: 20px; margin-bottom: 20px;">This Quick Start guides you through the process of configuring an Imhotep cluster on AWS, uploading your data files, and exploring your data in Imhotep using Imhotep Query Language (IQL).</div>
+<div style="color: #FFF; background-color: #ff6600; border-color: #f5f5f5; padding: 15px; border: 1px solid transparent; border-radius: 4px; font-size: 16px; margin-top: 20px; margin-bottom: 20px;">This Quick Start guides you through the process of configuring an Imhotep cluster on AWS, uploading your data files, and exploring your data in Imhotep using Imhotep Query Language (IQL).</div>
 
-<div style="color: #000000; background-color: #f5f5f5; border-color: #f5f5f5; padding: 15px; border: 1px solid transparent; border-radius: 4px; font-size: 16px; margin-top: 20px; margin-bottom: 20px;">If you prefer to run an evaluation Imhotep stack using Docker, follow the instructions for <a href="https://agrover-indeed.github.io/imhotep/docs/evaluate-docker">Evaluating Imhotep with Docker</a>.</div>
+<div style="color: #000; background-color: #FFF; border-color: #808080; padding: 15px; border: 2px solid; border-radius: 4px; font-size: 16px; margin-top: 20px; margin-bottom: 20px;">If you prefer to run an evaluation Imhotep stack using Docker, follow the instructions for <a href="https://agrover-indeed.github.io/imhotep/docs/evaluate-docker">Evaluating Imhotep with Docker</a>.</div>
 
-<div style="color: #000000; background-color: #f5f5f5; border-color: #f5f5f5; padding: 15px; border: 1px solid transparent; border-radius: 4px; font-size: 16px; margin-top: 20px; margin-bottom: 20px;">You can also manually install and configure Imhotep on AWS without CloudFormation scripts using <a href="https://agrover-indeed.github.io/imhotep/docs/aws"> Installing Imhotep on AWS</a> documentation.</div>
+<div style="color: #000; background-color: #FFF; border-color: #808080; padding: 15px; border: 2px solid; border-radius: 4px; font-size: 16px; margin-top: 20px; margin-bottom: 20px;">You can also manually install and configure Imhotep on AWS without CloudFormation scripts using <a href="https://agrover-indeed.github.io/imhotep/docs/aws"> Installing Imhotep on AWS</a> documentation.</div>
 
 
 ## Table of Contents
