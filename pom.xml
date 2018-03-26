@@ -24,8 +24,6 @@
 
     <scm>
         <url>https://github.com/indeedeng/imhotep</url>
-        <connection>scm:git:git@code.corp.indeed.com:opensource/imhotep.git</connection>
-        <developerConnection>scm:git:git@code.corp.indeed.com:opensource/imhotep.git</developerConnection>
     </scm>
 
   <build>
