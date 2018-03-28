@@ -52,10 +52,6 @@ public abstract class AbstractFlamdexReader implements FlamdexReader {
     private final Map<String, FieldCacher> intFieldCachers;
     protected final Map<String, MinMax> metricMinMaxes;
 
-    protected AbstractFlamdexReader(final Path directory) {
-        this(directory, 0, System.getProperty("flamdex.mmap.fieldcache") != null);
-    }
-
     protected AbstractFlamdexReader(final Path directory, final int numDocs, final boolean useMMapMetrics) {
         this.directory = directory;
         this.numDocs = numDocs;

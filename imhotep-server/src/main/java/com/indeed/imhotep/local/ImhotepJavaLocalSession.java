@@ -128,9 +128,8 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
                                   final int numDocs,
                                   final Collection<String> intFields,
                                   final Collection<String> stringFields,
-                                  final boolean useMMapMetrics,
-                                  final boolean useMMapDocIdStream) {
-            super(directory, numDocs, intFields, stringFields, useMMapMetrics, useMMapDocIdStream);
+                                  final Config config) {
+            super(directory, numDocs, intFields, stringFields, config);
         }
 
         public static AutoDeletingReader open(@Nonnull final Path directory) throws IOException {
@@ -146,8 +145,13 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
                 buildIntBTrees(directory, Lists.newArrayList(intFields));
                 buildStringBTrees(directory, Lists.newArrayList(stringFields));
             }
-            final AutoDeletingReader result = new AutoDeletingReader(directory, metadata.getNumDocs(), intFields, stringFields,
-                    config.isUseMMapMetrics(), config.isUseMMapDocIdStream());
+            final AutoDeletingReader result =
+                    new AutoDeletingReader(
+                            directory,
+                            metadata.getNumDocs(),
+                            intFields,
+                            stringFields,
+                            config);
             if (config.isWriteCardinalityIfNotExisting()) {
                 // try to build and store cache
                 result.buildAndWriteCardinalityCache(true);

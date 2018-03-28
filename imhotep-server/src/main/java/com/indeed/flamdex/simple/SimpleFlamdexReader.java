@@ -36,7 +36,6 @@ import com.indeed.flamdex.reader.FlamdexMetadata;
 import com.indeed.flamdex.utils.FlamdexUtils;
 
 import javax.annotation.Nonnull;
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -58,13 +57,9 @@ public class SimpleFlamdexReader
     private final MapCache mapCache = new MapCache();
     private FieldsCardinalityMetadata cardinalityMetadata;
 
-    private static final boolean useNativeDocIdStream;
+    private final boolean useNativeDocIdStream;
     private final boolean useMMapDocIdStream;
-
-    static {
-        final String useNative = System.getProperties().getProperty("com.indeed.flamdex.simple.useNative");
-        useNativeDocIdStream = "true".equalsIgnoreCase(useNative);
-    }
+    private final boolean useSSSE3;
 
     private final Map<String, NativeFlamdexFieldCacher> intFieldCachers;
 
@@ -72,45 +67,22 @@ public class SimpleFlamdexReader
                                   final int numDocs,
                                   final Collection<String> intFields,
                                   final Collection<String> stringFields,
-                                  final boolean useMMapMetrics) {
-        this(directory, numDocs, intFields, stringFields, useMMapMetrics, true);
-    }
-
-    protected SimpleFlamdexReader(final Path directory,
-                                  final int numDocs,
-                                  final Collection<String> intFields,
-                                  final Collection<String> stringFields,
-                                  final boolean useMMapMetrics,
-                                  final boolean useMMapDocIdStream) {
-        super(directory, numDocs, useMMapMetrics);
+                                  final Config config) {
+        super(directory, numDocs, config.useMMapMetrics);
 
         this.intFields = intFields;
         this.stringFields = stringFields;
         this.intFieldCachers = Maps.newHashMap();
 
-        this.useMMapDocIdStream = useMMapDocIdStream;
+        useMMapDocIdStream = config.useMMapDocIdStream;
+        useNativeDocIdStream = config.useNativeDocIdStream;
+        useSSSE3 = config.useSSSE3;
 
-        this.cardinalityMetadata = FieldsCardinalityMetadata.open(directory);
-    }
-
-    /**
-     * Use {@link #open(Path)} instead
-     */
-    @Deprecated
-    public static SimpleFlamdexReader open(final String directory) throws IOException {
-        return open(new File(directory).toPath());
+        cardinalityMetadata = FieldsCardinalityMetadata.open(directory);
     }
 
     public static SimpleFlamdexReader open(@Nonnull final Path directory) throws IOException {
         return open(directory, new Config());
-    }
-
-    /**
-     * Use {@link #open(Path, Config)} instead
-     */
-    @Deprecated
-    public static SimpleFlamdexReader open(final String directory, final Config config) throws IOException {
-        return open(new File(directory).toPath(), config);
     }
 
     public static SimpleFlamdexReader open(@Nonnull final Path directory, final Config config) throws IOException {
@@ -121,8 +93,13 @@ public class SimpleFlamdexReader
             buildIntBTrees(directory, Lists.newArrayList(intFields));
             buildStringBTrees(directory, Lists.newArrayList(stringFields));
         }
-        final SimpleFlamdexReader result = new SimpleFlamdexReader(directory, metadata.getNumDocs(), intFields, stringFields,
-                config.useMMapMetrics, config.useMMapDocIdStream);
+        final SimpleFlamdexReader result =
+                new SimpleFlamdexReader(
+                        directory,
+                        metadata.getNumDocs(),
+                        intFields,
+                        stringFields,
+                        config);
         if (config.isWriteCardinalityIfNotExisting()) {
             // try to build and store cache
             result.buildAndWriteCardinalityCache(true);
@@ -162,7 +139,7 @@ public class SimpleFlamdexReader
     @Override
     public DocIdStream getDocIdStream() {
         if (useMMapDocIdStream) {
-            return useNativeDocIdStream ? new NativeDocIdStream(mapCache) : new MMapDocIdStream(mapCache);
+            return useNativeDocIdStream ? new NativeDocIdStream(mapCache, useSSSE3) : new MMapDocIdStream(mapCache);
         } else {
             return new ByteChannelDocIdStream();
         }
@@ -254,7 +231,7 @@ public class SimpleFlamdexReader
         try {
             if (useNativeDocIdStream && !(termIterator instanceof StringToIntTermIterator) &&
                     (Files.exists(termsPath) && (Files.size(termsPath) > 0))) {
-                return new NativeIntTermDocIterator(termIterator, mapCache);
+                return new NativeIntTermDocIterator(termIterator, mapCache, useSSSE3);
             } else {
                 return new GenericIntTermDocIterator(termIterator, getDocIdStream());
             }
@@ -270,7 +247,7 @@ public class SimpleFlamdexReader
 
         try {
             if (useNativeDocIdStream && (Files.exists(termsPath) && (Files.size(termsPath) > 0))) {
-                return new NativeStringTermDocIterator(termIterator, mapCache);
+                return new NativeStringTermDocIterator(termIterator, mapCache, useSSSE3);
             } else {
                 return new GenericRawStringTermDocIterator(termIterator, getDocIdStream());
             }
@@ -408,18 +385,20 @@ public class SimpleFlamdexReader
         private boolean writeCardinalityIfNotExisting = false;
         private boolean useMMapMetrics = System.getProperty("flamdex.mmap.fieldcache") != null;
         private boolean useMMapDocIdStream = false;
+        private boolean useNativeDocIdStream = "true".equalsIgnoreCase(System.getProperties().getProperty("com.indeed.flamdex.simple.useNative"));
+        private boolean useSSSE3 = "true".equalsIgnoreCase(System.getProperty("com.indeed.flamdex.simple.useSSSE3"));
 
         public boolean isWriteBTreesIfNotExisting() {
             return writeBTreesIfNotExisting;
         }
 
-        public boolean isWriteCardinalityIfNotExisting() {
-            return writeCardinalityIfNotExisting;
-        }
-
         public Config setWriteBTreesIfNotExisting(final boolean writeBTreesIfNotExisting) {
             this.writeBTreesIfNotExisting = writeBTreesIfNotExisting;
             return this;
+        }
+
+        public boolean isWriteCardinalityIfNotExisting() {
+            return writeCardinalityIfNotExisting;
         }
 
         public Config setWriteCardinalityIfNotExisting( final boolean writeFieldCapacityIfNotExisting) {
@@ -440,8 +419,27 @@ public class SimpleFlamdexReader
             return useMMapDocIdStream;
         }
 
-        public void setUseMMapDocIdStream(final boolean useMMapDocIdStream) {
+        public Config setUseMMapDocIdStream(final boolean useMMapDocIdStream) {
             this.useMMapDocIdStream = useMMapDocIdStream;
+            return this;
+        }
+
+        public boolean isUseNativeDocIdStream() {
+            return useNativeDocIdStream;
+        }
+
+        public Config setUseNativeDocIdStream(final boolean useNativeDocIdStream) {
+            this.useNativeDocIdStream = useNativeDocIdStream;
+            return this;
+        }
+
+        public boolean isUseSSSE3() {
+            return useSSSE3;
+        }
+
+        public Config setUseSSSE3(final boolean useSSSE3) {
+            this.useSSSE3 = useSSSE3;
+            return this;
         }
     }
 }

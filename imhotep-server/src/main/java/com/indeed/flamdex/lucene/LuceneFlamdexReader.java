@@ -65,19 +65,10 @@ public class LuceneFlamdexReader extends AbstractFlamdexReader {
             this(directory, null, null);
     }
 
-    /**
-     * use {@link #LuceneFlamdexReader(Path, Collection, Collection)} instead
-     */
-    @Deprecated
-    public LuceneFlamdexReader(@Nonnull final String directory,
-                               @Nullable  final Collection<String> intFields,
-                               @Nullable  final Collection<String> stringFields) throws IOException {
-        this(Paths.get(directory), intFields, stringFields);
-    }
-
-    public LuceneFlamdexReader(@Nonnull final Path directory, @Nullable final Collection<String> intFields,
-        @Nullable final Collection<String> stringFields) throws IOException {
-            super(directory);
+    public LuceneFlamdexReader(@Nonnull final Path directory,
+                               @Nullable final Collection<String> intFields,
+                               @Nullable final Collection<String> stringFields) throws IOException {
+        super(directory, 0, System.getProperty("flamdex.mmap.fieldcache") != null);
 
         // verify the directory is valid
         trackDirectory(directory);

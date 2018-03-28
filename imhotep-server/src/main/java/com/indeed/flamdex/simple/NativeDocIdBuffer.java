@@ -38,16 +38,12 @@ public final class NativeDocIdBuffer implements Closeable {
 
     private static final int BUFFER_LENGTH = 512;
 
-    private static final boolean useSSSE3;
+    private final boolean useSSSE3;
 
     static {
-        useSSSE3 = "true".equalsIgnoreCase(System.getProperty("com.indeed.flamdex.simple.useSSSE3"));
         loadNativeLibrary();
         nativeInit();
         log.info("libvarint loaded");
-        if (useSSSE3) {
-            log.info("using SSSE3! (if the processor in this computer doesn't support SSSE3 this process will fail with SIGILL)");
-        }
     }
 
     static {
@@ -92,8 +88,9 @@ public final class NativeDocIdBuffer implements Closeable {
 
     private long docsRemaining;
 
-    NativeDocIdBuffer() {
+    NativeDocIdBuffer(final boolean useSSSE3) {
         bufAddress = UNSAFE.allocateMemory(4 * BUFFER_LENGTH);
+        this.useSSSE3 = useSSSE3;
     }
 
     public void reset(final long newPosition, final long newDocsRemaining) {

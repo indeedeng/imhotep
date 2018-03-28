@@ -34,7 +34,7 @@ public final class NativeDocIdStream implements DocIdStream {
     private DirectMemory memory;
     private SharedReference<MMapBuffer> file;
 
-    private final NativeDocIdBuffer buffer = new NativeDocIdBuffer();
+    private final NativeDocIdBuffer buffer;
 
     private Path currentFileOpen;
 
@@ -44,8 +44,9 @@ public final class NativeDocIdStream implements DocIdStream {
 
     private final MapCache mapCache;
 
-    NativeDocIdStream(final MapCache mapCache) {
+    NativeDocIdStream(final MapCache mapCache, final boolean useSSSE3) {
         this.mapCache = mapCache;
+        this.buffer = new NativeDocIdBuffer(useSSSE3);
     }
 
     @Override
