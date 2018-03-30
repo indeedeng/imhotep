@@ -93,7 +93,18 @@ public final class NativeDocIdBuffer implements Closeable {
         this.useSSSE3 = useSSSE3;
     }
 
+    public boolean trySkip(final int count) {
+        if ((bufIndex+count) <= bufLen) {
+            bufIndex += count;
+            return true;
+        }
+        return false;
+    }
+
     public void reset(final long newPosition, final long newDocsRemaining) {
+        if ((position == newPosition) && (docsRemaining == newDocsRemaining)) {
+            return;
+        }
         position = newPosition;
         docsRemaining = newDocsRemaining;
         // to force a refill

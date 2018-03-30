@@ -13,34 +13,15 @@
  */
  package com.indeed.flamdex.api;
 
-import com.indeed.util.core.io.Closeables2;
-import org.apache.log4j.Logger;
-
-import java.util.Arrays;
-
 /**
  * @author jplaisance
  */
-public final class GenericIntTermDocIterator implements IntTermDocIterator {
-
-    private static final Logger log = Logger.getLogger(GenericIntTermDocIterator.class);
-
+public final class GenericIntTermDocIterator extends GenericTermDocIterator implements IntTermDocIterator {
     private final IntTermIterator termIterator;
 
-    private final DocIdStream docIdStream;
-
     public GenericIntTermDocIterator(final IntTermIterator termIterator, final DocIdStream docIdStream) {
+        super(termIterator, docIdStream);
         this.termIterator = termIterator;
-        this.docIdStream = docIdStream;
-    }
-
-    @Override
-    public boolean nextTerm() {
-        final boolean ret = termIterator.next();
-        if (ret) {
-            docIdStream.reset(termIterator);
-        }
-        return ret;
     }
 
     @Override
@@ -49,22 +30,8 @@ public final class GenericIntTermDocIterator implements IntTermDocIterator {
     }
 
     @Override
-    public int docFreq() {
-        return termIterator.docFreq();
-    }
-
-    @Override
-    public int fillDocIdBuffer(final int[] docIdBuffer) {
-        return docIdStream.fillDocIdBuffer(docIdBuffer);
-    }
-
-    @Override
     public int nextDocs(final int[] docIdBuffer) {
         return fillDocIdBuffer(docIdBuffer);
     }
-
-    @Override
-    public void close() {
-        Closeables2.closeAll(Arrays.asList(termIterator, docIdStream), log);
-    }
 }
+

@@ -13,42 +13,17 @@
  */
  package com.indeed.flamdex.api;
 
-import com.indeed.util.core.io.Closeables2;
-import org.apache.log4j.Logger;
-
-import java.io.IOException;
-import java.util.Arrays;
-
 /**
  * @author jplaisance
  */
-public final class GenericRawStringTermDocIterator implements RawStringTermDocIterator {
-
-    private static final Logger log = Logger.getLogger(GenericRawStringTermDocIterator.class);
-
+public final class GenericRawStringTermDocIterator extends GenericStringTermDocIterator implements RawStringTermDocIterator {
     private final RawStringTermIterator termIterator;
-
-    private final DocIdStream docIdStream;
 
     public GenericRawStringTermDocIterator(
             final RawStringTermIterator termIterator,
             final DocIdStream docIdStream) {
+        super(termIterator, docIdStream);
         this.termIterator = termIterator;
-        this.docIdStream = docIdStream;
-    }
-
-    @Override
-    public boolean nextTerm() {
-        final boolean ret = termIterator.next();
-        if (ret) {
-            docIdStream.reset(termIterator);
-        }
-        return ret;
-    }
-
-    @Override
-    public String term() {
-        return termIterator.term();
     }
 
     @Override
@@ -59,20 +34,5 @@ public final class GenericRawStringTermDocIterator implements RawStringTermDocIt
     @Override
     public int termStringLength() {
         return termIterator.termStringLength();
-    }
-
-    @Override
-    public int docFreq() {
-        return termIterator.docFreq();
-    }
-
-    @Override
-    public int fillDocIdBuffer(final int[] docIdBuffer) {
-        return docIdStream.fillDocIdBuffer(docIdBuffer);
-    }
-
-    @Override
-    public void close() throws IOException {
-        Closeables2.closeAll(Arrays.asList(termIterator, docIdStream), log);
     }
 }

@@ -13,6 +13,7 @@
  */
  package com.indeed.flamdex.simple;
 
+import com.google.common.base.Throwables;
 import com.indeed.flamdex.api.TermDocIterator;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
@@ -21,7 +22,6 @@ import com.indeed.util.mmap.MMapBuffer;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
-import java.nio.file.Path;
 
 /**
  * @author jplaisance
@@ -30,65 +30,99 @@ public abstract class NativeTermDocIterator implements TermDocIterator {
 
     private static final Logger log = Logger.getLogger(NativeTermDocIterator.class);
 
-    protected abstract boolean bufferNext();
+    // Derived classes should manage cache of terms with size BUFFER_SIZE
+    protected static final int BUFFER_SIZE = 128;
 
-    protected abstract long offset();
+    // cache current term into buffer.
+    // @param index - index of cached term in buffer
+    protected abstract void cacheTerm(int index);
+    // discard cache.
+    protected abstract void resetCache();
 
-    protected abstract int lastDocFreq();
+    private final SimpleTermIterator iterator;
 
-    protected abstract void poll();
-
-    private final SharedReference<MMapBuffer> file;
-    private final DirectMemory memory;
-
+    // total buffered terms
     private int bufferedTerms = 0;
+    // index of current term
     private int termIndex = 0;
-    private final int[] docFreqBuffer = new int[128];
+    // sum of all docFreq for buffered, but not-yet-processed terms
+    private int cachedTermsDocCount;
+    // docFreq's for buffered terms
+    private final int[] docFreqBuffer = new int[BUFFER_SIZE];
+    // offsets for buffered terms
+    private final long[] offsets = new long[BUFFER_SIZE];
 
+    // state of current term docIdStream.
     private int currentTermDocsRemaining = 0;
     private int lastDoc = 0;
 
-    private final NativeDocIdBuffer buffer;
+    // created on first use.
+    private NativeDocIdBuffer buffer;
+
+    // All these we need for NativeDocIdBuffer
+    private final MapCache mapCache;
+    private SharedReference<MMapBuffer> file;
+    private DirectMemory memory;
+    private final boolean useSSSE3;
+
+    // Should we reset docIdStream before next use and params for resetting.
+    private boolean resetDocStream;
+    private long resetPosition;
+    private long resetDocCount;
 
     private boolean closed = false;
 
-    NativeTermDocIterator(final Path filename, final MapCache mapCache, final boolean useSSSE3) throws IOException {
-        file = mapCache.copyOrOpen(filename);
-        memory = file.get().memory();
-        buffer = new NativeDocIdBuffer(useSSSE3);
+    NativeTermDocIterator(final MapCache mapCache,
+                          final SimpleTermIterator iterator,
+                          final boolean useSSSE3) throws IOException {
+        this.mapCache = mapCache;
+        this.iterator = iterator;
+        this.useSSSE3 = useSSSE3;
     }
 
     @Override
     public final boolean nextTerm() {
+        cachedTermsDocCount -= docFreqBuffer[termIndex];
+        termIndex++;
+
+        if (termIndex >= bufferedTerms) {
+            // try to cache terms
+            resetCache();
+            termIndex = 0;
+            bufferedTerms = 0;
+            cachedTermsDocCount = 0;
+            currentTermDocsRemaining = 0;
+            while ((bufferedTerms < BUFFER_SIZE) && iterator.next()) {
+                cacheTerm(bufferedTerms);
+                offsets[bufferedTerms] = iterator.getOffset();
+                final int docFreq = iterator.docFreq();
+                docFreqBuffer[bufferedTerms] = docFreq;
+                cachedTermsDocCount += docFreq;
+                bufferedTerms++;
+            }
+
+            if (bufferedTerms == 0) {
+                // no more terms
+                return false;
+            }
+
+            // need to reset docIdStream
+            resetDocStream = true;
+            resetPosition = offsets[termIndex];
+            resetDocCount = cachedTermsDocCount;
+        }
+
         if (currentTermDocsRemaining > 0) {
-            throw new IllegalStateException("must iterate over entire doc list for previous term before calling nextTerm");
+            // should skip some data in buffer
+            if ((buffer == null) || !buffer.trySkip(currentTermDocsRemaining)) {
+                // no buffer yet or can't skip, will reset on next use
+                resetDocStream = true;
+                resetPosition = offsets[termIndex];
+                resetDocCount = cachedTermsDocCount;
+            }
         }
-        final int nextTermIndex = termIndex+1;
-        if (nextTermIndex < bufferedTerms) {
-            termIndex = nextTermIndex;
-            currentTermDocsRemaining = docFreqBuffer[termIndex];
-            poll();
-            lastDoc = 0;
-            return true;
-        }
-        if (bufferedTerms > 0) {
-            poll();
-        }
-        long totalDocFreq = 0;
-        termIndex = 0;
-        bufferedTerms = 0;
-        if (!bufferNext()) {
-            return false;
-        }
-        final long offset = offset();
-        do {
-            docFreqBuffer[bufferedTerms] = lastDocFreq();
-            totalDocFreq += lastDocFreq();
-            bufferedTerms++;
-        } while (bufferedTerms < docFreqBuffer.length && bufferNext());
         currentTermDocsRemaining = docFreqBuffer[termIndex];
         lastDoc = 0;
-        buffer.reset(memory.getAddress()+offset, totalDocFreq);
         return true;
     }
 
@@ -99,6 +133,7 @@ public abstract class NativeTermDocIterator implements TermDocIterator {
 
     @Override
     public final int fillDocIdBuffer(final int[] docIdBuffer) {
+        prepareDocIdStream();
         final int n = buffer.fillDocIdBuffer(docIdBuffer, Math.min(docIdBuffer.length, currentTermDocsRemaining));
         for (int i = 0; i < n; i++) {
             lastDoc += docIdBuffer[i];
@@ -109,11 +144,35 @@ public abstract class NativeTermDocIterator implements TermDocIterator {
     }
 
     @Override
-    public void close() {
+    public final void close() {
         if (!closed) {
             closed = true;
             Closeables2.closeQuietly(file, log);
             Closeables2.closeQuietly(buffer, log);
+            Closeables2.closeQuietly(iterator, log);
         }
+    }
+
+    protected int getTermIndex() {
+        return termIndex;
+    }
+
+    private void prepareDocIdStream() {
+        if (!resetDocStream) {
+            return;
+        }
+
+        if (buffer == null) {
+            try {
+                file = mapCache.copyOrOpen(iterator.getFilename());
+                memory = file.get().memory();
+                buffer = new NativeDocIdBuffer(useSSSE3);
+            } catch (final IOException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+
+        buffer.reset(memory.getAddress() + resetPosition, resetDocCount);
+        resetDocStream = false;
     }
 }
