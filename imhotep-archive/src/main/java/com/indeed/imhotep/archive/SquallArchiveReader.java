@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.nio.file.NoSuchFileException;
 import java.security.DigestInputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -61,12 +62,12 @@ public class SquallArchiveReader {
      * @throws IOException if there is an IO problem
      */
     public List<FileMetadata> readMetadata() throws IOException {
-        FileNotFoundException throwable = null;
+        IOException throwable = null;
         for (int retries = 3; retries > 0; --retries) {
             try (FSDataInputStream is = fs.open(new Path(path, "metadata.txt"))) {
                 try {
                     return readMetadata(is);
-                } catch (final FileNotFoundException e) {
+                } catch (final FileNotFoundException|NoSuchFileException e) {
                     throwable = e;
                     try {
                         Thread.sleep(1000);

@@ -48,13 +48,14 @@ public abstract class NativeTermDocIterator implements TermDocIterator {
     private int currentTermDocsRemaining = 0;
     private int lastDoc = 0;
 
-    private final NativeDocIdBuffer buffer = new NativeDocIdBuffer();
+    private final NativeDocIdBuffer buffer;
 
     private boolean closed = false;
 
-    NativeTermDocIterator(final Path filename, final MapCache mapCache) throws IOException {
+    NativeTermDocIterator(final Path filename, final MapCache mapCache, final boolean useSSSE3) throws IOException {
         file = mapCache.copyOrOpen(filename);
         memory = file.get().memory();
+        buffer = new NativeDocIdBuffer(useSSSE3);
     }
 
     @Override

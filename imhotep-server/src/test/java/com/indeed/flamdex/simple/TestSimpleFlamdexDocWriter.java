@@ -17,6 +17,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
+import com.indeed.ParameterizedUtils;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermIterator;
@@ -37,6 +38,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -53,8 +56,20 @@ import static org.junit.Assert.assertTrue;
 /**
  * @author jsgroth
  */
+@RunWith(Parameterized.class)
 public class TestSimpleFlamdexDocWriter {
     private Path tempDir;
+
+    private final SimpleFlamdexReader.Config config;
+
+    @Parameterized.Parameters
+    public static Iterable<SimpleFlamdexReader.Config[]> configs() {
+        return ParameterizedUtils.getAllPossibleFlamdexConfigs();
+    }
+
+    public TestSimpleFlamdexDocWriter(final SimpleFlamdexReader.Config config) {
+        this.config = config;
+    }
 
     @BeforeClass
     public static void initLog4j() {
@@ -139,7 +154,7 @@ public class TestSimpleFlamdexDocWriter {
         elapsed += System.currentTimeMillis();
         System.out.println("time for writing " + size + " byte index with " + numDocs + " documents: " + elapsed + " ms");
 
-        final SimpleFlamdexReader r = SimpleFlamdexReader.open(tempDir);
+        final SimpleFlamdexReader r = SimpleFlamdexReader.open(tempDir, config);
         final List<FlamdexDocument> actual = FlamdexReinverter.reinvertInMemory(r);
         r.close();
 
@@ -174,7 +189,7 @@ public class TestSimpleFlamdexDocWriter {
     public void testBufferedOnly() throws IOException {
         final SimpleFlamdexDocWriter.Config config = new SimpleFlamdexDocWriter.Config().setDocBufferSize(999999999).setMergeFactor(999999999);
         writeFlamdex(tempDir, config);
-        final FlamdexReader r = SimpleFlamdexReader.open(tempDir);
+        final FlamdexReader r = SimpleFlamdexReader.open(tempDir, this.config);
         assertEquals(2, r.getIntFields().size());
         assertTrue(r.getIntFields().contains("if1"));
         assertTrue(r.getIntFields().contains("if2"));
@@ -205,7 +220,7 @@ public class TestSimpleFlamdexDocWriter {
     @Test
     public void testEmpty() throws IOException {
         new SimpleFlamdexDocWriter(tempDir, new SimpleFlamdexDocWriter.Config()).close();
-        final FlamdexReader r = SimpleFlamdexReader.open(tempDir);
+        final FlamdexReader r = SimpleFlamdexReader.open(tempDir, config);
         assertEquals(0, r.getNumDocs());
         r.close();
     }

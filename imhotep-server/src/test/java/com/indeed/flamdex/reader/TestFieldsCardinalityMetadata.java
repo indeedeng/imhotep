@@ -1,5 +1,6 @@
 package com.indeed.flamdex.reader;
 
+import com.indeed.ParameterizedUtils;
 import com.indeed.flamdex.MakeAFlamdex;
 import com.indeed.flamdex.api.FieldsCardinalityMetadata;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
@@ -7,6 +8,8 @@ import com.indeed.flamdex.simple.SimpleFlamdexWriter;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -16,9 +19,21 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+@RunWith(Parameterized.class)
 public class TestFieldsCardinalityMetadata {
     @Rule
     public final TemporaryFolder folder = new TemporaryFolder();
+
+    private final SimpleFlamdexReader.Config config;
+
+    @Parameterized.Parameters
+    public static Iterable<SimpleFlamdexReader.Config[]> configs() {
+        return ParameterizedUtils.getAllPossibleFlamdexConfigs();
+    }
+
+    public TestFieldsCardinalityMetadata(final SimpleFlamdexReader.Config config) {
+        this.config = config;
+    }
 
     private static void storeFlamdexToDir(final Path dir, final boolean createMetadataOnSave) throws IOException {
         try(final MockFlamdexReader reader = MakeAFlamdex.make()) {
@@ -35,7 +50,7 @@ public class TestFieldsCardinalityMetadata {
 
         assertTrue(FieldsCardinalityMetadata.hasMetadataFile(flamdexDir));
 
-        try (SimpleFlamdexReader simpleReader = SimpleFlamdexReader.open(flamdexDir)) {
+        try (SimpleFlamdexReader simpleReader = SimpleFlamdexReader.open(flamdexDir, config)) {
             assertNotNull(simpleReader.getFieldsMetadata());
         }
     }
@@ -75,7 +90,7 @@ public class TestFieldsCardinalityMetadata {
                     .addStringField("floatfield", false, true, false)
                     .build();
 
-        try (SimpleFlamdexReader simpleReader = SimpleFlamdexReader.open(flamdexDir)) {
+        try (SimpleFlamdexReader simpleReader = SimpleFlamdexReader.open(flamdexDir, config)) {
             assertEquals(metadata, simpleReader.getFieldsMetadata());
         }
     }

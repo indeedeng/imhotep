@@ -13,6 +13,7 @@
  */
  package com.indeed.flamdex.simple;
 
+import com.indeed.ParameterizedUtils;
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.writer.IntFieldWriter;
@@ -21,6 +22,8 @@ import com.indeed.imhotep.io.TestFileUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -33,8 +36,20 @@ import static org.junit.Assert.assertTrue;
 /**
  * @author jwolfe
  */
+@RunWith(Parameterized.class)
 public class TestSimpleIterators {
     private Path tempDir;
+
+    private final SimpleFlamdexReader.Config config;
+
+    @Parameterized.Parameters
+    public static Iterable<SimpleFlamdexReader.Config[]> configs() {
+        return ParameterizedUtils.getAllPossibleFlamdexConfigs();
+    }
+
+    public TestSimpleIterators(final SimpleFlamdexReader.Config config) {
+        this.config = config;
+    }
 
     @Before
     public void setUp() throws IOException {
@@ -55,7 +70,7 @@ public class TestSimpleIterators {
         w.close();
         writer.close();
 
-        final SimpleFlamdexReader reader = SimpleFlamdexReader.open(tempDir);
+        final SimpleFlamdexReader reader = SimpleFlamdexReader.open(tempDir, config);
         final StringTermIterator iterator = reader.getStringTermIterator("stringfield");
         try {
             iterator.reset("");
@@ -77,7 +92,7 @@ public class TestSimpleIterators {
         w.close();
         writer.close();
 
-        final SimpleFlamdexReader reader = SimpleFlamdexReader.open(tempDir);
+        final SimpleFlamdexReader reader = SimpleFlamdexReader.open(tempDir, config);
         final IntTermIterator iterator = reader.getIntTermIterator("intfield");
         try {
             iterator.reset(0);

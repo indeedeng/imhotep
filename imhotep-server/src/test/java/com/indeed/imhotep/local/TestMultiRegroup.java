@@ -15,6 +15,7 @@ package com.indeed.imhotep.local;
 
 import com.google.common.collect.SortedSetMultimap;
 import com.google.common.collect.TreeMultimap;
+import com.indeed.ParameterizedUtils;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexWriter;
 import com.indeed.flamdex.writer.IntFieldWriter;
@@ -26,6 +27,8 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.io.TestFileUtils;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -41,7 +44,19 @@ import static org.junit.Assert.assertArrayEquals;
 /**
  * @author jfinley
  */
+@RunWith(Parameterized.class)
 public class TestMultiRegroup {
+
+    private final SimpleFlamdexReader.Config config;
+
+    @Parameterized.Parameters
+    public static Iterable<SimpleFlamdexReader.Config[]> configs() {
+        return ParameterizedUtils.getAllPossibleFlamdexConfigs();
+    }
+
+    public TestMultiRegroup(final SimpleFlamdexReader.Config config) {
+        this.config = config;
+    }
 
     private static final int N_DOCS = 4096;
     private static final int N_FIELDS = 7;
@@ -106,7 +121,7 @@ public class TestMultiRegroup {
 
     private int[] normalRegroup(final GroupMultiRemapRule[] regroupRule)
             throws IOException, ImhotepOutOfMemoryException {
-        try (final SimpleFlamdexReader reader = SimpleFlamdexReader.open(shardDir);
+        try (final SimpleFlamdexReader reader = SimpleFlamdexReader.open(shardDir, config);
              final ImhotepLocalSession session = new ImhotepJavaLocalSession(reader)) {
             final int[] result = new int[N_DOCS];
             session.regroup(regroupRule);
@@ -117,7 +132,7 @@ public class TestMultiRegroup {
 
     private int[] nativeRegroup(final GroupMultiRemapRule[] regroupRule)
             throws IOException, ImhotepOutOfMemoryException {
-        try (final SimpleFlamdexReader reader = SimpleFlamdexReader.open(shardDir);
+        try (final SimpleFlamdexReader reader = SimpleFlamdexReader.open(shardDir, config);
              final ImhotepNativeLocalSession session =
                      new ImhotepNativeLocalSession(reader)) {
             final int[] result = new int[N_DOCS];

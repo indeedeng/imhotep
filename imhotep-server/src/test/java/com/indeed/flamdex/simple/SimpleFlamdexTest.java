@@ -16,6 +16,7 @@ package com.indeed.flamdex.simple;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Longs;
+import com.indeed.ParameterizedUtils;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
@@ -34,6 +35,7 @@ import com.indeed.imhotep.io.TestFileUtils;
 import com.indeed.imhotep.local.ImhotepJavaLocalSession;
 import com.indeed.imhotep.local.ImhotepLocalSession;
 import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
+import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.WhitespaceAnalyzer;
 import org.apache.lucene.document.Document;
@@ -42,6 +44,8 @@ import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.IndexWriter;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -59,8 +63,20 @@ import static org.junit.Assert.fail;
 /**
  * @author jsgroth
  */
+@RunWith(Parameterized.class)
 public class SimpleFlamdexTest {
     private static final Logger log = Logger.getLogger(SimpleFlamdexTest.class);
+
+    private final SimpleFlamdexReader.Config config;
+
+    @Parameterized.Parameters
+    public static Iterable<SimpleFlamdexReader.Config[]> configs() {
+        return ParameterizedUtils.getAllPossibleFlamdexConfigs();
+    }
+
+    public SimpleFlamdexTest(final SimpleFlamdexReader.Config config) {
+        this.config = config;
+    }
 
     /*
      * Need this to force the native library to be loaded - which happens in MTImhotepLocalMultiSession
@@ -106,7 +122,7 @@ public class SimpleFlamdexTest {
             w.getStringFieldWriter("sf1").close();
             w.close();
 
-            final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir);
+            final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir, config);
             final IntTermIterator it = r.getIntTermIterator("if1");
             assertFalse(it.next());
             final StringTermIterator sit = r.getStringTermIterator("sf1");
@@ -176,7 +192,7 @@ public class SimpleFlamdexTest {
     private void getMetricCase(final Path dir, final int maxTermVal) throws IOException, FlamdexOutOfMemoryException {
         for (int i = 0; i < 20; ++i) {
             final long[] cache = writeGetMetricIndex(dir, maxTermVal);
-            final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir);
+            final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir, config);
             // do it multiple times because these methods update internal state, make sure nothing unexpectedly weird happens
             for (int j = 0; j < 3; ++j) {
                 final long memReq = r.memoryRequired("if1");
@@ -192,6 +208,7 @@ public class SimpleFlamdexTest {
                 ivl.close();
             }
             r.close();
+            FileUtils.cleanDirectory(dir.toFile());
         }
     }
 
@@ -251,7 +268,7 @@ public class SimpleFlamdexTest {
     }
 
     private void readCase3(final Path dir) throws IOException {
-        final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir);
+        final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir, config);
         final RawStringTermDocIterator it = r.getStringTermDocIterator("f2");
         final int[] docBuffer = new int[20];
 
@@ -295,7 +312,7 @@ public class SimpleFlamdexTest {
     }
 
     private void readCase2(final Path dir) throws IOException {
-        final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir);
+        final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir, config);
         final DocIdStream dis = r.getDocIdStream();
         final int[] docIdBuf = new int[2];
         final StringTermIterator strItr = r.getStringTermIterator("f2");
@@ -352,7 +369,7 @@ public class SimpleFlamdexTest {
     }
 
     private void readCase1(final Path dir) throws IOException {
-        final SimpleFlamdexReader reader = SimpleFlamdexReader.open(dir);
+        final SimpleFlamdexReader reader = SimpleFlamdexReader.open(dir, config);
 
         assertEquals(1, reader.getIntFields().size());
         assertEquals("f1", reader.getIntFields().iterator().next());
