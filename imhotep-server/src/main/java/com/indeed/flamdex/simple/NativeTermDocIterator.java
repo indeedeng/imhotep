@@ -21,32 +21,41 @@ import com.indeed.util.mmap.DirectMemory;
 import com.indeed.util.mmap.MMapBuffer;
 import org.apache.log4j.Logger;
 
+import javax.annotation.WillCloseWhenClosed;
 import java.io.IOException;
 
 /**
- * @author jplaisance
+ * This class is base class to TermDocIterators that use NativeDocIdBuffer for reading docId deltas
+ *
+ * Class is desined based on following assumptions.
+ *      1. Try to call NativeDocIdBuffer's native method on bigger chunks of data. To do so,
+ *      we are caching terms, offsets and docFreqs and calculating total number of deltas that
+ *      should be read by NativeDocIdBuffer. This allows us not to break on terms boundaries.
+ *      2. On the other hand, we try not to do unnecessary resetting of NativeDocIdBuffer,
+ *      so reset happens only when we need docId deltas from buffer, but buffer is not created yet
+ *      or has wrong positioning.
  */
-public abstract class NativeTermDocIterator implements TermDocIterator {
+public abstract class NativeTermDocIterator<I extends SimpleTermIterator> implements TermDocIterator {
 
     private static final Logger log = Logger.getLogger(NativeTermDocIterator.class);
 
     // Derived classes should manage cache of terms with size BUFFER_SIZE
     protected static final int BUFFER_SIZE = 128;
 
-    // cache current term into buffer.
-    // @param index - index of cached term in buffer
-    protected abstract void cacheTerm(int index);
+    // save current term into terms buffer.
+    // index - index where to save in a term buffer.
+    protected abstract void cacheCurrentTerm(int index);
     // discard cache.
     protected abstract void resetCache();
 
-    private final SimpleTermIterator iterator;
+    protected final I termIterator;
 
     // total buffered terms
-    private int bufferedTerms = 0;
+    private int bufferedTermsCount = 0;
     // index of current term
-    private int termIndex = 0;
+    private int bufferedTermIndex = 0;
     // sum of all docFreq for buffered, but not-yet-processed terms
-    private int cachedTermsDocCount;
+    private int bufferedTermsDocCount;
     // docFreq's for buffered terms
     private final int[] docFreqBuffer = new int[BUFFER_SIZE];
     // offsets for buffered terms
@@ -73,43 +82,47 @@ public abstract class NativeTermDocIterator implements TermDocIterator {
     private boolean closed = false;
 
     NativeTermDocIterator(final MapCache mapCache,
-                          final SimpleTermIterator iterator,
+                          @WillCloseWhenClosed final I iterator,
                           final boolean useSSSE3) throws IOException {
         this.mapCache = mapCache;
-        this.iterator = iterator;
+        this.termIterator = iterator;
         this.useSSSE3 = useSSSE3;
     }
 
     @Override
     public final boolean nextTerm() {
-        cachedTermsDocCount -= docFreqBuffer[termIndex];
-        termIndex++;
+        bufferedTermsDocCount -= docFreqBuffer[bufferedTermIndex];
+        bufferedTermIndex++;
 
-        if (termIndex >= bufferedTerms) {
-            // try to cache terms
+        if (bufferedTermIndex >= bufferedTermsCount) {
+            // cashing new pack of terms:
+            // 1. resetting cache
+            // 2. buffering terms, docFreqs and offsets until end of a terms or end of buffer.
+            // 3. Counting total docFreq for buffered terms.
+            // 4. Updating docId stream reset params.
             resetCache();
-            termIndex = 0;
-            bufferedTerms = 0;
-            cachedTermsDocCount = 0;
+            bufferedTermIndex = 0;
+            bufferedTermsCount = 0;
+            bufferedTermsDocCount = 0;
             currentTermDocsRemaining = 0;
-            while ((bufferedTerms < BUFFER_SIZE) && iterator.next()) {
-                cacheTerm(bufferedTerms);
-                offsets[bufferedTerms] = iterator.getOffset();
-                final int docFreq = iterator.docFreq();
-                docFreqBuffer[bufferedTerms] = docFreq;
-                cachedTermsDocCount += docFreq;
-                bufferedTerms++;
+            while ((bufferedTermsCount < BUFFER_SIZE) && termIterator.next()) {
+                cacheCurrentTerm(bufferedTermsCount);
+                offsets[bufferedTermsCount] = termIterator.getOffset();
+                final int docFreq = termIterator.docFreq();
+                docFreqBuffer[bufferedTermsCount] = docFreq;
+                bufferedTermsDocCount += docFreq;
+                bufferedTermsCount++;
             }
 
-            if (bufferedTerms == 0) {
+            if (bufferedTermsCount == 0) {
                 // no more terms
                 return false;
             }
 
-            // need to reset docIdStream
+            // params to reset docIdStream
             resetDocStream = true;
-            resetPosition = offsets[termIndex];
-            resetDocCount = cachedTermsDocCount;
+            resetPosition = offsets[bufferedTermIndex];
+            resetDocCount = bufferedTermsDocCount;
         }
 
         if (currentTermDocsRemaining > 0) {
@@ -117,18 +130,18 @@ public abstract class NativeTermDocIterator implements TermDocIterator {
             if ((buffer == null) || !buffer.trySkip(currentTermDocsRemaining)) {
                 // no buffer yet or can't skip, will reset on next use
                 resetDocStream = true;
-                resetPosition = offsets[termIndex];
-                resetDocCount = cachedTermsDocCount;
+                resetPosition = offsets[bufferedTermIndex];
+                resetDocCount = bufferedTermsDocCount;
             }
         }
-        currentTermDocsRemaining = docFreqBuffer[termIndex];
+        currentTermDocsRemaining = docFreqBuffer[bufferedTermIndex];
         lastDoc = 0;
         return true;
     }
 
     @Override
     public final int docFreq() {
-        return docFreqBuffer[termIndex];
+        return docFreqBuffer[bufferedTermIndex];
     }
 
     @Override
@@ -149,12 +162,12 @@ public abstract class NativeTermDocIterator implements TermDocIterator {
             closed = true;
             Closeables2.closeQuietly(file, log);
             Closeables2.closeQuietly(buffer, log);
-            Closeables2.closeQuietly(iterator, log);
+            Closeables2.closeQuietly(termIterator, log);
         }
     }
 
-    protected int getTermIndex() {
-        return termIndex;
+    protected int getBufferedTermIndex() {
+        return bufferedTermIndex;
     }
 
     private void prepareDocIdStream() {
@@ -164,7 +177,7 @@ public abstract class NativeTermDocIterator implements TermDocIterator {
 
         if (buffer == null) {
             try {
-                file = mapCache.copyOrOpen(iterator.getFilename());
+                file = mapCache.copyOrOpen(termIterator.getFilename());
                 memory = file.get().memory();
                 buffer = new NativeDocIdBuffer(useSSSE3);
             } catch (final IOException e) {

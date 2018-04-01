@@ -93,6 +93,12 @@ public final class NativeDocIdBuffer implements Closeable {
         this.useSSSE3 = useSSSE3;
     }
 
+    /*
+        Try to reposition stream by skipping documents on a docId stream.
+        Returns 'true' if docs are skipped and 'false' otherwise.
+        if 'false' is returned then buffers state is not changed,
+        use {@link reset} for stream repositioning
+     */
     public boolean trySkip(final int count) {
         if ((bufIndex+count) <= bufLen) {
             bufIndex += count;
@@ -102,9 +108,6 @@ public final class NativeDocIdBuffer implements Closeable {
     }
 
     public void reset(final long newPosition, final long newDocsRemaining) {
-        if ((position == newPosition) && (docsRemaining == newDocsRemaining)) {
-            return;
-        }
         position = newPosition;
         docsRemaining = newDocsRemaining;
         // to force a refill

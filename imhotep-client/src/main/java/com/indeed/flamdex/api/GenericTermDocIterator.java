@@ -3,17 +3,18 @@ package com.indeed.flamdex.api;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
-import java.util.Arrays;
+import javax.annotation.WillCloseWhenClosed;
 
-public class GenericTermDocIterator implements TermDocIterator {
+public class GenericTermDocIterator<I extends TermIterator> implements TermDocIterator {
     private static final Logger log = Logger.getLogger(GenericTermDocIterator.class);
 
-    private final TermIterator termIterator;
+    protected final I termIterator;
 
     private final DocIdStream docIdStream;
     private boolean resetStreamBeforeUse;
 
-    protected GenericTermDocIterator(final TermIterator termIterator, final DocIdStream docIdStream) {
+    protected GenericTermDocIterator(@WillCloseWhenClosed final I termIterator,
+                                     @WillCloseWhenClosed final DocIdStream docIdStream) {
         this.termIterator = termIterator;
         this.docIdStream = docIdStream;
     }
@@ -41,6 +42,6 @@ public class GenericTermDocIterator implements TermDocIterator {
 
     @Override
     public final void close() {
-        Closeables2.closeAll(Arrays.asList(termIterator, docIdStream), log);
+        Closeables2.closeAll(log, termIterator, docIdStream);
     }
 }

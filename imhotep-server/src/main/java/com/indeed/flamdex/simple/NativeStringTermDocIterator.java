@@ -21,11 +21,9 @@ import java.io.IOException;
 /**
  * @author jplaisance
  */
-public final class NativeStringTermDocIterator extends NativeTermDocIterator implements RawStringTermDocIterator {
-    private final SimpleStringTermIterator termIterator;
-
+public final class NativeStringTermDocIterator extends NativeTermDocIterator<SimpleStringTermIterator> implements RawStringTermDocIterator {
     // terms are stored in one byte array
-    private byte[] termsBuffer = new byte[4096];
+    private byte[] bufferedTerms = new byte[4096];
     private int bufferLength = 0;
     // start and len of cached terms.
     private final int[] lengths = new int[BUFFER_SIZE];
@@ -41,22 +39,21 @@ public final class NativeStringTermDocIterator extends NativeTermDocIterator imp
                                        final boolean useSSSE3)
             throws IOException {
         super(mapCache, termIterator, useSSSE3);
-        this.termIterator = termIterator;
     }
 
     @Override
-    protected void cacheTerm(final int index) {
+    protected void cacheCurrentTerm(final int index) {
         final int termLength = termIterator.termStringLength();
         final byte[] termBytes = termIterator.termStringBytes();
-        if ((bufferLength + termLength) > termsBuffer.length) {
-            final byte[] newBuffer = new byte[Math.max(termsBuffer.length*2, bufferLength + termLength)];
-            System.arraycopy(termsBuffer, 0, newBuffer, 0, bufferLength);
-            termsBuffer = newBuffer;
+        if ((bufferLength + termLength) > bufferedTerms.length) {
+            final byte[] newBuffer = new byte[Math.max(bufferedTerms.length*2, bufferLength + termLength)];
+            System.arraycopy(bufferedTerms, 0, newBuffer, 0, bufferLength);
+            bufferedTerms = newBuffer;
         }
 
         termStart[index] = bufferLength;
         lengths[index] = termLength;
-        System.arraycopy(termBytes, 0, termsBuffer, bufferLength, termLength);
+        System.arraycopy(termBytes, 0, bufferedTerms, bufferLength, termLength);
         bufferLength+=termLength;
     }
 
@@ -68,7 +65,7 @@ public final class NativeStringTermDocIterator extends NativeTermDocIterator imp
 
     @Override
     public String term() {
-        if ((cachedTermIndex != getTermIndex()) || (cachedTerm == null)) {
+        if ((cachedTermIndex != getBufferedTermIndex()) || (cachedTerm == null)) {
             cachedTerm = new String(termStringBytes(), 0, termStringLength(), Charsets.UTF_8);
         }
         return cachedTerm;
@@ -76,12 +73,12 @@ public final class NativeStringTermDocIterator extends NativeTermDocIterator imp
 
     @Override
     public byte[] termStringBytes() {
-        final int termIndex = getTermIndex();
+        final int termIndex = getBufferedTermIndex();
         if (cachedTermIndex != termIndex) {
             if (lengths[termIndex] > cachedTermBuffer.length ) {
                 cachedTermBuffer = new byte[Math.max(cachedTermBuffer.length*2, lengths[termIndex])];
             }
-            System.arraycopy(termsBuffer, termStart[termIndex], cachedTermBuffer, 0, lengths[termIndex]);
+            System.arraycopy(bufferedTerms, termStart[termIndex], cachedTermBuffer, 0, lengths[termIndex]);
             cachedTermIndex = termIndex;
             cachedTerm = null;
         }
@@ -90,6 +87,6 @@ public final class NativeStringTermDocIterator extends NativeTermDocIterator imp
 
     @Override
     public int termStringLength() {
-        return lengths[getTermIndex()];
+        return lengths[getBufferedTermIndex()];
     }
 }

@@ -13,17 +13,22 @@
  */
  package com.indeed.flamdex.api;
 
+import javax.annotation.WillCloseWhenClosed;
+
 /**
  * @author jplaisance
  */
-public final class GenericRawStringTermDocIterator extends GenericStringTermDocIterator implements RawStringTermDocIterator {
-    private final RawStringTermIterator termIterator;
+public final class GenericRawStringTermDocIterator extends GenericTermDocIterator<RawStringTermIterator> implements RawStringTermDocIterator {
 
     public GenericRawStringTermDocIterator(
-            final RawStringTermIterator termIterator,
-            final DocIdStream docIdStream) {
+            @WillCloseWhenClosed final RawStringTermIterator termIterator,
+            @WillCloseWhenClosed final DocIdStream docIdStream) {
         super(termIterator, docIdStream);
-        this.termIterator = termIterator;
+    }
+
+    @Override
+    public String term() {
+        return termIterator.term();
     }
 
     @Override

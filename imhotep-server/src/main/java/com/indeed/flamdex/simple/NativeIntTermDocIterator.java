@@ -20,21 +20,19 @@ import java.io.IOException;
 /**
  * @author jplaisance
  */
-public final class NativeIntTermDocIterator extends NativeTermDocIterator implements IntTermDocIterator {
-    private final SimpleIntTermIterator termIterator;
-    private final long[] termBuffer = new long[BUFFER_SIZE];
+public final class NativeIntTermDocIterator extends NativeTermDocIterator<SimpleIntTermIterator> implements IntTermDocIterator {
+    private final long[] bufferedTerms = new long[BUFFER_SIZE];
 
     public NativeIntTermDocIterator(final SimpleIntTermIterator termIterator,
                                     final MapCache mapCache,
                                     final boolean useSSSE3)
             throws IOException {
         super(mapCache, termIterator, useSSSE3);
-        this.termIterator = termIterator;
     }
 
     @Override
-    protected void cacheTerm(final int index) {
-        termBuffer[index] = termIterator.term();
+    protected void cacheCurrentTerm(final int index) {
+        bufferedTerms[index] = termIterator.term();
     }
 
     @Override
@@ -43,7 +41,7 @@ public final class NativeIntTermDocIterator extends NativeTermDocIterator implem
 
     @Override
     public long term() {
-        return termBuffer[getTermIndex()];
+        return bufferedTerms[getBufferedTermIndex()];
     }
 
     @Override
