@@ -51,7 +51,7 @@ public class TestMultiRegroup {
 
     @Parameterized.Parameters
     public static Iterable<SimpleFlamdexReader.Config[]> configs() {
-        return ParameterizedUtils.getAllPossibleFlamdexConfigs();
+        return ParameterizedUtils.getFlamdexConfigs();
     }
 
     public TestMultiRegroup(final SimpleFlamdexReader.Config config) {

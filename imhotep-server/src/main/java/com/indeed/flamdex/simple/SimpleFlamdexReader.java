@@ -383,9 +383,24 @@ public class SimpleFlamdexReader
         // TODO: change default to true when cardinality metadata is integrated
         // in shards building and metadata have been created for old shards.
         private boolean writeCardinalityIfNotExisting = false;
+        // true -> use mmap in field cacher, false -> use java array in field cacher
         private boolean useMMapMetrics = System.getProperty("flamdex.mmap.fieldcache") != null;
+
+        // what class to return in getDocIdStream().
+        // true -> NativeDocIdStream or MMapDocIdStream (depends on useNativeDocIdStream)
+        // false -> ByteChannelDocIdStream
         private boolean useMMapDocIdStream = false;
+
+        // 1. what class to return in getDocIdStream() when useMMapDocIdStream is true
+        // true -> NativeDocIdStream
+        // false -> MMapDocIdStream
+        // 2. what class to return in get*TermDocIterator()
+        // true -> Native*TermDocIteraror
+        // false -> Generic*TermDocIterator
         private boolean useNativeDocIdStream = "true".equalsIgnoreCase(System.getProperties().getProperty("com.indeed.flamdex.simple.useNative"));
+
+        // use SSSE3 native code in Native* classes
+        // value of this variable is ignored when useNativeDocIdStream is false
         private boolean useSSSE3 = "true".equalsIgnoreCase(System.getProperty("com.indeed.flamdex.simple.useSSSE3"));
 
         public boolean isWriteBTreesIfNotExisting() {
