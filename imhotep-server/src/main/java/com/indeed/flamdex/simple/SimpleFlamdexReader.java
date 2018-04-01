@@ -36,6 +36,7 @@ import com.indeed.flamdex.reader.FlamdexMetadata;
 import com.indeed.flamdex.utils.FlamdexUtils;
 
 import javax.annotation.Nonnull;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -81,8 +82,16 @@ public class SimpleFlamdexReader
         cardinalityMetadata = FieldsCardinalityMetadata.open(directory);
     }
 
+    public static SimpleFlamdexReader open(final String directory) throws IOException {
+        return open(new File(directory).toPath());
+    }
+
     public static SimpleFlamdexReader open(@Nonnull final Path directory) throws IOException {
         return open(directory, new Config());
+    }
+
+    public static SimpleFlamdexReader open(final String directory, final Config config) throws IOException {
+        return open(new File(directory).toPath(), config);
     }
 
     public static SimpleFlamdexReader open(@Nonnull final Path directory, final Config config) throws IOException {
