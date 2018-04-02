@@ -64,7 +64,7 @@ public class TestSimpleFlamdexDocWriter {
 
     @Parameterized.Parameters
     public static Iterable<SimpleFlamdexReader.Config[]> configs() {
-        return ParameterizedUtils.getAllPossibleFlamdexConfigs();
+        return ParameterizedUtils.getFlamdexConfigs();
     }
 
     public TestSimpleFlamdexDocWriter(final SimpleFlamdexReader.Config config) {

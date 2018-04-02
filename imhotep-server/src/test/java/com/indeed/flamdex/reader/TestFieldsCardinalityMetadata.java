@@ -28,7 +28,7 @@ public class TestFieldsCardinalityMetadata {
 
     @Parameterized.Parameters
     public static Iterable<SimpleFlamdexReader.Config[]> configs() {
-        return ParameterizedUtils.getAllPossibleFlamdexConfigs();
+        return ParameterizedUtils.getFlamdexConfigs();
     }
 
     public TestFieldsCardinalityMetadata(final SimpleFlamdexReader.Config config) {

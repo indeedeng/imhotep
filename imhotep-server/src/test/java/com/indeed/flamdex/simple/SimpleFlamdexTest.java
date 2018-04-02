@@ -73,7 +73,7 @@ public class SimpleFlamdexTest {
 
     @Parameterized.Parameters
     public static Iterable<SimpleFlamdexReader.Config[]> configs() {
-        return ParameterizedUtils.getAllPossibleFlamdexConfigs();
+        return ParameterizedUtils.getFlamdexConfigs();
     }
 
     public SimpleFlamdexTest(final SimpleFlamdexReader.Config config) {
