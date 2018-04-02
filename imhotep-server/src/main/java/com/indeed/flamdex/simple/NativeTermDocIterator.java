@@ -27,7 +27,7 @@ import java.io.IOException;
 /**
  * This class is base class to TermDocIterators that use NativeDocIdBuffer for reading docId deltas
  *
- * Class is desined based on following assumptions.
+ * Class is designed based on following assumptions.
  *      1. Try to call NativeDocIdBuffer's native method on bigger chunks of data. To do so,
  *      we are caching terms, offsets and docFreqs and calculating total number of deltas that
  *      should be read by NativeDocIdBuffer. This allows us not to break on terms boundaries.
