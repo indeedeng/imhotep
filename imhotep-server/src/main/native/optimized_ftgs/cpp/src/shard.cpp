@@ -17,6 +17,8 @@ namespace imhotep {
     Shard::mmapped_file(const std::string&  field,
                         const std::string&  filename,
                         FieldToMMappedFile& cache) const {
+        const std::lock_guard<std::mutex> cache_lock(_mutex);
+
         FieldToMMappedFile::iterator it(cache.find(field));
         if (it == cache.end()) {
             const MapCache::const_iterator mit(_map_cache.find(filename));
