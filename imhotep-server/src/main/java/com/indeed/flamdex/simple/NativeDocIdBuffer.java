@@ -93,12 +93,11 @@ public final class NativeDocIdBuffer implements Closeable {
         this.useSSSE3 = useSSSE3;
     }
 
-    /*
-        Try to reposition stream by skipping documents on a docId stream.
-        Returns 'true' if docs are skipped and 'false' otherwise.
-        if 'false' is returned then buffers state is not changed,
-        use {@link reset} for stream repositioning
-     */
+    /** Try to reposition stream by skipping documents on a docId stream.
+        @param count - docId deltas to skip
+        @return 'true' if docs are skipped and 'false' otherwise.
+            if 'false' is returned then buffers state is not changed,
+            use {@link NativeDocIdBuffer#reset} for stream repositioning */
     public boolean trySkip(final int count) {
         if ((bufIndex+count) <= bufLen) {
             bufIndex += count;

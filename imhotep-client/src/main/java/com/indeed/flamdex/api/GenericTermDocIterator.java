@@ -21,9 +21,8 @@ public class GenericTermDocIterator<I extends TermIterator> implements TermDocIt
 
     @Override
     public final boolean nextTerm() {
-        final boolean ret = termIterator.next();
-        resetStreamBeforeUse = ret;
-        return ret;
+        resetStreamBeforeUse = true;
+        return termIterator.next();
     }
 
     @Override
