@@ -95,7 +95,7 @@ public abstract class NativeTermDocIterator<I extends SimpleTermIterator> implem
         bufferedTermIndex++;
 
         if (bufferedTermIndex >= bufferedTermsCount) {
-            // cashing new pack of terms:
+            // caching new pack of terms:
             // 1. resetting cache
             // 2. buffering terms, docFreqs and offsets until end of a terms or end of buffer.
             // 3. Counting total docFreq for buffered terms.
