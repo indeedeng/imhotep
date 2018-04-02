@@ -20,9 +20,11 @@ import com.indeed.ParameterizedUtils;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
+import com.indeed.flamdex.api.IntTermDocIterator;
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.api.RawStringTermDocIterator;
+import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.lucene.LuceneFlamdexReader;
 import com.indeed.flamdex.writer.IntFieldWriter;
@@ -544,5 +546,60 @@ public class SimpleFlamdexTest {
         sfw.close();
 
         writer.close();
+    }
+
+    @Test
+    public void testTermDocIterators() throws IOException {
+        final Path dir = Files.createTempDirectory("flamdex-test");
+        try {
+            writeIndex(dir);
+            try(
+                final SimpleFlamdexReader reader = SimpleFlamdexReader.open(dir, config)) {
+                final int[] docIds = new int[1];
+
+                // iterating field and first document from field
+                try (final IntTermDocIterator intIter = reader.getIntTermDocIterator("f1")) {
+                    assertTrue(intIter.nextTerm());
+                    assertEquals(2, intIter.term());
+                    assertEquals(1, intIter.fillDocIdBuffer(docIds));
+                    assertEquals(0, docIds[0]);
+                    assertTrue(intIter.nextTerm());
+                    assertEquals(99, intIter.term());
+                    assertEquals(1, intIter.fillDocIdBuffer(docIds));
+                    assertEquals(5, docIds[0]);
+                    assertTrue(intIter.nextTerm());
+                    assertEquals(101, intIter.term());
+                    assertEquals(1, intIter.fillDocIdBuffer(docIds));
+                    assertEquals(0, docIds[0]);
+                    assertTrue(intIter.nextTerm());
+                    assertEquals(9000, intIter.term());
+                    assertEquals(1, intIter.fillDocIdBuffer(docIds));
+                    assertEquals(3, docIds[0]);
+                    assertFalse(intIter.nextTerm());
+                }
+
+                try (final StringTermDocIterator strIter = reader.getStringTermDocIterator("f2")) {
+                    assertTrue(strIter.nextTerm());
+                    assertEquals("", strIter.term());
+                    assertEquals(1, strIter.fillDocIdBuffer(docIds));
+                    assertEquals(2, docIds[0]);
+                    assertTrue(strIter.nextTerm());
+                    assertEquals("a", strIter.term());
+                    assertEquals(1, strIter.fillDocIdBuffer(docIds));
+                    assertEquals(4, docIds[0]);
+                    assertTrue(strIter.nextTerm());
+                    assertEquals("ffffffffff", strIter.term());
+                    assertEquals(1, strIter.fillDocIdBuffer(docIds));
+                    assertEquals(2, docIds[0]);
+                    assertTrue(strIter.nextTerm());
+                    assertEquals("lollerskates", strIter.term());
+                    assertEquals(1, strIter.fillDocIdBuffer(docIds));
+                    assertEquals(7, docIds[0]);
+                    assertFalse(strIter.nextTerm());
+                }
+            }
+        } finally {
+            TestFileUtils.deleteDirTree(dir);
+        }
     }
 }

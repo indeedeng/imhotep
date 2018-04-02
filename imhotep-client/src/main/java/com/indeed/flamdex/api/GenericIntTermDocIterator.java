@@ -13,34 +13,17 @@
  */
  package com.indeed.flamdex.api;
 
-import com.indeed.util.core.io.Closeables2;
-import org.apache.log4j.Logger;
-
-import java.util.Arrays;
+import javax.annotation.WillCloseWhenClosed;
 
 /**
  * @author jplaisance
  */
-public final class GenericIntTermDocIterator implements IntTermDocIterator {
+public final class GenericIntTermDocIterator extends GenericTermDocIterator<IntTermIterator> implements IntTermDocIterator {
 
-    private static final Logger log = Logger.getLogger(GenericIntTermDocIterator.class);
-
-    private final IntTermIterator termIterator;
-
-    private final DocIdStream docIdStream;
-
-    public GenericIntTermDocIterator(final IntTermIterator termIterator, final DocIdStream docIdStream) {
-        this.termIterator = termIterator;
-        this.docIdStream = docIdStream;
-    }
-
-    @Override
-    public boolean nextTerm() {
-        final boolean ret = termIterator.next();
-        if (ret) {
-            docIdStream.reset(termIterator);
-        }
-        return ret;
+    public GenericIntTermDocIterator(
+            @WillCloseWhenClosed final IntTermIterator termIterator,
+            @WillCloseWhenClosed final DocIdStream docIdStream) {
+        super(termIterator, docIdStream);
     }
 
     @Override
@@ -49,22 +32,8 @@ public final class GenericIntTermDocIterator implements IntTermDocIterator {
     }
 
     @Override
-    public int docFreq() {
-        return termIterator.docFreq();
-    }
-
-    @Override
-    public int fillDocIdBuffer(final int[] docIdBuffer) {
-        return docIdStream.fillDocIdBuffer(docIdBuffer);
-    }
-
-    @Override
     public int nextDocs(final int[] docIdBuffer) {
         return fillDocIdBuffer(docIdBuffer);
     }
-
-    @Override
-    public void close() {
-        Closeables2.closeAll(Arrays.asList(termIterator, docIdStream), log);
-    }
 }
+
