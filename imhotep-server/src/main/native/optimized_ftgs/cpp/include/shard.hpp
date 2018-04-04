@@ -93,6 +93,7 @@ namespace imhotep {
         mutable FieldToMMappedFile _docid_views;
         mutable FieldToMMappedFile _int_term_indices;
         mutable FieldToMMappedFile _str_term_indices;
+        mutable std::mutex         _mutex; // mutex for accessing FieldToMMappedFiles above.
 
         std::string      _dir;
         packed_table_ptr _table;

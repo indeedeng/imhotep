@@ -9,6 +9,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <iostream>
 #include <sstream>
 
 namespace imhotep {
