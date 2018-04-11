@@ -167,6 +167,12 @@ public class ImhotepClient
      * Shards in the list are sorted chronologically.
      */
     public List<Shard> findShardsForTimeRange(final String dataset, final DateTime start, final DateTime end) {
+        if(start == null || end == null) {
+            throw new IllegalArgumentException("start and end times can't be null");
+        }
+        if(!end.isAfter(start)) {
+            throw new IllegalArgumentException("Illegal time range requested: " + start.toString() + " to " + end.toString());
+        }
         // get shards intersecting with (start,end) time range
         final List<Shard> allShards = getAllShardsForTimeRange(dataset, start, end);
         final List<Shard> shardsForTime = keepLatestVersionsOnly(allShards);
@@ -391,12 +397,6 @@ public class ImhotepClient
          */
         public List<Shard> getChosenShards() {
             if(chosenShards == null) {
-                if(start == null || end == null) {
-                    throw new IllegalArgumentException("start and end times can't be null");
-                }
-                if(!end.isAfter(start)) {
-                    throw new IllegalArgumentException("Illegal time range requested: " + start.toString() + " to " + end.toString());
-                }
                 this.chosenShards = findShardsForTimeRange(dataset, start, end);
             }
             return Lists.newArrayList(chosenShards);
