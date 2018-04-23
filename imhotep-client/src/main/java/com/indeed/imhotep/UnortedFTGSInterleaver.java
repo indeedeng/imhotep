@@ -1,0 +1,29 @@
+package com.indeed.imhotep;
+
+import com.indeed.imhotep.api.RawFTGSIterator;
+
+public final class UnortedFTGSInterleaver extends FTGSInterleaverBase {
+    public UnortedFTGSInterleaver(final RawFTGSIterator[] iterators) {
+        super(iterators);
+    }
+
+    @Override
+    public boolean nextTerm() {
+        while (true) {
+            if (iterators[0].nextTerm()) {
+                return true;
+            }
+            numFieldIterators--;
+            swap(0, numFieldIterators);
+            if (numFieldIterators == 0) {
+                return false;
+            }
+        }
+    }
+
+    private void swap(final int a, final int b) {
+        final RawFTGSIterator tmp = iterators[a];
+        iterators[a] = iterators[b];
+        iterators[b] = tmp;
+    }
+}

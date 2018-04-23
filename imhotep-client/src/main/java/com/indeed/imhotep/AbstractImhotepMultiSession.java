@@ -16,7 +16,6 @@
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
-import com.google.common.primitives.Longs;
 import com.indeed.flamdex.query.Query;
 import com.indeed.flamdex.query.Term;
 import com.indeed.imhotep.api.DocIterator;
@@ -844,7 +843,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
                     return persist(iterator);
                 }
             });
-            RawFTGSIterator interleaver = new FTGSInterleaver(iterators);
+            RawFTGSIterator interleaver = new SortedFTGSInterleaver(iterators);
             if(termLimit > 0) {
                 interleaver = new TermLimitedRawFTGSIterator(interleaver, termLimit);
             }
@@ -867,7 +866,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
                             return persist(iterator);
                         }
                     });
-            final FTGSInterleaver interleaver = new FTGSInterleaver(iterators);
+            final RawFTGSIterator interleaver = new SortedFTGSInterleaver(iterators);
 
             if (termLimit > 0) {
                 return FTGSIteratorUtil.getTopTermsFTGSIterator(interleaver, termLimit, numStats, sortStat);
@@ -1116,200 +1115,6 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
             close();
         } catch (final Exception e) {
             log.error("error closing session", e);
-        }
-    }
-
-    protected static final class FTGSInterleaver implements RawFTGSIterator {
-
-        private final RawFTGSIterator[] iterators;
-
-        private int numFieldIterators;
-
-        private String fieldName;
-        private boolean fieldIsIntType;
-
-        private boolean done = false;
-
-        private boolean initialized = false;
-
-        protected FTGSInterleaver(final RawFTGSIterator[] iterators) {
-            this.iterators = iterators;
-        }
-
-        @Override
-        public boolean nextField() {
-            if (done) {
-                return false;
-            }
-
-            numFieldIterators = 0;
-
-            final FTGSIterator first = iterators[0];
-            if (!first.nextField()) {
-                for (int i = 1; i < iterators.length; ++i) {
-                    if (iterators[i].nextField()) {
-                        throw new IllegalArgumentException("sub iterator fields do not match");
-                    }
-                }
-                close();
-                return false;
-            }
-            fieldName = first.fieldName();
-            fieldIsIntType = first.fieldIsIntType();
-            numFieldIterators = iterators.length;
-
-            for (int i = 1; i < iterators.length; ++i) {
-                final FTGSIterator itr = iterators[i];
-                if (!itr.nextField() || !itr.fieldName().equals(fieldName) || itr.fieldIsIntType() != fieldIsIntType) {
-                    throw new IllegalArgumentException("sub iterator fields do not match");
-                }
-            }
-            initialized = false;
-            return true;
-        }
-
-        @Override
-        public String fieldName() {
-            return fieldName;
-        }
-
-        @Override
-        public boolean fieldIsIntType() {
-            return fieldIsIntType;
-        }
-
-        @Override
-        public boolean nextTerm() {
-            if (!initialized) {
-                initialized = true;
-                for (int i = iterators.length-1; i >= 0; i--) {
-                    if (!iterators[i].nextTerm()) {
-                        numFieldIterators--;
-                        swap(i, numFieldIterators);
-                    }
-                }
-                for (int i = numFieldIterators-1; i >= 0; i--) {
-                    downHeap(i);
-                }
-                return numFieldIterators > 0;
-            }
-            if (numFieldIterators <= 0) {
-                return false;
-            }
-            if (!iterators[0].nextTerm()) {
-                numFieldIterators--;
-                if (numFieldIterators <= 0) {
-                    return false;
-                }
-                swap(0, numFieldIterators);
-            }
-            downHeap(0);
-            return true;
-        }
-
-        @Override
-        public long termDocFreq() {
-            return iterators[0].termDocFreq();
-        }
-
-        @Override
-        public long termIntVal() {
-            return iterators[0].termIntVal();
-        }
-
-        @Override
-        public String termStringVal() {
-            return iterators[0].termStringVal();
-        }
-
-        @Override
-        public byte[] termStringBytes() {
-            return iterators[0].termStringBytes();
-        }
-
-        @Override
-        public int termStringLength() {
-            return iterators[0].termStringLength();
-        }
-
-        @Override
-        public boolean nextGroup() {
-            return iterators[0].nextGroup();
-        }
-
-        @Override
-        public int group() {
-            return iterators[0].group();
-        }
-
-        @Override
-        public void groupStats(final long[] stats) {
-            iterators[0].groupStats(stats);
-        }
-
-        @Override
-        public void close() {
-            if (!done) {
-                done = true;
-                for (final RawFTGSIterator iterator : iterators) {
-                    iterator.close();
-                }
-            }
-        }
-
-        private void downHeap(int index) {
-            while (true) {
-                final int leftIndex = index * 2 + 1;
-                final int rightIndex = leftIndex+1;
-                if (leftIndex < numFieldIterators) {
-                    if (fieldIsIntType) {
-                        final int lowerIndex = rightIndex >= numFieldIterators ?
-                                leftIndex :
-                                (compareIntTerms(leftIndex, rightIndex) <= 0 ?
-                                        leftIndex :
-                                        rightIndex);
-                        if (compareIntTerms(lowerIndex, index) < 0) {
-                            swap(index, lowerIndex);
-                            index = lowerIndex;
-                        } else {
-                            break;
-                        }
-                    } else {
-                        final int lowerIndex;
-                        if (rightIndex >= numFieldIterators) {
-                            lowerIndex = leftIndex;
-                        } else {
-                            lowerIndex = compareStringTerms(leftIndex, rightIndex) <= 0 ?
-                                    leftIndex :
-                                    rightIndex;
-                        }
-                        if (compareStringTerms(lowerIndex, index) < 0) {
-                            swap(index, lowerIndex);
-                            index = lowerIndex;
-                        } else {
-                            break;
-                        }
-                    }
-                } else {
-                    break;
-                }
-            }
-        }
-
-        private int compareIntTerms(final int a, final int b) {
-            return Longs.compare(iterators[a].termIntVal(), iterators[b].termIntVal());
-        }
-
-        private int compareStringTerms(final int a, final int b) {
-            final RawFTGSIterator itA = iterators[a];
-            final RawFTGSIterator itB = iterators[b];
-            return RawFTGSMerger.compareBytes(itA.termStringBytes(), itA.termStringLength(), itB.termStringBytes(), itB.termStringLength());
-        }
-
-        private void swap(final int a, final int b) {
-            final RawFTGSIterator tmp = iterators[a];
-            iterators[a] = iterators[b];
-            iterators[b] = tmp;
         }
     }
 }
