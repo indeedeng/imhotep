@@ -2,8 +2,9 @@ package com.indeed.imhotep;
 
 import com.indeed.imhotep.api.RawFTGSIterator;
 
-public final class UnortedFTGSInterleaver extends FTGSInterleaverBase {
-    public UnortedFTGSInterleaver(final RawFTGSIterator[] iterators) {
+// FGSTIterator with not ordered terms.
+public final class UnsortedFTGSIterator extends AbstractDisjointFTGSMerger {
+    public UnsortedFTGSIterator(final RawFTGSIterator[] iterators) {
         super(iterators);
     }
 

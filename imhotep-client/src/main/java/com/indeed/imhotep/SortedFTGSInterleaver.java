@@ -3,7 +3,7 @@ package com.indeed.imhotep;
 import com.google.common.primitives.Longs;
 import com.indeed.imhotep.api.RawFTGSIterator;
 
-public final class SortedFTGSInterleaver extends FTGSInterleaverBase {
+public final class SortedFTGSInterleaver extends AbstractDisjointFTGSMerger {
 
     private boolean initialized = false;
 

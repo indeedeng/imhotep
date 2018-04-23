@@ -11,8 +11,8 @@ import org.apache.log4j.Logger;
  * Each term exists only in one iterator and
  * after nextTerm() call iterators[0] is iterator with current term.
  */
-public abstract class FTGSInterleaverBase implements RawFTGSIterator {
-    private static final Logger log = Logger.getLogger(FTGSInterleaverBase.class);
+public abstract class AbstractDisjointFTGSMerger implements RawFTGSIterator {
+    private static final Logger log = Logger.getLogger(AbstractDisjointFTGSMerger.class);
 
     protected final RawFTGSIterator[] iterators;
 
@@ -23,7 +23,7 @@ public abstract class FTGSInterleaverBase implements RawFTGSIterator {
     private String fieldName;
     private boolean done = false;
 
-    public FTGSInterleaverBase(final RawFTGSIterator[] iterators) {
+    public AbstractDisjointFTGSMerger(final RawFTGSIterator[] iterators) {
         this.iterators = iterators;
     }
 

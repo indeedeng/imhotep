@@ -237,17 +237,17 @@ public class FTGSIteratorUtil {
         }
     }
 
-    public static RawFTGSIterator makeUnsortedIfPossible(final RawFTGSIterator iterator) {
+    public static RawFTGSIterator makeUnsortedRawIfPossible(final RawFTGSIterator iterator) {
         if (iterator instanceof SortedFTGSInterleaver) {
-            final RawFTGSIterator[] iterators = ((FTGSInterleaverBase) iterator).getIterators();
-            return new UnortedFTGSInterleaver(iterators);
+            final RawFTGSIterator[] iterators = ((AbstractDisjointFTGSMerger) iterator).getIterators();
+            return new UnsortedFTGSIterator(iterators);
         }
         return iterator;
     }
 
     public static FTGSIterator makeUnsortedIfPossible(final FTGSIterator iterator) {
         if (iterator instanceof RawFTGSIterator) {
-            return makeUnsortedIfPossible((RawFTGSIterator)iterator);
+            return makeUnsortedRawIfPossible((RawFTGSIterator)iterator);
         }
         return iterator;
     }
