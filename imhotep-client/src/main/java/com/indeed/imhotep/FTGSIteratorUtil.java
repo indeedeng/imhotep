@@ -87,9 +87,12 @@ public class FTGSIteratorUtil {
         }
     }
 
-    public static TopTermsRawFTGSIterator getTopTermsFTGSIterator(final FTGSIterator iterator, final long termLimit, final int numStats, final int sortStat) {
+    public static TopTermsRawFTGSIterator getTopTermsFTGSIterator(final FTGSIterator originalIterator, final long termLimit, final int numStats, final int sortStat) {
         final long[] statBuf = new long[numStats];
         final TopTermsStatsByField topTermsFTGS = new TopTermsStatsByField();
+
+        // We don't care about sorted stuff since we will sort by term afterward
+        final FTGSIterator iterator = makeUnsortedIfPossible(originalIterator);
 
         while (iterator.nextField()) {
             final String fieldName = iterator.fieldName();
@@ -232,5 +235,20 @@ public class FTGSIteratorUtil {
         List<FieldAndTermStats> getEntries() {
             return fieldTermStatsList;
         }
+    }
+
+    public static RawFTGSIterator makeUnsortedRawIfPossible(final RawFTGSIterator iterator) {
+        if (iterator instanceof SortedFTGSInterleaver) {
+            final RawFTGSIterator[] iterators = ((AbstractDisjointFTGSMerger) iterator).getIterators();
+            return new UnsortedFTGSIterator(iterators);
+        }
+        return iterator;
+    }
+
+    public static FTGSIterator makeUnsortedIfPossible(final FTGSIterator iterator) {
+        if (iterator instanceof RawFTGSIterator) {
+            return makeUnsortedRawIfPossible((RawFTGSIterator)iterator);
+        }
+        return iterator;
     }
 }

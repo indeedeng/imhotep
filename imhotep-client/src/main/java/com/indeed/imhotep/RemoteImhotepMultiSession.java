@@ -73,7 +73,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             return sessions[0].getFTGSIterator(intFields, stringFields, termLimit, sortStat);
         }
         final RawFTGSIterator[] mergers = getFTGSIteratorSplits(intFields, stringFields, termLimit, sortStat);
-        RawFTGSIterator interleaver = new FTGSInterleaver(mergers);
+        RawFTGSIterator interleaver = new SortedFTGSInterleaver(mergers);
         if(termLimit > 0) {
             if (sortStat >= 0) {
                 interleaver = FTGSIteratorUtil.getTopTermsFTGSIterator(interleaver, termLimit, numStats, sortStat);
@@ -118,7 +118,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             return sessions[0].getSubsetFTGSIterator(intFields, stringFields);
         }
         final RawFTGSIterator[] mergers = getSubsetFTGSIteratorSplits(intFields, stringFields);
-        return new FTGSInterleaver(mergers);
+        return new SortedFTGSInterleaver(mergers);
     }
 
     @Override
