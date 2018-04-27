@@ -11,14 +11,14 @@ public final class UnsortedFTGSIterator extends AbstractDisjointFTGSMerger {
     @Override
     public boolean nextTerm() {
         while (true) {
+            if (numFieldIterators == 0) {
+                return false;
+            }
             if (iterators[0].nextTerm()) {
                 return true;
             }
             numFieldIterators--;
             swap(0, numFieldIterators);
-            if (numFieldIterators == 0) {
-                return false;
-            }
         }
     }
 
