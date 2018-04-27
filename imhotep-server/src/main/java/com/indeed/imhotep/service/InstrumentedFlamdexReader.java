@@ -55,7 +55,6 @@ public class InstrumentedFlamdexReader
             getProperties().put(Keys.METRIC_BYTES,       commaDelimitted(metrics.values()));
             getProperties().put(Keys.SHARD_DATE,         flamdexInfo.getDate());
             getProperties().put(Keys.SHARD_ID,           flamdexInfo.getShardId());
-            getProperties().put(Keys.SHARD_SIZE,         flamdexInfo.getSizeInBytes());
             getProperties().put(Keys.STATS_PUSHED,       commaDelimitted(statsPushed.keySet()));
             getProperties().put(Keys.STATS_PUSHED_BYTES, commaDelimitted(statsPushed.values()));
         }
@@ -95,7 +94,7 @@ public class InstrumentedFlamdexReader
     }
 
     private void onField(final String field) {
-        fields.put(field, flamdexInfo.getFieldSizeInBytes(field));
+        fields.put(field, flamdexInfo.getFieldSizeInBytes(field, wrapped));
     }
 
     @Override

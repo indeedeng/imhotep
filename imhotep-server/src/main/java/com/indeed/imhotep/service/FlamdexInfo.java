@@ -35,9 +35,8 @@ class FlamdexInfo {
 
     private final String   shardId;
     private final DateTime date;
-    private final long     sizeInBytes;
 
-    private final Object2LongArrayMap<String> fieldSizesInBytes =
+    private final Object2LongArrayMap<String> fieldSizesInBytesCache =
         new Object2LongArrayMap<>(16);
 
     private static final String FIELD_PREFIX = "fld-";
@@ -49,28 +48,33 @@ class FlamdexInfo {
         new ObjectArraySet<>(FIELD_EXTENSIONS);
 
     FlamdexInfo(final FlamdexReader reader) {
+        fieldSizesInBytesCache.defaultReturnValue(-1);
         final Path shardDir = reader.getDirectory();
         if( shardDir != null ) {
             this.shardId     = shardDir.getFileName().toString();
             this.date        = dateOf();
-            this.sizeInBytes = initFieldSizes(reader);
         } else {
             this.shardId     = null;
             this.date        = null;
-            this.sizeInBytes = 0;
         }
     }
 
     String       getShardId() { return shardId;     }
     DateTime        getDate() { return date;        }
-    long     getSizeInBytes() { return sizeInBytes; }
 
     /**
        Return the size of a field, i.e. the sum of the sizes of its term and
        doc files. Return zero if the field is unknown or from a Lucene index.
      */
-    long getFieldSizeInBytes(final String fieldName) {
-        return fieldSizesInBytes.getLong(fieldName);
+    long getFieldSizeInBytes(final String fieldName, final FlamdexReader reader) {
+        final long cachedSize = fieldSizesInBytesCache.getLong(fieldName);
+        if (cachedSize != -1) {
+            return cachedSize;
+        } else {
+            final long size = calculateFieldSizeInBytes(fieldName, reader);
+            fieldSizesInBytesCache.put(fieldName, size);
+            return size;
+        }
     }
 
     private DateTime dateOf() {
@@ -84,62 +88,35 @@ class FlamdexInfo {
     }
 
     /**
-       Examine the field files in a shard, populating fieldSizesInBytes as we
-       go. Because the FlamdexReader we're passed might be a wrapper, such as
-       CachedFlamdexReaderReference, it might not be easy to determine whether
-       we're dealing with an Indeed Flamdex or a Lucene index. The simplistic
-       approach here is to first look for Flamdex files and in the face of no
-       results just fall back to looking at all files in the directory.
+       Calculate the field size of fieldName in bytes. Because the FlamdexReader
+       we're passed might be a wrapper, such as CachedFlamdexReaderReference,
+       it might not be easy to determine whether we're dealing with an Indeed
+       Flamdex or a Lucene index. The simplistic approach here is to first look
+       for Flamdex files and in the face of no results simply return 0.
 
        Since we don't have a good way of sizing fields in a Lucene index we'll
-       end up with an empty fieldSizesInBytes map and the returned size will
-       just be the sum of all file sizes.
+       simply return 0 for the field size in the Lucene case.
 
-       For Flamdex fields, we just sum the sizes of the doc and term files.
-
-       @return sum of sizes of all field files in the shard's directory.
+       @return size of the relevant field file in the shard's directory, or 0 if not found.
      */
-    private long initFieldSizes(final FlamdexReader reader) {
+    private long calculateFieldSizeInBytes(final String fieldName, FlamdexReader reader) {
         final Path dir = reader.getDirectory();
-        if(dir == null)  {
+        if (dir == null)  {
             return 0;
         }
-        long result = 0;
-        final SimpleFlamdexFileFilter filter = new SimpleFlamdexFileFilter();
 
-        boolean isFlamdex = false;
+        final SimpleFlamdexFileFilter filter = new SimpleFlamdexFileFilter();
         try (DirectoryStream<Path> children = Files.newDirectoryStream(dir, filter)) {
-            // flamdex
             for (final Path child : children) {
-                isFlamdex = true;
-                final String fieldName = fieldNameOf(child);
-                if (fieldName != null) {
-                    long size = fieldSizesInBytes.getLong(fieldName);
-                    size += Files.size(child);
-                    fieldSizesInBytes.put(fieldName, size);
-                    result += Files.size(child);
+                final String childFieldName = fieldNameOf(child);
+                if (childFieldName != null && childFieldName.equals(fieldName)) {
+                    return Files.size(child);
                 }
             }
         } catch (final IOException e) {
             log.error("Error while getting flamdex field file sizes", e);
-            return result;
         }
-
-        // If the directory has no flamdex files in it,
-        // then it is a lucene index
-        if (!isFlamdex) {
-            try (DirectoryStream<Path> children = Files.newDirectoryStream(dir)) {
-                // lucene
-                for (final Path child : children) {
-                    result += Files.size(child);
-                }
-            } catch (final IOException e) {
-                log.error("Error while getting lucene field file sizes", e);
-                return result;
-            }
-        }
-
-        return result;
+        return 0;
     }
 
     /**
