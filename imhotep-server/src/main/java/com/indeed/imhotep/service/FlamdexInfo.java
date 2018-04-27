@@ -97,7 +97,7 @@ class FlamdexInfo {
        Since we don't have a good way of sizing fields in a Lucene index we'll
        simply return 0 for the field size in the Lucene case.
 
-       @return size of the relevant field file in the shard's directory, or 0 if not found.
+       @return size of the relevant field files in the shard's directory, or 0 if not found.
      */
     private long calculateFieldSizeInBytes(final String fieldName, FlamdexReader reader) {
         final Path dir = reader.getDirectory();
@@ -105,18 +105,19 @@ class FlamdexInfo {
             return 0;
         }
 
+        long size = 0;
         final SimpleFlamdexFileFilter filter = new SimpleFlamdexFileFilter();
         try (DirectoryStream<Path> children = Files.newDirectoryStream(dir, filter)) {
             for (final Path child : children) {
                 final String childFieldName = fieldNameOf(child);
                 if (childFieldName != null && childFieldName.equals(fieldName)) {
-                    return Files.size(child);
+                    size += Files.size(child);
                 }
             }
         } catch (final IOException e) {
             log.error("Error while getting flamdex field file sizes", e);
         }
-        return 0;
+        return size;
     }
 
     /**
