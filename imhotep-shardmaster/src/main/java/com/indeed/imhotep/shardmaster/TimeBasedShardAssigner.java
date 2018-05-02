@@ -63,7 +63,7 @@ class TimeBasedShardAssigner implements ShardAssigner {
     @Override
     public Iterable<ShardAssignmentInfo> assign(final List<Host> hosts, final String dataset, final Iterable<ShardDir> shards) {
         final List<Host> upHosts = hosts.stream().filter(Objects::nonNull).collect(Collectors.toList());
-        int initialServerNumberForDataset = (int)Math.abs((long)HASH_FUNCTION.get().hashString(dataset, Charsets.UTF_8).asInt()) % hosts.size();
+        int initialServerNumberForDataset = (int)(Math.abs((long)HASH_FUNCTION.get().hashString(dataset, Charsets.UTF_8).asInt()) % hosts.size());
 
         return FluentIterable.from(shards).transform(shard -> {
             final String shardId = shard.getId();
