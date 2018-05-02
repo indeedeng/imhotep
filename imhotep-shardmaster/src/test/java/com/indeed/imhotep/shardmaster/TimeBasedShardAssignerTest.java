@@ -11,37 +11,23 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.indeed.imhotep.client;
 
-import javax.annotation.Nullable;
-import java.util.List;
+package com.indeed.imhotep.shardmaster;
+
+import org.junit.Test;
+
+import static com.indeed.imhotep.shardmaster.MinHashShardAssignerTest.evenDistributionTestHelper;
 
 /**
- * @author jsgroth
+ * @author vladimir
  */
-public class DummyHostsReloader implements HostsReloader {
-    private final List<Host> hosts;
 
-    public DummyHostsReloader(final List<Host> hosts) {
-        this.hosts = hosts;
-    }
+public class TimeBasedShardAssignerTest {
 
-    @Override
-    @Nullable
-    public List<Host> getHosts() {
-        return hosts;
-    }
-
-    @Override
-    public void run() {
-    }
-
-    @Override
-    public void shutdown() {
-    }
-
-    @Override
-    public boolean isLoadedDataSuccessfullyRecently() {
-        return true;
+    @Test
+    public void timeBasedShardAssignerTestEvenDistribution() {
+        for(MinHashShardAssignerTest.ShardTimeRange shardTimeRange : MinHashShardAssignerTest.ShardTimeRange.values()) {
+            evenDistributionTestHelper(new TimeBasedShardAssigner(),2880, shardTimeRange, 80, 1, 0);
+        }
     }
 }

@@ -15,7 +15,6 @@
 package com.indeed.imhotep.shardmaster;
 
 import com.google.common.base.Charsets;
-import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
@@ -35,12 +34,20 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
+ * A shard assigner that assigns shards to servers based on the start time of each shard in order to achieve perfect
+ * shard distribution even for queries on a small number of shards covering a consecutive time range.
+ *
+ * The downsize is that changing the number of hosts leads to nearly all shards to get moved around.
+ * As a workaround hosts can be temporarily disabled for assignment by setting their list entry to Null which will make
+ * the shards they are supposed to handle to get reassigned to the remaining hosts using the MinHashShardAssigner.
+ * There is no way to grow the number of hosts without a complete reshuffle however.
+ *
+ * This ShardAssigner always uses replication factor of 1.
  * @author vladimir
  */
 @ThreadSafe
 class TimeBasedShardAssigner implements ShardAssigner {
     private static final Logger LOGGER = Logger.getLogger(InMemoryShardAssignmentInfoDao.class);
-    private final MinHashShardAssigner minHashShardAssigner;
 
     private static final ThreadLocal<HashFunction> HASH_FUNCTION = new ThreadLocal<HashFunction>() {
         @Override
@@ -50,34 +57,28 @@ class TimeBasedShardAssigner implements ShardAssigner {
     };
 
     TimeBasedShardAssigner() {
-        // TODO: replication support?
-        minHashShardAssigner = new MinHashShardAssigner(1);
     }
 
     @SuppressWarnings("Guava")
     @Override
     public Iterable<ShardAssignmentInfo> assign(final List<Host> hosts, final String dataset, final Iterable<ShardDir> shards) {
-        // TODO: handle downtimed servers. currently expected to be passed in as Null
         final List<Host> upHosts = hosts.stream().filter(Objects::nonNull).collect(Collectors.toList());
         int initialServerNumberForDataset = (int)Math.abs((long)HASH_FUNCTION.get().hashString(dataset, Charsets.UTF_8).asInt()) % hosts.size();
 
-        return FluentIterable.from(shards).transformAndConcat(new Function<ShardDir, Iterable<ShardAssignmentInfo>>() {
-            @Override
-            public Iterable<ShardAssignmentInfo> apply(final ShardDir shard) {
-                final String shardId = shard.getId();
-                final long shardIndex = Math.abs(getShardIndexForShardSize(shardId));
-                final int assignedServerNumber = (int)((initialServerNumberForDataset + shardIndex) % hosts.size());
-                final Host assignedServer = hosts.get(assignedServerNumber);
-                if(assignedServer == null) {
-                    // this server is in downtime so assign the shard to another server using minhashing
-                    return minHashShardAssigner.assign(upHosts, dataset, Collections.singletonList(shard));
-                }
-
-
-                return Collections.singletonList(new ShardAssignmentInfo(dataset,
-                        shard.getIndexDir().toUri().toString(),
-                        assignedServer));
+        return FluentIterable.from(shards).transform(shard -> {
+            final String shardId = shard.getId();
+            final long shardIndex = Math.abs(getShardIndexForShardSize(shardId));
+            final int assignedServerNumber = (int)((initialServerNumberForDataset + shardIndex) % hosts.size());
+            final Host assignedServer = hosts.get(assignedServerNumber);
+            if(assignedServer == null) {
+                // this server is in downtime so assign the shard to another server using minhashing
+                // TODO: optimize if overhead of calling for each shard is significant
+                return MinHashShardAssigner.assign(upHosts, dataset, Collections.singletonList(shard), 1).iterator().next();
             }
+
+            return new ShardAssignmentInfo(dataset,
+                    shard.getIndexDir().toUri().toString(),
+                    assignedServer);
         });
     }
 

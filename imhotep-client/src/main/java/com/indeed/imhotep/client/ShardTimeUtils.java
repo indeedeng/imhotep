@@ -59,6 +59,10 @@ public final class ShardTimeUtils {
         return SHARD_PREFIX + dateTime.toString(yyyymmddhh);
     }
 
+    public static String toTimeRangeShardPrefix(final DateTime start, final DateTime end) {
+        return SHARD_PREFIX + start.toString(yyyymmddhh) + "-" + end.toString(yyyymmddhh);
+    }
+
     public static Interval parseInterval(final String shardId) {
         if (shardId.startsWith(DYNAMIC_SHARD_PREFIX)) {
             return DynamicIndexSubshardDirnameUtil.parseTimeRangeFromShardId(shardId);
