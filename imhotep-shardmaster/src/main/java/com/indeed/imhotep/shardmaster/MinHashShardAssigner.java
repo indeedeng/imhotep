@@ -29,10 +29,18 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.PriorityQueue;
 import java.util.Set;
 
 /**
+ * A shard assigner that uses a consistent hashing algorithm.
+ * It results in non-perfect distribution for queries unless either:
+ * 1) replication factor is at least 2 which lets the client to balance by picking less loaded servers
+ * 2) #shards in query is many times higher than #servers
+ *
+ * The advantage of this assigner is that it allows only minimal number of shards to move during rebalancing
+ * when expanding the cluster.
  * @author kenh
  */
 @ThreadSafe
@@ -50,7 +58,7 @@ class MinHashShardAssigner implements ShardAssigner {
         this.replicationFactor = replicationFactor;
     }
 
-    private long getMinHash(final String dataset, final ShardDir shard, final Host host) {
+    private static long getMinHash(final String dataset, final ShardDir shard, final Host host) {
         return HASH_FUNCTION.get().newHasher()
                 .putInt(dataset.hashCode())
                 .putInt(shard.getId().hashCode())
@@ -61,11 +69,15 @@ class MinHashShardAssigner implements ShardAssigner {
 
     @Override
     public Iterable<ShardAssignmentInfo> assign(final List<Host> hosts, final String dataset, final Iterable<ShardDir> shards) {
+        return assign(hosts, dataset, shards, replicationFactor);
+    }
+
+    public static Iterable<ShardAssignmentInfo> assign(final List<Host> hosts, final String dataset, final Iterable<ShardDir> shards, final int replicationFactorUsed) {
         int maxPerHostname = 0;
-        for (final Collection<Host> ofSameHostName : FluentIterable.from(hosts).index(Host.GET_HOSTNAME).asMap().values()) {
+        for (final Collection<Host> ofSameHostName : FluentIterable.from(hosts).filter(Objects::nonNull).index(Host.GET_HOSTNAME).asMap().values()) {
             maxPerHostname = Math.max(maxPerHostname, ofSameHostName.size());
         }
-        final int queueCapacity = replicationFactor * maxPerHostname;
+        final int queueCapacity = replicationFactorUsed * maxPerHostname;
         final Pair.FullPairComparator comparator = new Pair.FullPairComparator();
 
         return FluentIterable.from(shards).transformAndConcat(new Function<ShardDir, Iterable<ShardAssignmentInfo>>() {
@@ -75,6 +87,9 @@ class MinHashShardAssigner implements ShardAssigner {
                         Ordering.from(comparator).reverse());
 
                 for (final Host host : hosts) {
+                    if(host == null) {
+                        continue;   // this host is disabled
+                    }
                     final long hash = getMinHash(dataset, shard, host);
                     final Pair<Long, Host> entry = Pair.of(hash, host);
                     if (sortedHosts.size() < queueCapacity) {
@@ -94,13 +109,13 @@ class MinHashShardAssigner implements ShardAssigner {
                 }
 
                 final Set<String> hostnames = Sets.newHashSet();
-                final List<Host> chosen = new ArrayList<>(replicationFactor);
+                final List<Host> chosen = new ArrayList<>(replicationFactorUsed);
                 for (int i = sortedHostsList.size() - 1; i >= 0; i--) {
                     final Host sortedHost = sortedHostsList.get(i);
                     if (!hostnames.contains(sortedHost.getHostname())) {
                         hostnames.add(sortedHost.getHostname());
                         chosen.add(sortedHost);
-                        if (chosen.size() >= replicationFactor) {
+                        if (chosen.size() >= replicationFactorUsed) {
                             break;
                         }
                     }

@@ -57,19 +57,68 @@ public class MinHashShardAssignerTest {
         return list;
     }
 
+    public enum ShardTimeRange {
+        DAILY,
+        HOURLY,
+        THREE_HOURS,
+        MONTHLY,
+        YEARLY
+    }
+
     @Test
-    public void testEvenDistribution() {
-        final int numShards = 10000;
-        DateTime shardTime = new DateTime(2018, 1, 1, 0, 0, DateTimeZone.forOffsetHours(-6));
+    public void minHashShardAssignerTestEvenDistribution() {
+        evenDistributionTestHelper(new MinHashShardAssigner(3),10000, ShardTimeRange.HOURLY,
+                10, 3, 0.05);
+    }
+
+    public static void evenDistributionTestHelper(ShardAssigner assigner, int numShards, ShardTimeRange shardTimeRange, int numberOfHosts,
+                                                  int replicationFactor, double failureThreshold) {
         final List<ShardDir> shards = Lists.newArrayList();
+        DateTime shardTime = new DateTime(2018, 1, 1, 0, 0, DateTimeZone.forOffsetHours(-6));
         for(int i = 0; i < numShards; i++) {
-            final String shardId = ShardTimeUtils.toHourlyShardPrefix(shardTime) + shardTime.toString(SHARD_VERSION_FORMAT);
+            final String shardId;
+            switch(shardTimeRange) {
+                case DAILY:
+                    shardId = ShardTimeUtils.toDailyShardPrefix(shardTime) + shardTime.toString(SHARD_VERSION_FORMAT);
+                    break;
+                case HOURLY:
+                case THREE_HOURS:
+                    shardId = ShardTimeUtils.toHourlyShardPrefix(shardTime) + shardTime.toString(SHARD_VERSION_FORMAT);
+                    break;
+                case MONTHLY:
+                    shardId = ShardTimeUtils.toTimeRangeShardPrefix(shardTime, shardTime.plusMonths(1));
+                    break;
+                case YEARLY:
+                    shardId = ShardTimeUtils.toTimeRangeShardPrefix(shardTime, shardTime.plusYears(1));
+                    break;
+                default:
+                    throw new IllegalArgumentException();
+            }
+
             shards.add(new ShardDir(Paths.get(shardId)));
-            shardTime = shardTime.plusHours(1);
+            switch(shardTimeRange) {
+                case DAILY:
+                    shardTime = shardTime.plusDays(1);
+                    break;
+                case HOURLY:
+                    shardTime = shardTime.plusHours(1);
+                    break;
+                case THREE_HOURS:
+                    shardTime = shardTime.plusHours(3);
+                    break;
+                case MONTHLY:
+                    shardTime = shardTime.plusMonths(1);
+                    break;
+                case YEARLY:
+                    shardTime = shardTime.plusYears(1);
+                    break;
+                default:
+                    throw new IllegalArgumentException();
+            }
         }
 
         // Note that this quickly gets unbalances when the number of hosts increases
-        final List<Host> hosts = FluentIterable.from(getListWithPrefix("HOST", 1, 10))
+        final List<Host> hosts = FluentIterable.from(getListWithPrefix("HOST", 1, numberOfHosts))
                 .transformAndConcat(new Function<String, List<Host>>() {
                     @Override
                     public List<Host> apply(final String host) {
@@ -83,9 +132,6 @@ public class MinHashShardAssignerTest {
 
         final Multimap<Host, String> hostToShardCount = ArrayListMultimap.create();
         final Set<String> assignedShards = Sets.newHashSet();
-
-        final int replicationFactor = 3;
-        final MinHashShardAssigner assigner = new MinHashShardAssigner(replicationFactor);
         for (final ShardAssignmentInfo assignment : assigner.assign(hosts, "DATASET", shards)) {
             Assert.assertEquals("DATASET", assignment.getDataset());
             assignedShards.add(assignment.getShardPath());
@@ -98,14 +144,26 @@ public class MinHashShardAssignerTest {
         for (final Map.Entry<Host, Collection<String>> entry : hostToShardCount.asMap().entrySet()) {
             shardCountPerHost.add(entry.getValue().size());
         }
+        // debug info
 //        Collections.sort(shardCountPerHost);
 //        System.out.println(Joiner.on(',').join(shardCountPerHost));
 
         final double averageShardsPerHost = ((double) numShards * replicationFactor) / numHosts;
         for (final Integer shardCount : shardCountPerHost) {
-            Assert.assertEquals("Uneven shard distribution detected. Average shards per host: " +
-                            (int)averageShardsPerHost + ", shards at unbalanced host: " + shardCount,
-                    0, (averageShardsPerHost - shardCount) / averageShardsPerHost, 0.05);
+            if(failureThreshold == 0) {
+                // allow only a difference of 1 between the max and the min number of shards per host
+                int maxShardCountDifference = Math.abs(shardCountPerHost.get(0) - shardCountPerHost.get(shardCountPerHost.size()-1));
+                if(maxShardCountDifference > 1) {
+                    Collections.sort(shardCountPerHost);
+                    Assert.fail("Uneven shard distribution detected when perfect distribution is expected. " +
+                            "Shards per host: " + Joiner.on(',').join(shardCountPerHost));
+                }
+            } else {
+                Assert.assertEquals("Uneven shard distribution detected. Average shards per host: " +
+                                (int) averageShardsPerHost + ", shards at unbalanced host: " + shardCount + ". " +
+                                "Shards per host: " + Joiner.on(',').join(shardCountPerHost),
+                        0, (averageShardsPerHost - shardCount) / averageShardsPerHost, failureThreshold);
+            }
         }
     }
 

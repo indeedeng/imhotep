@@ -16,7 +16,10 @@ package com.indeed.imhotep.shardmaster;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.indeed.imhotep.ZkEndpointPersister;
@@ -46,6 +49,7 @@ import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
@@ -185,6 +189,8 @@ public class ShardMasterDaemon {
         private String dbParams = "MULTI_THREADED=TRUE;CACHE_SIZE=" + (1024 * 1024);
         private String hostsFile;
         private String hostsOverride;
+        private String disabledHosts;
+        private String shardAssigner;
         private ShardFilter shardFilter = ShardFilter.ACCEPT_ALL;
         private int servicePort = 0;
         private int serviceConcurrency = 10;
@@ -229,6 +235,16 @@ public class ShardMasterDaemon {
 
         public Config setHostsOverride(final String hostsOverride) {
             this.hostsOverride = hostsOverride;
+            return this;
+        }
+
+        public Config setDisabledHosts(final String disabledHosts) {
+            this.disabledHosts = disabledHosts;
+            return this;
+        }
+
+        public Config setShardAssigner(String shardAssigner) {
+            this.shardAssigner = shardAssigner;
             return this;
         }
 
@@ -298,8 +314,21 @@ public class ShardMasterDaemon {
 
         HostsReloader createStaticHostReloader() throws IOException {
             Preconditions.checkNotNull(hostsOverride, "Static hosts config is missing");
+            final List<Host> hostList = Lists.newArrayList(parseHostsList(hostsOverride));
+            if (StringUtils.isNotBlank(disabledHosts)) {
+                final Set<Host> disabledHostList = Sets.newHashSet(parseHostsList(disabledHosts));
+                for(int i = 0; i < hostList.size(); i++) {
+                    if(disabledHostList.contains(hostList.get(i))) {
+                        hostList.set(i, null);
+                    }
+                }
+            }
+            return new DummyHostsReloader(hostList);
+        }
+
+        private List<Host> parseHostsList(String value) {
             final ImmutableList.Builder<Host> hostsBuilder = ImmutableList.builder();
-            for (final String hostString : hostsOverride.split(",")) {
+            for (final String hostString : value.split(",")) {
                 try {
                     final Host host = Host.valueOf(hostString.trim());
                     hostsBuilder.add(host);
@@ -307,7 +336,7 @@ public class ShardMasterDaemon {
                     LOGGER.warn("Failed to parse host " + hostString + ". Ignore it.", e);
                 }
             }
-            return new DummyHostsReloader(hostsBuilder.build());
+            return hostsBuilder.build();
         }
 
         ExecutorService createExecutorService() {
@@ -342,7 +371,23 @@ public class ShardMasterDaemon {
         }
 
         ShardAssigner createAssigner() {
-            return new MinHashShardAssigner(replicationFactor);
+            String shardAssignerToUse = shardAssigner;
+            // Provide a default if not configured
+            if(Strings.isNullOrEmpty(shardAssignerToUse)) {
+                shardAssignerToUse = replicationFactor == 1 ? "time" : "minhash";
+            }
+
+            if("time".equals(shardAssignerToUse)) {
+                if (replicationFactor != 1) {
+                    throw new IllegalArgumentException("Time shard assigner only supports replication factor = 1 now. " +
+                            "'minhash' shard assigner is recommended if higher replication factor is used.");
+                }
+                return new TimeBasedShardAssigner();
+            } else if ("minhash".equals(shardAssignerToUse)){
+                return new MinHashShardAssigner(replicationFactor);
+            } else {
+                throw new IllegalArgumentException("shardAssigner config value must be set to 'minhash' or 'time'");
+            }
         }
 
         Duration getRefreshInterval() {
