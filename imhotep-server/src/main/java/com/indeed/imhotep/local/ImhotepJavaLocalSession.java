@@ -15,6 +15,7 @@ package com.indeed.imhotep.local;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.api.RawFlamdexReader;
@@ -44,6 +45,7 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.net.URI;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -52,6 +54,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -139,11 +142,23 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
         public static AutoDeletingReader open(@Nonnull final Path directory, final Config config) throws IOException {
             // TODO: this is a copy-paste of SimpleFlamdexReader::open
             final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(directory);
-            final Collection<String> intFields = scan(directory, ".intterms");
-            final Collection<String> stringFields = scan(directory, ".strterms");
+
+            final List<Path> paths = new ArrayList<>();
+            try (final DirectoryStream<Path> dirStream = Files.newDirectoryStream(directory)) {
+                for (final Path path : dirStream) {
+                    paths.add(path);
+                }
+            }
+
+            final Collection<String> intFields = scan(paths, ".intterms");
+            final Collection<String> stringFields = scan(paths, ".strterms");
             if (config.isWriteBTreesIfNotExisting()) {
-                buildIntBTrees(directory, Lists.newArrayList(intFields));
-                buildStringBTrees(directory, Lists.newArrayList(stringFields));
+                final Set<String> pathNames = Sets.newHashSet();
+                for (Path path : paths) {
+                    pathNames.add(path.getFileName().toString());
+                }
+                buildIntBTrees(directory, pathNames, Lists.newArrayList(intFields));
+                buildStringBTrees(directory, pathNames, Lists.newArrayList(stringFields));
             }
             final AutoDeletingReader result =
                     new AutoDeletingReader(
