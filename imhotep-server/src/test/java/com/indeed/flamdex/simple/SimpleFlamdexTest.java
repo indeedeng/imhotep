@@ -114,7 +114,47 @@ public class SimpleFlamdexTest {
 
         session.close();
     }
-    
+
+    private static boolean btreeExists(final Path btreePath) throws IOException {
+        return Files.exists(btreePath) && (Files.list(btreePath).count() > 0);
+    }
+
+    @Test
+    public void testBTreesWrittenWhenNeeded() throws IOException {
+        final Path dir = Files.createTempDirectory("flamdex-test");
+        try {
+            writeIndex(dir);
+
+            final Path intBtreePath = dir.resolve("fld-f1.intindex64");
+            final Path strBtreePath = dir.resolve("fld-f2.strindex");
+
+            assertTrue(btreeExists(intBtreePath));
+            assertTrue(btreeExists(strBtreePath));
+
+            TestFileUtils.deleteDirTree(intBtreePath);
+            TestFileUtils.deleteDirTree(strBtreePath);
+
+            assertFalse(btreeExists(intBtreePath));
+            assertFalse(btreeExists(strBtreePath));
+
+            config.setWriteBTreesIfNotExisting(false);
+            final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir, config);
+            r.close();
+
+            assertFalse(btreeExists(intBtreePath));
+            assertFalse(btreeExists(strBtreePath));
+
+            config.setWriteBTreesIfNotExisting(true);
+            final SimpleFlamdexReader r2 = SimpleFlamdexReader.open(dir, config);
+            r2.close();
+
+            assertTrue(btreeExists(intBtreePath));
+            assertTrue(btreeExists(strBtreePath));
+        } finally {
+            TestFileUtils.deleteDirTree(dir);
+        }
+    }
+
     @Test
     public void testEmptyFields() throws IOException {
         final Path dir = Files.createTempDirectory("flamdex-test");

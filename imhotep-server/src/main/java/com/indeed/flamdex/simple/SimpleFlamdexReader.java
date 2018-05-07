@@ -41,6 +41,7 @@ import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -96,11 +97,24 @@ public class SimpleFlamdexReader
 
     public static SimpleFlamdexReader open(@Nonnull final Path directory, final Config config) throws IOException {
         final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(directory);
-        final Collection<String> intFields = scan(directory, ".intterms");
-        final Collection<String> stringFields = scan(directory, ".strterms");
+
+        final List<Path> paths = new ArrayList<>();
+        try (final DirectoryStream<Path> dirStream = Files.newDirectoryStream(directory)) {
+            for (final Path path : dirStream) {
+                paths.add(path);
+            }
+        }
+
+        final Collection<String> intFields = scan(paths, ".intterms");
+        final Collection<String> stringFields = scan(paths, ".strterms");
         if (config.isWriteBTreesIfNotExisting()) {
-            buildIntBTrees(directory, Lists.newArrayList(intFields));
-            buildStringBTrees(directory, Lists.newArrayList(stringFields));
+            final Set<String> pathNames = Sets.newHashSet();
+            for (Path path : paths) {
+                pathNames.add(path.getFileName().toString());
+            }
+
+            buildIntBTrees(directory, pathNames, Lists.newArrayList(intFields));
+            buildStringBTrees(directory, pathNames, Lists.newArrayList(stringFields));
         }
         final SimpleFlamdexReader result =
                 new SimpleFlamdexReader(
@@ -116,15 +130,12 @@ public class SimpleFlamdexReader
         return result;
     }
 
-    protected static Collection<String> scan(final Path directory, final String ending) throws IOException {
+    protected static Collection<String> scan(final List<Path> paths, final String ending) throws IOException {
         final Set<String> fields = Sets.newTreeSet();
-
-        try (final DirectoryStream<Path> dirStream = Files.newDirectoryStream(directory)) {
-            for (final Path file : dirStream) {
-                final String name = file.getFileName().toString();
-                if (name.startsWith("fld-") && name.endsWith(ending)) {
-                    fields.add(name.substring(4, name.length() - ending.length()));
-                }
+        for (final Path file : paths) {
+            final String name = file.getFileName().toString();
+            if (name.startsWith("fld-") && name.endsWith(ending)) {
+                fields.add(name.substring(4, name.length() - ending.length()));
             }
         }
 
@@ -339,20 +350,22 @@ public class SimpleFlamdexReader
         mapCache.close();
     }
 
-    protected static void buildIntBTrees(final Path directory, final List<String> intFields) throws IOException {
+    protected static void buildIntBTrees(final Path directory, final Set<String> dirNames, final List<String> intFields) throws IOException {
         for (final String intField : intFields) {
-            final Path btreeDir = directory.resolve("fld-" + intField + ".intindex");
-            final Path btreeDir64 = directory.resolve("fld-" + intField + ".intindex64");
-            if (Files.notExists(btreeDir) && Files.notExists(btreeDir64)) {
+            final String btreeDirName = "fld-" + intField + ".intindex";
+            final String btreeDir64Name = "fld-" + intField + ".intindex64";
+            if (!dirNames.contains(btreeDirName) && !dirNames.contains(btreeDir64Name)) {
+                final Path btreeDir64 = directory.resolve(btreeDir64Name);
                 SimpleFlamdexWriter.writeIntBTree(directory, intField, btreeDir64);
             }
         }
     }
 
-    protected static void buildStringBTrees(final Path directory, final List<String> stringFields) throws IOException {
+    protected static void buildStringBTrees(final Path directory, final Set<String> dirNames, final List<String> stringFields) throws IOException {
         for (final String stringField : stringFields) {
-            final Path btreeDir = directory.resolve("fld-" + stringField + ".strindex");
-            if (Files.notExists(btreeDir)) {
+            final String btreeDirName = "fld-" + stringField + ".strindex";
+            if (!dirNames.contains(btreeDirName)) {
+                final Path btreeDir = directory.resolve(btreeDirName);
                 SimpleFlamdexWriter.writeStringBTree(directory, stringField, btreeDir);
             }
         }
