@@ -360,17 +360,7 @@ public class ImhotepRemoteSession
                 .setSessionId(sessionId)
                 .setStat(stat)
                 .build();
-        try {
-            final Socket socket = newSocket(host, port, socketTimeout);
-            final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
-            final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
-
-            final ImhotepResponse response = sendRequest(request, is, os, host, port);
-            timer.complete(request);
-            return ImhotepProtobufShipping.readGroupStatsIterator(is, response.getGroupStatSize());
-        } catch(final IOException e) {
-            throw new RuntimeException(e);
-        }
+        return sendGroupStatsIteratorRequest(request, timer);
     }
 
     @Override
@@ -545,6 +535,41 @@ public class ImhotepRemoteSession
     }
 
     @Override
+    public GroupStatsIterator mergeDistinctSplit(final String field,
+                                                 final boolean isIntField,
+                                                 final String sessionId,
+                                                 final InetSocketAddress[] nodes,
+                                                 final int splitIndex) {
+        final Timer timer = new Timer();
+        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.MERGE_DISTINCT_SPLIT)
+                .setSessionId(sessionId)
+                .setField(field)
+                .setIsIntField(isIntField)
+                .setSplitIndex(splitIndex)
+                .addAllNodes(Iterables.transform(Arrays.asList(nodes), new Function<InetSocketAddress, HostAndPort>() {
+                    public HostAndPort apply(final InetSocketAddress input) {
+                        return HostAndPort.newBuilder().setHost(input.getHostName()).setPort(input.getPort()).build();
+                    }
+                }))
+                .build();
+        return sendGroupStatsIteratorRequest(request, timer);
+    }
+
+    private GroupStatsIterator sendGroupStatsIteratorRequest(final ImhotepRequest request, final Timer timer) {
+        try {
+            final Socket socket = newSocket(host, port, socketTimeout);
+            final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
+            final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
+
+            final ImhotepResponse response = sendRequest(request, is, os, host, port);
+            timer.complete(request);
+            return ImhotepProtobufShipping.readGroupStatsIterator(is, response.getGroupStatSize());
+        } catch(final IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
     public RawFTGSIterator mergeSubsetFTGSSplit(
             final Map<String, long[]> intFields,
             final Map<String, String[]> stringFields,
@@ -565,6 +590,17 @@ public class ImhotepRemoteSession
         final RawFTGSIterator result = fileBufferedFTGSRequest(request);
         timer.complete(request);
         return result;
+    }
+
+    @Override
+    public GroupStatsIterator getDistinct(final String field, final boolean isIntField) {
+        final Timer timer = new Timer();
+        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_DISTINCT)
+                .setSessionId(sessionId)
+                .setField(field)
+                .setIsIntField(isIntField)
+                .build();
+        return sendGroupStatsIteratorRequest(request, timer);
     }
 
     private RawFTGSIterator fileBufferedFTGSRequest(final ImhotepRequest request) {

@@ -29,6 +29,7 @@ import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.api.DocIterator;
 import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepServiceCore;
 import com.indeed.imhotep.api.ImhotepSession;
@@ -123,10 +124,32 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public long[] handleGetGroupStats(final String sessionId, final int stat) {
-        return doWithSession(sessionId, new Function<ImhotepSession, long[]>() {
-            public long[] apply(final ImhotepSession session) {
-                return session.getGroupStats(stat);
+    public GroupStatsIterator handleGetGroupStats(final String sessionId, final int stat) {
+        return doWithSession(sessionId, new Function<ImhotepSession, GroupStatsIterator>() {
+            public GroupStatsIterator apply(final ImhotepSession session) {
+                return session.getGroupStatsIterator(stat);
+            }
+        });
+    }
+
+    @Override
+    public GroupStatsIterator handleGetDistinct(final String sessionId, final String field, final boolean isIntField) {
+        return doWithSession(sessionId, new Function<ImhotepSession, GroupStatsIterator>() {
+            public GroupStatsIterator apply(final ImhotepSession session) {
+                return session.getDistinct(field, isIntField);
+            }
+        });
+    }
+
+    @Override
+    public GroupStatsIterator handleMergeDistinctSplit(final String sessionId,
+                                                       final String field,
+                                                       final boolean isIntField,
+                                                       final InetSocketAddress[] nodes,
+                                                       final int splitIndex) {
+        return doWithSession(sessionId, new Function<ImhotepSession, GroupStatsIterator>() {
+            public GroupStatsIterator apply(final ImhotepSession session) {
+                return session.mergeDistinctSplit(field, isIntField, sessionId, nodes, splitIndex);
             }
         });
     }

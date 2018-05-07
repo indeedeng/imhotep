@@ -15,8 +15,11 @@ package com.indeed.imhotep.local;
 
 import com.google.common.io.ByteStreams;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
+import com.indeed.imhotep.FTGSIteratorUtil;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.MemoryReservationContext;
+import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.io.SocketUtils;
@@ -226,6 +229,38 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
         // now reset the barrier value (yes, every thread will do it)
         writeFTGSSplitBarrier.set(null);
+    }
+
+    @Override
+    public GroupStatsIterator getDistinct(final String field, final boolean isIntField) {
+        if (sessions.length == 1) {
+            return sessions[0].getDistinct(field, isIntField);
+        }
+        // It's a hack.
+        // We don't care about stats while calculating distinct.
+        // And FTGS with no-stats is faster.
+        // So we drop stats count, calculate distinct and return stats.
+        final int[] savedNumStats = new int[sessions.length];
+        for (int i = 0; i < sessions.length; i++) {
+            savedNumStats[i] = sessions[i].numStats;
+        }
+        final GroupStatsIterator result;
+        try {
+            // drop stats.
+            for (final ImhotepLocalSession session : sessions) {
+                session.numStats = 0;
+            }
+            final String[] intFields = isIntField ? new String[]{field} : new String[0];
+            final String[] strFields = isIntField ? new String[0] : new String[]{field};
+            final FTGSIterator iterator = getFTGSIterator(intFields, strFields);
+            result = FTGSIteratorUtil.calculateDistinct(iterator, getNumGroups());
+        } finally {
+            // return stats back.
+            for (int i = 0; i < sessions.length; i++) {
+                sessions[i].numStats = savedNumStats[i];
+            }
+        }
+        return result;
     }
 
     @Override

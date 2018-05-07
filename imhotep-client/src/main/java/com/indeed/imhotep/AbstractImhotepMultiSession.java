@@ -788,6 +788,16 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
         return mergeFTGSSplits(splits, 0);
     }
 
+    @Override
+    public GroupStatsIterator mergeDistinctSplit(final String field, final boolean isIntField,
+                                    final String sessionId, final InetSocketAddress[] nodes,
+                                    final int splitIndex) {
+        final String[] intFields = isIntField ? new String[]{field} : new String[0];
+        final String[] stringFields = isIntField ? new String[0] : new String[]{field};
+        final RawFTGSIterator iterator = mergeFTGSSplit(intFields, stringFields, sessionId, nodes, splitIndex, 0, -1);
+        return FTGSIteratorUtil.calculateDistinct(iterator, getNumGroups());
+    }
+
     protected abstract ImhotepRemoteSession createImhotepRemoteSession(InetSocketAddress address,
                                                                        String sessionId,
                                                                        AtomicLong tempFileSizeBytesLeft);

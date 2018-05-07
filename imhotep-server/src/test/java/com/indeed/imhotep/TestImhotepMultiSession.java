@@ -20,6 +20,7 @@ import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.io.TestFileUtils;
 import com.indeed.imhotep.local.ImhotepJavaLocalSession;
 import com.indeed.imhotep.local.ImhotepLocalSession;
+import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -48,7 +49,11 @@ public class TestImhotepMultiSession {
         try (
             final ImhotepLocalSession s1 = new ImhotepJavaLocalSession(r1);
             final ImhotepLocalSession s2 = new ImhotepJavaLocalSession(r2);
-            final ImhotepSession s = new RemoteImhotepMultiSession(new ImhotepSession[] { s1, s2 }, null, null, -1, null)
+            final ImhotepSession s = new MTImhotepLocalMultiSession(
+                    new ImhotepLocalSession[] { s1, s2 },
+                    new MemoryReservationContext(new ImhotepMemoryPool(0)),
+                    null,
+                    false)
         ){
             s.pushStat("count()");
 

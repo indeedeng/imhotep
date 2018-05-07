@@ -59,6 +59,7 @@ import com.indeed.imhotep.TermLimitedFTGSIterator;
 import com.indeed.imhotep.TermLimitedRawFTGSIterator;
 import com.indeed.imhotep.api.DocIterator;
 import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.api.RawFTGSIterator;
@@ -606,12 +607,40 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     @Override
+    public GroupStatsIterator mergeDistinctSplit(final String field,
+                                    final boolean isIntField,
+                                    final String sessionId,
+                                    final InetSocketAddress[] nodes,
+                                    final int splitIndex) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public RawFTGSIterator mergeSubsetFTGSSplit(final Map<String, long[]> intFields,
                                                 final Map<String, String[]> stringFields,
                                                 final String sessionId,
                                                 final InetSocketAddress[] nodes,
                                                 final int splitIndex) {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public GroupStatsIterator getDistinct(final String field, final boolean isIntField) {
+        final String[] intFields = isIntField ? new String[]{field} : new String[0];
+        final String[] strFields = isIntField ? new String[0] : new String[]{field};
+        GroupStatsIterator result = null;
+        final int savedNumStats = numStats;
+        try {
+            // it's a hack
+            // let's pretend we have no stats. FTGS will be faster.
+            numStats = 0;
+            final FTGSIterator iterator = getFTGSIterator(intFields, strFields);
+            result = FTGSIteratorUtil.calculateDistinct(iterator, getNumGroups());
+        } finally {
+            // return stats back
+            numStats = savedNumStats;
+        }
+        return result;
     }
 
     protected GroupLookup resizeGroupLookup(final GroupLookup lookup,

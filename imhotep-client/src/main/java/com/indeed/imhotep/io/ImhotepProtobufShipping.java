@@ -41,10 +41,10 @@ public final class ImhotepProtobufShipping {
         os.flush();
     }
 
-    public static void writeArray(final long[] array, final OutputStream os) throws IOException {
+    public static void writeGroupStats(final GroupStatsIterator stats, final OutputStream os) throws IOException {
         final DataOutputStream stream = new DataOutputStream(os);
-        for (final long value : array) {
-            stream.writeLong(value);
+        while (stats.hasNext()) {
+            stream.writeLong(stats.nextLong());
         }
         stream.flush();
     }
