@@ -47,7 +47,7 @@ import java.util.stream.Collectors;
  */
 @ThreadSafe
 class TimeBasedShardAssigner implements ShardAssigner {
-    private static final Logger LOGGER = Logger.getLogger(InMemoryShardAssignmentInfoDao.class);
+    private static final Logger LOGGER = Logger.getLogger(TimeBasedShardAssigner.class);
 
     private static final ThreadLocal<HashFunction> HASH_FUNCTION = new ThreadLocal<HashFunction>() {
         @Override
@@ -102,14 +102,14 @@ class TimeBasedShardAssigner implements ShardAssigner {
                 // shard is year aligned
                 long startYearIndex = start.getYear();
                 long endYearIndex = end.getYear();
-                long shardDuration = endYearIndex - startYearIndex;
+                long shardDuration = Math.max(endYearIndex - startYearIndex, 1);
                 return startYearIndex / shardDuration;
             }
 
             // shard is month aligned
             long startMonthIndex = start.getYear() * 12 + start.getMonthOfYear();
             long endMonthIndex = end.getYear() * 12 + end.getMonthOfYear();
-            long shardDuration = endMonthIndex - startMonthIndex;
+            long shardDuration = Math.max(endMonthIndex - startMonthIndex, 1);
             return startMonthIndex / shardDuration;
         }
 
