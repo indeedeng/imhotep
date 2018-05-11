@@ -66,11 +66,11 @@ public class ImhotepDaemonClusterRunner {
         shardCreator.create(shardsDir, dataset, shardId, memoryFlamdex);
     }
 
-    ImhotepDaemonRunner startDaemon() throws IOException, TimeoutException {
+    public ImhotepDaemonRunner startDaemon() throws IOException, TimeoutException {
         return startDaemon(shardsDir.toPath());
     }
 
-    ImhotepDaemonRunner startDaemon(final Path daemonShardsDir) throws IOException, TimeoutException {
+    public ImhotepDaemonRunner startDaemon(final Path daemonShardsDir) throws IOException, TimeoutException {
         final ImhotepDaemonRunner runner = new ImhotepDaemonRunner(daemonShardsDir,
                 // each daemon should have its own private scratch temp dir
                 tempRootDir.toPath().resolve(UUID.randomUUID().toString()),
