@@ -483,7 +483,7 @@ public class ImhotepClient
                            final long sessionTimeout,
                            boolean allowSessionForwarding) {
         final Map<Host, List<String>> shardRequestMap = shardsAndDocCounts.shardRequestMap;
-        final Map<Host, Integer> hostsToDocCounts = shardsAndDocCounts.hostDocCounts;
+        final Map<Host, Long> hostsToDocCounts = shardsAndDocCounts.hostDocCounts;
 
         final ExecutorService executor = Executors.newCachedThreadPool();
         final List<Future<ImhotepRemoteSession>> futures = new ArrayList<>(shardRequestMap.size());
@@ -553,10 +553,10 @@ public class ImhotepClient
         return remoteSessions;
     }
     private static class ShardsAndDocCounts {
-        final Map<Host, Integer> hostDocCounts;
+        final Map<Host, Long> hostDocCounts;
         final Map<Host, List<String>> shardRequestMap;
 
-        public ShardsAndDocCounts(final Map<Host, List<String>> shardRequestMap, final Map<Host, Integer> hostDocCounts) {
+        public ShardsAndDocCounts(final Map<Host, List<String>> shardRequestMap, final Map<Host, Long> hostDocCounts) {
             this.hostDocCounts = hostDocCounts;
             this.shardRequestMap = shardRequestMap;
         }
@@ -571,15 +571,15 @@ public class ImhotepClient
             }
         });
 
-        final Map<Host, Integer> hostDocCounts = new HashMap<>();
+        final Map<Host, Long> hostDocCounts = new HashMap<>();
         final Map<Host, List<String>> shardRequestMap = new TreeMap<>();
         for (final Shard shard : sortedShards) {
             final List<Host> potentialHosts = shard.getServers();
-            int minHostDocCount = Integer.MAX_VALUE;
+            long minHostDocCount = Long.MAX_VALUE;
             Host minHost = null;
             for (final Host host : potentialHosts) {
                 if (!hostDocCounts.containsKey(host)) {
-                    hostDocCounts.put(host, 0);
+                    hostDocCounts.put(host, 0L);
                 }
                 if (hostDocCounts.get(host) < minHostDocCount) {
                     minHostDocCount = hostDocCounts.get(host);
