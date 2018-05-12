@@ -1598,6 +1598,31 @@ public class TestImhotepLocalSession {
         }
     }
 
+    @Test
+    public void testEmptyConditionsRegroup() throws ImhotepOutOfMemoryException {
+        final Path shardDir = TestFileUtils.createTempShard();
+        final int numDocs = 1000;
+        final MockFlamdexReader r =
+                new MockFlamdexReader(
+                        Collections.emptyList(),
+                        Collections.<String>emptyList(),
+                        Collections.<String>emptyList(),
+                        numDocs,
+                        shardDir);
+        try (final ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
+            // rule without conditions. we expect all docs to regroup in negative group (2)
+            final GroupMultiRemapRule rule =
+                    new GroupMultiRemapRule(1, 2, new int[0], new RegroupCondition[0]);
+            session.regroup(new GroupMultiRemapRule[]{rule});
+            final int[] docIdToGroup = new int[numDocs];
+            session.exportDocIdToGroupId(docIdToGroup);
+            // check all docs are in group 2
+            for (int docId = 0; docId < numDocs; docId++) {
+                assertEquals(2, docIdToGroup[docId]);
+            }
+        }
+    }
+
     private void addIntField(final MockFlamdexReader r, final String fieldName, final int[] terms) {
         final Map<Integer, List<Integer>> map = Maps.newHashMap();
         for (int ix = 0; ix < terms.length; ix++) {

@@ -112,6 +112,11 @@ class MultiRegroupInternals {
 
         // Make a bunch of parallel arrays so we can sort. Memory claimed in parallelArrayBytes.
         final FlatRegroupConditions flat = new FlatRegroupConditions(rules);
+        if (flat.conditions.length == 0) {
+            // there is no rules with conditions, quit.
+            // all regrouping will be in internalMultiRegroupCleanup method.
+            return;
+        }
 
         // memory claimed in remappingBytes
         final int[] remappings = new int[maxGroup + 1];
