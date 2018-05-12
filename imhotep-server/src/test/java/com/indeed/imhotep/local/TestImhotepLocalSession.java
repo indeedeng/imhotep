@@ -165,6 +165,21 @@ public class TestImhotepLocalSession {
     }
 
     @Test
+    public void testMetricRegroupOneBucket() throws ImhotepOutOfMemoryException {
+        final MockFlamdexReader r = newMetricRegroupTestReader();
+
+        try (final ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
+            session.pushStat("if1");
+            final int numGroups = session.metricRegroup(0, -100, 25, 25, true);
+            assertEquals(6, numGroups); // 5 buckets, no gutters, group 0
+
+            final int[] docIdToGroup = new int[10];
+            session.exportDocIdToGroupId(docIdToGroup);
+            assertEquals(Arrays.asList(5, 5, 5, 5, 5, 5, 5, 5, 5, 5), Ints.asList(docIdToGroup));
+        }
+    }
+
+    @Test
     public void testMetricRegroup2() throws ImhotepOutOfMemoryException {
         final MockFlamdexReader r = newMetricRegroupTestReader();
 

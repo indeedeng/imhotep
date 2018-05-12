@@ -1304,6 +1304,27 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
         final IntValueLookup lookup = statLookup.get(stat);
 
+        {
+            // check if all doc in shard go to one group
+            // this often happens when grouping by unixtime (1h, 1d or 1mo for example)
+            final long lookupMin = lookup.getMin();
+            final long lookupMax = lookup.getMax();
+            if ((min <= lookupMin) && (lookupMax < max)) {
+                final int minGroup = (int) ((lookupMin - min) / intervalSize + 1);
+                final int maxGroup = (int) ((lookupMax - min) / intervalSize + 1);
+                if (minGroup == maxGroup) {
+                    // all in one interval
+                    final int totalBuckets = noGutters ? numBuckets : numBuckets + 2;
+                    for (int i = 0; i < numDocs; i++) {
+                        docIdToGroup.set(i, (docIdToGroup.get(i) - 1) * totalBuckets + minGroup);
+                    }
+
+                    finalizeRegroup();
+                    return docIdToGroup.getNumGroups();
+                }
+            }
+        }
+
         final int numDocs = docIdToGroup.size();
         for (int doc = 0; doc < numDocs; doc += BUFFER_SIZE) {
 
