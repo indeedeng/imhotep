@@ -1316,7 +1316,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                     // all in one interval
                     final int totalBuckets = noGutters ? numBuckets : numBuckets + 2;
                     for (int i = 0; i < numDocs; i++) {
-                        docIdToGroup.set(i, (docIdToGroup.get(i) - 1) * totalBuckets + minGroup);
+                        final int group = docIdToGroup.get(i);
+                        if (group == 0) {
+                            continue;
+                        }
+                        docIdToGroup.set(i, (group - 1) * totalBuckets + minGroup);
                     }
 
                     finalizeRegroup();
