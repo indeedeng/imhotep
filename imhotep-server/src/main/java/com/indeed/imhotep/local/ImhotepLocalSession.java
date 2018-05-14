@@ -1307,25 +1307,25 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         {
             // check if all doc in shard go to one group
             // this often happens when grouping by unixtime (1h, 1d or 1mo for example)
-            final long lookupMin = lookup.getMin();
-            final long lookupMax = lookup.getMax();
-            if ((min <= lookupMin) && (lookupMax < max)) {
-                final int minGroup = (int) ((lookupMin - min) / intervalSize + 1);
-                final int maxGroup = (int) ((lookupMax - min) / intervalSize + 1);
-                if (minGroup == maxGroup) {
-                    // all in one interval
-                    final int totalBuckets = noGutters ? numBuckets : numBuckets + 2;
-                    for (int i = 0; i < numDocs; i++) {
-                        final int group = docIdToGroup.get(i);
-                        if (group == 0) {
-                            continue;
-                        }
-                        docIdToGroup.set(i, (group - 1) * totalBuckets + minGroup);
+            final int commonGroup = calculateCommonGroup(lookup, min, max, intervalSize, noGutters);
+            if (commonGroup == 0) {
+                resetGroupsTo(0);
+                finalizeRegroup();
+                return docIdToGroup.getNumGroups();
+            } else if (commonGroup > 0) {
+                // all in one interval
+                final int totalBuckets = noGutters ? numBuckets : numBuckets + 2;
+                // TODO: rewrite on batched get/set after buffer pooling is introduced.
+                for (int i = 0; i < numDocs; i++) {
+                    final int group = docIdToGroup.get(i);
+                    if (group == 0) {
+                        continue;
                     }
-
-                    finalizeRegroup();
-                    return docIdToGroup.getNumGroups();
+                    docIdToGroup.set(i, (group - 1) * totalBuckets + commonGroup);
                 }
+
+                finalizeRegroup();
+                return docIdToGroup.getNumGroups();
             }
         }
 
@@ -1362,6 +1362,31 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         finalizeRegroup();
 
         return docIdToGroup.getNumGroups();
+    }
+
+    // calculate and return common group if exist or -1 if not exist
+    private static int calculateCommonGroup(
+            final IntValueLookup lookup,
+            final long min,
+            final long max,
+            final long intervalSize,
+            final boolean noGutters) {
+        final int numBuckets = (int) (((max - 1) - min) / intervalSize + 1);
+        final long lookupMin = lookup.getMin();
+        final long lookupMax = lookup.getMax();
+        if ((min <= lookupMin) && (lookupMax < max)) {
+            final int minGroup = (int) ((lookupMin - min) / intervalSize + 1);
+            final int maxGroup = (int) ((lookupMax - min) / intervalSize + 1);
+            if (minGroup == maxGroup) {
+                return minGroup;
+            }
+        } else if(lookupMax < min) {
+            return noGutters ? 0 : (numBuckets + 1);
+        } else if(max <= lookupMin) {
+            return noGutters ? 0 : (numBuckets + 1);
+        }
+
+        return -1;
     }
 
     private void internalMetricRegroupGutters(final long min,

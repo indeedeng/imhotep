@@ -51,7 +51,7 @@ class GroupStatCache {
 
         invalidate(stat);
 
-        if (stats[stat] != null && stats[stat].length > newLength) {
+        if (stats[stat] != null && stats[stat].length >= newLength) {
             Arrays.fill(stats[stat], 0);
             return;
         }
