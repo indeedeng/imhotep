@@ -63,7 +63,9 @@ public interface ImhotepServiceCore {
     void handleMergeSubsetFTGSIteratorSplit(String sessionId, Map<String, long[]> intFields, Map<String, String[]> stringFields, OutputStream os, InetSocketAddress[] nodes, int splitIndex) throws IOException;
     void handleGetDocIterator(String sessionId, String[] intFields, String[] stringFields, OutputStream os) throws ImhotepOutOfMemoryException, IOException;
     long handleGetTotalDocFreq(String sessionId, String[] intFields, String[] stringFields);
-    long[] handleGetGroupStats(String sessionId, int stat);
+    GroupStatsIterator handleGetGroupStats(String sessionId, int stat);
+    GroupStatsIterator handleGetDistinct(String sessionId, String field, boolean isIntField);
+    GroupStatsIterator handleMergeDistinctSplit(String sessionId, String field, boolean isIntField, InetSocketAddress[] nodes, int splitIndex);
     List<String> getShardIdsForSession(String sessionId);
     boolean sessionIsValid(String sessionId);
     void handleCloseSession(String sessionId);

@@ -35,6 +35,7 @@ import com.indeed.imhotep.Instrumentation.Keys;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.TermCount;
+import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepServiceCore;
 import com.indeed.imhotep.api.PerformanceStats;
@@ -254,9 +255,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         log.debug("response sent");
     }
 
-    static void sendGroupStat(final long[] groupStats, final OutputStream os) throws IOException {
+    private static void sendGroupStat(final GroupStatsIterator groupStats, final OutputStream os) throws IOException {
         log.debug("sending group stats");
-        ImhotepProtobufShipping.writeArray(groupStats, os);
+        ImhotepProtobufShipping.writeGroupStats(groupStats, os);
         log.debug("group stats sent");
     }
 
@@ -532,23 +533,56 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         private ImhotepResponse getGroupStats(final ImhotepRequest          request,
                                               final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
-            final long[] groupStats =
+            final GroupStatsIterator groupStats =
                     service.handleGetGroupStats(request.getSessionId(),
                             request.getStat());
-            builder.setGroupStatSize(groupStats.length);
-            for(final long groupStat : groupStats) {
-                builder.addGroupStat(groupStat);
+            builder.setGroupStatSize(groupStats.getNumGroups());
+            while (groupStats.hasNext()) {
+                builder.addGroupStat(groupStats.nextLong());
             }
             return builder.build();
         }
 
-        private Pair<ImhotepResponse, long[]> getStreamingGroupStats(final ImhotepRequest request,
+        private Pair<ImhotepResponse, GroupStatsIterator> getStreamingGroupStats(final ImhotepRequest request,
                                                             final ImhotepResponse.Builder builder)
-            throws ImhotepOutOfMemoryException {
-            final long[] groupStats =
+        {
+            final GroupStatsIterator groupStats =
                 service.handleGetGroupStats(request.getSessionId(),
                                             request.getStat());
-            builder.setGroupStatSize(groupStats.length);
+            builder.setGroupStatSize(groupStats.getNumGroups());
+            return Pair.of(builder.build(), groupStats);
+        }
+
+        private Pair<ImhotepResponse, GroupStatsIterator> getDistinct(final ImhotepRequest request,
+                                                          final ImhotepResponse.Builder builder)
+        {
+            final GroupStatsIterator groupStats =
+                    service.handleGetDistinct(request.getSessionId(),
+                            request.getField(), request.getIsIntField());
+            builder.setGroupStatSize(groupStats.getNumGroups());
+            return Pair.of(builder.build(), groupStats);
+        }
+
+        private Pair<ImhotepResponse, GroupStatsIterator> mergeDistinctSplit(final ImhotepRequest request,
+                                                               final ImhotepResponse.Builder builder)
+        {
+            final InetSocketAddress[] nodes =
+                    Lists.transform(request.getNodesList(),
+                            new Function<HostAndPort, InetSocketAddress>() {
+                                public InetSocketAddress apply(final HostAndPort input) {
+                                    return new InetSocketAddress(input.getHost(),
+                                            input.getPort());
+                                }
+                            }).toArray(new InetSocketAddress[request.getNodesCount()]);
+
+            final GroupStatsIterator groupStats =
+                    service.handleMergeDistinctSplit(
+                            request.getSessionId(),
+                            request.getField(),
+                            request.getIsIntField(),
+                            nodes,
+                            request.getSplitIndex());
+            builder.setGroupStatSize(groupStats.getNumGroups());
             return Pair.of(builder.build(), groupStats);
         }
 
@@ -984,7 +1018,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final long requestId = requestIdCounter.incrementAndGet();
 
                 ImhotepResponse response = null;
-                long[] groupStats = null;
+                GroupStatsIterator groupStats = null;
 
                 NDC.push("#" + requestId);
 
@@ -1044,7 +1078,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                             response = getGroupStats(request, builder);
                             break;
                         case STREAMING_GET_GROUP_STATS:
-                            final Pair<ImhotepResponse, long[]> responseAndStat = getStreamingGroupStats(request, builder);
+                            final Pair<ImhotepResponse, GroupStatsIterator> responseAndStat = getStreamingGroupStats(request, builder);
                             response = responseAndStat.getFirst();
                             groupStats = Preconditions.checkNotNull(responseAndStat.getSecond());
                             break;
@@ -1134,6 +1168,16 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                             break;
                         case GET_PERFORMANCE_STATS:
                             response = getPerformanceStats(request, builder);
+                            break;
+                        case GET_DISTINCT:
+                            final Pair<ImhotepResponse, GroupStatsIterator> responseAndDistinct = getDistinct(request, builder);
+                            response = responseAndDistinct.getFirst();
+                            groupStats = Preconditions.checkNotNull(responseAndDistinct.getSecond());
+                            break;
+                        case MERGE_DISTINCT_SPLIT:
+                            final Pair<ImhotepResponse, GroupStatsIterator> responseAndDistinctSplit = mergeDistinctSplit(request, builder);
+                            response = responseAndDistinctSplit.getFirst();
+                            groupStats = Preconditions.checkNotNull(responseAndDistinctSplit.getSecond());
                             break;
                         case SHUTDOWN:
                             shutdown(request, is, os);

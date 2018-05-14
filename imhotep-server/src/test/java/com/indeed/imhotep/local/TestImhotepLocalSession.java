@@ -30,6 +30,7 @@ import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
+import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.group.IterativeHasher;
@@ -2118,5 +2119,81 @@ public class TestImhotepLocalSession {
         } finally {
             TestFileUtils.deleteDirTree(testDir);
         }
+    }
+
+    @Test
+    public void testGetDistinct() throws ImhotepOutOfMemoryException, IOException {
+        final FlamdexReader r = MakeAFlamdex.make();
+        final Path testDir = Files.createTempDirectory("imhotep.test");
+        try (final ImhotepLocalSession session = new ImhotepJavaLocalSession(r,
+                testDir.toString(),
+                new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
+                null)) {
+
+            {
+                final GroupStatsIterator distinct = session.getDistinct("fieldNotExist", true);
+                assertTrue(isEqual(distinct, new long[]{0, 0}));
+            }
+
+            {
+                final GroupStatsIterator distinct = session.getDistinct("if1", true);
+                assertTrue(isEqual(distinct, new long[]{0, 4}));
+            }
+
+            {
+                session.pushStats(Lists.newArrayList("if1", "5", "%"));
+                session.metricRegroup(0, 0, 5, 1);
+                final GroupStatsIterator distinct = session.getDistinct("if1", true);
+                assertTrue(isEqual(distinct, new long[]{0, 1, 1, 1, 1}));
+                session.popStat();
+                session.resetGroupsTo(1);
+            }
+
+            {
+                session.pushStats(Lists.newArrayList("if1", "2", "%"));
+                session.metricRegroup(0, 0, 5, 1);
+                final GroupStatsIterator distinct = session.getDistinct("if1", true);
+                assertTrue(isEqual(distinct, new long[]{0, 1, 3}));
+                session.popStat();
+                session.resetGroupsTo(1);
+            }
+
+            {
+                session.pushStat("docId()");
+                session.metricRegroup(0, 0, 20, 1);
+                final GroupStatsIterator distinct = session.getDistinct("sf2", false);
+                assertTrue(isEqual(distinct, new long[]{0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1}));
+                session.popStat();
+                session.resetGroupsTo(1);
+            }
+
+        } finally {
+            TestFileUtils.deleteDirTree(testDir);
+        }
+    }
+
+    private static boolean isEqual(final GroupStatsIterator iterator, final long[] array) {
+        final int commonLen = Math.min(iterator.getNumGroups(), array.length);
+        for (int i = 0; i < commonLen; i++) {
+            if (!iterator.hasNext()) {
+                throw new IllegalStateException();
+            }
+            if (iterator.nextLong() != array[i]) {
+                return false;
+            }
+        }
+
+        for (int i = commonLen; i < iterator.getNumGroups(); i++ ) {
+            if (iterator.nextLong() != 0) {
+                return false;
+            }
+        }
+
+        for (int i = commonLen; i < array.length; i++) {
+            if (array[i] != 0) {
+                return false;
+            }
+        }
+        return true;
     }
 }

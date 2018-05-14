@@ -16,9 +16,9 @@
 import com.google.common.base.Throwables;
 import com.google.common.io.Closer;
 import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.HasSessionId;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
-import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.imhotep.marshal.ImhotepClientMarshaller;
@@ -37,7 +37,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * @author jsgroth
  */
-public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<ImhotepSession> implements HasSessionId {
+public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<ImhotepRemoteSession> implements HasSessionId {
     private static final Logger log = Logger.getLogger(RemoteImhotepMultiSession.class);
 
     private final String sessionId;
@@ -45,7 +45,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
 
     private final long localTempFileSizeLimit;
 
-    public RemoteImhotepMultiSession(final ImhotepSession[] sessions,
+    public RemoteImhotepMultiSession(final ImhotepRemoteSession[] sessions,
                                      final String sessionId,
                                      final InetSocketAddress[] nodes,
                                      final long localTempFileSizeLimit,
@@ -90,7 +90,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields, final long termLimit, final int sortStat) {
-        final Pair<Integer, ImhotepSession>[] indexesAndSessions = new Pair[sessions.length];
+        final Pair<Integer, ImhotepRemoteSession>[] indexesAndSessions = new Pair[sessions.length];
         for (int i = 0; i < sessions.length; i++) {
             indexesAndSessions[i] = Pair.of(i, sessions[i]);
         }
@@ -98,9 +98,9 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         final Closer closer = Closer.create();
         closer.register(Closeables2.forArray(log, mergers));
         try {
-            execute(mergers, indexesAndSessions, new ThrowingFunction<Pair<Integer, ImhotepSession>, RawFTGSIterator>() {
-                public RawFTGSIterator apply(final Pair<Integer, ImhotepSession> indexSessionPair) {
-                    final ImhotepSession session = indexSessionPair.getSecond();
+            execute(mergers, indexesAndSessions, new ThrowingFunction<Pair<Integer, ImhotepRemoteSession>, RawFTGSIterator>() {
+                public RawFTGSIterator apply(final Pair<Integer, ImhotepRemoteSession> indexSessionPair) {
+                    final ImhotepRemoteSession session = indexSessionPair.getSecond();
                     final int index = indexSessionPair.getFirst();
                     return session.mergeFTGSSplit(intFields, stringFields, sessionId, nodes, index, termLimit, sortStat);
                 }
@@ -123,7 +123,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
 
     @Override
     public RawFTGSIterator[] getSubsetFTGSIteratorSplits(final Map<String, long[]> intFields, final Map<String, String[]> stringFields) {
-        final Pair<Integer, ImhotepSession>[] indexesAndSessions = new Pair[sessions.length];
+        final Pair<Integer, ImhotepRemoteSession>[] indexesAndSessions = new Pair[sessions.length];
         for (int i = 0; i < sessions.length; i++) {
             indexesAndSessions[i] = Pair.of(i, sessions[i]);
         }
@@ -131,9 +131,9 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         final Closer closer = Closer.create();
         closer.register(Closeables2.forArray(log, mergers));
         try {
-            execute(mergers, indexesAndSessions, new ThrowingFunction<Pair<Integer, ImhotepSession>, RawFTGSIterator>() {
-                public RawFTGSIterator apply(final Pair<Integer, ImhotepSession> indexSessionPair) {
-                    final ImhotepSession session = indexSessionPair.getSecond();
+            execute(mergers, indexesAndSessions, new ThrowingFunction<Pair<Integer, ImhotepRemoteSession>, RawFTGSIterator>() {
+                public RawFTGSIterator apply(final Pair<Integer, ImhotepRemoteSession> indexSessionPair) {
+                    final ImhotepRemoteSession session = indexSessionPair.getSecond();
                     final int index = indexSessionPair.getFirst();
                     return session.mergeSubsetFTGSSplit(intFields, stringFields, sessionId, nodes, index);
                 }
@@ -143,6 +143,34 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             throw Throwables.propagate(t);
         }
         return mergers;
+    }
+
+    @Override
+    public GroupStatsIterator getDistinct(final String field, final boolean isIntField) {
+        if (sessions.length == 1) {
+            return sessions[0].getDistinct(field, isIntField);
+        }
+
+        final Pair<Integer, ImhotepRemoteSession>[] indexesAndSessions = new Pair[sessions.length];
+        for (int i = 0; i < sessions.length; i++) {
+            indexesAndSessions[i] = Pair.of(i, sessions[i]);
+        }
+        final GroupStatsIterator[] mergers = new GroupStatsIterator[sessions.length];
+        final Closer closer = Closer.create();
+        try {
+            execute(mergers, indexesAndSessions, new ThrowingFunction<Pair<Integer, ImhotepRemoteSession>, GroupStatsIterator>() {
+                public GroupStatsIterator apply(final Pair<Integer, ImhotepRemoteSession> indexSessionPair) {
+                    final ImhotepRemoteSession session = indexSessionPair.getSecond();
+                    final int index = indexSessionPair.getFirst();
+                    return session.mergeDistinctSplit(field, isIntField, sessionId, nodes, index);
+                }
+            });
+        } catch (final Throwable t) {
+            Closeables2.closeQuietly(closer, log);
+            throw Throwables.propagate(t);
+        }
+
+        return new GroupStatsIteratorCombiner(mergers);
     }
 
     // Overrides the AbstractImhotepMultiSession implementation to avoid each sub-session constructing a separate copy
@@ -159,9 +187,9 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
 
     @Override
     public int regroupWithProtos(final GroupMultiRemapMessage[] rawRuleMessages, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
-        executeMemoryException(integerBuf, new ThrowingFunction<ImhotepSession, Integer>() {
+        executeMemoryException(integerBuf, new ThrowingFunction<ImhotepRemoteSession, Integer>() {
             @Override
-            public Integer apply(final ImhotepSession session) throws ImhotepOutOfMemoryException{
+            public Integer apply(final ImhotepRemoteSession session) throws ImhotepOutOfMemoryException{
                 return session.regroupWithProtos(rawRuleMessages, errorOnCollisions);
             }
         });

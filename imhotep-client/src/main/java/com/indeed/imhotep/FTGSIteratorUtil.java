@@ -17,6 +17,7 @@ package com.indeed.imhotep;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.imhotep.io.LimitedBufferedOutputStream;
 import com.indeed.imhotep.io.TempFileSizeLimitExceededException;
@@ -250,5 +251,23 @@ public class FTGSIteratorUtil {
             return makeUnsortedRawIfPossible((RawFTGSIterator)iterator);
         }
         return iterator;
+    }
+
+    public static GroupStatsIterator calculateDistinct(final FTGSIterator iterator, final int numGroups) {
+        final FTGSIterator unsortedFtgs = FTGSIteratorUtil.makeUnsortedIfPossible(iterator);
+
+        if (!unsortedFtgs.nextField()) {
+            return new GroupStatsDummyIterator(new long[0]);
+        }
+
+        final long[] result = new long[numGroups];
+        while (unsortedFtgs.nextTerm()) {
+            while (unsortedFtgs.nextGroup()) {
+                final int group = unsortedFtgs.group();
+                result[group]++;
+            }
+        }
+
+        return new GroupStatsDummyIterator(result);
     }
 }
