@@ -365,10 +365,16 @@ class ShardMap
                                     dataset,
                                     shardDir.getId());
                     lock.lock();
-                    putShard(dataset, shard);
-                    log.debug("loading shard " + shardDir.getId() +
-                            " from " + shardDir.getIndexDir());
-                    return true;
+                    // Another shard could be added while we were not locked.
+                    // Check once again that this shard is still newest one.
+                    if (isNewerThan(shardDir, getShard(dataset, shardDir.getId()))) {
+                        log.debug("loading shard " + shardDir.getId() +
+                                " from " + shardDir.getIndexDir());
+                        putShard(dataset, shard);
+                        return true;
+                    } else {
+                        return false;
+                    }
                 } catch (final Exception ex) {
                     log.warn("error loading shard at " + shardDir.getIndexDir(), ex);
                     return false;
