@@ -43,6 +43,7 @@ import com.indeed.util.varexport.VarExporter;
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+import org.joda.time.Period;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -247,10 +248,11 @@ public class LocalImhotepServiceCore
         public void run() {
             try {
                 log.info("Attempting reload of shards");
+                final DateTime start = new DateTime();
                 final ShardMap newShardMap = new ShardMap(shardMap.get(), shardDirIterator);
                 if(newShardMap.size() > 0) {
                     setShardMap(newShardMap, ShardUpdateListenerIf.Source.FILESYSTEM);
-                    log.debug("Finished reloading shards");
+                    log.debug("Finished reloading shards in " + new Period(start, new DateTime()));
                 } else {
                     log.warn("ShardMaster returned 0 shards. Going to keep using the old ShardMap instead.");
                 }

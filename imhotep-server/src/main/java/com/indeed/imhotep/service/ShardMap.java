@@ -30,6 +30,7 @@ import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.ReloadableSharedReference;
 import com.indeed.util.core.reference.SharedReference;
+import com.indeed.util.core.threads.NamedThreadFactory;
 import it.unimi.dsi.fastutil.objects.Object2IntAVLTreeMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -47,7 +48,10 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /** ShardMap is the data structure used by LocalImhotepServiceCore to keep track
     of which shards reside on the host on which it is running. It's an unordered
@@ -66,6 +70,8 @@ class ShardMap
     extends Object2ObjectOpenHashMap<String, Object2ObjectOpenHashMap<String, Shard>> {
 
     private static final Logger log = Logger.getLogger(ShardMap.class);
+
+    private static final int IO_THREAD_COUNT = 4;
 
     /** This class serves as a factory for FlamdexReaders, albeit in a
         roundabout fashion. In order to do so, it needs access to these
@@ -139,8 +145,25 @@ class ShardMap
 
         this(reference.memory, reference.flamdexReaderSource, reference.freeCache);
 
+        final Lock lock = new ReentrantLock(false);
+
+        final ThreadPoolExecutor executor = new BlockingThreadPoolExecutor(IO_THREAD_COUNT, IO_THREAD_COUNT,
+                new NamedThreadFactory("ShardMapUpdate", true, log));
+
         for (final Pair<String, ShardDir> shard : shardDirIterator) {
-            track(reference, shard.getFirst(), shard.getSecond());
+            executor.submit(() -> {
+                try {
+                    track(reference, shard.getFirst(), shard.getSecond(), lock);
+                } catch (Exception e) {
+                    log.error("Error tracking shard " + shard.getSecond().getIndexDir(), e);
+                }
+            });
+        }
+        executor.shutdown();
+        try {
+            executor.awaitTermination(30, TimeUnit.MINUTES);
+        } catch (InterruptedException e) {
+            log.warn("Interrupted waiting for shard updater executor to finish", e);
         }
     }
 
@@ -322,37 +345,43 @@ class ShardMap
         return !shardDir.getIndexDir().equals(shard.getIndexDir());
     }
 
-    private boolean track(final ShardMap reference, final String dataset, final ShardDir shardDir) {
-        final Shard referenceShard = reference.getShard(dataset, shardDir.getId());
-        final Shard currentShard   = getShard(dataset, shardDir.getId());
+    private boolean track(final ShardMap reference, final String dataset, final ShardDir shardDir, Lock lock) {
+        // ShardMap is not thread safe so use locking for its operations
+        lock.lock();
+        try {
+            final Shard referenceShard = reference.getShard(dataset, shardDir.getId());
+            final Shard currentShard = getShard(dataset, shardDir.getId());
 
-        if (isNewerThan(shardDir, referenceShard) && isNewerThan(shardDir, currentShard)) {
-            final ReloadableSharedReference.Loader<CachedFlamdexReader, IOException>
-                loader = newLoader(shardDir.getIndexDir(), dataset, shardDir.getName());
-            try {
-                final Shard shard =
-                    new Shard(ReloadableSharedReference.create(loader),
-                              shardDir.getVersion(),
-                              shardDir.getIndexDir(),
-                              dataset,
-                              shardDir.getId());
-                putShard(dataset, shard);
-                log.debug("loading shard " + shardDir.getId() +
-                          " from " + shardDir.getIndexDir());
-                return true;
+            if (isNewerThan(shardDir, referenceShard) && isNewerThan(shardDir, currentShard)) {
+                final ReloadableSharedReference.Loader<CachedFlamdexReader, IOException>
+                        loader = newLoader(shardDir.getIndexDir(), dataset, shardDir.getName());
+                try {
+                    lock.unlock();
+                    // Allow HDFS access to happen concurrently
+                    final Shard shard =
+                            new Shard(ReloadableSharedReference.create(loader),
+                                    shardDir.getVersion(),
+                                    shardDir.getIndexDir(),
+                                    dataset,
+                                    shardDir.getId());
+                    lock.lock();
+                    putShard(dataset, shard);
+                    log.debug("loading shard " + shardDir.getId() +
+                            " from " + shardDir.getIndexDir());
+                    return true;
+                } catch (final Exception ex) {
+                    log.warn("error loading shard at " + shardDir.getIndexDir(), ex);
+                    return false;
+                }
+            } else if ((currentShard != null) && currentShard.isNewerThan(referenceShard)) {
+                putShard(dataset, currentShard);
+            } else {
+                putShard(dataset, referenceShard);
             }
-            catch (final Exception ex) {
-                log.warn("error loading shard at " + shardDir.getIndexDir(), ex);
-                return false;
-            }
+            return false;
+        } finally {
+            lock.unlock();
         }
-        else if ((currentShard != null) && currentShard.isNewerThan(referenceShard)) {
-            putShard(dataset, currentShard);
-        }
-        else {
-            putShard(dataset, referenceShard);
-        }
-        return false;
     }
 
     private void putShardToShardStore(final ShardStore shardStore, final ShardStore.Key key, final ShardDir shardDir, final Shard shard) throws IOException {
