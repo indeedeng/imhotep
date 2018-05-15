@@ -310,10 +310,15 @@ public final class MultiCache implements Closeable {
         }
 
         @Override
-        public int nextGroupCallback(final int n, final long[][] termGrpStats, final BitTree groupsSeen) {
+        public int nextGroupCallback(final int n,
+                                     final long[][] termGrpStats,
+                                     final BitTree groupsSeen,
+                                     final int[] docIdBuf,
+                                     final long[] valBuf,
+                                     final int[] docGroupBuffer) {
             /* collect group ids for docs */
             nativeFillGroupsBuffer(MultiCache.this.nativeShardDataPtr,
-                                   MultiCache.this.session.docIdBuf,
+                                   docIdBuf,
                                    this.groups_buffer,
                                    n);
 
@@ -326,20 +331,20 @@ public final class MultiCache implements Closeable {
                     continue;
                 }
 
-                final int docId = MultiCache.this.session.docIdBuf[i];
-                MultiCache.this.session.docGroupBuffer[rewriteHead] = group;
-                MultiCache.this.session.docIdBuf[rewriteHead] = docId;
+                final int docId = docIdBuf[i];
+                docGroupBuffer[rewriteHead] = group;
+                docIdBuf[rewriteHead] = docId;
                 rewriteHead++;
             }
-            groupsSeen.set(MultiCache.this.session.docGroupBuffer, rewriteHead);
+            groupsSeen.set(docGroupBuffer, rewriteHead);
 
             if (rewriteHead > 0) {
-                for (int statIndex = 0; statIndex < MultiCache.this.session.numStats; statIndex++) {
-                    ImhotepJavaLocalSession.updateGroupStatsDocIdBuf(MultiCache.this.session.statLookup.get(statIndex),
+                for (int statIndex = 0; statIndex < session.numStats; statIndex++) {
+                    ImhotepJavaLocalSession.updateGroupStatsDocIdBuf(session.statLookup.get(statIndex),
                                                                      termGrpStats[statIndex],
-                                                                     MultiCache.this.session.docGroupBuffer,
-                                                                     MultiCache.this.session.docIdBuf,
-                                                                     MultiCache.this.session.valBuf,
+                                                                     docGroupBuffer,
+                                                                     docIdBuf,
+                                                                     valBuf,
                                                                      rewriteHead);
                 }
             }
@@ -352,23 +357,24 @@ public final class MultiCache implements Closeable {
         @Override
         public void applyIntConditionsCallback(
                 final int n,
+                final int[] docIdBuf,
                 final ThreadSafeBitSet docRemapped,
                 final GroupRemapRule[] remapRules,
                 final String intField,
                 final long itrTerm) {
             /* collect group ids for docs */
-            nativeFillGroupsBuffer(MultiCache.this.nativeShardDataPtr,
-                                   MultiCache.this.session.docIdBuf,
-                                   this.groups_buffer,
+            nativeFillGroupsBuffer(nativeShardDataPtr,
+                                   docIdBuf,
+                                   groups_buffer,
                                    n);
 
             for (int i = 0; i < n; i++) {
-                final int docId = MultiCache.this.session.docIdBuf[i];
+                final int docId = docIdBuf[i];
                 if (docRemapped.get(docId)) {
                     continue;
                 }
 
-                final int group = this.groups_buffer[i];
+                final int group = groups_buffer[i];
                 if (remapRules[group] == null) {
                     continue;
                 }
@@ -383,27 +389,28 @@ public final class MultiCache implements Closeable {
                 docRemapped.set(docId);
             }
             /* write updated groups back to the native table/lookup */
-            nativeUpdateGroups(MultiCache.this.nativeShardDataPtr,
-                               MultiCache.this.session.docIdBuf,
-                               this.remap_buffer,
+            nativeUpdateGroups(nativeShardDataPtr,
+                               docIdBuf,
+                               remap_buffer,
                                n);
         }
 
         @Override
         public void applyStringConditionsCallback(
                 final int n,
+                final int[] docIdBuf,
                 final ThreadSafeBitSet docRemapped,
                 final GroupRemapRule[] remapRules,
                 final String stringField,
                 final String itrTerm) {
             /* collect group ids for docs */
-            nativeFillGroupsBuffer(MultiCache.this.nativeShardDataPtr,
-                                   MultiCache.this.session.docIdBuf,
-                                   this.groups_buffer,
+            nativeFillGroupsBuffer(nativeShardDataPtr,
+                                   docIdBuf,
+                                   groups_buffer,
                                    n);
 
             for (int i = 0; i < n; i++) {
-                final int docId = session.docIdBuf[i];
+                final int docId = docIdBuf[i];
                 if (docRemapped.get(docId)) {
                     continue;
                 }
@@ -422,9 +429,9 @@ public final class MultiCache implements Closeable {
                 docRemapped.set(docId);
             }
             /* write updated groups back to the native table/lookup */
-            nativeUpdateGroups(MultiCache.this.nativeShardDataPtr,
-                               MultiCache.this.session.docIdBuf,
-                               this.remap_buffer,
+            nativeUpdateGroups(nativeShardDataPtr,
+                               docIdBuf,
+                               remap_buffer,
                                n);
         }
 

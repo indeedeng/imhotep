@@ -444,13 +444,20 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
     @Override
     public synchronized long[] getGroupStats(final int stat) {
         if (groupStats.isDirty(stat)) {
+            final int[] docIdBuffer = memoryPool.getIntBuffer(ImhotepLocalSession.BUFFER_SIZE, true);
+            final int[] docGroupBuffer = memoryPool.getIntBuffer(ImhotepLocalSession.BUFFER_SIZE, true);
+            final long[] valueBuffer = memoryPool.getLongBuffer(ImhotepLocalSession.BUFFER_SIZE, true);
+
             updateGroupStatsAllDocs(statLookup.get(stat),
                                     groupStats.get(stat),
                                     docIdToGroup,
                                     docGroupBuffer,
-                                    docIdBuf,
-                                    valBuf);
+                                    docIdBuffer,
+                                    valueBuffer);
             groupStats.validate(stat);
+            memoryPool.returnIntBuffer(docIdBuffer);
+            memoryPool.returnIntBuffer(docGroupBuffer);
+            memoryPool.returnLongBuffer(valueBuffer);
         }
         return groupStats.get(stat);
     }

@@ -30,6 +30,8 @@ import com.indeed.imhotep.service.InstrumentedFlamdexReader;
 import com.indeed.util.core.reference.SharedReference;
 import org.apache.log4j.Logger;
 
+import java.io.Closeable;
+
 /**
  * @author jplaisance
  */
@@ -78,7 +80,9 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
     public abstract boolean nextField();
 
     @Override
-    public abstract void close();
+    public void close() {
+        calculator.close();
+    }
 
     @Override
     public final String fieldName() {
@@ -114,11 +118,24 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
         return calculator.calculateTermGroupStats();
     }
 
-    private interface TermGroupStatsCalculator {
+    private interface TermGroupStatsCalculator extends Closeable {
         boolean calculateTermGroupStats();
+
+        @Override
+        void close();
     }
 
     private class DefaultCalculator implements TermGroupStatsCalculator {
+        private int[] docIdBuf;
+        private int[] docGroupBuf;
+        private long[] valBuf;
+
+        private DefaultCalculator() {
+            docIdBuf = session.memoryPool.getIntBuffer(ImhotepLocalSession.BUFFER_SIZE, true);
+            docGroupBuf = session.memoryPool.getIntBuffer(ImhotepLocalSession.BUFFER_SIZE, true);
+            valBuf = session.memoryPool.getLongBuffer(ImhotepLocalSession.BUFFER_SIZE, true);
+        }
+
         @Override
         public boolean calculateTermGroupStats() {
             // clear out ram from previous iterations if necessary
@@ -139,12 +156,13 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
                     if (ImhotepLocalSession.logTiming) {
                         docsTime -= System.nanoTime();
                     }
-                    final int n = fillDocIdBuffer();
+                    final int n = fillDocIdBuffer(docIdBuf);
                     if (ImhotepLocalSession.logTiming) {
                         docsTime += System.nanoTime();
                         lookupsTime -= System.nanoTime();
                     }
-                    session.docIdToGroup.nextGroupCallback(n, termGrpStats, bitTree);
+                    session.docIdToGroup.nextGroupCallback(n, termGrpStats, bitTree, docIdBuf, valBuf, docGroupBuf);
+
                     if (ImhotepLocalSession.logTiming) {
                         lookupsTime += System.nanoTime();
                         timingErrorTime -= System.nanoTime();
@@ -161,9 +179,27 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
             resetGroupStats = false;
             return groupsSeenCount > 0;
         }
+
+        @Override
+        public synchronized void close() {
+            if (docIdBuf != null) {
+                session.memoryPool.returnIntBuffer(docIdBuf);
+                docIdBuf = null;
+            }
+
+            if (docGroupBuf != null) {
+                session.memoryPool.returnIntBuffer(docGroupBuf);
+                docGroupBuf = null;
+            }
+
+            if (valBuf != null) {
+                session.memoryPool.returnLongBuffer(valBuf);
+                valBuf = null;
+            }
+        }
     }
 
-    protected abstract int fillDocIdBuffer();
+    protected abstract int fillDocIdBuffer(final int[] docIdBuf);
 
     @Override
     public final int group() {
@@ -225,11 +261,23 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
                 return false;
             }
         }
+
+        @Override
+        public void close() {
+        }
     }
 
     // All documents in one group or in zero group, no stats
     private class BitSetGroupNoStatsCalculator implements TermGroupStatsCalculator {
+        private int[] docIdBuf;
+        private int[] docGroupBuf;
+        private long[] valBuf;
+
         private BitSetGroupNoStatsCalculator(final int group) {
+            docIdBuf = session.memoryPool.getIntBuffer(ImhotepLocalSession.BUFFER_SIZE, true);
+            docGroupBuf = session.memoryPool.getIntBuffer(ImhotepLocalSession.BUFFER_SIZE, true);
+            valBuf = session.memoryPool.getLongBuffer(ImhotepLocalSession.BUFFER_SIZE, true);
+
             // only one group can appear in result.
             // filling it here and managing existence of group with groupsSeenCount = 0 or 1
             groupsSeen[0] = group;
@@ -245,12 +293,13 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
                     if (ImhotepLocalSession.logTiming) {
                         docsTime -= System.nanoTime();
                     }
-                    final int n = fillDocIdBuffer();
+                    final int n = fillDocIdBuffer(docIdBuf);
                     if (ImhotepLocalSession.logTiming) {
                         docsTime += System.nanoTime();
                         lookupsTime -= System.nanoTime();
                     }
-                    final int processed = session.docIdToGroup.nextGroupCallback(n, termGrpStats, bitTree);
+                    final int processed = session.docIdToGroup.nextGroupCallback(n, termGrpStats, bitTree, docIdBuf, valBuf, docGroupBuf);
+
                     if (ImhotepLocalSession.logTiming) {
                         lookupsTime += System.nanoTime();
                         timingErrorTime -= System.nanoTime();
@@ -269,6 +318,16 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
                     }
                 }
             }
+        }
+
+        @Override
+        public void close() {
+            session.memoryPool.returnIntBuffer(docIdBuf);
+            session.memoryPool.returnIntBuffer(docGroupBuf);
+            session.memoryPool.returnLongBuffer(valBuf);
+            docIdBuf = null;
+            docGroupBuf = null;
+            valBuf = null;
         }
     }
 

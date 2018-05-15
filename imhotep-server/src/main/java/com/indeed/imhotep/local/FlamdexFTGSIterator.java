@@ -80,6 +80,7 @@ class FlamdexFTGSIterator extends AbstractFlamdexFTGSIterator {
 
     @Override
     public final void close() {
+        super.close();
         synchronized (session) {
             Closeables2.closeQuietly(intTermDocIterator, ImhotepLocalSession.log);
             intTermDocIterator = null;
@@ -132,7 +133,7 @@ class FlamdexFTGSIterator extends AbstractFlamdexFTGSIterator {
         return stringTermDocIterator.term();
     }
 
-    protected int fillDocIdBuffer() {
-        return (currentFieldIsIntType?intTermDocIterator:stringTermDocIterator).fillDocIdBuffer(session.docIdBuf);
+    protected int fillDocIdBuffer(final int[] docIdBuf) {
+        return (currentFieldIsIntType?intTermDocIterator:stringTermDocIterator).fillDocIdBuffer(docIdBuf);
     }
 }
