@@ -1383,7 +1383,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         } else if(lookupMax < min) {
             return noGutters ? 0 : (numBuckets + 1);
         } else if(max <= lookupMin) {
-            return noGutters ? 0 : (numBuckets + 1);
+            return noGutters ? 0 : (numBuckets + 2);
         }
 
         return -1;

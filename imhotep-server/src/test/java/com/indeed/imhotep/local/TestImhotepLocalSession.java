@@ -170,13 +170,37 @@ public class TestImhotepLocalSession {
 
         try (final ImhotepLocalSession session = new ImhotepJavaLocalSession(r)) {
             session.pushStat("if1");
-            final int numGroups = session.metricRegroup(0, -100, 25, 25, true);
-            assertEquals(6, numGroups); // 5 buckets, no gutters, group 0
-
-            final int[] docIdToGroup = new int[10];
-            session.exportDocIdToGroupId(docIdToGroup);
-            assertEquals(Arrays.asList(5, 5, 5, 5, 5, 5, 5, 5, 5, 5), Ints.asList(docIdToGroup));
+            // 5 buckets, no gutters, group 0
+            assertTrue(testMetricRegroupOneBucket(session, -100, 25, 25, true, 5));
+            // everything is filtered out, only group 0
+            assertTrue(testMetricRegroupOneBucket(session, -1, 0, 1, true, 0));
+            // all doc values are smaller
+            assertTrue(testMetricRegroupOneBucket(session, 100, 105, 1, false, 6));
+            // all doc values are greater
+            assertTrue(testMetricRegroupOneBucket(session, -105, -100, 1, false, 7));
         }
+    }
+
+    private boolean testMetricRegroupOneBucket(
+            final ImhotepLocalSession session,
+            final int min,
+            final int max,
+            final int intervalSize,
+            final boolean noGutters,
+            final int expectedGroup) throws ImhotepOutOfMemoryException {
+        session.resetGroups();
+        final int numGroups = session.metricRegroup(0, min, max, intervalSize, noGutters);
+        if (numGroups != (expectedGroup + 1)) {
+            return false;
+        }
+        final int[] docIdToGroup = new int[10];
+        session.exportDocIdToGroupId(docIdToGroup);
+        for (final int group : docIdToGroup) {
+            if (group != expectedGroup) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Test
