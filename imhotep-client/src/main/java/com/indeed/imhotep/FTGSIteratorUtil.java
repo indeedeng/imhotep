@@ -89,72 +89,77 @@ public class FTGSIteratorUtil {
     }
 
     public static TopTermsRawFTGSIterator getTopTermsFTGSIterator(final FTGSIterator originalIterator, final long termLimit, final int numStats, final int sortStat) {
-        final long[] statBuf = new long[numStats];
-        final TopTermsStatsByField topTermsFTGS = new TopTermsStatsByField();
+        try {
+            final long[] statBuf = new long[numStats];
+            final TopTermsStatsByField topTermsFTGS = new TopTermsStatsByField();
 
-        // We don't care about sorted stuff since we will sort by term afterward
-        final FTGSIterator iterator = makeUnsortedIfPossible(originalIterator);
+            // We don't care about sorted stuff since we will sort by term afterward
+            final FTGSIterator iterator = makeUnsortedIfPossible(originalIterator);
 
-        while (iterator.nextField()) {
-            final String fieldName = iterator.fieldName();
-            final boolean fieldIsIntType = iterator.fieldIsIntType();
+            while (iterator.nextField()) {
+                final String fieldName = iterator.fieldName();
+                final boolean fieldIsIntType = iterator.fieldIsIntType();
 
-            final TIntObjectHashMap<PriorityQueue<TermStat>> topTermsByGroup = new TIntObjectHashMap<>();
+                final TIntObjectHashMap<PriorityQueue<TermStat>> topTermsByGroup = new TIntObjectHashMap<>();
 
-            while (iterator.nextTerm()) {
-                final long termIntVal = fieldIsIntType ? iterator.termIntVal() : 0;
-                final String termStringVal = fieldIsIntType ? null : iterator.termStringVal();
-                final long termDocFreq = iterator.termDocFreq();
+                while (iterator.nextTerm()) {
+                    final long termIntVal = fieldIsIntType ? iterator.termIntVal() : 0;
+                    final String termStringVal = fieldIsIntType ? null : iterator.termStringVal();
+                    final long termDocFreq = iterator.termDocFreq();
 
-                while (iterator.nextGroup()) {
-                    PriorityQueue<TermStat> topTerms = topTermsByGroup.get(iterator.group());
-                    if (topTerms == null) {
-                        topTerms = new PriorityQueue<>(10, TermStat.TOP_STAT_COMPARATOR);
-                        topTermsByGroup.put(iterator.group(), topTerms);
-                    }
+                    while (iterator.nextGroup()) {
+                        PriorityQueue<TermStat> topTerms = topTermsByGroup.get(iterator.group());
+                        if (topTerms == null) {
+                            topTerms = new PriorityQueue<>(10, TermStat.TOP_STAT_COMPARATOR);
+                            topTermsByGroup.put(iterator.group(), topTerms);
+                        }
 
-                    iterator.groupStats(statBuf);
-                    final long stat = statBuf[sortStat];
+                        iterator.groupStats(statBuf);
+                        final long stat = statBuf[sortStat];
 
-                    final TermStat termStat = new TermStat(fieldIsIntType, termIntVal, termStringVal, termDocFreq, iterator.group(), stat, statBuf.clone());
-                    if (topTerms.size() >= termLimit) {
-                        if (TermStat.TOP_STAT_COMPARATOR.compare(termStat, topTerms.peek()) > 0) {
-                            topTerms.poll();
+                        final TermStat termStat = new TermStat(fieldIsIntType, termIntVal, termStringVal, termDocFreq, iterator.group(), stat, statBuf.clone());
+                        if (topTerms.size() >= termLimit) {
+                            if (TermStat.TOP_STAT_COMPARATOR.compare(termStat, topTerms.peek()) > 0) {
+                                topTerms.poll();
+                                topTerms.offer(termStat);
+                            }
+                        } else {
                             topTerms.offer(termStat);
                         }
-                    } else {
-                        topTerms.offer(termStat);
                     }
                 }
+
+                final MutableInt termsAndGroups = new MutableInt(0);
+                topTermsByGroup.forEachValue(new TObjectProcedure<PriorityQueue<TermStat>>() {
+                    @Override
+                    public boolean execute(final PriorityQueue<TermStat> topTerms) {
+                        termsAndGroups.add(topTerms.size());
+                        return true;
+                    }
+                });
+
+                final TermStat[] topTermsArray = new TermStat[termsAndGroups.intValue()];
+
+                topTermsByGroup.forEachEntry(new TIntObjectProcedure<PriorityQueue<TermStat>>() {
+                    private int i = 0;
+
+                    @Override
+                    public boolean execute(final int group, final PriorityQueue<TermStat> topTerms) {
+                        for (final TermStat term : topTerms) {
+                            topTermsArray[i++] = term;
+                        }
+                        return true;
+                    }
+                });
+
+                Arrays.sort(topTermsArray, new TermStat.TermGroupComparator());
+                topTermsFTGS.addField(fieldName, fieldIsIntType, topTermsArray);
             }
 
-            final MutableInt termsAndGroups = new MutableInt(0);
-            topTermsByGroup.forEachValue(new TObjectProcedure<PriorityQueue<TermStat>>() {
-                @Override
-                public boolean execute(final PriorityQueue<TermStat> topTerms) {
-                    termsAndGroups.add(topTerms.size());
-                    return true;
-                }
-            });
-
-            final TermStat[] topTermsArray = new TermStat[termsAndGroups.intValue()];
-
-            topTermsByGroup.forEachEntry(new TIntObjectProcedure<PriorityQueue<TermStat>>() {
-                private int i = 0;
-                @Override
-                public boolean execute(final int group, final PriorityQueue<TermStat> topTerms) {
-                    for (final TermStat term : topTerms) {
-                        topTermsArray[i++] = term;
-                    }
-                    return true;
-                }
-            });
-
-            Arrays.sort(topTermsArray, new TermStat.TermGroupComparator());
-            topTermsFTGS.addField(fieldName, fieldIsIntType, topTermsArray);
+            return new TopTermsRawFTGSIterator(topTermsFTGS);
+        } finally {
+            originalIterator.close();
         }
-
-        return new TopTermsRawFTGSIterator(topTermsFTGS);
     }
 
     static class TermStat {

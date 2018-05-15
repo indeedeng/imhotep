@@ -545,8 +545,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             try {
                 ftgsIteratorSplits = new FTGSSplitter(getFTGSIterator(intFields, stringFields, termLimit),
                                                       numSplits, numStats,
-                                                      969168349, tempFileSizeBytesLeft,
-                                                      threadFactory);
+                                                      969168349, tempFileSizeBytesLeft);
             } catch (final IOException e) {
                 throw Throwables.propagate(e);
             }
@@ -586,8 +585,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             try {
                 ftgsIteratorSplits = new FTGSSplitter(getSubsetFTGSIterator(intFields, stringFields),
                                                       numSplits, numStats,
-                                                      969168349, tempFileSizeBytesLeft,
-                                                      threadFactory);
+                                                      969168349, tempFileSizeBytesLeft);
             } catch (final IOException e) {
                 throw Throwables.propagate(e);
             }
