@@ -2704,6 +2704,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                     }
                 }
             }
+            memoryPool.returnIntBuffer(docIdBuf);
             itr.close();
         }
     }
@@ -3037,11 +3038,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                             }
                         }
                         if (n < BUFFER_SIZE) {
-                            memoryPool.returnIntBuffer(docIdBuf);
                             break;
                         }
                     }
                 }
+                memoryPool.returnIntBuffer(docIdBuf);
             }
         }
 
@@ -3111,10 +3112,10 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                         }
                     }
                     if (n < BUFFER_SIZE) {
-                        memoryPool.returnIntBuffer(docIdBuf);
                         break;
                     }
                 }
+                memoryPool.returnIntBuffer(docIdBuf);
             }
         } finally {
             Closeables2.closeQuietly(iterator, log);
