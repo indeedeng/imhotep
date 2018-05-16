@@ -15,14 +15,11 @@
 package com.indeed.imhotep.service;
 
 import com.indeed.flamdex.api.FlamdexReader;
-import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.api.RawFlamdexReader;
 import com.indeed.imhotep.DynamicIndexSubshardDirnameUtil;
-import com.indeed.imhotep.ImhotepMemoryCache;
 import com.indeed.imhotep.ImhotepStatusDump.ShardDump;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.MemoryReserver;
-import com.indeed.imhotep.MetricKey;
 import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.io.Shard;
 import com.indeed.lsmtree.core.Store;
@@ -78,7 +75,6 @@ class ShardMap
         resources (owned by LocalImhotepServiceCore). */
     private final MemoryReserver      memory;
     private final FlamdexReaderSource flamdexReaderSource;
-    private final ImhotepMemoryCache<MetricKey, IntValueLookup> freeCache;
 
     private final ExecutorService threadPool = Executors.newCachedThreadPool();
 
@@ -92,11 +88,9 @@ class ShardMap
 
     /** Construct an empty ShardMap */
     ShardMap(final MemoryReserver      memory,
-             final FlamdexReaderSource flamdexReaderSource,
-             final ImhotepMemoryCache<MetricKey, IntValueLookup> freeCache) {
+             final FlamdexReaderSource flamdexReaderSource) {
         this.memory              = memory;
         this.flamdexReaderSource = flamdexReaderSource;
-        this.freeCache           = freeCache;
     }
 
     /** Construct a ShardMap containing the content of a ShardStore. I.e.,
@@ -104,11 +98,10 @@ class ShardMap
     ShardMap(final ShardStore          store,
              final Path localShardsPath,
              final MemoryReserver      memory,
-             final FlamdexReaderSource flamdexReaderSource,
-             final ImhotepMemoryCache<MetricKey, IntValueLookup> freeCache)
+             final FlamdexReaderSource flamdexReaderSource)
         throws IOException {
 
-        this(memory, flamdexReaderSource, freeCache);
+        this(memory, flamdexReaderSource);
 
         final Iterator<Store.Entry<ShardStore.Key, ShardStore.Value>> it =
             store.iterator();
@@ -143,7 +136,7 @@ class ShardMap
              final ShardDirIterator shardDirIterator)
         throws IOException {
 
-        this(reference.memory, reference.flamdexReaderSource, reference.freeCache);
+        this(reference.memory, reference.flamdexReaderSource);
 
         final Lock lock = new ReentrantLock(false);
 
@@ -461,11 +454,11 @@ class ShardMap
                 if (flamdex instanceof RawFlamdexReader) {
                     return new RawCachedFlamdexReader(new MemoryReservationContext(memory),
                                                       (RawFlamdexReader) flamdex,
-                                                      dataset, shardDir, freeCache);
+                                                      dataset, shardDir);
                 }
                 else {
                     return new CachedFlamdexReader(new MemoryReservationContext(memory),
-                                                   flamdex, dataset, shardDir, freeCache);
+                                                   flamdex, dataset, shardDir);
                 }
             }
         };

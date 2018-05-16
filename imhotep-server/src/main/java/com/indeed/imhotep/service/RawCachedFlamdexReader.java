@@ -13,13 +13,10 @@
  */
  package com.indeed.imhotep.service;
 
-import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.api.RawFlamdexReader;
 import com.indeed.flamdex.api.RawStringTermDocIterator;
 import com.indeed.flamdex.api.RawStringTermIterator;
-import com.indeed.imhotep.ImhotepMemoryCache;
 import com.indeed.imhotep.MemoryReservationContext;
-import com.indeed.imhotep.MetricKey;
 import org.apache.log4j.Logger;
 
 /**
@@ -33,10 +30,9 @@ public final class RawCachedFlamdexReader extends CachedFlamdexReader implements
             final MemoryReservationContext memory,
             final RawFlamdexReader wrapped,
             final String indexName,
-            final String shardName,
-            final ImhotepMemoryCache<MetricKey, IntValueLookup> freeCache
+            final String shardName
     ) {
-        super(memory, wrapped, indexName, shardName, freeCache);
+        super(memory, wrapped, indexName, shardName);
     }
 
     @Override

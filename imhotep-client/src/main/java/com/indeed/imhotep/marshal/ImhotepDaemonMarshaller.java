@@ -153,7 +153,11 @@ public final class ImhotepDaemonMarshaller {
                 .setCpuTime(stats.cpuTime)
                 .setMaxMemoryUsed(stats.maxMemoryUsage)
                 .setFtgsTempFileSize(stats.ftgsTempFileSize)
-                .setFieldFilesReadSize(stats.fieldFilesReadSize);
+                .setFieldFilesReadSize(stats.fieldFilesReadSize)
+                .setCpuSlotsExecTimeMs(stats.cpuSlotsExecTimeMs)
+                .setCpuSlotsWaitTimeMs(stats.cpuSlotsWaitTimeMs)
+                .setIoSlotsExecTimeMs(stats.ioSlotsExecTimeMs)
+                .setIoSlotsWaitTimeMs(stats.ioSlotsWaitTimeMs);
         for (final Map.Entry<String, Long> entry : stats.customStats.entrySet()) {
             builder.addCustomStats(
                     StringLongMessage.newBuilder()

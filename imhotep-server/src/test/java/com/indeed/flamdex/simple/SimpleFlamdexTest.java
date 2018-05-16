@@ -109,7 +109,9 @@ public class SimpleFlamdexTest {
                     new ImhotepJavaLocalSession(r) },
                     new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
                     null,
-                    false
+                    false,
+                    "",
+                    ""
             );
 
         session.close();

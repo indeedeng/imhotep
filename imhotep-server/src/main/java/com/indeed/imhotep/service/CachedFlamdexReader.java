@@ -26,10 +26,8 @@ import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.StringValueLookup;
 import com.indeed.flamdex.lucene.LuceneFlamdexReader;
 import com.indeed.flamdex.ramses.RamsesFlamdexWrapper;
-import com.indeed.imhotep.ImhotepMemoryCache;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.MemoryReservationContext;
-import com.indeed.imhotep.MetricKey;
 import com.indeed.util.core.Either;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.ReloadableSharedReference;
@@ -70,8 +68,7 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
     public CachedFlamdexReader(final MemoryReservationContext memory,
                                final FlamdexReader wrapped,
                                @Nullable final String indexName,
-                               @Nullable final String shardName,
-                               @Nullable final ImhotepMemoryCache<MetricKey, IntValueLookup> freeCache) {
+                               @Nullable final String shardName) {
         //closer will free these in the opposite order that they are added
         this.memory = memory;
         this.wrapped = wrapped;
@@ -85,13 +82,6 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
                 new Function<String, Either<FlamdexOutOfMemoryException, IntValueLookup>>() {
                     @Override
                     public Either<FlamdexOutOfMemoryException, IntValueLookup> apply(final String metric) {
-                        if (freeCache != null) {
-                            final IntValueLookup intValueLookup = freeCache.tryRemove(new MetricKey(indexName, shardName, metric));
-                            if (intValueLookup != null) {
-                                memory.dehoist(intValueLookup.memoryUsed());
-                                return Right.of(intValueLookup);
-                            }
-                        }
                         final long memoryUsed = wrapped.memoryRequired(metric);
                         if (!memory.claimMemory(memoryUsed)) {
                             return Left.of(new FlamdexOutOfMemoryException());
@@ -120,12 +110,7 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
                 new ReloadableSharedReference.Closer<Map.Entry<String, IntValueLookup>>() {
                     @Override
                     public void close(final Map.Entry<String, IntValueLookup> metric) {
-                        if (freeCache == null) {
-                            memory.releaseMemory(metric.getValue());
-                        } else {
-                            freeCache.put(new MetricKey(indexName, shardName, metric.getKey()), metric.getValue());
-                            memory.hoist(metric.getValue().memoryUsed());
-                        }
+                        memory.releaseMemory(metric.getValue());
                     }
                 }
         );

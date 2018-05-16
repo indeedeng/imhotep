@@ -94,9 +94,11 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     public MTImhotepLocalMultiSession(final ImhotepLocalSession[] sessions,
                                       final MemoryReservationContext memory,
                                       final AtomicLong tempFileSizeBytesLeft,
-                                      final boolean useNativeFtgs)
+                                      final boolean useNativeFtgs,
+                                      final String userName,
+                                      final String clientName)
         throws ImhotepOutOfMemoryException {
-        super(sessions, tempFileSizeBytesLeft);
+        super(sessions, tempFileSizeBytesLeft, userName, clientName);
         this.useNativeFtgs = useNativeFtgs;
         this.memory = memory;
         this.memoryClaimed = 0;

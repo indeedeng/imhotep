@@ -163,6 +163,10 @@ public final class ImhotepClientMarshaller {
                 stat.getMaxMemoryUsed(),
                 stat.getFtgsTempFileSize(),
                 stat.getFieldFilesReadSize(),
+                stat.getCpuSlotsExecTimeMs(),
+                stat.getCpuSlotsWaitTimeMs(),
+                stat.getIoSlotsExecTimeMs(),
+                stat.getIoSlotsWaitTimeMs(),
                 ImmutableMap.copyOf(customStringStats));
     }
 }

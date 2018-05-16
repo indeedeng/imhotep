@@ -15,8 +15,7 @@
 
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.MemoryReservationContext;
-import com.indeed.imhotep.api.ImhotepSession;
-import com.indeed.util.varexport.VarExporter;
+import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,13 +29,12 @@ import java.util.Map;
 public final class LocalSessionManager extends AbstractSessionManager<Map<ShardId, CachedFlamdexReaderReference>> {
 
     public LocalSessionManager() {
-        VarExporter.forNamespace(getClass().getSimpleName()).includeInGlobal().export(this, "");
     }
 
     @Override
     public void addSession(
             final String sessionId,
-            final ImhotepSession imhotepSession,
+            final MTImhotepLocalMultiSession imhotepSession,
             final Map<ShardId, CachedFlamdexReaderReference> flamdexes,
             final String username,
             final String clientName,

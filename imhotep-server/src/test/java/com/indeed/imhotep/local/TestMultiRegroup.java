@@ -147,7 +147,7 @@ public class TestMultiRegroup {
                  final MTImhotepLocalMultiSession mtSession =
                     new MTImhotepLocalMultiSession(localSessions,
                             new MemoryReservationContext(memoryPool),
-                            theAtomicPunk, true) ) {
+                            theAtomicPunk, true, "", "") ) {
                 mtSession.regroup(regroupRule);
                 session.exportDocIdToGroupId(result);
             }

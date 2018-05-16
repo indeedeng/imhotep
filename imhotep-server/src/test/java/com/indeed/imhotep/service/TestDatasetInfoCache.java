@@ -197,8 +197,8 @@ public class TestDatasetInfoCache {
                                                   unusedDir,
                                                   storeDir,
                                                   500,
-                                                  false,
                                                   new GenericFlamdexReaderSource(),
+                                                  new ShardDirIteratorFactory(null, null),
                                                   config,
                                                   listener);
             assertTrue("loaded DatasetInfo from " + source.name(),

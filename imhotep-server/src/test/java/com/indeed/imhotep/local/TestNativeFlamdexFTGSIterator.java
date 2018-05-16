@@ -353,7 +353,7 @@ public class TestNativeFlamdexFTGSIterator {
         mtSession = new MTImhotepLocalMultiSession(localSessions,
                                                    new MemoryReservationContext(new ImhotepMemoryPool(
                                                            Long.MAX_VALUE)),
-                                                   foo, true);
+                                                   foo, true, "", "");
 
         final String regroupField = (intFieldNames.length >= 1) ? intFieldNames[1] : strFieldNames[1];
         mtSession.randomMultiRegroup(regroupField,

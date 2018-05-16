@@ -461,7 +461,7 @@ public class ImhotepClient
             for (int i = 0; i < remoteSessions.length; i++) {
                 nodes[i] = remoteSessions[i].getInetSocketAddress();
             }
-            return new RemoteImhotepMultiSession(remoteSessions, sessionId, nodes, localTempFileSizeLimit, localTempFileSizeBytesLeft);
+            return new RemoteImhotepMultiSession(remoteSessions, sessionId, nodes, localTempFileSizeLimit, localTempFileSizeBytesLeft, username, clientName);
         } catch (Exception e) {
             throw new RuntimeException("unable to open session",  e);
         }

@@ -57,6 +57,9 @@ import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
 import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -499,7 +502,28 @@ public class ImhotepRemoteSession
                 closeSocket(socket);
                 throw e;
             }
-            return new ClosingInputStreamFTGSIterator(socket, is, os, numStats);
+            final File tmp = File.createTempFile("ftgs", ".tmp");
+            OutputStream out = null;
+            try {
+                out = new BufferedOutputStream(new FileOutputStream(tmp));
+                ByteStreams.copy(is, out);
+            } catch (final Throwable t) {
+                tmp.delete();
+                if (t instanceof WriteLimitExceededException) {
+                    throw new TempFileSizeLimitExceededException(t);
+                }
+                throw Throwables2.propagate(t, IOException.class);
+            } finally {
+                Closeables2.closeAll(log, is, os, socket);
+                if (out != null) {
+                    out.close();
+                }
+            }
+            try {
+                return InputStreamFTGSIterators.create(tmp, numStats);
+            } finally {
+                tmp.delete();
+            }
         } catch (final IOException e) {
             throw new RuntimeException(e); // TODO
         }

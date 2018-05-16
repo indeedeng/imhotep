@@ -16,9 +16,9 @@
 import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.indeed.imhotep.MemoryReservationContext;
-import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.exceptions.TooManySessionsException;
 import com.indeed.imhotep.exceptions.UserSessionCountLimitExceededException;
+import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.varexport.Export;
@@ -66,7 +66,7 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
     }
 
     @Override
-    public SharedReference<ImhotepSession> getSession(final String sessionId) {
+    public SharedReference<MTImhotepLocalMultiSession> getSession(final String sessionId) {
         final Session<E> session = internalGetSession(sessionId);
         return session.imhotepSession.copy();
     }
@@ -80,7 +80,7 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
 
     @Override
     public void removeAndCloseIfExists(final String sessionId) {
-        final SharedReference<ImhotepSession> imhotepSession;
+        final SharedReference<MTImhotepLocalMultiSession> imhotepSession;
         synchronized (sessionMap) {
             final Session<E> session = sessionMap.remove(sessionId);
             if (session == null) {
@@ -93,7 +93,7 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
 
     @Override
     public void removeAndCloseIfExists(final String sessionId, final Exception e) {
-        final SharedReference<ImhotepSession> imhotepSession;
+        final SharedReference<MTImhotepLocalMultiSession> imhotepSession;
         synchronized (sessionMap) {
             final Session<E> session = sessionMap.remove(sessionId);
             if (session == null) {
@@ -155,7 +155,7 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
     }
 
     protected static final class Session<E> {
-        protected final SharedReference<ImhotepSession> imhotepSession;
+        protected final SharedReference<MTImhotepLocalMultiSession> imhotepSession;
         protected final E sessionState;
         protected final String username;
         protected final String clientName;
@@ -171,7 +171,7 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
         private volatile long lastActionTime;
 
         protected Session(
-                final ImhotepSession imhotepSession,
+                final MTImhotepLocalMultiSession imhotepSession,
                 final E sessionState,
                 final String username,
                 final String clientName,
