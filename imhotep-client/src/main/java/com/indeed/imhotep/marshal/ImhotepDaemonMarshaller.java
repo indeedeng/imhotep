@@ -49,6 +49,10 @@ public final class ImhotepDaemonMarshaller {
             .put(Operator.NOT, BooleanOp.NOT)
             .build();
 
+    // empty static arrays to reduce allocations count
+    private static final int[] EMPTY_GROUP_ARRAY = new int[0];
+    private static final RegroupCondition[] EMPTY_REGROUP_CONDITION_LIST = new RegroupCondition[0];
+
     private ImhotepDaemonMarshaller() {}
 
     public static Term marshal(final TermMessage protoTerm) {
@@ -117,8 +121,8 @@ public final class ImhotepDaemonMarshaller {
 
     public static GroupMultiRemapRule marshal(final GroupMultiRemapMessage protoRule) {
         final int numSubRules = protoRule.getPositiveGroupCount();
-        final RegroupCondition[] conditions = new RegroupCondition[numSubRules];
-        final int[] positiveGroups = new int[numSubRules];
+        final RegroupCondition[] conditions = (numSubRules > 0) ? new RegroupCondition[numSubRules] : EMPTY_REGROUP_CONDITION_LIST;
+        final int[] positiveGroups = (numSubRules > 0) ? new int[numSubRules] : EMPTY_GROUP_ARRAY;
         for (int ix = 0; ix < numSubRules; ix++) {
             positiveGroups[ix] = protoRule.getPositiveGroup(ix);
             conditions[ix] = marshal(protoRule.getCondition(ix));
