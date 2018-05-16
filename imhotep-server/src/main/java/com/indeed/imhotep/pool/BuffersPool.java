@@ -37,7 +37,7 @@ public class BuffersPool {
     public synchronized long[] getLongBuffer(final int size, final boolean precise) {
         for (int i = 0; i < longBuffers.size(); i++) {
             final long[] array = longBuffers.get(i);
-            if ((precise && (array.length >= size)) || (!precise && (array.length >= size))) {
+            if ((precise && (array.length == size)) || (!precise && (array.length >= size))) {
                 longBuffers.remove(i);
                 return array;
             }
