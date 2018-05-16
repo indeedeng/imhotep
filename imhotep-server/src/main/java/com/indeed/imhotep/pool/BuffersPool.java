@@ -19,7 +19,7 @@ public class BuffersPool {
     public synchronized int[] getIntBuffer(final int size, final boolean precise) {
         for (int i = 0; i < intBuffers.size(); i++) {
             final int[] array = intBuffers.get(i);
-            if ((precise && (array.length >= size)) || (!precise && (array.length >= size))) {
+            if ((precise && (array.length == size)) || (!precise && (array.length >= size))) {
                 intBuffers.remove(i);
                 return array;
             }
