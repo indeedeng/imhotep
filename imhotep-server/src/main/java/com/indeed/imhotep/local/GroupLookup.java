@@ -22,10 +22,30 @@ public abstract class GroupLookup {
     protected int numGroups;
 
     // returns how many non-zero group docs were processed by this call.
-    public abstract int nextGroupCallback(int n, long[][] termGrpStats, BitTree groupsSeen);
+    public abstract int nextGroupCallback(
+            int n,
+            long[][] termGrpStats,
+            BitTree groupsSeen,
+            int[] docIdBuf,
+            long[] valBuf,
+            int[] docGroupBuffer);
 
-    public abstract void applyIntConditionsCallback(int n, ThreadSafeBitSet docRemapped, GroupRemapRule[] remapRules, String intField, long itrTerm);
-    public abstract void applyStringConditionsCallback(int n, ThreadSafeBitSet docRemapped, GroupRemapRule[] remapRules, String stringField, String itrTerm);
+    public abstract void applyIntConditionsCallback(
+            int n,
+            int[] docIdBuf,
+            ThreadSafeBitSet docRemapped,
+            GroupRemapRule[] remapRules,
+            String intField,
+            long itrTerm);
+
+    public abstract void applyStringConditionsCallback(
+            int n,
+            int[] docIdBuf,
+            ThreadSafeBitSet docRemapped,
+            GroupRemapRule[] remapRules,
+            String stringField,
+            String itrTerm);
+
     public abstract int get(int doc);
     public abstract void set(int doc, int group);
     public abstract void batchSet(int[] docIdBuf, int[] docGrpBuffer, int n);

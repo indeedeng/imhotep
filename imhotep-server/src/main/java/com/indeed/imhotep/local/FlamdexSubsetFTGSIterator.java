@@ -93,6 +93,7 @@ class FlamdexSubsetFTGSIterator extends AbstractFlamdexFTGSIterator {
 
     @Override
     public final void close() {
+        super.close();
         synchronized (session) {
             Closeables2.closeQuietly(docIdStream, ImhotepLocalSession.log);
             Closeables2.closeQuietly(intTermIterator, ImhotepLocalSession.log);
@@ -171,7 +172,7 @@ class FlamdexSubsetFTGSIterator extends AbstractFlamdexFTGSIterator {
     }
 
     @Override
-    protected int fillDocIdBuffer() {
-        return docIdStream.fillDocIdBuffer(session.docIdBuf);
+    protected int fillDocIdBuffer(final int[] docIdBuf) {
+        return docIdStream.fillDocIdBuffer(docIdBuf);
     }
 }

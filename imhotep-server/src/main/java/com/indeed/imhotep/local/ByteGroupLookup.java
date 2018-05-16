@@ -35,25 +35,30 @@ final class ByteGroupLookup extends GroupLookup implements ArrayBasedGroupLookup
     byte[] getDocIdToGroup() { return docIdToGroup; }
 
     @Override
-    public int nextGroupCallback(final int n, final long[][] termGrpStats, final BitTree groupsSeen) {
+    public int nextGroupCallback(final int n,
+                                 final long[][] termGrpStats,
+                                 final BitTree groupsSeen,
+                                 final int[] docIdBuf,
+                                 final long[] valBuf,
+                                 final int[] docGroupBuffer) {
         int rewriteHead = 0;
         // remap groups and filter out useless docids (ones with group = 0), keep track of groups that were found
         for (int i = 0; i < n; i++) {
-            final int docId = session.docIdBuf[i];
+            final int docId = docIdBuf[i];
             final int group = docIdToGroup[docId] & 0xFF;
             if (group == 0) {
                 continue;
             }
 
-            session.docGroupBuffer[rewriteHead] = group;
-            session.docIdBuf[rewriteHead] = docId;
+            docGroupBuffer[rewriteHead] = group;
+            docIdBuf[rewriteHead] = docId;
             rewriteHead++;
         }
-        groupsSeen.set(session.docGroupBuffer, rewriteHead);
+        groupsSeen.set(docGroupBuffer, rewriteHead);
 
         if (rewriteHead > 0) {
             for (int statIndex = 0; statIndex < session.numStats; statIndex++) {
-                ImhotepJavaLocalSession.updateGroupStatsDocIdBuf(session.statLookup.get(statIndex), termGrpStats[statIndex], session.docGroupBuffer, session.docIdBuf, session.valBuf, rewriteHead);
+                ImhotepJavaLocalSession.updateGroupStatsDocIdBuf(session.statLookup.get(statIndex), termGrpStats[statIndex], docGroupBuffer, docIdBuf, valBuf, rewriteHead);
             }
         }
 
@@ -63,12 +68,13 @@ final class ByteGroupLookup extends GroupLookup implements ArrayBasedGroupLookup
     @Override
     public void applyIntConditionsCallback(
             final int n,
+            final int[] docIdBuf,
             final ThreadSafeBitSet docRemapped,
             final GroupRemapRule[] remapRules,
             final String intField,
             final long itrTerm) {
         for (int i = 0; i < n; i++) {
-            final int docId = session.docIdBuf[i];
+            final int docId = docIdBuf[i];
             if (docRemapped.get(docId)) {
                 continue;
             }
@@ -87,12 +93,13 @@ final class ByteGroupLookup extends GroupLookup implements ArrayBasedGroupLookup
     @Override
     public void applyStringConditionsCallback(
             final int n,
+            final int[] docIdBuf,
             final ThreadSafeBitSet docRemapped,
             final GroupRemapRule[] remapRules,
             final String stringField,
             final String itrTerm) {
         for (int i = 0; i < n; i++) {
-            final int docId = session.docIdBuf[i];
+            final int docId = docIdBuf[i];
             if (docRemapped.get(docId)) {
                 continue;
             }

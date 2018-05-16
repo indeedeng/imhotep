@@ -40,7 +40,12 @@ final class ConstantGroupLookup extends GroupLookup {
     }
 
     @Override
-    public int nextGroupCallback(final int n, final long[][] termGrpStats, final BitTree groupsSeen) {
+    public int nextGroupCallback(final int n,
+                                 final long[][] termGrpStats,
+                                 final BitTree groupsSeen,
+                                 final int[] docIdBuf,
+                                 final long[] valBuf,
+                                 final int[] docGroupBuffer) {
         if (constant == 0) {
             return 0;
         }
@@ -48,9 +53,9 @@ final class ConstantGroupLookup extends GroupLookup {
         if (n > 0) {
             groupsSeen.set(constant);
             if (session.numStats > 0) {
-                Arrays.fill(session.docGroupBuffer, 0, n, constant);
+                Arrays.fill(docGroupBuffer, 0, n, constant);
                 for (int statIndex = 0; statIndex < session.numStats; statIndex++) {
-                    ImhotepJavaLocalSession.updateGroupStatsDocIdBuf(session.statLookup.get(statIndex), termGrpStats[statIndex], session.docGroupBuffer, session.docIdBuf, session.valBuf, n);
+                    ImhotepJavaLocalSession.updateGroupStatsDocIdBuf(session.statLookup.get(statIndex), termGrpStats[statIndex], docGroupBuffer, docIdBuf, valBuf, n);
                 }
             }
         }
@@ -60,6 +65,7 @@ final class ConstantGroupLookup extends GroupLookup {
     @Override
     public void applyIntConditionsCallback(
             final int n,
+            final int[] docIdBuf,
             final ThreadSafeBitSet docRemapped,
             final GroupRemapRule[] remapRules,
             final String intField,
@@ -70,6 +76,7 @@ final class ConstantGroupLookup extends GroupLookup {
     @Override
     public void applyStringConditionsCallback(
             final int n,
+            final int[] docIdBuf,
             final ThreadSafeBitSet docRemapped,
             final GroupRemapRule[] remapRules,
             final String stringField,
