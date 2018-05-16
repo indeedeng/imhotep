@@ -74,11 +74,15 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         lastExecutionStartTime = System.nanoTime();
     }
 
-    synchronized void blockAndWait() {
+    void blockAndWait() {
+        final CountDownLatch lockToWaitOn;
+        synchronized (this) {
+            lockToWaitOn = waitLock;
+        }
         boolean finished = false;
         while (!finished) {
             try {
-                waitLock.await();
+                lockToWaitOn.await();
                 finished = true;
             } catch(InterruptedException ignored){ }
         }

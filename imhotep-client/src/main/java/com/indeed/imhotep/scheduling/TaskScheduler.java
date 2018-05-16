@@ -56,7 +56,7 @@ public class TaskScheduler {
      * Must be used inside try-with-resources.
      */
     @Nullable
-    public synchronized Closeable lockSlot() {
+    public Closeable lockSlot() {
         final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
         if(task != null) {
             return new CloseableImhotepTask(task, this);
@@ -66,7 +66,7 @@ public class TaskScheduler {
         }
     }
 
-    public synchronized Closeable lockSlotFromAnotherScheduler(final TaskScheduler schedulerToReleaseFrom) {
+    public Closeable lockSlotFromAnotherScheduler(final TaskScheduler schedulerToReleaseFrom) {
         final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
         if(task == null) {
             // TODO: add reporting on this
@@ -88,14 +88,16 @@ public class TaskScheduler {
     }
 
     /** returns true iff a new lock was created */
-    synchronized boolean schedule(ImhotepTask task) {
-        if(runningTasks.contains(task)) {
-            return false;
+    boolean schedule(ImhotepTask task) {
+        synchronized (this) {
+            if (runningTasks.contains(task)) {
+                return false;
+            }
+            task.preExecInitialize(this);
+            final TaskQueue queue = getOrCreateQueueForTask(task);
+            queue.offer(task);
+            tryStartTasks();
         }
-        task.preExecInitialize(this);
-        final TaskQueue queue = getOrCreateQueueForTask(task);
-        queue.offer(task);
-        tryStartTasks();
         // Blocks and waits if necessary
         task.blockAndWait();
         return true;
