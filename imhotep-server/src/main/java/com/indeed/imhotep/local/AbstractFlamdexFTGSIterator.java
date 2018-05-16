@@ -129,6 +129,7 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
         private int[] docIdBuf;
         private int[] docGroupBuf;
         private long[] valBuf;
+        private boolean closed = false;
 
         private DefaultCalculator() {
             docIdBuf = session.memoryPool.getIntBuffer(ImhotepLocalSession.BUFFER_SIZE, true);
@@ -181,21 +182,17 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
         }
 
         @Override
-        public synchronized void close() {
-            if (docIdBuf != null) {
-                session.memoryPool.returnIntBuffer(docIdBuf);
-                docIdBuf = null;
+        public void close() {
+            if (closed) {
+                return;
             }
-
-            if (docGroupBuf != null) {
-                session.memoryPool.returnIntBuffer(docGroupBuf);
-                docGroupBuf = null;
-            }
-
-            if (valBuf != null) {
-                session.memoryPool.returnLongBuffer(valBuf);
-                valBuf = null;
-            }
+            closed = true;
+            session.memoryPool.returnIntBuffer(docIdBuf);
+            session.memoryPool.returnIntBuffer(docGroupBuf);
+            session.memoryPool.returnLongBuffer(valBuf);
+            docIdBuf = null;
+            docGroupBuf = null;
+            valBuf = null;
         }
     }
 
@@ -272,6 +269,7 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
         private int[] docIdBuf;
         private int[] docGroupBuf;
         private long[] valBuf;
+        private boolean closed = false;
 
         private BitSetGroupNoStatsCalculator(final int group) {
             docIdBuf = session.memoryPool.getIntBuffer(ImhotepLocalSession.BUFFER_SIZE, true);
@@ -322,6 +320,10 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
 
         @Override
         public void close() {
+            if (closed) {
+                return;
+            }
+            closed = true;
             session.memoryPool.returnIntBuffer(docIdBuf);
             session.memoryPool.returnIntBuffer(docGroupBuf);
             session.memoryPool.returnLongBuffer(valBuf);

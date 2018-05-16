@@ -3,8 +3,15 @@ package com.indeed.imhotep.pool;
 import java.util.ArrayList;
 import java.util.List;
 
+// TODO: refactor after task-based processing is implemented
 // This the very first version of memory pool class.
 // It's created as a temporary solution
+// What to do later:
+// 1. move BuffersPool into multisession and pass it in constructors of ImhotepLocalSession
+//    to share pool across localsessions. (Maybe share it between all multisessions, one pool per daemon)
+// 2. Make some kind of resource management, for example have no more that fixed count of buffers in pool.
+//    Or no more than fixed total size of buffers.
+// 3. Make it thread-local maybe.
 public class BuffersPool {
     private List<int[]> intBuffers = new ArrayList<>();
     private List<long[]> longBuffers = new ArrayList<>();
