@@ -24,7 +24,7 @@ class CloseableImhotepTask implements Closeable {
 
     private final ImhotepTask task;
     private final TaskScheduler taskScheduler;
-    private final boolean locked;
+    private boolean locked;
 
     CloseableImhotepTask(ImhotepTask task, TaskScheduler taskScheduler) {
         this.task = task;
@@ -35,6 +35,7 @@ class CloseableImhotepTask implements Closeable {
     @Override
     public void close() throws IOException {
         if(locked) {
+            locked = false;
             taskScheduler.stopped(task);
         }
     }

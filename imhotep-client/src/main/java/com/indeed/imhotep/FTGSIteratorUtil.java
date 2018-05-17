@@ -19,9 +19,6 @@ import com.google.common.primitives.Longs;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.RawFTGSIterator;
-import com.indeed.imhotep.io.LimitedBufferedOutputStream;
-import com.indeed.imhotep.io.TempFileSizeLimitExceededException;
-import com.indeed.imhotep.io.WriteLimitExceededException;
 import com.indeed.imhotep.service.FTGSOutputStreamWriter;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
@@ -31,6 +28,7 @@ import gnu.trove.procedure.TObjectProcedure;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.log4j.Logger;
 
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -40,7 +38,6 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.PriorityQueue;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author kenh
@@ -51,12 +48,12 @@ public class FTGSIteratorUtil {
     private FTGSIteratorUtil() {
     }
 
-    public static File persistAsFile(final Logger log, final FTGSIterator iterator, final int numStats, final AtomicLong maxBytesToWrite) throws IOException {
+    public static File persistAsFile(final Logger log, final FTGSIterator iterator, final int numStats) throws IOException {
         final File tmp = File.createTempFile("ftgs", ".tmp");
         OutputStream out = null;
         try {
             final long start = System.currentTimeMillis();
-            out = new LimitedBufferedOutputStream(new FileOutputStream(tmp), maxBytesToWrite);
+            out = new BufferedOutputStream(new FileOutputStream(tmp));
             FTGSOutputStreamWriter.write(iterator, numStats, out);
             if (log.isDebugEnabled()) {
                 log.debug("time to merge splits to file: " +
@@ -65,9 +62,6 @@ public class FTGSIteratorUtil {
             }
         } catch (final Throwable t) {
             tmp.delete();
-            if (t instanceof WriteLimitExceededException) {
-                throw new TempFileSizeLimitExceededException(t);
-            }
             throw Throwables2.propagate(t, IOException.class);
         } finally {
             Closeables2.closeQuietly(iterator, log);
@@ -79,8 +73,8 @@ public class FTGSIteratorUtil {
         return tmp;
     }
 
-    public static RawFTGSIterator persist(final Logger log, final FTGSIterator iterator, final int numStats, final AtomicLong maxBytesToWrite) throws IOException {
-        final File tmp = persistAsFile(log, iterator, numStats, maxBytesToWrite);
+    public static RawFTGSIterator persist(final Logger log, final FTGSIterator iterator, final int numStats) throws IOException {
+        final File tmp = persistAsFile(log, iterator, numStats);
         try {
             return InputStreamFTGSIterators.create(tmp, numStats);
         } finally {

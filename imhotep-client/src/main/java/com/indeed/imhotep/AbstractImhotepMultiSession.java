@@ -166,7 +166,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
 
     @SuppressWarnings({"unchecked"})
     protected AbstractImhotepMultiSession(final T[] sessions, final AtomicLong tempFileSizeBytesLeft,
-                                          final String userName, final String clientName) {
+                                          @Nonnull final String userName, @Nonnull final String clientName) {
         this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
         this.savedTempFileSizeValue = (tempFileSizeBytesLeft == null) ? 0 : tempFileSizeBytesLeft.get();
         this.userName = userName;
@@ -781,8 +781,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
                     iterator,
                     numSplits,
                     numStats,
-                    981044833,
-                    tempFileSizeBytesLeft
+                    981044833
             ).getFtgsIterators());
         } catch (ExecutionException e) {
             throw new RuntimeException(e);
@@ -835,7 +834,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
     }
 
     private RawFTGSIterator persist(final FTGSIterator iterator) throws IOException {
-        return FTGSIteratorUtil.persist(log, iterator, numStats, tempFileSizeBytesLeft);
+        return FTGSIteratorUtil.persist(log, iterator, numStats);
     }
 
     public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields,

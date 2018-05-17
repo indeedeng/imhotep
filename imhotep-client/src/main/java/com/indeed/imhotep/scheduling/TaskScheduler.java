@@ -19,8 +19,8 @@ import com.google.common.collect.Queues;
 import com.google.common.collect.Sets;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.io.Closeable;
+import java.io.IOException;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
@@ -55,22 +55,23 @@ public class TaskScheduler {
      * Retrieves the ImhotepTask object from ThreadLocal. If absent results in a noop.
      * Must be used inside try-with-resources.
      */
-    @Nullable
+    @Nonnull
     public Closeable lockSlot() {
         final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
         if(task != null) {
             return new CloseableImhotepTask(task, this);
         } else {
             // TODO: add reporting on this
-            return null; // can't lock with no task
+            return () -> {}; // can't lock with no task
         }
     }
 
+    @Nonnull
     public Closeable lockSlotFromAnotherScheduler(final TaskScheduler schedulerToReleaseFrom) {
         final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
         if(task == null) {
             // TODO: add reporting on this
-            return null; // can't lock with no task
+            return () -> {}; // can't lock with no task
         }
 
         final boolean otherSchedulerHadALock = schedulerToReleaseFrom.stopped(task);
@@ -78,11 +79,15 @@ public class TaskScheduler {
         if(!otherSchedulerHadALock) {
             return newLock;
         } else {
-            return () -> {
-                if (newLock != null) {
+            return new Closeable() {
+                boolean closed = false;
+                @Override
+                public void close() throws IOException {
+                    if(closed) return;
+                    closed = true;
                     newLock.close();
+                    schedulerToReleaseFrom.schedule(task);
                 }
-                schedulerToReleaseFrom.schedule(task);
             };
         }
     }
@@ -109,11 +114,8 @@ public class TaskScheduler {
             return false;
         }
         final long consumption = task.stopped(schedulerType);
-        ConsumptionTracker consumptionTracker = usernameToConsumptionTracker.get(task.userName);
-        if(consumptionTracker == null) {
-            consumptionTracker = new ConsumptionTracker(historyLengthNanos, batchNanos);
-            usernameToConsumptionTracker.put(task.userName, consumptionTracker);
-        }
+        final ConsumptionTracker consumptionTracker = usernameToConsumptionTracker.computeIfAbsent(task.userName,
+                (ignored) -> new ConsumptionTracker(historyLengthNanos, batchNanos));
         consumptionTracker.record(consumption);
         tryStartTasks();
         return true;
@@ -152,11 +154,8 @@ public class TaskScheduler {
     private synchronized TaskQueue getOrCreateQueueForTask(final ImhotepTask task) {
         TaskQueue queue = usernameToQueue.get(task.userName);
         if(queue == null) {
-            ConsumptionTracker consumptionTracker = usernameToConsumptionTracker.get(task.userName);
-            if(consumptionTracker == null) {
-                consumptionTracker = new ConsumptionTracker(historyLengthNanos, batchNanos);
-                usernameToConsumptionTracker.put(task.userName, consumptionTracker);
-            }
+            final ConsumptionTracker consumptionTracker = usernameToConsumptionTracker.computeIfAbsent(task.userName,
+                    (ignored) -> new ConsumptionTracker(historyLengthNanos, batchNanos));
             queue = new TaskQueue(task.userName, consumptionTracker);
             usernameToQueue.put(task.userName, queue);
         }

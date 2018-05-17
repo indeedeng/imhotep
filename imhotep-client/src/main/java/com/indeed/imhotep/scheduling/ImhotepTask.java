@@ -25,9 +25,9 @@ import java.util.concurrent.atomic.AtomicLong;
  * Represents a piece of work that will happen in a single thread
  */
 public class ImhotepTask implements Comparable<ImhotepTask> {
-    static ThreadLocal<ImhotepTask> THREAD_LOCAL_TASK = new ThreadLocal<>();
+    final static ThreadLocal<ImhotepTask> THREAD_LOCAL_TASK = new ThreadLocal<>();
 
-    private static AtomicLong nextTaskId = new AtomicLong(0);
+    private final static AtomicLong nextTaskId = new AtomicLong(0);
     private final long creationTimestamp;
     private final long taskId;
     final String userName;
@@ -79,11 +79,11 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         synchronized (this) {
             lockToWaitOn = waitLock;
         }
-        boolean finished = false;
-        while (!finished) {
+        boolean finishedWaiting = false;
+        while (!finishedWaiting) {
             try {
                 lockToWaitOn.await();
-                finished = true;
+                finishedWaiting = true;
             } catch(InterruptedException ignored){ }
         }
     }
@@ -113,7 +113,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     /** Used to prioritize older tasks in the TaskScheduler */
     @Override
     public int compareTo(@Nonnull ImhotepTask o) {
-        return Longs.compare(creationTimestamp, o.creationTimestamp);
+        return Longs.compare(creationTimestamp - o.creationTimestamp, 0);
     }
 
     public boolean isRunning() {

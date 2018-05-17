@@ -463,7 +463,7 @@ public class ImhotepRemoteSession
                 .setNumSplits(numSplits)
                 .setTermLimit(termLimit)
                 .build();
-        final RawFTGSIterator result = sendGetFTGSIteratorSplit(request);
+        final RawFTGSIterator result = fileBufferedFTGSRequest(request);
         timer.complete(request);
         return result;
     }
@@ -486,47 +486,9 @@ public class ImhotepRemoteSession
                 .setNumSplits(numSplits);
         addSubsetFieldsAndTermsToBuilder(intFields, stringFields, requestBuilder);
         final ImhotepRequest request = requestBuilder.build();
-        final RawFTGSIterator result = sendGetFTGSIteratorSplit(request);
+        final RawFTGSIterator result = fileBufferedFTGSRequest(request);
         timer.complete(request);
         return result;
-    }
-
-    private RawFTGSIterator sendGetFTGSIteratorSplit(final ImhotepRequest request) {
-        try {
-            final Socket socket = newSocket(host, port, socketTimeout);
-            final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
-            final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
-            try {
-                sendRequest(request, is, os, host, port);
-            } catch (final IOException e) {
-                closeSocket(socket);
-                throw e;
-            }
-            final File tmp = File.createTempFile("ftgs", ".tmp");
-            OutputStream out = null;
-            try {
-                out = new BufferedOutputStream(new FileOutputStream(tmp));
-                ByteStreams.copy(is, out);
-            } catch (final Throwable t) {
-                tmp.delete();
-                if (t instanceof WriteLimitExceededException) {
-                    throw new TempFileSizeLimitExceededException(t);
-                }
-                throw Throwables2.propagate(t, IOException.class);
-            } finally {
-                Closeables2.closeAll(log, is, os, socket);
-                if (out != null) {
-                    out.close();
-                }
-            }
-            try {
-                return InputStreamFTGSIterators.create(tmp, numStats);
-            } finally {
-                tmp.delete();
-            }
-        } catch (final IOException e) {
-            throw new RuntimeException(e); // TODO
-        }
     }
 
     @Override

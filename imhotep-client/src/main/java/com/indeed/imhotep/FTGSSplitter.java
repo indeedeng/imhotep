@@ -54,6 +54,12 @@ public final class FTGSSplitter {
     private final int largePrime;
 
     public FTGSSplitter(final FTGSIterator ftgsIterator, final int numSplits, final int numStats,
+                        final int largePrime) throws IOException {
+        this(ftgsIterator, numSplits, numStats, largePrime, null);
+
+    }
+
+    public FTGSSplitter(final FTGSIterator ftgsIterator, final int numSplits, final int numStats,
                         final int largePrime, final AtomicLong tempFileSizeBytesLeft) throws IOException {
         this.iterator = ftgsIterator;
         this.numSplits = numSplits;

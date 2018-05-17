@@ -21,7 +21,7 @@ import javax.annotation.Nonnull;
 import java.util.PriorityQueue;
 
 /**
- *
+ * Represents a queue of tasks that should run in FIFO order.
  */
 public class TaskQueue implements Comparable<TaskQueue> {
     private final PriorityQueue<ImhotepTask> queue = Queues.newPriorityQueue();
