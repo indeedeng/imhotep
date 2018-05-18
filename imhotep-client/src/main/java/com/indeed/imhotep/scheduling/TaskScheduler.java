@@ -108,7 +108,7 @@ public class TaskScheduler {
     public Closeable temporaryUnlock() {
         final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
         if(task == null) {
-            // TODO: add reporting on this
+            statsEmitter.count("scheduler." + schedulerType + ".threadlocal.task.absent", 1);
             return () -> {}; // can't lock with no task
         }
 
@@ -123,32 +123,6 @@ public class TaskScheduler {
                     if(closed) return;
                     closed = true;
                     schedule(task);
-                }
-            };
-        }
-    }
-
-    @Nonnull
-    public Closeable lockSlotFromAnotherScheduler(final TaskScheduler schedulerToReleaseFrom) {
-        final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
-        if(task == null) {
-            statsEmitter.count("scheduler." + schedulerType + ".threadlocal.task.absent", 1);
-            return () -> {}; // can't lock with no task
-        }
-
-        final boolean otherSchedulerHadALock = schedulerToReleaseFrom.stopped(task);
-        final Closeable newLock = lockSlot();
-        if(!otherSchedulerHadALock) {
-            return newLock;
-        } else {
-            return new Closeable() {
-                boolean closed = false;
-                @Override
-                public void close() throws IOException {
-                    if(closed) return;
-                    closed = true;
-                    newLock.close();
-                    schedulerToReleaseFrom.schedule(task);
                 }
             };
         }
