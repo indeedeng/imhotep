@@ -32,9 +32,4 @@ public class MockShard extends Shard {
             final Collection<String> stringFields) {
         super(shardId, numDocs, intFields, stringFields);
     }
-
-    @Override
-    public Set<String> getLoadedMetrics() {
-        return Collections.emptySet();
-    }
 }

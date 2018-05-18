@@ -19,7 +19,6 @@ import com.indeed.imhotep.ImhotepStatusDump;
 
 import java.io.Closeable;
 import java.util.List;
-import java.util.Set;
 
 /**
  * @author jplaisance
@@ -29,8 +28,6 @@ public interface MetricCache extends Closeable {
     IntValueLookup getMetric(String metric) throws FlamdexOutOfMemoryException;
 
     List<ImhotepStatusDump.MetricDump> getMetricDump();
-
-    Set<String> getLoadedMetrics();
 
     @Override
     void close();

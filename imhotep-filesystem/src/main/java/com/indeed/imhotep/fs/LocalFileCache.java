@@ -15,11 +15,13 @@
 package com.indeed.imhotep.fs;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.google.common.cache.AbstractCache;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.indeed.imhotep.scheduling.TaskScheduler;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import org.apache.log4j.Logger;
 
@@ -214,7 +216,11 @@ class LocalFileCache {
         // 1. getting the cached value
         // 2. loading the cache file (which can result in exceptions and the file use counter has to be rolled back)
         try {
-            fileCacheEntry = referencedFilesCache.get(path);
+            try (Closeable ignored = TaskScheduler.CPUScheduler.temporaryUnlock()) {
+                fileCacheEntry = referencedFilesCache.get(path);
+            } catch (IOException e) {
+                throw Throwables.propagate(e);
+            }
         } catch (final ExecutionException e) {
             synchronized (lock) {
                 decFileUsageRef(path);

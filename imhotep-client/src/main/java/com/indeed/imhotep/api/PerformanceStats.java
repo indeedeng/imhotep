@@ -35,10 +35,10 @@ public class PerformanceStats {
             final long maxMemoryUsage,
             final long ftgsTempFileSize,
             final long fieldFilesReadSize,
-            long cpuSlotsExecTimeMs,
-            long cpuSlotsWaitTimeMs,
-            long ioSlotsExecTimeMs,
-            long ioSlotsWaitTimeMs,
+            final long cpuSlotsExecTimeMs,
+            final long cpuSlotsWaitTimeMs,
+            final long ioSlotsExecTimeMs,
+            final long ioSlotsWaitTimeMs,
             final ImmutableMap<String, Long> customStats) {
         this.cpuTime = cpuTime;
         this.maxMemoryUsage = maxMemoryUsage;
@@ -60,10 +60,10 @@ public class PerformanceStats {
         private long maxMemoryUsage = 0;
         private long ftgsTempFileSize = 0;
         private long fieldFilesReadSize = 0;
-        public long cpuSlotsExecTimeMs = 0;
-        public long cpuSlotsWaitTimeMs = 0;
-        public long ioSlotsExecTimeMs = 0;
-        public long ioSlotsWaitTimeMs = 0;
+        private long cpuSlotsExecTimeMs = 0;
+        private long cpuSlotsWaitTimeMs = 0;
+        private long ioSlotsExecTimeMs = 0;
+        private long ioSlotsWaitTimeMs = 0;
         private final Map<String, Long> customStats = new HashMap<>();
 
         public void setCpuTime(final long cpuTime) {
@@ -162,7 +162,11 @@ public class PerformanceStats {
                     maxMemoryUsage,
                     ftgsTempFileSize,
                     fieldFilesReadSize,
-                    cpuSlotsExecTimeMs, cpuSlotsWaitTimeMs, ioSlotsExecTimeMs, ioSlotsWaitTimeMs, ImmutableMap.copyOf(customStats));
+                    cpuSlotsExecTimeMs,
+                    cpuSlotsWaitTimeMs,
+                    ioSlotsExecTimeMs,
+                    ioSlotsWaitTimeMs,
+                    ImmutableMap.copyOf(customStats));
         }
     }
 }

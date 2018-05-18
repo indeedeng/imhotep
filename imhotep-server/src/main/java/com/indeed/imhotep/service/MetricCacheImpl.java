@@ -14,27 +14,24 @@
  package com.indeed.imhotep.service;
 
 import com.google.common.base.Function;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
+import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
+import com.indeed.flamdex.api.IntValueLookup;
+import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.util.core.Either;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.ReloadableSharedReference;
 import com.indeed.util.core.reference.SharedReference;
-import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
-import com.indeed.flamdex.api.IntValueLookup;
-import com.indeed.imhotep.ImhotepStatusDump;
 import org.apache.log4j.Logger;
 
-import javax.annotation.Nullable;
-import java.io.Closeable;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * @author jplaisance
@@ -43,88 +40,66 @@ public final class MetricCacheImpl implements MetricCache {
 
     private static final Logger log = Logger.getLogger(MetricCacheImpl.class);
 
-    private final LoadingCache<String, ReloadableSharedReference<IntValueLookup, FlamdexOutOfMemoryException>> reloaders;
+    private final ConcurrentMap<String, SharedReference<IntValueLookup>> metrics = new ConcurrentHashMap<>();
 
-    private final Map<String, IntValueLookup> loadedMetrics;
-
+    private final Function<String, Either<FlamdexOutOfMemoryException, IntValueLookup>> loadMetric;
     private final ReloadableSharedReference.Closer<Map.Entry<String, IntValueLookup>> closeMetric;
 
     private boolean closed = false;
 
     public MetricCacheImpl(final Function<String, Either<FlamdexOutOfMemoryException, IntValueLookup>> loadMetric,
                            final ReloadableSharedReference.Closer<Map.Entry<String, IntValueLookup>> closeMetric) {
+        this.loadMetric = loadMetric;
         this.closeMetric = closeMetric;
-        loadedMetrics = Maps.newHashMap();
-        this.reloaders = CacheBuilder.newBuilder().build(
-                new CacheLoader<String, ReloadableSharedReference<IntValueLookup, FlamdexOutOfMemoryException>>() {
-                    @Override
-                    public ReloadableSharedReference<IntValueLookup, FlamdexOutOfMemoryException> load(@Nullable final String metric) {
-                        return ReloadableSharedReference.create(
-                                new ReloadableSharedReference.Loader<IntValueLookup, FlamdexOutOfMemoryException>() {
-                                    @Override
-                                    public IntValueLookup load() throws FlamdexOutOfMemoryException {
-                                        final IntValueLookup lookup = loadMetric.apply(metric).get();
-                                        synchronized (loadedMetrics) {
-                                            if (closed) {
-                                                closeMetric.close(Maps.immutableEntry(metric, lookup));
-                                                throw new IllegalStateException("already closed");
-                                            }
-                                            if (loadedMetrics.containsKey(metric)) {
-                                                closeMetric.close(Maps.immutableEntry(metric, lookup));
-                                                log.error("metric "+metric+" is already loaded");
-                                                return loadedMetrics.get(metric);
-                                            }
-                                            loadedMetrics.put(metric, lookup);
-                                        }
-                                        return lookup;
-                                    }
-                                },
-                                new ReloadableSharedReference.Closer<IntValueLookup>() {
-                                    @Override
-                                    public void close(final IntValueLookup intValueLookup) {
-                                        synchronized (loadedMetrics) {
-                                            if (!closed) {
-                                                final IntValueLookup removed = loadedMetrics.remove(metric);
-                                                if (intValueLookup != removed) {
-                                                    log.error("something is wrong with ReloadableSharedReference, load and close should be called in pairs");
-                                                }
-                                                closeMetric.close(Maps.immutableEntry(metric, intValueLookup));
-                                            }
-                                        }
-                                    }
-                                }
-                        );
-                    }
-                }
-        );
     }
 
     @Override
     public IntValueLookup getMetric(final String metric) throws FlamdexOutOfMemoryException {
-        return new CachedIntValueLookup(reloaders.getUnchecked(metric).copy());
+        if (closed) {
+            throw new IllegalStateException("already closed");
+        }
+        final SharedReference<IntValueLookup> metricRef = metrics.get(metric);
+        if (metricRef != null) {
+            SharedReference<IntValueLookup> copy = metricRef.tryCopy();
+            if (copy != null) {
+                return new CachedIntValueLookup(copy);
+            }
+        }
+        final IntValueLookup intValueLookup = loadMetric.apply(metric).get();
+        final SharedReference<IntValueLookup> ref = SharedReference.create(intValueLookup, () -> closeMetric.close(Maps.immutableEntry(metric, intValueLookup)));
+        while (true) {
+            final SharedReference<IntValueLookup> oldRef = metrics.putIfAbsent(metric, ref);
+            if (oldRef == null) {
+                return new CachedIntValueLookup(ref);
+            } else {
+                SharedReference<IntValueLookup> copy = oldRef.tryCopy();
+                if (copy != null) {
+                    Closeables2.closeQuietly(ref, log);
+                    return new CachedIntValueLookup(copy);
+                }
+                final boolean replaced = metrics.replace(metric, oldRef, ref);
+                if (replaced) {
+                    return new CachedIntValueLookup(ref);
+                }
+            }
+        }
     }
 
     @Override
     public List<ImhotepStatusDump.MetricDump> getMetricDump() {
         final List<ImhotepStatusDump.MetricDump> ret = Lists.newArrayList();
-        synchronized (loadedMetrics) {
-            if (!closed) {
-                for (final Map.Entry<String, IntValueLookup> entry : loadedMetrics.entrySet()) {
-                    ret.add(new ImhotepStatusDump.MetricDump(entry.getKey(), entry.getValue().memoryUsed()));
+        if (!closed) {
+            for (final Map.Entry<String, SharedReference<IntValueLookup>> entry : metrics.entrySet()) {
+                try (final SharedReference<IntValueLookup> copy = entry.getValue().tryCopy()) {
+                    if (copy != null) {
+                        ret.add(new ImhotepStatusDump.MetricDump(entry.getKey(), copy.get().memoryUsed()));
+                    }
+                } catch (IOException e) {
+                    throw Throwables.propagate(e);
                 }
             }
         }
         return ret;
-    }
-
-    @Override
-    public Set<String> getLoadedMetrics() {
-        synchronized (loadedMetrics) {
-            if (closed) {
-                throw new IllegalStateException("already closed");
-            }
-            return Sets.newHashSet(loadedMetrics.keySet());
-        }
     }
 
     private static final class CachedIntValueLookup implements IntValueLookup {
@@ -164,19 +139,18 @@ public final class MetricCacheImpl implements MetricCache {
 
     @Override
     public void close() {
-        synchronized (loadedMetrics) {
-            if (!closed) {
-                closed = true;
-                try {
-                    Closeables2.closeAll(log, Collections2.transform(loadedMetrics.entrySet(), new Function<Map.Entry<String, IntValueLookup>, Closeable>() {
-                        public Closeable apply(final Map.Entry<String, IntValueLookup> metric) {
-                            return closeMetric.asCloseable(metric);
+        if (!closed) {
+            closed = true;
+            //TODO this is only necessary if we leak metrics. if we can verify that there aren't leaks it should be removed.
+            Closeables2.closeAll(log, Collections2.transform(metrics.entrySet(),
+                    (metric) -> () -> {
+                        try (final SharedReference<IntValueLookup> copy = metric.getValue().tryCopy()) {
+                            if (copy != null) {
+                                closeMetric.close(Maps.immutableEntry(metric.getKey(), copy.get()));
+                            }
                         }
-                    }));
-                } finally {
-                    loadedMetrics.clear();
-                }
-            }
+                    }
+            ));
         }
     }
 }

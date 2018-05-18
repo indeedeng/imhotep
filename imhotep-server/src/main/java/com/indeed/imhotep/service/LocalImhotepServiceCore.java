@@ -104,6 +104,8 @@ public class LocalImhotepServiceCore
      *            int/long arrays
      * @param flamdexReaderFactory
      *            the factory to use for opening FlamdexReaders
+     * @param shardDirIteratorFactory
+     *            the factory to use for creating the ShardDirIterator
      * @param config
      *            additional config parameters
      * @param shardUpdateListener

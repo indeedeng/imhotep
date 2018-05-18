@@ -14,7 +14,6 @@
  package com.indeed.flamdex;
 
 import com.google.common.base.Throwables;
-import com.google.common.collect.Maps;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.GenericIntTermDocIterator;
@@ -27,10 +26,12 @@ import com.indeed.flamdex.fieldcache.FieldCacher;
 import com.indeed.flamdex.fieldcache.FieldCacherUtil;
 import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIterator;
 import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIteratorImpl;
+import com.indeed.imhotep.RaceCache;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * @author jsgroth
@@ -49,16 +50,15 @@ public abstract class AbstractFlamdexReader implements FlamdexReader {
         public long max;
     }
     
-    private final Map<String, FieldCacher> intFieldCachers;
-    protected final Map<String, MinMax> metricMinMaxes;
+    private final RaceCache<String, FieldCacher, RuntimeException> intFieldCachers = RaceCache.create(this::createCacher, ignored -> {});
+    protected final ConcurrentMap<String, MinMax> metricMinMaxes;
 
     protected AbstractFlamdexReader(final Path directory, final int numDocs, final boolean useMMapMetrics) {
         this.directory = directory;
         this.numDocs = numDocs;
         this.useMMapMetrics = useMMapMetrics && directory != null;
 
-        this.intFieldCachers = Maps.newHashMap();
-        this.metricMinMaxes = Maps.newHashMap();
+        this.metricMinMaxes = new ConcurrentHashMap<>();
     }
 
     // this implementation will be correct for any FlamdexReader, but
@@ -69,7 +69,7 @@ public abstract class AbstractFlamdexReader implements FlamdexReader {
 
     @Override
     public IntValueLookup getMetric(final String metric) throws FlamdexOutOfMemoryException {
-        final FieldCacher fieldCacher = getMetricCacher(metric);
+        final FieldCacher fieldCacher = intFieldCachers.getOrLoad(metric);
         try (UnsortedIntTermDocIterator iterator = createUnsortedIntTermDocIterator(metric)) {
             return cacheField(iterator, metric, fieldCacher);
         }
@@ -108,20 +108,15 @@ public abstract class AbstractFlamdexReader implements FlamdexReader {
             return 0;
         }
 
-        final FieldCacher fieldCacher = getMetricCacher(metric);
+        final FieldCacher fieldCacher = intFieldCachers.getOrLoad(metric);
         return fieldCacher.memoryRequired(numDocs);
     }
 
-    private FieldCacher getMetricCacher(final String metric) {
-        synchronized (intFieldCachers) {
-            if (!intFieldCachers.containsKey(metric)) {
-                final MinMax minMax = new MinMax();
-                final FieldCacher cacher = FieldCacherUtil.getCacherForField(metric, this, minMax);
-                intFieldCachers.put(metric, cacher);
-                metricMinMaxes.put(metric, minMax);
-            }
-            return intFieldCachers.get(metric);
-        }
+    private FieldCacher createCacher(String metric) {
+        final MinMax minMax = new MinMax();
+        final FieldCacher cacher = FieldCacherUtil.getCacherForField(metric, this, minMax);
+        metricMinMaxes.put(metric, minMax);
+        return cacher;
     }
 
     @Override

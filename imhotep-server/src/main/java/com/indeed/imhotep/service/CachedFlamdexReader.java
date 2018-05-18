@@ -207,11 +207,6 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
     }
 
     @Override
-    public Set<String> getLoadedMetrics() {
-        return metricCache.getLoadedMetrics();
-    }
-
-    @Override
     public long memoryRequired(final String metric) {
         return wrapped.memoryRequired(metric);
     }

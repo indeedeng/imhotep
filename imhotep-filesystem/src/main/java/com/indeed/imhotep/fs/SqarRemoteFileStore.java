@@ -134,7 +134,7 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
 
         final FileMetadata fileMetadata = remoteFileMetadata.getFileMetadata();
         final RemoteCachingPath archivePath = SqarMetaDataUtil.getFullArchivePath(srcPath, fileMetadata.getArchiveFilename());
-        try (Closeable ignore = TaskScheduler.RemoteFSIOScheduler.lockSlotFromAnotherScheduler(TaskScheduler.CPUScheduler)) {
+        try (Closeable ignore = TaskScheduler.RemoteFSIOScheduler.lockSlot()) {
             try (final InputStream archiveIS = backingFileStore.newInputStream(archivePath,
                     fileMetadata.getStartOffset(),
                     remoteFileMetadata.getCompressedSize())) {

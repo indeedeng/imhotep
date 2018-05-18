@@ -142,11 +142,6 @@ public class CachedFlamdexReaderReference implements FlamdexReader, MetricCache 
     }
 
     @Override
-    public Set<String> getLoadedMetrics() {
-        return reader.getLoadedMetrics();
-    }
-
-    @Override
     public void close() {
         if (!closed) {
             closed = true;

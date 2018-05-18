@@ -67,6 +67,30 @@ public class TaskScheduler {
     }
 
     @Nonnull
+    public Closeable temporaryUnlock() {
+        final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
+        if(task == null) {
+            // TODO: add reporting on this
+            return () -> {}; // can't lock with no task
+        }
+
+        final boolean hadAlock = stopped(task);
+        if(!hadAlock) {
+            return () -> {};
+        } else {
+            return new Closeable() {
+                boolean closed = false;
+                @Override
+                public void close() throws IOException {
+                    if(closed) return;
+                    closed = true;
+                    schedule(task);
+                }
+            };
+        }
+    }
+
+    @Nonnull
     public Closeable lockSlotFromAnotherScheduler(final TaskScheduler schedulerToReleaseFrom) {
         final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
         if(task == null) {
@@ -129,7 +153,8 @@ public class TaskScheduler {
             taskQueue.updateConsumptionCache();
         }
         final PriorityQueue<TaskQueue> queues = Queues.newPriorityQueue(usernameToQueue.values());
-        for(TaskQueue taskQueue : queues) {
+        while(!queues.isEmpty()) {
+            final TaskQueue taskQueue = queues.poll();
             while(true) {
                 final ImhotepTask queuedTask = taskQueue.poll();
                 if(queuedTask == null) {
