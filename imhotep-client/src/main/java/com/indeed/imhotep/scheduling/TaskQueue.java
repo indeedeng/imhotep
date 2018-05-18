@@ -50,6 +50,10 @@ public class TaskQueue implements Comparable<TaskQueue> {
         return username;
     }
 
+    public int size() {
+        return queue.size();
+    }
+
     public void updateConsumptionCache() {
         cachedConsumption = consumptionTracker.getConsumption();
     }

@@ -26,6 +26,7 @@ public final class LocalImhotepServiceConfig {
     private int cpuSchedulerHistoryLengthSeconds = 60;
     private int remoteFSIOSlots= 4;
     private int remoteFSIOSchedulerHistoryLengthSeconds = 60;
+    private MetricStatsEmitter statsEmitter = MetricStatsEmitter.NULL_EMITTER;
 
     public int getUpdateShardsFrequencySeconds() {
         return updateShardsFrequencySeconds;
@@ -88,4 +89,11 @@ public final class LocalImhotepServiceConfig {
         this.remoteFSIOSchedulerHistoryLengthSeconds = remoteFSIOSchedulerHistoryLengthSeconds;
     }
 
+    public MetricStatsEmitter getStatsEmitter() {
+        return statsEmitter;
+    }
+
+    public void setStatsEmitter(final MetricStatsEmitter statsEmitter) {
+        this.statsEmitter = statsEmitter;
+    }
 }

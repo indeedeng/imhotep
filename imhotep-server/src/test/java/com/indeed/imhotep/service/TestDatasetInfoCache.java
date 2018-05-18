@@ -200,7 +200,8 @@ public class TestDatasetInfoCache {
                                                   new GenericFlamdexReaderSource(),
                                                   new ShardDirIteratorFactory(null, null),
                                                   config,
-                                                  listener);
+                                                  listener,
+                                                  MetricStatsEmitter.NULL_EMITTER);
             assertTrue("loaded DatasetInfo from " + source.name(),
                        listener.sourcesMatch.get());
             assertTrue("DatasetInfo lists match",
