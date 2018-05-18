@@ -116,7 +116,6 @@ import org.apache.log4j.Logger;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -514,6 +513,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         };
     }
 
+    @Override
     public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields,
                                                    final String[] stringFields,
                                                    final long termLimit) {
@@ -527,6 +527,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         return ret;
     }
 
+    @Override
     public synchronized RawFTGSIterator getFTGSIteratorSplit(final String[] intFields,
                                                              final String[] stringFields,
                                                              final int splitIndex,
@@ -542,16 +543,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             }
         }
         return ftgsIteratorSplits.getFtgsIterators()[splitIndex];
-    }
-
-    @Override
-    public void writeFTGSIteratorSplit(final String[] intFields,
-                                       final String[] stringFields,
-                                       final int splitIndex,
-                                       final int numSplits,
-                                       final long termLimit,
-                                       final Socket socket) {
-        throw new UnsupportedOperationException();
     }
 
     @Override

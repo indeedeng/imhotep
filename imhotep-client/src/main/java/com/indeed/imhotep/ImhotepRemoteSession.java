@@ -434,10 +434,12 @@ public class ImhotepRemoteSession
         }
     }
 
+    @Override
     public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields, final long termLimit) {
         throw new UnsupportedOperationException();
     }
 
+    @Override
     public RawFTGSIterator getFTGSIteratorSplit(final String[] intFields, final String[] stringFields, final int splitIndex, final int numSplits, final long termLimit) {
         // TODO: disable timer to reduce logrepo logging volume of SubmitRequestEvent?
         final Timer timer = new Timer();
@@ -1455,17 +1457,6 @@ public class ImhotepRemoteSession
 
     public void setNumStats(final int numStats) {
         this.numStats = numStats;
-    }
-
-    @Override
-    public void writeFTGSIteratorSplit(
-            final String[] intFields,
-            final String[] stringFields,
-            final int splitIndex,
-            final int numSplits,
-            final long termLimit,
-            final Socket socket) {
-        throw new UnsupportedOperationException("operation is unsupported!");
     }
 
     private final class Timer {

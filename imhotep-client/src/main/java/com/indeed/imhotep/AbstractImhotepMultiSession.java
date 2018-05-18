@@ -41,7 +41,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -627,6 +626,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
         }
     }
 
+    @Override
     public RawFTGSIterator getFTGSIteratorSplit(final String[] intFields, final String[] stringFields, final int splitIndex, final int numSplits, final long termLimit) {
         final RawFTGSIterator[] splits = new RawFTGSIterator[sessions.length];
         try {
@@ -634,6 +634,9 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
         } catch (final Throwable t) {
             Closeables2.closeAll(log, splits);
             throw Throwables.propagate(t);
+        }
+        if (sessions.length == 1) {
+            return splits[0];
         }
         RawFTGSIterator merger = new RawFTGSMerger(Arrays.asList(splits), numStats, null);
         if(termLimit > 0) {
@@ -973,11 +976,6 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
             }
         }
     }
-
-    @Override
-    public abstract void writeFTGSIteratorSplit(String[] intFields, String[] stringFields,
-                                                int splitIndex, int numSplits, long termLimit, Socket socket)
-        throws ImhotepOutOfMemoryException;
 
     protected final <E, T> void execute(final ExecutorService es,
                                         final T[] ret, final E[] things,

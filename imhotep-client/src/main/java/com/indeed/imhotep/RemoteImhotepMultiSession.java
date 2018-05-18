@@ -28,7 +28,6 @@ import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
@@ -197,11 +196,6 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             return -1;
         }
         return localTempFileSizeLimit - tempFileSizeBytesLeft.get();
-    }
-
-    @Override
-    public void writeFTGSIteratorSplit(final String[] intFields, final String[] stringFields, final int splitIndex, final int numSplits, final long termLimit, final Socket socket) {
-        throw new UnsupportedOperationException("");
     }
 
     @Override
