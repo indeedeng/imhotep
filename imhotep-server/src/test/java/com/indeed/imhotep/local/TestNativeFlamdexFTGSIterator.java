@@ -32,6 +32,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.RandomStringUtils;
 import org.joda.time.DateTime;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -55,6 +56,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * @author darren
  */
+@Ignore("Disabled since native sessions are no longer supported")
 public class TestNativeFlamdexFTGSIterator {
 
     public static class ClusterSimulator {
