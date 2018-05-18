@@ -44,7 +44,6 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -229,32 +228,11 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
     }
 
     @Override
-    public int regroup(final int numRawRules, final Iterator<GroupMultiRemapRule> rawRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
-        final GroupMultiRemapRuleArray rulesArray =
-            new GroupMultiRemapRuleArray(numRawRules, rawRules);
-
-        return regroup(rulesArray.elements(), errorOnCollisions);
-    }
-
-    @Override
     public int regroup(final GroupRemapRule[] rawRules) throws ImhotepOutOfMemoryException {
         executeMemoryException(integerBuf, new ThrowingFunction<ImhotepSession, Integer>() {
             @Override
             public Integer apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
                 return session.regroup(rawRules);
-            }
-        });
-
-        numGroups = Collections.max(Arrays.asList(integerBuf));
-        return numGroups;
-    }
-
-    public int regroup2(final int numRawRules, final Iterator<GroupRemapRule> iterator) throws ImhotepOutOfMemoryException {
-        final GroupRemapRuleArray rulesArray = new GroupRemapRuleArray(numRawRules, iterator);
-        executeMemoryException(integerBuf, new ThrowingFunction<ImhotepSession, Integer>() {
-            @Override
-            public Integer apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
-                return session.regroup(rulesArray.elements());
             }
         });
 
@@ -654,6 +632,10 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
             Closeables2.closeAll(log, splits);
             throw Throwables.propagate(t);
         }
+
+        if (sessions.length == 1) {
+            return splits[0];
+        }
         return new RawFTGSMerger(Arrays.asList(splits), numStats, null);
     }
 
@@ -833,7 +815,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
     }
 
     @Nullable
-    private PerformanceStats[] closeWithOptionalPerformanceStats(boolean getPerformanceStats) {
+    private PerformanceStats[] closeWithOptionalPerformanceStats(final boolean getPerformanceStats) {
         if (closed) {
             return null;
         }
