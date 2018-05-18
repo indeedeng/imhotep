@@ -20,7 +20,7 @@ class NoopTaskScheduler extends TaskScheduler {
     }
 
     @Override
-    public synchronized Closeable lockSlotFromAnotherScheduler(TaskScheduler schedulerToReleaseFrom) {
+    public synchronized Closeable temporaryUnlock() {
         return null;
     }
 }

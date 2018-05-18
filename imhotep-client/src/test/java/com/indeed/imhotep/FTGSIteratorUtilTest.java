@@ -56,60 +56,6 @@ public class FTGSIteratorUtilTest {
     }
 
     @Test
-    public void testIteratorPersistFailure() throws IOException {
-        expected.expect(TempFileSizeLimitExceededException.class);
-
-        final int numStats = 2;
-        final ByteArrayOutputStream out = new ByteArrayOutputStream();
-        try( final FTGSOutputStreamWriter w = new FTGSOutputStreamWriter(out) ) {
-
-            w.switchField("a", true);
-
-            w.switchIntTerm(1, 5);
-
-            w.switchGroup(0);
-            w.addStat(1000);
-            w.addStat(20);
-
-            w.switchGroup(1);
-            w.addStat(100);
-            w.addStat(200);
-
-            w.switchIntTerm(2, 10);
-
-            w.switchGroup(0);
-            w.addStat(10);
-            w.addStat(2000);
-
-            w.switchGroup(1);
-            w.addStat(200);
-            w.addStat(-100);
-
-            w.switchIntTerm(3, 15);
-
-            w.switchGroup(0);
-            w.addStat(100);
-            w.addStat(200);
-
-            w.switchGroup(1);
-            w.addStat(300);
-            w.addStat(400);
-
-            w.switchIntTerm(4, 20);
-
-            w.switchGroup(0);
-            w.addStat(10000);
-            w.addStat(20000);
-
-            w.switchGroup(1);
-            w.addStat(-300);
-            w.addStat(500);
-        }
-
-        file = FTGSIteratorUtil.persistAsFile(LOGGER, new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), numStats), numStats);
-    }
-
-    @Test
     public void testIteratorPersist() throws IOException {
         final int numStats = 2;
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
