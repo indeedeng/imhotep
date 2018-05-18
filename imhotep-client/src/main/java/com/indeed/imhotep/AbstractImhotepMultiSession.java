@@ -578,18 +578,6 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
         return newNumStats;
     }
 
-    @Override
-    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit, final int sortStat) {
-        final boolean topTermsByStat = sortStat >= 0;
-        final long perSplitTermLimit = topTermsByStat ? 0 : termLimit;
-        return mergeFTGSIteratorsForSessions(sessions, termLimit, sortStat, s -> s.getFTGSIterator(intFields, stringFields, perSplitTermLimit));
-    }
-
-    @Override
-    public FTGSIterator getSubsetFTGSIterator(final Map<String, long[]> intFields, final Map<String, String[]> stringFields) {
-        return mergeFTGSIteratorsForSessions(sessions, -1, -1, s -> s.getSubsetFTGSIterator(intFields, stringFields));
-    }
-
     public final DocIterator getDocIterator(final String[] intFields, final String[] stringFields) throws ImhotepOutOfMemoryException {
         final Closer closer = Closer.create();
         try {
@@ -640,13 +628,6 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
     }
 
     @Override
-    public RawFTGSIterator[] getSubsetFTGSIteratorSplits(
-            final Map<String, long[]> intFields,
-            final Map<String, String[]> stringFields) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public RawFTGSIterator mergeFTGSSplit(final String[] intFields, final String[] stringFields, final String sessionId, final InetSocketAddress[] nodes, final int splitIndex, final long termLimit, final int sortStat) {
         final boolean topTermsByStat = sortStat >= 0;
         final long perSplitTermLimit = topTermsByStat ? 0 : termLimit;
@@ -656,7 +637,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
         return mergeFTGSIteratorsForSessions(remoteSessions, termLimit, sortStat, s -> s.getFTGSIteratorSplit(intFields, stringFields, splitIndex, nodes.length, perSplitTermLimit));
     }
 
-    private RawFTGSIterator mergeFTGSIteratorsForSessions(
+    protected RawFTGSIterator mergeFTGSIteratorsForSessions(
             final ImhotepSession[] imhotepSessions,
             final long termLimit,
             final int sortStat,
@@ -788,12 +769,6 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
 
     private RawFTGSIterator persist(final FTGSIterator iterator) throws IOException {
         return FTGSIteratorUtil.persist(log, iterator, numStats, tempFileSizeBytesLeft);
-    }
-
-    public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields,
-                                                   final String[] stringFields,
-                                                   final long termLimit) {
-        throw new UnsupportedOperationException();
     }
 
     @Override
