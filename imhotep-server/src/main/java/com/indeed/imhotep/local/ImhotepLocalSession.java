@@ -32,7 +32,6 @@ import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.api.RawFlamdexReader;
 import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
-import com.indeed.flamdex.api.StringValueLookup;
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.flamdex.datastruct.FastBitSetPooler;
 import com.indeed.flamdex.fieldcache.ByteArrayIntValueLookup;
@@ -58,7 +57,6 @@ import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.TermLimitedFTGSIterator;
 import com.indeed.imhotep.TermLimitedRawFTGSIterator;
-import com.indeed.imhotep.api.DocIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
@@ -168,7 +166,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     protected GroupLookup docIdToGroup;
 
-    private Boolean hasOnlyZeroGroup; // lazy-evaluated
     private Integer zeroGroupDocCount; // lazy-evaluated
 
     int numStats;
@@ -254,7 +251,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
         docIdToGroup = new ConstantGroupLookup(this, 1, numDocs);
         docIdToGroup.recalculateNumGroups();
-        hasOnlyZeroGroup = Boolean.FALSE;
         zeroGroupDocCount = 0;
 
         accountForFlamdexFTGSIteratorMemChange(0, docIdToGroup.getNumGroups());
@@ -379,138 +375,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         return flamdexReader instanceof RawFlamdexReader ?
             new RawFlamdexSubsetFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields) :
             new FlamdexSubsetFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields);
-    }
-
-    private boolean shardOnlyContainsGroupZero() {
-        if (hasOnlyZeroGroup != null) {
-            return hasOnlyZeroGroup;
-        }
-
-        for (int index = 0; index < numDocs; index++ ) {
-            if (docIdToGroup.get(index)!=0) {
-                hasOnlyZeroGroup = Boolean.FALSE;
-                return false;
-            }
-        }
-
-        hasOnlyZeroGroup = Boolean.TRUE;
-        // if zeroGroupDocCount is not null it can be updates with setZeroGroupDocCount method
-        if (zeroGroupDocCount == null) {
-           zeroGroupDocCount = numDocs;
-        }
-        return true;
-    }
-
-    public DocIterator getDocIterator(final String[] intFields,
-                                      final String[] stringFields)
-        throws ImhotepOutOfMemoryException {
-
-        if (shardOnlyContainsGroupZero()) {
-            return emptyDocIterator();
-        }
-
-        final IntValueLookup[] intValueLookups = new IntValueLookup[intFields.length];
-        final StringValueLookup[] stringValueLookups = new StringValueLookup[stringFields.length];
-        try {
-            for (int i = 0; i < intFields.length; i++) {
-                intValueLookups[i] = flamdexReader.getMetric(intFields[i]);
-            }
-            for (int i = 0; i < stringFields.length; i++) {
-                stringValueLookups[i] = flamdexReader.getStringLookup(stringFields[i]);
-            }
-        } catch (final FlamdexOutOfMemoryException e) {
-            for (final IntValueLookup lookup : intValueLookups) {
-                if (lookup != null) {
-                    lookup.close();
-                }
-            }
-            for (final StringValueLookup lookup : stringValueLookups) {
-                if (lookup != null) {
-                    lookup.close();
-                }
-            }
-            throw new ImhotepOutOfMemoryException();
-        }
-        return new DocIterator() {
-
-            final int[] groups = new int[1024];
-            int n = groups.length;
-            int bufferStart = -groups.length;
-            int docId = -1;
-            boolean done = false;
-
-            public boolean next() {
-                if (done) {
-                    return false;
-                }
-                while (true) {
-                    docId++;
-                    if (docId - bufferStart >= n) {
-                        if (!readGroups()) {
-                            return endOfData();
-                        }
-                    }
-                    if (groups[docId - bufferStart] != 0) {
-                        return true;
-                    }
-                }
-            }
-
-            boolean endOfData() {
-                done = true;
-                return false;
-            }
-
-            public boolean readGroups() {
-                bufferStart += n;
-                n = Math.min(numDocs - bufferStart, groups.length);
-                if (n <= 0) {
-                    return false;
-                }
-                docIdToGroup.fillDocGrpBufferSequential(bufferStart, groups, n);
-                return true;
-            }
-
-            public int getGroup() {
-                return groups[docId - bufferStart];
-            }
-
-            final int[] docIdRef = new int[1];
-            final long[] valueRef = new long[1];
-
-            public long getInt(final int index) {
-                docIdRef[0] = docId;
-                intValueLookups[index].lookup(docIdRef, valueRef, 1);
-                return valueRef[0];
-            }
-
-            public String getString(final int index) {
-                return stringValueLookups[index].getString(docId);
-            }
-
-            public void close() throws IOException {
-                for (final IntValueLookup lookup : intValueLookups) {
-                    if (lookup != null) {
-                        lookup.close();
-                    }
-                }
-                for (final StringValueLookup lookup : stringValueLookups) {
-                    if (lookup != null) {
-                        lookup.close();
-                    }
-                }
-            }
-        };
-    }
-
-    private static DocIterator emptyDocIterator() {
-        return new DocIterator() {
-            @Override public boolean next() { return false; }
-            @Override public int getGroup() { return 0; }
-            @Override public long getInt(final int index) { return 0; }
-            @Override public String getString(final int index) { return null; }
-            @Override public void close() { }
-        };
     }
 
     @Override
@@ -1622,7 +1486,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     private void resetLazyValues() {
-        hasOnlyZeroGroup = null;
         zeroGroupDocCount = null;
     }
 
@@ -1635,9 +1498,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 }
             }
             zeroGroupDocCount = result;
-            // since we iterated through all docs,
-            // we can update hasOnlyZeroGroup
-            hasOnlyZeroGroup = (result == numDocs);
         }
         return zeroGroupDocCount;
     }

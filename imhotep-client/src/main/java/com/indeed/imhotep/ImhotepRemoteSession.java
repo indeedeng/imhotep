@@ -24,7 +24,6 @@ import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.Instrumentation.Keys;
-import com.indeed.imhotep.api.DocIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.HasSessionId;
@@ -49,7 +48,6 @@ import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
 import com.indeed.imhotep.protobuf.ShardInfoMessage;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
-import com.indeed.imhotep.service.InputStreamDocIterator;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import it.unimi.dsi.fastutil.longs.LongIterators;
@@ -405,32 +403,6 @@ public class ImhotepRemoteSession
                             .setField(entry.getKey())
                             .addAllTerms(Arrays.asList(entry.getValue()))
             );
-        }
-    }
-
-    public DocIterator getDocIterator(final String[] intFields, final String[] stringFields) throws ImhotepOutOfMemoryException {
-        final Timer timer = new Timer();
-        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_DOC_ITERATOR)
-                .setSessionId(sessionId)
-                .addAllIntFields(Arrays.asList(intFields))
-                .addAllStringFields(Arrays.asList(stringFields))
-                .build();
-        try {
-            final Socket socket = newSocket(host, port, socketTimeout);
-            final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
-            final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
-            try {
-                sendRequest(request, is, os, host, port);
-            } catch (final IOException e) {
-                closeSocket(socket);
-                throw e;
-            }
-            final DocIterator result = 
-                new InputStreamDocIterator(is, intFields.length, stringFields.length);
-            timer.complete(request);
-            return result;
-        } catch (final IOException e) {
-            throw Throwables.propagate(e);
         }
     }
 

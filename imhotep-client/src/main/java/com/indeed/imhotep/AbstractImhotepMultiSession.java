@@ -18,14 +18,12 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.indeed.flamdex.query.Query;
 import com.indeed.flamdex.query.Term;
-import com.indeed.imhotep.api.DocIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.api.RawFTGSIterator;
-import com.indeed.imhotep.service.DocIteratorMerger;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.threads.LogOnUncaughtExceptionHandler;
@@ -576,20 +574,6 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
             }
         }
         return newNumStats;
-    }
-
-    public final DocIterator getDocIterator(final String[] intFields, final String[] stringFields) throws ImhotepOutOfMemoryException {
-        final Closer closer = Closer.create();
-        try {
-            final List<DocIterator> docIterators = Lists.newArrayList();
-            for (final ImhotepSession session : sessions) {
-                docIterators.add(closer.register(session.getDocIterator(intFields, stringFields)));
-            }
-            return new DocIteratorMerger(docIterators, intFields.length, stringFields.length);
-        } catch (final Throwable t) {
-            Closeables2.closeQuietly(closer, log);
-            throw Throwables2.propagate(t, ImhotepOutOfMemoryException.class);
-        }
     }
 
     @Override
