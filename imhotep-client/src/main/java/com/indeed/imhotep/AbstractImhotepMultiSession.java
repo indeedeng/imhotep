@@ -602,16 +602,6 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
     }
 
     @Override
-    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields) {
-        return getFTGSIterator(intFields, stringFields, 0);
-    }
-
-    @Override
-    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit) {
-        return mergeFTGSIteratorsForSessions(sessions, termLimit, -1, s -> s.getFTGSIterator(intFields, stringFields, termLimit));
-    }
-
-    @Override
     public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit, final int sortStat) {
         final boolean topTermsByStat = sortStat >= 0;
         final long perSplitTermLimit = topTermsByStat ? 0 : termLimit;

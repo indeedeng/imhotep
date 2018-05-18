@@ -364,16 +364,6 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields) {
-        return getFTGSIterator(intFields, stringFields, 0);
-    }
-
-    @Override
-    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit) {
-        return getFTGSIterator(intFields, stringFields, termLimit, -1);
-    }
-
-    @Override
     public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit, final int sortStat) {
         final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_FTGS_ITERATOR)

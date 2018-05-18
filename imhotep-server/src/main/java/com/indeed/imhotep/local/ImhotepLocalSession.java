@@ -47,6 +47,7 @@ import com.indeed.imhotep.FTGSIteratorUtil;
 import com.indeed.imhotep.FTGSSplitter;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupRemapRule;
+import com.indeed.imhotep.GroupStatsDummyIterator;
 import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.InstrumentedThreadFactory;
@@ -347,27 +348,9 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         return ret;
     }
 
-    @Override
-    public synchronized FTGSIterator getFTGSIterator(final String[] intFields,
-                                                     final String[] stringFields) {
-        return getFTGSIterator(intFields, stringFields, 0);
-    }
-
-    @Override
-    public synchronized FTGSIterator getFTGSIterator(final String[] intFields,
-                                                     final String[] stringFields,
-                                                     final long termLimit) {
-        FTGSIterator iterator =  flamdexReader instanceof RawFlamdexReader ?
-                new RawFlamdexFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields) :
-                new FlamdexFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields);
-        if (termLimit > 0 ) {
-            if(iterator instanceof RawFlamdexFTGSIterator) {
-                iterator = new TermLimitedRawFTGSIterator((RawFlamdexFTGSIterator) iterator, termLimit);
-            } else {
-                iterator = new TermLimitedFTGSIterator(iterator, termLimit);
-            }
-        }
-        return iterator;
+        @Override
+    public synchronized GroupStatsIterator getGroupStatsIterator(final int stat) {
+        return new GroupStatsDummyIterator(this.getGroupStats(stat));
     }
 
     @Override
@@ -375,13 +358,20 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                                                      final String[] stringFields,
                                                      final long termLimit,
                                                      final int sortStat) {
+        FTGSIterator iterator =  flamdexReader instanceof RawFlamdexReader ?
+                new RawFlamdexFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields) :
+                new FlamdexFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields);
+
         if (sortStat >= 0) {
-            return FTGSIteratorUtil.getTopTermsFTGSIterator(
-                    getFTGSIterator(intFields, stringFields), termLimit, numStats, sortStat
-            );
-        } else {
-            return getFTGSIterator(intFields, stringFields, termLimit);
+            iterator = FTGSIteratorUtil.getTopTermsFTGSIterator(iterator, termLimit, numStats, sortStat);
+        } else if (termLimit > 0 ) {
+            if(iterator instanceof RawFTGSIterator) {
+                iterator = new TermLimitedRawFTGSIterator((RawFTGSIterator) iterator, termLimit);
+            } else {
+                iterator = new TermLimitedFTGSIterator(iterator, termLimit);
+            }
         }
+        return iterator;
     }
 
     @Override

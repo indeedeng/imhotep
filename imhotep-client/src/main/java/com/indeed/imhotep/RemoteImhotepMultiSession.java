@@ -58,16 +58,6 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     @Override
-    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields) {
-        return getFTGSIterator(intFields, stringFields, 0);
-    }
-
-    @Override
-    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit) {
-        return getFTGSIterator(intFields, stringFields, termLimit, -1);
-    }
-
-    @Override
     public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit, final int sortStat) {
         if (sessions.length == 1) {
             return sessions[0].getFTGSIterator(intFields, stringFields, termLimit, sortStat);

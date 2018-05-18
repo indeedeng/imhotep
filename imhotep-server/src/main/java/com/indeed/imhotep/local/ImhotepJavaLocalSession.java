@@ -22,10 +22,8 @@ import com.indeed.flamdex.api.RawFlamdexReader;
 import com.indeed.flamdex.reader.FlamdexMetadata;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexWriter;
-import com.indeed.imhotep.GroupStatsDummyIterator;
 import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.MemoryReservationContext;
-import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.metrics.Count;
 import com.indeed.imhotep.service.CachedFlamdexReader;
@@ -460,11 +458,6 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
             memoryPool.returnLongBuffer(valueBuffer);
         }
         return groupStats.get(stat);
-    }
-
-    @Override
-    public synchronized GroupStatsIterator getGroupStatsIterator(final int stat) {
-        return new GroupStatsDummyIterator(this.getGroupStats(stat));
     }
 
     private static void updateGroupStatsAllDocs(final IntValueLookup statLookup,
