@@ -110,6 +110,8 @@ public class LocalImhotepServiceCore
      *            additional config parameters
      * @param shardUpdateListener
      *            provides notification when shard/dataset lists change
+     * @param statsEmitter
+     *            allows sending stats about service activity
      * @throws IOException
      *             if something bad happens
      */
@@ -120,7 +122,8 @@ public class LocalImhotepServiceCore
                                    final FlamdexReaderSource flamdexReaderFactory,
                                    final ShardDirIteratorFactory shardDirIteratorFactory,
                                    final LocalImhotepServiceConfig config,
-                                   final ShardUpdateListenerIf shardUpdateListener)
+                                   final ShardUpdateListenerIf shardUpdateListener,
+                                   final MetricStatsEmitter statsEmitter)
         throws IOException {
         this.shardUpdateListener = shardUpdateListener;
 
@@ -139,13 +142,15 @@ public class LocalImhotepServiceCore
 
         TaskScheduler.CPUScheduler = new TaskScheduler(config.getCpuSlots(),
                 TimeUnit.SECONDS.toNanos(config.getCpuSchedulerHistoryLengthSeconds()),
-                TimeUnit.SECONDS.toNanos(1), SchedulerType.CPU);
+                TimeUnit.SECONDS.toNanos(1), SchedulerType.CPU,
+                statsEmitter);
 
         TaskScheduler.RemoteFSIOScheduler = new TaskScheduler(config.getRemoteFSIOSlots(),
                 TimeUnit.SECONDS.toNanos(config.getRemoteFSIOSchedulerHistoryLengthSeconds()),
-                TimeUnit.SECONDS.toNanos(1), SchedulerType.REMOTE_FS_IO);
+                TimeUnit.SECONDS.toNanos(1), SchedulerType.REMOTE_FS_IO,
+                statsEmitter);
 
-        sessionManager = new LocalSessionManager();
+        sessionManager = new LocalSessionManager(statsEmitter);
 
         clearTempDir(shardTempDir);
 
@@ -198,7 +203,7 @@ public class LocalImhotepServiceCore
                                    final ShardUpdateListenerIf shardUpdateListener)
         throws IOException {
         this(shardsDir, shardTempDir, Paths.get(System.getProperty("imhotep.shard.store")),
-             memoryCapacity, flamdexReaderFactory, shardDirIteratorFactory, config, shardUpdateListener);
+             memoryCapacity, flamdexReaderFactory, shardDirIteratorFactory, config, shardUpdateListener, config.getStatsEmitter());
     }
 
     @VisibleForTesting
@@ -217,7 +222,9 @@ public class LocalImhotepServiceCore
                  public void onDatasetUpdate(final List<DatasetInfo> datasetList,
                                              final ShardUpdateListenerIf.Source source)
                  { }
-             });
+             },
+             MetricStatsEmitter.NULL_EMITTER
+        );
         cleanupShardStoreDir = true;
     }
 

@@ -32,6 +32,20 @@ class ConsumptionTracker {
         this.batchNanos = batchNanos;
     }
 
+    /**
+     * We consider the consumption tracker active if it has consumption entries within the current history length
+     *
+     * @return boolean true if the consumption tracker has activity within the current history window, otherwise false
+     */
+    synchronized boolean isActive() {
+        if (history.isEmpty()) {
+            return false;
+        }
+        long lastTimeToKeep = System.nanoTime() - historyLengthNanos;
+        long latestTimeRecorded = history.getLast().timestamp;
+        return latestTimeRecorded > lastTimeToKeep;
+    }
+
     synchronized void record(long consumption) {
         sum += consumption;
         final TimestampedConsumption lastRecord = history.isEmpty() ? null : history.getLast();
@@ -71,7 +85,6 @@ class ConsumptionTracker {
             this.timestamp = timestamp;
             this.consumption = consumption;
         }
-
 
     }
 }

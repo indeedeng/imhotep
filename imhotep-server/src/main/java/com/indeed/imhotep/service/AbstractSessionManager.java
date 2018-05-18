@@ -25,7 +25,9 @@ import com.indeed.util.varexport.Export;
 import org.apache.log4j.Logger;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * @author jplaisance
@@ -214,4 +216,14 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
             return sessionMap.size();
         }
     }
+
+    public int getActiveUserCount() {
+        final Map<String, Session<E>> sessionMap = cloneSessionMap();
+        final Set<String> uniqueUsernames = new HashSet<>();
+        for (Session<E> session : sessionMap.values()) {
+            uniqueUsernames.add(session.username);
+        }
+        return uniqueUsernames.size();
+    }
+
 }

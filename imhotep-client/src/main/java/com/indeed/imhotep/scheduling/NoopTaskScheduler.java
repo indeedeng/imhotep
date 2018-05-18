@@ -1,5 +1,7 @@
 package com.indeed.imhotep.scheduling;
 
+import com.indeed.imhotep.service.MetricStatsEmitter;
+
 import javax.annotation.Nullable;
 import java.io.Closeable;
 
@@ -8,7 +10,7 @@ import java.io.Closeable;
  */
 class NoopTaskScheduler extends TaskScheduler {
     public NoopTaskScheduler() {
-        super(0, 0, 0, null);
+        super(0, 0, 0, null, MetricStatsEmitter.NULL_EMITTER);
     }
 
     @Nullable

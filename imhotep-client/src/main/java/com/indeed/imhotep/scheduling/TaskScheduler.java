@@ -17,6 +17,8 @@ package com.indeed.imhotep.scheduling;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Sets;
+import com.indeed.imhotep.service.MetricStatsEmitter;
+import com.indeed.util.core.threads.NamedThreadFactory;
 
 import javax.annotation.Nonnull;
 import java.io.Closeable;
@@ -24,6 +26,9 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Decides which TaskQueue task should execute next
@@ -38,16 +43,49 @@ public class TaskScheduler {
     private final long historyLengthNanos;
     private final long batchNanos;
     private final SchedulerType schedulerType;
+    private final MetricStatsEmitter statsEmitter;
 
     public static TaskScheduler CPUScheduler = new NoopTaskScheduler();
     public static TaskScheduler RemoteFSIOScheduler = new NoopTaskScheduler();
-    public static TaskScheduler noopTaskScheduler = new NoopTaskScheduler();
 
-    public TaskScheduler(long totalSlots, long historyLengthNanos, long batchNanos, SchedulerType schedulerType) {
+    private static final int REPORTING_FREQUENCY_MILLIS = 100;
+    private static final int CLEANUP_FREQUENCY_MILLIS = 1000;
+
+    public TaskScheduler(long totalSlots, long historyLengthNanos, long batchNanos, SchedulerType schedulerType, MetricStatsEmitter statsEmitter) {
         this.totalSlots = totalSlots;
         this.historyLengthNanos = historyLengthNanos;
         this.batchNanos = batchNanos;
         this.schedulerType = schedulerType;
+        this.statsEmitter = statsEmitter;
+
+        final ScheduledExecutorService statsReportingExecutor =
+                Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("schedulerStatsReporter-" + schedulerType));
+        statsReportingExecutor.scheduleAtFixedRate(this::reportStats, REPORTING_FREQUENCY_MILLIS, REPORTING_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
+
+        final ScheduledExecutorService cleanupExecutor =
+                Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("schedulerCleanup-" + schedulerType));
+        cleanupExecutor.scheduleAtFixedRate(this::cleanup, CLEANUP_FREQUENCY_MILLIS, CLEANUP_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
+    }
+
+    private void reportStats() {
+        long waitingUsersCount = 0;
+        long waitingTasksCount = 0;
+        long runningTasksCount = 0;
+        synchronized (this){
+            for (TaskQueue taskQueue : usernameToQueue.values()) {
+                waitingTasksCount += taskQueue.size();
+                waitingUsersCount += 1;
+            }
+            runningTasksCount = runningTasks.size();
+        }
+        statsEmitter.histogram("scheduler." + schedulerType + ".waiting.users", waitingUsersCount);
+        statsEmitter.histogram("scheduler." + schedulerType + ".waiting.tasks", waitingTasksCount);
+        statsEmitter.histogram("scheduler." + schedulerType + ".running.tasks", runningTasksCount);
+    }
+
+    private void cleanup() {
+        usernameToConsumptionTracker.entrySet().removeIf(entry -> !entry.getValue().isActive());
+        // TODO: check runningTasks for leaks once in a while
     }
 
     /**
@@ -61,7 +99,7 @@ public class TaskScheduler {
         if(task != null) {
             return new CloseableImhotepTask(task, this);
         } else {
-            // TODO: add reporting on this
+            statsEmitter.count("scheduler." + schedulerType + ".threadlocal.task.absent", 1);
             return () -> {}; // can't lock with no task
         }
     }
@@ -94,7 +132,7 @@ public class TaskScheduler {
     public Closeable lockSlotFromAnotherScheduler(final TaskScheduler schedulerToReleaseFrom) {
         final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
         if(task == null) {
-            // TODO: add reporting on this
+            statsEmitter.count("scheduler." + schedulerType + ".threadlocal.task.absent", 1);
             return () -> {}; // can't lock with no task
         }
 
@@ -120,6 +158,7 @@ public class TaskScheduler {
     boolean schedule(ImhotepTask task) {
         synchronized (this) {
             if (runningTasks.contains(task)) {
+                statsEmitter.count("scheduler." + schedulerType + ".schedule.already.running", 1);
                 return false;
             }
             task.preExecInitialize(this);
@@ -132,9 +171,10 @@ public class TaskScheduler {
         return true;
     }
 
-    /** returns true iff a task was running*/
+    /** returns true iff a task was running */
     synchronized boolean stopped(ImhotepTask task) {
         if(!runningTasks.remove(task)) {
+            statsEmitter.count("scheduler." + schedulerType + ".stop.already.stopped", 1);
             return false;
         }
         final long consumption = task.stopped(schedulerType);
@@ -169,11 +209,6 @@ public class TaskScheduler {
             }
         }
     }
-
-    // TODO: run trim on all ConsumptionTrackers on a schedule and delete empty ones?
-
-    // TODO: check runningTasks for leaks once in a while
-
 
     @Nonnull
     private synchronized TaskQueue getOrCreateQueueForTask(final ImhotepTask task) {
