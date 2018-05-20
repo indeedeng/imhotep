@@ -121,38 +121,6 @@ public class TestFTGSPerf {
         Runnable newRunnable(Socket socket, int i);
     }
 
-    public static class WriteFTGSRunner implements RunnableFactory {
-        private final MTImhotepLocalMultiSession session;
-        private final String[] intFields;
-        private final String[] stringFields;
-        private final int numSplits;
-
-        public WriteFTGSRunner(final MTImhotepLocalMultiSession session,
-                               final String[] intFields,
-                               final String[] stringFields,
-                               final int numSplits) {
-            this.session = session;
-            this.intFields = intFields;
-            this.stringFields = stringFields;
-            this.numSplits = numSplits;
-        }
-
-        @Override
-        public Runnable newRunnable(final Socket socket, final int i) {
-            return new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        session.writeFTGSIteratorSplit(intFields, stringFields, i, numSplits, 0, socket);
-                        socket.close();
-                    } catch (final IOException | ImhotepOutOfMemoryException e) {
-                        throw new RuntimeException(e);
-                    }
-                }
-            };
-        }
-    }
-
     public static class FieldDesc {
         public String name;
         public boolean isIntfield;
@@ -673,50 +641,4 @@ public class TestFTGSPerf {
     }
 
     */
-//    @Test
-    public void testNative() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
-        System.err.println("starting...");
-        for (int z = 0; z < 100; ++z) {
-            final double[] times = new double[ITERATIONS];
-
-            final MTImhotepLocalMultiSession session;
-            session = createMultisession(shardNames, metricNames);
-            final long begin = System.nanoTime();
-            session.updateMulticaches();
-            System.out.println("update multicaches: " + timeStamp(System.nanoTime() - begin));
-
-            final RunnableFactory factory = new WriteFTGSRunner(session, intFields, stringFields, 8);
-
-            /*
-              for (int i = 0; i < ITERATIONS; i++) {
-              ClusterSimulator simulator = new ClusterSimulator(8, nMetrics, i);
-              Thread t = simulator.simulateServer(factory);
-              long time = System.nanoTime();
-              RawFTGSIterator iterator = simulator.getIterator();
-              readAllIterator(iterator, nMetrics);
-              times[i] = (System.nanoTime() - time) / 1000000000.0;
-
-              t.join();
-              simulator.close();
-              }
-            */
-            session.close();
-        }
-        /*
-          Percentile percentile = new Percentile();
-          StandardDeviation sd = new StandardDeviation();
-          double[] items = new double[] { 10.0, 50.0, 75.0, 90.0, 99.0, 99.99  };
-          System.out.printf("\t");
-          for (int i = 0; i < items.length; ++i) {
-          System.out.printf("%.2f\t\t", items[i]);
-          }
-          System.out.printf("σ\n");
-
-          System.out.printf("native\t");
-          for (int i = 0; i < items.length; ++i) {
-          System.out.printf("%.6f\t", percentile.evaluate(times, items[i]));
-          }
-          System.out.printf("%.6f\n", sd.evaluate(times));
-        */
-    }
 }
