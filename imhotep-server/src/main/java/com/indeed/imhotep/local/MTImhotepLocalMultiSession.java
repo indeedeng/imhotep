@@ -13,23 +13,16 @@
  */
 package com.indeed.imhotep.local;
 
-import com.google.common.io.ByteStreams;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.FTGSIteratorUtil;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.GroupStatsIterator;
-import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -42,67 +35,23 @@ import java.util.concurrent.atomic.AtomicReference;
 public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<ImhotepLocalSession> {
     private static final Logger log = Logger.getLogger(MTImhotepLocalMultiSession.class);
 
-    static {
-        loadNativeLibrary();
-        log.info("libftgs loaded");
-        log.info("Using SSSE3! (if the processor in this computer doesn't support SSSE3 "
-                         + "this process will fail with SIGILL)");
-    }
-
-    public static void loadNativeLibrary() {
-        try {
-            final String osName = System.getProperty("os.name");
-            final String arch = System.getProperty("os.arch");
-            final String resourcePath = "/native/" + osName + "-" + arch + "/libftgs.so.1.0.1";
-            final InputStream is = MTImhotepLocalMultiSession.class.getResourceAsStream(resourcePath);
-            if (is == null) {
-                throw new FileNotFoundException(
-                        "unable to find libftgs.so.1.0.1 at resource path " + resourcePath);
-            }
-            final File tempFile = File.createTempFile("libftgs", ".so");
-            final OutputStream os = new FileOutputStream(tempFile);
-            ByteStreams.copy(is, os);
-            os.close();
-            is.close();
-            System.load(tempFile.getAbsolutePath());
-            tempFile.delete();
-        } catch (final Throwable e) {
-            e.printStackTrace();
-            log.warn("unable to load libftgs using class loader, looking in java.library.path", e);
-            System.loadLibrary("ftgs"); // if this fails it throws UnsatisfiedLinkError
-        }
-    }
-
     private final MemoryReservationContext memory;
 
     private final AtomicReference<Boolean> closed = new AtomicReference<>();
 
-    private final long memoryClaimed;
-
     public MTImhotepLocalMultiSession(final ImhotepLocalSession[] sessions,
                                       final MemoryReservationContext memory,
                                       final AtomicLong tempFileSizeBytesLeft)
-        throws ImhotepOutOfMemoryException {
+    {
         super(sessions, tempFileSizeBytesLeft);
         this.memory = memory;
-        this.memoryClaimed = 0;
         this.closed.set(false);
-
-        if (!memory.claimMemory(memoryClaimed)) {
-            //noinspection NewExceptionWithoutArguments
-            throw new ImhotepOutOfMemoryException();
-        }
     }
 
     @Override
     protected void preClose() {
         if (closed.compareAndSet(false, true)) {
-            try {
-                super.preClose();
-            } finally {
-                memory.releaseMemory(memoryClaimed);
-                // don't want to shut down the executor since it is re-used
-            }
+            super.preClose();
         }
     }
 
