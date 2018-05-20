@@ -89,17 +89,13 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
     private final long memoryClaimed;
 
-    private final boolean useNativeFtgs;
-
     private boolean onlyBinaryMetrics;
 
     public MTImhotepLocalMultiSession(final ImhotepLocalSession[] sessions,
                                       final MemoryReservationContext memory,
-                                      final AtomicLong tempFileSizeBytesLeft,
-                                      final boolean useNativeFtgs)
+                                      final AtomicLong tempFileSizeBytesLeft)
         throws ImhotepOutOfMemoryException {
         super(sessions, tempFileSizeBytesLeft);
-        this.useNativeFtgs = useNativeFtgs;
         this.memory = memory;
         this.memoryClaimed = 0;
         this.closed.set(false);
@@ -304,7 +300,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                                                               final String sessionId,
                                                               final AtomicLong tempFileSizeBytesLeft) {
         return new ImhotepRemoteSession(address.getHostName(), address.getPort(),
-                                        sessionId, tempFileSizeBytesLeft, useNativeFtgs);
+                                        sessionId, tempFileSizeBytesLeft);
     }
 
     private static class NativeFTGSRunnable {

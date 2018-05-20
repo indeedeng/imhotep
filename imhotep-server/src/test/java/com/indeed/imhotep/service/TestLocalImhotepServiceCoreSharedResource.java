@@ -75,7 +75,7 @@ public class TestLocalImhotepServiceCoreSharedResource {
         final LocalImhotepServiceCore service =
                 new LocalImhotepServiceCore(tempDir, optDirectory, 1024L * 1024 * 1024, false,
                                             factory, new LocalImhotepServiceConfig());
-        final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(shardName), "", "", "", 0, 0, false, "", null, false, 0);
+        final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(shardName), "", "", "", 0, 0, false, "", null, 0);
         try {
             service.handlePushStat(sessionId, "if1");
             fail("pushStat didn't throw ImhotepOutOfMemory when it should have");
@@ -83,7 +83,7 @@ public class TestLocalImhotepServiceCoreSharedResource {
             // pass
         }
         service.handleCloseSession(sessionId);
-        final String sessionId2 = service.handleOpenSession("dataset", Collections.singletonList(shardName), "", "", "", 0, 0, false, "", null, false, 0);
+        final String sessionId2 = service.handleOpenSession("dataset", Collections.singletonList(shardName), "", "", "", 0, 0, false, "", null, 0);
         service.handleCloseSession(sessionId2);
         service.close();
     }
@@ -220,7 +220,7 @@ public class TestLocalImhotepServiceCoreSharedResource {
                                             factory,
                                             new LocalImhotepServiceConfig().setUpdateShardsFrequencySeconds(1));
         try {
-            final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(shardName), "", "", "", 0, 0, false, "", null, false, 0);
+            final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(shardName), "", "", "", 0, 0, false, "", null, 0);
             sessionOpened.set(true);
             try {
                 for (int i = 0; i < 5; ++i) {

@@ -83,8 +83,7 @@ public class TestCloseSessionDuringFTGS {
                 new MTImhotepLocalMultiSession(new ImhotepLocalSession[] {
                         new ImhotepJavaLocalSession(r) },
                         new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
-                        null,
-                        false
+                        null
                 );
 //                FTGSIterator iter = session.getFTGSIterator(new String[]{}, new String[]{"sf1"}); //TODO fix this
             session.close();

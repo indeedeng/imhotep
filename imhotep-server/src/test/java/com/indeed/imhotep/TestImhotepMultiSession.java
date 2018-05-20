@@ -52,8 +52,7 @@ public class TestImhotepMultiSession {
             final ImhotepSession s = new MTImhotepLocalMultiSession(
                     new ImhotepLocalSession[] { s1, s2 },
                     new MemoryReservationContext(new ImhotepMemoryPool(0)),
-                    null,
-                    false)
+                    null)
         ){
             s.pushStat("count()");
 

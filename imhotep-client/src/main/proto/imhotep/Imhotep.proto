@@ -122,7 +122,7 @@ message ImhotepRequest {
     MERGE_SUBSET_FTGS_SPLIT = 37;
     GET_NUM_GROUPS = 38;
     REGEX_REGROUP = 39;
-    GET_FTGS_SPLIT_NATIVE=40;
+    DELETED___GET_FTGS_SPLIT_NATIVE=40;
     GROUP_QUERY_UPDATE_DYNAMIC_METRIC = 41;
     STREAMING_GET_GROUP_STATS = 42;
     GET_PERFORMANCE_STATS = 43;
@@ -244,7 +244,7 @@ message ImhotepRequest {
   // used in openSession()
   optional int64 temp_file_size_limit = 51 [default = -1];
 
-  optional bool useNativeFtgs = 52;
+  optional bool deleted_useNativeFtgs = 52 [deprecated = true];
 
   // session timeout in milliseconds
   optional int64 sessionTimeout = 53 [default = 0];

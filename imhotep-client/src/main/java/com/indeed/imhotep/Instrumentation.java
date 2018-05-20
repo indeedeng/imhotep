@@ -64,7 +64,6 @@ public class Instrumentation {
         public static final String USERNAME            = "username";
         public static final String CLIENT_NAME         = "clientname";
         public static final String REMOTE_IP_ADDRESS   = "raddr";
-        public static final String USE_NATIVE_FTGS     = "usenativeftgs";
     }
 
     public static class Event {

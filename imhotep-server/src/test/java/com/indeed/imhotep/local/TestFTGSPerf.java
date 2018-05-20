@@ -430,8 +430,7 @@ public class TestFTGSPerf {
     private static final int MAX_N_METRICS = 64;
 
     private MTImhotepLocalMultiSession createMultisession(final List<Path> shardDirs,
-                                                          final String[] metricNames,
-                                                          final boolean useNativeFTGS)
+                                                          final String[] metricNames)
         throws ImhotepOutOfMemoryException, IOException {
         final ImhotepLocalSession[] localSessions = new ImhotepLocalSession[shardDirs.size()];
         for (int i = 0; i < shardDirs.size(); i++) {
@@ -445,7 +444,7 @@ public class TestFTGSPerf {
         final MTImhotepLocalMultiSession mtSession;
         final MemoryReservationContext mrc =
             new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE));
-        mtSession = new MTImhotepLocalMultiSession(localSessions, mrc, foo, useNativeFTGS);
+        mtSession = new MTImhotepLocalMultiSession(localSessions, mrc, foo);
 
         mtSession.randomMultiRegroup(metricNames[0],
                                      true,
@@ -681,7 +680,7 @@ public class TestFTGSPerf {
             final double[] times = new double[ITERATIONS];
 
             final MTImhotepLocalMultiSession session;
-            session = createMultisession(shardNames, metricNames, true);
+            session = createMultisession(shardNames, metricNames);
             final long begin = System.nanoTime();
             session.updateMulticaches();
             System.out.println("update multicaches: " + timeStamp(System.nanoTime() - begin));

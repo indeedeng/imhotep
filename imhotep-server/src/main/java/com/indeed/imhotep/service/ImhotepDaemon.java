@@ -343,7 +343,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                 request.getOptimizeGroupZeroLookups(),
                                 request.getSessionId(),
                                 tempFileSizeBytesLeft,
-                                request.getUseNativeFtgs(),
                                 request.getSessionTimeout());
                 NDC.push(sessionId);
                 builder.setSessionId(sessionId);
@@ -625,22 +624,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                                request.getSplitIndex(),
                                                request.getNumSplits(),
                                                request.getTermLimit());
-        }
-
-        private void getFTGSSplitNative(
-                final ImhotepRequest          request,
-                final ImhotepResponse.Builder builder,
-                final OutputStream            os)
-            throws IOException, ImhotepOutOfMemoryException {
-            checkSessionValidity(request);
-            service.handleGetFTGSIteratorSplitNative(request.getSessionId(),
-                                                     getIntFields(request),
-                                                     getStringFields(request),
-                                                     os,
-                                                     request.getSplitIndex(),
-                                                     request.getNumSplits(),
-                                                     request.getTermLimit(),
-                                                     socket);
         }
 
         private void getSubsetFTGSSplit(
@@ -1079,9 +1062,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                             break;
                         case GET_FTGS_SPLIT:
                             getFTGSSplit(request, builder, os);
-                            break;
-                        case GET_FTGS_SPLIT_NATIVE:
-                            getFTGSSplitNative(request, builder, os);
                             break;
                         case GET_SUBSET_FTGS_SPLIT:
                             getSubsetFTGSSplit(request, builder, os);

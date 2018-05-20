@@ -33,7 +33,6 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.local.ImhotepJavaLocalSession;
 import com.indeed.imhotep.local.ImhotepLocalSession;
-import com.indeed.imhotep.local.ImhotepNativeLocalSession;
 import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
@@ -435,7 +434,6 @@ public class LocalImhotepServiceCore
                                     final boolean optimizeGroupZeroLookups,
                                     String sessionId,
                                     final AtomicLong tempFileSizeBytesLeft,
-                                    final boolean useNativeFtgs,
                                     final long sessionTimeout)
         throws ImhotepOutOfMemoryException {
 
@@ -475,10 +473,7 @@ public class LocalImhotepServiceCore
                     pair.getSecond();
                 try {
                     flamdexes.put(pair.getFirst(), cachedFlamdexReaderReference);
-                    localSessions[i] = useNativeFtgs && flamdexReaders.allFlamdexReaders ?
-                        new ImhotepNativeLocalSession(cachedFlamdexReaderReference,
-                                                      new MemoryReservationContext(multiSessionMemoryContext),
-                                                      tempFileSizeBytesLeft) :
+                    localSessions[i] =
                         new ImhotepJavaLocalSession(cachedFlamdexReaderReference,
                                                     this.shardTempDir.toString(),
                                                     new MemoryReservationContext(multiSessionMemoryContext),
@@ -494,8 +489,7 @@ public class LocalImhotepServiceCore
             final MTImhotepLocalMultiSession session =
                 new MTImhotepLocalMultiSession(localSessions,
                                                new MemoryReservationContext(multiSessionMemoryContext),
-                                               tempFileSizeBytesLeft,
-                                               useNativeFtgs && flamdexReaders.allFlamdexReaders);
+                                               tempFileSizeBytesLeft);
             getSessionManager().addSession(sessionId, session, flamdexes, username, clientName,
                                            ipAddress, clientVersion, dataset, sessionTimeout, multiSessionMemoryContext);
             session.addObserver(observer);

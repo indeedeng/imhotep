@@ -23,8 +23,8 @@ import com.indeed.imhotep.DynamicIndexSubshardDirnameUtil;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.Instrumentation;
-import com.indeed.imhotep.Shard;
 import com.indeed.imhotep.RemoteImhotepMultiSession;
+import com.indeed.imhotep.Shard;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
@@ -316,7 +316,6 @@ public class ImhotepClient
 
         private List<Shard> chosenShards = null;
         private List<Shard> shardsOverride = null;
-        private boolean useNativeFTGS;
 
         private boolean allowSessionForwarding = false;
 
@@ -360,11 +359,6 @@ public class ImhotepClient
 
         public SessionBuilder shardsOverride(final Collection<Shard> requiredShards) {
             this.shardsOverride = Lists.newArrayList(requiredShards);
-            return this;
-        }
-
-        public SessionBuilder useNativeFtgs() {
-            useNativeFTGS = true;
             return this;
         }
 
@@ -439,7 +433,7 @@ public class ImhotepClient
             final ShardsAndDocCounts shardsAndDocCounts = selectHostsForShards(locatedShards);
             return getSessionForShards(
                     dataset, shardsAndDocCounts, mergeThreadLimit, username, clientName, optimizeGroupZeroLookups,
-                    socketTimeout, localTempFileSizeLimit, daemonTempFileSizeLimit, useNativeFTGS, sessionTimeout,
+                    socketTimeout, localTempFileSizeLimit, daemonTempFileSizeLimit, sessionTimeout,
                     allowSessionForwarding
             );
         }
@@ -449,13 +443,13 @@ public class ImhotepClient
                                                final int mergeThreadLimit, final String username, final String clientName,
                                                final boolean optimizeGroupZeroLookups, final int socketTimeout,
                                                final long localTempFileSizeLimit, final long daemonTempFileSizeLimit,
-                                               final boolean useNativeFtgs, final long sessionTimeout,
+                                               final long sessionTimeout,
                                                final boolean allowSessionForwarding) {
 
         final AtomicLong localTempFileSizeBytesLeft = localTempFileSizeLimit > 0 ? new AtomicLong(localTempFileSizeLimit) : null;
         try {
             final String sessionId = UUID.randomUUID().toString();
-            ImhotepRemoteSession[] remoteSessions = internalGetSession(dataset, shardsAndDocCounts, mergeThreadLimit, username, clientName, optimizeGroupZeroLookups, socketTimeout, sessionId, daemonTempFileSizeLimit, localTempFileSizeBytesLeft, useNativeFtgs, sessionTimeout, allowSessionForwarding);
+            ImhotepRemoteSession[] remoteSessions = internalGetSession(dataset, shardsAndDocCounts, mergeThreadLimit, username, clientName, optimizeGroupZeroLookups, socketTimeout, sessionId, daemonTempFileSizeLimit, localTempFileSizeBytesLeft, sessionTimeout, allowSessionForwarding);
 
             final InetSocketAddress[] nodes = new InetSocketAddress[remoteSessions.length];
             for (int i = 0; i < remoteSessions.length; i++) {
@@ -479,7 +473,6 @@ public class ImhotepClient
                            @Nullable final String sessionId,
                            final long tempFileSizeLimit,
                            @Nullable final AtomicLong tempFileSizeBytesLeft,
-                           final boolean useNativeFtgs,
                            final long sessionTimeout,
                            boolean allowSessionForwarding) {
         final Map<Host, List<String>> shardRequestMap = shardsAndDocCounts.shardRequestMap;
@@ -506,7 +499,6 @@ public class ImhotepClient
                                                                 sessionId,
                                                                 tempFileSizeLimit,
                                                                 tempFileSizeBytesLeft,
-                                                                useNativeFtgs,
                                                                 sessionTimeout,
                                                                 allowSessionForwarding,
                                                                 numDocs);
