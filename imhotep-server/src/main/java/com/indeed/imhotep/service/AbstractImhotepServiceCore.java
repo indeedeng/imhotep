@@ -14,7 +14,6 @@
  package com.indeed.imhotep.service;
 
 import com.google.common.base.Function;
-import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.DatasetInfo;
@@ -27,7 +26,6 @@ import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.TermCount;
-import com.indeed.imhotep.api.DocIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
@@ -35,7 +33,6 @@ import com.indeed.imhotep.api.ImhotepServiceCore;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
-import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import org.apache.log4j.Logger;
@@ -294,43 +291,6 @@ public abstract class AbstractImhotepServiceCore
                 return writeFTGSIteratorToOutputStream(numStats, merger, os);
             }
         });
-    }
-
-    @Override
-    public void handleGetDocIterator(
-            final String sessionId,
-            final String[] intFields,
-            final String[] stringFields,
-            final OutputStream os)
-            throws ImhotepOutOfMemoryException, IOException {
-        final SharedReference<ImhotepSession> sessionRef = getSessionManager().getSession(sessionId);
-        try {
-            final DocIterator iterator = sessionRef.get().getDocIterator(intFields, stringFields);
-            sendSuccessResponse(os);
-            final Future<?> future = ftgsExecutor.submit(new Callable<Void>() {
-                @Override
-                public Void call() throws IOException {
-                    try {
-                        DocOutputStreamWriter.writeNotThreadSafe(iterator, intFields.length, stringFields.length, os);
-                    } finally {
-                        Closeables2.closeAll(log, iterator, sessionRef);
-                    }
-                    return null;
-                }
-            });
-            try {
-                // do a timed get so the task doesn't run infinitely
-                future.get(30L, TimeUnit.MINUTES);
-            } catch (final TimeoutException e) {
-                future.cancel(true);
-                throw Throwables.propagate(e);
-            } catch (final ExecutionException | InterruptedException e) {
-                throw Throwables.propagate(e);
-            }
-        } catch (final Throwable t) {
-            Closeables2.closeQuietly(sessionRef, log);
-            throw Throwables2.propagate(t, ImhotepOutOfMemoryException.class, IOException.class);
-        }
     }
 
     @Override

@@ -22,6 +22,7 @@ import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.imhotep.io.SocketUtils;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
@@ -35,6 +36,7 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.atomic.AtomicLong;
@@ -158,6 +160,31 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             }
         });
         return result;
+    }
+
+    @Override
+    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit, final int sortStat) {
+        final boolean topTermsByStat = sortStat >= 0;
+        final long perSplitTermLimit = topTermsByStat ? 0 : termLimit;
+        return mergeFTGSIteratorsForSessions(sessions, termLimit, sortStat, s -> s.getFTGSIterator(intFields, stringFields, perSplitTermLimit));
+    }
+
+    @Override
+    public FTGSIterator getSubsetFTGSIterator(final Map<String, long[]> intFields, final Map<String, String[]> stringFields) {
+        return mergeFTGSIteratorsForSessions(sessions, -1, -1, s -> s.getSubsetFTGSIterator(intFields, stringFields));
+    }
+
+    @Override
+    public RawFTGSIterator[] getSubsetFTGSIteratorSplits(
+            final Map<String, long[]> intFields,
+            final Map<String, String[]> stringFields) {
+        throw new UnsupportedOperationException();
+    }
+
+    public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields,
+                                                   final String[] stringFields,
+                                                   final long termLimit) {
+        throw new UnsupportedOperationException();
     }
 
     @Override

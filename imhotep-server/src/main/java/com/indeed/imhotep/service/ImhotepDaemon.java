@@ -697,17 +697,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                                        os, nodes, request.getSplitIndex());
         }
 
-        private void getDocIterator(
-                final ImhotepRequest          request,
-                final ImhotepResponse.Builder builder,
-                final OutputStream            os)
-            throws IOException, ImhotepOutOfMemoryException {
-            checkSessionValidity(request);
-            service.handleGetDocIterator(request.getSessionId(),
-                                         getIntFields(request),
-                                         getStringFields(request), os);
-        }
-
         private ImhotepResponse pushStat(
                 final ImhotepRequest          request,
                 final ImhotepResponse.Builder builder)
@@ -1102,9 +1091,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                             break;
                         case MERGE_SUBSET_FTGS_SPLIT:
                             mergeSubsetFTGSSplit(request, builder, os);
-                            break;
-                        case GET_DOC_ITERATOR:
-                            getDocIterator(request, builder, os);
                             break;
                         case PUSH_STAT:
                             response = pushStat(request, builder);

@@ -13,10 +13,12 @@
  */
  package com.indeed.imhotep;
 
+import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 
+import java.net.Socket;
 import java.util.Iterator;
 
 /**
@@ -26,6 +28,28 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
 
     protected final Instrumentation.ProviderSupport instrumentation =
         new Instrumentation.ProviderSupport();
+
+    @Override
+    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields) {
+        return getFTGSIterator(intFields, stringFields, 0);
+    }
+
+    @Override
+    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit) {
+        return getFTGSIterator(intFields, stringFields, termLimit, -1);
+    }
+
+    // this method is implemented only in MTImhotepLocalMultiSession
+    @Override
+    public void writeFTGSIteratorSplit(
+            final String[] intFields,
+            final String[] stringFields,
+            final int splitIndex,
+            final int numSplits,
+            final long termLimit,
+            final Socket socket) throws ImhotepOutOfMemoryException {
+        throw new UnsupportedOperationException("operation is unsupported!");
+    }
 
     @Override
     public int regroup(final int numRawRules, final Iterator<GroupMultiRemapRule> rawRules) throws ImhotepOutOfMemoryException {

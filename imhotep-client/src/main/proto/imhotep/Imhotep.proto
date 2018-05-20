@@ -87,7 +87,7 @@ message ImhotepRequest {
     GET_FTGS_ITERATOR = 2;
     PUSH_STAT = 3;
     POP_STAT = 4;
-    GET_SHARD_LIST = 5; // No longer implemented. Use GET_SHARD_INFO_LIST
+    DELETED___GET_SHARD_LIST = 5; // No longer implemented. Use GET_SHARD_INFO_LIST
     OPEN_SESSION = 6;
     CLOSE_SESSION = 7;
     GET_TOTAL_DOC_FREQ = 8;
@@ -111,7 +111,7 @@ message ImhotepRequest {
     CONDITIONAL_UPDATE_DYNAMIC_METRIC = 26;
     EXPLODED_MULTISPLIT_REGROUP = 27;
     METRIC_FILTER = 28;
-    GET_DOC_ITERATOR = 29;
+    DELETED___GET_DOC_ITERATOR = 29; // No longer implemented.
     EXPLODED_REGROUP = 30;
     OPTIMIZE_SESSION = 31;
     GET_FTGS_SPLIT = 32;
