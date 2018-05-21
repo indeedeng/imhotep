@@ -13,14 +13,14 @@
  */
  package com.indeed.flamdex.simple;
 
-import com.indeed.flamdex.api.RawStringTermIterator;
+import com.indeed.flamdex.api.StringTermIterator;
 
 import java.io.IOException;
 
 /**
  * @author jplaisance
  */
-public interface SimpleStringTermIterator extends SimpleTermIterator, RawStringTermIterator {
+public interface SimpleStringTermIterator extends SimpleTermIterator, StringTermIterator {
     @Deprecated
     long getDocListAddress() throws IOException;
 }

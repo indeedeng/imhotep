@@ -13,6 +13,7 @@
  */
  package com.indeed.flamdex.reader;
 
+import com.google.common.base.Charsets;
 import com.google.common.primitives.Ints;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FieldsCardinalityMetadata;
@@ -150,6 +151,7 @@ public class MockFlamdexReader implements FlamdexReader {
         private Iterator<Map.Entry<String, List<Integer>>> iterator;
 
         private String term;
+        private byte[] termBytes;
         private List<Integer> docs;
 
         private boolean bufferNext;
@@ -168,6 +170,7 @@ public class MockFlamdexReader implements FlamdexReader {
                 if (entry.getKey().compareTo(term) >= 0) {
                     bufferNext = true;
                     this.term = entry.getKey();
+                    termBytes = null;
                     this.docs = entry.getValue();
                     break;
                 }
@@ -177,6 +180,19 @@ public class MockFlamdexReader implements FlamdexReader {
         @Override
         public String term() {
             return term;
+        }
+
+        @Override
+        public byte[] termStringBytes() {
+            if (termBytes == null) {
+                termBytes = term().getBytes(Charsets.UTF_8);
+            }
+            return termBytes;
+        }
+
+        @Override
+        public int termStringLength() {
+            return termStringBytes().length;
         }
 
         @Override
@@ -190,6 +206,7 @@ public class MockFlamdexReader implements FlamdexReader {
             }
             final Map.Entry<String, List<Integer>> e = iterator.next();
             term = e.getKey();
+            termBytes = null;
             docs = e.getValue();
             return true;
         }
@@ -239,6 +256,16 @@ public class MockFlamdexReader implements FlamdexReader {
         @Override
         public String term() {
             return null;
+        }
+
+        @Override
+        public byte[] termStringBytes() {
+            return null;
+        }
+
+        @Override
+        public int termStringLength() {
+            return 0;
         }
     }
 

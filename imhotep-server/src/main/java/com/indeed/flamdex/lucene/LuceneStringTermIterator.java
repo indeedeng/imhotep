@@ -13,6 +13,7 @@
  */
  package com.indeed.flamdex.lucene;
 
+import com.google.common.base.Charsets;
 import com.indeed.flamdex.api.StringTermIterator;
 import org.apache.log4j.Logger;
 import org.apache.lucene.index.IndexReader;
@@ -27,6 +28,7 @@ class LuceneStringTermIterator implements StringTermIterator, LuceneTermIterator
     private final IndexReader reader;
     private final String field;
     private TermEnum termEnum; // if this is null it signals initialize needs to be called
+    private byte[] termBytes;
     private boolean hasNext = false;
     private String firstTerm = "";
 
@@ -70,7 +72,21 @@ class LuceneStringTermIterator implements StringTermIterator, LuceneTermIterator
     }
 
     @Override
+    public byte[] termStringBytes() {
+        if (termBytes == null) {
+            termBytes = term().getBytes(Charsets.UTF_8);
+        }
+        return termBytes;
+    }
+
+    @Override
+    public int termStringLength() {
+        return termStringBytes().length;
+    }
+
+    @Override
     public boolean next() {
+        termBytes = null;
         if (termEnum == null) {
             return initialize();
         }

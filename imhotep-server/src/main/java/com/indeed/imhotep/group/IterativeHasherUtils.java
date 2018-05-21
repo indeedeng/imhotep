@@ -17,7 +17,6 @@ package com.indeed.imhotep.group;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermIterator;
-import com.indeed.flamdex.api.RawStringTermIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.TermIterator;
 
@@ -85,9 +84,9 @@ public class IterativeHasherUtils {
     }
 
     private static class ByteArrayTermHashIteraror extends TermHashIterarorImpl {
-        private final RawStringTermIterator iterator;
+        private final StringTermIterator iterator;
         private final IterativeHasher.ByteArrayHasher hasher;
-        private ByteArrayTermHashIteraror(final RawStringTermIterator iterator,
+        private ByteArrayTermHashIteraror(final StringTermIterator iterator,
                                           final DocIdStream docIdStream,
                                           final IterativeHasher.ByteArrayHasher hasher) {
             super(iterator, docIdStream);
@@ -132,12 +131,7 @@ public class IterativeHasherUtils {
             return new ConsistentLongTermHashIteraror(iterator, stream, hasher.consistentLongHasher());
         } else {
             final StringTermIterator iterator = reader.getStringTermIterator(field);
-            if (iterator instanceof RawStringTermIterator) {
-                final RawStringTermIterator rawIterator = (RawStringTermIterator)iterator;
-                return new ByteArrayTermHashIteraror(rawIterator, stream, hasher.byteArrayHasher());
-            } else {
-                return new StringTermHashIteraror(iterator, stream, hasher.stringHasher());
-            }
+            return new ByteArrayTermHashIteraror(iterator, stream, hasher.byteArrayHasher());
         }
     }
 

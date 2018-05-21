@@ -18,10 +18,10 @@ import javax.annotation.WillCloseWhenClosed;
 /**
  * @author jplaisance
  */
-public final class GenericRawStringTermDocIterator extends GenericTermDocIterator<RawStringTermIterator> implements StringTermDocIterator {
+public final class GenericRawStringTermDocIterator extends GenericTermDocIterator<StringTermIterator> implements StringTermDocIterator {
 
     public GenericRawStringTermDocIterator(
-            @WillCloseWhenClosed final RawStringTermIterator termIterator,
+            @WillCloseWhenClosed final StringTermIterator termIterator,
             @WillCloseWhenClosed final DocIdStream docIdStream) {
         super(termIterator, docIdStream);
     }

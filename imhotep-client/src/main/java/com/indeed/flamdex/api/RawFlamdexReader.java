@@ -17,7 +17,4 @@
  * @author jplaisance
  */
 public interface RawFlamdexReader extends FlamdexReader {
-
-    @Override
-    RawStringTermIterator getStringTermIterator(String field);
 }

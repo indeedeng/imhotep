@@ -14,6 +14,7 @@
 
 package com.indeed.flamdex.dynamic;
 
+import com.google.common.base.Charsets;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.util.core.io.Closeables2;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -38,6 +39,7 @@ class MergedStringTermIterator implements MergedTermIterator, StringTermIterator
     // this is the indices which satisfies currentTerms[i] == currentTerm, which is removed from priority queue until the next call of next().
     private final IntArrayList currentMinimums;
     private String currentTerm;
+    private byte[] currentTermBytes;
     private int currentTermFreq;
     private final String[] currentTerms;
     private final ObjectHeapSemiIndirectPriorityQueue<String> priorityQueue;
@@ -91,6 +93,19 @@ class MergedStringTermIterator implements MergedTermIterator, StringTermIterator
     }
 
     @Override
+    public byte[] termStringBytes() {
+        if (currentTermBytes == null) {
+            currentTermBytes = term().getBytes(Charsets.UTF_8);
+        }
+        return currentTermBytes;
+    }
+
+    @Override
+    public int termStringLength() {
+        return termStringBytes().length;
+    }
+
+    @Override
     public boolean next() {
         for (final int i : currentMinimums) {
             final StringTermIterator iterator = stringTermIterators.get(i);
@@ -103,6 +118,7 @@ class MergedStringTermIterator implements MergedTermIterator, StringTermIterator
         currentTermFreq = 0;
         if (!priorityQueue.isEmpty()) {
             currentTerm = currentTerms[priorityQueue.first()];
+            currentTermBytes = null;
             while (!priorityQueue.isEmpty() && (currentTerm.equals(currentTerms[priorityQueue.first()]))) {
                 final int i = priorityQueue.dequeue();
                 currentTermFreq += stringTermIterators.get(i).docFreq();
