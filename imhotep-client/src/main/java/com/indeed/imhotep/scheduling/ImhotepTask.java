@@ -123,4 +123,8 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     public long getLastExecutionStartTime() {
         return lastExecutionStartTime;
     }
+
+    public long getLastWaitStartTime() {
+        return lastWaitStartTime;
+    }
 }
