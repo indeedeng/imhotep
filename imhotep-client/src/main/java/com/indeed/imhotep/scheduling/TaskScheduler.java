@@ -24,6 +24,7 @@ import javax.annotation.Nonnull;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Optional;
 import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.concurrent.Executors;
@@ -71,13 +72,31 @@ public class TaskScheduler {
         long waitingUsersCount = 0;
         long waitingTasksCount = 0;
         long runningTasksCount = 0;
+        long longestWaitingTaskNanos = 0;
+        long longestRunningTaskNanos = 0;
         synchronized (this){
             for (TaskQueue taskQueue : usernameToQueue.values()) {
                 waitingTasksCount += taskQueue.size();
                 waitingUsersCount += 1;
             }
             runningTasksCount = runningTasks.size();
+            final long nowNanos = System.nanoTime();
+
+            final Optional<Long> minRunStartTimeNanos = runningTasks.stream().map(ImhotepTask::getLastExecutionStartTime).min(Long::compareTo);
+            long oldestRunStartTimeNanos = minRunStartTimeNanos.orElse(nowNanos);
+            longestRunningTaskNanos = nowNanos - oldestRunStartTimeNanos;
+
+            long minWaitStartTimeNanos = nowNanos;
+            for(TaskQueue taskQueue: usernameToQueue.values()) {
+                final ImhotepTask oldestTask = taskQueue.peek();
+                if (oldestTask != null) {
+                    minWaitStartTimeNanos = Math.min(minWaitStartTimeNanos, oldestTask.getLastWaitStartTime());
+                }
+            }
+            longestWaitingTaskNanos = nowNanos - minWaitStartTimeNanos;
         }
+        statsEmitter.histogram("scheduler." + schedulerType + ".longest.running", TimeUnit.NANOSECONDS.toMillis(longestRunningTaskNanos));
+        statsEmitter.histogram("scheduler." + schedulerType + ".longest.waiting",  TimeUnit.NANOSECONDS.toMillis(longestWaitingTaskNanos));
         statsEmitter.histogram("scheduler." + schedulerType + ".waiting.users", waitingUsersCount);
         statsEmitter.histogram("scheduler." + schedulerType + ".waiting.tasks", waitingTasksCount);
         statsEmitter.histogram("scheduler." + schedulerType + ".running.tasks", runningTasksCount);
