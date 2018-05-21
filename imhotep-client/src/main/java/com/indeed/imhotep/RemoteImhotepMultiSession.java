@@ -25,8 +25,10 @@ import com.indeed.imhotep.marshal.ImhotepClientMarshaller;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
+import it.unimi.dsi.fastutil.longs.LongIterators;
 import org.apache.log4j.Logger;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.Collections;
@@ -54,6 +56,37 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         this.sessionId = sessionId;
         this.nodes = nodes;
         this.localTempFileSizeLimit = localTempFileSizeLimit;
+    }
+
+    @Override
+    public long[] getGroupStats(final int stat) {
+        try(final GroupStatsIterator it = getGroupStatsIterator(stat)) {
+            return LongIterators.unwrap(it, it.getNumGroups());
+        } catch (final IOException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    @Override
+    public GroupStatsIterator getGroupStatsIterator(final int stat) {
+        // there is two ways to create GroupStatsIterator in multisession:
+        // create iterator over result of getGroupStats method or create merger for iterators.
+        // In case of remote multisession we creating readers over socket streams.
+        // It could be an issue if client is not reading stats till end.
+        // But now, nobody uses this method (IQL uses getGroupStats(..))
+        final GroupStatsIterator[] statsBuffer = new GroupStatsIterator[sessions.length];
+        executeRuntimeException(statsBuffer, new ThrowingFunction<ImhotepRemoteSession, GroupStatsIterator>() {
+            @Override
+            public GroupStatsIterator apply(final ImhotepRemoteSession session) {
+                return session.getGroupStatsIterator(stat);
+            }
+        });
+
+        if(statsBuffer.length == 1) {
+            return statsBuffer[0];
+        } else {
+            return new GroupStatsIteratorCombiner(statsBuffer);
+        }
     }
 
     @Override

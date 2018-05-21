@@ -31,14 +31,14 @@ import java.util.NoSuchElementException;
  * @author aibragimov
  */
 
-class GroupStatsIteratorCombiner extends AbstractLongIterator implements GroupStatsIterator {
+public class GroupStatsIteratorCombiner extends AbstractLongIterator implements GroupStatsIterator {
 
     private static final Logger log = Logger.getLogger( GroupStatsIteratorCombiner.class);
 
     private final List<GroupStatsIterator> stats;
     private final int size;
 
-    GroupStatsIteratorCombiner(final GroupStatsIterator[] stats) {
+    public GroupStatsIteratorCombiner(final GroupStatsIterator[] stats) {
         int size = 0;
         this.stats = new LinkedList<>();
         for( final GroupStatsIterator stat : stats ) {

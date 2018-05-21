@@ -16,6 +16,7 @@ package com.indeed.imhotep.local;
 import com.google.common.io.ByteStreams;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.FTGSIteratorUtil;
+import com.indeed.imhotep.GroupStatsDummyIterator;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.api.FTGSIterator;
@@ -24,6 +25,7 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.imhotep.io.SocketUtils;
+import com.indeed.imhotep.pool.GroupStatsPool;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
@@ -160,6 +162,31 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             }
         });
         return result;
+    }
+
+    @Override
+    public long[] getGroupStats(final int stat) {
+
+        final GroupStatsPool pool = new GroupStatsPool(numGroups);
+
+        executeRuntimeException(nullBuf, session -> {
+            final long[] buffer = pool.getBuffer();
+            session.addGroupStats(stat, buffer);
+            pool.returnBuffer(buffer);
+            return null;
+        });
+
+        // TODO: run as a separate task maybe?
+        return pool.getTotalResult();
+    }
+
+    @Override
+    public GroupStatsIterator getGroupStatsIterator(final int stat) {
+        // there is two ways to create GroupStatsIterator in multisession:
+        // create iterator over result of getGroupStats method or create merger for iterators.
+        // In case of local multisession we are keeping full result in memory anyway,
+        // so first option is better.
+        return new GroupStatsDummyIterator(getGroupStats(stat));
     }
 
     @Override
