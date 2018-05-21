@@ -19,7 +19,7 @@ public class GroupStatsPool {
 
     public synchronized long[] getBuffer() {
         if (closed) {
-            throw new IllegalStateException();
+            throw new IllegalStateException("Can't get buffer. Pool is already closed");
         }
         buffersInUse++;
         return buffers.isEmpty() ? new long[numGroups] : buffers.remove(buffers.size() - 1);
@@ -27,19 +27,25 @@ public class GroupStatsPool {
 
     public synchronized void returnBuffer(final long[] partialResult) {
         if (closed) {
-            throw new IllegalStateException();
+            throw new IllegalStateException("Can't return buffer. Pool is already closed");
+        }
+        if (partialResult.length != numGroups) {
+            throw new IllegalStateException("Buffer with unexpected size");
         }
         if (buffersInUse <= 0) {
-            throw new IllegalStateException();
+            throw new IllegalStateException("Returning more buffers than expected");
         }
         buffersInUse--;
         buffers.add(partialResult);
     }
 
     public synchronized long[] getTotalResult() {
+        if (closed) {
+            throw new IllegalStateException("Result is already calculated.");
+        }
         closed = true;
         if (buffersInUse != 0) {
-            throw new IllegalStateException();
+            throw new IllegalStateException("Some buffers are still in use.");
         }
 
         if (buffers.isEmpty()) {
@@ -53,6 +59,9 @@ public class GroupStatsPool {
                 result[i] += partial[i];
             }
         }
+
+        // Free memory now as we don't know GroupStatsPool lifetime.
+        buffers = null;
 
         return result;
     }
