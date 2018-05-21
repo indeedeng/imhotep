@@ -224,4 +224,14 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         }
         return builder.build();
     }
+
+    @Override
+    public RawFTGSIterator getFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, long termLimit) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public RawFTGSIterator getSubsetFTGSIteratorSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, int splitIndex, int numSplits) {
+        throw new UnsupportedOperationException();
+    }
 }

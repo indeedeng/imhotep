@@ -37,7 +37,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
 * @author jplaisance
 */
-public final class FTGSSplitter {
+public final class FTGSSplitter implements Closeable {
     private static final Logger log = Logger.getLogger(FTGSSplitter.class);
 
     private final FTGSIterator iterator;
@@ -167,7 +167,7 @@ public final class FTGSSplitter {
                  largePrime+12345 & 0x7FFFFFFF) >> 16) % numSplits;
     }
 
-    private void close() {
+    public void close() {
         if (done.compareAndSet(false, true)) {
             final Closeable closeIterators = Closeables2.forArray(log, ftgsIterators);
             final Closeable closeOutputs = Closeables2.forArray(log, outputs);

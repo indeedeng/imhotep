@@ -224,7 +224,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
     }
 
-    private FTGSSplitter ftgsIteratorSplits;
     public ImhotepLocalSession(final FlamdexReader flamdexReader)
         throws ImhotepOutOfMemoryException {
         this(flamdexReader, new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), null);
@@ -383,66 +382,52 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields,
                                                    final String[] stringFields,
                                                    final long termLimit) {
-        final int numSplits = 16;
-
-        final RawFTGSIterator[] ret = new RawFTGSIterator[numSplits];
-        for (int i = 0; i < numSplits; i++) {
-            ret[i] = getFTGSIteratorSplit(intFields, stringFields, i, numSplits, termLimit);
-        }
-
-        return ret;
+        throw new UnsupportedOperationException();
     }
 
-    @Override
-    public synchronized RawFTGSIterator getFTGSIteratorSplit(final String[] intFields,
+    public FTGSSplitter getFTGSIteratorSplitter(final String[] intFields,
                                                              final String[] stringFields,
-                                                             final int splitIndex,
                                                              final int numSplits,
                                                              final long termLimit) {
-        if (ftgsIteratorSplits == null || ftgsIteratorSplits.isClosed()) {
-            try {
-                try(Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
-                    ftgsIteratorSplits = new FTGSSplitter(getFTGSIterator(intFields, stringFields, termLimit),
-                            numSplits, numStats,
-                            969168349, tempFileSizeBytesLeft);
-                }
-            } catch (final IOException e) {
-                throw Throwables.propagate(e);
+        try {
+            try(Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
+                return new FTGSSplitter(getFTGSIterator(intFields, stringFields, termLimit),
+                        numSplits, numStats,
+                        969168349, tempFileSizeBytesLeft);
             }
+        } catch (final IOException e) {
+            throw Throwables.propagate(e);
         }
-        return ftgsIteratorSplits.getFtgsIterators()[splitIndex];
     }
 
     @Override
     public RawFTGSIterator[] getSubsetFTGSIteratorSplits(final Map<String, long[]> intFields,
                                                          final Map<String, String[]> stringFields) {
-        final int numSplits = 16;
+        throw new UnsupportedOperationException();
+    }
 
-        final RawFTGSIterator[] ret = new RawFTGSIterator[numSplits];
-        for (int i = 0; i < numSplits; i++) {
-            ret[i] = getSubsetFTGSIteratorSplit(intFields, stringFields, i, numSplits);
+    public  FTGSSplitter getSubsetFTGSIteratorSplitter(final Map<String, long[]> intFields,
+                                                                   final Map<String, String[]> stringFields,
+                                                                   final int numSplits) {
+        try {
+            try(Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
+                return new FTGSSplitter(getSubsetFTGSIterator(intFields, stringFields),
+                        numSplits, numStats,
+                        969168349, tempFileSizeBytesLeft);
+            }
+        } catch (final IOException e) {
+            throw Throwables.propagate(e);
         }
-
-        return ret;
     }
 
     @Override
-    public synchronized RawFTGSIterator getSubsetFTGSIteratorSplit(final Map<String, long[]> intFields,
-                                                                   final Map<String, String[]> stringFields,
-                                                                   final int splitIndex,
-                                                                   final int numSplits) {
-        if (ftgsIteratorSplits == null || ftgsIteratorSplits.isClosed()) {
-            try {
-                try(Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
-                    ftgsIteratorSplits = new FTGSSplitter(getSubsetFTGSIterator(intFields, stringFields),
-                            numSplits, numStats,
-                            969168349, tempFileSizeBytesLeft);
-                }
-            } catch (final IOException e) {
-                throw Throwables.propagate(e);
-            }
-        }
-        return ftgsIteratorSplits.getFtgsIterators()[splitIndex];
+    public RawFTGSIterator getFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, long termLimit) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public RawFTGSIterator getSubsetFTGSIteratorSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, int splitIndex, int numSplits) {
+        throw new UnsupportedOperationException();
     }
 
     @Override

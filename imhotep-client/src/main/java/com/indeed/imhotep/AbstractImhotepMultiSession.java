@@ -147,7 +147,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
 
     private final ExecutorService executor =
         Executors.newCachedThreadPool(localThreadFactory);
-    private final ExecutorService getSplitBufferThreads =
+    protected final ExecutorService getSplitBufferThreads =
         Executors.newCachedThreadPool(splitThreadFactory);
     private final ExecutorService mergeSplitBufferThreads =
         Executors.newCachedThreadPool(mergeThreadFactory);
@@ -591,41 +591,6 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
             }
         }
         return newNumStats;
-    }
-
-    @Override
-    public RawFTGSIterator getFTGSIteratorSplit(final String[] intFields, final String[] stringFields, final int splitIndex, final int numSplits, final long termLimit) {
-        final RawFTGSIterator[] splits = new RawFTGSIterator[sessions.length];
-        try {
-            executeSessions(getSplitBufferThreads, splits, false, imhotepSession -> imhotepSession.getFTGSIteratorSplit(intFields, stringFields, splitIndex, numSplits, termLimit));
-        } catch (final Throwable t) {
-            Closeables2.closeAll(log, splits);
-            throw Throwables.propagate(t);
-        }
-        if (sessions.length == 1) {
-            return splits[0];
-        }
-        RawFTGSIterator merger = new RawFTGSMerger(Arrays.asList(splits), numStats, null);
-        if(termLimit > 0) {
-            merger = new TermLimitedRawFTGSIterator(merger, termLimit);
-        }
-        return merger;
-    }
-
-    @Override
-    public RawFTGSIterator getSubsetFTGSIteratorSplit(final Map<String, long[]> intFields, final Map<String, String[]> stringFields, final int splitIndex, final int numSplits) {
-        final RawFTGSIterator[] splits = new RawFTGSIterator[sessions.length];
-        try {
-            executeSessions(getSplitBufferThreads, splits, false, imhotepSession -> imhotepSession.getSubsetFTGSIteratorSplit(intFields, stringFields, splitIndex, numSplits));
-        } catch (final Throwable t) {
-            Closeables2.closeAll(log, splits);
-            throw Throwables.propagate(t);
-        }
-
-        if (sessions.length == 1) {
-            return splits[0];
-        }
-        return new RawFTGSMerger(Arrays.asList(splits), numStats, null);
     }
 
     @Override

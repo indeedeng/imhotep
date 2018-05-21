@@ -13,11 +13,15 @@
  */
 package com.indeed.imhotep.local;
 
+import com.google.common.base.Throwables;
 import com.google.common.io.ByteStreams;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.FTGSIteratorUtil;
+import com.indeed.imhotep.FTGSSplitter;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.MemoryReservationContext;
+import com.indeed.imhotep.RawFTGSMerger;
+import com.indeed.imhotep.TermLimitedRawFTGSIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
@@ -36,11 +40,13 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 
 /**
@@ -92,6 +98,8 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     private final boolean useNativeFtgs;
 
     private boolean onlyBinaryMetrics;
+
+    protected FTGSSplitter[] ftgsIteratorSplitters;
 
     public MTImhotepLocalMultiSession(final ImhotepLocalSession[] sessions,
                                       final MemoryReservationContext memory,
@@ -172,6 +180,11 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     }
 
     @Override
+    public RawFTGSIterator[] getFTGSIteratorSplits(String[] intFields, String[] stringFields, long termLimit) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public FTGSIterator getSubsetFTGSIterator(final Map<String, long[]> intFields, final Map<String, String[]> stringFields) {
         return mergeFTGSIteratorsForSessions(sessions, -1, -1, s -> s.getSubsetFTGSIterator(intFields, stringFields));
     }
@@ -183,10 +196,53 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         throw new UnsupportedOperationException();
     }
 
-    public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields,
-                                                   final String[] stringFields,
-                                                   final long termLimit) {
-        throw new UnsupportedOperationException();
+    @Override
+    public synchronized RawFTGSIterator getFTGSIteratorSplit(final String[] intFields, final String[] stringFields, final int splitIndex, final int numSplits, final long termLimit) {
+        if (ftgsIteratorSplitters == null || (ftgsIteratorSplitters.length == 0 && sessions.length != 0) ||
+                ftgsIteratorSplitters[0].isClosed()) {
+
+            ftgsIteratorSplitters = new FTGSSplitter[sessions.length];
+            try {
+                executeSessions(getSplitBufferThreads, ftgsIteratorSplitters, false, imhotepSession -> imhotepSession.getFTGSIteratorSplitter(intFields, stringFields, numSplits, termLimit));
+            } catch (final Throwable t) {
+                Closeables2.closeAll(log, ftgsIteratorSplitters);
+                throw Throwables.propagate(t);
+            }
+        }
+
+        final List<RawFTGSIterator> splits = Arrays.stream(ftgsIteratorSplitters)
+                .map(splitter -> splitter.getFtgsIterators()[splitIndex]).collect(Collectors.toList());
+
+        if (sessions.length == 1) {
+            return splits.get(0);
+        }
+        RawFTGSIterator merger = new RawFTGSMerger(splits, numStats, null);
+        if(termLimit > 0) {
+            merger = new TermLimitedRawFTGSIterator(merger, termLimit);
+        }
+        return merger;
+    }
+
+    @Override
+    public synchronized RawFTGSIterator getSubsetFTGSIteratorSplit(final Map<String, long[]> intFields, final Map<String, String[]> stringFields, final int splitIndex, final int numSplits) {
+        if (ftgsIteratorSplitters == null || (ftgsIteratorSplitters.length == 0 && sessions.length != 0) ||
+                ftgsIteratorSplitters[0].isClosed()) {
+
+            ftgsIteratorSplitters = new FTGSSplitter[sessions.length];
+            try {
+                executeSessions(getSplitBufferThreads, ftgsIteratorSplitters, false, imhotepSession -> imhotepSession.getSubsetFTGSIteratorSplitter(intFields, stringFields, numSplits));
+            } catch (final Throwable t) {
+                Closeables2.closeAll(log, ftgsIteratorSplitters);
+                throw Throwables.propagate(t);
+            }
+        }
+        final List<RawFTGSIterator> splits = Arrays.stream(ftgsIteratorSplitters)
+                .map(splitter -> splitter.getFtgsIterators()[splitIndex]).collect(Collectors.toList());
+
+        if (sessions.length == 1) {
+            return splits.get(0);
+        }
+        return new RawFTGSMerger(splits, numStats, null);
     }
 
     @Override
