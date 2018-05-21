@@ -38,6 +38,10 @@ public class TaskQueue implements Comparable<TaskQueue> {
         return queue.poll();
     }
 
+    public ImhotepTask peek() {
+        return queue.peek();
+    }
+
     public void offer(ImhotepTask task) {
         queue.offer(task);
     }
