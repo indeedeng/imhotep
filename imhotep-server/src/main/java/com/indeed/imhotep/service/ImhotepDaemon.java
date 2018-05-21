@@ -1351,7 +1351,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         final String tempDirectory = args[1];
         int port = 9000;
         long memoryCapacityInMB = 1024;
-        boolean useCache = false;
         boolean shutdown = false;
         String zkNodes = null;
         String zkPath = null;
@@ -1372,9 +1371,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 case "--zkpath":
                     zkPath = args[++i];
                     break;
-                case "--cache":
-                    useCache = true;
-                    break;
                 default:
                     throw new RuntimeException("unrecognized arg: " + args[i]);
             }
@@ -1387,7 +1383,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                  tempDirectory,
                  port,
                  memoryCapacityInMB,
-                 useCache,
                  zkNodes,
                  zkPath);
         }
@@ -1408,7 +1403,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                             final String tempDirectory,
                             final int port,
                             final long memoryCapacityInMB,
-                            final boolean useCache,
                             final String zkNodes,
                             final String zkPath) throws IOException, URISyntaxException {
         ImhotepDaemon daemon = null;
@@ -1417,9 +1411,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                       tempDirectory,
                                       port,
                                       memoryCapacityInMB,
-                                      useCache,
                                       zkNodes,
                                       zkPath,
+                                      null,
                                       null);
             daemon.run();
         } finally {
@@ -1440,10 +1434,10 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                           final String shardTempDir,
                                           final int port,
                                           final long memoryCapacityInMB,
-                                          final boolean useCache,
                                           final String zkNodes,
                                           final String zkPath,
-                                          final @Nullable Integer sessionForwardingPort) throws IOException, URISyntaxException {
+                                          final @Nullable Integer sessionForwardingPort,
+                                          @Nullable LocalImhotepServiceConfig localImhotepServiceConfig) throws IOException, URISyntaxException {
         final AbstractImhotepServiceCore localService;
         final ShardUpdateListener shardUpdateListener = new ShardUpdateListener();
 
@@ -1458,15 +1452,16 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         final Host myHost = new Host(myHostname, ss.getLocalPort());
         final Supplier<ShardMaster> shardMasterSupplier = getShardMasterSupplier(zkNodes, myHost);
 
+        if(localImhotepServiceConfig == null) {
+            localImhotepServiceConfig = new LocalImhotepServiceConfig();
+        }
+
         localService = new LocalImhotepServiceCore(shardsDir,
                                                    tmpDir,
                                                    memoryCapacityInMB * 1024 * 1024,
-                                                   useCache,
                                                    new GenericFlamdexReaderSource(),
-                                                   new LocalImhotepServiceConfig(
-                                                           new ShardDirIteratorFactory(shardMasterSupplier,
-                                                                   myHost)
-                                                   ),
+                                                   new ShardDirIteratorFactory(shardMasterSupplier, myHost),
+                                                   localImhotepServiceConfig,
                                                    shardUpdateListener);
         final ImhotepDaemon result =
             new ImhotepDaemon(ss, localService, zkNodes, zkPath, myHostname, port, shardUpdateListener, sessionForwardingPort);

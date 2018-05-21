@@ -24,6 +24,10 @@ public class PerformanceStats {
     public final long maxMemoryUsage;
     public final long ftgsTempFileSize;
     public final long fieldFilesReadSize;
+    public final long cpuSlotsExecTimeMs;
+    public final long cpuSlotsWaitTimeMs;
+    public final long ioSlotsExecTimeMs;
+    public final long ioSlotsWaitTimeMs;
     public final ImmutableMap<String, Long> customStats;
 
     public PerformanceStats(
@@ -31,11 +35,19 @@ public class PerformanceStats {
             final long maxMemoryUsage,
             final long ftgsTempFileSize,
             final long fieldFilesReadSize,
+            final long cpuSlotsExecTimeMs,
+            final long cpuSlotsWaitTimeMs,
+            final long ioSlotsExecTimeMs,
+            final long ioSlotsWaitTimeMs,
             final ImmutableMap<String, Long> customStats) {
         this.cpuTime = cpuTime;
         this.maxMemoryUsage = maxMemoryUsage;
         this.ftgsTempFileSize = ftgsTempFileSize;
         this.fieldFilesReadSize = fieldFilesReadSize;
+        this.cpuSlotsExecTimeMs = cpuSlotsExecTimeMs;
+        this.cpuSlotsWaitTimeMs = cpuSlotsWaitTimeMs;
+        this.ioSlotsExecTimeMs = ioSlotsExecTimeMs;
+        this.ioSlotsWaitTimeMs = ioSlotsWaitTimeMs;
         this.customStats = customStats;
     }
 
@@ -48,6 +60,10 @@ public class PerformanceStats {
         private long maxMemoryUsage = 0;
         private long ftgsTempFileSize = 0;
         private long fieldFilesReadSize = 0;
+        private long cpuSlotsExecTimeMs = 0;
+        private long cpuSlotsWaitTimeMs = 0;
+        private long ioSlotsExecTimeMs = 0;
+        private long ioSlotsWaitTimeMs = 0;
         private final Map<String, Long> customStats = new HashMap<>();
 
         public void setCpuTime(final long cpuTime) {
@@ -82,6 +98,38 @@ public class PerformanceStats {
             return fieldFilesReadSize;
         }
 
+        public long getCpuSlotsExecTimeMs() {
+            return cpuSlotsExecTimeMs;
+        }
+
+        public void setCpuSlotsExecTimeMs(long cpuSlotsExecTimeMs) {
+            this.cpuSlotsExecTimeMs = cpuSlotsExecTimeMs;
+        }
+
+        public long getCpuSlotsWaitTimeMs() {
+            return cpuSlotsWaitTimeMs;
+        }
+
+        public void setCpuSlotsWaitTimeMs(long cpuSlotsWaitTimeMs) {
+            this.cpuSlotsWaitTimeMs = cpuSlotsWaitTimeMs;
+        }
+
+        public long getIoSlotsExecTimeMs() {
+            return ioSlotsExecTimeMs;
+        }
+
+        public void setIoSlotsExecTimeMs(long ioSlotsExecTimeMs) {
+            this.ioSlotsExecTimeMs = ioSlotsExecTimeMs;
+        }
+
+        public long getIoSlotsWaitTimeMs() {
+            return ioSlotsWaitTimeMs;
+        }
+
+        public void setIoSlotsWaitTimeMs(long ioSlotsWaitTimeMs) {
+            this.ioSlotsWaitTimeMs = ioSlotsWaitTimeMs;
+        }
+
         public Map<String, Long> getCustomStats() {
             return customStats;
         }
@@ -95,6 +143,11 @@ public class PerformanceStats {
             maxMemoryUsage += stats.maxMemoryUsage;
             fieldFilesReadSize += stats.fieldFilesReadSize;
             ftgsTempFileSize += stats.ftgsTempFileSize;
+            cpuSlotsExecTimeMs += stats.cpuSlotsExecTimeMs;
+            cpuSlotsWaitTimeMs += stats.cpuSlotsWaitTimeMs;
+            ioSlotsExecTimeMs += stats.ioSlotsExecTimeMs;
+            ioSlotsWaitTimeMs += stats.ioSlotsWaitTimeMs;
+
 
             for(final Map.Entry<String, Long> entry : stats.customStats.entrySet()) {
                 Long value = customStats.get(entry.getKey());
@@ -109,6 +162,10 @@ public class PerformanceStats {
                     maxMemoryUsage,
                     ftgsTempFileSize,
                     fieldFilesReadSize,
+                    cpuSlotsExecTimeMs,
+                    cpuSlotsWaitTimeMs,
+                    ioSlotsExecTimeMs,
+                    ioSlotsWaitTimeMs,
                     ImmutableMap.copyOf(customStats));
         }
     }

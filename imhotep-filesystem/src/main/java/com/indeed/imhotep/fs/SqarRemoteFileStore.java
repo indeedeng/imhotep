@@ -22,6 +22,7 @@ import com.indeed.imhotep.fs.db.metadata.Tables;
 import com.indeed.imhotep.fs.sql.FileMetadataDao;
 import com.indeed.imhotep.fs.sql.SchemaInitializer;
 import com.indeed.imhotep.fs.sql.SqarMetaDataDao;
+import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
@@ -133,14 +134,16 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
 
         final FileMetadata fileMetadata = remoteFileMetadata.getFileMetadata();
         final RemoteCachingPath archivePath = SqarMetaDataUtil.getFullArchivePath(srcPath, fileMetadata.getArchiveFilename());
-        try (final InputStream archiveIS = backingFileStore.newInputStream(archivePath,
-                fileMetadata.getStartOffset(),
-                remoteFileMetadata.getCompressedSize())) {
-            try {
-                sqarMetaDataManager.copyDecompressed(archiveIS, srcPath, destPath, fileMetadata);
-            } catch (final IOException e) {
-                Files.delete(destPath);
-                throw Throwables.propagate(e);
+        try (Closeable ignore = TaskScheduler.RemoteFSIOScheduler.lockSlot()) {
+            try (final InputStream archiveIS = backingFileStore.newInputStream(archivePath,
+                    fileMetadata.getStartOffset(),
+                    remoteFileMetadata.getCompressedSize())) {
+                try {
+                    sqarMetaDataManager.copyDecompressed(archiveIS, srcPath, destPath, fileMetadata);
+                } catch (final IOException e) {
+                    Files.delete(destPath);
+                    throw Throwables.propagate(e);
+                }
             }
         }
     }

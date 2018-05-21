@@ -17,7 +17,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.indeed.flamdex.AbstractFlamdexReader;
 import com.indeed.flamdex.api.DocIdStream;
@@ -34,6 +33,7 @@ import com.indeed.flamdex.fieldcache.NativeFlamdexFieldCacher;
 import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIterator;
 import com.indeed.flamdex.reader.FlamdexMetadata;
 import com.indeed.flamdex.utils.FlamdexUtils;
+import com.indeed.imhotep.RaceCache;
 
 import javax.annotation.Nonnull;
 import java.io.File;
@@ -44,7 +44,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -63,7 +62,7 @@ public class SimpleFlamdexReader
     private final boolean useMMapDocIdStream;
     private final boolean useSSSE3;
 
-    private final Map<String, NativeFlamdexFieldCacher> intFieldCachers;
+    private final RaceCache<String, NativeFlamdexFieldCacher, RuntimeException> intFieldCachers = RaceCache.create(this::createCacher, ignored -> {});
 
     protected SimpleFlamdexReader(final Path directory,
                                   final int numDocs,
@@ -74,7 +73,6 @@ public class SimpleFlamdexReader
 
         this.intFields = intFields;
         this.stringFields = stringFields;
-        this.intFieldCachers = Maps.newHashMap();
 
         useMMapDocIdStream = config.useMMapDocIdStream;
         useNativeDocIdStream = config.useNativeDocIdStream;
@@ -293,7 +291,7 @@ public class SimpleFlamdexReader
 
     @Override
     public final IntValueLookup getMetric(final String metric) throws FlamdexOutOfMemoryException {
-        final NativeFlamdexFieldCacher fieldCacher = getMetricCacher(metric);
+        final NativeFlamdexFieldCacher fieldCacher = intFieldCachers.getOrLoad(metric);
         try (SimpleIntTermIterator iterator = getUnsortedIntTermIterator(metric)) {
             return cacheField(iterator, metric, fieldCacher);
         }
@@ -323,21 +321,16 @@ public class SimpleFlamdexReader
             return 0;
         }
 
-        final NativeFlamdexFieldCacher fieldCacher = getMetricCacher(metric);
+        final NativeFlamdexFieldCacher fieldCacher = intFieldCachers.getOrLoad(metric);
         return fieldCacher.memoryRequired(numDocs);
     }
 
-    private NativeFlamdexFieldCacher getMetricCacher(final String metric) {
-        synchronized (intFieldCachers) {
-            if (!intFieldCachers.containsKey(metric)) {
-                final MinMax minMax = new MinMax();
-                final NativeFlamdexFieldCacher cacher =
-                        FieldCacherUtil.getNativeCacherForField(metric, this, minMax);
-                intFieldCachers.put(metric, cacher);
-                metricMinMaxes.put(metric, minMax);
-            }
-            return intFieldCachers.get(metric);
-        }
+    private NativeFlamdexFieldCacher createCacher(String metric) {
+        final MinMax minMax = new MinMax();
+        final NativeFlamdexFieldCacher cacher =
+                FieldCacherUtil.getNativeCacherForField(metric, this, minMax);
+        metricMinMaxes.put(metric, minMax);
+        return cacher;
     }
 
     @Override

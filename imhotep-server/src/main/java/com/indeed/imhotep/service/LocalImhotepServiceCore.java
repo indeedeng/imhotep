@@ -19,15 +19,11 @@ import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.indeed.flamdex.api.IntValueLookup;
-import com.indeed.imhotep.CachedMemoryReserver;
 import com.indeed.imhotep.DatasetInfo;
-import com.indeed.imhotep.ImhotepMemoryCache;
 import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.MemoryReserver;
-import com.indeed.imhotep.MetricKey;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
@@ -35,6 +31,8 @@ import com.indeed.imhotep.local.ImhotepJavaLocalSession;
 import com.indeed.imhotep.local.ImhotepLocalSession;
 import com.indeed.imhotep.local.ImhotepNativeLocalSession;
 import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
+import com.indeed.imhotep.scheduling.SchedulerType;
+import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.shell.PosixFileOperations;
@@ -106,10 +104,14 @@ public class LocalImhotepServiceCore
      *            int/long arrays
      * @param flamdexReaderFactory
      *            the factory to use for opening FlamdexReaders
+     * @param shardDirIteratorFactory
+     *            the factory to use for creating the ShardDirIterator
      * @param config
      *            additional config parameters
      * @param shardUpdateListener
      *            provides notification when shard/dataset lists change
+     * @param statsEmitter
+     *            allows sending stats about service activity
      * @throws IOException
      *             if something bad happens
      */
@@ -117,10 +119,11 @@ public class LocalImhotepServiceCore
                                    @Nullable final Path shardTempDir,
                                    @Nullable final Path shardStoreDir,
                                    final long memoryCapacity,
-                                   final boolean useCache,
                                    final FlamdexReaderSource flamdexReaderFactory,
+                                   final ShardDirIteratorFactory shardDirIteratorFactory,
                                    final LocalImhotepServiceConfig config,
-                                   final ShardUpdateListenerIf shardUpdateListener)
+                                   final ShardUpdateListenerIf shardUpdateListener,
+                                   final MetricStatsEmitter statsEmitter)
         throws IOException {
         this.shardUpdateListener = shardUpdateListener;
 
@@ -135,16 +138,19 @@ public class LocalImhotepServiceCore
         }
         this.shardTempDir = shardTempDir;
 
-        final ImhotepMemoryCache<MetricKey, IntValueLookup> freeCache;
-        if (useCache) {
-            freeCache = new ImhotepMemoryCache<>();
-            memory = new CachedMemoryReserver(new ImhotepMemoryPool(memoryCapacity), freeCache);
-        } else {
-            freeCache = null;
-            memory = new ImhotepMemoryPool(memoryCapacity);
-        }
+        memory = new ImhotepMemoryPool(memoryCapacity);
 
-        sessionManager = new LocalSessionManager();
+        TaskScheduler.CPUScheduler = new TaskScheduler(config.getCpuSlots(),
+                TimeUnit.SECONDS.toNanos(config.getCpuSchedulerHistoryLengthSeconds()),
+                TimeUnit.SECONDS.toNanos(1), SchedulerType.CPU,
+                statsEmitter);
+
+        TaskScheduler.RemoteFSIOScheduler = new TaskScheduler(config.getRemoteFSIOSlots(),
+                TimeUnit.SECONDS.toNanos(config.getRemoteFSIOSchedulerHistoryLengthSeconds()),
+                TimeUnit.SECONDS.toNanos(1), SchedulerType.REMOTE_FS_IO,
+                statsEmitter);
+
+        sessionManager = new LocalSessionManager(statsEmitter);
 
         clearTempDir(shardTempDir);
 
@@ -152,11 +158,11 @@ public class LocalImhotepServiceCore
         this.shardStore    = loadOrCreateShardStore(shardStoreDir);
 
         if (shardsDir != null) {
-            final ShardDirIterator shardDirIterator = config.getShardDirIteratorFactory().get(shardsDir);
+            final ShardDirIterator shardDirIterator = shardDirIteratorFactory.get(shardsDir);
 
             ShardMap newShardMap = (shardStore != null) ?
-                    new ShardMap(shardStore, shardsDir, memory, flamdexReaderFactory, freeCache) :
-                    new ShardMap(memory, flamdexReaderFactory, freeCache);
+                    new ShardMap(shardStore, shardsDir, memory, flamdexReaderFactory) :
+                    new ShardMap(memory, flamdexReaderFactory);
 
             /* An empty ShardMap suggests that ShardStore had not been
              * initialized, so fallback to a synchronous directory scan. */
@@ -191,25 +197,24 @@ public class LocalImhotepServiceCore
     public LocalImhotepServiceCore(@Nullable final Path shardsDir,
                                    @Nullable final Path shardTempDir,
                                    final long memoryCapacity,
-                                   final boolean useCache,
                                    final FlamdexReaderSource flamdexReaderFactory,
+                                   final ShardDirIteratorFactory shardDirIteratorFactory,
                                    final LocalImhotepServiceConfig config,
                                    final ShardUpdateListenerIf shardUpdateListener)
         throws IOException {
         this(shardsDir, shardTempDir, Paths.get(System.getProperty("imhotep.shard.store")),
-             memoryCapacity, useCache, flamdexReaderFactory, config, shardUpdateListener);
+             memoryCapacity, flamdexReaderFactory, shardDirIteratorFactory, config, shardUpdateListener, config.getStatsEmitter());
     }
 
     @VisibleForTesting
     public LocalImhotepServiceCore(@Nullable final Path shardsDir,
                                    @Nullable final Path shardTempDir,
                                    final long memoryCapacity,
-                                   final boolean useCache,
                                    final FlamdexReaderSource flamdexReaderFactory,
                                    final LocalImhotepServiceConfig config)
         throws IOException {
         this(shardsDir, shardTempDir, Files.createTempDirectory("delete.me-imhotep.shard.store"),
-             memoryCapacity, useCache, flamdexReaderFactory, config,
+             memoryCapacity, flamdexReaderFactory, new ShardDirIteratorFactory(null, null), config,
              new ShardUpdateListenerIf() {
                  public void onShardUpdate(final List<ShardInfo> shardList,
                                            final ShardUpdateListenerIf.Source source)
@@ -217,7 +222,9 @@ public class LocalImhotepServiceCore
                  public void onDatasetUpdate(final List<DatasetInfo> datasetList,
                                              final ShardUpdateListenerIf.Source source)
                  { }
-             });
+             },
+             MetricStatsEmitter.NULL_EMITTER
+        );
         cleanupShardStoreDir = true;
     }
 
@@ -495,7 +502,9 @@ public class LocalImhotepServiceCore
                 new MTImhotepLocalMultiSession(localSessions,
                                                new MemoryReservationContext(multiSessionMemoryContext),
                                                tempFileSizeBytesLeft,
-                                               useNativeFtgs && flamdexReaders.allFlamdexReaders);
+                                               useNativeFtgs && flamdexReaders.allFlamdexReaders,
+                                                username,
+                                                clientName);
             getSessionManager().addSession(sessionId, session, flamdexes, username, clientName,
                                            ipAddress, clientVersion, dataset, sessionTimeout, multiSessionMemoryContext);
             session.addObserver(observer);

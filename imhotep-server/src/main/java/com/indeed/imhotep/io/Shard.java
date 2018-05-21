@@ -102,18 +102,6 @@ public class Shard {
         return numDocs;
     }
 
-    public Set<String> getLoadedMetrics() {
-        final SharedReference<CachedFlamdexReader> copy = ref.copyIfLoaded();
-        if (copy != null) {
-            try {
-                return copy.get().getLoadedMetrics();
-            } finally {
-                Closeables2.closeQuietly(copy, log);
-            }
-        }
-        return Collections.emptySet();
-    }
-
     public Collection<String> getIntFields() {
         return intFields;
     }

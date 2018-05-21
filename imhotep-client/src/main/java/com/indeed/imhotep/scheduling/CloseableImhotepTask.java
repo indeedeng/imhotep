@@ -11,24 +11,32 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.indeed.imhotep.service;
 
-import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
-import com.indeed.flamdex.api.IntValueLookup;
-import com.indeed.imhotep.ImhotepStatusDump;
+package com.indeed.imhotep.scheduling;
 
 import java.io.Closeable;
-import java.util.List;
+import java.io.IOException;
 
 /**
- * @author jplaisance
+ * ImhotepTask wrapper to be used with try-with-resources
  */
-public interface MetricCache extends Closeable {
+class CloseableImhotepTask implements Closeable {
 
-    IntValueLookup getMetric(String metric) throws FlamdexOutOfMemoryException;
+    private final ImhotepTask task;
+    private final TaskScheduler taskScheduler;
+    private boolean locked;
 
-    List<ImhotepStatusDump.MetricDump> getMetricDump();
+    CloseableImhotepTask(ImhotepTask task, TaskScheduler taskScheduler) {
+        this.task = task;
+        this.taskScheduler = taskScheduler;
+        locked = taskScheduler.schedule(task);
+    }
 
     @Override
-    void close();
+    public void close() throws IOException {
+        if(locked) {
+            locked = false;
+            taskScheduler.stopped(task);
+        }
+    }
 }

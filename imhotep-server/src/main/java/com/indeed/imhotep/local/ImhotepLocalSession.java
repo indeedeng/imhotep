@@ -95,6 +95,7 @@ import com.indeed.imhotep.metrics.ShiftRight;
 import com.indeed.imhotep.metrics.Subtraction;
 import com.indeed.imhotep.pool.BuffersPool;
 import com.indeed.imhotep.protobuf.QueryMessage;
+import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.imhotep.service.InstrumentedFlamdexReader;
 import com.indeed.imhotep.service.InstrumentedRawFlamdexReader;
 import com.indeed.util.core.Pair;
@@ -112,6 +113,7 @@ import org.apache.commons.codec.binary.Base64;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
+import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -146,7 +148,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     public static final int BUFFER_SIZE = 2048;
     private final AtomicLong tempFileSizeBytesLeft;
     private long savedTempFileSizeValue;
-    private PerformanceStats resetPerformanceStats = new PerformanceStats(0, 0, 0, 0, ImmutableMap.of());
+    private PerformanceStats resetPerformanceStats = new PerformanceStats(0, 0, 0, 0, 0, 0, 0, 0, ImmutableMap.of());
 
     protected int numDocs;
 
@@ -293,7 +295,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                         memory.getCurrentMaxUsedMemory() + metricsMemorySize,
                         savedTempFileSizeValue - tempFileSize,
                         fieldFilesReadSize - resetPerformanceStats.fieldFilesReadSize,
-                        ImmutableMap.of());
+                        0, 0, 0, 0, ImmutableMap.of());
         if (reset) {
             resetPerformanceStats = result;
             memory.resetCurrentMaxUsedMemory();
@@ -399,9 +401,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                                                              final long termLimit) {
         if (ftgsIteratorSplits == null || ftgsIteratorSplits.isClosed()) {
             try {
-                ftgsIteratorSplits = new FTGSSplitter(getFTGSIterator(intFields, stringFields, termLimit),
-                                                      numSplits, numStats,
-                                                      969168349, tempFileSizeBytesLeft);
+                try(Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
+                    ftgsIteratorSplits = new FTGSSplitter(getFTGSIterator(intFields, stringFields, termLimit),
+                            numSplits, numStats,
+                            969168349, tempFileSizeBytesLeft);
+                }
             } catch (final IOException e) {
                 throw Throwables.propagate(e);
             }
@@ -429,9 +433,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                                                                    final int numSplits) {
         if (ftgsIteratorSplits == null || ftgsIteratorSplits.isClosed()) {
             try {
-                ftgsIteratorSplits = new FTGSSplitter(getSubsetFTGSIterator(intFields, stringFields),
-                                                      numSplits, numStats,
-                                                      969168349, tempFileSizeBytesLeft);
+                try(Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
+                    ftgsIteratorSplits = new FTGSSplitter(getSubsetFTGSIterator(intFields, stringFields),
+                            numSplits, numStats,
+                            969168349, tempFileSizeBytesLeft);
+                }
             } catch (final IOException e) {
                 throw Throwables.propagate(e);
             }

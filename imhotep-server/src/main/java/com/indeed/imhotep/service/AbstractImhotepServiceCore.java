@@ -32,7 +32,10 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepServiceCore;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
+import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
+import com.indeed.imhotep.scheduling.ImhotepTask;
+import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import org.apache.log4j.Logger;
@@ -192,6 +195,8 @@ public abstract class AbstractImhotepServiceCore
             @Override
             public Void call() throws IOException {
                 try {
+                    // TODO: lock cpu, release on socket write by wrapping the socketstream and using a circular buffer,
+                    // or use nonblocking IO (NIO2) and only release when blocks
                     FTGSOutputStreamWriter.write(merger, numStats, os);
                 } catch (final IOException e) {
                     throw e;
@@ -309,20 +314,26 @@ public abstract class AbstractImhotepServiceCore
     public <Z, T extends Throwable> Z doWithSession(
             final String sessionId,
             final ThrowingFunction<ImhotepSession, Z, T> f) throws T {
-        final SharedReference<ImhotepSession> sessionRef = getSessionManager().getSession(sessionId);
+        final SharedReference<MTImhotepLocalMultiSession> sessionRef = getSessionManager().getSession(sessionId);
         try {
-            return f.apply(sessionRef.get());
+            final MTImhotepLocalMultiSession session = sessionRef.get();
+            ImhotepTask.setup(session);
+            return f.apply(session);
         } finally {
             Closeables2.closeQuietly(sessionRef, log);
+            ImhotepTask.clear();
         }
     }
 
     public <Z> Z doWithSession(final String sessionId, final Function<ImhotepSession, Z> f)  {
-        final SharedReference<ImhotepSession> sessionRef = getSessionManager().getSession(sessionId);
+        final SharedReference<MTImhotepLocalMultiSession> sessionRef = getSessionManager().getSession(sessionId);
         try {
-            return f.apply(sessionRef.get());
+            final MTImhotepLocalMultiSession session = sessionRef.get();
+            ImhotepTask.setup(session);
+            return f.apply(session);
         } finally {
             Closeables2.closeQuietly(sessionRef, log);
+            ImhotepTask.clear();
         }
     }
 

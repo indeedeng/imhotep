@@ -13,8 +13,7 @@
  */
  package com.indeed.flamdex.simple;
 
-import com.google.common.collect.Maps;
-import com.indeed.util.core.io.Closeables2;
+import com.indeed.imhotep.RaceCache;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.mmap.MMapBuffer;
 import org.apache.log4j.Logger;
@@ -29,29 +28,25 @@ import java.util.Map;
 /**
  * @author jplaisance
  */
-public final class MapCache implements Closeable {
-
+public class MapCache implements Closeable {
     private static final Logger log = Logger.getLogger(MapCache.class);
 
-    private final Map<Path, SharedReference<MMapBuffer>> mappingCache = Maps.newHashMap();
+    private final RaceCache<Path, SharedReference<MMapBuffer>, IOException> mappingCache = RaceCache.create(MapCache::open);
 
     public MapCache() {}
 
-    public synchronized SharedReference<MMapBuffer> copyOrOpen(final Path path) throws IOException {
-        SharedReference<MMapBuffer> reference = mappingCache.get(path);
-        if (reference == null) {
-            final MMapBuffer mmapBuf;
+    public SharedReference<MMapBuffer> copyOrOpen(final Path path) throws IOException {
+        return mappingCache.getOrLoad(path).copy();
+    }
 
-            mmapBuf = new MMapBuffer(path, FileChannel.MapMode.READ_ONLY, ByteOrder.LITTLE_ENDIAN);
-            reference = SharedReference.create(mmapBuf);
-            mappingCache.put(path, reference);
-        }
-        return reference.copy();
+    private static SharedReference<MMapBuffer> open(final Path path) throws IOException {
+        final MMapBuffer mmapBuf = new MMapBuffer(path, FileChannel.MapMode.READ_ONLY, ByteOrder.LITTLE_ENDIAN);
+        return SharedReference.create(mmapBuf);
     }
 
     @Override
     public synchronized void close() throws IOException {
-        Closeables2.closeAll(mappingCache.values(), log);
+        mappingCache.close();
     }
 
     /** !@# This is something of a temporary hack. We need to pass the addresses
@@ -59,10 +54,6 @@ public final class MapCache implements Closeable {
         them redundantly there. This pokes something of a hole in the MapCache
         abstraction, but it's a tiny leak. */
     public synchronized void getAddresses(final Map<Path, Long> result) {
-        for (final Map.Entry<Path,
-                 SharedReference<MMapBuffer>> entry: mappingCache.entrySet()) {
-            final Long address = entry.getValue().get().memory().getAddress();
-            result.put(entry.getKey(), address);
-        }
+        throw new UnsupportedOperationException();
     }
 }

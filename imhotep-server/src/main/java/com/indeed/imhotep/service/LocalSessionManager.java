@@ -15,12 +15,15 @@
 
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.MemoryReservationContext;
-import com.indeed.imhotep.api.ImhotepSession;
-import com.indeed.util.varexport.VarExporter;
+import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
+import com.indeed.util.core.threads.NamedThreadFactory;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author jsgroth
@@ -29,14 +32,26 @@ import java.util.Map;
  */
 public final class LocalSessionManager extends AbstractSessionManager<Map<ShardId, CachedFlamdexReaderReference>> {
 
-    public LocalSessionManager() {
-        VarExporter.forNamespace(getClass().getSimpleName()).includeInGlobal().export(this, "");
+    private final MetricStatsEmitter statsEmitter;
+
+    private static final int REPORTING_FREQUENCY_MILLIS = 100;
+
+    public LocalSessionManager(final MetricStatsEmitter statsEmitter) {
+        this.statsEmitter = statsEmitter;
+        final ScheduledExecutorService statsReportingExecutor =
+                Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("sessionManagerStatsReporter"));
+        statsReportingExecutor.scheduleAtFixedRate(this::reportStats, REPORTING_FREQUENCY_MILLIS, REPORTING_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
+    }
+
+    public void reportStats() {
+        statsEmitter.histogram("active.sessions", getSessionCount());
+        statsEmitter.histogram("active.users", getActiveUserCount());
     }
 
     @Override
     public void addSession(
             final String sessionId,
-            final ImhotepSession imhotepSession,
+            final MTImhotepLocalMultiSession imhotepSession,
             final Map<ShardId, CachedFlamdexReaderReference> flamdexes,
             final String username,
             final String clientName,

@@ -26,6 +26,7 @@ import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.io.TestFileUtils;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -44,6 +45,7 @@ import static org.junit.Assert.assertArrayEquals;
 /**
  * @author jfinley
  */
+@Ignore("Disabled since native sessions are no longer supported")
 @RunWith(Parameterized.class)
 public class TestMultiRegroup {
 
@@ -147,7 +149,7 @@ public class TestMultiRegroup {
                  final MTImhotepLocalMultiSession mtSession =
                     new MTImhotepLocalMultiSession(localSessions,
                             new MemoryReservationContext(memoryPool),
-                            theAtomicPunk, true) ) {
+                            theAtomicPunk, true, "", "") ) {
                 mtSession.regroup(regroupRule);
                 session.exportDocIdToGroupId(result);
             }

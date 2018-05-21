@@ -18,6 +18,7 @@ import com.google.common.collect.Lists;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.reader.MockFlamdexReader;
 import com.indeed.imhotep.DatasetInfo;
+import com.indeed.imhotep.MemoryReserver;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.io.MockShard;
@@ -87,7 +88,7 @@ public class TestLocalImhotepServiceCore {
         Files.createDirectories(datasetDir);
         Files.createDirectories(datasetDir.resolve("index20150601"));
         try {
-            final LocalImhotepServiceCore service = new LocalImhotepServiceCore(directory, tempDir, 9999999999999L, false, new FlamdexReaderSource() {
+            final LocalImhotepServiceCore service = new LocalImhotepServiceCore(directory, tempDir, 9999999999999L, new FlamdexReaderSource() {
                 @Override
                 public FlamdexReader openReader(final Path directory) throws IOException {
                     final MockFlamdexReader r =
@@ -166,8 +167,7 @@ public class TestLocalImhotepServiceCore {
             Files.createDirectory(datasetDir.resolve("index20160103.20120102000000"));
 
             final LocalImhotepServiceCore service =
-                new LocalImhotepServiceCore(directory, tempDir, Long.MAX_VALUE,
-                                            false, new FlamdexReaderSource() {
+                new LocalImhotepServiceCore(directory, tempDir, Long.MAX_VALUE, new FlamdexReaderSource() {
                 @Override
                 public FlamdexReader openReader(final Path directory) throws IOException {
                     return new MockFlamdexReader(Collections.singletonList("if1"),
@@ -203,7 +203,7 @@ public class TestLocalImhotepServiceCore {
         Set<String> expectedIntFields;
         Set<String> expectedStringFields;
 
-        ShardMap localShards = new ShardMap(null, null, null);
+        ShardMap localShards = new ShardMap((MemoryReserver)null, null);
         addShard(localShards, dataset, 20150101000000L,
                  ImmutableSet.of("int1"), ImmutableSet.of("str1"));
         addShard(localShards, dataset, 20150102000000L,
@@ -214,7 +214,7 @@ public class TestLocalImhotepServiceCore {
         expectedStringFields = ImmutableSet.of("str1", "str2");
         checkExpectedFields(localShards, expectedIntFields, expectedStringFields);
 
-        localShards = new ShardMap(null, null, null);
+        localShards = new ShardMap((MemoryReserver)null, null);
         addShard(localShards, dataset, 20150101000000L,
                  ImmutableSet.of("int1", "int2", "conflict"),
                  ImmutableSet.of("str1", "str2", "conflict"));
@@ -228,7 +228,7 @@ public class TestLocalImhotepServiceCore {
         expectedStringFields = ImmutableSet.of("str1", "str2");
         checkExpectedFields(localShards, expectedIntFields, expectedStringFields);
 
-        localShards = new ShardMap(null, null, null);
+        localShards = new ShardMap((MemoryReserver)null, null);
         addShard(localShards, dataset, 20150103000000L,
                  ImmutableSet.of("conflict", "int1", "int2"),
                  ImmutableSet.of("str1", "str2"));
@@ -242,7 +242,7 @@ public class TestLocalImhotepServiceCore {
         expectedStringFields = ImmutableSet.of("str1", "str2");
         checkExpectedFields(localShards, expectedIntFields, expectedStringFields);
 
-        localShards = new ShardMap(null, null, null);
+        localShards = new ShardMap((MemoryReserver)null, null);
         addShard(localShards, dataset, 20150103000000L,
                  ImmutableSet.of("conflict", "int1", "int2"),
                  ImmutableSet.of("str1", "str2", "conflict"));

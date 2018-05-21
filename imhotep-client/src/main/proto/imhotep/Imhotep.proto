@@ -390,6 +390,10 @@ message PerformanceStatsMessage {
   optional int64 ftgs_temp_file_size = 3;
   optional int64 field_files_read_size = 4;
   repeated StringLongMessage custom_stats = 5;
+  optional int64 cpu_slots_exec_time_ms = 6;
+  optional int64 cpu_slots_wait_time_ms = 7;
+  optional int64 io_slots_exec_time_ms = 8;
+  optional int64 io_slots_wait_time_ms = 9;
 }
 
 message StringLongMessage {

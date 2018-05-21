@@ -13,7 +13,6 @@
  */
 package com.indeed.imhotep.service;
 
-import com.google.common.annotations.VisibleForTesting;
 
 /**
  * @author jsgroth
@@ -23,16 +22,11 @@ public final class LocalImhotepServiceConfig {
     private int updateShardsFrequencySeconds = 120;
     private int heartBeatCheckFrequencySeconds = 60;
     private int syncShardStoreFrequencySeconds = 1200;
-    private ShardDirIteratorFactory shardDirIteratorFactory;
-
-    @VisibleForTesting
-    public LocalImhotepServiceConfig() {
-        shardDirIteratorFactory = new ShardDirIteratorFactory(null, null);
-    }
-
-    public LocalImhotepServiceConfig(final ShardDirIteratorFactory shardDirIteratorFactory) {
-        this.shardDirIteratorFactory = shardDirIteratorFactory;
-    }
+    private int cpuSlots = 24;
+    private int cpuSchedulerHistoryLengthSeconds = 60;
+    private int remoteFSIOSlots= 4;
+    private int remoteFSIOSchedulerHistoryLengthSeconds = 60;
+    private MetricStatsEmitter statsEmitter = MetricStatsEmitter.NULL_EMITTER;
 
     public int getUpdateShardsFrequencySeconds() {
         return updateShardsFrequencySeconds;
@@ -61,11 +55,45 @@ public final class LocalImhotepServiceConfig {
         return this;
     }
 
-    public ShardDirIteratorFactory getShardDirIteratorFactory() {
-        return shardDirIteratorFactory;
+    public int getCpuSlots() {
+        return cpuSlots;
     }
 
-    public void setShardDirIteratorFactory(final ShardDirIteratorFactory shardDirIteratorFactory) {
-        this.shardDirIteratorFactory = shardDirIteratorFactory;
+    public LocalImhotepServiceConfig setCpuSlots(int cpuSlots) {
+        this.cpuSlots = cpuSlots;
+        return this;
+    }
+
+    public int getRemoteFSIOSlots() {
+        return remoteFSIOSlots;
+    }
+
+    public LocalImhotepServiceConfig setRemoteFSIOSlots(int remoteFSIOSlots) {
+        this.remoteFSIOSlots = remoteFSIOSlots;
+        return this;
+    }
+
+    public int getCpuSchedulerHistoryLengthSeconds() {
+        return cpuSchedulerHistoryLengthSeconds;
+    }
+
+    public void setCpuSchedulerHistoryLengthSeconds(int cpuSchedulerHistoryLengthSeconds) {
+        this.cpuSchedulerHistoryLengthSeconds = cpuSchedulerHistoryLengthSeconds;
+    }
+
+    public int getRemoteFSIOSchedulerHistoryLengthSeconds() {
+        return remoteFSIOSchedulerHistoryLengthSeconds;
+    }
+
+    public void setRemoteFSIOSchedulerHistoryLengthSeconds(int remoteFSIOSchedulerHistoryLengthSeconds) {
+        this.remoteFSIOSchedulerHistoryLengthSeconds = remoteFSIOSchedulerHistoryLengthSeconds;
+    }
+
+    public MetricStatsEmitter getStatsEmitter() {
+        return statsEmitter;
+    }
+
+    public void setStatsEmitter(final MetricStatsEmitter statsEmitter) {
+        this.statsEmitter = statsEmitter;
     }
 }

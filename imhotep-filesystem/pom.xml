@@ -131,6 +131,12 @@
         </dependency>
 
         <dependency>
+            <groupId>com.indeed</groupId>
+            <artifactId>imhotep-client</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
             <groupId>log4j</groupId>
             <artifactId>log4j</artifactId>
         </dependency>

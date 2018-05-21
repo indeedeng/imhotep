@@ -55,6 +55,9 @@ import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
 import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -424,7 +427,7 @@ public class ImhotepRemoteSession
                 .setNumSplits(numSplits)
                 .setTermLimit(termLimit)
                 .build();
-        final RawFTGSIterator result = sendGetFTGSIteratorSplit(request);
+        final RawFTGSIterator result = fileBufferedFTGSRequest(request);
         timer.complete(request);
         return result;
     }
@@ -447,26 +450,9 @@ public class ImhotepRemoteSession
                 .setNumSplits(numSplits);
         addSubsetFieldsAndTermsToBuilder(intFields, stringFields, requestBuilder);
         final ImhotepRequest request = requestBuilder.build();
-        final RawFTGSIterator result = sendGetFTGSIteratorSplit(request);
+        final RawFTGSIterator result = fileBufferedFTGSRequest(request);
         timer.complete(request);
         return result;
-    }
-
-    private RawFTGSIterator sendGetFTGSIteratorSplit(final ImhotepRequest request) {
-        try {
-            final Socket socket = newSocket(host, port, socketTimeout);
-            final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
-            final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
-            try {
-                sendRequest(request, is, os, host, port);
-            } catch (final IOException e) {
-                closeSocket(socket);
-                throw e;
-            }
-            return new ClosingInputStreamFTGSIterator(socket, is, os, numStats);
-        } catch (final IOException e) {
-            throw new RuntimeException(e); // TODO
-        }
     }
 
     @Override

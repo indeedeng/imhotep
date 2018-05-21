@@ -445,7 +445,7 @@ public class TestFTGSPerf {
         final MTImhotepLocalMultiSession mtSession;
         final MemoryReservationContext mrc =
             new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE));
-        mtSession = new MTImhotepLocalMultiSession(localSessions, mrc, foo, useNativeFTGS);
+        mtSession = new MTImhotepLocalMultiSession(localSessions, mrc, foo, useNativeFTGS, "", "");
 
         mtSession.randomMultiRegroup(metricNames[0],
                                      true,
