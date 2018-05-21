@@ -18,7 +18,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntValueLookup;
-import com.indeed.flamdex.api.RawFlamdexReader;
 import com.indeed.flamdex.reader.FlamdexMetadata;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexWriter;
@@ -27,7 +26,6 @@ import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.metrics.Count;
 import com.indeed.imhotep.service.CachedFlamdexReader;
-import com.indeed.imhotep.service.RawCachedFlamdexReader;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.core.shell.PosixFileOperations;
 import org.apache.log4j.Logger;
@@ -275,15 +273,11 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
             }
 
             final FlamdexReader flamdex = AutoDeletingReader.open(writerOutputDir);
-            if (flamdex instanceof RawFlamdexReader) {
-                this.flamdexReader =
-                        new RawCachedFlamdexReader(new MemoryReservationContext(memory),
-                                (RawFlamdexReader) flamdex, null, null);
-            } else {
-                this.flamdexReader =
-                        new CachedFlamdexReader(new MemoryReservationContext(memory), flamdex,
-                                null, null);
-            }
+            this.flamdexReader = new CachedFlamdexReader(
+                    new MemoryReservationContext(memory),
+                    flamdex,
+                    null,
+                    null);
             this.flamdexReaderRef = SharedReference.create(this.flamdexReader);
         } catch (final IOException e) {
             throw Throwables.propagate(e);

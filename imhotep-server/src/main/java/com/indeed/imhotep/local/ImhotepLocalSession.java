@@ -29,7 +29,6 @@ import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.IntValueLookup;
-import com.indeed.flamdex.api.RawFlamdexReader;
 import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.datastruct.FastBitSet;
@@ -97,7 +96,6 @@ import com.indeed.imhotep.pool.BuffersPool;
 import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.imhotep.service.InstrumentedFlamdexReader;
-import com.indeed.imhotep.service.InstrumentedRawFlamdexReader;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
@@ -235,9 +233,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
         this.savedTempFileSizeValue = (this.tempFileSizeBytesLeft == null) ? 0 : this.tempFileSizeBytesLeft.get();
         constructorStackTrace = new Exception();
-        this.instrumentedFlamdexReader = (flamdexReader instanceof RawFlamdexReader) ?
-                new InstrumentedRawFlamdexReader((RawFlamdexReader) flamdexReader) :
-                new InstrumentedFlamdexReader(flamdexReader);
+        this.instrumentedFlamdexReader = new InstrumentedFlamdexReader(flamdexReader);
         this.flamdexReader = this.instrumentedFlamdexReader; // !@# remove this alias
         this.flamdexReaderRef = SharedReference.create(this.flamdexReader);
         this.memory = memory;
@@ -366,9 +362,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                                                      final String[] stringFields,
                                                      final long termLimit,
                                                      final int sortStat) {
-        FTGSIterator iterator =  flamdexReader instanceof RawFlamdexReader ?
-                new RawFlamdexFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields) :
-                new FlamdexFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields);
+        FTGSIterator iterator = new RawFlamdexFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields);
 
         if (sortStat >= 0) {
             iterator = FTGSIteratorUtil.getTopTermsFTGSIterator(iterator, termLimit, numStats, sortStat);
@@ -385,9 +379,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     @Override
     public FTGSIterator getSubsetFTGSIterator(final Map<String, long[]> intFields,
                                               final Map<String, String[]> stringFields) {
-        return flamdexReader instanceof RawFlamdexReader ?
-            new RawFlamdexSubsetFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields) :
-            new FlamdexSubsetFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields);
+        return new RawFlamdexSubsetFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields);
     }
 
     @Override

@@ -26,7 +26,6 @@ import com.indeed.flamdex.api.GenericIntTermDocIterator;
 import com.indeed.flamdex.api.GenericRawStringTermDocIterator;
 import com.indeed.flamdex.api.IntTermDocIterator;
 import com.indeed.flamdex.api.IntValueLookup;
-import com.indeed.flamdex.api.RawFlamdexReader;
 import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.fieldcache.FieldCacherUtil;
 import com.indeed.flamdex.fieldcache.NativeFlamdexFieldCacher;
@@ -49,9 +48,7 @@ import java.util.Set;
 /**
  * @author jsgroth
  */
-public class SimpleFlamdexReader
-        extends AbstractFlamdexReader
-        implements RawFlamdexReader {
+public class SimpleFlamdexReader extends AbstractFlamdexReader {
 
     private final Collection<String> intFields;
     private final Collection<String> stringFields;
