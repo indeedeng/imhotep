@@ -2960,8 +2960,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                         break;
                     }
                 }
-                memoryPool.returnIntBuffer(docIdBuf);
             }
+            memoryPool.returnIntBuffer(docIdBuf);
         } finally {
             Closeables2.closeQuietly(iterator, log);
         }
