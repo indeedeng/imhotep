@@ -14,14 +14,14 @@
  package com.indeed.flamdex.simple;
 
 import com.google.common.base.Charsets;
-import com.indeed.flamdex.api.RawStringTermDocIterator;
+import com.indeed.flamdex.api.StringTermDocIterator;
 
 import java.io.IOException;
 
 /**
  * @author jplaisance
  */
-public final class NativeStringTermDocIterator extends NativeTermDocIterator<SimpleStringTermIterator> implements RawStringTermDocIterator {
+public final class NativeStringTermDocIterator extends NativeTermDocIterator<SimpleStringTermIterator> implements StringTermDocIterator {
     // terms are stored in one byte array
     private byte[] bufferedTerms = new byte[4096];
     private int bufferLength = 0;

@@ -13,10 +13,9 @@
  */
  package com.indeed.imhotep.service;
 
-import com.indeed.util.core.reference.SharedReference;
 import com.indeed.flamdex.api.RawFlamdexReader;
-import com.indeed.flamdex.api.RawStringTermDocIterator;
 import com.indeed.flamdex.api.RawStringTermIterator;
+import com.indeed.util.core.reference.SharedReference;
 import org.apache.log4j.Logger;
 
 /**
@@ -38,10 +37,5 @@ public final class RawCachedFlamdexReaderReference
     @Override
     public RawStringTermIterator getStringTermIterator(final String field) {
         return reader.getStringTermIterator(field);
-    }
-
-    @Override
-    public RawStringTermDocIterator getStringTermDocIterator(final String field) {
-        return reader.getStringTermDocIterator(field);
     }
 }

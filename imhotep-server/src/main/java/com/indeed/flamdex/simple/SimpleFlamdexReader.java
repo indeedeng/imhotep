@@ -27,7 +27,7 @@ import com.indeed.flamdex.api.GenericRawStringTermDocIterator;
 import com.indeed.flamdex.api.IntTermDocIterator;
 import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.api.RawFlamdexReader;
-import com.indeed.flamdex.api.RawStringTermDocIterator;
+import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.fieldcache.FieldCacherUtil;
 import com.indeed.flamdex.fieldcache.NativeFlamdexFieldCacher;
 import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIterator;
@@ -259,7 +259,7 @@ public class SimpleFlamdexReader
     }
 
     @Override
-    public RawStringTermDocIterator getStringTermDocIterator(final String field) {
+    public StringTermDocIterator getStringTermDocIterator(final String field) {
         final SimpleStringTermIterator termIterator = getStringTermIterator(field);
         final Path termsPath = termIterator.getFilename();
 

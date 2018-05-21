@@ -18,7 +18,7 @@ import javax.annotation.WillCloseWhenClosed;
 /**
  * @author jplaisance
  */
-public final class GenericRawStringTermDocIterator extends GenericTermDocIterator<RawStringTermIterator> implements RawStringTermDocIterator {
+public final class GenericRawStringTermDocIterator extends GenericTermDocIterator<RawStringTermIterator> implements StringTermDocIterator {
 
     public GenericRawStringTermDocIterator(
             @WillCloseWhenClosed final RawStringTermIterator termIterator,

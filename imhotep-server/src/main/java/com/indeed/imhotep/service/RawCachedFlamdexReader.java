@@ -14,7 +14,6 @@
  package com.indeed.imhotep.service;
 
 import com.indeed.flamdex.api.RawFlamdexReader;
-import com.indeed.flamdex.api.RawStringTermDocIterator;
 import com.indeed.flamdex.api.RawStringTermIterator;
 import com.indeed.imhotep.MemoryReservationContext;
 import org.apache.log4j.Logger;
@@ -38,10 +37,5 @@ public final class RawCachedFlamdexReader extends CachedFlamdexReader implements
     @Override
     public RawStringTermIterator getStringTermIterator(final String field) {
         return (RawStringTermIterator)super.getStringTermIterator(field);
-    }
-
-    @Override
-    public RawStringTermDocIterator getStringTermDocIterator(final String field) {
-        return (RawStringTermDocIterator)super.getStringTermDocIterator(field);
     }
 }

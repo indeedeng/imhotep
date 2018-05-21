@@ -14,7 +14,6 @@
  package com.indeed.imhotep.local;
 
 import com.indeed.flamdex.api.FlamdexReader;
-import com.indeed.flamdex.api.RawStringTermDocIterator;
 import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.util.core.reference.SharedReference;
 
@@ -30,11 +29,11 @@ final class RawFlamdexFTGSIterator extends FlamdexFTGSIterator implements RawFTG
 
     @Override
     public byte[] termStringBytes() {
-        return ((RawStringTermDocIterator)stringTermDocIterator).termStringBytes();
+        return stringTermDocIterator.termStringBytes();
     }
 
     @Override
     public int termStringLength() {
-        return ((RawStringTermDocIterator)stringTermDocIterator).termStringLength();
+        return stringTermDocIterator.termStringLength();
     }
 }

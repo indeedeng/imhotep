@@ -13,6 +13,8 @@
  */
  package com.indeed.flamdex.api;
 
+import com.google.common.base.Charsets;
+
 import javax.annotation.WillCloseWhenClosed;
 
 /**
@@ -29,5 +31,17 @@ public final class GenericStringTermDocIterator extends GenericTermDocIterator<S
     @Override
     public String term() {
         return termIterator.term();
+    }
+
+    @Override
+    public byte[] termStringBytes() {
+        // TODO: fix after merging StringTermIterator and RawStringTermIterator
+        return term().getBytes(Charsets.UTF_8);
+    }
+
+    @Override
+    public int termStringLength() {
+        // TODO: fix after merging StringTermIterator and RawStringTermIterator
+        return term().getBytes(Charsets.UTF_8).length;
     }
 }
