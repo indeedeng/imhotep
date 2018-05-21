@@ -86,7 +86,6 @@ public class TaskScheduler {
             long oldestRunStartTimeNanos = minRunStartTimeNanos.orElse(nowNanos);
             longestRunningTaskNanos = nowNanos - oldestRunStartTimeNanos;
 
-
             long minWaitStartTimeNanos = nowNanos;
             for(TaskQueue taskQueue: usernameToQueue.values()) {
                 final ImhotepTask oldestTask = taskQueue.peek();
