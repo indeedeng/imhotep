@@ -13,6 +13,6 @@ kramdown:
 # jekyll serve --watch --baseurl=
 # baseurl: "https://indeedeng.github.io/imhotep"
 # baseurl: "https://agrover-indeed.github.io/imhotep"
-  baseurl: "https://alette-indeed.github.io/imhotep-my-fork"
+baseurl: "https://alette-indeed.github.io/imhotep-my-fork"
 # permalinks are relative to their parent folder
 #relative_permalinks: false
