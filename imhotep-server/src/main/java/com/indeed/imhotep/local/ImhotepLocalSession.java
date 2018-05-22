@@ -172,7 +172,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     int numStats;
 
-    protected final GroupStatCache groupStats;
     protected final StatLookup     statLookup = new StatLookup(MAX_NUMBER_STATS);
 
     protected final List<String> statCommands;
@@ -255,8 +254,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         zeroGroupDocCount = 0;
 
         accountForFlamdexFTGSIteratorMemChange(0, docIdToGroup.getNumGroups());
-
-        this.groupStats = new GroupStatCache(MAX_NUMBER_STATS, memory);
 
         this.statCommands = new ArrayList<>();
 
@@ -344,9 +341,24 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         return ret;
     }
 
-        @Override
+    /**
+     * Add stats to array
+     * @param stat - stat to add
+     * @param partialResult - array with some data. Don't reassign values with new stats result.
+     *                      Add current session stats to array instead
+     */
+    protected abstract void addGroupStats(int stat, long[] partialResult);
+
+    @Override
+    public synchronized long[] getGroupStats(final int stat) {
+        final long[] result = new long[getNumGroups()];
+        addGroupStats(stat, result);
+        return result;
+    }
+
+    @Override
     public synchronized GroupStatsIterator getGroupStatsIterator(final int stat) {
-        return new GroupStatsDummyIterator(this.getGroupStats(stat));
+        return new GroupStatsDummyIterator(getGroupStats(stat));
     }
 
     @Override
@@ -658,7 +670,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         accountForFlamdexFTGSIteratorMemChange(oldNumGroups, newNumGroups);
         docIdToGroup = resizeGroupLookup(docIdToGroup, 0, memory);
         resetLazyValues();
-        groupStats.reset(numStats, newNumGroups);
     }
 
     protected void accountForFlamdexFTGSIteratorMemChange(final int oldNumGroups,
@@ -1806,7 +1817,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 throw new ImhotepOutOfMemoryException(e);
             }
         }
-        groupStats.resetStat(numStats, docIdToGroup.getNumGroups());
         numStats++;
 
         // FlamdexFTGSIterator.termGrpStats
@@ -1856,8 +1866,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
         final IntValueLookup ret = statLookup.get(numStats);
         statLookup.set(numStats, null, null);
-
-        groupStats.clearStat(numStats);
 
         memory.releaseMemory(8L * docIdToGroup.getNumGroups());
 
@@ -1923,10 +1931,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 editor.add(doc, deltas[group]);
             }
         }
-
-        // pessimistically recompute all stats -- other metrics may indirectly
-        // refer to this one
-        groupStats.reset(numStats, docIdToGroup.getNumGroups());
     }
 
     @Override
@@ -2142,11 +2146,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 }
                 stringTermIterator.close();
             }
-            // pessimistically recompute all stats -- other metrics may
-            // indirectly refer to this one
-            groupStats.reset(numStats, docIdToGroup.getNumGroups());
-        } catch (final ImhotepOutOfMemoryException e) {
-            throw Throwables.propagate(e);
         } finally {
             Closeables2.closeAll(log, docIdStream, intTermIterator, stringTermIterator);
         }
@@ -2250,9 +2249,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                     }
                 }
             }
-            // pessimistically recompute all stats -- other metrics may
-            // indirectly refer to this one
-            groupStats.reset(numStats, docIdToGroup.getNumGroups());
         } catch (final FlamdexOutOfMemoryException e) {
             throw new ImhotepOutOfMemoryException(e);
         } finally {
@@ -2372,7 +2368,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         accountForFlamdexFTGSIteratorMemChange(docIdToGroup.getNumGroups(), newNumGroups);
         docIdToGroup = new ConstantGroupLookup(this, group, numDocs);
         resetLazyValues();
-        groupStats.reset(numStats, newNumGroups);
         memory.releaseMemory(bytesToFree);
     }
 

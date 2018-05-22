@@ -131,17 +131,9 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
     }
 
     @Override
-    public synchronized long[] getGroupStats(final int stat) {
-
+    protected synchronized void addGroupStats(final int stat, final long[] partialResult) {
         bindNativeReferences();
-
-        final long[] result = groupStats.get(stat);
-        if (groupStats.isDirty(stat)) {
-            multiCache.nativeGetGroupStats(stat, result);
-            groupStats.get(stat)[0] = 0; // clearing value for filtered-out group.
-            groupStats.validate(stat);
-        }
-        return result;
+        multiCache.nativeGetGroupStats(stat, partialResult);
     }
 
     @Override
@@ -186,7 +178,6 @@ public class ImhotepNativeLocalSession extends ImhotepLocalSession {
             docIdToGroup.recalculateNumGroups();
             final int newNumGroups = docIdToGroup.getNumGroups();
             accountForFlamdexFTGSIteratorMemChange(oldNumGroups, newNumGroups);
-            groupStats.reset(numStats, result);
         }
         finally {
             nativeReleaseRules(rulesPtr);

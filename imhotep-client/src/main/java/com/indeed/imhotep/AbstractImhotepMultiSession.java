@@ -33,7 +33,6 @@ import com.indeed.util.core.threads.LogOnUncaughtExceptionHandler;
 import it.unimi.dsi.fastutil.longs.Long2LongMap;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongIterator;
-import it.unimi.dsi.fastutil.longs.LongIterators;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import org.apache.log4j.Logger;
@@ -76,7 +75,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
 
     private final Long[] longBuf;
 
-    private final Object[] nullBuf;
+    protected final Object[] nullBuf;
 
     private final List<TermCount>[] termCountListBuf;
 
@@ -201,32 +200,6 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
             sum += totalDocFreq;
         }
         return sum;
-    }
-
-    @Override
-    public long[] getGroupStats(final int stat) {
-        try( GroupStatsIterator it = getGroupStatsIterator(stat) ) {
-            return LongIterators.unwrap(it, it.getNumGroups());
-        } catch (final IOException e) {
-            throw Throwables.propagate(e);
-        }
-    }
-
-    @Override
-    public GroupStatsIterator getGroupStatsIterator(final int stat) {
-        final GroupStatsIterator[] statsBuffer = new GroupStatsIterator[sessions.length];
-        executeRuntimeException(statsBuffer, new ThrowingFunction<ImhotepSession, GroupStatsIterator>() {
-            @Override
-            public GroupStatsIterator apply(final ImhotepSession session) {
-                return session.getGroupStatsIterator(stat);
-            }
-        });
-
-        if( statsBuffer.length == 1 ) {
-            return statsBuffer[0];
-        } else {
-            return new GroupStatsIteratorCombiner(statsBuffer);
-        }
     }
 
     @Override
