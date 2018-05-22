@@ -1,8 +1,6 @@
 Source for the following libraries:
 
  libfieldcache.so.1.0.1
- libftgs.so.1.0.1
- libmulticache.so.1.0.1
 
 This arbitrary organization is evolutionary in nature. Ultimately,
 these should probably all be combined, along with libvarint.so, into a
