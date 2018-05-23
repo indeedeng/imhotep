@@ -25,7 +25,6 @@ import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.io.Closeable;
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -107,14 +106,6 @@ public interface ImhotepSession
      * @return iterator
      */
     RawFTGSIterator getFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, long termLimit);
-
-    /**
-     * write the ftgs split identified by <code>splitIndex</code> to the socket.
-     * @param splitIndex index of the split
-     * @param numSplits total number of splits
-     * @param socket the socket to which split <code>splitIndex</code> will be written to
-     */
-    void writeFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, long termLimit, Socket socket) throws ImhotepOutOfMemoryException;
 
     RawFTGSIterator getSubsetFTGSIteratorSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, int splitIndex, int numSplits);
 

@@ -19,32 +19,18 @@ import com.google.common.primitives.Longs;
 import com.indeed.ParameterizedUtils;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
-import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermDocIterator;
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.api.RawStringTermDocIterator;
 import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
-import com.indeed.flamdex.lucene.LuceneFlamdexReader;
 import com.indeed.flamdex.writer.IntFieldWriter;
 import com.indeed.flamdex.writer.StringFieldWriter;
-import com.indeed.imhotep.ImhotepMemoryPool;
-import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
-import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.io.TestFileUtils;
-import com.indeed.imhotep.local.ImhotepJavaLocalSession;
-import com.indeed.imhotep.local.ImhotepLocalSession;
-import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
-import org.apache.lucene.analysis.WhitespaceAnalyzer;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.document.Field;
-import org.apache.lucene.index.CorruptIndexException;
-import org.apache.lucene.index.IndexWriter;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -78,43 +64,6 @@ public class SimpleFlamdexTest {
 
     public SimpleFlamdexTest(final SimpleFlamdexReader.Config config) {
         this.config = config;
-    }
-
-    /*
-     * Need this to force the native library to be loaded - which happens in MTImhotepLocalMultiSession
-     */
-    @BeforeClass
-    public static void loadLibrary() throws ImhotepOutOfMemoryException, CorruptIndexException, IOException {
-        final Path tempDir = TestFileUtils.createTempShard();
-        final IndexWriter w = new IndexWriter(tempDir.toFile(),
-                                        new WhitespaceAnalyzer(),
-                                        true,
-                                        IndexWriter.MaxFieldLength.LIMITED);
-
-        final Random rand = new Random();
-        for (int i = 0; i < 10; ++i) {
-            final int numTerms = rand.nextInt(5) + 5;
-            final Document doc = new Document();
-            for (int t = 0; t < numTerms; ++t) {
-                doc.add(new Field("sf1", Integer.toString(rand.nextInt(10)), Field.Store.NO, Field.Index.NOT_ANALYZED_NO_NORMS));
-            }
-            w.addDocument(doc);
-        }
-
-        w.close();
-
-        final FlamdexReader r = new LuceneFlamdexReader(tempDir);
-        final ImhotepSession session =
-            new MTImhotepLocalMultiSession(new ImhotepLocalSession[] {
-                    new ImhotepJavaLocalSession(r) },
-                    new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
-                    null,
-                    false,
-                    "",
-                    ""
-            );
-
-        session.close();
     }
 
     private static boolean btreeExists(final Path btreePath) throws IOException {

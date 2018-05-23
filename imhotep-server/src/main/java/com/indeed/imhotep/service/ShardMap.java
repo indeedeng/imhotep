@@ -209,13 +209,8 @@ class ShardMap
         return result;
     }
 
-    /** !@# This is a bit of a hack propagated from the old version of
-        LocalImhotepServiceCore, which whilst opening sessions would note whether
-        or not all shards referenced were Flamdexes. Why? Because that is a
-        precondition to enabling native FTGS. */
     static final class FlamdexReaderMap
         extends Object2ObjectOpenHashMap<String, Pair<ShardId, CachedFlamdexReaderReference>> {
-        public boolean allFlamdexReaders = true;
     }
 
     static final class CreateReader implements Callable<Boolean> {
@@ -233,7 +228,6 @@ class ShardMap
             final CachedFlamdexReaderReference reader;
             final ShardId shardId = shard.getShardId();
             final SharedReference<CachedFlamdexReader> reference = shard.getRef();
-            boolean allFlamdexReaders = true;
             try {
                 if (reference.get() instanceof RawCachedFlamdexReader) {
                     final SharedReference<RawCachedFlamdexReader> sharedReference =
@@ -241,7 +235,6 @@ class ShardMap
                     reader = new RawCachedFlamdexReaderReference(sharedReference);
                 }
                 else {
-                    allFlamdexReaders = false;
                     reader = new CachedFlamdexReaderReference(reference);
                 }
             }
@@ -251,7 +244,6 @@ class ShardMap
             }
             synchronized (result) {
                 result.put(request, Pair.of(shardId, reader));
-                result.allFlamdexReaders &= allFlamdexReaders;
             }
             return Boolean.TRUE;
         }

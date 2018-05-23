@@ -76,7 +76,6 @@ class DaemonEvents {
             getProperties().put(Keys.DATASET,            protoRequest.getDataset());
             getProperties().put(Keys.SHARD_REQUEST_LIST, protoRequest.getShardRequestList());
             getProperties().put(Keys.USERNAME,           protoRequest.getUsername());
-            getProperties().put(Keys.USE_NATIVE_FTGS,    protoRequest.getUseNativeFtgs());
         }
     }
 }

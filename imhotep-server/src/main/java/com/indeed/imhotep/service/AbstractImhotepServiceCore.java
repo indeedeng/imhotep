@@ -43,7 +43,6 @@ import org.apache.log4j.Logger;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -234,23 +233,6 @@ public abstract class AbstractImhotepServiceCore
                 final FTGSIterator merger = session.getFTGSIteratorSplit(intFields, stringFields, splitIndex, numSplits, termLimit);
                 sendSuccessResponse(os);
                 return writeFTGSIteratorToOutputStream(numStats, merger, os);
-            }
-        });
-    }
-
-    @Override
-    public void handleGetFTGSIteratorSplitNative(final String sessionId, final String[] intFields, final String[] stringFields, final OutputStream os, final int splitIndex, final int numSplits, final long termLimit, final Socket socket) throws IOException {
-        doWithSession(sessionId, new ThrowingFunction<ImhotepSession, Void, IOException>() {
-            @Override
-            public Void apply(final ImhotepSession imhotepSession) throws IOException {
-                try {
-                    sendSuccessResponse(os);
-                    os.flush();
-                    imhotepSession.writeFTGSIteratorSplit(intFields, stringFields, splitIndex, numSplits, termLimit, socket);
-                } catch (final ImhotepOutOfMemoryException e) {
-                    throw new RuntimeException(e);
-                }
-                return null;//returns Void
             }
         });
     }
@@ -638,7 +620,6 @@ public abstract class AbstractImhotepServiceCore
             boolean optimizeGroupZeroLookups,
             String sessionId,
             AtomicLong tempFileSizeBytesLeft,
-            boolean useNativeFtgs,
             final long sessionTimeout
     ) throws ImhotepOutOfMemoryException;
 

@@ -25,7 +25,6 @@ import com.indeed.imhotep.TermCount;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -57,7 +56,6 @@ public interface ImhotepServiceCore {
     void handleGetFTGSIterator(String sessionId, String[] intFields, String[] stringFields, long termLimit, int sortStat, OutputStream os) throws IOException;
     void handleGetSubsetFTGSIterator(String sessionId, Map<String, long[]> intFields, Map<String, String[]> stringFields, OutputStream os) throws IOException;
     void handleGetFTGSIteratorSplit(String sessionId, String[] intFields, String[] stringFields, OutputStream os, int splitIndex, int numSplits, long termLimit) throws IOException;
-    void handleGetFTGSIteratorSplitNative(String sessionId, String[] intFields, String[] stringFields, final OutputStream os, int splitIndex, int numSplits, long termLimit, Socket socket) throws IOException;
     void handleGetSubsetFTGSIteratorSplit(String sessionId, Map<String, long[]> intFields, Map<String, String[]> stringFields, OutputStream os, int splitIndex, int numSplits) throws IOException;
     void handleMergeFTGSIteratorSplit(String sessionId, String[] intFields, String[] stringFields, OutputStream os, InetSocketAddress[] nodes, int splitIndex, long termLimit, int sortStat) throws IOException;
     void handleMergeSubsetFTGSIteratorSplit(String sessionId, Map<String, long[]> intFields, Map<String, String[]> stringFields, OutputStream os, InetSocketAddress[] nodes, int splitIndex) throws IOException;
@@ -80,7 +78,7 @@ public interface ImhotepServiceCore {
     PerformanceStats handleCloseAndGetPerformanceStats(String sessionId);
 
     // open session methods return session id
-    String handleOpenSession(String dataset, List<String> shardRequestList, String username, String clientName, String ipAddress, int clientVersion, int mergeThreadLimit, boolean optimizeGroupZeroLookups, String sessionId, AtomicLong tempFileSizeBytesLeft, boolean useNativeFtgs, long sessionTimeout) throws ImhotepOutOfMemoryException;
+    String handleOpenSession(String dataset, List<String> shardRequestList, String username, String clientName, String ipAddress, int clientVersion, int mergeThreadLimit, boolean optimizeGroupZeroLookups, String sessionId, AtomicLong tempFileSizeBytesLeft, long sessionTimeout) throws ImhotepOutOfMemoryException;
 
     // non-session-based methods
     List<DatasetInfo> handleGetDatasetList();

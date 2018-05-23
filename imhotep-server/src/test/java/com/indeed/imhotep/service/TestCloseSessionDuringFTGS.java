@@ -84,7 +84,6 @@ public class TestCloseSessionDuringFTGS {
                         new ImhotepJavaLocalSession(r) },
                         new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
                         null,
-                        false,
                         "",
                         ""
                 );
