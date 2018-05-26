@@ -64,6 +64,13 @@ class ShardStore implements AutoCloseable {
         store.close();
     }
 
+    // Close store and wait for all writings to complete.
+    // TODO: maybe add this fuctionality to close method?
+    void safeClose() throws IOException, InterruptedException {
+        store.close();
+        store.waitForCompactions();
+    }
+
     Iterator<Store.Entry<Key, Value>> iterator() throws IOException  {
         return store.iterator();
     }
