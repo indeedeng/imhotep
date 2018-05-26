@@ -17,7 +17,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
-import com.indeed.ParameterizedUtils;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermIterator;
@@ -38,8 +37,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -56,20 +53,10 @@ import static org.junit.Assert.assertTrue;
 /**
  * @author jsgroth
  */
-@RunWith(Parameterized.class)
 public class TestSimpleFlamdexDocWriter {
     private Path tempDir;
 
-    private final SimpleFlamdexReader.Config config;
-
-    @Parameterized.Parameters
-    public static Iterable<SimpleFlamdexReader.Config[]> configs() {
-        return ParameterizedUtils.getFlamdexConfigs();
-    }
-
-    public TestSimpleFlamdexDocWriter(final SimpleFlamdexReader.Config config) {
-        this.config = config;
-    }
+    private final SimpleFlamdexReader.Config config = new SimpleFlamdexReader.Config();
 
     @BeforeClass
     public static void initLog4j() {
@@ -123,13 +110,19 @@ public class TestSimpleFlamdexDocWriter {
         final Random rand = new Random();
         final int numDocs = rand.nextInt(20000) + 20000;
         final List<FlamdexDocument> expected = Lists.newArrayList();
+        final String[] intFieldNames = new String[10];
+        final String[] strFieldNames = new String[10];
+        for (int i = 0; i < intFieldNames.length; i++) {
+            intFieldNames[i] = "if" + i;
+            strFieldNames[i] = "sf" + i;
+        }
         for (int i = 0; i < numDocs; ++i) {
             final FlamdexDocument doc = new FlamdexDocument();
             final int nif = rand.nextInt(5) + 5;
             for (int j = 0; j < nif; ++j) {
                 final int nt = rand.nextInt(5) + 5;
                 for (int k = 0; k < nt; ++k) {
-                    doc.addIntTerm("if" + j, rand.nextInt() & Integer.MAX_VALUE);
+                    doc.addIntTerm(intFieldNames[j], rand.nextInt() & Integer.MAX_VALUE);
                 }
             }
             final int nsf = rand.nextInt(5) + 5;
@@ -141,7 +134,7 @@ public class TestSimpleFlamdexDocWriter {
                     for (int l = 0; l < nc; ++l) {
                         sb.append((char)(rand.nextInt('z' - 'a') + 'a'));
                     }
-                    doc.addStringTerm("sf" + j, sb.toString());
+                    doc.addStringTerm(strFieldNames[j], sb.toString());
                 }
             }
             w.addDocument(doc);
