@@ -24,17 +24,12 @@ public final class BitTree {
     private final long[][] bitsets;
     private boolean cleared = true;
 
-    private int iteratorIndex;
-    private int depth;
-    private int current;
-
     public BitTree(int size) {
         bitsets = new long[log2(size-1)/6+1][];
         for (int i = 0; i < bitsets.length; i++) {
             size = (size+63)/64;
             bitsets[i] = new long[size];
         }
-        depth = bitsets.length-1;
     }
 
     private static int log2(final int size) {
@@ -68,56 +63,6 @@ public final class BitTree {
 
     public boolean get(final int index) {
         return (bitsets[0][index>>6]&(1L<<(index&0x3F))) != 0;
-    }
-
-    public void clear() {
-        cleared = true;
-        while (true) {
-            while (bitsets[depth][iteratorIndex] == 0) {
-                if (depth == bitsets.length-1) {
-                    return;
-                }
-                depth++;
-                iteratorIndex >>>= 6;
-            }
-            while (depth != 0) {
-                final long lsb = bitsets[depth][iteratorIndex] & -bitsets[depth][iteratorIndex];
-                bitsets[depth][iteratorIndex] ^= lsb;
-                depth--;
-                iteratorIndex = (iteratorIndex <<6)+Long.bitCount(lsb-1);
-            }
-            bitsets[0][iteratorIndex] = 0;
-            depth = 1;
-            iteratorIndex >>>= 6;
-        }
-    }
-
-    public boolean next() {
-        cleared = false;
-        long bits = bitsets[depth][iteratorIndex];
-        while (bits == 0) {
-            if (depth == bitsets.length-1) {
-                return false;
-            }
-            depth++;
-            iteratorIndex >>>= 6;
-            bits = bitsets[depth][iteratorIndex];
-        }
-        while (depth != 0) {
-            final long lsb = bits & -bits;
-            bitsets[depth][iteratorIndex] ^= lsb;
-            depth--;
-            iteratorIndex = (iteratorIndex <<6)+Long.bitCount(lsb-1);
-            bits = bitsets[depth][iteratorIndex];
-        }
-        final long lsb = bits & -bits;
-        bitsets[0][iteratorIndex] ^= lsb;
-        current = (iteratorIndex <<6)+Long.bitCount(lsb-1);
-        return true;
-    }
-
-    public int getValue() {
-        return current;
     }
 
     public int dump(final int[] buffer) {
