@@ -25,7 +25,7 @@ import static org.junit.Assert.assertTrue;
 // Override createHasher method to test your hasher
 public abstract class TestIterativeHasherBase {
 
-    static int SIZE = 1000000;
+    static int SIZE = 100000;
 
     private interface Hasher {
         int hash(long value);
