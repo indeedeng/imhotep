@@ -38,7 +38,7 @@ import org.junit.runners.Parameterized;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -183,7 +183,7 @@ public class SimpleFlamdexTest {
     }
 
     private void getMetricCase(final Path dir, final int maxTermVal) throws IOException, FlamdexOutOfMemoryException {
-        for (int i = 0; i < 20; ++i) {
+        for (int i = 0; i < 5; ++i) {
             final long[] cache = writeGetMetricIndex(dir, maxTermVal);
             final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir, config);
             // do it multiple times because these methods update internal state, make sure nothing unexpectedly weird happens
@@ -221,23 +221,23 @@ public class SimpleFlamdexTest {
                 cache[doc] = term;
             }
         } else {
-            final Map<Integer, List<Integer>> map = Maps.newTreeMap();
+            final Map<Integer, int[]> map = Maps.newTreeMap();
             while (!docs.isEmpty()) {
                 final int term = rand.nextInt(maxTermVal);
                 if (map.containsKey(term)) {
                     continue;
                 }
                 final int numDocs = docs.size() > 1 ? rand.nextInt(docs.size() - 1) + 1 : 1;
-                final List<Integer> selectedDocs = Lists.newArrayList();
+                final int[] selectedDocs = new int[numDocs];
                 for (int i = 0; i < numDocs; ++i) {
-                    selectedDocs.add(docs.remove(rand.nextInt(docs.size())));
+                    selectedDocs[i] = docs.remove(rand.nextInt(docs.size()));
                 }
-                Collections.sort(selectedDocs);
+                Arrays.sort(selectedDocs);
                 map.put(term, selectedDocs);
             }
             for (final int term : map.keySet()) {
                 ifw.nextTerm(term);
-                final List<Integer> selectedDocs = map.get(term);
+                final int[] selectedDocs = map.get(term);
                 for (final int doc : selectedDocs) {
                     ifw.nextDoc(doc);
                     cache[doc] = term;
