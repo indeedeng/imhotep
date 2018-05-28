@@ -1,20 +1,19 @@
 package com.indeed.imhotep;
 
 import com.indeed.imhotep.api.FTGSIterator;
-import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
 /**
- * Base class for merging RawFTGSIterators that have disjoint terms
+ * Base class for merging FTGSIterators that have disjoint terms
  *
  * Each term exists only in one iterator and
  * after nextTerm() call iterators[0] is iterator with current term.
  */
-public abstract class AbstractDisjointFTGSMerger implements RawFTGSIterator {
+public abstract class AbstractDisjointFTGSMerger implements FTGSIterator {
     private static final Logger log = Logger.getLogger(AbstractDisjointFTGSMerger.class);
 
-    protected final RawFTGSIterator[] iterators;
+    protected final FTGSIterator[] iterators;
 
     // how many iterators in the beginning of array have terms for current field
     protected int numFieldIterators;
@@ -23,11 +22,11 @@ public abstract class AbstractDisjointFTGSMerger implements RawFTGSIterator {
     private String fieldName;
     private boolean done = false;
 
-    public AbstractDisjointFTGSMerger(final RawFTGSIterator[] iterators) {
+    public AbstractDisjointFTGSMerger(final FTGSIterator[] iterators) {
         this.iterators = iterators;
     }
 
-    public RawFTGSIterator[] getIterators() {
+    public FTGSIterator[] getIterators() {
         return iterators;
     }
 

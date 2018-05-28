@@ -55,12 +55,10 @@ import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.TermLimitedFTGSIterator;
-import com.indeed.imhotep.TermLimitedRawFTGSIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
-import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.imhotep.automaton.Automaton;
 import com.indeed.imhotep.automaton.RegExp;
 import com.indeed.imhotep.group.IterativeHasher;
@@ -362,16 +360,12 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                                                      final String[] stringFields,
                                                      final long termLimit,
                                                      final int sortStat) {
-        FTGSIterator iterator = new RawFlamdexFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields);
+        FTGSIterator iterator = new FlamdexFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields);
 
         if (sortStat >= 0) {
             iterator = FTGSIteratorUtil.getTopTermsFTGSIterator(iterator, termLimit, numStats, sortStat);
         } else if (termLimit > 0 ) {
-            if(iterator instanceof RawFTGSIterator) {
-                iterator = new TermLimitedRawFTGSIterator((RawFTGSIterator) iterator, termLimit);
-            } else {
-                iterator = new TermLimitedFTGSIterator(iterator, termLimit);
-            }
+            iterator = new TermLimitedFTGSIterator(iterator, termLimit);
         }
         return iterator;
     }
@@ -379,11 +373,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     @Override
     public FTGSIterator getSubsetFTGSIterator(final Map<String, long[]> intFields,
                                               final Map<String, String[]> stringFields) {
-        return new RawFlamdexSubsetFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields);
+        return new FlamdexSubsetFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields);
     }
 
     @Override
-    public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields,
+    public FTGSIterator[] getFTGSIteratorSplits(final String[] intFields,
                                                    final String[] stringFields,
                                                    final long termLimit) {
         throw new UnsupportedOperationException();
@@ -405,7 +399,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     @Override
-    public RawFTGSIterator[] getSubsetFTGSIteratorSplits(final Map<String, long[]> intFields,
+    public FTGSIterator[] getSubsetFTGSIteratorSplits(final Map<String, long[]> intFields,
                                                          final Map<String, String[]> stringFields) {
         throw new UnsupportedOperationException();
     }
@@ -425,17 +419,17 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     @Override
-    public RawFTGSIterator getFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, long termLimit) {
+    public FTGSIterator getFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, long termLimit) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public RawFTGSIterator getSubsetFTGSIteratorSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, int splitIndex, int numSplits) {
+    public FTGSIterator getSubsetFTGSIteratorSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, int splitIndex, int numSplits) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public RawFTGSIterator mergeFTGSSplit(final String[] intFields,
+    public FTGSIterator mergeFTGSSplit(final String[] intFields,
                                           final String[] stringFields,
                                           final String sessionId,
                                           final InetSocketAddress[] nodes,
@@ -455,7 +449,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     @Override
-    public RawFTGSIterator mergeSubsetFTGSSplit(final Map<String, long[]> intFields,
+    public FTGSIterator mergeSubsetFTGSSplit(final Map<String, long[]> intFields,
                                                 final Map<String, String[]> stringFields,
                                                 final String sessionId,
                                                 final InetSocketAddress[] nodes,

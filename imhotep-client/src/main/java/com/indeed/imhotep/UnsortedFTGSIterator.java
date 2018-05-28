@@ -1,10 +1,10 @@
 package com.indeed.imhotep;
 
-import com.indeed.imhotep.api.RawFTGSIterator;
+import com.indeed.imhotep.api.FTGSIterator;
 
 // FGSTIterator with not ordered terms.
 public final class UnsortedFTGSIterator extends AbstractDisjointFTGSMerger {
-    public UnsortedFTGSIterator(final RawFTGSIterator[] iterators) {
+    public UnsortedFTGSIterator(final FTGSIterator[] iterators) {
         super(iterators);
     }
 
@@ -23,7 +23,7 @@ public final class UnsortedFTGSIterator extends AbstractDisjointFTGSMerger {
     }
 
     private void swap(final int a, final int b) {
-        final RawFTGSIterator tmp = iterators[a];
+        final FTGSIterator tmp = iterators[a];
         iterators[a] = iterators[b];
         iterators[b] = tmp;
     }

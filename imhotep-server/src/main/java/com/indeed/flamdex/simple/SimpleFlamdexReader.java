@@ -23,7 +23,7 @@ import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FieldsCardinalityMetadata;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.GenericIntTermDocIterator;
-import com.indeed.flamdex.api.GenericRawStringTermDocIterator;
+import com.indeed.flamdex.api.GenericStringTermDocIterator;
 import com.indeed.flamdex.api.IntTermDocIterator;
 import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.api.StringTermDocIterator;
@@ -264,7 +264,7 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader {
             if (useNativeDocIdStream && (Files.exists(termsPath) && (Files.size(termsPath) > 0))) {
                 return new NativeStringTermDocIterator(termIterator, mapCache, useSSSE3);
             } else {
-                return new GenericRawStringTermDocIterator(termIterator, getDocIdStream());
+                return new GenericStringTermDocIterator(termIterator, getDocIdStream());
             }
         } catch (final IOException e) {
             throw Throwables.propagate(e);

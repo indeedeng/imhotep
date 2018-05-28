@@ -14,7 +14,7 @@
  package com.indeed.imhotep;
 
 import com.google.common.base.Charsets;
-import com.indeed.imhotep.api.RawFTGSIterator;
+import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
@@ -24,7 +24,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CharsetDecoder;
 
-public class InputStreamFTGSIterator implements RawFTGSIterator {
+public class InputStreamFTGSIterator implements FTGSIterator {
 
     private static final Logger log = Logger.getLogger(InputStreamFTGSIterator.class);
 

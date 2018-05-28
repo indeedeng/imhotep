@@ -14,6 +14,7 @@
 
 package com.indeed.imhotep;
 
+import com.google.common.base.Charsets;
 import com.indeed.imhotep.api.FTGSIterator;
 
 import java.util.Iterator;
@@ -28,6 +29,7 @@ public class TopTermsFTGSIterator implements FTGSIterator {
     private FTGSIteratorUtil.TopTermsStatsByField.FieldAndTermStats currentField;
     private int currentTGSIdx;
     private FTGSIteratorUtil.TermStat currentTerm;
+    private byte[] currentTermBytes;
     private FTGSIteratorUtil.TermStat currentGroup;
 
     public TopTermsFTGSIterator(final FTGSIteratorUtil.TopTermsStatsByField topTermFTGS) {
@@ -40,6 +42,7 @@ public class TopTermsFTGSIterator implements FTGSIterator {
             currentField = currentFieldIt.next();
             currentTGSIdx = 0;
             currentTerm = null;
+            currentTermBytes = null;
             currentGroup = null;
 
             return true;
@@ -74,6 +77,7 @@ public class TopTermsFTGSIterator implements FTGSIterator {
             final FTGSIteratorUtil.TermStat nextTerm = currentField.termStats[currentTGSIdx];
             if ((currentTerm == null) || !currentTerm.haveSameTerm(nextTerm)) {
                 currentTerm = nextTerm;
+                currentTermBytes = null;
                 break;
             }
         }
@@ -103,6 +107,19 @@ public class TopTermsFTGSIterator implements FTGSIterator {
             throw new IllegalStateException("Invoked while not positioned in term");
         }
         return currentTerm.strTerm;
+    }
+
+    @Override
+    public byte[] termStringBytes() {
+        if (currentTermBytes == null) {
+            currentTermBytes = termStringVal().getBytes(Charsets.UTF_8);
+        }
+        return currentTermBytes;
+    }
+
+    @Override
+    public int termStringLength() {
+        return termStringBytes().length;
     }
 
     @Override

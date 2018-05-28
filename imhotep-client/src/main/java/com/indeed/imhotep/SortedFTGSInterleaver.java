@@ -1,13 +1,13 @@
 package com.indeed.imhotep;
 
 import com.google.common.primitives.Longs;
-import com.indeed.imhotep.api.RawFTGSIterator;
+import com.indeed.imhotep.api.FTGSIterator;
 
 public final class SortedFTGSInterleaver extends AbstractDisjointFTGSMerger {
 
     private boolean initialized = false;
 
-    public SortedFTGSInterleaver(final RawFTGSIterator[] iterators) {
+    public SortedFTGSInterleaver(final FTGSIterator[] iterators) {
         super(iterators);
     }
 
@@ -90,13 +90,13 @@ public final class SortedFTGSInterleaver extends AbstractDisjointFTGSMerger {
     }
 
     private int compareStringTerms(final int a, final int b) {
-        final RawFTGSIterator itA = iterators[a];
-        final RawFTGSIterator itB = iterators[b];
-        return RawFTGSMerger.compareBytes(itA.termStringBytes(), itA.termStringLength(), itB.termStringBytes(), itB.termStringLength());
+        final FTGSIterator itA = iterators[a];
+        final FTGSIterator itB = iterators[b];
+        return FTGSMerger.compareBytes(itA.termStringBytes(), itA.termStringLength(), itB.termStringBytes(), itB.termStringLength());
     }
 
     private void swap(final int a, final int b) {
-        final RawFTGSIterator tmp = iterators[a];
+        final FTGSIterator tmp = iterators[a];
         iterators[a] = iterators[b];
         iterators[b] = tmp;
     }

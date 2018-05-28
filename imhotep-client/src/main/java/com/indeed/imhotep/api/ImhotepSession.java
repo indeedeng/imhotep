@@ -86,9 +86,9 @@ public interface ImhotepSession
 
     FTGSIterator getSubsetFTGSIterator(Map<String, long[]> intFields, Map<String, String[]> stringFields);
 
-    RawFTGSIterator[] getSubsetFTGSIteratorSplits(Map<String, long[]> intFields, Map<String, String[]> stringFields);
+    FTGSIterator[] getSubsetFTGSIteratorSplits(Map<String, long[]> intFields, Map<String, String[]> stringFields);
 
-    RawFTGSIterator[] getFTGSIteratorSplits(String[] intFields, String[] stringFields, long termLimit);
+    FTGSIterator[] getFTGSIteratorSplits(String[] intFields, String[] stringFields, long termLimit);
 
     /**
      * note: this call is weird.
@@ -105,16 +105,16 @@ public interface ImhotepSession
      * @param termLimit maximum number of terms that will be allowed to iterate through. 0 means no limit
      * @return iterator
      */
-    RawFTGSIterator getFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, long termLimit);
+    FTGSIterator getFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, long termLimit);
 
-    RawFTGSIterator getSubsetFTGSIteratorSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, int splitIndex, int numSplits);
+    FTGSIterator getSubsetFTGSIteratorSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, int splitIndex, int numSplits);
 
     /**
      * this is only really here to be called on ImhotepRemoteSession by RemoteImhotepMultiSession
      */
-    RawFTGSIterator mergeFTGSSplit(String[] intFields, String[] stringFields, String sessionId, InetSocketAddress[] nodes, int splitIndex, long termLimit, int sortStat);
+    FTGSIterator mergeFTGSSplit(String[] intFields, String[] stringFields, String sessionId, InetSocketAddress[] nodes, int splitIndex, long termLimit, int sortStat);
 
-    RawFTGSIterator mergeSubsetFTGSSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, String sessionId, InetSocketAddress[] nodes, int splitIndex);
+    FTGSIterator mergeSubsetFTGSSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, String sessionId, InetSocketAddress[] nodes, int splitIndex);
 
     /**
      * Get distinct terms count per group.
