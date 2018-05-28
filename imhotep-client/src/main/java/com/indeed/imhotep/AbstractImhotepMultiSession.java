@@ -585,12 +585,19 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
             try {
                 final FTGSIterator iterator = getIteratorFromSession.apply(imhotepSessions[0]);
                 if (sortStat >= 0 && termLimit > 0) {
-                    try(Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
+                    try(final Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
                         return FTGSIteratorUtil.getTopTermsFTGSIterator(iterator, termLimit, numStats, sortStat);
                     }
                 } else {
-                    // TODO: persist maybe?
-                    return iterator;
+                    if (imhotepSessions[0] instanceof ImhotepRemoteSession) {
+                        // If iterator is from remote session then it's already persisted
+                        return iterator;
+                    } else {
+                        // If iterator is from local session then we have to persist it first
+                        try(final Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
+                            return persist(iterator);
+                        }
+                    }
                 }
             } catch (Exception e) {
                 throw Throwables.propagate(e);
