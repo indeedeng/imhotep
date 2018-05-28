@@ -22,7 +22,6 @@ public final class BitTree {
     private static final Logger log = Logger.getLogger(BitTree.class);
 
     private final long[][] bitsets;
-    private boolean cleared = true;
 
     public BitTree(int size) {
         bitsets = new long[log2(size-1)/6+1][];
@@ -37,9 +36,6 @@ public final class BitTree {
     }
 
     public void set(int index) {
-        if (!cleared) {
-            throw new IllegalStateException();
-        }
         for (int i = 0; i < bitsets.length; i++) {
             final int nextIndex = index>>>6;
             bitsets[i][nextIndex] |= 1L<<(index&0x3F);
@@ -48,9 +44,6 @@ public final class BitTree {
     }
 
     public void set(final int[] indexes, final int n) {
-        if (!cleared) {
-            throw new IllegalStateException();
-        }
         for (int j = 0; j < n; j++) {
             int index = indexes[j];
             for (int i = 0; i < bitsets.length; i++) {
@@ -69,7 +62,6 @@ public final class BitTree {
         int count = 0;
         int depth = bitsets.length-1;
         int index = 0;
-        cleared = true;
         while (true) {
             while (bitsets[depth][index] == 0) {
                 if (depth == bitsets.length-1) {
