@@ -15,7 +15,6 @@ package com.indeed.imhotep.service;
 
 import com.google.common.base.Throwables;
 import com.indeed.imhotep.ShardInfo;
-import com.indeed.imhotep.io.Shard;
 import com.indeed.lsmtree.core.Store;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.apache.commons.lang.RandomStringUtils;
@@ -56,7 +55,7 @@ public class TestShardStore {
             final SortedMap<ShardStore.Key, ShardStore.Value> before = generateRandomEntries(64, 512);
 
             /* Create the store and verify that it has everything in it. */
-            try (ShardStore store = new ShardStore(storeDir)) {
+            try (final ShardStore store = new ShardStore(storeDir)) {
                for (final Map.Entry<ShardStore.Key, ShardStore.Value> entry: before.entrySet()) {
                    store.put(entry.getKey(), entry.getValue());
                }
@@ -70,15 +69,11 @@ public class TestShardStore {
                    after.put(entry.getKey(), entry.getValue());
                }
                assertEquals(after, before);
+               store.safeClose();
             }
 
-            /* !@# There's currently a bug in LSMTree close() that can cause
-               this test to fail if we try to reopen too soon. Until the fix
-               for it gets merged, we need this ugly workaround. */
-            Thread.sleep(10000);
-
             /* Reopen the store and verify that it has everything in it. */
-            try (ShardStore store = new ShardStore(storeDir)) {
+            try (final ShardStore store = new ShardStore(storeDir)) {
                final Map<ShardStore.Key, ShardStore.Value> after =
                    new TreeMap<>();
                final Iterator<Store.Entry<ShardStore.Key, ShardStore.Value>> it =
@@ -88,6 +83,7 @@ public class TestShardStore {
                    after.put(entry.getKey(), entry.getValue());
                }
                assertEquals(after, before);
+               store.safeClose();
             }
         }
         catch (final Exception ex) {
@@ -111,22 +107,19 @@ public class TestShardStore {
             }
             Collections.sort(expected, ShardInfoList.comparator);
 
-            try (ShardStore store = new ShardStore(storeDir)) {
+            try (final ShardStore store = new ShardStore(storeDir)) {
                for (final Map.Entry<ShardStore.Key, ShardStore.Value> entry: entries.entrySet()) {
                    store.put(entry.getKey(), entry.getValue());
                }
+               store.safeClose();
             }
 
-            /* !@# There's currently a bug in LSMTree close() that can cause
-               this test to fail if we try to reopen too soon. Until the fix
-               for it gets merged, we need this ugly workaround. */
-            Thread.sleep(10000);
-
             /* Reopen the store and verify that it has everything in it. */
-            try (ShardStore store = new ShardStore(storeDir)) {
+            try (final ShardStore store = new ShardStore(storeDir)) {
                final ShardInfoList actual = new ShardInfoList(store);
                assertEquals(expected, actual);
-         }
+               store.safeClose();
+            }
         }
         catch (final Exception ex) {
             Throwables.propagate(ex);
@@ -137,23 +130,20 @@ public class TestShardStore {
         try {
             final SortedMap<ShardStore.Key, ShardStore.Value> entries = generateRandomEntries(64, 512);
 
-            try (ShardStore store = new ShardStore(storeDir)) {
+            try (final ShardStore store = new ShardStore(storeDir)) {
                for (final Map.Entry<ShardStore.Key, ShardStore.Value> entry: entries.entrySet()) {
                    store.put(entry.getKey(), entry.getValue());
                }
+               store.safeClose();
             }
 
-            /* !@# There's currently a bug in LSMTree close() that can cause
-               this test to fail if we try to reopen too soon. Until the fix
-               for it gets merged, we need this ugly workaround. */
-            Thread.sleep(10000);
-
             /* Reopen the store and verify that it has everything in it. */
-            try (ShardStore store = new ShardStore(storeDir)) {
+            try (final ShardStore store = new ShardStore(storeDir)) {
                 final DatasetInfoList actual = new DatasetInfoList(store);
                 /* TODO(johnf): test the content in some meaningful way (without
                  just recreating the DatasetInfoList logic in this test. */
-         }
+                store.safeClose();
+            }
         }
         catch (final Exception ex) {
             Throwables.propagate(ex);
@@ -204,25 +194,7 @@ public class TestShardStore {
             }
         };
 
-        /** Build a list of ShardInfo objects from a ShardMap, sorted by shardId. */
-        ShardInfoList(final ShardMap shardMap) throws IOException {
-            shardMap.map(new ShardMap.ElementHandler<IOException>() {
-                public void onElement(final String dataset,
-                                      final String shardId,
-                                      final Shard shard) throws IOException {
-                    final ShardInfo shardInfo =
-                            new ShardInfo(shardId,
-                                    shard.getNumDocs(),
-                                    shard.getShardVersion());
-                    add(shardInfo);
-                }
-            });
-            Collections.sort(this, comparator);
-        }
-
-        /** Build a list of ShardInfo objects from a ShardStore, sorted by
-         shardId. This method is intended for use by tests, not
-         LocalImhotepServiceCore proper. */
+        // Build a list of ShardInfo objects from a ShardStore, sorted by shardId.
         ShardInfoList(final ShardStore store) throws IOException {
             final Iterator<Store.Entry<ShardStore.Key, ShardStore.Value>> it =
                     store.iterator();
@@ -236,7 +208,7 @@ public class TestShardStore {
                                 value.getVersion());
                 add(shardInfo);
             }
-            Collections.sort(this, comparator);
+            sort(comparator);
         }
     }
 

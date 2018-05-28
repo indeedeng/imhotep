@@ -19,6 +19,7 @@ import com.google.common.util.concurrent.ListenableFutureTask;
 import com.indeed.util.io.Files;
 import org.apache.commons.lang.RandomStringUtils;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -119,6 +120,7 @@ public class LocalFileCacheTest {
     }
 
     @Test
+    @Ignore("this test is very long (4 minutes on my machine)")
     public void testConcurrentStreams() throws IOException, ExecutionException, InterruptedException {
         final int fileSize = 128;
         final int maxEntries = 8;
