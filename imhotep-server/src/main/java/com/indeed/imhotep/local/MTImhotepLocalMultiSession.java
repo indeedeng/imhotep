@@ -118,13 +118,6 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     }
 
     @Override
-    public FTGSIterator[] getSubsetFTGSIteratorSplits(
-            final Map<String, long[]> intFields,
-            final Map<String, String[]> stringFields) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public synchronized FTGSIterator getFTGSIteratorSplit(final String[] intFields, final String[] stringFields, final int splitIndex, final int numSplits, final long termLimit) {
         if (ftgsIteratorSplitters == null || (ftgsIteratorSplitters.length == 0 && sessions.length != 0) ||
                 ftgsIteratorSplitters[0].isClosed()) {

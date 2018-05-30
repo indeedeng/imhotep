@@ -86,8 +86,6 @@ public interface ImhotepSession
 
     FTGSIterator getSubsetFTGSIterator(Map<String, long[]> intFields, Map<String, String[]> stringFields);
 
-    FTGSIterator[] getSubsetFTGSIteratorSplits(Map<String, long[]> intFields, Map<String, String[]> stringFields);
-
     FTGSIterator[] getFTGSIteratorSplits(String[] intFields, String[] stringFields, long termLimit);
 
     /**

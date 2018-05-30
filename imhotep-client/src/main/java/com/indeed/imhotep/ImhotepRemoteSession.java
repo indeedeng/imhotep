@@ -422,11 +422,6 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public FTGSIterator[] getSubsetFTGSIteratorSplits(final Map<String, long[]> intFields, final Map<String, String[]> stringFields) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public FTGSIterator getSubsetFTGSIteratorSplit(
             final Map<String, long[]> intFields,
             final Map<String, String[]> stringFields,
