@@ -24,7 +24,6 @@ import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 
 import javax.annotation.concurrent.NotThreadSafe;
 import java.io.Closeable;
-import java.net.InetSocketAddress;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -87,8 +86,6 @@ public interface ImhotepSession
     FTGSIterator getSubsetFTGSIterator(Map<String, long[]> intFields, Map<String, String[]> stringFields);
 
     FTGSIterator[] getFTGSIteratorSplits(String[] intFields, String[] stringFields, long termLimit);
-
-    FTGSIterator mergeSubsetFTGSSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, String sessionId, InetSocketAddress[] nodes, int splitIndex);
 
     /**
      * Get distinct terms count per group.

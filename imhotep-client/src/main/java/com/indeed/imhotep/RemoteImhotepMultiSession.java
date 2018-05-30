@@ -250,9 +250,4 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         }
         return builder.build();
     }
-
-    @Override
-    public FTGSIterator mergeSubsetFTGSSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, String sessionId, InetSocketAddress[] nodes, int splitIndex) {
-        throw new UnsupportedOperationException();
-    }
 }

@@ -499,7 +499,6 @@ public class ImhotepRemoteSession
         }
     }
 
-    @Override
     public FTGSIterator mergeSubsetFTGSSplit(
             final Map<String, long[]> intFields,
             final Map<String, String[]> stringFields,

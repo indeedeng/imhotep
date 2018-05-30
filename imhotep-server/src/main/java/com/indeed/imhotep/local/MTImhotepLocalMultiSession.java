@@ -240,7 +240,6 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         return mergeFTGSIteratorsForSessions(remoteSessions, termLimit, sortStat, s -> s.getFTGSIteratorSplit(intFields, stringFields, splitIndex, nodes.length, perSplitTermLimit));
     }
 
-    @Override
     public FTGSIterator mergeSubsetFTGSSplit(final Map<String, long[]> intFields, final Map<String, String[]> stringFields, final String sessionId, final InetSocketAddress[] nodes, final int splitIndex) {
         final ImhotepRemoteSession[] remoteSessions = getRemoteSessions(sessionId, nodes);
         return mergeFTGSIteratorsForSessions(remoteSessions, 0, -1, s -> s.getSubsetFTGSIteratorSplit(intFields, stringFields, splitIndex, nodes.length));

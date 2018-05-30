@@ -111,7 +111,6 @@ import org.apache.log4j.Logger;
 import javax.annotation.Nonnull;
 import java.io.Closeable;
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -410,15 +409,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         } catch (final IOException e) {
             throw Throwables.propagate(e);
         }
-    }
-
-    @Override
-    public FTGSIterator mergeSubsetFTGSSplit(final Map<String, long[]> intFields,
-                                                final Map<String, String[]> stringFields,
-                                                final String sessionId,
-                                                final InetSocketAddress[] nodes,
-                                                final int splitIndex) {
-        throw new UnsupportedOperationException();
     }
 
     @Override
