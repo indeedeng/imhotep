@@ -437,7 +437,6 @@ public class ImhotepRemoteSession
         return result;
     }
 
-    @Override
     public FTGSIterator mergeFTGSSplit(
             final String[] intFields,
             final String[] stringFields,

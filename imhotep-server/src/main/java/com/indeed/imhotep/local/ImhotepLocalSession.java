@@ -413,17 +413,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     @Override
-    public FTGSIterator mergeFTGSSplit(final String[] intFields,
-                                          final String[] stringFields,
-                                          final String sessionId,
-                                          final InetSocketAddress[] nodes,
-                                          final int splitIndex,
-                                          final long termLimit,
-                                          final int sortStat) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public FTGSIterator mergeSubsetFTGSSplit(final Map<String, long[]> intFields,
                                                 final Map<String, String[]> stringFields,
                                                 final String sessionId,

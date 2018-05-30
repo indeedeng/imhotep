@@ -231,7 +231,6 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         return remoteSessions;
     }
 
-    @Override
     public FTGSIterator mergeFTGSSplit(final String[] intFields, final String[] stringFields, final String sessionId, final InetSocketAddress[] nodes, final int splitIndex, final long termLimit, final int sortStat) {
         final boolean topTermsByStat = sortStat >= 0;
         final long perSplitTermLimit = topTermsByStat ? 0 : termLimit;
