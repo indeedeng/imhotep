@@ -117,7 +117,6 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         return mergeFTGSIteratorsForSessions(sessions, -1, -1, s -> s.getSubsetFTGSIterator(intFields, stringFields));
     }
 
-    @Override
     public synchronized FTGSIterator getFTGSIteratorSplit(final String[] intFields, final String[] stringFields, final int splitIndex, final int numSplits, final long termLimit) {
         if (ftgsIteratorSplitters == null || (ftgsIteratorSplitters.length == 0 && sessions.length != 0) ||
                 ftgsIteratorSplitters[0].isClosed()) {
@@ -240,11 +239,11 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         return mergeFTGSIteratorsForSessions(remoteSessions, 0, -1, (s) -> s.getSubsetFTGSIteratorSplit(intFields, stringFields, splitIndex, nodes.length));
     }
 
-    private FTGSIterator mergeFTGSIteratorsForSessions(
-            final ImhotepSession[] imhotepSessions,
+    private <T extends ImhotepSession> FTGSIterator mergeFTGSIteratorsForSessions(
+            final T[] imhotepSessions,
             final long termLimit,
             final int sortStat,
-            final ThrowingFunction<ImhotepSession, FTGSIterator> getIteratorFromSession
+            final ThrowingFunction<T, FTGSIterator> getIteratorFromSession
     ) {
         if (imhotepSessions.length == 1) {
             try {
