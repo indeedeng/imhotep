@@ -420,7 +420,6 @@ public class ImhotepRemoteSession
         return result;
     }
 
-    @Override
     public FTGSIterator getSubsetFTGSIteratorSplit(
             final Map<String, long[]> intFields,
             final Map<String, String[]> stringFields,

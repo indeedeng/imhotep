@@ -88,8 +88,6 @@ public interface ImhotepSession
 
     FTGSIterator[] getFTGSIteratorSplits(String[] intFields, String[] stringFields, long termLimit);
 
-    FTGSIterator getSubsetFTGSIteratorSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, int splitIndex, int numSplits);
-
     /**
      * this is only really here to be called on ImhotepRemoteSession by RemoteImhotepMultiSession
      */
