@@ -196,6 +196,15 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         return result;
     }
 
+    public GroupStatsIterator mergeDistinctSplit(final String field, final boolean isIntField,
+                                                 final String sessionId, final InetSocketAddress[] nodes,
+                                                 final int splitIndex) {
+        final String[] intFields = isIntField ? new String[]{field} : new String[0];
+        final String[] stringFields = isIntField ? new String[0] : new String[]{field};
+        final FTGSIterator iterator = mergeFTGSSplit(intFields, stringFields, sessionId, nodes, splitIndex, 0, -1);
+        return FTGSIteratorUtil.calculateDistinct(iterator, getNumGroups());
+    }
+
     @Override
     protected void postClose() {
         if (memory.usedMemory() > 0) {

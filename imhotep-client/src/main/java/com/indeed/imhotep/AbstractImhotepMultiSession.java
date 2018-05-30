@@ -18,7 +18,6 @@ import com.google.common.collect.Lists;
 import com.indeed.flamdex.query.Query;
 import com.indeed.flamdex.query.Term;
 import com.indeed.imhotep.api.FTGSIterator;
-import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
@@ -39,7 +38,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -562,16 +560,6 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
             }
         }
         return newNumStats;
-    }
-
-    @Override
-    public GroupStatsIterator mergeDistinctSplit(final String field, final boolean isIntField,
-                                    final String sessionId, final InetSocketAddress[] nodes,
-                                    final int splitIndex) {
-        final String[] intFields = isIntField ? new String[]{field} : new String[0];
-        final String[] stringFields = isIntField ? new String[0] : new String[]{field};
-        final FTGSIterator iterator = mergeFTGSSplit(intFields, stringFields, sessionId, nodes, splitIndex, 0, -1);
-        return FTGSIteratorUtil.calculateDistinct(iterator, getNumGroups());
     }
 
     @Override

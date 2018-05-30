@@ -466,7 +466,6 @@ public class ImhotepRemoteSession
         return result;
     }
 
-    @Override
     public GroupStatsIterator mergeDistinctSplit(final String field,
                                                  final boolean isIntField,
                                                  final String sessionId,

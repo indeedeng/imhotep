@@ -104,18 +104,6 @@ public interface ImhotepSession
     GroupStatsIterator getDistinct(String field, boolean isIntField);
 
     /**
-     * Method is similar to <code>mergeFTGSSplit</code> but used in distinct calculation.
-     * It's exposing some imhotep internals. Don't call it outside imhotep.
-     * @param field the field to use
-     * @param isIntField whether the field is int or string type
-     * @param sessionId for requesting data from another imhotep daemons
-     * @param nodes list of imhotep daemons with current session shards
-     * @param splitIndex index among remote sessions
-     * @return an iterator with the distinct terms count, indexed by group
-     */
-    GroupStatsIterator mergeDistinctSplit(String field, boolean isIntField, String sessionId, InetSocketAddress[] nodes, int splitIndex);
-
-    /**
      * apply the list of remap rules to remap documents into a different group. Preconditions:
      *
      * <ul>
