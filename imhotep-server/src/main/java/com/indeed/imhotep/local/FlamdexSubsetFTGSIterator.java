@@ -172,6 +172,16 @@ class FlamdexSubsetFTGSIterator extends AbstractFlamdexFTGSIterator {
     }
 
     @Override
+    public byte[] termStringBytes() {
+        return stringTermIterator.termStringBytes();
+    }
+
+    @Override
+    public int termStringLength() {
+        return stringTermIterator.termStringLength();
+    }
+
+    @Override
     protected int fillDocIdBuffer(final int[] docIdBuf) {
         return docIdStream.fillDocIdBuffer(docIdBuf);
     }

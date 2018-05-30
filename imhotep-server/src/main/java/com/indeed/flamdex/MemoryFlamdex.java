@@ -727,6 +727,16 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
                     }
 
                     @Override
+                    public byte[] termStringBytes() {
+                        return stringTermBytes;
+                    }
+
+                    @Override
+                    public int termStringLength() {
+                        return stringTermLen;
+                    }
+
+                    @Override
                     public boolean next() {
                         if (termIndex >= numTerms) {
                             return false;
@@ -911,6 +921,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
         private Iterator<Map.Entry<String, IntArrayList>> keys;
 
         private String term;
+        private byte[] termBytes;
         private IntList docList;
 
         private MemoryStringTermIterator(final String field) {
@@ -935,6 +946,19 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
         }
 
         @Override
+        public byte[] termStringBytes() {
+            if (termBytes == null) {
+                termBytes = term().getBytes(Charsets.UTF_8);
+            }
+            return termBytes;
+        }
+
+        @Override
+        public int termStringLength() {
+            return termStringBytes().length;
+        }
+
+        @Override
         public IntList getDocList() {
             return docList;
         }
@@ -946,6 +970,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
             }
             final Map.Entry<String, IntArrayList> e = keys.next();
             term = e.getKey();
+            termBytes = null;
             docList = e.getValue();
             // noinspection SimplifiableIfStatement
             if (docList.isEmpty()) {

@@ -29,7 +29,6 @@ import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.HasSessionId;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
-import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.LimitedBufferedOutputStream;
 import com.indeed.imhotep.io.Streams;
@@ -55,9 +54,6 @@ import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
 import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -404,12 +400,12 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields, final long termLimit) {
+    public FTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields, final long termLimit) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public RawFTGSIterator getFTGSIteratorSplit(final String[] intFields, final String[] stringFields, final int splitIndex, final int numSplits, final long termLimit) {
+    public FTGSIterator getFTGSIteratorSplit(final String[] intFields, final String[] stringFields, final int splitIndex, final int numSplits, final long termLimit) {
         // TODO: disable timer to reduce logrepo logging volume of SubmitRequestEvent?
         final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_FTGS_SPLIT)
@@ -420,18 +416,18 @@ public class ImhotepRemoteSession
                 .setNumSplits(numSplits)
                 .setTermLimit(termLimit)
                 .build();
-        final RawFTGSIterator result = fileBufferedFTGSRequest(request);
+        final FTGSIterator result = fileBufferedFTGSRequest(request);
         timer.complete(request);
         return result;
     }
 
     @Override
-    public RawFTGSIterator[] getSubsetFTGSIteratorSplits(final Map<String, long[]> intFields, final Map<String, String[]> stringFields) {
+    public FTGSIterator[] getSubsetFTGSIteratorSplits(final Map<String, long[]> intFields, final Map<String, String[]> stringFields) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public RawFTGSIterator getSubsetFTGSIteratorSplit(
+    public FTGSIterator getSubsetFTGSIteratorSplit(
             final Map<String, long[]> intFields,
             final Map<String, String[]> stringFields,
             final int splitIndex,
@@ -443,13 +439,13 @@ public class ImhotepRemoteSession
                 .setNumSplits(numSplits);
         addSubsetFieldsAndTermsToBuilder(intFields, stringFields, requestBuilder);
         final ImhotepRequest request = requestBuilder.build();
-        final RawFTGSIterator result = fileBufferedFTGSRequest(request);
+        final FTGSIterator result = fileBufferedFTGSRequest(request);
         timer.complete(request);
         return result;
     }
 
     @Override
-    public RawFTGSIterator mergeFTGSSplit(
+    public FTGSIterator mergeFTGSSplit(
             final String[] intFields,
             final String[] stringFields,
             final String sessionId,
@@ -472,7 +468,7 @@ public class ImhotepRemoteSession
                 }))
                 .build();
 
-        final RawFTGSIterator result = fileBufferedFTGSRequest(request);
+        final FTGSIterator result = fileBufferedFTGSRequest(request);
         timer.complete(request);
         return result;
     }
@@ -513,7 +509,7 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public RawFTGSIterator mergeSubsetFTGSSplit(
+    public FTGSIterator mergeSubsetFTGSSplit(
             final Map<String, long[]> intFields,
             final Map<String, String[]> stringFields,
             final String sessionId,
@@ -530,7 +526,7 @@ public class ImhotepRemoteSession
                 }));
         addSubsetFieldsAndTermsToBuilder(intFields, stringFields, requestBuilder);
         final ImhotepRequest request = requestBuilder.build();
-        final RawFTGSIterator result = fileBufferedFTGSRequest(request);
+        final FTGSIterator result = fileBufferedFTGSRequest(request);
         timer.complete(request);
         return result;
     }
@@ -546,7 +542,7 @@ public class ImhotepRemoteSession
         return sendGroupStatsIteratorRequest(request, timer);
     }
 
-    private RawFTGSIterator fileBufferedFTGSRequest(final ImhotepRequest request) {
+    private FTGSIterator fileBufferedFTGSRequest(final ImhotepRequest request) {
         try {
             final Socket socket = newSocket(host, port, socketTimeout);
             final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());

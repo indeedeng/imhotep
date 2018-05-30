@@ -16,7 +16,6 @@
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import com.indeed.imhotep.api.FTGSIterator;
-import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.imhotep.service.FTGSOutputStreamWriter;
 import org.apache.log4j.Appender;
 import org.apache.log4j.BasicConfigurator;
@@ -74,7 +73,7 @@ public abstract class AbstractFTGSMergerCase {
         ROOT_LOGGER.addAppender(STDERR);
     }
 
-    protected abstract FTGSIterator newFTGSMerger(Collection<? extends RawFTGSIterator> iterators, int numStats) throws IOException;
+    protected abstract FTGSIterator newFTGSMerger(Collection<? extends FTGSIterator> iterators, int numStats) throws IOException;
 
     @Test
     public void testEmptyFields() throws IOException {
@@ -87,7 +86,7 @@ public abstract class AbstractFTGSMergerCase {
         w.close();
 
         final int n = 13;
-        final List<RawFTGSIterator> iterators = new ArrayList<>(n);
+        final List<FTGSIterator> iterators = new ArrayList<>(n);
         for (int i = 0; i < n; i++) {
             final InputStream is = new ByteArrayInputStream(out.toByteArray());
             final InputStreamFTGSIterator temp = new InputStreamFTGSIterator(is, 0);
@@ -120,7 +119,7 @@ public abstract class AbstractFTGSMergerCase {
         writeStream(out);
         {
             final int n = 13;
-            final List<RawFTGSIterator> iterators = new ArrayList<>(n);
+            final List<FTGSIterator> iterators = new ArrayList<>(n);
             final List<InputStream> inputStreams = new ArrayList<>(n);
             for (int i = 0; i < n; i++) {
                 final InputStream is = new ByteArrayInputStream(out.toByteArray());
@@ -225,7 +224,7 @@ public abstract class AbstractFTGSMergerCase {
     public void testGroupless() throws IOException {
         final ByteArrayOutputStream baos = new ByteArrayOutputStream();
         writeStream(baos);
-        final List<RawFTGSIterator> list = new ArrayList<>(10);
+        final List<FTGSIterator> list = new ArrayList<>(10);
         for (int i = 0; i < 10; ++i) {
             final InputStream is = new ByteArrayInputStream(baos.toByteArray());
             final InputStreamFTGSIterator it = new InputStreamFTGSIterator(is, 2);
@@ -372,7 +371,7 @@ public abstract class AbstractFTGSMergerCase {
             baos.close();
         }
 
-        final List<RawFTGSIterator> iterators = new ArrayList<>();
+        final List<FTGSIterator> iterators = new ArrayList<>();
         for (final ByteArrayOutputStream os : streams) {
             iterators.add(new InputStreamFTGSIterator(new ByteArrayInputStream(os.toByteArray()), 2));
         }
@@ -562,8 +561,8 @@ public abstract class AbstractFTGSMergerCase {
         assertFalse(iterator.nextField());
     }
 
-    private static RawFTGSIterator makeMockIterator(final int numStats) {
-        return new RawFTGSIterator() {
+    private static FTGSIterator makeMockIterator(final int numStats) {
+        return new FTGSIterator() {
             final String[] fields = {"f1"};
             final boolean[] intType = {false};
             int fieldIndex = -1;
@@ -659,8 +658,8 @@ public abstract class AbstractFTGSMergerCase {
         };
     }
 
-    private static RawFTGSIterator makeMockIterator2() {
-        return new RawFTGSIterator() {
+    private static FTGSIterator makeMockIterator2() {
+        return new FTGSIterator() {
             final String[] fields = {"f1"};
             final boolean[] intType = {false};
             int fieldIndex = -1;
@@ -758,8 +757,8 @@ public abstract class AbstractFTGSMergerCase {
         };
     }
 
-    private static RawFTGSIterator makeMockIterator3() {
-        return new RawFTGSIterator() {
+    private static FTGSIterator makeMockIterator3() {
+        return new FTGSIterator() {
             final String[] fields = {"f1"};
             final boolean[] intType = {false};
             int fieldIndex = -1;

@@ -23,11 +23,10 @@ import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FieldsCardinalityMetadata;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.GenericIntTermDocIterator;
-import com.indeed.flamdex.api.GenericRawStringTermDocIterator;
+import com.indeed.flamdex.api.GenericStringTermDocIterator;
 import com.indeed.flamdex.api.IntTermDocIterator;
 import com.indeed.flamdex.api.IntValueLookup;
-import com.indeed.flamdex.api.RawFlamdexReader;
-import com.indeed.flamdex.api.RawStringTermDocIterator;
+import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.fieldcache.FieldCacherUtil;
 import com.indeed.flamdex.fieldcache.NativeFlamdexFieldCacher;
 import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIterator;
@@ -49,9 +48,7 @@ import java.util.Set;
 /**
  * @author jsgroth
  */
-public class SimpleFlamdexReader
-        extends AbstractFlamdexReader
-        implements RawFlamdexReader {
+public class SimpleFlamdexReader extends AbstractFlamdexReader {
 
     private final Collection<String> intFields;
     private final Collection<String> stringFields;
@@ -259,7 +256,7 @@ public class SimpleFlamdexReader
     }
 
     @Override
-    public RawStringTermDocIterator getStringTermDocIterator(final String field) {
+    public StringTermDocIterator getStringTermDocIterator(final String field) {
         final SimpleStringTermIterator termIterator = getStringTermIterator(field);
         final Path termsPath = termIterator.getFilename();
 
@@ -267,7 +264,7 @@ public class SimpleFlamdexReader
             if (useNativeDocIdStream && (Files.exists(termsPath) && (Files.size(termsPath) > 0))) {
                 return new NativeStringTermDocIterator(termIterator, mapCache, useSSSE3);
             } else {
-                return new GenericRawStringTermDocIterator(termIterator, getDocIdStream());
+                return new GenericStringTermDocIterator(termIterator, getDocIdStream());
             }
         } catch (final IOException e) {
             throw Throwables.propagate(e);

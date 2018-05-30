@@ -22,7 +22,6 @@ import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.IntTermDocIterator;
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.IntValueLookup;
-import com.indeed.flamdex.api.RawStringTermDocIterator;
 import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.writer.IntFieldWriter;
@@ -262,7 +261,7 @@ public class SimpleFlamdexTest {
 
     private void readCase3(final Path dir) throws IOException {
         final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir, config);
-        final RawStringTermDocIterator it = r.getStringTermDocIterator("f2");
+        final StringTermDocIterator it = r.getStringTermDocIterator("f2");
         final int[] docBuffer = new int[20];
 
         assertTrue(it.nextTerm());

@@ -86,6 +86,16 @@ public class TermLimitedFTGSIterator implements FTGSIterator {
     }
 
     @Override
+    public byte[] termStringBytes() {
+        return wrapped.termStringBytes();
+    }
+
+    @Override
+    public int termStringLength() {
+        return wrapped.termStringLength();
+    }
+
+    @Override
     public boolean nextGroup() {
         if(firstTermGroupConsumed) {
             firstTermGroupConsumed = false;

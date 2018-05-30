@@ -13,9 +13,7 @@
  */
  package com.indeed.imhotep;
 
-import com.google.common.base.Charsets;
 import com.indeed.imhotep.api.FTGSIterator;
-import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.imhotep.io.MultiFile;
 import com.indeed.imhotep.io.TempFileSizeLimitExceededException;
 import com.indeed.imhotep.io.WriteLimitExceededException;
@@ -46,7 +44,7 @@ public final class FTGSSplitter implements Closeable {
 
     private final FTGSOutputStreamWriter[] outputs;
     private final OutputStream[] outputStreams;
-    private final RawFTGSIterator[] ftgsIterators;
+    private final FTGSIterator[] ftgsIterators;
 
     private final AtomicBoolean done = new AtomicBoolean(false);
 
@@ -67,7 +65,7 @@ public final class FTGSSplitter implements Closeable {
         this.largePrime = largePrime;
         outputs = new FTGSOutputStreamWriter[numSplits];
         outputStreams = new OutputStream[numSplits];
-        ftgsIterators = new RawFTGSIterator[numSplits];
+        ftgsIterators = new FTGSIterator[numSplits];
         final AtomicInteger doneCounter = new AtomicInteger();
         final File file = File.createTempFile("ftgsSplitter", ".tmp");
         try {
@@ -80,7 +78,7 @@ public final class FTGSSplitter implements Closeable {
             for (int i = 0; i < numSplits; i++) {
                 outputStreams[i] = multiFile.getOutputStream(i);
                 outputs[i] = new FTGSOutputStreamWriter(outputStreams[i]);
-                ftgsIterators[i] = new SplitterRawFTGSIterator(multiFile.getInputStream(i), numStats, doneCounter, numSplits);
+                ftgsIterators[i] = new SplitterFTGSIterator(multiFile.getInputStream(i), numStats, doneCounter, numSplits);
             }
             run();
         } catch (final Throwable t) {
@@ -92,18 +90,12 @@ public final class FTGSSplitter implements Closeable {
         }
     }
 
-    public RawFTGSIterator[] getFtgsIterators() {
+    public FTGSIterator[] getFtgsIterators() {
         return ftgsIterators;
     }
 
     private void run() throws IOException {
         try {
-            final RawFTGSIterator rawIterator;
-            if (iterator instanceof RawFTGSIterator) {
-                rawIterator = (RawFTGSIterator) iterator;
-            } else {
-                rawIterator = null;
-            }
             final long[] statBuf = new long[numStats];
             while (iterator.nextField()) {
                 final boolean fieldIsIntType = iterator.fieldIsIntType();
@@ -120,21 +112,12 @@ public final class FTGSSplitter implements Closeable {
                         output = outputs[split];
                         output.switchIntTerm(term, iterator.termDocFreq());
                     } else {
-                        if (rawIterator != null) {
-                            split = hashStringTerm(rawIterator.termStringBytes(),
-                                                   rawIterator.termStringLength());
-                            output = outputs[split];
-                            output.switchBytesTerm(rawIterator.termStringBytes(),
-                                                   rawIterator.termStringLength(),
-                                                   rawIterator.termDocFreq());
-                        } else {
-                            final byte[] termStringBytes =
-                                iterator.termStringVal().getBytes(Charsets.UTF_8);
-                            split = hashStringTerm(termStringBytes, termStringBytes.length);
-                            output = outputs[split];
-                            output.switchBytesTerm(termStringBytes, termStringBytes.length,
-                                                   iterator.termDocFreq());
-                        }
+                        split = hashStringTerm(iterator.termStringBytes(),
+                                               iterator.termStringLength());
+                        output = outputs[split];
+                        output.switchBytesTerm(iterator.termStringBytes(),
+                                               iterator.termStringLength(),
+                                               iterator.termDocFreq());
                     }
                     while (iterator.nextGroup()) {
                         output.switchGroup(iterator.group());
@@ -181,11 +164,11 @@ public final class FTGSSplitter implements Closeable {
         return done.get();
     }
 
-    private class SplitterRawFTGSIterator implements RawFTGSIterator {
+    private class SplitterFTGSIterator implements FTGSIterator {
 
         private final InputStreamFTGSIterator delegate;
 
-        SplitterRawFTGSIterator(final InputStream in, final int numStats,
+        SplitterFTGSIterator(final InputStream in, final int numStats,
                                        final AtomicInteger doneCounter,
                                        final int numSplits) {
             delegate = new InputStreamFTGSIterator(in, numStats) {

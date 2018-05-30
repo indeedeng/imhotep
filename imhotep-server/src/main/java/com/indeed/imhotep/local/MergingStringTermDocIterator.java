@@ -13,6 +13,7 @@
  */
  package com.indeed.imhotep.local;
 
+import com.google.common.base.Charsets;
 import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.TermDocIterator;
 import com.indeed.util.core.Pair;
@@ -23,6 +24,7 @@ public class MergingStringTermDocIterator extends MergingTermDocIterator impleme
         StringTermDocIterator {
     private final String[] nextTerms;
     private String currentTerm;
+    private byte[] currentTermBytes;
 
     @SuppressWarnings("unchecked")
     public MergingStringTermDocIterator(final List<StringTermDocIterator> tdIters,
@@ -62,6 +64,7 @@ public class MergingStringTermDocIterator extends MergingTermDocIterator impleme
             }
         }
         currentTerm = min;
+        currentTermBytes = null;
 
         /* check if all the iterators are done */
         if (currentTerm == null) {
@@ -86,4 +89,16 @@ public class MergingStringTermDocIterator extends MergingTermDocIterator impleme
         return currentTerm;
     }
 
+    @Override
+    public byte[] termStringBytes() {
+        if (currentTermBytes == null) {
+            currentTermBytes = currentTerm.getBytes(Charsets.UTF_8);
+        }
+        return currentTermBytes;
+    }
+
+    @Override
+    public int termStringLength() {
+        return currentTermBytes.length;
+    }
 }

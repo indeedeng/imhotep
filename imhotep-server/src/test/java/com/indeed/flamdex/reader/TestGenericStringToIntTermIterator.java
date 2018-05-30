@@ -14,6 +14,7 @@
 
 package com.indeed.flamdex.reader;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
@@ -37,6 +38,7 @@ public class TestGenericStringToIntTermIterator {
     private static class DirectStringTermIterator implements StringTermIterator {
         private final List<Pair<String, Integer>> terms;
         private Pair<String, Integer> currentTerm;
+        private byte[] currentTermBytes;
         private PeekingIterator<Pair<String, Integer>> iterator;
 
         private DirectStringTermIterator(final List<Pair<String, Integer>> terms) {
@@ -46,6 +48,7 @@ public class TestGenericStringToIntTermIterator {
 
         @Override
         public boolean next() {
+            currentTermBytes = null;
             if (iterator.hasNext()) {
                 currentTerm = iterator.next();
                 return true;
@@ -65,6 +68,7 @@ public class TestGenericStringToIntTermIterator {
 
         @Override
         public void reset(final String term) {
+            currentTermBytes = null;
             iterator = Iterators.peekingIterator(terms.iterator());
             while (iterator.hasNext() && term.compareTo(iterator.peek().getFirst()) > 0) {
                 currentTerm = iterator.next();
@@ -74,6 +78,19 @@ public class TestGenericStringToIntTermIterator {
         @Override
         public String term() {
             return currentTerm.getFirst();
+        }
+
+        @Override
+        public byte[] termStringBytes() {
+            if (currentTermBytes == null) {
+                currentTermBytes = term().getBytes(Charsets.UTF_8);
+            }
+            return currentTermBytes;
+        }
+
+        @Override
+        public int termStringLength() {
+            return termStringBytes().length;
         }
     }
 

@@ -20,7 +20,6 @@ import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.HasSessionId;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
-import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.imhotep.marshal.ImhotepClientMarshaller;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.util.core.Pair;
@@ -96,34 +95,34 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         if (sessions.length == 1) {
             return sessions[0].getFTGSIterator(intFields, stringFields, termLimit, sortStat);
         }
-        final RawFTGSIterator[] mergers = getFTGSIteratorSplits(intFields, stringFields, termLimit, sortStat);
-        RawFTGSIterator interleaver = new SortedFTGSInterleaver(mergers);
+        final FTGSIterator[] mergers = getFTGSIteratorSplits(intFields, stringFields, termLimit, sortStat);
+        FTGSIterator interleaver = new SortedFTGSInterleaver(mergers);
         if(termLimit > 0) {
             if (sortStat >= 0) {
                 interleaver = FTGSIteratorUtil.getTopTermsFTGSIterator(interleaver, termLimit, numStats, sortStat);
             } else {
-                interleaver = new TermLimitedRawFTGSIterator(interleaver, termLimit);
+                interleaver = new TermLimitedFTGSIterator(interleaver, termLimit);
             }
         }
         return interleaver;
     }
 
     @Override
-    public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields, final long termLimit) {
+    public FTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields, final long termLimit) {
         return getFTGSIteratorSplits(intFields, stringFields, termLimit, -1);
     }
 
-    public RawFTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields, final long termLimit, final int sortStat) {
+    public FTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields, final long termLimit, final int sortStat) {
         final Pair<Integer, ImhotepRemoteSession>[] indexesAndSessions = new Pair[sessions.length];
         for (int i = 0; i < sessions.length; i++) {
             indexesAndSessions[i] = Pair.of(i, sessions[i]);
         }
-        final RawFTGSIterator[] mergers = new RawFTGSIterator[sessions.length];
+        final FTGSIterator[] mergers = new FTGSIterator[sessions.length];
         final Closer closer = Closer.create();
         closer.register(Closeables2.forArray(log, mergers));
         try {
-            execute(mergers, indexesAndSessions, false, new ThrowingFunction<Pair<Integer, ImhotepRemoteSession>, RawFTGSIterator>() {
-                public RawFTGSIterator apply(final Pair<Integer, ImhotepRemoteSession> indexSessionPair) {
+            execute(mergers, indexesAndSessions, false, new ThrowingFunction<Pair<Integer, ImhotepRemoteSession>, FTGSIterator>() {
+                public FTGSIterator apply(final Pair<Integer, ImhotepRemoteSession> indexSessionPair) {
                     final ImhotepRemoteSession session = indexSessionPair.getSecond();
                     final int index = indexSessionPair.getFirst();
                     return session.mergeFTGSSplit(intFields, stringFields, sessionId, nodes, index, termLimit, sortStat);
@@ -141,22 +140,22 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         if (sessions.length == 1) {
             return sessions[0].getSubsetFTGSIterator(intFields, stringFields);
         }
-        final RawFTGSIterator[] mergers = getSubsetFTGSIteratorSplits(intFields, stringFields);
+        final FTGSIterator[] mergers = getSubsetFTGSIteratorSplits(intFields, stringFields);
         return new SortedFTGSInterleaver(mergers);
     }
 
     @Override
-    public RawFTGSIterator[] getSubsetFTGSIteratorSplits(final Map<String, long[]> intFields, final Map<String, String[]> stringFields) {
+    public FTGSIterator[] getSubsetFTGSIteratorSplits(final Map<String, long[]> intFields, final Map<String, String[]> stringFields) {
         final Pair<Integer, ImhotepRemoteSession>[] indexesAndSessions = new Pair[sessions.length];
         for (int i = 0; i < sessions.length; i++) {
             indexesAndSessions[i] = Pair.of(i, sessions[i]);
         }
-        final RawFTGSIterator[] mergers = new RawFTGSIterator[sessions.length];
+        final FTGSIterator[] mergers = new FTGSIterator[sessions.length];
         final Closer closer = Closer.create();
         closer.register(Closeables2.forArray(log, mergers));
         try {
-            execute(mergers, indexesAndSessions, false, new ThrowingFunction<Pair<Integer, ImhotepRemoteSession>, RawFTGSIterator>() {
-                public RawFTGSIterator apply(final Pair<Integer, ImhotepRemoteSession> indexSessionPair) {
+            execute(mergers, indexesAndSessions, false, new ThrowingFunction<Pair<Integer, ImhotepRemoteSession>, FTGSIterator>() {
+                public FTGSIterator apply(final Pair<Integer, ImhotepRemoteSession> indexSessionPair) {
                     final ImhotepRemoteSession session = indexSessionPair.getSecond();
                     final int index = indexSessionPair.getFirst();
                     return session.mergeSubsetFTGSSplit(intFields, stringFields, sessionId, nodes, index);
@@ -259,12 +258,12 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     @Override
-    public RawFTGSIterator getFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, long termLimit) {
+    public FTGSIterator getFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, long termLimit) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public RawFTGSIterator getSubsetFTGSIteratorSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, int splitIndex, int numSplits) {
+    public FTGSIterator getSubsetFTGSIteratorSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, int splitIndex, int numSplits) {
         throw new UnsupportedOperationException();
     }
 }

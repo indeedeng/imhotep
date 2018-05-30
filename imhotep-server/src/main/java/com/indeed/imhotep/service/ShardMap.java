@@ -15,7 +15,6 @@
 package com.indeed.imhotep.service;
 
 import com.indeed.flamdex.api.FlamdexReader;
-import com.indeed.flamdex.api.RawFlamdexReader;
 import com.indeed.imhotep.DynamicIndexSubshardDirnameUtil;
 import com.indeed.imhotep.ImhotepStatusDump.ShardDump;
 import com.indeed.imhotep.MemoryReservationContext;
@@ -229,14 +228,7 @@ class ShardMap
             final ShardId shardId = shard.getShardId();
             final SharedReference<CachedFlamdexReader> reference = shard.getRef();
             try {
-                if (reference.get() instanceof RawCachedFlamdexReader) {
-                    final SharedReference<RawCachedFlamdexReader> sharedReference =
-                        (SharedReference<RawCachedFlamdexReader>) (SharedReference) reference;
-                    reader = new RawCachedFlamdexReaderReference(sharedReference);
-                }
-                else {
-                    reader = new CachedFlamdexReaderReference(reference);
-                }
+                reader = new CachedFlamdexReaderReference(reference);
             }
             catch (final NullPointerException ex) {
                 log.warn("unable to create reader for shardId: " + shardId, ex);
@@ -443,15 +435,11 @@ class ShardMap
             @Override
                 public CachedFlamdexReader load() throws IOException {
                 final FlamdexReader flamdex = flamdexReaderSource.openReader(indexDir);
-                if (flamdex instanceof RawFlamdexReader) {
-                    return new RawCachedFlamdexReader(new MemoryReservationContext(memory),
-                                                      (RawFlamdexReader) flamdex,
-                                                      dataset, shardDir);
-                }
-                else {
-                    return new CachedFlamdexReader(new MemoryReservationContext(memory),
-                                                   flamdex, dataset, shardDir);
-                }
+                return new CachedFlamdexReader(
+                        new MemoryReservationContext(memory),
+                        flamdex,
+                        dataset,
+                        shardDir);
             }
         };
     }

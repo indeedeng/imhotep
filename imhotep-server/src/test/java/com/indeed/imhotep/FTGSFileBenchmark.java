@@ -15,7 +15,6 @@
 
 import com.google.common.collect.Lists;
 import com.indeed.imhotep.api.FTGSIterator;
-import com.indeed.imhotep.api.RawFTGSIterator;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -40,7 +39,7 @@ public class FTGSFileBenchmark {
     }
 
     private static void runBenchmark() throws FileNotFoundException {
-        final List<RawFTGSIterator> iterators = Lists.newArrayList();
+        final List<FTGSIterator> iterators = Lists.newArrayList();
         for (final File file : new File(inputDir).listFiles(new FilenameFilter() {
             @Override
             public boolean accept(final File dir, final String name) {
@@ -49,7 +48,7 @@ public class FTGSFileBenchmark {
         })) {
             iterators.add(new InputStreamFTGSIterator(new BufferedInputStream(new FileInputStream(file)), 4));
         }
-        final FTGSIterator merger = new RawFTGSMerger(iterators, 4, null);
+        final FTGSIterator merger = new FTGSMerger(iterators, 4, null);
 
         long elapsed = -System.currentTimeMillis();
         final long[] stats = new long[4];

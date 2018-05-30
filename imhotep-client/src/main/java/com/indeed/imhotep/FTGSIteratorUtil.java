@@ -18,7 +18,6 @@ import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.GroupStatsIterator;
-import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.imhotep.service.FTGSOutputStreamWriter;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
@@ -73,7 +72,7 @@ public class FTGSIteratorUtil {
         return tmp;
     }
 
-    public static RawFTGSIterator persist(final Logger log, final FTGSIterator iterator, final int numStats) throws IOException {
+    public static FTGSIterator persist(final Logger log, final FTGSIterator iterator, final int numStats) throws IOException {
         final File tmp = persistAsFile(log, iterator, numStats);
         try {
             return InputStreamFTGSIterators.create(tmp, numStats);
@@ -82,7 +81,7 @@ public class FTGSIteratorUtil {
         }
     }
 
-    public static TopTermsRawFTGSIterator getTopTermsFTGSIterator(final FTGSIterator originalIterator, final long termLimit, final int numStats, final int sortStat) {
+    public static TopTermsFTGSIterator getTopTermsFTGSIterator(final FTGSIterator originalIterator, final long termLimit, final int numStats, final int sortStat) {
         try {
             final long[] statBuf = new long[numStats];
             final TopTermsStatsByField topTermsFTGS = new TopTermsStatsByField();
@@ -150,7 +149,7 @@ public class FTGSIteratorUtil {
                 topTermsFTGS.addField(fieldName, fieldIsIntType, topTermsArray);
             }
 
-            return new TopTermsRawFTGSIterator(topTermsFTGS);
+            return new TopTermsFTGSIterator(topTermsFTGS);
         } finally {
             originalIterator.close();
         }
@@ -237,17 +236,10 @@ public class FTGSIteratorUtil {
         }
     }
 
-    public static RawFTGSIterator makeUnsortedRawIfPossible(final RawFTGSIterator iterator) {
-        if (iterator instanceof SortedFTGSInterleaver) {
-            final RawFTGSIterator[] iterators = ((AbstractDisjointFTGSMerger) iterator).getIterators();
-            return new UnsortedFTGSIterator(iterators);
-        }
-        return iterator;
-    }
-
     public static FTGSIterator makeUnsortedIfPossible(final FTGSIterator iterator) {
-        if (iterator instanceof RawFTGSIterator) {
-            return makeUnsortedRawIfPossible((RawFTGSIterator)iterator);
+        if (iterator instanceof SortedFTGSInterleaver) {
+            final FTGSIterator[] iterators = ((AbstractDisjointFTGSMerger) iterator).getIterators();
+            return new UnsortedFTGSIterator(iterators);
         }
         return iterator;
     }

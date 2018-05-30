@@ -15,7 +15,6 @@
 
 import com.google.common.base.Charsets;
 import com.indeed.imhotep.api.FTGSIterator;
-import com.indeed.imhotep.api.RawFTGSIterator;
 import com.indeed.util.io.VIntUtils;
 
 import java.io.Closeable;
@@ -133,48 +132,24 @@ public final class FTGSOutputStreamWriter implements Closeable {
 
     public void write(final FTGSIterator buffer, final int numStats) throws IOException {
         final long[] stats = new long[numStats];
-        if (buffer instanceof RawFTGSIterator) {
-            final RawFTGSIterator rawBuffer = (RawFTGSIterator)buffer;
-            while (rawBuffer.nextField()) {
-                final boolean fieldIsIntType = rawBuffer.fieldIsIntType();
-                switchField(rawBuffer.fieldName(), fieldIsIntType);
-                while (rawBuffer.nextTerm()) {
-                    if (fieldIsIntType) {
-                        switchIntTerm(rawBuffer.termIntVal(), rawBuffer.termDocFreq());
-                    } else {
-                        // termStringBytes() returns a reference so this copies the bytes instead of hanging on to it
-                        switchBytesTerm(rawBuffer.termStringBytes(), rawBuffer.termStringLength(), rawBuffer.termDocFreq());
-                    }
-                    while (rawBuffer.nextGroup()){
-                        switchGroup(rawBuffer.group());
-                        rawBuffer.groupStats(stats);
-                        for (final long stat : stats) {
-                            addStat(stat);
-                        }
-                    }
-                    endTerm();
+        while (buffer.nextField()) {
+            final boolean fieldIsIntType = buffer.fieldIsIntType();
+            switchField(buffer.fieldName(), fieldIsIntType);
+            while (buffer.nextTerm()) {
+                if (fieldIsIntType) {
+                    switchIntTerm(buffer.termIntVal(), buffer.termDocFreq());
+                } else {
+                    // termStringBytes() returns a reference so this copies the bytes instead of hanging on to it
+                    switchBytesTerm(buffer.termStringBytes(), buffer.termStringLength(), buffer.termDocFreq());
                 }
-            }
-        } else {
-            while (buffer.nextField()) {
-                final boolean fieldIsIntType = buffer.fieldIsIntType();
-                switchField(buffer.fieldName(), fieldIsIntType);
-                while (buffer.nextTerm()) {
-                    if (fieldIsIntType) {
-                        switchIntTerm(buffer.termIntVal(), buffer.termDocFreq());
-                    } else {
-                        final byte[] bytes = buffer.termStringVal().getBytes(Charsets.UTF_8);
-                        switchBytesTerm(bytes, bytes.length, buffer.termDocFreq());
+                while (buffer.nextGroup()){
+                    switchGroup(buffer.group());
+                    buffer.groupStats(stats);
+                    for (final long stat : stats) {
+                        addStat(stat);
                     }
-                    while (buffer.nextGroup()){
-                        switchGroup(buffer.group());
-                        buffer.groupStats(stats);
-                        for (final long stat : stats) {
-                            addStat(stat);
-                        }
-                    }
-                    endTerm();
                 }
+                endTerm();
             }
         }
         close();

@@ -30,4 +30,14 @@ public final class GenericStringTermDocIterator extends GenericTermDocIterator<S
     public String term() {
         return termIterator.term();
     }
+
+    @Override
+    public byte[] termStringBytes() {
+        return termIterator.termStringBytes();
+    }
+
+    @Override
+    public int termStringLength() {
+        return termIterator.termStringLength();
+    }
 }
