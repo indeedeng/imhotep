@@ -15,7 +15,6 @@
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
-import com.google.common.io.Closer;
 import com.indeed.flamdex.query.Query;
 import com.indeed.flamdex.query.Term;
 import com.indeed.imhotep.api.FTGSIterator;
@@ -96,7 +95,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
 
     private boolean closed = false;
 
-    private final class RelayObserver implements Instrumentation.Observer {
+    public final class RelayObserver implements Instrumentation.Observer {
         public synchronized void onEvent(final Instrumentation.Event event) {
             instrumentation.fire(event);
         }
@@ -147,7 +146,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
         Executors.newCachedThreadPool(localThreadFactory);
     protected final ExecutorService getSplitBufferThreads =
         Executors.newCachedThreadPool(splitThreadFactory);
-    private final ExecutorService mergeSplitBufferThreads =
+    protected final ExecutorService mergeSplitBufferThreads =
         Executors.newCachedThreadPool(mergeThreadFactory);
 
     protected int numStats = 0;
@@ -566,71 +565,6 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
     }
 
     @Override
-    public FTGSIterator mergeFTGSSplit(final String[] intFields, final String[] stringFields, final String sessionId, final InetSocketAddress[] nodes, final int splitIndex, final long termLimit, final int sortStat) {
-        final boolean topTermsByStat = sortStat >= 0;
-        final long perSplitTermLimit = topTermsByStat ? 0 : termLimit;
-
-        final ImhotepRemoteSession[] remoteSessions = getRemoteSessions(sessionId, nodes);
-
-        return mergeFTGSIteratorsForSessions(remoteSessions, termLimit, sortStat, s -> s.getFTGSIteratorSplit(intFields, stringFields, splitIndex, nodes.length, perSplitTermLimit));
-    }
-
-    protected FTGSIterator mergeFTGSIteratorsForSessions(
-            final ImhotepSession[] imhotepSessions,
-            final long termLimit,
-            final int sortStat,
-            final ThrowingFunction<ImhotepSession, FTGSIterator> getIteratorFromSession
-    ) {
-        if (imhotepSessions.length == 1) {
-            try {
-                final FTGSIterator iterator = getIteratorFromSession.apply(imhotepSessions[0]);
-                if (sortStat >= 0 && termLimit > 0) {
-                    try(final Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
-                        return FTGSIteratorUtil.getTopTermsFTGSIterator(iterator, termLimit, numStats, sortStat);
-                    }
-                } else {
-                    if (imhotepSessions[0] instanceof ImhotepRemoteSession) {
-                        // If iterator is from remote session then it's already persisted
-                        return iterator;
-                    } else {
-                        // If iterator is from local session then we have to persist it first
-                        try(final Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
-                            return persist(iterator);
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                throw Throwables.propagate(e);
-            }
-        }
-        final FTGSIterator[] iterators = new FTGSIterator[imhotepSessions.length];
-
-        try {
-            execute(mergeSplitBufferThreads, iterators, imhotepSessions, false, getIteratorFromSession);
-        } catch (final Throwable t) {
-            Closeables2.closeAll(log, iterators);
-            throw Throwables.propagate(t);
-        }
-        return parallelMergeFTGS(iterators, termLimit, sortStat);
-    }
-
-    private ImhotepRemoteSession[] getRemoteSessions(final String sessionId, final InetSocketAddress[] nodes) {
-        final ImhotepRemoteSession[] remoteSessions = new ImhotepRemoteSession[nodes.length];
-        for (int i = 0; i < nodes.length; i++) {
-            remoteSessions[i] = createImhotepRemoteSession(nodes[i], sessionId, tempFileSizeBytesLeft);
-            remoteSessions[i].setNumStats(numStats);
-            remoteSessions[i].addObserver(new RelayObserver());
-        }
-        return remoteSessions;
-    }
-
-    @Override
-    public FTGSIterator mergeSubsetFTGSSplit(final Map<String, long[]> intFields, final Map<String, String[]> stringFields, final String sessionId, final InetSocketAddress[] nodes, final int splitIndex) {
-        final ImhotepRemoteSession[] remoteSessions = getRemoteSessions(sessionId, nodes);
-        return mergeFTGSIteratorsForSessions(remoteSessions, 0, -1, (s) -> s.getSubsetFTGSIteratorSplit(intFields, stringFields, splitIndex, nodes.length));
-    }
-
-    @Override
     public GroupStatsIterator mergeDistinctSplit(final String field, final boolean isIntField,
                                     final String sessionId, final InetSocketAddress[] nodes,
                                     final int splitIndex) {
@@ -638,82 +572,6 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
         final String[] stringFields = isIntField ? new String[0] : new String[]{field};
         final FTGSIterator iterator = mergeFTGSSplit(intFields, stringFields, sessionId, nodes, splitIndex, 0, -1);
         return FTGSIteratorUtil.calculateDistinct(iterator, getNumGroups());
-    }
-
-    protected abstract ImhotepRemoteSession createImhotepRemoteSession(InetSocketAddress address,
-                                                                       String sessionId,
-                                                                       AtomicLong tempFileSizeBytesLeft);
-
-    /**
-     * shuffle the split FTGSIterators such that the workload of iteration is evenly split among the split processing threads
-     * @param closer
-     * @param iterators
-     * @return the reshuffled FTGSIterator array
-     * @throws IOException
-     */
-    private FTGSIterator[] parallelDisjointSplitAndMerge(final Closer closer, final FTGSIterator[] iterators) throws IOException {
-        final FTGSIterator[][] iteratorSplits = new FTGSIterator[iterators.length][];
-
-        final int numSplits = Math.max(1, Runtime.getRuntime().availableProcessors()/2);
-        try {
-            execute(iteratorSplits, iterators, true, iterator -> new FTGSSplitter(
-                    iterator,
-                    numSplits,
-                    numStats,
-                    981044833
-            ).getFtgsIterators());
-        } catch (ExecutionException e) {
-            throw new RuntimeException(e);
-        } finally {
-            for (final FTGSIterator[] splits : iteratorSplits) {
-                if (splits != null) {
-                    for (final FTGSIterator split : splits) {
-                        closer.register(split);
-                    }
-                }
-            }
-        }
-
-        final FTGSIterator[] mergers = new FTGSIterator[numSplits];
-        for (int j = 0; j < numSplits; j++) {
-            final List<FTGSIterator> splits = Lists.newArrayList();
-            for (int i = 0; i < iterators.length; i++) {
-                splits.add(iteratorSplits[i][j]);
-            }
-            mergers[j] = closer.register(new FTGSMerger(splits, numStats, null));
-        }
-
-        return mergers;
-    }
-
-    private FTGSIterator parallelMergeFTGS(final FTGSIterator[] iterators, final long termLimit, final int sortStat) {
-        final Closer closer = Closer.create();
-        try {
-            final FTGSIterator[] mergers = parallelDisjointSplitAndMerge(closer, iterators);
-            final FTGSIterator[] persistedMergers = new FTGSIterator[mergers.length];
-            closer.register(Closeables2.forArray(log, persistedMergers));
-            execute(mergeSplitBufferThreads, persistedMergers, mergers, true, this::persist);
-
-            final FTGSIterator interleaver = new SortedFTGSInterleaver(persistedMergers);
-            if (termLimit > 0) {
-                if (sortStat >= 0) {
-                    try(Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
-                        return FTGSIteratorUtil.getTopTermsFTGSIterator(interleaver, termLimit, numStats, sortStat);
-                    }
-                } else {
-                    return new TermLimitedFTGSIterator(interleaver, termLimit);
-                }
-            } else {
-                return interleaver;
-            }
-        } catch (final Throwable t) {
-            Closeables2.closeQuietly(closer, log);
-            throw Throwables.propagate(t);
-        }
-    }
-
-    private FTGSIterator persist(final FTGSIterator iterator) throws IOException {
-        return FTGSIteratorUtil.persist(log, iterator, numStats);
     }
 
     @Override
