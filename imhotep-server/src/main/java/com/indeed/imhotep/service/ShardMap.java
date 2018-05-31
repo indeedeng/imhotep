@@ -363,7 +363,11 @@ class ShardMap
             }
             return false;
         } finally {
-            lock.unlock();
+            try {
+                lock.unlock();
+            } catch (Exception e) {
+                log.warn(e);
+            }
         }
     }
 
