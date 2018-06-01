@@ -18,6 +18,7 @@ import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.GroupStatsIterator;
+import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.service.FTGSOutputStreamWriter;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
@@ -260,5 +261,20 @@ public class FTGSIteratorUtil {
         }
 
         return new GroupStatsDummyIterator(result);
+    }
+
+    /**
+     * This method is a workaround to delete getFTGSIteratorSplits method from ImhotepSession,
+     * but provide equivalent functionality to Imhotep clients
+     */
+    public static FTGSIterator[] getFTGSIteratorSplits(final ImhotepSession session,
+                                                       final String[] intFields,
+                                                       final String[] stringFields,
+                                                       final long termLimit) {
+        if (session instanceof RemoteImhotepMultiSession) {
+            return ((RemoteImhotepMultiSession)session).getFTGSIteratorSplits(intFields, stringFields, termLimit);
+        }
+
+        throw new UnsupportedOperationException();
     }
 }

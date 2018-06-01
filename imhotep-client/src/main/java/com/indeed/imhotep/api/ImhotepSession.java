@@ -85,8 +85,6 @@ public interface ImhotepSession
 
     FTGSIterator getSubsetFTGSIterator(Map<String, long[]> intFields, Map<String, String[]> stringFields);
 
-    FTGSIterator[] getFTGSIteratorSplits(String[] intFields, String[] stringFields, long termLimit);
-
     /**
      * Get distinct terms count per group.
      * @param field the field to use

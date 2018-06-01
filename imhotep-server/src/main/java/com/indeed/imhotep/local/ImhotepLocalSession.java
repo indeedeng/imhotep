@@ -375,13 +375,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         return new FlamdexSubsetFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields);
     }
 
-    @Override
-    public FTGSIterator[] getFTGSIteratorSplits(final String[] intFields,
-                                                   final String[] stringFields,
-                                                   final long termLimit) {
-        throw new UnsupportedOperationException();
-    }
-
     public FTGSSplitter getFTGSIteratorSplitter(final String[] intFields,
                                                              final String[] stringFields,
                                                              final int numSplits,
