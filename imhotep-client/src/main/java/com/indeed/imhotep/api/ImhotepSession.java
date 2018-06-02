@@ -24,7 +24,6 @@ import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 
 import javax.annotation.concurrent.NotThreadSafe;
 import java.io.Closeable;
-import java.net.InetSocketAddress;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -86,36 +85,6 @@ public interface ImhotepSession
 
     FTGSIterator getSubsetFTGSIterator(Map<String, long[]> intFields, Map<String, String[]> stringFields);
 
-    FTGSIterator[] getSubsetFTGSIteratorSplits(Map<String, long[]> intFields, Map<String, String[]> stringFields);
-
-    FTGSIterator[] getFTGSIteratorSplits(String[] intFields, String[] stringFields, long termLimit);
-
-    /**
-     * note: this call is weird.
-     * it is intended to be called numSplits times, once with each splitIndex from [0..n)
-     * if it is not called numSplits times the returned iterators will deadlock
-     * if it is called with different values for numSplits it will throw an error
-     * if it is called with the same value for splitIndex twice it will throw an error
-     * if you are a client of imhotep this is not the call you are looking for
-     *
-     * @param intFields list of int fields
-     * @param stringFields list of string fields
-     * @param splitIndex index of the split you want
-     * @param numSplits total number of splits
-     * @param termLimit maximum number of terms that will be allowed to iterate through. 0 means no limit
-     * @return iterator
-     */
-    FTGSIterator getFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, long termLimit);
-
-    FTGSIterator getSubsetFTGSIteratorSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, int splitIndex, int numSplits);
-
-    /**
-     * this is only really here to be called on ImhotepRemoteSession by RemoteImhotepMultiSession
-     */
-    FTGSIterator mergeFTGSSplit(String[] intFields, String[] stringFields, String sessionId, InetSocketAddress[] nodes, int splitIndex, long termLimit, int sortStat);
-
-    FTGSIterator mergeSubsetFTGSSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, String sessionId, InetSocketAddress[] nodes, int splitIndex);
-
     /**
      * Get distinct terms count per group.
      * @param field the field to use
@@ -123,18 +92,6 @@ public interface ImhotepSession
      * @return an iterator with the distinct terms count, indexed by group
      */
     GroupStatsIterator getDistinct(String field, boolean isIntField);
-
-    /**
-     * Method is similar to <code>mergeFTGSSplit</code> but used in distinct calculation.
-     * It's exposing some imhotep internals. Don't call it outside imhotep.
-     * @param field the field to use
-     * @param isIntField whether the field is int or string type
-     * @param sessionId for requesting data from another imhotep daemons
-     * @param nodes list of imhotep daemons with current session shards
-     * @param splitIndex index among remote sessions
-     * @return an iterator with the distinct terms count, indexed by group
-     */
-    GroupStatsIterator mergeDistinctSplit(String field, boolean isIntField, String sessionId, InetSocketAddress[] nodes, int splitIndex);
 
     /**
      * apply the list of remap rules to remap documents into a different group. Preconditions:

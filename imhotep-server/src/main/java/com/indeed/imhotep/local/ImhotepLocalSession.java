@@ -111,7 +111,6 @@ import org.apache.log4j.Logger;
 import javax.annotation.Nonnull;
 import java.io.Closeable;
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -376,13 +375,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         return new FlamdexSubsetFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields);
     }
 
-    @Override
-    public FTGSIterator[] getFTGSIteratorSplits(final String[] intFields,
-                                                   final String[] stringFields,
-                                                   final long termLimit) {
-        throw new UnsupportedOperationException();
-    }
-
     public FTGSSplitter getFTGSIteratorSplitter(final String[] intFields,
                                                              final String[] stringFields,
                                                              final int numSplits,
@@ -398,12 +390,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
     }
 
-    @Override
-    public FTGSIterator[] getSubsetFTGSIteratorSplits(final Map<String, long[]> intFields,
-                                                         final Map<String, String[]> stringFields) {
-        throw new UnsupportedOperationException();
-    }
-
     public  FTGSSplitter getSubsetFTGSIteratorSplitter(final Map<String, long[]> intFields,
                                                                    final Map<String, String[]> stringFields,
                                                                    final int numSplits) {
@@ -416,45 +402,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         } catch (final IOException e) {
             throw Throwables.propagate(e);
         }
-    }
-
-    @Override
-    public FTGSIterator getFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, long termLimit) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public FTGSIterator getSubsetFTGSIteratorSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, int splitIndex, int numSplits) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public FTGSIterator mergeFTGSSplit(final String[] intFields,
-                                          final String[] stringFields,
-                                          final String sessionId,
-                                          final InetSocketAddress[] nodes,
-                                          final int splitIndex,
-                                          final long termLimit,
-                                          final int sortStat) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public GroupStatsIterator mergeDistinctSplit(final String field,
-                                    final boolean isIntField,
-                                    final String sessionId,
-                                    final InetSocketAddress[] nodes,
-                                    final int splitIndex) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public FTGSIterator mergeSubsetFTGSSplit(final Map<String, long[]> intFields,
-                                                final Map<String, String[]> stringFields,
-                                                final String sessionId,
-                                                final InetSocketAddress[] nodes,
-                                                final int splitIndex) {
-        throw new UnsupportedOperationException();
     }
 
     @Override

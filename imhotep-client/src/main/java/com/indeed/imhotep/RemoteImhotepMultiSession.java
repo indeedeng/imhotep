@@ -107,12 +107,15 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         return interleaver;
     }
 
-    @Override
     public FTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields, final long termLimit) {
+        if (sessions.length == 1) {
+            final FTGSIterator result = sessions[0].getFTGSIterator(intFields, stringFields, termLimit);
+            return new FTGSIterator[] {result};
+        }
         return getFTGSIteratorSplits(intFields, stringFields, termLimit, -1);
     }
 
-    public FTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields, final long termLimit, final int sortStat) {
+    private FTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields, final long termLimit, final int sortStat) {
         final Pair<Integer, ImhotepRemoteSession>[] indexesAndSessions = new Pair[sessions.length];
         for (int i = 0; i < sessions.length; i++) {
             indexesAndSessions[i] = Pair.of(i, sessions[i]);
@@ -144,8 +147,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         return new SortedFTGSInterleaver(mergers);
     }
 
-    @Override
-    public FTGSIterator[] getSubsetFTGSIteratorSplits(final Map<String, long[]> intFields, final Map<String, String[]> stringFields) {
+    private FTGSIterator[] getSubsetFTGSIteratorSplits(final Map<String, long[]> intFields, final Map<String, String[]> stringFields) {
         final Pair<Integer, ImhotepRemoteSession>[] indexesAndSessions = new Pair[sessions.length];
         for (int i = 0; i < sessions.length; i++) {
             indexesAndSessions[i] = Pair.of(i, sessions[i]);
@@ -233,11 +235,6 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     @Override
-    protected ImhotepRemoteSession createImhotepRemoteSession(final InetSocketAddress address, final String sessionId, final AtomicLong tempFileSizeBytesLeft) {
-        throw new UnsupportedOperationException("RemoteImhotepMultiSession doesn't open any remote imhotep connections!");
-    }
-
-    @Override
     public String getSessionId() {
         return sessionId;
     }
@@ -255,15 +252,5 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             }
         }
         return builder.build();
-    }
-
-    @Override
-    public FTGSIterator getFTGSIteratorSplit(String[] intFields, String[] stringFields, int splitIndex, int numSplits, long termLimit) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public FTGSIterator getSubsetFTGSIteratorSplit(Map<String, long[]> intFields, Map<String, String[]> stringFields, int splitIndex, int numSplits) {
-        throw new UnsupportedOperationException();
     }
 }

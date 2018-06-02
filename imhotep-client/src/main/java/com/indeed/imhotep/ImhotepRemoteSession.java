@@ -399,12 +399,6 @@ public class ImhotepRemoteSession
         }
     }
 
-    @Override
-    public FTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields, final long termLimit) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public FTGSIterator getFTGSIteratorSplit(final String[] intFields, final String[] stringFields, final int splitIndex, final int numSplits, final long termLimit) {
         // TODO: disable timer to reduce logrepo logging volume of SubmitRequestEvent?
         final Timer timer = new Timer();
@@ -421,12 +415,6 @@ public class ImhotepRemoteSession
         return result;
     }
 
-    @Override
-    public FTGSIterator[] getSubsetFTGSIteratorSplits(final Map<String, long[]> intFields, final Map<String, String[]> stringFields) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public FTGSIterator getSubsetFTGSIteratorSplit(
             final Map<String, long[]> intFields,
             final Map<String, String[]> stringFields,
@@ -444,7 +432,6 @@ public class ImhotepRemoteSession
         return result;
     }
 
-    @Override
     public FTGSIterator mergeFTGSSplit(
             final String[] intFields,
             final String[] stringFields,
@@ -473,7 +460,6 @@ public class ImhotepRemoteSession
         return result;
     }
 
-    @Override
     public GroupStatsIterator mergeDistinctSplit(final String field,
                                                  final boolean isIntField,
                                                  final String sessionId,
@@ -508,7 +494,6 @@ public class ImhotepRemoteSession
         }
     }
 
-    @Override
     public FTGSIterator mergeSubsetFTGSSplit(
             final Map<String, long[]> intFields,
             final Map<String, String[]> stringFields,
