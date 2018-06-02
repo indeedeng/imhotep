@@ -404,7 +404,7 @@ public class TestFTGSPerf {
         for (int i = 0; i < shardDirs.size(); i++) {
             final Path dir = shardDirs.get(i);
             final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir);
-            final ImhotepLocalSession localSession = new ImhotepJavaLocalSession(r);
+            final ImhotepLocalSession localSession = new ImhotepJavaLocalSession("TestFTGSPerf", r);
             localSessions[i] = localSession;
         }
 
@@ -412,7 +412,7 @@ public class TestFTGSPerf {
         final MTImhotepLocalMultiSession mtSession;
         final MemoryReservationContext mrc =
             new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE));
-        mtSession = new MTImhotepLocalMultiSession(localSessions, mrc, foo, "", "");
+        mtSession = new MTImhotepLocalMultiSession("TestFTGSPerf", localSessions, mrc, foo, "", "");
 
         mtSession.randomMultiRegroup(metricNames[0],
                                      true,

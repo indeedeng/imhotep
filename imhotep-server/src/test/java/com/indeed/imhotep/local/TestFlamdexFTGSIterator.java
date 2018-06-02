@@ -85,7 +85,7 @@ public class TestFlamdexFTGSIterator {
             final MockFlamdexReader r = new MockFlamdexReader();
             r.addIntTerm("if1", 0, 1, 2);
             r.addIntTerm("if1", 1, 3, 4);
-            final ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
+            final ImhotepLocalSession session = new ImhotepJavaLocalSession("TestFlamdexFTGSIterator", r);
             session.pushStat("count()");
             final FTGSIterator ftgsIterator = session.getFTGSIterator(new String[]{"if1"}, new String[]{});
 
@@ -112,7 +112,7 @@ public class TestFlamdexFTGSIterator {
     public void testEmptyField() throws ImhotepOutOfMemoryException {
         for (final BitsetOptimizationLevel level : BitsetOptimizationLevel.values()) {
             final MockFlamdexReader r = new MockFlamdexReader();
-            final ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
+            final ImhotepLocalSession session = new ImhotepJavaLocalSession("TestFlamdexFTGSIterator", r);
             final FTGSIterator ftgsIterator = session.getFTGSIterator(new String[]{"if1"}, new String[]{"sf1"});
             try {
                 assertTrue(ftgsIterator.nextField());
@@ -133,7 +133,7 @@ public class TestFlamdexFTGSIterator {
         for (final BitsetOptimizationLevel level : BitsetOptimizationLevel.values()) {
             final MockFlamdexReader r = new MockFlamdexReader();
             r.addIntTerm("if1", 1, 0, 1, 2);
-            final ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
+            final ImhotepLocalSession session = new ImhotepJavaLocalSession("TestFlamdexFTGSIterator", r);
             final FTGSIterator ftgsIterator = session.getFTGSIterator(new String[]{"if1"}, new String[]{});
 
             try {
@@ -174,7 +174,7 @@ public class TestFlamdexFTGSIterator {
 
     private ImhotepLocalSession makeTestSession(final BitsetOptimizationLevel level) throws ImhotepOutOfMemoryException {
         final MockFlamdexReader r = makeTestFlamdexReader();
-        final ImhotepLocalSession session = new ImhotepJavaLocalSession(r);
+        final ImhotepLocalSession session = new ImhotepJavaLocalSession("TestFlamdexFTGSIterator", r);
         session.regroup(new GroupRemapRule[]{new GroupRemapRule(1, new RegroupCondition(DOCID_FIELD, true, 4, null, true), 2, 1)});
         session.pushStat(METRIC_FIELD);
         return session;

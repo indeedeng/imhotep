@@ -57,13 +57,14 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
     protected FTGSSplitter[] ftgsIteratorSplitters;
 
-    public MTImhotepLocalMultiSession(final ImhotepLocalSession[] sessions,
+    public MTImhotepLocalMultiSession(final String sessionId,
+                                      final ImhotepLocalSession[] sessions,
                                       final MemoryReservationContext memory,
                                       final AtomicLong tempFileSizeBytesLeft,
                                       final String userName,
                                       final String clientName)
     {
-        super(sessions, tempFileSizeBytesLeft, userName, clientName);
+        super(sessionId, sessions, tempFileSizeBytesLeft, userName, clientName);
         this.memory = memory;
         this.closed.set(false);
     }
@@ -203,7 +204,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     @Override
     protected void postClose() {
         if (memory.usedMemory() > 0) {
-            log.error("MTImhotepMultiSession is leaking! usedMemory = "+memory.usedMemory());
+            log.error("MTImhotepMultiSession [" + getSessionId() + "] is leaking! usedMemory = "+memory.usedMemory());
         }
         Closeables2.closeQuietly(memory, log);
         super.postClose();
@@ -348,6 +349,6 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     }
 
     private FTGSIterator persist(final FTGSIterator iterator) throws IOException {
-        return FTGSIteratorUtil.persist(log, iterator, numStats);
+        return FTGSIteratorUtil.persist(log, getSessionId(), iterator, numStats);
     }
 }

@@ -481,7 +481,8 @@ public class LocalImhotepServiceCore
                 try {
                     flamdexes.put(pair.getFirst(), cachedFlamdexReaderReference);
                     localSessions[i] =
-                        new ImhotepJavaLocalSession(cachedFlamdexReaderReference,
+                        new ImhotepJavaLocalSession(sessionId,
+                                                    cachedFlamdexReaderReference,
                                                     this.shardTempDir.toString(),
                                                     new MemoryReservationContext(multiSessionMemoryContext),
                                                     tempFileSizeBytesLeft);
@@ -493,12 +494,13 @@ public class LocalImhotepServiceCore
                 }
             }
 
-            final MTImhotepLocalMultiSession session =
-                new MTImhotepLocalMultiSession(localSessions,
-                                               new MemoryReservationContext(multiSessionMemoryContext),
-                                               tempFileSizeBytesLeft,
-                                                username,
-                                                clientName);
+            final MTImhotepLocalMultiSession session = new MTImhotepLocalMultiSession(
+                        sessionId,
+                        localSessions,
+                        new MemoryReservationContext(multiSessionMemoryContext),
+                        tempFileSizeBytesLeft,
+                        username,
+                        clientName);
             getSessionManager().addSession(sessionId, session, flamdexes, username, clientName,
                                            ipAddress, clientVersion, dataset, sessionTimeout, multiSessionMemoryContext);
             session.addObserver(observer);

@@ -348,7 +348,7 @@ public class FTGSIteratorUtilTest {
             expectEnd(iter);
         }
 
-        file = FTGSIteratorUtil.persistAsFile(LOGGER, new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), numStats), numStats);
+        file = FTGSIteratorUtil.persistAsFile(LOGGER, "test", new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), numStats), numStats);
 
         {
             final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
@@ -633,7 +633,7 @@ public class FTGSIteratorUtilTest {
             expectEnd(iter);
         }
 
-        file = FTGSIteratorUtil.persistAsFile(LOGGER, new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), numStats), numStats);
+        file = FTGSIteratorUtil.persistAsFile(LOGGER, "test", new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), numStats), numStats);
 
         {
             final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(

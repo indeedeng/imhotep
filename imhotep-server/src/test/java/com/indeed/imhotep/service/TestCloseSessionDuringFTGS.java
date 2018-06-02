@@ -79,9 +79,10 @@ public class TestCloseSessionDuringFTGS {
                     closed.set(true);
                 }
             };
+            final String sessionId = "TestCloseSessionDuringFTGS";
             final ImhotepSession session =
-                new MTImhotepLocalMultiSession(new ImhotepLocalSession[] {
-                        new ImhotepJavaLocalSession(r) },
+                new MTImhotepLocalMultiSession(sessionId, new ImhotepLocalSession[] {
+                        new ImhotepJavaLocalSession(sessionId,r) },
                         new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
                         null,
                         "",

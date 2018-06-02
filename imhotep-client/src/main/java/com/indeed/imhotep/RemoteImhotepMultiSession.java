@@ -40,7 +40,6 @@ import java.util.concurrent.atomic.AtomicLong;
 public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<ImhotepRemoteSession> implements HasSessionId {
     private static final Logger log = Logger.getLogger(RemoteImhotepMultiSession.class);
 
-    private final String sessionId;
     private final InetSocketAddress[] nodes;
 
     private final long localTempFileSizeLimit;
@@ -52,9 +51,8 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                                      final AtomicLong tempFileSizeBytesLeft,
                                      final String userName,
                                      final String clientName) {
-        super(sessions, tempFileSizeBytesLeft, userName, clientName);
+        super(sessionId, sessions, tempFileSizeBytesLeft, userName, clientName);
 
-        this.sessionId = sessionId;
         this.nodes = nodes;
         this.localTempFileSizeLimit = localTempFileSizeLimit;
     }
@@ -128,7 +126,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 public FTGSIterator apply(final Pair<Integer, ImhotepRemoteSession> indexSessionPair) {
                     final ImhotepRemoteSession session = indexSessionPair.getSecond();
                     final int index = indexSessionPair.getFirst();
-                    return session.mergeFTGSSplit(intFields, stringFields, sessionId, nodes, index, termLimit, sortStat);
+                    return session.mergeFTGSSplit(intFields, stringFields, getSessionId(), nodes, index, termLimit, sortStat);
                 }
             });
         } catch (final Throwable t) {
@@ -160,7 +158,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 public FTGSIterator apply(final Pair<Integer, ImhotepRemoteSession> indexSessionPair) {
                     final ImhotepRemoteSession session = indexSessionPair.getSecond();
                     final int index = indexSessionPair.getFirst();
-                    return session.mergeSubsetFTGSSplit(intFields, stringFields, sessionId, nodes, index);
+                    return session.mergeSubsetFTGSSplit(intFields, stringFields, getSessionId(), nodes, index);
                 }
             });
         } catch (final Throwable t) {
@@ -187,7 +185,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 public GroupStatsIterator apply(final Pair<Integer, ImhotepRemoteSession> indexSessionPair) {
                     final ImhotepRemoteSession session = indexSessionPair.getSecond();
                     final int index = indexSessionPair.getFirst();
-                    return session.mergeDistinctSplit(field, isIntField, sessionId, nodes, index);
+                    return session.mergeDistinctSplit(field, isIntField, getSessionId(), nodes, index);
                 }
             });
         } catch (final Throwable t) {
@@ -232,11 +230,6 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             return -1;
         }
         return localTempFileSizeLimit - tempFileSizeBytesLeft.get();
-    }
-
-    @Override
-    public String getSessionId() {
-        return sessionId;
     }
 
     // Combination rules are different for remote sessions vs what is done in AbstractImhotepMultiSession for local sessions
