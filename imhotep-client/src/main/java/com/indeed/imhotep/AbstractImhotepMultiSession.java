@@ -153,7 +153,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         }
         for (final AbstractImhotepSession session : sessions) {
             if (!sessionId.equals(session.getSessionId())) {
-                throw new IllegalArgumentException("SessionId mismatch");
+                throw new IllegalArgumentException("SessionId mismatch in multi session sub-sessions");
             }
         }
 
