@@ -48,7 +48,10 @@ public class FTGSIteratorUtil {
     private FTGSIteratorUtil() {
     }
 
-    public static File persistAsFile(final Logger log, final FTGSIterator iterator, final int numStats) throws IOException {
+    public static File persistAsFile(final Logger log,
+                                     final String sessionId,
+                                     final FTGSIterator iterator,
+                                     final int numStats) throws IOException {
         final File tmp = File.createTempFile("ftgs", ".tmp");
         OutputStream out = null;
         try {
@@ -56,7 +59,7 @@ public class FTGSIteratorUtil {
             out = new BufferedOutputStream(new FileOutputStream(tmp));
             FTGSOutputStreamWriter.write(iterator, numStats, out);
             if (log.isDebugEnabled()) {
-                log.debug("time to merge splits to file: " +
+                log.debug("[" + sessionId + "] time to merge splits to file: " +
                         (System.currentTimeMillis() - start) +
                         " ms, file length: " + tmp.length());
             }
@@ -74,7 +77,14 @@ public class FTGSIteratorUtil {
     }
 
     public static FTGSIterator persist(final Logger log, final FTGSIterator iterator, final int numStats) throws IOException {
-        final File tmp = persistAsFile(log, iterator, numStats);
+        return persist(log, "noSessionId", iterator, numStats);
+    }
+
+    public static FTGSIterator persist(final Logger log,
+                                   final String sessionId,
+                                   final FTGSIterator iterator,
+                                   final int numStats) throws IOException {
+        final File tmp = persistAsFile(log, sessionId, iterator, numStats);
         try {
             return InputStreamFTGSIterators.create(tmp, numStats);
         } finally {

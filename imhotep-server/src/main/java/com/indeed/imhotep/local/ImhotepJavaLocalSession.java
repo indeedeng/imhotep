@@ -64,19 +64,20 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
     private FlamdexReader originalReader;
     private SharedReference<FlamdexReader> originalReaderRef;
 
-    public ImhotepJavaLocalSession(final FlamdexReader flamdexReader)
+    public ImhotepJavaLocalSession(final String sessionId, final FlamdexReader flamdexReader)
         throws ImhotepOutOfMemoryException {
-        this(flamdexReader, null,
+        this(sessionId, flamdexReader, null,
              new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), null);
     }
 
-    public ImhotepJavaLocalSession(final FlamdexReader flamdexReader,
+    public ImhotepJavaLocalSession(final String sessionId,
+                                   final FlamdexReader flamdexReader,
                                    final String optimizedIndexDirectory,
                                    final MemoryReservationContext memory,
                                    final AtomicLong tempFileSizeBytesLeft)
         throws ImhotepOutOfMemoryException {
 
-        super(flamdexReader, memory, tempFileSizeBytesLeft);
+        super(sessionId, flamdexReader, memory, tempFileSizeBytesLeft);
 
         this.optimizedIndexesDir = optimizedIndexDirectory;
         this.optimizationLog =
@@ -401,7 +402,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
             /* close temp index reader */
             this.flamdexReaderRef.close();
         } catch (final IOException e) {
-            log.error("Could not close optimized reader");
+            log.error("[" + getSessionId() + "] Could not close optimized reader");
         }
 
         /* reopen the original flamdex readers */
@@ -505,7 +506,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
                 this.flamdexReaderRef = this.originalReaderRef;
             }
         } catch (final IOException e) {
-            log.error("Could not close optimized reader");
+            log.error("[" + getSessionId() + "] Could not close optimized reader");
         }
 
         super.tryClose();

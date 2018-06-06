@@ -218,15 +218,17 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
     }
 
-    public ImhotepLocalSession(final FlamdexReader flamdexReader)
+    public ImhotepLocalSession(final String sessionId, final FlamdexReader flamdexReader)
         throws ImhotepOutOfMemoryException {
-        this(flamdexReader, new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), null);
+        this(sessionId, flamdexReader, new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), null);
     }
 
-    public ImhotepLocalSession(final FlamdexReader flamdexReader,
+    public ImhotepLocalSession(final String sessionId,
+                               final FlamdexReader flamdexReader,
                                final MemoryReservationContext memory,
                                final AtomicLong tempFileSizeBytesLeft)
         throws ImhotepOutOfMemoryException {
+        super(sessionId);
         this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
         this.savedTempFileSizeValue = (this.tempFileSizeBytesLeft == null) ? 0 : this.tempFileSizeBytesLeft.get();
         constructorStackTrace = new Exception();
@@ -2272,7 +2274,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 memory.releaseMemory(dynamicMetricUsage);
             }
             if (memory.usedMemory() > 0) {
-                log.error("ImhotepLocalSession is leaking! memory reserved after " +
+                log.error("ImhotepLocalSession [" + getSessionId() + "] is leaking! memory reserved after " +
                           "all memory has been freed: " + memory.usedMemory());
             }
         } finally {
@@ -2283,7 +2285,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     @Override
     protected void finalize() {
         if (!closed) {
-            log.error("ImhotepLocalSession was not closed!!!!!!! stack trace at construction:",
+            log.error("ImhotepLocalSession [" + getSessionId() + "] was not closed!!!!!!! stack trace at construction:",
                       constructorStackTrace);
             close();
         }
@@ -2359,7 +2361,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 buildIntFieldConditionSummaryMap(remapRules);
         for (final String intField : intFields.keySet()) {
             final IntFieldConditionSummary summary = intFields.get(intField);
-            log.debug("Splitting groups using int field: " + intField);
+            log.debug("[" + getSessionId() + "] Splitting groups using int field: " + intField);
             final IntTermIterator itr = flamdexReader.getUnsortedIntTermIterator(intField);
             final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
 
@@ -2416,7 +2418,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 buildStringFieldConditionSummaryMap(remapRules);
         for (final String stringField : stringFields.keySet()) {
             final StringFieldConditionSummary summary = stringFields.get(stringField);
-            log.debug("Splitting groups using string field: " + stringField);
+            log.debug("[" + getSessionId() + "] Splitting groups using string field: " + stringField);
 
             final StringTermIterator itr = flamdexReader.getStringTermIterator(stringField);
             final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);

@@ -54,7 +54,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * @author jsgroth
  */
-public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
+public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSession>
     extends AbstractImhotepSession
     implements Instrumentation.Provider {
 
@@ -128,34 +128,20 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
         }
     }
 
-    private final SessionThreadFactory localThreadFactory =
-        new SessionThreadFactory(AbstractImhotepMultiSession.class.getName() + "-localThreads");
-    private final SessionThreadFactory splitThreadFactory =
-        new SessionThreadFactory(AbstractImhotepMultiSession.class.getName() + "-splitThreads");
-    private final SessionThreadFactory mergeThreadFactory =
-        new SessionThreadFactory(AbstractImhotepMultiSession.class.getName() + "-mergeThreads");
-
-    private final ArrayList<InstrumentedThreadFactory> threadFactories =
-        new ArrayList<InstrumentedThreadFactory>(Arrays.asList(localThreadFactory,
-                                                               splitThreadFactory,
-                                                               mergeThreadFactory));
-
-    private final ExecutorService executor =
-        Executors.newCachedThreadPool(localThreadFactory);
-    protected final ExecutorService getSplitBufferThreads =
-        Executors.newCachedThreadPool(splitThreadFactory);
-    protected final ExecutorService mergeSplitBufferThreads =
-        Executors.newCachedThreadPool(mergeThreadFactory);
+    private final List<InstrumentedThreadFactory> threadFactories;
+    private final ExecutorService executor;
+    protected final ExecutorService getSplitBufferThreads;
+    protected final ExecutorService mergeSplitBufferThreads;
 
     protected int numStats = 0;
 
-    protected AbstractImhotepMultiSession(final T[] sessions) {
-        this(sessions, null, "", "");
-    }
-
     @SuppressWarnings({"unchecked"})
-    protected AbstractImhotepMultiSession(final T[] sessions, final AtomicLong tempFileSizeBytesLeft,
-                                          @Nonnull final String userName, @Nonnull final String clientName) {
+    protected AbstractImhotepMultiSession(final String sessionId,
+                                          final T[] sessions,
+                                          final AtomicLong tempFileSizeBytesLeft,
+                                          @Nonnull final String userName,
+                                          @Nonnull final String clientName) {
+        super(sessionId);
         this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
         this.savedTempFileSizeValue = (tempFileSizeBytesLeft == null) ? 0 : tempFileSizeBytesLeft.get();
         this.userName = userName;
@@ -163,8 +149,27 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
         if (sessions == null || sessions.length == 0) {
             throw new IllegalArgumentException("at least one session is required");
         }
+        for (final AbstractImhotepSession session : sessions) {
+            if (!sessionId.equals(session.getSessionId())) {
+                throw new IllegalArgumentException("SessionId mismatch in multi session sub-sessions");
+            }
+        }
 
         this.sessions = sessions;
+
+        final String threadNamePrefix = "[" + sessionId + "]" + AbstractImhotepMultiSession.class.getName();
+        final SessionThreadFactory localThreadFactory = new SessionThreadFactory(threadNamePrefix + "-localThreads");
+        final SessionThreadFactory splitThreadFactory = new SessionThreadFactory(threadNamePrefix + "-splitThreads");
+        final SessionThreadFactory mergeThreadFactory = new SessionThreadFactory(threadNamePrefix + "-mergeThreads");
+
+        threadFactories =
+                new ArrayList<>(Arrays.asList(localThreadFactory,
+                        splitThreadFactory,
+                        mergeThreadFactory));
+
+        executor = Executors.newCachedThreadPool(localThreadFactory);
+        getSplitBufferThreads = Executors.newCachedThreadPool(splitThreadFactory);
+        mergeSplitBufferThreads = Executors.newCachedThreadPool(mergeThreadFactory);
 
         totalDocFreqBuf = new Long[sessions.length];
         integerBuf = new Integer[sessions.length];
@@ -715,7 +720,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
                 factory.close();
             }
             catch (final IOException e) {
-                log.warn(e);
+                log.warn("[" + getSessionId() + "]", e);
             }
         }
         try {
@@ -733,10 +738,10 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
         executor.shutdownNow();
         try {
             if (!executor.awaitTermination(5L, TimeUnit.SECONDS)) {
-                log.warn("executor did not shut down, continuing anyway");
+                log.warn("[" + getSessionId() + "]executor did not shut down, continuing anyway");
             }
         } catch (final InterruptedException e) {
-            log.warn(e);
+            log.warn("[" + getSessionId() + "]" + e);
         }
     }
 
@@ -840,7 +845,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
         try {
             close();
         } catch (final Exception e) {
-            log.error("error closing session", e);
+            log.error("[" + getSessionId() + "]error closing session", e);
         }
     }
 }

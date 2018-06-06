@@ -80,7 +80,8 @@ class FlamdexSubsetFTGSIterator extends AbstractFlamdexFTGSIterator {
             currentField = null;
             close();
             if (ImhotepLocalSession.logTiming) {
-                ImhotepLocalSession.log.info("intTermsTime: "+intTermsTime/1000000d
+                ImhotepLocalSession.log.info("ImhotepLocalSesion [" + session.getSessionId() + "]"
+                        +"intTermsTime: "+intTermsTime/1000000d
                         +" ms, stringTermsTime: "+stringTermsTime/1000000d
                         +" ms, docsTime: "+docsTime/1000000d
                         +" ms, lookupsTime: "+lookupsTime/1000000d

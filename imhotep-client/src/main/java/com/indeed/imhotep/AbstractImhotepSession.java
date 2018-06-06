@@ -28,6 +28,16 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
     protected final Instrumentation.ProviderSupport instrumentation =
         new Instrumentation.ProviderSupport();
 
+    private final String sessionId;
+
+    protected AbstractImhotepSession(final String sessionId) {
+        this.sessionId = sessionId;
+    }
+
+    public final String getSessionId() {
+        return sessionId;
+    }
+
     @Override
     public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields) {
         return getFTGSIterator(intFields, stringFields, 0);
