@@ -149,8 +149,6 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
 
     protected int numStats = 0;
 
-    protected int numGroups = 2;
-
     protected AbstractImhotepMultiSession(final T[] sessions) {
         this(sessions, null, "", "");
     }
@@ -207,8 +205,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
             }
         });
 
-        numGroups = Collections.max(Arrays.asList(integerBuf));
-        return numGroups;
+        return Collections.max(Arrays.asList(integerBuf));
     }
 
     @Override
@@ -220,8 +217,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
             }
         });
 
-        numGroups = Collections.max(Arrays.asList(integerBuf));
-        return numGroups;
+        return Collections.max(Arrays.asList(integerBuf));
     }
 
     @Override
@@ -233,8 +229,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
             }
         });
 
-        numGroups = Collections.max(Arrays.asList(integerBuf));
-        return numGroups;
+        return Collections.max(Arrays.asList(integerBuf));
     }
 
     @Override
@@ -328,8 +323,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
             }
         });
 
-        numGroups = Collections.max(Arrays.asList(integerBuf));
-        return numGroups;
+        return Collections.max(Arrays.asList(integerBuf));
     }
 
     @Override
@@ -342,8 +336,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
             }
         });
 
-        numGroups = Collections.max(Arrays.asList(integerBuf));
-        return numGroups;
+        return Collections.max(Arrays.asList(integerBuf));
     }
 
     public int metricFilter(final int stat, final long min, final long max, final boolean negate) throws ImhotepOutOfMemoryException {
@@ -354,8 +347,7 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
             }
         });
 
-        numGroups = Collections.max(Arrays.asList(integerBuf));
-        return numGroups;
+        return Collections.max(Arrays.asList(integerBuf));
     }
 
     @Override
@@ -454,7 +446,8 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
 
     @Override
     public int getNumStats() {
-        executeRuntimeException(integerBuf, new ThrowingFunction<ImhotepSession, Integer>() {
+        // don't lock cpu for this operation.
+        executeRuntimeException(integerBuf, false, new ThrowingFunction<ImhotepSession, Integer>() {
             @Override
             public Integer apply(final ImhotepSession session) {
                 return session.getNumStats();
@@ -467,7 +460,8 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
 
     @Override
     public int getNumGroups() {
-        executeRuntimeException(integerBuf, new ThrowingFunction<ImhotepSession, Integer>() {
+        // don't lock cpu for this operation.
+        executeRuntimeException(integerBuf, false, new ThrowingFunction<ImhotepSession, Integer>() {
             @Override
             public Integer apply(final ImhotepSession imhotepSession) {
                 return imhotepSession.getNumGroups();
@@ -745,8 +739,14 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
     }
 
     protected <R> void executeRuntimeException(final R[] ret, final ThrowingFunction<? super T, ? extends R> function) {
+        executeRuntimeException(ret, true, function);
+    }
+
+    protected <R> void executeRuntimeException(final R[] ret,
+                                               final boolean lockCPU,
+                                               final ThrowingFunction<? super T, ? extends R> function) {
         try {
-            executeSessions(ret, true, function);
+            executeSessions(ret, lockCPU, function);
         } catch (final ExecutionException e) {
             throw Throwables.propagate(e.getCause());
         }
