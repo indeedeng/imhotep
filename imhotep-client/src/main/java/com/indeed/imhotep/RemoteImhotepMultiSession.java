@@ -219,8 +219,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             }
         });
 
-        numGroups = Collections.max(Arrays.asList(integerBuf));
-        return numGroups;
+        return Collections.max(Arrays.asList(integerBuf));
     }
 
     /**
