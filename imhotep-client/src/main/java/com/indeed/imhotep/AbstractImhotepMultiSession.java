@@ -446,8 +446,8 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
 
     @Override
     public int getNumStats() {
-        // don't lock cpu for this operation.
-        executeRuntimeException(integerBuf, false, new ThrowingFunction<ImhotepSession, Integer>() {
+        // We don't lock cpu for this operation since it's trivial getter
+        executeRuntimeExceptionNoCpuLock(integerBuf, new ThrowingFunction<ImhotepSession, Integer>() {
             @Override
             public Integer apply(final ImhotepSession session) {
                 return session.getNumStats();
@@ -460,8 +460,10 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
 
     @Override
     public int getNumGroups() {
-        // don't lock cpu for this operation.
-        executeRuntimeException(integerBuf, false, new ThrowingFunction<ImhotepSession, Integer>() {
+        // We don't lock cpu for this operation since it's
+        // trivial getter for local sessions
+        // and cpu-cheap request for remote sessions
+        executeRuntimeExceptionNoCpuLock(integerBuf, new ThrowingFunction<ImhotepSession, Integer>() {
             @Override
             public Integer apply(final ImhotepSession imhotepSession) {
                 return imhotepSession.getNumGroups();
@@ -742,7 +744,11 @@ public abstract class AbstractImhotepMultiSession<T extends ImhotepSession>
         executeRuntimeException(ret, true, function);
     }
 
-    protected <R> void executeRuntimeException(final R[] ret,
+    protected <R> void executeRuntimeExceptionNoCpuLock(final R[] ret, final ThrowingFunction<? super T, ? extends R> function) {
+        executeRuntimeException(ret, false, function);
+    }
+
+    private <R> void executeRuntimeException(final R[] ret,
                                                final boolean lockCPU,
                                                final ThrowingFunction<? super T, ? extends R> function) {
         try {
