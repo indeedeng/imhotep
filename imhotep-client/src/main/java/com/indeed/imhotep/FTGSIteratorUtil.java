@@ -255,11 +255,12 @@ public class FTGSIteratorUtil {
         return iterator;
     }
 
+    // calculate distinct when we know groups count
     public static GroupStatsIterator calculateDistinct(final FTGSIterator iterator, final int numGroups) {
         final FTGSIterator unsortedFtgs = FTGSIteratorUtil.makeUnsortedIfPossible(iterator);
 
         if (!unsortedFtgs.nextField()) {
-            return new GroupStatsDummyIterator(new long[0]);
+            throw new IllegalArgumentException("FTGSIterator with at least one field expected");
         }
 
         final long[] result = new long[numGroups];
@@ -268,6 +269,36 @@ public class FTGSIteratorUtil {
                 final int group = unsortedFtgs.group();
                 result[group]++;
             }
+        }
+
+        if (unsortedFtgs.nextField()) {
+            throw new IllegalArgumentException("FTGSIterator with exactly one field expected");
+        }
+
+        return new GroupStatsDummyIterator(result);
+    }
+
+    // calculate distinct when we don't know groups count
+    public static GroupStatsIterator calculateDistinct(final FTGSIterator iterator) {
+        final FTGSIterator unsortedFtgs = FTGSIteratorUtil.makeUnsortedIfPossible(iterator);
+
+        if (!unsortedFtgs.nextField()) {
+            throw new IllegalArgumentException("FTGSIterator with at least one field expected");
+        }
+
+        long[] result = new long[0];
+        while (unsortedFtgs.nextTerm()) {
+            while (unsortedFtgs.nextGroup()) {
+                final int group = unsortedFtgs.group();
+                if (group >= result.length) {
+                    result = Arrays.copyOf(result, group + 1);
+                }
+                result[group]++;
+            }
+        }
+
+        if (unsortedFtgs.nextField()) {
+            throw new IllegalArgumentException("FTGSIterator with exactly one field expected");
         }
 
         return new GroupStatsDummyIterator(result);
