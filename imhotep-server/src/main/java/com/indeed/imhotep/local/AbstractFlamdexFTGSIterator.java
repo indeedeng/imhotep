@@ -62,7 +62,6 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
     private int groupPointer;
     private int groupsSeenCount;
     protected boolean resetGroupStats = false;
-    protected int termIndex;
     private final TermGroupStatsCalculator calculator;
 
     public AbstractFlamdexFTGSIterator(

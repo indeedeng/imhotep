@@ -92,7 +92,6 @@ import com.indeed.imhotep.metrics.ShiftRight;
 import com.indeed.imhotep.metrics.Subtraction;
 import com.indeed.imhotep.pool.BuffersPool;
 import com.indeed.imhotep.protobuf.QueryMessage;
-import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.imhotep.service.InstrumentedFlamdexReader;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.Throwables2;
@@ -109,7 +108,6 @@ import org.apache.commons.codec.binary.Base64;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
-import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -381,12 +379,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                                                              final String[] stringFields,
                                                              final int numSplits,
                                                              final long termLimit) {
+        checkSplitParams(numSplits);
         try {
-            try(Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
-                return new FTGSSplitter(getFTGSIterator(intFields, stringFields, termLimit),
-                        numSplits, numStats,
-                        969168349, tempFileSizeBytesLeft);
-            }
+            return new FTGSSplitter(getFTGSIterator(intFields, stringFields, termLimit),
+                    numSplits, numStats,
+                    969168349, tempFileSizeBytesLeft);
         } catch (final IOException e) {
             throw Throwables.propagate(e);
         }
@@ -395,12 +392,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     public  FTGSSplitter getSubsetFTGSIteratorSplitter(final Map<String, long[]> intFields,
                                                                    final Map<String, String[]> stringFields,
                                                                    final int numSplits) {
+        checkSplitParams(numSplits);
         try {
-            try(Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
-                return new FTGSSplitter(getSubsetFTGSIterator(intFields, stringFields),
-                        numSplits, numStats,
-                        969168349, tempFileSizeBytesLeft);
-            }
+            return new FTGSSplitter(getSubsetFTGSIterator(intFields, stringFields),
+                    numSplits, numStats,
+                    969168349, tempFileSizeBytesLeft);
         } catch (final IOException e) {
             throw Throwables.propagate(e);
         }

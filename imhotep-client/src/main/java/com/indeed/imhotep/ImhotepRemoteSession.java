@@ -417,6 +417,7 @@ public class ImhotepRemoteSession
             final Map<String, String[]> stringFields,
             final int splitIndex,
             final int numSplits) {
+        checkSplitParams(splitIndex, numSplits);
         final Timer timer = new Timer();
         final ImhotepRequest.Builder requestBuilder = getBuilderForType(ImhotepRequest.RequestType.GET_SUBSET_FTGS_SPLIT)
                 .setSessionId(getSessionId())
@@ -432,14 +433,14 @@ public class ImhotepRemoteSession
     public FTGSIterator mergeFTGSSplit(
             final String[] intFields,
             final String[] stringFields,
-            final String sessionId,
             final InetSocketAddress[] nodes,
             final int splitIndex,
             final long termLimit,
             final int sortStat) {
+        checkSplitParams(splitIndex, nodes.length);
         final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.MERGE_FTGS_SPLIT)
-                .setSessionId(sessionId)
+                .setSessionId(getSessionId())
                 .addAllIntFields(Arrays.asList(intFields))
                 .addAllStringFields(Arrays.asList(stringFields))
                 .setSplitIndex(splitIndex)
@@ -459,12 +460,12 @@ public class ImhotepRemoteSession
 
     public GroupStatsIterator mergeDistinctSplit(final String field,
                                                  final boolean isIntField,
-                                                 final String sessionId,
                                                  final InetSocketAddress[] nodes,
                                                  final int splitIndex) {
+        checkSplitParams(splitIndex, nodes.length);
         final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.MERGE_DISTINCT_SPLIT)
-                .setSessionId(sessionId)
+                .setSessionId(getSessionId())
                 .setField(field)
                 .setIsIntField(isIntField)
                 .setSplitIndex(splitIndex)
@@ -494,12 +495,12 @@ public class ImhotepRemoteSession
     public FTGSIterator mergeSubsetFTGSSplit(
             final Map<String, long[]> intFields,
             final Map<String, String[]> stringFields,
-            final String sessionId,
             final InetSocketAddress[] nodes,
             final int splitIndex) {
+        checkSplitParams(splitIndex, nodes.length);
         final Timer timer = new Timer();
         final ImhotepRequest.Builder requestBuilder = getBuilderForType(ImhotepRequest.RequestType.MERGE_SUBSET_FTGS_SPLIT)
-                .setSessionId(sessionId)
+                .setSessionId(getSessionId())
                 .setSplitIndex(splitIndex)
                 .addAllNodes(Iterables.transform(Arrays.asList(nodes), new Function<InetSocketAddress, HostAndPort>() {
                     public HostAndPort apply(final InetSocketAddress input) {
@@ -585,7 +586,7 @@ public class ImhotepRemoteSession
         final Timer timer = new Timer();
         try {
             final ImhotepResponse response =
-                sendMultisplitRegroupRequest(rawRules, getSessionId(), errorOnCollisions);
+                sendMultisplitRegroupRequest(rawRules, errorOnCollisions);
             final int result = response.getNumGroups();
             timer.complete(ImhotepRequest.RequestType.EXPLODED_MULTISPLIT_REGROUP);
             return result;
@@ -601,8 +602,7 @@ public class ImhotepRemoteSession
         try {
             final Iterator<GroupMultiRemapMessage> rawRuleMessagesIterator = Arrays.asList(rawRuleMessages).iterator();
             final ImhotepResponse response =
-                    sendMultisplitRegroupRequestFromProtos(rawRuleMessages.length, rawRuleMessagesIterator, getSessionId(),
-                            errorOnCollisions);
+                    sendMultisplitRegroupRequestFromProtos(rawRuleMessages.length, rawRuleMessagesIterator, errorOnCollisions);
             final int result = response.getNumGroups();
             timer.complete(ImhotepRequest.RequestType.EXPLODED_MULTISPLIT_REGROUP);
             return result;
@@ -618,8 +618,7 @@ public class ImhotepRemoteSession
         final Timer timer = new Timer();
         try {
             final ImhotepResponse response =
-                sendMultisplitRegroupRequest(numRawRules, rawRules, getSessionId(),
-                                             errorOnCollisions);
+                sendMultisplitRegroupRequest(numRawRules, rawRules, errorOnCollisions);
             final int result = response.getNumGroups();
             timer.complete(ImhotepRequest.RequestType.EXPLODED_MULTISPLIT_REGROUP);
             return result;
@@ -1240,14 +1239,13 @@ public class ImhotepRemoteSession
     }
 
     // Special cased in order to save memory and only have one marshalled rule exist at a time.
-    private ImhotepResponse sendMultisplitRegroupRequest(final GroupMultiRemapRule[] rules, final String sessionId, final boolean errorOnCollisions) throws IOException, ImhotepOutOfMemoryException {
-        return sendMultisplitRegroupRequest(rules.length, Arrays.asList(rules).iterator(), sessionId, errorOnCollisions);
+    private ImhotepResponse sendMultisplitRegroupRequest(final GroupMultiRemapRule[] rules, final boolean errorOnCollisions) throws IOException, ImhotepOutOfMemoryException {
+        return sendMultisplitRegroupRequest(rules.length, Arrays.asList(rules).iterator(), errorOnCollisions);
     }
 
     private ImhotepResponse sendMultisplitRegroupRequest(
             final int numRules,
             final Iterator<GroupMultiRemapRule> rules,
-            final String sessionId,
             final boolean errorOnCollisions) throws IOException, ImhotepOutOfMemoryException {
         final Iterator<GroupMultiRemapMessage> ruleMessageIterator = Iterators.transform(rules,
                 new Function<GroupMultiRemapRule, GroupMultiRemapMessage>() {
@@ -1257,17 +1255,16 @@ public class ImhotepRemoteSession
                 return ImhotepClientMarshaller.marshal(rule);
             }
         });
-        return sendMultisplitRegroupRequestFromProtos(numRules, ruleMessageIterator, sessionId, errorOnCollisions);
+        return sendMultisplitRegroupRequestFromProtos(numRules, ruleMessageIterator, errorOnCollisions);
     }
 
     private ImhotepResponse sendMultisplitRegroupRequestFromProtos(
             final int numRules,
             final Iterator<GroupMultiRemapMessage> rules,
-            final String sessionId,
             final boolean errorOnCollisions) throws IOException, ImhotepOutOfMemoryException {
         final ImhotepRequest initialRequest = getBuilderForType(ImhotepRequest.RequestType.EXPLODED_MULTISPLIT_REGROUP)
                 .setLength(numRules)
-                .setSessionId(sessionId)
+                .setSessionId(getSessionId())
                 .setErrorOnCollisions(errorOnCollisions)
                 .build();
 

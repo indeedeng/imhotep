@@ -90,4 +90,17 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
     public void removeObserver(final Instrumentation.Observer observer) {
         instrumentation.removeObserver(observer);
     }
+
+    protected static void checkSplitParams(final int splitIndex, final int numSplits) {
+        checkSplitParams(numSplits);
+        if ((splitIndex < 0) || (splitIndex >= numSplits)) {
+            throw new IllegalArgumentException("Illegal splitIndex: " + splitIndex);
+        }
+    }
+
+    protected static void checkSplitParams(final int numSplits) {
+        if (numSplits < 2) {
+            throw new IllegalArgumentException("At least 2 splits expected");
+        }
+    }
 }

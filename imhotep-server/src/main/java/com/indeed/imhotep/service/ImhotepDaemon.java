@@ -589,7 +589,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepRequest          request,
                 final ImhotepResponse.Builder builder,
                 final OutputStream            os)
-            throws IOException, ImhotepOutOfMemoryException {
+            throws IOException {
             checkSessionValidity(request);
             service.handleGetFTGSIterator(request.getSessionId(),
                                           getIntFields(request),
@@ -644,7 +644,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepRequest          request,
                 final ImhotepResponse.Builder builder,
                 final OutputStream            os)
-            throws IOException, ImhotepOutOfMemoryException {
+            throws IOException {
             checkSessionValidity(request);
             final InetSocketAddress[] nodes =
                 Lists.transform(request.getNodesList(),

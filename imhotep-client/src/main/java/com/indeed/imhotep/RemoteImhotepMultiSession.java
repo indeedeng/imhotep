@@ -114,6 +114,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     private FTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields, final long termLimit, final int sortStat) {
+        checkSplitParams(sessions.length);
         final Pair<Integer, ImhotepRemoteSession>[] indexesAndSessions = new Pair[sessions.length];
         for (int i = 0; i < sessions.length; i++) {
             indexesAndSessions[i] = Pair.of(i, sessions[i]);
@@ -126,7 +127,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 public FTGSIterator apply(final Pair<Integer, ImhotepRemoteSession> indexSessionPair) {
                     final ImhotepRemoteSession session = indexSessionPair.getSecond();
                     final int index = indexSessionPair.getFirst();
-                    return session.mergeFTGSSplit(intFields, stringFields, getSessionId(), nodes, index, termLimit, sortStat);
+                    return session.mergeFTGSSplit(intFields, stringFields, nodes, index, termLimit, sortStat);
                 }
             });
         } catch (final Throwable t) {
@@ -158,7 +159,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 public FTGSIterator apply(final Pair<Integer, ImhotepRemoteSession> indexSessionPair) {
                     final ImhotepRemoteSession session = indexSessionPair.getSecond();
                     final int index = indexSessionPair.getFirst();
-                    return session.mergeSubsetFTGSSplit(intFields, stringFields, getSessionId(), nodes, index);
+                    return session.mergeSubsetFTGSSplit(intFields, stringFields, nodes, index);
                 }
             });
         } catch (final Throwable t) {
@@ -185,7 +186,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 public GroupStatsIterator apply(final Pair<Integer, ImhotepRemoteSession> indexSessionPair) {
                     final ImhotepRemoteSession session = indexSessionPair.getSecond();
                     final int index = indexSessionPair.getFirst();
-                    return session.mergeDistinctSplit(field, isIntField, getSessionId(), nodes, index);
+                    return session.mergeDistinctSplit(field, isIntField, nodes, index);
                 }
             });
         } catch (final Throwable t) {

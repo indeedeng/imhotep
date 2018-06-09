@@ -114,12 +114,13 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     }
 
     public synchronized FTGSIterator getFTGSIteratorSplit(final String[] intFields, final String[] stringFields, final int splitIndex, final int numSplits, final long termLimit) {
+        checkSplitParams(splitIndex, numSplits);
         if (ftgsIteratorSplitters == null || (ftgsIteratorSplitters.length == 0 && sessions.length != 0) ||
                 ftgsIteratorSplitters[0].isClosed()) {
 
             ftgsIteratorSplitters = new FTGSSplitter[sessions.length];
             try {
-                executeSessions(getSplitBufferThreads, ftgsIteratorSplitters, false, imhotepSession -> imhotepSession.getFTGSIteratorSplitter(intFields, stringFields, numSplits, termLimit));
+                executeSessions(getSplitBufferThreads, ftgsIteratorSplitters, true, imhotepSession -> imhotepSession.getFTGSIteratorSplitter(intFields, stringFields, numSplits, termLimit));
             } catch (final Throwable t) {
                 Closeables2.closeAll(log, ftgsIteratorSplitters);
                 throw Throwables.propagate(t);
@@ -140,12 +141,13 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     }
 
     public synchronized FTGSIterator getSubsetFTGSIteratorSplit(final Map<String, long[]> intFields, final Map<String, String[]> stringFields, final int splitIndex, final int numSplits) {
+        checkSplitParams(splitIndex, numSplits);
         if (ftgsIteratorSplitters == null || (ftgsIteratorSplitters.length == 0 && sessions.length != 0) ||
                 ftgsIteratorSplitters[0].isClosed()) {
 
             ftgsIteratorSplitters = new FTGSSplitter[sessions.length];
             try {
-                executeSessions(getSplitBufferThreads, ftgsIteratorSplitters, false, imhotepSession -> imhotepSession.getSubsetFTGSIteratorSplitter(intFields, stringFields, numSplits));
+                executeSessions(getSplitBufferThreads, ftgsIteratorSplitters, true, imhotepSession -> imhotepSession.getSubsetFTGSIteratorSplitter(intFields, stringFields, numSplits));
             } catch (final Throwable t) {
                 Closeables2.closeAll(log, ftgsIteratorSplitters);
                 throw Throwables.propagate(t);
@@ -192,12 +194,14 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         return result;
     }
 
-    public GroupStatsIterator mergeDistinctSplit(final String field, final boolean isIntField,
-                                                 final String sessionId, final InetSocketAddress[] nodes,
+    public GroupStatsIterator mergeDistinctSplit(final String field,
+                                                 final boolean isIntField,
+                                                 final InetSocketAddress[] nodes,
                                                  final int splitIndex) {
+        checkSplitParams(splitIndex, nodes.length);
         final String[] intFields = isIntField ? new String[]{field} : new String[0];
         final String[] stringFields = isIntField ? new String[0] : new String[]{field};
-        final FTGSIterator iterator = mergeFTGSSplit(intFields, stringFields, sessionId, nodes, splitIndex, 0, -1);
+        final FTGSIterator iterator = mergeFTGSSplit(intFields, stringFields, nodes, splitIndex, 0, -1);
         return FTGSIteratorUtil.calculateDistinct(iterator);
     }
 
@@ -210,34 +214,42 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         super.postClose();
     }
 
-    private ImhotepRemoteSession createImhotepRemoteSession(final InetSocketAddress address,
-                                                              final String sessionId,
-                                                              final AtomicLong tempFileSizeBytesLeft) {
+    private ImhotepRemoteSession createImhotepRemoteSession(final InetSocketAddress address) {
         return new ImhotepRemoteSession(address.getHostName(), address.getPort(),
-                                        sessionId, tempFileSizeBytesLeft);
+                                        getSessionId(), tempFileSizeBytesLeft);
     }
 
-    private ImhotepRemoteSession[] getRemoteSessions(final String sessionId, final InetSocketAddress[] nodes) {
+    private ImhotepRemoteSession[] getRemoteSessions(final InetSocketAddress[] nodes) {
         final ImhotepRemoteSession[] remoteSessions = new ImhotepRemoteSession[nodes.length];
         for (int i = 0; i < nodes.length; i++) {
-            remoteSessions[i] = createImhotepRemoteSession(nodes[i], sessionId, tempFileSizeBytesLeft);
+            remoteSessions[i] = createImhotepRemoteSession(nodes[i]);
             remoteSessions[i].setNumStats(numStats);
             remoteSessions[i].addObserver(new RelayObserver());
         }
         return remoteSessions;
     }
 
-    public FTGSIterator mergeFTGSSplit(final String[] intFields, final String[] stringFields, final String sessionId, final InetSocketAddress[] nodes, final int splitIndex, final long termLimit, final int sortStat) {
+    public FTGSIterator mergeFTGSSplit(final String[] intFields,
+                                       final String[] stringFields,
+                                       final InetSocketAddress[] nodes,
+                                       final int splitIndex,
+                                       final long termLimit,
+                                       final int sortStat) {
+        checkSplitParams(splitIndex, nodes.length);
         final boolean topTermsByStat = sortStat >= 0;
         final long perSplitTermLimit = topTermsByStat ? 0 : termLimit;
 
-        final ImhotepRemoteSession[] remoteSessions = getRemoteSessions(sessionId, nodes);
+        final ImhotepRemoteSession[] remoteSessions = getRemoteSessions(nodes);
 
         return mergeFTGSIteratorsForSessions(remoteSessions, termLimit, sortStat, s -> s.getFTGSIteratorSplit(intFields, stringFields, splitIndex, nodes.length, perSplitTermLimit));
     }
 
-    public FTGSIterator mergeSubsetFTGSSplit(final Map<String, long[]> intFields, final Map<String, String[]> stringFields, final String sessionId, final InetSocketAddress[] nodes, final int splitIndex) {
-        final ImhotepRemoteSession[] remoteSessions = getRemoteSessions(sessionId, nodes);
+    public FTGSIterator mergeSubsetFTGSSplit(final Map<String, long[]> intFields,
+                                             final Map<String, String[]> stringFields,
+                                             final InetSocketAddress[] nodes,
+                                             final int splitIndex) {
+        checkSplitParams(splitIndex, nodes.length);
+        final ImhotepRemoteSession[] remoteSessions = getRemoteSessions(nodes);
         return mergeFTGSIteratorsForSessions(remoteSessions, 0, -1, s -> s.getSubsetFTGSIteratorSplit(intFields, stringFields, splitIndex, nodes.length));
     }
 
@@ -313,7 +325,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
      * @return the reshuffled FTGSIterator array
      * @throws IOException
      */
-    private FTGSIterator[] parallelDisjointSplitAndMerge(final Closer closer, final FTGSIterator[] iterators) throws IOException {
+    private FTGSIterator[] parallelDisjointSplitAndMerge(final Closer closer, final FTGSIterator[] iterators) {
         final FTGSIterator[][] iteratorSplits = new FTGSIterator[iterators.length][];
 
         final int numSplits = Math.max(1, Runtime.getRuntime().availableProcessors()/2);
@@ -322,7 +334,8 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                     iterator,
                     numSplits,
                     numStats,
-                    981044833
+                    981044833,
+                    tempFileSizeBytesLeft
             ).getFtgsIterators());
         } catch (final ExecutionException e) {
             throw new RuntimeException(e);
