@@ -146,6 +146,7 @@ public final class MetricCacheImpl implements MetricCache {
                     (metric) -> () -> {
                         try (final SharedReference<IntValueLookup> copy = metric.getValue().tryCopy()) {
                             if (copy != null) {
+                                log.error("Metric '" + metric.getKey() + "' has leaked in MetricCacheImpl");
                                 closeMetric.close(Maps.immutableEntry(metric.getKey(), copy.get()));
                             }
                         }
