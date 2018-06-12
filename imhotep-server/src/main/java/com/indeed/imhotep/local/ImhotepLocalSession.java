@@ -56,6 +56,7 @@ import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.TermLimitedFTGSIterator;
 import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
@@ -355,16 +356,20 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     @Override
-    public synchronized FTGSIterator getFTGSIterator(final String[] intFields,
-                                                     final String[] stringFields,
-                                                     final long termLimit,
-                                                     final int sortStat) {
-        FTGSIterator iterator = new FlamdexFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields);
+    public synchronized FTGSIterator getFTGSIterator(final FTGSParams params) {
+        // TODO: support unsorted FlamdexFTGSIterator
+        // if params.isTopTerms() then Flamdex iterator can be unsorted
+        // We could benefit in case of int/string field conversions
+        FTGSIterator iterator = new FlamdexFTGSIterator(
+                this,
+                flamdexReaderRef.copy(),
+                params.intFields,
+                params.stringFields);
 
-        if (sortStat >= 0) {
-            iterator = FTGSIteratorUtil.getTopTermsFTGSIterator(iterator, termLimit, numStats, sortStat);
-        } else if (termLimit > 0 ) {
-            iterator = new TermLimitedFTGSIterator(iterator, termLimit);
+        if (params.isTopTerms()) {
+            iterator = FTGSIteratorUtil.getTopTermsFTGSIterator(iterator, params.termLimit, numStats, params.sortStat);
+        } else if (params.isTermLimit()) {
+            iterator = new TermLimitedFTGSIterator(iterator, params.termLimit);
         }
         return iterator;
     }
@@ -375,10 +380,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         return new FlamdexSubsetFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields);
     }
 
-    public FTGSSplitter getFTGSIteratorSplitter(final String[] intFields,
-                                                             final String[] stringFields,
-                                                             final int numSplits,
-                                                             final long termLimit) {
+    public FTGSSplitter getFTGSIteratorSplitter(
+            final String[] intFields,
+            final String[] stringFields,
+            final int numSplits,
+            final long termLimit) {
         checkSplitParams(numSplits);
         try {
             return new FTGSSplitter(getFTGSIterator(intFields, stringFields, termLimit),
@@ -389,9 +395,10 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
     }
 
-    public  FTGSSplitter getSubsetFTGSIteratorSplitter(final Map<String, long[]> intFields,
-                                                                   final Map<String, String[]> stringFields,
-                                                                   final int numSplits) {
+    public  FTGSSplitter getSubsetFTGSIteratorSplitter(
+            final Map<String, long[]> intFields,
+            final Map<String, String[]> stringFields,
+            final int numSplits) {
         checkSplitParams(numSplits);
         try {
             return new FTGSSplitter(getSubsetFTGSIterator(intFields, stringFields),

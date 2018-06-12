@@ -14,6 +14,7 @@
  package com.indeed.imhotep;
 
 import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
@@ -46,6 +47,16 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
     @Override
     public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit) {
         return getFTGSIterator(intFields, stringFields, termLimit, -1);
+    }
+
+    @Override
+    public FTGSIterator getFTGSIterator(
+            final String[] intFields,
+            final String[] stringFields,
+            final long termLimit,
+            final int sortStat) {
+        final FTGSParams params = new FTGSParams(intFields, stringFields, termLimit, sortStat, true);
+        return getFTGSIterator(params);
     }
 
     @Override

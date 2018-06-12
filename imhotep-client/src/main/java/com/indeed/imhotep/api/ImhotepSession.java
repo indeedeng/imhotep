@@ -60,7 +60,8 @@ public interface ImhotepSession
      * get an iterator over all (field, term, group, stat) tuples for the given fields
      * @param intFields list of int fields
      * @param stringFields list of string fields
-     * @return an iterator
+     * @return an iterator. result is the same as after calling
+     *          getFTGSIterator(new FTGSParams(intFields, stringFields, 0, -1, true));
      */
     FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields);
 
@@ -69,7 +70,8 @@ public interface ImhotepSession
      * @param intFields list of int fields
      * @param stringFields list of string fields
      * @param termLimit maximum number of terms that can be returned. 0 means no limit
-     * @return an iterator
+     * @return an iterator. result is the same as after calling
+     *          getFTGSIterator(new FTGSParams(intFields, stringFields, termLimit, -1, true));
      */
     FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, long termLimit);
 
@@ -79,11 +81,46 @@ public interface ImhotepSession
      * @param stringFields list of string fields
      * @param termLimit maximum number of terms that can be returned. 0 means no limit
      * @param sortStat the index of stats to get the top terms. No sorting is done if the value is negative
-     * @return an iterator
+     * @return an iterator. result is the same as after calling
+     *          getFTGSIterator(new FTGSParams(intFields, stringFields, termLimit, sortStat, true));
      */
     FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, long termLimit, int sortStat);
 
     FTGSIterator getSubsetFTGSIterator(Map<String, long[]> intFields, Map<String, String[]> stringFields);
+
+    /**
+     * get an iterator over some subset (maybe all) of (field, term, group, stat) tuples for the given fields
+     * tuples are always sorted by field and groups within term are always sorted too
+     *
+     * Result depends on values of 'termLimit, sortStat, sorted' params:
+     *
+     * <table summary ="description of params">
+     * <tr><th>No.</th><th>termLimit</th><th>sortStat</th><th>sorted</th>
+     *     <th>description</th></tr>
+     * <tr><th>1</th><th>0</th><th>any</th><th>true</th>
+     *     <th>all terms in all fields returned, terms within each field are sorted</th></tr>
+     * <tr><th>2</th><th>0</th><th>any</th><th>false</th>
+     *     <th>all terms in all fields returned, terms within each field go in any order</th></tr>
+     * <tr><th>3</th><th>&gt; 0</th><th>&gt;= 0</th><th>true</th>
+     *     <th>for each (field, group) pair only (up to) 'termLimit' tuples with biggest
+     *     sortStat metric value appear in result. Terms are sorted within each field.
+     *     (in case of a metric tie, return terms are unspecified)</th></tr>
+     * <tr><th>4</th><th>&gt; 0</th><th>&gt;= 0</th><th>false</th>
+     *     <th>same as 3, but top stat terms within a field are unsorted</th></tr>
+     * <tr><th>5</th><th>&gt; 0</th><th>&lt; 0</th><th>true</th>
+     *     <th>iterate through sorted tuples until 'termLimit' terms are emitted</th></tr>
+     * <tr><th>6</th><th>&gt; 0</th><th>&lt; 0</th><th>false</th>
+     *     <th>return any 'termLimit' terms from any fields.
+     *     Total number of terms are 'termLimit'. Terms within field are unsorted.
+     *     (note: it's not FIRST 'termLimit' terms in first fields in any order,
+     *     but ANY 'termLimit' terms in any field)</th></tr>
+     * <tr><th>7</th><th>&lt; 0</th><th>any</th><th>any</th>
+     *     <th>IllegalArgumentException</th></tr>
+     * </table>
+     * @param params params for resulting iterator
+     * @return an iterator
+     */
+    FTGSIterator getFTGSIterator(FTGSParams params);
 
     /**
      * Get distinct terms count per group.

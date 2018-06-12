@@ -25,7 +25,9 @@ import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.SortedFTGSInterleaver;
 import com.indeed.imhotep.TermLimitedFTGSIterator;
+import com.indeed.imhotep.UnsortedFTGSIterator;
 import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.pool.GroupStatsPool;
@@ -102,15 +104,38 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     }
 
     @Override
-    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit, final int sortStat) {
-        final boolean topTermsByStat = sortStat >= 0;
-        final long perSplitTermLimit = topTermsByStat ? 0 : termLimit;
-        return mergeFTGSIteratorsForSessions(sessions, termLimit, sortStat, s -> s.getFTGSIterator(intFields, stringFields, perSplitTermLimit));
+    public FTGSIterator getFTGSIterator(final FTGSParams params) {
+        if (sessions.length == 1) {
+            try(final Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
+                return persist(sessions[0].getFTGSIterator(params));
+            } catch (final Exception e) {
+                throw Throwables.propagate(e);
+            }
+        }
+
+        final FTGSParams localSessionParams;
+        // ftgs from subsession have to be sorted for merging.
+        // and in case of top terms request we have to iterate through all terms
+        if (params.isTopTerms()) {
+            localSessionParams = params.sortedCopy().unlimitedCopy();
+        } else {
+            localSessionParams = params.sortedCopy();
+        }
+
+        return mergeFTGSIteratorsForSessions(sessions, params.termLimit, params.sortStat, params.sorted, session -> session.getFTGSIterator(localSessionParams));
     }
 
     @Override
     public FTGSIterator getSubsetFTGSIterator(final Map<String, long[]> intFields, final Map<String, String[]> stringFields) {
-        return mergeFTGSIteratorsForSessions(sessions, -1, -1, s -> s.getSubsetFTGSIterator(intFields, stringFields));
+        if (sessions.length == 1) {
+            try(final Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
+                return persist(sessions[0].getSubsetFTGSIterator(intFields, stringFields));
+            } catch (final Exception e) {
+                throw Throwables.propagate(e);
+            }
+        }
+
+        return mergeFTGSIteratorsForSessions(sessions, 0, -1, true, s -> s.getSubsetFTGSIterator(intFields, stringFields));
     }
 
     public synchronized FTGSIterator getFTGSIteratorSplit(final String[] intFields, final String[] stringFields, final int splitIndex, final int numSplits, final long termLimit) {
@@ -201,7 +226,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         checkSplitParams(splitIndex, nodes.length);
         final String[] intFields = isIntField ? new String[]{field} : new String[0];
         final String[] stringFields = isIntField ? new String[0] : new String[]{field};
-        final FTGSIterator iterator = mergeFTGSSplit(intFields, stringFields, nodes, splitIndex, 0, -1);
+        final FTGSIterator iterator = mergeFTGSSplit(new FTGSParams(intFields, stringFields, 0, -1, false), nodes, splitIndex);
         return FTGSIteratorUtil.calculateDistinct(iterator);
     }
 
@@ -229,19 +254,14 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         return remoteSessions;
     }
 
-    public FTGSIterator mergeFTGSSplit(final String[] intFields,
-                                       final String[] stringFields,
-                                       final InetSocketAddress[] nodes,
-                                       final int splitIndex,
-                                       final long termLimit,
-                                       final int sortStat) {
+    public FTGSIterator mergeFTGSSplit(final FTGSParams params, final InetSocketAddress[] nodes, final int splitIndex) {
         checkSplitParams(splitIndex, nodes.length);
-        final boolean topTermsByStat = sortStat >= 0;
-        final long perSplitTermLimit = topTermsByStat ? 0 : termLimit;
+        final long perSplitTermLimit = params.isTopTerms() ? 0 : params.termLimit;
 
         final ImhotepRemoteSession[] remoteSessions = getRemoteSessions(nodes);
 
-        return mergeFTGSIteratorsForSessions(remoteSessions, termLimit, sortStat, s -> s.getFTGSIteratorSplit(intFields, stringFields, splitIndex, nodes.length, perSplitTermLimit));
+        return mergeFTGSIteratorsForSessions(remoteSessions, params.termLimit, params.sortStat, params.sorted,
+                s -> s.getFTGSIteratorSplit(params.intFields, params.stringFields, splitIndex, nodes.length, perSplitTermLimit));
     }
 
     public FTGSIterator mergeSubsetFTGSSplit(final Map<String, long[]> intFields,
@@ -250,37 +270,18 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                                              final int splitIndex) {
         checkSplitParams(splitIndex, nodes.length);
         final ImhotepRemoteSession[] remoteSessions = getRemoteSessions(nodes);
-        return mergeFTGSIteratorsForSessions(remoteSessions, 0, -1, s -> s.getSubsetFTGSIteratorSplit(intFields, stringFields, splitIndex, nodes.length));
+        return mergeFTGSIteratorsForSessions(remoteSessions, 0, -1, true,
+                s -> s.getSubsetFTGSIteratorSplit(intFields, stringFields, splitIndex, nodes.length));
     }
 
     private <T extends ImhotepSession> FTGSIterator mergeFTGSIteratorsForSessions(
             final T[] imhotepSessions,
             final long termLimit,
             final int sortStat,
+            final boolean sorted,
             final ThrowingFunction<T, FTGSIterator> getIteratorFromSession
     ) {
-        if (imhotepSessions.length == 1) {
-            try {
-                final FTGSIterator iterator = getIteratorFromSession.apply(imhotepSessions[0]);
-                if ((sortStat >= 0) && (termLimit > 0)) {
-                    try(final Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
-                        return FTGSIteratorUtil.getTopTermsFTGSIterator(iterator, termLimit, numStats, sortStat);
-                    }
-                } else {
-                    if (imhotepSessions[0] instanceof ImhotepRemoteSession) {
-                        // If iterator is from remote session then it's already persisted
-                        return iterator;
-                    } else {
-                        // If iterator is from local session then we have to persist it first
-                        try(final Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
-                            return persist(iterator);
-                        }
-                    }
-                }
-            } catch (final Exception e) {
-                throw Throwables.propagate(e);
-            }
-        }
+        checkSplitParams(imhotepSessions.length);
         final FTGSIterator[] iterators = new FTGSIterator[imhotepSessions.length];
 
         try {
@@ -289,10 +290,13 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             Closeables2.closeAll(log, iterators);
             throw Throwables.propagate(t);
         }
-        return parallelMergeFTGS(iterators, termLimit, sortStat);
+        return parallelMergeFTGS(iterators, termLimit, sortStat, sorted);
     }
 
-    private FTGSIterator parallelMergeFTGS(final FTGSIterator[] iterators, final long termLimit, final int sortStat) {
+    private FTGSIterator parallelMergeFTGS(final FTGSIterator[] iterators,
+                                           final long termLimit,
+                                           final int sortStat,
+                                           final boolean sorted) {
         final Closer closer = Closer.create();
         try {
             final FTGSIterator[] mergers = parallelDisjointSplitAndMerge(closer, iterators);
@@ -300,7 +304,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             closer.register(Closeables2.forArray(log, persistedMergers));
             execute(mergeSplitBufferThreads, persistedMergers, mergers, true, this::persist);
 
-            final FTGSIterator interleaver = new SortedFTGSInterleaver(persistedMergers);
+            final FTGSIterator interleaver = sorted ? new SortedFTGSInterleaver(persistedMergers) : new UnsortedFTGSIterator(persistedMergers);
             if (termLimit > 0) {
                 if (sortStat >= 0) {
                     try(final Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
@@ -330,13 +334,13 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
         final int numSplits = Math.max(1, Runtime.getRuntime().availableProcessors()/2);
         try {
-            execute(iteratorSplits, iterators, true, iterator -> new FTGSSplitter(
+            execute(iteratorSplits, iterators, true, iterator -> FTGSSplitter.doSplit(
                     iterator,
                     numSplits,
                     numStats,
                     981044833,
                     tempFileSizeBytesLeft
-            ).getFtgsIterators());
+            ));
         } catch (final ExecutionException e) {
             throw new RuntimeException(e);
         } finally {

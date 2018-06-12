@@ -20,6 +20,7 @@ import com.indeed.flamdex.reader.MockFlamdexReader;
 import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.MemoryReserver;
 import com.indeed.imhotep.ShardInfo;
+import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.io.MockShard;
 import com.indeed.imhotep.io.Shard;
@@ -113,7 +114,7 @@ public class TestLocalImhotepServiceCore {
                 @Override
                 public void run() {
                     try {
-                        service.handleGetFTGSIterator(sessionId, new String[]{"if1"}, new String[0], 0, -1, os);
+                        service.handleGetFTGSIterator(sessionId, new FTGSParams(new String[]{"if1"}, new String[0], 0, -1, true), os);
                         fail();
                     } catch (final Exception expected) {
                         expected.printStackTrace();
