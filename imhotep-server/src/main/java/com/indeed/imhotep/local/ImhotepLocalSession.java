@@ -2257,9 +2257,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         try {
             instrumentation.fire(new CloseLocalSessionEvent());
 
-            Closeables2.closeQuietly(threadFactory, log);
-
-            Closeables2.closeQuietly(flamdexReaderRef, log);
             while (numStats > 0) {
                 popStat();
             }
@@ -2278,6 +2275,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                           "all memory has been freed: " + memory.usedMemory());
             }
         } finally {
+            Closeables2.closeQuietly(flamdexReaderRef, log);
+            Closeables2.closeQuietly(threadFactory, log);
             Closeables2.closeQuietly(memory, log);
         }
     }
