@@ -419,7 +419,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             // it's a hack
             // let's pretend we have no stats. FTGS will be faster.
             numStats = 0;
-            final FTGSIterator iterator = getFTGSIterator(intFields, strFields);
+            final FTGSParams params = new FTGSParams(intFields, strFields, 0, -1, false);
+            final FTGSIterator iterator = getFTGSIterator(params);
             result = FTGSIteratorUtil.calculateDistinct(iterator, getNumGroups());
         } finally {
             // return stats back

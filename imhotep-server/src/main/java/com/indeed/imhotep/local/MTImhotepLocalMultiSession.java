@@ -208,7 +208,8 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             }
             final String[] intFields = isIntField ? new String[]{field} : new String[0];
             final String[] strFields = isIntField ? new String[0] : new String[]{field};
-            final FTGSIterator iterator = getFTGSIterator(intFields, strFields);
+            final FTGSParams params = new FTGSParams(intFields, strFields, 0, -1, false);
+            final FTGSIterator iterator = getFTGSIterator(params);
             result = FTGSIteratorUtil.calculateDistinct(iterator, getNumGroups());
         } finally {
             // return stats back.
