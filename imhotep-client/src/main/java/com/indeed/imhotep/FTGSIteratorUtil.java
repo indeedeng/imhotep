@@ -92,6 +92,9 @@ public class FTGSIteratorUtil {
         }
     }
 
+    // Returns top terms iterator.
+    // It's possible to pass termLimit = Long.MAX_VALUE and get sorted iterator as a result
+    // Use this hack only in tests with small iterators
     public static TopTermsFTGSIterator getTopTermsFTGSIterator(final FTGSIterator originalIterator, final long termLimit, final int numStats, final int sortStat) {
         try {
             final long[] statBuf = new long[numStats];
@@ -119,15 +122,17 @@ public class FTGSIteratorUtil {
                         }
 
                         iterator.groupStats(statBuf);
-                        final long stat = statBuf[sortStat];
 
-                        final TermStat termStat = new TermStat(fieldIsIntType, termIntVal, termStringVal, termDocFreq, iterator.group(), stat, statBuf.clone());
                         if (topTerms.size() >= termLimit) {
+                            final long stat = statBuf[sortStat];
+                            final TermStat termStat = new TermStat(fieldIsIntType, termIntVal, termStringVal, termDocFreq, iterator.group(), stat, statBuf.clone());
                             if (TermStat.TOP_STAT_COMPARATOR.compare(termStat, topTerms.peek()) > 0) {
                                 topTerms.poll();
                                 topTerms.offer(termStat);
                             }
                         } else {
+                            final long stat = (sortStat >= 0) ? statBuf[sortStat] : 0;
+                            final TermStat termStat = new TermStat(fieldIsIntType, termIntVal, termStringVal, termDocFreq, iterator.group(), stat, statBuf.clone());
                             topTerms.offer(termStat);
                         }
                     }
