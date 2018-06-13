@@ -96,7 +96,10 @@ public class TestGetDistinct {
             assertTrue(result.hasNext());
             assertEquals(20, result.nextLong());
         }
-        assertFalse(result.hasNext());
+        // There could be some zeroes in the end.
+        while (result.hasNext()) {
+            assertEquals(0, result.nextLong());
+        }
     }
 
     private FlamdexReader createReader(final int index) {
