@@ -319,6 +319,8 @@ public class ImhotepClient
 
         private boolean allowSessionForwarding = false;
 
+        private int hostCount = 0; // for logging
+
         public SessionBuilder(final String dataset, final DateTime start, final DateTime end) {
             this.dataset = dataset;
             this.start = start;
@@ -419,6 +421,11 @@ public class ImhotepClient
             return timeIntervalsMissingShards;
         }
 
+        // call this method after build()
+        public int getHostCount() {
+            return hostCount;
+        }
+
         /**
          * Constructs an {@link ImhotepSession} instance.
          */
@@ -431,6 +438,7 @@ public class ImhotepClient
                 throw new IllegalArgumentException("No shards: no data available for the requested dataset and time range");
             }
             final ShardsAndDocCounts shardsAndDocCounts = selectHostsForShards(locatedShards);
+            hostCount = shardsAndDocCounts.shardRequestMap.size();
             return getSessionForShards(
                     dataset, shardsAndDocCounts, mergeThreadLimit, username, clientName, optimizeGroupZeroLookups,
                     socketTimeout, localTempFileSizeLimit, daemonTempFileSizeLimit, sessionTimeout,

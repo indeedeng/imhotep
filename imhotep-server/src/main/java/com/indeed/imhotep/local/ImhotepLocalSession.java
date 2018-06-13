@@ -48,7 +48,6 @@ import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.GroupStatsDummyIterator;
 import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.Instrumentation;
-import com.indeed.imhotep.InstrumentedThreadFactory;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.MemoryReserver;
 import com.indeed.imhotep.QueryRemapRule;
@@ -98,7 +97,6 @@ import com.indeed.util.core.Pair;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
-import com.indeed.util.core.threads.LogOnUncaughtExceptionHandler;
 import com.indeed.util.core.threads.ThreadSafeBitSet;
 import it.unimi.dsi.fastutil.PriorityQueue;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -108,7 +106,6 @@ import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.log4j.Logger;
 
-import javax.annotation.Nonnull;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -177,36 +174,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     protected Map<String, DynamicMetric> dynamicMetrics = Maps.newHashMap();
 
     private final Exception constructorStackTrace;
-
-    private final LocalSessionThreadFactory threadFactory =
-        new LocalSessionThreadFactory(ImhotepLocalSession.class.getSimpleName() + "-" +
-                                      FTGSSplitter.class.getSimpleName());
-
-    private final class LocalSessionThreadFactory extends InstrumentedThreadFactory {
-
-        private final String name;
-
-        LocalSessionThreadFactory(final String name) {
-            this.name = name;
-            addObserver(new Observer());
-        }
-
-        public Thread newThread(@Nonnull final Runnable runnable) {
-            final LogOnUncaughtExceptionHandler handler = new LogOnUncaughtExceptionHandler(log);
-            final Thread result = super.newThread(runnable);
-            result.setDaemon(true);
-            result.setName(name + "-" + result.getId());
-            result.setUncaughtExceptionHandler(handler);
-            return result;
-        }
-
-        private final class Observer implements Instrumentation.Observer {
-            public void onEvent(final Instrumentation.Event event) {
-                event.getProperties().put(Instrumentation.Keys.THREAD_FACTORY, name);
-                ImhotepLocalSession.this.instrumentation.fire(event);
-            }
-        }
-    }
 
     class CloseLocalSessionEvent extends Instrumentation.Event {
         CloseLocalSessionEvent() {
@@ -278,8 +245,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         final long fieldFilesReadSize = flamdexPerformanceStats.fieldFilesReadSize;
         final long metricsMemorySize = flamdexPerformanceStats.metricsMemorySize;
         final long tempFileSize = (tempFileSizeBytesLeft == null) ? 0 : tempFileSizeBytesLeft.get();
-        final InstrumentedThreadFactory.PerformanceStats factoryPerformanceStats = threadFactory.getPerformanceStats();
-        final long cpuTime = factoryPerformanceStats != null ? factoryPerformanceStats.cpuTotalTime : 0;
+        final long cpuTime = 0;
         final PerformanceStats result =
                 new PerformanceStats(
                         cpuTime - resetPerformanceStats.cpuTime,
@@ -2276,7 +2242,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             }
         } finally {
             Closeables2.closeQuietly(flamdexReaderRef, log);
-            Closeables2.closeQuietly(threadFactory, log);
             Closeables2.closeQuietly(memory, log);
         }
     }
