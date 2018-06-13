@@ -256,6 +256,8 @@ public class FTGSIteratorUtil {
     }
 
     // calculate distinct when we know groups count
+    // TODO: refactor calculateDistinct and calculateDistinctWithGroupHint
+    // after IMTEPD-388 is implemented
     public static GroupStatsIterator calculateDistinct(final FTGSIterator iterator, final int numGroups) {
         final FTGSIterator unsortedFtgs = FTGSIteratorUtil.makeUnsortedIfPossible(iterator);
 
@@ -279,19 +281,22 @@ public class FTGSIteratorUtil {
     }
 
     // calculate distinct when we don't know groups count
-    public static GroupStatsIterator calculateDistinct(final FTGSIterator iterator) {
+    public static GroupStatsIterator calculateDistinctWithGroupHint(
+            final FTGSIterator iterator,
+            final int groupCountHint) {
         final FTGSIterator unsortedFtgs = FTGSIteratorUtil.makeUnsortedIfPossible(iterator);
 
         if (!unsortedFtgs.nextField()) {
             throw new IllegalArgumentException("FTGSIterator with at least one field expected");
         }
 
-        long[] result = new long[0];
+        long[] result = new long[groupCountHint];
         while (unsortedFtgs.nextTerm()) {
             while (unsortedFtgs.nextGroup()) {
                 final int group = unsortedFtgs.group();
                 if (group >= result.length) {
-                    result = Arrays.copyOf(result, group + 1);
+                    final int newLen = Math.max(result.length * 2, group + 1);
+                    result = Arrays.copyOf(result, newLen);
                 }
                 result[group]++;
             }
