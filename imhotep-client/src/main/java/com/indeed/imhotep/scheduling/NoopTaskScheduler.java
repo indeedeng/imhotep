@@ -9,7 +9,7 @@ import java.io.Closeable;
  * Used only for testing
  */
 class NoopTaskScheduler extends TaskScheduler {
-    public NoopTaskScheduler() {
+    NoopTaskScheduler() {
         super(0, 0, 0, null, MetricStatsEmitter.NULL_EMITTER);
     }
 
@@ -19,8 +19,14 @@ class NoopTaskScheduler extends TaskScheduler {
         return null;
     }
 
+    @Nullable
     @Override
     public synchronized Closeable temporaryUnlock() {
         return null;
+    }
+
+    @Override
+    protected void initializeSchedulers(SchedulerType schedulerType) {
+        // noop
     }
 }

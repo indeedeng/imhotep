@@ -549,6 +549,8 @@ public class LocalImhotepServiceCore
                 log.warn("failed to clean up ShardStore: " + shardStoreDir, ex);
             }
         }
+        TaskScheduler.CPUScheduler.close();
+        TaskScheduler.RemoteFSIOScheduler.close();
     }
 
     @Export(name = "loaded-shard-count",
