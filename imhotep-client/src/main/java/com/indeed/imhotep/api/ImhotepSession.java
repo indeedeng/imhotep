@@ -98,17 +98,17 @@ public interface ImhotepSession
      * <tr><th>No.</th><th>termLimit</th><th>sortStat</th><th>sorted</th>
      *     <th>description</th></tr>
      * <tr><th>1</th><th>0</th><th>any</th><th>true</th>
-     *     <th>all terms in all fields returned, terms within each field are sorted</th></tr>
+     *     <th>all terms in all fields returned, terms within each field are sorted by term value</th></tr>
      * <tr><th>2</th><th>0</th><th>any</th><th>false</th>
      *     <th>all terms in all fields returned, terms within each field go in any order</th></tr>
      * <tr><th>3</th><th>&gt; 0</th><th>&gt;= 0</th><th>true</th>
      *     <th>for each (field, group) pair only (up to) 'termLimit' tuples with biggest
-     *     sortStat metric value appear in result. Terms are sorted within each field.
+     *     sortStat metric value appear in result. Terms within each field are sorted by term value.
      *     (in case of a metric tie, return terms are unspecified)</th></tr>
      * <tr><th>4</th><th>&gt; 0</th><th>&gt;= 0</th><th>false</th>
-     *     <th>same as 3, but top stat terms within a field are unsorted</th></tr>
+     *     <th>same as 3, but terms can go in any order</th></tr>
      * <tr><th>5</th><th>&gt; 0</th><th>&lt; 0</th><th>true</th>
-     *     <th>iterate through sorted tuples until 'termLimit' terms are emitted</th></tr>
+     *     <th>iterate through tuples sorted by term value until 'termLimit' terms are emitted</th></tr>
      * <tr><th>6</th><th>&gt; 0</th><th>&lt; 0</th><th>false</th>
      *     <th>return any 'termLimit' terms from any fields.
      *     Total number of terms are 'termLimit'. Terms within field are unsorted.

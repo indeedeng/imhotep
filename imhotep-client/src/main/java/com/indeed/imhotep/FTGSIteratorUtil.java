@@ -92,10 +92,23 @@ public class FTGSIteratorUtil {
         }
     }
 
+    public static TopTermsFTGSIterator getTopTermsFTGSIterator(final FTGSIterator originalIterator, final long termLimit, final int numStats, final int sortStat) {
+        if ((termLimit <= 0) || (sortStat < 0) || (sortStat >= numStats)) {
+            throw new IllegalArgumentException("TopTerms expect positive termLimit and valid sortStat index");
+        }
+        return getTopTermsFTGSIteratorInternal(originalIterator, termLimit, numStats, sortStat);
+    }
+
+    // Consume iterator, sort by terms and return sorted.
+    // For testing purposes only!
+    // Use this only in tests with small iterators
+    public static FTGSIterator sortFTGSIterator(final FTGSIterator originalIterator, final int numStats) {
+        return getTopTermsFTGSIteratorInternal(originalIterator, Long.MAX_VALUE, numStats, -1);
+    }
+
     // Returns top terms iterator.
     // It's possible to pass termLimit = Long.MAX_VALUE and get sorted iterator as a result
-    // Use this hack only in tests with small iterators
-    public static TopTermsFTGSIterator getTopTermsFTGSIterator(final FTGSIterator originalIterator, final long termLimit, final int numStats, final int sortStat) {
+    private static TopTermsFTGSIterator getTopTermsFTGSIteratorInternal(final FTGSIterator originalIterator, final long termLimit, final int numStats, final int sortStat) {
         try {
             final long[] statBuf = new long[numStats];
             final TopTermsStatsByField topTermsFTGS = new TopTermsStatsByField();

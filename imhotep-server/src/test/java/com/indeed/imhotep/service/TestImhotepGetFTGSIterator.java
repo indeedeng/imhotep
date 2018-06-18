@@ -1086,7 +1086,7 @@ public class TestImhotepGetFTGSIterator {
                                          final int sortStat) {
         FTGSIterator iterator = session.getFTGSIterator(new FTGSParams(intFields, stringFields, termLimit, sortStat, sortedFTGS));
         if (!sortedFTGS) {
-            iterator = FTGSIteratorUtil.getTopTermsFTGSIterator(iterator, Long.MAX_VALUE, session.getNumStats(), -1);
+            iterator = FTGSIteratorUtil.sortFTGSIterator(iterator, session.getNumStats());
         }
         return iterator;
     }
