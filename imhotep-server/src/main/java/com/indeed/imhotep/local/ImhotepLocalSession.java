@@ -330,7 +330,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         FTGSIterator iterator = new FlamdexFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields);
 
         if (sortStat >= 0) {
-            iterator = FTGSIteratorUtil.getTopTermsFTGSIterator(iterator, termLimit, numStats, sortStat);
+            iterator = FTGSIteratorUtil.getTopTermsFTGSIterator(iterator, termLimit, sortStat);
         } else if (termLimit > 0 ) {
             iterator = new TermLimitedFTGSIterator(iterator, termLimit);
         }
@@ -350,7 +350,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         try {
             try(Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
                 return new FTGSSplitter(getFTGSIterator(intFields, stringFields, termLimit),
-                        numSplits, numStats,
+                        numSplits,
                         969168349, tempFileSizeBytesLeft);
             }
         } catch (final IOException e) {
@@ -364,7 +364,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         try {
             try(Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
                 return new FTGSSplitter(getSubsetFTGSIterator(intFields, stringFields),
-                        numSplits, numStats,
+                        numSplits,
                         969168349, tempFileSizeBytesLeft);
             }
         } catch (final IOException e) {
@@ -383,7 +383,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             // let's pretend we have no stats. FTGS will be faster.
             numStats = 0;
             final FTGSIterator iterator = getFTGSIterator(intFields, strFields);
-            result = FTGSIteratorUtil.calculateDistinct(iterator, getNumGroups());
+            result = FTGSIteratorUtil.calculateDistinct(iterator);
         } finally {
             // return stats back
             numStats = savedNumStats;

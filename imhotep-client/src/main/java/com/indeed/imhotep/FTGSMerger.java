@@ -35,8 +35,9 @@ public final class FTGSMerger extends AbstractFTGSMerger {
     private int currentTermLength;
     private String termStringVal;
 
-    public FTGSMerger(final Collection<? extends FTGSIterator> iterators, final int numStats, @Nullable final Closeable doneCallback) {
-        super(iterators, numStats, doneCallback);
+    public FTGSMerger(final Collection<? extends FTGSIterator> iterators,
+                      @Nullable final Closeable doneCallback) {
+        super(iterators, doneCallback);
         currentTermBytes = new byte[100];
         byteBuffer = ByteBuffer.wrap(currentTermBytes);
         currentTermLength = 0;

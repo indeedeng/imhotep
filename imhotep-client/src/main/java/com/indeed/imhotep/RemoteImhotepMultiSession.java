@@ -97,7 +97,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         FTGSIterator interleaver = new SortedFTGSInterleaver(mergers);
         if(termLimit > 0) {
             if (sortStat >= 0) {
-                interleaver = FTGSIteratorUtil.getTopTermsFTGSIterator(interleaver, termLimit, numStats, sortStat);
+                interleaver = FTGSIteratorUtil.getTopTermsFTGSIterator(interleaver, termLimit, sortStat);
             } else {
                 interleaver = new TermLimitedFTGSIterator(interleaver, termLimit);
             }

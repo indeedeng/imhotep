@@ -56,6 +56,7 @@ public class FTGSIteratorUtilTest {
     @Test
     public void testIteratorPersist() throws IOException {
         final int numStats = 2;
+        final int numGroup = 2;
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
         try( final FTGSOutputStreamWriter w = new FTGSOutputStreamWriter(out) ) {
 
@@ -102,7 +103,7 @@ public class FTGSIteratorUtilTest {
             w.addStat(500);
         }
 
-        final FTGSIterator iter = FTGSIteratorUtil.persist(LOGGER, new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), numStats), numStats);
+        final FTGSIterator iter = FTGSIteratorUtil.persist(LOGGER, new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), numStats, numGroup));
 
         expectIntField(iter, "a");
 
@@ -128,6 +129,7 @@ public class FTGSIteratorUtilTest {
     @Test
     public void testTopTermsByStats() throws IOException {
         final int numStats = 3;
+        final int numGroups = 3;
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
         try( final FTGSOutputStreamWriter w = new FTGSOutputStreamWriter(out) ) {
 
@@ -283,7 +285,7 @@ public class FTGSIteratorUtilTest {
         }
 
         {
-            final InputStreamFTGSIterator iter = new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), numStats);
+            final InputStreamFTGSIterator iter = new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), numStats, numGroups);
 
             expectIntField(iter, "a");
 
@@ -348,11 +350,11 @@ public class FTGSIteratorUtilTest {
             expectEnd(iter);
         }
 
-        file = FTGSIteratorUtil.persistAsFile(LOGGER, "test", new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), numStats), numStats);
+        file = FTGSIteratorUtil.persistAsFile(LOGGER, "test", new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), numStats, numGroups));
 
         {
             final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
-                    InputStreamFTGSIterators.create(file, numStats), 2, numStats, 0);
+                    InputStreamFTGSIterators.create(file, numStats, numGroups), 2, 0);
 
             expectIntField(iter, "a");
 
@@ -399,7 +401,7 @@ public class FTGSIteratorUtilTest {
 
         {
             final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
-                    InputStreamFTGSIterators.create(file, numStats), 2, numStats, 1);
+                    InputStreamFTGSIterators.create(file, numStats, numGroups), 2, 1);
 
             expectIntField(iter, "a");
 
@@ -452,7 +454,7 @@ public class FTGSIteratorUtilTest {
 
         {
             final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
-                    InputStreamFTGSIterators.create(file, numStats), 2, numStats, 2);
+                    InputStreamFTGSIterators.create(file, numStats, numGroups), 2, 2);
 
             expectIntField(iter, "a");
 
@@ -497,6 +499,7 @@ public class FTGSIteratorUtilTest {
     @Test
     public void testTopTermsByStatsSingleGroup() throws IOException {
         final int numStats = 2;
+        final int numGroups = 2;
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
         try( final FTGSOutputStreamWriter w = new FTGSOutputStreamWriter(out) ) {
 
@@ -580,7 +583,7 @@ public class FTGSIteratorUtilTest {
         }
 
         {
-            final InputStreamFTGSIterator iter = new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), 2);
+            final InputStreamFTGSIterator iter = new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), numStats, numGroups);
 
             expectIntField(iter, "a");
 
@@ -633,11 +636,11 @@ public class FTGSIteratorUtilTest {
             expectEnd(iter);
         }
 
-        file = FTGSIteratorUtil.persistAsFile(LOGGER, "test", new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), numStats), numStats);
+        file = FTGSIteratorUtil.persistAsFile(LOGGER, "test", new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), numStats, numGroups));
 
         {
             final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
-                    InputStreamFTGSIterators.create(file, numStats), 2, numStats, 0);
+                    InputStreamFTGSIterators.create(file, numStats, numGroups), 2, 0);
 
             expectIntField(iter, "a");
 

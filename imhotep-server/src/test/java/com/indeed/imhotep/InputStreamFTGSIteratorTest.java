@@ -81,7 +81,7 @@ public class InputStreamFTGSIteratorTest {
         w.addStat(-999999);
         w.close();
 
-        final InputStreamFTGSIterator iter = new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), 2);
+        final InputStreamFTGSIterator iter = new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), 2, 2);
         assertTrue(iter.nextField());
         assertEquals("a", iter.fieldName());
         assertTrue(iter.fieldIsIntType());
@@ -122,7 +122,7 @@ public class InputStreamFTGSIteratorTest {
         w.switchField("d", false);
         w.close();
 
-        final InputStreamFTGSIterator iter = new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), 0);
+        final InputStreamFTGSIterator iter = new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), 0, 0);
         assertTrue(iter.nextField());
         assertTrue(iter.fieldIsIntType());
         assertEquals("a", iter.fieldName());
@@ -197,7 +197,7 @@ public class InputStreamFTGSIteratorTest {
         }
         {
             final long[] stats = new long[2];
-            final InputStreamFTGSIterator input = new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), 2);
+            final InputStreamFTGSIterator input = new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), 2, 1000);
             assertTrue(input.nextField());
             assertEquals("abc", input.fieldName());
             assertTrue(input.fieldIsIntType());
@@ -297,7 +297,7 @@ public class InputStreamFTGSIteratorTest {
             assertFalse(input.nextField());
         }
         {
-            final InputStreamFTGSIterator input = new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), 2);
+            final InputStreamFTGSIterator input = new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), 2, 1000);
             assertTrue(input.nextField());
             assertEquals("abc", input.fieldName());
             assertTrue(input.fieldIsIntType());
@@ -341,7 +341,7 @@ public class InputStreamFTGSIteratorTest {
             w.close();
 
             {
-                final InputStreamFTGSIterator iter = InputStreamFTGSIterators.create(tmp, 2);
+                final InputStreamFTGSIterator iter = InputStreamFTGSIterators.create(tmp, 2, 2);
 
                 expectIntField(iter, "a");
                 expectIntTerm(iter, 1, 5);

@@ -14,6 +14,8 @@ public abstract class AbstractDisjointFTGSMerger implements FTGSIterator {
     private static final Logger log = Logger.getLogger(AbstractDisjointFTGSMerger.class);
 
     protected final FTGSIterator[] iterators;
+    private final int numStats;
+    private final int numGroups;
 
     // how many iterators in the beginning of array have terms for current field
     protected int numFieldIterators;
@@ -24,10 +26,22 @@ public abstract class AbstractDisjointFTGSMerger implements FTGSIterator {
 
     public AbstractDisjointFTGSMerger(final FTGSIterator[] iterators) {
         this.iterators = iterators;
+        numStats = FTGSIteratorUtil.getNumStats(iterators);
+        numGroups = FTGSIteratorUtil.getNumGroups(iterators);
     }
 
     public FTGSIterator[] getIterators() {
         return iterators;
+    }
+
+    @Override
+    public int getNumStats() {
+        return numStats;
+    }
+
+    @Override
+    public int getNumGroups() {
+        return numGroups;
     }
 
     @Override

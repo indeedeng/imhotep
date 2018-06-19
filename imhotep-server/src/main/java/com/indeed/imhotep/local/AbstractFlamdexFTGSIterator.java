@@ -77,6 +77,16 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
     }
 
     @Override
+    public int getNumStats() {
+        return session.numStats;
+    }
+
+    @Override
+    public int getNumGroups() {
+        return session.docIdToGroup.getNumGroups();
+    }
+
+    @Override
     public abstract boolean nextField();
 
     @Override

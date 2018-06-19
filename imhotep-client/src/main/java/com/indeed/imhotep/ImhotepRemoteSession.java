@@ -529,12 +529,18 @@ public class ImhotepRemoteSession
             final Socket socket = newSocket(host, port, socketTimeout);
             final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
             final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
+            final ImhotepResponse response;
             try {
-                sendRequest(request, is, os, host, port);
+                response = sendRequest(request, is, os, host, port);
             } catch (final IOException e) {
                 closeSocket(socket);
                 throw e;
             }
+            final int numStats = response.getNumStats();
+            if (numStats != this.numStats) {
+                throw new IllegalStateException("numStats mismatch");
+            }
+            final int numGroups = response.getNumGroups();
             Path tmp = null;
             try {
                 tmp = Files.createTempFile("ftgs", ".tmp");
@@ -563,7 +569,7 @@ public class ImhotepRemoteSession
                         bufferedInputStream.close();
                     }
                 };
-                return new InputStreamFTGSIterator(in, numStats);
+                return new InputStreamFTGSIterator(in, numStats, numGroups);
             } finally {
                 if (tmp != null) {
                     try {

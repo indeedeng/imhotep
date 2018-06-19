@@ -46,9 +46,9 @@ public class FTGSFileBenchmark {
                 return name.endsWith(".ftgs");
             }
         })) {
-            iterators.add(new InputStreamFTGSIterator(new BufferedInputStream(new FileInputStream(file)), 4));
+            iterators.add(new InputStreamFTGSIterator(new BufferedInputStream(new FileInputStream(file)), 4, Integer.MAX_VALUE));
         }
-        final FTGSIterator merger = new FTGSMerger(iterators, 4, null);
+        final FTGSIterator merger = new FTGSMerger(iterators, null);
 
         long elapsed = -System.currentTimeMillis();
         final long[] stats = new long[4];

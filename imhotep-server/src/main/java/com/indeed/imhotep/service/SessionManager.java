@@ -43,10 +43,6 @@ public interface SessionManager<E> {
     void removeAndCloseIfExists(String sessionId);
     void removeAndCloseIfExists(String sessionId, Exception e);
 
-    void setNumStats(String sessionId, int newNumStats);
-
-    int getNumStats(String sessionId);
-
     Map<String, LastActionTimeLimit> getLastActionTimes();
 
     public class LastActionTimeLimit {

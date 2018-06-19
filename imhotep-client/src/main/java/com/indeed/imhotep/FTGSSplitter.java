@@ -48,20 +48,22 @@ public final class FTGSSplitter implements Closeable {
 
     private final AtomicBoolean done = new AtomicBoolean(false);
 
-    private final int numStats;
     private final int largePrime;
 
-    public FTGSSplitter(final FTGSIterator ftgsIterator, final int numSplits, final int numStats,
+    public FTGSSplitter(final FTGSIterator ftgsIterator,
+                        final int numSplits,
                         final int largePrime) throws IOException {
-        this(ftgsIterator, numSplits, numStats, largePrime, null);
-
+        this(ftgsIterator, numSplits, largePrime, null);
     }
 
-    public FTGSSplitter(final FTGSIterator ftgsIterator, final int numSplits, final int numStats,
-                        final int largePrime, final AtomicLong tempFileSizeBytesLeft) throws IOException {
+    public FTGSSplitter(final FTGSIterator ftgsIterator,
+                        final int numSplits,
+                        final int largePrime,
+                        final AtomicLong tempFileSizeBytesLeft) throws IOException {
         this.iterator = ftgsIterator;
         this.numSplits = numSplits;
-        this.numStats = numStats;
+        final int numStats = iterator.getNumStats();
+        final int numGroups = ftgsIterator.getNumGroups();
         this.largePrime = largePrime;
         outputs = new FTGSOutputStreamWriter[numSplits];
         outputStreams = new OutputStream[numSplits];
@@ -78,7 +80,7 @@ public final class FTGSSplitter implements Closeable {
             for (int i = 0; i < numSplits; i++) {
                 outputStreams[i] = multiFile.getOutputStream(i);
                 outputs[i] = new FTGSOutputStreamWriter(outputStreams[i]);
-                ftgsIterators[i] = new SplitterFTGSIterator(multiFile.getInputStream(i), numStats, doneCounter, numSplits);
+                ftgsIterators[i] = new SplitterFTGSIterator(multiFile.getInputStream(i), numStats, numGroups, doneCounter);
             }
             run();
         } catch (final Throwable t) {
@@ -96,7 +98,7 @@ public final class FTGSSplitter implements Closeable {
 
     private void run() throws IOException {
         try {
-            final long[] statBuf = new long[numStats];
+            final long[] statBuf = new long[iterator.getNumStats()];
             while (iterator.nextField()) {
                 final boolean fieldIsIntType = iterator.fieldIsIntType();
                 for (final FTGSOutputStreamWriter output : outputs) {
@@ -164,44 +166,27 @@ public final class FTGSSplitter implements Closeable {
         return done.get();
     }
 
-    private class SplitterFTGSIterator implements FTGSIterator {
+    private class SplitterFTGSIterator extends InputStreamFTGSIterator {
+        private boolean closed = false;
+        private AtomicInteger doneCounter;
 
-        private final InputStreamFTGSIterator delegate;
+        SplitterFTGSIterator(final InputStream in,
+                             final int numStats,
+                             final int numGroups,
+                             final AtomicInteger doneCounter) {
+            super(in, numStats, numGroups);
+            this.doneCounter = doneCounter;
+        }
 
-        SplitterFTGSIterator(final InputStream in, final int numStats,
-                                       final AtomicInteger doneCounter,
-                                       final int numSplits) {
-            delegate = new InputStreamFTGSIterator(in, numStats) {
-                boolean closed = false;
-                @Override
-                public void close() {
-                    if (!closed) {
-                        closed = true;
-                        super.close();
-                        if (doneCounter.incrementAndGet() == numSplits) {
-                            FTGSSplitter.this.close();
-                        }
-                    }
+        @Override
+        public void close() {
+            if (!closed) {
+                closed = true;
+                super.close();
+                if (doneCounter.incrementAndGet() == numSplits) {
+                    FTGSSplitter.this.close();
                 }
-            };
+            }
         }
-
-        private InputStreamFTGSIterator getDelegate() {
-            return delegate;
-        }
-
-        @Override public boolean nextField() { return getDelegate().nextField(); }
-        @Override public String fieldName() { return getDelegate().fieldName(); }
-        @Override public boolean fieldIsIntType() { return getDelegate().fieldIsIntType(); }
-        @Override public boolean nextTerm() { return getDelegate().nextTerm(); }
-        @Override public long termDocFreq() { return getDelegate().termDocFreq(); }
-        @Override public long termIntVal() { return getDelegate().termIntVal(); }
-        @Override public String termStringVal() { return getDelegate().termStringVal(); }
-        @Override public byte[] termStringBytes() { return getDelegate().termStringBytes(); }
-        @Override public int termStringLength() { return getDelegate().termStringLength(); }
-        @Override public boolean nextGroup() { return getDelegate().nextGroup(); }
-        @Override public int group() { return getDelegate().group(); }
-        @Override public void groupStats(final long[] stats) { getDelegate().groupStats(stats); }
-        @Override public void close() { delegate.close(); }
     }
 }

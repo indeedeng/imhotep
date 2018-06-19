@@ -25,6 +25,8 @@ import java.util.Iterator;
 
 public class TopTermsFTGSIterator implements FTGSIterator {
     private final Iterator<FTGSIteratorUtil.TopTermsStatsByField.FieldAndTermStats> currentFieldIt;
+    private final int numStats;
+    private final int numGroups;
 
     private FTGSIteratorUtil.TopTermsStatsByField.FieldAndTermStats currentField;
     private int currentTGSIdx;
@@ -32,8 +34,22 @@ public class TopTermsFTGSIterator implements FTGSIterator {
     private byte[] currentTermBytes;
     private FTGSIteratorUtil.TermStat currentGroup;
 
-    public TopTermsFTGSIterator(final FTGSIteratorUtil.TopTermsStatsByField topTermFTGS) {
+    public TopTermsFTGSIterator(final FTGSIteratorUtil.TopTermsStatsByField topTermFTGS,
+                                final int numStats,
+                                final int numGroups) {
         currentFieldIt = topTermFTGS.getEntries().iterator();
+        this.numStats = numStats;
+        this.numGroups = numGroups;
+    }
+
+    @Override
+    public int getNumStats() {
+        return numStats;
+    }
+
+    @Override
+    public int getNumGroups() {
+        return numGroups;
     }
 
     @Override
