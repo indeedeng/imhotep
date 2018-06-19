@@ -1599,13 +1599,17 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             final Query query = ImhotepDaemonMarshaller.marshal(queryMessage);
 
             final int bitSetMemory = (flamdexReader.getNumDocs() + 64) / 64 * 8;
-            memory.claimMemory(bitSetMemory);
+            if (!memory.claimMemory(bitSetMemory)) {
+                throw new ImhotepOutOfMemoryException();
+            }
             try {
                 final FastBitSet bitSet = new FastBitSet(flamdexReader.getNumDocs());
                 final FastBitSetPooler bitSetPooler = new ImhotepBitSetPooler(memory);
                 final FlamdexSearcher searcher = new FlamdexSearcher(flamdexReader);
                 searcher.search(query, bitSet, bitSetPooler);
-                statLookup.set(numStats, statName, new com.indeed.flamdex.fieldcache.BitSetIntValueLookup(bitSet));
+                final IntValueLookup lookup = new MemoryReservingIntValueLookupWrapper(
+                        new com.indeed.flamdex.fieldcache.BitSetIntValueLookup(bitSet));
+                statLookup.set(numStats, statName, lookup);
             } catch (final Throwable t) {
                 memory.releaseMemory(bitSetMemory);
                 if (t instanceof FlamdexOutOfMemoryException) {
