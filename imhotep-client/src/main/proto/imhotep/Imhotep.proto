@@ -277,6 +277,8 @@ message ImhotepRequest {
   optional uint64 startUnixtime = 62;
   optional uint64 endUnixtime = 63;
 
+  // for getFTGSIterator call
+  optional bool sortedFTGS = 64 [default = true];
 }
 
 message ImhotepResponse {

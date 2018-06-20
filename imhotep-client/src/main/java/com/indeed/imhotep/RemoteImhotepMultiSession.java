@@ -16,6 +16,7 @@
 import com.google.common.base.Throwables;
 import com.google.common.io.Closer;
 import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.HasSessionId;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
@@ -89,18 +90,16 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     @Override
-    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit, final int sortStat) {
+    public FTGSIterator getFTGSIterator(final FTGSParams params) {
         if (sessions.length == 1) {
-            return sessions[0].getFTGSIterator(intFields, stringFields, termLimit, sortStat);
+            return sessions[0].getFTGSIterator(params);
         }
-        final FTGSIterator[] mergers = getFTGSIteratorSplits(intFields, stringFields, termLimit, sortStat);
-        FTGSIterator interleaver = new SortedFTGSInterleaver(mergers);
-        if(termLimit > 0) {
-            if (sortStat >= 0) {
-                interleaver = FTGSIteratorUtil.getTopTermsFTGSIterator(interleaver, termLimit, numStats, sortStat);
-            } else {
-                interleaver = new TermLimitedFTGSIterator(interleaver, termLimit);
-            }
+        final FTGSIterator[] mergers = getFTGSIteratorSplits(params);
+        FTGSIterator interleaver = params.sorted ? new SortedFTGSInterleaver(mergers) : new UnsortedFTGSIterator(mergers);
+        if (params.isTopTerms()) {
+            interleaver = FTGSIteratorUtil.getTopTermsFTGSIterator(interleaver, params.termLimit, numStats, params.sortStat);
+        } else if (params.isTermLimit()) {
+            interleaver = new TermLimitedFTGSIterator(interleaver, params.termLimit);
         }
         return interleaver;
     }
@@ -110,10 +109,11 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             final FTGSIterator result = sessions[0].getFTGSIterator(intFields, stringFields, termLimit);
             return new FTGSIterator[] {result};
         }
-        return getFTGSIteratorSplits(intFields, stringFields, termLimit, -1);
+        return getFTGSIteratorSplits(new FTGSParams(intFields, stringFields, termLimit, -1, true));
     }
 
-    private FTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields, final long termLimit, final int sortStat) {
+    private FTGSIterator[] getFTGSIteratorSplits(final FTGSParams params) {
+        checkSplitParams(sessions.length);
         final Pair<Integer, ImhotepRemoteSession>[] indexesAndSessions = new Pair[sessions.length];
         for (int i = 0; i < sessions.length; i++) {
             indexesAndSessions[i] = Pair.of(i, sessions[i]);
@@ -122,11 +122,14 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         final Closer closer = Closer.create();
         closer.register(Closeables2.forArray(log, mergers));
         try {
+            // We don't need sorted for top terms case since mergers will be passed
+            // in FTGSIteratorUtil.getTopTermsFTGSIterator anyway
+            final FTGSParams perSplitParams = params.isTopTerms() ? params.unsortedCopy() : params.copy();
             execute(mergers, indexesAndSessions, false, new ThrowingFunction<Pair<Integer, ImhotepRemoteSession>, FTGSIterator>() {
                 public FTGSIterator apply(final Pair<Integer, ImhotepRemoteSession> indexSessionPair) {
                     final ImhotepRemoteSession session = indexSessionPair.getSecond();
                     final int index = indexSessionPair.getFirst();
-                    return session.mergeFTGSSplit(intFields, stringFields, getSessionId(), nodes, index, termLimit, sortStat);
+                    return session.mergeFTGSSplit(perSplitParams, nodes, index);
                 }
             });
         } catch (final Throwable t) {
@@ -158,7 +161,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 public FTGSIterator apply(final Pair<Integer, ImhotepRemoteSession> indexSessionPair) {
                     final ImhotepRemoteSession session = indexSessionPair.getSecond();
                     final int index = indexSessionPair.getFirst();
-                    return session.mergeSubsetFTGSSplit(intFields, stringFields, getSessionId(), nodes, index);
+                    return session.mergeSubsetFTGSSplit(intFields, stringFields, nodes, index);
                 }
             });
         } catch (final Throwable t) {
@@ -185,7 +188,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 public GroupStatsIterator apply(final Pair<Integer, ImhotepRemoteSession> indexSessionPair) {
                     final ImhotepRemoteSession session = indexSessionPair.getSecond();
                     final int index = indexSessionPair.getFirst();
-                    return session.mergeDistinctSplit(field, isIntField, getSessionId(), nodes, index);
+                    return session.mergeDistinctSplit(field, isIntField, nodes, index);
                 }
             });
         } catch (final Throwable t) {

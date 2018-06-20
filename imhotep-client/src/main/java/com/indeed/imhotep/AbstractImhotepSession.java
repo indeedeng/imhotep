@@ -14,6 +14,7 @@
  package com.indeed.imhotep;
 
 import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
@@ -46,6 +47,16 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
     @Override
     public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit) {
         return getFTGSIterator(intFields, stringFields, termLimit, -1);
+    }
+
+    @Override
+    public FTGSIterator getFTGSIterator(
+            final String[] intFields,
+            final String[] stringFields,
+            final long termLimit,
+            final int sortStat) {
+        final FTGSParams params = new FTGSParams(intFields, stringFields, termLimit, sortStat, true);
+        return getFTGSIterator(params);
     }
 
     @Override
@@ -89,5 +100,18 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
     @Override
     public void removeObserver(final Instrumentation.Observer observer) {
         instrumentation.removeObserver(observer);
+    }
+
+    protected static void checkSplitParams(final int splitIndex, final int numSplits) {
+        checkSplitParams(numSplits);
+        if ((splitIndex < 0) || (splitIndex >= numSplits)) {
+            throw new IllegalArgumentException("Illegal splitIndex: " + splitIndex);
+        }
+    }
+
+    protected static void checkSplitParams(final int numSplits) {
+        if (numSplits < 2) {
+            throw new IllegalArgumentException("At least 2 splits expected");
+        }
     }
 }

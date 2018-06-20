@@ -93,6 +93,22 @@ public class FTGSIteratorUtil {
     }
 
     public static TopTermsFTGSIterator getTopTermsFTGSIterator(final FTGSIterator originalIterator, final long termLimit, final int numStats, final int sortStat) {
+        if ((termLimit <= 0) || (sortStat < 0) || (sortStat >= numStats)) {
+            throw new IllegalArgumentException("TopTerms expect positive termLimit and valid sortStat index");
+        }
+        return getTopTermsFTGSIteratorInternal(originalIterator, termLimit, numStats, sortStat);
+    }
+
+    // Consume iterator, sort by terms and return sorted.
+    // For testing purposes only!
+    // Use this only in tests with small iterators
+    public static FTGSIterator sortFTGSIterator(final FTGSIterator originalIterator, final int numStats) {
+        return getTopTermsFTGSIteratorInternal(originalIterator, Long.MAX_VALUE, numStats, -1);
+    }
+
+    // Returns top terms iterator.
+    // It's possible to pass termLimit = Long.MAX_VALUE and get sorted iterator as a result
+    private static TopTermsFTGSIterator getTopTermsFTGSIteratorInternal(final FTGSIterator originalIterator, final long termLimit, final int numStats, final int sortStat) {
         try {
             final long[] statBuf = new long[numStats];
             final TopTermsStatsByField topTermsFTGS = new TopTermsStatsByField();
@@ -119,15 +135,17 @@ public class FTGSIteratorUtil {
                         }
 
                         iterator.groupStats(statBuf);
-                        final long stat = statBuf[sortStat];
 
-                        final TermStat termStat = new TermStat(fieldIsIntType, termIntVal, termStringVal, termDocFreq, iterator.group(), stat, statBuf.clone());
                         if (topTerms.size() >= termLimit) {
+                            final long stat = statBuf[sortStat];
+                            final TermStat termStat = new TermStat(fieldIsIntType, termIntVal, termStringVal, termDocFreq, iterator.group(), stat, statBuf.clone());
                             if (TermStat.TOP_STAT_COMPARATOR.compare(termStat, topTerms.peek()) > 0) {
                                 topTerms.poll();
                                 topTerms.offer(termStat);
                             }
                         } else {
+                            final long stat = (sortStat >= 0) ? statBuf[sortStat] : 0;
+                            final TermStat termStat = new TermStat(fieldIsIntType, termIntVal, termStringVal, termDocFreq, iterator.group(), stat, statBuf.clone());
                             topTerms.offer(termStat);
                         }
                     }

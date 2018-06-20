@@ -17,7 +17,6 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.indeed.flamdex.query.Query;
 import com.indeed.flamdex.query.Term;
-import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
@@ -25,7 +24,6 @@ import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.imhotep.scheduling.SchedulerType;
 import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.util.core.Throwables2;
-import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.threads.LogOnUncaughtExceptionHandler;
 import it.unimi.dsi.fastutil.longs.Long2LongMap;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
@@ -74,8 +72,6 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
     protected final Object[] nullBuf;
 
     private final List<TermCount>[] termCountListBuf;
-
-    private FTGSIterator lastIterator;
 
     protected final AtomicLong tempFileSizeBytesLeft;
     private long savedTempFileSizeValue;
@@ -723,15 +719,8 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
                 log.warn("[" + getSessionId() + "]", e);
             }
         }
-        try {
-            if (lastIterator != null) {
-                Closeables2.closeQuietly(lastIterator, log);
-                lastIterator = null;
-            }
-        } finally {
-            getSplitBufferThreads.shutdown();
-            mergeSplitBufferThreads.shutdown();
-        }
+        getSplitBufferThreads.shutdown();
+        mergeSplitBufferThreads.shutdown();
     }
 
     protected void postClose() {
@@ -788,7 +777,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
                     ImhotepTask.setup(AbstractImhotepMultiSession.this);
                     try {
                         if(lockCPU) {
-                            try (Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
+                            try (final Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
                                 return function.apply(thing);
                             }
                         }else {

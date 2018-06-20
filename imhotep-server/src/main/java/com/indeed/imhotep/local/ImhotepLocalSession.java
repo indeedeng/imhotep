@@ -55,6 +55,7 @@ import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.TermLimitedFTGSIterator;
 import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
@@ -91,7 +92,6 @@ import com.indeed.imhotep.metrics.ShiftRight;
 import com.indeed.imhotep.metrics.Subtraction;
 import com.indeed.imhotep.pool.BuffersPool;
 import com.indeed.imhotep.protobuf.QueryMessage;
-import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.imhotep.service.InstrumentedFlamdexReader;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.Throwables2;
@@ -106,7 +106,6 @@ import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.log4j.Logger;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -323,16 +322,20 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     @Override
-    public synchronized FTGSIterator getFTGSIterator(final String[] intFields,
-                                                     final String[] stringFields,
-                                                     final long termLimit,
-                                                     final int sortStat) {
-        FTGSIterator iterator = new FlamdexFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields);
+    public synchronized FTGSIterator getFTGSIterator(final FTGSParams params) {
+        // TODO: support unsorted FlamdexFTGSIterator
+        // if params.isTopTerms() then Flamdex iterator can be unsorted
+        // We could benefit in case of int/string field conversions
+        FTGSIterator iterator = new FlamdexFTGSIterator(
+                this,
+                flamdexReaderRef.copy(),
+                params.intFields,
+                params.stringFields);
 
-        if (sortStat >= 0) {
-            iterator = FTGSIteratorUtil.getTopTermsFTGSIterator(iterator, termLimit, numStats, sortStat);
-        } else if (termLimit > 0 ) {
-            iterator = new TermLimitedFTGSIterator(iterator, termLimit);
+        if (params.isTopTerms()) {
+            iterator = FTGSIteratorUtil.getTopTermsFTGSIterator(iterator, params.termLimit, numStats, params.sortStat);
+        } else if (params.isTermLimit()) {
+            iterator = new TermLimitedFTGSIterator(iterator, params.termLimit);
         }
         return iterator;
     }
@@ -343,30 +346,30 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         return new FlamdexSubsetFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields);
     }
 
-    public FTGSSplitter getFTGSIteratorSplitter(final String[] intFields,
-                                                             final String[] stringFields,
-                                                             final int numSplits,
-                                                             final long termLimit) {
+    public FTGSSplitter getFTGSIteratorSplitter(
+            final String[] intFields,
+            final String[] stringFields,
+            final int numSplits,
+            final long termLimit) {
+        checkSplitParams(numSplits);
         try {
-            try(Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
-                return new FTGSSplitter(getFTGSIterator(intFields, stringFields, termLimit),
-                        numSplits, numStats,
-                        969168349, tempFileSizeBytesLeft);
-            }
+            return new FTGSSplitter(getFTGSIterator(intFields, stringFields, termLimit),
+                    numSplits, numStats,
+                    969168349, tempFileSizeBytesLeft);
         } catch (final IOException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    public  FTGSSplitter getSubsetFTGSIteratorSplitter(final Map<String, long[]> intFields,
-                                                                   final Map<String, String[]> stringFields,
-                                                                   final int numSplits) {
+    public  FTGSSplitter getSubsetFTGSIteratorSplitter(
+            final Map<String, long[]> intFields,
+            final Map<String, String[]> stringFields,
+            final int numSplits) {
+        checkSplitParams(numSplits);
         try {
-            try(Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
-                return new FTGSSplitter(getSubsetFTGSIterator(intFields, stringFields),
-                        numSplits, numStats,
-                        969168349, tempFileSizeBytesLeft);
-            }
+            return new FTGSSplitter(getSubsetFTGSIterator(intFields, stringFields),
+                    numSplits, numStats,
+                    969168349, tempFileSizeBytesLeft);
         } catch (final IOException e) {
             throw Throwables.propagate(e);
         }
@@ -382,7 +385,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             // it's a hack
             // let's pretend we have no stats. FTGS will be faster.
             numStats = 0;
-            final FTGSIterator iterator = getFTGSIterator(intFields, strFields);
+            final FTGSParams params = new FTGSParams(intFields, strFields, 0, -1, false);
+            final FTGSIterator iterator = getFTGSIterator(params);
             result = FTGSIteratorUtil.calculateDistinct(iterator, getNumGroups());
         } finally {
             // return stats back

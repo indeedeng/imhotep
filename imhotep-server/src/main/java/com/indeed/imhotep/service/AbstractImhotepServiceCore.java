@@ -27,6 +27,7 @@ import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepServiceCore;
@@ -133,15 +134,15 @@ public abstract class AbstractImhotepServiceCore
                                                        final boolean isIntField,
                                                        final InetSocketAddress[] nodes,
                                                        final int splitIndex) {
-        return doWithSession(sessionId, (Function<MTImhotepLocalMultiSession, GroupStatsIterator>) session -> session.mergeDistinctSplit(field, isIntField, sessionId, nodes, splitIndex));
+        return doWithSession(sessionId, (Function<MTImhotepLocalMultiSession, GroupStatsIterator>) session -> session.mergeDistinctSplit(field, isIntField, nodes, splitIndex));
     }
 
     @Override
-    public void handleGetFTGSIterator(final String sessionId, final String[] intFields, final String[] stringFields, final long termLimit, final int sortStat, final OutputStream os) throws
+    public void handleGetFTGSIterator(final String sessionId, final FTGSParams params, final OutputStream os) throws
             IOException {
         doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, IOException>) session -> {
             final int numStats = getSessionManager().getNumStats(sessionId);
-            final FTGSIterator merger = session.getFTGSIterator(intFields, stringFields, termLimit, sortStat);
+            final FTGSIterator merger = session.getFTGSIterator(params);
             sendSuccessResponse(os);
             return writeFTGSIteratorToOutputStream(numStats, merger, os);
         });
@@ -221,16 +222,13 @@ public abstract class AbstractImhotepServiceCore
 
     @Override
     public void handleMergeFTGSIteratorSplit(final String sessionId,
-                                             final String[] intFields,
-                                             final String[] stringFields,
+                                             final FTGSParams params,
                                              final OutputStream os,
                                              final InetSocketAddress[] nodes,
-                                             final int splitIndex,
-                                             final long termLimit,
-                                             final int sortStat) throws IOException {
+                                             final int splitIndex) throws IOException {
         doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, IOException>) session -> {
             final int numStats = getSessionManager().getNumStats(sessionId);
-            final FTGSIterator merger = session.mergeFTGSSplit(intFields, stringFields, sessionId, nodes, splitIndex, termLimit, sortStat);
+            final FTGSIterator merger = session.mergeFTGSSplit(params, nodes, splitIndex);
             sendSuccessResponse(os);
             return writeFTGSIteratorToOutputStream(numStats, merger, os);
         });
@@ -240,7 +238,7 @@ public abstract class AbstractImhotepServiceCore
     public void handleMergeSubsetFTGSIteratorSplit(final String sessionId, final Map<String, long[]> intFields, final Map<String, String[]> stringFields, final OutputStream os, final InetSocketAddress[] nodes, final int splitIndex) throws IOException {
         doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, IOException>) session -> {
             final int numStats = getSessionManager().getNumStats(sessionId);
-            final FTGSIterator merger = session.mergeSubsetFTGSSplit(intFields, stringFields, sessionId, nodes, splitIndex);
+            final FTGSIterator merger = session.mergeSubsetFTGSSplit(intFields, stringFields, nodes, splitIndex);
             sendSuccessResponse(os);
             return writeFTGSIteratorToOutputStream(numStats, merger, os);
         });
