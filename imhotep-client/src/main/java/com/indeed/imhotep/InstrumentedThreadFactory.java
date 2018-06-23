@@ -168,7 +168,7 @@ public class InstrumentedThreadFactory
                     totalCpuTime        += cpuTime;
                 }
             }
-            return new PerformanceStats(totalUserTime, totalCpuTime, ids.size());
+            return new PerformanceStats(totalCpuTime, totalUserTime, ids.size());
         }
         catch (final Exception ex) {
             log.warn("problem while capturing per-thread cpu use", ex);
