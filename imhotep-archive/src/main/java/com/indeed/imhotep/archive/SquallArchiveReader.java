@@ -213,13 +213,18 @@ public class SquallArchiveReader {
         } else {
             targetFile = new File(localDir, file.getFilename());
         }
+        final OutputStream os = new BufferedOutputStream(new FileOutputStream(targetFile));
+        tryCopyToStream(file, os);
+    }
+
+    public void tryCopyToStream(FileMetadata file, final OutputStream os) throws IOException {
+        final String fullFilename = file.getFilename();
 
         final Path archivePath = new Path(path, file.getArchiveFilename());
         final SquallArchiveCompressor compressor = file.getCompressor();
         try (FSDataInputStream is = fs.open(archivePath)) {
             is.seek(file.getStartOffset());
             final DigestInputStream digestStream = new DigestInputStream(compressor.newInputStream(is), ArchiveUtils.getMD5Digest());
-            final OutputStream os = new BufferedOutputStream(new FileOutputStream(targetFile));
             ArchiveUtils.streamCopy(digestStream, os, file.getSize());
             os.close();
             final String checksum = ArchiveUtils.toHex(digestStream.getMessageDigest().digest());

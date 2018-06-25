@@ -45,6 +45,7 @@ class ShardAssignmentRequestHandler implements RequestHandler {
         final Iterable<AssignedShard> assignedShards;
         try {
             assignedShards = shardMaster.getAssignments(node);
+            System.out.println(assignedShards);
         } catch (final IOException e) {
             throw new IllegalStateException("Failed to get shards for " + node, e);
         }

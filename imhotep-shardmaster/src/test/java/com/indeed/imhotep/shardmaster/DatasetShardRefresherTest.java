@@ -50,12 +50,13 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 /**
  * @author kenh
  */
 
-public class DatasetShardAssignmentRefresherTest {
+public class DatasetShardRefresherTest {
     @Rule
     public final TemporaryFolder tempDir = new TemporaryFolder();
     @Rule
@@ -121,21 +122,22 @@ public class DatasetShardAssignmentRefresherTest {
         final RemoteCachingPath dataSetsDir = (RemoteCachingPath) Paths.get(RemoteCachingFileSystemProvider.URI);
 
         final ShardAssignmentInfoDao shardAssignmentInfoDao = new H2ShardAssignmentInfoDao(dbDataFixture.getDataSource(), Duration.standardMinutes(30));
-        final DataSetScanWork.Result results = new DatasetShardAssignmentRefresher(
+        final Future results = new DatasetShardRefresher(
                 dataSetsDir,
-                ShardFilter.ACCEPT_ALL,
-                executorService,
                 new DummyHostsReloader(
                         hosts
                 ),
                 new MinHashShardAssigner(replicationFactor),
-                shardAssignmentInfoDao
+                shardAssignmentInfoDao,
+                null
         ).initialize();
 
-        final List<ShardScanWork.Result> datasetResult = results.getAllShards().get();
-        Assert.assertEquals(numDataSets, datasetResult.size());
-        for (final ShardScanWork.Result result : datasetResult) {
-            Assert.assertEquals(numShards, result.getShards().size());
+        results.get();
+        ShardData data = ShardData.getInstance();
+
+        Assert.assertEquals(numDataSets, data.getDatasets().size());
+        for (final String dataset : data.getDatasets()) {
+            Assert.assertEquals(numShards, data.getShardsForDataset(dataset).size());
         }
 
         final Map<String, Integer> assignments = Maps.newHashMap();
@@ -176,21 +178,25 @@ public class DatasetShardAssignmentRefresherTest {
         RemoteCachingFileSystemProvider.newFileSystem(fsProp);
 
         final ShardAssignmentInfoDao shardAssignmentInfoDao = new H2ShardAssignmentInfoDao(dbDataFixture.getDataSource(), Duration.standardMinutes(30));
-        final DataSetScanWork.Result results = new DatasetShardAssignmentRefresher(
+        final Future results = new DatasetShardRefresher(
                 (RemoteCachingPath) Paths.get(RemoteCachingFileSystemProvider.URI),
-                ShardFilter.ACCEPT_ALL,
-                executorService,
                 new DummyHostsReloader(
                         getHostsWithPrefix("HOST", 8080, 0, 50)
                 ),
                 new MinHashShardAssigner(3),
-                shardAssignmentInfoDao
+                shardAssignmentInfoDao,
+                null
         ).initialize();
 
+        results.get();
+
+        //TODO: fix this part of the test
+        /*
         for (final ShardScanWork.Result result : results.getAllShards().get()) {
             final RemoteCachingPath datasetDir = result.getDatasetDir();
             //noinspection UseOfSystemOutOrSystemErr
             System.out.println("Assigned " + result.getShards().size() + " for " + datasetDir);
         }
+        */
     }
 }

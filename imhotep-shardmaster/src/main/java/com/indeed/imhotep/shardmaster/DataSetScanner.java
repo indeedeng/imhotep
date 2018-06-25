@@ -23,8 +23,10 @@ import com.indeed.util.core.Pair;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.spi.FileSystemProvider;
 import java.util.Iterator;
 
 /**
@@ -32,27 +34,20 @@ import java.util.Iterator;
  */
 
 class DataSetScanner implements Iterable<RemoteCachingPath> {
-    private final RemoteCachingPath datasetsDir;
-    private final ShardFilter shardFilter;
+    private final Path datasetsDir;
 
-    DataSetScanner(final RemoteCachingPath datasetsDir, final ShardFilter shardFilter) {
+    DataSetScanner(final Path datasetsDir) {
         this.datasetsDir = datasetsDir;
-        this.shardFilter = shardFilter;
     }
 
     @Nonnull
     @Override
     public Iterator<RemoteCachingPath> iterator() {
         // hack to avoid an extra attribute lookup on each list entry
-        final RemoteCachingFileSystemProvider fsProvider = (RemoteCachingFileSystemProvider) (((Path) datasetsDir).getFileSystem().provider());
+        final RemoteCachingFileSystemProvider fsProvider =  (RemoteCachingFileSystemProvider) (((Path) datasetsDir).getFileSystem().provider());
 
         try (DirectoryStream<RemoteCachingPath> remoteCachingPaths = fsProvider.newDirectoryStreamWithAttributes(datasetsDir, ONLY_DIRS)) {
-            return FluentIterable.from(remoteCachingPaths).filter(new Predicate<Path>() {
-                @Override
-                public boolean apply(final Path datasetPath) {
-                    return shardFilter.accept(datasetPath.getFileName().toString());
-                }
-            }).toList().iterator();
+            return remoteCachingPaths.iterator();
         } catch (final IOException e) {
             throw new IllegalStateException("Failed to get datasets from " + datasetsDir, e);
         }

@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 /**
  * A shard assigner that assigns shards to servers based on the start time of each shard in order to achieve perfect
@@ -59,13 +60,12 @@ class TimeBasedShardAssigner implements ShardAssigner {
     TimeBasedShardAssigner() {
     }
 
-    @SuppressWarnings("Guava")
     @Override
     public Iterable<ShardAssignmentInfo> assign(final List<Host> hosts, final String dataset, final Iterable<ShardDir> shards) {
         final List<Host> upHosts = hosts.stream().filter(Objects::nonNull).collect(Collectors.toList());
         int initialServerNumberForDataset = (int)(Math.abs((long)HASH_FUNCTION.get().hashString(dataset, Charsets.UTF_8).asInt()) % hosts.size());
 
-        return FluentIterable.from(shards).transform(shard -> {
+        return StreamSupport.stream(shards.spliterator(), false).map(shard -> {
             final String shardId = shard.getId();
             final long shardIndex = Math.abs(getShardIndexForShardSize(shardId));
             final int assignedServerNumber = (int)((initialServerNumberForDataset + shardIndex) % hosts.size());
@@ -79,7 +79,7 @@ class TimeBasedShardAssigner implements ShardAssigner {
             return new ShardAssignmentInfo(dataset,
                     shard.getIndexDir().toUri().toString(),
                     assignedServer);
-        });
+        }).collect(Collectors.toList());
     }
 
     private long getShardIndexForShardSize(String shardId) {

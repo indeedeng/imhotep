@@ -21,7 +21,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.indeed.imhotep.ZkEndpointPersister;
 import com.indeed.imhotep.client.CheckpointedHostsReloader;
 import com.indeed.imhotep.client.DummyHostsReloader;
@@ -38,6 +37,14 @@ import com.indeed.imhotep.shardmaster.rpc.RequestResponseServer;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.apache.commons.lang.StringUtils;
+import org.apache.curator.RetryPolicy;
+import org.apache.curator.ensemble.fixed.FixedEnsembleProvider;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.framework.imps.CuratorFrameworkImpl;
+import org.apache.curator.framework.recipes.leader.LeaderSelector;
+import org.apache.curator.framework.recipes.leader.LeaderSelectorListener;
+import org.apache.curator.framework.state.ConnectionState;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.KeeperException;
 import org.joda.time.Duration;
@@ -54,8 +61,8 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 /**
  * @author kenh
  */
@@ -76,8 +83,18 @@ public class ShardMasterDaemon {
 
         LOGGER.info("Starting daemon...");
 
+        LeaderSelector selector = new LeaderSelector(CuratorFrameworkFactory.newClient("", (a,b,c)->true), config.shardMastersZkPath, new LeaderSelectorListener() {
+            @Override
+            public void takeLeadership(CuratorFramework client) throws Exception {}
+
+            @Override
+            public void stateChanged(CuratorFramework client, ConnectionState newState) {}
+        });
+
+        selector.start();
+
         final ExecutorService executorService = config.createExecutorService();
-        final Timer timer = new Timer(DatasetShardAssignmentRefresher.class.getSimpleName());
+        final Timer timer = new Timer(DatasetShardRefresher.class.getSimpleName());
 
         final HostsReloader hostsReloader;
         if (config.hasHostsOverride()) {
@@ -105,18 +122,17 @@ public class ShardMasterDaemon {
             LOGGER.info("Reloading all daemon hosts");
             hostsReloader.run();
 
-            final DatasetShardAssignmentRefresher refresher = new DatasetShardAssignmentRefresher(
+            final DatasetShardRefresher refresher = new DatasetShardRefresher(
                     dataSetsDir,
-                    config.getShardFilter(),
-                    executorService,
                     hostsReloader,
                     config.createAssigner(),
-                    shardAssignmentInfoDao
+                    shardAssignmentInfoDao,
+                    selector
             );
 
             LOGGER.info("Initializing all shard assignments");
             // don't block on assignment refresh
-            final ListenableFuture<List<ShardScanWork.Result>> shardScanResults = refresher.initialize().getAllShards();
+            Future shardScanResults = refresher.initialize();
             final AtomicBoolean shardScanComplete = new AtomicBoolean(false);
 
             final Thread scanBlocker = new Thread(new Runnable() {
@@ -143,7 +159,7 @@ public class ShardMasterDaemon {
                 }
             }, config.getHostsRefreshInterval().getMillis(), config.getHostsRefreshInterval().getMillis());
 
-            timer.schedule(refresher, config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis());
+            timer.schedule(refresher, config.getRefreshInterval().getMillis()/20, config.getRefreshInterval().getMillis()/5);
 
             server = new RequestResponseServer(config.getServicePort(), new MultiplexingRequestHandler(
                     config.statsEmitter,
