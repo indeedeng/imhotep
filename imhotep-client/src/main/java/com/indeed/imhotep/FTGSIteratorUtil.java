@@ -298,6 +298,9 @@ public class FTGSIteratorUtil {
     }
 
     public static int getNumStats(final FTGSIterator[] iterators) {
+        if (iterators.length == 0) {
+            throw new IllegalArgumentException("Nonempty array of iterators expected.");
+        }
         final int numStats = iterators[0].getNumStats();
         for (final FTGSIterator iterator : iterators) {
             if (iterator.getNumStats() != numStats) {

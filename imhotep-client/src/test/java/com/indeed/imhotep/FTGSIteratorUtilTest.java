@@ -56,7 +56,7 @@ public class FTGSIteratorUtilTest {
     @Test
     public void testIteratorPersist() throws IOException {
         final int numStats = 2;
-        final int numGroup = 2;
+        final int numGroups = 2;
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
         try( final FTGSOutputStreamWriter w = new FTGSOutputStreamWriter(out) ) {
 
@@ -103,7 +103,7 @@ public class FTGSIteratorUtilTest {
             w.addStat(500);
         }
 
-        final FTGSIterator iter = FTGSIteratorUtil.persist(LOGGER, new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), numStats, numGroup));
+        final FTGSIterator iter = FTGSIteratorUtil.persist(LOGGER, new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), numStats, numGroups));
 
         expectIntField(iter, "a");
 

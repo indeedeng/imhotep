@@ -183,7 +183,7 @@ public final class FTGSSplitter implements Closeable {
             if (!closed) {
                 closed = true;
                 super.close();
-                if (doneCounter.incrementAndGet() == numSplits) {
+                if (doneCounter.incrementAndGet() == FTGSSplitter.this.numSplits) {
                     FTGSSplitter.this.close();
                 }
             }
