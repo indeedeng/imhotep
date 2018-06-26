@@ -19,15 +19,15 @@ import com.indeed.imhotep.client.HostsReloader;
 import com.indeed.imhotep.client.ShardTimeUtils;
 import com.indeed.imhotep.fs.RemoteCachingPath;
 import com.indeed.imhotep.shardmaster.model.ShardAssignmentInfo;
-import org.apache.curator.framework.recipes.leader.LeaderSelector;
+import com.indeed.util.zookeeper.ZooKeeperConnection;
 import org.apache.log4j.Logger;
+import org.apache.zookeeper.KeeperException;
 import org.joda.time.DateTime;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.sql.*;
-import java.util.Iterator;
-import java.util.TimerTask;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -45,34 +45,47 @@ class DatasetShardRefresher extends TimerTask {
     private final ShardAssigner shardAssigner;
     private final ShardAssignmentInfoDao assignmentInfoDao;
     private static final ExecutorService executorService = Executors.newCachedThreadPool();
-    private final LeaderSelector selector;
+    private final String leaderPath;
     private Future load;
-    private static Connection connection;
+    private static Connection dbConnection;
+    private ZooKeeperConnection zkConnection;
 
     static {
         try {
             //TODO: figure out how to hide this in a config
-            connection = DriverManager.getConnection("path/to/db");
+            dbConnection = DriverManager.getConnection("path/to/db");
         } catch (SQLException e) {
-            connection = null;
+            dbConnection = null;
             e.printStackTrace();
         }
     }
 
-    private boolean isLeader(){
-        return selector==null || selector.hasLeadership();
+    public boolean isLeader(){
+        try {
+            final String electionRoot = leaderPath.substring(0, leaderPath.lastIndexOf('/'));
+            List<String> children = zkConnection.getChildren(electionRoot, false);
+            Collections.sort(children);
+            LOGGER.info("Children are: "+ children);
+            LOGGER.info("I am: "+leaderPath.substring(leaderPath.lastIndexOf('/')+1));
+            return children.get(0).equals(leaderPath.substring(leaderPath.lastIndexOf('/')+1));
+        } catch (InterruptedException | KeeperException e) {
+            LOGGER.error(e.getStackTrace());
+            return false;
+        }
     }
 
     DatasetShardRefresher(final RemoteCachingPath datasetsDir,
                           final HostsReloader hostsReloader,
                           final ShardAssigner shardAssigner,
                           final ShardAssignmentInfoDao assignmentInfoDao,
-                          final LeaderSelector selector) {
+                          final String leaderPath,
+                          final ZooKeeperConnection zkConnection) {
         this.datasetsDir = datasetsDir;
         this.hostsReloader = hostsReloader;
         this.shardAssigner = shardAssigner;
         this.assignmentInfoDao = assignmentInfoDao;
-        this.selector = selector;
+        this.leaderPath = leaderPath;
+        this.zkConnection = zkConnection;
     }
 
     Future initialize() {
@@ -82,10 +95,14 @@ class DatasetShardRefresher extends TimerTask {
 
     private void loadFromSQL() {
         try {
-            ResultSet set = connection.prepareStatement("SELECT * FROM tblshards;").executeQuery();
-            ShardData.getInstance().addTableShardsRowsFromSQL(set);
-            ResultSet set2 = connection.prepareStatement("SELECT * FROM tblfields;").executeQuery();
+            ResultSet set = dbConnection.prepareStatement("SELECT * FROM tblshards;").executeQuery();
+            Map<String, List<ShardDir>> shardDirs = ShardData.getInstance().addTableShardsRowsFromSQL(set);
+            ResultSet set2 = dbConnection.prepareStatement("SELECT * FROM tblfields;").executeQuery();
             ShardData.getInstance().addTableFieldsRowsFromSQL(set2);
+            for(String dataset: shardDirs.keySet()) {
+                Iterable<ShardAssignmentInfo> assignment = shardAssigner.assign(hostsReloader.getHosts(), dataset, shardDirs.get(dataset));
+                assignmentInfoDao.updateAssignments(dataset, DateTime.now(), assignment);
+            }
         } catch (SQLException e){
             e.printStackTrace();
         }
@@ -94,7 +111,7 @@ class DatasetShardRefresher extends TimerTask {
 
     private void innerRun() {
         if(isLeader()) {
-            System.out.println("I am the leader!");
+            LOGGER.info("I am the leader!");
             try {
                 load.get();
             } catch (InterruptedException | ExecutionException e) {
@@ -103,7 +120,7 @@ class DatasetShardRefresher extends TimerTask {
             DataSetScanner scanner = new DataSetScanner(datasetsDir);
             StreamSupport.stream(scanner.spliterator(), true).forEach(this::handleDataset);
         } else {
-            System.out.println("I am not the leader!");
+            LOGGER.info("I am not the leader!");
             loadFromSQL();
         }
     }
@@ -133,7 +150,7 @@ class DatasetShardRefresher extends TimerTask {
     private void addToSQL(FlamdexMetadata metadata, String dataset, String shardId) throws SQLException {
 
         System.out.println("adding dataset: " + dataset + " id: " + shardId);
-        final PreparedStatement tblShardsInsertStatement = connection.prepareStatement("INSERT INTO tblshards (dataset, shardname, numDocs) VALUES (?, ?, ?);");
+        final PreparedStatement tblShardsInsertStatement = dbConnection.prepareStatement("INSERT INTO tblshards (dataset, shardname, numDocs) VALUES (?, ?, ?);");
         tblShardsInsertStatement.setString(1, dataset);
         tblShardsInsertStatement.setString( 2, shardId);
         tblShardsInsertStatement.setInt(3, metadata.getNumDocs());
@@ -142,7 +159,7 @@ class DatasetShardRefresher extends TimerTask {
         ShardData data = ShardData.getInstance();
 
         final PreparedStatement tblFieldsInsertStatement =
-                connection.prepareStatement("INSERT INTO tblfields (dataset, fieldname, type, lastshardstarttime) VALUES (?, ?, ?, ?);");
+                dbConnection.prepareStatement("INSERT INTO tblfields (dataset, fieldname, type, lastshardstarttime) VALUES (?, ?, ?, ?);");
 
         metadata.getStringFields().stream().filter(field -> !data.hasField(dataset, field)).forEach(
                 field -> {
@@ -175,7 +192,7 @@ class DatasetShardRefresher extends TimerTask {
         tblFieldsInsertStatement.executeBatch();
 
         final PreparedStatement tblFieldsUpdateStatement =
-                connection.prepareStatement("UPDATE tblfields SET type = ? AND lastshardstarttime = ? WHERE dataset = ? AND fieldname = ?;");
+                dbConnection.prepareStatement("UPDATE tblfields SET type = ? AND lastshardstarttime = ? WHERE dataset = ? AND fieldname = ?;");
 
         metadata.getStringFields().stream().filter(field -> data.hasField(dataset, field) &&
                 data.getFieldUpdateTime(dataset, field) < (ShardTimeUtils.parseStart(shardId)).getMillis()).forEach(

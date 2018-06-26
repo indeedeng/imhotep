@@ -16,19 +16,14 @@ package com.indeed.imhotep.shardmaster;
 import com.google.common.base.Charsets;
 import com.indeed.imhotep.archive.FileMetadata;
 import com.indeed.imhotep.archive.SquallArchiveReader;
-import com.sun.xml.internal.messaging.saaj.util.ByteOutputStream;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocalFileSystem;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.CustomClassLoaderConstructor;
 import org.yaml.snakeyaml.nodes.Tag;
 
-import java.io.File;
-import java.io.FileInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -114,11 +109,11 @@ public class FlamdexMetadata {
         SquallArchiveReader reader = new SquallArchiveReader(hadoopFilesystem, hadoopPath);
         List<FileMetadata> fileMetadata = reader.readMetadata();
         FileMetadata acutalMetadata = getMetadataFromMetadata(fileMetadata);
-        OutputStream out = new ByteOutputStream();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
         reader.tryCopyToStream(acutalMetadata, out);
         final Yaml loader = new Yaml(new CustomClassLoaderConstructor(FlamdexMetadata.class, FlamdexMetadata.class.getClassLoader()));
 
-        final String metadata = out.toString();
+        final String metadata = out.toByteArray().toString();
         return loader.loadAs(metadata, FlamdexMetadata.class);
     }
 

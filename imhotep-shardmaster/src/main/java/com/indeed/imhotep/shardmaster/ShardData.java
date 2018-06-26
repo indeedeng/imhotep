@@ -1,12 +1,13 @@
 package com.indeed.imhotep.shardmaster;
 
+import com.indeed.imhotep.Shard;
 import com.indeed.imhotep.ShardDir;
 import org.joda.time.DateTime;
 
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.*;
-import java.util.Collection;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -99,11 +100,17 @@ public class ShardData {
         }
     }
 
-    public void addTableShardsRowsFromSQL(ResultSet rows) throws SQLException {
+    public Map<String, List<ShardDir>> addTableShardsRowsFromSQL(ResultSet rows) throws SQLException {
+        final Map<String, List<ShardDir>> shardDirs = new HashMap<>();
         if (rows.first()) {
             do {
                 String dataset = rows.getString("dataset");
                 String shardname = rows.getString("shardname");
+                if(!shardDirs.containsKey(dataset)){
+                    shardDirs.put(dataset, new ArrayList<>());
+                }
+                shardDirs.get(dataset).add(new ShardDir(Paths.get(dataset, shardname)));
+
                 int numDocs = rows.getInt("numDocs");
                 if (!tblShards.containsKey(dataset)) {
                     tblShards.put(dataset, new TableShards());
@@ -111,6 +118,7 @@ public class ShardData {
                 tblShards.get(dataset).shardNameToNumDocs.put(shardname, numDocs);
                } while (rows.next());
         }
+        return shardDirs;
     }
 
     private void addShardToDatastructure(FlamdexMetadata metadata, Path shardPath, String dataset, String shardId) {

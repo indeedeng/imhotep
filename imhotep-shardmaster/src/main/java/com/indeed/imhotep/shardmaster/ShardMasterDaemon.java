@@ -34,25 +34,19 @@ import com.indeed.imhotep.shardmaster.db.shardinfo.Tables;
 import com.indeed.imhotep.shardmaster.rpc.MultiplexingRequestHandler;
 import com.indeed.imhotep.shardmaster.rpc.RequestMetricStatsEmitter;
 import com.indeed.imhotep.shardmaster.rpc.RequestResponseServer;
+import com.indeed.util.zookeeper.ZooKeeperConnection;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.apache.commons.lang.StringUtils;
-import org.apache.curator.RetryPolicy;
-import org.apache.curator.ensemble.fixed.FixedEnsembleProvider;
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.framework.imps.CuratorFrameworkImpl;
-import org.apache.curator.framework.recipes.leader.LeaderSelector;
-import org.apache.curator.framework.recipes.leader.LeaderSelectorListener;
-import org.apache.curator.framework.state.ConnectionState;
 import org.apache.log4j.Logger;
-import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.*;
 import org.joda.time.Duration;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.nio.file.Paths;
+import java.nio.file.spi.FileSystemProvider;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.List;
@@ -83,16 +77,6 @@ public class ShardMasterDaemon {
 
         LOGGER.info("Starting daemon...");
 
-        LeaderSelector selector = new LeaderSelector(CuratorFrameworkFactory.newClient("", (a,b,c)->true), config.shardMastersZkPath, new LeaderSelectorListener() {
-            @Override
-            public void takeLeadership(CuratorFramework client) throws Exception {}
-
-            @Override
-            public void stateChanged(CuratorFramework client, ConnectionState newState) {}
-        });
-
-        selector.start();
-
         final ExecutorService executorService = config.createExecutorService();
         final Timer timer = new Timer(DatasetShardRefresher.class.getSimpleName());
 
@@ -105,6 +89,14 @@ public class ShardMasterDaemon {
                     config.createZkHostsReloader(),
                     config.getHostsDropThreshold());
         }
+        LOGGER.info("zk is at: "+config.shardMastersZkPath);
+        LOGGER.info("zknodes are: "+config.zkNodes);
+
+        ZooKeeperConnection connection = new ZooKeeperConnection(config.zkNodes, 1000);
+        connection.connect();
+        connection.createIfNotExists(config.shardMastersZkPath, new byte[0], CreateMode.PERSISTENT);
+        connection.createIfNotExists(config.shardMastersZkPath+"/election", new byte[0], CreateMode.PERSISTENT);
+        String leaderTestPath = connection.create(config.shardMastersZkPath+"/election/n_", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
 
         try (Closer closer = Closer.create()) {
             final ShardAssignmentInfoDao shardAssignmentInfoDao;
@@ -127,26 +119,26 @@ public class ShardMasterDaemon {
                     hostsReloader,
                     config.createAssigner(),
                     shardAssignmentInfoDao,
-                    selector
+                    leaderTestPath,
+                    connection
             );
+
+
 
             LOGGER.info("Initializing all shard assignments");
             // don't block on assignment refresh
             Future shardScanResults = refresher.initialize();
             final AtomicBoolean shardScanComplete = new AtomicBoolean(false);
 
-            final Thread scanBlocker = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        long start = System.currentTimeMillis();
-                        shardScanResults.get();
-                        shardScanComplete.set(true);
-                        LOGGER.info("Successfully scanned all shards on initialization in " + (System.currentTimeMillis() - start)/1000 + " seconds");
-                    } catch (final InterruptedException | ExecutionException e) {
-                        LOGGER.fatal("Failed while scanning shards", e);
-                        System.exit(1);
-                    }
+            final Thread scanBlocker = new Thread(() -> {
+                try {
+                    long start = System.currentTimeMillis();
+                    shardScanResults.get();
+                    shardScanComplete.set(true);
+                    LOGGER.info("Successfully scanned all shards on initialization in " + (System.currentTimeMillis() - start)/1000 + " seconds");
+                } catch (final InterruptedException | ExecutionException e) {
+                    LOGGER.fatal("Failed while scanning shards", e);
+                    System.exit(1);
                 }
             }, ShardMasterDaemon.class.getSimpleName() + "-ShardScanBlocker");
             scanBlocker.setDaemon(true);
@@ -158,6 +150,8 @@ public class ShardMasterDaemon {
                     hostsReloader.run();
                 }
             }, config.getHostsRefreshInterval().getMillis(), config.getHostsRefreshInterval().getMillis());
+
+            LOGGER.info("I "+ (refresher.isLeader() ? "am" : "am not") + " the leader");
 
             timer.schedule(refresher, config.getRefreshInterval().getMillis()/20, config.getRefreshInterval().getMillis()/5);
 
@@ -178,6 +172,7 @@ public class ShardMasterDaemon {
             timer.cancel();
             executorService.shutdown();
             hostsReloader.shutdown();
+            connection.close();
         }
     }
 
