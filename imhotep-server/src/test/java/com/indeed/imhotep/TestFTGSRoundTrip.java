@@ -46,7 +46,7 @@ public class TestFTGSRoundTrip {
             final ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
             //System.out.println(Utilz.toHex(baos.toByteArray()));
 
-            final InputStreamFTGSIterator in = new InputStreamFTGSIterator(bais, 1);
+            final InputStreamFTGSIterator in = new InputStreamFTGSIterator(bais, 1, 2);
             assertTrue(in.nextField());
             assertEquals("foo", in.fieldName());
             assertTrue(in.nextTerm());

@@ -26,10 +26,8 @@ public class FTGSMergerTest extends AbstractFTGSMergerCase {
     private static final String boldAlpha = codePointToString(0x1D6C2);
 
     @Override
-    protected FTGSIterator newFTGSMerger(
-            final Collection<? extends FTGSIterator> iterators,
-            final int numStats) {
-        return new FTGSMerger(iterators, numStats, null);
+    protected FTGSIterator newFTGSMerger(final Collection<? extends FTGSIterator> iterators) {
+        return new FTGSMerger(iterators, null);
     }
 
     @Test

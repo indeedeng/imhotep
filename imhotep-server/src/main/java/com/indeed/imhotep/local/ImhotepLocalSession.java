@@ -333,7 +333,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 params.stringFields);
 
         if (params.isTopTerms()) {
-            iterator = FTGSIteratorUtil.getTopTermsFTGSIterator(iterator, params.termLimit, numStats, params.sortStat);
+            iterator = FTGSIteratorUtil.getTopTermsFTGSIterator(iterator, params.termLimit, params.sortStat);
         } else if (params.isTermLimit()) {
             iterator = new TermLimitedFTGSIterator(iterator, params.termLimit);
         }
@@ -354,7 +354,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         checkSplitParams(numSplits);
         try {
             return new FTGSSplitter(getFTGSIterator(intFields, stringFields, termLimit),
-                    numSplits, numStats,
+                    numSplits,
                     969168349, tempFileSizeBytesLeft);
         } catch (final IOException e) {
             throw Throwables.propagate(e);
@@ -368,7 +368,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         checkSplitParams(numSplits);
         try {
             return new FTGSSplitter(getSubsetFTGSIterator(intFields, stringFields),
-                    numSplits, numStats,
+                    numSplits,
                     969168349, tempFileSizeBytesLeft);
         } catch (final IOException e) {
             throw Throwables.propagate(e);
@@ -387,7 +387,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             numStats = 0;
             final FTGSParams params = new FTGSParams(intFields, strFields, 0, -1, false);
             final FTGSIterator iterator = getFTGSIterator(params);
-            result = FTGSIteratorUtil.calculateDistinct(iterator, getNumGroups());
+            result = FTGSIteratorUtil.calculateDistinct(iterator);
         } finally {
             // return stats back
             numStats = savedNumStats;

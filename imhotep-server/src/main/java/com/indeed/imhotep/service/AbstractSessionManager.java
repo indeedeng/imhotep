@@ -108,18 +108,6 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
     }
 
     @Override
-    public void setNumStats(final String sessionId, final int newNumStats) {
-        final Session<E> session = internalGetSession(sessionId);
-        session.numStats = newNumStats;
-    }
-
-    @Override
-    public int getNumStats(final String sessionId) {
-        final Session<E> session = internalGetSession(sessionId);
-        return session.numStats;
-    }
-
-    @Override
     public Map<String, LastActionTimeLimit> getLastActionTimes() {
         final Map<String, Session<E>> sessionMap = cloneSessionMap();
 
@@ -169,7 +157,6 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
         protected final long creationTime;
         protected final long SESSION_TIMEOUT_DEFAULT = 30L * 60 * 1000;
 
-        private volatile int numStats;
         private volatile long lastActionTime;
 
         protected Session(

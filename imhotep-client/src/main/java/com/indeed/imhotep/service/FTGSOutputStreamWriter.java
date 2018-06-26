@@ -125,13 +125,13 @@ public final class FTGSOutputStreamWriter implements Closeable {
         previousGroupId = -1;
     }
 
-    public static void write(final FTGSIterator buffer, final int numStats, final OutputStream out) throws IOException {
+    public static void write(final FTGSIterator buffer, final OutputStream out) throws IOException {
         final FTGSOutputStreamWriter writer = new FTGSOutputStreamWriter(out);
-        writer.write(buffer, numStats);
+        writer.write(buffer);
     }
 
-    public void write(final FTGSIterator buffer, final int numStats) throws IOException {
-        final long[] stats = new long[numStats];
+    public void write(final FTGSIterator buffer) throws IOException {
+        final long[] stats = new long[buffer.getNumStats()];
         while (buffer.nextField()) {
             final boolean fieldIsIntType = buffer.fieldIsIntType();
             switchField(buffer.fieldName(), fieldIsIntType);

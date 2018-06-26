@@ -50,14 +50,13 @@ public class FTGSIteratorUtil {
 
     public static File persistAsFile(final Logger log,
                                      final String sessionId,
-                                     final FTGSIterator iterator,
-                                     final int numStats) throws IOException {
+                                     final FTGSIterator iterator) throws IOException {
         final File tmp = File.createTempFile("ftgs", ".tmp");
         OutputStream out = null;
         try {
             final long start = System.currentTimeMillis();
             out = new BufferedOutputStream(new FileOutputStream(tmp));
-            FTGSOutputStreamWriter.write(iterator, numStats, out);
+            FTGSOutputStreamWriter.write(iterator, out);
             if (log.isDebugEnabled()) {
                 log.debug("[" + sessionId + "] time to merge splits to file: " +
                         (System.currentTimeMillis() - start) +
@@ -76,23 +75,27 @@ public class FTGSIteratorUtil {
         return tmp;
     }
 
-    public static FTGSIterator persist(final Logger log, final FTGSIterator iterator, final int numStats) throws IOException {
-        return persist(log, "noSessionId", iterator, numStats);
+    public static FTGSIterator persist(final Logger log, final FTGSIterator iterator) throws IOException {
+        return persist(log, "noSessionId", iterator);
     }
 
     public static FTGSIterator persist(final Logger log,
                                    final String sessionId,
-                                   final FTGSIterator iterator,
-                                   final int numStats) throws IOException {
-        final File tmp = persistAsFile(log, sessionId, iterator, numStats);
+                                   final FTGSIterator iterator) throws IOException {
+        final int numStats = iterator.getNumStats();
+        final int numGroups = iterator.getNumGroups();
+        final File tmp = persistAsFile(log, sessionId, iterator);
         try {
-            return InputStreamFTGSIterators.create(tmp, numStats);
+            return InputStreamFTGSIterators.create(tmp, numStats, numGroups);
         } finally {
             tmp.delete();
         }
     }
 
-    public static TopTermsFTGSIterator getTopTermsFTGSIterator(final FTGSIterator originalIterator, final long termLimit, final int numStats, final int sortStat) {
+    public static TopTermsFTGSIterator getTopTermsFTGSIterator(
+            final FTGSIterator originalIterator,
+            final long termLimit,
+            final int sortStat) {
         if ((termLimit <= 0) || (sortStat < 0) || (sortStat >= numStats)) {
             throw new IllegalArgumentException("TopTerms expect positive termLimit and valid sortStat index");
         }
@@ -102,14 +105,19 @@ public class FTGSIteratorUtil {
     // Consume iterator, sort by terms and return sorted.
     // For testing purposes only!
     // Use this only in tests with small iterators
-    public static FTGSIterator sortFTGSIterator(final FTGSIterator originalIterator, final int numStats) {
-        return getTopTermsFTGSIteratorInternal(originalIterator, Long.MAX_VALUE, numStats, -1);
+    public static FTGSIterator sortFTGSIterator(final FTGSIterator originalIterator) {
+        return getTopTermsFTGSIteratorInternal(originalIterator, Long.MAX_VALUE, -1);
     }
 
     // Returns top terms iterator.
     // It's possible to pass termLimit = Long.MAX_VALUE and get sorted iterator as a result
-    private static TopTermsFTGSIterator getTopTermsFTGSIteratorInternal(final FTGSIterator originalIterator, final long termLimit, final int numStats, final int sortStat) {
+    private static TopTermsFTGSIterator getTopTermsFTGSIteratorInternal(
+            final FTGSIterator originalIterator,
+            final long termLimit,
+            final int sortStat) {
         try {
+            final int numStats = originalIterator.getNumStats();
+            final int numGroups = originalIterator.getNumGroups();
             final long[] statBuf = new long[numStats];
             final TopTermsStatsByField topTermsFTGS = new TopTermsStatsByField();
 
@@ -178,7 +186,7 @@ public class FTGSIteratorUtil {
                 topTermsFTGS.addField(fieldName, fieldIsIntType, topTermsArray);
             }
 
-            return new TopTermsFTGSIterator(topTermsFTGS);
+            return new TopTermsFTGSIterator(topTermsFTGS, numStats, numGroups);
         } finally {
             originalIterator.close();
         }
@@ -273,49 +281,17 @@ public class FTGSIteratorUtil {
         return iterator;
     }
 
-    // calculate distinct when we know groups count
-    // TODO: refactor calculateDistinct and calculateDistinctWithGroupHint
-    // after IMTEPD-388 is implemented
-    public static GroupStatsIterator calculateDistinct(final FTGSIterator iterator, final int numGroups) {
+    public static GroupStatsIterator calculateDistinct(final FTGSIterator iterator) {
         final FTGSIterator unsortedFtgs = FTGSIteratorUtil.makeUnsortedIfPossible(iterator);
 
         if (!unsortedFtgs.nextField()) {
             throw new IllegalArgumentException("FTGSIterator with at least one field expected");
         }
 
-        final long[] result = new long[numGroups];
+        final long[] result = new long[unsortedFtgs.getNumGroups()];
         while (unsortedFtgs.nextTerm()) {
             while (unsortedFtgs.nextGroup()) {
                 final int group = unsortedFtgs.group();
-                result[group]++;
-            }
-        }
-
-        if (unsortedFtgs.nextField()) {
-            throw new IllegalArgumentException("FTGSIterator with exactly one field expected");
-        }
-
-        return new GroupStatsDummyIterator(result);
-    }
-
-    // calculate distinct when we don't know groups count
-    public static GroupStatsIterator calculateDistinctWithGroupHint(
-            final FTGSIterator iterator,
-            final int groupCountHint) {
-        final FTGSIterator unsortedFtgs = FTGSIteratorUtil.makeUnsortedIfPossible(iterator);
-
-        if (!unsortedFtgs.nextField()) {
-            throw new IllegalArgumentException("FTGSIterator with at least one field expected");
-        }
-
-        long[] result = new long[groupCountHint];
-        while (unsortedFtgs.nextTerm()) {
-            while (unsortedFtgs.nextGroup()) {
-                final int group = unsortedFtgs.group();
-                if (group >= result.length) {
-                    final int newLen = Math.max(result.length * 2, group + 1);
-                    result = Arrays.copyOf(result, newLen);
-                }
                 result[group]++;
             }
         }
@@ -340,5 +316,26 @@ public class FTGSIteratorUtil {
         }
 
         throw new UnsupportedOperationException();
+    }
+
+    public static int getNumStats(final FTGSIterator[] iterators) {
+        if (iterators.length == 0) {
+            throw new IllegalArgumentException("Nonempty array of iterators expected.");
+        }
+        final int numStats = iterators[0].getNumStats();
+        for (final FTGSIterator iterator : iterators) {
+            if (iterator.getNumStats() != numStats) {
+                throw new IllegalArgumentException();
+            }
+        }
+        return numStats;
+    }
+
+    public static int getNumGroups(final FTGSIterator[] iterators) {
+        int numGroups = 0;
+        for (final FTGSIterator iterator : iterators) {
+            numGroups = Math.max(numGroups, iterator.getNumGroups());
+        }
+        return numGroups;
     }
 }

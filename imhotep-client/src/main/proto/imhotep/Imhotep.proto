@@ -296,7 +296,7 @@ message ImhotepResponse {
   // for getShardlistForTime()
   repeated ShardInfoMessage shard_info = 3;
 
-  // for pushStat()/popStat()
+  // for pushStat()/popStat()/getFTGS
   optional uint32 num_stats = 4;
 
   // for getTotalDocFreq()
@@ -312,7 +312,7 @@ message ImhotepResponse {
   // for exportSnapshot()
   repeated string shard_id = 8;
 
-  // for regroups
+  // for regroups/getFTGS
   optional uint32 num_groups = 9;
 
   // error stuff

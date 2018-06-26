@@ -100,9 +100,15 @@ public class InputStreamFTGSIterator implements FTGSIterator {
 
     private int iteratorStatus = 1; // 0 = end, 1 = reading fields, 2 = reading terms, 3 = reading groups
     private final InputStream in;
+    private final int numStats;
+    private final int numGroups;
 
-    public InputStreamFTGSIterator(final InputStream in, final int numStats) {
+    public InputStreamFTGSIterator(final InputStream in,
+                                   final int numStats,
+                                   final int numGroups) {
         this.in = in;
+        this.numStats = numStats;
+        this.numGroups = numGroups;
         this.statsBuf = new long[numStats];
     }
 
@@ -121,6 +127,16 @@ public class InputStreamFTGSIterator implements FTGSIterator {
     private final long[] statsBuf;
 
     private final CharsetDecoder decoder = Charsets.UTF_8.newDecoder();
+
+    @Override
+    public int getNumStats() {
+        return numStats;
+    }
+
+    @Override
+    public int getNumGroups() {
+        return numGroups;
+    }
 
     @Override
     public boolean nextField() {

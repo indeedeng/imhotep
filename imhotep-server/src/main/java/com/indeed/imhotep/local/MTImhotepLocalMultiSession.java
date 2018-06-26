@@ -158,7 +158,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         if (sessions.length == 1) {
             return splits.get(0);
         }
-        FTGSIterator merger = new FTGSMerger(splits, numStats, null);
+        FTGSIterator merger = new FTGSMerger(splits, null);
         if(termLimit > 0) {
             merger = new TermLimitedFTGSIterator(merger, termLimit);
         }
@@ -184,7 +184,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         if (sessions.length == 1) {
             return splits.get(0);
         }
-        return new FTGSMerger(splits, numStats, null);
+        return new FTGSMerger(splits, null);
     }
 
     @Override
@@ -210,7 +210,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             final String[] strFields = isIntField ? new String[0] : new String[]{field};
             final FTGSParams params = new FTGSParams(intFields, strFields, 0, -1, false);
             final FTGSIterator iterator = getFTGSIterator(params);
-            result = FTGSIteratorUtil.calculateDistinct(iterator, getNumGroups());
+            result = FTGSIteratorUtil.calculateDistinct(iterator);
         } finally {
             // return stats back.
             for (int i = 0; i < sessions.length; i++) {
@@ -228,7 +228,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         final String[] intFields = isIntField ? new String[]{field} : new String[0];
         final String[] stringFields = isIntField ? new String[0] : new String[]{field};
         final FTGSIterator iterator = mergeFTGSSplit(new FTGSParams(intFields, stringFields, 0, -1, false), nodes, splitIndex);
-        return FTGSIteratorUtil.calculateDistinctWithGroupHint(iterator, getNumGroups());
+        return FTGSIteratorUtil.calculateDistinct(iterator);
     }
 
     @Override
@@ -309,7 +309,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             if (termLimit > 0) {
                 if (sortStat >= 0) {
                     try(final Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
-                        return FTGSIteratorUtil.getTopTermsFTGSIterator(interleaver, termLimit, numStats, sortStat);
+                        return FTGSIteratorUtil.getTopTermsFTGSIterator(interleaver, termLimit, sortStat);
                     }
                 } else {
                     return new TermLimitedFTGSIterator(interleaver, termLimit);
@@ -338,7 +338,6 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             execute(iteratorSplits, iterators, true, iterator -> FTGSSplitter.doSplit(
                     iterator,
                     numSplits,
-                    numStats,
                     981044833,
                     tempFileSizeBytesLeft
             ));
@@ -360,13 +359,13 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             for (int i = 0; i < iterators.length; i++) {
                 splits.add(iteratorSplits[i][j]);
             }
-            mergers[j] = closer.register(new FTGSMerger(splits, numStats, null));
+            mergers[j] = closer.register(new FTGSMerger(splits, null));
         }
 
         return mergers;
     }
 
     private FTGSIterator persist(final FTGSIterator iterator) throws IOException {
-        return FTGSIteratorUtil.persist(log, getSessionId(), iterator, numStats);
+        return FTGSIteratorUtil.persist(log, getSessionId(), iterator);
     }
 }
