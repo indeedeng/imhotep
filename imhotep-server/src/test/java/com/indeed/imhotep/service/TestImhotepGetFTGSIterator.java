@@ -598,8 +598,7 @@ public class TestImhotepGetFTGSIterator {
                         dataset.getFTGSIterator(
                                 new FTGSParams(
                                         new String[]{"if1", "if2", "metric"},
-                                        new String[]{"sf1", "sf2"}, 15, -1, false)),
-                        1);
+                                        new String[]{"sf1", "sf2"}, 15, -1, false)));
 
                 // Maybe we need better testing for unsorted here
                 // Now we just check that fields are in the same order,

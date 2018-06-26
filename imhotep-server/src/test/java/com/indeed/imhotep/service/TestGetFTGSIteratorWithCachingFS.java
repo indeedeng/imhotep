@@ -490,7 +490,7 @@ public class TestGetFTGSIteratorWithCachingFS {
                                          final int sortStat) {
         FTGSIterator iterator = session.getFTGSIterator(new FTGSParams(intFields, stringFields, termLimit, sortStat, sortedFTGS));
         if (!sortedFTGS) {
-            iterator = FTGSIteratorUtil.sortFTGSIterator(iterator, session.getNumStats());
+            iterator = FTGSIteratorUtil.sortFTGSIterator(iterator);
         }
         return iterator;
     }
