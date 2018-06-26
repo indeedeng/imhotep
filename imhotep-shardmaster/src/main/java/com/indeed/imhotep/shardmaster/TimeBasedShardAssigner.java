@@ -15,7 +15,6 @@
 package com.indeed.imhotep.shardmaster;
 
 import com.google.common.base.Charsets;
-import com.google.common.collect.FluentIterable;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.indeed.imhotep.ShardDir;

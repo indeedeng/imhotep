@@ -130,6 +130,7 @@ public class DatasetShardRefresherTest {
                 new MinHashShardAssigner(replicationFactor),
                 shardAssignmentInfoDao,
                 null,
+                null,
                 null
         ).initialize();
 
@@ -186,6 +187,7 @@ public class DatasetShardRefresherTest {
                 ),
                 new MinHashShardAssigner(3),
                 shardAssignmentInfoDao,
+                null,
                 null,
                 null
         ).initialize();

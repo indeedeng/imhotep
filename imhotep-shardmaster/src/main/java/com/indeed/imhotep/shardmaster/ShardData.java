@@ -1,6 +1,5 @@
 package com.indeed.imhotep.shardmaster;
 
-import com.indeed.imhotep.Shard;
 import com.indeed.imhotep.ShardDir;
 import org.joda.time.DateTime;
 

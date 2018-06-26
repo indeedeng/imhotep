@@ -47,18 +47,8 @@ class DatasetShardRefresher extends TimerTask {
     private static final ExecutorService executorService = Executors.newCachedThreadPool();
     private final String leaderPath;
     private Future load;
-    private static Connection dbConnection;
+    private Connection dbConnection;
     private ZooKeeperConnection zkConnection;
-
-    static {
-        try {
-            //TODO: figure out how to hide this in a config
-            dbConnection = DriverManager.getConnection("path/to/db");
-        } catch (SQLException e) {
-            dbConnection = null;
-            e.printStackTrace();
-        }
-    }
 
     public boolean isLeader(){
         try {
@@ -69,7 +59,8 @@ class DatasetShardRefresher extends TimerTask {
             LOGGER.info("I am: "+leaderPath.substring(leaderPath.lastIndexOf('/')+1));
             return children.get(0).equals(leaderPath.substring(leaderPath.lastIndexOf('/')+1));
         } catch (InterruptedException | KeeperException e) {
-            LOGGER.error(e.getStackTrace());
+            e.printStackTrace();
+            LOGGER.error(e.getMessage(), e.getCause());
             return false;
         }
     }
@@ -79,13 +70,15 @@ class DatasetShardRefresher extends TimerTask {
                           final ShardAssigner shardAssigner,
                           final ShardAssignmentInfoDao assignmentInfoDao,
                           final String leaderPath,
-                          final ZooKeeperConnection zkConnection) {
+                          final ZooKeeperConnection zkConnection,
+                          final Connection dbConnection) {
         this.datasetsDir = datasetsDir;
         this.hostsReloader = hostsReloader;
         this.shardAssigner = shardAssigner;
         this.assignmentInfoDao = assignmentInfoDao;
         this.leaderPath = leaderPath;
         this.zkConnection = zkConnection;
+        this.dbConnection = dbConnection;
     }
 
     Future initialize() {

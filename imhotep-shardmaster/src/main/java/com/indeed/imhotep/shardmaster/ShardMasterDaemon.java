@@ -46,7 +46,8 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.nio.file.Paths;
-import java.nio.file.spi.FileSystemProvider;
+import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.List;
@@ -92,11 +93,13 @@ public class ShardMasterDaemon {
         LOGGER.info("zk is at: "+config.shardMastersZkPath);
         LOGGER.info("zknodes are: "+config.zkNodes);
 
-        ZooKeeperConnection connection = new ZooKeeperConnection(config.zkNodes, 1000);
-        connection.connect();
-        connection.createIfNotExists(config.shardMastersZkPath, new byte[0], CreateMode.PERSISTENT);
-        connection.createIfNotExists(config.shardMastersZkPath+"/election", new byte[0], CreateMode.PERSISTENT);
-        String leaderTestPath = connection.create(config.shardMastersZkPath+"/election/n_", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
+        ZooKeeperConnection zkConnection = new ZooKeeperConnection(config.zkNodes, 1000);
+        zkConnection.connect();
+        zkConnection.createIfNotExists(config.shardMastersZkPath, new byte[0], CreateMode.PERSISTENT);
+        zkConnection.createIfNotExists(config.shardMastersZkPath+"/election", new byte[0], CreateMode.PERSISTENT);
+        String leaderTestPath = zkConnection.create(config.shardMastersZkPath+"/election/n_", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
+
+        Connection dbConnection = config.getMetadataConnection();
 
         try (Closer closer = Closer.create()) {
             final ShardAssignmentInfoDao shardAssignmentInfoDao;
@@ -114,13 +117,15 @@ public class ShardMasterDaemon {
             LOGGER.info("Reloading all daemon hosts");
             hostsReloader.run();
 
+
             final DatasetShardRefresher refresher = new DatasetShardRefresher(
                     dataSetsDir,
                     hostsReloader,
                     config.createAssigner(),
                     shardAssignmentInfoDao,
                     leaderTestPath,
-                    connection
+                    zkConnection,
+                    dbConnection
             );
 
 
@@ -172,7 +177,8 @@ public class ShardMasterDaemon {
             timer.cancel();
             executorService.shutdown();
             hostsReloader.shutdown();
-            connection.close();
+            zkConnection.close();
+            dbConnection.close();
         }
     }
 
@@ -213,6 +219,12 @@ public class ShardMasterDaemon {
         private Duration hostsRefreshInterval = Duration.standardMinutes(1);
         private double hostsDropThreshold = 0.5;
         private RequestMetricStatsEmitter statsEmitter = RequestMetricStatsEmitter.NULL_EMITTER;
+        private String metadataDBURL;
+
+        public Config setMetadataDBURL(final String url){
+            this.metadataDBURL = url;
+            return this;
+        }
 
         public Config setZkNodes(final String zkNodes) {
             this.zkNodes = zkNodes;
@@ -379,6 +391,10 @@ public class ShardMasterDaemon {
 
         ShardFilter getShardFilter() {
             return shardFilter;
+        }
+
+        Connection getMetadataConnection() throws SQLException {
+            return DriverManager.getConnection(metadataDBURL);
         }
 
         ShardAssigner createAssigner() {

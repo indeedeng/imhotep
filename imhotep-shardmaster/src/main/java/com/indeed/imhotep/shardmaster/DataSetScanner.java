@@ -14,8 +14,6 @@
 
 package com.indeed.imhotep.shardmaster;
 
-import com.google.common.base.Predicate;
-import com.google.common.collect.FluentIterable;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.fs.RemoteCachingPath;
 import com.indeed.util.core.Pair;
@@ -23,10 +21,8 @@ import com.indeed.util.core.Pair;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.nio.file.spi.FileSystemProvider;
 import java.util.Iterator;
 
 /**
