@@ -113,7 +113,7 @@ public class FlamdexMetadata {
         reader.tryCopyToStream(acutalMetadata, out);
         final Yaml loader = new Yaml(new CustomClassLoaderConstructor(FlamdexMetadata.class, FlamdexMetadata.class.getClassLoader()));
 
-        final String metadata = out.toByteArray().toString();
+        final String metadata = out.toString();
         return loader.loadAs(metadata, FlamdexMetadata.class);
     }
 

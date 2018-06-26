@@ -90,10 +90,8 @@ public class ShardMasterDaemon {
                     config.createZkHostsReloader(),
                     config.getHostsDropThreshold());
         }
-        LOGGER.info("zk is at: "+config.shardMastersZkPath);
-        LOGGER.info("zknodes are: "+config.zkNodes);
 
-        ZooKeeperConnection zkConnection = new ZooKeeperConnection(config.zkNodes, 1000);
+        ZooKeeperConnection zkConnection = new ZooKeeperConnection(config.zkNodes, 6000);
         zkConnection.connect();
         zkConnection.createIfNotExists(config.shardMastersZkPath, new byte[0], CreateMode.PERSISTENT);
         zkConnection.createIfNotExists(config.shardMastersZkPath+"/election", new byte[0], CreateMode.PERSISTENT);

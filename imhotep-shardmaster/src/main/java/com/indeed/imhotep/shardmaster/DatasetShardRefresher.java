@@ -46,7 +46,6 @@ class DatasetShardRefresher extends TimerTask {
     private final ShardAssignmentInfoDao assignmentInfoDao;
     private static final ExecutorService executorService = Executors.newCachedThreadPool();
     private final String leaderPath;
-    private Future load;
     private Connection dbConnection;
     private ZooKeeperConnection zkConnection;
 
@@ -82,8 +81,7 @@ class DatasetShardRefresher extends TimerTask {
     }
 
     Future initialize() {
-        load = executorService.submit(this::loadFromSQL);
-        return load;
+        return executorService.submit(this::innerRun);
     }
 
     private void loadFromSQL() {
@@ -103,13 +101,10 @@ class DatasetShardRefresher extends TimerTask {
     }
 
     private void innerRun() {
+        LOGGER.info("I have "+ShardData.getInstance().getDatasets().size() + " datasets");
         if(isLeader()) {
             LOGGER.info("I am the leader!");
-            try {
-                load.get();
-            } catch (InterruptedException | ExecutionException e) {
-                e.printStackTrace();
-            }
+            loadFromSQL();
             DataSetScanner scanner = new DataSetScanner(datasetsDir);
             StreamSupport.stream(scanner.spliterator(), true).forEach(this::handleDataset);
         } else {
@@ -131,6 +126,7 @@ class DatasetShardRefresher extends TimerTask {
 
     private void collectShardData(Path path, ShardDir shardDir) {
         try {
+            LOGGER.info("downloading dataset: " + path.getFileName().toString() + " id: " + shardDir.getId());
             FlamdexMetadata metadata = FlamdexMetadata.readMetadata(shardDir.getIndexDir());
             addToSQL(metadata, path.getFileName().toString(), shardDir.getId());
             ShardData.getInstance().addShardFromHDFS(metadata, shardDir.getIndexDir(), path.getFileName().toString(), shardDir.getId());
@@ -142,7 +138,7 @@ class DatasetShardRefresher extends TimerTask {
 
     private void addToSQL(FlamdexMetadata metadata, String dataset, String shardId) throws SQLException {
 
-        System.out.println("adding dataset: " + dataset + " id: " + shardId);
+        LOGGER.info("adding dataset: " + dataset + " id: " + shardId);
         final PreparedStatement tblShardsInsertStatement = dbConnection.prepareStatement("INSERT INTO tblshards (dataset, shardname, numDocs) VALUES (?, ?, ?);");
         tblShardsInsertStatement.setString(1, dataset);
         tblShardsInsertStatement.setString( 2, shardId);
