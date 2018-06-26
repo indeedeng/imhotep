@@ -100,7 +100,12 @@ class DatasetShardRefresher extends TimerTask {
 
     }
 
-    private void innerRun() {
+    /*
+     * Synchronized so if something switches to being a leader while a lot of shards still
+     * need to be uploaded to SQL, it won't duplicate work.
+     */
+
+    private synchronized void innerRun() {
         LOGGER.info("I have "+ShardData.getInstance().getDatasets().size() + " datasets");
         if(isLeader()) {
             LOGGER.info("I am the leader!");
@@ -143,7 +148,6 @@ class DatasetShardRefresher extends TimerTask {
         tblShardsInsertStatement.setString(1, dataset);
         tblShardsInsertStatement.setString( 2, shardId);
         tblShardsInsertStatement.setInt(3, metadata.getNumDocs());
-        tblShardsInsertStatement.execute();
 
         ShardData data = ShardData.getInstance();
 
@@ -178,8 +182,6 @@ class DatasetShardRefresher extends TimerTask {
                 }
         );
 
-        tblFieldsInsertStatement.executeBatch();
-
         final PreparedStatement tblFieldsUpdateStatement =
                 dbConnection.prepareStatement("UPDATE tblfields SET type = ? AND lastshardstarttime = ? WHERE dataset = ? AND fieldname = ?;");
 
@@ -213,7 +215,14 @@ class DatasetShardRefresher extends TimerTask {
                 }
         );
 
+        /*
+         * In this order because it is more resilient to a crash (don't want to think
+         * that a shard has been uploaded when it has not been)
+         */
+        tblFieldsInsertStatement.executeBatch();
         tblFieldsUpdateStatement.executeBatch();
+
+        tblShardsInsertStatement.execute();
     }
 
     @Override
