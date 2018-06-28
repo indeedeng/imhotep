@@ -39,11 +39,6 @@ public class ImhotepErrorResolver {
                     "Please wait before retrying.", e);
         }
 
-        if (error.contains(UserSessionCountLimitExceededException.class.getSimpleName())) {
-            return new UserSessionCountLimitExceededException("You have too many concurrent Imhotep sessions running. " +
-                    "Please wait for them to complete before retrying.", e);
-        }
-
         if (error.contains(TempFileSizeLimitExceededException.class.getSimpleName()) ||
                 error.contains(WriteLimitExceededException.class.getSimpleName())) {
             return new FTGSLimitExceededException("The query tried to iterate over too much data. " +

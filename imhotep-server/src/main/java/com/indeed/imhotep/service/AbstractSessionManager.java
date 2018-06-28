@@ -36,18 +36,23 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
 
     private static final Logger log = Logger.getLogger(AbstractSessionManager.class);
 
-    private static final int MAX_SESSION_COUNT = 64;
-    private static final int MAX_SESSION_COUNT_PER_USER = 8;
 
     private final Map<String, Session<E>> sessionMap = new HashMap<>();
     private final Map<String, Exception> failureCauseMap = CacheBuilder.newBuilder().maximumSize(200).<String, Exception>build().asMap();
+    private final int maxSessionsTotal;
+    private final int maxSessionsPerUser;
+
+    public AbstractSessionManager(final int maxSessionsTotal, final int maxSessionsPerUser) {
+        this.maxSessionsTotal = maxSessionsTotal;
+        this.maxSessionsPerUser = maxSessionsPerUser;
+    }
 
     protected void addSession(final String sessionId, final Session<E> session) {
         synchronized (sessionMap) {
             if (sessionMap.containsKey(sessionId)) {
                 throw new IllegalArgumentException("there already exists a session with id "+sessionId);
             }
-            if (sessionMap.size() >= MAX_SESSION_COUNT) {
+            if (sessionMap.size() >= maxSessionsTotal) {
                 throw new TooManySessionsException("Imhotep daemon has reached the maximum number of concurrent sessions: "+sessionMap.size());
             }
 
@@ -58,7 +63,7 @@ public abstract class AbstractSessionManager<E> implements SessionManager<E> {
                         userSessionCount += 1;
                     }
                 }
-                if (userSessionCount >= MAX_SESSION_COUNT_PER_USER) {
+                if (userSessionCount >= maxSessionsPerUser) {
                     throw new UserSessionCountLimitExceededException("Imhotep daemon has reached the maximum number of concurrent sessions per user: " + userSessionCount);
                 }
             }
