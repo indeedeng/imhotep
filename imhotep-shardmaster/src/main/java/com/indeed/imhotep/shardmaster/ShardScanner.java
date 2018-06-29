@@ -16,41 +16,49 @@ package com.indeed.imhotep.shardmaster;
 
 import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.client.ShardTimeUtils;
-import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
-import com.indeed.imhotep.fs.RemoteCachingPath;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
-import java.nio.file.DirectoryStream;
-import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 /**
  * @author kenh
  */
 
 class ShardScanner implements Iterable<ShardDir> {
-    private final RemoteCachingPath datasetDir;
+    private final Path baseDir;
+    private final FileSystem fs;
+    private static final Logger LOGGER = Logger.getLogger(ShardScanner.class);
 
-    ShardScanner(final RemoteCachingPath datasetDir) {
-        this.datasetDir = datasetDir;
+    ShardScanner(final Path baseDir, final  FileSystem fs) {
+        this.baseDir = baseDir;
+        this.fs = fs;
     }
 
     @Nonnull
     @Override
     public Iterator<ShardDir> iterator() {
-        // hack to avoid an extra attribute lookup on each list entry
-        final RemoteCachingFileSystemProvider fsProvider = (RemoteCachingFileSystemProvider) (((Path) datasetDir).getFileSystem().provider());
-
-        try (DirectoryStream<? extends Path> remoteCachingPaths = fsProvider.newDirectoryStreamWithAttributes(datasetDir, DataSetScanner.ONLY_DIRS)) {
-            return StreamSupport.stream(remoteCachingPaths.spliterator(), true).filter(
-                    shardPath -> ShardTimeUtils.isValidShardId(new ShardDir(shardPath).getId()) &&
-                            !ShardData.getInstance().hasShard(datasetDir.getFileName().toString(), new ShardDir(shardPath)))
-                    .map(ShardDir::new).collect(Collectors.toList()).iterator();
-        } catch (final IOException e) {
-            throw new IllegalStateException("Failed to get shards from " + datasetDir, e);
+        try {
+            final FileStatus[] fileStatuses = fs.listStatus(baseDir, this::isValid);
+            return Arrays.stream(fileStatuses).map(file -> new ShardDir(file.getPath())).collect(Collectors.toList()).iterator();
+        } catch (IOException e) {
+            LOGGER.error(e.getMessage(), e);
+            return new ArrayList<ShardDir>().iterator();
         }
+    }
+
+    private boolean isValid(Path shardPath) {
+        ShardDir temp = new ShardDir(shardPath);
+        String dataset = temp.getIndexDir().toString();
+        String id = temp.getId();
+        return ShardTimeUtils.isValidShardId(id) &&
+                !ShardData.getInstance().hasShard(dataset);
     }
 }

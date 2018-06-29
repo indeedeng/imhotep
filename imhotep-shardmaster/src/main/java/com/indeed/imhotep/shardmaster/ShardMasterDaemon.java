@@ -28,7 +28,6 @@ import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.client.HostsReloader;
 import com.indeed.imhotep.client.ZkHostsReloader;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
-import com.indeed.imhotep.fs.RemoteCachingPath;
 import com.indeed.imhotep.fs.sql.SchemaInitializer;
 import com.indeed.imhotep.shardmaster.db.shardinfo.Tables;
 import com.indeed.imhotep.shardmaster.rpc.MultiplexingRequestHandler;
@@ -43,17 +42,15 @@ import org.apache.zookeeper.*;
 import org.joda.time.Duration;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -71,7 +68,7 @@ public class ShardMasterDaemon {
         this.config = config;
     }
 
-    public void run() throws IOException, ExecutionException, InterruptedException, KeeperException, SQLException {
+    public void run() throws IOException, InterruptedException, KeeperException, SQLException {
 
         LOGGER.info("Initializing fs");
         RemoteCachingFileSystemProvider.newFileSystem();
@@ -110,20 +107,26 @@ public class ShardMasterDaemon {
                 shardAssignmentInfoDao = new InMemoryShardAssignmentInfoDao(config.getStalenessThreshold());
             }
 
-            final RemoteCachingPath dataSetsDir = (RemoteCachingPath) Paths.get(RemoteCachingFileSystemProvider.URI);
+            final Path dataSetsDir = Paths.get(RemoteCachingFileSystemProvider.URI);
 
             LOGGER.info("Reloading all daemon hosts");
             hostsReloader.run();
 
+            final File file = new File(System.getProperty("imhotep.fs.config.file"));
+            final Properties properties = new Properties();
+            properties.load(new FileInputStream(file));
+            String rootURI = properties.getProperty("imhotep.fs.filestore.hdfs.root.uri");
 
+            final org.apache.hadoop.fs.Path tmpPath = new org.apache.hadoop.fs.Path(rootURI + "/" + dataSetsDir.toString());
             final DatasetShardRefresher refresher = new DatasetShardRefresher(
-                    dataSetsDir,
+                    tmpPath,
                     hostsReloader,
                     config.createAssigner(),
                     shardAssignmentInfoDao,
                     leaderTestPath,
                     zkConnection,
-                    dbConnection
+                    dbConnection,
+                    rootURI
             );
 
 
@@ -441,7 +444,7 @@ public class ShardMasterDaemon {
         }
     }
 
-    public static void main(final String[] args) throws InterruptedException, ExecutionException, IOException, KeeperException, SQLException {
+    public static void main(final String[] args) throws InterruptedException, IOException, KeeperException, SQLException {
         new ShardMasterDaemon(new Config()
                 .setZkNodes(System.getProperty("imhotep.shardmaster.zookeeper.nodes"))
                 .setDbFile(System.getProperty("imhotep.shardmaster.db.file"))

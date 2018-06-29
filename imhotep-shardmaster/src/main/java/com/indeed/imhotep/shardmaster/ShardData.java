@@ -1,13 +1,16 @@
 package com.indeed.imhotep.shardmaster;
-
 import com.indeed.imhotep.ShardDir;
+import com.indeed.imhotep.client.ShardTimeUtils;
+import com.indeed.imhotep.shardmaster.utils.IntervalTree;
 import org.joda.time.DateTime;
+import org.joda.time.Interval;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 
 /**
  * @author kornerup
@@ -20,8 +23,9 @@ public class ShardData {
         return ourInstance;
     }
 
-    final private Map<String, TableShards> tblShards;
+    final private Map<String, IntervalTree<DateTime, TableShards>> tblShards;
     final private Map<String, TableFields> tblFields;
+    final private Set<String> paths;
 
     public boolean hasField(String dataset, String field) {
         return tblFields.containsKey(dataset) && tblFields.get(dataset).lastUpdatedTimestamp.containsKey(field);
@@ -59,9 +63,11 @@ public class ShardData {
     }
 
     class TableShards {
-        Map<String, Integer> shardNameToNumDocs;
-        public TableShards(){
-            shardNameToNumDocs = new ConcurrentHashMap<>();
+        String path;
+        int numDocs;
+        TableShards(String path, int numDocs) {
+            this.path = path;
+            this.numDocs = numDocs;
         }
     }
 
@@ -77,10 +83,11 @@ public class ShardData {
     private ShardData() {
         tblShards = new ConcurrentHashMap<>();
         tblFields = new ConcurrentHashMap<>();
+        paths = new ConcurrentSkipListSet<>();
     }
 
-    public void addShardFromHDFS(FlamdexMetadata metadata, Path shardPath, String dataset, String shardId) {
-        addShardToDatastructure(metadata, shardPath, dataset, shardId);
+    public void addShardFromHDFS(FlamdexMetadata metadata, Path shardPath, ShardDir shardDir) {
+        addShardToDatastructure(metadata, shardPath, shardDir);
     }
 
     public void addTableFieldsRowsFromSQL(ResultSet rows) throws SQLException {
@@ -103,8 +110,15 @@ public class ShardData {
         final Map<String, List<ShardDir>> shardDirs = new HashMap<>();
         if (rows.first()) {
             do {
-                String dataset = rows.getString("dataset");
-                String shardname = rows.getString("shardname");
+                String strPath = rows.getString("path");
+                if(paths.contains(strPath)) {
+                    continue;
+                }
+                paths.add(strPath);
+                Path path = Paths.get(strPath);
+                ShardDir shardDir = new ShardDir(path);
+                String dataset = shardDir.getIndexDir().getParent().toString();
+                String shardname = shardDir.getId();
                 if(!shardDirs.containsKey(dataset)){
                     shardDirs.put(dataset, new ArrayList<>());
                 }
@@ -112,20 +126,24 @@ public class ShardData {
 
                 int numDocs = rows.getInt("numDocs");
                 if (!tblShards.containsKey(dataset)) {
-                    tblShards.put(dataset, new TableShards());
+                    tblShards.put(dataset, new IntervalTree<>());
                 }
-                tblShards.get(dataset).shardNameToNumDocs.put(shardname, numDocs);
+                final Interval interval = ShardTimeUtils.parseInterval(shardname);
+                tblShards.get(dataset).addInterval(interval.getStart(), interval.getEnd(), new TableShards(path.toString(), numDocs));
                } while (rows.next());
         }
         return shardDirs;
     }
 
-    private void addShardToDatastructure(FlamdexMetadata metadata, Path shardPath, String dataset, String shardId) {
+    private void addShardToDatastructure(FlamdexMetadata metadata, Path shardPath, ShardDir shardDir) {
+        paths.add(shardDir.getIndexDir().toString());
+        String dataset = shardDir.getIndexDir().getParent().toString();
         if(!tblShards.containsKey(dataset)) {
-            tblShards.put(dataset, new TableShards());
+            tblShards.put(dataset, new IntervalTree<>());
             tblFields.put(dataset, new TableFields());
         }
-        tblShards.get(dataset).shardNameToNumDocs.put(shardId, metadata.getNumDocs());
+        final Interval interval = ShardTimeUtils.parseInterval(shardDir.getId());
+        tblShards.get(dataset).addInterval(interval.getStart(), interval.getEnd(), new TableShards(shardPath.toString(), metadata.getNumDocs()));
 
         metadata.getIntFields().parallelStream().forEach(field ->
             {
@@ -139,16 +157,27 @@ public class ShardData {
             });
     }
 
-    public boolean hasShard(String dataset, ShardDir shardDir){
-        String id = shardDir.getId();
-        return tblShards.containsKey(dataset) && tblShards.get(dataset).shardNameToNumDocs.containsKey(id);
+    public boolean hasShard(String path){
+        return paths.contains(path);
     }
 
     public Collection<String> getDatasets(){
         return tblShards.keySet();
     }
 
-    public Collection<String> getShardsForDataset(String dataset){
-        return tblShards.get(dataset).shardNameToNumDocs.keySet();
+
+    // NOTE: this is a bit hacky to get a linear runtime
+    public Collection<ShardDir> getShardsForDataset(String dataset) {
+        IntervalTree<DateTime, TableShards> tree = tblShards.get(dataset);
+        if (tree == null) {
+            return new HashSet<>();
+        }
+        Map<String, ShardDir> shardToShardWithVersion = new HashMap<>();
+        tree.getAllValues().stream().map(path -> new ShardDir(Paths.get(path.path))).forEach(shardDir -> {
+            if(!shardToShardWithVersion.containsKey(shardDir.getId()) || shardToShardWithVersion.get(shardDir.getId()).getVersion() < shardDir.getVersion()) {
+                shardToShardWithVersion.put(shardDir.getId(), shardDir);
+            }
+        });
+        return shardToShardWithVersion.values();
     }
 }

@@ -16,7 +16,7 @@ package com.indeed.imhotep.shardmaster;
 import com.google.common.base.Charsets;
 import com.indeed.imhotep.archive.FileMetadata;
 import com.indeed.imhotep.archive.SquallArchiveReader;
-import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.CustomClassLoaderConstructor;
@@ -100,12 +100,10 @@ public class FlamdexMetadata {
         return flamdexFormatVersion;
     }
 
-    public static FlamdexMetadata readMetadata(final Path directory) throws IOException {
+    public static FlamdexMetadata readMetadata(FileSystem hadoopFilesystem, org.apache.hadoop.fs.Path hadoopPath) throws IOException {
         // Pass the class loader to the constructor, to avoid getting a "class FlamdexMetadata not found exception".
         // The exception happens because, on the workers, the YAML parser does not know how to create an instance of
         // FlamdexMetadata because of version mismatch caused by the presence of many jars.
-        org.apache.hadoop.fs.Path hadoopPath = new org.apache.hadoop.fs.Path("/var/imhotep"+directory.toString()+".sqar");
-        org.apache.hadoop.fs.FileSystem hadoopFilesystem = new org.apache.hadoop.fs.Path("/var/imhotep").getFileSystem(new Configuration());
         SquallArchiveReader reader = new SquallArchiveReader(hadoopFilesystem, hadoopPath);
         List<FileMetadata> fileMetadata = reader.readMetadata();
         FileMetadata acutalMetadata = getMetadataFromMetadata(fileMetadata);

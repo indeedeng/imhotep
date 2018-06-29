@@ -17,30 +17,32 @@ package com.indeed.imhotep.shardmaster;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.indeed.imhotep.archive.SquallArchiveWriter;
 import com.indeed.imhotep.client.DummyHostsReloader;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.client.ShardTimeUtils;
 import com.indeed.imhotep.dbutil.DbDataFixture;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemTestContext;
-import com.indeed.imhotep.fs.RemoteCachingPath;
 import com.indeed.imhotep.shardmaster.db.shardinfo.Tables;
 import com.indeed.imhotep.shardmaster.model.ShardAssignmentInfo;
+import com.indeed.util.zookeeper.ZooKeeperConnection;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.easymock.EasyMock;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.TemporaryFolder;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Paths;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -91,8 +93,21 @@ public class DatasetShardRefresherTest {
         return hosts;
     }
 
-    private static void createShard(final File rootDir, final String dataset, final DateTime shardId, final long version) {
-        Assert.assertTrue(new File(new File(rootDir, dataset), ShardTimeUtils.toDailyShardPrefix(shardId) + '.' + String.format("%014d", version)).mkdirs());
+    @Before
+    public void createMetadataFile() throws IOException {
+        java.nio.file.Path p = Paths.get(fsTestContext.getTempRootDir().toString(), "metadata");
+        new File(p.toString()).mkdir();
+        FlamdexMetadata.writeMetadata(p, new FlamdexMetadata(0, new ArrayList<>(), new ArrayList<>(), FlamdexFormatVersion.SIMPLE));
+
+    }
+
+    private void createShard(final File rootDir, final String dataset, final DateTime shardId, final long version) throws IOException{
+        Path path = new Path(rootDir.toString() + "/" + dataset + "/" + ShardTimeUtils.toDailyShardPrefix(shardId) + "." + String.format("%014d", version) + ".sqar/");
+        new File(path.toString()).mkdir();
+        SquallArchiveWriter writer = new SquallArchiveWriter(path.getFileSystem(new Configuration()), new Path(path.toString()), true);
+        File f = new File(fsTestContext.getTempRootDir()+"/metadata/metadata.txt");
+        writer.appendFile(f);
+        writer.commit();
     }
 
     @After
@@ -101,7 +116,7 @@ public class DatasetShardRefresherTest {
     }
 
     @Test
-    public void testRefresh() throws ExecutionException, InterruptedException {
+    public void testRefresh() throws ExecutionException, InterruptedException, SQLException, IOException {
         final int numDataSets = 100;
         final int numShards = 15;
         final DateTime endDate = new DateTime(2018, 1, 1, 0, 0);
@@ -119,7 +134,26 @@ public class DatasetShardRefresherTest {
         final List<Host> hosts = getHostsWithPrefix("HOST", 8080, 0, 50);
         final int replicationFactor = 3;
 
-        final RemoteCachingPath dataSetsDir = (RemoteCachingPath) Paths.get(RemoteCachingFileSystemProvider.URI);
+        final Path dataSetsDir = new Path("file:///" + fsTestContext.getLocalStoreDir());
+
+        ZooKeeperConnection fakeZookeeperConnection = new ZooKeeperConnection("", 0);
+        Connection fakeConnection = EasyMock.createNiceMock(Connection.class);
+        PreparedStatement fakeStatement = EasyMock.createNiceMock(PreparedStatement.class);
+        ResultSet fakeResults = EasyMock.createNiceMock(ResultSet.class);
+
+        EasyMock.makeThreadSafe(fakeResults, true);
+        EasyMock.makeThreadSafe(fakeStatement, true);
+        EasyMock.makeThreadSafe(fakeConnection, true);
+
+        EasyMock.expect(fakeStatement.executeQuery()).andReturn(fakeResults).anyTimes();
+
+        EasyMock.expect(fakeConnection.prepareStatement(EasyMock.anyObject())).andReturn(fakeStatement).anyTimes();
+
+        EasyMock.expect(fakeResults.first()).andReturn(false).anyTimes();
+
+        EasyMock.replay(fakeConnection);
+        EasyMock.replay(fakeStatement);
+        EasyMock.replay(fakeResults);
 
         final ShardAssignmentInfoDao shardAssignmentInfoDao = new H2ShardAssignmentInfoDao(dbDataFixture.getDataSource(), Duration.standardMinutes(30));
         final Future results = new DatasetShardRefresher(
@@ -129,14 +163,16 @@ public class DatasetShardRefresherTest {
                 ),
                 new MinHashShardAssigner(replicationFactor),
                 shardAssignmentInfoDao,
-                null,
-                null,
-                null
-        ).initialize();
+                "",
+                fakeZookeeperConnection,
+                fakeConnection,
+                fsTestContext.getLocalStoreDir().toString()).initialize();
 
         results.get();
         ShardData data = ShardData.getInstance();
 
+        ArrayList<String> datasets = new ArrayList<>(data.getDatasets());
+        Collections.sort(datasets);
         Assert.assertEquals(numDataSets, data.getDatasets().size());
         for (final String dataset : data.getDatasets()) {
             Assert.assertEquals(numShards, data.getShardsForDataset(dataset).size());
@@ -161,6 +197,8 @@ public class DatasetShardRefresherTest {
         }
     }
 
+    // TODO: fix the integration test
+    /*
     @Test
     @Ignore("only for integration test purposes")
     public void testOnHdfs() throws IOException, ExecutionException, InterruptedException, SQLException, URISyntaxException {
@@ -189,18 +227,15 @@ public class DatasetShardRefresherTest {
                 shardAssignmentInfoDao,
                 null,
                 null,
-                null
-        ).initialize();
+                null,
+                fsTestContext.getLocalStoreDir().toString()).initialize();
 
         results.get();
 
-        //TODO: fix this part of the test
-        /*
         for (final ShardScanWork.Result result : results.getAllShards().get()) {
             final RemoteCachingPath datasetDir = result.getDatasetDir();
             //noinspection UseOfSystemOutOrSystemErr
             System.out.println("Assigned " + result.getShards().size() + " for " + datasetDir);
         }
-        */
-    }
+    }*/
 }

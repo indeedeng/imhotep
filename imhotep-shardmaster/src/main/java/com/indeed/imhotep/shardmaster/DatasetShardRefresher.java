@@ -17,18 +17,17 @@ package com.indeed.imhotep.shardmaster;
 import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.client.HostsReloader;
 import com.indeed.imhotep.client.ShardTimeUtils;
-import com.indeed.imhotep.fs.RemoteCachingPath;
 import com.indeed.imhotep.shardmaster.model.ShardAssignmentInfo;
 import com.indeed.util.zookeeper.ZooKeeperConnection;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.KeeperException;
 import org.joda.time.DateTime;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.sql.*;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -40,7 +39,7 @@ import java.util.stream.StreamSupport;
 
 class DatasetShardRefresher extends TimerTask {
     private static final Logger LOGGER = Logger.getLogger(DatasetShardRefresher.class);
-    private final RemoteCachingPath datasetsDir;
+    private final Path datasetsDir;
     private final HostsReloader hostsReloader;
     private final ShardAssigner shardAssigner;
     private final ShardAssignmentInfoDao assignmentInfoDao;
@@ -48,15 +47,22 @@ class DatasetShardRefresher extends TimerTask {
     private final String leaderPath;
     private Connection dbConnection;
     private ZooKeeperConnection zkConnection;
+    private final org.apache.hadoop.fs.FileSystem hadoopFileSystem;
 
     public boolean isLeader(){
         try {
-            final String electionRoot = leaderPath.substring(0, leaderPath.lastIndexOf('/'));
+            int leaderPathEndIndex = leaderPath.lastIndexOf('/');
+            if(leaderPathEndIndex == -1) {
+                LOGGER.error("The leader path is corrupted. Assuming that I am the leader.");
+                return true;
+            }
+
+            final String electionRoot = leaderPath.substring(0, leaderPathEndIndex);
             List<String> children = zkConnection.getChildren(electionRoot, false);
             Collections.sort(children);
             LOGGER.info("Children are: "+ children);
-            LOGGER.info("I am: "+leaderPath.substring(leaderPath.lastIndexOf('/')+1));
-            return children.get(0).equals(leaderPath.substring(leaderPath.lastIndexOf('/')+1));
+            LOGGER.info("I am: "+leaderPath.substring(leaderPathEndIndex)+1);
+            return children.get(0).equals(leaderPath.substring(leaderPathEndIndex+1));
         } catch (InterruptedException | KeeperException e) {
             e.printStackTrace();
             LOGGER.error(e.getMessage(), e.getCause());
@@ -64,13 +70,14 @@ class DatasetShardRefresher extends TimerTask {
         }
     }
 
-    DatasetShardRefresher(final RemoteCachingPath datasetsDir,
+    DatasetShardRefresher(final Path datasetsDir,
                           final HostsReloader hostsReloader,
                           final ShardAssigner shardAssigner,
                           final ShardAssignmentInfoDao assignmentInfoDao,
                           final String leaderPath,
                           final ZooKeeperConnection zkConnection,
-                          final Connection dbConnection) {
+                          final Connection dbConnection,
+                          String rootURI) throws IOException {
         this.datasetsDir = datasetsDir;
         this.hostsReloader = hostsReloader;
         this.shardAssigner = shardAssigner;
@@ -78,6 +85,7 @@ class DatasetShardRefresher extends TimerTask {
         this.leaderPath = leaderPath;
         this.zkConnection = zkConnection;
         this.dbConnection = dbConnection;
+        this.hadoopFileSystem = new Path(rootURI).getFileSystem(new Configuration());
     }
 
     Future initialize() {
@@ -86,16 +94,23 @@ class DatasetShardRefresher extends TimerTask {
 
     private void loadFromSQL() {
         try {
-            ResultSet set = dbConnection.prepareStatement("SELECT * FROM tblshards;").executeQuery();
+            final PreparedStatement statement = dbConnection.prepareStatement("SELECT * FROM tblshards;");
+            final ResultSet set = statement.executeQuery();
             Map<String, List<ShardDir>> shardDirs = ShardData.getInstance().addTableShardsRowsFromSQL(set);
-            ResultSet set2 = dbConnection.prepareStatement("SELECT * FROM tblfields;").executeQuery();
-            ShardData.getInstance().addTableFieldsRowsFromSQL(set2);
-            for(String dataset: shardDirs.keySet()) {
+            for (String dataset : shardDirs.keySet()) {
                 Iterable<ShardAssignmentInfo> assignment = shardAssigner.assign(hostsReloader.getHosts(), dataset, shardDirs.get(dataset));
                 assignmentInfoDao.updateAssignments(dataset, DateTime.now(), assignment);
             }
+
+            final PreparedStatement statement2 = dbConnection.prepareStatement("SELECT * FROM tblfields;");
+            if(statement2 == null) {
+                LOGGER.error("SQL statement is null. Will not load data from SQL.");
+            } else {
+                final ResultSet set2 = statement2.executeQuery();
+                ShardData.getInstance().addTableFieldsRowsFromSQL(set2);
+            }
         } catch (SQLException e){
-            e.printStackTrace();
+            LOGGER.error(e.getMessage(), e);
         }
 
     }
@@ -106,48 +121,46 @@ class DatasetShardRefresher extends TimerTask {
      */
 
     private synchronized void innerRun() {
-        LOGGER.info("I have "+ShardData.getInstance().getDatasets().size() + " datasets");
         if(isLeader()) {
-            LOGGER.info("I am the leader!");
             loadFromSQL();
-            DataSetScanner scanner = new DataSetScanner(datasetsDir);
+            DataSetScanner scanner = new DataSetScanner(datasetsDir, hadoopFileSystem);
             StreamSupport.stream(scanner.spliterator(), true).forEach(this::handleDataset);
         } else {
-            LOGGER.info("I am not the leader!");
             loadFromSQL();
         }
     }
 
-    private void handleDataset(RemoteCachingPath path) {
-        Iterable<ShardDir> dataset = new ShardScanner(path);
+    // TODO: delete
+    private void handleDataset(Path path) {
+        Iterable<ShardDir> dataset = new ShardScanner(path, hadoopFileSystem);
 
         //TODO: hack b/c we are adding stuff so the iterator is empty when we try and assign
         Iterator<ShardDir> datasetIterator = dataset.iterator();
 
-        StreamSupport.stream(dataset.spliterator(), true).forEach(shardDir -> collectShardData(path, shardDir));
-        Iterable<ShardAssignmentInfo> assignment = shardAssigner.assign(hostsReloader.getHosts(), path.getFileName().toString(), () -> datasetIterator);
-        assignmentInfoDao.updateAssignments(path.getFileName().toString(), DateTime.now(), assignment);
+        StreamSupport.stream(dataset.spliterator(), true).forEach(shardDir -> collectShardData(shardDir));
+        Iterable<ShardAssignmentInfo> assignment = shardAssigner.assign(hostsReloader.getHosts(), path.getName(), () -> datasetIterator);
+        assignmentInfoDao.updateAssignments(path.getName(), DateTime.now(), assignment);
     }
 
-    private void collectShardData(Path path, ShardDir shardDir) {
+    private void collectShardData(ShardDir shardDir) {
         try {
-            LOGGER.info("downloading dataset: " + path.getFileName().toString() + " id: " + shardDir.getId());
-            FlamdexMetadata metadata = FlamdexMetadata.readMetadata(shardDir.getIndexDir());
-            addToSQL(metadata, path.getFileName().toString(), shardDir.getId());
-            ShardData.getInstance().addShardFromHDFS(metadata, shardDir.getIndexDir(), path.getFileName().toString(), shardDir.getId());
+            FlamdexMetadata metadata = FlamdexMetadata.readMetadata(hadoopFileSystem, shardDir.getHadoopPath());
+            if (metadata == null) {
+                LOGGER.error("Metadata was null for shard " + shardDir);
+            }
+            addToSQL(metadata, shardDir);
+            ShardData.getInstance().addShardFromHDFS(metadata, shardDir.getIndexDir(), shardDir);
         } catch (IOException | SQLException e) {
-            e.printStackTrace();
-            //TODO: something
+            LOGGER.error(e.getMessage(), e);
         }
     }
 
-    private void addToSQL(FlamdexMetadata metadata, String dataset, String shardId) throws SQLException {
-
-        LOGGER.info("adding dataset: " + dataset + " id: " + shardId);
-        final PreparedStatement tblShardsInsertStatement = dbConnection.prepareStatement("INSERT INTO tblshards (dataset, shardname, numDocs) VALUES (?, ?, ?);");
-        tblShardsInsertStatement.setString(1, dataset);
-        tblShardsInsertStatement.setString( 2, shardId);
-        tblShardsInsertStatement.setInt(3, metadata.getNumDocs());
+    private void addToSQL(FlamdexMetadata metadata, ShardDir shardDir) throws SQLException {
+        String shardId = shardDir.getId();
+        String dataset = shardDir.getIndexDir().getParent().toString();
+        final PreparedStatement tblShardsInsertStatement = dbConnection.prepareStatement("INSERT INTO tblshards (path, numDocs) VALUES (?, ?);");
+        tblShardsInsertStatement.setString(1, shardDir.getIndexDir().toString());
+        tblShardsInsertStatement.setInt(2, metadata.getNumDocs());
 
         ShardData data = ShardData.getInstance();
 

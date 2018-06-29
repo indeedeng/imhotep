@@ -14,45 +14,56 @@
 
 package com.indeed.imhotep.shardmaster;
 
-import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
-import com.indeed.imhotep.fs.RemoteCachingPath;
-import com.indeed.util.core.Pair;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
-import java.nio.file.DirectoryStream;
-import java.nio.file.Path;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Iterator;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * @author kenh
  */
 
-class DataSetScanner implements Iterable<RemoteCachingPath> {
+class DataSetScanner implements Iterable<Path> {
     private final Path datasetsDir;
+    private final FileSystem fs;
+    private static final org.apache.log4j.Logger LOGGER = org.apache.log4j.Logger.getLogger(DataSetScanner.class);
 
-    DataSetScanner(final Path datasetsDir) {
+    DataSetScanner(final Path datasetsDir, final FileSystem fs) {
         this.datasetsDir = datasetsDir;
+        this.fs = fs;
     }
 
     @Nonnull
     @Override
-    public Iterator<RemoteCachingPath> iterator() {
-        // hack to avoid an extra attribute lookup on each list entry
-        final RemoteCachingFileSystemProvider fsProvider =  (RemoteCachingFileSystemProvider) (((Path) datasetsDir).getFileSystem().provider());
-
-        try (DirectoryStream<RemoteCachingPath> remoteCachingPaths = fsProvider.newDirectoryStreamWithAttributes(datasetsDir, ONLY_DIRS)) {
-            return remoteCachingPaths.iterator();
-        } catch (final IOException e) {
-            throw new IllegalStateException("Failed to get datasets from " + datasetsDir, e);
+    public Iterator<Path> iterator() {
+        try {
+            FileStatus[] fStatus = fs.listStatus(datasetsDir);
+            return getDirs(fStatus).iterator();
+        } catch (IOException e) {
+            LOGGER.error(e.getMessage(), e);
+            return new ArrayList<Path>().iterator();
         }
     }
 
-    static final DirectoryStream.Filter<Pair<? extends Path, ? extends BasicFileAttributes>> ONLY_DIRS = new DirectoryStream.Filter<Pair<? extends Path, ? extends BasicFileAttributes>>() {
-        @Override
-        public boolean accept(final Pair<? extends Path, ? extends BasicFileAttributes> entry) throws IOException {
-            return entry.getSecond().isDirectory();
+    private boolean keepPossibleDir(FileStatus status) {
+        return status.isDirectory();
+    }
+
+    public Spliterator<Path> spliterator(){
+        try {
+            FileStatus[] fStatus = fs.listStatus(datasetsDir);
+            return getDirs(fStatus).spliterator();
+        } catch (IOException e) {
+            LOGGER.error(e.getMessage(), e);
+            return new ArrayList<Path>().spliterator();
         }
-    };
+    }
+
+    private List<Path> getDirs(FileStatus[] fStatus) {
+        return Arrays.stream(fStatus).filter(this::keepPossibleDir).map(status -> status.getPath()).collect(Collectors.toList());
+    }
 }
