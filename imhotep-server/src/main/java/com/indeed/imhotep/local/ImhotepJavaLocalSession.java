@@ -435,6 +435,11 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
 
     @Override
     protected void addGroupStats(final int stat, final long[] partialResult) {
+
+        if (isFilteredOut()) {
+            return;
+        }
+
         final int[] docIdBuffer = memoryPool.getIntBuffer(ImhotepLocalSession.BUFFER_SIZE, true);
         final int[] docGroupBuffer = memoryPool.getIntBuffer(ImhotepLocalSession.BUFFER_SIZE, true);
         final long[] valueBuffer = memoryPool.getLongBuffer(ImhotepLocalSession.BUFFER_SIZE, true);

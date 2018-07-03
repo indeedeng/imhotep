@@ -84,6 +84,9 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         final GroupStatsPool pool = new GroupStatsPool(getNumGroups());
 
         executeRuntimeException(nullBuf, session -> {
+            if (session.isFilteredOut()) {
+                return null;
+            }
             final long[] buffer = pool.getBuffer();
             session.addGroupStats(stat, buffer);
             pool.returnBuffer(buffer);
