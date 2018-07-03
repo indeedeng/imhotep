@@ -183,6 +183,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         }
         final GroupStatsIterator[] mergers = new GroupStatsIterator[sessions.length];
         final Closer closer = Closer.create();
+        closer.register(Closeables2.forArray(log, mergers));
         try {
             execute(mergers, indexesAndSessions, false, new ThrowingFunction<Pair<Integer, ImhotepRemoteSession>, GroupStatsIterator>() {
                 public GroupStatsIterator apply(final Pair<Integer, ImhotepRemoteSession> indexSessionPair) {
