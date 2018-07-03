@@ -221,7 +221,7 @@ class LocalFileCache {
             } catch (final IOException e) {
                 throw Throwables.propagate(e);
             }
-        } catch (final ExecutionException e) {
+        } catch (final Throwable e) {
             synchronized (lock) {
                 decFileUsageRef(path);
             }
