@@ -968,6 +968,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                                          final int targetGroup,
                                          final double[] percentages,
                                          final int[] resultGroups) throws ImhotepOutOfMemoryException {
+        ensureValidMultiRegroupArrays(percentages, resultGroups);
+
         if (isFilteredOut()) {
             return;
         }
