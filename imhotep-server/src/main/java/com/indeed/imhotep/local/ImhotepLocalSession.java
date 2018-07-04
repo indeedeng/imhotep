@@ -41,6 +41,7 @@ import com.indeed.flamdex.query.Term;
 import com.indeed.flamdex.search.FlamdexSearcher;
 import com.indeed.flamdex.utils.FlamdexUtils;
 import com.indeed.imhotep.AbstractImhotepSession;
+import com.indeed.imhotep.EmptyFTGSIterator;
 import com.indeed.imhotep.FTGSIteratorUtil;
 import com.indeed.imhotep.FTGSSplitter;
 import com.indeed.imhotep.GroupMultiRemapRule;
@@ -286,6 +287,10 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
     }
 
+    public boolean isFilteredOut() {
+        return docIdToGroup.getNumGroups() == 1;
+    }
+
     @Override
     public synchronized long getTotalDocFreq(final String[] intFields, final String[] stringFields) {
         long ret = 0L;
@@ -311,6 +316,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     @Override
     public synchronized long[] getGroupStats(final int stat) {
+
+        if (isFilteredOut()) {
+            return new long[0];
+        }
+
         final long[] result = new long[getNumGroups()];
         addGroupStats(stat, result);
         return result;
@@ -323,6 +333,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     @Override
     public synchronized FTGSIterator getFTGSIterator(final FTGSParams params) {
+
+        if (isFilteredOut()) {
+            return new EmptyFTGSIterator(params.intFields, params.stringFields, numStats);
+        }
+
         // TODO: support unsorted FlamdexFTGSIterator
         // if params.isTopTerms() then Flamdex iterator can be unsorted
         // We could benefit in case of int/string field conversions
@@ -343,6 +358,13 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     @Override
     public FTGSIterator getSubsetFTGSIterator(final Map<String, long[]> intFields,
                                               final Map<String, String[]> stringFields) {
+        if (isFilteredOut()) {
+            final List<String> intFieldsNames = new ArrayList<>(intFields.size());
+            intFields.entrySet().iterator().forEachRemaining(entry -> intFieldsNames.add(entry.getKey()));
+            final List<String> strFieldsNames = new ArrayList<>(stringFields.size());
+            stringFields.entrySet().iterator().forEachRemaining(entry -> strFieldsNames.add(entry.getKey()));
+            return new EmptyFTGSIterator(intFieldsNames.toArray(new String[0]), strFieldsNames.toArray(new String[0]), numStats);
+        }
         return new FlamdexSubsetFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields);
     }
 
@@ -377,6 +399,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     @Override
     public GroupStatsIterator getDistinct(final String field, final boolean isIntField) {
+
+        if (isFilteredOut()) {
+            return new GroupStatsDummyIterator(new long[0]);
+        }
+
         final String[] intFields = isIntField ? new String[]{field} : new String[0];
         final String[] strFields = isIntField ? new String[0] : new String[]{field};
         GroupStatsIterator result = null;
@@ -406,6 +433,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     public synchronized int regroup(final GroupMultiRemapRule[] rawRules,
                                     final boolean errorOnCollisions)
         throws ImhotepOutOfMemoryException {
+
+        if (isFilteredOut()) {
+            return docIdToGroup.getNumGroups();
+        }
+
         final int numRules = rawRules.length;
         if (numRules == 0) {
             resetGroupsTo(0);
@@ -513,6 +545,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     @Override
     public synchronized int regroup(final GroupRemapRule[] rawRules)
         throws ImhotepOutOfMemoryException {
+
+        if (isFilteredOut()) {
+            return docIdToGroup.getNumGroups();
+        }
+
         final int requiredMemory = numDocs / 8 + 1;
         if (!memory.claimMemory(requiredMemory)) {
             throw new ImhotepOutOfMemoryException();
@@ -594,6 +631,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     @Override
     public int regroup(final QueryRemapRule rule)
         throws ImhotepOutOfMemoryException {
+
+        if (isFilteredOut()) {
+            return docIdToGroup.getNumGroups();
+        }
+
         docIdToGroup =
                 GroupLookupFactory.resize(docIdToGroup, Math.max(rule.getNegativeGroup(),
                                                                  rule.getPositiveGroup()), memory);
@@ -632,6 +674,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                                           final int negativeGroup,
                                           final int positiveGroup)
         throws ImhotepOutOfMemoryException {
+
+        if (isFilteredOut()) {
+            return;
+        }
+
         docIdToGroup =
                 GroupLookupFactory.resize(docIdToGroup,
                                           Math.max(negativeGroup, positiveGroup),
@@ -674,6 +721,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                                              final int negativeGroup,
                                              final int positiveGroup)
         throws ImhotepOutOfMemoryException {
+
+        if (isFilteredOut()) {
+            return;
+        }
+
         docIdToGroup =
             GroupLookupFactory.resize(docIdToGroup,
                                       Math.max(negativeGroup, positiveGroup),
@@ -721,6 +773,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         if (getNumGroups() > 2) {
             throw new IllegalStateException("regexRegroup should be applied as a filter when you have only one group");
         }
+
+        if (isFilteredOut()) {
+            return;
+        }
+
         docIdToGroup =
             GroupLookupFactory.resize(docIdToGroup,
                                       Math.max(negativeGroup, positiveGroup),
@@ -822,6 +879,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         if ((p < 0.0) || (p > 1.0)) {
             throw new IllegalArgumentException("p must be in range [0.0, 1.0]");
         }
+
+        if (isFilteredOut()) {
+            return;
+        }
+
         docIdToGroup =
             GroupLookupFactory.resize(docIdToGroup,
                                       Math.max(negativeGroup, positiveGroup),
@@ -862,6 +924,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                                                 final int[] resultGroups)
         throws ImhotepOutOfMemoryException {
         ensureValidMultiRegroupArrays(percentages, resultGroups);
+
+        if (isFilteredOut()) {
+            return;
+        }
+
         docIdToGroup = GroupLookupFactory.resize(docIdToGroup, Ints.max(resultGroups), memory);
 
         try(final IterativeHasherUtils.TermHashIterator iterator =
@@ -901,6 +968,12 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                                          final int targetGroup,
                                          final double[] percentages,
                                          final int[] resultGroups) throws ImhotepOutOfMemoryException {
+        ensureValidMultiRegroupArrays(percentages, resultGroups);
+
+        if (isFilteredOut()) {
+            return;
+        }
+
         final IntValueLookup lookup = statLookup.get(stat);
         docIdToGroup = GroupLookupFactory.resize(
                 docIdToGroup,
@@ -1088,6 +1161,10 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                     + ", must be between [0," + statLookup.length() + ")");
         }
 
+        if (isFilteredOut()) {
+            return docIdToGroup.getNumGroups();
+        }
+
         final int numBuckets = (int) (((max - 1) - min) / intervalSize + 1);
         final int newMaxGroup = (docIdToGroup.getNumGroups()-1)*(noGutters ? numBuckets : numBuckets+2);
         docIdToGroup = GroupLookupFactory.resize(docIdToGroup, newMaxGroup, memory);
@@ -1234,6 +1311,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                                             final long yMax,
                                             final long yIntervalSize)
         throws ImhotepOutOfMemoryException {
+
+        if (isFilteredOut()) {
+            return docIdToGroup.getNumGroups();
+        }
+
         final int xBuckets = (int) (((xMax - 1) - xMin) / xIntervalSize + 3);
         final int yBuckets = (int) (((yMax - 1) - yMin) / yIntervalSize + 3);
         final int numGroups = xBuckets * yBuckets;
@@ -1331,6 +1413,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             throw new IllegalArgumentException("invalid stat index: " + stat
                     + ", must be between [0," + statLookup.length() + ")");
         }
+
+        if (isFilteredOut()) {
+            return docIdToGroup.getNumGroups();
+        }
+
         docIdToGroup = GroupLookupFactory.resize(docIdToGroup, docIdToGroup.getNumGroups(), memory);
         final IntValueLookup lookup = statLookup.get(stat);
 
