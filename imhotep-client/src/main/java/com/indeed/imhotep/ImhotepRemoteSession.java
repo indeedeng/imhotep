@@ -48,6 +48,7 @@ import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
 import com.indeed.imhotep.protobuf.ShardInfoMessage;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
+import com.indeed.util.core.Pair;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import it.unimi.dsi.fastutil.longs.LongIterators;
@@ -55,7 +56,6 @@ import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
 import java.io.BufferedInputStream;
-import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -483,13 +483,11 @@ public class ImhotepRemoteSession
 
     private GroupStatsIterator sendGroupStatsIteratorRequest(final ImhotepRequest request, final Timer timer) {
         try {
-            final Socket socket = newSocket(host, port, socketTimeout);
-            final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
-            final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
-
-            final ImhotepResponse response = sendRequest(request, is, os, host, port);
+            final Pair<ImhotepResponse, InputStream> responceAndFile = sendRequestAndSaveResponceToFile(request, "groupStatsIterator");
             timer.complete(request);
-            return ImhotepProtobufShipping.readGroupStatsIterator(is, response.getGroupStatSize());
+            return ImhotepProtobufShipping.readGroupStatsIterator(
+                    responceAndFile.getSecond(),
+                    responceAndFile.getFirst().getGroupStatSize());
         } catch(final IOException e) {
             throw new RuntimeException(e);
         }
@@ -530,62 +528,64 @@ public class ImhotepRemoteSession
 
     private FTGSIterator fileBufferedFTGSRequest(final ImhotepRequest request) {
         try {
-            final Socket socket = newSocket(host, port, socketTimeout);
-            final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
-            final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
-            final ImhotepResponse response;
-            try {
-                response = sendRequest(request, is, os, host, port);
-            } catch (final IOException e) {
-                closeSocket(socket);
-                throw e;
-            }
-            final int numStats = response.getNumStats();
+            final Pair<ImhotepResponse, InputStream> responseAndFile = sendRequestAndSaveResponceToFile(request, "ftgs");
+            final int numStats = responseAndFile.getFirst().getNumStats();
             if (numStats != this.numStats) {
                 throw new IllegalStateException("numStats mismatch");
             }
-            final int numGroups = response.getNumGroups();
-            Path tmp = null;
-            try {
-                tmp = Files.createTempFile("ftgs", ".tmp");
-                OutputStream out = null;
-                final long start = System.currentTimeMillis();
-                try {
-                    out = new LimitedBufferedOutputStream(Files.newOutputStream(tmp), tempFileSizeBytesLeft);
-                    ByteStreams.copy(is, out);
-                } catch (final Throwable t) {
-                    if(t instanceof WriteLimitExceededException) {
-                        throw new TempFileSizeLimitExceededException(t);
-                    }
-                    throw Throwables2.propagate(t, IOException.class);
-                } finally {
-                    if (out != null) {
-                        out.close();
-                    }
-                    if(log.isDebugEnabled()) {
-                        log.debug("[" + getSessionId() + "] time to copy split data to file: " + (System.currentTimeMillis()
-                                - start) + " ms, file length: " + Files.size(tmp));
-                    }
-                }
-                final BufferedInputStream bufferedInputStream = new BufferedInputStream(Files.newInputStream(tmp));
-                final InputStream in = new FilterInputStream(bufferedInputStream) {
-                    public void close() throws IOException {
-                        bufferedInputStream.close();
-                    }
-                };
-                return new InputStreamFTGSIterator(in, numStats, numGroups);
-            } finally {
-                if (tmp != null) {
-                    try {
-                        Files.delete(tmp);
-                    } catch (final Exception e) {
-                        log.warn("[" + getSessionId() + "] Failed to delete temp file " + tmp);
-                    }
-                }
-                closeSocket(socket);
-            }
+            final int numGroups = responseAndFile.getFirst().getNumGroups();
+            return new InputStreamFTGSIterator(responseAndFile.getSecond(), numStats, numGroups);
         } catch (final IOException e) {
             throw new RuntimeException(e); // TODO
+        }
+    }
+
+    private Pair<ImhotepResponse, InputStream> sendRequestAndSaveResponceToFile(
+            final ImhotepRequest request,
+            final String tempFilePrefix) throws IOException {
+        final Socket socket = newSocket(host, port, socketTimeout);
+        final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
+        final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
+        final ImhotepResponse response;
+        try {
+            response = sendRequest(request, is, os, host, port);
+        } catch (final IOException e) {
+            closeSocket(socket);
+            throw e;
+        }
+        Path tmp = null;
+        try {
+            tmp = Files.createTempFile(tempFilePrefix, ".tmp");
+            OutputStream out = null;
+            final long start = System.currentTimeMillis();
+            try {
+                out = new LimitedBufferedOutputStream(Files.newOutputStream(tmp), tempFileSizeBytesLeft);
+                ByteStreams.copy(is, out);
+            } catch (final Throwable t) {
+                if(t instanceof WriteLimitExceededException) {
+                    throw new TempFileSizeLimitExceededException(t);
+                }
+                throw Throwables2.propagate(t, IOException.class);
+            } finally {
+                if (out != null) {
+                    out.close();
+                }
+                if(log.isDebugEnabled()) {
+                    log.debug("[" + getSessionId() + "] time to copy split data to file: " + (System.currentTimeMillis()
+                            - start) + " ms, file length: " + Files.size(tmp));
+                }
+            }
+            final BufferedInputStream bufferedInputStream = new BufferedInputStream(Files.newInputStream(tmp));
+            return new Pair<>(response, bufferedInputStream);
+        } finally {
+            if (tmp != null) {
+                try {
+                    Files.delete(tmp);
+                } catch (final Exception e) {
+                    log.warn("[" + getSessionId() + "] Failed to delete temp file " + tmp);
+                }
+            }
+            closeSocket(socket);
         }
     }
 
