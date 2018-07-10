@@ -66,7 +66,12 @@ public class GroupStatsStreamReader extends AbstractLongIterator implements Grou
 
     @Override
     public void close() {
-        Closeables2.closeQuietly( stream, log );
+        // Consume stream till the end because otherwise stream writer can get exception
+        // (for example in case of transferring data over socket)
+        while (hasNext()) {
+            nextLong();
+        }
+        Closeables2.closeQuietly(stream, log);
         stream = null;
     }
 }
