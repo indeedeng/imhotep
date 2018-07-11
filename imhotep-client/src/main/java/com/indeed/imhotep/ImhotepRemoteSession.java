@@ -489,7 +489,7 @@ public class ImhotepRemoteSession
 
             final ImhotepResponse response = sendRequest(request, is, os, host, port);
             timer.complete(request);
-            return ImhotepProtobufShipping.readGroupStatsIterator(is, response.getGroupStatSize());
+            return ImhotepProtobufShipping.readGroupStatsIterator(is, response.getGroupStatSize(), true);
         } catch(final IOException e) {
             throw new RuntimeException(e);
         }

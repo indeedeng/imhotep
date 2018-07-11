@@ -36,11 +36,14 @@ public class GroupStatsStreamReader extends AbstractLongIterator implements Grou
 
     private DataInputStream stream;
     private final int count;
+    // consume stream till the end.
+    private final boolean exhaust;
     private int index;
 
-    public GroupStatsStreamReader(final InputStream stream, final int count) {
+    public GroupStatsStreamReader(final InputStream stream, final int count, final boolean exhaust) {
         this.stream = new DataInputStream(stream);
         this.count = count;
+        this.exhaust = exhaust;
         index = 0;
     }
 
@@ -66,10 +69,15 @@ public class GroupStatsStreamReader extends AbstractLongIterator implements Grou
 
     @Override
     public void close() {
-        // Consume stream till the end because otherwise stream writer can get exception
-        // (for example in case of transferring data over socket)
-        while (hasNext()) {
-            nextLong();
+        if (exhaust) {
+            try {
+                // Consume stream till the end because otherwise stream writer can get exception
+                // (for example in case of transferring data over socket)
+                while (hasNext()) {
+                    nextLong();
+                }
+            } catch (final Exception ignored) {
+            }
         }
         Closeables2.closeQuietly(stream, log);
         stream = null;
