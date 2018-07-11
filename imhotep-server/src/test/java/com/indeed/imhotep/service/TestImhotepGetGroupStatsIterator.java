@@ -18,6 +18,7 @@ import com.indeed.flamdex.MemoryFlamdex;
 import com.indeed.flamdex.writer.FlamdexDocument;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.RegroupCondition;
+import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.client.ImhotepClient;
@@ -136,5 +137,35 @@ public class TestImhotepGetGroupStatsIterator {
     @Test
     public void testMultiSession() throws IOException, ImhotepOutOfMemoryException, InterruptedException, TimeoutException {
         runTest(10, 10000, 5);
+    }
+
+    @Test
+    public void testIMTEPD400() throws IOException, TimeoutException, ImhotepOutOfMemoryException, InterruptedException {
+        final Pair<MemoryFlamdex[], GroupMultiRemapRule> data = createTestData(5, 1000);
+
+        for (int i = 0; i < data.getFirst().length; i++) {
+            clusterRunner.createDailyShard(DATASET, TODAY.minusDays(1 + i), data.getFirst()[i]);
+        }
+
+        for (int i = 0; i < 5; i++) {
+            clusterRunner.startDaemon();
+        }
+
+        try(
+            final ImhotepClient client = clusterRunner.createClient();
+            final ImhotepSession dataset = client.sessionBuilder(DATASET, TODAY.minusDays(1 + data.getFirst().length), TODAY).build()
+        ) {
+            // remapping all docs to group 1.000.000 to have big group stats array
+            dataset.intOrRegroup("fakeField", new long[0], 1, 1000000, 1000000);
+            dataset.pushStat("count()");
+            final GroupStatsIterator iterator = dataset.getGroupStatsIterator(0);
+            iterator.close(); // in IMTEPD-400 daemons are closing sessions here.
+
+            // Wait a little bit, let daemons to fail.
+            Thread.sleep(1000);
+
+            // Check, if session is still alive
+            assertEquals(2, dataset.pushStat("count()"));
+        }
     }
 }
