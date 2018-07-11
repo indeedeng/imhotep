@@ -487,7 +487,8 @@ public class ImhotepRemoteSession
             timer.complete(request);
             return ImhotepProtobufShipping.readGroupStatsIterator(
                     responceAndFile.getSecond(),
-                    responceAndFile.getFirst().getGroupStatSize());
+                    responceAndFile.getFirst().getGroupStatSize(),
+                    false);
         } catch(final IOException e) {
             throw new RuntimeException(e);
         }

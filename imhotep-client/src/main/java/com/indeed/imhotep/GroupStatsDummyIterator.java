@@ -29,25 +29,31 @@ public class GroupStatsDummyIterator extends AbstractLongIterator implements Gro
 
     private long[] data;
     private int index;
+    private final int effectiveSize; // size without trailing zeroes.
 
-    public GroupStatsDummyIterator( final long[] data ) {
+    public GroupStatsDummyIterator(final long[] data) {
         this.data = data;
-        this.index = 0;
+        index = 0;
+        int size = data.length;
+        while ((size > 0) && (data[size - 1] == 0)) {
+            size--;
+        }
+        effectiveSize = size;
     }
 
     @Override
     public int getNumGroups() {
-        return data.length;
+        return effectiveSize;
     }
 
     @Override
     public boolean hasNext() {
-        return data != null && index < data.length;
+        return index < effectiveSize;
     }
 
     @Override
     public long nextLong() {
-        if( index >= data.length ) {
+        if(index >= effectiveSize) {
             throw new NoSuchElementException();
         }
         return data[index++];
@@ -56,6 +62,6 @@ public class GroupStatsDummyIterator extends AbstractLongIterator implements Gro
     @Override
     public void close() {
         data = null;
-        index = 0;
+        index = effectiveSize; // just in case, to make hasNext() return false
     }
 }
