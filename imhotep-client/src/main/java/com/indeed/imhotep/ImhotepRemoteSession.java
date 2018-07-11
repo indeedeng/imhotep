@@ -483,7 +483,7 @@ public class ImhotepRemoteSession
 
     private GroupStatsIterator sendGroupStatsIteratorRequest(final ImhotepRequest request, final Timer timer) {
         try {
-            final Pair<ImhotepResponse, InputStream> responceAndFile = sendRequestAndSaveResponceToFile(request, "groupStatsIterator");
+            final Pair<ImhotepResponse, InputStream> responceAndFile = sendRequestAndSaveResponseToFile(request, "groupStatsIterator");
             timer.complete(request);
             return ImhotepProtobufShipping.readGroupStatsIterator(
                     responceAndFile.getSecond(),
@@ -528,7 +528,7 @@ public class ImhotepRemoteSession
 
     private FTGSIterator fileBufferedFTGSRequest(final ImhotepRequest request) {
         try {
-            final Pair<ImhotepResponse, InputStream> responseAndFile = sendRequestAndSaveResponceToFile(request, "ftgs");
+            final Pair<ImhotepResponse, InputStream> responseAndFile = sendRequestAndSaveResponseToFile(request, "ftgs");
             final int numStats = responseAndFile.getFirst().getNumStats();
             if (numStats != this.numStats) {
                 throw new IllegalStateException("numStats mismatch");
@@ -540,7 +540,7 @@ public class ImhotepRemoteSession
         }
     }
 
-    private Pair<ImhotepResponse, InputStream> sendRequestAndSaveResponceToFile(
+    private Pair<ImhotepResponse, InputStream> sendRequestAndSaveResponseToFile(
             final ImhotepRequest request,
             final String tempFilePrefix) throws IOException {
         final Socket socket = newSocket(host, port, socketTimeout);
