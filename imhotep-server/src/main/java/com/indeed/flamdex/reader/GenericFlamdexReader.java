@@ -59,6 +59,7 @@ public class GenericFlamdexReader {
         }
 
         final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(directory);
+
         switch (metadata.getFlamdexFormatVersion()) {
             case SIMPLE:
                 return SimpleFlamdexReader.open(directory);

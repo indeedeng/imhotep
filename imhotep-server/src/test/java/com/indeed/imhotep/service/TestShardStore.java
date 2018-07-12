@@ -136,14 +136,6 @@ public class TestShardStore {
                }
                store.safeClose();
             }
-
-            /* Reopen the store and verify that it has everything in it. */
-            try (final ShardStore store = new ShardStore(storeDir)) {
-                final DatasetInfoList actual = new DatasetInfoList(store);
-                /* TODO(johnf): test the content in some meaningful way (without
-                 just recreating the DatasetInfoList logic in this test. */
-                store.safeClose();
-            }
         }
         catch (final Exception ex) {
             Throwables.propagate(ex);

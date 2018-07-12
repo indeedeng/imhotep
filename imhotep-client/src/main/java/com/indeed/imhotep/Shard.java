@@ -17,12 +17,12 @@ import com.google.common.collect.Lists;
 import com.indeed.imhotep.client.Host;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.nio.file.Path;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class Shard extends ShardInfo {
     public final List<Host> servers = Lists.newArrayList();
-
 
     public Shard(String shardId, int numDocs, long version) {
         super(shardId, numDocs, version);

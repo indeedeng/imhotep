@@ -15,8 +15,8 @@
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.indeed.flamdex.query.Query;
+import com.indeed.flamdex.reader.FlamdexMetadata;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
-import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.ImhotepStatusDump;
@@ -24,7 +24,6 @@ import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.Instrumentation.Keys;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
-import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.GroupStatsIterator;
@@ -245,12 +244,6 @@ public abstract class AbstractImhotepServiceCore
             return writeFTGSIteratorToOutputStream(numStats, merger, os);
         });
     }
-
-    @Override
-    public abstract List<DatasetInfo> handleGetDatasetList();
-
-    @Override
-    public abstract List<ShardInfo> handleGetShardlistForTime(String dataset, long startUnixtime, long endUnixtime);
 
     @Override
     public abstract ImhotepStatusDump handleGetStatusDump(final boolean includeShardList);
@@ -495,7 +488,6 @@ public abstract class AbstractImhotepServiceCore
 
     public abstract List<String> getShardIdsForSession(String sessionId);
 
-    @Override
     public abstract String handleOpenSession(
             String dataset,
             List<String> shardRequestList,
@@ -507,7 +499,8 @@ public abstract class AbstractImhotepServiceCore
             boolean optimizeGroupZeroLookups,
             String sessionId,
             AtomicLong tempFileSizeBytesLeft,
-            final long sessionTimeout
+            final long sessionTimeout,
+            List<Integer> numDocs
     ) throws ImhotepOutOfMemoryException;
 
     @Override

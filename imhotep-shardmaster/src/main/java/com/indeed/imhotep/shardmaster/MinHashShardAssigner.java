@@ -126,7 +126,7 @@ class MinHashShardAssigner implements ShardAssigner {
                     public ShardAssignmentInfo apply(final Host chosenHost) {
                         return new ShardAssignmentInfo(
                                 dataset,
-                                shard.getIndexDir().toUri().toString(),
+                                shard.getIndexDir().toString(),
                                 chosenHost
                         );
                     }

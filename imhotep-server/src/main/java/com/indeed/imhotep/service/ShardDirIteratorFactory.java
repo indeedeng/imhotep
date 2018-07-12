@@ -17,7 +17,7 @@ package com.indeed.imhotep.service;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.indeed.imhotep.client.Host;
-import com.indeed.imhotep.shardmaster.ShardMaster;
+import com.indeed.imhotep.shardmasterrpc.ShardMaster;
 import com.indeed.util.core.time.DefaultWallClock;
 import com.indeed.util.core.time.WallClock;
 import org.apache.log4j.Logger;

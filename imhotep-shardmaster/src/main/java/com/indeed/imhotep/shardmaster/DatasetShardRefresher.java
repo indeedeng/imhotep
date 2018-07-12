@@ -19,6 +19,7 @@ import com.indeed.imhotep.client.HostsReloader;
 import com.indeed.imhotep.client.ShardTimeUtils;
 import com.indeed.imhotep.shardmaster.model.ShardAssignmentInfo;
 import com.indeed.util.zookeeper.ZooKeeperConnection;
+import javafx.util.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.log4j.Logger;
@@ -28,9 +29,8 @@ import org.joda.time.DateTime;
 import java.io.IOException;
 import java.sql.*;
 import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
+import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 /**
@@ -43,11 +43,12 @@ class DatasetShardRefresher extends TimerTask {
     private final HostsReloader hostsReloader;
     private final ShardAssigner shardAssigner;
     private final ShardAssignmentInfoDao assignmentInfoDao;
-    private static final ExecutorService executorService = Executors.newCachedThreadPool();
+    private static final ExecutorService executorService = new ForkJoinPool(200);
     private final String leaderPath;
     private Connection dbConnection;
     private ZooKeeperConnection zkConnection;
     private final org.apache.hadoop.fs.FileSystem hadoopFileSystem;
+    private final ShardFilter filter;
 
     public boolean isLeader(){
         try {
@@ -60,13 +61,11 @@ class DatasetShardRefresher extends TimerTask {
             final String electionRoot = leaderPath.substring(0, leaderPathEndIndex);
             List<String> children = zkConnection.getChildren(electionRoot, false);
             Collections.sort(children);
-            LOGGER.info("Children are: "+ children);
-            LOGGER.info("I am: "+leaderPath.substring(leaderPathEndIndex)+1);
             return children.get(0).equals(leaderPath.substring(leaderPathEndIndex+1));
         } catch (InterruptedException | KeeperException e) {
             e.printStackTrace();
             LOGGER.error(e.getMessage(), e.getCause());
-            return false;
+            return true;
         }
     }
 
@@ -77,7 +76,8 @@ class DatasetShardRefresher extends TimerTask {
                           final String leaderPath,
                           final ZooKeeperConnection zkConnection,
                           final Connection dbConnection,
-                          String rootURI) throws IOException {
+                          final String rootURI,
+                          final ShardFilter filter) throws IOException {
         this.datasetsDir = datasetsDir;
         this.hostsReloader = hostsReloader;
         this.shardAssigner = shardAssigner;
@@ -86,6 +86,7 @@ class DatasetShardRefresher extends TimerTask {
         this.zkConnection = zkConnection;
         this.dbConnection = dbConnection;
         this.hadoopFileSystem = new Path(rootURI).getFileSystem(new Configuration());
+        this.filter = filter;
     }
 
     Future initialize() {
@@ -119,114 +120,137 @@ class DatasetShardRefresher extends TimerTask {
      * Synchronized so if something switches to being a leader while a lot of shards still
      * need to be uploaded to SQL, it won't duplicate work.
      */
-
     private synchronized void innerRun() {
         if(isLeader()) {
+            LOGGER.info("I am leader!");
             loadFromSQL();
             DataSetScanner scanner = new DataSetScanner(datasetsDir, hadoopFileSystem);
-            StreamSupport.stream(scanner.spliterator(), true).forEach(this::handleDataset);
+            try {
+                executorService.submit(() -> StreamSupport.stream(scanner.spliterator(), true).filter(path -> filter.accept(path.getName())).forEach(this::handleDataset)).get();
+            } catch (ExecutionException | InterruptedException e) {
+                LOGGER.error(e.getMessage(), e);
+            }
         } else {
             loadFromSQL();
         }
+        LOGGER.info("Finished innerRun");
     }
 
-    // TODO: delete
     private void handleDataset(Path path) {
+        LOGGER.info("On dataset: " + path);
         Iterable<ShardDir> dataset = new ShardScanner(path, hadoopFileSystem);
 
         //TODO: hack b/c we are adding stuff so the iterator is empty when we try and assign
         Iterator<ShardDir> datasetIterator = dataset.iterator();
 
-        StreamSupport.stream(dataset.spliterator(), true).forEach(shardDir -> collectShardData(shardDir));
+        List<Pair<ShardDir, Future<FlamdexMetadata>>> pairs = new ArrayList<>();
+
+        for(final ShardDir dir: dataset) {
+            if(filter.accept(dir.getDataset(), dir.getId())) {
+                pairs.add(new Pair<>(dir, executorService.submit(() -> collectShardMetadata(dir))));
+            }
+        }
+
+        for(final Pair<ShardDir, Future<FlamdexMetadata>> p: pairs) {
+            try {
+                if(p.getValue().get() == null) {
+                    LOGGER.error("metadata was null for shard " + p.getKey());
+                }
+                addData(p.getKey(), p.getValue().get());
+            } catch (final SQLException e) {
+                LOGGER.error("could not add data to SQL", e);
+            } catch (final ExecutionException | InterruptedException e) {
+                LOGGER.error("error with getting metadata", e);
+            }
+        }
+
         Iterable<ShardAssignmentInfo> assignment = shardAssigner.assign(hostsReloader.getHosts(), path.getName(), () -> datasetIterator);
         assignmentInfoDao.updateAssignments(path.getName(), DateTime.now(), assignment);
     }
 
-    private void collectShardData(ShardDir shardDir) {
-        try {
-            FlamdexMetadata metadata = FlamdexMetadata.readMetadata(hadoopFileSystem, shardDir.getHadoopPath());
-            if (metadata == null) {
-                LOGGER.error("Metadata was null for shard " + shardDir);
-            }
-            addToSQL(metadata, shardDir);
-            ShardData.getInstance().addShardFromHDFS(metadata, shardDir.getIndexDir(), shardDir);
-        } catch (IOException | SQLException e) {
-            LOGGER.error(e.getMessage(), e);
-        }
+    private FlamdexMetadata collectShardMetadata(ShardDir shardDir) throws IOException {
+        LOGGER.info("reading a shard with dataset: " + shardDir.getDataset() + " and id: " + shardDir.getId() + " and version " + shardDir.getVersion());
+        FlamdexMetadata metadata = FlamdexMetadata.readMetadata(hadoopFileSystem, shardDir.getHadoopPath());
+        LOGGER.info("finished reading a shard with dataset: " + shardDir.getDataset() + " and id: " + shardDir.getId() + " and version " + shardDir.getVersion());
+        return metadata;
+    }
+
+    private void addData(ShardDir shardDir, FlamdexMetadata metadata) throws SQLException {
+        addToSQL(metadata, shardDir);
+        ShardData.getInstance().addShardFromHDFS(metadata, shardDir.getIndexDir(), shardDir);
     }
 
     private void addToSQL(FlamdexMetadata metadata, ShardDir shardDir) throws SQLException {
         String shardId = shardDir.getId();
-        String dataset = shardDir.getIndexDir().getParent().toString();
+        String dataset = shardDir.getDataset();
         final PreparedStatement tblShardsInsertStatement = dbConnection.prepareStatement("INSERT INTO tblshards (path, numDocs) VALUES (?, ?);");
         tblShardsInsertStatement.setString(1, shardDir.getIndexDir().toString());
         tblShardsInsertStatement.setInt(2, metadata.getNumDocs());
-
         ShardData data = ShardData.getInstance();
 
         final PreparedStatement tblFieldsInsertStatement =
                 dbConnection.prepareStatement("INSERT INTO tblfields (dataset, fieldname, type, lastshardstarttime) VALUES (?, ?, ?, ?);");
 
-        metadata.getStringFields().stream().filter(field -> !data.hasField(dataset, field)).forEach(
-                field -> {
-                    try {
-                        tblFieldsInsertStatement.setString(1, dataset);
-                        tblFieldsInsertStatement.setString(2, field);
-                        tblFieldsInsertStatement.setInt(3, ShardData.fieldType.STRING.getValue());
-                        tblFieldsInsertStatement.setLong(4, ShardTimeUtils.parseStart(shardId).getMillis());
-                        tblFieldsInsertStatement.addBatch();
-                    } catch (SQLException e){
-                        e.printStackTrace();
-                    }
+        for (String s : metadata.getStringFields()) {
+            if (!data.hasField(dataset, s)) {
+                try {
+                    tblFieldsInsertStatement.setString(1, dataset);
+                    tblFieldsInsertStatement.setString(2, s);
+                    tblFieldsInsertStatement.setInt(3, ShardData.FieldType.STRING.getValue());
+                    tblFieldsInsertStatement.setLong(4, ShardTimeUtils.parseStart(shardId).getMillis());
+                    tblFieldsInsertStatement.addBatch();
+                } catch (SQLException e) {
+                    e.printStackTrace();
                 }
-        );
+            }
+        }
 
-        metadata.getIntFields().stream().filter(field -> !data.hasField(dataset, field)).forEach(
-                field -> {
-                    try {
-                        tblFieldsInsertStatement.setString(1, dataset);
-                        tblFieldsInsertStatement.setString(2, field);
-                        tblFieldsInsertStatement.setInt(3, ShardData.fieldType.INT.getValue());
-                        tblFieldsInsertStatement.setLong(4, ShardTimeUtils.parseStart(shardId).getMillis());
-                        tblFieldsInsertStatement.addBatch();
-                    } catch (SQLException e){
-                        e.printStackTrace();
-                    }
+        for (String s : metadata.getIntFields()) {
+            if (!data.hasField(dataset, s)) {
+                try {
+                    tblFieldsInsertStatement.setString(1, dataset);
+                    tblFieldsInsertStatement.setString(2, s);
+                    tblFieldsInsertStatement.setInt(3, ShardData.FieldType.INT.getValue());
+                    tblFieldsInsertStatement.setLong(4, ShardTimeUtils.parseStart(shardId).getMillis());
+                    tblFieldsInsertStatement.addBatch();
+                } catch (SQLException e) {
+                    e.printStackTrace();
                 }
-        );
+            }
+        }
 
         final PreparedStatement tblFieldsUpdateStatement =
-                dbConnection.prepareStatement("UPDATE tblfields SET type = ? AND lastshardstarttime = ? WHERE dataset = ? AND fieldname = ?;");
+                dbConnection.prepareStatement("UPDATE tblfields SET type = ?, lastshardstarttime = ? WHERE dataset = ? AND fieldname = ?;");
 
-        metadata.getStringFields().stream().filter(field -> data.hasField(dataset, field) &&
-                data.getFieldUpdateTime(dataset, field) < (ShardTimeUtils.parseStart(shardId)).getMillis()).forEach(
-                        field -> {
-                            try {
-                                tblFieldsUpdateStatement.setInt(1, ShardData.fieldType.STRING.getValue());
-                                tblFieldsUpdateStatement.setLong(2, ShardTimeUtils.parseStart(shardId).getMillis());
-                                tblFieldsUpdateStatement.setString(3, dataset);
-                                tblFieldsUpdateStatement.setString(4, field);
-                                tblFieldsUpdateStatement.addBatch();
-                            } catch (SQLException e){
-                                e.printStackTrace();
-                            }
-                        }
-        );
-
-        metadata.getIntFields().stream().filter(field -> data.hasField(dataset, field) &&
-                data.getFieldUpdateTime(dataset, field) < (ShardTimeUtils.parseStart(shardId)).getMillis()).forEach(
-                field -> {
-                    try {
-                        tblFieldsUpdateStatement.setInt(1, ShardData.fieldType.INT.getValue());
-                        tblFieldsUpdateStatement.setLong(2, ShardTimeUtils.parseStart(shardId).getMillis());
-                        tblFieldsUpdateStatement.setString(3, dataset);
-                        tblFieldsUpdateStatement.setString(4, field);
-                        tblFieldsUpdateStatement.addBatch();
-                    } catch (SQLException e){
-                        e.printStackTrace();
-                    }
+        for (String s : metadata.getStringFields()) {
+            if (data.hasField(dataset, s) &&
+                    data.getFieldUpdateTime(dataset, s) < (ShardTimeUtils.parseStart(shardId)).getMillis()) {
+                try {
+                    tblFieldsUpdateStatement.setInt(1, ShardData.FieldType.STRING.getValue());
+                    tblFieldsUpdateStatement.setLong(2, ShardTimeUtils.parseStart(shardId).getMillis());
+                    tblFieldsUpdateStatement.setString(3, dataset);
+                    tblFieldsUpdateStatement.setString(4, s);
+                    tblFieldsUpdateStatement.addBatch();
+                } catch (SQLException e) {
+                    e.printStackTrace();
                 }
-        );
+            }
+        }
+
+        for (String field : metadata.getIntFields()) {
+            if (data.hasField(dataset, field) &&
+                    data.getFieldUpdateTime(dataset, field) < (ShardTimeUtils.parseStart(shardId)).getMillis()) {
+                try {
+                    tblFieldsUpdateStatement.setInt(1, ShardData.FieldType.INT.getValue());
+                    tblFieldsUpdateStatement.setLong(2, ShardTimeUtils.parseStart(shardId).getMillis());
+                    tblFieldsUpdateStatement.setString(3, dataset);
+                    tblFieldsUpdateStatement.setString(4, field);
+                    tblFieldsUpdateStatement.addBatch();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
 
         /*
          * In this order because it is more resilient to a crash (don't want to think
@@ -236,6 +260,8 @@ class DatasetShardRefresher extends TimerTask {
         tblFieldsUpdateStatement.executeBatch();
 
         tblShardsInsertStatement.execute();
+
+        dbConnection.commit();
     }
 
     @Override

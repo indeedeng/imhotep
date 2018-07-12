@@ -14,20 +14,19 @@
  package com.indeed.imhotep.client;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Longs;
-import com.indeed.imhotep.DatasetInfo;
-import com.indeed.imhotep.DynamicIndexSubshardDirnameUtil;
-import com.indeed.imhotep.ImhotepRemoteSession;
-import com.indeed.imhotep.ImhotepStatusDump;
-import com.indeed.imhotep.Instrumentation;
-import com.indeed.imhotep.RemoteImhotepMultiSession;
-import com.indeed.imhotep.Shard;
-import com.indeed.imhotep.ShardInfo;
+import com.indeed.imhotep.*;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.protobuf.AssignedShard;
+import com.indeed.imhotep.protobuf.ShardMessage;
+import com.indeed.imhotep.shardmasterrpc.RequestResponseClient;
+import com.indeed.imhotep.shardmasterrpc.RequestResponseClientFactory;
+import com.indeed.imhotep.shardmasterrpc.ShardMaster;
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -37,23 +36,9 @@ import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-import java.util.UUID;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
+import java.nio.file.Paths;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -67,6 +52,7 @@ public class ImhotepClient
     private final ExecutorService rpcExecutor;
     private final ScheduledExecutorService reloader;
     private final ImhotepClientMetadataReloader datasetMetadataReloader;
+    private final ShardMaster shardMaster;
 
     private final Instrumentation.ProviderSupport instrumentation =
         new Instrumentation.ProviderSupport();
@@ -96,6 +82,7 @@ public class ImhotepClient
     }
 
     public ImhotepClient(final HostsReloader hostsSource) {
+        shardMaster = getShardMasterSupplierWhereHostIsSet().get();
         this.hostsSource = hostsSource;
 
         rpcExecutor = Executors.newCachedThreadPool(new ThreadFactory() {
@@ -117,7 +104,7 @@ public class ImhotepClient
         });
         reloader.scheduleAtFixedRate(hostsSource, 60L, 60L, TimeUnit.SECONDS);
 
-        datasetMetadataReloader = new ImhotepClientMetadataReloader(hostsSource, rpcExecutor);
+        datasetMetadataReloader = new ImhotepClientMetadataReloader(shardMaster);
         datasetMetadataReloader.run();
         reloader.scheduleAtFixedRate(datasetMetadataReloader, 60L, 60L, TimeUnit.SECONDS);
     }
@@ -184,34 +171,14 @@ public class ImhotepClient
     protected List<Shard> getAllShardsForTimeRange(String dataset, DateTime start, DateTime end) {
         final long startUnixtime = start.getMillis();
         final long endUnixtime = end.getMillis();
+        try {
+            return shardMaster.getShardsInTime(dataset, startUnixtime, endUnixtime);
+        } catch (IOException e) {
+            log.error(e.getMessage(), e);
+            return Collections.emptyList();
 
-        final List<Host> hosts = hostsSource.getHosts();
-
-        final Map<Host, Future<List<ShardInfo>>> futures = Maps.newHashMap();
-        for (final Host host : hosts) {
-            final Future<List<ShardInfo>> future = rpcExecutor.submit(new Callable<List<ShardInfo>>() {
-                @Override
-                public List<ShardInfo> call() throws IOException {
-                    return ImhotepRemoteSession.getShardlistForTime(host.hostname, host.port, dataset, startUnixtime, endUnixtime);
-                }
-            });
-            futures.put(host, future);
         }
 
-        final Map<ShardInfo, Shard> allShards = Maps.newHashMap();
-        for (final Host host : hosts) {
-            try {
-                final List<ShardInfo> shards = futures.get(host).get();
-                for(ShardInfo shard: shards) {
-                    final Shard locatedShardInfo = allShards.computeIfAbsent(shard,
-                            k -> new Shard(shard.shardId, shard.numDocs, shard.version));
-                    locatedShardInfo.getServers().add(host);
-                }
-            } catch (final ExecutionException | InterruptedException e) {
-                throw new RuntimeException("Error getting shard list from " + host, e);
-            }
-        }
-        return Lists.newArrayList(allShards.values());
     }
 
     // we are truncating the shard start point as part of removeIntersectingShards so we make a wrapper for the LocatedShardInfo
@@ -482,8 +449,20 @@ public class ImhotepClient
         final List<Future<ImhotepRemoteSession>> futures = new ArrayList<>(shardRequestMap.size());
         try {
             for (final Map.Entry<Host, List<String>> entry : shardRequestMap.entrySet()) {
+                // TODO: there is a bug with different ports on the same host being different entries, fix this
+                log.info("host is: "+ entry.getKey());
                 final Host host = entry.getKey();
                 final List<String> shardList = entry.getValue();
+                final Map<String, DatasetInfo> datasetToDatasetInfo = datasetMetadataReloader.getDatasetToDatasetInfo();
+
+                final Map<String, Integer> shardToNumDocs = new HashMap<>();
+                datasetToDatasetInfo.get(dataset).getShardList().forEach( shardInfo -> shardToNumDocs.put(shardInfo.shardId,shardInfo.numDocs));
+
+                List<Integer> numDocsInShards = new ArrayList<>();
+                for(String shard: shardList) {
+                    numDocsInShards.add(shardToNumDocs.get(new ShardDir(Paths.get(shard)).getId()));
+                }
+
                 final long numDocs = hostsToDocCounts.get(host);
 
                 futures.add(executor.submit(new Callable<ImhotepRemoteSession>() {
@@ -491,6 +470,7 @@ public class ImhotepClient
                     public ImhotepRemoteSession call() throws IOException, ImhotepOutOfMemoryException {
                         return ImhotepRemoteSession.openSession(host.hostname, host.port,
                                                                 dataset, shardList,
+                                                                numDocsInShards,
                                                                 mergeThreadLimit,
                                                                 username,
                                                                 clientName,
@@ -585,8 +565,13 @@ public class ImhotepClient
             if (!shardRequestMap.containsKey(minHost)) {
                 shardRequestMap.put(minHost, new ArrayList<String>());
             }
-            shardRequestMap.get(minHost).add(shard.shardId);
-            hostDocCounts.put(minHost, hostDocCounts.get(minHost) + shard.numDocs);
+            // TODO: what if this is false?
+            if(shard instanceof ShardWithPathAndDataset) {
+                shardRequestMap.get(minHost).add(((ShardWithPathAndDataset) shard).getPath().toString());
+                hostDocCounts.put(minHost, hostDocCounts.get(minHost) + shard.numDocs);
+            } else {
+                log.error("shard did not have a dataset");
+            }
         }
         return new ShardsAndDocCounts(shardRequestMap, hostDocCounts);
     }
@@ -596,54 +581,21 @@ public class ImhotepClient
      * Note that with a millions of shards this request is slow and can use gigabytes of RAM.
      */
     public Map<String, List<Shard>> queryDatasetToFullShardList() {
-        final Map<Host, List<DatasetInfo>> hostToDatasets= shardListRpc();
-        final Map<String, Map<ShardInfo, Shard>> datasetToAllShards = Maps.newHashMap();
-        for (Map.Entry<Host, List<DatasetInfo>> entry: hostToDatasets.entrySet()) {
-            final Host host = entry.getKey();
-            for(DatasetInfo datasetInfo: entry.getValue()) {
-                final String datasetName = datasetInfo.getDataset();
-                Map<ShardInfo, Shard> shardmapForDataset = datasetToAllShards.computeIfAbsent(datasetName, k -> Maps.newHashMap());
-                final Collection<ShardInfo> shards = datasetInfo.getShardList();
-                for (ShardInfo shard : shards) {
-                    final Shard locatedShardInfo = shardmapForDataset.computeIfAbsent(shard,
-                            k -> new Shard(shard.shardId, shard.numDocs, shard.version));
-                    locatedShardInfo.getServers().add(host);
-                }
+        final List<ShardWithPathAndDataset> shardList;
+        try {
+            shardList = shardMaster.getShardList();
+        } catch (IOException e) {
+            log.error("Could not get shard list", e);
+            return Collections.emptyMap();
+        }
+        final Map<String, List<Shard>> toReturn = new HashMap<>();
+        for(ShardWithPathAndDataset shard: shardList) {
+            if(!toReturn.containsKey(shard.getDataset())) {
+                toReturn.put(shard.getDataset(), new ArrayList<>());
             }
+            toReturn.get(shard.getDataset());
         }
-
-        final Map<String, List<Shard>> result = Maps.newHashMap();
-        for(Map.Entry<String, Map<ShardInfo, Shard>> entry: datasetToAllShards.entrySet()) {
-            result.put(entry.getKey(), Lists.newArrayList(entry.getValue().values()));
-        }
-        return result;
-    }
-
-    private Map<Host, List<DatasetInfo>> shardListRpc() {
-        final List<Host> hosts = hostsSource.getHosts();
-
-        final Map<Host, Future<List<DatasetInfo>>> futures = Maps.newHashMap();
-        for (final Host host : hosts) {
-            final Future<List<DatasetInfo>> future = rpcExecutor.submit(new Callable<List<DatasetInfo>>() {
-                @Override
-                public List<DatasetInfo> call() throws IOException {
-                    return ImhotepRemoteSession.getShardInfoList(host.hostname, host.port);
-                }
-            });
-            futures.put(host, future);
-        }
-
-        final Map<Host, List<DatasetInfo>> ret = Maps.newHashMapWithExpectedSize(hosts.size());
-        for (final Map.Entry<Host, Future<List<DatasetInfo>>> hostFutureEntry : futures.entrySet()) {
-            try {
-                final List<DatasetInfo> shards = hostFutureEntry.getValue().get();
-                ret.put(hostFutureEntry.getKey(), shards);
-            } catch (ExecutionException | InterruptedException e) {
-                log.error("error getting shard list from " + hostFutureEntry.getKey(), e);
-            }
-        }
-
-        return ret;
+        return toReturn;
     }
 
     public Map<Host, ImhotepStatusDump> getStatusDumps() {
@@ -707,5 +659,31 @@ public class ImhotepClient
      */
     public List<Host> getServerHosts() {
         return new ArrayList<>(hostsSource.getHosts());
+    }
+
+    public static Supplier<ShardMaster> getShardMasterSupplier(String zkNodes, Host myHost) {
+        final String shardMasterHost = System.getProperty("imhotep.shardmaster.host");
+        if(shardMasterHost != null) {
+            // we have an exact host:port combination provided so use that
+            return () -> new RequestResponseClient(
+                    new Host(shardMasterHost.split(":")[0],
+                            Integer.valueOf(shardMasterHost.split(":")[1]))
+            );
+        } else {
+            // Use ZooKeeper to locate ShardMaster
+            return new RequestResponseClientFactory(zkNodes, System.getProperty("imhotep.shardmaster.zookeeper.path"), myHost);
+        }
+    }
+
+    public static Supplier<ShardMaster> getShardMasterSupplierWhereHostIsSet() {
+        final String shardMasterHost = System.getProperty("imhotep.shardmaster.host");
+        if(shardMasterHost != null) {
+            // we have an exact host:port combination provided so use that
+            return () -> new RequestResponseClient(
+                    new Host(shardMasterHost.split(":")[0],
+                            Integer.valueOf(shardMasterHost.split(":")[1]))
+            );
+        }
+        throw new UnsupportedOperationException("imhotep.shardmaster.host is not set");
     }
 }

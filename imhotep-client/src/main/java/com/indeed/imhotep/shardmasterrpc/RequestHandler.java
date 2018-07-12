@@ -12,21 +12,15 @@
  * limitations under the License.
  */
 
-package com.indeed.imhotep.shardmaster;
+package com.indeed.imhotep.shardmasterrpc;
 
-import java.util.concurrent.*;
+import com.indeed.imhotep.protobuf.ShardMasterRequest;
+import com.indeed.imhotep.protobuf.ShardMasterResponse;
 
 /**
  * @author kenh
  */
 
-public class ShardMasterExecutors {
-    private ShardMasterExecutors() {
-    }
-
-    public static ExecutorService newBlockingFixedThreadPool(final int nThreads) {
-        return new ThreadPoolExecutor(nThreads, nThreads,
-                0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
-                new ThreadPoolExecutor.CallerRunsPolicy());
-    }
+interface RequestHandler {
+    Iterable<ShardMasterResponse> handleRequest(ShardMasterRequest request);
 }

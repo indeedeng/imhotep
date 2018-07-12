@@ -26,6 +26,7 @@ import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemTestContext;
 import com.indeed.imhotep.shardmaster.db.shardinfo.Tables;
 import com.indeed.imhotep.shardmaster.model.ShardAssignmentInfo;
+import com.indeed.imhotep.shardmasterrpc.ShardMasterExecutors;
 import com.indeed.util.zookeeper.ZooKeeperConnection;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -166,13 +167,12 @@ public class DatasetShardRefresherTest {
                 "",
                 fakeZookeeperConnection,
                 fakeConnection,
-                fsTestContext.getLocalStoreDir().toString()).initialize();
+                fsTestContext.getLocalStoreDir().toString(),
+                ShardFilter.ACCEPT_ALL).initialize();
 
         results.get();
         ShardData data = ShardData.getInstance();
 
-        ArrayList<String> datasets = new ArrayList<>(data.getDatasets());
-        Collections.sort(datasets);
         Assert.assertEquals(numDataSets, data.getDatasets().size());
         for (final String dataset : data.getDatasets()) {
             Assert.assertEquals(numShards, data.getShardsForDataset(dataset).size());

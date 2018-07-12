@@ -23,6 +23,7 @@ import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -56,9 +57,9 @@ class ShardScanner implements Iterable<ShardDir> {
 
     private boolean isValid(Path shardPath) {
         ShardDir temp = new ShardDir(shardPath);
-        String dataset = temp.getIndexDir().toString();
+        String dataset = temp.getDataset();
         String id = temp.getId();
         return ShardTimeUtils.isValidShardId(id) &&
-                !ShardData.getInstance().hasShard(dataset);
+                !ShardData.getInstance().hasShard(dataset + "/" + temp.getName());
     }
 }

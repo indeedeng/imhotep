@@ -21,8 +21,8 @@ import com.google.common.collect.Iterators;
 import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.io.NioPathUtil;
-import com.indeed.imhotep.shardmaster.ShardMaster;
-import com.indeed.imhotep.shardmaster.protobuf.AssignedShard;
+import com.indeed.imhotep.protobuf.AssignedShard;
+import com.indeed.imhotep.shardmasterrpc.ShardMaster;
 import com.indeed.util.core.Pair;
 
 import javax.annotation.Nonnull;

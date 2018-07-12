@@ -19,6 +19,8 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.FluentIterable;
+import com.indeed.imhotep.ShardDir;
+import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.shardmaster.model.ShardAssignmentInfo;
 import org.apache.log4j.Logger;
@@ -26,10 +28,8 @@ import org.joda.time.DateTime;
 import org.joda.time.Duration;
 
 import javax.annotation.Nonnull;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.Queue;
-import java.util.Set;
+import java.nio.file.Paths;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -39,6 +39,7 @@ class InMemoryShardAssignmentInfoDao implements ShardAssignmentInfoDao {
     private static final Logger LOGGER = Logger.getLogger(InMemoryShardAssignmentInfoDao.class);
     private final LoadingCache<String, ShardAssignments> datasetAssignments;
     private final LoadingCache<Host, NodeAssignments> nodeAssignments;
+    private final Map<String, List<Host>> shardAssignments;
 
     private static class TimestampedAssignment {
         final long updateTime;
@@ -122,6 +123,8 @@ class InMemoryShardAssignmentInfoDao implements ShardAssignmentInfoDao {
                         return new NodeAssignments();
                     }
                 });
+        shardAssignments = new HashMap<>();
+
     }
 
     @Override
@@ -137,8 +140,20 @@ class InMemoryShardAssignmentInfoDao implements ShardAssignmentInfoDao {
     public synchronized void updateAssignments(final String dataset, final DateTime timestamp, final Iterable<ShardAssignmentInfo> assignmentInfos) {
         try {
             datasetAssignments.get(dataset).addAll(timestamp.getMillis(), assignmentInfos);
+            for(ShardAssignmentInfo info: assignmentInfos) {
+                if(!shardAssignments.containsKey(info.getShardPath())) {
+                    shardAssignments.put(info.getShardPath(), new ArrayList<>());
+                }
+                shardAssignments.get(info.getShardPath()).add(info.getAssignedNode());
+            }
         } catch (final ExecutionException e) {
             LOGGER.warn("Unexpected error while updating assignments for " + dataset, e);
         }
+    }
+
+    @Override
+    public List<Host> getAssignments(String path) {
+        System.out.println(shardAssignments);
+        return shardAssignments.get(path);
     }
 }

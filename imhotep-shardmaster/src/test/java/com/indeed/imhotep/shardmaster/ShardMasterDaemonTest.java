@@ -21,14 +21,17 @@ import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.indeed.imhotep.ZkEndpointPersister;
+import com.indeed.imhotep.archive.SquallArchiveWriter;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.client.ShardTimeUtils;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemTestContext;
-import com.indeed.imhotep.shardmaster.protobuf.AssignedShard;
-import com.indeed.imhotep.shardmaster.rpc.RequestResponseClient;
-import com.indeed.imhotep.shardmaster.rpc.RequestResponseClientFactory;
+import com.indeed.imhotep.protobuf.AssignedShard;
+import com.indeed.imhotep.shardmasterrpc.RequestResponseClient;
+import com.indeed.imhotep.shardmasterrpc.RequestResponseClientFactory;
 import com.indeed.util.core.Pair;
 import org.apache.curator.test.TestingServer;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.zookeeper.KeeperException;
 import org.joda.time.DateTime;
 import org.junit.After;
@@ -41,6 +44,7 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.ExecutionException;
@@ -62,6 +66,7 @@ public class ShardMasterDaemonTest {
     @Before
     public void setUp() throws Exception {
         testingServer = new TestingServer();
+        createMetadataFile();
     }
 
     @After
@@ -70,13 +75,26 @@ public class ShardMasterDaemonTest {
         testingServer.close();
     }
 
-    private void createShard(final String dataset, final DateTime shardId, final long version) {
-        Assert.assertTrue(new File(new File(testContext.getLocalStoreDir(), dataset), ShardTimeUtils.toDailyShardPrefix(shardId) + '.' + String.format("%014d", version)).mkdirs());
+    private void createMetadataFile() throws IOException {
+        java.nio.file.Path p = Paths.get(testContext.getTempRootDir().toString(), "metadata");
+        new File(p.toString()).mkdir();
+        FlamdexMetadata.writeMetadata(p, new FlamdexMetadata(0, new ArrayList<>(), new ArrayList<>(), FlamdexFormatVersion.SIMPLE));
+
     }
 
-    private void createShard(final String dataset, final String shardId, final long version) {
-        Assert.assertTrue(new File(new File(testContext.getLocalStoreDir(), dataset), shardId + '.' + String.format("%014d", version)).mkdirs());
+    private void createShard(final String dataset, final DateTime shardId, final long version) throws IOException{
+        createShard(dataset, ShardTimeUtils.toDailyShardPrefix(shardId), version);
     }
+
+    private void createShard(final String dataset, final String shardId, final long version) throws IOException{
+        Path path = new Path(testContext.getLocalStoreDir() + "/" + dataset + "/" + shardId + "." + String.format("%014d", version) + ".sqar/");
+        new File(path.toString()).mkdir();
+        SquallArchiveWriter writer = new SquallArchiveWriter(path.getFileSystem(new Configuration()), new Path(path.toString()), true);
+        File f = new File(testContext.getTempRootDir()+"/metadata/metadata.txt");
+        writer.appendFile(f);
+        writer.commit();
+    }
+
 
     @Test
     public void testIt() throws IOException, InterruptedException, ExecutionException, KeeperException {
@@ -126,8 +144,7 @@ public class ShardMasterDaemonTest {
         Thread.sleep(1000);
 
         final RequestResponseClient client = new RequestResponseClientFactory(testingServer.getConnectString(),
-                "/imhotep/shardmasters",
-                daemon1).get();
+                "/imhotep/shardmasters", daemon1).get();
 
         final ListMultimap<Pair<String, String>, AssignedShard> assignments = FluentIterable.from(Iterables.concat(
                 client.getAssignments(daemon1),

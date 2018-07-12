@@ -12,17 +12,20 @@
  * limitations under the License.
  */
 
-package com.indeed.imhotep.shardmaster;
+package com.indeed.imhotep.shardmasterrpc;
 
-import com.indeed.imhotep.client.Host;
-import com.indeed.imhotep.shardmaster.protobuf.AssignedShard;
 
-import java.io.IOException;
+import com.indeed.imhotep.protobuf.ShardMasterRequest;
 
 /**
- * @author kenh
+ * interface to allow metrics reporting
  */
+public interface RequestMetricStatsEmitter {
+    void processed(String metricKey, ShardMasterRequest.RequestType requestType, long millis);
 
-public interface ShardMaster {
-    Iterable<AssignedShard> getAssignments(final Host node) throws IOException;
+    RequestMetricStatsEmitter NULL_EMITTER = new RequestMetricStatsEmitter() {
+        @Override
+        public void processed(final String metricKey, final ShardMasterRequest.RequestType requestType, final long millis) {
+        }
+    };
 }

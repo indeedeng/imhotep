@@ -34,7 +34,7 @@ import java.util.Set;
  */
 public abstract class AbstractSessionManager<E> implements SessionManager<E> {
 
-    private static final Logger log = Logger.getLogger(AbstractSessionManager.class);
+    protected static final Logger log = Logger.getLogger(AbstractSessionManager.class);
 
     private static final int MAX_SESSION_COUNT = 64;
     private static final int MAX_SESSION_COUNT_PER_USER = 8;

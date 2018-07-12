@@ -29,7 +29,10 @@ import org.jooq.BatchBindStep;
 import org.jooq.DSLContext;
 import org.jooq.Record2;
 
+import java.nio.file.Paths;
 import java.sql.Timestamp;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  *
@@ -67,6 +70,7 @@ public class H2ShardAssignmentInfoDao implements ShardAssignmentInfoDao {
             }
         }).toSet();
 
+        System.out.println(shardAssignmentInfos);
         return shardAssignmentInfos;
     }
 
@@ -116,5 +120,15 @@ public class H2ShardAssignmentInfoDao implements ShardAssignmentInfoDao {
                         .and(TABLE.TIMESTAMP.le(new Timestamp(timestamp.minus(stalenessThreshold).getMillis()))))
                 .execute();
 
+    }
+
+    // TODO: test this
+    @Override
+    public List<Host> getAssignments(String path) {
+        final List<String> fetch = dslContextContainer.getDSLContext().select(TABLE.DATASET, TABLE.SHARD_PATH)
+                .from(TABLE)
+                .where(TABLE.SHARD_PATH.eq(path))
+                .fetch(TABLE.ASSIGNED_NODE);
+        return fetch.stream().map(a -> new Host(a.split(":")[0], Integer.valueOf(a.split(":")[1]))).collect(Collectors.toList());
     }
 }

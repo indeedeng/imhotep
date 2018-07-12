@@ -12,14 +12,14 @@
  * limitations under the License.
  */
 
-package com.indeed.imhotep.shardmaster.rpc;
+package com.indeed.imhotep.shardmasterrpc;
 
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Ints;
 import com.google.protobuf.Message;
 import com.indeed.imhotep.io.Bytes;
-import com.indeed.imhotep.shardmaster.protobuf.ShardMasterRequest;
-import com.indeed.imhotep.shardmaster.protobuf.ShardMasterResponse;
+import com.indeed.imhotep.protobuf.ShardMasterRequest;
+import com.indeed.imhotep.protobuf.ShardMasterResponse;
 
 import java.io.IOException;
 import java.io.InputStream;

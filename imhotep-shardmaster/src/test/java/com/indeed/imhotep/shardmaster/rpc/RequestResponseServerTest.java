@@ -18,13 +18,18 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.dbutil.DbDataFixture;
+import com.indeed.imhotep.protobuf.AssignedShard;
+import com.indeed.imhotep.protobuf.ShardMasterRequest;
 import com.indeed.imhotep.shardmaster.DatabaseShardMaster;
 import com.indeed.imhotep.shardmaster.H2ShardAssignmentInfoDao;
 import com.indeed.imhotep.shardmaster.ShardAssignmentInfoDao;
+import com.indeed.imhotep.shardmaster.ShardData;
 import com.indeed.imhotep.shardmaster.db.shardinfo.Tables;
 import com.indeed.imhotep.shardmaster.model.ShardAssignmentInfo;
-import com.indeed.imhotep.shardmaster.protobuf.AssignedShard;
-import com.indeed.imhotep.shardmaster.protobuf.ShardMasterRequest;
+import com.indeed.imhotep.shardmasterrpc.MultiplexingRequestHandler;
+import com.indeed.imhotep.shardmasterrpc.RequestMetricStatsEmitter;
+import com.indeed.imhotep.shardmasterrpc.RequestResponseClient;
+import com.indeed.imhotep.shardmasterrpc.RequestResponseServer;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
@@ -104,7 +109,7 @@ public class RequestResponseServerTest {
                 createAssignmentInfo("dataset3", "shard3", b)
         ));
 
-        final DatabaseShardMaster shardMasterServer = new DatabaseShardMaster(assignmentInfoDao, new AtomicBoolean(true));
+        final DatabaseShardMaster shardMasterServer = new DatabaseShardMaster(assignmentInfoDao, new AtomicBoolean(true), ShardData.getInstance());
         final RequestResponseClient requestResponseClient;
 
         final ExecutorService executorService = Executors.newSingleThreadExecutor();

@@ -62,6 +62,7 @@ public class IntervalTreeTest {
         IntervalTree<Double, Integer> tree = new IntervalTree<>();
         List<Pair<Double,Double>> intervals = new ArrayList<>();
         ExecutorService executorService = Executors.newFixedThreadPool(10);
+        CountDownLatch latch = new CountDownLatch(1);
         for(int count = 0; count < 3000; count++) {
             final int index = count;
             double a = Math.random();
@@ -69,20 +70,32 @@ public class IntervalTreeTest {
             double small = Math.min(a,b);
             double big = Math.max(a,b);
             intervals.add(new Pair<>(small, big));
-            executorService.submit(()->tree.addInterval(a, b, index));
+            executorService.submit(()->{
+                waitForLatch(latch);
+                tree.addInterval(a, b, index);
+            });
         }
+        latch.countDown();
+
+        CountDownLatch latch2 = new CountDownLatch(1);
         for(int index = 0; index < intervals.size(); index++) {
             final int thisIndex = index;
             Pair<Double, Double> interval = intervals.get(index);
-            executorService.submit(()->Assert.assertTrue(tree.getValuesInRange(interval.getKey(), interval.getValue()).contains(thisIndex)));
+            executorService.submit(()-> {
+                waitForLatch(latch2);
+                Assert.assertTrue(tree.getValuesInRange(interval.getKey(), interval.getValue()).contains(thisIndex));
+            });
         }
+        latch2.countDown();
 
+        CountDownLatch latch3 = new CountDownLatch(1);
         for(int count = 0; count < 1000; count ++) {
             double a = Math.random();
             double b = Math.random();
             double small = Math.min(a,b);
             double big = Math.max(a,b);
             executorService.submit(()->{
+                waitForLatch(latch3);
                 Set<Integer> indexes = tree.getValuesInRange(small, big);
                 for(int index: indexes) {
                     Pair<Double, Double> interval = intervals.get(index);
@@ -90,6 +103,7 @@ public class IntervalTreeTest {
                 }
             });
         }
+        latch3.countDown();
 
         executorService = Executors.newFixedThreadPool(10);
 
@@ -109,6 +123,12 @@ public class IntervalTreeTest {
         for(Integer i: asynch) {
             Assert.assertTrue(synch.contains(i));
         }
+    }
+
+    private void waitForLatch(CountDownLatch latch) {
+        try {
+            latch.await();
+        } catch (InterruptedException e) {assert false;}
     }
 
     @Test

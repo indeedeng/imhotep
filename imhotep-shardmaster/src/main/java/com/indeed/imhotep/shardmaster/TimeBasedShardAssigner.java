@@ -76,7 +76,7 @@ class TimeBasedShardAssigner implements ShardAssigner {
             }
 
             return new ShardAssignmentInfo(dataset,
-                    shard.getIndexDir().toUri().toString(),
+                    shard.getIndexDir().toString(),
                     assignedServer);
         }).collect(Collectors.toList());
     }

@@ -18,11 +18,11 @@ import com.google.common.base.Suppliers;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.indeed.imhotep.ShardDir;
+import com.indeed.imhotep.*;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.client.ShardTimeUtils;
-import com.indeed.imhotep.shardmaster.ShardMaster;
-import com.indeed.imhotep.shardmaster.protobuf.AssignedShard;
+import com.indeed.imhotep.protobuf.AssignedShard;
+import com.indeed.imhotep.shardmasterrpc.ShardMaster;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.time.DefaultWallClock;
 import com.indeed.util.core.time.StoppedClock;
@@ -40,11 +40,7 @@ import org.junit.rules.TemporaryFolder;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 
 /**
  * @author kenh
@@ -203,8 +199,19 @@ public class ShardDirIteratorTest {
         }
 
         final ShardMaster shardMaster = new ShardMaster() {
+
             @Override
-            public Iterable<AssignedShard> getAssignments(final Host node) throws IOException {
+            public List<DatasetInfo> getDatasetMetadata() throws IOException {
+                return null;
+            }
+
+            @Override
+            public List<Shard> getShardsInTime(String dataset, long start, long end) {
+                return null;
+            }
+
+            @Override
+            public List<AssignedShard> getAssignments(final Host node) throws IOException {
                 return Arrays.asList(
                         assignedShard(dataset1, TODAY.minusDays(1)),
                         assignedShard(dataset1, TODAY.minusDays(3)),
@@ -219,6 +226,11 @@ public class ShardDirIteratorTest {
                         assignedShard(dataset2, TODAY.minusDays(30)),
                         assignedShard(dataset2, TODAY.minusDays(50))
                 );
+            }
+
+            @Override
+            public List<ShardWithPathAndDataset> getShardList() throws IOException {
+                return null;
             }
         };
 

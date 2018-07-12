@@ -82,16 +82,31 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader {
         return open(new File(directory).toPath());
     }
 
+    public static SimpleFlamdexReader open(final String directory, int numDocs) throws IOException {
+        return open(new File(directory).toPath(), numDocs);
+    }
+
     public static SimpleFlamdexReader open(@Nonnull final Path directory) throws IOException {
         return open(directory, new Config());
+    }
+    public static SimpleFlamdexReader open(@Nonnull final Path directory, int numDocs) throws IOException {
+        return open(directory, new Config(), numDocs);
     }
 
     public static SimpleFlamdexReader open(final String directory, final Config config) throws IOException {
         return open(new File(directory).toPath(), config);
     }
 
+    public static SimpleFlamdexReader open(final String directory, final Config config, int numDocs) throws IOException {
+        return open(new File(directory).toPath(), config, numDocs);
+    }
+
     public static SimpleFlamdexReader open(@Nonnull final Path directory, final Config config) throws IOException {
         final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(directory);
+        return open(directory, config, metadata.getNumDocs());
+    }
+
+    public static SimpleFlamdexReader open(@Nonnull final Path directory, final Config config, int numDocs) throws IOException {
 
         final List<Path> paths = new ArrayList<>();
         try (final DirectoryStream<Path> dirStream = Files.newDirectoryStream(directory)) {
@@ -114,7 +129,7 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader {
         final SimpleFlamdexReader result =
                 new SimpleFlamdexReader(
                         directory,
-                        metadata.getNumDocs(),
+                        numDocs,
                         intFields,
                         stringFields,
                         config);

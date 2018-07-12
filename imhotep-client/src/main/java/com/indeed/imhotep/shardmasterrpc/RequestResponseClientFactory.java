@@ -12,12 +12,11 @@
  * limitations under the License.
  */
 
-package com.indeed.imhotep.shardmaster.rpc;
+package com.indeed.imhotep.shardmasterrpc;
 
 import com.google.common.base.Supplier;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.client.ZkHostsReloader;
-import com.indeed.imhotep.shardmaster.ShardMaster;
 import org.apache.log4j.Logger;
 
 import java.util.List;

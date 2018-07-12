@@ -30,9 +30,10 @@ import com.indeed.imhotep.client.ZkHostsReloader;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.fs.sql.SchemaInitializer;
 import com.indeed.imhotep.shardmaster.db.shardinfo.Tables;
-import com.indeed.imhotep.shardmaster.rpc.MultiplexingRequestHandler;
-import com.indeed.imhotep.shardmaster.rpc.RequestMetricStatsEmitter;
-import com.indeed.imhotep.shardmaster.rpc.RequestResponseServer;
+import com.indeed.imhotep.shardmasterrpc.MultiplexingRequestHandler;
+import com.indeed.imhotep.shardmasterrpc.RequestMetricStatsEmitter;
+import com.indeed.imhotep.shardmasterrpc.RequestResponseServer;
+import com.indeed.imhotep.shardmasterrpc.ShardMasterExecutors;
 import com.indeed.util.zookeeper.ZooKeeperConnection;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -88,13 +89,13 @@ public class ShardMasterDaemon {
                     config.getHostsDropThreshold());
         }
 
-        ZooKeeperConnection zkConnection = new ZooKeeperConnection(config.zkNodes, 6000);
+        ZooKeeperConnection zkConnection = new ZooKeeperConnection(config.zkNodes, 2000);
         zkConnection.connect();
-        zkConnection.createIfNotExists(config.shardMastersZkPath, new byte[0], CreateMode.PERSISTENT);
-        zkConnection.createIfNotExists(config.shardMastersZkPath+"/election", new byte[0], CreateMode.PERSISTENT);
-        String leaderTestPath = zkConnection.create(config.shardMastersZkPath+"/election/n_", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
+        zkConnection.createIfNotExists(config.shardMastersZkPath+"-election", new byte[0], CreateMode.PERSISTENT);
+        String leaderTestPath = zkConnection.create(config.shardMastersZkPath+"-election/n_", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
 
         Connection dbConnection = config.getMetadataConnection();
+        dbConnection.setAutoCommit(false);
 
         try (Closer closer = Closer.create()) {
             final ShardAssignmentInfoDao shardAssignmentInfoDao;
@@ -126,7 +127,8 @@ public class ShardMasterDaemon {
                     leaderTestPath,
                     zkConnection,
                     dbConnection,
-                    rootURI
+                    rootURI,
+                    config.shardFilter
             );
 
 
@@ -157,13 +159,11 @@ public class ShardMasterDaemon {
                 }
             }, config.getHostsRefreshInterval().getMillis(), config.getHostsRefreshInterval().getMillis());
 
-            LOGGER.info("I "+ (refresher.isLeader() ? "am" : "am not") + " the leader");
-
-            timer.schedule(refresher, config.getRefreshInterval().getMillis()/20, config.getRefreshInterval().getMillis()/5);
+            timer.schedule(refresher, config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis());
 
             server = new RequestResponseServer(config.getServicePort(), new MultiplexingRequestHandler(
                     config.statsEmitter,
-                    new DatabaseShardMaster(shardAssignmentInfoDao, shardScanComplete),
+                    new DatabaseShardMaster(shardAssignmentInfoDao, shardScanComplete, ShardData.getInstance()),
                     config.shardsResponseBatchSize
             ), config.serviceConcurrency);
             try (ZkEndpointPersister endpointPersister = getZKEndpointPersister()

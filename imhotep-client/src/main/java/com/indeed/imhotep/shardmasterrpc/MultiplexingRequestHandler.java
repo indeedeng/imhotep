@@ -12,13 +12,12 @@
  * limitations under the License.
  */
 
-package com.indeed.imhotep.shardmaster.rpc;
+package com.indeed.imhotep.shardmasterrpc;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
-import com.indeed.imhotep.shardmaster.ShardMaster;
-import com.indeed.imhotep.shardmaster.protobuf.ShardMasterRequest;
-import com.indeed.imhotep.shardmaster.protobuf.ShardMasterResponse;
+import com.indeed.imhotep.protobuf.ShardMasterRequest;
+import com.indeed.imhotep.protobuf.ShardMasterResponse;
 import org.apache.log4j.Logger;
 
 import java.util.Collections;
@@ -31,11 +30,11 @@ import java.util.concurrent.TimeUnit;
 public class MultiplexingRequestHandler implements RequestHandler {
     private static final Logger LOGGER = Logger.getLogger(MultiplexingRequestHandler.class);
     private final RequestMetricStatsEmitter statsEmitter;
-    private final ShardAssignmentRequestHandler assignmentRequestHandler;
+    private final ShardMasterRequestHandler requestHandler;
 
     public MultiplexingRequestHandler(final RequestMetricStatsEmitter statsEmitter, final ShardMaster shardMaster, final int shardsResponseBatchSize) {
         this.statsEmitter = statsEmitter;
-        assignmentRequestHandler = new ShardAssignmentRequestHandler(shardMaster, shardsResponseBatchSize);
+        requestHandler = new ShardMasterRequestHandler(shardMaster, shardsResponseBatchSize);
     }
 
     private static final String METRIC_PROCESSED = "request.processed";
@@ -46,24 +45,21 @@ public class MultiplexingRequestHandler implements RequestHandler {
         LOGGER.info("Handling " + request.getRequestType() + " request from " + request.getNode().getHost());
         final Stopwatch stopwatch = Stopwatch.createStarted();
         try {
-            final Iterable<ShardMasterResponse> result;
-            switch (request.getRequestType()) {
-                case GET_ASSIGNMENT:
-                    result = assignmentRequestHandler.handleRequest(request);
-                    break;
-                default:
-                    result = Collections.singletonList(ShardMasterResponse.newBuilder()
+                try {
+                    final Iterable<ShardMasterResponse> result = requestHandler.handleRequest(request);
+                    final long elapsed = stopwatch.elapsed(TimeUnit.MILLISECONDS);
+                    statsEmitter.processed(METRIC_PROCESSED, request.getRequestType(), elapsed);
+                    LOGGER.info("Finished handling request " + request.getRequestType() + " from " + request.getNode().getHost() + " in " + elapsed +" ms");
+                    return result;
+                } catch (IllegalArgumentException e) {
+                    final Iterable<ShardMasterResponse> result = Collections.singletonList(ShardMasterResponse.newBuilder()
                             .setResponseCode(ShardMasterResponse.ResponseCode.ERROR)
                             .setErrorMessage("Unhandled request type " + request.getRequestType())
                             .build());
                     statsEmitter.processed(METRIC_ERROR, request.getRequestType(), stopwatch.elapsed(TimeUnit.MILLISECONDS));
                     LOGGER.warn("Not handling unknown request " + request.getRequestType() + " from " + request.getNode().getHost());
                     return result;
-            }
-            final long elapsed = stopwatch.elapsed(TimeUnit.MILLISECONDS);
-            statsEmitter.processed(METRIC_PROCESSED, request.getRequestType(), elapsed);
-            LOGGER.info("Finished handling request " + request.getRequestType() + " from " + request.getNode().getHost() + " in " + elapsed +" ms");
-            return result;
+                }
         } catch (final Throwable e) {
             final long elapsed = stopwatch.elapsed(TimeUnit.MILLISECONDS);
             statsEmitter.processed(METRIC_ERROR, request.getRequestType(), elapsed);

@@ -28,15 +28,22 @@ public class ImhotepStatusDump {
     public final long usedMemory;
     public final long totalMemory;
     public final List<SessionDump> openSessions;
-    public final List<ShardDump> shards;
-    public final int shardCount;
+    public List<ShardDump> shards;
+    public int shardCount;
 
+    @Deprecated
     public ImhotepStatusDump(final long usedMemory, final long totalMemory, final List<SessionDump> openSessions, final List<ShardDump> shards, final int shardCount) {
         this.usedMemory = usedMemory;
         this.totalMemory = totalMemory;
         this.openSessions = openSessions;
         this.shards = shards;
         this.shardCount = shardCount;
+    }
+
+    public ImhotepStatusDump(final long usedMemory, final long totalMemory, final List<SessionDump> openSessions) {
+        this.usedMemory = usedMemory;
+        this.totalMemory = totalMemory;
+        this.openSessions = openSessions;
     }
 
     public long getUsedMemory() {

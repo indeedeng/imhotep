@@ -28,9 +28,11 @@ public class ShardDir {
     private final Path indexDir;
     private final String id;
     private final long version;
+    private final String dataset;
     private org.apache.hadoop.fs.Path hadoopPath;
 
     public ShardDir(final Path path) {
+        this.dataset = path.getParent().toString();
         this.name = path.getFileName().toString();
         this.indexDir = path;
 
@@ -66,6 +68,8 @@ public class ShardDir {
         }
         return hadoopPath;
     }
+
+    public String getDataset() {return dataset;}
 
     public String getId() {
         return id;

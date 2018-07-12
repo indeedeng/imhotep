@@ -14,9 +14,13 @@
 
 package com.indeed.imhotep.shardmaster;
 
+import com.indeed.imhotep.ShardDir;
+import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.shardmaster.model.ShardAssignmentInfo;
 import org.joda.time.DateTime;
+
+import java.util.List;
 
 /**
  * @author kenh
@@ -32,4 +36,6 @@ public interface ShardAssignmentInfoDao {
      * shard is allocated to no hosts, so to stay conservative, we retain old shard assignments for some time.
      */
     void updateAssignments(final String dataset, final DateTime timestamp, final Iterable<ShardAssignmentInfo> assignmentInfos);
+
+    List<Host> getAssignments(String path);
 }

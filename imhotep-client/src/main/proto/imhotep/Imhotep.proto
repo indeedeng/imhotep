@@ -21,6 +21,15 @@ message ShardInfoMessage {
   optional uint64 version = 8;
 }
 
+message ShardMessage {
+  optional string dataset = 1;
+  required string shard_id = 2;
+  required uint32 num_docs = 3;
+  optional uint64 version = 4;
+  repeated string hosts = 5;
+  optional string path = 6;
+}
+
 message StatusDumpMessage {
   required uint64 used_memory = 1;
   required uint64 total_memory = 2;
@@ -104,7 +113,6 @@ message ImhotepRequest {
     CREATE_DYNAMIC_METRIC = 19;
     UPDATE_DYNAMIC_METRIC = 20;
     RESET_GROUPS = 21;
-    GET_SHARD_INFO_LIST = 22;
     RANDOM_MULTI_REGROUP = 23;
     MULTISPLIT_REGROUP = 24;
     APPROXIMATE_TOP_TERMS = 25;
@@ -126,8 +134,6 @@ message ImhotepRequest {
     GROUP_QUERY_UPDATE_DYNAMIC_METRIC = 41;
     STREAMING_GET_GROUP_STATS = 42;
     GET_PERFORMANCE_STATS = 43;
-    GET_DATASET_METADATA = 44;
-    GET_SHARD_LIST_FOR_TIME = 45;
     RANDOM_METRIC_REGROUP = 46;
     RANDOM_METRIC_MULTI_REGROUP = 47;
     GET_DISTINCT = 48;
@@ -277,6 +283,9 @@ message ImhotepRequest {
   optional uint64 startUnixtime = 62;
   optional uint64 endUnixtime = 63;
 
+  // used in openSession()
+  repeated string shardList = 66;
+  repeated uint32 numDocsPerShard = 67;
 }
 
 message ImhotepResponse {
@@ -399,4 +408,45 @@ message PerformanceStatsMessage {
 message StringLongMessage {
   required string Key = 1;
   required int64 Value = 2;
+}
+
+
+message AssignedShard {
+  required string dataset = 1;
+  required string shard_path = 2;
+}
+
+message ShardMasterResponse {
+  enum ResponseCode {
+    OK = 1;
+    ERROR = 2;
+  }
+
+  optional ResponseCode response_code = 1 [default = OK];
+  // in case for ERROR
+  optional string error_message = 2;
+  // for GET_ASSIGNMENT
+  repeated AssignedShard assigned_shards = 3;
+  // for GET_SHARD_LIST_FOR_TIME
+  repeated ShardMessage shards_in_time = 4;
+  // for GET_DATASET_METADATA
+  repeated DatasetInfoMessage metadata = 5;
+  // for GET_SHARD_LIST
+  repeated ShardMessage all_shards = 6;
+}
+
+message ShardMasterRequest {
+  enum RequestType {
+    GET_ASSIGNMENT = 1;
+    GET_SHARD_LIST_FOR_TIME = 2;
+    GET_DATASET_METADATA = 3;
+    GET_SHARD_LIST = 4;
+  }
+
+  required RequestType request_type = 1;
+  optional HostAndPort node = 2;
+  // for GET_SHARD_LIST_FOR_TIME
+  optional uint64 startTime = 3;
+  optional uint64 endTime = 4;
+  optional string dataset = 5;
 }
