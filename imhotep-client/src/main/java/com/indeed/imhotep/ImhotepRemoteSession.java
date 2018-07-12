@@ -24,6 +24,7 @@ import com.google.common.primitives.Longs;
 import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.Instrumentation.Keys;
 import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.HasSessionId;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
@@ -44,6 +45,7 @@ import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
+import com.indeed.util.core.Pair;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import it.unimi.dsi.fastutil.longs.LongIterators;
@@ -51,7 +53,6 @@ import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
 import java.io.BufferedInputStream;
-import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -306,14 +307,15 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit, final int sortStat) {
+    public FTGSIterator getFTGSIterator(final FTGSParams params) {
         final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_FTGS_ITERATOR)
                 .setSessionId(getSessionId())
-                .addAllIntFields(Arrays.asList(intFields))
-                .addAllStringFields(Arrays.asList(stringFields))
-                .setTermLimit(termLimit)
-                .setSortStat(sortStat)
+                .addAllIntFields(Arrays.asList(params.intFields))
+                .addAllStringFields(Arrays.asList(params.stringFields))
+                .setTermLimit(params.termLimit)
+                .setSortStat(params.sortStat)
+                .setSortedFTGS(params.sorted)
                 .build();
 
         final FTGSIterator result = fileBufferedFTGSRequest(request);
@@ -351,6 +353,7 @@ public class ImhotepRemoteSession
     }
 
     public FTGSIterator getFTGSIteratorSplit(final String[] intFields, final String[] stringFields, final int splitIndex, final int numSplits, final long termLimit) {
+        checkSplitParams(splitIndex, numSplits);
         // TODO: disable timer to reduce logrepo logging volume of SubmitRequestEvent?
         final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_FTGS_SPLIT)
@@ -360,6 +363,8 @@ public class ImhotepRemoteSession
                 .setSplitIndex(splitIndex)
                 .setNumSplits(numSplits)
                 .setTermLimit(termLimit)
+                .setSortStat(-1) // never top terms
+                .setSortedFTGS(true) // always sorted
                 .build();
         final FTGSIterator result = fileBufferedFTGSRequest(request);
         timer.complete(request);
@@ -371,6 +376,7 @@ public class ImhotepRemoteSession
             final Map<String, String[]> stringFields,
             final int splitIndex,
             final int numSplits) {
+        checkSplitParams(splitIndex, numSplits);
         final Timer timer = new Timer();
         final ImhotepRequest.Builder requestBuilder = getBuilderForType(ImhotepRequest.RequestType.GET_SUBSET_FTGS_SPLIT)
                 .setSessionId(getSessionId())
@@ -384,21 +390,19 @@ public class ImhotepRemoteSession
     }
 
     public FTGSIterator mergeFTGSSplit(
-            final String[] intFields,
-            final String[] stringFields,
-            final String sessionId,
+            final FTGSParams params,
             final InetSocketAddress[] nodes,
-            final int splitIndex,
-            final long termLimit,
-            final int sortStat) {
+            final int splitIndex) {
+        checkSplitParams(splitIndex, nodes.length);
         final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.MERGE_FTGS_SPLIT)
-                .setSessionId(sessionId)
-                .addAllIntFields(Arrays.asList(intFields))
-                .addAllStringFields(Arrays.asList(stringFields))
+                .setSessionId(getSessionId())
+                .addAllIntFields(Arrays.asList(params.intFields))
+                .addAllStringFields(Arrays.asList(params.stringFields))
                 .setSplitIndex(splitIndex)
-                .setTermLimit(termLimit)
-                .setSortStat(sortStat)
+                .setTermLimit(params.termLimit)
+                .setSortStat(params.sortStat)
+                .setSortedFTGS(params.sorted)
                 .addAllNodes(Iterables.transform(Arrays.asList(nodes), new Function<InetSocketAddress, HostAndPort>() {
                     public HostAndPort apply(final InetSocketAddress input) {
                         return HostAndPort.newBuilder().setHost(input.getHostName()).setPort(input.getPort()).build();
@@ -413,12 +417,12 @@ public class ImhotepRemoteSession
 
     public GroupStatsIterator mergeDistinctSplit(final String field,
                                                  final boolean isIntField,
-                                                 final String sessionId,
                                                  final InetSocketAddress[] nodes,
                                                  final int splitIndex) {
+        checkSplitParams(splitIndex, nodes.length);
         final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.MERGE_DISTINCT_SPLIT)
-                .setSessionId(sessionId)
+                .setSessionId(getSessionId())
                 .setField(field)
                 .setIsIntField(isIntField)
                 .setSplitIndex(splitIndex)
@@ -433,13 +437,12 @@ public class ImhotepRemoteSession
 
     private GroupStatsIterator sendGroupStatsIteratorRequest(final ImhotepRequest request, final Timer timer) {
         try {
-            final Socket socket = newSocket(host, port, socketTimeout);
-            final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
-            final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
-
-            final ImhotepResponse response = sendRequest(request, is, os, host, port);
+            final Pair<ImhotepResponse, InputStream> responceAndFile = sendRequestAndSaveResponseToFile(request, "groupStatsIterator");
             timer.complete(request);
-            return ImhotepProtobufShipping.readGroupStatsIterator(is, response.getGroupStatSize());
+            return ImhotepProtobufShipping.readGroupStatsIterator(
+                    responceAndFile.getSecond(),
+                    responceAndFile.getFirst().getGroupStatSize(),
+                    false);
         } catch(final IOException e) {
             throw new RuntimeException(e);
         }
@@ -448,12 +451,12 @@ public class ImhotepRemoteSession
     public FTGSIterator mergeSubsetFTGSSplit(
             final Map<String, long[]> intFields,
             final Map<String, String[]> stringFields,
-            final String sessionId,
             final InetSocketAddress[] nodes,
             final int splitIndex) {
+        checkSplitParams(splitIndex, nodes.length);
         final Timer timer = new Timer();
         final ImhotepRequest.Builder requestBuilder = getBuilderForType(ImhotepRequest.RequestType.MERGE_SUBSET_FTGS_SPLIT)
-                .setSessionId(sessionId)
+                .setSessionId(getSessionId())
                 .setSplitIndex(splitIndex)
                 .addAllNodes(Iterables.transform(Arrays.asList(nodes), new Function<InetSocketAddress, HostAndPort>() {
                     public HostAndPort apply(final InetSocketAddress input) {
@@ -480,56 +483,64 @@ public class ImhotepRemoteSession
 
     private FTGSIterator fileBufferedFTGSRequest(final ImhotepRequest request) {
         try {
-            final Socket socket = newSocket(host, port, socketTimeout);
-            final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
-            final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
-            try {
-                sendRequest(request, is, os, host, port);
-            } catch (final IOException e) {
-                closeSocket(socket);
-                throw e;
+            final Pair<ImhotepResponse, InputStream> responseAndFile = sendRequestAndSaveResponseToFile(request, "ftgs");
+            final int numStats = responseAndFile.getFirst().getNumStats();
+            if (numStats != this.numStats) {
+                throw new IllegalStateException("numStats mismatch");
             }
-            Path tmp = null;
-            try {
-                tmp = Files.createTempFile("ftgs", ".tmp");
-                OutputStream out = null;
-                final long start = System.currentTimeMillis();
-                try {
-                    out = new LimitedBufferedOutputStream(Files.newOutputStream(tmp), tempFileSizeBytesLeft);
-                    ByteStreams.copy(is, out);
-                } catch (final Throwable t) {
-                    if(t instanceof WriteLimitExceededException) {
-                        throw new TempFileSizeLimitExceededException(t);
-                    }
-                    throw Throwables2.propagate(t, IOException.class);
-                } finally {
-                    if (out != null) {
-                        out.close();
-                    }
-                    if(log.isDebugEnabled()) {
-                        log.debug("[" + getSessionId() + "] time to copy split data to file: " + (System.currentTimeMillis()
-                                - start) + " ms, file length: " + Files.size(tmp));
-                    }
-                }
-                final BufferedInputStream bufferedInputStream = new BufferedInputStream(Files.newInputStream(tmp));
-                final InputStream in = new FilterInputStream(bufferedInputStream) {
-                    public void close() throws IOException {
-                        bufferedInputStream.close();
-                    }
-                };
-                return new InputStreamFTGSIterator(in, numStats);
-            } finally {
-                if (tmp != null) {
-                    try {
-                        Files.delete(tmp);
-                    } catch (final Exception e) {
-                        log.warn("[" + getSessionId() + "] Failed to delete temp file " + tmp);
-                    }
-                }
-                closeSocket(socket);
-            }
+            final int numGroups = responseAndFile.getFirst().getNumGroups();
+            return new InputStreamFTGSIterator(responseAndFile.getSecond(), numStats, numGroups);
         } catch (final IOException e) {
             throw new RuntimeException(e); // TODO
+        }
+    }
+
+    private Pair<ImhotepResponse, InputStream> sendRequestAndSaveResponseToFile(
+            final ImhotepRequest request,
+            final String tempFilePrefix) throws IOException {
+        final Socket socket = newSocket(host, port, socketTimeout);
+        final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
+        final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
+        final ImhotepResponse response;
+        try {
+            response = sendRequest(request, is, os, host, port);
+        } catch (final IOException e) {
+            closeSocket(socket);
+            throw e;
+        }
+        Path tmp = null;
+        try {
+            tmp = Files.createTempFile(tempFilePrefix, ".tmp");
+            OutputStream out = null;
+            final long start = System.currentTimeMillis();
+            try {
+                out = new LimitedBufferedOutputStream(Files.newOutputStream(tmp), tempFileSizeBytesLeft);
+                ByteStreams.copy(is, out);
+            } catch (final Throwable t) {
+                if(t instanceof WriteLimitExceededException) {
+                    throw new TempFileSizeLimitExceededException(t);
+                }
+                throw Throwables2.propagate(t, IOException.class);
+            } finally {
+                if (out != null) {
+                    out.close();
+                }
+                if(log.isDebugEnabled()) {
+                    log.debug("[" + getSessionId() + "] time to copy split data to file: " + (System.currentTimeMillis()
+                            - start) + " ms, file length: " + Files.size(tmp));
+                }
+            }
+            final BufferedInputStream bufferedInputStream = new BufferedInputStream(Files.newInputStream(tmp));
+            return new Pair<>(response, bufferedInputStream);
+        } finally {
+            if (tmp != null) {
+                try {
+                    Files.delete(tmp);
+                } catch (final Exception e) {
+                    log.warn("[" + getSessionId() + "] Failed to delete temp file " + tmp);
+                }
+            }
+            closeSocket(socket);
         }
     }
 
@@ -539,7 +550,7 @@ public class ImhotepRemoteSession
         final Timer timer = new Timer();
         try {
             final ImhotepResponse response =
-                sendMultisplitRegroupRequest(rawRules, getSessionId(), errorOnCollisions);
+                sendMultisplitRegroupRequest(rawRules, errorOnCollisions);
             final int result = response.getNumGroups();
             timer.complete(ImhotepRequest.RequestType.EXPLODED_MULTISPLIT_REGROUP);
             return result;
@@ -555,8 +566,7 @@ public class ImhotepRemoteSession
         try {
             final Iterator<GroupMultiRemapMessage> rawRuleMessagesIterator = Arrays.asList(rawRuleMessages).iterator();
             final ImhotepResponse response =
-                    sendMultisplitRegroupRequestFromProtos(rawRuleMessages.length, rawRuleMessagesIterator, getSessionId(),
-                            errorOnCollisions);
+                    sendMultisplitRegroupRequestFromProtos(rawRuleMessages.length, rawRuleMessagesIterator, errorOnCollisions);
             final int result = response.getNumGroups();
             timer.complete(ImhotepRequest.RequestType.EXPLODED_MULTISPLIT_REGROUP);
             return result;
@@ -572,8 +582,7 @@ public class ImhotepRemoteSession
         final Timer timer = new Timer();
         try {
             final ImhotepResponse response =
-                sendMultisplitRegroupRequest(numRawRules, rawRules, getSessionId(),
-                                             errorOnCollisions);
+                sendMultisplitRegroupRequest(numRawRules, rawRules, errorOnCollisions);
             final int result = response.getNumGroups();
             timer.complete(ImhotepRequest.RequestType.EXPLODED_MULTISPLIT_REGROUP);
             return result;
@@ -1194,14 +1203,13 @@ public class ImhotepRemoteSession
     }
 
     // Special cased in order to save memory and only have one marshalled rule exist at a time.
-    private ImhotepResponse sendMultisplitRegroupRequest(final GroupMultiRemapRule[] rules, final String sessionId, final boolean errorOnCollisions) throws IOException, ImhotepOutOfMemoryException {
-        return sendMultisplitRegroupRequest(rules.length, Arrays.asList(rules).iterator(), sessionId, errorOnCollisions);
+    private ImhotepResponse sendMultisplitRegroupRequest(final GroupMultiRemapRule[] rules, final boolean errorOnCollisions) throws IOException, ImhotepOutOfMemoryException {
+        return sendMultisplitRegroupRequest(rules.length, Arrays.asList(rules).iterator(), errorOnCollisions);
     }
 
     private ImhotepResponse sendMultisplitRegroupRequest(
             final int numRules,
             final Iterator<GroupMultiRemapRule> rules,
-            final String sessionId,
             final boolean errorOnCollisions) throws IOException, ImhotepOutOfMemoryException {
         final Iterator<GroupMultiRemapMessage> ruleMessageIterator = Iterators.transform(rules,
                 new Function<GroupMultiRemapRule, GroupMultiRemapMessage>() {
@@ -1211,17 +1219,16 @@ public class ImhotepRemoteSession
                 return ImhotepClientMarshaller.marshal(rule);
             }
         });
-        return sendMultisplitRegroupRequestFromProtos(numRules, ruleMessageIterator, sessionId, errorOnCollisions);
+        return sendMultisplitRegroupRequestFromProtos(numRules, ruleMessageIterator, errorOnCollisions);
     }
 
     private ImhotepResponse sendMultisplitRegroupRequestFromProtos(
             final int numRules,
             final Iterator<GroupMultiRemapMessage> rules,
-            final String sessionId,
             final boolean errorOnCollisions) throws IOException, ImhotepOutOfMemoryException {
         final ImhotepRequest initialRequest = getBuilderForType(ImhotepRequest.RequestType.EXPLODED_MULTISPLIT_REGROUP)
                 .setLength(numRules)
-                .setSessionId(sessionId)
+                .setSessionId(getSessionId())
                 .setErrorOnCollisions(errorOnCollisions)
                 .build();
 

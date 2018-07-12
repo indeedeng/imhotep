@@ -132,18 +132,21 @@ public class LocalImhotepServiceCore
         this.shardTempDir = shardTempDir;
 
         memory = new ImhotepMemoryPool(memoryCapacity);
+        if(config.getCpuSlots() > 0) {
+            TaskScheduler.CPUScheduler = new TaskScheduler(config.getCpuSlots(),
+                    TimeUnit.SECONDS.toNanos(config.getCpuSchedulerHistoryLengthSeconds()),
+                    TimeUnit.SECONDS.toNanos(1), SchedulerType.CPU,
+                    statsEmitter);
+        }
 
-        TaskScheduler.CPUScheduler = new TaskScheduler(config.getCpuSlots(),
-                TimeUnit.SECONDS.toNanos(config.getCpuSchedulerHistoryLengthSeconds()),
-                TimeUnit.SECONDS.toNanos(1), SchedulerType.CPU,
-                statsEmitter);
+        if(config.getRemoteFSIOSlots() > 0) {
+            TaskScheduler.RemoteFSIOScheduler = new TaskScheduler(config.getRemoteFSIOSlots(),
+                    TimeUnit.SECONDS.toNanos(config.getRemoteFSIOSchedulerHistoryLengthSeconds()),
+                    TimeUnit.SECONDS.toNanos(1), SchedulerType.REMOTE_FS_IO,
+                    statsEmitter);
+        }
 
-        TaskScheduler.RemoteFSIOScheduler = new TaskScheduler(config.getRemoteFSIOSlots(),
-                TimeUnit.SECONDS.toNanos(config.getRemoteFSIOSchedulerHistoryLengthSeconds()),
-                TimeUnit.SECONDS.toNanos(1), SchedulerType.REMOTE_FS_IO,
-                statsEmitter);
-
-        sessionManager = new LocalSessionManager(statsEmitter);
+        sessionManager = new LocalSessionManager(statsEmitter, config.getMaxSessionsTotal(), config.getMaxSessionsPerUser());
 
         clearTempDir(shardTempDir);
 
@@ -412,6 +415,7 @@ public class LocalImhotepServiceCore
     @Override
     public void close() {
         super.close();
+        heartBeat.shutdown();
     }
 
     private final AtomicInteger counter = new AtomicInteger(new Random().nextInt());

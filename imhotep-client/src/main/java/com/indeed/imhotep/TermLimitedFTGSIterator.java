@@ -40,6 +40,16 @@ public class TermLimitedFTGSIterator implements FTGSIterator {
     }
 
     @Override
+    public int getNumStats() {
+        return wrapped.getNumStats();
+    }
+
+    @Override
+    public int getNumGroups() {
+        return wrapped.getNumGroups();
+    }
+
+    @Override
     public boolean nextField() {
         return wrapped.nextField();
     }

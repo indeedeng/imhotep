@@ -38,7 +38,8 @@ public final class LocalSessionManager extends AbstractSessionManager<Map<ShardI
 
     private static final int REPORTING_FREQUENCY_MILLIS = 100;
 
-    public LocalSessionManager(final MetricStatsEmitter statsEmitter) {
+    public LocalSessionManager(final MetricStatsEmitter statsEmitter, final int maxSessionsTotal, final int maxSessionsPerUser) {
+        super(maxSessionsTotal, maxSessionsPerUser);
         this.statsEmitter = statsEmitter;
         final ScheduledExecutorService statsReportingExecutor =
                 Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("sessionManagerStatsReporter"));

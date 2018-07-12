@@ -22,10 +22,12 @@ public final class LocalImhotepServiceConfig {
     private int updateShardsFrequencySeconds = 120;
     private int heartBeatCheckFrequencySeconds = 60;
     private int syncShardStoreFrequencySeconds = 1200;
-    private int cpuSlots = 24;
+    private int cpuSlots = 0; // 0 = disabled
     private int cpuSchedulerHistoryLengthSeconds = 60;
-    private int remoteFSIOSlots= 4;
+    private int remoteFSIOSlots = 0;  // 0 = disabled
     private int remoteFSIOSchedulerHistoryLengthSeconds = 60;
+    private int maxSessionsTotal = Integer.MAX_VALUE;
+    private int maxSessionsPerUser = Integer.MAX_VALUE;
     private MetricStatsEmitter statsEmitter = MetricStatsEmitter.NULL_EMITTER;
 
     public int getUpdateShardsFrequencySeconds() {
@@ -87,6 +89,24 @@ public final class LocalImhotepServiceConfig {
 
     public void setRemoteFSIOSchedulerHistoryLengthSeconds(int remoteFSIOSchedulerHistoryLengthSeconds) {
         this.remoteFSIOSchedulerHistoryLengthSeconds = remoteFSIOSchedulerHistoryLengthSeconds;
+    }
+
+    public int getMaxSessionsTotal() {
+        return maxSessionsTotal;
+    }
+
+    public LocalImhotepServiceConfig setMaxSessionsTotal(int maxSessionsTotal) {
+        this.maxSessionsTotal = maxSessionsTotal;
+        return this;
+    }
+
+    public int getMaxSessionsPerUser() {
+        return maxSessionsPerUser;
+    }
+
+    public LocalImhotepServiceConfig setMaxSessionsPerUser(int maxSessionsPerUser) {
+        this.maxSessionsPerUser = maxSessionsPerUser;
+        return this;
     }
 
     public MetricStatsEmitter getStatsEmitter() {

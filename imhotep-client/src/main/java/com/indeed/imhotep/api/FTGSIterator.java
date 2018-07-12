@@ -16,6 +16,19 @@
 import java.io.Closeable;
 
 public interface FTGSIterator extends Closeable {
+
+    /**
+     * @return number of stats
+     */
+    int getNumStats();
+
+    /**
+     * @return upper bound for number of groups.
+     * It is guaranteed that values returned by {{@link #group()} method will be in range [1, getNumGroups() - 1],
+     * but this method can return any value greater than or equal to `max(all results of {{@link #group()} method) + 1`
+     */
+    int getNumGroups();
+
     /**
      * @return true iff iterator successfully positioned to the next field
      */

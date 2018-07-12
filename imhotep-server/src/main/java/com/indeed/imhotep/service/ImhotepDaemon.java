@@ -33,6 +33,7 @@ import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.Instrumentation.Keys;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.TermCount;
+import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepServiceCore;
@@ -567,17 +568,24 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             return Pair.of(builder.build(), groupStats);
         }
 
+        private FTGSParams getFTGSParams(final ImhotepRequest request) {
+            return new FTGSParams(
+                    getIntFields(request),
+                    getStringFields(request),
+                    request.getTermLimit(),
+                    request.getSortStat(),
+                    request.getSortedFTGS()
+                    );
+        }
+
         private void getFTGSIterator(
                 final ImhotepRequest          request,
                 final ImhotepResponse.Builder builder,
                 final OutputStream            os)
-            throws IOException, ImhotepOutOfMemoryException {
+            throws IOException {
             checkSessionValidity(request);
             service.handleGetFTGSIterator(request.getSessionId(),
-                                          getIntFields(request),
-                                          getStringFields(request),
-                                          request.getTermLimit(),
-                                          request.getSortStat(),
+                                          getFTGSParams(request),
                                           os);
         }
 
@@ -626,7 +634,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepRequest          request,
                 final ImhotepResponse.Builder builder,
                 final OutputStream            os)
-            throws IOException, ImhotepOutOfMemoryException {
+            throws IOException {
             checkSessionValidity(request);
             final InetSocketAddress[] nodes =
                 Lists.transform(request.getNodesList(),
@@ -636,10 +644,10 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                                                      input.getPort());
                                     }
                                 }).toArray(new InetSocketAddress[request.getNodesCount()]);
+            final FTGSParams params = getFTGSParams(request);
             service.handleMergeFTGSIteratorSplit(request.getSessionId(),
-                                                 getIntFields(request),
-                                                 getStringFields(request),
-                                                 os, nodes, request.getSplitIndex(), request.getTermLimit(), request.getSortStat());
+                                                 params,
+                                                 os, nodes, request.getSplitIndex());
         }
 
         private void mergeSubsetFTGSSplit(

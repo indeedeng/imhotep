@@ -51,7 +51,6 @@ class FlamdexFTGSIterator extends AbstractFlamdexFTGSIterator {
                     Closeables2.closeQuietly(intTermDocIterator, ImhotepLocalSession.log);
                 }
                 intTermDocIterator = flamdexReader.get().getIntTermDocIterator(currentField);
-                termIndex = 0;
                 return true;
             }
             if (stringFieldPtr < stringFields.length) {
@@ -61,7 +60,6 @@ class FlamdexFTGSIterator extends AbstractFlamdexFTGSIterator {
                     Closeables2.closeQuietly(stringTermDocIterator, ImhotepLocalSession.log);
                 }
                 stringTermDocIterator = flamdexReader.get().getStringTermDocIterator(currentField);
-                termIndex = 0;
                 return true;
             }
             currentField = null;

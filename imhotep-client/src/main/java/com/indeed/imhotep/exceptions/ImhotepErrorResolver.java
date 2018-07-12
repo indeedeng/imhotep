@@ -39,11 +39,6 @@ public class ImhotepErrorResolver {
                     "Please wait before retrying.", e);
         }
 
-        if (error.contains(UserSessionCountLimitExceededException.class.getSimpleName())) {
-            return new UserSessionCountLimitExceededException("You have too many concurrent Imhotep sessions running. " +
-                    "Please wait for them to complete before retrying.", e);
-        }
-
         if (error.contains(TempFileSizeLimitExceededException.class.getSimpleName()) ||
                 error.contains(WriteLimitExceededException.class.getSimpleName())) {
             return new FTGSLimitExceededException("The query tried to iterate over too much data. " +
@@ -68,6 +63,13 @@ public class ImhotepErrorResolver {
 
         if (error.contains("there does not exist a session with id")) {
             return new QueryCancelledException("The query was cancelled during execution", e);
+        }
+
+        if (error.contains(NonNumericFieldException.class.getSimpleName())) {
+            return new NonNumericFieldException("Query failed trying to iterate over integers in a string field which " +
+                    "contained non-numeric string terms. Likely cause is inconsistent type (string/int) for the same " +
+                    "field in different shards. That can be be fixed in the index builder by setting an explicit field " +
+                    "type and rebuilding old shards where it doesn't match.", e);
         }
 
         return e;

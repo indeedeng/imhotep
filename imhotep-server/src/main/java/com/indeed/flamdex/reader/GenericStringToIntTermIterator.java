@@ -18,6 +18,7 @@ import com.google.common.base.Supplier;
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.TermIterator;
+import com.indeed.imhotep.exceptions.NonNumericFieldException;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
@@ -102,7 +103,7 @@ public class GenericStringToIntTermIterator<I extends StringTermIterator> implem
             if (!stringTermIterator.next() || !firstTerm.equals(stringTermIterator.term())) {
                 throw new RuntimeException("Serious bug detected, term was " + stringTermIterator.term() + ", expected " + firstTerm);
             }
-            val = Long.parseLong(firstTerm);
+            val = tryParseLong(firstTerm);
         }
 
         public boolean next() {
@@ -136,14 +137,13 @@ public class GenericStringToIntTermIterator<I extends StringTermIterator> implem
 
                 final String currentTerm = stringTermIterator.term();
                 if (currentTerm.length() == length) {
-                    val = Long.parseLong(currentTerm);
-                    // todo deal with potential parse int errors?
+                    val = tryParseLong(currentTerm);
                     return true;
                 }
 
                 // length is either longer or shorter, either way find the next targetString w/ prefix and length
                 if (currentTerm.length() > length) {
-                    nextTargetString = Long.toString(Long.parseLong(currentTerm.substring(0, length)) + 1);
+                    nextTargetString = Long.toString(tryParseLong(currentTerm.substring(0, length)) + 1);
                 } else {
                     final StringBuilder sb = new StringBuilder(length);
                     sb.append(currentTerm);
@@ -152,6 +152,15 @@ public class GenericStringToIntTermIterator<I extends StringTermIterator> implem
                     }
                     nextTargetString = sb.toString();
                 }
+            }
+        }
+
+        private static long tryParseLong(String term) {
+            try {
+                return Long.parseLong(term);
+            } catch (NumberFormatException e) {
+                throw new NonNumericFieldException("Tried to iterate over integers in a string field containing " +
+                        "non-numeric string terms. Non-numeric term: " + term);
             }
         }
 

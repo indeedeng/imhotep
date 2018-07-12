@@ -49,8 +49,8 @@ public final class ImhotepProtobufShipping {
         stream.flush();
     }
 
-    public static GroupStatsIterator readGroupStatsIterator(final InputStream is, final int len) {
-        return new GroupStatsStreamReader(is, len);
+    public static GroupStatsIterator readGroupStatsIterator(final InputStream is, final int len, final boolean exhaust) {
+        return new GroupStatsStreamReader(is, len, exhaust);
     }
 
     public static ImhotepRequest readRequest(final InputStream is) throws IOException {

@@ -286,6 +286,8 @@ message ImhotepRequest {
   // used in openSession()
   repeated string shardList = 66;
   repeated uint32 numDocsPerShard = 67;
+  // for getFTGSIterator call
+  optional bool sortedFTGS = 64 [default = true];
 }
 
 message ImhotepResponse {
@@ -303,7 +305,7 @@ message ImhotepResponse {
   // for getShardlistForTime()
   repeated ShardInfoMessage shard_info = 3;
 
-  // for pushStat()/popStat()
+  // for pushStat()/popStat()/getFTGS
   optional uint32 num_stats = 4;
 
   // for getTotalDocFreq()
@@ -319,7 +321,7 @@ message ImhotepResponse {
   // for exportSnapshot()
   repeated string shard_id = 8;
 
-  // for regroups
+  // for regroups/getFTGS
   optional uint32 num_groups = 9;
 
   // error stuff

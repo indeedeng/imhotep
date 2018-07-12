@@ -62,7 +62,6 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
     private int groupPointer;
     private int groupsSeenCount;
     protected boolean resetGroupStats = false;
-    protected int termIndex;
     private final TermGroupStatsCalculator calculator;
 
     public AbstractFlamdexFTGSIterator(
@@ -74,6 +73,16 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
         this.bitTree = new BitTree(session.docIdToGroup.getNumGroups());
         this.flamdexReader = flamdexReader;
         this.calculator = getCalculator();
+    }
+
+    @Override
+    public int getNumStats() {
+        return session.numStats;
+    }
+
+    @Override
+    public int getNumGroups() {
+        return session.docIdToGroup.getNumGroups();
     }
 
     @Override

@@ -39,7 +39,9 @@ public class InputStreamFTGSIterators {
         };
     }
 
-    public static InputStreamFTGSIterator create(final File file, final int numStats) throws FileNotFoundException {
-        return new InputStreamFTGSIterator(createInputStream(file), numStats);
+    public static InputStreamFTGSIterator create(final File file,
+                                                 final int numStats,
+                                                 final int numGroups) throws FileNotFoundException {
+        return new InputStreamFTGSIterator(createInputStream(file), numStats, numGroups);
     }
 }

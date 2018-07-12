@@ -127,9 +127,9 @@ class LocalFileCache {
                 }
 
                 @Override
-                public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+                public FileVisitResult postVisitDirectory(final Path dir, final IOException exc) throws IOException {
                     // Delete empty directories separately since it's not handled by cleanUp() below
-                    try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(dir)) {
+                    try (final DirectoryStream<Path> dirStream = Files.newDirectoryStream(dir)) {
                         final boolean dirIsEmpty = !dirStream.iterator().hasNext();
                         if (dirIsEmpty) {
                             Files.delete(dir);
@@ -165,7 +165,7 @@ class LocalFileCache {
             Files.createDirectories(cacheDirPath);
             return cacheDirPath;
         } else {
-            try (ScopedCacheFile openedCacheFile = getForOpen(path)) {
+            try (final ScopedCacheFile openedCacheFile = getForOpen(path)) {
                 return openedCacheFile.cachePath;
             }
         }
@@ -216,12 +216,12 @@ class LocalFileCache {
         // 1. getting the cached value
         // 2. loading the cache file (which can result in exceptions and the file use counter has to be rolled back)
         try {
-            try (Closeable ignored = TaskScheduler.CPUScheduler.temporaryUnlock()) {
+            try (final Closeable ignored = TaskScheduler.CPUScheduler.temporaryUnlock()) {
                 fileCacheEntry = referencedFilesCache.get(path);
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 throw Throwables.propagate(e);
             }
-        } catch (final ExecutionException e) {
+        } catch (final Throwable e) {
             synchronized (lock) {
                 decFileUsageRef(path);
             }

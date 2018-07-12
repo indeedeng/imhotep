@@ -51,6 +51,8 @@ public class TaskScheduler {
 
     private static final int REPORTING_FREQUENCY_MILLIS = 100;
     private static final int CLEANUP_FREQUENCY_MILLIS = 1000;
+    private ScheduledExecutorService statsReportingExecutor = null;
+    private ScheduledExecutorService cleanupExecutor = null;
 
     public TaskScheduler(long totalSlots, long historyLengthNanos, long batchNanos, SchedulerType schedulerType, MetricStatsEmitter statsEmitter) {
         this.totalSlots = totalSlots;
@@ -59,12 +61,14 @@ public class TaskScheduler {
         this.schedulerType = schedulerType;
         this.statsEmitter = statsEmitter;
 
-        final ScheduledExecutorService statsReportingExecutor =
-                Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("schedulerStatsReporter-" + schedulerType));
+        initializeSchedulers(schedulerType);
+    }
+
+    protected void initializeSchedulers(SchedulerType schedulerType) {
+        statsReportingExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("schedulerStatsReporter-" + schedulerType));
         statsReportingExecutor.scheduleAtFixedRate(this::reportStats, REPORTING_FREQUENCY_MILLIS, REPORTING_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
 
-        final ScheduledExecutorService cleanupExecutor =
-                Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("schedulerCleanup-" + schedulerType));
+        cleanupExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("schedulerCleanup-" + schedulerType));
         cleanupExecutor.scheduleAtFixedRate(this::cleanup, CLEANUP_FREQUENCY_MILLIS, CLEANUP_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
     }
 
@@ -213,5 +217,14 @@ public class TaskScheduler {
             usernameToQueue.put(task.userName, queue);
         }
         return queue;
+    }
+
+    public void close() {
+        if(statsReportingExecutor != null) {
+            statsReportingExecutor.shutdown();
+        }
+        if(cleanupExecutor != null) {
+            cleanupExecutor.shutdown();
+        }
     }
 }

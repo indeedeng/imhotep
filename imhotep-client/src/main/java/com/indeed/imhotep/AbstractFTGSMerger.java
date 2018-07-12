@@ -29,6 +29,8 @@ public abstract class AbstractFTGSMerger implements FTGSIterator {
     private static final Logger log = Logger.getLogger(AbstractFTGSMerger.class);
 
     protected final FTGSIterator[] iterators;
+    private final int numStats;
+    private final int numGroups;
     private final int numIterators;
     protected final int[] fieldIterators;
     protected int numFieldIterators;
@@ -49,11 +51,12 @@ public abstract class AbstractFTGSMerger implements FTGSIterator {
 
     protected AbstractFTGSMerger(
             final Collection<? extends FTGSIterator> iterators,
-            final int numStats,
             @Nullable final Closeable doneCallback) {
         this.doneCallback = doneCallback;
         numIterators = iterators.size();
         this.iterators = iterators.toArray(new FTGSIterator[numIterators]);
+        numStats = FTGSIteratorUtil.getNumStats(this.iterators);
+        numGroups = FTGSIteratorUtil.getNumGroups(this.iterators);
         fieldIterators = new int[numIterators];
         numFieldIterators = 0;
         termIterators = new int[numIterators];
@@ -61,6 +64,16 @@ public abstract class AbstractFTGSMerger implements FTGSIterator {
         numTermIterators = 0;
         done = false;
         accumulatedVec = new GSVector(numStats);
+    }
+
+    @Override
+    public int getNumStats() {
+        return numStats;
+    }
+
+    @Override
+    public int getNumGroups() {
+        return numGroups;
     }
 
     @Override

@@ -73,7 +73,7 @@ public abstract class AbstractFTGSMergerCase {
         ROOT_LOGGER.addAppender(STDERR);
     }
 
-    protected abstract FTGSIterator newFTGSMerger(Collection<? extends FTGSIterator> iterators, int numStats) throws IOException;
+    protected abstract FTGSIterator newFTGSMerger(Collection<? extends FTGSIterator> iterators) throws IOException;
 
     @Test
     public void testEmptyFields() throws IOException {
@@ -89,11 +89,11 @@ public abstract class AbstractFTGSMergerCase {
         final List<FTGSIterator> iterators = new ArrayList<>(n);
         for (int i = 0; i < n; i++) {
             final InputStream is = new ByteArrayInputStream(out.toByteArray());
-            final InputStreamFTGSIterator temp = new InputStreamFTGSIterator(is, 0);
+            final InputStreamFTGSIterator temp = new InputStreamFTGSIterator(is, 0, 0);
             iterators.add(temp);
         }
 
-        final FTGSIterator iter = newFTGSMerger(iterators, 0);
+        final FTGSIterator iter = newFTGSMerger(iterators);
         assertTrue(iter.nextField());
         assertTrue(iter.fieldIsIntType());
         assertEquals("a", iter.fieldName());
@@ -124,12 +124,12 @@ public abstract class AbstractFTGSMergerCase {
             for (int i = 0; i < n; i++) {
                 final InputStream is = new ByteArrayInputStream(out.toByteArray());
                 inputStreams.add(is);
-                final InputStreamFTGSIterator temp = new InputStreamFTGSIterator(is, 2);
+                final InputStreamFTGSIterator temp = new InputStreamFTGSIterator(is, 2, 1000);
                 iterators.add(temp);
             }
             final long[] stats = new long[2];
 
-            final FTGSIterator input = newFTGSMerger(iterators, 2);
+            final FTGSIterator input = newFTGSMerger(iterators);
             assertTrue(input.nextField());
             assertEquals("abc", input.fieldName());
             assertTrue(input.fieldIsIntType());
@@ -227,10 +227,10 @@ public abstract class AbstractFTGSMergerCase {
         final List<FTGSIterator> list = new ArrayList<>(10);
         for (int i = 0; i < 10; ++i) {
             final InputStream is = new ByteArrayInputStream(baos.toByteArray());
-            final InputStreamFTGSIterator it = new InputStreamFTGSIterator(is, 2);
+            final InputStreamFTGSIterator it = new InputStreamFTGSIterator(is, 2, 1000);
             list.add(it);
         }
-        final FTGSIterator it = newFTGSMerger(list, 2);
+        final FTGSIterator it = newFTGSMerger(list);
         assertTrue(it.nextField());
         assertEquals("abc", it.fieldName());
         assertTrue(it.fieldIsIntType());
@@ -373,9 +373,9 @@ public abstract class AbstractFTGSMergerCase {
 
         final List<FTGSIterator> iterators = new ArrayList<>();
         for (final ByteArrayOutputStream os : streams) {
-            iterators.add(new InputStreamFTGSIterator(new ByteArrayInputStream(os.toByteArray()), 2));
+            iterators.add(new InputStreamFTGSIterator(new ByteArrayInputStream(os.toByteArray()), 2, 10));
         }
-        final FTGSIterator merger = newFTGSMerger(iterators, 2);
+        final FTGSIterator merger = newFTGSMerger(iterators);
         final long[] stats = new long[2];
 
         assertTrue(merger.nextField());
@@ -439,7 +439,7 @@ public abstract class AbstractFTGSMergerCase {
 
     @Test
     public void testTermWithNoGroups() throws IOException {
-        final FTGSIterator iterator = newFTGSMerger(Lists.newArrayList(makeMockIterator(0), makeMockIterator(0)), 0);
+        final FTGSIterator iterator = newFTGSMerger(Lists.newArrayList(makeMockIterator(0), makeMockIterator(0)));
         assertTrue(iterator.nextField());
         assertFalse(iterator.fieldIsIntType());
         assertTrue(iterator.nextTerm());
@@ -485,7 +485,7 @@ public abstract class AbstractFTGSMergerCase {
 
     @Test
     public void testTestTest() throws IOException {
-        final FTGSIterator iterator = newFTGSMerger(Lists.newArrayList(makeMockIterator3(), makeMockIterator2()), 2);
+        final FTGSIterator iterator = newFTGSMerger(Lists.newArrayList(makeMockIterator3(), makeMockIterator2()));
         final long[] stats = new long[2];
         assertTrue(iterator.nextField());
         assertFalse(iterator.fieldIsIntType());
@@ -583,6 +583,16 @@ public abstract class AbstractFTGSMergerCase {
                     {{33, 34}}
             }};
             int groupIndex = -1;
+
+            @Override
+            public int getNumStats() {
+                return numStats;
+            }
+
+            @Override
+            public int getNumGroups() {
+                return 6;
+            }
 
             @Override
             public boolean nextField() {
@@ -684,6 +694,16 @@ public abstract class AbstractFTGSMergerCase {
             int groupIndex = -1;
 
             @Override
+            public int getNumStats() {
+                return 2;
+            }
+
+            @Override
+            public int getNumGroups() {
+                return 6;
+            }
+
+            @Override
             public boolean nextField() {
                 if (++fieldIndex >= fields.length) {
                     return false;
@@ -777,6 +797,16 @@ public abstract class AbstractFTGSMergerCase {
                     {},
             }};
             int groupIndex = -1;
+
+            @Override
+            public int getNumStats() {
+                return 2;
+            }
+
+            @Override
+            public int getNumGroups() {
+                return 6;
+            }
 
             @Override
             public boolean nextField() {
