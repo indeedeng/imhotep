@@ -198,18 +198,6 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
     }
 
     @Override
-    public int regroup(final GroupMultiRemapRule[] rawRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
-        executeMemoryException(integerBuf, new ThrowingFunction<ImhotepSession, Integer>() {
-            @Override
-            public Integer apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
-                return session.regroup(rawRules, errorOnCollisions);
-            }
-        });
-
-        return Collections.max(Arrays.asList(integerBuf));
-    }
-
-    @Override
     public int regroup(final GroupRemapRule[] rawRules) throws ImhotepOutOfMemoryException {
         executeMemoryException(integerBuf, new ThrowingFunction<ImhotepSession, Integer>() {
             @Override
@@ -231,28 +219,6 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         });
 
         return Collections.max(Arrays.asList(integerBuf));
-    }
-
-    @Override
-    public void intOrRegroup(final String field, final long[] terms, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
-        executeMemoryException(nullBuf, new ThrowingFunction<ImhotepSession, Object>() {
-            @Override
-            public Object apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
-                session.intOrRegroup(field, terms, targetGroup, negativeGroup, positiveGroup);
-                return null;
-            }
-        });
-    }
-
-    @Override
-    public void stringOrRegroup(final String field, final String[] terms, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
-        executeMemoryException(nullBuf, new ThrowingFunction<ImhotepSession, Object>() {
-            @Override
-            public Object apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
-                session.stringOrRegroup(field, terms, targetGroup, negativeGroup, positiveGroup);
-                return null;
-            }
-        });
     }
 
     @Override
