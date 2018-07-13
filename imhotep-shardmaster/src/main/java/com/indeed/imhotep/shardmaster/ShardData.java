@@ -31,24 +31,24 @@ public class ShardData {
     }
 
     public long getFieldUpdateTime(String dataset, String field) {
-        if(hasField(dataset, field)) {
+        if(tblFields.containsKey(dataset)) {
             return tblFields.get(dataset).lastUpdatedTimestamp.get(field);
         }
         return 0;
     }
 
     public List<String> getFields(String dataset, FieldType type) {
-        final List<String> strFields = new ArrayList<>();
+        final List<String> fields = new ArrayList<>();
         final TableFields tableFields = tblFields.get(dataset);
         if(tableFields == null) {
             return new ArrayList<>();
         }
         tableFields.fieldNameToFieldType.forEach((name, thisType) -> {
             if(thisType == type) {
-                strFields.add(name);
+                fields.add(name);
             }
         });
-        return strFields;
+        return fields;
     }
 
     public int getNumDocs(String path) {
@@ -118,8 +118,7 @@ public class ShardData {
         }
     }
 
-    public Map<String, List<ShardDir>> addTableShardsRowsFromSQL(ResultSet rows) throws SQLException {
-        final Map<String, List<ShardDir>> shardDirs = new HashMap<>();
+    public void addTableShardsRowsFromSQL(ResultSet rows) throws SQLException {
         if (rows.first()) {
             do {
                 String strPath = rows.getString("path");
@@ -134,10 +133,6 @@ public class ShardData {
                 ShardDir shardDir = new ShardDir(path);
                 String dataset = shardDir.getIndexDir().getParent().toString();
                 String shardname = shardDir.getId();
-                if(!shardDirs.containsKey(dataset)){
-                    shardDirs.put(dataset, new ArrayList<>());
-                }
-                shardDirs.get(dataset).add(new ShardDir(path));
 
                 if (!tblShards.containsKey(dataset)) {
                     tblShards.put(dataset, new IntervalTree<>());
@@ -146,7 +141,6 @@ public class ShardData {
                 tblShards.get(dataset).addInterval(interval.getStart().getMillis(), interval.getEnd().getMillis(), strPath);
                } while (rows.next());
         }
-        return shardDirs;
     }
 
     private void addShardToDatastructure(FlamdexMetadata metadata, Path shardPath, ShardDir shardDir) {

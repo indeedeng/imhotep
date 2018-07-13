@@ -47,19 +47,11 @@ class ShardScanner implements Iterable<ShardDir> {
     @Override
     public Iterator<ShardDir> iterator() {
         try {
-            final FileStatus[] fileStatuses = fs.listStatus(baseDir, this::isValid);
+            final FileStatus[] fileStatuses = fs.listStatus(baseDir);
             return Arrays.stream(fileStatuses).map(file -> new ShardDir(file.getPath())).collect(Collectors.toList()).iterator();
         } catch (IOException e) {
             LOGGER.error(e.getMessage(), e);
             return new ArrayList<ShardDir>().iterator();
         }
-    }
-
-    private boolean isValid(Path shardPath) {
-        ShardDir temp = new ShardDir(shardPath);
-        String dataset = temp.getDataset();
-        String id = temp.getId();
-        return ShardTimeUtils.isValidShardId(id) &&
-                !ShardData.getInstance().hasShard(dataset + "/" + temp.getName());
     }
 }

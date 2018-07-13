@@ -36,7 +36,7 @@ import java.util.Iterator;
  * @author kenh
  */
 
-class LocalShardDirIterator implements ShardDirIterator {
+class LocalShardDirIterator implements Iterable<Pair<String, ShardDir>> {
     private static final Logger LOGGER = Logger.getLogger(LocalShardDirIterator.class);
     private final Path shardsPath;
 

@@ -21,6 +21,7 @@ import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.TermCount;
+import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -77,7 +78,7 @@ public interface ImhotepServiceCore {
     PerformanceStats handleGetPerformanceStats(String sessionId, boolean reset);
     PerformanceStats handleCloseAndGetPerformanceStats(String sessionId);
     // open session methods return session id
-    String handleOpenSession(String dataset, List<String> shardRequestList, String username, String clientName, String ipAddress, int clientVersion, int mergeThreadLimit, boolean optimizeGroupZeroLookups, String sessionId, AtomicLong tempFileSizeBytesLeft, long sessionTimeout) throws ImhotepOutOfMemoryException;
+    String handleOpenSession(String dataset, List<ShardNameNumDocsPair> shardRequestList, String username, String clientName, String ipAddress, int clientVersion, int mergeThreadLimit, boolean optimizeGroupZeroLookups, String sessionId, AtomicLong tempFileSizeBytesLeft, long sessionTimeout) throws ImhotepOutOfMemoryException;
 
     // non-session-based methods
     ImhotepStatusDump handleGetStatusDump(boolean includeShardList);

@@ -49,7 +49,6 @@ public class Instrumentation {
         public static final String SESSION_ID          = "sessionid";
         public static final String SHARD_DATE          = "sharddate";
         public static final String SHARD_ID            = "shardid";
-        public static final String SHARD_REQUEST_LIST  = "shardrequestlist";
         public static final String SHARD_SIZE          = "shardsize";
         public static final String SOURCE_ADDR         = "sourceaddr";
         public static final String STATS_PUSHED        = "statspushed";

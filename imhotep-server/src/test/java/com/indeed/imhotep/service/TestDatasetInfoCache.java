@@ -152,9 +152,6 @@ public class TestDatasetInfoCache {
                 if (! sd.getDatasetDir().getFileName().toString().equals(di.getDataset())) {
                     return false;
                 }
-                if (sd.getNumShards() != di.getShardList().size()) {
-                    return false;
-                }
                 if (! compare(Arrays.asList(sd.getIntFieldNames()), di.getIntFields())) {
                     return false;
                 }
@@ -196,11 +193,9 @@ public class TestDatasetInfoCache {
             svcCore = new LocalImhotepServiceCore(datasetDir,
                                                   unusedDir,
                                                   storeDir,
-                                                  500,
+                                                  (long) 500,
                                                   new GenericFlamdexReaderSource(),
-                                                  new ShardDirIteratorFactory(null, null),
                                                   config,
-                                                  listener,
                                                   MetricStatsEmitter.NULL_EMITTER);
             assertTrue("loaded DatasetInfo from " + source.name(),
                        listener.sourcesMatch.get());

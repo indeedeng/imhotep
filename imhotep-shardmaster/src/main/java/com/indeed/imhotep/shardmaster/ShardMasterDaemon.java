@@ -95,19 +95,8 @@ public class ShardMasterDaemon {
         String leaderTestPath = zkConnection.create(config.shardMastersZkPath+"-election/n_", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
 
         Connection dbConnection = config.getMetadataConnection();
-        dbConnection.setAutoCommit(false);
 
         try (Closer closer = Closer.create()) {
-            final ShardAssignmentInfoDao shardAssignmentInfoDao;
-            if (config.getDbFile() != null) {
-                final HikariDataSource dataSource = closer.register(config.createDataSource());
-                new SchemaInitializer(dataSource).initialize(Collections.singletonList(Tables.TBLSHARDASSIGNMENTINFO));
-
-                shardAssignmentInfoDao = new H2ShardAssignmentInfoDao(dataSource, config.getStalenessThreshold());
-            } else {
-                shardAssignmentInfoDao = new InMemoryShardAssignmentInfoDao(config.getStalenessThreshold());
-            }
-
             final Path dataSetsDir = Paths.get(RemoteCachingFileSystemProvider.URI);
 
             LOGGER.info("Reloading all daemon hosts");
@@ -121,14 +110,12 @@ public class ShardMasterDaemon {
             final org.apache.hadoop.fs.Path tmpPath = new org.apache.hadoop.fs.Path(rootURI + "/" + dataSetsDir.toString());
             final DatasetShardRefresher refresher = new DatasetShardRefresher(
                     tmpPath,
-                    hostsReloader,
-                    config.createAssigner(),
-                    shardAssignmentInfoDao,
                     leaderTestPath,
                     zkConnection,
                     dbConnection,
                     rootURI,
-                    config.shardFilter
+                    config.shardFilter,
+                    ShardData.getInstance()
             );
 
 
@@ -163,7 +150,7 @@ public class ShardMasterDaemon {
 
             server = new RequestResponseServer(config.getServicePort(), new MultiplexingRequestHandler(
                     config.statsEmitter,
-                    new DatabaseShardMaster(shardAssignmentInfoDao, shardScanComplete, ShardData.getInstance()),
+                    new DatabaseShardMaster(config.createAssigner(), shardScanComplete, ShardData.getInstance(), hostsReloader),
                     config.shardsResponseBatchSize
             ), config.serviceConcurrency);
             try (ZkEndpointPersister endpointPersister = getZKEndpointPersister()

@@ -25,6 +25,7 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.io.MockShard;
 import com.indeed.imhotep.io.Shard;
 import com.indeed.imhotep.io.TestFileUtils;
+import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
 import org.apache.log4j.Appender;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.ConsoleAppender;
@@ -107,7 +108,7 @@ public class TestLocalImhotepServiceCore {
                 }
             }, new LocalImhotepServiceConfig());
 
-            final String sessionId = service.handleOpenSession("dataset", Collections.singletonList("index20150601"), "", "", "", 0, 0, false, "", null, 0);
+            final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(ShardNameNumDocsPair.newBuilder().setShardName("index20150601").build()), "", "", "", 0, 0, false, "", null, 0);
             service.handlePushStat(sessionId, "count()");
             final OutputStream os = new CloseableNullOutputStream();
             final Thread t = new Thread(new Runnable() {

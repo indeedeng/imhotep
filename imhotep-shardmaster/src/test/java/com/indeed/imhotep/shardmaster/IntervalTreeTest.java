@@ -13,6 +13,8 @@ import java.util.concurrent.*;
  */
 
 public class IntervalTreeTest {
+    final static double epsilon = .001;
+
     @Test
     public void testSimpleAddAndQuery(){
         IntervalTree<Integer, Integer> tree = new IntervalTree<>();
@@ -23,6 +25,7 @@ public class IntervalTreeTest {
         Assert.assertEquals(1,tree.getValuesInRange(0, 9).size());
         Assert.assertEquals(0,tree.getValuesInRange(-1, -1).size());
         Assert.assertEquals(1 ,tree.getValuesInRange(2, 3).size());
+        Assert.assertEquals(1 ,tree.getValuesInRange(10, 15).size());
         Assert.assertTrue(tree.getValuesInRange(-1, 3).contains(1));
     }
 
@@ -34,7 +37,7 @@ public class IntervalTreeTest {
             double a = Math.random();
             double b = Math.random();
             double small = Math.min(a,b);
-            double big = Math.max(a,b);
+            double big = Math.max(a,b) + epsilon;
             intervals.add(new Pair<>(small, big));
             tree.addInterval(a, b, count);
         }
@@ -47,88 +50,13 @@ public class IntervalTreeTest {
             double a = Math.random();
             double b = Math.random();
             double small = Math.min(a,b);
-            double big = Math.max(a,b);
+            double big = Math.max(a,b) + epsilon;
             Set<Integer> indexes = tree.getValuesInRange(small, big);
             for(int index: indexes) {
                 Pair<Double, Double> interval = intervals.get(index);
                 Assert.assertTrue(interval.getKey() < big && interval.getValue() > small);
             }
         }
-    }
-
-    //TODO: Find why this test passes when I don't have locks and make it break in that case
-    @Test
-    public void testConcurrency() throws InterruptedException, ExecutionException {
-        IntervalTree<Double, Integer> tree = new IntervalTree<>();
-        List<Pair<Double,Double>> intervals = new ArrayList<>();
-        ExecutorService executorService = Executors.newFixedThreadPool(10);
-        CountDownLatch latch = new CountDownLatch(1);
-        for(int count = 0; count < 3000; count++) {
-            final int index = count;
-            double a = Math.random();
-            double b = Math.random();
-            double small = Math.min(a,b);
-            double big = Math.max(a,b);
-            intervals.add(new Pair<>(small, big));
-            executorService.submit(()->{
-                waitForLatch(latch);
-                tree.addInterval(a, b, index);
-            });
-        }
-        latch.countDown();
-
-        CountDownLatch latch2 = new CountDownLatch(1);
-        for(int index = 0; index < intervals.size(); index++) {
-            final int thisIndex = index;
-            Pair<Double, Double> interval = intervals.get(index);
-            executorService.submit(()-> {
-                waitForLatch(latch2);
-                Assert.assertTrue(tree.getValuesInRange(interval.getKey(), interval.getValue()).contains(thisIndex));
-            });
-        }
-        latch2.countDown();
-
-        CountDownLatch latch3 = new CountDownLatch(1);
-        for(int count = 0; count < 1000; count ++) {
-            double a = Math.random();
-            double b = Math.random();
-            double small = Math.min(a,b);
-            double big = Math.max(a,b);
-            executorService.submit(()->{
-                waitForLatch(latch3);
-                Set<Integer> indexes = tree.getValuesInRange(small, big);
-                for(int index: indexes) {
-                    Pair<Double, Double> interval = intervals.get(index);
-                    Assert.assertTrue(interval.getKey() < big && interval.getValue() > small);
-                }
-            });
-        }
-        latch3.countDown();
-
-        executorService = Executors.newFixedThreadPool(10);
-
-        final IntervalTree<Integer, Integer> tree2 = new IntervalTree<>();
-        executorService.submit(() -> tree2.addInterval(0, 1, 0));
-        executorService.submit(() -> tree2.addInterval(1, 2, 1));
-        executorService.submit(() -> tree2.addInterval(2, 3, 2));
-        executorService.submit(() -> tree2.addInterval(0, 3, 3));
-        executorService.awaitTermination(1, TimeUnit.SECONDS);
-        executorService.submit(() -> tree2.addInterval(-2, -1, 0));
-        Future<Set<Integer>> future = executorService.submit(() -> tree2.getValuesInRange(0, 3));
-        executorService.submit(() -> tree2.addInterval(4, 6, 2));
-        executorService.awaitTermination(1, TimeUnit.SECONDS);
-        Set<Integer> asynch = future.get();
-        Set<Integer> synch = tree2.getValuesInRange(0,3);
-        Assert.assertEquals(synch.size(), asynch.size());
-        for(Integer i: asynch) {
-            Assert.assertTrue(synch.contains(i));
-        }
-    }
-
-    private void waitForLatch(CountDownLatch latch) {
-        try {
-            latch.await();
-        } catch (InterruptedException e) {assert false;}
     }
 
     @Test

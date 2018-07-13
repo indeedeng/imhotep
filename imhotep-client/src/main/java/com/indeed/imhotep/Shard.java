@@ -22,14 +22,15 @@ import java.nio.file.Path;
 import java.util.List;
 
 public class Shard extends ShardInfo {
-    public final List<Host> servers = Lists.newArrayList();
+    public Host server;
 
-    public Shard(String shardId, int numDocs, long version) {
+    public Shard(String shardId, int numDocs, long version, Host host) {
         super(shardId, numDocs, version);
+        this.server = host;
     }
 
-    public List<Host> getServers() {
-        return servers;
+    public Host getServer() {
+        return server;
     }
 
 

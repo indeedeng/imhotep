@@ -126,8 +126,7 @@ public class TestImhotepClient {
         Host host1 = new Host("localhost", daemon1.getPort());
         final ImhotepClient client = new ImhotepClient(Collections.singletonList(host1));
         try {
-            Shard shard0 = new Shard(SHARD0, 0, 0);
-            shard0.getServers().add(host1);
+            Shard shard0 = new Shard(SHARD0, 0, 0, host1);
             client.sessionBuilder(DATASET, null, null).shardsOverride(Collections.singletonList(shard0)).build();
             fail("session opening did not fail when it should have");
         } catch (final RuntimeException e) {
@@ -219,7 +218,7 @@ public class TestImhotepClient {
         final List<Shard> shards = Lists.newArrayList();
         for(String shardId : shardIds) {
             final ShardDir shardDir = new ShardDir(Paths.get("/").resolve(shardId));
-            shards.add(new Shard(shardDir.getId(), 0, shardDir.getVersion()));
+            shards.add(new Shard(shardDir.getId(), 0, shardDir.getVersion(), null));
         }
         return shards;
     }

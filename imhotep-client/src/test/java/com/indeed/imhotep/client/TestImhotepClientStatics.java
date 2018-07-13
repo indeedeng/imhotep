@@ -105,7 +105,7 @@ public class TestImhotepClientStatics {
         for (long version: versions) {
             latestVersion = Math.max(latestVersion, version);
         }
-        final DatasetInfo datasetInfo = new DatasetInfo(dataset, shardInfos, intFields, stringFields, latestVersion);
+        final DatasetInfo datasetInfo = new DatasetInfo(dataset, intFields, stringFields);
         hostsDatasets.add(Lists.newArrayList(datasetInfo));
     }
 }

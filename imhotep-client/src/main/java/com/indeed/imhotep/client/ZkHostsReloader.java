@@ -96,19 +96,16 @@ public class ZkHostsReloader extends DataLoadingRunnable implements HostsReloade
                         }
                         return true;
                     } catch (final KeeperException e) {
-                        e.printStackTrace();
                         log.error("zookeeper exception", e);
                         loadFailed();
                         zkConnection.close();
                         zkConnection.connect();
                     }
                 } catch (final IOException e) {
-                    e.printStackTrace();
                     loadFailed();
                     log.error("io exception", e);
                 }
             } catch (final InterruptedException e) {
-                e.printStackTrace();
                 log.error("interrupted", e);
                 loadFailed();
             }

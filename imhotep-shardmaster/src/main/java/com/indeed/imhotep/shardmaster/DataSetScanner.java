@@ -14,6 +14,7 @@
 
 package com.indeed.imhotep.shardmaster;
 
+import com.google.common.base.Throwables;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -44,13 +45,9 @@ class DataSetScanner implements Iterable<Path> {
             FileStatus[] fStatus = fs.listStatus(datasetsDir);
             return getDirs(fStatus).iterator();
         } catch (IOException e) {
-            LOGGER.error(e.getMessage(), e);
+            Throwables.propagate(e);
             return new ArrayList<Path>().iterator();
         }
-    }
-
-    private boolean keepPossibleDir(FileStatus status) {
-        return status.isDirectory();
     }
 
     public Spliterator<Path> spliterator(){
@@ -58,12 +55,12 @@ class DataSetScanner implements Iterable<Path> {
             FileStatus[] fStatus = fs.listStatus(datasetsDir);
             return getDirs(fStatus).spliterator();
         } catch (IOException e) {
-            LOGGER.error(e.getMessage(), e);
+            Throwables.propagate(e);
             return new ArrayList<Path>().spliterator();
         }
     }
 
     private List<Path> getDirs(FileStatus[] fStatus) {
-        return Arrays.stream(fStatus).filter(this::keepPossibleDir).map(status -> status.getPath()).collect(Collectors.toList());
+        return Arrays.stream(fStatus).filter(FileStatus::isDirectory).map(FileStatus::getPath).collect(Collectors.toList());
     }
 }

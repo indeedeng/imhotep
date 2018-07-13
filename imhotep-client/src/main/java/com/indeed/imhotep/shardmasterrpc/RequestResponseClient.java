@@ -76,7 +76,6 @@ public class RequestResponseClient implements ShardMaster {
                 .build();
         final List<ShardMasterResponse> shardMasterResponses = sendAndReceive(request);
 
-        //TODO: check if this is making duplicates
         final List<DatasetInfo> toReturn = new ArrayList<>();
         for(ShardMasterResponse response: shardMasterResponses){
             for(DatasetInfoMessage metadata: response.getMetadataList()) {
@@ -98,25 +97,12 @@ public class RequestResponseClient implements ShardMaster {
         for(ShardMasterResponse response: shardMasterResponses){
             final List<ShardMessage> shardsInTimeList = response.getShardsInTimeList();
             for(ShardMessage message: shardsInTimeList) {
-                Shard shard = new ShardWithPathAndDataset(message.getShardId(), message.getNumDocs(), message.getVersion(), Paths.get(message.getPath()), Paths.get(message.getPath()).getParent().getFileName().toString());
-                shard.servers.addAll(message.getHostsList().stream().map(a -> a.split(":")).map(a-> new Host(a[0], Integer.parseInt(a[1]))).collect(Collectors.toList()));
+                Host host = new Host(message.getHost().getHost(), message.getHost().getPort());
+                Shard shard = new ShardWithPathAndDataset(message.getShardId(), message.getNumDocs(), message.getVersion(), host, Paths.get(message.getPath()), Paths.get(message.getPath()).getParent().getFileName().toString());
                 toReturn.add(shard);
             }
         }
         return toReturn;
-    }
-
-    @Override
-    public List<AssignedShard> getAssignments(final Host node) throws IOException {
-        final ShardMasterRequest request = ShardMasterRequest.newBuilder()
-                .setRequestType(ShardMasterRequest.RequestType.GET_ASSIGNMENT)
-                .setNode(HostAndPort.newBuilder().setHost(node.getHostname()).setPort(node.getPort()).build())
-                .build();
-
-        return sendAndReceive(request).stream()
-                .map(ShardMasterResponse::getAssignedShardsList)
-                .flatMap(List::stream)
-                .collect(Collectors.toList());
     }
 
     @Override
@@ -125,10 +111,11 @@ public class RequestResponseClient implements ShardMaster {
                 .setRequestType(ShardMasterRequest.RequestType.GET_SHARD_LIST)
                 .build();
 
+        // TODO: we are not actually passing the path here, so the path is empty. It should be changed to a default.
         return sendAndReceive(request).stream()
                 .map(ShardMasterResponse::getAllShardsList)
                 .flatMap(List::stream)
-                .map(shard -> new ShardWithPathAndDataset(shard.getShardId(), shard.getNumDocs(), shard.getVersion(), Paths.get(shard.getPath()), shard.getDataset()))
+                .map(shard -> new ShardWithPathAndDataset(shard.getShardId(), shard.getNumDocs(), shard.getVersion(), new Host(shard.getHost().getHost(), shard.getHost().getPort()), Paths.get(""), shard.getDataset()))
                 .collect(Collectors.toList());
     }
 }

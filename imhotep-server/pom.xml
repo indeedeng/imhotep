@@ -119,12 +119,6 @@
 
 		<dependency>
 			<groupId>com.indeed</groupId>
-			<artifactId>imhotep-shardmaster</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>com.indeed</groupId>
 			<artifactId>lsmtree-core</artifactId>
 			<version>${indeed-lsmtree.version}</version>
 		</dependency>

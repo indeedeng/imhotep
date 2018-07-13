@@ -40,15 +40,13 @@ import java.util.stream.StreamSupport;
 class DatasetShardRefresher extends TimerTask {
     private static final Logger LOGGER = Logger.getLogger(DatasetShardRefresher.class);
     private final Path datasetsDir;
-    private final HostsReloader hostsReloader;
-    private final ShardAssigner shardAssigner;
-    private final ShardAssignmentInfoDao assignmentInfoDao;
     private static final ExecutorService executorService = new ForkJoinPool(200);
     private final String leaderPath;
     private Connection dbConnection;
     private ZooKeeperConnection zkConnection;
     private final org.apache.hadoop.fs.FileSystem hadoopFileSystem;
     private final ShardFilter filter;
+    private final ShardData shardData;
 
     public boolean isLeader(){
         try {
@@ -70,23 +68,19 @@ class DatasetShardRefresher extends TimerTask {
     }
 
     DatasetShardRefresher(final Path datasetsDir,
-                          final HostsReloader hostsReloader,
-                          final ShardAssigner shardAssigner,
-                          final ShardAssignmentInfoDao assignmentInfoDao,
                           final String leaderPath,
                           final ZooKeeperConnection zkConnection,
                           final Connection dbConnection,
                           final String rootURI,
-                          final ShardFilter filter) throws IOException {
+                          final ShardFilter filter,
+                          ShardData shardData) throws IOException {
         this.datasetsDir = datasetsDir;
-        this.hostsReloader = hostsReloader;
-        this.shardAssigner = shardAssigner;
-        this.assignmentInfoDao = assignmentInfoDao;
         this.leaderPath = leaderPath;
         this.zkConnection = zkConnection;
         this.dbConnection = dbConnection;
         this.hadoopFileSystem = new Path(rootURI).getFileSystem(new Configuration());
         this.filter = filter;
+        this.shardData = shardData;
     }
 
     Future initialize() {
@@ -97,18 +91,14 @@ class DatasetShardRefresher extends TimerTask {
         try {
             final PreparedStatement statement = dbConnection.prepareStatement("SELECT * FROM tblshards;");
             final ResultSet set = statement.executeQuery();
-            Map<String, List<ShardDir>> shardDirs = ShardData.getInstance().addTableShardsRowsFromSQL(set);
-            for (String dataset : shardDirs.keySet()) {
-                Iterable<ShardAssignmentInfo> assignment = shardAssigner.assign(hostsReloader.getHosts(), dataset, shardDirs.get(dataset));
-                assignmentInfoDao.updateAssignments(dataset, DateTime.now(), assignment);
-            }
+            shardData.addTableShardsRowsFromSQL(set);
 
             final PreparedStatement statement2 = dbConnection.prepareStatement("SELECT * FROM tblfields;");
             if(statement2 == null) {
                 LOGGER.error("SQL statement is null. Will not load data from SQL.");
             } else {
                 final ResultSet set2 = statement2.executeQuery();
-                ShardData.getInstance().addTableFieldsRowsFromSQL(set2);
+                shardData.addTableFieldsRowsFromSQL(set2);
             }
         } catch (SQLException e){
             LOGGER.error(e.getMessage(), e);
@@ -146,7 +136,7 @@ class DatasetShardRefresher extends TimerTask {
         List<Pair<ShardDir, Future<FlamdexMetadata>>> pairs = new ArrayList<>();
 
         for(final ShardDir dir: dataset) {
-            if(filter.accept(dir.getDataset(), dir.getId())) {
+            if(filter.accept(dir.getDataset(), dir.getId()) && isValid(dir)) {
                 pairs.add(new Pair<>(dir, executorService.submit(() -> collectShardMetadata(dir))));
             }
         }
@@ -163,9 +153,13 @@ class DatasetShardRefresher extends TimerTask {
                 LOGGER.error("error with getting metadata", e);
             }
         }
+    }
 
-        Iterable<ShardAssignmentInfo> assignment = shardAssigner.assign(hostsReloader.getHosts(), path.getName(), () -> datasetIterator);
-        assignmentInfoDao.updateAssignments(path.getName(), DateTime.now(), assignment);
+    private boolean isValid(ShardDir temp) {
+        String dataset = temp.getDataset();
+        String id = temp.getId();
+        return ShardTimeUtils.isValidShardId(id) &&
+                !ShardData.getInstance().hasShard(dataset + "/" + temp.getName());
     }
 
     private FlamdexMetadata collectShardMetadata(ShardDir shardDir) throws IOException {
@@ -177,44 +171,45 @@ class DatasetShardRefresher extends TimerTask {
 
     private void addData(ShardDir shardDir, FlamdexMetadata metadata) throws SQLException {
         addToSQL(metadata, shardDir);
-        ShardData.getInstance().addShardFromHDFS(metadata, shardDir.getIndexDir(), shardDir);
+        shardData.addShardFromHDFS(metadata, shardDir.getIndexDir(), shardDir);
     }
 
     private void addToSQL(FlamdexMetadata metadata, ShardDir shardDir) throws SQLException {
-        String shardId = shardDir.getId();
-        String dataset = shardDir.getDataset();
+        final String shardId = shardDir.getId();
+        final String dataset = shardDir.getDataset();
         final PreparedStatement tblShardsInsertStatement = dbConnection.prepareStatement("INSERT INTO tblshards (path, numDocs) VALUES (?, ?);");
         tblShardsInsertStatement.setString(1, shardDir.getIndexDir().toString());
         tblShardsInsertStatement.setInt(2, metadata.getNumDocs());
-        ShardData data = ShardData.getInstance();
 
         final PreparedStatement tblFieldsInsertStatement =
                 dbConnection.prepareStatement("INSERT INTO tblfields (dataset, fieldname, type, lastshardstarttime) VALUES (?, ?, ?, ?);");
 
-        for (String s : metadata.getStringFields()) {
-            if (!data.hasField(dataset, s)) {
+        final long startTime = ShardTimeUtils.parseStart(shardId).getMillis();
+
+        for (String field : metadata.getStringFields()) {
+            if (!shardData.hasField(dataset, field)) {
                 try {
                     tblFieldsInsertStatement.setString(1, dataset);
-                    tblFieldsInsertStatement.setString(2, s);
+                    tblFieldsInsertStatement.setString(2, field);
                     tblFieldsInsertStatement.setInt(3, ShardData.FieldType.STRING.getValue());
-                    tblFieldsInsertStatement.setLong(4, ShardTimeUtils.parseStart(shardId).getMillis());
+                    tblFieldsInsertStatement.setLong(4, startTime);
                     tblFieldsInsertStatement.addBatch();
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    LOGGER.error("Failed to insert string fields", e);
                 }
             }
         }
 
-        for (String s : metadata.getIntFields()) {
-            if (!data.hasField(dataset, s)) {
+        for (String field : metadata.getIntFields()) {
+            if (!shardData.hasField(dataset, field)) {
                 try {
                     tblFieldsInsertStatement.setString(1, dataset);
-                    tblFieldsInsertStatement.setString(2, s);
+                    tblFieldsInsertStatement.setString(2, field);
                     tblFieldsInsertStatement.setInt(3, ShardData.FieldType.INT.getValue());
-                    tblFieldsInsertStatement.setLong(4, ShardTimeUtils.parseStart(shardId).getMillis());
+                    tblFieldsInsertStatement.setLong(4, startTime);
                     tblFieldsInsertStatement.addBatch();
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    LOGGER.error("Failed to insert int fields", e);
                 }
             }
         }
@@ -222,32 +217,32 @@ class DatasetShardRefresher extends TimerTask {
         final PreparedStatement tblFieldsUpdateStatement =
                 dbConnection.prepareStatement("UPDATE tblfields SET type = ?, lastshardstarttime = ? WHERE dataset = ? AND fieldname = ?;");
 
-        for (String s : metadata.getStringFields()) {
-            if (data.hasField(dataset, s) &&
-                    data.getFieldUpdateTime(dataset, s) < (ShardTimeUtils.parseStart(shardId)).getMillis()) {
+        for (String field : metadata.getStringFields()) {
+            if (shardData.hasField(dataset, field) &&
+                    shardData.getFieldUpdateTime(dataset, field) < (ShardTimeUtils.parseStart(shardId)).getMillis()) {
                 try {
                     tblFieldsUpdateStatement.setInt(1, ShardData.FieldType.STRING.getValue());
-                    tblFieldsUpdateStatement.setLong(2, ShardTimeUtils.parseStart(shardId).getMillis());
+                    tblFieldsUpdateStatement.setLong(2, startTime);
                     tblFieldsUpdateStatement.setString(3, dataset);
-                    tblFieldsUpdateStatement.setString(4, s);
+                    tblFieldsUpdateStatement.setString(4, field);
                     tblFieldsUpdateStatement.addBatch();
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    LOGGER.error("Failed to update string fields", e);
                 }
             }
         }
 
         for (String field : metadata.getIntFields()) {
-            if (data.hasField(dataset, field) &&
-                    data.getFieldUpdateTime(dataset, field) < (ShardTimeUtils.parseStart(shardId)).getMillis()) {
+            if (shardData.hasField(dataset, field) &&
+                    shardData.getFieldUpdateTime(dataset, field) < (ShardTimeUtils.parseStart(shardId)).getMillis()) {
                 try {
                     tblFieldsUpdateStatement.setInt(1, ShardData.FieldType.INT.getValue());
-                    tblFieldsUpdateStatement.setLong(2, ShardTimeUtils.parseStart(shardId).getMillis());
+                    tblFieldsUpdateStatement.setLong(2, startTime);
                     tblFieldsUpdateStatement.setString(3, dataset);
                     tblFieldsUpdateStatement.setString(4, field);
                     tblFieldsUpdateStatement.addBatch();
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    LOGGER.error("Failed to update int fields", e);
                 }
             }
         }
@@ -260,8 +255,6 @@ class DatasetShardRefresher extends TimerTask {
         tblFieldsUpdateStatement.executeBatch();
 
         tblShardsInsertStatement.execute();
-
-        dbConnection.commit();
     }
 
     @Override

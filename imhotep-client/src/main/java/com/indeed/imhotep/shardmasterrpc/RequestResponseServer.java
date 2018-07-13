@@ -114,7 +114,6 @@ public class RequestResponseServer implements Closeable {
                     }
                 });
             } catch (Exception e) {
-                e.printStackTrace();
                 LOGGER.error(e.getMessage(), e);
             }
         }

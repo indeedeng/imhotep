@@ -22,8 +22,6 @@ import com.google.common.primitives.Longs;
 import com.indeed.imhotep.*;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
-import com.indeed.imhotep.protobuf.AssignedShard;
-import com.indeed.imhotep.protobuf.ShardMessage;
 import com.indeed.imhotep.shardmasterrpc.RequestResponseClient;
 import com.indeed.imhotep.shardmasterrpc.RequestResponseClientFactory;
 import com.indeed.imhotep.shardmasterrpc.ShardMaster;
@@ -174,11 +172,9 @@ public class ImhotepClient
         try {
             return shardMaster.getShardsInTime(dataset, startUnixtime, endUnixtime);
         } catch (IOException e) {
-            log.error(e.getMessage(), e);
+            Throwables.propagate(e);
             return Collections.emptyList();
-
         }
-
     }
 
     // we are truncating the shard start point as part of removeIntersectingShards so we make a wrapper for the LocatedShardInfo
@@ -450,26 +446,15 @@ public class ImhotepClient
                            @Nullable final AtomicLong tempFileSizeBytesLeft,
                            final long sessionTimeout,
                            boolean allowSessionForwarding) {
-        final Map<Host, List<String>> shardRequestMap = shardsAndDocCounts.shardRequestMap;
+        final Map<Host, List<Shard>> shardRequestMap = shardsAndDocCounts.shardRequestMap;
         final Map<Host, Long> hostsToDocCounts = shardsAndDocCounts.hostDocCounts;
 
         final ExecutorService executor = Executors.newCachedThreadPool();
         final List<Future<ImhotepRemoteSession>> futures = new ArrayList<>(shardRequestMap.size());
         try {
-            for (final Map.Entry<Host, List<String>> entry : shardRequestMap.entrySet()) {
-                // TODO: there is a bug with different ports on the same host being different entries, fix this
-                log.info("host is: "+ entry.getKey());
+            for (final Map.Entry<Host, List<Shard>> entry : shardRequestMap.entrySet()) {
                 final Host host = entry.getKey();
-                final List<String> shardList = entry.getValue();
-                final Map<String, DatasetInfo> datasetToDatasetInfo = datasetMetadataReloader.getDatasetToDatasetInfo();
-
-                final Map<String, Integer> shardToNumDocs = new HashMap<>();
-                datasetToDatasetInfo.get(dataset).getShardList().forEach( shardInfo -> shardToNumDocs.put(shardInfo.shardId,shardInfo.numDocs));
-
-                List<Integer> numDocsInShards = new ArrayList<>();
-                for(String shard: shardList) {
-                    numDocsInShards.add(shardToNumDocs.get(new ShardDir(Paths.get(shard)).getId()));
-                }
+                final List<Shard> shardList = entry.getValue();
 
                 final long numDocs = hostsToDocCounts.get(host);
 
@@ -478,7 +463,6 @@ public class ImhotepClient
                     public ImhotepRemoteSession call() throws IOException, ImhotepOutOfMemoryException {
                         return ImhotepRemoteSession.openSession(host.hostname, host.port,
                                                                 dataset, shardList,
-                                                                numDocsInShards,
                                                                 mergeThreadLimit,
                                                                 username,
                                                                 clientName,
@@ -534,9 +518,9 @@ public class ImhotepClient
     }
     private static class ShardsAndDocCounts {
         final Map<Host, Long> hostDocCounts;
-        final Map<Host, List<String>> shardRequestMap;
+        final Map<Host, List<Shard>> shardRequestMap;
 
-        public ShardsAndDocCounts(final Map<Host, List<String>> shardRequestMap, final Map<Host, Long> hostDocCounts) {
+        public ShardsAndDocCounts(final Map<Host, List<Shard>> shardRequestMap, final Map<Host, Long> hostDocCounts) {
             this.hostDocCounts = hostDocCounts;
             this.shardRequestMap = shardRequestMap;
         }
@@ -544,42 +528,24 @@ public class ImhotepClient
 
     private ShardsAndDocCounts selectHostsForShards(final Collection<Shard> requestedShards) {
         final List<Shard> sortedShards = new ArrayList<>(requestedShards);
-        sortedShards.sort(new Comparator<Shard>() {
-            @Override
-            public int compare(final Shard o1, final Shard o2) {
-                return -(Integer.compare(o1.numDocs, o2.numDocs));
-            }
-        });
+        sortedShards.sort((o1, o2 ) ->  -(Integer.compare(o1.numDocs, o2.numDocs)));
 
         final Map<Host, Long> hostDocCounts = new HashMap<>();
-        final Map<Host, List<String>> shardRequestMap = new TreeMap<>();
+        final Map<Host, List<Shard>> shardRequestMap = new TreeMap<>();
         for (final Shard shard : sortedShards) {
-            final List<Host> potentialHosts = shard.getServers();
-            long minHostDocCount = Long.MAX_VALUE;
-            Host minHost = null;
-            for (final Host host : potentialHosts) {
-                if (!hostDocCounts.containsKey(host)) {
-                    hostDocCounts.put(host, 0L);
-                }
-                if (hostDocCounts.get(host) < minHostDocCount) {
-                    minHostDocCount = hostDocCounts.get(host);
-                    minHost = host;
-                }
-            }
-            if (minHost == null) {
+            final Host host = shard.getServer();
+            if (host == null) {
                 throw new RuntimeException("something has gone horribly wrong");
             }
 
-            if (!shardRequestMap.containsKey(minHost)) {
-                shardRequestMap.put(minHost, new ArrayList<String>());
+            if (!shardRequestMap.containsKey(host)) {
+                shardRequestMap.put(host, new ArrayList<>());
             }
-            // TODO: what if this is false?
-            if(shard instanceof ShardWithPathAndDataset) {
-                shardRequestMap.get(minHost).add(((ShardWithPathAndDataset) shard).getPath().toString());
-                hostDocCounts.put(minHost, hostDocCounts.get(minHost) + shard.numDocs);
-            } else {
-                log.error("shard did not have a dataset");
+            shardRequestMap.get(host).add(shard);
+            if(!hostDocCounts.containsKey(host)) {
+                hostDocCounts.put(host, 0L);
             }
+            hostDocCounts.put(host, hostDocCounts.get(host) + shard.numDocs);
         }
         return new ShardsAndDocCounts(shardRequestMap, hostDocCounts);
     }

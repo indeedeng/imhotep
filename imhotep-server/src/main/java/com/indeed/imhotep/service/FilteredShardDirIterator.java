@@ -43,7 +43,7 @@ import java.util.Properties;
  * @author kenh
  */
 
-class FilteredShardDirIterator implements ShardDirIterator {
+class FilteredShardDirIterator implements Iterable<Pair<String, ShardDir>> {
     private static final Logger LOGGER = Logger.getLogger(FilteredShardDirIterator.class);
     private static final DateTimeZone TIME_ZONE = DateTimeZone.forOffsetHours(-6);
     private final WallClock wallClock;

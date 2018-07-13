@@ -17,8 +17,6 @@ package com.indeed.imhotep.shardmasterrpc;
 import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.Shard;
 import com.indeed.imhotep.ShardWithPathAndDataset;
-import com.indeed.imhotep.client.Host;
-import com.indeed.imhotep.protobuf.AssignedShard;
 
 import java.io.IOException;
 import java.util.List;
@@ -30,6 +28,5 @@ import java.util.List;
 public interface ShardMaster {
     List<DatasetInfo> getDatasetMetadata() throws IOException;
     List<Shard> getShardsInTime(String dataset, long start, long end) throws IOException;
-    List<AssignedShard> getAssignments(final Host node) throws IOException;
     List<ShardWithPathAndDataset> getShardList() throws IOException;
 }

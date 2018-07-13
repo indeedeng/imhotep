@@ -33,6 +33,7 @@ import com.indeed.imhotep.api.ImhotepServiceCore;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
+import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
 import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
@@ -480,7 +481,7 @@ public abstract class AbstractImhotepServiceCore
 
     public abstract String handleOpenSession(
             String dataset,
-            List<String> shardRequestList,
+            List<ShardNameNumDocsPair> shardRequestList,
             String username,
             String clientName,
             String ipAddress,
