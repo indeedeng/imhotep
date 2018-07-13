@@ -16,6 +16,7 @@ package com.indeed.imhotep.service;
 
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexFileFilter;
+import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.client.ShardTimeUtils;
 import it.unimi.dsi.fastutil.objects.Object2LongArrayMap;
 import it.unimi.dsi.fastutil.objects.ObjectArraySet;
@@ -33,6 +34,7 @@ class FlamdexInfo {
 
     private static final Logger log = Logger.getLogger(FlamdexInfo.class);
 
+    private final String indexName;
     private final String shardId;
     private final DateTime date;
 
@@ -46,16 +48,18 @@ class FlamdexInfo {
         fieldSizesInBytesCache.defaultReturnValue(-1);
         final Path shardDir = reader.getDirectory();
         if (shardDir != null) {
-            this.shardId = shardDir.getFileName().toString();
+            this.shardId = (new ShardDir(shardDir)).getId();
+            this.indexName = shardDir.getFileName().toString();
             this.date = dateOf();
         } else {
             this.shardId = null;
+            this.indexName = null;
             this.date = null;
         }
     }
 
-    String getShardId() {
-        return shardId;
+    String getIndexName() {
+        return indexName;
     }
 
     DateTime getDate() {
@@ -81,7 +85,7 @@ class FlamdexInfo {
         try {
             return ShardTimeUtils.parseStart(shardId);
         } catch (final Exception ex) {
-            log.warn("cannot extract date from shard directory: '" + shardId + "'");
+            log.warn("cannot extract date from shard directory: '" + indexName + "'");
             return null;
         }
     }
