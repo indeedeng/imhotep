@@ -15,24 +15,38 @@
 
 import com.google.common.collect.Lists;
 import com.indeed.imhotep.client.Host;
+import com.indeed.imhotep.protobuf.ShardMessage;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 
 public class Shard extends ShardInfo {
     public Host server;
 
+    private final String extension;
+
     public Shard(String shardId, int numDocs, long version, Host host) {
         super(shardId, numDocs, version);
         this.server = host;
+        this.extension = "";
+    }
+
+    public Shard(String shardId, int numDocs, long version, Host host, String extension) {
+        super(shardId, numDocs, version);
+        this.server = host;
+        this.extension = extension;
+    }
+
+    public String getFileName() {
+        return this.shardId + "." + this.version + this.extension;
     }
 
     public Host getServer() {
         return server;
     }
-
 
     /** Note that servers are not used in comparisons */
     @Override
@@ -61,5 +75,9 @@ public class Shard extends ShardInfo {
             result.add(shard.getShardId());
         }
         return result;
+    }
+
+    public String getExtension() {
+        return extension;
     }
 }

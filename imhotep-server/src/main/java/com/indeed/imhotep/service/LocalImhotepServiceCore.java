@@ -319,7 +319,7 @@ public class LocalImhotepServiceCore
                 final ShardId shardId = new ShardId(dataset, shardDir.getId(), shardDir.getVersion(), shardDir.getIndexDir());
                 final FlamdexReader reader;
                 final RemoteCachingPath datasetsDir = (RemoteCachingPath) Paths.get(RemoteCachingFileSystemProvider.URI);
-                RemoteCachingPath path = datasetsDir.resolve(shardDir.getIndexDir()+".sqar");
+                RemoteCachingPath path = datasetsDir.resolve(shardDir.getIndexDir().toString());
 
                 if(numDocs != null) {
                     reader = SimpleFlamdexReader.open(path, numDocs.get(i));
@@ -355,7 +355,7 @@ public class LocalImhotepServiceCore
             session.addObserver(observer);
         }
         catch (final IOException ex) {
-            Throwables.propagate(ex);
+            throw Throwables.propagate(ex);
         }
         catch (final RuntimeException | ImhotepOutOfMemoryException ex) {
             closeNonNullSessions(localSessions);

@@ -89,12 +89,14 @@ public class ShardMasterDaemon {
                     config.getHostsDropThreshold());
         }
 
-        ZooKeeperConnection zkConnection = new ZooKeeperConnection(config.zkNodes, 2000);
+        ZooKeeperConnection zkConnection = new ZooKeeperConnection(config.zkNodes, 60000);
         zkConnection.connect();
         zkConnection.createIfNotExists(config.shardMastersZkPath+"-election", new byte[0], CreateMode.PERSISTENT);
         String leaderTestPath = zkConnection.create(config.shardMastersZkPath+"-election/n_", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
 
         Connection dbConnection = config.getMetadataConnection();
+
+        ShardData shardData = new ShardData();
 
         try (Closer closer = Closer.create()) {
             final Path dataSetsDir = Paths.get(RemoteCachingFileSystemProvider.URI);
@@ -115,7 +117,7 @@ public class ShardMasterDaemon {
                     dbConnection,
                     rootURI,
                     config.shardFilter,
-                    ShardData.getInstance()
+                    shardData
             );
 
 
@@ -150,7 +152,7 @@ public class ShardMasterDaemon {
 
             server = new RequestResponseServer(config.getServicePort(), new MultiplexingRequestHandler(
                     config.statsEmitter,
-                    new DatabaseShardMaster(config.createAssigner(), shardScanComplete, ShardData.getInstance(), hostsReloader),
+                    new DatabaseShardMaster(config.createAssigner(), shardScanComplete, shardData, hostsReloader),
                     config.shardsResponseBatchSize
             ), config.serviceConcurrency);
             try (ZkEndpointPersister endpointPersister = getZKEndpointPersister()

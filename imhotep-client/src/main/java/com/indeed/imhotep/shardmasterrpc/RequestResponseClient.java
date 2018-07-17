@@ -15,7 +15,7 @@
 package com.indeed.imhotep.shardmasterrpc;
 import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.Shard;
-import com.indeed.imhotep.ShardWithPathAndDataset;
+import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.protobuf.*;
 import org.apache.log4j.Logger;
@@ -24,9 +24,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.Socket;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -98,7 +96,7 @@ public class RequestResponseClient implements ShardMaster {
             final List<ShardMessage> shardsInTimeList = response.getShardsInTimeList();
             for(ShardMessage message: shardsInTimeList) {
                 Host host = new Host(message.getHost().getHost(), message.getHost().getPort());
-                Shard shard = new ShardWithPathAndDataset(message.getShardId(), message.getNumDocs(), message.getVersion(), host, Paths.get(message.getPath()), Paths.get(message.getPath()).getParent().getFileName().toString());
+                Shard shard = new Shard(message.getShardId(), message.getNumDocs(), message.getVersion(), host, message.getExtension());
                 toReturn.add(shard);
             }
         }
@@ -106,16 +104,22 @@ public class RequestResponseClient implements ShardMaster {
     }
 
     @Override
-    public List<ShardWithPathAndDataset> getShardList() throws IOException {
+    public Map<String, List<ShardInfo>> getShardList() throws IOException {
         final ShardMasterRequest request = ShardMasterRequest.newBuilder()
                 .setRequestType(ShardMasterRequest.RequestType.GET_SHARD_LIST)
                 .build();
 
         // TODO: we are not actually passing the path here, so the path is empty. It should be changed to a default.
-        return sendAndReceive(request).stream()
+        final List<DatasetMessage> datasetMessages = sendAndReceive(request).stream()
                 .map(ShardMasterResponse::getAllShardsList)
-                .flatMap(List::stream)
-                .map(shard -> new ShardWithPathAndDataset(shard.getShardId(), shard.getNumDocs(), shard.getVersion(), new Host(shard.getHost().getHost(), shard.getHost().getPort()), Paths.get(""), shard.getDataset()))
-                .collect(Collectors.toList());
+                .flatMap(List::stream).collect(Collectors.toList());
+
+        final Map<String, List<ShardInfo>> toReturn = new HashMap<>();
+
+        for(DatasetMessage message: datasetMessages) {
+            toReturn.put(message.getDataset(), message.getShardsList().stream().map(ShardInfo::fromProto).collect(Collectors.toList()));
+        }
+
+        return toReturn;
     }
 }

@@ -16,16 +16,16 @@ package com.indeed.imhotep.shardmasterrpc;
 
 import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.Shard;
-import com.indeed.imhotep.ShardWithPathAndDataset;
-import com.indeed.imhotep.protobuf.HostAndPort;
-import com.indeed.imhotep.protobuf.ShardMasterRequest;
-import com.indeed.imhotep.protobuf.ShardMasterResponse;
-import com.indeed.imhotep.protobuf.ShardMessage;
+import com.indeed.imhotep.ShardInfo;
+import com.indeed.imhotep.protobuf.*;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 /**
@@ -57,18 +57,18 @@ class ShardMasterRequestHandler implements RequestHandler {
 
     private Iterable<ShardMasterResponse> handleShardList() {
         try {
-            final List<ShardWithPathAndDataset> shardList = shardMaster.getShardList();
-            final ShardMasterResponse.Builder builder = ShardMasterResponse.newBuilder();
-            for(ShardWithPathAndDataset shard: shardList) {
-                ShardMessage message = ShardMessage.newBuilder()
-                        .setShardId(shard.shardId)
-                        .setNumDocs(shard.numDocs)
-                        .setVersion(shard.version)
-                        .setHost(HostAndPort.newBuilder().setHost(shard.server.hostname).setPort(shard.server.port))
-                        .build();
-                builder.addAllShards(message);
+            final Map<String, List<ShardInfo>> shardList = shardMaster.getShardList();
+            final ShardMasterResponse.Builder response = ShardMasterResponse.newBuilder();
+            for(final String dataset: shardList.keySet()) {
+                final DatasetMessage.Builder message = DatasetMessage.newBuilder().setDataset(dataset);
+
+                for(final ShardInfo shard: shardList.get(dataset)) {
+                    message.addShards(shard.toProto());
+                }
+
+                response.addAllShards(message);
             }
-            return Collections.singletonList(builder.setResponseCode(ShardMasterResponse.ResponseCode.OK).build());
+            return Collections.singletonList(response.setResponseCode(ShardMasterResponse.ResponseCode.OK).build());
         } catch (IOException e) {
             throw new IllegalStateException("Failed to get all shards", e);
         }
@@ -85,7 +85,7 @@ class ShardMasterRequestHandler implements RequestHandler {
                             .setShardId(shard.shardId)
                             .setNumDocs(shard.numDocs)
                             .setVersion(shard.version)
-                            .setPath(((ShardWithPathAndDataset)shard).getPath().toString());
+                            .setExtension(shard.getExtension());
                     builder.addShardsInTime(message.build());
                 }
             return Collections.singletonList(builder.setResponseCode(ShardMasterResponse.ResponseCode.OK).build());

@@ -13,7 +13,7 @@ import java.util.concurrent.*;
  */
 
 public class IntervalTreeTest {
-    final static double epsilon = .001;
+    final static double epsilon = Double.MIN_NORMAL;
 
     @Test
     public void testSimpleAddAndQuery(){
@@ -39,11 +39,11 @@ public class IntervalTreeTest {
             double small = Math.min(a,b);
             double big = Math.max(a,b) + epsilon;
             intervals.add(new Pair<>(small, big));
-            tree.addInterval(a, b, count);
+            tree.addInterval(small, big, count);
         }
         for(int index = 0; index < intervals.size(); index++) {
             Pair<Double, Double> interval = intervals.get(index);
-            Assert.assertTrue(tree.getValuesInRange(interval.getKey(), interval.getValue()).contains(index));
+            Assert.assertTrue(tree.getValuesInRange(interval.getKey(), interval.getValue()+epsilon).contains(index));
         }
 
         for(int count = 0; count < 1000; count ++) {
@@ -54,7 +54,7 @@ public class IntervalTreeTest {
             Set<Integer> indexes = tree.getValuesInRange(small, big);
             for(int index: indexes) {
                 Pair<Double, Double> interval = intervals.get(index);
-                Assert.assertTrue(interval.getKey() < big && interval.getValue() > small);
+                Assert.assertTrue(interval.getKey() <= big && interval.getValue() > small);
             }
         }
     }

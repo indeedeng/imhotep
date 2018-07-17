@@ -211,7 +211,7 @@ public class ImhotepRemoteSession
                     .setClientName(clientName)
                     .setDataset(dataset)
                     .setMergeThreadLimit(mergeThreadLimit)
-                    .addAllShards(shards.stream().map(shard -> ShardNameNumDocsPair.newBuilder().setShardName(shard.shardId + "." + shard.version).setNumDocs(shard.numDocs).build()).collect(Collectors.toList()))
+                    .addAllShards(shards.stream().map(shard -> ShardNameNumDocsPair.newBuilder().setShardName(shard.getFileName()).setNumDocs(shard.numDocs).build()).collect(Collectors.toList()))
                     .setOptimizeGroupZeroLookups(optimizeGroupZeroLookups)
                     .setClientVersion(CURRENT_CLIENT_VERSION)
                     .setSessionId(sessionId == null ? "" : sessionId)

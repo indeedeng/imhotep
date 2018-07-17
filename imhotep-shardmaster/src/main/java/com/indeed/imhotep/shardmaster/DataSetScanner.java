@@ -31,7 +31,6 @@ import java.util.stream.Collectors;
 class DataSetScanner implements Iterable<Path> {
     private final Path datasetsDir;
     private final FileSystem fs;
-    private static final org.apache.log4j.Logger LOGGER = org.apache.log4j.Logger.getLogger(DataSetScanner.class);
 
     DataSetScanner(final Path datasetsDir, final FileSystem fs) {
         this.datasetsDir = datasetsDir;
@@ -45,8 +44,7 @@ class DataSetScanner implements Iterable<Path> {
             FileStatus[] fStatus = fs.listStatus(datasetsDir);
             return getDirs(fStatus).iterator();
         } catch (IOException e) {
-            Throwables.propagate(e);
-            return new ArrayList<Path>().iterator();
+            throw Throwables.propagate(e);
         }
     }
 
@@ -55,8 +53,7 @@ class DataSetScanner implements Iterable<Path> {
             FileStatus[] fStatus = fs.listStatus(datasetsDir);
             return getDirs(fStatus).spliterator();
         } catch (IOException e) {
-            Throwables.propagate(e);
-            return new ArrayList<Path>().spliterator();
+            throw Throwables.propagate(e);
         }
     }
 

@@ -16,11 +16,6 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 
 public class ShardData {
-    private static ShardData ourInstance = new ShardData();
-
-    public static ShardData getInstance() {
-        return ourInstance;
-    }
 
     final private Map<String, IntervalTree<Long, String>> tblShards;
     final private Map<String, TableFields> tblFields;
@@ -31,10 +26,8 @@ public class ShardData {
     }
 
     public long getFieldUpdateTime(String dataset, String field) {
-        if(tblFields.containsKey(dataset)) {
-            return tblFields.get(dataset).lastUpdatedTimestamp.get(field);
-        }
-        return 0;
+        final TableFields tableFields = tblFields.get(dataset);
+        return tableFields != null ? tableFields.lastUpdatedTimestamp.get(field) : 0;
     }
 
     public List<String> getFields(String dataset, FieldType type) {
@@ -55,12 +48,8 @@ public class ShardData {
         return pathsToNumDocs.get(path);
     }
 
-    public FieldType getFieldType(String dataset, String field) {
-        return tblFields.get(dataset).fieldNameToFieldType.get(field);
-    }
-
     enum FieldType {
-        INT(1), STRING(0);
+        INT(0), STRING(1);
 
         private int value;
 
@@ -70,9 +59,9 @@ public class ShardData {
 
         static FieldType getType(int value) {
             switch (value) {
-                case 1:
-                    return INT;
                 case 0:
+                    return INT;
+                case 1:
                     return STRING;
             }
             return null;
@@ -92,7 +81,7 @@ public class ShardData {
         }
     }
 
-    private ShardData() {
+    ShardData() {
         tblShards = new ConcurrentHashMap<>();
         tblFields = new ConcurrentHashMap<>();
         pathsToNumDocs = new ConcurrentHashMap<>();
@@ -131,12 +120,13 @@ public class ShardData {
                 pathsToNumDocs.put(strPath, numDocs);
                 Path path = Paths.get(strPath);
                 ShardDir shardDir = new ShardDir(path);
-                String dataset = shardDir.getIndexDir().getParent().toString();
+                String dataset = shardDir.getDataset();
                 String shardname = shardDir.getId();
 
                 if (!tblShards.containsKey(dataset)) {
                     tblShards.put(dataset, new IntervalTree<>());
                 }
+
                 final Interval interval = ShardTimeUtils.parseInterval(shardname);
                 tblShards.get(dataset).addInterval(interval.getStart().getMillis(), interval.getEnd().getMillis(), strPath);
                } while (rows.next());

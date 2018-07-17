@@ -15,22 +15,18 @@
 package com.indeed.imhotep.shardmaster;
 
 import com.indeed.imhotep.ShardDir;
-import com.indeed.imhotep.client.HostsReloader;
 import com.indeed.imhotep.client.ShardTimeUtils;
-import com.indeed.imhotep.shardmaster.model.ShardAssignmentInfo;
 import com.indeed.util.zookeeper.ZooKeeperConnection;
 import javafx.util.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.KeeperException;
-import org.joda.time.DateTime;
 
 import java.io.IOException;
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 /**
@@ -40,7 +36,7 @@ import java.util.stream.StreamSupport;
 class DatasetShardRefresher extends TimerTask {
     private static final Logger LOGGER = Logger.getLogger(DatasetShardRefresher.class);
     private final Path datasetsDir;
-    private static final ExecutorService executorService = new ForkJoinPool(200);
+    private static final ExecutorService executorService = new ForkJoinPool(40);
     private final String leaderPath;
     private Connection dbConnection;
     private ZooKeeperConnection zkConnection;
@@ -136,7 +132,7 @@ class DatasetShardRefresher extends TimerTask {
         List<Pair<ShardDir, Future<FlamdexMetadata>>> pairs = new ArrayList<>();
 
         for(final ShardDir dir: dataset) {
-            if(filter.accept(dir.getDataset(), dir.getId()) && isValid(dir)) {
+            if(filter.accept(dir.getDataset(), dir.getId()) && isValidAndNew(dir)) {
                 pairs.add(new Pair<>(dir, executorService.submit(() -> collectShardMetadata(dir))));
             }
         }
@@ -155,11 +151,10 @@ class DatasetShardRefresher extends TimerTask {
         }
     }
 
-    private boolean isValid(ShardDir temp) {
+    private boolean isValidAndNew(ShardDir temp) {
         String dataset = temp.getDataset();
         String id = temp.getId();
-        return ShardTimeUtils.isValidShardId(id) &&
-                !ShardData.getInstance().hasShard(dataset + "/" + temp.getName());
+        return !shardData.hasShard(dataset + "/" + temp.getName()) && ShardTimeUtils.isValidShardId(id);
     }
 
     private FlamdexMetadata collectShardMetadata(ShardDir shardDir) throws IOException {
@@ -219,7 +214,7 @@ class DatasetShardRefresher extends TimerTask {
 
         for (String field : metadata.getStringFields()) {
             if (shardData.hasField(dataset, field) &&
-                    shardData.getFieldUpdateTime(dataset, field) < (ShardTimeUtils.parseStart(shardId)).getMillis()) {
+                    shardData.getFieldUpdateTime(dataset, field) < startTime) {
                 try {
                     tblFieldsUpdateStatement.setInt(1, ShardData.FieldType.STRING.getValue());
                     tblFieldsUpdateStatement.setLong(2, startTime);
@@ -234,7 +229,7 @@ class DatasetShardRefresher extends TimerTask {
 
         for (String field : metadata.getIntFields()) {
             if (shardData.hasField(dataset, field) &&
-                    shardData.getFieldUpdateTime(dataset, field) < (ShardTimeUtils.parseStart(shardId)).getMillis()) {
+                    shardData.getFieldUpdateTime(dataset, field) < startTime) {
                 try {
                     tblFieldsUpdateStatement.setInt(1, ShardData.FieldType.INT.getValue());
                     tblFieldsUpdateStatement.setLong(2, startTime);
@@ -247,10 +242,6 @@ class DatasetShardRefresher extends TimerTask {
             }
         }
 
-        /*
-         * In this order because it is more resilient to a crash (don't want to think
-         * that a shard has been uploaded when it has not been)
-         */
         tblFieldsInsertStatement.executeBatch();
         tblFieldsUpdateStatement.executeBatch();
 

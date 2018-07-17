@@ -26,6 +26,7 @@ message ShardMessage {
   optional uint64 version = 4;
   required HostAndPort host = 5;
   optional string path = 6;
+  optional string extension = 7;
 }
 
 message StatusDumpMessage {
@@ -99,7 +100,7 @@ message ImhotepRequest {
     GET_FTGS_ITERATOR = 2;
     PUSH_STAT = 3;
     POP_STAT = 4;
-    DELETED___GET_SHARD_LIST = 5; // No longer implemented. Use GET_SHARD_INFO_LIST
+    DELETED___GET_SHARD_LIST = 5; // No longer implemented. Use GET_SHARD_LIST in ShardMaster
     OPEN_SESSION = 6;
     CLOSE_SESSION = 7;
     GET_TOTAL_DOC_FREQ = 8;
@@ -116,6 +117,7 @@ message ImhotepRequest {
     CREATE_DYNAMIC_METRIC = 19;
     UPDATE_DYNAMIC_METRIC = 20;
     RESET_GROUPS = 21;
+    DELETED___GET_SHARD_INFO_LIST = 22; // No longer implemented. Use GET_SHARD_LIST in ShardMaster
     RANDOM_MULTI_REGROUP = 23;
     MULTISPLIT_REGROUP = 24;
     APPROXIMATE_TOP_TERMS = 25;
@@ -158,6 +160,8 @@ message ImhotepRequest {
 
   // for openSession()
   optional string dataset = 6;
+  // No longer implemented. Instead, use shards.
+  repeated string shard_request = 7;
 
   // for getGroupStats()
   optional uint32 stat = 8;
@@ -305,6 +309,9 @@ message ImhotepResponse {
   // for openSession()
   optional string session_id = 2;
 
+  // no longer implemented
+  repeated ShardInfoMessage shard_info = 3;
+
   // for pushStat()/popStat()/getFTGS
   optional uint32 num_stats = 4;
 
@@ -409,6 +416,12 @@ message StringLongMessage {
   required int64 Value = 2;
 }
 
+// Used for GET_SHARD_LIST
+message DatasetMessage {
+  required string dataset = 1;
+  repeated ShardInfoMessage shards = 2;
+}
+
 message ShardMasterResponse {
   enum ResponseCode {
     OK = 1;
@@ -423,7 +436,7 @@ message ShardMasterResponse {
   // for GET_DATASET_METADATA
   repeated DatasetInfoMessage metadata = 5;
   // for GET_SHARD_LIST
-  repeated ShardMessage all_shards = 6;
+  repeated DatasetMessage all_shards = 6;
 }
 
 message ShardMasterRequest {
