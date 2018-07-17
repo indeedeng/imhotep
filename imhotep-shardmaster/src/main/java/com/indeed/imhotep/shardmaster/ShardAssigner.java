@@ -27,5 +27,6 @@ import java.util.List;
 
 @ThreadSafe
 interface ShardAssigner {
+    // TODO: make implementations of this cache assignments?
     Iterable<ShardAssignmentInfo> assign(List<Host> hosts, final String dataset, final Iterable<ShardDir> shards);
 }

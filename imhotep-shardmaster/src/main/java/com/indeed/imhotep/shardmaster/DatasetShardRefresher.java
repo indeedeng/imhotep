@@ -21,12 +21,15 @@ import javafx.util.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.log4j.Logger;
+import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.ZooDefs;
 
 import java.io.IOException;
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 /**
@@ -37,7 +40,7 @@ class DatasetShardRefresher extends TimerTask {
     private static final Logger LOGGER = Logger.getLogger(DatasetShardRefresher.class);
     private final Path datasetsDir;
     private static final ExecutorService executorService = new ForkJoinPool(40);
-    private final String leaderPath;
+    private String leaderPath;
     private Connection dbConnection;
     private ZooKeeperConnection zkConnection;
     private final org.apache.hadoop.fs.FileSystem hadoopFileSystem;
@@ -48,14 +51,27 @@ class DatasetShardRefresher extends TimerTask {
         try {
             int leaderPathEndIndex = leaderPath.lastIndexOf('/');
             if(leaderPathEndIndex == -1) {
-                LOGGER.error("The leader path is corrupted. Assuming that I am the leader.");
-                return true;
+                LOGGER.error("The leader path is corrupted. Assuming that I am not the leader.");
+                return false;
             }
 
             final String electionRoot = leaderPath.substring(0, leaderPathEndIndex);
             List<String> children = zkConnection.getChildren(electionRoot, false);
             Collections.sort(children);
-            return children.get(0).equals(leaderPath.substring(leaderPathEndIndex+1));
+
+            int index = Collections.binarySearch(children, leaderPath);
+
+            if(index == 0) {
+                return true;
+            }
+
+            if(index == -1) {
+                leaderPath = zkConnection.create(electionRoot, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
+            }
+
+            return false;
+
+
         } catch (InterruptedException | KeeperException e) {
             e.printStackTrace();
             LOGGER.error(e.getMessage(), e.getCause());

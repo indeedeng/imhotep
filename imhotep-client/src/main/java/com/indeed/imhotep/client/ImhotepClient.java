@@ -613,7 +613,6 @@ public class ImhotepClient
     private Supplier<ShardMaster> getShardMasterSupplier() {
         return () -> {
             Host host = hostsSource.getHosts().get((int)(Math.random()*hostsSource.getHosts().size()));
-            log.info("Host is: " + host);
             return new RequestResponseClient(host);
         };
     }
