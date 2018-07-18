@@ -75,6 +75,7 @@ public class GroupStatsIteratorCombiner extends AbstractLongIterator implements 
             final GroupStatsIterator stat = iter.next();
             result += stat.nextLong();
             if( !stat.hasNext() ) {
+                Closeables2.closeQuietly(stat, log);
                 iter.remove();
             }
         }

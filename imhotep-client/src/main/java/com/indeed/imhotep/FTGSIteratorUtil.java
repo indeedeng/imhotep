@@ -282,25 +282,26 @@ public class FTGSIteratorUtil {
     }
 
     public static GroupStatsIterator calculateDistinct(final FTGSIterator iterator) {
-        final FTGSIterator unsortedFtgs = FTGSIteratorUtil.makeUnsortedIfPossible(iterator);
+        try (final FTGSIterator unsortedFtgs = FTGSIteratorUtil.makeUnsortedIfPossible(iterator)) {
 
-        if (!unsortedFtgs.nextField()) {
-            throw new IllegalArgumentException("FTGSIterator with at least one field expected");
-        }
-
-        final long[] result = new long[unsortedFtgs.getNumGroups()];
-        while (unsortedFtgs.nextTerm()) {
-            while (unsortedFtgs.nextGroup()) {
-                final int group = unsortedFtgs.group();
-                result[group]++;
+            if (!unsortedFtgs.nextField()) {
+                throw new IllegalArgumentException("FTGSIterator with at least one field expected");
             }
-        }
 
-        if (unsortedFtgs.nextField()) {
-            throw new IllegalArgumentException("FTGSIterator with exactly one field expected");
-        }
+            final long[] result = new long[unsortedFtgs.getNumGroups()];
+            while (unsortedFtgs.nextTerm()) {
+                while (unsortedFtgs.nextGroup()) {
+                    final int group = unsortedFtgs.group();
+                    result[group]++;
+                }
+            }
 
-        return new GroupStatsDummyIterator(result);
+            if (unsortedFtgs.nextField()) {
+                throw new IllegalArgumentException("FTGSIterator with exactly one field expected");
+            }
+
+            return new GroupStatsDummyIterator(result);
+        }
     }
 
     /**

@@ -60,6 +60,7 @@ import com.indeed.imhotep.shardmaster.ShardMaster;
 import com.indeed.imhotep.shardmaster.rpc.RequestResponseClient;
 import com.indeed.imhotep.shardmaster.rpc.RequestResponseClientFactory;
 import com.indeed.util.core.Pair;
+import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 import org.apache.log4j.NDC;
 
@@ -527,19 +528,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                               getIntFields(request),
                                               getStringFields(request));
             builder.setTotalDocFreq(totalDocFreq);
-            return builder.build();
-        }
-
-        private ImhotepResponse getGroupStats(final ImhotepRequest          request,
-                                              final ImhotepResponse.Builder builder)
-            throws ImhotepOutOfMemoryException {
-            final GroupStatsIterator groupStats =
-                    service.handleGetGroupStats(request.getSessionId(),
-                            request.getStat());
-            builder.setGroupStatSize(groupStats.getNumGroups());
-            while (groupStats.hasNext()) {
-                builder.addGroupStat(groupStats.nextLong());
-            }
             return builder.build();
         }
 
@@ -1054,9 +1042,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                         case GET_TOTAL_DOC_FREQ:
                             response = getTotalDocFreq(request, builder);
                             break;
-                        case GET_GROUP_STATS:
-                            response = getGroupStats(request, builder);
-                            break;
                         case STREAMING_GET_GROUP_STATS:
                             final Pair<ImhotepResponse, GroupStatsIterator> responseAndStat = getStreamingGroupStats(request, builder);
                             response = responseAndStat.getFirst();
@@ -1203,6 +1188,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                         instrumentation.fire(instEvent);
                     }
                     NDC.setMaxDepth(ndcDepth);
+                    Closeables2.closeQuietly(groupStats, log);
                     close(socket, is, os);
                 }
             } catch (final IOException e) {
