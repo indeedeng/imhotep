@@ -57,10 +57,10 @@ class ShardMasterRequestHandler implements RequestHandler {
 
     private Iterable<ShardMasterResponse> handleShardList() {
         try {
-            final Map<String, List<ShardInfo>> shardList = shardMaster.getShardList();
+            final Map<String, Collection<ShardInfo>> shardList = shardMaster.getShardList();
             final ShardMasterResponse.Builder response = ShardMasterResponse.newBuilder();
             for(final String dataset: shardList.keySet()) {
-                final DatasetMessage.Builder message = DatasetMessage.newBuilder().setDataset(dataset);
+                final DatasetShardsMessage.Builder message = DatasetShardsMessage.newBuilder().setDataset(dataset);
 
                 for(final ShardInfo shard: shardList.get(dataset)) {
                     message.addShards(shard.toProto());

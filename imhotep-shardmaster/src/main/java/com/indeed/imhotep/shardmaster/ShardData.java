@@ -1,8 +1,8 @@
 package com.indeed.imhotep.shardmaster;
 import com.indeed.imhotep.ShardDir;
+import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.client.ShardTimeUtils;
 import com.indeed.imhotep.shardmaster.utils.IntervalTree;
-import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import java.nio.file.Path;
@@ -10,6 +10,7 @@ import java.nio.file.Paths;
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 
 /**
  * @author kornerup
@@ -17,9 +18,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class ShardData {
 
-    final private Map<String, IntervalTree<Long, String>> tblShards;
+    final private Map<String, IntervalTree<Long, ShardInfo>> tblShards;
     final private Map<String, TableFields> tblFields;
-    final private Map<String, Integer> pathsToNumDocs;
+    final private Map<String, ShardInfo> pathsToShards;
+
 
     public boolean hasField(String dataset, String field) {
         return tblFields.containsKey(dataset) && tblFields.get(dataset).lastUpdatedTimestamp.containsKey(field);
@@ -45,7 +47,15 @@ public class ShardData {
     }
 
     public int getNumDocs(String path) {
-        return pathsToNumDocs.get(path);
+        if(!pathsToShards.containsKey(path)) {
+            return -1;
+        }
+        return pathsToShards.get(path).numDocs;
+    }
+
+    // TODO: use this to figure out if a shard has been deleted
+    public Set<String> getCopyOfAllPaths() {
+        return new ConcurrentSkipListSet<>(pathsToShards.keySet());
     }
 
     enum FieldType {
@@ -84,7 +94,7 @@ public class ShardData {
     ShardData() {
         tblShards = new ConcurrentHashMap<>();
         tblFields = new ConcurrentHashMap<>();
-        pathsToNumDocs = new ConcurrentHashMap<>();
+        pathsToShards = new ConcurrentHashMap<>();
     }
 
     public void addShardFromHDFS(FlamdexMetadata metadata, Path shardPath, ShardDir shardDir) {
@@ -113,35 +123,38 @@ public class ShardData {
                 String strPath = rows.getString("path");
                 int numDocs = rows.getInt("numDocs");
 
-                if(pathsToNumDocs.containsKey(strPath)) {
+                if(pathsToShards.containsKey(strPath)) {
                     continue;
                 }
 
-                pathsToNumDocs.put(strPath, numDocs);
                 Path path = Paths.get(strPath);
                 ShardDir shardDir = new ShardDir(path);
                 String dataset = shardDir.getDataset();
                 String shardname = shardDir.getId();
+                ShardInfo shard = new ShardInfo(shardname, numDocs, shardDir.getVersion());
+                final Interval interval = ShardTimeUtils.parseInterval(shardname);
+
+                pathsToShards.put(strPath, shard);
 
                 if (!tblShards.containsKey(dataset)) {
                     tblShards.put(dataset, new IntervalTree<>());
                 }
 
-                final Interval interval = ShardTimeUtils.parseInterval(shardname);
-                tblShards.get(dataset).addInterval(interval.getStart().getMillis(), interval.getEnd().getMillis(), strPath);
-               } while (rows.next());
+                tblShards.get(dataset).addInterval(interval.getStart().getMillis(), interval.getEnd().getMillis(), shard);
+            } while (rows.next());
         }
     }
 
     private void addShardToDatastructure(FlamdexMetadata metadata, Path shardPath, ShardDir shardDir) {
-        pathsToNumDocs.put(shardDir.getIndexDir().toString(), metadata.getNumDocs());
+        ShardInfo info = new ShardInfo(shardDir.getId(), metadata.getNumDocs(), shardDir.getVersion());
+        pathsToShards.put(shardDir.getIndexDir().toString(), info);
         String dataset = shardDir.getDataset();
         if(!tblShards.containsKey(dataset)) {
             tblShards.put(dataset, new IntervalTree<>());
             tblFields.put(dataset, new TableFields());
         }
         final Interval interval = ShardTimeUtils.parseInterval(shardDir.getId());
-        tblShards.get(dataset).addInterval(interval.getStart().getMillis(), interval.getEnd().getMillis(), shardPath.toString());
+        tblShards.get(dataset).addInterval(interval.getStart().getMillis(), interval.getEnd().getMillis(), info);
 
         for (String field : metadata.getIntFields()) {
             if (!tblFields.get(dataset).lastUpdatedTimestamp.containsKey(field) || tblFields.get(dataset).lastUpdatedTimestamp.get(field) < interval.getStartMillis()) {
@@ -159,7 +172,7 @@ public class ShardData {
     }
 
     public boolean hasShard(String path){
-        return pathsToNumDocs.containsKey(path);
+        return pathsToShards.containsKey(path);
     }
 
     public Collection<String> getDatasets(){
@@ -168,21 +181,21 @@ public class ShardData {
 
 
     // NOTE: this is a bit hacky to get a linear runtime
-    public Collection<ShardDir> getShardsForDataset(String dataset) {
-        IntervalTree<Long, String> tree = tblShards.get(dataset);
+    public Collection<ShardInfo> getShardsForDataset(String dataset) {
+        IntervalTree<Long, ShardInfo> tree = tblShards.get(dataset);
         if (tree == null) {
             return new HashSet<>();
         }
-        Map<String, ShardDir> shardToShardWithVersion = new HashMap<>();
-        tree.getAllValues().stream().map(path -> new ShardDir(Paths.get(path))).forEach(shardDir -> {
-            if(!shardToShardWithVersion.containsKey(shardDir.getId()) || shardToShardWithVersion.get(shardDir.getId()).getVersion() < shardDir.getVersion()) {
-                shardToShardWithVersion.put(shardDir.getId(), shardDir);
+        Map<String, ShardInfo> shardToShardWithVersion = new HashMap<>();
+        tree.getAllValues().forEach(shard -> {
+            if(!shardToShardWithVersion.containsKey(shard.shardId) || shardToShardWithVersion.get(shard.shardId).getVersion() < shard.getVersion()) {
+                shardToShardWithVersion.put(shard.shardId, shard);
             }
         });
         return shardToShardWithVersion.values();
     }
 
-    public Collection<String> getShardsInTime(String dataset, long start, long end) {
+    public Collection<ShardInfo> getShardsInTime(String dataset, long start, long end) {
         return tblShards.get(dataset).getValuesInRange(start, end);
     }
 }

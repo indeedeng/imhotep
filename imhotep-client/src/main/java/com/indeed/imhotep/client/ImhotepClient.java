@@ -535,7 +535,7 @@ public class ImhotepClient
      * Queries a completed shard list from the servers and returns it grouped by dataset.
      * Note that with a millions of shards this request is slow and can use gigabytes of RAM.
      */
-    public Map<String, List<ShardInfo>> queryDatasetToFullShardList() {
+    public Map<String, Collection<ShardInfo>> queryDatasetToFullShardList() {
         try {
             return shardMasterSupplier.get().getShardList();
         } catch (IOException e) {

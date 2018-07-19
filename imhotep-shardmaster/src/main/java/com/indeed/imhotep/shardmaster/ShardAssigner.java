@@ -14,9 +14,9 @@
 
 package com.indeed.imhotep.shardmaster;
 
-import com.indeed.imhotep.ShardDir;
+import com.indeed.imhotep.Shard;
+import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.client.Host;
-import com.indeed.imhotep.shardmaster.model.ShardAssignmentInfo;
 
 import javax.annotation.concurrent.ThreadSafe;
 import java.util.List;
@@ -28,5 +28,5 @@ import java.util.List;
 @ThreadSafe
 interface ShardAssigner {
     // TODO: make implementations of this cache assignments?
-    Iterable<ShardAssignmentInfo> assign(List<Host> hosts, final String dataset, final Iterable<ShardDir> shards);
+    Iterable<Shard> assign(List<Host> hosts, final String dataset, final Iterable<ShardInfo> shards);
 }

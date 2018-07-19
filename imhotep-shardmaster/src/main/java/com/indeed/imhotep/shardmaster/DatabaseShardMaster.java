@@ -16,14 +16,11 @@ package com.indeed.imhotep.shardmaster;
 
 import com.indeed.imhotep.*;
 import com.indeed.imhotep.client.HostsReloader;
-import com.indeed.imhotep.shardmaster.model.ShardAssignmentInfo;
 import com.indeed.imhotep.shardmasterrpc.ShardMaster;
 import org.apache.log4j.Logger;
 
-import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 
 /**
  * @author kenh
@@ -57,30 +54,24 @@ public class DatabaseShardMaster implements ShardMaster {
 
     @Override
     public List<Shard> getShardsInTime(String dataset, long start, long end) {
-        final Collection<String> info = shardData.getShardsInTime(dataset, start, end);
+        final Collection<ShardInfo> info = shardData.getShardsInTime(dataset, start, end);
         final List<Shard> shards = new ArrayList<>();
-        final Iterable<ShardAssignmentInfo> assignment = assigner.assign(reloader.getHosts(), dataset, info.stream().map(str -> new ShardDir(Paths.get(str))).collect(Collectors.toList()));
-        for(final ShardAssignmentInfo shardAndHost: assignment) {
-            ShardDir dir = new ShardDir(Paths.get(shardAndHost.getShardPath()));
+        final Iterable<Shard> assignment = assigner.assign(reloader.getHosts(), dataset, info);
+        for(final Shard shardAndHost: assignment) {
             // TODO: move the .sqar to wherever we determine extensions
-            final Shard shard = new Shard(dir.getId(), shardData.getNumDocs(shardAndHost.getShardPath()), dir.getVersion(), shardAndHost.getAssignedNode(), ".sqar");
+            final Shard shard = new Shard(shardAndHost.shardId, shardAndHost.numDocs, shardAndHost.version, shardAndHost.getServer(), ".sqar");
             shards.add(shard);
         }
         return shards;
     }
 
     @Override
-    public Map<String, List<ShardInfo>> getShardList() {
-        final Map<String, List<ShardInfo>> toReturn = new HashMap<>();
+    public Map<String, Collection<ShardInfo>> getShardList() {
+        final Map<String, Collection<ShardInfo>> toReturn = new HashMap<>();
         final Collection<String> datasets = shardData.getDatasets();
         for(final String dataset: datasets) {
-            final Collection<ShardDir> shardsForDataset = shardData.getShardsForDataset(dataset);
-            List<ShardInfo> shards = new ArrayList<>();
-            for(ShardDir shardDir: shardsForDataset) {
-                ShardInfo shard = new ShardInfo(shardDir.getId(), shardData.getNumDocs(shardDir.getIndexDir().toString()), shardDir.getVersion());
-                shards.add(shard);
-            }
-            toReturn.put(dataset, shards);
+            final Collection<ShardInfo> shardsForDataset = shardData.getShardsForDataset(dataset);
+            toReturn.put(dataset, shardsForDataset);
         }
         return toReturn;
     }

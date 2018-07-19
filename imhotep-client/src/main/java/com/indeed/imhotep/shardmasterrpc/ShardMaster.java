@@ -19,6 +19,7 @@ import com.indeed.imhotep.Shard;
 import com.indeed.imhotep.ShardInfo;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -29,5 +30,5 @@ import java.util.Map;
 public interface ShardMaster {
     List<DatasetInfo> getDatasetMetadata() throws IOException;
     List<Shard> getShardsInTime(String dataset, long start, long end) throws IOException;
-    Map<String, List<ShardInfo>> getShardList() throws IOException;
+    Map<String, Collection<ShardInfo>> getShardList() throws IOException;
 }

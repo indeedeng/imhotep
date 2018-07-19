@@ -14,32 +14,23 @@
 
 package com.indeed.imhotep.shardmaster;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.indeed.imhotep.archive.SquallArchiveWriter;
-import com.indeed.imhotep.client.DummyHostsReloader;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.client.ShardTimeUtils;
 import com.indeed.imhotep.dbutil.DbDataFixture;
-import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemTestContext;
 import com.indeed.imhotep.shardmaster.db.shardinfo.Tables;
-import com.indeed.imhotep.shardmaster.model.ShardAssignmentInfo;
 import com.indeed.imhotep.shardmasterrpc.ShardMasterExecutors;
 import com.indeed.util.zookeeper.ZooKeeperConnection;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.easymock.EasyMock;
 import org.joda.time.DateTime;
-import org.joda.time.Duration;
 import org.junit.*;
 import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -53,7 +44,6 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 
 /**
  * @author kenh

@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 /**
@@ -141,9 +140,6 @@ class DatasetShardRefresher extends TimerTask {
     private void handleDataset(Path path) {
         LOGGER.info("On dataset: " + path);
         Iterable<ShardDir> dataset = new ShardScanner(path, hadoopFileSystem);
-
-        //TODO: hack b/c we are adding stuff so the iterator is empty when we try and assign
-        Iterator<ShardDir> datasetIterator = dataset.iterator();
 
         List<Pair<ShardDir, Future<FlamdexMetadata>>> pairs = new ArrayList<>();
 

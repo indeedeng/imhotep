@@ -20,9 +20,9 @@ import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
-import com.indeed.imhotep.ShardDir;
+import com.indeed.imhotep.Shard;
+import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.client.Host;
-import com.indeed.imhotep.shardmaster.model.ShardAssignmentInfo;
 import com.indeed.util.core.Pair;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -58,21 +58,21 @@ class MinHashShardAssigner implements ShardAssigner {
         this.replicationFactor = replicationFactor;
     }
 
-    private static long getMinHash(final String dataset, final ShardDir shard, final Host host) {
+    private static long getMinHash(final String dataset, final ShardInfo shard, final Host host) {
         return HASH_FUNCTION.get().newHasher()
                 .putInt(dataset.hashCode())
-                .putInt(shard.getId().hashCode())
+                .putInt(shard.shardId.hashCode())
                 .putInt(host.getHostname().hashCode())
                 .putInt(host.getPort())
                 .hash().asInt();
     }
 
     @Override
-    public Iterable<ShardAssignmentInfo> assign(final List<Host> hosts, final String dataset, final Iterable<ShardDir> shards) {
+    public Iterable<Shard> assign(final List<Host> hosts, final String dataset, final Iterable<ShardInfo> shards) {
         return assign(hosts, dataset, shards, replicationFactor);
     }
 
-    public static Iterable<ShardAssignmentInfo> assign(final List<Host> hosts, final String dataset, final Iterable<ShardDir> shards, final int replicationFactorUsed) {
+    public static Iterable<Shard> assign(final List<Host> hosts, final String dataset, final Iterable<ShardInfo> shards, final int replicationFactorUsed) {
         int maxPerHostname = 0;
         for (final Collection<Host> ofSameHostName : FluentIterable.from(hosts).filter(Objects::nonNull).index(Host.GET_HOSTNAME).asMap().values()) {
             maxPerHostname = Math.max(maxPerHostname, ofSameHostName.size());
@@ -80,9 +80,9 @@ class MinHashShardAssigner implements ShardAssigner {
         final int queueCapacity = replicationFactorUsed * maxPerHostname;
         final Pair.FullPairComparator comparator = new Pair.FullPairComparator();
 
-        return FluentIterable.from(shards).transformAndConcat(new Function<ShardDir, Iterable<ShardAssignmentInfo>>() {
+        return FluentIterable.from(shards).transformAndConcat(new Function<ShardInfo, Iterable<Shard>>() {
             @Override
-            public Iterable<ShardAssignmentInfo> apply(final ShardDir shard) {
+            public Iterable<Shard> apply(final ShardInfo shard) {
                 final PriorityQueue<Pair<Long, Host>> sortedHosts = new PriorityQueue<>(queueCapacity,
                         Ordering.from(comparator).reverse());
 
@@ -121,12 +121,13 @@ class MinHashShardAssigner implements ShardAssigner {
                     }
                 }
 
-                return FluentIterable.from(chosen).transform(new Function<Host, ShardAssignmentInfo>() {
+                return FluentIterable.from(chosen).transform(new Function<Host, Shard>() {
                     @Override
-                    public ShardAssignmentInfo apply(final Host chosenHost) {
-                        return new ShardAssignmentInfo(
-                                dataset,
-                                shard.getIndexDir().toString(),
+                    public Shard apply(final Host chosenHost) {
+                        return new Shard(
+                                shard.shardId,
+                                shard.numDocs,
+                                shard.version,
                                 chosenHost
                         );
                     }

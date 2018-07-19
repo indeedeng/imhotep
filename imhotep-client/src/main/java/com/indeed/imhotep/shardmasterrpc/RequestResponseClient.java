@@ -104,19 +104,19 @@ public class RequestResponseClient implements ShardMaster {
     }
 
     @Override
-    public Map<String, List<ShardInfo>> getShardList() throws IOException {
+    public Map<String, Collection<ShardInfo>> getShardList() throws IOException {
         final ShardMasterRequest request = ShardMasterRequest.newBuilder()
                 .setRequestType(ShardMasterRequest.RequestType.GET_SHARD_LIST)
                 .build();
 
         // TODO: we are not actually passing the path here, so the path is empty. It should be changed to a default.
-        final List<DatasetMessage> datasetMessages = sendAndReceive(request).stream()
+        final List<DatasetShardsMessage> datasetMessages = sendAndReceive(request).stream()
                 .map(ShardMasterResponse::getAllShardsList)
                 .flatMap(List::stream).collect(Collectors.toList());
 
-        final Map<String, List<ShardInfo>> toReturn = new HashMap<>();
+        final Map<String, Collection<ShardInfo>> toReturn = new HashMap<>();
 
-        for(DatasetMessage message: datasetMessages) {
+        for(DatasetShardsMessage message: datasetMessages) {
             toReturn.put(message.getDataset(), message.getShardsList().stream().map(ShardInfo::fromProto).collect(Collectors.toList()));
         }
 

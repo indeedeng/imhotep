@@ -17,10 +17,11 @@ package com.indeed.imhotep.shardmaster;
 import com.google.common.base.Charsets;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
+import com.indeed.imhotep.Shard;
 import com.indeed.imhotep.ShardDir;
+import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.client.ShardTimeUtils;
-import com.indeed.imhotep.shardmaster.model.ShardAssignmentInfo;
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -60,12 +61,12 @@ class TimeBasedShardAssigner implements ShardAssigner {
     }
 
     @Override
-    public Iterable<ShardAssignmentInfo> assign(final List<Host> hosts, final String dataset, final Iterable<ShardDir> shards) {
+    public Iterable<Shard> assign(final List<Host> hosts, final String dataset, final Iterable<ShardInfo> shards) {
         final List<Host> upHosts = hosts.stream().filter(Objects::nonNull).collect(Collectors.toList());
         int initialServerNumberForDataset = (int)(Math.abs((long)HASH_FUNCTION.get().hashString(dataset, Charsets.UTF_8).asInt()) % hosts.size());
 
         return StreamSupport.stream(shards.spliterator(), false).map(shard -> {
-            final String shardId = shard.getId();
+            final String shardId = shard.shardId;
             final long shardIndex = Math.abs(getShardIndexForShardSize(shardId));
             final int assignedServerNumber = (int)((initialServerNumberForDataset + shardIndex) % hosts.size());
             final Host assignedServer = hosts.get(assignedServerNumber);
@@ -75,8 +76,10 @@ class TimeBasedShardAssigner implements ShardAssigner {
                 return MinHashShardAssigner.assign(upHosts, dataset, Collections.singletonList(shard), 1).iterator().next();
             }
 
-            return new ShardAssignmentInfo(dataset,
-                    shard.getIndexDir().toString(),
+            return new Shard(
+                    shard.shardId,
+                    shard.numDocs,
+                    shard.version,
                     assignedServer);
         }).collect(Collectors.toList());
     }

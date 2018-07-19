@@ -417,7 +417,7 @@ message StringLongMessage {
 }
 
 // Used for GET_SHARD_LIST
-message DatasetMessage {
+message DatasetShardsMessage {
   required string dataset = 1;
   repeated ShardInfoMessage shards = 2;
 }
@@ -436,7 +436,7 @@ message ShardMasterResponse {
   // for GET_DATASET_METADATA
   repeated DatasetInfoMessage metadata = 5;
   // for GET_SHARD_LIST
-  repeated DatasetMessage all_shards = 6;
+  repeated DatasetShardsMessage all_shards = 6;
 }
 
 message ShardMasterRequest {
