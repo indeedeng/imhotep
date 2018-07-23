@@ -34,9 +34,9 @@ class FlamdexInfo {
 
     private static final Logger log = Logger.getLogger(FlamdexInfo.class);
 
-    private final String indexName;
-    private final String shardId;
-    private final DateTime date;
+    private final String indexName; // Shard directory name (i.e. including version) e.g. index20180722.19.20180722221746
+    private final String shardId;   // Includes time range, but doesn't include versions. e.g. index20180722.19
+    private final DateTime date;    // (Not the build timestamp but) the start time of the shard time range. e.g. 2018/07/22 19:00:00
 
     private final Object2LongArrayMap<String> fieldSizesInBytesCache =
             new Object2LongArrayMap<>(16);
