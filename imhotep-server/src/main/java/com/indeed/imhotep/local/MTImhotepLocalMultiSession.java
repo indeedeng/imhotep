@@ -267,6 +267,9 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             log.error("MTImhotepMultiSession [" + getSessionId() + "] is leaking! usedMemory = "+memory.usedMemory());
         }
         Closeables2.closeQuietly(memory, log);
+        if (ftgsIteratorSplitters != null) {
+            Closeables2.closeAll(log, ftgsIteratorSplitters);
+        }
         super.postClose();
     }
 
