@@ -34,7 +34,7 @@ class FlamdexInfo {
 
     private static final Logger log = Logger.getLogger(FlamdexInfo.class);
 
-    private final String indexName; // Shard directory name (i.e. including version) e.g. index20180722.19.20180722221746
+    private final String shardName; // Shard directory name (i.e. including version) e.g. index20180722.19.20180722221746
     private final String shardId;   // Includes time range, but doesn't include versions. e.g. index20180722.19
     private final DateTime date;    // (Not the build timestamp but) the start time of the shard time range. e.g. 2018/07/22 19:00:00
 
@@ -49,17 +49,17 @@ class FlamdexInfo {
         final Path shardDir = reader.getDirectory();
         if (shardDir != null) {
             this.shardId = (new ShardDir(shardDir)).getId();
-            this.indexName = shardDir.getFileName().toString();
+            this.shardName = shardDir.getFileName().toString();
             this.date = dateOf();
         } else {
             this.shardId = null;
-            this.indexName = null;
+            this.shardName = null;
             this.date = null;
         }
     }
 
-    String getIndexName() {
-        return indexName;
+    String getShardName() {
+        return shardName;
     }
 
     DateTime getDate() {
@@ -85,7 +85,7 @@ class FlamdexInfo {
         try {
             return ShardTimeUtils.parseStart(shardId);
         } catch (final Exception ex) {
-            log.warn("cannot extract date from shard directory: '" + indexName + "'");
+            log.warn("cannot extract date from shard directory: '" + shardName + "'");
             return null;
         }
     }
