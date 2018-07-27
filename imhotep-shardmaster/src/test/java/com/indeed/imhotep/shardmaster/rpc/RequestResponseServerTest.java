@@ -104,7 +104,7 @@ public class RequestResponseServerTest {
                 createAssignmentInfo("dataset3", "shard3", b)
         ));
 
-        final DatabaseShardMaster shardMasterServer = new DatabaseShardMaster(assignmentInfoDao, new AtomicBoolean(true));
+        final DatabaseShardMaster shardMasterServer = new DatabaseShardMaster(assignmentInfoDao);
         final RequestResponseClient requestResponseClient;
 
         final ExecutorService executorService = Executors.newSingleThreadExecutor();

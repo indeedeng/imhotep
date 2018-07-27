@@ -115,26 +115,8 @@ public class ShardMasterDaemon {
             );
 
             LOGGER.info("Initializing all shard assignments");
-            // don't block on assignment refresh
-            final ListenableFuture<List<ShardScanWork.Result>> shardScanResults = refresher.initialize().getAllShards();
-            final AtomicBoolean shardScanComplete = new AtomicBoolean(false);
-
-            final Thread scanBlocker = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        long start = System.currentTimeMillis();
-                        shardScanResults.get();
-                        shardScanComplete.set(true);
-                        LOGGER.info("Successfully scanned all shards on initialization in " + (System.currentTimeMillis() - start)/1000 + " seconds");
-                    } catch (final InterruptedException | ExecutionException e) {
-                        LOGGER.fatal("Failed while scanning shards", e);
-                        System.exit(1);
-                    }
-                }
-            }, ShardMasterDaemon.class.getSimpleName() + "-ShardScanBlocker");
-            scanBlocker.setDaemon(true);
-            scanBlocker.start();
+            // synchronously assign all shards before proceeding
+            refresher.run();
 
             timer.schedule(new TimerTask() {
                 @Override
@@ -147,7 +129,7 @@ public class ShardMasterDaemon {
 
             server = new RequestResponseServer(config.getServicePort(), new MultiplexingRequestHandler(
                     config.statsEmitter,
-                    new DatabaseShardMaster(shardAssignmentInfoDao, shardScanComplete),
+                    new DatabaseShardMaster(shardAssignmentInfoDao),
                     config.shardsResponseBatchSize
             ), config.serviceConcurrency);
             try (ZkEndpointPersister endpointPersister = getZKEndpointPersister()

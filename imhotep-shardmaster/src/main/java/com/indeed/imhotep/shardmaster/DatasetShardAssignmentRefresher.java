@@ -14,12 +14,11 @@
 
 package com.indeed.imhotep.shardmaster;
 
-import com.google.common.util.concurrent.ListenableFuture;
 import com.indeed.imhotep.client.HostsReloader;
 import com.indeed.imhotep.fs.RemoteCachingPath;
 import org.apache.log4j.Logger;
 
-import java.util.Collections;
+import java.util.List;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -52,16 +51,7 @@ class DatasetShardAssignmentRefresher extends TimerTask {
         this.assignmentInfoDao = assignmentInfoDao;
     }
 
-    DataSetScanWork.Result initialize() throws ExecutionException, InterruptedException {
-        if (!hostsReloader.isLoadedDataSuccessfullyRecently()) {
-            LOGGER.warn("Unable to load latest host list. Skipping shard assignment refresh");
-            return new DataSetScanWork.Result(Collections.<String, ListenableFuture<ShardScanWork.Result>>emptyMap());
-        }
-        final Future<DataSetScanWork.Result> result = innerRun();
-        return result.get();
-    }
-
-    private Future<DataSetScanWork.Result> innerRun() {
+    List<ShardScanWork.Result> innerRun() throws ExecutionException, InterruptedException {
         final ShardScanWork.Builder shardScanWorkBuilder = new ShardScanWork.Builder(
                 hostsReloader,
                 shardAssigner,
@@ -70,13 +60,18 @@ class DatasetShardAssignmentRefresher extends TimerTask {
 
         LOGGER.info("Refreshing all index datasets for assignments");
 
-        return taskExecutorService.submit(
+        final Future<DataSetScanWork.Result> resultFuture = taskExecutorService.submit(
                 new DataSetScanWork(datasetsDir, shardFilter, taskExecutorService, shardScanWorkBuilder)
         );
+        return resultFuture.get().getAllShards().get();
     }
 
     @Override
     public void run() {
-        innerRun();
+        try {
+            innerRun();
+        } catch (Exception e) {
+            LOGGER.info("Failed to assign shards", e);
+        }
     }
 }

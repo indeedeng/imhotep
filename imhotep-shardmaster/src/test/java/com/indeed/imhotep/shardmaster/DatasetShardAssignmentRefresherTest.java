@@ -121,7 +121,7 @@ public class DatasetShardAssignmentRefresherTest {
         final RemoteCachingPath dataSetsDir = (RemoteCachingPath) Paths.get(RemoteCachingFileSystemProvider.URI);
 
         final ShardAssignmentInfoDao shardAssignmentInfoDao = new H2ShardAssignmentInfoDao(dbDataFixture.getDataSource(), Duration.standardMinutes(30));
-        final DataSetScanWork.Result results = new DatasetShardAssignmentRefresher(
+        final List<ShardScanWork.Result> datasetResult = new DatasetShardAssignmentRefresher(
                 dataSetsDir,
                 ShardFilter.ACCEPT_ALL,
                 executorService,
@@ -130,9 +130,8 @@ public class DatasetShardAssignmentRefresherTest {
                 ),
                 new MinHashShardAssigner(replicationFactor),
                 shardAssignmentInfoDao
-        ).initialize();
+        ).innerRun();
 
-        final List<ShardScanWork.Result> datasetResult = results.getAllShards().get();
         Assert.assertEquals(numDataSets, datasetResult.size());
         for (final ShardScanWork.Result result : datasetResult) {
             Assert.assertEquals(numShards, result.getShards().size());
@@ -176,7 +175,7 @@ public class DatasetShardAssignmentRefresherTest {
         RemoteCachingFileSystemProvider.newFileSystem(fsProp);
 
         final ShardAssignmentInfoDao shardAssignmentInfoDao = new H2ShardAssignmentInfoDao(dbDataFixture.getDataSource(), Duration.standardMinutes(30));
-        final DataSetScanWork.Result results = new DatasetShardAssignmentRefresher(
+        final List<ShardScanWork.Result> datasetResult = new DatasetShardAssignmentRefresher(
                 (RemoteCachingPath) Paths.get(RemoteCachingFileSystemProvider.URI),
                 ShardFilter.ACCEPT_ALL,
                 executorService,
@@ -185,9 +184,9 @@ public class DatasetShardAssignmentRefresherTest {
                 ),
                 new MinHashShardAssigner(3),
                 shardAssignmentInfoDao
-        ).initialize();
+        ).innerRun();
 
-        for (final ShardScanWork.Result result : results.getAllShards().get()) {
+        for (final ShardScanWork.Result result : datasetResult) {
             final RemoteCachingPath datasetDir = result.getDatasetDir();
             //noinspection UseOfSystemOutOrSystemErr
             System.out.println("Assigned " + result.getShards().size() + " for " + datasetDir);
