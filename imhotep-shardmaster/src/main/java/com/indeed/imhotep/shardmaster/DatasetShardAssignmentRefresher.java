@@ -59,11 +59,14 @@ class DatasetShardAssignmentRefresher extends TimerTask {
         );
 
         LOGGER.info("Refreshing all index datasets for assignments");
+        long start = System.currentTimeMillis();
 
         final Future<DataSetScanWork.Result> resultFuture = taskExecutorService.submit(
                 new DataSetScanWork(datasetsDir, shardFilter, taskExecutorService, shardScanWorkBuilder)
         );
-        return resultFuture.get().getAllShards().get();
+        final List<ShardScanWork.Result> result = resultFuture.get().getAllShards().get();
+        LOGGER.info("Successfully assigned all shards in " + (System.currentTimeMillis() - start)/1000 + " seconds");
+        return result;
     }
 
     @Override
