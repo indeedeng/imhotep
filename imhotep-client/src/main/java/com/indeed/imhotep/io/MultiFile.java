@@ -15,7 +15,6 @@
 package com.indeed.imhotep.io;
 
 import com.google.common.base.Throwables;
-import com.google.common.io.Closer;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
@@ -72,19 +71,18 @@ public final class MultiFile {
         this.bytesAvailable = bytesAvailable;
         this.path = path;
         this.blockSize = blockSize;
-        final Closer closer = Closer.create();
         try {
             final RandomAccessFile raf = new RandomAccessFile(path, "rw");
-            final SharedReference<RandomAccessFile> rafRef = closer.register(SharedReference.create(raf));
-            buffer = closer.register(SharedReference.create(new MMapBuffer(raf, path, 0, blockSize * splits, FileChannel.MapMode.READ_WRITE, ByteOrder.LITTLE_ENDIAN)));
-            this.splits = new Split[splits];
-            final AtomicInteger openInputs = new AtomicInteger(splits);
-            for (int i = 0; i < splits; i++) {
-                this.splits[i] = new Split(i, rafRef, openInputs);
+            try (final SharedReference<RandomAccessFile> rafRef = SharedReference.create(raf)) {
+                buffer = SharedReference.create(new MMapBuffer(raf, path, 0, blockSize * splits, FileChannel.MapMode.READ_WRITE, ByteOrder.LITTLE_ENDIAN));
+                this.splits = new Split[splits];
+                final AtomicInteger openInputs = new AtomicInteger(splits);
+                for (int i = 0; i < splits; i++) {
+                    this.splits[i] = new Split(i, rafRef, openInputs);
+                }
             }
-            rafRef.close();
         } catch (final Throwable t) {
-            Closeables2.closeQuietly(closer, log);
+            Closeables2.closeQuietly(buffer, log);
             throw Throwables2.propagate(t, IOException.class);
         }
     }

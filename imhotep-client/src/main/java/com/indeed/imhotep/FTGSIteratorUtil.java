@@ -52,10 +52,8 @@ public class FTGSIteratorUtil {
                                      final String sessionId,
                                      final FTGSIterator iterator) throws IOException {
         final File tmp = File.createTempFile("ftgs", ".tmp");
-        OutputStream out = null;
-        try {
-            final long start = System.currentTimeMillis();
-            out = new BufferedOutputStream(new FileOutputStream(tmp));
+        final long start = System.currentTimeMillis();
+        try (final OutputStream out = new BufferedOutputStream(new FileOutputStream(tmp))) {
             FTGSOutputStreamWriter.write(iterator, out);
             if (log.isDebugEnabled()) {
                 log.debug("[" + sessionId + "] time to merge splits to file: " +
@@ -67,9 +65,6 @@ public class FTGSIteratorUtil {
             throw Throwables2.propagate(t, IOException.class);
         } finally {
             Closeables2.closeQuietly(iterator, log);
-            if (out != null) {
-                out.close();
-            }
         }
 
         return tmp;
@@ -115,14 +110,12 @@ public class FTGSIteratorUtil {
             final FTGSIterator originalIterator,
             final long termLimit,
             final int sortStat) {
-        try {
-            final int numStats = originalIterator.getNumStats();
-            final int numGroups = originalIterator.getNumGroups();
+        // We don't care about sorted stuff since we will sort by term afterward
+        try (final FTGSIterator iterator = makeUnsortedIfPossible(originalIterator)) {
+            final int numStats = iterator.getNumStats();
+            final int numGroups = iterator.getNumGroups();
             final long[] statBuf = new long[numStats];
             final TopTermsStatsByField topTermsFTGS = new TopTermsStatsByField();
-
-            // We don't care about sorted stuff since we will sort by term afterward
-            final FTGSIterator iterator = makeUnsortedIfPossible(originalIterator);
 
             while (iterator.nextField()) {
                 final String fieldName = iterator.fieldName();
@@ -187,8 +180,6 @@ public class FTGSIteratorUtil {
             }
 
             return new TopTermsFTGSIterator(topTermsFTGS, numStats, numGroups);
-        } finally {
-            originalIterator.close();
         }
     }
 

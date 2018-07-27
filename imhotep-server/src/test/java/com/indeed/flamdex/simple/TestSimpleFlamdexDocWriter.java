@@ -105,51 +105,50 @@ public class TestSimpleFlamdexDocWriter {
 
     private void runRandomTest(final int mergeFactor) throws IOException {
         long elapsed = -System.currentTimeMillis();
-        final FlamdexDocWriter w = new SimpleFlamdexDocWriter(tempDir, new SimpleFlamdexDocWriter.Config().setDocBufferSize(100).setMergeFactor(mergeFactor));
-
         final Random rand = new Random();
         final int numDocs = rand.nextInt(20000) + 20000;
         final List<FlamdexDocument> expected = Lists.newArrayList();
-        final String[] intFieldNames = new String[10];
-        final String[] strFieldNames = new String[10];
-        for (int i = 0; i < intFieldNames.length; i++) {
-            intFieldNames[i] = "if" + i;
-            strFieldNames[i] = "sf" + i;
-        }
-        for (int i = 0; i < numDocs; ++i) {
-            final FlamdexDocument doc = new FlamdexDocument();
-            final int nif = rand.nextInt(5) + 5;
-            for (int j = 0; j < nif; ++j) {
-                final int nt = rand.nextInt(5) + 5;
-                for (int k = 0; k < nt; ++k) {
-                    doc.addIntTerm(intFieldNames[j], rand.nextInt() & Integer.MAX_VALUE);
-                }
+        try (final FlamdexDocWriter w = new SimpleFlamdexDocWriter(tempDir, new SimpleFlamdexDocWriter.Config().setDocBufferSize(100).setMergeFactor(mergeFactor))) {
+            final String[] intFieldNames = new String[10];
+            final String[] strFieldNames = new String[10];
+            for (int i = 0; i < intFieldNames.length; i++) {
+                intFieldNames[i] = "if" + i;
+                strFieldNames[i] = "sf" + i;
             }
-            final int nsf = rand.nextInt(5) + 5;
-            for (int j = 0; j < nsf; ++j) {
-                final int nt = rand.nextInt(3) + 1;
-                for (int k = 0; k < nt; ++k) {
-                    final int nc = rand.nextInt(20) + 1;
-                    final StringBuilder sb = new StringBuilder(nc);
-                    for (int l = 0; l < nc; ++l) {
-                        sb.append((char)(rand.nextInt('z' - 'a') + 'a'));
+            for (int i = 0; i < numDocs; ++i) {
+                final FlamdexDocument doc = new FlamdexDocument();
+                final int nif = rand.nextInt(5) + 5;
+                for (int j = 0; j < nif; ++j) {
+                    final int nt = rand.nextInt(5) + 5;
+                    for (int k = 0; k < nt; ++k) {
+                        doc.addIntTerm(intFieldNames[j], rand.nextInt() & Integer.MAX_VALUE);
                     }
-                    doc.addStringTerm(strFieldNames[j], sb.toString());
                 }
+                final int nsf = rand.nextInt(5) + 5;
+                for (int j = 0; j < nsf; ++j) {
+                    final int nt = rand.nextInt(3) + 1;
+                    for (int k = 0; k < nt; ++k) {
+                        final int nc = rand.nextInt(20) + 1;
+                        final StringBuilder sb = new StringBuilder(nc);
+                        for (int l = 0; l < nc; ++l) {
+                            sb.append((char) (rand.nextInt('z' - 'a') + 'a'));
+                        }
+                        doc.addStringTerm(strFieldNames[j], sb.toString());
+                    }
+                }
+                w.addDocument(doc);
+                expected.add(doc);
             }
-            w.addDocument(doc);
-            expected.add(doc);
         }
-
-        w.close();
 
         final long size = FileUtils.sizeOfDirectory(tempDir.toFile());
         elapsed += System.currentTimeMillis();
         System.out.println("time for writing " + size + " byte index with " + numDocs + " documents: " + elapsed + " ms");
 
-        final SimpleFlamdexReader r = SimpleFlamdexReader.open(tempDir, config);
-        final List<FlamdexDocument> actual = FlamdexReinverter.reinvertInMemory(r);
-        r.close();
+        final List<FlamdexDocument> actual;
+        try (final SimpleFlamdexReader r = SimpleFlamdexReader.open(tempDir, config)) {
+            actual = FlamdexReinverter.reinvertInMemory(r);
+        }
 
         assertEquals(expected.size(), actual.size());
         for (int i = 0; i < expected.size(); ++i) {
@@ -182,66 +181,65 @@ public class TestSimpleFlamdexDocWriter {
     public void testBufferedOnly() throws IOException {
         final SimpleFlamdexDocWriter.Config config = new SimpleFlamdexDocWriter.Config().setDocBufferSize(999999999).setMergeFactor(999999999);
         writeFlamdex(tempDir, config);
-        final FlamdexReader r = SimpleFlamdexReader.open(tempDir, this.config);
-        assertEquals(2, r.getIntFields().size());
-        assertTrue(r.getIntFields().contains("if1"));
-        assertTrue(r.getIntFields().contains("if2"));
-        assertEquals(2, r.getStringFields().size());
-        assertTrue(r.getStringFields().contains("sf1"));
-        assertTrue(r.getStringFields().contains("sf2"));
+        try (final FlamdexReader r = SimpleFlamdexReader.open(tempDir, this.config);
+             final DocIdStream dis = r.getDocIdStream();) {
+            assertEquals(2, r.getIntFields().size());
+            assertTrue(r.getIntFields().contains("if1"));
+            assertTrue(r.getIntFields().contains("if2"));
+            assertEquals(2, r.getStringFields().size());
+            assertTrue(r.getStringFields().contains("sf1"));
+            assertTrue(r.getStringFields().contains("sf2"));
 
-        final DocIdStream dis = r.getDocIdStream();
-        final int[] docIdBuffer = new int[64];
-        final IntTermIterator iter = r.getIntTermIterator("if1");
-        assertTrue(iter.next());
-        assertEquals(0, iter.term());
-        assertEquals(2, iter.docFreq());
-        dis.reset(iter);
-        assertEquals(2, dis.fillDocIdBuffer(docIdBuffer));
-        assertEquals(Ints.asList(0, 3), Ints.asList(docIdBuffer).subList(0, 2));
-        assertTrue(iter.next());
-        assertEquals(5, iter.term());
-        assertEquals(1, iter.docFreq());
-        dis.reset(iter);
-        assertEquals(1, dis.fillDocIdBuffer(docIdBuffer));
-        assertEquals(Ints.asList(0), Ints.asList(docIdBuffer).subList(0, 1));
-        iter.close();
-        dis.close();
-        r.close();
+            final int[] docIdBuffer = new int[64];
+            try (final IntTermIterator iter = r.getIntTermIterator("if1")) {
+                assertTrue(iter.next());
+                assertEquals(0, iter.term());
+                assertEquals(2, iter.docFreq());
+                dis.reset(iter);
+                assertEquals(2, dis.fillDocIdBuffer(docIdBuffer));
+                assertEquals(Ints.asList(0, 3), Ints.asList(docIdBuffer).subList(0, 2));
+                assertTrue(iter.next());
+                assertEquals(5, iter.term());
+                assertEquals(1, iter.docFreq());
+                dis.reset(iter);
+                assertEquals(1, dis.fillDocIdBuffer(docIdBuffer));
+                assertEquals(Ints.asList(0), Ints.asList(docIdBuffer).subList(0, 1));
+            }
+        }
     }
 
     @Test
     public void testEmpty() throws IOException {
         new SimpleFlamdexDocWriter(tempDir, new SimpleFlamdexDocWriter.Config()).close();
-        final FlamdexReader r = SimpleFlamdexReader.open(tempDir, config);
-        assertEquals(0, r.getNumDocs());
-        r.close();
+        try (final FlamdexReader r = SimpleFlamdexReader.open(tempDir, config)) {
+            assertEquals(0, r.getNumDocs());
+        }
     }
 
     private void writeFlamdex(final Path dir, final SimpleFlamdexDocWriter.Config config) throws IOException {
-        final FlamdexDocWriter w = new SimpleFlamdexDocWriter(dir, config);
+        try (final FlamdexDocWriter w = new SimpleFlamdexDocWriter(dir, config)) {
 
-        final FlamdexDocument doc0 = new FlamdexDocument();
-        doc0.setIntField("if1", Longs.asList(0, 5, 99));
-        doc0.setIntField("if2", Longs.asList(3, 7));
-        doc0.setStringField("sf1", Arrays.asList("a", "b", "c"));
-        doc0.setStringField("sf2", Arrays.asList("0", "-234", "bob"));
-        w.addDocument(doc0);
+            final FlamdexDocument doc0 = new FlamdexDocument();
+            doc0.setIntField("if1", Longs.asList(0, 5, 99));
+            doc0.setIntField("if2", Longs.asList(3, 7));
+            doc0.setStringField("sf1", Arrays.asList("a", "b", "c"));
+            doc0.setStringField("sf2", Arrays.asList("0", "-234", "bob"));
+            w.addDocument(doc0);
 
-        final FlamdexDocument doc1 = new FlamdexDocument();
-        doc1.setIntField("if2", Longs.asList(6, 7, 99));
-        doc1.setStringField("sf1", Arrays.asList("b", "d", "f"));
-        doc1.setStringField("sf2", Arrays.asList("a", "b", "bob"));
-        w.addDocument(doc1);
+            final FlamdexDocument doc1 = new FlamdexDocument();
+            doc1.setIntField("if2", Longs.asList(6, 7, 99));
+            doc1.setStringField("sf1", Arrays.asList("b", "d", "f"));
+            doc1.setStringField("sf2", Arrays.asList("a", "b", "bob"));
+            w.addDocument(doc1);
 
-        final FlamdexDocument doc2 = new FlamdexDocument();
-        doc2.setStringField("sf1", Arrays.asList("", "a", "aa"));
-        w.addDocument(doc2);
+            final FlamdexDocument doc2 = new FlamdexDocument();
+            doc2.setStringField("sf1", Arrays.asList("", "a", "aa"));
+            w.addDocument(doc2);
 
-        final FlamdexDocument doc3 = new FlamdexDocument();
-        doc3.setIntField("if1", Longs.asList(0, 10000));
-        doc3.setIntField("if2", Longs.asList(9));
-        w.addDocument(doc3);
-        w.close();
+            final FlamdexDocument doc3 = new FlamdexDocument();
+            doc3.setIntField("if1", Longs.asList(0, 10000));
+            doc3.setIntField("if2", Longs.asList(9));
+            w.addDocument(doc3);
+        }
     }
 }

@@ -21,7 +21,6 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Field;
@@ -62,15 +61,16 @@ public final class NativeDocIdBuffer implements Closeable {
             final String osName = System.getProperty("os.name");
             final String arch = System.getProperty("os.arch");
             final String resourcePath = "/native/" + osName + "-" + arch + "/libvarint.so.1.0.1";
-            final InputStream is = NativeDocIdStream.class.getResourceAsStream(resourcePath);
-            if (is == null) {
-                throw new FileNotFoundException("unable to find libvarint.so.1.0.1 at resource path "+resourcePath);
+            final File tempFile;
+            try (final InputStream is = NativeDocIdStream.class.getResourceAsStream(resourcePath)) {
+                if (is == null) {
+                    throw new FileNotFoundException("unable to find libvarint.so.1.0.1 at resource path " + resourcePath);
+                }
+                tempFile = File.createTempFile("libvarint", ".so");
+                try (final OutputStream os = new FileOutputStream(tempFile)) {
+                    ByteStreams.copy(is, os);
+                }
             }
-            final File tempFile = File.createTempFile("libvarint", ".so");
-            final OutputStream os = new FileOutputStream(tempFile);
-            ByteStreams.copy(is, os);
-            os.close();
-            is.close();
             System.load(tempFile.getAbsolutePath());
             // noinspection ResultOfMethodCallIgnored
             tempFile.delete();
@@ -145,7 +145,7 @@ public final class NativeDocIdBuffer implements Closeable {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         UNSAFE.freeMemory(bufAddress);
     }
 

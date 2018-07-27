@@ -18,8 +18,6 @@ import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FilterInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 
 /**
@@ -30,13 +28,7 @@ public class InputStreamFTGSIterators {
     private InputStreamFTGSIterators() {}
 
     private static InputStream createInputStream(final File file) throws FileNotFoundException {
-        final BufferedInputStream bufferedInputStream = new BufferedInputStream(new FileInputStream(file));
-
-        return new FilterInputStream(bufferedInputStream) {
-            public void close() throws IOException {
-                bufferedInputStream.close();
-            }
-        };
+        return new BufferedInputStream(new FileInputStream(file));
     }
 
     public static InputStreamFTGSIterator create(final File file,

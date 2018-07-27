@@ -14,7 +14,6 @@
  package com.indeed.imhotep.local;
 
 import com.google.common.collect.Maps;
-import com.google.common.io.Closer;
 import com.indeed.flamdex.api.IntTermDocIterator;
 import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.writer.FlamdexWriter;
@@ -22,9 +21,10 @@ import com.indeed.flamdex.writer.IntFieldWriter;
 import com.indeed.flamdex.writer.StringFieldWriter;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.util.core.io.Closeables2;
+import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
-import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,6 +32,8 @@ import java.util.List;
 import java.util.Map;
 
 public class IndexReWriter {
+    private static final Logger LOG = Logger.getLogger(IndexReWriter.class);
+
     private final List<ImhotepJavaLocalSession> sessions;
     private final ImhotepJavaLocalSession newSession;
     private final int[] sessionDocIdOffsets;
@@ -81,25 +83,23 @@ public class IndexReWriter {
         for (final String intField : intFields) {
             intIters.clear();
             sessionOffsets.clear();
-            try (Closer closer = Closer.create()) {
+            try {
                 for (int i = 0; i < sessions.size(); i++) {
                     final ImhotepJavaLocalSession session = sessions.get(i);
-                    final IntTermDocIterator iter = closer.register(session.getReader().getIntTermDocIterator(intField));
+                    final IntTermDocIterator iter = session.getReader().getIntTermDocIterator(intField);
                     if (iter == null) {
                         continue;
                     }
                     intIters.add(iter);
                     sessionOffsets.add(this.sessionDocIdOffsets[i]);
                 }
-                final MergingIntTermDocIterator iter =
-                        new MergingIntTermDocIterator(intIters, oldToNewDocIdMapping, sessionOffsets);
-                final IntFieldWriter ifw = w.getIntFieldWriter(intField);
-                closer.register(new Closeable() {
-                    @Override
-                    public void close() throws IOException {
-                        ifw.close();
-                    }
-                });
+            } catch (final Throwable t) {
+                Closeables2.closeAll(intIters, LOG);
+                throw t;
+            }
+            try (final MergingIntTermDocIterator iter =
+                    new MergingIntTermDocIterator(intIters, oldToNewDocIdMapping, sessionOffsets);
+                 final IntFieldWriter ifw = w.getIntFieldWriter(intField)) {
                 while (iter.nextTerm()) {
                     ifw.nextTerm(iter.term());
                     /*
@@ -125,27 +125,23 @@ public class IndexReWriter {
         for (final String stringField : stringFields) {
             stringIters.clear();
             sessionOffsets.clear();
-            try (Closer closer = Closer.create()) {
+            try {
                 for (int i = 0; i < sessions.size(); i++) {
                     final ImhotepJavaLocalSession session = sessions.get(i);
-                    final StringTermDocIterator iter =
-                            closer.register(session.getReader().getStringTermDocIterator(stringField));
+                    final StringTermDocIterator iter = session.getReader().getStringTermDocIterator(stringField);
                     if (iter == null) {
                         continue;
                     }
                     stringIters.add(iter);
                     sessionOffsets.add(this.sessionDocIdOffsets[i]);
                 }
-                final MergingStringTermDocIterator iter =
-                        new MergingStringTermDocIterator(stringIters, oldToNewDocIdMapping,
-                                sessionOffsets);
-                final StringFieldWriter sfw = w.getStringFieldWriter(stringField);
-                closer.register(new Closeable() {
-                    @Override
-                    public void close() throws IOException {
-                        sfw.close();
-                    }
-                });
+            } catch (final Throwable t) {
+                Closeables2.closeAll(stringIters, LOG);
+                throw t;
+            }
+            try (final MergingStringTermDocIterator iter =
+                        new MergingStringTermDocIterator(stringIters, oldToNewDocIdMapping, sessionOffsets);
+                 final StringFieldWriter sfw = w.getStringFieldWriter(stringField)) {
                 while (iter.nextTerm()) {
                     sfw.nextTerm(iter.term());
                     /*

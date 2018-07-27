@@ -837,16 +837,17 @@ public enum NativeFlamdexFieldCacher {
             final String osName = System.getProperty("os.name");
             final String arch = System.getProperty("os.arch");
             final String resourcePath = "/native/" + osName + "-" + arch + "/libfieldcache.so.1.0.1";
-            final InputStream is = NativeFlamdexFieldCacher.class.getResourceAsStream(resourcePath);
-            if (is == null) {
-                throw new FileNotFoundException(
-                        "unable to find libfieldcache.so.1.0.1 at resource path " + resourcePath);
+            final File tempFile;
+            try (final InputStream is = NativeFlamdexFieldCacher.class.getResourceAsStream(resourcePath)) {
+                if (is == null) {
+                    throw new FileNotFoundException(
+                            "unable to find libfieldcache.so.1.0.1 at resource path " + resourcePath);
+                }
+                tempFile = File.createTempFile("libfieldcache", ".so");
+                try (final OutputStream os = new FileOutputStream(tempFile)) {
+                    ByteStreams.copy(is, os);
+                }
             }
-            final File tempFile = File.createTempFile("libfieldcache", ".so");
-            final OutputStream os = new FileOutputStream(tempFile);
-            ByteStreams.copy(is, os);
-            os.close();
-            is.close();
             System.load(tempFile.getAbsolutePath());
             tempFile.delete();
         } catch (final Throwable e) {

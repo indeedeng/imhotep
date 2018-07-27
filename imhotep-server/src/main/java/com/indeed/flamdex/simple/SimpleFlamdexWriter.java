@@ -16,7 +16,6 @@
 import com.google.common.base.Charsets;
 import com.google.common.collect.AbstractIterator;
 import com.google.common.io.ByteStreams;
-import com.google.common.io.Closer;
 import com.google.common.io.CountingInputStream;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
@@ -47,7 +46,6 @@ import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
 import java.io.BufferedInputStream;
-import java.io.Closeable;
 import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteOrder;
@@ -347,15 +345,8 @@ public class SimpleFlamdexWriter implements FlamdexWriter {
             final int[] docIdBuf = new int[DOC_ID_BUFFER_SIZE];
 
             for (final String intField : fdx.getIntFields()) {
-                try (Closer closer = Closer.create()) {
-                    final IntFieldWriter ifw = w.getIntFieldWriter(intField);
-                    closer.register(new Closeable() {
-                        @Override
-                        public void close() throws IOException {
-                            ifw.close();
-                        }
-                    });
-                    final IntTermIterator iter = closer.register(fdx.getIntTermIterator(intField));
+                try (final IntFieldWriter ifw = w.getIntFieldWriter(intField);
+                     final IntTermIterator iter = fdx.getIntTermIterator(intField)) {
                     while (iter.next()) {
                         ifw.nextTerm(iter.term());
                         dis.reset(iter);
@@ -373,15 +364,8 @@ public class SimpleFlamdexWriter implements FlamdexWriter {
             }
 
             for (final String stringField : fdx.getStringFields()) {
-                try (Closer closer = Closer.create()) {
-                    final StringFieldWriter sfw = w.getStringFieldWriter(stringField);
-                    closer.register(new Closeable() {
-                        @Override
-                        public void close() throws IOException {
-                            sfw.close();
-                        }
-                    });
-                    final StringTermIterator iter = closer.register(fdx.getStringTermIterator(stringField));
+                try (final StringFieldWriter sfw = w.getStringFieldWriter(stringField);
+                     final StringTermIterator iter = fdx.getStringTermIterator(stringField)) {
                     while (iter.next()) {
                         sfw.nextTerm(iter.term());
                         dis.reset(iter);
@@ -398,6 +382,9 @@ public class SimpleFlamdexWriter implements FlamdexWriter {
                 }
             }
         }
+        // not using try-with-resources here, because in close() method flamdex finalization happens
+        // (like writing metadata file, fields indexes creation and other)
+        // All these information should not be generated in case of error.
         w.close();
     }
 
@@ -604,13 +591,11 @@ public class SimpleFlamdexWriter implements FlamdexWriter {
             throws IOException {
         final Path tempPath = dir.resolve("temp-" + fieldName + "-" + UUID.randomUUID() + ".intarray.bin");
 
-        final Closer closer = Closer.create();
-        try {
-            final MMapBuffer buffer = closer.register(new MMapBuffer(tempPath,
+        try (final MMapBuffer buffer = new MMapBuffer(tempPath,
                                                      0,
                                                      4 * cache.length,
                                                      FileChannel.MapMode.READ_WRITE,
-                                                     ByteOrder.nativeOrder()));
+                                                     ByteOrder.nativeOrder())) {
             final IntArray indices = buffer.memory().intArray(0, cache.length);
             for (int i = 0; i < cache.length; ++i) {
                 indices.set(i, i);
@@ -639,30 +624,25 @@ public class SimpleFlamdexWriter implements FlamdexWriter {
             }, cache.length);
 
             log.debug("writing field " + fieldName);
-            final SimpleFlamdexWriter w = closer.register(new SimpleFlamdexWriter(dir, r.getNumDocs(), false));
-            final IntFieldWriter ifw = w.getIntFieldWriter(fieldName, true);
-            closer.register(new Closeable() {
-                @Override
-                public void close() throws IOException {
-                    ifw.close();
+
+            try (final SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, r.getNumDocs(), false);
+                 final IntFieldWriter ifw = w.getIntFieldWriter(fieldName, true)) {
+                long prev = 0;
+                boolean prevInitialized = false;
+                for (int i = 0; i < cache.length; ++i) {
+                    final long cur = cache[indices.get(i)];
+                    if (!prevInitialized || cur != prev) {
+                        ifw.nextTerm(cur);
+                        prev = cur;
+                        prevInitialized = true;
+                    }
+                    ifw.nextDoc(indices.get(i));
                 }
-            });
-            long prev = 0;
-            boolean prevInitialized = false;
-            for (int i = 0; i < cache.length; ++i) {
-                final long cur = cache[indices.get(i)];
-                if (!prevInitialized || cur != prev) {
-                    ifw.nextTerm(cur);
-                    prev = cur;
-                    prevInitialized = true;
-                }
-                ifw.nextDoc(indices.get(i));
             }
         } finally {
             if (Files.deleteIfExists(tempPath)) {
                 log.warn("unable to delete temp file " + tempPath.toString());
             }
-            Closeables2.closeQuietly(closer, log);
         }
     }
 
@@ -714,15 +694,8 @@ public class SimpleFlamdexWriter implements FlamdexWriter {
         }, values.length);
 
         log.debug("writing field " + newFieldName);
-        try (Closer closer = Closer.create()) {
-            final SimpleFlamdexWriter w = closer.register(new SimpleFlamdexWriter(indexDir, docReader.getNumDocs(), false));
-            final StringFieldWriter sfw = w.getStringFieldWriter(newFieldName, true);
-            closer.register(new Closeable() {
-                @Override
-                public void close() throws IOException {
-                    sfw.close();
-                }
-            });
+        try (final SimpleFlamdexWriter w = new SimpleFlamdexWriter(indexDir, docReader.getNumDocs(), false);
+             final StringFieldWriter sfw = w.getStringFieldWriter(newFieldName, true)) {
             final IntArrayList docList = new IntArrayList();
             docList.add(indices[0]);
             for (int i = 1; i < indices.length; ++i) {

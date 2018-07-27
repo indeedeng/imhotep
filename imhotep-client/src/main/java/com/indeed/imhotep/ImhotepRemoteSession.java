@@ -557,10 +557,8 @@ public class ImhotepRemoteSession
         Path tmp = null;
         try {
             tmp = Files.createTempFile(tempFilePrefix, ".tmp");
-            OutputStream out = null;
             final long start = System.currentTimeMillis();
-            try {
-                out = new LimitedBufferedOutputStream(Files.newOutputStream(tmp), tempFileSizeBytesLeft);
+            try (final OutputStream out = new LimitedBufferedOutputStream(Files.newOutputStream(tmp), tempFileSizeBytesLeft)) {
                 ByteStreams.copy(is, out);
             } catch (final Throwable t) {
                 if(t instanceof WriteLimitExceededException) {
@@ -568,9 +566,6 @@ public class ImhotepRemoteSession
                 }
                 throw Throwables2.propagate(t, IOException.class);
             } finally {
-                if (out != null) {
-                    out.close();
-                }
                 if(log.isDebugEnabled()) {
                     log.debug("[" + getSessionId() + "] time to copy split data to file: " + (System.currentTimeMillis()
                             - start) + " ms, file length: " + Files.size(tmp));
