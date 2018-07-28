@@ -1,0 +1,30 @@
+language: java
+jdk:
+    - openjdk7
+
+script: mvn -Dverbose package dependency:tree
+
+install:
+    - wget https://github.com/google/snappy/releases/download/1.1.3/snappy-1.1.3.tar.gz
+    - tar -xzvf snappy-1.1.3.tar.gz
+    - pushd snappy-1.1.3 && ./configure --prefix=/usr && make && sudo make install && popd
+
+before_deploy:
+    - mkdir deploy
+    - cp */target/imhotep*.* deploy/
+    - cp install-imhotep-maven-local.sh deploy/
+    - cp pom.xml deploy/imhotep.pom
+    - cp imhotep-archive/pom.xml deploy/imhotep-archive.pom
+    - cp imhotep-client/pom.xml deploy/imhotep-client.pom
+    - cp imhotep-server/pom.xml deploy/imhotep-server.pom
+
+deploy:
+    provider: s3
+    access_key_id: AKIAJVZNZT5TTB2Y4BNA
+    secret_access_key:
+      secure: FLV4Zf11wjfEIMgVjiIvx8Q0IUZqxLspcwAZRu9tROby79vs8mKC/eEfgq+VIGKaLTL+U6bA6i9Dp6NJ4r+8JLCNRez4AEYHbTPDnJ+m6FcvVuBSamDHN1bEey1PTkhXsJ3hTBrBA4msZ7VFkfiiqYuyGbMcwGazEq3UcHevo0M=
+    bucket: indeedeng-imhotep-build
+    local-dir: deploy
+    skip_cleanup: true
+    region: us-west-2
+
