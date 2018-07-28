@@ -2,7 +2,7 @@ language: java
 jdk:
     - openjdk8
 
-script: mvn -Dverbose package dependency:tree
+script: mvn -Dverbose -Dprotoc.path=$HOME/protobuf/bin/protoc package dependency:tree
 
 install:
     - bash prereqs/install-snappy.sh
