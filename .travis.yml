@@ -5,9 +5,8 @@ jdk:
 script: mvn -Dverbose package dependency:tree
 
 install:
-    - wget https://github.com/google/snappy/releases/download/1.1.3/snappy-1.1.3.tar.gz
-    - tar -xzvf snappy-1.1.3.tar.gz
-    - pushd snappy-1.1.3 && ./configure --prefix=/usr && make && sudo make install && popd
+    - bash prereqs/install-snappy.sh
+    - bash prereqs/install-protobuf.sh
 
 before_deploy:
     - mkdir deploy
