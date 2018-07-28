@@ -15,6 +15,8 @@ function install_maven {
 	mvn install:install-file -Dfile=$jarfile -DgroupId=com.indeed -DartifactId=$artifact -Dversion=$VERSION -Dpackaging=$type -DpomFile=$pomfile
 }
 
+install_maven imhotep-shardmaster jar
+install_maven imhotep-filesystem jar
 install_maven imhotep-server jar
 install_maven imhotep-client jar
 install_maven imhotep-archive jar

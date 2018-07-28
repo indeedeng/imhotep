@@ -16,6 +16,8 @@ before_deploy:
     - cp imhotep-archive/pom.xml deploy/imhotep-archive.pom
     - cp imhotep-client/pom.xml deploy/imhotep-client.pom
     - cp imhotep-server/pom.xml deploy/imhotep-server.pom
+    - cp imhotep-shardmaster/pom.xml deploy/imhotep-shardmaster.pom
+    - cp imhotep-filesystem/pom.xml deploy/imhotep-filesystem.pom
 
 deploy:
     provider: s3
