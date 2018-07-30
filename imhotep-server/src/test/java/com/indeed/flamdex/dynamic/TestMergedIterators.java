@@ -87,33 +87,32 @@ public class TestMergedIterators {
         final FlamdexReader expectedReader = buildReader(documents);
         final List<FlamdexReader> segmentReaders = buildSegments(documents, NUM_SEGMENTS);
         for (final String field : expectedReader.getIntFields()) {
-            final IntTermIterator expectedIntTermIterator = expectedReader.getIntTermIterator(field);
-            final MergedIntTermIterator actualIntTermIterator = new MergedIntTermIterator(
+            try (final IntTermIterator expectedIntTermIterator = expectedReader.getIntTermIterator(field);
+                 final MergedIntTermIterator actualIntTermIterator = new MergedIntTermIterator(
                     FluentIterable.from(segmentReaders).transform(new Function<FlamdexReader, IntTermIterator>() {
                         @Override
                         public IntTermIterator apply(final FlamdexReader flamdexReader) {
                             return flamdexReader.getIntTermIterator(field);
                         }
                     }).toList()
-            );
+                 )) {
 
-            while (expectedIntTermIterator.next()) {
-                assertTrue(actualIntTermIterator.next());
-                assertEquals(expectedIntTermIterator.term(), actualIntTermIterator.term());
-            }
-
-            for (final int term : new int[]{0, 1, 2, -1, 9999}) {
-                expectedIntTermIterator.reset(term);
-                actualIntTermIterator.reset(term);
                 while (expectedIntTermIterator.next()) {
                     assertTrue(actualIntTermIterator.next());
                     assertEquals(expectedIntTermIterator.term(), actualIntTermIterator.term());
                 }
+
+                for (final int term : new int[]{0, 1, 2, -1, 9999}) {
+                    expectedIntTermIterator.reset(term);
+                    actualIntTermIterator.reset(term);
+                    while (expectedIntTermIterator.next()) {
+                        assertTrue(actualIntTermIterator.next());
+                        assertEquals(expectedIntTermIterator.term(), actualIntTermIterator.term());
+                    }
+                    assertFalse(actualIntTermIterator.next());
+                }
                 assertFalse(actualIntTermIterator.next());
             }
-            assertFalse(actualIntTermIterator.next());
-            expectedIntTermIterator.close();
-            actualIntTermIterator.close();
         }
     }
 
@@ -123,33 +122,32 @@ public class TestMergedIterators {
         final FlamdexReader expectedReader = buildReader(documents);
         final List<FlamdexReader> segmentReaders = buildSegments(documents, NUM_SEGMENTS);
         for (final String field : expectedReader.getStringFields()) {
-            final StringTermIterator expectedStringTermIterator = expectedReader.getStringTermIterator(field);
-            final MergedStringTermIterator actualStringTermIterator = new MergedStringTermIterator(
+            try (final StringTermIterator expectedStringTermIterator = expectedReader.getStringTermIterator(field);
+                 final MergedStringTermIterator actualStringTermIterator = new MergedStringTermIterator(
                     FluentIterable.from(segmentReaders).transform(new Function<FlamdexReader, StringTermIterator>() {
                         @Override
                         public StringTermIterator apply(final FlamdexReader flamdexReader) {
                             return flamdexReader.getStringTermIterator(field);
                         }
                     }).toList()
-            );
+                 )) {
 
-            while (expectedStringTermIterator.next()) {
-                assertTrue(actualStringTermIterator.next());
-                assertEquals(expectedStringTermIterator.term(), actualStringTermIterator.term());
-            }
-            assertFalse(actualStringTermIterator.next());
-
-            for (final String term : new String[]{"0", "1", "2", "-", "9999"}) {
-                expectedStringTermIterator.reset(term);
-                actualStringTermIterator.reset(term);
                 while (expectedStringTermIterator.next()) {
                     assertTrue(actualStringTermIterator.next());
                     assertEquals(expectedStringTermIterator.term(), actualStringTermIterator.term());
                 }
                 assertFalse(actualStringTermIterator.next());
+
+                for (final String term : new String[]{"0", "1", "2", "-", "9999"}) {
+                    expectedStringTermIterator.reset(term);
+                    actualStringTermIterator.reset(term);
+                    while (expectedStringTermIterator.next()) {
+                        assertTrue(actualStringTermIterator.next());
+                        assertEquals(expectedStringTermIterator.term(), actualStringTermIterator.term());
+                    }
+                    assertFalse(actualStringTermIterator.next());
+                }
             }
-            expectedStringTermIterator.close();
-            actualStringTermIterator.close();
         }
     }
 

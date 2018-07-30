@@ -67,8 +67,6 @@ public class TestIndexReWriter {
 
         r1.addStringTerm("sf1", "☃", Arrays.asList(1, 4, 5, 6, 7));
 
-        final ImhotepJavaLocalSession session1 = new ImhotepJavaLocalSession("testSession", r1);
-
         /* make session 2 */
         final MockFlamdexReader r2 =
                 new MockFlamdexReader(Arrays.asList("if1", "if2"),
@@ -90,8 +88,6 @@ public class TestIndexReWriter {
 
         r2.addStringTerm("sf1", "☃", Arrays.asList(1, 4, 5, 6, 7));
 
-        final ImhotepJavaLocalSession session2 = new ImhotepJavaLocalSession("testSession", r2);
-
         /* make session 3 */
         final MockFlamdexReader r3 =
                 new MockFlamdexReader(Arrays.asList("if1", "if2"),
@@ -107,54 +103,52 @@ public class TestIndexReWriter {
 
         r2.addStringTerm("sf1", "☃", Arrays.asList(1, 4, 5, 6, 7));
 
-        final ImhotepJavaLocalSession session3 = new ImhotepJavaLocalSession("testSession", r3);
+        try (final ImhotepJavaLocalSession session1 = new ImhotepJavaLocalSession("testSession", r1);
+             final ImhotepJavaLocalSession session2 = new ImhotepJavaLocalSession("testSession", r2);
+             final ImhotepJavaLocalSession session3 = new ImhotepJavaLocalSession("testSession", r3);
+             final MockFlamdexWriter w = new MockFlamdexWriter();) {
+            /* merge sessions */
+            final IndexReWriter irw =
+                    new IndexReWriter(
+                            Arrays.asList(session3, session1, session2),
+                            session1,
+                            new MemoryReservationContext(
+                                    new ImhotepMemoryPool(Long.MAX_VALUE)));
+            irw.optimizeIndices(Arrays.asList("if1", "if2"), new ArrayList<String>(), w);
 
-        /* merge sessions */
-        final MockFlamdexWriter w = new MockFlamdexWriter();
-        final IndexReWriter irw =
-                new IndexReWriter(
-                                  Arrays.asList(session3, session1, session2),
-                                  session1,
-                                  new MemoryReservationContext(
-                                                               new ImhotepMemoryPool(Long.MAX_VALUE)));
-        irw.optimizeIndices(Arrays.asList("if1", "if2"), new ArrayList<String>(), w);
+            assertEquals("Merged Int Fields are wrong", Arrays.asList("if1", "if2"), w.getIntFields());
+            assertEquals("Merged Int Terms are wrong", Arrays.asList(5, 20), w.getIntTerms().get("if1")
+                    .get(0L));
+            assertEquals("Merged Int Terms are wrong", Arrays.asList(6, 21), w.getIntTerms().get("if1")
+                    .get(1L));
+            assertEquals("Merged Int Terms are wrong", Arrays.asList(7, 22), w.getIntTerms().get("if1")
+                    .get(2L));
+            assertEquals("Merged Int Terms are wrong", Arrays.asList(8, 23), w.getIntTerms().get("if1")
+                    .get(3L));
+            assertEquals("Merged Int Terms are wrong", Arrays.asList(9, 24), w.getIntTerms().get("if1")
+                    .get(4L));
 
-        assertEquals("Merged Int Fields are wrong", Arrays.asList("if1", "if2"), w.getIntFields());
-        assertEquals("Merged Int Terms are wrong", Arrays.asList(5, 20), w.getIntTerms().get("if1")
-                                                                          .get(0L));
-        assertEquals("Merged Int Terms are wrong", Arrays.asList(6, 21), w.getIntTerms().get("if1")
-                                                                          .get(1L));
-        assertEquals("Merged Int Terms are wrong", Arrays.asList(7, 22), w.getIntTerms().get("if1")
-                                                                          .get(2L));
-        assertEquals("Merged Int Terms are wrong", Arrays.asList(8, 23), w.getIntTerms().get("if1")
-                                                                          .get(3L));
-        assertEquals("Merged Int Terms are wrong", Arrays.asList(9, 24), w.getIntTerms().get("if1")
-                                                                          .get(4L));
-
-        assertEquals("Merged Int Terms are wrong", Arrays.asList(0, 15), w.getIntTerms().get("if2")
-                                                                          .get(0L));
-        assertEquals("Merged Int Terms are wrong", Arrays.asList(1, 16), w.getIntTerms().get("if2")
-                                                                          .get(1L));
-        assertEquals("Merged Int Terms are wrong", Arrays.asList(2, 17), w.getIntTerms().get("if2")
-                                                                          .get(2L));
-        assertEquals("Merged Int Terms are wrong", Arrays.asList(3, 18), w.getIntTerms().get("if2")
-                                                                          .get(3L));
-        assertEquals("Merged Int Terms are wrong", Arrays.asList(4, 19), w.getIntTerms().get("if2")
-                                                                          .get(4L));
-        assertEquals("Merged Int Terms are wrong", Collections.singletonList(10), w.getIntTerms().get("if2")
-                                                                       .get(5L));
-        assertEquals("Merged Int Terms are wrong", Collections.singletonList(11), w.getIntTerms().get("if2")
-                                                                       .get(6L));
-        assertEquals("Merged Int Terms are wrong", Collections.singletonList(12), w.getIntTerms().get("if2")
-                                                                       .get(7L));
-        assertEquals("Merged Int Terms are wrong", Collections.singletonList(13), w.getIntTerms().get("if2")
-                                                                       .get(8L));
-        assertEquals("Merged Int Terms are wrong", Collections.singletonList(14), w.getIntTerms().get("if2")
-                                                                       .get(9L));
-
-        session1.close();
-        session2.close();
-        session3.close();
+            assertEquals("Merged Int Terms are wrong", Arrays.asList(0, 15), w.getIntTerms().get("if2")
+                    .get(0L));
+            assertEquals("Merged Int Terms are wrong", Arrays.asList(1, 16), w.getIntTerms().get("if2")
+                    .get(1L));
+            assertEquals("Merged Int Terms are wrong", Arrays.asList(2, 17), w.getIntTerms().get("if2")
+                    .get(2L));
+            assertEquals("Merged Int Terms are wrong", Arrays.asList(3, 18), w.getIntTerms().get("if2")
+                    .get(3L));
+            assertEquals("Merged Int Terms are wrong", Arrays.asList(4, 19), w.getIntTerms().get("if2")
+                    .get(4L));
+            assertEquals("Merged Int Terms are wrong", Collections.singletonList(10), w.getIntTerms().get("if2")
+                    .get(5L));
+            assertEquals("Merged Int Terms are wrong", Collections.singletonList(11), w.getIntTerms().get("if2")
+                    .get(6L));
+            assertEquals("Merged Int Terms are wrong", Collections.singletonList(12), w.getIntTerms().get("if2")
+                    .get(7L));
+            assertEquals("Merged Int Terms are wrong", Collections.singletonList(13), w.getIntTerms().get("if2")
+                    .get(8L));
+            assertEquals("Merged Int Terms are wrong", Collections.singletonList(14), w.getIntTerms().get("if2")
+                    .get(9L));
+        }
     }
 
     @Test
@@ -187,8 +181,6 @@ public class TestIndexReWriter {
 
         r1.addIntTerm("if1", 3, Arrays.asList(1, 4, 5, 6, 7));
 
-        final ImhotepJavaLocalSession session1 = new ImhotepJavaLocalSession("testSession", r1);
-
         /* make session 2 */
         final MockFlamdexReader r2 =
                 new MockFlamdexReader(Collections.singletonList("if1"),
@@ -210,8 +202,6 @@ public class TestIndexReWriter {
 
         r2.addIntTerm("if1", 3, Arrays.asList(1, 4, 5, 6, 7));
 
-        final ImhotepJavaLocalSession session2 = new ImhotepJavaLocalSession("testSession", r2);
-
         /* make session 3 */
         final MockFlamdexReader r3 =
                 new MockFlamdexReader(Collections.singletonList("if1"),
@@ -227,56 +217,55 @@ public class TestIndexReWriter {
 
         r2.addIntTerm("if1", 3, Arrays.asList(1, 4, 5, 6, 7));
 
-        final ImhotepJavaLocalSession session3 = new ImhotepJavaLocalSession("testSession", r3);
+        try (final ImhotepJavaLocalSession session1 = new ImhotepJavaLocalSession("testSession", r1);
+             final ImhotepJavaLocalSession session2 = new ImhotepJavaLocalSession("testSession", r2);
+             final ImhotepJavaLocalSession session3 = new ImhotepJavaLocalSession("testSession", r3);
+             final MockFlamdexWriter w = new MockFlamdexWriter()) {
 
-        /* merge sessions */
-        final MockFlamdexWriter w = new MockFlamdexWriter();
-        final IndexReWriter irw =
-                new IndexReWriter(
-                                  Arrays.asList(session3, session1, session2),
-                                  session1,
-                                  new MemoryReservationContext(
-                                                               new ImhotepMemoryPool(Long.MAX_VALUE)));
-        irw.optimizeIndices(new ArrayList<String>(), Arrays.asList("sf1", "sf2"), w);
+            /* merge sessions */
+            final IndexReWriter irw =
+                    new IndexReWriter(
+                            Arrays.asList(session3, session1, session2),
+                            session1,
+                            new MemoryReservationContext(
+                                    new ImhotepMemoryPool(Long.MAX_VALUE)));
+            irw.optimizeIndices(new ArrayList<String>(), Arrays.asList("sf1", "sf2"), w);
 
-        assertEquals("Merged String Fields are wrong",
-                     Arrays.asList("sf1", "sf2"),
-                     w.getStringFields());
-        assertEquals("Merged String Terms are wrong", Arrays.asList(5, 20), w.getStringTerms()
-                                                                             .get("sf1").get("0"));
-        assertEquals("Merged String Terms are wrong", Arrays.asList(6, 21), w.getStringTerms()
-                                                                             .get("sf1").get("1"));
-        assertEquals("Merged String Terms are wrong", Arrays.asList(7, 22), w.getStringTerms()
-                                                                             .get("sf1").get("2"));
-        assertEquals("Merged String Terms are wrong", Arrays.asList(8, 23), w.getStringTerms()
-                                                                             .get("sf1").get("3"));
-        assertEquals("Merged String Terms are wrong", Arrays.asList(9, 24), w.getStringTerms()
-                                                                             .get("sf1").get("4"));
+            assertEquals("Merged String Fields are wrong",
+                    Arrays.asList("sf1", "sf2"),
+                    w.getStringFields());
+            assertEquals("Merged String Terms are wrong", Arrays.asList(5, 20), w.getStringTerms()
+                    .get("sf1").get("0"));
+            assertEquals("Merged String Terms are wrong", Arrays.asList(6, 21), w.getStringTerms()
+                    .get("sf1").get("1"));
+            assertEquals("Merged String Terms are wrong", Arrays.asList(7, 22), w.getStringTerms()
+                    .get("sf1").get("2"));
+            assertEquals("Merged String Terms are wrong", Arrays.asList(8, 23), w.getStringTerms()
+                    .get("sf1").get("3"));
+            assertEquals("Merged String Terms are wrong", Arrays.asList(9, 24), w.getStringTerms()
+                    .get("sf1").get("4"));
 
-        assertEquals("Merged String Terms are wrong", Arrays.asList(0, 15), w.getStringTerms()
-                                                                             .get("sf2").get("0"));
-        assertEquals("Merged String Terms are wrong", Arrays.asList(1, 16), w.getStringTerms()
-                                                                             .get("sf2").get("1"));
-        assertEquals("Merged String Terms are wrong", Arrays.asList(2, 17), w.getStringTerms()
-                                                                             .get("sf2").get("2"));
-        assertEquals("Merged String Terms are wrong", Arrays.asList(3, 18), w.getStringTerms()
-                                                                             .get("sf2").get("3"));
-        assertEquals("Merged String Terms are wrong", Arrays.asList(4, 19), w.getStringTerms()
-                                                                             .get("sf2").get("4"));
-        assertEquals("Merged String Terms are wrong", Collections.singletonList(10), w.getStringTerms()
-                                                                          .get("sf2").get("5"));
-        assertEquals("Merged String Terms are wrong", Collections.singletonList(11), w.getStringTerms()
-                                                                          .get("sf2").get("6"));
-        assertEquals("Merged String Terms are wrong", Collections.singletonList(12), w.getStringTerms()
-                                                                          .get("sf2").get("7"));
-        assertEquals("Merged String Terms are wrong", Collections.singletonList(13), w.getStringTerms()
-                                                                          .get("sf2").get("8"));
-        assertEquals("Merged String Terms are wrong", Collections.singletonList(14), w.getStringTerms()
-                                                                          .get("sf2").get("9"));
-
-        session1.close();
-        session2.close();
-        session3.close();
+            assertEquals("Merged String Terms are wrong", Arrays.asList(0, 15), w.getStringTerms()
+                    .get("sf2").get("0"));
+            assertEquals("Merged String Terms are wrong", Arrays.asList(1, 16), w.getStringTerms()
+                    .get("sf2").get("1"));
+            assertEquals("Merged String Terms are wrong", Arrays.asList(2, 17), w.getStringTerms()
+                    .get("sf2").get("2"));
+            assertEquals("Merged String Terms are wrong", Arrays.asList(3, 18), w.getStringTerms()
+                    .get("sf2").get("3"));
+            assertEquals("Merged String Terms are wrong", Arrays.asList(4, 19), w.getStringTerms()
+                    .get("sf2").get("4"));
+            assertEquals("Merged String Terms are wrong", Collections.singletonList(10), w.getStringTerms()
+                    .get("sf2").get("5"));
+            assertEquals("Merged String Terms are wrong", Collections.singletonList(11), w.getStringTerms()
+                    .get("sf2").get("6"));
+            assertEquals("Merged String Terms are wrong", Collections.singletonList(12), w.getStringTerms()
+                    .get("sf2").get("7"));
+            assertEquals("Merged String Terms are wrong", Collections.singletonList(13), w.getStringTerms()
+                    .get("sf2").get("8"));
+            assertEquals("Merged String Terms are wrong", Collections.singletonList(14), w.getStringTerms()
+                    .get("sf2").get("9"));
+        }
     }
 
     @Test

@@ -109,14 +109,14 @@ public class TestFieldCacher {
                     } else {
                         assertFalse(Files.exists(tempDir.resolve(fieldCacher.getMMapFileName("f"))));
                     }
-                    final IntValueLookup mmivl = fieldCacher.newMMapFieldCache("f",
+                    try (final IntValueLookup mmivl = fieldCacher.newMMapFieldCache("f",
                                                                          r,
                                                                          tempDir,
                                                                          minMax.min,
-                                                                         minMax.max);
-                    verifyCache(cache, mmivl);
-                    assertTrue(Files.exists(tempDir.resolve(fieldCacher.getMMapFileName("f"))));
-                    mmivl.close();
+                                                                         minMax.max)) {
+                        verifyCache(cache, mmivl);
+                        assertTrue(Files.exists(tempDir.resolve(fieldCacher.getMMapFileName("f"))));
+                    }
                     assertTrue(Files.exists(tempDir.resolve(fieldCacher.getMMapFileName("f"))));
                 }
             }

@@ -67,62 +67,64 @@ public class TestMemoryFlamdex {
 
     @Test
     public void testIntMaxValue() throws IOException {
-        final MemoryFlamdex fdx = new MemoryFlamdex().setNumDocs(1);
-        final IntFieldWriter ifw = fdx.getIntFieldWriter("if1");
-        ifw.nextTerm(Integer.MAX_VALUE);
-        ifw.nextDoc(0);
-        ifw.close();
-        fdx.close();
+        try (final MemoryFlamdex fdx = new MemoryFlamdex().setNumDocs(1);
+             final MemoryFlamdex fdx2 = new MemoryFlamdex()) {
+            try (final IntFieldWriter ifw = fdx.getIntFieldWriter("if1")) {
+                ifw.nextTerm(Integer.MAX_VALUE);
+                ifw.nextDoc(0);
+            }
 
-        final ByteArrayDataOutput out = ByteStreams.newDataOutput();
-        fdx.write(out);
+            final ByteArrayDataOutput out = ByteStreams.newDataOutput();
+            fdx.write(out);
 
-        final MemoryFlamdex fdx2 = new MemoryFlamdex();
-        fdx2.readFields(ByteStreams.newDataInput(out.toByteArray()));
+            fdx2.readFields(ByteStreams.newDataInput(out.toByteArray()));
 
-        innerTestIntMaxValue(fdx2);
+            innerTestIntMaxValue(fdx2);
 
-        innerTestIntMaxValue(MemoryFlamdex.streamer(ByteStreams.newDataInput(out.toByteArray())));
+            innerTestIntMaxValue(MemoryFlamdex.streamer(ByteStreams.newDataInput(out.toByteArray())));
+        }
     }
 
     private void innerTestIntMaxValue(final FlamdexReader fdx2) {
-        final IntTermIterator iter = fdx2.getIntTermIterator("if1");
-        final DocIdStream dis = fdx2.getDocIdStream();
-        final int[] buf = new int[2];
-        assertTrue(iter.next());
-        assertEquals(Integer.MAX_VALUE, iter.term());
-        dis.reset(iter);
-        assertEquals(1, dis.fillDocIdBuffer(buf));
-        assertEquals(0, buf[0]);
-        assertFalse(iter.next());
+        try (final IntTermIterator iter = fdx2.getIntTermIterator("if1");
+             final DocIdStream dis = fdx2.getDocIdStream()) {
+            final int[] buf = new int[2];
+            assertTrue(iter.next());
+            assertEquals(Integer.MAX_VALUE, iter.term());
+            dis.reset(iter);
+            assertEquals(1, dis.fillDocIdBuffer(buf));
+            assertEquals(0, buf[0]);
+            assertFalse(iter.next());
+        }
     }
 
     @Test
     public void testStreamerDocIdStream() throws IOException {
-        final MemoryFlamdex fdx = new MemoryFlamdex();
-        final FlamdexDocument doc = new FlamdexDocument();
-        doc.setIntField("if1", 5);
-        for (int i = 0; i < 5; ++i) {
-            fdx.addDocument(doc);
+        try (final MemoryFlamdex fdx = new MemoryFlamdex()) {
+            final FlamdexDocument doc = new FlamdexDocument();
+            doc.setIntField("if1", 5);
+            for (int i = 0; i < 5; ++i) {
+                fdx.addDocument(doc);
+            }
+
+            final ByteArrayDataOutput out = ByteStreams.newDataOutput();
+            fdx.write(out);
+
+            try (final FlamdexReader r = MemoryFlamdex.streamer(ByteStreams.newDataInput(out.toByteArray()));
+                 final DocIdStream dis = r.getDocIdStream()) {
+                final IntTermIterator iter = r.getIntTermIterator("if1");
+                assertTrue(iter.next());
+                assertEquals(5, iter.term());
+                dis.reset(iter);
+                final int[] buf = new int[2];
+                assertEquals(2, dis.fillDocIdBuffer(buf));
+                assertArrayEquals(new int[]{0, 1}, buf);
+                assertEquals(2, dis.fillDocIdBuffer(buf));
+                assertArrayEquals(new int[]{2, 3}, buf);
+                assertEquals(1, dis.fillDocIdBuffer(buf));
+                assertEquals(4, buf[0]);
+            }
         }
-        fdx.close();
-
-        final ByteArrayDataOutput out = ByteStreams.newDataOutput();
-        fdx.write(out);
-
-        final FlamdexReader r = MemoryFlamdex.streamer(ByteStreams.newDataInput(out.toByteArray()));
-        final IntTermIterator iter = r.getIntTermIterator("if1");
-        assertTrue(iter.next());
-        assertEquals(5, iter.term());
-        final DocIdStream dis = r.getDocIdStream();
-        dis.reset(iter);
-        final int[] buf = new int[2];
-        assertEquals(2, dis.fillDocIdBuffer(buf));
-        assertArrayEquals(new int[]{0, 1}, buf);
-        assertEquals(2, dis.fillDocIdBuffer(buf));
-        assertArrayEquals(new int[]{2, 3}, buf);
-        assertEquals(1, dis.fillDocIdBuffer(buf));
-        assertEquals(4, buf[0]);
     }
 
     @Test
@@ -148,66 +150,65 @@ public class TestMemoryFlamdex {
     private void innerTestBadDoc(final MemoryFlamdex fdx) {
         assertEquals(2, fdx.getNumDocs());
 
-        final IntTermIterator iter = fdx.getIntTermIterator("if1");
-        final DocIdStream dis = fdx.getDocIdStream();
-        final int[] buf = new int[64];
-        assertTrue(iter.next());
-        assertEquals(1, iter.term());
-        assertEquals(2, iter.docFreq());
-        dis.reset(iter);
-        assertEquals(2, dis.fillDocIdBuffer(buf));
-        assertArrayEquals(new int[]{0, 1}, Arrays.copyOf(buf, 2));
-        assertTrue(iter.next());
-        assertEquals(2, iter.term());
-        assertEquals(1, iter.docFreq());
-        dis.reset(iter);
-        assertEquals(1, dis.fillDocIdBuffer(buf));
-        assertEquals(1, buf[0]);
-        assertTrue(iter.next());
-        assertEquals(3, iter.term());
-        assertEquals(1, iter.docFreq());
-        dis.reset(iter);
-        assertEquals(1, dis.fillDocIdBuffer(buf));
-        assertEquals(0, buf[0]);
-        assertTrue(iter.next());
-        assertEquals(4, iter.term());
-        assertEquals(1, iter.docFreq());
-        dis.reset(iter);
-        assertEquals(1, dis.fillDocIdBuffer(buf));
-        assertEquals(1, buf[0]);
-        assertFalse(iter.next());
-        dis.close();
-        iter.close();
+        try (final IntTermIterator iter = fdx.getIntTermIterator("if1");
+             final DocIdStream dis = fdx.getDocIdStream()) {
+            final int[] buf = new int[64];
+            assertTrue(iter.next());
+            assertEquals(1, iter.term());
+            assertEquals(2, iter.docFreq());
+            dis.reset(iter);
+            assertEquals(2, dis.fillDocIdBuffer(buf));
+            assertArrayEquals(new int[]{0, 1}, Arrays.copyOf(buf, 2));
+            assertTrue(iter.next());
+            assertEquals(2, iter.term());
+            assertEquals(1, iter.docFreq());
+            dis.reset(iter);
+            assertEquals(1, dis.fillDocIdBuffer(buf));
+            assertEquals(1, buf[0]);
+            assertTrue(iter.next());
+            assertEquals(3, iter.term());
+            assertEquals(1, iter.docFreq());
+            dis.reset(iter);
+            assertEquals(1, dis.fillDocIdBuffer(buf));
+            assertEquals(0, buf[0]);
+            assertTrue(iter.next());
+            assertEquals(4, iter.term());
+            assertEquals(1, iter.docFreq());
+            dis.reset(iter);
+            assertEquals(1, dis.fillDocIdBuffer(buf));
+            assertEquals(1, buf[0]);
+            assertFalse(iter.next());
+        }
     }
 
     @Test
     public void testTermWrite() throws IOException {
         final MemoryFlamdex fdx = new MemoryFlamdex().setNumDocs(10);
-        final IntFieldWriter ifw = fdx.getIntFieldWriter("if1");
-        ifw.nextTerm(5);
-        ifw.nextDoc(0);
-        ifw.nextDoc(3);
-        ifw.nextDoc(4);
-        ifw.nextDoc(5);
-        ifw.nextTerm(6);
-        ifw.nextTerm(99);
-        ifw.nextDoc(1);
-        ifw.nextDoc(2);
-        ifw.nextDoc(7);
-        ifw.close();
-        final StringFieldWriter sfw = fdx.getStringFieldWriter("sf1");
-        sfw.nextTerm("a");
-        sfw.nextDoc(2);
-        sfw.nextDoc(8);
-        sfw.nextDoc(9);
-        sfw.nextTerm("b");
-        sfw.nextDoc(1);
-        sfw.nextDoc(8);
-        sfw.nextTerm("c");
-        sfw.nextTerm("d");
-        sfw.nextDoc(5);
-        sfw.nextDoc(6);
-        sfw.close();
+        try (final IntFieldWriter ifw = fdx.getIntFieldWriter("if1")) {
+            ifw.nextTerm(5);
+            ifw.nextDoc(0);
+            ifw.nextDoc(3);
+            ifw.nextDoc(4);
+            ifw.nextDoc(5);
+            ifw.nextTerm(6);
+            ifw.nextTerm(99);
+            ifw.nextDoc(1);
+            ifw.nextDoc(2);
+            ifw.nextDoc(7);
+        }
+        try (final StringFieldWriter sfw = fdx.getStringFieldWriter("sf1")) {
+            sfw.nextTerm("a");
+            sfw.nextDoc(2);
+            sfw.nextDoc(8);
+            sfw.nextDoc(9);
+            sfw.nextTerm("b");
+            sfw.nextDoc(1);
+            sfw.nextDoc(8);
+            sfw.nextTerm("c");
+            sfw.nextTerm("d");
+            sfw.nextDoc(5);
+            sfw.nextDoc(6);
+        }
         fdx.close();
 
         final ByteArrayDataOutput out = ByteStreams.newDataOutput();
@@ -225,65 +226,60 @@ public class TestMemoryFlamdex {
     private void verify(final FlamdexReader fdx) {
         assertEquals(10, fdx.getNumDocs());
 
-        final DocIdStream dis = fdx.getDocIdStream();
-        final IntTermIterator iti = fdx.getIntTermIterator("if1");
-        assertTrue(iti.next());
-        assertEquals(5, iti.term());
-        assertEquals(4, iti.docFreq());
-        final int[] buf = new int[64];
-        dis.reset(iti);
-        assertEquals(4, dis.fillDocIdBuffer(buf));
-        assertArrayEquals(new int[]{0, 3, 4, 5}, Arrays.copyOf(buf, 4));
-        assertTrue(iti.next());
-        assertEquals(99, iti.term());
-        assertEquals(3, iti.docFreq());
-        dis.reset(iti);
-        assertEquals(3, dis.fillDocIdBuffer(buf));
-        assertArrayEquals(new int[]{1, 2, 7}, Arrays.copyOf(buf, 3));
-        assertFalse(iti.next());
+        try (final IntTermIterator iti = fdx.getIntTermIterator("if1");
+             final StringTermIterator sti = fdx.getStringTermIterator("sf1");
+             final DocIdStream dis = fdx.getDocIdStream();) {
+            assertTrue(iti.next());
+            assertEquals(5, iti.term());
+            assertEquals(4, iti.docFreq());
+            final int[] buf = new int[64];
+            dis.reset(iti);
+            assertEquals(4, dis.fillDocIdBuffer(buf));
+            assertArrayEquals(new int[]{0, 3, 4, 5}, Arrays.copyOf(buf, 4));
+            assertTrue(iti.next());
+            assertEquals(99, iti.term());
+            assertEquals(3, iti.docFreq());
+            dis.reset(iti);
+            assertEquals(3, dis.fillDocIdBuffer(buf));
+            assertArrayEquals(new int[]{1, 2, 7}, Arrays.copyOf(buf, 3));
+            assertFalse(iti.next());
 
-        iti.reset(6);
-        assertTrue(iti.next());
-        assertEquals(99, iti.term());
-        dis.reset(iti);
-        assertEquals(3, dis.fillDocIdBuffer(buf));
-        assertArrayEquals(new int[]{1, 2, 7}, Arrays.copyOf(buf, 3));
-        assertFalse(iti.next());
+            iti.reset(6);
+            assertTrue(iti.next());
+            assertEquals(99, iti.term());
+            dis.reset(iti);
+            assertEquals(3, dis.fillDocIdBuffer(buf));
+            assertArrayEquals(new int[]{1, 2, 7}, Arrays.copyOf(buf, 3));
+            assertFalse(iti.next());
 
-        iti.close();
+            assertTrue(sti.next());
+            assertEquals("a", sti.term());
+            assertEquals(3, sti.docFreq());
+            dis.reset(sti);
+            assertEquals(3, dis.fillDocIdBuffer(buf));
+            assertArrayEquals(new int[]{2, 8, 9}, Arrays.copyOf(buf, 3));
+            assertTrue(sti.next());
+            assertEquals("b", sti.term());
+            assertEquals(2, sti.docFreq());
+            dis.reset(sti);
+            assertEquals(2, dis.fillDocIdBuffer(buf));
+            assertArrayEquals(new int[]{1, 8}, Arrays.copyOf(buf, 2));
+            assertTrue(sti.next());
+            assertEquals("d", sti.term());
+            assertEquals(2, sti.docFreq());
+            dis.reset(sti);
+            assertEquals(2, dis.fillDocIdBuffer(buf));
+            assertArrayEquals(new int[]{5, 6}, Arrays.copyOf(buf, 2));
+            assertFalse(sti.next());
 
-        final StringTermIterator sti = fdx.getStringTermIterator("sf1");
-        assertTrue(sti.next());
-        assertEquals("a", sti.term());
-        assertEquals(3, sti.docFreq());
-        dis.reset(sti);
-        assertEquals(3, dis.fillDocIdBuffer(buf));
-        assertArrayEquals(new int[]{2, 8, 9}, Arrays.copyOf(buf, 3));
-        assertTrue(sti.next());
-        assertEquals("b", sti.term());
-        assertEquals(2, sti.docFreq());
-        dis.reset(sti);
-        assertEquals(2, dis.fillDocIdBuffer(buf));
-        assertArrayEquals(new int[]{1, 8}, Arrays.copyOf(buf, 2));
-        assertTrue(sti.next());
-        assertEquals("d", sti.term());
-        assertEquals(2, sti.docFreq());
-        dis.reset(sti);
-        assertEquals(2, dis.fillDocIdBuffer(buf));
-        assertArrayEquals(new int[]{5, 6}, Arrays.copyOf(buf, 2));
-        assertFalse(sti.next());
-
-        sti.reset("c");
-        assertTrue(sti.next());
-        assertEquals("d", sti.term());
-        dis.reset(sti);
-        assertEquals(2, dis.fillDocIdBuffer(buf));
-        assertArrayEquals(new int[]{5, 6}, Arrays.copyOf(buf, 2));
-        assertFalse(sti.next());
-
-        sti.close();
-
-        dis.close();
+            sti.reset("c");
+            assertTrue(sti.next());
+            assertEquals("d", sti.term());
+            dis.reset(sti);
+            assertEquals(2, dis.fillDocIdBuffer(buf));
+            assertArrayEquals(new int[]{5, 6}, Arrays.copyOf(buf, 2));
+            assertFalse(sti.next());
+        }
     }
 
     @Test
@@ -381,9 +377,9 @@ public class TestMemoryFlamdex {
         final SimpleFlamdexWriter writer = new SimpleFlamdexWriter(tmpFlamdexDir, numDocs, true);
         SimpleFlamdexWriter.writeFlamdex(merged, writer);
         writer.close();
-        final SimpleFlamdexReader reader = SimpleFlamdexReader.open(tmpFlamdexDir);
-        assertTrue(FlamdexCompare.unorderedEquals(reader, original));
-        reader.close();
+        try (final SimpleFlamdexReader reader = SimpleFlamdexReader.open(tmpFlamdexDir)) {
+            assertTrue(FlamdexCompare.unorderedEquals(reader, original));
+        }
     }
 
     public class MockDoc {

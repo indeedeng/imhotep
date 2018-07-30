@@ -95,41 +95,41 @@ public class TestNativeFlamdexFTGSIterator {
                                        final long maxDocs) throws IOException {
         final int maxTermDocs = (size < 2000) ? size : size / 1000;
         final int maxUnassignedDocs = (size < 100) ? 10 : 100;
-        final IntFieldWriter ifw = w.getIntFieldWriter(intFieldName);
+        try (final IntFieldWriter ifw = w.getIntFieldWriter(intFieldName)) {
 
-        final UnusedDocsIds unusedDocIds = new UnusedDocsIds(rand, size);
+            final UnusedDocsIds unusedDocIds = new UnusedDocsIds(rand, size);
 
-        final TreeMap<Long, int[]> map = new TreeMap<>();
-        while (unusedDocIds.size() > maxUnassignedDocs) {
-            final long term = termGenerator.randVal();
-            if (term == 0 && termGenerator != MetricMaxSizes.BINARY) {
-                continue;
-            }
-            final int maxDocsPerTerm = Math.min(unusedDocIds.size(), maxTermDocs);
-            final int numDocs = unusedDocIds.size() > 1 ? rand.nextInt(maxDocsPerTerm - 1) + 1 : 1;
-            final int[] docIds = selectDocIds(unusedDocIds, numDocs);
-            final int[] existingDocs = map.get(term);
-            if (existingDocs == null) {
-                map.put(term, docIds);
-            } else {
-                final int[] arr = new int[docIds.length + existingDocs.length];
-                System.arraycopy(docIds, 0, arr, 0, docIds.length);
-                System.arraycopy(existingDocs, 0, arr, docIds.length, existingDocs.length);
-                Arrays.sort(arr);
-                map.put(term, arr);
-            }
-        }
-
-        for (final Long term : map.keySet()) {
-            ifw.nextTerm(term);
-            for (final int doc : map.get(term)) {
-                if (doc >= maxDocs) {
-                    throw new RuntimeException("WTF!");
+            final TreeMap<Long, int[]> map = new TreeMap<>();
+            while (unusedDocIds.size() > maxUnassignedDocs) {
+                final long term = termGenerator.randVal();
+                if (term == 0 && termGenerator != MetricMaxSizes.BINARY) {
+                    continue;
                 }
-                ifw.nextDoc(doc);
+                final int maxDocsPerTerm = Math.min(unusedDocIds.size(), maxTermDocs);
+                final int numDocs = unusedDocIds.size() > 1 ? rand.nextInt(maxDocsPerTerm - 1) + 1 : 1;
+                final int[] docIds = selectDocIds(unusedDocIds, numDocs);
+                final int[] existingDocs = map.get(term);
+                if (existingDocs == null) {
+                    map.put(term, docIds);
+                } else {
+                    final int[] arr = new int[docIds.length + existingDocs.length];
+                    System.arraycopy(docIds, 0, arr, 0, docIds.length);
+                    System.arraycopy(existingDocs, 0, arr, docIds.length, existingDocs.length);
+                    Arrays.sort(arr);
+                    map.put(term, arr);
+                }
+            }
+
+            for (final Long term : map.keySet()) {
+                ifw.nextTerm(term);
+                for (final int doc : map.get(term)) {
+                    if (doc >= maxDocs) {
+                        throw new RuntimeException("WTF!");
+                    }
+                    ifw.nextDoc(doc);
+                }
             }
         }
-        ifw.close();
     }
 
     private void createFlamdexStringField(final String stringFieldName,
@@ -139,32 +139,32 @@ public class TestNativeFlamdexFTGSIterator {
                                           final long maxDocs) throws IOException {
         final int maxTermDocs = (size < 2000) ? size : size / 1000;
         final int maxUnassignedDocs = (size < 100) ? 10 : 100;
-        final StringFieldWriter sfw = w.getStringFieldWriter(stringFieldName);
+        try (final StringFieldWriter sfw = w.getStringFieldWriter(stringFieldName)) {
 
-        final UnusedDocsIds unusedDocIds = new UnusedDocsIds(rand, size);
+            final UnusedDocsIds unusedDocIds = new UnusedDocsIds(rand, size);
 
-        int i = 0;
-        final TreeMap<String, int[]> map = new TreeMap<>();
-        while (unusedDocIds.size() > maxUnassignedDocs) {
-            final String term = termsList.get(i);
+            int i = 0;
+            final TreeMap<String, int[]> map = new TreeMap<>();
+            while (unusedDocIds.size() > maxUnassignedDocs) {
+                final String term = termsList.get(i);
 
-            final int maxDocsPerTerm = Math.min(unusedDocIds.size(), maxTermDocs);
-            final int numDocs = unusedDocIds.size() > 1 ? rand.nextInt(maxDocsPerTerm - 1) + 1 : 1;
-            final int[] docIds = selectDocIds(unusedDocIds, numDocs);
-            map.put(term, docIds);
-            i++;
-        }
+                final int maxDocsPerTerm = Math.min(unusedDocIds.size(), maxTermDocs);
+                final int numDocs = unusedDocIds.size() > 1 ? rand.nextInt(maxDocsPerTerm - 1) + 1 : 1;
+                final int[] docIds = selectDocIds(unusedDocIds, numDocs);
+                map.put(term, docIds);
+                i++;
+            }
 
-        for (final String term : map.keySet()) {
-            sfw.nextTerm(term);
-            for (final int doc : map.get(term)) {
-                if (doc >= maxDocs) {
-                    throw new RuntimeException("WTF!");
+            for (final String term : map.keySet()) {
+                sfw.nextTerm(term);
+                for (final int doc : map.get(term)) {
+                    if (doc >= maxDocs) {
+                        throw new RuntimeException("WTF!");
+                    }
+                    sfw.nextDoc(doc);
                 }
-                sfw.nextDoc(doc);
             }
         }
-        sfw.close();
     }
 
     private Path generateShard(final List<FieldDesc> fieldDescs) throws IOException {
@@ -188,17 +188,16 @@ public class TestNativeFlamdexFTGSIterator {
 
 //        System.out.println("numdocs: " + nDocs);
 
-        final SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, nDocs, true);
+        try (final SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, nDocs, true)) {
 
-        for (final FieldDesc fd : fieldDescs) {
-            if (fd.isIntfield) {
-                createFlamdexIntField(fd.name, fd.termGenerator, fd.numDocs, w, nDocs);
-            } else {
-                createFlamdexStringField(fd.name, fd.numDocs, w, fd.terms, nDocs);
+            for (final FieldDesc fd : fieldDescs) {
+                if (fd.isIntfield) {
+                    createFlamdexIntField(fd.name, fd.termGenerator, fd.numDocs, w, nDocs);
+                } else {
+                    createFlamdexStringField(fd.name, fd.numDocs, w, fd.terms, nDocs);
+                }
             }
         }
-
-        w.close();
         return dir;
     }
 

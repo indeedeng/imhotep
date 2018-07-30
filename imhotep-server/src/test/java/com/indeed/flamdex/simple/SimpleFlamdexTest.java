@@ -88,15 +88,13 @@ public class SimpleFlamdexTest {
             assertFalse(btreeExists(strBtreePath));
 
             config.setWriteBTreesIfNotExisting(false);
-            final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir, config);
-            r.close();
+            SimpleFlamdexReader.open(dir, config).close(); // writing to disk
 
             assertFalse(btreeExists(intBtreePath));
             assertFalse(btreeExists(strBtreePath));
 
             config.setWriteBTreesIfNotExisting(true);
-            final SimpleFlamdexReader r2 = SimpleFlamdexReader.open(dir, config);
-            r2.close();
+            SimpleFlamdexReader.open(dir, config).close(); // writing to disk
 
             assertTrue(btreeExists(intBtreePath));
             assertTrue(btreeExists(strBtreePath));
@@ -109,19 +107,18 @@ public class SimpleFlamdexTest {
     public void testEmptyFields() throws IOException {
         final Path dir = Files.createTempDirectory("flamdex-test");
         try {
-            final SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, 5L, true);
-            w.getIntFieldWriter("if1").close();
-            w.getStringFieldWriter("sf1").close();
-            w.close();
+            try (final SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, 5L, true)) {
+                w.getIntFieldWriter("if1").close();
+                w.getStringFieldWriter("sf1").close();
+            }
 
-            final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir, config);
-            final IntTermIterator it = r.getIntTermIterator("if1");
-            assertFalse(it.next());
-            final StringTermIterator sit = r.getStringTermIterator("sf1");
-            assertFalse(sit.next());
-            it.close();
-            sit.close();
-            r.close();
+            try (final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir, config);
+                 final IntTermIterator it = r.getIntTermIterator("if1");
+                 final StringTermIterator sit = r.getStringTermIterator("sf1")) {
+
+                assertFalse(it.next());
+                assertFalse(sit.next());
+            }
         } finally {
             TestFileUtils.deleteDirTree(dir);
         }
@@ -152,23 +149,23 @@ public class SimpleFlamdexTest {
     public void testValidFieldName() throws IOException, FlamdexOutOfMemoryException {
         final Path dir = Files.createTempDirectory("flamdex-test");
         try {
-            final SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, 5L, true);
-            w.getIntFieldWriter("if1").close();
-            w.getStringFieldWriter("sf1").close();
+            try (final SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, 5L, true)) {
+                w.getIntFieldWriter("if1").close();
+                w.getStringFieldWriter("sf1").close();
 
-            try {
-                w.getIntFieldWriter("[A-Za-z_][A-Za-z0-9_]* what's a string that doesn't match this david.");
-                fail();
-            } catch (final IllegalArgumentException e) {
-                assertTrue(true);
+                try {
+                    w.getIntFieldWriter("[A-Za-z_][A-Za-z0-9_]* what's a string that doesn't match this david.");
+                    fail();
+                } catch (final IllegalArgumentException e) {
+                    assertTrue(true);
+                }
+                try {
+                    w.getStringFieldWriter("[A-Za-z_][A-Za-z0-9_]* what's a string that doesn't match this david.");
+                    fail();
+                } catch (final IllegalArgumentException e) {
+                    assertTrue(true);
+                }
             }
-            try {
-                w.getStringFieldWriter("[A-Za-z_][A-Za-z0-9_]* what's a string that doesn't match this david.");
-                fail();
-            } catch (final IllegalArgumentException e) {
-                assertTrue(true);
-            }
-            w.close();
         } finally {
             TestFileUtils.deleteDirTree(dir);
         }
@@ -184,69 +181,67 @@ public class SimpleFlamdexTest {
     private void getMetricCase(final Path dir, final int maxTermVal) throws IOException, FlamdexOutOfMemoryException {
         for (int i = 0; i < 5; ++i) {
             final long[] cache = writeGetMetricIndex(dir, maxTermVal);
-            final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir, config);
-            // do it multiple times because these methods update internal state, make sure nothing unexpectedly weird happens
-            for (int j = 0; j < 3; ++j) {
-                final long memReq = r.memoryRequired("if1");
-                final IntValueLookup ivl = r.getMetric("if1");
-                assertEquals(memReq, ivl.memoryUsed());
-                final int[] docIds = new int[r.getNumDocs()];
-                final long[] values = new long[r.getNumDocs()];
-                for (int doc = 0; doc < docIds.length; ++doc) {
-                    docIds[doc] = doc;
+            try (final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir, config)) {
+                // do it multiple times because these methods update internal state, make sure nothing unexpectedly weird happens
+                for (int j = 0; j < 3; ++j) {
+                    final long memReq = r.memoryRequired("if1");
+                    try (final IntValueLookup ivl = r.getMetric("if1")) {
+                        assertEquals(memReq, ivl.memoryUsed());
+                        final int[] docIds = new int[r.getNumDocs()];
+                        final long[] values = new long[r.getNumDocs()];
+                        for (int doc = 0; doc < docIds.length; ++doc) {
+                            docIds[doc] = doc;
+                        }
+                        ivl.lookup(docIds, values, r.getNumDocs());
+                        assertEquals(Longs.asList(cache), Longs.asList(values));
+                    }
                 }
-                ivl.lookup(docIds, values, r.getNumDocs());
-                assertEquals(Longs.asList(cache), Longs.asList(values));
-                ivl.close();
             }
-            r.close();
             FileUtils.cleanDirectory(dir.toFile());
         }
     }
 
     private long[] writeGetMetricIndex(final Path dir, final int maxTermVal) throws IOException {
-        final SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, 20000L, true);
-        final IntFieldWriter ifw = w.getIntFieldWriter("if1");
-        final List<Integer> docs = Lists.newArrayListWithCapacity(20000);
-        for (int i = 0; i < 20000; i++) {
-            docs.add(i);
-        }
-        final long[] cache = new long[20000];
-        if (maxTermVal < docs.size()) {
-            final int term = rand.nextInt(maxTermVal);
-            ifw.nextTerm(term);
-            for (final int doc : docs) {
-                ifw.nextDoc(doc);
-                cache[doc] = term;
+        try (final SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, 20000L, true);
+             final IntFieldWriter ifw = w.getIntFieldWriter("if1")) {
+            final List<Integer> docs = Lists.newArrayListWithCapacity(20000);
+            for (int i = 0; i < 20000; i++) {
+                docs.add(i);
             }
-        } else {
-            final Map<Integer, int[]> map = Maps.newTreeMap();
-            while (!docs.isEmpty()) {
+            final long[] cache = new long[20000];
+            if (maxTermVal < docs.size()) {
                 final int term = rand.nextInt(maxTermVal);
-                if (map.containsKey(term)) {
-                    continue;
-                }
-                final int numDocs = docs.size() > 1 ? rand.nextInt(docs.size() - 1) + 1 : 1;
-                final int[] selectedDocs = new int[numDocs];
-                for (int i = 0; i < numDocs; ++i) {
-                    selectedDocs[i] = docs.remove(rand.nextInt(docs.size()));
-                }
-                Arrays.sort(selectedDocs);
-                map.put(term, selectedDocs);
-            }
-            for (final int term : map.keySet()) {
                 ifw.nextTerm(term);
-                final int[] selectedDocs = map.get(term);
-                for (final int doc : selectedDocs) {
+                for (final int doc : docs) {
                     ifw.nextDoc(doc);
                     cache[doc] = term;
                 }
+            } else {
+                final Map<Integer, int[]> map = Maps.newTreeMap();
+                while (!docs.isEmpty()) {
+                    final int term = rand.nextInt(maxTermVal);
+                    if (map.containsKey(term)) {
+                        continue;
+                    }
+                    final int numDocs = docs.size() > 1 ? rand.nextInt(docs.size() - 1) + 1 : 1;
+                    final int[] selectedDocs = new int[numDocs];
+                    for (int i = 0; i < numDocs; ++i) {
+                        selectedDocs[i] = docs.remove(rand.nextInt(docs.size()));
+                    }
+                    Arrays.sort(selectedDocs);
+                    map.put(term, selectedDocs);
+                }
+                for (final int term : map.keySet()) {
+                    ifw.nextTerm(term);
+                    final int[] selectedDocs = map.get(term);
+                    for (final int doc : selectedDocs) {
+                        ifw.nextDoc(doc);
+                        cache[doc] = term;
+                    }
+                }
             }
+            return cache;
         }
-        ifw.close();
-        w.close();
-
-        return cache;
     }
 
     public void writeAndRead(final Path dir) throws IOException {
@@ -260,210 +255,202 @@ public class SimpleFlamdexTest {
     }
 
     private void readCase3(final Path dir) throws IOException {
-        final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir, config);
-        final StringTermDocIterator it = r.getStringTermDocIterator("f2");
-        final int[] docBuffer = new int[20];
+        try (final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir, config);
+             final StringTermDocIterator it = r.getStringTermDocIterator("f2")) {
+            final int[] docBuffer = new int[20];
 
-        assertTrue(it.nextTerm());
-        assertEquals(it.term(), "");
-        assertEquals(it.termStringLength(), 0);
-        assertEquals(it.docFreq(), 2);
-        assertEquals(it.fillDocIdBuffer(docBuffer), 2);
-        assertEquals(docBuffer[0], 2);
-        assertEquals(docBuffer[1], 5);
+            assertTrue(it.nextTerm());
+            assertEquals(it.term(), "");
+            assertEquals(it.termStringLength(), 0);
+            assertEquals(it.docFreq(), 2);
+            assertEquals(it.fillDocIdBuffer(docBuffer), 2);
+            assertEquals(docBuffer[0], 2);
+            assertEquals(docBuffer[1], 5);
 
-        assertTrue(it.nextTerm());
-        assertEquals(it.term(), "a");
-        assertEquals(it.termStringLength(), 1);
-        assertEquals(it.docFreq(), 2);
-        assertEquals(it.fillDocIdBuffer(docBuffer), 2);
-        assertEquals(docBuffer[0], 4);
-        assertEquals(docBuffer[1], 7);
+            assertTrue(it.nextTerm());
+            assertEquals(it.term(), "a");
+            assertEquals(it.termStringLength(), 1);
+            assertEquals(it.docFreq(), 2);
+            assertEquals(it.fillDocIdBuffer(docBuffer), 2);
+            assertEquals(docBuffer[0], 4);
+            assertEquals(docBuffer[1], 7);
 
-        assertTrue(it.nextTerm());
-        assertEquals(it.term(), "ffffffffff");
-        assertEquals(it.termStringLength(), 10);
-        assertEquals(it.docFreq(), 3);
-        assertEquals(it.fillDocIdBuffer(docBuffer), 3);
-        assertEquals(docBuffer[0], 2);
-        assertEquals(docBuffer[1], 5);
-        assertEquals(docBuffer[2], 9);
+            assertTrue(it.nextTerm());
+            assertEquals(it.term(), "ffffffffff");
+            assertEquals(it.termStringLength(), 10);
+            assertEquals(it.docFreq(), 3);
+            assertEquals(it.fillDocIdBuffer(docBuffer), 3);
+            assertEquals(docBuffer[0], 2);
+            assertEquals(docBuffer[1], 5);
+            assertEquals(docBuffer[2], 9);
 
-        assertTrue(it.nextTerm());
-        assertEquals(it.term(), "lollerskates");
-        assertEquals(it.termStringLength(), 12);
-        assertEquals(it.docFreq(), 2);
-        assertEquals(it.fillDocIdBuffer(docBuffer), 2);
-        assertEquals(docBuffer[0], 7);
-        assertEquals(docBuffer[1], 8);
+            assertTrue(it.nextTerm());
+            assertEquals(it.term(), "lollerskates");
+            assertEquals(it.termStringLength(), 12);
+            assertEquals(it.docFreq(), 2);
+            assertEquals(it.fillDocIdBuffer(docBuffer), 2);
+            assertEquals(docBuffer[0], 7);
+            assertEquals(docBuffer[1], 8);
 
-        assertFalse(it.nextTerm());
-
-        it.close();
-        r.close();
+            assertFalse(it.nextTerm());
+        }
     }
 
     private void readCase2(final Path dir) throws IOException {
-        final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir, config);
-        final DocIdStream dis = r.getDocIdStream();
-        final int[] docIdBuf = new int[2];
-        final StringTermIterator strItr = r.getStringTermIterator("f2");
+        try (final SimpleFlamdexReader r = SimpleFlamdexReader.open(dir, config);
+             final DocIdStream dis = r.getDocIdStream();
+             final StringTermIterator strItr = r.getStringTermIterator("f2");
+             final IntTermIterator intItr = r.getIntTermIterator("f1")) {
+            final int[] docIdBuf = new int[2];
 
-        strItr.reset("ffffffffff");
-        assertTrue(strItr.next());
-        assertEquals("ffffffffff", strItr.term());
-        assertEquals(3, strItr.docFreq());
-        dis.reset(strItr);
-        assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
-        assertEquals(2, docIdBuf[0]);
-        assertEquals(5, docIdBuf[1]);
-        assertEquals(1, dis.fillDocIdBuffer(docIdBuf));
-        assertEquals(9, docIdBuf[0]);
+            strItr.reset("ffffffffff");
+            assertTrue(strItr.next());
+            assertEquals("ffffffffff", strItr.term());
+            assertEquals(3, strItr.docFreq());
+            dis.reset(strItr);
+            assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
+            assertEquals(2, docIdBuf[0]);
+            assertEquals(5, docIdBuf[1]);
+            assertEquals(1, dis.fillDocIdBuffer(docIdBuf));
+            assertEquals(9, docIdBuf[0]);
 
-        assertTrue(strItr.next());
-        assertEquals("lollerskates", strItr.term());
-        assertEquals(2, strItr.docFreq());
-        dis.reset(strItr);
-        assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
-        assertEquals(7, docIdBuf[0]);
-        assertEquals(8, docIdBuf[1]);
-        assertEquals(0, dis.fillDocIdBuffer(docIdBuf));
+            assertTrue(strItr.next());
+            assertEquals("lollerskates", strItr.term());
+            assertEquals(2, strItr.docFreq());
+            dis.reset(strItr);
+            assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
+            assertEquals(7, docIdBuf[0]);
+            assertEquals(8, docIdBuf[1]);
+            assertEquals(0, dis.fillDocIdBuffer(docIdBuf));
 
-        assertFalse(strItr.next());
+            assertFalse(strItr.next());
 
-        strItr.reset("zzzzzzzzzzzzz");
-        assertFalse(strItr.next());
+            strItr.reset("zzzzzzzzzzzzz");
+            assertFalse(strItr.next());
 
-        final IntTermIterator intItr = r.getIntTermIterator("f1");
-        intItr.reset(9000);
+            intItr.reset(9000);
 
-        assertTrue(intItr.next());
-        assertEquals(9000, intItr.term());
-        assertEquals(4, intItr.docFreq());
-        dis.reset(intItr);
-        assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
-        assertEquals(3, docIdBuf[0]);
-        assertEquals(7, docIdBuf[1]);
-        assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
-        assertEquals(8, docIdBuf[0]);
-        assertEquals(9, docIdBuf[1]);
-        assertEquals(0, dis.fillDocIdBuffer(docIdBuf));
+            assertTrue(intItr.next());
+            assertEquals(9000, intItr.term());
+            assertEquals(4, intItr.docFreq());
+            dis.reset(intItr);
+            assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
+            assertEquals(3, docIdBuf[0]);
+            assertEquals(7, docIdBuf[1]);
+            assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
+            assertEquals(8, docIdBuf[0]);
+            assertEquals(9, docIdBuf[1]);
+            assertEquals(0, dis.fillDocIdBuffer(docIdBuf));
 
-        assertFalse(intItr.next());
+            assertFalse(intItr.next());
 
-        intItr.reset(999999999);
-        assertFalse(intItr.next());
-
-        intItr.close();
-        strItr.close();
-        dis.close();
-        r.close();
+            intItr.reset(999999999);
+            assertFalse(intItr.next());
+        }
     }
 
     private void readCase1(final Path dir) throws IOException {
-        final SimpleFlamdexReader reader = SimpleFlamdexReader.open(dir, config);
+        try (final SimpleFlamdexReader reader = SimpleFlamdexReader.open(dir, config);
+             final DocIdStream dis = reader.getDocIdStream();) {
 
-        assertEquals(1, reader.getIntFields().size());
-        assertEquals("f1", reader.getIntFields().iterator().next());
-        assertEquals(1, reader.getStringFields().size());
-        assertEquals("f2", reader.getStringFields().iterator().next());
+            assertEquals(1, reader.getIntFields().size());
+            assertEquals("f1", reader.getIntFields().iterator().next());
+            assertEquals(1, reader.getStringFields().size());
+            assertEquals("f2", reader.getStringFields().iterator().next());
 
-        assertEquals(10, reader.getNumDocs());
+            assertEquals(10, reader.getNumDocs());
 
-        final DocIdStream dis = reader.getDocIdStream();
-        final int[] docIdBuf = new int[2];
+            final int[] docIdBuf = new int[2];
 
-        final SimpleIntTermIterator intItr = reader.getIntTermIterator("f1");
+            try (final SimpleIntTermIterator intItr = reader.getIntTermIterator("f1")) {
 
-        assertTrue(intItr.next());
-        assertEquals(2, intItr.term());
-        assertEquals(3, intItr.docFreq());
-        assertEquals(0L, intItr.getOffset());
-        dis.reset(intItr);
-        assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
-        assertEquals(0, docIdBuf[0]);
-        assertEquals(4, docIdBuf[1]);
-        assertEquals(1, dis.fillDocIdBuffer(docIdBuf));
-        assertEquals(9, docIdBuf[0]);
+                assertTrue(intItr.next());
+                assertEquals(2, intItr.term());
+                assertEquals(3, intItr.docFreq());
+                assertEquals(0L, intItr.getOffset());
+                dis.reset(intItr);
+                assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
+                assertEquals(0, docIdBuf[0]);
+                assertEquals(4, docIdBuf[1]);
+                assertEquals(1, dis.fillDocIdBuffer(docIdBuf));
+                assertEquals(9, docIdBuf[0]);
 
-        assertTrue(intItr.next());
-        assertEquals(99, intItr.term());
-        assertEquals(2, intItr.docFreq());
-        dis.reset(intItr);
-        assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
-        assertEquals(5, docIdBuf[0]);
-        assertEquals(6, docIdBuf[1]);
-        assertEquals(0, dis.fillDocIdBuffer(docIdBuf));
+                assertTrue(intItr.next());
+                assertEquals(99, intItr.term());
+                assertEquals(2, intItr.docFreq());
+                dis.reset(intItr);
+                assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
+                assertEquals(5, docIdBuf[0]);
+                assertEquals(6, docIdBuf[1]);
+                assertEquals(0, dis.fillDocIdBuffer(docIdBuf));
 
-        assertTrue(intItr.next());
-        assertEquals(101, intItr.term());
-        assertEquals(3, intItr.docFreq());
-        dis.reset(intItr);
-        assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
-        assertEquals(0, docIdBuf[0]);
-        assertEquals(1, docIdBuf[1]);
-        assertEquals(1, dis.fillDocIdBuffer(docIdBuf));
-        assertEquals(2, docIdBuf[0]);
+                assertTrue(intItr.next());
+                assertEquals(101, intItr.term());
+                assertEquals(3, intItr.docFreq());
+                dis.reset(intItr);
+                assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
+                assertEquals(0, docIdBuf[0]);
+                assertEquals(1, docIdBuf[1]);
+                assertEquals(1, dis.fillDocIdBuffer(docIdBuf));
+                assertEquals(2, docIdBuf[0]);
 
-        assertTrue(intItr.next());
-        assertEquals(9000, intItr.term());
-        assertEquals(4, intItr.docFreq());
-        dis.reset(intItr);
-        assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
-        assertEquals(3, docIdBuf[0]);
-        assertEquals(7, docIdBuf[1]);
-        assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
-        assertEquals(8, docIdBuf[0]);
-        assertEquals(9, docIdBuf[1]);
-        assertEquals(0, dis.fillDocIdBuffer(docIdBuf));
+                assertTrue(intItr.next());
+                assertEquals(9000, intItr.term());
+                assertEquals(4, intItr.docFreq());
+                dis.reset(intItr);
+                assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
+                assertEquals(3, docIdBuf[0]);
+                assertEquals(7, docIdBuf[1]);
+                assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
+                assertEquals(8, docIdBuf[0]);
+                assertEquals(9, docIdBuf[1]);
+                assertEquals(0, dis.fillDocIdBuffer(docIdBuf));
 
-        assertFalse(intItr.next());
+                assertFalse(intItr.next());
+            }
 
-        final SimpleStringTermIterator strItr = reader.getStringTermIterator("f2");
+            try (final SimpleStringTermIterator strItr = reader.getStringTermIterator("f2")) {
 
-        assertTrue(strItr.next());
-        assertEquals("", strItr.term());
-        assertEquals(2, strItr.docFreq());
-        dis.reset(strItr);
-        assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
-        assertEquals(2, docIdBuf[0]);
-        assertEquals(5, docIdBuf[1]);
-        assertEquals(0, dis.fillDocIdBuffer(docIdBuf));
+                assertTrue(strItr.next());
+                assertEquals("", strItr.term());
+                assertEquals(2, strItr.docFreq());
+                dis.reset(strItr);
+                assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
+                assertEquals(2, docIdBuf[0]);
+                assertEquals(5, docIdBuf[1]);
+                assertEquals(0, dis.fillDocIdBuffer(docIdBuf));
 
-        assertTrue(strItr.next());
-        assertEquals("a", strItr.term());
-        assertEquals(2, strItr.docFreq());
-        dis.reset(strItr);
-        assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
-        assertEquals(4, docIdBuf[0]);
-        assertEquals(7, docIdBuf[1]);
-        assertEquals(0, dis.fillDocIdBuffer(docIdBuf));
+                assertTrue(strItr.next());
+                assertEquals("a", strItr.term());
+                assertEquals(2, strItr.docFreq());
+                dis.reset(strItr);
+                assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
+                assertEquals(4, docIdBuf[0]);
+                assertEquals(7, docIdBuf[1]);
+                assertEquals(0, dis.fillDocIdBuffer(docIdBuf));
 
-        assertTrue(strItr.next());
-        assertEquals("ffffffffff", strItr.term());
-        assertEquals(3, strItr.docFreq());
-        dis.reset(strItr);
-        assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
-        assertEquals(2, docIdBuf[0]);
-        assertEquals(5, docIdBuf[1]);
-        assertEquals(1, dis.fillDocIdBuffer(docIdBuf));
-        assertEquals(9, docIdBuf[0]);
+                assertTrue(strItr.next());
+                assertEquals("ffffffffff", strItr.term());
+                assertEquals(3, strItr.docFreq());
+                dis.reset(strItr);
+                assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
+                assertEquals(2, docIdBuf[0]);
+                assertEquals(5, docIdBuf[1]);
+                assertEquals(1, dis.fillDocIdBuffer(docIdBuf));
+                assertEquals(9, docIdBuf[0]);
 
-        assertTrue(strItr.next());
-        assertEquals("lollerskates", strItr.term());
-        assertEquals(2, strItr.docFreq());
-        dis.reset(strItr);
-        assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
-        assertEquals(7, docIdBuf[0]);
-        assertEquals(8, docIdBuf[1]);
-        assertEquals(0, dis.fillDocIdBuffer(docIdBuf));
+                assertTrue(strItr.next());
+                assertEquals("lollerskates", strItr.term());
+                assertEquals(2, strItr.docFreq());
+                dis.reset(strItr);
+                assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
+                assertEquals(7, docIdBuf[0]);
+                assertEquals(8, docIdBuf[1]);
+                assertEquals(0, dis.fillDocIdBuffer(docIdBuf));
 
-        assertFalse(strItr.next());
-
-        intItr.close();
-        strItr.close();
-        dis.close();
-        reader.close();
+                assertFalse(strItr.next());
+            }
+        }
     }
 
     private void writeIndex(final Path dir) throws IOException {

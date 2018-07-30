@@ -518,10 +518,10 @@ public class FlamdexUtils {
         try (IntTermIterator iter = reader.getUnsortedIntTermIterator(field)) {
             iter.reset(term);
             if (iter.next() && iter.term() == term) {
-                final DocIdStream dis = reader.getDocIdStream();
-                dis.reset(iter);
-                fillBitSet(dis, ret);
-                dis.close();
+                try (final DocIdStream dis = reader.getDocIdStream()) {
+                    dis.reset(iter);
+                    fillBitSet(dis, ret);
+                }
             }
         }
         return ret;
@@ -542,13 +542,13 @@ public class FlamdexUtils {
 
     public static ThreadSafeBitSet cacheHasStringTerm(final String field, final String term, final FlamdexReader reader) {
         final ThreadSafeBitSet ret = new ThreadSafeBitSet(reader.getNumDocs());
-        try (StringTermIterator iter = reader.getStringTermIterator(field)) {
+        try (final StringTermIterator iter = reader.getStringTermIterator(field)) {
             iter.reset(term);
             if (iter.next() && iter.term().equals(term)) {
-                final DocIdStream dis = reader.getDocIdStream();
-                dis.reset(iter);
-                fillBitSet(dis, ret);
-                dis.close();
+                try (final DocIdStream dis = reader.getDocIdStream()) {
+                    dis.reset(iter);
+                    fillBitSet(dis, ret);
+                }
             }
         }
         return ret;

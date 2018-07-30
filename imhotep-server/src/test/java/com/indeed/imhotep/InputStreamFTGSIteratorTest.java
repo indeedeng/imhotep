@@ -68,85 +68,86 @@ public class InputStreamFTGSIteratorTest {
     @Test
     public void testNegative() throws IOException {
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
-        final FTGSOutputStreamWriter w = new FTGSOutputStreamWriter(out);
-        w.switchField("a", true);
-        w.switchIntTerm(1, 5);
-        w.switchGroup(1);
-        w.addStat(-5);
-        w.addStat(-10);
-        w.switchField("b", true);
-        w.switchIntTerm(1, 5);
-        w.switchGroup(1);
-        w.addStat(5);
-        w.addStat(-999999);
-        w.close();
+        try (final FTGSOutputStreamWriter w = new FTGSOutputStreamWriter(out)) {
+            w.switchField("a", true);
+            w.switchIntTerm(1, 5);
+            w.switchGroup(1);
+            w.addStat(-5);
+            w.addStat(-10);
+            w.switchField("b", true);
+            w.switchIntTerm(1, 5);
+            w.switchGroup(1);
+            w.addStat(5);
+            w.addStat(-999999);
+        }
 
-        final InputStreamFTGSIterator iter = new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), 2, 2);
-        assertTrue(iter.nextField());
-        assertEquals("a", iter.fieldName());
-        assertTrue(iter.fieldIsIntType());
-        assertTrue(iter.nextTerm());
-        assertEquals(1, iter.termIntVal());
-        assertEquals(5L, iter.termDocFreq());
-        assertTrue(iter.nextGroup());
-        assertEquals(1, iter.group());
-        final long[] stats = new long[2];
-        iter.groupStats(stats);
-        assertEquals(-5L, stats[0]);
-        assertEquals(-10L, stats[1]);
-        assertFalse(iter.nextGroup());
-        assertFalse(iter.nextTerm());
-        assertTrue(iter.nextField());
-        assertEquals("b", iter.fieldName());
-        assertTrue(iter.fieldIsIntType());
-        assertTrue(iter.nextTerm());
-        assertEquals(1, iter.termIntVal());
-        assertEquals(5L, iter.termDocFreq());
-        assertTrue(iter.nextGroup());
-        assertEquals(1, iter.group());
-        iter.groupStats(stats);
-        assertEquals(5L, stats[0]);
-        assertEquals(-999999L, stats[1]);
-        assertFalse(iter.nextGroup());
-        assertFalse(iter.nextTerm());
-        assertFalse(iter.nextField());
+        try (final InputStreamFTGSIterator iter = new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), 2, 2)) {
+            assertTrue(iter.nextField());
+            assertEquals("a", iter.fieldName());
+            assertTrue(iter.fieldIsIntType());
+            assertTrue(iter.nextTerm());
+            assertEquals(1, iter.termIntVal());
+            assertEquals(5L, iter.termDocFreq());
+            assertTrue(iter.nextGroup());
+            assertEquals(1, iter.group());
+            final long[] stats = new long[2];
+            iter.groupStats(stats);
+            assertEquals(-5L, stats[0]);
+            assertEquals(-10L, stats[1]);
+            assertFalse(iter.nextGroup());
+            assertFalse(iter.nextTerm());
+            assertTrue(iter.nextField());
+            assertEquals("b", iter.fieldName());
+            assertTrue(iter.fieldIsIntType());
+            assertTrue(iter.nextTerm());
+            assertEquals(1, iter.termIntVal());
+            assertEquals(5L, iter.termDocFreq());
+            assertTrue(iter.nextGroup());
+            assertEquals(1, iter.group());
+            iter.groupStats(stats);
+            assertEquals(5L, stats[0]);
+            assertEquals(-999999L, stats[1]);
+            assertFalse(iter.nextGroup());
+            assertFalse(iter.nextTerm());
+            assertFalse(iter.nextField());
+        }
     }
 
     @Test
     public void testEmptyField() throws IOException {
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
-        final FTGSOutputStreamWriter w = new FTGSOutputStreamWriter(out);
-        w.switchField("a", true);
-        w.switchField("b", true);
-        w.switchField("c", true);
-        w.switchField("d", false);
-        w.close();
+        try (final FTGSOutputStreamWriter w = new FTGSOutputStreamWriter(out)) {
+            w.switchField("a", true);
+            w.switchField("b", true);
+            w.switchField("c", true);
+            w.switchField("d", false);
+        }
 
-        final InputStreamFTGSIterator iter = new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), 0, 0);
-        assertTrue(iter.nextField());
-        assertTrue(iter.fieldIsIntType());
-        assertEquals("a", iter.fieldName());
-        assertFalse(iter.nextTerm());
-        assertTrue(iter.nextField());
-        assertTrue(iter.fieldIsIntType());
-        assertEquals("b", iter.fieldName());
-        assertFalse(iter.nextTerm());
-        assertTrue(iter.nextField());
-        assertTrue(iter.fieldIsIntType());
-        assertEquals("c", iter.fieldName());
-        assertFalse(iter.nextTerm());
-        assertTrue(iter.nextField());
-        assertFalse(iter.fieldIsIntType());
-        assertEquals("d", iter.fieldName());
-        assertFalse(iter.nextTerm());
-        assertFalse(iter.nextField());
+        try (final InputStreamFTGSIterator iter = new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), 0, 0)) {
+            assertTrue(iter.nextField());
+            assertTrue(iter.fieldIsIntType());
+            assertEquals("a", iter.fieldName());
+            assertFalse(iter.nextTerm());
+            assertTrue(iter.nextField());
+            assertTrue(iter.fieldIsIntType());
+            assertEquals("b", iter.fieldName());
+            assertFalse(iter.nextTerm());
+            assertTrue(iter.nextField());
+            assertTrue(iter.fieldIsIntType());
+            assertEquals("c", iter.fieldName());
+            assertFalse(iter.nextTerm());
+            assertTrue(iter.nextField());
+            assertFalse(iter.fieldIsIntType());
+            assertEquals("d", iter.fieldName());
+            assertFalse(iter.nextTerm());
+            assertFalse(iter.nextField());
+        }
     }
 
     @Test
     public void testIt() throws IOException {
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
-        {
-            final FTGSOutputStreamWriter writer = new FTGSOutputStreamWriter(out);
+        try (final FTGSOutputStreamWriter writer = new FTGSOutputStreamWriter(out)) {
             writer.switchField("abc", true);
             writer.switchIntTerm(0, 5);
             writer.switchGroup(0);
@@ -193,11 +194,9 @@ public class InputStreamFTGSIteratorTest {
             writer.switchGroup(300);
             writer.addStat(995);
             writer.addStat(993);
-            writer.close();
         }
-        {
+        try (final InputStreamFTGSIterator input = new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), 2, 1000)) {
             final long[] stats = new long[2];
-            final InputStreamFTGSIterator input = new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), 2, 1000);
             assertTrue(input.nextField());
             assertEquals("abc", input.fieldName());
             assertTrue(input.fieldIsIntType());
@@ -296,8 +295,7 @@ public class InputStreamFTGSIteratorTest {
             assertFalse(input.nextTerm());
             assertFalse(input.nextField());
         }
-        {
-            final InputStreamFTGSIterator input = new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), 2, 1000);
+        try (final InputStreamFTGSIterator input = new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), 2, 1000)) {
             assertTrue(input.nextField());
             assertEquals("abc", input.fieldName());
             assertTrue(input.fieldIsIntType());
@@ -312,36 +310,34 @@ public class InputStreamFTGSIteratorTest {
     public void testFileInputStreamIterators() throws IOException {
         final File tmp = File.createTempFile("ftgs", ".tmp");
         try {
-            final FTGSOutputStreamWriter w = new FTGSOutputStreamWriter(new FileOutputStream(tmp));
-            w.switchField("a", true);
-            w.switchIntTerm(1, 5);
-            w.switchGroup(1);
-            w.addStat(15);
-            w.addStat(10);
+            try (final FTGSOutputStreamWriter w = new FTGSOutputStreamWriter(new FileOutputStream(tmp))) {
+                w.switchField("a", true);
+                w.switchIntTerm(1, 5);
+                w.switchGroup(1);
+                w.addStat(15);
+                w.addStat(10);
 
-            w.switchField("b", true);
+                w.switchField("b", true);
 
-            w.switchIntTerm(2, 10);
-            w.switchGroup(1);
-            w.addStat(5);
-            w.addStat(999999);
+                w.switchIntTerm(2, 10);
+                w.switchGroup(1);
+                w.addStat(5);
+                w.addStat(999999);
 
-            w.switchIntTerm(3, 15);
-            w.switchGroup(1);
-            w.addStat(55);
-            w.addStat(66);
+                w.switchIntTerm(3, 15);
+                w.switchGroup(1);
+                w.addStat(55);
+                w.addStat(66);
 
-            w.switchField("c", true);
+                w.switchField("c", true);
 
-            w.switchIntTerm(4, 20);
-            w.switchGroup(1);
-            w.addStat(1);
-            w.addStat(2);
+                w.switchIntTerm(4, 20);
+                w.switchGroup(1);
+                w.addStat(1);
+                w.addStat(2);
+            }
 
-            w.close();
-
-            {
-                final InputStreamFTGSIterator iter = InputStreamFTGSIterators.create(tmp, 2, 2);
+            try (final InputStreamFTGSIterator iter = InputStreamFTGSIterators.create(tmp, 2, 2)) {
 
                 expectIntField(iter, "a");
                 expectIntTerm(iter, 1, 5);

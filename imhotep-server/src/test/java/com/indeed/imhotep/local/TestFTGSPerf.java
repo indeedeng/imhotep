@@ -215,29 +215,29 @@ public class TestFTGSPerf {
                                        final SimpleFlamdexWriter w) throws IOException {
         final int maxTermDocs = (size < 2000) ? size : size / 1000;
         final int maxUnassignedDocs = (size < 100) ? 10 : 100;
-        final IntFieldWriter ifw = w.getIntFieldWriter(intFieldName);
+        try (final IntFieldWriter ifw = w.getIntFieldWriter(intFieldName)) {
 
-        final UnusedDocsIds unusedDocIds = new UnusedDocsIds(size);
+            final UnusedDocsIds unusedDocIds = new UnusedDocsIds(size);
 
-        final TreeMap<Long, int[]> map = new TreeMap<>();
-        while (unusedDocIds.size() > maxUnassignedDocs) {
-            final long term = termGenerator.randVal();
-            if (term == 0) {
-                continue;
+            final TreeMap<Long, int[]> map = new TreeMap<>();
+            while (unusedDocIds.size() > maxUnassignedDocs) {
+                final long term = termGenerator.randVal();
+                if (term == 0) {
+                    continue;
+                }
+                final int maxDocsPerTerm = Math.min(unusedDocIds.size(), maxTermDocs);
+                final int numDocs = unusedDocIds.size() > 1 ? rand.nextInt(maxDocsPerTerm - 1) + 1 : 1;
+                final int[] docIds = selectDocIds(unusedDocIds, numDocs);
+                map.put(term, docIds);
             }
-            final int maxDocsPerTerm = Math.min(unusedDocIds.size(), maxTermDocs);
-            final int numDocs = unusedDocIds.size() > 1 ? rand.nextInt(maxDocsPerTerm - 1) + 1 : 1;
-            final int[] docIds = selectDocIds(unusedDocIds, numDocs);
-            map.put(term, docIds);
-        }
 
-        for (final Map.Entry<Long, int[]> terms : map.entrySet()) {
-            ifw.nextTerm(terms.getKey());
-            for (final int doc : terms.getValue()) {
-                ifw.nextDoc(doc);
+            for (final Map.Entry<Long, int[]> terms : map.entrySet()) {
+                ifw.nextTerm(terms.getKey());
+                for (final int doc : terms.getValue()) {
+                    ifw.nextDoc(doc);
+                }
             }
         }
-        ifw.close();
     }
 
     private void createFlamdexStringField(final String stringFieldName,
@@ -246,28 +246,28 @@ public class TestFTGSPerf {
                                           final List<String> termsList) throws IOException {
         final int maxTermDocs = (size < 2000) ? size : size / 1000;
         final int maxUnassignedDocs = (size < 100) ? 10 : 100;
-        final StringFieldWriter sfw = w.getStringFieldWriter(stringFieldName);
+        try (final StringFieldWriter sfw = w.getStringFieldWriter(stringFieldName)) {
 
-        final UnusedDocsIds unusedDocIds = new UnusedDocsIds(size);
+            final UnusedDocsIds unusedDocIds = new UnusedDocsIds(size);
 
-        final int i = 0;
-        final TreeMap<String, int[]> map = new TreeMap<>();
-        while (unusedDocIds.size() > maxUnassignedDocs) {
-            final String term = termsList.get(i);
+            final int i = 0;
+            final TreeMap<String, int[]> map = new TreeMap<>();
+            while (unusedDocIds.size() > maxUnassignedDocs) {
+                final String term = termsList.get(i);
 
-            final int maxDocsPerTerm = Math.min(unusedDocIds.size(), maxTermDocs);
-            final int numDocs = unusedDocIds.size() > 1 ? rand.nextInt(maxDocsPerTerm - 1) + 1 : 1;
-            final int[] docIds = selectDocIds(unusedDocIds, numDocs);
-            map.put(term, docIds);
-        }
+                final int maxDocsPerTerm = Math.min(unusedDocIds.size(), maxTermDocs);
+                final int numDocs = unusedDocIds.size() > 1 ? rand.nextInt(maxDocsPerTerm - 1) + 1 : 1;
+                final int[] docIds = selectDocIds(unusedDocIds, numDocs);
+                map.put(term, docIds);
+            }
 
-        for (final Map.Entry<String, int[]> termEntry : map.entrySet()) {
-            sfw.nextTerm(termEntry.getKey());
-            for (final int doc : termEntry.getValue()) {
-                sfw.nextDoc(doc);
+            for (final Map.Entry<String, int[]> termEntry : map.entrySet()) {
+                sfw.nextTerm(termEntry.getKey());
+                for (final int doc : termEntry.getValue()) {
+                    sfw.nextDoc(doc);
+                }
             }
         }
-        sfw.close();
     }
 
     private void generateShard(final Path dir, final List<FieldDesc> fieldDescs) throws IOException {
@@ -277,17 +277,16 @@ public class TestFTGSPerf {
             nDocs = (fd.numDocs > nDocs) ? fd.numDocs : nDocs;
         }
 
-        final SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, nDocs, true);
+        try (final SimpleFlamdexWriter w = new SimpleFlamdexWriter(dir, nDocs, true)) {
 
-        for (final FieldDesc fd : fieldDescs) {
-            if (fd.isIntfield) {
-                createFlamdexIntField(fd.name, fd.termGenerator, fd.numDocs, w);
-            } else {
-                createFlamdexStringField(fd.name, fd.numDocs, w, fd.terms);
+            for (final FieldDesc fd : fieldDescs) {
+                if (fd.isIntfield) {
+                    createFlamdexIntField(fd.name, fd.termGenerator, fd.numDocs, w);
+                } else {
+                    createFlamdexStringField(fd.name, fd.numDocs, w, fd.terms);
+                }
             }
         }
-
-        w.close();
     }
 
     public enum MetricMaxSizes {

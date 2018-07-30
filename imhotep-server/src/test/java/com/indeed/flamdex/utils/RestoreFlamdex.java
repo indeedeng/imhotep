@@ -39,97 +39,93 @@ public class RestoreFlamdex {
 
     public static void main(final String[] args) throws IOException {
         long elapsed = -System.currentTimeMillis();
-
-        final DataInputStream dis = new DataInputStream(new BufferedInputStream(new FileInputStream("/tmp/shard.dat")));
-        final int numDocs = dis.readInt();
-
-        final boolean permuteDocs = true;
-        final int[] permutation = new int[numDocs];
-        for (int i = 0; i < numDocs; i++) {
-            permutation[i] = i;
-        }
-        if (permuteDocs) {
-            System.out.print("generating permutation...");
-            final Random r = new Random(0);
-            Collections.shuffle(Ints.asList(permutation), r);
-            System.out.println("done.");
-        }
-
-        final int[] docIds = new int[numDocs];
-
-        final Path path = Paths.get("/tmp/reconstructed");
-        PosixFileOperations.rmrf(path);
-        final SimpleFlamdexWriter writer = new SimpleFlamdexWriter(path, numDocs, true, true);
-
         long termCount = 0;
         long uninvertedSize = 0;
 
-        while (dis.readBoolean()) {
-            final String strField = dis.readUTF();
-            System.out.println("strField: " + strField);
+        try (final DataInputStream dis = new DataInputStream(new BufferedInputStream(new FileInputStream("/tmp/shard.dat")))) {
+            final int numDocs = dis.readInt();
 
-            final StringFieldWriter strWriter = writer.getStringFieldWriter(strField, true);
-
-            while (dis.readBoolean()) {
-                final String strTerm = dis.readUTF();
-                strWriter.nextTerm(strTerm);
-                termCount++;
-
-                final int utf8Length = strTerm.getBytes(Charsets.UTF_8).length;
-                final int valueLength = 1 + varIntLength(utf8Length) + utf8Length; //field code + length + value
-
-                int docIdCount = 0;
-
-                while (dis.readBoolean()) {
-                    final int doc = dis.readInt();
-                    docIds[docIdCount++] = permutation[doc];
-                }
-                Arrays.sort(docIds, 0, docIdCount);
-
-                for (int i = 0; i < docIdCount; i++) {
-                    final int doc = docIds[i];
-                    strWriter.nextDoc(doc);
-
-                    uninvertedSize += valueLength;
-                }
+            final boolean permuteDocs = true;
+            final int[] permutation = new int[numDocs];
+            for (int i = 0; i < numDocs; i++) {
+                permutation[i] = i;
+            }
+            if (permuteDocs) {
+                System.out.print("generating permutation...");
+                final Random r = new Random(0);
+                Collections.shuffle(Ints.asList(permutation), r);
+                System.out.println("done.");
             }
 
-            strWriter.close();
-        }
+            final int[] docIds = new int[numDocs];
 
-        while (dis.readBoolean()) {
-            final String intField = dis.readUTF();
-            System.out.println("intField: " + intField);
+            final Path path = Paths.get("/tmp/reconstructed");
+            PosixFileOperations.rmrf(path);
+            try (final SimpleFlamdexWriter writer = new SimpleFlamdexWriter(path, numDocs, true, true)) {
 
-            final IntFieldWriter intWriter = writer.getIntFieldWriter(intField, true);
-
-            while (dis.readBoolean()) {
-                final long intTerm = dis.readLong();
-                intWriter.nextTerm(intTerm);
-                termCount++;
-
-                final int valueLength = 1 + varIntLength(intTerm); //field code + value
-
-                int docIdCount = 0;
                 while (dis.readBoolean()) {
-                    final int doc = dis.readInt();
-                    docIds[docIdCount++] = permutation[doc];
+                    final String strField = dis.readUTF();
+                    System.out.println("strField: " + strField);
+
+                    try (final StringFieldWriter strWriter = writer.getStringFieldWriter(strField, true)) {
+
+                        while (dis.readBoolean()) {
+                            final String strTerm = dis.readUTF();
+                            strWriter.nextTerm(strTerm);
+                            termCount++;
+
+                            final int utf8Length = strTerm.getBytes(Charsets.UTF_8).length;
+                            final int valueLength = 1 + varIntLength(utf8Length) + utf8Length; //field code + length + value
+
+                            int docIdCount = 0;
+
+                            while (dis.readBoolean()) {
+                                final int doc = dis.readInt();
+                                docIds[docIdCount++] = permutation[doc];
+                            }
+                            Arrays.sort(docIds, 0, docIdCount);
+
+                            for (int i = 0; i < docIdCount; i++) {
+                                final int doc = docIds[i];
+                                strWriter.nextDoc(doc);
+
+                                uninvertedSize += valueLength;
+                            }
+                        }
+                    }
                 }
-                Arrays.sort(docIds, 0, docIdCount);
 
-                for (int i = 0; i < docIdCount; i++) {
-                    final int doc = docIds[i];
-                    intWriter.nextDoc(doc);
+                while (dis.readBoolean()) {
+                    final String intField = dis.readUTF();
+                    System.out.println("intField: " + intField);
 
-                    uninvertedSize += valueLength;
+                    try (final IntFieldWriter intWriter = writer.getIntFieldWriter(intField, true)) {
+
+                        while (dis.readBoolean()) {
+                            final long intTerm = dis.readLong();
+                            intWriter.nextTerm(intTerm);
+                            termCount++;
+
+                            final int valueLength = 1 + varIntLength(intTerm); //field code + value
+
+                            int docIdCount = 0;
+                            while (dis.readBoolean()) {
+                                final int doc = dis.readInt();
+                                docIds[docIdCount++] = permutation[doc];
+                            }
+                            Arrays.sort(docIds, 0, docIdCount);
+
+                            for (int i = 0; i < docIdCount; i++) {
+                                final int doc = docIds[i];
+                                intWriter.nextDoc(doc);
+
+                                uninvertedSize += valueLength;
+                            }
+                        }
+                    }
                 }
             }
-
-            intWriter.close();
         }
-
-        dis.close();
-        writer.close();
 
         elapsed += System.currentTimeMillis();
 

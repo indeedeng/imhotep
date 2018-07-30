@@ -35,27 +35,28 @@ public class TestFTGSRoundTrip {
 
         for (final long stat : testStats) {
             final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            final FTGSOutputStreamWriter out = new FTGSOutputStreamWriter(baos);
+            try (final FTGSOutputStreamWriter out = new FTGSOutputStreamWriter(baos)) {
 
-            out.switchField("foo", false);
-            out.switchBytesTerm("bar".getBytes(), 3, 0);
-            out.switchGroup(1);
-            out.addStat(stat);
-            out.close();
+                out.switchField("foo", false);
+                out.switchBytesTerm("bar".getBytes(), 3, 0);
+                out.switchGroup(1);
+                out.addStat(stat);
+            }
 
             final ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
             //System.out.println(Utilz.toHex(baos.toByteArray()));
 
-            final InputStreamFTGSIterator in = new InputStreamFTGSIterator(bais, 1, 2);
-            assertTrue(in.nextField());
-            assertEquals("foo", in.fieldName());
-            assertTrue(in.nextTerm());
-            assertEquals("bar", in.termStringVal());
-            assertTrue(in.nextGroup());
-            assertEquals(1, in.group());
-            final long[] buf = new long[1];
-            in.groupStats(buf);
-            assertEquals(stat, buf[0]);
+            try (final InputStreamFTGSIterator in = new InputStreamFTGSIterator(bais, 1, 2)) {
+                assertTrue(in.nextField());
+                assertEquals("foo", in.fieldName());
+                assertTrue(in.nextTerm());
+                assertEquals("bar", in.termStringVal());
+                assertTrue(in.nextGroup());
+                assertEquals(1, in.group());
+                final long[] buf = new long[1];
+                in.groupStats(buf);
+                assertEquals(stat, buf[0]);
+            }
         }
     }
 }

@@ -15,8 +15,6 @@
 package com.indeed.imhotep.service;
 
 import com.indeed.flamdex.simple.SimpleFlamdexWriter;
-import com.indeed.flamdex.writer.IntFieldWriter;
-import com.indeed.flamdex.writer.StringFieldWriter;
 import com.indeed.imhotep.client.ShardTimeUtils;
 import org.apache.commons.lang.RandomStringUtils;
 import org.joda.time.DateTime;
@@ -67,29 +65,13 @@ class SkeletonDataset {
         throws IOException {
         final int numDocs = Math.max(rng.nextInt(maxNumDocs), 1);
         try (SimpleFlamdexWriter sflw = new SimpleFlamdexWriter(shardDir, numDocs)) {
-                for (final String field: intFieldNames) {
-                    IntFieldWriter ifw = null;
-                    try {
-                        ifw = sflw.getIntFieldWriter(field);
-                    }
-                    finally {
-                        if (ifw != null) {
-                            ifw.close();
-                        }
-                    }
-                }
-                for (final String field: strFieldNames) {
-                    StringFieldWriter sfw = null;
-                    try {
-                        sfw = sflw.getStringFieldWriter(field);
-                    }
-                    finally {
-                        if (sfw != null) {
-                            sfw.close();
-                        }
-                    }
-                }
+            for (final String field: intFieldNames) {
+                sflw.getIntFieldWriter(field).close(); // creating a field
             }
+            for (final String field: strFieldNames) {
+                sflw.getStringFieldWriter(field).close(); // creating a field
+            }
+        }
     }
 
     private String[] randomFieldNames(final int maxNumFields) {

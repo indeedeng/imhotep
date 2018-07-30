@@ -30,7 +30,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 
 public class Shard {
@@ -49,11 +48,11 @@ public class Shard {
                   final String shardId) throws IOException {
         this.ref = ref;
         this.shardId = new ShardId(dataset, shardId, shardVersion, indexDir);
-        final SharedReference<CachedFlamdexReader> copy = ref.copy();
-        numDocs = copy.get().getNumDocs();
-        intFields = copy.get().getIntFields();
-        stringFields = copy.get().getStringFields();
-        copy.close();
+        try (final SharedReference<CachedFlamdexReader> copy = ref.copy()) {
+            numDocs = copy.get().getNumDocs();
+            intFields = copy.get().getIntFields();
+            stringFields = copy.get().getStringFields();
+        }
     }
 
     public Shard(final ReloadableSharedReference<CachedFlamdexReader, IOException> ref,

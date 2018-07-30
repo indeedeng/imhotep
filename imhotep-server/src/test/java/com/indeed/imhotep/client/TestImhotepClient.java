@@ -124,23 +124,23 @@ public class TestImhotepClient {
     public void testRealFailure() throws IOException {
         daemon1.stop();
         Host host1 = new Host("localhost", daemon1.getPort());
-        final ImhotepClient client = new ImhotepClient(Collections.singletonList(host1));
-        try {
-            Shard shard0 = new Shard(SHARD0, 0, 0);
-            shard0.getServers().add(host1);
-            client.sessionBuilder(DATASET, null, null).shardsOverride(Collections.singletonList(shard0)).build();
-            fail("session opening did not fail when it should have");
-        } catch (final RuntimeException e) {
-            // pass
-        }
+        try (final ImhotepClient client = new ImhotepClient(Collections.singletonList(host1))) {
+            try {
+                Shard shard0 = new Shard(SHARD0, 0, 0);
+                shard0.getServers().add(host1);
+                client.sessionBuilder(DATASET, null, null).shardsOverride(Collections.singletonList(shard0)).build();
+                fail("session opening did not fail when it should have");
+            } catch (final RuntimeException e) {
+                // pass
+            }
 
-        try {
-            client.sessionBuilder(DATASET, new DateTime(2013, 4, 18, 18, 0), new DateTime(2013, 4, 18, 19, 0)).build();
-            fail("session opening did not fail when it should have");
-        } catch (final RuntimeException e) {
-            // pass
+            try {
+                client.sessionBuilder(DATASET, new DateTime(2013, 4, 18, 18, 0), new DateTime(2013, 4, 18, 19, 0)).build();
+                fail("session opening did not fail when it should have");
+            } catch (final RuntimeException e) {
+                // pass
+            }
         }
-        client.close();
     }
 
 

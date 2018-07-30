@@ -219,9 +219,9 @@ public class SquallArchiveReader {
         try (FSDataInputStream is = fs.open(archivePath)) {
             is.seek(file.getStartOffset());
             final DigestInputStream digestStream = new DigestInputStream(compressor.newInputStream(is), ArchiveUtils.getMD5Digest());
-            final OutputStream os = new BufferedOutputStream(new FileOutputStream(targetFile));
-            ArchiveUtils.streamCopy(digestStream, os, file.getSize());
-            os.close();
+            try (final OutputStream os = new BufferedOutputStream(new FileOutputStream(targetFile))) {
+                ArchiveUtils.streamCopy(digestStream, os, file.getSize());
+            }
             final String checksum = ArchiveUtils.toHex(digestStream.getMessageDigest().digest());
             if (!checksum.equals(file.getChecksum())) {
                 throw new IOException("invalid checksum for file " + fullFilename + " in archive " + path + ": file checksum = " + checksum + ", checksum in metadata = " + file.getChecksum());
