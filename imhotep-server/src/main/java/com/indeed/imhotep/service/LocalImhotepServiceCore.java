@@ -26,7 +26,6 @@ import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.MemoryReserver;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
-import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.local.ImhotepJavaLocalSession;
 import com.indeed.imhotep.local.ImhotepLocalSession;
 import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
@@ -512,17 +511,11 @@ public class LocalImhotepServiceCore
             Throwables.propagate(ex);
         }
         catch (final RuntimeException | ImhotepOutOfMemoryException ex) {
-            closeNonNullSessions(localSessions);
+            Closeables2.closeAll(log, localSessions);
             throw ex;
         }
 
         return sessionId;
-    }
-
-    private static void closeNonNullSessions(final ImhotepSession[] sessions) {
-        for (final ImhotepSession session : sessions) {
-            Closeables2.closeQuietly(session, log);
-        }
     }
 
     @Override
