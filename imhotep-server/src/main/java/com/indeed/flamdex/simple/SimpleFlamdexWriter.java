@@ -72,6 +72,8 @@ import java.util.UUID;
 public class SimpleFlamdexWriter implements FlamdexWriter {
     private static final Logger log = Logger.getLogger(SimpleFlamdexWriter.class);
 
+    private static final int FIELD_COUNT_LIMIT = 2000;
+
     private static final int DOC_ID_BUFFER_SIZE = 32;
 
     private static final int BLOCK_SIZE = 64;
@@ -84,6 +86,8 @@ public class SimpleFlamdexWriter implements FlamdexWriter {
 
     private final Set<String> intFields;
     private final Set<String> stringFields;
+
+    private int fieldCount = 0;
 
     /**
      * use {@link #SimpleFlamdexWriter(Path, long)} instead
@@ -169,6 +173,7 @@ public class SimpleFlamdexWriter implements FlamdexWriter {
             throw new IllegalArgumentException("already added int field "+field);
         }
         intFields.add(field);
+        checkFieldCountLimit();
         return SimpleIntFieldWriter.open(outputDirectory, field, maxDocs, writeBTreesOnClose);
     }
 
@@ -185,7 +190,14 @@ public class SimpleFlamdexWriter implements FlamdexWriter {
             throw new IllegalArgumentException("already added string field "+field);
         }
         stringFields.add(field);
+        checkFieldCountLimit();
         return SimpleStringFieldWriter.open(outputDirectory, field, maxDocs, writeBTreesOnClose);
+    }
+
+    private void checkFieldCountLimit() {
+        if (stringFields.size() + intFields.size() > FIELD_COUNT_LIMIT) {
+            throw new TooManyFieldsException("Number of fields in the shard exceeds the limit of " + FIELD_COUNT_LIMIT);
+        }
     }
 
     @Override
