@@ -23,6 +23,7 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.shardmasterrpc.RequestResponseClient;
 import com.indeed.imhotep.shardmasterrpc.ShardMaster;
+import com.indeed.util.zookeeper.ZooKeeperConnection;
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -70,18 +71,18 @@ public class ImhotepClient
     }
 
     public ImhotepClient(final String zkNodes, final boolean readHostsBeforeReturning) {
-        this(new ZkHostsReloader(zkNodes, readHostsBeforeReturning));
+        this(new LeaderZkHostsReloader(zkNodes, readHostsBeforeReturning));
     }
 
     public ImhotepClient(final String zkNodes, final String zkPath, final boolean readHostsBeforeReturning) {
-        this(new ZkHostsReloader(zkNodes, zkPath, readHostsBeforeReturning));
+        this(new LeaderZkHostsReloader(zkNodes, zkPath, readHostsBeforeReturning));
     }
 
     public ImhotepClient(final HostsReloader hostsSource) {
 
         this.hostsSource = hostsSource;
 
-        this.shardMasterSupplier = getShardMasterSupplier();
+        this.shardMasterSupplier = getRandomShardMasterSupplier();
 
         rpcExecutor = Executors.newCachedThreadPool(new ThreadFactory() {
             @Override
@@ -610,11 +611,11 @@ public class ImhotepClient
     }
 
     // TODO: maybe replace this with a smarter scheme (power of two choices, ect)
-    private Supplier<ShardMaster> getShardMasterSupplier() {
+    private Supplier<ShardMaster> getRandomShardMasterSupplier() {
         return () -> {
-            Host host = hostsSource.getHosts().get((int)(Math.random()*hostsSource.getHosts().size()));
+            List<Host> hosts = hostsSource.getHosts();
+            Host host = hosts.get(new Random().nextInt() % hosts.size());
             return new RequestResponseClient(host);
         };
     }
-
 }

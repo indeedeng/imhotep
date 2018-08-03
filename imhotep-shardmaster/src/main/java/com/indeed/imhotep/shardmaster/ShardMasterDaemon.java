@@ -22,11 +22,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.indeed.imhotep.ZkEndpointPersister;
-import com.indeed.imhotep.client.CheckpointedHostsReloader;
-import com.indeed.imhotep.client.DummyHostsReloader;
-import com.indeed.imhotep.client.Host;
-import com.indeed.imhotep.client.HostsReloader;
-import com.indeed.imhotep.client.ZkHostsReloader;
+import com.indeed.imhotep.client.*;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.shardmasterrpc.MultiplexingRequestHandler;
 import com.indeed.imhotep.shardmasterrpc.RequestMetricStatsEmitter;
@@ -324,7 +320,7 @@ public class ShardMasterDaemon {
 
         HostsReloader createZkHostsReloader() {
             Preconditions.checkNotNull(zkNodes, "ZooKeeper nodes config is missing");
-            return new ZkHostsReloader(zkNodes, imhotepDaemonsZkPath, false);
+            return new LeaderZkHostsReloader(zkNodes, imhotepDaemonsZkPath, false);
         }
 
         HostsReloader createStaticHostReloader() throws IOException {

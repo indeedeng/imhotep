@@ -34,11 +34,11 @@ public class ZkHostsReloader extends DataLoadingRunnable implements HostsReloade
 
     private static final int TIMEOUT = 60000;
 
-    private final ZooKeeperConnection zkConnection;
-    private final String zkPath;
+    protected final ZooKeeperConnection zkConnection;
+    protected final String zkPath;
 
-    private volatile boolean closed;
-    private volatile List<Host> hosts;
+    protected volatile boolean closed;
+    protected volatile List<Host> hosts;
 
     public ZkHostsReloader(final String zkNodes, final boolean readHostsBeforeReturning) {
         this(zkNodes, "/imhotep/interactive-daemons", readHostsBeforeReturning);

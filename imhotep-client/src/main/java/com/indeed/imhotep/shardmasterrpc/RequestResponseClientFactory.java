@@ -16,6 +16,7 @@ package com.indeed.imhotep.shardmasterrpc;
 
 import com.google.common.base.Supplier;
 import com.indeed.imhotep.client.Host;
+import com.indeed.imhotep.client.LeaderZkHostsReloader;
 import com.indeed.imhotep.client.ZkHostsReloader;
 import org.apache.log4j.Logger;
 
@@ -39,7 +40,7 @@ public class RequestResponseClientFactory implements Supplier<ShardMaster> {
 
     @Override
     public RequestResponseClient get() {
-        final ZkHostsReloader zkHostsReloader = new ZkHostsReloader(zkNodes, zkPath, true);
+        final ZkHostsReloader zkHostsReloader = new LeaderZkHostsReloader(zkNodes, zkPath, true);
         try {
             final List<Host> hosts = zkHostsReloader.getHosts();
             if (hosts.isEmpty()) {
