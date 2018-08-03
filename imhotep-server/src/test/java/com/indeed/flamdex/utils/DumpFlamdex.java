@@ -32,66 +32,66 @@ public class DumpFlamdex {
     }
 
     public static void main(final String[] args) throws IOException {
-        final SimpleFlamdexReader reader = SimpleFlamdexReader.open(Paths.get("/tmp/organicshard"));
-        final DataOutputStream dos = new DataOutputStream(new BufferedOutputStream(new FileOutputStream("/tmp/shard.dat")));
+        try (final SimpleFlamdexReader reader = SimpleFlamdexReader.open(Paths.get("/tmp/organicshard"));
+             final DocIdStream stream = reader.getDocIdStream();
+             final DataOutputStream dos = new DataOutputStream(new BufferedOutputStream(new FileOutputStream("/tmp/shard.dat")))) {
 
-        dos.writeInt(reader.getNumDocs());
+            dos.writeInt(reader.getNumDocs());
 
-        final DocIdStream stream = reader.getDocIdStream();
-        final int[] docIdBuffer = new int[1024];
-        int n;
 
-        for (final String strField : reader.getStringFields()) {
-            System.out.println("strField: " + strField);
-            dos.writeBoolean(true);
-            dos.writeUTF(strField);
+            final int[] docIdBuffer = new int[1024];
+            int n;
 
-            final StringTermIterator iter = reader.getStringTermIterator(strField);
-            while (iter.next()) {
-                final String term = iter.term();
+            for (final String strField : reader.getStringFields()) {
+                System.out.println("strField: " + strField);
                 dos.writeBoolean(true);
-                dos.writeUTF(term);
+                dos.writeUTF(strField);
 
-                stream.reset(iter);
-                do {
-                    n = stream.fillDocIdBuffer(docIdBuffer);
-                    for (int i = 0; i < n; i++) {
-                        dos.writeBoolean(true);
-                        dos.writeInt(docIdBuffer[i]);
-                    }
-                } while (n == docIdBuffer.length);
-                dos.writeBoolean(false);
-            }
+                final StringTermIterator iter = reader.getStringTermIterator(strField);
+                while (iter.next()) {
+                    final String term = iter.term();
+                    dos.writeBoolean(true);
+                    dos.writeUTF(term);
 
-            dos.writeBoolean(false);
-        }
-        dos.writeBoolean(false);
+                    stream.reset(iter);
+                    do {
+                        n = stream.fillDocIdBuffer(docIdBuffer);
+                        for (int i = 0; i < n; i++) {
+                            dos.writeBoolean(true);
+                            dos.writeInt(docIdBuffer[i]);
+                        }
+                    } while (n == docIdBuffer.length);
+                    dos.writeBoolean(false);
+                }
 
-        for (final String intField : reader.getIntFields()) {
-            System.out.println("intField: " + intField);
-            dos.writeBoolean(true);
-            dos.writeUTF(intField);
-
-            final IntTermIterator iter = reader.getIntTermIterator(intField);
-            while (iter.next()) {
-                final long term = iter.term();
-                dos.writeBoolean(true);
-                dos.writeLong(term);
-
-                stream.reset(iter);
-                do {
-                    n = stream.fillDocIdBuffer(docIdBuffer);
-                    for (int i = 0; i < n; i++) {
-                        dos.writeBoolean(true);
-                        dos.writeInt(docIdBuffer[i]);
-                    }
-                } while (n == docIdBuffer.length);
                 dos.writeBoolean(false);
             }
             dos.writeBoolean(false);
-        }
-        dos.writeBoolean(false);
 
-        dos.close();
+            for (final String intField : reader.getIntFields()) {
+                System.out.println("intField: " + intField);
+                dos.writeBoolean(true);
+                dos.writeUTF(intField);
+
+                final IntTermIterator iter = reader.getIntTermIterator(intField);
+                while (iter.next()) {
+                    final long term = iter.term();
+                    dos.writeBoolean(true);
+                    dos.writeLong(term);
+
+                    stream.reset(iter);
+                    do {
+                        n = stream.fillDocIdBuffer(docIdBuffer);
+                        for (int i = 0; i < n; i++) {
+                            dos.writeBoolean(true);
+                            dos.writeInt(docIdBuffer[i]);
+                        }
+                    } while (n == docIdBuffer.length);
+                    dos.writeBoolean(false);
+                }
+                dos.writeBoolean(false);
+            }
+            dos.writeBoolean(false);
+        }
     }
 }

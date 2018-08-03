@@ -579,11 +579,10 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
         ensureGroupLookupCapacity(cleanRules);
         final ThreadSafeBitSet docRemapped = new ThreadSafeBitSet(numDocs);
-        final DocIdStream docIdStream = flamdexReader.getDocIdStream();
-
-        applyIntConditions(cleanRules, docIdStream, docRemapped);
-        applyStringConditions(cleanRules, docIdStream, docRemapped);
-        docIdStream.close();
+        try (final DocIdStream docIdStream = flamdexReader.getDocIdStream()) {
+            applyIntConditions(cleanRules, docIdStream, docRemapped);
+            applyStringConditions(cleanRules, docIdStream, docRemapped);
+        }
 
         // pick up everything else that was missed
         for (int i = 0; i < docIdToGroup.size(); i++) {
@@ -2071,79 +2070,75 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             groupDeltas.getFirst().add(groups[i]);
             groupDeltas.getSecond().add(deltas[i]);
         }
-        final DocIdStream docIdStream = flamdexReader.getDocIdStream();
-        IntTermIterator intTermIterator = null;
-        StringTermIterator stringTermIterator = null;
-        try {
+
+        try (final DocIdStream docIdStream = flamdexReader.getDocIdStream()){
             for (final Map.Entry<String, Long2ObjectMap<Pair<IntArrayList, IntArrayList>>> entry :
                      intFields.entrySet()) {
                 final String field = entry.getKey();
                 final Long2ObjectMap<Pair<IntArrayList, IntArrayList>> termToGroupDeltas = entry.getValue();
-                intTermIterator = flamdexReader.getUnsortedIntTermIterator(field);
-                for (final Long2ObjectMap.Entry<Pair<IntArrayList, IntArrayList>> entry2 :
-                         termToGroupDeltas.long2ObjectEntrySet()) {
-                    for (int i = 0; i < groupsSet.size(); i++) {
-                        groupsWithCurrentTerm.clear(groupsSet.getInt(i));
+                try (final IntTermIterator intTermIterator = flamdexReader.getUnsortedIntTermIterator(field)) {
+                    for (final Long2ObjectMap.Entry<Pair<IntArrayList, IntArrayList>> entry2 :
+                            termToGroupDeltas.long2ObjectEntrySet()) {
+                        for (int i = 0; i < groupsSet.size(); i++) {
+                            groupsWithCurrentTerm.clear(groupsSet.getInt(i));
+                        }
+                        groupsSet.clear();
+                        final long term = entry2.getLongKey();
+                        final Pair<IntArrayList, IntArrayList> groupDeltas = entry2.getValue();
+                        final IntArrayList termGroups = groupDeltas.getFirst();
+                        final IntArrayList termDeltas = groupDeltas.getSecond();
+                        for (int i = 0; i < termGroups.size(); i++) {
+                            final int group = termGroups.getInt(i);
+                            groupsWithCurrentTerm.set(group);
+                            groupToDelta[group] = termDeltas.getInt(i);
+                            groupsSet.add(group);
+                        }
+                        intTermIterator.reset(term);
+                        if (!intTermIterator.next()) {
+                            continue;
+                        }
+                        if (intTermIterator.term() != term) {
+                            continue;
+                        }
+                        docIdStream.reset(intTermIterator);
+                        updateDocsWithTermDynamicMetric(metric, groupsWithCurrentTerm,
+                                groupToDelta, docIdStream);
                     }
-                    groupsSet.clear();
-                    final long term = entry2.getLongKey();
-                    final Pair<IntArrayList, IntArrayList> groupDeltas = entry2.getValue();
-                    final IntArrayList termGroups = groupDeltas.getFirst();
-                    final IntArrayList termDeltas = groupDeltas.getSecond();
-                    for (int i = 0; i < termGroups.size(); i++) {
-                        final int group = termGroups.getInt(i);
-                        groupsWithCurrentTerm.set(group);
-                        groupToDelta[group] = termDeltas.getInt(i);
-                        groupsSet.add(group);
-                    }
-                    intTermIterator.reset(term);
-                    if (!intTermIterator.next()) {
-                        continue;
-                    }
-                    if (intTermIterator.term() != term) {
-                        continue;
-                    }
-                    docIdStream.reset(intTermIterator);
-                    updateDocsWithTermDynamicMetric(metric, groupsWithCurrentTerm,
-                                                    groupToDelta, docIdStream);
                 }
-                intTermIterator.close();
             }
             for (final Map.Entry<String, Map<String, Pair<IntArrayList, IntArrayList>>> entry :
                      stringFields.entrySet()) {
                 final String field = entry.getKey();
                 final Map<String, Pair<IntArrayList, IntArrayList>> termToGroupDeltas = entry.getValue();
-                stringTermIterator = flamdexReader.getStringTermIterator(field);
-                for (final Map.Entry<String, Pair<IntArrayList, IntArrayList>> entry2 :
-                         termToGroupDeltas.entrySet()) {
-                    for (int i = 0; i < groupsSet.size(); i++) {
-                        groupsWithCurrentTerm.clear(groupsSet.getInt(i));
+                try (final StringTermIterator stringTermIterator = flamdexReader.getStringTermIterator(field)) {
+                    for (final Map.Entry<String, Pair<IntArrayList, IntArrayList>> entry2 :
+                            termToGroupDeltas.entrySet()) {
+                        for (int i = 0; i < groupsSet.size(); i++) {
+                            groupsWithCurrentTerm.clear(groupsSet.getInt(i));
+                        }
+                        groupsSet.clear();
+                        final String term = entry2.getKey();
+                        final Pair<IntArrayList, IntArrayList> groupDeltas = entry2.getValue();
+                        final IntArrayList termGroups = groupDeltas.getFirst();
+                        final IntArrayList termDeltas = groupDeltas.getSecond();
+                        for (int i = 0; i < termGroups.size(); i++) {
+                            final int group = termGroups.getInt(i);
+                            groupsWithCurrentTerm.set(group);
+                            groupToDelta[group] = termDeltas.getInt(i);
+                            groupsSet.add(group);
+                        }
+                        stringTermIterator.reset(term);
+                        if (!stringTermIterator.next()) {
+                            continue;
+                        }
+                        if (!stringTermIterator.term().equals(term)) {
+                            continue;
+                        }
+                        docIdStream.reset(stringTermIterator);
+                        updateDocsWithTermDynamicMetric(metric, groupsWithCurrentTerm, groupToDelta, docIdStream);
                     }
-                    groupsSet.clear();
-                    final String term = entry2.getKey();
-                    final Pair<IntArrayList, IntArrayList> groupDeltas = entry2.getValue();
-                    final IntArrayList termGroups = groupDeltas.getFirst();
-                    final IntArrayList termDeltas = groupDeltas.getSecond();
-                    for (int i = 0; i < termGroups.size(); i++) {
-                        final int group = termGroups.getInt(i);
-                        groupsWithCurrentTerm.set(group);
-                        groupToDelta[group] = termDeltas.getInt(i);
-                        groupsSet.add(group);
-                    }
-                    stringTermIterator.reset(term);
-                    if (!stringTermIterator.next()) {
-                        continue;
-                    }
-                    if (!stringTermIterator.term().equals(term)) {
-                        continue;
-                    }
-                    docIdStream.reset(stringTermIterator);
-                    updateDocsWithTermDynamicMetric(metric, groupsWithCurrentTerm, groupToDelta, docIdStream);
                 }
-                stringTermIterator.close();
             }
-        } finally {
-            Closeables2.closeAll(log, docIdStream, intTermIterator, stringTermIterator);
         }
     }
 
@@ -2421,52 +2416,52 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         for (final String intField : intFields.keySet()) {
             final IntFieldConditionSummary summary = intFields.get(intField);
             log.debug("[" + getSessionId() + "] Splitting groups using int field: " + intField);
-            final IntTermIterator itr = flamdexReader.getUnsortedIntTermIterator(intField);
-            final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
+            try (final IntTermIterator itr = flamdexReader.getUnsortedIntTermIterator(intField)) {
+                final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
 
-            if (summary.maxInequalityTerm >= 0) {
-                while (itr.next()) {
-                    final long itrTerm = itr.term();
-                    if (itrTerm > summary.maxInequalityTerm
-                            && !summary.otherTerms.contains(itrTerm)) {
-                        continue;
-                    }
-                    docIdStream.reset(itr);
-                    do {
-                        final int n = docIdStream.fillDocIdBuffer(docIdBuf);
-                        docIdToGroup.applyIntConditionsCallback(n,
-                                                                docIdBuf,
-                                                                docRemapped,
-                                                                remapRules,
-                                                                intField,
-                                                                itrTerm);
-                        if (n != docIdBuf.length) {
-                            break;
+                if (summary.maxInequalityTerm >= 0) {
+                    while (itr.next()) {
+                        final long itrTerm = itr.term();
+                        if (itrTerm > summary.maxInequalityTerm
+                                && !summary.otherTerms.contains(itrTerm)) {
+                            continue;
                         }
-                    } while (true);
-                }
-            } else {
-                for (final long term : summary.otherTerms) {
-                    itr.reset(term);
-                    if (itr.next() && itr.term() == term) {
                         docIdStream.reset(itr);
                         do {
                             final int n = docIdStream.fillDocIdBuffer(docIdBuf);
                             docIdToGroup.applyIntConditionsCallback(n,
-                                                                    docIdBuf,
-                                                                    docRemapped,
-                                                                    remapRules,
-                                                                    intField,
-                                                                    term);
+                                    docIdBuf,
+                                    docRemapped,
+                                    remapRules,
+                                    intField,
+                                    itrTerm);
                             if (n != docIdBuf.length) {
                                 break;
                             }
                         } while (true);
                     }
+                } else {
+                    for (final long term : summary.otherTerms) {
+                        itr.reset(term);
+                        if (itr.next() && itr.term() == term) {
+                            docIdStream.reset(itr);
+                            do {
+                                final int n = docIdStream.fillDocIdBuffer(docIdBuf);
+                                docIdToGroup.applyIntConditionsCallback(n,
+                                        docIdBuf,
+                                        docRemapped,
+                                        remapRules,
+                                        intField,
+                                        term);
+                                if (n != docIdBuf.length) {
+                                    break;
+                                }
+                            } while (true);
+                        }
+                    }
                 }
+                memoryPool.returnIntBuffer(docIdBuf);
             }
-            memoryPool.returnIntBuffer(docIdBuf);
-            itr.close();
         }
     }
 
@@ -2479,52 +2474,52 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             final StringFieldConditionSummary summary = stringFields.get(stringField);
             log.debug("[" + getSessionId() + "] Splitting groups using string field: " + stringField);
 
-            final StringTermIterator itr = flamdexReader.getStringTermIterator(stringField);
-            final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
+            try (final StringTermIterator itr = flamdexReader.getStringTermIterator(stringField)) {
+                final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
 
-            if (summary.maxInequalityTerm != null) {
-                while (itr.next()) {
-                    final String itrTerm = itr.term();
-                    if ((summary.maxInequalityTerm.compareTo(itrTerm) < 0)
-                            && !summary.otherTerms.contains(itrTerm)) {
-                        continue;
-                    }
-                    docIdStream.reset(itr);
-                    do {
-                        final int n = docIdStream.fillDocIdBuffer(docIdBuf);
-                        docIdToGroup.applyStringConditionsCallback(n,
-                                                                   docIdBuf,
-                                                                   docRemapped,
-                                                                   remapRules,
-                                                                   stringField,
-                                                                   itrTerm);
-                        if (n != docIdBuf.length) {
-                            break;
+                if (summary.maxInequalityTerm != null) {
+                    while (itr.next()) {
+                        final String itrTerm = itr.term();
+                        if ((summary.maxInequalityTerm.compareTo(itrTerm) < 0)
+                                && !summary.otherTerms.contains(itrTerm)) {
+                            continue;
                         }
-                    } while (true);
-                }
-            } else {
-                for (final String term : summary.otherTerms) {
-                    itr.reset(term);
-                    if (itr.next() && itr.term().equals(term)) {
                         docIdStream.reset(itr);
                         do {
                             final int n = docIdStream.fillDocIdBuffer(docIdBuf);
                             docIdToGroup.applyStringConditionsCallback(n,
-                                                                       docIdBuf,
-                                                                       docRemapped,
-                                                                       remapRules,
-                                                                       stringField,
-                                                                       term);
+                                    docIdBuf,
+                                    docRemapped,
+                                    remapRules,
+                                    stringField,
+                                    itrTerm);
                             if (n != docIdBuf.length) {
                                 break;
                             }
                         } while (true);
                     }
+                } else {
+                    for (final String term : summary.otherTerms) {
+                        itr.reset(term);
+                        if (itr.next() && itr.term().equals(term)) {
+                            docIdStream.reset(itr);
+                            do {
+                                final int n = docIdStream.fillDocIdBuffer(docIdBuf);
+                                docIdToGroup.applyStringConditionsCallback(n,
+                                        docIdBuf,
+                                        docRemapped,
+                                        remapRules,
+                                        stringField,
+                                        term);
+                                if (n != docIdBuf.length) {
+                                    break;
+                                }
+                            } while (true);
+                        }
+                    }
                 }
+                memoryPool.returnIntBuffer(docIdBuf);
             }
-            memoryPool.returnIntBuffer(docIdBuf);
-            itr.close();
         }
     }
 

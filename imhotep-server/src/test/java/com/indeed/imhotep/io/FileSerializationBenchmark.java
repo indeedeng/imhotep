@@ -99,11 +99,11 @@ public class FileSerializationBenchmark {
         public void serialize(final int[] a, final Path path) throws IOException {
             final BufferedOutputStream bos;
             bos = new BufferedOutputStream(java.nio.file.Files.newOutputStream(path));
-            final DataOutputStream os = new DataOutputStream(bos);
-            for (final int val : a) {
-                os.writeInt(val);
+            try (final DataOutputStream os = new DataOutputStream(bos)) {
+                for (final int val : a) {
+                    os.writeInt(val);
+                }
             }
-            os.close();
         }
 
         @Override
@@ -124,12 +124,11 @@ public class FileSerializationBenchmark {
         public void serialize(final int[] a, final Path path) throws IOException {
             final BufferedOutputStream bos;
             bos = new BufferedOutputStream(java.nio.file.Files.newOutputStream(path));
-            final LittleEndianDataOutputStream os;
-            os = new LittleEndianDataOutputStream(bos);
-            for (final int val : a) {
-                os.writeInt(val);
+            try (final LittleEndianDataOutputStream os = new LittleEndianDataOutputStream(bos)) {
+                for (final int val : a) {
+                    os.writeInt(val);
+                }
             }
-            os.close();
         }
 
         @Override
@@ -206,72 +205,72 @@ public class FileSerializationBenchmark {
     private static class NIOBESerializer implements IntArraySerializer {
         @Override
         public void serialize(final int[] a, final Path path) throws IOException {
-            final FileChannel ch = new RandomAccessFile(path.toFile(), "rw").getChannel();
-            final ByteBuffer buffer = ByteBuffer.allocateDirect(8192);
-            buffer.order(ByteOrder.BIG_ENDIAN);
-            final IntBuffer intBuffer = buffer.asIntBuffer();
-            for (int i = 0; i < a.length; i += 2048) {
-                intBuffer.clear();
-                final int lim = Math.min(2048, a.length - i);
-                for (int j = 0; j < lim; ++j) {
-                    intBuffer.put(j, a[i+j]);
+            try (final FileChannel ch = new RandomAccessFile(path.toFile(), "rw").getChannel()) {
+                final ByteBuffer buffer = ByteBuffer.allocateDirect(8192);
+                buffer.order(ByteOrder.BIG_ENDIAN);
+                final IntBuffer intBuffer = buffer.asIntBuffer();
+                for (int i = 0; i < a.length; i += 2048) {
+                    intBuffer.clear();
+                    final int lim = Math.min(2048, a.length - i);
+                    for (int j = 0; j < lim; ++j) {
+                        intBuffer.put(j, a[i + j]);
+                    }
+                    buffer.position(0).limit(4 * lim);
+                    ch.write(buffer);
                 }
-                buffer.position(0).limit(4*lim);
-                ch.write(buffer);
             }
-            ch.close();
         }
 
         @Override
         public int[] deserialize(final Path path) throws IOException {
-            final FileChannel ch = new RandomAccessFile(path.toFile(), "r").getChannel();
-            final int[] ret = new int[(int)(java.nio.file.Files.size(path) / 4)];
-            final ByteBuffer buffer = ByteBuffer.allocateDirect(8192);
-            buffer.order(ByteOrder.BIG_ENDIAN);
-            final IntBuffer intBuffer = buffer.asIntBuffer();
-            for (int i = 0; i < ret.length; i += 2048) {
-                buffer.clear();
-                final int lim = ch.read(buffer) / 4;
-                intBuffer.clear();
-                intBuffer.get(ret, i, lim);
+            try (final FileChannel ch = new RandomAccessFile(path.toFile(), "r").getChannel()) {
+                final int[] ret = new int[(int) (java.nio.file.Files.size(path) / 4)];
+                final ByteBuffer buffer = ByteBuffer.allocateDirect(8192);
+                buffer.order(ByteOrder.BIG_ENDIAN);
+                final IntBuffer intBuffer = buffer.asIntBuffer();
+                for (int i = 0; i < ret.length; i += 2048) {
+                    buffer.clear();
+                    final int lim = ch.read(buffer) / 4;
+                    intBuffer.clear();
+                    intBuffer.get(ret, i, lim);
+                }
+                return ret;
             }
-            ch.close();
-            return ret;
         }
     }
 
     private static class NIOLESerializer implements IntArraySerializer {
         @Override
         public void serialize(final int[] a, final Path path) throws IOException {
-            final FileChannel ch = new RandomAccessFile(path.toFile(), "rw").getChannel();
-            final ByteBuffer buffer = ByteBuffer.allocateDirect(8192);
-            buffer.order(ByteOrder.LITTLE_ENDIAN);
-            final IntBuffer intBuffer = buffer.asIntBuffer();
-            for (int i = 0; i < a.length; i += 2048) {
-                intBuffer.clear();
-                final int lim = Math.min(2048, a.length - i);
-                intBuffer.put(a, i, lim);
-                buffer.position(0).limit(4*lim);
-                ch.write(buffer);
+            try (final FileChannel ch = new RandomAccessFile(path.toFile(), "rw").getChannel()) {
+                final ByteBuffer buffer = ByteBuffer.allocateDirect(8192);
+                buffer.order(ByteOrder.LITTLE_ENDIAN);
+                final IntBuffer intBuffer = buffer.asIntBuffer();
+                for (int i = 0; i < a.length; i += 2048) {
+                    intBuffer.clear();
+                    final int lim = Math.min(2048, a.length - i);
+                    intBuffer.put(a, i, lim);
+                    buffer.position(0).limit(4 * lim);
+                    ch.write(buffer);
+                }
             }
-            ch.close();
         }
 
         @Override
         public int[] deserialize(final Path path) throws IOException {
-            final FileChannel ch = new RandomAccessFile(path.toFile(), "r").getChannel();
-            final int[] ret = new int[(int)(java.nio.file.Files.size(path) / 4)];
-            final ByteBuffer buffer = ByteBuffer.allocateDirect(8192);
-            buffer.order(ByteOrder.LITTLE_ENDIAN);
-            final IntBuffer intBuffer = buffer.asIntBuffer();
-            for (int i = 0; i < ret.length; i += 2048) {
-                buffer.clear();
-                final int lim = ch.read(buffer) / 4;
-                intBuffer.clear();
-                intBuffer.get(ret, i, lim);
+            try (final FileChannel ch = new RandomAccessFile(path.toFile(), "r").getChannel()) {
+                final int[] ret = new int[(int) (java.nio.file.Files.size(path) / 4)];
+                final ByteBuffer buffer = ByteBuffer.allocateDirect(8192);
+                buffer.order(ByteOrder.LITTLE_ENDIAN);
+                final IntBuffer intBuffer = buffer.asIntBuffer();
+                for (int i = 0; i < ret.length; i += 2048) {
+                    buffer.clear();
+                    final int lim = ch.read(buffer) / 4;
+                    intBuffer.clear();
+                    intBuffer.get(ret, i, lim);
+                }
+                return ret;
             }
-            ch.close();
-            return ret;
         }
     }
 

@@ -32,72 +32,71 @@ public class DumpFlamdex2 {
     }
 
     public static void main(final String[] args) throws IOException {
-        final SimpleFlamdexReader reader = SimpleFlamdexReader.open(Paths.get(args[0])); //"/tmp/native-ftgs-test7045001985093560042test");
-        final BufferedWriter w  = new BufferedWriter(new FileWriter(args[1])); //"/tmp/shard3.dat"));
+        try (final SimpleFlamdexReader reader = SimpleFlamdexReader.open(Paths.get(args[0])); //"/tmp/native-ftgs-test7045001985093560042test");
+             final DocIdStream stream = reader.getDocIdStream();
+             final BufferedWriter w  = new BufferedWriter(new FileWriter(args[1]))) { //"/tmp/shard3.dat"));
 
-        w.write("num docs: " + reader.getNumDocs());
-        w.newLine();
-
-        final DocIdStream stream = reader.getDocIdStream();
-        final int[] docIdBuffer = new int[1024];
-        int n;
-
-        for (final String strField : reader.getStringFields()) {
-            System.out.println("strField: " + strField);
-            w.write("String Field : " + strField);
+            w.write("num docs: " + reader.getNumDocs());
             w.newLine();
 
-            final StringTermIterator iter = reader.getStringTermIterator(strField);
-            while (iter.next()) {
-                final String term = iter.term();
-                w.write("String Term : " + term);
+            final int[] docIdBuffer = new int[1024];
+            int n;
+
+            for (final String strField : reader.getStringFields()) {
+                System.out.println("strField: " + strField);
+                w.write("String Field : " + strField);
                 w.newLine();
 
-                stream.reset(iter);
-                int j = 0;
-                do {
-                    n = stream.fillDocIdBuffer(docIdBuffer);
-                    for (int i = 0; i < n; i++) {
-                        w.write(Integer.toString(docIdBuffer[i]) + ", ");
-                        j ++;
-                    }
-                } while (n == docIdBuffer.length);
+                final StringTermIterator iter = reader.getStringTermIterator(strField);
+                while (iter.next()) {
+                    final String term = iter.term();
+                    w.write("String Term : " + term);
+                    w.newLine();
+
+                    stream.reset(iter);
+                    int j = 0;
+                    do {
+                        n = stream.fillDocIdBuffer(docIdBuffer);
+                        for (int i = 0; i < n; i++) {
+                            w.write(Integer.toString(docIdBuffer[i]) + ", ");
+                            j++;
+                        }
+                    } while (n == docIdBuffer.length);
+                    w.newLine();
+                    w.write("count: " + j);
+                    w.newLine();
+                }
                 w.newLine();
-                w.write("count: " + j);
+            }
+            w.newLine();
+
+            for (final String intField : reader.getIntFields()) {
+                System.out.println("intField: " + intField);
+                w.write("Int Field : " + intField);
+                w.newLine();
+
+                final IntTermIterator iter = reader.getIntTermIterator(intField);
+                while (iter.next()) {
+                    final long term = iter.term();
+                    w.write("Int Term : " + term);
+                    w.newLine();
+
+                    stream.reset(iter);
+                    int j = 0;
+                    do {
+                        n = stream.fillDocIdBuffer(docIdBuffer);
+                        for (int i = 0; i < n; i++) {
+                            w.write(Integer.toString(docIdBuffer[i]) + ", ");
+                            j++;
+                        }
+                    } while (n == docIdBuffer.length);
+                    w.newLine();
+                    w.write("count: " + j);
+                    w.newLine();
+                }
                 w.newLine();
             }
             w.newLine();
         }
-        w.newLine();
-
-        for (final String intField : reader.getIntFields()) {
-            System.out.println("intField: " + intField);
-            w.write("Int Field : " + intField);
-            w.newLine();
-
-            final IntTermIterator iter = reader.getIntTermIterator(intField);
-            while (iter.next()) {
-                final long term = iter.term();
-                w.write("Int Term : " + term);
-                w.newLine();
-
-                stream.reset(iter);
-                int j = 0;
-                do {
-                    n = stream.fillDocIdBuffer(docIdBuffer);
-                    for (int i = 0; i < n; i++) {
-                        w.write(Integer.toString(docIdBuffer[i]) + ", ");
-                        j ++;
-                    }
-                } while (n == docIdBuffer.length);
-                w.newLine();
-                w.write("count: " + j);
-                w.newLine();
-            }
-            w.newLine();
-        }
-        w.newLine();
-
-        w.close();
     }
 }

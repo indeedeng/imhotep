@@ -34,22 +34,15 @@ class TermQueryEvaluator implements QueryEvaluator {
 
     @Override
     public void and(final FlamdexReader r, final FastBitSet bitSet, final FastBitSetPooler bitSetPooler) {
-        final DocIdStream docIdStream = r.getDocIdStream();
-        if (term.isIntField()) {
-            final IntTermIterator iterator = r.getUnsortedIntTermIterator(term.getFieldName());
-            try {
-                intAnd(iterator, docIdStream, bitSet);
-            } finally {
-                iterator.close();
-                docIdStream.close();
-            }
-        } else {
-            final StringTermIterator iterator = r.getStringTermIterator(term.getFieldName());
-            try {
-                stringAnd(iterator, docIdStream, bitSet);
-            } finally {
-                iterator.close();
-                docIdStream.close();
+        try(final DocIdStream docIdStream = r.getDocIdStream()) {
+            if (term.isIntField()) {
+                try (final IntTermIterator iterator = r.getUnsortedIntTermIterator(term.getFieldName())) {
+                    intAnd(iterator, docIdStream, bitSet);
+                }
+            } else {
+                try (final StringTermIterator iterator = r.getStringTermIterator(term.getFieldName())) {
+                    stringAnd(iterator, docIdStream, bitSet);
+                }
             }
         }
     }
@@ -94,22 +87,15 @@ class TermQueryEvaluator implements QueryEvaluator {
 
     @Override
     public void or(final FlamdexReader r, final FastBitSet bitSet, final FastBitSetPooler bitSetPooler) {
-        final DocIdStream docIdStream = r.getDocIdStream();
-        if (term.isIntField()) {
-            final IntTermIterator iterator = r.getUnsortedIntTermIterator(term.getFieldName());
-            try {
-                intOr(iterator, docIdStream, bitSet);
-            } finally {
-                iterator.close();
-                docIdStream.close();
-            }
-        } else {
-            final StringTermIterator iterator = r.getStringTermIterator(term.getFieldName());
-            try {
-                stringOr(iterator, docIdStream, bitSet);
-            } finally {
-                iterator.close();
-                docIdStream.close();
+        try (final DocIdStream docIdStream = r.getDocIdStream()) {
+            if (term.isIntField()) {
+                try (final IntTermIterator iterator = r.getUnsortedIntTermIterator(term.getFieldName())) {
+                    intOr(iterator, docIdStream, bitSet);
+                }
+            } else {
+                try (final StringTermIterator iterator = r.getStringTermIterator(term.getFieldName())) {
+                    stringOr(iterator, docIdStream, bitSet);
+                }
             }
         }
     }
@@ -148,22 +134,15 @@ class TermQueryEvaluator implements QueryEvaluator {
 
     @Override
     public void not(final FlamdexReader r, final FastBitSet bitSet, final FastBitSetPooler bitSetPooler) {
-        final DocIdStream docIdStream = r.getDocIdStream();
-        if (term.isIntField()) {
-            final IntTermIterator iterator = r.getUnsortedIntTermIterator(term.getFieldName());
-            try {
-                intNot(iterator, docIdStream, bitSet);
-            } finally {
-                iterator.close();
-                docIdStream.close();
-            }
-        } else {
-            final StringTermIterator iterator = r.getStringTermIterator(term.getFieldName());
-            try {
-                stringNot(iterator, docIdStream, bitSet);
-            } finally {
-                iterator.close();
-                docIdStream.close();
+        try (final DocIdStream docIdStream = r.getDocIdStream()) {
+            if (term.isIntField()) {
+                try (final IntTermIterator iterator = r.getUnsortedIntTermIterator(term.getFieldName())) {
+                    intNot(iterator, docIdStream, bitSet);
+                }
+            } else {
+                try (final StringTermIterator iterator = r.getStringTermIterator(term.getFieldName())) {
+                    stringNot(iterator, docIdStream, bitSet);
+                }
             }
         }
     }

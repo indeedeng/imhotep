@@ -17,17 +17,12 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.indeed.flamdex.api.FlamdexReader;
-import com.indeed.flamdex.reader.FlamdexFormatVersion;
-import com.indeed.flamdex.reader.FlamdexMetadata;
-import com.indeed.flamdex.reader.GenericFlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.imhotep.*;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
-import com.indeed.imhotep.client.ShardTimeUtils;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.fs.RemoteCachingPath;
 import com.indeed.imhotep.local.ImhotepJavaLocalSession;
@@ -36,16 +31,11 @@ import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
 import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
 import com.indeed.imhotep.scheduling.SchedulerType;
 import com.indeed.imhotep.scheduling.TaskScheduler;
-import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
-import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.core.shell.PosixFileOperations;
-import com.indeed.util.varexport.Export;
 import com.indeed.util.varexport.VarExporter;
 import org.apache.log4j.Logger;
-import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
-import org.joda.time.Period;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -358,7 +348,7 @@ public class LocalImhotepServiceCore
             throw Throwables.propagate(ex);
         }
         catch (final RuntimeException | ImhotepOutOfMemoryException ex) {
-            closeNonNullSessions(localSessions);
+            Closeables2.closeAll(log, localSessions);
             throw ex;
         }
 

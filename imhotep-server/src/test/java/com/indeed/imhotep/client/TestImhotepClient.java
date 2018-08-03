@@ -132,14 +132,6 @@ public class TestImhotepClient {
         } catch (final RuntimeException e) {
             // pass
         }
-
-        try {
-            client.sessionBuilder(DATASET, new DateTime(2013, 4, 18, 18, 0), new DateTime(2013, 4, 18, 19, 0)).build();
-            fail("session opening did not fail when it should have");
-        } catch (final RuntimeException e) {
-            // pass
-        }
-        client.close();
     }
 
 

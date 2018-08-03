@@ -39,59 +39,67 @@ class DatasetShardRefresher extends TimerTask {
     private static final Logger LOGGER = Logger.getLogger(DatasetShardRefresher.class);
     private final Path datasetsDir;
     private static final ExecutorService executorService = new ForkJoinPool(40);
-    private String leaderPath;
-    private Connection dbConnection;
-    private ZooKeeperConnection zkConnection;
+    private final String leaderElectionRoot;
+    private final String hostId;
+    private String leaderId;
+    private final Connection dbConnection;
+    private final ZooKeeperConnection zkConnection;
     private final org.apache.hadoop.fs.FileSystem hadoopFileSystem;
     private final ShardFilter filter;
     private final ShardData shardData;
 
     public boolean isLeader(){
         try {
-            int leaderPathEndIndex = leaderPath.lastIndexOf('/');
-            if(leaderPathEndIndex == -1) {
-                LOGGER.error("The leader path is corrupted. Assuming that I am not the leader.");
-                return false;
+            if(!zkConnection.isConnected()) {
+                zkConnection.connect();
+                final String leaderPath = zkConnection.create(leaderElectionRoot+"/_", hostId.getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
+                leaderId = leaderPath.substring(leaderElectionRoot.length()+1);
+            } else if(leaderId == null) {
+                final String leaderPath = zkConnection.create(leaderElectionRoot+"/_", hostId.getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
+                leaderId = leaderPath.substring(leaderElectionRoot.length()+1);
             }
 
-            final String electionRoot = leaderPath.substring(0, leaderPathEndIndex);
-            List<String> children = zkConnection.getChildren(electionRoot, false);
+            final List<String> children = zkConnection.getChildren(leaderElectionRoot, false);
             Collections.sort(children);
 
-            int index = Collections.binarySearch(children, leaderPath);
+            int index = Collections.binarySearch(children, leaderId);
 
             if(index == 0) {
                 return true;
             }
 
             if(index == -1) {
-                leaderPath = zkConnection.create(electionRoot, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
+                //TODO: does closing and reopening the zkConnection make a new node?
+                LOGGER.info("Lost my leader path. Resetting my connection to zookeeper.");
+                zkConnection.delete(leaderElectionRoot + leaderId, -1);
+                zkConnection.close();
             }
 
             return false;
 
-
-        } catch (InterruptedException | KeeperException e) {
+        } catch (InterruptedException | KeeperException | IOException e ) {
             e.printStackTrace();
             LOGGER.error(e.getMessage(), e.getCause());
-            return true;
+            return false;
         }
     }
 
     DatasetShardRefresher(final Path datasetsDir,
-                          final String leaderPath,
+                          final String leaderElectionRoot,
+                          final String hostId,
                           final ZooKeeperConnection zkConnection,
                           final Connection dbConnection,
                           final String rootURI,
                           final ShardFilter filter,
                           ShardData shardData) throws IOException {
         this.datasetsDir = datasetsDir;
-        this.leaderPath = leaderPath;
         this.zkConnection = zkConnection;
         this.dbConnection = dbConnection;
         this.hadoopFileSystem = new Path(rootURI).getFileSystem(new Configuration());
         this.filter = filter;
         this.shardData = shardData;
+        this.leaderElectionRoot = leaderElectionRoot;
+        this.hostId = hostId;
     }
 
     Future initialize() {
@@ -123,7 +131,7 @@ class DatasetShardRefresher extends TimerTask {
      */
     private synchronized void innerRun() {
         if(isLeader()) {
-            LOGGER.info("I am leader!");
+            LOGGER.info("I am the leader!");
             loadFromSQL();
             DataSetScanner scanner = new DataSetScanner(datasetsDir, hadoopFileSystem);
             try {
@@ -132,6 +140,7 @@ class DatasetShardRefresher extends TimerTask {
                 LOGGER.error(e.getMessage(), e);
             }
         } else {
+            LOGGER.info("I am not the leader");
             loadFromSQL();
         }
         LOGGER.info("Finished innerRun");

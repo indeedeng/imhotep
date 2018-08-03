@@ -23,6 +23,7 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.marshal.ImhotepClientMarshaller;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
+import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
 import it.unimi.dsi.fastutil.longs.LongIterators;
@@ -248,5 +249,23 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             }
         }
         return builder.build();
+    }
+
+    @Override
+    public void stringOrRegroup(String field, String[] terms, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException {
+        final ImhotepRequest request = sessions[0].buildStringOrRegroupRequest(field, terms, targetGroup, negativeGroup, positiveGroup);
+        executeMemoryException(nullBuf, session -> {
+            session.sendVoidRequest(request);
+            return null;
+        });
+    }
+
+    @Override
+    public void intOrRegroup(String field, long[] terms, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException {
+        final ImhotepRequest request = sessions[0].buildIntOrRegroupRequest(field, terms, targetGroup, negativeGroup, positiveGroup);
+        executeMemoryException(nullBuf, session -> {
+            session.sendVoidRequest(request);
+            return null;
+        });
     }
 }

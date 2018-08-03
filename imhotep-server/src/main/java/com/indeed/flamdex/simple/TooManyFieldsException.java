@@ -12,22 +12,15 @@
  * limitations under the License.
  */
 
-package com.indeed.imhotep.shardmaster;
-
-import org.junit.Test;
-
-import static com.indeed.imhotep.shardmaster.MinHashShardAssignerTest.evenDistributionTestHelper;
+package com.indeed.flamdex.simple;
 
 /**
- * @author vladimir
+ * Too many fields added to a single Flamdex shard.
+ * This is a sanity check against creating too many fields by mistake.
  */
+public class TooManyFieldsException extends RuntimeException {
 
-public class TimeBasedShardAssignerTest {
-
-    @Test
-    public void timeBasedShardAssignerTestEvenDistribution() {
-        for(MinHashShardAssignerTest.ShardTimeRange shardTimeRange : MinHashShardAssignerTest.ShardTimeRange.values()) {
-            evenDistributionTestHelper(new TimeBasedShardAssigner(),2880, shardTimeRange, 80, 1, 0);
-        }
+    public TooManyFieldsException(String message) {
+        super(message);
     }
 }

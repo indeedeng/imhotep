@@ -10,7 +10,6 @@ import java.nio.file.Paths;
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentSkipListSet;
 
 /**
  * @author kornerup
@@ -55,7 +54,9 @@ public class ShardData {
 
     // TODO: use this to figure out if a shard has been deleted
     public Set<String> getCopyOfAllPaths() {
-        return new ConcurrentSkipListSet<>(pathsToShards.keySet());
+        final ConcurrentHashMap.KeySetView<String, Boolean> set = ConcurrentHashMap.newKeySet(pathsToShards.keySet().size());
+        set.addAll(pathsToShards.keySet());
+        return set;
     }
 
     enum FieldType {

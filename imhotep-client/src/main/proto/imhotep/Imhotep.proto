@@ -105,7 +105,7 @@ message ImhotepRequest {
     CLOSE_SESSION = 7;
     GET_TOTAL_DOC_FREQ = 8;
     GET_STATUS_DUMP = 9;
-    GET_GROUP_STATS = 10; // Deprecated. Use STREAMING_GET_GROUP_STATS instead
+    DELETED___GET_GROUP_STATS = 10; // No longer implemented. Use STREAMING_GET_GROUP_STATS instead
     OPEN_SESSION_FROM_SNAPSHOT = 11;
     EXPORT_SNAPSHOT = 12;
     RANDOM_REGROUP = 13;
@@ -322,7 +322,7 @@ message ImhotepResponse {
   optional StatusDumpMessage status_dump = 6;
 
   // for getGroupStats()
-  repeated sint64 group_stat = 7 [deprecated = true];
+  repeated sint64 deleted___group_stat = 7 [deprecated = true];
   optional uint32 group_stat_size = 15;
 
   // for exportSnapshot()

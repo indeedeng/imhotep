@@ -49,57 +49,54 @@ public class FlamdexSort {
         final int[] scratch = new int[r.getNumDocs()];
         final int[] countScratch = new int[65536]; // magic number
 
-        final DocIdStream dis = r.getDocIdStream();
+        try (final DocIdStream dis = r.getDocIdStream()) {
 
-        for (final String intField : intFields) {
-            System.out.println("intField:"+intField);
-            final IntTermIterator iter = r.getIntTermIterator(intField);
-            final IntFieldWriter ifw = w.getIntFieldWriter(intField);
-            while (iter.next()) {
-                ifw.nextTerm(iter.term());
-                dis.reset(iter);
-                final int n = dis.fillDocIdBuffer(docIdBuffer);
-                for (int i = 0; i < n; ++i) {
-                    docIdBuffer[i] = oldDocIdToNewDocId[docIdBuffer[i]];
-                }
-                if (n >= MAGIC_SORTING_NUMBER) {
-                    RadixSort.radixSort(docIdBuffer, n, scratch, countScratch);
-                } else {
-                    Quicksortables.sort(Quicksortables.getQuicksortableIntArray(docIdBuffer), n);
-                }
-                for (int i = 0; i < n; ++i) {
-                    ifw.nextDoc(docIdBuffer[i]);
+            for (final String intField : intFields) {
+                System.out.println("intField:" + intField);
+                try (final IntTermIterator iter = r.getIntTermIterator(intField);
+                     final IntFieldWriter ifw = w.getIntFieldWriter(intField)) {
+                    while (iter.next()) {
+                        ifw.nextTerm(iter.term());
+                        dis.reset(iter);
+                        final int n = dis.fillDocIdBuffer(docIdBuffer);
+                        for (int i = 0; i < n; ++i) {
+                            docIdBuffer[i] = oldDocIdToNewDocId[docIdBuffer[i]];
+                        }
+                        if (n >= MAGIC_SORTING_NUMBER) {
+                            RadixSort.radixSort(docIdBuffer, n, scratch, countScratch);
+                        } else {
+                            Quicksortables.sort(Quicksortables.getQuicksortableIntArray(docIdBuffer), n);
+                        }
+                        for (int i = 0; i < n; ++i) {
+                            ifw.nextDoc(docIdBuffer[i]);
+                        }
+                    }
                 }
             }
-            iter.close();
-            ifw.close();
-        }
 
-        for (final String stringField : stringFields) {
-            System.out.println("stringField:"+stringField);
-            final StringTermIterator iter = r.getStringTermIterator(stringField);
-            final StringFieldWriter sfw = w.getStringFieldWriter(stringField);
-            while (iter.next()) {
-                sfw.nextTerm(iter.term());
-                dis.reset(iter);
-                final int n = dis.fillDocIdBuffer(docIdBuffer);
-                for (int i = 0; i < n; ++i) {
-                    docIdBuffer[i] = oldDocIdToNewDocId[docIdBuffer[i]];
-                }
-                if (n >= MAGIC_SORTING_NUMBER) {
-                    RadixSort.radixSort(docIdBuffer, n, scratch, countScratch);
-                } else {
-                    Quicksortables.sort(Quicksortables.getQuicksortableIntArray(docIdBuffer), n);
-                }
-                for (int i = 0; i < n; ++i) {
-                    sfw.nextDoc(docIdBuffer[i]);
+            for (final String stringField : stringFields) {
+                System.out.println("stringField:" + stringField);
+                try (final StringTermIterator iter = r.getStringTermIterator(stringField);
+                     final StringFieldWriter sfw = w.getStringFieldWriter(stringField)) {
+                    while (iter.next()) {
+                        sfw.nextTerm(iter.term());
+                        dis.reset(iter);
+                        final int n = dis.fillDocIdBuffer(docIdBuffer);
+                        for (int i = 0; i < n; ++i) {
+                            docIdBuffer[i] = oldDocIdToNewDocId[docIdBuffer[i]];
+                        }
+                        if (n >= MAGIC_SORTING_NUMBER) {
+                            RadixSort.radixSort(docIdBuffer, n, scratch, countScratch);
+                        } else {
+                            Quicksortables.sort(Quicksortables.getQuicksortableIntArray(docIdBuffer), n);
+                        }
+                        for (int i = 0; i < n; ++i) {
+                            sfw.nextDoc(docIdBuffer[i]);
+                        }
+                    }
                 }
             }
-            iter.close();
-            sfw.close();
         }
-
-        dis.close();        
         w.close();
     }
 }

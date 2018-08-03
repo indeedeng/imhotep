@@ -33,18 +33,20 @@ public class IntervalTreeTest {
     public void randomizedAddAndQuery(){
         IntervalTree<Double, Integer> tree = new IntervalTree<>();
         List<Pair<Double,Double>> intervals = new ArrayList<>();
-        for(int count = 0; count < 3000; count++) {
-            double a = Math.random();
-            double b = Math.random();
-            double small = Math.min(a,b);
-            double big = Math.max(a,b) + epsilon;
-            intervals.add(new Pair<>(small, big));
-            tree.addInterval(small, big, count);
+        for(int count = 0; count < 10000; count++) {
+            double start = Math.random();
+            double end = start + Math.random()/1000 + epsilon;
+            intervals.add(new Pair<>(start, end));
+            tree.addInterval(start, end, count);
         }
+        System.out.println("done generating");
+        long time = -System.currentTimeMillis();
         for(int index = 0; index < intervals.size(); index++) {
             Pair<Double, Double> interval = intervals.get(index);
             Assert.assertTrue(tree.getValuesInRange(interval.getKey(), interval.getValue()+epsilon).contains(index));
         }
+        time+=System.currentTimeMillis();
+        System.out.println(time);
 
         for(int count = 0; count < 1000; count ++) {
             double a = Math.random();

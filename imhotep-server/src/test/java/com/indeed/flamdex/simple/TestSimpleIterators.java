@@ -63,45 +63,35 @@ public class TestSimpleIterators {
 
     @Test
     public void testResetBeforeFirstStringTerm() throws IOException {
-        final SimpleFlamdexWriter writer = new SimpleFlamdexWriter(tempDir, 1L);
-        final StringFieldWriter w = writer.getStringFieldWriter("stringfield");
-        w.nextTerm("a");
-        w.nextDoc(0);
-        w.close();
-        writer.close();
+        try (final SimpleFlamdexWriter writer = new SimpleFlamdexWriter(tempDir, 1L);
+             final StringFieldWriter w = writer.getStringFieldWriter("stringfield")) {
+            w.nextTerm("a");
+            w.nextDoc(0);
+        }
 
-        final SimpleFlamdexReader reader = SimpleFlamdexReader.open(tempDir, config);
-        final StringTermIterator iterator = reader.getStringTermIterator("stringfield");
-        try {
+        try (final SimpleFlamdexReader reader = SimpleFlamdexReader.open(tempDir, config);
+             final StringTermIterator iterator = reader.getStringTermIterator("stringfield")) {
             iterator.reset("");
             assertTrue(iterator.next());
             assertEquals("a", iterator.term());
             assertFalse(iterator.next());
-        } finally {
-            iterator.close();
-            reader.close();
-        }
+         }
     }
 
     @Test
     public void testResetBeforeFirstIntTerm() throws IOException {
-        final SimpleFlamdexWriter writer = new SimpleFlamdexWriter(tempDir, 1L);
-        final IntFieldWriter w = writer.getIntFieldWriter("intfield");
-        w.nextTerm(1);
-        w.nextDoc(0);
-        w.close();
-        writer.close();
+        try (final SimpleFlamdexWriter writer = new SimpleFlamdexWriter(tempDir, 1L);
+             final IntFieldWriter w = writer.getIntFieldWriter("intfield")) {
+            w.nextTerm(1);
+            w.nextDoc(0);
+        }
 
-        final SimpleFlamdexReader reader = SimpleFlamdexReader.open(tempDir, config);
-        final IntTermIterator iterator = reader.getIntTermIterator("intfield");
-        try {
+        try (final SimpleFlamdexReader reader = SimpleFlamdexReader.open(tempDir, config);
+             final IntTermIterator iterator = reader.getIntTermIterator("intfield")) {
             iterator.reset(0);
             assertTrue(iterator.next());
             assertEquals(1, iterator.term());
             assertFalse(iterator.next());
-        } finally {
-            iterator.close();
-            reader.close();
         }
     }
 }

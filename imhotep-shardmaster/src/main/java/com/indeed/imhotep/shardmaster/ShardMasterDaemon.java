@@ -28,8 +28,6 @@ import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.client.HostsReloader;
 import com.indeed.imhotep.client.ZkHostsReloader;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
-import com.indeed.imhotep.fs.sql.SchemaInitializer;
-import com.indeed.imhotep.shardmaster.db.shardinfo.Tables;
 import com.indeed.imhotep.shardmasterrpc.MultiplexingRequestHandler;
 import com.indeed.imhotep.shardmasterrpc.RequestMetricStatsEmitter;
 import com.indeed.imhotep.shardmasterrpc.RequestResponseServer;
@@ -41,11 +39,13 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.*;
 import org.joda.time.Duration;
+import sun.security.util.HostnameChecker;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Connection;
@@ -89,11 +89,11 @@ public class ShardMasterDaemon {
                     config.getHostsDropThreshold());
         }
 
-        ZooKeeperConnection zkConnection = new ZooKeeperConnection(config.zkNodes, 60000);
+        ZooKeeperConnection zkConnection = new ZooKeeperConnection(config.zkNodes, 2000);
         zkConnection.connect();
         zkConnection.createIfNotExists(config.shardMastersZkPath+"-election", new byte[0], CreateMode.PERSISTENT);
-        String leaderTestPath = zkConnection.create(config.shardMastersZkPath+"-election/n_", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
-
+        String hostAddress = java.net.InetAddress.getLocalHost().getCanonicalHostName() + ":" + config.getServicePort();
+        String leaderElectionRoot = config.shardMastersZkPath+"-election";
         Connection dbConnection = config.getMetadataConnection();
 
         ShardData shardData = new ShardData();
@@ -112,7 +112,8 @@ public class ShardMasterDaemon {
             final org.apache.hadoop.fs.Path tmpPath = new org.apache.hadoop.fs.Path(rootURI + "/" + dataSetsDir.toString());
             final DatasetShardRefresher refresher = new DatasetShardRefresher(
                     tmpPath,
-                    leaderTestPath,
+                    leaderElectionRoot,
+                    hostAddress,
                     zkConnection,
                     dbConnection,
                     rootURI,
@@ -123,6 +124,7 @@ public class ShardMasterDaemon {
 
 
             LOGGER.info("Initializing all shard assignments");
+
             // don't block on assignment refresh
             Future shardScanResults = refresher.initialize();
             final AtomicBoolean shardScanComplete = new AtomicBoolean(false);

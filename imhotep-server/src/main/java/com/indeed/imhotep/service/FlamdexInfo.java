@@ -16,6 +16,7 @@ package com.indeed.imhotep.service;
 
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexFileFilter;
+import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.client.ShardTimeUtils;
 import it.unimi.dsi.fastutil.objects.Object2LongArrayMap;
 import it.unimi.dsi.fastutil.objects.ObjectArraySet;
@@ -33,38 +34,41 @@ class FlamdexInfo {
 
     private static final Logger log = Logger.getLogger(FlamdexInfo.class);
 
-    private final String   shardId;
-    private final DateTime date;
+    private final String shardName; // Shard directory name (i.e. including version) e.g. index20180722.19.20180722221746
+    private final String shardId;   // Includes time range, but doesn't include versions. e.g. index20180722.19
+    private final DateTime date;    // (Not the build timestamp but) the start time of the shard time range. e.g. 2018/07/22 19:00:00
 
     private final Object2LongArrayMap<String> fieldSizesInBytesCache =
-        new Object2LongArrayMap<>(16);
+            new Object2LongArrayMap<>(16);
 
     private static final String FIELD_PREFIX = "fld-";
-    private static final String[] FIELD_EXTENSIONS = {
-        "intdocs", "intterms", "strdocs", "strterms"
-    };
-
-    private static final Set<String> fieldExtensions =
-        new ObjectArraySet<>(FIELD_EXTENSIONS);
+    private static final Set<String> FIELD_EXTENSIONS = new ObjectArraySet<>(new String[]{"intdocs", "intterms", "strdocs", "strterms"});
 
     FlamdexInfo(final FlamdexReader reader) {
         fieldSizesInBytesCache.defaultReturnValue(-1);
         final Path shardDir = reader.getDirectory();
-        if( shardDir != null ) {
-            this.shardId     = shardDir.getFileName().toString();
-            this.date        = dateOf();
+        if (shardDir != null) {
+            this.shardId = (new ShardDir(shardDir)).getId();
+            this.shardName = shardDir.getFileName().toString();
+            this.date = dateOf();
         } else {
-            this.shardId     = null;
-            this.date        = null;
+            this.shardId = null;
+            this.shardName = null;
+            this.date = null;
         }
     }
 
-    String       getShardId() { return shardId;     }
-    DateTime        getDate() { return date;        }
+    String getShardName() {
+        return shardName;
+    }
+
+    DateTime getDate() {
+        return date;
+    }
 
     /**
-       Return the size of a field, i.e. the sum of the sizes of its term and
-       doc files. Return zero if the field is unknown or from a Lucene index.
+     * Return the size of a field, i.e. the sum of the sizes of its term and
+     * doc files. Return zero if the field is unknown or from a Lucene index.
      */
     long getFieldSizeInBytes(final String fieldName, final FlamdexReader reader) {
         final long cachedSize = fieldSizesInBytesCache.getLong(fieldName);
@@ -80,37 +84,36 @@ class FlamdexInfo {
     private DateTime dateOf() {
         try {
             return ShardTimeUtils.parseStart(shardId);
-        }
-        catch (final Exception ex) {
-            log.warn("cannot extract date from shard directory: '" + shardId + "'");
+        } catch (final Exception ex) {
+            log.warn("cannot extract date from shard directory: '" + shardName + "'");
             return null;
         }
     }
 
     /**
-       Calculate the field size of fieldName in bytes. Because the FlamdexReader
-       we're passed might be a wrapper, such as CachedFlamdexReaderReference,
-       it might not be easy to determine whether we're dealing with an Indeed
-       Flamdex or a Lucene index. The simplistic approach here is to first look
-       for Flamdex files and in the face of no results simply return 0.
-
-       Since we don't have a good way of sizing fields in a Lucene index we'll
-       simply return 0 for the field size in the Lucene case.
-
-       @return size of the relevant field files in the shard's directory, or 0 if not found.
+     * Calculate the field size of fieldName in bytes. Because the FlamdexReader
+     * we're passed might be a wrapper, such as CachedFlamdexReaderReference,
+     * it might not be easy to determine whether we're dealing with an Indeed
+     * Flamdex or a Lucene index. The simplistic approach here is to first look
+     * for Flamdex files and in the face of no results simply return 0.
+     * <p>
+     * Since we don't have a good way of sizing fields in a Lucene index we'll
+     * simply return 0 for the field size in the Lucene case.
+     *
+     * @return size of the relevant field files in the shard's directory, or 0 if not found.
      */
-    private long calculateFieldSizeInBytes(final String fieldName, FlamdexReader reader) {
+    private long calculateFieldSizeInBytes(final String fieldName, final FlamdexReader reader) {
         final Path dir = reader.getDirectory();
-        if (dir == null)  {
+        if (dir == null) {
             return 0;
         }
 
         long size = 0;
         final SimpleFlamdexFileFilter filter = new SimpleFlamdexFileFilter();
-        try (DirectoryStream<Path> children = Files.newDirectoryStream(dir, filter)) {
-            for (final Path child : children) {
+        try (final DirectoryStream<Path> children = Files.newDirectoryStream(dir, filter)) {
+            for (final Path child: children) {
                 final String childFieldName = fieldNameOf(child);
-                if (childFieldName != null && childFieldName.equals(fieldName)) {
+                if ((childFieldName != null) && childFieldName.equals(fieldName)) {
                     size += Files.size(child);
                 }
             }
@@ -121,9 +124,9 @@ class FlamdexInfo {
     }
 
     /**
-       Extract a field's name from one of its constituent files.
-
-       @return The field's name or null if the file is not part of a field.
+     * Extract a field's name from one of its constituent files.
+     *
+     * @return The field's name or null if the file is not part of a field.
      */
     @Nullable
     private static String fieldNameOf(final Path path) {
@@ -131,7 +134,7 @@ class FlamdexInfo {
         if (name.startsWith(FIELD_PREFIX)) {
             final int begin = FIELD_PREFIX.length();
             final int end = name.lastIndexOf('.');
-            if (end != -1 && fieldExtensions.contains(name.substring(end + 1))) {
+            if ((end != -1) && FIELD_EXTENSIONS.contains(name.substring(end + 1))) {
                 return name.substring(begin, end);
             }
         }

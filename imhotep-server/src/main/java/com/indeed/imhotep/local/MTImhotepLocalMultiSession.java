@@ -20,6 +20,7 @@ import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.FTGSIteratorUtil;
 import com.indeed.imhotep.FTGSMerger;
 import com.indeed.imhotep.FTGSSplitter;
+import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupStatsDummyIterator;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.MemoryReservationContext;
@@ -29,6 +30,7 @@ import com.indeed.imhotep.UnsortedFTGSIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
+import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.pool.GroupStatsPool;
 import com.indeed.imhotep.scheduling.TaskScheduler;
@@ -39,6 +41,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -235,11 +238,38 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     }
 
     @Override
+    public void stringOrRegroup(final String field, final String[] terms, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
+        executeMemoryException(nullBuf, (ThrowingFunction<ImhotepSession, Object>) session -> {
+            session.stringOrRegroup(field, terms, targetGroup, negativeGroup, positiveGroup);
+            return null;
+        });
+    }
+
+    @Override
+    public void intOrRegroup(final String field, final long[] terms, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
+        executeMemoryException(nullBuf, (ThrowingFunction<ImhotepSession, Object>) session -> {
+            session.intOrRegroup(field, terms, targetGroup, negativeGroup, positiveGroup);
+            return null;
+        });
+    }
+
+    @Override
+    public int regroup(final GroupMultiRemapRule[] rawRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
+        executeMemoryException(integerBuf, (ThrowingFunction<ImhotepSession, Integer>) session ->
+                session.regroup(rawRules, errorOnCollisions));
+
+        return Collections.max(Arrays.asList(integerBuf));
+    }
+
+    @Override
     protected void postClose() {
         if (memory.usedMemory() > 0) {
             log.error("MTImhotepMultiSession [" + getSessionId() + "] is leaking! usedMemory = "+memory.usedMemory());
         }
         Closeables2.closeQuietly(memory, log);
+        if (ftgsIteratorSplitters != null) {
+            Closeables2.closeAll(log, ftgsIteratorSplitters);
+        }
         super.postClose();
     }
 
