@@ -52,11 +52,19 @@ public class ShardData {
         return pathsToShards.get(path).numDocs;
     }
 
-    // TODO: use this to figure out if a shard has been deleted
     public Set<String> getCopyOfAllPaths() {
         final ConcurrentHashMap.KeySetView<String, Boolean> set = ConcurrentHashMap.newKeySet(pathsToShards.keySet().size());
         set.addAll(pathsToShards.keySet());
         return set;
+    }
+
+    public void deleteShards(Set<String> allPaths) {
+        for(final String path: allPaths) {
+            final ShardDir temp = new ShardDir(Paths.get(path));
+            final Interval interval = ShardTimeUtils.parseInterval(temp.getId());
+            tblShards.get(temp.getDataset()).deleteInterval(interval.getStart().getMillis(), interval.getEnd().getMillis(), pathsToShards.get(path));
+            pathsToShards.remove(path);
+        }
     }
 
     enum FieldType {
@@ -118,10 +126,13 @@ public class ShardData {
         }
     }
 
-    public void addTableShardsRowsFromSQL(ResultSet rows) throws SQLException {
+    public void updateTableShardsRowsFromSQL(ResultSet rows) throws SQLException {
+        Set<String> existingPaths = getCopyOfAllPaths();
         if (rows.first()) {
             do {
                 String strPath = rows.getString("path");
+                existingPaths.remove(strPath);
+
                 int numDocs = rows.getInt("numDocs");
 
                 if(pathsToShards.containsKey(strPath)) {
@@ -144,6 +155,7 @@ public class ShardData {
                 tblShards.get(dataset).addInterval(interval.getStart().getMillis(), interval.getEnd().getMillis(), shard);
             } while (rows.next());
         }
+        deleteShards(existingPaths);
     }
 
     private void addShardToDatastructure(FlamdexMetadata metadata, Path shardPath, ShardDir shardDir) {

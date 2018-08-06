@@ -1,4 +1,5 @@
 package com.indeed.imhotep.shardmaster.utils;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -18,6 +19,92 @@ public class IntervalTree<K extends Comparable<? super K>, V> {
             return values;
         } finally {
             lock.readLock().unlock();
+        }
+    }
+
+    public boolean deleteInterval(K start, K end, V value) {
+        Interval toDelete = new Interval(start, end, Collections.singleton(value));
+        return deleteInterval(root, toDelete, null, false);
+    }
+
+    private boolean deleteInterval(Node current, Interval toDelete, Node parent, boolean prevMoveToLeft) {
+        if(current == null) {
+            return false;
+        }
+
+        if(current.interval.compareTo(toDelete) == 0) {
+            final boolean toReturn =  current.interval.values.removeAll(toDelete.values);
+            if(current.interval.values.size() == 0) {
+                deleteNode(current, parent, prevMoveToLeft);
+            }
+            return toReturn;
+        }
+
+        if(current.interval.compareTo(toDelete) > 0) {
+            return deleteInterval(current.left, toDelete, current, true);
+        }
+
+        return deleteInterval(current.right, toDelete, current, false);
+    }
+
+    private void deleteNode(final Node toDelete, final Node parent, boolean prevMoveWasLeft) {
+        if(toDelete.left == null) {
+            if(prevMoveWasLeft) {
+                parent.left = toDelete.right;
+            } else {
+                parent.right = toDelete.right;
+            }
+
+            updateLargestToTheRight(parent);
+            return;
+        }
+
+        if(toDelete.right == null) {
+            if(prevMoveWasLeft) {
+                parent.left = toDelete.left;
+            } else {
+                parent.right = toDelete.left;
+            }
+
+            updateLargestToTheRight(parent);
+            return;
+        }
+
+        if(toDelete.left.interval.priority > toDelete.right.interval.priority) {
+            final Node newMainNode = toDelete.left;
+            final Node newMainNodeRight = toDelete.left.right;
+
+            if(prevMoveWasLeft) {
+                parent.left = toDelete.left;
+            } else {
+                parent.right = toDelete.left;
+            }
+
+            newMainNode.right = toDelete;
+            toDelete.left = newMainNodeRight;
+            deleteNode(toDelete, newMainNode, false);
+
+            updateLargestToTheRight(newMainNode);
+            updateLargestToTheRight(parent);
+            return;
+        }
+
+        if(toDelete.left.interval.priority <= toDelete.right.interval.priority) {
+            final Node newMainNode = toDelete.right;
+            final Node newMainNodeLeft = toDelete.right.left;
+
+            if(prevMoveWasLeft) {
+                parent.left = toDelete.right;
+            } else {
+                parent.right = toDelete.right;
+            }
+
+            newMainNode.left = toDelete;
+            toDelete.right = newMainNodeLeft;
+            deleteNode(toDelete, newMainNode, true);
+
+            updateLargestToTheRight(newMainNode);
+            updateLargestToTheRight(parent);
         }
     }
 
@@ -185,5 +272,21 @@ public class IntervalTree<K extends Comparable<? super K>, V> {
         } else {
             current.largestToTheRight = max(current.interval.end, current.left.largestToTheRight, current.right.largestToTheRight);
         }
+    }
+
+    public boolean hasEmptyIntervals() {
+        return hasEmptyIntervals(root);
+    }
+
+    private boolean hasEmptyIntervals(Node current) {
+        if(current == null) {
+            return false;
+        }
+
+        if(current.interval.values.size() == 0) {
+            return true;
+        }
+
+        return hasEmptyIntervals(current.left) || hasEmptyIntervals(current.right);
     }
 }

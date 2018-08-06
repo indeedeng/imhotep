@@ -46,6 +46,7 @@ class DatasetShardRefresher extends TimerTask {
     private final ZooKeeperConnection zkConnection;
     private final org.apache.hadoop.fs.FileSystem hadoopFileSystem;
     private final ShardFilter filter;
+
     private final ShardData shardData;
 
     public boolean isLeader(){
@@ -69,7 +70,6 @@ class DatasetShardRefresher extends TimerTask {
             }
 
             if(index == -1) {
-                //TODO: does closing and reopening the zkConnection make a new node?
                 LOGGER.info("Lost my leader path. Resetting my connection to zookeeper.");
                 zkConnection.delete(leaderElectionRoot + leaderId, -1);
                 zkConnection.close();
@@ -78,7 +78,6 @@ class DatasetShardRefresher extends TimerTask {
             return false;
 
         } catch (InterruptedException | KeeperException | IOException e ) {
-            e.printStackTrace();
             LOGGER.error(e.getMessage(), e.getCause());
             return false;
         }
@@ -110,7 +109,7 @@ class DatasetShardRefresher extends TimerTask {
         try {
             final PreparedStatement statement = dbConnection.prepareStatement("SELECT * FROM tblshards;");
             final ResultSet set = statement.executeQuery();
-            shardData.addTableShardsRowsFromSQL(set);
+            shardData.updateTableShardsRowsFromSQL(set);
 
             final PreparedStatement statement2 = dbConnection.prepareStatement("SELECT * FROM tblfields;");
             if(statement2 == null) {
@@ -131,28 +130,43 @@ class DatasetShardRefresher extends TimerTask {
      */
     private synchronized void innerRun() {
         if(isLeader()) {
-            LOGGER.info("I am the leader!");
             loadFromSQL();
             DataSetScanner scanner = new DataSetScanner(datasetsDir, hadoopFileSystem);
             try {
-                executorService.submit(() -> StreamSupport.stream(scanner.spliterator(), true).filter(path -> filter.accept(path.getName())).forEach(this::handleDataset)).get();
-            } catch (ExecutionException | InterruptedException e) {
+                Set<String> allPaths = shardData.getCopyOfAllPaths();
+                executorService.submit(() -> StreamSupport.stream(scanner.spliterator(), true).filter(path -> filter.accept(path.getName())).forEach(a-> handleDataset(a, allPaths))).get();
+                if(allPaths.size() > 0) {
+                    LOGGER.info("Deleting shards: " + allPaths + " because they are no longer present on the filesystem.");
+                    deleteFromSQL(allPaths);
+                    shardData.deleteShards(allPaths);
+                }
+            } catch (ExecutionException | InterruptedException | SQLException e) {
                 LOGGER.error(e.getMessage(), e);
             }
         } else {
             LOGGER.info("I am not the leader");
             loadFromSQL();
         }
-        LOGGER.info("Finished innerRun");
     }
 
-    private void handleDataset(Path path) {
+    private void deleteFromSQL(Set<String> allPaths) throws SQLException {
+        final PreparedStatement tblShardsInsertStatement = dbConnection.prepareStatement("DELETE FROM tblshards WHERE path = ?;");
+        for(String path: allPaths) {
+            tblShardsInsertStatement.setString(1, path);
+            tblShardsInsertStatement.addBatch();
+        }
+        tblShardsInsertStatement.executeBatch();
+
+    }
+
+    private void handleDataset(Path path, Set<String> allPaths) {
         LOGGER.info("On dataset: " + path);
         Iterable<ShardDir> dataset = new ShardScanner(path, hadoopFileSystem);
 
         List<Pair<ShardDir, Future<FlamdexMetadata>>> pairs = new ArrayList<>();
 
         for(final ShardDir dir: dataset) {
+            allPaths.remove(dir.getIndexDir().toString());
             if(filter.accept(dir.getDataset(), dir.getId()) && isValidAndNew(dir)) {
                 pairs.add(new Pair<>(dir, executorService.submit(() -> collectShardMetadata(dir))));
             }
