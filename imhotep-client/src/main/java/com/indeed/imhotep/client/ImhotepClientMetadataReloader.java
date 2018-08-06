@@ -13,6 +13,7 @@
  */
 package com.indeed.imhotep.client;
 
+import com.google.common.base.Throwables;
 import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.shardmasterrpc.ShardMaster;
 import com.indeed.util.core.DataLoadingRunnable;
@@ -20,7 +21,7 @@ import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.function.Supplier;
+import java.util.function.Function;
 
 /**
  * @author jsgroth
@@ -28,14 +29,14 @@ import java.util.function.Supplier;
 class ImhotepClientMetadataReloader extends DataLoadingRunnable {
     private static final Logger log = Logger.getLogger(ImhotepClientMetadataReloader.class);
 
-    private final Supplier<ShardMaster> shardMasterSupplier;
+    private final Function<Set<Host>, Host> shardMasterGetter;
     private final Object rpcLock = new Object();
 
     private volatile Map<String, DatasetInfo> datasetToDatasetInfo = Collections.emptyMap();
 
-    ImhotepClientMetadataReloader(final Supplier<ShardMaster> shardMasterSupplier) {
+    ImhotepClientMetadataReloader(final Function<Set<Host>, Host> shardMasterGetter) {
         super("ImhotepClientMetadataReloader");
-        this.shardMasterSupplier = shardMasterSupplier;
+        this.shardMasterGetter = shardMasterGetter;
     }
 
     @Override
@@ -62,12 +63,16 @@ class ImhotepClientMetadataReloader extends DataLoadingRunnable {
 
     private Map<String, DatasetInfo> getDatasetToDatasetInfoRpc() {
         synchronized (rpcLock) {
-            try {
+
                 Map<String, DatasetInfo> toReturn = new HashMap<>();
-                shardMasterSupplier.get().getDatasetMetadata().forEach(datasetInfo -> toReturn.put(datasetInfo.getDataset(), datasetInfo));
+            final List<DatasetInfo> datasetInfos;
+            try {
+                datasetInfos = ImhotepClient.computeShardMasterFunction(ImhotepClient.throwingFunctionWrapper(ShardMaster::getDatasetMetadata), shardMasterGetter);
+                datasetInfos.forEach(datasetInfo -> toReturn.put(datasetInfo.getDataset(), datasetInfo));
                 return toReturn;
             } catch (IOException e) {
-                return Collections.emptyMap();
+                log.error("Failed to get dataset metadata", e);
+                throw Throwables.propagate(e);
             }
         }
     }
