@@ -192,20 +192,12 @@ public class ShardData {
         return tblShards.keySet();
     }
 
-
-    // NOTE: this is a bit hacky to get a linear runtime
     public Collection<ShardInfo> getShardsForDataset(String dataset) {
         IntervalTree<Long, ShardInfo> tree = tblShards.get(dataset);
         if (tree == null) {
             return new HashSet<>();
         }
-        Map<String, ShardInfo> shardToShardWithVersion = new HashMap<>();
-        tree.getAllValues().forEach(shard -> {
-            if(!shardToShardWithVersion.containsKey(shard.shardId) || shardToShardWithVersion.get(shard.shardId).getVersion() < shard.getVersion()) {
-                shardToShardWithVersion.put(shard.shardId, shard);
-            }
-        });
-        return shardToShardWithVersion.values();
+        return tree.getAllValues();
     }
 
     public Collection<ShardInfo> getShardsInTime(String dataset, long start, long end) {
