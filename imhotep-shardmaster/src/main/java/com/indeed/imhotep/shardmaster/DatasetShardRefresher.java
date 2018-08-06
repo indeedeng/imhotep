@@ -31,6 +31,8 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.StreamSupport;
 
+import static com.indeed.imhotep.shardmaster.DatasetShardRefresher.LeaderState.*;
+
 /**
  * @author kenh
  */
@@ -46,10 +48,18 @@ class DatasetShardRefresher extends TimerTask {
     private final ZooKeeperConnection zkConnection;
     private final org.apache.hadoop.fs.FileSystem hadoopFileSystem;
     private final ShardFilter filter;
+    private String lastSelectedLeaderId;
 
     private final ShardData shardData;
 
-    public boolean isLeader(){
+    enum LeaderState {
+        NEW_LEADER,
+        OLD_LEADER,
+        NOT_LEADER,
+        ERROR
+    }
+
+    public LeaderState isLeader(){
         try {
             if(!zkConnection.isConnected()) {
                 zkConnection.connect();
@@ -66,7 +76,11 @@ class DatasetShardRefresher extends TimerTask {
             int index = Collections.binarySearch(children, leaderId);
 
             if(index == 0) {
-                return true;
+                if(leaderId.equals(lastSelectedLeaderId)) {
+                    return OLD_LEADER;
+                }
+                lastSelectedLeaderId = leaderId;
+                return NEW_LEADER;
             }
 
             if(index == -1) {
@@ -75,11 +89,11 @@ class DatasetShardRefresher extends TimerTask {
                 zkConnection.close();
             }
 
-            return false;
+            return NOT_LEADER;
 
         } catch (InterruptedException | KeeperException | IOException e ) {
             LOGGER.error(e.getMessage(), e.getCause());
-            return false;
+            return ERROR;
         }
     }
 
@@ -129,35 +143,33 @@ class DatasetShardRefresher extends TimerTask {
      * need to be uploaded to SQL, it won't duplicate work.
      */
     private synchronized void innerRun() {
-        if(isLeader()) {
-            loadFromSQL();
-            DataSetScanner scanner = new DataSetScanner(datasetsDir, hadoopFileSystem);
-            try {
-                Set<String> allPaths = shardData.getCopyOfAllPaths();
-                executorService.submit(() -> StreamSupport.stream(scanner.spliterator(), true).filter(path -> filter.accept(path.getName())).forEach(a-> handleDataset(a, allPaths))).get();
-                if(allPaths.size() > 0) {
-                    LOGGER.info("Deleting shards: " + allPaths + " because they are no longer present on the filesystem.");
-                    deleteFromSQL(allPaths);
-                    shardData.deleteShards(allPaths);
+        switch (isLeader()) {
+            case NEW_LEADER:
+                loadFromSQL();
+            case OLD_LEADER:
+                DataSetScanner scanner = new DataSetScanner(datasetsDir, hadoopFileSystem);
+                try {
+                    Set<String> allPaths = shardData.getCopyOfAllPaths();
+                    executorService.submit(() -> StreamSupport.stream(scanner.spliterator(), true).filter(path -> filter.accept(path.getName())).forEach(a-> handleDataset(a, allPaths))).get();
+                    if(allPaths.size() > 0) {
+                        LOGGER.info("Deleting shards: " + allPaths + " because they are no longer present on the filesystem.");
+                        deleteFromSQL(allPaths);
+                        shardData.deleteShards(allPaths);
+                    }
+                } catch (ExecutionException | InterruptedException | SQLException e) {
+                    LOGGER.error(e.getMessage(), e);
                 }
-            } catch (ExecutionException | InterruptedException | SQLException e) {
-                LOGGER.error(e.getMessage(), e);
-            }
-        } else {
-            LOGGER.info("I am not the leader");
-            loadFromSQL();
+                break;
+            case NOT_LEADER:
+                loadFromSQL();
+                break;
+            case ERROR:
+                LOGGER.error("There was an error with the leader election process. Assuming I am not the leader.");
+                loadFromSQL();
+                break;
         }
     }
 
-    private void deleteFromSQL(Set<String> allPaths) throws SQLException {
-        final PreparedStatement tblShardsInsertStatement = dbConnection.prepareStatement("DELETE FROM tblshards WHERE path = ?;");
-        for(String path: allPaths) {
-            tblShardsInsertStatement.setString(1, path);
-            tblShardsInsertStatement.addBatch();
-        }
-        tblShardsInsertStatement.executeBatch();
-
-    }
 
     private void handleDataset(Path path, Set<String> allPaths) {
         LOGGER.info("On dataset: " + path);
@@ -281,6 +293,16 @@ class DatasetShardRefresher extends TimerTask {
         tblFieldsUpdateStatement.executeBatch();
 
         tblShardsInsertStatement.execute();
+    }
+
+    private void deleteFromSQL(Set<String> allPaths) throws SQLException {
+        final PreparedStatement tblShardsInsertStatement = dbConnection.prepareStatement("DELETE FROM tblshards WHERE path = ?;");
+        for(String path: allPaths) {
+            tblShardsInsertStatement.setString(1, path);
+            tblShardsInsertStatement.addBatch();
+        }
+        tblShardsInsertStatement.executeBatch();
+
     }
 
     @Override
