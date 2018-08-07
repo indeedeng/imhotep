@@ -35,6 +35,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.*;
 import org.joda.time.Duration;
+import org.joda.time.ReadableDuration;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -46,9 +47,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * @author kenh
@@ -58,6 +57,9 @@ public class ShardMasterDaemon {
     private static final Logger LOGGER = Logger.getLogger(ShardMasterDaemon.class);
     private final Config config;
     private volatile RequestResponseServer server;
+    private boolean isLeader;
+    private ScheduledFuture refreshTask;
+    private String leaderId;
 
     public ShardMasterDaemon(final Config config) {
         this.config = config;
@@ -71,7 +73,9 @@ public class ShardMasterDaemon {
         LOGGER.info("Starting daemon...");
 
         final ExecutorService executorService = config.createExecutorService();
-        final Timer timer = new Timer(DatasetShardRefresher.class.getSimpleName());
+        final Timer hostReloadTimer = new Timer(DatasetShardRefresher.class.getSimpleName());
+        final ScheduledExecutorService datasetReloadExecutor = Executors.newSingleThreadScheduledExecutor();
+        isLeader = false;
 
         final HostsReloader hostsReloader;
         if (config.hasHostsOverride()) {
@@ -89,6 +93,7 @@ public class ShardMasterDaemon {
         String hostAddress = java.net.InetAddress.getLocalHost().getCanonicalHostName() + ":" + config.getServicePort();
         String leaderElectionRoot = config.shardMastersZkPath+"-election";
         Connection dbConnection = config.getMetadataConnection();
+        isLeader = isLeader(leaderElectionRoot, zkConnection, hostAddress);
 
         ShardData shardData = new ShardData();
 
@@ -106,9 +111,6 @@ public class ShardMasterDaemon {
             final org.apache.hadoop.fs.Path tmpPath = new org.apache.hadoop.fs.Path(rootURI + "/" + dataSetsDir.toString());
             final DatasetShardRefresher refresher = new DatasetShardRefresher(
                     tmpPath,
-                    leaderElectionRoot,
-                    hostAddress,
-                    zkConnection,
                     dbConnection,
                     rootURI,
                     config.shardFilter,
@@ -120,7 +122,7 @@ public class ShardMasterDaemon {
             LOGGER.info("Initializing all shard assignments");
 
             // don't block on assignment refresh
-            Future shardScanResults = refresher.initialize();
+            Future shardScanResults = refresher.initialize(isLeader);
             final AtomicBoolean shardScanComplete = new AtomicBoolean(false);
 
             final Thread scanBlocker = new Thread(() -> {
@@ -137,14 +139,34 @@ public class ShardMasterDaemon {
             scanBlocker.setDaemon(true);
             scanBlocker.start();
 
-            timer.schedule(new TimerTask() {
+            hostReloadTimer.schedule(new TimerTask() {
                 @Override
                 public void run() {
                     hostsReloader.run();
                 }
             }, config.getHostsRefreshInterval().getMillis(), config.getHostsRefreshInterval().getMillis());
 
-            timer.schedule(refresher, config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis());
+            if(isLeader) {
+                refreshTask = datasetReloadExecutor.scheduleAtFixedRate(() -> refresher.run(true), config.getLeaderRefreshInterval().getMillis(), config.getLeaderRefreshInterval().getMillis(), TimeUnit.MILLISECONDS);
+            } else {
+                refreshTask = datasetReloadExecutor.scheduleAtFixedRate(() -> refresher.run(false), config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis(), TimeUnit.MILLISECONDS);
+            }
+
+            Runnable checkLeaderStatus = () -> {
+                boolean leader = isLeader(leaderElectionRoot, zkConnection, hostAddress);
+                if(!isLeader && leader) {
+                    isLeader = true;
+                    refresher.runOnInitLeader();
+                    refreshTask.cancel(false);
+                    refreshTask = datasetReloadExecutor.scheduleAtFixedRate(() -> refresher.run(isLeader), 0, config.getLeaderRefreshInterval().getMillis(), TimeUnit.MILLISECONDS);
+                } else if(isLeader && !leader) {
+                    isLeader = false;
+                    refreshTask.cancel(false);
+                    refreshTask = datasetReloadExecutor.scheduleAtFixedRate(() -> refresher.run(isLeader), config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis(), TimeUnit.MILLISECONDS);
+                }
+            };
+
+            datasetReloadExecutor.scheduleAtFixedRate(checkLeaderStatus, config.getLeaderCheckInterval().getMillis(), config.getLeaderCheckInterval().getMillis(), TimeUnit.MILLISECONDS);
 
             server = new RequestResponseServer(config.getServicePort(), new MultiplexingRequestHandler(
                     config.statsEmitter,
@@ -160,11 +182,46 @@ public class ShardMasterDaemon {
                 server.close();
             }
         } finally {
-            timer.cancel();
+            hostReloadTimer.cancel();
+            datasetReloadExecutor.shutdown();
             executorService.shutdown();
             hostsReloader.shutdown();
             zkConnection.close();
             dbConnection.close();
+        }
+    }
+
+    public boolean isLeader(final String leaderElectionRoot, final ZooKeeperConnection zkConnection, final String hostId){
+        try {
+            if(!zkConnection.isConnected()) {
+                zkConnection.connect();
+                final String leaderPath = zkConnection.create(leaderElectionRoot+"/_", hostId.getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
+                leaderId = leaderPath.substring(leaderElectionRoot.length()+1);
+            } else if(leaderId == null) {
+                final String leaderPath = zkConnection.create(leaderElectionRoot+"/_", hostId.getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
+                leaderId = leaderPath.substring(leaderElectionRoot.length()+1);
+            }
+
+            final List<String> children = zkConnection.getChildren(leaderElectionRoot, false);
+            Collections.sort(children);
+
+            int index = Collections.binarySearch(children, leaderId);
+
+            if(index == 0) {
+                return true;
+            }
+
+            if(index == -1) {
+                LOGGER.info("Lost my leader path. Resetting my connection to zookeeper.");
+                zkConnection.delete(leaderElectionRoot + leaderId, -1);
+                zkConnection.close();
+            }
+
+            return false;
+
+        } catch (InterruptedException | KeeperException | IOException e ) {
+            LOGGER.error(e.getMessage(), e.getCause());
+            return false;
         }
     }
 
@@ -206,6 +263,8 @@ public class ShardMasterDaemon {
         private double hostsDropThreshold = 0.5;
         private RequestMetricStatsEmitter statsEmitter = RequestMetricStatsEmitter.NULL_EMITTER;
         private String metadataDBURL;
+        private ReadableDuration leaderRefreshInterval = Duration.standardMinutes(1);
+        private ReadableDuration leaderCheckInterval = Duration.standardSeconds(15);
 
         public Config setMetadataDBURL(final String url){
             this.metadataDBURL = url;
@@ -426,6 +485,22 @@ public class ShardMasterDaemon {
 
         double getHostsDropThreshold() {
             return hostsDropThreshold;
+        }
+
+        public ReadableDuration getLeaderRefreshInterval() {
+            return leaderRefreshInterval;
+        }
+
+        public void setLeaderRefreshInterval(Integer leaderRefreshInterval) {
+            this.leaderRefreshInterval = Duration.millis(leaderRefreshInterval);
+        }
+
+        public ReadableDuration getLeaderCheckInterval() {
+            return leaderCheckInterval;
+        }
+
+        public void setLeaderCheckInterval(Integer leaderCheckInterval) {
+            this.leaderCheckInterval = Duration.millis(leaderCheckInterval);
         }
     }
 

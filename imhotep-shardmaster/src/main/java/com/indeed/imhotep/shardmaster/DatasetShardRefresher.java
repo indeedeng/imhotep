@@ -31,92 +31,42 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.StreamSupport;
 
-import static com.indeed.imhotep.shardmaster.DatasetShardRefresher.LeaderState.*;
 
 /**
  * @author kenh
  */
 
-class DatasetShardRefresher extends TimerTask {
+class DatasetShardRefresher {
     private static final Logger LOGGER = Logger.getLogger(DatasetShardRefresher.class);
     private final Path datasetsDir;
     private static final ExecutorService executorService = new ForkJoinPool(40);
-    private final String leaderElectionRoot;
-    private final String hostId;
-    private String leaderId;
     private final Connection dbConnection;
-    private final ZooKeeperConnection zkConnection;
     private final org.apache.hadoop.fs.FileSystem hadoopFileSystem;
     private final ShardFilter filter;
-    private String lastSelectedLeaderId;
-
     private final ShardData shardData;
 
-    enum LeaderState {
-        NEW_LEADER,
-        OLD_LEADER,
-        NOT_LEADER,
-        ERROR
-    }
 
-    public LeaderState isLeader(){
-        try {
-            if(!zkConnection.isConnected()) {
-                zkConnection.connect();
-                final String leaderPath = zkConnection.create(leaderElectionRoot+"/_", hostId.getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
-                leaderId = leaderPath.substring(leaderElectionRoot.length()+1);
-            } else if(leaderId == null) {
-                final String leaderPath = zkConnection.create(leaderElectionRoot+"/_", hostId.getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
-                leaderId = leaderPath.substring(leaderElectionRoot.length()+1);
-            }
-
-            final List<String> children = zkConnection.getChildren(leaderElectionRoot, false);
-            Collections.sort(children);
-
-            int index = Collections.binarySearch(children, leaderId);
-
-            if(index == 0) {
-                if(leaderId.equals(lastSelectedLeaderId)) {
-                    return OLD_LEADER;
-                }
-                lastSelectedLeaderId = leaderId;
-                return NEW_LEADER;
-            }
-
-            if(index == -1) {
-                LOGGER.info("Lost my leader path. Resetting my connection to zookeeper.");
-                zkConnection.delete(leaderElectionRoot + leaderId, -1);
-                zkConnection.close();
-            }
-
-            return NOT_LEADER;
-
-        } catch (InterruptedException | KeeperException | IOException e ) {
-            LOGGER.error(e.getMessage(), e.getCause());
-            return ERROR;
-        }
+    public void runOnInitLeader() {
+        loadFromSQL();
     }
 
     DatasetShardRefresher(final Path datasetsDir,
-                          final String leaderElectionRoot,
-                          final String hostId,
-                          final ZooKeeperConnection zkConnection,
                           final Connection dbConnection,
                           final String rootURI,
                           final ShardFilter filter,
                           ShardData shardData) throws IOException {
         this.datasetsDir = datasetsDir;
-        this.zkConnection = zkConnection;
         this.dbConnection = dbConnection;
         this.hadoopFileSystem = new Path(rootURI).getFileSystem(new Configuration());
         this.filter = filter;
         this.shardData = shardData;
-        this.leaderElectionRoot = leaderElectionRoot;
-        this.hostId = hostId;
     }
 
-    Future initialize() {
-        return executorService.submit(this::innerRun);
+    Future initialize(boolean leader) {
+        if(leader) {
+            runOnInitLeader();
+        }
+        return executorService.submit(() -> innerRun(leader));
     }
 
     private void loadFromSQL() {
@@ -142,31 +92,21 @@ class DatasetShardRefresher extends TimerTask {
      * Synchronized so if something switches to being a leader while a lot of shards still
      * need to be uploaded to SQL, it won't duplicate work.
      */
-    private synchronized void innerRun() {
-        switch (isLeader()) {
-            case NEW_LEADER:
-                loadFromSQL();
-            case OLD_LEADER:
-                DataSetScanner scanner = new DataSetScanner(datasetsDir, hadoopFileSystem);
-                try {
-                    Set<String> allPaths = shardData.getCopyOfAllPaths();
-                    executorService.submit(() -> StreamSupport.stream(scanner.spliterator(), true).filter(path -> filter.accept(path.getName())).forEach(a-> handleDataset(a, allPaths))).get();
-                    if(allPaths.size() > 0) {
-                        LOGGER.info("Deleting shards: " + allPaths + " because they are no longer present on the filesystem.");
-                        deleteFromSQL(allPaths);
-                        shardData.deleteShards(allPaths);
-                    }
-                } catch (ExecutionException | InterruptedException | SQLException e) {
-                    LOGGER.error(e.getMessage(), e);
+    private synchronized void innerRun(boolean leader) {
+        if(leader) {
+            DataSetScanner scanner = new DataSetScanner(datasetsDir, hadoopFileSystem);
+            try {
+                Set<String> allPaths = shardData.getCopyOfAllPaths();
+                executorService.submit(() -> StreamSupport.stream(scanner.spliterator(), true).filter(path -> filter.accept(path.getName())).forEach(a -> handleDataset(a, allPaths))).get();
+                if (allPaths.size() > 0) {
+                    deleteFromSQL(allPaths);
+                    shardData.deleteShards(allPaths);
                 }
-                break;
-            case NOT_LEADER:
-                loadFromSQL();
-                break;
-            case ERROR:
-                LOGGER.error("There was an error with the leader election process. Assuming I am not the leader.");
-                loadFromSQL();
-                break;
+            } catch (ExecutionException | InterruptedException | SQLException e) {
+                LOGGER.error(e.getMessage(), e);
+            }
+        } else {
+            loadFromSQL();
         }
     }
 
@@ -305,8 +245,7 @@ class DatasetShardRefresher extends TimerTask {
 
     }
 
-    @Override
-    public void run() {
-        executorService.submit(this::innerRun);
+    public void run(boolean leader) {
+        executorService.submit(() -> innerRun(leader));
     }
 }
