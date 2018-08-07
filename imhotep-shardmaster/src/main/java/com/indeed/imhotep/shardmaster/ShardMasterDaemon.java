@@ -87,7 +87,7 @@ public class ShardMasterDaemon {
                     config.getHostsDropThreshold());
         }
 
-        ZooKeeperConnection zkConnection = new ZooKeeperConnection(config.zkNodes, 2000);
+        ZooKeeperConnection zkConnection = new ZooKeeperConnection(config.zkNodes, 30000);
         zkConnection.connect();
         zkConnection.createIfNotExists(config.shardMastersZkPath+"-election", new byte[0], CreateMode.PERSISTENT);
         String hostAddress = java.net.InetAddress.getLocalHost().getCanonicalHostName() + ":" + config.getServicePort();
