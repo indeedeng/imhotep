@@ -86,7 +86,6 @@ public class ShardMasterDaemon {
         ZooKeeperConnection zkConnection = new ZooKeeperConnection(config.zkNodes, 30000);
         zkConnection.connect();
         zkConnection.createIfNotExists(config.shardMastersZkPath+"-election", new byte[0], CreateMode.PERSISTENT);
-        String hostAddress = java.net.InetAddress.getLocalHost().getCanonicalHostName() + ":" + config.getServicePort();
         String leaderElectionRoot = config.shardMastersZkPath+"-election";
         Connection dbConnection = config.getMetadataConnection();
 
@@ -117,7 +116,7 @@ public class ShardMasterDaemon {
             LOGGER.info("Initializing all shard assignments");
 
             // don't block on assignment refresh
-            Future shardScanResults = refresher.initialize(isLeader(leaderElectionRoot, zkConnection, hostAddress));
+            Future shardScanResults = refresher.initialize(isLeader(leaderElectionRoot, zkConnection));
             final AtomicBoolean shardScanComplete = new AtomicBoolean(false);
 
             final Thread scanBlocker = new Thread(() -> {
@@ -141,7 +140,7 @@ public class ShardMasterDaemon {
                 }
             }, config.getHostsRefreshInterval().getMillis(), config.getHostsRefreshInterval().getMillis());
 
-            datasetReloadExecutor.scheduleAtFixedRate(() -> refresher.run(isLeader(leaderElectionRoot, zkConnection, hostAddress)), config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis(), TimeUnit.MILLISECONDS);
+            datasetReloadExecutor.scheduleAtFixedRate(() -> refresher.run(isLeader(leaderElectionRoot, zkConnection)), config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis(), TimeUnit.MILLISECONDS);
 
             server = new RequestResponseServer(config.getServicePort(), new MultiplexingRequestHandler(
                     config.statsEmitter,
@@ -166,14 +165,14 @@ public class ShardMasterDaemon {
         }
     }
 
-    public boolean isLeader(final String leaderElectionRoot, final ZooKeeperConnection zkConnection, final String hostId){
+    public boolean isLeader(final String leaderElectionRoot, final ZooKeeperConnection zkConnection){
         try {
             if(!zkConnection.isConnected()) {
                 zkConnection.connect();
-                final String leaderPath = zkConnection.create(leaderElectionRoot+"/_", hostId.getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
+                final String leaderPath = zkConnection.create(leaderElectionRoot+"/_", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
                 leaderId = leaderPath.substring(leaderElectionRoot.length()+1);
             } else if(leaderId == null) {
-                final String leaderPath = zkConnection.create(leaderElectionRoot+"/_", hostId.getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
+                final String leaderPath = zkConnection.create(leaderElectionRoot+"/_", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
                 leaderId = leaderPath.substring(leaderElectionRoot.length()+1);
             }
 
