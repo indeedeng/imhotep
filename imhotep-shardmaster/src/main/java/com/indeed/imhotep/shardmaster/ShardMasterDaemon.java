@@ -35,7 +35,6 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.*;
 import org.joda.time.Duration;
-import org.joda.time.ReadableDuration;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -57,8 +56,6 @@ public class ShardMasterDaemon {
     private static final Logger LOGGER = Logger.getLogger(ShardMasterDaemon.class);
     private final Config config;
     private volatile RequestResponseServer server;
-    private boolean isLeader;
-    private ScheduledFuture refreshTask;
     private String leaderId;
 
     public ShardMasterDaemon(final Config config) {
@@ -75,7 +72,6 @@ public class ShardMasterDaemon {
         final ExecutorService executorService = config.createExecutorService();
         final Timer hostReloadTimer = new Timer(DatasetShardRefresher.class.getSimpleName());
         final ScheduledExecutorService datasetReloadExecutor = Executors.newSingleThreadScheduledExecutor();
-        isLeader = false;
 
         final HostsReloader hostsReloader;
         if (config.hasHostsOverride()) {
@@ -93,7 +89,6 @@ public class ShardMasterDaemon {
         String hostAddress = java.net.InetAddress.getLocalHost().getCanonicalHostName() + ":" + config.getServicePort();
         String leaderElectionRoot = config.shardMastersZkPath+"-election";
         Connection dbConnection = config.getMetadataConnection();
-        isLeader = isLeader(leaderElectionRoot, zkConnection, hostAddress);
 
         ShardData shardData = new ShardData();
 
@@ -122,7 +117,7 @@ public class ShardMasterDaemon {
             LOGGER.info("Initializing all shard assignments");
 
             // don't block on assignment refresh
-            Future shardScanResults = refresher.initialize(isLeader);
+            Future shardScanResults = refresher.initialize(isLeader(leaderElectionRoot, zkConnection, hostAddress));
             final AtomicBoolean shardScanComplete = new AtomicBoolean(false);
 
             final Thread scanBlocker = new Thread(() -> {
@@ -146,27 +141,7 @@ public class ShardMasterDaemon {
                 }
             }, config.getHostsRefreshInterval().getMillis(), config.getHostsRefreshInterval().getMillis());
 
-            if(isLeader) {
-                refreshTask = datasetReloadExecutor.scheduleAtFixedRate(() -> refresher.run(true), config.getLeaderRefreshInterval().getMillis(), config.getLeaderRefreshInterval().getMillis(), TimeUnit.MILLISECONDS);
-            } else {
-                refreshTask = datasetReloadExecutor.scheduleAtFixedRate(() -> refresher.run(false), config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis(), TimeUnit.MILLISECONDS);
-            }
-
-            Runnable checkLeaderStatus = () -> {
-                boolean leader = isLeader(leaderElectionRoot, zkConnection, hostAddress);
-                if(!isLeader && leader) {
-                    isLeader = true;
-                    refresher.runOnInitLeader();
-                    refreshTask.cancel(false);
-                    refreshTask = datasetReloadExecutor.scheduleAtFixedRate(() -> refresher.run(isLeader), 0, config.getLeaderRefreshInterval().getMillis(), TimeUnit.MILLISECONDS);
-                } else if(isLeader && !leader) {
-                    isLeader = false;
-                    refreshTask.cancel(false);
-                    refreshTask = datasetReloadExecutor.scheduleAtFixedRate(() -> refresher.run(isLeader), config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis(), TimeUnit.MILLISECONDS);
-                }
-            };
-
-            datasetReloadExecutor.scheduleAtFixedRate(checkLeaderStatus, config.getLeaderCheckInterval().getMillis(), config.getLeaderCheckInterval().getMillis(), TimeUnit.MILLISECONDS);
+            datasetReloadExecutor.scheduleAtFixedRate(() -> refresher.run(isLeader(leaderElectionRoot, zkConnection, hostAddress)), config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis(), TimeUnit.MILLISECONDS);
 
             server = new RequestResponseServer(config.getServicePort(), new MultiplexingRequestHandler(
                     config.statsEmitter,
@@ -257,14 +232,12 @@ public class ShardMasterDaemon {
         private int shardsResponseBatchSize = 1000;
         private int threadPoolSize = 5;
         private int replicationFactor = 2;
-        private Duration refreshInterval = Duration.standardMinutes(5);
+        private Duration refreshInterval = Duration.standardMinutes(1);
         private Duration stalenessThreshold = Duration.standardMinutes(15);
         private Duration hostsRefreshInterval = Duration.standardMinutes(1);
         private double hostsDropThreshold = 0.5;
         private RequestMetricStatsEmitter statsEmitter = RequestMetricStatsEmitter.NULL_EMITTER;
         private String metadataDBURL;
-        private ReadableDuration leaderRefreshInterval = Duration.standardMinutes(1);
-        private ReadableDuration leaderCheckInterval = Duration.standardSeconds(15);
 
         public Config setMetadataDBURL(final String url){
             this.metadataDBURL = url;
@@ -377,7 +350,7 @@ public class ShardMasterDaemon {
 
         HostsReloader createZkHostsReloader() {
             Preconditions.checkNotNull(zkNodes, "ZooKeeper nodes config is missing");
-            return new LeaderZkHostsReloader(zkNodes, imhotepDaemonsZkPath, false);
+            return new ZkHostsReloader(zkNodes, imhotepDaemonsZkPath, false);
         }
 
         HostsReloader createStaticHostReloader() throws IOException {
@@ -487,21 +460,6 @@ public class ShardMasterDaemon {
             return hostsDropThreshold;
         }
 
-        public ReadableDuration getLeaderRefreshInterval() {
-            return leaderRefreshInterval;
-        }
-
-        public void setLeaderRefreshInterval(Integer leaderRefreshInterval) {
-            this.leaderRefreshInterval = Duration.millis(leaderRefreshInterval);
-        }
-
-        public ReadableDuration getLeaderCheckInterval() {
-            return leaderCheckInterval;
-        }
-
-        public void setLeaderCheckInterval(Integer leaderCheckInterval) {
-            this.leaderCheckInterval = Duration.millis(leaderCheckInterval);
-        }
     }
 
     public static void main(final String[] args) throws InterruptedException, IOException, KeeperException, SQLException {

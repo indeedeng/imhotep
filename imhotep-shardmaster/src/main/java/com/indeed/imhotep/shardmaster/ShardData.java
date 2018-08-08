@@ -22,16 +22,16 @@ public class ShardData {
     final private Map<String, ShardInfo> pathsToShards;
 
 
-    public boolean hasField(String dataset, String field) {
+    public boolean hasField(final String dataset, final String field) {
         return tblFields.containsKey(dataset) && tblFields.get(dataset).lastUpdatedTimestamp.containsKey(field);
     }
 
-    public long getFieldUpdateTime(String dataset, String field) {
+    public long getFieldUpdateTime(final String dataset, final String field) {
         final TableFields tableFields = tblFields.get(dataset);
         return tableFields != null ? tableFields.lastUpdatedTimestamp.get(field) : 0;
     }
 
-    public List<String> getFields(String dataset, FieldType type) {
+    public List<String> getFields(final String dataset, final FieldType type) {
         final List<String> fields = new ArrayList<>();
         final TableFields tableFields = tblFields.get(dataset);
         if(tableFields == null) {
@@ -45,7 +45,7 @@ public class ShardData {
         return fields;
     }
 
-    public int getNumDocs(String path) {
+    public int getNumDocs(final String path) {
         if(!pathsToShards.containsKey(path)) {
             return -1;
         }
@@ -58,7 +58,7 @@ public class ShardData {
         return set;
     }
 
-    public void deleteShards(Set<String> allPaths) {
+    public void deleteShards(final Set<String> allPaths) {
         for(final String path: allPaths) {
             final ShardDir temp = new ShardDir(Paths.get(path));
             final Interval interval = ShardTimeUtils.parseInterval(temp.getId());
@@ -68,32 +68,23 @@ public class ShardData {
     }
 
     enum FieldType {
-        INT(0), STRING(1);
+        INT, STRING;
 
-        private int value;
-
-        public int getValue(){
-            return value;
-        }
-
-        static FieldType getType(int value) {
+        static FieldType getType(final String value) {
             switch (value) {
-                case 0:
+                case "INT":
                     return INT;
-                case 1:
+                case "STRING":
                     return STRING;
             }
             return null;
         }
 
-        FieldType(int value){
-            this.value = value;
-        }
     }
 
     class TableFields {
-        Map<String, FieldType> fieldNameToFieldType;
-        Map<String, Long> lastUpdatedTimestamp;
+        final Map<String, FieldType> fieldNameToFieldType;
+        final Map<String, Long> lastUpdatedTimestamp;
         public TableFields(){
             fieldNameToFieldType = new ConcurrentHashMap<>();
             lastUpdatedTimestamp = new ConcurrentHashMap<>();
@@ -106,17 +97,17 @@ public class ShardData {
         pathsToShards = new ConcurrentHashMap<>();
     }
 
-    public void addShardFromHDFS(FlamdexMetadata metadata, Path shardPath, ShardDir shardDir) {
-        addShardToDatastructure(metadata, shardPath, shardDir);
+    public void addShardFromHDFS(final FlamdexMetadata metadata, final ShardDir shardDir) {
+        addShardToDatastructure(metadata, shardDir);
     }
 
-    public void addTableFieldsRowsFromSQL(ResultSet rows) throws SQLException {
+    public void addTableFieldsRowsFromSQL(final ResultSet rows) throws SQLException {
         if (rows.first()) {
             do {
-                String dataset = rows.getString("dataset");
-                String fieldName = rows.getString("fieldname");
-                FieldType type = FieldType.getType(rows.getInt("type"));
-                long dateTime = rows.getLong("lastshardstarttime");
+                final String dataset = rows.getString("dataset");
+                final String fieldName = rows.getString("fieldname");
+                final FieldType type = FieldType.getType(rows.getString("type"));
+                final long dateTime = rows.getLong("lastshardstarttime");
                 if (!tblFields.containsKey(dataset)) {
                     tblFields.put(dataset, new TableFields());
                 }
@@ -126,24 +117,24 @@ public class ShardData {
         }
     }
 
-    public void updateTableShardsRowsFromSQL(ResultSet rows) throws SQLException {
-        Set<String> existingPaths = getCopyOfAllPaths();
+    public void updateTableShardsRowsFromSQL(final ResultSet rows) throws SQLException {
+        final Set<String> existingPaths = getCopyOfAllPaths();
         if (rows.first()) {
             do {
-                String strPath = rows.getString("path");
+                final String strPath = rows.getString("path");
                 existingPaths.remove(strPath);
 
-                int numDocs = rows.getInt("numDocs");
+                final int numDocs = rows.getInt("numDocs");
 
                 if(pathsToShards.containsKey(strPath)) {
                     continue;
                 }
 
-                Path path = Paths.get(strPath);
-                ShardDir shardDir = new ShardDir(path);
-                String dataset = shardDir.getDataset();
-                String shardname = shardDir.getId();
-                ShardInfo shard = new ShardInfo(shardname, numDocs, shardDir.getVersion());
+                final Path path = Paths.get(strPath);
+                final ShardDir shardDir = new ShardDir(path);
+                final String dataset = shardDir.getDataset();
+                final String shardname = shardDir.getId();
+                final ShardInfo shard = new ShardInfo(shardname, numDocs, shardDir.getVersion());
                 final Interval interval = ShardTimeUtils.parseInterval(shardname);
 
                 pathsToShards.put(strPath, shard);
@@ -158,10 +149,12 @@ public class ShardData {
         deleteShards(existingPaths);
     }
 
-    private void addShardToDatastructure(FlamdexMetadata metadata, Path shardPath, ShardDir shardDir) {
-        ShardInfo info = new ShardInfo(shardDir.getId(), metadata.getNumDocs(), shardDir.getVersion());
+    private void addShardToDatastructure(final FlamdexMetadata metadata, final ShardDir shardDir) {
+        final ShardInfo info = new ShardInfo(shardDir.getId(), metadata.getNumDocs(), shardDir.getVersion());
+        final String dataset = shardDir.getDataset();
+
         pathsToShards.put(shardDir.getIndexDir().toString(), info);
-        String dataset = shardDir.getDataset();
+
         if(!tblShards.containsKey(dataset)) {
             tblShards.put(dataset, new IntervalTree<>());
             tblFields.put(dataset, new TableFields());
@@ -169,14 +162,14 @@ public class ShardData {
         final Interval interval = ShardTimeUtils.parseInterval(shardDir.getId());
         tblShards.get(dataset).addInterval(interval.getStart().getMillis(), interval.getEnd().getMillis(), info);
 
-        for (String field : metadata.getIntFields()) {
+        for (final String field : metadata.getIntFields()) {
             if (!tblFields.get(dataset).lastUpdatedTimestamp.containsKey(field) || tblFields.get(dataset).lastUpdatedTimestamp.get(field) < interval.getStartMillis()) {
                 tblFields.get(dataset).fieldNameToFieldType.put(field, FieldType.INT);
                 tblFields.get(dataset).lastUpdatedTimestamp.put(field, interval.getStartMillis());
             }
         }
 
-        for (String field : metadata.getStringFields()) {
+        for (final String field : metadata.getStringFields()) {
             if (!tblFields.get(dataset).lastUpdatedTimestamp.containsKey(field) || tblFields.get(dataset).lastUpdatedTimestamp.get(field) < interval.getStartMillis()) {
                 tblFields.get(dataset).fieldNameToFieldType.put(field, FieldType.STRING);
                 tblFields.get(dataset).lastUpdatedTimestamp.put(field, interval.getStartMillis());
@@ -184,7 +177,7 @@ public class ShardData {
         }
     }
 
-    public boolean hasShard(String path){
+    public boolean hasShard(final String path){
         return pathsToShards.containsKey(path);
     }
 
@@ -192,15 +185,15 @@ public class ShardData {
         return tblShards.keySet();
     }
 
-    public Collection<ShardInfo> getShardsForDataset(String dataset) {
-        IntervalTree<Long, ShardInfo> tree = tblShards.get(dataset);
+    public Collection<ShardInfo> getShardsForDataset(final String dataset) {
+        final IntervalTree<Long, ShardInfo> tree = tblShards.get(dataset);
         if (tree == null) {
             return new HashSet<>();
         }
         return tree.getAllValues();
     }
 
-    public Collection<ShardInfo> getShardsInTime(String dataset, long start, long end) {
+    public Collection<ShardInfo> getShardsInTime(final String dataset, final long start, final long end) {
         return tblShards.get(dataset).getValuesInRange(start, end);
     }
 }

@@ -35,7 +35,7 @@ import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * @author jsgroth
@@ -47,7 +47,7 @@ public class ImhotepClient
     private final ExecutorService rpcExecutor;
     private final ScheduledExecutorService reloader;
     private final ImhotepClientMetadataReloader datasetMetadataReloader;
-    private final Function<Set<Host>, Host> shardMasterHostGetter;
+    private final Supplier<ShardMaster> shardMasterSupplier;
 
     private final Instrumentation.ProviderSupport instrumentation =
         new Instrumentation.ProviderSupport();
@@ -69,18 +69,18 @@ public class ImhotepClient
     }
 
     public ImhotepClient(final String zkNodes, final boolean readHostsBeforeReturning) {
-        this(new LeaderZkHostsReloader(zkNodes, readHostsBeforeReturning));
+        this(new ZkHostsReloader(zkNodes, readHostsBeforeReturning));
     }
 
     public ImhotepClient(final String zkNodes, final String zkPath, final boolean readHostsBeforeReturning) {
-        this(new LeaderZkHostsReloader(zkNodes, zkPath, readHostsBeforeReturning));
+        this(new ZkHostsReloader(zkNodes, zkPath, readHostsBeforeReturning));
     }
 
     public ImhotepClient(final HostsReloader hostsSource) {
 
         this.hostsSource = hostsSource;
 
-        this.shardMasterHostGetter = getShardMasterHostGetter();
+        this.shardMasterSupplier = getShardMasterSupplier();
 
         rpcExecutor = Executors.newCachedThreadPool(new ThreadFactory() {
             @Override
@@ -101,7 +101,7 @@ public class ImhotepClient
         });
         reloader.scheduleAtFixedRate(hostsSource, 60L, 60L, TimeUnit.SECONDS);
 
-        datasetMetadataReloader = new ImhotepClientMetadataReloader(shardMasterHostGetter);
+        datasetMetadataReloader = new ImhotepClientMetadataReloader(shardMasterSupplier);
         datasetMetadataReloader.run();
         reloader.scheduleAtFixedRate(datasetMetadataReloader, 60L, 60L, TimeUnit.SECONDS);
     }
@@ -169,7 +169,7 @@ public class ImhotepClient
         final long startUnixtime = start.getMillis();
         final long endUnixtime = end.getMillis();
         try {
-            return computeShardMasterFunction(throwingFunctionWrapper(shardMaster ->  shardMaster.getShardsInTime(dataset, startUnixtime, endUnixtime)), shardMasterHostGetter);
+            return shardMasterSupplier.get().getShardsInTime(dataset, startUnixtime, endUnixtime);
         } catch (IOException e) {
             log.error("Failed to get shards in time range", e);
             throw Throwables.propagate(e);
@@ -537,7 +537,7 @@ public class ImhotepClient
      */
     public Map<String, Collection<ShardInfo>> queryDatasetToFullShardList() {
         try {
-            return computeShardMasterFunction(throwingFunctionWrapper(ShardMaster::getShardList), shardMasterHostGetter);
+            return shardMasterSupplier.get().getShardList();
         } catch (IOException e) {
             log.error("Failed to get shard list", e);
             throw Throwables.propagate(e);
@@ -609,46 +609,12 @@ public class ImhotepClient
         return new ArrayList<>(hostsSource.getHosts());
     }
 
-    interface ThrowingFunction<K, V, E extends Exception> {
-        V apply(K input) throws E;
-    }
 
-    static <K, V> Function<K, V> throwingFunctionWrapper(ThrowingFunction<K, V, Exception> throwingFunction) {
-        return a -> {
-            try {
-                return throwingFunction.apply(a);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        };
-    }
-
-    static <T> T computeShardMasterFunction(Function<ShardMaster, T> function, Function<Set<Host>, Host> getHost) throws IOException {
-        HashSet<Host> failedHosts = new HashSet<>();
-        Host host = getHost.apply(failedHosts);
-        while (host != null) {
-            final ShardMaster shardMaster = new RequestResponseClient(host);
-            try {
-                return function.apply(shardMaster);
-            } catch (Exception e) {
-                failedHosts.add(host);
-            }
-            host = getHost.apply(failedHosts);
-        }
-        throw new IOException("Error trying to reach all shardmasters");
-    }
-
-
-    // TODO: maybe replace this with a smarter scheme (power of two choices, ect)
-    private Function<Set<Host>, Host> getShardMasterHostGetter() {
-        return (failed) -> {
-            List<Host> hosts = hostsSource.getHosts();
-            for(Host host: hosts) {
-                if(!failed.contains(host)) {
-                    return host;
-                }
-            }
-            return null;
+    private Supplier<ShardMaster> getShardMasterSupplier() {
+        return () -> {
+            final List<Host> hosts = hostsSource.getHosts();
+            final int index = new Random().nextInt(hosts.size());
+            return new RequestResponseClient(hosts.get(index));
         };
     }
 }

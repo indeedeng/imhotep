@@ -21,7 +21,7 @@ import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * @author jsgroth
@@ -29,14 +29,14 @@ import java.util.function.Function;
 class ImhotepClientMetadataReloader extends DataLoadingRunnable {
     private static final Logger log = Logger.getLogger(ImhotepClientMetadataReloader.class);
 
-    private final Function<Set<Host>, Host> shardMasterGetter;
     private final Object rpcLock = new Object();
+    private final Supplier<ShardMaster> shardMasterSupplier;
 
     private volatile Map<String, DatasetInfo> datasetToDatasetInfo = Collections.emptyMap();
 
-    ImhotepClientMetadataReloader(final Function<Set<Host>, Host> shardMasterGetter) {
+    ImhotepClientMetadataReloader(Supplier<ShardMaster> shardMasterSupplier) {
         super("ImhotepClientMetadataReloader");
-        this.shardMasterGetter = shardMasterGetter;
+        this.shardMasterSupplier = shardMasterSupplier;
     }
 
     @Override
@@ -67,7 +67,7 @@ class ImhotepClientMetadataReloader extends DataLoadingRunnable {
                 Map<String, DatasetInfo> toReturn = new HashMap<>();
             final List<DatasetInfo> datasetInfos;
             try {
-                datasetInfos = ImhotepClient.computeShardMasterFunction(ImhotepClient.throwingFunctionWrapper(ShardMaster::getDatasetMetadata), shardMasterGetter);
+                datasetInfos = shardMasterSupplier.get().getDatasetMetadata();
                 datasetInfos.forEach(datasetInfo -> toReturn.put(datasetInfo.getDataset(), datasetInfo));
                 return toReturn;
             } catch (IOException e) {

@@ -16,14 +16,10 @@ package com.indeed.imhotep.shardmaster;
 
 import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.client.ShardTimeUtils;
-import com.indeed.util.zookeeper.ZooKeeperConnection;
 import javafx.util.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.log4j.Logger;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.ZooDefs;
 
 import java.io.IOException;
 import java.sql.*;
@@ -44,11 +40,8 @@ class DatasetShardRefresher {
     private final org.apache.hadoop.fs.FileSystem hadoopFileSystem;
     private final ShardFilter filter;
     private final ShardData shardData;
+    private long lastUpdatedTimestamp = 0;
 
-
-    public void runOnInitLeader() {
-        loadFromSQL();
-    }
 
     DatasetShardRefresher(final Path datasetsDir,
                           final Connection dbConnection,
@@ -62,16 +55,16 @@ class DatasetShardRefresher {
         this.shardData = shardData;
     }
 
-    Future initialize(boolean leader) {
-        if(leader) {
-            runOnInitLeader();
-        }
+    Future initialize(final boolean leader) {
         return executorService.submit(() -> innerRun(leader));
     }
 
     private void loadFromSQL() {
         try {
-            final PreparedStatement statement = dbConnection.prepareStatement("SELECT * FROM tblshards;");
+            final long timestampToUse = lastUpdatedTimestamp;
+            lastUpdatedTimestamp = System.currentTimeMillis();
+            final PreparedStatement statement = dbConnection.prepareStatement("SELECT * FROM tblshards WHERE addedtimestamp >= ?;");
+            statement.setLong(1, timestampToUse);
             final ResultSet set = statement.executeQuery();
             shardData.updateTableShardsRowsFromSQL(set);
 
@@ -93,25 +86,26 @@ class DatasetShardRefresher {
      * need to be uploaded to SQL, it won't duplicate work.
      */
     private synchronized void innerRun(boolean leader) {
-        if(leader) {
-            DataSetScanner scanner = new DataSetScanner(datasetsDir, hadoopFileSystem);
-            try {
-                Set<String> allPaths = shardData.getCopyOfAllPaths();
-                executorService.submit(() -> StreamSupport.stream(scanner.spliterator(), true).filter(path -> filter.accept(path.getName())).forEach(a -> handleDataset(a, allPaths))).get();
-                if (allPaths.size() > 0) {
-                    deleteFromSQL(allPaths);
-                    shardData.deleteShards(allPaths);
-                }
-            } catch (ExecutionException | InterruptedException | SQLException e) {
-                LOGGER.error(e.getMessage(), e);
-            }
-        } else {
-            loadFromSQL();
+        loadFromSQL();
+
+        if(!leader) {
+            return;
+        }
+
+        DataSetScanner scanner = new DataSetScanner(datasetsDir, hadoopFileSystem);
+        try {
+            final Set<String> allRemaining = shardData.getCopyOfAllPaths();
+            executorService.submit(() -> StreamSupport.stream(scanner.spliterator(), true).filter(path -> filter.accept(path.getName())).forEach(a -> handleDataset(a, allRemaining))).get();
+
+            deleteFromSQL(allRemaining);
+            shardData.deleteShards(allRemaining);
+        } catch (ExecutionException | InterruptedException | SQLException e) {
+            LOGGER.error(e.getMessage(), e);
         }
     }
 
 
-    private void handleDataset(Path path, Set<String> allPaths) {
+    private void handleDataset(final Path path, final Set<String> allPaths) {
         LOGGER.info("On dataset: " + path);
         Iterable<ShardDir> dataset = new ShardScanner(path, hadoopFileSystem);
 
@@ -138,42 +132,43 @@ class DatasetShardRefresher {
         }
     }
 
-    private boolean isValidAndNew(ShardDir temp) {
-        String dataset = temp.getDataset();
-        String id = temp.getId();
+    private boolean isValidAndNew(final ShardDir temp) {
+        final String dataset = temp.getDataset();
+        final String id = temp.getId();
         return !shardData.hasShard(dataset + "/" + temp.getName()) && ShardTimeUtils.isValidShardId(id);
     }
 
-    private FlamdexMetadata collectShardMetadata(ShardDir shardDir) throws IOException {
+    private FlamdexMetadata collectShardMetadata(final ShardDir shardDir) throws IOException {
         LOGGER.info("reading a shard with dataset: " + shardDir.getDataset() + " and id: " + shardDir.getId() + " and version " + shardDir.getVersion());
         FlamdexMetadata metadata = FlamdexMetadata.readMetadata(hadoopFileSystem, shardDir.getHadoopPath());
         LOGGER.info("finished reading a shard with dataset: " + shardDir.getDataset() + " and id: " + shardDir.getId() + " and version " + shardDir.getVersion());
         return metadata;
     }
 
-    private void addData(ShardDir shardDir, FlamdexMetadata metadata) throws SQLException {
+    private void addData(final ShardDir shardDir, final FlamdexMetadata metadata) throws SQLException {
         addToSQL(metadata, shardDir);
-        shardData.addShardFromHDFS(metadata, shardDir.getIndexDir(), shardDir);
+        shardData.addShardFromHDFS(metadata, shardDir);
     }
 
-    private void addToSQL(FlamdexMetadata metadata, ShardDir shardDir) throws SQLException {
+    private void addToSQL(final FlamdexMetadata metadata, final ShardDir shardDir) throws SQLException {
         final String shardId = shardDir.getId();
         final String dataset = shardDir.getDataset();
-        final PreparedStatement tblShardsInsertStatement = dbConnection.prepareStatement("INSERT INTO tblshards (path, numDocs) VALUES (?, ?);");
+        final PreparedStatement tblShardsInsertStatement = dbConnection.prepareStatement("INSERT INTO tblshards (path, numDocs, addedtimestamp) VALUES (?, ?, ?);");
         tblShardsInsertStatement.setString(1, shardDir.getIndexDir().toString());
         tblShardsInsertStatement.setInt(2, metadata.getNumDocs());
+        tblShardsInsertStatement.setLong(3, System.currentTimeMillis());
 
         final PreparedStatement tblFieldsInsertStatement =
                 dbConnection.prepareStatement("INSERT INTO tblfields (dataset, fieldname, type, lastshardstarttime) VALUES (?, ?, ?, ?);");
 
         final long startTime = ShardTimeUtils.parseStart(shardId).getMillis();
 
-        for (String field : metadata.getStringFields()) {
+        for (final String field : metadata.getStringFields()) {
             if (!shardData.hasField(dataset, field)) {
                 try {
                     tblFieldsInsertStatement.setString(1, dataset);
                     tblFieldsInsertStatement.setString(2, field);
-                    tblFieldsInsertStatement.setInt(3, ShardData.FieldType.STRING.getValue());
+                    tblFieldsInsertStatement.setString(3, "STRING");
                     tblFieldsInsertStatement.setLong(4, startTime);
                     tblFieldsInsertStatement.addBatch();
                 } catch (SQLException e) {
@@ -182,12 +177,12 @@ class DatasetShardRefresher {
             }
         }
 
-        for (String field : metadata.getIntFields()) {
+        for (final String field : metadata.getIntFields()) {
             if (!shardData.hasField(dataset, field)) {
                 try {
                     tblFieldsInsertStatement.setString(1, dataset);
                     tblFieldsInsertStatement.setString(2, field);
-                    tblFieldsInsertStatement.setInt(3, ShardData.FieldType.INT.getValue());
+                    tblFieldsInsertStatement.setString(3, "INT");
                     tblFieldsInsertStatement.setLong(4, startTime);
                     tblFieldsInsertStatement.addBatch();
                 } catch (SQLException e) {
@@ -199,11 +194,11 @@ class DatasetShardRefresher {
         final PreparedStatement tblFieldsUpdateStatement =
                 dbConnection.prepareStatement("UPDATE tblfields SET type = ?, lastshardstarttime = ? WHERE dataset = ? AND fieldname = ?;");
 
-        for (String field : metadata.getStringFields()) {
+        for (final String field : metadata.getStringFields()) {
             if (shardData.hasField(dataset, field) &&
                     shardData.getFieldUpdateTime(dataset, field) < startTime) {
                 try {
-                    tblFieldsUpdateStatement.setInt(1, ShardData.FieldType.STRING.getValue());
+                    tblFieldsUpdateStatement.setString(1, "STRING");
                     tblFieldsUpdateStatement.setLong(2, startTime);
                     tblFieldsUpdateStatement.setString(3, dataset);
                     tblFieldsUpdateStatement.setString(4, field);
@@ -214,11 +209,11 @@ class DatasetShardRefresher {
             }
         }
 
-        for (String field : metadata.getIntFields()) {
+        for (final String field : metadata.getIntFields()) {
             if (shardData.hasField(dataset, field) &&
                     shardData.getFieldUpdateTime(dataset, field) < startTime) {
                 try {
-                    tblFieldsUpdateStatement.setInt(1, ShardData.FieldType.INT.getValue());
+                    tblFieldsUpdateStatement.setString(1, "INT");
                     tblFieldsUpdateStatement.setLong(2, startTime);
                     tblFieldsUpdateStatement.setString(3, dataset);
                     tblFieldsUpdateStatement.setString(4, field);
@@ -235,17 +230,17 @@ class DatasetShardRefresher {
         tblShardsInsertStatement.execute();
     }
 
-    private void deleteFromSQL(Set<String> allPaths) throws SQLException {
-        final PreparedStatement tblShardsInsertStatement = dbConnection.prepareStatement("DELETE FROM tblshards WHERE path = ?;");
-        for(String path: allPaths) {
-            tblShardsInsertStatement.setString(1, path);
-            tblShardsInsertStatement.addBatch();
+    private void deleteFromSQL(final Set<String> allPaths) throws SQLException {
+        final PreparedStatement tblShardsDeleteStatement = dbConnection.prepareStatement("DELETE FROM tblshards WHERE path = ?;");
+        for(final String path: allPaths) {
+            tblShardsDeleteStatement.setString(1, path);
+            tblShardsDeleteStatement.addBatch();
         }
-        tblShardsInsertStatement.executeBatch();
+        tblShardsDeleteStatement.executeBatch();
 
     }
 
-    public void run(boolean leader) {
+    public void run(final boolean leader) {
         executorService.submit(() -> innerRun(leader));
     }
 }
