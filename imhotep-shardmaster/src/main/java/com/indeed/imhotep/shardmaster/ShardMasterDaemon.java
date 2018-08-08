@@ -182,6 +182,7 @@ public class ShardMasterDaemon {
             int index = Collections.binarySearch(children, leaderId);
 
             if(index == 0) {
+                LOGGER.info("I am the leader");
                 return true;
             }
 

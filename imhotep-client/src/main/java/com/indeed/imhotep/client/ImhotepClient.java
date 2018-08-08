@@ -613,6 +613,9 @@ public class ImhotepClient
     private Supplier<ShardMaster> getShardMasterSupplier() {
         return () -> {
             final List<Host> hosts = hostsSource.getHosts();
+            if(hosts.isEmpty()) {
+                throw Throwables.propagate(new IOException("There are no shardmasters"));
+            }
             final int index = new Random().nextInt(hosts.size());
             return new RequestResponseClient(hosts.get(index));
         };
