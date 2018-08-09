@@ -490,8 +490,7 @@ public abstract class AbstractImhotepServiceCore
             boolean optimizeGroupZeroLookups,
             String sessionId,
             AtomicLong tempFileSizeBytesLeft,
-            final long sessionTimeout,
-            List<Integer> numDocs
+            final long sessionTimeout
     ) throws ImhotepOutOfMemoryException;
 
     @Override

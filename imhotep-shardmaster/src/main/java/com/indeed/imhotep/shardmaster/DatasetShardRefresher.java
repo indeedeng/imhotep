@@ -14,6 +14,7 @@
 
 package com.indeed.imhotep.shardmaster;
 
+import com.google.common.base.Throwables;
 import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.client.ShardTimeUtils;
 import javafx.util.Pair;
@@ -32,7 +33,7 @@ import java.util.stream.StreamSupport;
  * @author kenh
  */
 
-class DatasetShardRefresher {
+public class DatasetShardRefresher {
     private static final Logger LOGGER = Logger.getLogger(DatasetShardRefresher.class);
     private final Path datasetsDir;
     private static final ExecutorService executorService = new ForkJoinPool(40);
@@ -55,30 +56,30 @@ class DatasetShardRefresher {
         this.shardData = shardData;
     }
 
+    public static ShardData loadShardDataFromSQL(ShardData shardData, Connection dbConnection) {
+        try {
+            final PreparedStatement statement = dbConnection.prepareStatement("SELECT * FROM tblshards WHERE addedtimestamp >= ?;");
+            statement.setLong(1, 0);
+            final ResultSet set = statement.executeQuery();
+            shardData.updateTableShardsRowsFromSQL(set);
+
+            final PreparedStatement statement2 = dbConnection.prepareStatement("SELECT * FROM tblfields;");
+            final ResultSet set2 = statement2.executeQuery();
+            shardData.addTableFieldsRowsFromSQL(set2);
+
+            return shardData;
+        } catch (SQLException e){
+            LOGGER.error(e.getMessage(), e);
+            throw Throwables.propagate(e);
+        }
+    }
+
     Future initialize(final boolean leader) {
         return executorService.submit(() -> innerRun(leader));
     }
 
     private void loadFromSQL() {
-        try {
-            final long timestampToUse = lastUpdatedTimestamp;
-            lastUpdatedTimestamp = System.currentTimeMillis();
-            final PreparedStatement statement = dbConnection.prepareStatement("SELECT * FROM tblshards WHERE addedtimestamp >= ?;");
-            statement.setLong(1, timestampToUse);
-            final ResultSet set = statement.executeQuery();
-            shardData.updateTableShardsRowsFromSQL(set);
-
-            final PreparedStatement statement2 = dbConnection.prepareStatement("SELECT * FROM tblfields;");
-            if(statement2 == null) {
-                LOGGER.error("SQL statement is null. Will not load data from SQL.");
-            } else {
-                final ResultSet set2 = statement2.executeQuery();
-                shardData.addTableFieldsRowsFromSQL(set2);
-            }
-        } catch (SQLException e){
-            LOGGER.error(e.getMessage(), e);
-        }
-
+        loadShardDataFromSQL(shardData, dbConnection);
     }
 
     /*

@@ -1314,13 +1314,11 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             localImhotepServiceConfig = new LocalImhotepServiceConfig();
         }
 
-        localService = new LocalImhotepServiceCore(shardsDir,
-                                                   tmpDir,
-                                                   memoryCapacityInMB * 1024 * 1024,
-                                                   new GenericFlamdexReaderSource(),
-                                                   localImhotepServiceConfig);
+        localService = new LocalImhotepServiceCore(tmpDir,
+                memoryCapacityInMB * 1024 * 1024,
+                localImhotepServiceConfig);
         final ImhotepDaemon result =
-            new ImhotepDaemon(ss, localService, zkNodes, zkPath, myHostname, port, sessionForwardingPort);
+                new ImhotepDaemon(ss, localService, zkNodes, zkPath, myHostname, port, sessionForwardingPort);
         localService.addObserver(result.getServiceCoreObserver());
         return result;
     }

@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 /**
  * @author kenh
@@ -82,12 +83,7 @@ public class ImhotepDaemonClusterRunner {
     }
 
     private List<Host> getDaemonHosts() {
-        return FluentIterable.from(runners).transform(new Function<ImhotepDaemonRunner, Host>() {
-            @Override
-            public Host apply(final ImhotepDaemonRunner imhotepDaemonRunner) {
-                return new Host("localhost", imhotepDaemonRunner.getActualPort());
-            }
-        }).toList();
+        return runners.stream().map(runner -> new Host("localhost", runner.getActualPort())).collect(Collectors.toList());
     }
 
     public ImhotepClient createClient() {

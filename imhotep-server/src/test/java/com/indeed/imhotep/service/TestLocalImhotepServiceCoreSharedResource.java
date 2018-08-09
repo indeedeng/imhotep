@@ -74,8 +74,8 @@ public class TestLocalImhotepServiceCoreSharedResource {
         };
 
         final LocalImhotepServiceCore service =
-                new LocalImhotepServiceCore(tempDir, optDirectory, 1024L * 1024 * 1024,
-                                            factory, new LocalImhotepServiceConfig());
+                new LocalImhotepServiceCore(optDirectory, 1024L * 1024 * 1024,
+                                        new LocalImhotepServiceConfig());
         final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(ShardNameNumDocsPair.newBuilder().setShardName(shardName).build()), "", "", "", 0, 0, false, "", null, 0);
         try {
             service.handlePushStat(sessionId, "if1");
@@ -121,10 +121,8 @@ public class TestLocalImhotepServiceCoreSharedResource {
         };
         final LocalImhotepServiceCore service =
                 new LocalImhotepServiceCore(
-                                            tempDir,
                                             optDirectory,
                                             Long.MAX_VALUE,
-                                            factory,
                                             new LocalImhotepServiceConfig().setUpdateShardsFrequencySeconds(1));
 
         try {
@@ -166,10 +164,8 @@ public class TestLocalImhotepServiceCoreSharedResource {
         };
         final LocalImhotepServiceCore service =
                 new LocalImhotepServiceCore(
-                                            tempDir,
                                             optDirectory,
                                             Long.MAX_VALUE,
-                                            factory,
                                             new LocalImhotepServiceConfig().setUpdateShardsFrequencySeconds(1));
         try {
             final long t = System.currentTimeMillis();
@@ -212,10 +208,8 @@ public class TestLocalImhotepServiceCoreSharedResource {
 
         final LocalImhotepServiceCore service =
                 new LocalImhotepServiceCore(
-                                            tempDir,
                                             optDirectory,
                                             Long.MAX_VALUE,
-                                            factory,
                                             new LocalImhotepServiceConfig().setUpdateShardsFrequencySeconds(1));
         try {
             final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(ShardNameNumDocsPair.newBuilder().setShardName(shardName).build()), "", "", "", 0, 0, false, "", null, 0);

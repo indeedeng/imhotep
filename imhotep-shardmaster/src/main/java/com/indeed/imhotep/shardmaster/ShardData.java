@@ -91,7 +91,7 @@ public class ShardData {
         }
     }
 
-    ShardData() {
+    public ShardData() {
         tblShards = new ConcurrentHashMap<>();
         tblFields = new ConcurrentHashMap<>();
         pathsToShards = new ConcurrentHashMap<>();

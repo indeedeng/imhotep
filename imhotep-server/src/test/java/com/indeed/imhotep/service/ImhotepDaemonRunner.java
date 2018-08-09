@@ -68,9 +68,8 @@ public class ImhotepDaemonRunner {
         }
         currentlyRunning =
                 new ImhotepDaemon(new ServerSocket(port),
-                                  new LocalImhotepServiceCore(dir, tempDir,
+                                  new LocalImhotepServiceCore(tempDir,
                                                               1024L * 1024 * 1024 * 1024,
-                                                              flamdexFactory,
                                                               new LocalImhotepServiceConfig()),
                                   null, null, "localhost", port, null);
         actualPort = currentlyRunning.getPort();
