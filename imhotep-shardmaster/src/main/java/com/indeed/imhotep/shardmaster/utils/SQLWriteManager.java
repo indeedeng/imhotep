@@ -1,9 +1,9 @@
 package com.indeed.imhotep.shardmaster.utils;
 
-import com.sun.istack.NotNull;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.sql.SQLIntegrityConstraintViolationException;
+import org.jooq.exception.DataAccessException;
+import org.springframework.dao.DuplicateKeyException;
+
+import javax.annotation.Nonnull;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -12,30 +12,27 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 
 public class SQLWriteManager implements Runnable{
-    private final Queue<PreparedStatement> sqlStatementQueue;
+    private final Queue<Runnable> sqlStatementQueue;
 
     public SQLWriteManager() {
         sqlStatementQueue = new ConcurrentLinkedQueue<>();
     }
 
-    public void addStatementToQueue(@NotNull PreparedStatement statement) {
-        sqlStatementQueue.add(statement);
+    public void addStatementToQueue(@Nonnull Runnable runnable) {
+        sqlStatementQueue.add(runnable);
     }
 
     public synchronized void run() {
         try {
             while (!sqlStatementQueue.isEmpty()) {
-                sqlStatementQueue.peek().executeBatch();
+                sqlStatementQueue.peek().run();
                 sqlStatementQueue.remove();
             }
-        } catch (SQLException e) {
+        } catch (DuplicateKeyException e) {
             // We can ignore requests that produce Duplicate entry exceptions
-            System.out.println(sqlStatementQueue.peek());
+            sqlStatementQueue.remove();
+        } catch (DataAccessException e) {
             e.printStackTrace();
         }
-    }
-
-    public boolean isQueueEmpty() {
-        return sqlStatementQueue.isEmpty();
     }
 }

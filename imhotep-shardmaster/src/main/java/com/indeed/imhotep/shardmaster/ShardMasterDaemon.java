@@ -32,11 +32,17 @@ import com.indeed.imhotep.shardmasterrpc.ShardMasterExecutors;
 import com.indeed.util.zookeeper.ZooKeeperConnection;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import org.apache.commons.dbcp.BasicDataSource;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.*;
 import org.joda.time.Duration;
+import org.jooq.impl.DataSourceConnectionProvider;
+import org.jooq.tools.jdbc.JDBCUtils;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.init.DataSourceInitializer;
 
+import javax.sql.DataSource;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -89,7 +95,7 @@ public class ShardMasterDaemon {
         zkConnection.connect();
         zkConnection.createIfNotExists(config.shardMastersZkPath+"-election", new byte[0], CreateMode.PERSISTENT);
         String leaderElectionRoot = config.shardMastersZkPath+"-election";
-        Connection dbConnection = config.getMetadataConnection();
+        JdbcTemplate dbConnection = config.getMetadataConnection();
         SQLWriteManager sqlWriteManager = new SQLWriteManager();
 
         ShardData shardData = new ShardData();
@@ -149,7 +155,6 @@ public class ShardMasterDaemon {
             executorService.shutdown();
             hostsReloader.shutdown();
             zkConnection.close();
-            dbConnection.close();
         }
     }
 
@@ -227,6 +232,18 @@ public class ShardMasterDaemon {
         private RequestMetricStatsEmitter statsEmitter = RequestMetricStatsEmitter.NULL_EMITTER;
         private String metadataDBURL;
         private int deletePeriod = 200;
+        private String metadataDBUsername;
+        private String metadataDBPassword;
+
+        public Config setMetadataDBUsername(final String username) {
+            this.metadataDBUsername = username;
+            return this;
+        }
+
+        public Config setMetadataDBPassword(final String password) {
+            this.metadataDBPassword = password;
+            return this;
+        }
 
         public Config setMetadataDBURL(final String url){
             this.metadataDBURL = url;
@@ -400,8 +417,13 @@ public class ShardMasterDaemon {
             return shardFilter;
         }
 
-        Connection getMetadataConnection() throws SQLException {
-            return DriverManager.getConnection(metadataDBURL);
+        JdbcTemplate getMetadataConnection() {
+            BasicDataSource ds = new BasicDataSource();
+            ds.setDriverClassName("com.mysql.jdbc.Driver");
+            ds.setUrl(metadataDBURL);
+            ds.setUsername(metadataDBUsername);
+            ds.setPassword(metadataDBPassword);
+            return new JdbcTemplate(ds);
         }
 
         ShardAssigner createAssigner() {

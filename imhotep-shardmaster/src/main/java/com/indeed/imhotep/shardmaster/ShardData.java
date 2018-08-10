@@ -68,8 +68,8 @@ public class ShardData {
         }
     }
 
-    public Collection<String> deleteDatasetsWithoutShards() {
-        Collection<String> datasets = tblFields.keySet().stream().filter(dataset -> (!tblShards.containsKey(dataset)) || tblShards.get(dataset).getAllValues().size() == 0).collect(Collectors.toList());
+    public List<String> deleteDatasetsWithoutShards() {
+        List<String> datasets = tblFields.keySet().stream().filter(dataset -> (!tblShards.containsKey(dataset)) || tblShards.get(dataset).getAllValues().size() == 0).collect(Collectors.toList());
         for(String dataset: datasets) {
             tblShards.remove(dataset);
             tblFields.remove(dataset);
