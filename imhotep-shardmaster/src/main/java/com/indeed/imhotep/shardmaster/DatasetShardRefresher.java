@@ -86,14 +86,13 @@ public class DatasetShardRefresher {
         }
 
         dbConnection.query("SELECT * FROM tblfields;", (ResultSetExtractor<ResultSet>) rs -> {
-            shardData.addTableFieldsRowsFromSQL(rs);
+            shardData.updateTableFieldsRowsFromSQL(rs);
             return null;
         });
     }
 
     private void innerRun(boolean leader, boolean shouldDeleteUsingSQL) {
-        loadFromSQL(shouldDeleteUsingSQL && !leader);
-        List<String> deletedDatasets = shardData.deleteDatasetsWithoutShards();
+        loadFromSQL(shouldDeleteUsingSQL);
 
         if(!leader) {
             return;
@@ -106,6 +105,7 @@ public class DatasetShardRefresher {
 
             deleteFromSQL(new ArrayList<>(allRemaining));
             shardData.deleteShards(allRemaining);
+            List<String> deletedDatasets = shardData.deleteDatasetsWithoutShards();
             deleteDatasetsFromSQL(deletedDatasets);
 
         } catch (ExecutionException | InterruptedException e) {

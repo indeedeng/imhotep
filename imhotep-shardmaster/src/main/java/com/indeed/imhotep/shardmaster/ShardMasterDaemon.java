@@ -70,7 +70,7 @@ public class ShardMasterDaemon {
         this.config = config;
     }
 
-    public void run() throws IOException, InterruptedException, KeeperException, SQLException {
+    public void run() throws IOException, InterruptedException, KeeperException {
 
         LOGGER.info("Initializing fs");
         RemoteCachingFileSystemProvider.newFileSystem();

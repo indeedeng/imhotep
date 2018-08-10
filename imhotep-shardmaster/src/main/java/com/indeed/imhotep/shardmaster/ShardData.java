@@ -60,10 +60,14 @@ public class ShardData {
     }
 
     public void deleteShards(final Set<String> allPaths) {
+        System.out.println("Deleting shards: " + allPaths);
         for(final String path: allPaths) {
             final ShardDir temp = new ShardDir(Paths.get(path));
             final Interval interval = ShardTimeUtils.parseInterval(temp.getId());
             tblShards.get(temp.getDataset()).deleteInterval(interval.getStart().getMillis(), interval.getEnd().getMillis(), pathsToShards.get(path));
+            if(tblShards.get(temp.getDataset()).getAllValues().isEmpty()) {
+                tblShards.remove(temp.getDataset());
+            }
             pathsToShards.remove(path);
         }
     }
@@ -111,7 +115,12 @@ public class ShardData {
         addShardToDatastructure(metadata, shardDir);
     }
 
-    public void addTableFieldsRowsFromSQL(final ResultSet rows) throws SQLException {
+    public void updateTableFieldsRowsFromSQL(final ResultSet rows) throws SQLException {
+        Map<String, Set<String>> datasetToFields = new HashMap<>();
+        for(final String dataset: tblFields.keySet()) {
+            datasetToFields.put(dataset, new HashSet<>(tblFields.get(dataset).fieldNameToFieldType.keySet()));
+        }
+
         if (rows.first()) {
             do {
                 final String dataset = rows.getString("dataset");
@@ -121,9 +130,27 @@ public class ShardData {
                 if (!tblFields.containsKey(dataset)) {
                     tblFields.put(dataset, new TableFields());
                 }
+
+                if(datasetToFields.containsKey(dataset)){
+                    datasetToFields.get(dataset).remove(fieldName);
+                }
+
                 tblFields.get(dataset).lastUpdatedTimestamp.put(fieldName, dateTime);
                 tblFields.get(dataset).fieldNameToFieldType.put(fieldName, type);
+
             } while (rows.next());
+        }
+
+        for(String dataset: datasetToFields.keySet()) {
+            for(String field: datasetToFields.get(dataset)) {
+                System.out.println("Deleting field: " + field + " in dataset: " + dataset);
+                tblFields.get(dataset).fieldNameToFieldType.remove(field);
+                tblFields.get(dataset).lastUpdatedTimestamp.remove(field);
+            }
+            if(tblFields.get(dataset).fieldNameToFieldType.isEmpty() && tblFields.get(dataset).lastUpdatedTimestamp.isEmpty()) {
+                System.out.println("Deleting dataset: " + dataset + " from tblFields because there is no data.");
+                tblFields.remove(dataset);
+            }
         }
     }
 
