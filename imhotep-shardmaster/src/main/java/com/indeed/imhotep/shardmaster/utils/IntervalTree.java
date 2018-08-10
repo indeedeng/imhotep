@@ -24,7 +24,11 @@ public class IntervalTree<K extends Comparable<? super K>, V> {
 
     public boolean deleteInterval(K start, K end, V value) {
         Interval toDelete = new Interval(start, end, Collections.singleton(value));
-        return deleteInterval(root, toDelete, null, false);
+        if(deleteInterval(root, toDelete, null, false)){
+            values.remove(value);
+            return true;
+        }
+        return false;
     }
 
     private boolean deleteInterval(Node current, Interval toDelete, Node parent, boolean prevMoveToLeft) {
@@ -48,6 +52,44 @@ public class IntervalTree<K extends Comparable<? super K>, V> {
     }
 
     private void deleteNode(final Node toDelete, final Node parent, boolean prevMoveWasLeft) {
+        if(parent == null) {
+            if(toDelete.left == null) {
+                root = toDelete.right;
+                return;
+            }
+
+            if(toDelete.right == null) {
+                root = toDelete.left;
+                return;
+            }
+
+            if(toDelete.left.interval.priority > toDelete.right.interval.priority) {
+                final Node newMainNode = toDelete.left;
+                final Node newMainNodeRight = toDelete.left.right;
+
+                root = toDelete.left;
+
+                newMainNode.right = toDelete;
+                toDelete.left = newMainNodeRight;
+                deleteNode(toDelete, newMainNode, false);
+
+                updateLargestToTheRight(newMainNode);
+                return;
+            } else {
+                final Node newMainNode = toDelete.right;
+                final Node newMainNodeLeft = toDelete.right.left;
+
+                root = toDelete.right;
+
+                newMainNode.left = toDelete;
+                toDelete.right = newMainNodeLeft;
+                deleteNode(toDelete, newMainNode, true);
+
+                updateLargestToTheRight(newMainNode);
+                return;
+            }
+        }
+
         if(toDelete.left == null) {
             if(prevMoveWasLeft) {
                 parent.left = toDelete.right;
@@ -86,10 +128,7 @@ public class IntervalTree<K extends Comparable<? super K>, V> {
 
             updateLargestToTheRight(newMainNode);
             updateLargestToTheRight(parent);
-            return;
-        }
-
-        if(toDelete.left.interval.priority <= toDelete.right.interval.priority) {
+        } else {
             final Node newMainNode = toDelete.right;
             final Node newMainNodeLeft = toDelete.right.left;
 

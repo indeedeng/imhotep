@@ -10,6 +10,7 @@ import java.nio.file.Paths;
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * @author kornerup
@@ -67,6 +68,15 @@ public class ShardData {
         }
     }
 
+    public Collection<String> deleteDatasetsWithoutShards() {
+        Collection<String> datasets = tblFields.keySet().stream().filter(dataset -> (!tblShards.containsKey(dataset)) || tblShards.get(dataset).getAllValues().size() == 0).collect(Collectors.toList());
+        for(String dataset: datasets) {
+            tblShards.remove(dataset);
+            tblFields.remove(dataset);
+        }
+        return datasets;
+    }
+
     enum FieldType {
         INT, STRING;
 
@@ -117,8 +127,13 @@ public class ShardData {
         }
     }
 
-    public void updateTableShardsRowsFromSQL(final ResultSet rows) throws SQLException {
-        final Set<String> existingPaths = getCopyOfAllPaths();
+    public void updateTableShardsRowsFromSQL(final ResultSet rows, boolean shouldDelete) throws SQLException {
+        final Set<String> existingPaths;
+        if(shouldDelete) {
+            existingPaths = getCopyOfAllPaths();
+        } else {
+            existingPaths = Collections.emptySet();
+        }
         if (rows.first()) {
             do {
                 final String strPath = rows.getString("path");
@@ -146,7 +161,10 @@ public class ShardData {
                 tblShards.get(dataset).addInterval(interval.getStart().getMillis(), interval.getEnd().getMillis(), shard);
             } while (rows.next());
         }
-        deleteShards(existingPaths);
+
+        if(shouldDelete) {
+            deleteShards(existingPaths);
+        }
     }
 
     private void addShardToDatastructure(final FlamdexMetadata metadata, final ShardDir shardDir) {

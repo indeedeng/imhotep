@@ -22,8 +22,6 @@ import com.indeed.imhotep.MemoryReserver;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
-import com.indeed.imhotep.io.MockShard;
-import com.indeed.imhotep.io.Shard;
 import com.indeed.imhotep.io.TestFileUtils;
 import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
 import org.apache.log4j.Appender;

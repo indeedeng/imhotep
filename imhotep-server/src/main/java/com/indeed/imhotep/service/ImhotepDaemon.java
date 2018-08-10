@@ -70,7 +70,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 public class ImhotepDaemon implements Instrumentation.Provider {
     private static final Logger log = Logger.getLogger(ImhotepDaemon.class);
@@ -492,13 +492,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                                                final ImhotepResponse.Builder builder)
         {
             final InetSocketAddress[] nodes =
-                    Lists.transform(request.getNodesList(),
-                            new Function<HostAndPort, InetSocketAddress>() {
-                                public InetSocketAddress apply(final HostAndPort input) {
-                                    return new InetSocketAddress(input.getHost(),
-                                            input.getPort());
-                                }
-                            }).toArray(new InetSocketAddress[request.getNodesCount()]);
+                    request.getNodesList().stream().map(input -> new InetSocketAddress(input.getHost(),
+                            input.getPort())).collect(Collectors.toList()).toArray(new InetSocketAddress[request.getNodesCount()]);
 
             final GroupStatsIterator groupStats =
                     service.handleMergeDistinctSplit(
@@ -580,13 +575,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             throws IOException {
             checkSessionValidity(request);
             final InetSocketAddress[] nodes =
-                Lists.transform(request.getNodesList(),
-                                new Function<HostAndPort, InetSocketAddress>() {
-                                    public InetSocketAddress apply(final HostAndPort input) {
-                                        return new InetSocketAddress(input.getHost(),
-                                                                     input.getPort());
-                                    }
-                                }).toArray(new InetSocketAddress[request.getNodesCount()]);
+                request.getNodesList().stream().map(input -> new InetSocketAddress(input.getHost(),
+                        input.getPort())).collect(Collectors.toList()).toArray(new InetSocketAddress[request.getNodesCount()]);
             final FTGSParams params = getFTGSParams(request);
             service.handleMergeFTGSIteratorSplit(request.getSessionId(),
                                                  params,
@@ -600,13 +590,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             throws IOException, ImhotepOutOfMemoryException {
             checkSessionValidity(request);
             final InetSocketAddress[] nodes =
-                Lists.transform(request.getNodesList(),
-                                new Function<HostAndPort, InetSocketAddress>() {
-                                    public InetSocketAddress apply(final HostAndPort input) {
-                                        return new InetSocketAddress(input.getHost(),
-                                                                     input.getPort());
-                                    }
-                                }).toArray(new InetSocketAddress[request.getNodesCount()]);
+                request.getNodesList().stream().map(input -> new InetSocketAddress(input.getHost(),
+                        input.getPort())).collect(Collectors.toList()).toArray(new InetSocketAddress[request.getNodesCount()]);
             service.handleMergeSubsetFTGSIteratorSplit(request.getSessionId(),
                                                        getIntFieldsToTerms(request),
                                                        getStringFieldsToTerms(request),

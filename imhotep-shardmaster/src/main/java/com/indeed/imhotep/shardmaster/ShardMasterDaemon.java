@@ -24,6 +24,7 @@ import com.google.common.io.Closer;
 import com.indeed.imhotep.ZkEndpointPersister;
 import com.indeed.imhotep.client.*;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
+import com.indeed.imhotep.shardmaster.utils.SQLWriteManager;
 import com.indeed.imhotep.shardmasterrpc.MultiplexingRequestHandler;
 import com.indeed.imhotep.shardmasterrpc.RequestMetricStatsEmitter;
 import com.indeed.imhotep.shardmasterrpc.RequestResponseServer;
@@ -57,6 +58,7 @@ public class ShardMasterDaemon {
     private final Config config;
     private volatile RequestResponseServer server;
     private String leaderId;
+    private int deleteCounter = 0;
 
     public ShardMasterDaemon(final Config config) {
         this.config = config;
@@ -88,6 +90,7 @@ public class ShardMasterDaemon {
         zkConnection.createIfNotExists(config.shardMastersZkPath+"-election", new byte[0], CreateMode.PERSISTENT);
         String leaderElectionRoot = config.shardMastersZkPath+"-election";
         Connection dbConnection = config.getMetadataConnection();
+        SQLWriteManager sqlWriteManager = new SQLWriteManager();
 
         ShardData shardData = new ShardData();
 
@@ -102,36 +105,21 @@ public class ShardMasterDaemon {
             properties.load(new FileInputStream(file));
             String rootURI = properties.getProperty("imhotep.fs.filestore.hdfs.root.uri");
 
+            final AtomicBoolean shardScanComplete = new AtomicBoolean(false);
+
             final org.apache.hadoop.fs.Path tmpPath = new org.apache.hadoop.fs.Path(rootURI + "/" + dataSetsDir.toString());
             final DatasetShardRefresher refresher = new DatasetShardRefresher(
                     tmpPath,
                     dbConnection,
                     rootURI,
                     config.shardFilter,
-                    shardData
+                    shardData,
+                    sqlWriteManager,
+                    shardScanComplete
             );
-
-
 
             LOGGER.info("Initializing all shard assignments");
 
-            // don't block on assignment refresh
-            Future shardScanResults = refresher.initialize(isLeader(leaderElectionRoot, zkConnection));
-            final AtomicBoolean shardScanComplete = new AtomicBoolean(false);
-
-            final Thread scanBlocker = new Thread(() -> {
-                try {
-                    long start = System.currentTimeMillis();
-                    shardScanResults.get();
-                    shardScanComplete.set(true);
-                    LOGGER.info("Successfully scanned all shards on initialization in " + (System.currentTimeMillis() - start)/1000 + " seconds");
-                } catch (final InterruptedException | ExecutionException e) {
-                    LOGGER.fatal("Failed while scanning shards", e);
-                    System.exit(1);
-                }
-            }, ShardMasterDaemon.class.getSimpleName() + "-ShardScanBlocker");
-            scanBlocker.setDaemon(true);
-            scanBlocker.start();
 
             hostReloadTimer.schedule(new TimerTask() {
                 @Override
@@ -140,7 +128,7 @@ public class ShardMasterDaemon {
                 }
             }, config.getHostsRefreshInterval().getMillis(), config.getHostsRefreshInterval().getMillis());
 
-            datasetReloadExecutor.scheduleAtFixedRate(() -> refresher.run(isLeader(leaderElectionRoot, zkConnection)), config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis(), TimeUnit.MILLISECONDS);
+            datasetReloadExecutor.scheduleAtFixedRate(() -> refresher.run(isLeader(leaderElectionRoot, zkConnection), ++deleteCounter % config.deletePeriod == 0), 0, config.getRefreshInterval().getMillis(), TimeUnit.MILLISECONDS);
 
             server = new RequestResponseServer(config.getServicePort(), new MultiplexingRequestHandler(
                     config.statsEmitter,
@@ -232,12 +220,13 @@ public class ShardMasterDaemon {
         private int shardsResponseBatchSize = 1000;
         private int threadPoolSize = 5;
         private int replicationFactor = 2;
-        private Duration refreshInterval = Duration.standardMinutes(1);
+        private Duration refreshInterval = Duration.standardMinutes(5);
         private Duration stalenessThreshold = Duration.standardMinutes(15);
         private Duration hostsRefreshInterval = Duration.standardMinutes(1);
         private double hostsDropThreshold = 0.5;
         private RequestMetricStatsEmitter statsEmitter = RequestMetricStatsEmitter.NULL_EMITTER;
         private String metadataDBURL;
+        private int deletePeriod = 200;
 
         public Config setMetadataDBURL(final String url){
             this.metadataDBURL = url;
@@ -460,6 +449,13 @@ public class ShardMasterDaemon {
             return hostsDropThreshold;
         }
 
+        public int getDeletePeriod() {
+            return deletePeriod;
+        }
+
+        public void setDeletePeriod(int deletePeriod) {
+            this.deletePeriod = deletePeriod;
+        }
     }
 
     public static void main(final String[] args) throws InterruptedException, IOException, KeeperException, SQLException {

@@ -142,14 +142,11 @@ public class LocalImhotepServiceCore
                                                           final int      freqSeconds) {
         final String name = runnable.getClass().getSimpleName() + "Thread";
         final ScheduledExecutorService result =
-            Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
-                    @Override
-                    public Thread newThread(@Nonnull final Runnable r) {
-                        final Thread thread = new Thread(r, name);
-                        thread.setDaemon(true);
-                        return thread;
-                    }
-                });
+            Executors.newSingleThreadScheduledExecutor(r -> {
+                final Thread thread = new Thread(r, name);
+                thread.setDaemon(true);
+                return thread;
+            });
         result.scheduleAtFixedRate(runnable, freqSeconds, freqSeconds, TimeUnit.SECONDS);
         return result;
     }
@@ -322,8 +319,8 @@ public class LocalImhotepServiceCore
 
     private String generateSessionId() {
         final int currentCounter = counter.getAndIncrement();
-        return new StringBuilder(24).append(toHexString(System.currentTimeMillis()))
-                                    .append(toHexString(currentCounter)).toString();
+        return toHexString(System.currentTimeMillis()) +
+                toHexString(currentCounter);
     }
 
     private static String toHexString(final long l) {

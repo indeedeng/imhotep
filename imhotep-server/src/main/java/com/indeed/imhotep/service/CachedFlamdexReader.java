@@ -79,33 +79,30 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
             memoryReservedForIndex = 0;
         }
         metricCache = new MetricCacheImpl(
-                new Function<String, Either<FlamdexOutOfMemoryException, IntValueLookup>>() {
-                    @Override
-                    public Either<FlamdexOutOfMemoryException, IntValueLookup> apply(final String metric) {
-                        final long memoryUsed = wrapped.memoryRequired(metric);
-                        if (!memory.claimMemory(memoryUsed)) {
-                            return Left.of(new FlamdexOutOfMemoryException());
-                        }
-                        final IntValueLookup lookup;
-                        try {
-                            lookup = wrapped.getMetric(metric);
-                            if (lookup.memoryUsed() != memoryUsed) {
-                                log.error("FlamdexReader.memoryUsed(" + metric + "):" + memoryUsed + " does not match lookup.memoryUsed(): " + lookup.memoryUsed());
-                                if (memoryUsed > lookup.memoryUsed()) {
-                                    memory.releaseMemory(memoryUsed - lookup.memoryUsed());
-                                } else {
-                                    memory.claimMemory(lookup.memoryUsed() - memoryUsed);
-                                }
-                            }
-                        } catch (final RuntimeException e) {
-                            memory.releaseMemory(memoryUsed);
-                            throw e;
-                        } catch (final FlamdexOutOfMemoryException e) { // not sure why this would be thrown, but just in case...
-                            memory.releaseMemory(memoryUsed);
-                            return Left.of(e);
-                        }
-                        return Right.of(lookup);
+                metric -> {
+                    final long memoryUsed = wrapped.memoryRequired(metric);
+                    if (!memory.claimMemory(memoryUsed)) {
+                        return Left.of(new FlamdexOutOfMemoryException());
                     }
+                    final IntValueLookup lookup;
+                    try {
+                        lookup = wrapped.getMetric(metric);
+                        if (lookup.memoryUsed() != memoryUsed) {
+                            log.error("FlamdexReader.memoryUsed(" + metric + "):" + memoryUsed + " does not match lookup.memoryUsed(): " + lookup.memoryUsed());
+                            if (memoryUsed > lookup.memoryUsed()) {
+                                memory.releaseMemory(memoryUsed - lookup.memoryUsed());
+                            } else {
+                                memory.claimMemory(lookup.memoryUsed() - memoryUsed);
+                            }
+                        }
+                    } catch (final RuntimeException e) {
+                        memory.releaseMemory(memoryUsed);
+                        throw e;
+                    } catch (final FlamdexOutOfMemoryException e) { // not sure why this would be thrown, but just in case...
+                        memory.releaseMemory(memoryUsed);
+                        return Left.of(e);
+                    }
+                    return Right.of(lookup);
                 },
                 new ReloadableSharedReference.Closer<Map.Entry<String, IntValueLookup>>() {
                     @Override

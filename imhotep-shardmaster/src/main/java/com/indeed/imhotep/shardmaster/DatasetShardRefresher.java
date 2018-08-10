@@ -17,6 +17,7 @@ package com.indeed.imhotep.shardmaster;
 import com.google.common.base.Throwables;
 import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.client.ShardTimeUtils;
+import com.indeed.imhotep.shardmaster.utils.SQLWriteManager;
 import javafx.util.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -24,8 +25,10 @@ import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.sql.*;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.StreamSupport;
 
 
@@ -41,53 +44,56 @@ public class DatasetShardRefresher {
     private final org.apache.hadoop.fs.FileSystem hadoopFileSystem;
     private final ShardFilter filter;
     private final ShardData shardData;
-    private long lastUpdatedTimestamp = 0;
+    private Timestamp lastUpdatedTimestamp;
+    private final SQLWriteManager sqlWriteManager;
+    private final AtomicBoolean setup;
+
 
 
     DatasetShardRefresher(final Path datasetsDir,
                           final Connection dbConnection,
                           final String rootURI,
                           final ShardFilter filter,
-                          ShardData shardData) throws IOException {
+                          final ShardData shardData,
+                          final SQLWriteManager manager,
+                          final AtomicBoolean setup) throws IOException {
         this.datasetsDir = datasetsDir;
         this.dbConnection = dbConnection;
         this.hadoopFileSystem = new Path(rootURI).getFileSystem(new Configuration());
         this.filter = filter;
         this.shardData = shardData;
+        this.sqlWriteManager = manager;
+        this.lastUpdatedTimestamp = Timestamp.from(Instant.MIN);
+        this.setup = setup;
     }
 
-    public static ShardData loadShardDataFromSQL(ShardData shardData, Connection dbConnection) {
+    private void loadFromSQL(boolean shouldDelete) {
         try {
-            final PreparedStatement statement = dbConnection.prepareStatement("SELECT * FROM tblshards WHERE addedtimestamp >= ?;");
-            statement.setLong(1, 0);
+            final Timestamp timestampToUse = lastUpdatedTimestamp;
+            lastUpdatedTimestamp = Timestamp.from(Instant.now());
+            final PreparedStatement statement;
+            if(shouldDelete){
+                statement = dbConnection.prepareStatement("SELECT * FROM tblshards;");
+            } else {
+                statement = dbConnection.prepareStatement("SELECT * FROM tblshards WHERE addedtimestamp >= ?;");
+            }
+            statement.setTimestamp(1, timestampToUse);
             final ResultSet set = statement.executeQuery();
-            shardData.updateTableShardsRowsFromSQL(set);
+            shardData.updateTableShardsRowsFromSQL(set, shouldDelete);
 
             final PreparedStatement statement2 = dbConnection.prepareStatement("SELECT * FROM tblfields;");
             final ResultSet set2 = statement2.executeQuery();
             shardData.addTableFieldsRowsFromSQL(set2);
 
-            return shardData;
         } catch (SQLException e){
             LOGGER.error(e.getMessage(), e);
             throw Throwables.propagate(e);
         }
     }
 
-    Future initialize(final boolean leader) {
-        return executorService.submit(() -> innerRun(leader));
-    }
-
-    private void loadFromSQL() {
-        loadShardDataFromSQL(shardData, dbConnection);
-    }
-
-    /*
-     * Synchronized so if something switches to being a leader while a lot of shards still
-     * need to be uploaded to SQL, it won't duplicate work.
-     */
-    private synchronized void innerRun(boolean leader) {
-        loadFromSQL();
+    private void innerRun(boolean leader, boolean shouldDeleteUsingSQL) {
+        loadFromSQL(shouldDeleteUsingSQL && !leader);
+        Collection<String> deletedDatasets = shardData.deleteDatasetsWithoutShards();
 
         if(!leader) {
             return;
@@ -100,9 +106,21 @@ public class DatasetShardRefresher {
 
             deleteFromSQL(allRemaining);
             shardData.deleteShards(allRemaining);
+            deleteDatasetsFromSQL(deletedDatasets);
+
         } catch (ExecutionException | InterruptedException | SQLException e) {
             LOGGER.error(e.getMessage(), e);
         }
+    }
+
+    private void deleteDatasetsFromSQL(Collection<String> deletedDatasets) throws SQLException {
+        final PreparedStatement tblShardsDeleteStatement = dbConnection.prepareStatement("DELETE FROM tblfields WHERE dataset = ?;");
+        for(final String dataset: deletedDatasets) {
+            tblShardsDeleteStatement.setString(1, dataset);
+            tblShardsDeleteStatement.addBatch();
+        }
+        sqlWriteManager.addStatementToQueue(tblShardsDeleteStatement);
+        sqlWriteManager.run();
     }
 
 
@@ -154,10 +172,10 @@ public class DatasetShardRefresher {
     private void addToSQL(final FlamdexMetadata metadata, final ShardDir shardDir) throws SQLException {
         final String shardId = shardDir.getId();
         final String dataset = shardDir.getDataset();
-        final PreparedStatement tblShardsInsertStatement = dbConnection.prepareStatement("INSERT INTO tblshards (path, numDocs, addedtimestamp) VALUES (?, ?, ?);");
+        final PreparedStatement tblShardsInsertStatement = dbConnection.prepareStatement("INSERT INTO tblshards (path, numDocs) VALUES (?, ?);");
         tblShardsInsertStatement.setString(1, shardDir.getIndexDir().toString());
         tblShardsInsertStatement.setInt(2, metadata.getNumDocs());
-        tblShardsInsertStatement.setLong(3, System.currentTimeMillis());
+        tblShardsInsertStatement.addBatch();
 
         final PreparedStatement tblFieldsInsertStatement =
                 dbConnection.prepareStatement("INSERT INTO tblfields (dataset, fieldname, type, lastshardstarttime) VALUES (?, ?, ?, ?);");
@@ -225,10 +243,10 @@ public class DatasetShardRefresher {
             }
         }
 
-        tblFieldsInsertStatement.executeBatch();
-        tblFieldsUpdateStatement.executeBatch();
-
-        tblShardsInsertStatement.execute();
+        sqlWriteManager.addStatementToQueue(tblFieldsInsertStatement);
+        sqlWriteManager.addStatementToQueue(tblFieldsUpdateStatement);
+        sqlWriteManager.addStatementToQueue(tblShardsInsertStatement);
+        sqlWriteManager.run();
     }
 
     private void deleteFromSQL(final Set<String> allPaths) throws SQLException {
@@ -237,11 +255,16 @@ public class DatasetShardRefresher {
             tblShardsDeleteStatement.setString(1, path);
             tblShardsDeleteStatement.addBatch();
         }
-        tblShardsDeleteStatement.executeBatch();
-
+        sqlWriteManager.addStatementToQueue(tblShardsDeleteStatement);
+        sqlWriteManager.run();
     }
 
-    public void run(final boolean leader) {
-        executorService.submit(() -> innerRun(leader));
+    public void run(final boolean leader, final boolean shouldDelete) {
+        try {
+            executorService.submit(() -> innerRun(leader, shouldDelete)).get();
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.error(e.getMessage(), e);
+        }
+        this.setup.set(true);
     }
 }
