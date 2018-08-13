@@ -1,12 +1,10 @@
 package com.indeed.imhotep.shardmaster.utils;
 
-import com.indeed.imhotep.shardmaster.ShardMasterDaemon;
 import org.apache.log4j.Logger;
 import org.jooq.exception.DataAccessException;
 import org.springframework.dao.DuplicateKeyException;
 
 import javax.annotation.Nonnull;
-import java.sql.SQLSyntaxErrorException;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -30,7 +28,10 @@ public class SQLWriteManager implements Runnable{
     public synchronized void run() {
         try {
             while (!sqlStatementQueue.isEmpty()) {
-                sqlStatementQueue.peek().run();
+                final Runnable r = sqlStatementQueue.peek();
+                if(r != null) {
+                    r.run();
+                }
                 sqlStatementQueue.remove();
                 failedAttempts = 0;
             }
