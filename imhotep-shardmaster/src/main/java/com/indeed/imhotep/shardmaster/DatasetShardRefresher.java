@@ -14,6 +14,7 @@
 
 package com.indeed.imhotep.shardmaster;
 
+import com.google.common.collect.Lists;
 import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.client.ShardTimeUtils;
 import com.indeed.imhotep.shardmaster.utils.SQLWriteManager;
@@ -32,6 +33,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 
@@ -146,6 +148,9 @@ public class DatasetShardRefresher {
             }
         }
 
+        // Sort from newest start time to oldest start time
+        pairs.sort((a,b) -> b.getKey().getId().compareTo(a.getKey().getId()));
+
         for(final Pair<ShardDir, Future<FlamdexMetadata>> p: pairs) {
             try {
                 if(p.getValue().get() == null) {
@@ -167,10 +172,7 @@ public class DatasetShardRefresher {
     }
 
     private FlamdexMetadata collectShardMetadata(final ShardDir shardDir) throws IOException {
-        LOGGER.info("reading a shard with dataset: " + shardDir.getDataset() + " and id: " + shardDir.getId() + " and version " + shardDir.getVersion());
-        FlamdexMetadata metadata = FlamdexMetadata.readMetadata(hadoopFileSystem, shardDir.getHadoopPath());
-        LOGGER.info("finished reading a shard with dataset: " + shardDir.getDataset() + " and id: " + shardDir.getId() + " and version " + shardDir.getVersion());
-        return metadata;
+        return FlamdexMetadata.readMetadata(hadoopFileSystem, shardDir.getHadoopPath());
     }
 
     private void addData(final ShardDir shardDir, final FlamdexMetadata metadata) throws SQLException {
@@ -178,7 +180,7 @@ public class DatasetShardRefresher {
         shardData.addShardFromHDFS(metadata, shardDir);
     }
 
-    private void addToSQL(final FlamdexMetadata metadata, final ShardDir shardDir) throws SQLException {
+    private void addToSQL(final FlamdexMetadata metadata, final ShardDir shardDir)  {
         final String shardId = shardDir.getId();
         final String dataset = shardDir.getDataset();
         Runnable tblShardsInsertStatement = () -> dbConnection.update("INSERT INTO tblshards (path, numDocs) VALUES (?, ?);", statement -> {
@@ -188,76 +190,69 @@ public class DatasetShardRefresher {
 
         final long startTime = ShardTimeUtils.parseStart(shardId).getMillis();
 
-        final List<String> stringFieldsForInsert = metadata.getStringFields().stream().filter(field -> (!shardData.hasField(dataset, field))).collect(Collectors.toList());
-        final List<String> intFieldsForInsert = metadata.getIntFields().stream().filter(field -> (!shardData.hasField(dataset, field))).collect(Collectors.toList());
-        final List<String> stringFielsForUpdate = metadata.getStringFields().stream().filter(field -> shardData.hasField(dataset, field) && shardData.getFieldUpdateTime(dataset, field) < startTime).collect(Collectors.toList());
-        final List<String> intFielsForUpdate = metadata.getIntFields().stream().filter(field -> shardData.hasField(dataset, field) && shardData.getFieldUpdateTime(dataset, field) < startTime).collect(Collectors.toList());
+        Set<String> stringFields = new HashSet<>(metadata.getStringFields());
+        Set<String> intFields = new HashSet<>(metadata.getIntFields());
 
 
-        Runnable tblFieldsStringInsertStatement = () -> dbConnection.batchUpdate("INSERT INTO tblfields (dataset, fieldname, type, lastshardstarttime) VALUES (?, ?, ?, ?);", new BatchPreparedStatementSetter() {
+        final Stream<String> stringFieldsForInsert = metadata.getStringFields().stream().filter(field -> (!shardData.hasField(dataset, field)));
+        final Stream<String> intFieldsForInsert = metadata.getIntFields().stream().filter(field -> (!shardData.hasField(dataset, field)));
+        final Stream<String> stringFieldsForUpdate = metadata.getStringFields().stream().filter(field -> shardData.hasField(dataset, field) && shardData.getFieldUpdateTime(dataset, field) < startTime);
+        final Stream<String> intFieldsForUpdate = metadata.getIntFields().stream().filter(field -> shardData.hasField(dataset, field) && shardData.getFieldUpdateTime(dataset, field) < startTime);
+
+        final List<String> fieldsForInsert = Stream.concat(stringFieldsForInsert, intFieldsForInsert).collect(Collectors.toList());
+        final List<String> fieldsForUpdate = Stream.concat(stringFieldsForUpdate, intFieldsForUpdate).collect(Collectors.toList());
+
+
+        Runnable tblFieldsInsertStatement = () -> dbConnection.batchUpdate("INSERT INTO tblfields (dataset, fieldname, type, lastshardstarttime) VALUES (?, ?, ?, ?);", new BatchPreparedStatementSetter() {
             @Override
             public void setValues(PreparedStatement ps, int i) throws SQLException {
+                final String fieldName = fieldsForInsert.get(i);
                 ps.setString(1, dataset);
-                ps.setString(2, stringFieldsForInsert.get(i));
-                ps.setString(3, "STRING");
+                ps.setString(2, fieldName);
+
+                if(!stringFields.contains(fieldName) && intFields.contains(fieldName)) {
+                    ps.setString(3, "INT");
+                } else if (stringFields.contains(fieldName) && !intFields.contains(fieldName)) {
+                    ps.setString(3, "STRING");
+                } else {
+                    ps.setString(3, "CONFLICT");
+                }
+
                 ps.setLong(4, startTime);
             }
 
             @Override
             public int getBatchSize() {
-                return stringFieldsForInsert.size();
+                return fieldsForInsert.size();
             }
         });
 
-        Runnable tblFieldsIntInsertStatement = () -> dbConnection.batchUpdate("INSERT INTO tblfields (dataset, fieldname, type, lastshardstarttime) VALUES (?, ?, ?, ?);", new BatchPreparedStatementSetter() {
+        Runnable tblFieldsUpdateStatement = () -> dbConnection.batchUpdate("UPDATE tblfields SET type = ?, lastshardstarttime = ? WHERE dataset = ? AND fieldname = ?;", new BatchPreparedStatementSetter() {
             @Override
             public void setValues(PreparedStatement ps, int i) throws SQLException {
-                ps.setString(1, dataset);
-                ps.setString(2, intFieldsForInsert.get(i));
-                ps.setString(3, "INT");
-                ps.setLong(4, startTime);
-            }
+                final String fieldName = fieldsForInsert.get(i);
 
-            @Override
-            public int getBatchSize() {
-                return intFieldsForInsert.size();
-            }
-        });
+                if(!stringFields.contains(fieldName) && intFields.contains(fieldName)) {
+                    ps.setString(1, "INT");
+                } else if (stringFields.contains(fieldName) && !intFields.contains(fieldName)) {
+                    ps.setString(1, "STRING");
+                } else {
+                    ps.setString(1, "CONFLICT");
+                }
 
-        Runnable tblFieldsStringUpdateStatement = () -> dbConnection.batchUpdate("UPDATE tblfields SET type = ?, lastshardstarttime = ? WHERE dataset = ? AND fieldname = ?;", new BatchPreparedStatementSetter() {
-            @Override
-            public void setValues(PreparedStatement ps, int i) throws SQLException {
-                ps.setString(1, "STRING");
                 ps.setLong(2, startTime);
                 ps.setString(3, dataset);
-                ps.setString(4, stringFielsForUpdate.get(i));
+                ps.setString(4, fieldName);
             }
 
             @Override
             public int getBatchSize() {
-                return stringFielsForUpdate.size();
+                return fieldsForUpdate.size();
             }
         });
 
-        Runnable tblFieldsIntUpdateStatement = () -> dbConnection.batchUpdate("UPDATE tblfields SET type = ?, lastshardstarttime = ? WHERE dataset = ? AND fieldname = ?;", new BatchPreparedStatementSetter() {
-            @Override
-            public void setValues(PreparedStatement ps, int i) throws SQLException {
-                ps.setString(1, "INT");
-                ps.setLong(2, startTime);
-                ps.setString(3, dataset);
-                ps.setString(4, intFielsForUpdate.get(i));
-            }
-
-            @Override
-            public int getBatchSize() {
-                return intFielsForUpdate.size();
-            }
-        });
-
-        sqlWriteManager.addStatementToQueue(tblFieldsStringInsertStatement);
-        sqlWriteManager.addStatementToQueue(tblFieldsIntInsertStatement);
-        sqlWriteManager.addStatementToQueue(tblFieldsStringUpdateStatement);
-        sqlWriteManager.addStatementToQueue(tblFieldsIntUpdateStatement);
+        sqlWriteManager.addStatementToQueue(tblFieldsInsertStatement);
+        sqlWriteManager.addStatementToQueue(tblFieldsUpdateStatement);
         sqlWriteManager.addStatementToQueue(tblShardsInsertStatement);
         sqlWriteManager.run();
     }

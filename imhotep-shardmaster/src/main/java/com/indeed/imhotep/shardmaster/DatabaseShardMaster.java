@@ -50,6 +50,9 @@ public class DatabaseShardMaster implements ShardMaster {
         for(final String dataset: datasets) {
             final List<String> strFields = shardData.getFields(dataset, ShardData.FieldType.STRING);
             final List<String> intFields = shardData.getFields(dataset, ShardData.FieldType.INT);
+            final List<String> conflictFields = shardData.getFields(dataset, ShardData.FieldType.CONFLICT);
+            strFields.addAll(conflictFields);
+            intFields.addAll(conflictFields);
             toReturn.add(new DatasetInfo(dataset, intFields, strFields));
         }
         return toReturn;

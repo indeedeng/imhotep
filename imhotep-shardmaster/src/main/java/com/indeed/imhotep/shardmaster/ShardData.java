@@ -11,6 +11,7 @@ import java.sql.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * @author kornerup
@@ -81,7 +82,7 @@ public class ShardData {
     }
 
     enum FieldType {
-        INT, STRING;
+        INT, STRING, CONFLICT;
 
         static FieldType getType(final String value) {
             switch (value) {
@@ -89,6 +90,8 @@ public class ShardData {
                     return INT;
                 case "STRING":
                     return STRING;
+                case "CONFLICT":
+                    return CONFLICT;
             }
             return null;
         }
@@ -204,19 +207,23 @@ public class ShardData {
         final Interval interval = ShardTimeUtils.parseInterval(shardDir.getId());
         tblShards.get(dataset).addInterval(interval.getStart().getMillis(), interval.getEnd().getMillis(), info);
 
-        for (final String field : metadata.getIntFields()) {
-            if (!tblFields.get(dataset).lastUpdatedTimestamp.containsKey(field) || tblFields.get(dataset).lastUpdatedTimestamp.get(field) < interval.getStartMillis()) {
-                tblFields.get(dataset).fieldNameToFieldType.put(field, FieldType.INT);
-                tblFields.get(dataset).lastUpdatedTimestamp.put(field, interval.getStartMillis());
-            }
-        }
+        Set<String> stringFields = new HashSet<>(metadata.getStringFields());
+        Set<String> intFields = new HashSet<>(metadata.getIntFields());
 
-        for (final String field : metadata.getStringFields()) {
-            if (!tblFields.get(dataset).lastUpdatedTimestamp.containsKey(field) || tblFields.get(dataset).lastUpdatedTimestamp.get(field) < interval.getStartMillis()) {
-                tblFields.get(dataset).fieldNameToFieldType.put(field, FieldType.STRING);
-                tblFields.get(dataset).lastUpdatedTimestamp.put(field, interval.getStartMillis());
-            }
-        }
+        Stream.concat(metadata.getIntFields().stream(), metadata.getStringFields().stream())
+                .filter(field -> !tblFields.get(dataset).lastUpdatedTimestamp.containsKey(field)
+                        || tblFields.get(dataset).lastUpdatedTimestamp.get(field) < interval.getStartMillis())
+                .forEach(field -> {
+                    if(stringFields.contains(field) && !intFields.contains(field)) {
+                        tblFields.get(dataset).fieldNameToFieldType.put(field, FieldType.STRING);
+                    } else if(!stringFields.contains(field) && intFields.contains(field)) {
+                        tblFields.get(dataset).fieldNameToFieldType.put(field, FieldType.INT);
+                    } else {
+                        tblFields.get(dataset).fieldNameToFieldType.put(field, FieldType.CONFLICT);
+                    }
+
+                    tblFields.get(dataset).lastUpdatedTimestamp.put(field, interval.getStartMillis());
+                });
     }
 
     public boolean hasShard(final String path){
