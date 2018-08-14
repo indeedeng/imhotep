@@ -23,12 +23,17 @@ public class IntervalTree<K extends Comparable<? super K>, V> {
     }
 
     public boolean deleteInterval(K start, K end, V value) {
-        Interval toDelete = new Interval(start, end, Collections.singleton(value));
-        if(deleteInterval(root, toDelete, null, false)){
-            values.remove(value);
-            return true;
+        try {
+            lock.writeLock().lock();
+            Interval toDelete = new Interval(start, end, Collections.singleton(value));
+            if (deleteInterval(root, toDelete, null, false)) {
+                values.remove(value);
+                return true;
+            }
+            return false;
+        } finally {
+            lock.writeLock().unlock();
         }
-        return false;
     }
 
     private boolean deleteInterval(Node current, Interval toDelete, Node parent, boolean prevMoveToLeft) {

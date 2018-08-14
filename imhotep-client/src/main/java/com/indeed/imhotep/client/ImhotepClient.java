@@ -48,6 +48,7 @@ public class ImhotepClient
     private final ScheduledExecutorService reloader;
     private final ImhotepClientMetadataReloader datasetMetadataReloader;
     private final Supplier<ShardMaster> shardMasterSupplier;
+    private final Random random = new Random();
 
     private final Instrumentation.ProviderSupport instrumentation =
         new Instrumentation.ProviderSupport();
@@ -171,7 +172,6 @@ public class ImhotepClient
         try {
             return shardMasterSupplier.get().getShardsInTime(dataset, startUnixtime, endUnixtime);
         } catch (IOException e) {
-            log.error("Failed to get shards in time range", e);
             throw Throwables.propagate(e);
         }
     }
@@ -539,7 +539,6 @@ public class ImhotepClient
         try {
             return shardMasterSupplier.get().getShardList();
         } catch (IOException e) {
-            log.error("Failed to get shard list", e);
             throw Throwables.propagate(e);
         }
     }
@@ -616,7 +615,7 @@ public class ImhotepClient
             if(hosts.isEmpty()) {
                 throw Throwables.propagate(new IOException("There are no shardmasters"));
             }
-            final int index = new Random().nextInt(hosts.size());
+            final int index = random.nextInt(hosts.size());
             return new RequestResponseClient(hosts.get(index));
         };
     }

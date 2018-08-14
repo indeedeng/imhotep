@@ -8,6 +8,7 @@ message DatasetInfoMessage {
   optional string dataset = 1;
   repeated string int_field = 3;
   repeated string string_field = 4;
+  // No longer used
   repeated string metric = 5;
 }
 
@@ -140,6 +141,7 @@ message ImhotepRequest {
     STREAMING_GET_GROUP_STATS = 42;
     GET_PERFORMANCE_STATS = 43;
     DELETED___GET_DATASET_METADATA = 44; // No longer implemented. Data comes from ShardMaster
+    DELETED___GET_SHARD_LIST_FOR_TIME = 45; // No longer implemented. Data comes form ShardMaster
     RANDOM_METRIC_REGROUP = 46;
     RANDOM_METRIC_MULTI_REGROUP = 47;
     GET_DISTINCT = 48;
@@ -334,6 +336,10 @@ message ImhotepResponse {
   // error stuff
   optional string exception_type = 10;
   optional string exception_message = 11;
+
+  // no longer used
+  repeated DatasetInfoMessage dataset_info = 12;
+
   optional string exception_stack_trace = 14;
 
   // for approximateTopTerms()
@@ -448,6 +454,7 @@ message ShardMasterRequest {
   }
 
   required RequestType request_type = 1;
+  // No longer used
   optional HostAndPort node = 2;
   // for GET_SHARD_LIST_FOR_TIME
   optional uint64 startTime = 3;

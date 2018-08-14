@@ -71,7 +71,6 @@ class ImhotepClientMetadataReloader extends DataLoadingRunnable {
                 datasetInfos.forEach(datasetInfo -> toReturn.put(datasetInfo.getDataset(), datasetInfo));
                 return toReturn;
             } catch (IOException e) {
-                log.error("Failed to get dataset metadata", e);
                 throw Throwables.propagate(e);
             }
         }

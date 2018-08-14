@@ -299,14 +299,6 @@ public class LocalImhotepServiceCore
         return sessionId;
     }
 
-    private static void closeNonNullSessions(final ImhotepSession[] sessions) {
-        for (final ImhotepSession session : sessions) {
-            if (session != null) {
-                session.close();
-            }
-        }
-    }
-
     @Override
     public void close() {
         super.close();
