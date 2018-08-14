@@ -251,7 +251,7 @@ public class LocalImhotepServiceCore
                 final FlamdexReader reader;
                 final RemoteCachingPath datasetsDir = (RemoteCachingPath) Paths.get(RemoteCachingFileSystemProvider.URI);
                 RemoteCachingPath path = datasetsDir.resolve(shardDir.getIndexDir().toString());
-                reader = new CachedFlamdexReader(multiSessionMemoryContext, SimpleFlamdexReader.open(path, numDocs), dataset, shardDir.getId());
+                reader = new CachedFlamdexReader(new MemoryReservationContext(memory), SimpleFlamdexReader.open(path, numDocs), dataset, shardDir.getId());
 
                 try {
                     flamdexes.put(shardId, reader);
