@@ -14,7 +14,6 @@
 
 package com.indeed.imhotep.shardmaster;
 
-import com.google.common.collect.Lists;
 import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.client.ShardTimeUtils;
 import com.indeed.imhotep.shardmaster.utils.SQLWriteManager;
@@ -31,7 +30,6 @@ import java.sql.*;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -51,7 +49,6 @@ public class DatasetShardRefresher {
     private final ShardData shardData;
     private Timestamp lastUpdatedTimestamp;
     private final SQLWriteManager sqlWriteManager;
-    private final AtomicBoolean setup;
 
 
 
@@ -60,8 +57,7 @@ public class DatasetShardRefresher {
                           final String rootURI,
                           final ShardFilter filter,
                           final ShardData shardData,
-                          final SQLWriteManager manager,
-                          final AtomicBoolean setup) throws IOException {
+                          final SQLWriteManager manager) throws IOException {
         this.datasetsDir = datasetsDir;
         this.dbConnection = dbConnection;
         this.hadoopFileSystem = new Path(rootURI).getFileSystem(new Configuration());
@@ -69,7 +65,6 @@ public class DatasetShardRefresher {
         this.shardData = shardData;
         this.sqlWriteManager = manager;
         this.lastUpdatedTimestamp = Timestamp.from(Instant.MIN);
-        this.setup = setup;
     }
 
     private void loadFromSQL(boolean shouldDelete) {
@@ -116,19 +111,17 @@ public class DatasetShardRefresher {
     }
 
     private void deleteDatasetsFromSQL(List<String> deletedDatasets) {
-        Runnable run = () -> {
-            dbConnection.batchUpdate("DELETE FROM tblfields WHERE dataset = ?;", new BatchPreparedStatementSetter() {
-                @Override
-                public void setValues(PreparedStatement ps, int i) throws SQLException {
-                    ps.setString(1, deletedDatasets.get(i));
-                }
+        Runnable run = () -> dbConnection.batchUpdate("DELETE FROM tblfields WHERE dataset = ?;", new BatchPreparedStatementSetter() {
+            @Override
+            public void setValues(PreparedStatement ps, int i) throws SQLException {
+                ps.setString(1, deletedDatasets.get(i));
+            }
 
-                @Override
-                public int getBatchSize() {
-                    return deletedDatasets.size();
-                }
-            });
-        };
+            @Override
+            public int getBatchSize() {
+                return deletedDatasets.size();
+            }
+        });
 
         sqlWriteManager.addStatementToQueue(run);
         sqlWriteManager.run();
@@ -136,7 +129,6 @@ public class DatasetShardRefresher {
 
 
     private void handleDataset(final Path path, final Set<String> allPaths) {
-        LOGGER.info("On dataset: " + path);
         Iterable<ShardDir> dataset = new ShardScanner(path, hadoopFileSystem);
 
         List<Pair<ShardDir, Future<FlamdexMetadata>>> pairs = new ArrayList<>();
@@ -230,7 +222,7 @@ public class DatasetShardRefresher {
         Runnable tblFieldsUpdateStatement = () -> dbConnection.batchUpdate("UPDATE tblfields SET type = ?, lastshardstarttime = ? WHERE dataset = ? AND fieldname = ?;", new BatchPreparedStatementSetter() {
             @Override
             public void setValues(PreparedStatement ps, int i) throws SQLException {
-                final String fieldName = fieldsForInsert.get(i);
+                final String fieldName = fieldsForUpdate.get(i);
 
                 if(!stringFields.contains(fieldName) && intFields.contains(fieldName)) {
                     ps.setString(1, "INT");
@@ -278,10 +270,6 @@ public class DatasetShardRefresher {
             executorService.submit(() -> innerRun(leader, shouldDelete)).get();
         } catch (InterruptedException | ExecutionException e) {
             LOGGER.error(e.getMessage(), e);
-        }
-        if(!setup.get()) {
-            LOGGER.info("Finished setup");
-            this.setup.set(true);
         }
     }
 }

@@ -48,7 +48,6 @@ import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * @author kenh
  */
@@ -100,12 +99,11 @@ public class ShardMasterDaemon {
             LOGGER.info("Reloading all daemon hosts");
             hostsReloader.run();
 
+
             final File file = new File(System.getProperty("imhotep.fs.config.file"));
             final Properties properties = new Properties();
             properties.load(new FileInputStream(file));
             String rootURI = properties.getProperty("imhotep.fs.filestore.hdfs.root.uri");
-
-            final AtomicBoolean shardScanComplete = new AtomicBoolean(false);
 
             final org.apache.hadoop.fs.Path tmpPath = new org.apache.hadoop.fs.Path(rootURI + "/" + dataSetsDir.toString());
             final DatasetShardRefresher refresher = new DatasetShardRefresher(
@@ -114,12 +112,14 @@ public class ShardMasterDaemon {
                     rootURI,
                     config.shardFilter,
                     shardData,
-                    sqlWriteManager,
-                    shardScanComplete
+                    sqlWriteManager
             );
 
-            LOGGER.info("Initializing all shard assignments");
-
+            LOGGER.info("Reading all shards...");
+            double loadTime = -System.currentTimeMillis();
+            refresher.run(isLeader(leaderElectionRoot, zkConnection), true);
+            loadTime+= System.currentTimeMillis();
+            LOGGER.info("Shards read in " + loadTime + " millis.");
 
             hostReloadTimer.schedule(new TimerTask() {
                 @Override
@@ -128,11 +128,11 @@ public class ShardMasterDaemon {
                 }
             }, config.getHostsRefreshInterval().getMillis(), config.getHostsRefreshInterval().getMillis());
 
-            datasetReloadExecutor.scheduleAtFixedRate(() -> refresher.run(isLeader(leaderElectionRoot, zkConnection), ++deleteCounter % config.deletePeriod == 0), 0, config.getRefreshInterval().getMillis(), TimeUnit.MILLISECONDS);
+            datasetReloadExecutor.scheduleAtFixedRate(() -> refresher.run(isLeader(leaderElectionRoot, zkConnection), ++deleteCounter % config.deletePeriod == 0), config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis(), TimeUnit.MILLISECONDS);
 
             server = new RequestResponseServer(config.getServicePort(), new MultiplexingRequestHandler(
                     config.statsEmitter,
-                    new DatabaseShardMaster(config.createAssigner(), shardScanComplete, shardData, hostsReloader),
+                    new DatabaseShardMaster(config.createAssigner(), shardData, hostsReloader),
                     config.shardsResponseBatchSize
             ), config.serviceConcurrency);
             try (ZkEndpointPersister endpointPersister = getZKEndpointPersister()

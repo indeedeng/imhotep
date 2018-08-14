@@ -22,7 +22,6 @@ import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.imhotep.*;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
-import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.fs.RemoteCachingPath;
 import com.indeed.imhotep.local.ImhotepJavaLocalSession;
@@ -35,9 +34,6 @@ import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.shell.PosixFileOperations;
 import com.indeed.util.varexport.VarExporter;
 import org.apache.log4j.Logger;
-import org.joda.time.DateTimeZone;
-
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -48,12 +44,10 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * @author jsgroth
@@ -246,7 +240,6 @@ public class LocalImhotepServiceCore
 
         final MemoryReservationContext multiSessionMemoryContext = new MemoryReservationContext(memory);
 
-
         try {
             final Map<ShardId, FlamdexReader> flamdexes = Maps.newHashMap();
             final SessionObserver observer =
@@ -258,7 +251,7 @@ public class LocalImhotepServiceCore
                 final FlamdexReader reader;
                 final RemoteCachingPath datasetsDir = (RemoteCachingPath) Paths.get(RemoteCachingFileSystemProvider.URI);
                 RemoteCachingPath path = datasetsDir.resolve(shardDir.getIndexDir().toString());
-                reader = SimpleFlamdexReader.open(path, numDocs);
+                reader = new CachedFlamdexReader(multiSessionMemoryContext, SimpleFlamdexReader.open(path, numDocs), dataset, shardDir.getId());
 
                 try {
                     flamdexes.put(shardId, reader);

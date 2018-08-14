@@ -28,23 +28,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class DatabaseShardMaster implements ShardMaster {
     private final ShardAssigner assigner;
-    private final AtomicBoolean initializationComplete;
     private final ShardData shardData;
     private final HostsReloader reloader;
-    private static final Logger LOGGER = Logger.getLogger(DatabaseShardMaster.class);
 
-    public DatabaseShardMaster(final ShardAssigner assigner, final AtomicBoolean initializationComplete, final ShardData shardData, final HostsReloader reloader) {
+    public DatabaseShardMaster(final ShardAssigner assigner, final ShardData shardData, final HostsReloader reloader) {
         this.assigner = assigner;
-        this.initializationComplete = initializationComplete;
         this.shardData = shardData;
         this.reloader = reloader;
     }
 
     @Override
     public List<DatasetInfo> getDatasetMetadata() {
-        if(!initializationComplete.get()) {
-            throw new IllegalStateException("Initialization is not complete");
-        }
         final List<DatasetInfo> toReturn = new ArrayList<>();
         final Collection<String> datasets = shardData.getDatasets();
         for(final String dataset: datasets) {
@@ -60,9 +54,6 @@ public class DatabaseShardMaster implements ShardMaster {
 
     @Override
     public List<Shard> getShardsInTime(String dataset, long start, long end) {
-        if(!initializationComplete.get()) {
-            throw new IllegalStateException("Initialization is not complete");
-        }
         final Collection<ShardInfo> info = shardData.getShardsInTime(dataset, start, end);
         final List<Shard> shards = new ArrayList<>();
         final Iterable<Shard> assignment = assigner.assign(reloader.getHosts(), dataset, info);
@@ -76,9 +67,6 @@ public class DatabaseShardMaster implements ShardMaster {
 
     @Override
     public Map<String, Collection<ShardInfo>> getShardList() {
-        if(!initializationComplete.get()) {
-            throw new IllegalStateException("Initialization is not complete");
-        }
         final Map<String, Collection<ShardInfo>> toReturn = new HashMap<>();
         final Collection<String> datasets = shardData.getDatasets();
         for(final String dataset: datasets) {
