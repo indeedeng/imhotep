@@ -84,7 +84,7 @@ public class LocalImhotepServiceCore
                                    final MetricStatsEmitter statsEmitter)
         throws IOException {
 
-        flamdexReaderLoadingCache = CacheBuilder.newBuilder().maximumSize(2000).expireAfterAccess(5, TimeUnit.MINUTES).removalListener((RemovalListener<Pair<Path, Integer>, FlamdexReader>) notification -> {
+        flamdexReaderLoadingCache = CacheBuilder.newBuilder().maximumSize(300000).expireAfterAccess(5, TimeUnit.MINUTES).removalListener((RemovalListener<Pair<Path, Integer>, FlamdexReader>) notification -> {
             try {
                 if(notification.getValue()==null) {
                     log.error("cached flamdex reader is null");
