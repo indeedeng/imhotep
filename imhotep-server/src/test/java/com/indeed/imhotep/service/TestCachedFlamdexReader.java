@@ -51,7 +51,7 @@ public class TestCachedFlamdexReader {
             }
         };
         final MemoryReserver memory = new ImhotepMemoryPool(Long.MAX_VALUE);
-        final AtomicSharedReference<CachedFlamdexReader> resource = AtomicSharedReference.create(new CachedFlamdexReader(new MemoryReservationContext(memory), r, "test", "test"));
+        final AtomicSharedReference<CachedFlamdexReader> resource = AtomicSharedReference.create(new CachedFlamdexReader(new MemoryReservationContext(memory), r));
         assertFalse(closed.get());
         try (final CachedFlamdexReaderReference ignored = new CachedFlamdexReaderReference(resource.getCopy())) {
             assertFalse(closed.get());
@@ -82,7 +82,7 @@ public class TestCachedFlamdexReader {
                 closed.set(true);
             }
         };
-        resource.set(new CachedFlamdexReader(new MemoryReservationContext(memory), r, "test", "test"));
+        resource.set(new CachedFlamdexReader(new MemoryReservationContext(memory), r));
         try (final CachedFlamdexReaderReference ignored = new CachedFlamdexReaderReference(resource.getCopy())) {
             assertFalse(closed.get());
         }
@@ -95,7 +95,7 @@ public class TestCachedFlamdexReader {
     public void testLookupCaching() throws FlamdexOutOfMemoryException, IOException {
         try (final FlamdexReader r = new SillyFlamdexReader();
              final MemoryReserver memory = new ImhotepMemoryPool(Long.MAX_VALUE);
-             final CachedFlamdexReader cfr = new CachedFlamdexReader(new MemoryReservationContext(memory), r, "test", "test")) {
+             final CachedFlamdexReader cfr = new CachedFlamdexReader(new MemoryReservationContext(memory), r)) {
             final IntValueLookup l1 = cfr.getMetric("m1");
             final long memoryUsed = memory.usedMemory();
             try (final IntValueLookup l2 = cfr.getMetric("m1")) {
@@ -118,7 +118,7 @@ public class TestCachedFlamdexReader {
     public void testMemory1() throws FlamdexOutOfMemoryException, IOException {
         try (final FlamdexReader r = new SillyFlamdexReader();
              final MemoryReserver memory = new ImhotepMemoryPool(7L);
-             final CachedFlamdexReader cfr = new CachedFlamdexReader(new MemoryReservationContext(memory), r, "test", "test")) {
+             final CachedFlamdexReader cfr = new CachedFlamdexReader(new MemoryReservationContext(memory), r)) {
             final IntValueLookup[] lookups = new IntValueLookup[5];
             for (int i = 0; i < lookups.length; ++i) {
                 lookups[i] = cfr.getMetric("m1");
@@ -137,7 +137,7 @@ public class TestCachedFlamdexReader {
     public void testMemory2() throws FlamdexOutOfMemoryException, IOException {
         try (final FlamdexReader r = new SillyFlamdexReader();
              final MemoryReserver memory = new ImhotepMemoryPool(7L)) {
-            final AtomicSharedReference<CachedFlamdexReader> resource = AtomicSharedReference.create(new CachedFlamdexReader(new MemoryReservationContext(memory), r, "test", "test"));
+            final AtomicSharedReference<CachedFlamdexReader> resource = AtomicSharedReference.create(new CachedFlamdexReader(new MemoryReservationContext(memory), r));
             try (
                     final CachedFlamdexReaderReference cfr = new CachedFlamdexReaderReference(resource.getCopy());
                     final CachedFlamdexReaderReference cfr1 = new CachedFlamdexReaderReference(resource.getCopy());
@@ -159,7 +159,7 @@ public class TestCachedFlamdexReader {
     public void testMemory3() throws FlamdexOutOfMemoryException, IOException {
         try (final FlamdexReader r = new SillyFlamdexReader();
              final MemoryReserver memory = new ImhotepMemoryPool(6L);
-             final CachedFlamdexReader cfr = new CachedFlamdexReader(new MemoryReservationContext(memory), r, "test", "test")) {
+             final CachedFlamdexReader cfr = new CachedFlamdexReader(new MemoryReservationContext(memory), r)) {
             cfr.getMetric("m1");
             assertEquals(5L, memory.usedMemory());
             cfr.getMetric("m1");
@@ -177,7 +177,7 @@ public class TestCachedFlamdexReader {
     @Test
     public void testLookupWrap() throws FlamdexOutOfMemoryException {
         final FlamdexReader r = new SillyFlamdexReader();
-        final CachedFlamdexReader cfr = new CachedFlamdexReader(new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), r, "test", "test");
+        final CachedFlamdexReader cfr = new CachedFlamdexReader(new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), r);
         final IntValueLookup l = cfr.getMetric("m1");
         final int[] docIds = {0, 2, 4, 9000, Integer.MIN_VALUE};
         final long[] values = new long[docIds.length];
@@ -189,7 +189,7 @@ public class TestCachedFlamdexReader {
     public void testMemoryUsedIsntUsed() throws FlamdexOutOfMemoryException, IOException {
         try (final FlamdexReader r = new SillyFlamdexReader();
              final MemoryReserver memory = new ImhotepMemoryPool(10L);
-             final CachedFlamdexReader cfr = new CachedFlamdexReader(new MemoryReservationContext(memory), r, "test", "test")) {
+             final CachedFlamdexReader cfr = new CachedFlamdexReader(new MemoryReservationContext(memory), r)) {
             final IntValueLookup l = cfr.getMetric("‽");
             assertEquals(10L, memory.usedMemory());
             final IntValueLookup l2 = cfr.getMetric("‽");

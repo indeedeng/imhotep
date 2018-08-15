@@ -13,7 +13,6 @@
  */
 package com.indeed.imhotep.service;
 
-import com.google.common.base.Function;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FieldsCardinalityMetadata;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
@@ -28,7 +27,6 @@ import com.indeed.flamdex.lucene.LuceneFlamdexReader;
 import com.indeed.flamdex.ramses.RamsesFlamdexWrapper;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.MemoryReservationContext;
-import com.indeed.util.core.Either;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.ReloadableSharedReference;
 import org.apache.log4j.Logger;
@@ -41,7 +39,6 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static com.indeed.util.core.Either.Left;
@@ -66,9 +63,7 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
     private final Map<String, Long> stringDocFreqCache = new ConcurrentHashMap<>();
 
     public CachedFlamdexReader(final MemoryReservationContext memory,
-                               final FlamdexReader wrapped,
-                               @Nullable final String indexName,
-                               @Nullable final String shardName) {
+                               final FlamdexReader wrapped) {
         //closer will free these in the opposite order that they are added
         this.memory = memory;
         this.wrapped = wrapped;

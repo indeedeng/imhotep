@@ -276,9 +276,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
             final FlamdexReader flamdex = AutoDeletingReader.open(writerOutputDir);
             this.flamdexReader = new CachedFlamdexReader(
                     new MemoryReservationContext(memory),
-                    flamdex,
-                    null,
-                    null);
+                    flamdex);
             this.flamdexReaderRef = SharedReference.create(this.flamdexReader);
         } catch (final IOException e) {
             throw Throwables.propagate(e);

@@ -17,6 +17,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.cache.*;
 import com.google.common.collect.Maps;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
@@ -33,6 +34,7 @@ import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.shell.PosixFileOperations;
 import com.indeed.util.varexport.VarExporter;
+import javafx.util.Pair;
 import org.apache.log4j.Logger;
 import javax.annotation.Nullable;
 import java.io.FileNotFoundException;
@@ -42,10 +44,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -60,6 +59,8 @@ public class LocalImhotepServiceCore
 
     private final ScheduledExecutorService heartBeat;
     private final Path shardTempDir;
+
+    private final LoadingCache<Pair<Path, Integer>, FlamdexReader> flamdexReaderLoadingCache;
 
 
     private final MemoryReserver memory;
@@ -82,6 +83,22 @@ public class LocalImhotepServiceCore
                                    final LocalImhotepServiceConfig config,
                                    final MetricStatsEmitter statsEmitter)
         throws IOException {
+
+        flamdexReaderLoadingCache = CacheBuilder.newBuilder().maximumSize(2000).expireAfterAccess(5, TimeUnit.MINUTES).removalListener((RemovalListener<Pair<Path, Integer>, FlamdexReader>) notification -> {
+            try {
+                if(notification.getValue()==null) {
+                    log.error("cached flamdex reader is null");
+                }
+                notification.getValue().close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }).build(new CacheLoader<Pair<Path, Integer>, FlamdexReader>() {
+            @Override
+            public FlamdexReader load(Pair<Path, Integer> key) throws Exception {
+                return new CachedFlamdexReader(new MemoryReservationContext(memory), SimpleFlamdexReader.open( key.getKey(), key.getValue()));
+            }
+        });
 
         /* check if the temp dir exists, try to create it if it does not */
         Preconditions.checkNotNull(shardTempDir, "shardTempDir is invalid");
@@ -250,9 +267,8 @@ public class LocalImhotepServiceCore
                 final int numDocs = shardRequestList.get(i).getNumDocs();
                 final FlamdexReader reader;
                 final RemoteCachingPath datasetsDir = (RemoteCachingPath) Paths.get(RemoteCachingFileSystemProvider.URI);
-                RemoteCachingPath path = datasetsDir.resolve(shardDir.getIndexDir().toString());
-                reader = new CachedFlamdexReader(new MemoryReservationContext(memory), SimpleFlamdexReader.open(path, numDocs), dataset, shardDir.getId());
-
+                final Path path = datasetsDir.resolve(shardDir.getIndexDir().toString());
+                reader = flamdexReaderLoadingCache.get(new Pair<>(path, numDocs));
                 try {
                     flamdexes.put(shardId, reader);
                     localSessions[i] =
@@ -281,12 +297,12 @@ public class LocalImhotepServiceCore
                             ipAddress, clientVersion, dataset, sessionTimeout, multiSessionMemoryContext);
             session.addObserver(observer);
         }
-        catch (final IOException ex) {
-            throw Throwables.propagate(ex);
-        }
         catch (final RuntimeException | ImhotepOutOfMemoryException ex) {
             Closeables2.closeAll(log, localSessions);
             throw ex;
+        } catch (ExecutionException e) {
+            Closeables2.closeAll(log, localSessions);
+            throw Throwables.propagate(e);
         }
 
         return sessionId;
