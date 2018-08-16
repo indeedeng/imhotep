@@ -91,7 +91,7 @@ message GroupMultiRemapMessage {
 }
 
 message ShardNameNumDocsPair {
-    required uint32 num_docs = 1;
+    optional int32 num_docs = 1 [default = -1];
     required string shard_name = 2;
 }
 

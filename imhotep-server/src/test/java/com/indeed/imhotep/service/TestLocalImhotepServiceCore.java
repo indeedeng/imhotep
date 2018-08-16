@@ -157,6 +157,7 @@ public class TestLocalImhotepServiceCore {
         }
     }
 
+    // TODO: move to shardmaster tests
     @Test
     @SuppressWarnings({"ResultOfMethodCallIgnored"})
     public void testVersionization() throws IOException {
