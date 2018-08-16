@@ -23,4 +23,5 @@ import java.nio.file.Path;
  */
 public interface FlamdexReaderSource {
     FlamdexReader openReader(Path directory) throws IOException;
+    FlamdexReader openReader(Path directory, int numDocs) throws IOException;
 }

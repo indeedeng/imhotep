@@ -49,7 +49,7 @@ import java.util.concurrent.ExecutorService;
  * @author kenh
  */
 
-public class DatasetShardRefresherTest {
+public class ShardRefresherTest {
     @Rule
     public final TemporaryFolder tempDir = new TemporaryFolder();
     @Rule

@@ -40,6 +40,12 @@ public class ImhotepDaemonRunner {
             public FlamdexReader openReader(final Path directory) throws IOException {
                 return new MockFlamdexReader();
             }
+
+            @Override
+            public FlamdexReader openReader(Path directory, int numDocs) throws IOException {
+                return openReader(directory);
+            }
+
         });
     }
 
@@ -70,6 +76,7 @@ public class ImhotepDaemonRunner {
                 new ImhotepDaemon(new ServerSocket(port),
                                   new LocalImhotepServiceCore(tempDir,
                                                               1024L * 1024 * 1024 * 1024,
+                                                              flamdexFactory,
                                                               new LocalImhotepServiceConfig()),
                                   null, null, "localhost", port, null);
         actualPort = currentlyRunning.getPort();

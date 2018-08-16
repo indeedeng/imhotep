@@ -57,7 +57,7 @@ public class ShardMasterDaemon {
     private final Config config;
     private volatile RequestResponseServer server;
     private String leaderId;
-    private int deleteCounter = 0;
+    private long lastDeleteTimeMillis;
 
     public ShardMasterDaemon(final Config config) {
         this.config = config;
@@ -65,13 +65,15 @@ public class ShardMasterDaemon {
 
     public void run() throws IOException, InterruptedException, KeeperException {
 
+        lastDeleteTimeMillis = System.currentTimeMillis();
+
         LOGGER.info("Initializing fs");
         RemoteCachingFileSystemProvider.newFileSystem();
 
         LOGGER.info("Starting daemon...");
 
         final ExecutorService executorService = config.createExecutorService();
-        final Timer hostReloadTimer = new Timer(DatasetShardRefresher.class.getSimpleName());
+        final Timer hostReloadTimer = new Timer(ShardRefresher.class.getSimpleName());
         final ScheduledExecutorService datasetReloadExecutor = Executors.newSingleThreadScheduledExecutor();
 
         final HostsReloader hostsReloader;
@@ -106,7 +108,7 @@ public class ShardMasterDaemon {
             String rootURI = properties.getProperty("imhotep.fs.filestore.hdfs.root.uri");
 
             final org.apache.hadoop.fs.Path tmpPath = new org.apache.hadoop.fs.Path(rootURI + "/" + dataSetsDir.toString());
-            final DatasetShardRefresher refresher = new DatasetShardRefresher(
+            final ShardRefresher refresher = new ShardRefresher(
                     tmpPath,
                     dbConnection,
                     rootURI,
@@ -128,7 +130,13 @@ public class ShardMasterDaemon {
                 }
             }, config.getHostsRefreshInterval().getMillis(), config.getHostsRefreshInterval().getMillis());
 
-            datasetReloadExecutor.scheduleAtFixedRate(() -> refresher.run(isLeader(leaderElectionRoot, zkConnection), ++deleteCounter % config.deletePeriod == 0), config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis(), TimeUnit.MILLISECONDS);
+            datasetReloadExecutor.scheduleAtFixedRate(() -> {
+                final boolean shouldDelete = System.currentTimeMillis() - lastDeleteTimeMillis > config.getDeleteInterval().getMillis();
+                if(shouldDelete) {
+                    lastDeleteTimeMillis = System.currentTimeMillis();
+                }
+                refresher.run(isLeader(leaderElectionRoot, zkConnection), shouldDelete);
+            }, config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis(), TimeUnit.MILLISECONDS);
 
             server = new RequestResponseServer(config.getServicePort(), new MultiplexingRequestHandler(
                     config.statsEmitter,
@@ -225,7 +233,7 @@ public class ShardMasterDaemon {
         private double hostsDropThreshold = 0.5;
         private RequestMetricStatsEmitter statsEmitter = RequestMetricStatsEmitter.NULL_EMITTER;
         private String metadataDBURL;
-        private int deletePeriod = 200;
+        private Duration deleteInterval = Duration.standardDays(1);
         private String metadataDBUsername;
         private String metadataDBPassword;
 
@@ -417,6 +425,7 @@ public class ShardMasterDaemon {
             ds.setUrl(metadataDBURL);
             ds.setUsername(metadataDBUsername);
             ds.setPassword(metadataDBPassword);
+            ds.setValidationQuery("SELECT 1");
             return new JdbcTemplate(ds);
         }
 
@@ -465,12 +474,12 @@ public class ShardMasterDaemon {
             return hostsDropThreshold;
         }
 
-        public int getDeletePeriod() {
-            return deletePeriod;
+        public Duration getDeleteInterval() {
+            return deleteInterval;
         }
 
-        public void setDeletePeriod(int deletePeriod) {
-            this.deletePeriod = deletePeriod;
+        public void setDeleteInterval(long deleteIntervalMillis) {
+            this.deleteInterval = Duration.millis(deleteIntervalMillis);
         }
     }
 

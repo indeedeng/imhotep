@@ -390,7 +390,7 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
         }
 
         if (reader instanceof InstrumentedFlamdexReader) {
-            return isCountMethodsReliable(((InstrumentedFlamdexReader)reader).getWrapped());
+            return isCountMethodsReliable(((InstrumentedFlamdexReader)reader).getWrapped().get());
         }
 
         // Don't trust unknown class

@@ -28,10 +28,7 @@ public class SQLWriteManager implements Runnable{
     public synchronized void run() {
         try {
             while (!sqlStatementQueue.isEmpty()) {
-                final Runnable r = sqlStatementQueue.peek();
-                if(r != null) {
-                    r.run();
-                }
+                sqlStatementQueue.peek().run();
                 sqlStatementQueue.remove();
                 failedAttempts = 0;
             }

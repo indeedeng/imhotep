@@ -27,4 +27,9 @@ public class GenericFlamdexReaderSource implements FlamdexReaderSource {
     public FlamdexReader openReader(final Path directory) throws IOException {
         return GenericFlamdexReader.open(directory);
     }
+
+    @Override
+    public FlamdexReader openReader(Path directory, int numDocs) throws IOException {
+        return openReader(directory);
+    }
 }

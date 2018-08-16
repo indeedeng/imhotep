@@ -26,6 +26,7 @@ import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.StringValueLookup;
 import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.Instrumentation.Keys;
+import com.indeed.util.core.reference.SharedReference;
 import it.unimi.dsi.fastutil.objects.Object2LongArrayMap;
 import org.apache.log4j.Logger;
 
@@ -39,7 +40,7 @@ public class InstrumentedFlamdexReader
 
     private static final Logger log = Logger.getLogger(InstrumentedFlamdexReader.class);
 
-    private final FlamdexReader wrapped;
+    private final SharedReference<FlamdexReader> wrapped;
     private final FlamdexInfo   flamdexInfo;
 
     private final Object2LongArrayMap<String> statsPushed = new Object2LongArrayMap<>(16);
@@ -72,12 +73,12 @@ public class InstrumentedFlamdexReader
         }
     }
 
-    public InstrumentedFlamdexReader(final FlamdexReader reader) {
+    public InstrumentedFlamdexReader(final SharedReference<FlamdexReader> reader) {
         this.wrapped     = reader;
-        this.flamdexInfo = new FlamdexInfo(reader);
+        this.flamdexInfo = new FlamdexInfo(reader.get());
     }
 
-    public FlamdexReader getWrapped() {
+    public SharedReference<FlamdexReader> getWrapped() {
         return wrapped;
     }
 
@@ -94,85 +95,85 @@ public class InstrumentedFlamdexReader
     }
 
     private void onField(final String field) {
-        fields.put(field, flamdexInfo.getFieldSizeInBytes(field, wrapped));
+        fields.put(field, flamdexInfo.getFieldSizeInBytes(field, wrapped.get()));
     }
 
     @Override
     public void close() throws IOException { wrapped.close(); }
 
-    public Collection<String>    getIntFields() { return wrapped.getIntFields();    }
-    public Collection<String> getStringFields() { return wrapped.getStringFields(); }
+    public Collection<String>    getIntFields() { return wrapped.get().getIntFields();    }
+    public Collection<String> getStringFields() { return wrapped.get().getStringFields(); }
 
     @Override
     public int getNumDocs() {
-        return wrapped.getNumDocs();
+        return wrapped.get().getNumDocs();
     }
 
     @Override
     public Path getDirectory() {
-        return wrapped.getDirectory();
+        return wrapped.get().getDirectory();
     }
 
     @Override
     public DocIdStream getDocIdStream() {
-        return wrapped.getDocIdStream();
+        return wrapped.get().getDocIdStream();
     }
 
     public IntTermIterator getIntTermIterator(final String field) {
         onField(field);
-        return wrapped.getIntTermIterator(field);
+        return wrapped.get().getIntTermIterator(field);
     }
 
     public IntTermIterator getUnsortedIntTermIterator(final String field) {
         onField(field);
-        return wrapped.getUnsortedIntTermIterator(field);
+        return wrapped.get().getUnsortedIntTermIterator(field);
     }
 
     public StringTermIterator getStringTermIterator(final String field) {
         onField(field);
-        return wrapped.getStringTermIterator(field);
+        return wrapped.get().getStringTermIterator(field);
     }
 
     public IntTermDocIterator getIntTermDocIterator(final String field) {
         onField(field);
-        return wrapped.getIntTermDocIterator(field);
+        return wrapped.get().getIntTermDocIterator(field);
     }
 
     public StringTermDocIterator getStringTermDocIterator(final String field) {
         onField(field);
-        return wrapped.getStringTermDocIterator(field);
+        return wrapped.get().getStringTermDocIterator(field);
     }
 
     public long getIntTotalDocFreq(final String field) {
-        return wrapped.getIntTotalDocFreq(field);
+        return wrapped.get().getIntTotalDocFreq(field);
     }
 
     public long getStringTotalDocFreq(final String field) {
-        return wrapped.getStringTotalDocFreq(field);
+        return wrapped.get().getStringTotalDocFreq(field);
     }
 
     public Collection<String> getAvailableMetrics() {
-        return wrapped.getAvailableMetrics();
+        return wrapped.get().getAvailableMetrics();
     }
 
     public IntValueLookup getMetric(final String metric)
         throws FlamdexOutOfMemoryException {
         onMetric(metric);
-        return wrapped.getMetric(metric);
+        return wrapped.get().getMetric(metric);
     }
 
     public StringValueLookup getStringLookup(final String field)
         throws FlamdexOutOfMemoryException {
-        return wrapped.getStringLookup(field);
+        return wrapped.get().getStringLookup(field);
     }
 
     public long memoryRequired(final String metric) {
-        return wrapped.memoryRequired(metric);
+        return wrapped.get().memoryRequired(metric);
     }
 
     @Override
     public FieldsCardinalityMetadata getFieldsMetadata() {
-        return wrapped.getFieldsMetadata();
+        return wrapped.get().getFieldsMetadata();
     }
 
     public static class PerformanceStats {

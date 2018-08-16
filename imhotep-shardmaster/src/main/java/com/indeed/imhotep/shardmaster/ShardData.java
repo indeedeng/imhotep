@@ -3,6 +3,7 @@ import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.client.ShardTimeUtils;
 import com.indeed.imhotep.shardmaster.utils.IntervalTree;
+import javafx.util.Pair;
 import org.joda.time.Interval;
 
 import java.nio.file.Path;
@@ -20,27 +21,27 @@ import java.util.stream.Stream;
 public class ShardData {
 
     final private Map<String, IntervalTree<Long, ShardInfo>> tblShards;
-    final private Map<String, TableFields> tblFields;
+    private Map<String, Map<String, Pair<FieldType, Long>>> tblFields;
     final private Map<String, ShardInfo> pathsToShards;
 
 
     public boolean hasField(final String dataset, final String field) {
-        return tblFields.containsKey(dataset) && tblFields.get(dataset).lastUpdatedTimestamp.containsKey(field);
+        return tblFields.containsKey(dataset) && tblFields.get(dataset).containsKey(field);
     }
 
     public long getFieldUpdateTime(final String dataset, final String field) {
-        final TableFields tableFields = tblFields.get(dataset);
-        return tableFields != null ? tableFields.lastUpdatedTimestamp.get(field) : 0;
+        final Map<String, Pair<FieldType, Long>> datasetFields = tblFields.get(dataset);
+        return datasetFields != null ? datasetFields.get(field).getValue() : 0;
     }
 
     public List<String> getFields(final String dataset, final FieldType type) {
         final List<String> fields = new ArrayList<>();
-        final TableFields tableFields = tblFields.get(dataset);
-        if(tableFields == null) {
+        final Map<String, Pair<FieldType, Long>> datasetFields = tblFields.get(dataset);
+        if(datasetFields == null) {
             return new ArrayList<>();
         }
-        tableFields.fieldNameToFieldType.forEach((name, thisType) -> {
-            if(thisType == type) {
+        datasetFields.forEach((name, entry) -> {
+            if(entry.getKey() == type) {
                 fields.add(name);
             }
         });
@@ -98,15 +99,6 @@ public class ShardData {
 
     }
 
-    class TableFields {
-        final Map<String, FieldType> fieldNameToFieldType;
-        final Map<String, Long> lastUpdatedTimestamp;
-        public TableFields(){
-            fieldNameToFieldType = new ConcurrentHashMap<>();
-            lastUpdatedTimestamp = new ConcurrentHashMap<>();
-        }
-    }
-
     public ShardData() {
         tblShards = new ConcurrentHashMap<>();
         tblFields = new ConcurrentHashMap<>();
@@ -118,10 +110,7 @@ public class ShardData {
     }
 
     public void updateTableFieldsRowsFromSQL(final ResultSet rows) throws SQLException {
-        Map<String, Set<String>> datasetToFields = new HashMap<>();
-        for(final String dataset: tblFields.keySet()) {
-            datasetToFields.put(dataset, new HashSet<>(tblFields.get(dataset).fieldNameToFieldType.keySet()));
-        }
+        Map<String, Map<String, Pair<FieldType, Long>>> newTblFields = new HashMap<>();
 
         if (rows.first()) {
             do {
@@ -129,29 +118,16 @@ public class ShardData {
                 final String fieldName = rows.getString("fieldname");
                 final FieldType type = FieldType.getType(rows.getString("type"));
                 final long dateTime = rows.getLong("lastshardstarttime");
-                if (!tblFields.containsKey(dataset)) {
-                    tblFields.put(dataset, new TableFields());
+                if (!newTblFields.containsKey(dataset)) {
+                    newTblFields.put(dataset, new ConcurrentHashMap<>());
                 }
 
-                if(datasetToFields.containsKey(dataset)){
-                    datasetToFields.get(dataset).remove(fieldName);
-                }
-
-                tblFields.get(dataset).lastUpdatedTimestamp.put(fieldName, dateTime);
-                tblFields.get(dataset).fieldNameToFieldType.put(fieldName, type);
+                newTblFields.get(dataset).put(fieldName, new Pair<>(type, dateTime));
 
             } while (rows.next());
         }
 
-        for(String dataset: datasetToFields.keySet()) {
-            for(String field: datasetToFields.get(dataset)) {
-                tblFields.get(dataset).fieldNameToFieldType.remove(field);
-                tblFields.get(dataset).lastUpdatedTimestamp.remove(field);
-            }
-            if(tblFields.get(dataset).fieldNameToFieldType.isEmpty() && tblFields.get(dataset).lastUpdatedTimestamp.isEmpty()) {
-                tblFields.remove(dataset);
-            }
-        }
+        tblFields = newTblFields;
     }
 
     public void updateTableShardsRowsFromSQL(final ResultSet rows, boolean shouldDelete) throws SQLException {
@@ -166,11 +142,12 @@ public class ShardData {
                 final String strPath = rows.getString("path");
                 existingPaths.remove(strPath);
 
-                final int numDocs = rows.getInt("numDocs");
 
                 if(pathsToShards.containsKey(strPath)) {
                     continue;
                 }
+
+                final int numDocs = rows.getInt("numDocs");
 
                 final Path path = Paths.get(strPath);
                 final ShardDir shardDir = new ShardDir(path);
@@ -202,7 +179,7 @@ public class ShardData {
 
         if(!tblShards.containsKey(dataset)) {
             tblShards.put(dataset, new IntervalTree<>());
-            tblFields.put(dataset, new TableFields());
+            tblFields.put(dataset, new ConcurrentHashMap<>());
         }
         final Interval interval = ShardTimeUtils.parseInterval(shardDir.getId());
         tblShards.get(dataset).addInterval(interval.getStart().getMillis(), interval.getEnd().getMillis(), info);
@@ -211,18 +188,16 @@ public class ShardData {
         Set<String> intFields = new HashSet<>(metadata.getIntFields());
 
         Stream.concat(metadata.getIntFields().stream(), metadata.getStringFields().stream())
-                .filter(field -> !tblFields.get(dataset).lastUpdatedTimestamp.containsKey(field)
-                        || tblFields.get(dataset).lastUpdatedTimestamp.get(field) < interval.getStartMillis())
+                .filter(field -> !tblFields.get(dataset).containsKey(field)
+                        || tblFields.get(dataset).get(field).getValue() < interval.getStartMillis())
                 .forEach(field -> {
                     if(stringFields.contains(field) && !intFields.contains(field)) {
-                        tblFields.get(dataset).fieldNameToFieldType.put(field, FieldType.STRING);
+                        tblFields.get(dataset).put(field, new Pair<>(FieldType.STRING, interval.getStartMillis()));
                     } else if(!stringFields.contains(field) && intFields.contains(field)) {
-                        tblFields.get(dataset).fieldNameToFieldType.put(field, FieldType.INT);
+                        tblFields.get(dataset).put(field, new Pair<>(FieldType.INT, interval.getStartMillis()));
                     } else {
-                        tblFields.get(dataset).fieldNameToFieldType.put(field, FieldType.CONFLICT);
+                        tblFields.get(dataset).put(field, new Pair<>(FieldType.CONFLICT, interval.getStartMillis()));
                     }
-
-                    tblFields.get(dataset).lastUpdatedTimestamp.put(field, interval.getStartMillis());
                 });
     }
 

@@ -32,6 +32,7 @@ import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
 import com.indeed.imhotep.scheduling.SchedulerType;
 import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.util.core.io.Closeables2;
+import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.core.shell.PosixFileOperations;
 import com.indeed.util.varexport.VarExporter;
 import javafx.util.Pair;
@@ -59,8 +60,9 @@ public class LocalImhotepServiceCore
 
     private final ScheduledExecutorService heartBeat;
     private final Path shardTempDir;
+    private final FlamdexReaderSource factory;
 
-    private final LoadingCache<Pair<Path, Integer>, FlamdexReader> flamdexReaderLoadingCache;
+    private final LoadingCache<Pair<Path, Integer>, SharedReference<FlamdexReader>> flamdexReaderLoadingCache;
 
 
     private final MemoryReserver memory;
@@ -80,25 +82,11 @@ public class LocalImhotepServiceCore
      */
     public LocalImhotepServiceCore(@Nullable final Path shardTempDir,
                                    final long memoryCapacity,
+                                   final FlamdexReaderSource flamdexReaderFactory,
                                    final LocalImhotepServiceConfig config,
                                    final MetricStatsEmitter statsEmitter)
         throws IOException {
 
-        flamdexReaderLoadingCache = CacheBuilder.newBuilder().maximumSize(100000).expireAfterAccess(5, TimeUnit.MINUTES).removalListener((RemovalListener<Pair<Path, Integer>, FlamdexReader>) notification -> {
-            try {
-                if(notification.getValue()==null) {
-                    log.error("cached flamdex reader is null");
-                }
-                notification.getValue().close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }).build(new CacheLoader<Pair<Path, Integer>, FlamdexReader>() {
-            @Override
-            public FlamdexReader load(Pair<Path, Integer> key) throws Exception {
-                return new CachedFlamdexReader(new MemoryReservationContext(memory), SimpleFlamdexReader.open( key.getKey(), key.getValue()));
-            }
-        });
 
         /* check if the temp dir exists, try to create it if it does not */
         Preconditions.checkNotNull(shardTempDir, "shardTempDir is invalid");
@@ -112,6 +100,32 @@ public class LocalImhotepServiceCore
         this.shardTempDir = shardTempDir;
 
         memory = new ImhotepMemoryPool(memoryCapacity);
+
+        if(flamdexReaderFactory != null) {
+            this.factory = flamdexReaderFactory;
+        } else {
+            this. factory = new FlamdexReaderSource() {
+                @Override
+                public FlamdexReader openReader(Path directory) throws IOException {
+                    return new CachedFlamdexReader(new MemoryReservationContext(memory), SimpleFlamdexReader.open(directory));
+                }
+
+                @Override
+                public FlamdexReader openReader(Path directory, int numDocs) throws IOException {
+                    return new CachedFlamdexReader(new MemoryReservationContext(memory), SimpleFlamdexReader.open(directory, numDocs));
+                }
+            };
+        }
+
+        flamdexReaderLoadingCache = CacheBuilder.newBuilder().maximumSize(100000).expireAfterAccess(5, TimeUnit.MINUTES).removalListener((RemovalListener<Pair<Path, Integer>, SharedReference<FlamdexReader>>) notification -> {
+            Closeables2.closeQuietly(notification.getValue(), log);
+        }).build(new CacheLoader<Pair<Path, Integer>, SharedReference<FlamdexReader>>() {
+            @Override
+            public SharedReference<FlamdexReader> load(Pair<Path, Integer> key) throws Exception {
+                return SharedReference.create(factory.openReader(key.getKey()));
+            }
+        });
+
         if(config.getCpuSlots() > 0) {
             TaskScheduler.CPUScheduler = new TaskScheduler(config.getCpuSlots(),
                     TimeUnit.SECONDS.toNanos(config.getCpuSchedulerHistoryLengthSeconds()),
@@ -141,10 +155,13 @@ public class LocalImhotepServiceCore
     @VisibleForTesting
     public LocalImhotepServiceCore(@Nullable final Path shardTempDir,
                                    final long memoryCapacity,
+                                   FlamdexReaderSource source,
                                    final LocalImhotepServiceConfig config)
         throws IOException {
         this(shardTempDir,
-             memoryCapacity, config,
+             memoryCapacity,
+                source,
+                config,
              MetricStatsEmitter.NULL_EMITTER
         );
     }
@@ -265,12 +282,12 @@ public class LocalImhotepServiceCore
                 final ShardDir shardDir = new ShardDir(Paths.get(dataset, shardRequestList.get(i).getShardName()));
                 final ShardId shardId = new ShardId(dataset, shardDir.getId(), shardDir.getVersion(), shardDir.getIndexDir());
                 final int numDocs = shardRequestList.get(i).getNumDocs();
-                final FlamdexReader reader;
+                final SharedReference<FlamdexReader> reader;
                 final RemoteCachingPath datasetsDir = (RemoteCachingPath) Paths.get(RemoteCachingFileSystemProvider.URI);
                 final Path path = datasetsDir.resolve(shardDir.getIndexDir().toString());
-                reader = flamdexReaderLoadingCache.get(new Pair<>(path, numDocs));
+                reader = flamdexReaderLoadingCache.get(new Pair<>(path, numDocs)).copy();
                 try {
-                    flamdexes.put(shardId, reader);
+                    flamdexes.put(shardId, reader.get());
                     localSessions[i] =
                             new ImhotepJavaLocalSession(sessionId,
                                     reader,

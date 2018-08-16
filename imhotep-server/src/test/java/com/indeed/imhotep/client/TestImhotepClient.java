@@ -129,6 +129,7 @@ public class TestImhotepClient {
             Shard shard0 = new Shard(SHARD0, 0, 0, host1);
             client.sessionBuilder(DATASET, null, null).shardsOverride(Collections.singletonList(shard0)).build();
             fail("session opening did not fail when it should have");
+            client.close();
         } catch (final RuntimeException e) {
             // pass
         }

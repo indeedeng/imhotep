@@ -71,10 +71,16 @@ public class TestLocalImhotepServiceCoreSharedResource {
                     }
                 };
             }
+
+            @Override
+            public FlamdexReader openReader(Path directory, int numDocs) throws IOException {
+                return openReader(directory);
+            }
         };
 
         final LocalImhotepServiceCore service =
                 new LocalImhotepServiceCore(optDirectory, 1024L * 1024 * 1024,
+                                        factory,
                                         new LocalImhotepServiceConfig());
         final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(ShardNameNumDocsPair.newBuilder().setShardName(shardName).build()), "", "", "", 0, 0, false, "", null, 0);
         try {
@@ -118,11 +124,17 @@ public class TestLocalImhotepServiceCoreSharedResource {
                     };
                 }
             }
+
+            @Override
+            public FlamdexReader openReader(Path directory, int numDocs) throws IOException {
+                return openReader(directory);
+            }
         };
         final LocalImhotepServiceCore service =
                 new LocalImhotepServiceCore(
                                             optDirectory,
                                             Long.MAX_VALUE,
+                                            factory,
                                             new LocalImhotepServiceConfig().setUpdateShardsFrequencySeconds(1));
 
         try {
@@ -161,11 +173,17 @@ public class TestLocalImhotepServiceCoreSharedResource {
                 };
                 return lastOpened;
             }
+
+            @Override
+            public FlamdexReader openReader(Path directory, int numDocs) throws IOException {
+                return openReader(directory);
+            }
         };
         final LocalImhotepServiceCore service =
                 new LocalImhotepServiceCore(
                                             optDirectory,
                                             Long.MAX_VALUE,
+                                            factory,
                                             new LocalImhotepServiceConfig().setUpdateShardsFrequencySeconds(1));
         try {
             final long t = System.currentTimeMillis();
@@ -204,12 +222,18 @@ public class TestLocalImhotepServiceCoreSharedResource {
                     }
                 };
             }
+
+            @Override
+            public FlamdexReader openReader(Path directory, int numDocs) throws IOException {
+                return openReader(directory);
+            }
         };
 
         final LocalImhotepServiceCore service =
                 new LocalImhotepServiceCore(
                                             optDirectory,
                                             Long.MAX_VALUE,
+                                            factory,
                                             new LocalImhotepServiceConfig().setUpdateShardsFrequencySeconds(1));
         try {
             final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(ShardNameNumDocsPair.newBuilder().setShardName(shardName).build()), "", "", "", 0, 0, false, "", null, 0);

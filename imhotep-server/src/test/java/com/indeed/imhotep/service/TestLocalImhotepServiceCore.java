@@ -88,7 +88,29 @@ public class TestLocalImhotepServiceCore {
         Files.createDirectories(datasetDir);
         Files.createDirectories(datasetDir.resolve("index20150601"));
         try {
-            final LocalImhotepServiceCore service = new LocalImhotepServiceCore(tempDir, 9999999999999L, new LocalImhotepServiceConfig());
+            final LocalImhotepServiceCore service = new LocalImhotepServiceCore(tempDir, 9999999999999L, new FlamdexReaderSource() {
+                @Override
+                public FlamdexReader openReader(final Path directory) throws IOException {
+                    final MockFlamdexReader r =
+                            new MockFlamdexReader(
+                                    Collections.singletonList("if1"),
+                                    Collections.<String>emptyList(),
+                                    Collections.<String>emptyList(),
+                                    10000, directory);
+                    for (int i = 0; i < 1000; ++i) {
+                        for (int j = 0; j < 1000; ++j) {
+                            r.addIntTerm("if1", i * 1000 + j, Collections.singletonList(0));
+                        }
+                    }
+                    return r;
+                }
+
+                @Override
+                public FlamdexReader openReader(Path directory, int numDocs) throws IOException {
+                    return openReader(directory);
+                }
+            },
+                    new LocalImhotepServiceConfig());
 
             final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(ShardNameNumDocsPair.newBuilder().setShardName("index20150601").build()), "", "", "", 0, 0, false, "", null, 0);
             service.handlePushStat(sessionId, "count()");
@@ -151,7 +173,20 @@ public class TestLocalImhotepServiceCore {
             Files.createDirectory(datasetDir.resolve("index20160103.20120102000000"));
 
             final LocalImhotepServiceCore service =
-                new LocalImhotepServiceCore(tempDir, Long.MAX_VALUE, new LocalImhotepServiceConfig());
+                new LocalImhotepServiceCore(tempDir, Long.MAX_VALUE, new FlamdexReaderSource() {
+                    @Override
+                    public FlamdexReader openReader(final Path directory) throws IOException {
+                        return new MockFlamdexReader(Collections.singletonList("if1"),
+                                Collections.singletonList("sf1"),
+                                Collections.singletonList("if1"), 5);
+                    }
+
+                    @Override
+                    public FlamdexReader openReader(Path directory, int numDocs) throws IOException {
+                        return openReader(directory);
+                    }
+                },
+                        new LocalImhotepServiceConfig());
             //TODO: fix or abandon test
             final List<ShardInfo> shards = null; //Lists.newArrayList(service.handleGetDatasetList().get(0).getShardList());
             assertEquals(3, shards.size());

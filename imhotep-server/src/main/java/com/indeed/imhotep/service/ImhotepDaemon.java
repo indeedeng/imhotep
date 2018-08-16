@@ -22,15 +22,11 @@ import com.google.common.collect.UnmodifiableIterator;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
+import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.query.Query;
-import com.indeed.imhotep.GroupMultiRemapRule;
-import com.indeed.imhotep.GroupRemapRule;
-import com.indeed.imhotep.ImhotepRemoteSession;
-import com.indeed.imhotep.ImhotepStatusDump;
-import com.indeed.imhotep.Instrumentation;
+import com.indeed.flamdex.simple.SimpleFlamdexReader;
+import com.indeed.imhotep.*;
 import com.indeed.imhotep.Instrumentation.Keys;
-import com.indeed.imhotep.RegroupCondition;
-import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
@@ -1301,6 +1297,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
 
         localService = new LocalImhotepServiceCore(tmpDir,
                 memoryCapacityInMB * 1024 * 1024,
+                null,
                 localImhotepServiceConfig);
         final ImhotepDaemon result =
                 new ImhotepDaemon(ss, localService, zkNodes, zkPath, myHostname, port, sessionForwardingPort);

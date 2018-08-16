@@ -36,11 +36,11 @@ import java.util.stream.StreamSupport;
 
 
 /**
- * @author kenh
+ * @author kornerup
  */
 
-public class DatasetShardRefresher {
-    private static final Logger LOGGER = Logger.getLogger(DatasetShardRefresher.class);
+public class ShardRefresher {
+    private static final Logger LOGGER = Logger.getLogger(ShardRefresher.class);
     private final Path datasetsDir;
     private static final ExecutorService executorService = new ForkJoinPool(40);
     private final JdbcTemplate dbConnection;
@@ -52,12 +52,12 @@ public class DatasetShardRefresher {
 
 
 
-    DatasetShardRefresher(final Path datasetsDir,
-                          final JdbcTemplate dbConnection,
-                          final String rootURI,
-                          final ShardFilter filter,
-                          final ShardData shardData,
-                          final SQLWriteManager manager) throws IOException {
+    ShardRefresher(final Path datasetsDir,
+                   final JdbcTemplate dbConnection,
+                   final String rootURI,
+                   final ShardFilter filter,
+                   final ShardData shardData,
+                   final SQLWriteManager manager) throws IOException {
         this.datasetsDir = datasetsDir;
         this.dbConnection = dbConnection;
         this.hadoopFileSystem = new Path(rootURI).getFileSystem(new Configuration());
@@ -103,15 +103,15 @@ public class DatasetShardRefresher {
             deleteFromSQL(new ArrayList<>(allRemaining));
             shardData.deleteShards(allRemaining);
             List<String> deletedDatasets = shardData.deleteDatasetsWithoutShards();
-            deleteDatasetsFromSQL(deletedDatasets);
+            deleteFieldsForDatasetsInSQL(deletedDatasets);
 
         } catch (ExecutionException | InterruptedException e) {
-            LOGGER.error(e.getMessage(), e);
+            LOGGER.error("Error during hdfs shard refresh", e);
         }
     }
 
-    private void deleteDatasetsFromSQL(List<String> deletedDatasets) {
-        Runnable run = () -> dbConnection.batchUpdate("DELETE FROM tblfields WHERE dataset = ?;", new BatchPreparedStatementSetter() {
+    private void deleteFieldsForDatasetsInSQL(List<String> deletedDatasets) {
+        Runnable deleteStatement = () -> dbConnection.batchUpdate("DELETE FROM tblfields WHERE dataset = ?;", new BatchPreparedStatementSetter() {
             @Override
             public void setValues(PreparedStatement ps, int i) throws SQLException {
                 ps.setString(1, deletedDatasets.get(i));
@@ -123,7 +123,7 @@ public class DatasetShardRefresher {
             }
         });
 
-        sqlWriteManager.addStatementToQueue(run);
+        sqlWriteManager.addStatementToQueue(deleteStatement);
         sqlWriteManager.run();
     }
 
@@ -243,8 +243,14 @@ public class DatasetShardRefresher {
             }
         });
 
-        sqlWriteManager.addStatementToQueue(tblFieldsInsertStatement);
-        sqlWriteManager.addStatementToQueue(tblFieldsUpdateStatement);
+        if(fieldsForInsert.size() > 0) {
+            sqlWriteManager.addStatementToQueue(tblFieldsInsertStatement);
+        }
+
+        if(fieldsForUpdate.size() > 0) {
+            sqlWriteManager.addStatementToQueue(tblFieldsUpdateStatement);
+        }
+
         sqlWriteManager.addStatementToQueue(tblShardsInsertStatement);
         sqlWriteManager.run();
     }
