@@ -122,7 +122,7 @@ public class LocalImhotepServiceCore
         }).build(new CacheLoader<Pair<Path, Integer>, SharedReference<FlamdexReader>>() {
             @Override
             public SharedReference<FlamdexReader> load(Pair<Path, Integer> key) throws Exception {
-                return SharedReference.create(factory.openReader(key.getKey()));
+                return SharedReference.create(factory.openReader(key.getKey(), key.getValue()));
             }
         });
 
