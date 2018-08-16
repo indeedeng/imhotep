@@ -149,10 +149,8 @@ public class ShardRefresher {
                     LOGGER.error("metadata was null for shard " + p.getKey());
                 }
                 addData(p.getKey(), p.getValue().get());
-            } catch (final SQLException e) {
-                LOGGER.error("could not add data to SQL", e);
             } catch (final ExecutionException | InterruptedException e) {
-                LOGGER.error("error with getting metadata", e);
+                LOGGER.error("Error with getting metadata for shard: " + p.getKey().getIndexDir(), e);
             }
         }
     }
@@ -167,7 +165,7 @@ public class ShardRefresher {
         return FlamdexMetadata.readMetadata(hadoopFileSystem, shardDir.getHadoopPath());
     }
 
-    private void addData(final ShardDir shardDir, final FlamdexMetadata metadata) throws SQLException {
+    private void addData(final ShardDir shardDir, final FlamdexMetadata metadata) {
         addToSQL(metadata, shardDir);
         shardData.addShardFromHDFS(metadata, shardDir);
     }

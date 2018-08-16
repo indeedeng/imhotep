@@ -56,8 +56,12 @@ public class ShardDir {
     }
 
     private static Path cleanPath(org.apache.hadoop.fs.Path path) {
-        String endName = path.getName();
-        endName = endName.substring(0, endName.lastIndexOf(".sqar"));
+        final String endName = path.getName();
+        final int endIndex = endName.lastIndexOf(".sqar");
+        if(endIndex>-1) {
+            final String actualEndName = endName.substring(0, endIndex);
+            return Paths.get(path.getParent().getName(), actualEndName);
+        }
         return Paths.get(path.getParent().getName(), endName);
     }
 

@@ -13,20 +13,22 @@
  */
 package com.indeed.imhotep.service;
 
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.UnmodifiableIterator;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
-import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.query.Query;
-import com.indeed.flamdex.simple.SimpleFlamdexReader;
-import com.indeed.imhotep.*;
+import com.indeed.imhotep.GroupMultiRemapRule;
+import com.indeed.imhotep.GroupRemapRule;
+import com.indeed.imhotep.ImhotepRemoteSession;
+import com.indeed.imhotep.ImhotepStatusDump;
+import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.Instrumentation.Keys;
+import com.indeed.imhotep.RegroupCondition;
+import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
@@ -38,7 +40,16 @@ import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.NioPathUtil;
 import com.indeed.imhotep.io.Streams;
 import com.indeed.imhotep.marshal.ImhotepDaemonMarshaller;
-import com.indeed.imhotep.protobuf.*;
+import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
+import com.indeed.imhotep.protobuf.GroupRemapMessage;
+import com.indeed.imhotep.protobuf.ImhotepRequest;
+import com.indeed.imhotep.protobuf.ImhotepResponse;
+import com.indeed.imhotep.protobuf.IntFieldAndTerms;
+import com.indeed.imhotep.protobuf.QueryMessage;
+import com.indeed.imhotep.protobuf.QueryRemapMessage;
+import com.indeed.imhotep.protobuf.RegroupConditionMessage;
+import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
+import com.indeed.imhotep.protobuf.StringFieldAndTerms;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
@@ -236,7 +247,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         }
 
         private ImhotepResponse openSession(
-                final ImhotepRequest          request,
+                final ImhotepRequest request,
                 final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException, IOException {
 
