@@ -117,11 +117,7 @@ public class ShardMasterDaemon {
                     sqlWriteManager
             );
 
-            LOGGER.info("Reading all shards...");
-            double loadTime = -System.currentTimeMillis();
             refresher.run(isLeader(leaderElectionRoot, zkConnection), true);
-            loadTime+= System.currentTimeMillis();
-            LOGGER.info("Shards read in " + loadTime + " millis.");
 
             hostReloadTimer.schedule(new TimerTask() {
                 @Override

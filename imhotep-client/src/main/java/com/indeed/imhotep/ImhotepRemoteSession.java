@@ -35,7 +35,17 @@ import com.indeed.imhotep.io.Streams;
 import com.indeed.imhotep.io.TempFileSizeLimitExceededException;
 import com.indeed.imhotep.io.WriteLimitExceededException;
 import com.indeed.imhotep.marshal.ImhotepClientMarshaller;
-import com.indeed.imhotep.protobuf.*;
+import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
+import com.indeed.imhotep.protobuf.GroupRemapMessage;
+import com.indeed.imhotep.protobuf.HostAndPort;
+import com.indeed.imhotep.protobuf.ImhotepRequest;
+import com.indeed.imhotep.protobuf.ImhotepResponse;
+import com.indeed.imhotep.protobuf.IntFieldAndTerms;
+import com.indeed.imhotep.protobuf.QueryMessage;
+import com.indeed.imhotep.protobuf.QueryRemapMessage;
+import com.indeed.imhotep.protobuf.RegroupConditionMessage;
+import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
+import com.indeed.imhotep.protobuf.StringFieldAndTerms;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
@@ -413,11 +423,7 @@ public class ImhotepRemoteSession
                 .setField(field)
                 .setIsIntField(isIntField)
                 .setSplitIndex(splitIndex)
-                .addAllNodes(Iterables.transform(Arrays.asList(nodes), new Function<InetSocketAddress, HostAndPort>() {
-                    public HostAndPort apply(final InetSocketAddress input) {
-                        return HostAndPort.newBuilder().setHost(input.getHostName()).setPort(input.getPort()).build();
-                    }
-                }))
+                .addAllNodes(Iterables.transform(Arrays.asList(nodes), input -> HostAndPort.newBuilder().setHost(input.getHostName()).setPort(input.getPort()).build()))
                 .build();
         return sendGroupStatsIteratorRequest(request, timer);
     }

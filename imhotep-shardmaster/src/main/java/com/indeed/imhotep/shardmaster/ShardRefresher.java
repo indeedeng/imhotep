@@ -270,10 +270,13 @@ public class ShardRefresher {
     }
 
     public void run(final boolean leader, final boolean shouldDelete) {
+        long time = -System.currentTimeMillis();
         try {
             executorService.submit(() -> innerRun(leader, shouldDelete)).get();
         } catch (InterruptedException | ExecutionException e) {
             LOGGER.error(e.getMessage(), e);
         }
+        time += System.currentTimeMillis();
+        LOGGER.info("Finished a refresh in: " + time + " millis");
     }
 }

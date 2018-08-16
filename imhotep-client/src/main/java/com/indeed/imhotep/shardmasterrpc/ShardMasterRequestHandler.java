@@ -17,7 +17,11 @@ package com.indeed.imhotep.shardmasterrpc;
 import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.Shard;
 import com.indeed.imhotep.ShardInfo;
-import com.indeed.imhotep.protobuf.*;
+import com.indeed.imhotep.protobuf.DatasetShardsMessage;
+import com.indeed.imhotep.protobuf.HostAndPort;
+import com.indeed.imhotep.protobuf.ShardMasterRequest;
+import com.indeed.imhotep.protobuf.ShardMasterResponse;
+import com.indeed.imhotep.protobuf.ShardMessage;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
