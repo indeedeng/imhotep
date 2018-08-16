@@ -13,12 +13,8 @@
  */
  package com.indeed.imhotep.service;
 
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.reader.MockFlamdexReader;
-import com.indeed.imhotep.DatasetInfo;
-import com.indeed.imhotep.MemoryReserver;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
@@ -42,7 +38,6 @@ import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -110,7 +105,9 @@ public class TestLocalImhotepServiceCore {
                     return openReader(directory);
                 }
             },
-                    new LocalImhotepServiceConfig());
+                    new LocalImhotepServiceConfig(),
+                    datasetDir);
+
 
             final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(ShardNameNumDocsPair.newBuilder().setShardName("index20150601").build()), "", "", "", 0, 0, false, "", null, 0);
             service.handlePushStat(sessionId, "count()");
@@ -187,7 +184,8 @@ public class TestLocalImhotepServiceCore {
                         return openReader(directory);
                     }
                 },
-                        new LocalImhotepServiceConfig());
+                        new LocalImhotepServiceConfig(),
+                        datasetDir);
             //TODO: fix or abandon test
             final List<ShardInfo> shards = null; //Lists.newArrayList(service.handleGetDatasetList().get(0).getShardList());
             assertEquals(3, shards.size());

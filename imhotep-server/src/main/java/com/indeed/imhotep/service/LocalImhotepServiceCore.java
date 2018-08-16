@@ -64,6 +64,7 @@ public class LocalImhotepServiceCore
 
     private final LoadingCache<Pair<Path, Integer>, SharedReference<FlamdexReader>> flamdexReaderLoadingCache;
 
+    private final Path rootDir;
 
     private final MemoryReserver memory;
 
@@ -84,9 +85,11 @@ public class LocalImhotepServiceCore
                                    final long memoryCapacity,
                                    final FlamdexReaderSource flamdexReaderFactory,
                                    final LocalImhotepServiceConfig config,
-                                   final MetricStatsEmitter statsEmitter)
+                                   final MetricStatsEmitter statsEmitter,
+                                   final Path rootDir)
         throws IOException {
 
+        this.rootDir = rootDir;
 
         /* check if the temp dir exists, try to create it if it does not */
         Preconditions.checkNotNull(shardTempDir, "shardTempDir is invalid");
@@ -160,13 +163,15 @@ public class LocalImhotepServiceCore
     public LocalImhotepServiceCore(@Nullable final Path shardTempDir,
                                    final long memoryCapacity,
                                    FlamdexReaderSource source,
-                                   final LocalImhotepServiceConfig config)
+                                   final LocalImhotepServiceConfig config,
+                                   Path rootDir)
         throws IOException {
         this(shardTempDir,
              memoryCapacity,
                 source,
                 config,
-             MetricStatsEmitter.NULL_EMITTER
+             MetricStatsEmitter.NULL_EMITTER,
+                rootDir
         );
     }
 
@@ -287,8 +292,7 @@ public class LocalImhotepServiceCore
                 final ShardId shardId = new ShardId(dataset, shardDir.getId(), shardDir.getVersion(), shardDir.getIndexDir());
                 final int numDocs = shardRequestList.get(i).getNumDocs();
                 final SharedReference<FlamdexReader> reader;
-                final RemoteCachingPath datasetsDir = (RemoteCachingPath) Paths.get(RemoteCachingFileSystemProvider.URI);
-                final Path path = datasetsDir.resolve(shardDir.getIndexDir().toString());
+                final Path path = rootDir.resolve(shardDir.getIndexDir().toString());
                 reader = flamdexReaderLoadingCache.get(new Pair<>(path, numDocs)).copy();
                 try {
                     flamdexes.put(shardId, reader.get());

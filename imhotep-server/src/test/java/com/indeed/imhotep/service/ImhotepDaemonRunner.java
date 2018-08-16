@@ -25,7 +25,7 @@ import java.util.concurrent.TimeoutException;
  * @author jsgroth
  */
 public class ImhotepDaemonRunner {
-    private final Path dir;
+    private final Path datasetDir;
     private final Path tempDir;
     private final int port;
     private int actualPort;
@@ -33,9 +33,9 @@ public class ImhotepDaemonRunner {
 
     private ImhotepDaemon currentlyRunning;
 
-    public ImhotepDaemonRunner(final Path dir, final Path tempDir, final int port) throws IOException,
+    public ImhotepDaemonRunner(final Path datasetDir, final Path tempDir, final int port) throws IOException,
                                                                                       TimeoutException {
-        this(dir, tempDir, port, new FlamdexReaderSource() {
+        this(datasetDir, tempDir, port, new FlamdexReaderSource() {
             @Override
             public FlamdexReader openReader(final Path directory) throws IOException {
                 return new MockFlamdexReader();
@@ -49,12 +49,12 @@ public class ImhotepDaemonRunner {
         });
     }
 
-    public ImhotepDaemonRunner(final Path dir,
+    public ImhotepDaemonRunner(final Path datasetDir,
                                final Path tempDir,
                                final int port,
                                final FlamdexReaderSource flamdexFactory) throws IOException,
                                                                         TimeoutException {
-        this.dir = dir;
+        this.datasetDir = datasetDir;
         this.tempDir = tempDir;
         this.port = port;
         this.flamdexFactory = flamdexFactory;        
@@ -77,7 +77,8 @@ public class ImhotepDaemonRunner {
                                   new LocalImhotepServiceCore(tempDir,
                                                               1024L * 1024 * 1024 * 1024,
                                                               flamdexFactory,
-                                                              new LocalImhotepServiceConfig()),
+                                                              new LocalImhotepServiceConfig(),
+                                                              datasetDir),
                                   null, null, "localhost", port, null);
         actualPort = currentlyRunning.getPort();
 

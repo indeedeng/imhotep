@@ -69,6 +69,7 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -1309,7 +1310,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         localService = new LocalImhotepServiceCore(tmpDir,
                 memoryCapacityInMB * 1024 * 1024,
                 null,
-                localImhotepServiceConfig);
+                localImhotepServiceConfig,
+                Paths.get(RemoteCachingFileSystemProvider.URI));
         final ImhotepDaemon result =
                 new ImhotepDaemon(ss, localService, zkNodes, zkPath, myHostname, port, sessionForwardingPort);
         localService.addObserver(result.getServiceCoreObserver());
