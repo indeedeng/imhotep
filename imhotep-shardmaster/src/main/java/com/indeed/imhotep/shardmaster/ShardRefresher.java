@@ -32,7 +32,6 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 
 /**
@@ -42,13 +41,14 @@ import java.util.stream.StreamSupport;
 public class ShardRefresher {
     private static final Logger LOGGER = Logger.getLogger(ShardRefresher.class);
     private final Path datasetsDir;
-    private static final ExecutorService executorService = new ForkJoinPool(40);
+    private static final ThreadPoolExecutor executorService = (ThreadPoolExecutor) Executors.newCachedThreadPool();
     private final JdbcTemplate dbConnection;
     private final org.apache.hadoop.fs.FileSystem hadoopFileSystem;
     private final ShardFilter filter;
     private final ShardData shardData;
     private Timestamp lastUpdatedTimestamp;
     private final SQLWriteManager sqlWriteManager;
+    private final boolean localMode;
 
 
 
@@ -57,7 +57,8 @@ public class ShardRefresher {
                    final String rootURI,
                    final ShardFilter filter,
                    final ShardData shardData,
-                   final SQLWriteManager manager) throws IOException {
+                   final SQLWriteManager manager,
+                   final boolean localMode) throws IOException {
         this.datasetsDir = datasetsDir;
         this.dbConnection = dbConnection;
         this.hadoopFileSystem = new Path(rootURI).getFileSystem(new Configuration());
@@ -65,6 +66,7 @@ public class ShardRefresher {
         this.shardData = shardData;
         this.sqlWriteManager = manager;
         this.lastUpdatedTimestamp = Timestamp.from(Instant.MIN);
+        this.localMode = localMode;
     }
 
     private void loadFromSQL(boolean shouldDelete) {
@@ -90,24 +92,33 @@ public class ShardRefresher {
 
     private void innerRun(boolean leader, boolean shouldDeleteUsingSQL) {
         loadFromSQL(shouldDeleteUsingSQL);
-
-        if(!leader) {
-            return;
+        if(leader) {
+            processFilesystemData();
         }
+    }
 
+    private void processFilesystemData() {
         DataSetScanner scanner = new DataSetScanner(datasetsDir, hadoopFileSystem);
-        try {
-            final Set<String> allRemaining = shardData.getCopyOfAllPaths();
-            executorService.submit(() -> StreamSupport.stream(scanner.spliterator(), true).filter(path -> filter.accept(path.getName())).forEach(a -> handleDataset(a, allRemaining))).get();
-
-            deleteFromSQL(new ArrayList<>(allRemaining));
-            shardData.deleteShards(allRemaining);
-            List<String> deletedDatasets = shardData.deleteDatasetsWithoutShards();
-            deleteFieldsForDatasetsInSQL(deletedDatasets);
-
-        } catch (ExecutionException | InterruptedException e) {
-            LOGGER.error("Error during hdfs shard refresh", e);
+        final Set<String> allRemaining = shardData.getCopyOfAllPaths();
+        List<Pair<Future, Path>> futures = new ArrayList<>();
+        for (Path dataset : scanner) {
+            if (filter.accept(dataset.getName())) {
+                futures.add(new Pair<>(executorService.submit(() -> handleDataset(dataset, allRemaining)), dataset));
+            }
         }
+
+        futures.forEach(future -> {
+            try {
+                future.getKey().get();
+            } catch (InterruptedException | ExecutionException e) {
+                LOGGER.error("Error reading a dataset: " + future.getValue(), e);
+            }
+        });
+
+        deleteFromSQL(new ArrayList<>(allRemaining));
+        shardData.deleteShards(allRemaining);
+        List<String> deletedDatasets = shardData.deleteDatasetsWithoutShards();
+        deleteFieldsForDatasetsInSQL(deletedDatasets);
     }
 
     private void deleteFieldsForDatasetsInSQL(List<String> deletedDatasets) {
@@ -270,13 +281,13 @@ public class ShardRefresher {
     }
 
     public void run(final boolean leader, final boolean shouldDelete) {
+        ScheduledExecutorService updates = Executors.newSingleThreadScheduledExecutor();
+        final long startTime = System.currentTimeMillis();
+        updates.scheduleAtFixedRate(() -> LOGGER.info("I have a total of: " + shardData.getAllPaths().size() + " shards read.\nThere are a total of: " + executorService.getActiveCount()  + " threads active.\nI have used: " + (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) + " bytes of memory.\nThis task has been running for: " + (System.currentTimeMillis() - startTime) + " millis."), 0, 1, TimeUnit.MINUTES);
         long time = -System.currentTimeMillis();
-        try {
-            executorService.submit(() -> innerRun(leader, shouldDelete)).get();
-        } catch (InterruptedException | ExecutionException e) {
-            LOGGER.error(e.getMessage(), e);
-        }
+        innerRun(leader, shouldDelete);
         time += System.currentTimeMillis();
         LOGGER.info("Finished a refresh in: " + time + " millis");
+        updates.shutdownNow();
     }
 }

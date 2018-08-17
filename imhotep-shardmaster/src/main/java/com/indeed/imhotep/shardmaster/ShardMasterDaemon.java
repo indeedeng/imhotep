@@ -114,7 +114,8 @@ public class ShardMasterDaemon {
                     rootURI,
                     config.shardFilter,
                     shardData,
-                    sqlWriteManager
+                    sqlWriteManager,
+                    config.localMode
             );
 
             refresher.run(isLeader(leaderElectionRoot, zkConnection), true);
@@ -232,6 +233,12 @@ public class ShardMasterDaemon {
         private Duration deleteInterval = Duration.standardDays(1);
         private String metadataDBUsername;
         private String metadataDBPassword;
+        private boolean localMode = false;
+
+        public Config setLocalMode(boolean newLocalMode) {
+            this.localMode = newLocalMode;
+            return this;
+        }
 
         public Config setMetadataDBUsername(final String username) {
             this.metadataDBUsername = username;

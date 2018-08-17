@@ -2,6 +2,7 @@ package com.indeed.imhotep.shardmaster;
 import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.client.ShardTimeUtils;
+import com.indeed.imhotep.scheduling.TaskQueue;
 import com.indeed.imhotep.shardmaster.utils.IntervalTree;
 import javafx.util.Pair;
 import org.joda.time.Interval;
@@ -88,6 +89,10 @@ public class ShardData {
             tblFields.remove(dataset);
         }
         return datasets;
+    }
+
+    public Collection<ShardInfo> getAllPaths() {
+        return pathsToShards.values();
     }
 
     enum FieldType {
