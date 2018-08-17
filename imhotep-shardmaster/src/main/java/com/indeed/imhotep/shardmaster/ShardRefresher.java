@@ -42,7 +42,9 @@ import java.util.stream.Stream;
 public class ShardRefresher {
     private static final Logger LOGGER = Logger.getLogger(ShardRefresher.class);
     private final Path datasetsDir;
-    private static final ThreadPoolExecutor executorService = (ThreadPoolExecutor) Executors.newFixedThreadPool(100,
+    private static final ThreadPoolExecutor datasetsExecutorService = (ThreadPoolExecutor) Executors.newFixedThreadPool(10,
+            new NamedThreadFactory("DatasetRefresher"));
+    private static final ThreadPoolExecutor shardsExecutorService = (ThreadPoolExecutor) Executors.newFixedThreadPool(100,
             new NamedThreadFactory("ShardRefresher"));
     private final JdbcTemplate dbConnection;
     private final org.apache.hadoop.fs.FileSystem hadoopFileSystem;
@@ -105,7 +107,7 @@ public class ShardRefresher {
         List<Pair<Future, Path>> futures = new ArrayList<>();
         for (Path dataset : scanner) {
             if (filter.accept(dataset.getName())) {
-                futures.add(new Pair<>(executorService.submit(() -> handleDataset(dataset, allRemaining)), dataset));
+                futures.add(new Pair<>(datasetsExecutorService.submit(() -> handleDataset(dataset, allRemaining)), dataset));
             }
         }
 
@@ -149,7 +151,7 @@ public class ShardRefresher {
         for(final ShardDir dir: dataset) {
             allPaths.remove(dir.getIndexDir().toString());
             if(filter.accept(dir.getDataset(), dir.getId()) && isValidAndNew(dir)) {
-                pairs.add(new Pair<>(dir, executorService.submit(() -> collectShardMetadata(dir))));
+                pairs.add(new Pair<>(dir, shardsExecutorService.submit(() -> collectShardMetadata(dir))));
             }
         }
 
@@ -286,7 +288,7 @@ public class ShardRefresher {
         ScheduledExecutorService updates = Executors.newSingleThreadScheduledExecutor();
         final long startTime = System.currentTimeMillis();
         updates.scheduleAtFixedRate(() -> LOGGER.info("I have a total of: " + shardData.getAllPaths().size() + " shards read.\n" +
-                "There are a total of: " + executorService.getActiveCount()  + " threads active.\n" +
+                "There are a total of: " + shardsExecutorService.getActiveCount()  + " threads active.\n" +
                 "I have used: " + (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) + " bytes of memory.\n" +
                 "This task has been running for: " + (System.currentTimeMillis() - startTime) + " millis."), 0, 1, TimeUnit.MINUTES);
         long time = -System.currentTimeMillis();
