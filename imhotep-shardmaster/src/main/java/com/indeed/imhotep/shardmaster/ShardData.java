@@ -2,7 +2,6 @@ package com.indeed.imhotep.shardmaster;
 import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.client.ShardTimeUtils;
-import com.indeed.imhotep.scheduling.TaskQueue;
 import com.indeed.imhotep.shardmaster.utils.IntervalTree;
 import javafx.util.Pair;
 import org.joda.time.Interval;
@@ -33,68 +32,6 @@ public class ShardData {
     private Map<String, Map<String, Pair<FieldType, Long>>> tblFields;
     final private Map<String, ShardInfo> pathsToShards;
 
-
-    public boolean hasField(final String dataset, final String field) {
-        return tblFields.containsKey(dataset) && tblFields.get(dataset).containsKey(field);
-    }
-
-    public long getFieldUpdateTime(final String dataset, final String field) {
-        final Map<String, Pair<FieldType, Long>> datasetFields = tblFields.get(dataset);
-        return datasetFields != null ? datasetFields.get(field).getValue() : 0;
-    }
-
-    public List<String> getFields(final String dataset, final FieldType type) {
-        final List<String> fields = new ArrayList<>();
-        final Map<String, Pair<FieldType, Long>> datasetFields = tblFields.get(dataset);
-        if(datasetFields == null) {
-            return new ArrayList<>();
-        }
-        datasetFields.forEach((name, entry) -> {
-            if(entry.getKey() == type) {
-                fields.add(name);
-            }
-        });
-        return fields;
-    }
-
-    public int getNumDocs(final String path) {
-        if(!pathsToShards.containsKey(path)) {
-            return -1;
-        }
-        return pathsToShards.get(path).numDocs;
-    }
-
-    public Set<String> getCopyOfAllPaths() {
-        final ConcurrentHashMap.KeySetView<String, Boolean> set = ConcurrentHashMap.newKeySet(pathsToShards.keySet().size());
-        set.addAll(pathsToShards.keySet());
-        return set;
-    }
-
-    public void deleteShards(final Set<String> allPaths) {
-        for(final String path: allPaths) {
-            final ShardDir temp = new ShardDir(Paths.get(path));
-            final Interval interval = ShardTimeUtils.parseInterval(temp.getId());
-            tblShards.get(temp.getDataset()).deleteInterval(interval.getStart().getMillis(), interval.getEnd().getMillis(), pathsToShards.get(path));
-            if(tblShards.get(temp.getDataset()).getAllValues().isEmpty()) {
-                tblShards.remove(temp.getDataset());
-            }
-            pathsToShards.remove(path);
-        }
-    }
-
-    public List<String> deleteDatasetsWithoutShards() {
-        List<String> datasets = tblFields.keySet().stream().filter(dataset -> (!tblShards.containsKey(dataset)) || tblShards.get(dataset).getAllValues().size() == 0).collect(Collectors.toList());
-        for(String dataset: datasets) {
-            tblShards.remove(dataset);
-            tblFields.remove(dataset);
-        }
-        return datasets;
-    }
-
-    public Collection<ShardInfo> getAllPaths() {
-        return pathsToShards.values();
-    }
-
     enum FieldType {
         INT, STRING, CONFLICT;
 
@@ -118,29 +55,34 @@ public class ShardData {
         pathsToShards = new ConcurrentHashMap<>();
     }
 
-    public void addShardFromHDFS(final FlamdexMetadata metadata, final ShardDir shardDir) {
-        addShardToDatastructure(metadata, shardDir);
-    }
+    public void addShardFromFilesystem(final ShardDir shardDir, final FlamdexMetadata metadata) {
+        final ShardInfo info = new ShardInfo(shardDir.getId(), metadata.getNumDocs(), shardDir.getVersion());
+        final String dataset = shardDir.getDataset();
 
-    public void updateTableFieldsRowsFromSQL(final ResultSet rows) throws SQLException {
-        Map<String, Map<String, Pair<FieldType, Long>>> newTblFields = new HashMap<>();
+        pathsToShards.put(shardDir.getIndexDir().toString(), info);
 
-        if (rows.first()) {
-            do {
-                final String dataset = rows.getString("dataset");
-                final String fieldName = rows.getString("fieldname");
-                final FieldType type = FieldType.getType(rows.getString("type"));
-                final long dateTime = rows.getLong("lastshardstarttime");
-                if (!newTblFields.containsKey(dataset)) {
-                    newTblFields.put(dataset, new ConcurrentHashMap<>());
-                }
-
-                newTblFields.get(dataset).put(fieldName, new Pair<>(type, dateTime));
-
-            } while (rows.next());
+        if(!tblShards.containsKey(dataset)) {
+            tblShards.put(dataset, new IntervalTree<>());
+            tblFields.put(dataset, new ConcurrentHashMap<>());
         }
+        final Interval interval = ShardTimeUtils.parseInterval(shardDir.getId());
+        tblShards.get(dataset).addInterval(interval.getStart().getMillis(), interval.getEnd().getMillis(), info);
 
-        tblFields = newTblFields;
+        Set<String> stringFields = new HashSet<>(metadata.getStringFields());
+        Set<String> intFields = new HashSet<>(metadata.getIntFields());
+
+        Stream.concat(metadata.getIntFields().stream(), metadata.getStringFields().stream())
+                .filter(field -> !tblFields.get(dataset).containsKey(field)
+                        || tblFields.get(dataset).get(field).getValue() < interval.getStartMillis())
+                .forEach(field -> {
+                    if(stringFields.contains(field) && !intFields.contains(field)) {
+                        tblFields.get(dataset).put(field, new Pair<>(FieldType.STRING, interval.getStartMillis()));
+                    } else if(!stringFields.contains(field) && intFields.contains(field)) {
+                        tblFields.get(dataset).put(field, new Pair<>(FieldType.INT, interval.getStartMillis()));
+                    } else {
+                        tblFields.get(dataset).put(field, new Pair<>(FieldType.CONFLICT, interval.getStartMillis()));
+                    }
+                });
     }
 
     public void updateTableShardsRowsFromSQL(final ResultSet rows, boolean shouldDelete) throws SQLException {
@@ -184,38 +126,84 @@ public class ShardData {
         }
     }
 
-    private void addShardToDatastructure(final FlamdexMetadata metadata, final ShardDir shardDir) {
-        final ShardInfo info = new ShardInfo(shardDir.getId(), metadata.getNumDocs(), shardDir.getVersion());
-        final String dataset = shardDir.getDataset();
+    public void updateTableFieldsRowsFromSQL(final ResultSet rows) throws SQLException {
+        Map<String, Map<String, Pair<FieldType, Long>>> newTblFields = new HashMap<>();
 
-        pathsToShards.put(shardDir.getIndexDir().toString(), info);
+        if (rows.first()) {
+            do {
+                final String dataset = rows.getString("dataset");
+                final String fieldName = rows.getString("fieldname");
+                final FieldType type = FieldType.getType(rows.getString("type"));
+                final long dateTime = rows.getLong("lastshardstarttime");
+                if (!newTblFields.containsKey(dataset)) {
+                    newTblFields.put(dataset, new ConcurrentHashMap<>());
+                }
 
-        if(!tblShards.containsKey(dataset)) {
-            tblShards.put(dataset, new IntervalTree<>());
-            tblFields.put(dataset, new ConcurrentHashMap<>());
+                newTblFields.get(dataset).put(fieldName, new Pair<>(type, dateTime));
+
+            } while (rows.next());
         }
-        final Interval interval = ShardTimeUtils.parseInterval(shardDir.getId());
-        tblShards.get(dataset).addInterval(interval.getStart().getMillis(), interval.getEnd().getMillis(), info);
 
-        Set<String> stringFields = new HashSet<>(metadata.getStringFields());
-        Set<String> intFields = new HashSet<>(metadata.getIntFields());
+        tblFields = newTblFields;
+    }
 
-        Stream.concat(metadata.getIntFields().stream(), metadata.getStringFields().stream())
-                .filter(field -> !tblFields.get(dataset).containsKey(field)
-                        || tblFields.get(dataset).get(field).getValue() < interval.getStartMillis())
-                .forEach(field -> {
-                    if(stringFields.contains(field) && !intFields.contains(field)) {
-                        tblFields.get(dataset).put(field, new Pair<>(FieldType.STRING, interval.getStartMillis()));
-                    } else if(!stringFields.contains(field) && intFields.contains(field)) {
-                        tblFields.get(dataset).put(field, new Pair<>(FieldType.INT, interval.getStartMillis()));
-                    } else {
-                        tblFields.get(dataset).put(field, new Pair<>(FieldType.CONFLICT, interval.getStartMillis()));
-                    }
-                });
+    public void deleteShards(final Set<String> allPaths) {
+        for(final String path: allPaths) {
+            final ShardDir temp = new ShardDir(Paths.get(path));
+            final Interval interval = ShardTimeUtils.parseInterval(temp.getId());
+            tblShards.get(temp.getDataset()).deleteInterval(interval.getStart().getMillis(), interval.getEnd().getMillis(), pathsToShards.get(path));
+            if(tblShards.get(temp.getDataset()).getAllValues().isEmpty()) {
+                tblShards.remove(temp.getDataset());
+            }
+            pathsToShards.remove(path);
+        }
+    }
+
+    public List<String> deleteDatasetsWithoutShards() {
+        List<String> datasets = tblFields.keySet().stream().filter(dataset -> (!tblShards.containsKey(dataset)) || tblShards.get(dataset).getAllValues().size() == 0).collect(Collectors.toList());
+        for(String dataset: datasets) {
+            tblShards.remove(dataset);
+            tblFields.remove(dataset);
+        }
+        return datasets;
+    }
+
+
+    public boolean hasField(final String dataset, final String field) {
+        return tblFields.containsKey(dataset) && tblFields.get(dataset).containsKey(field);
+    }
+
+    public List<String> getFields(final String dataset, final FieldType type) {
+        final List<String> fields = new ArrayList<>();
+        final Map<String, Pair<FieldType, Long>> datasetFields = tblFields.get(dataset);
+        if(datasetFields == null) {
+            return new ArrayList<>();
+        }
+        datasetFields.forEach((name, entry) -> {
+            if(entry.getKey() == type) {
+                fields.add(name);
+            }
+        });
+        return fields;
+    }
+
+    public long getFieldUpdateTime(final String dataset, final String field) {
+        final Map<String, Pair<FieldType, Long>> datasetFields = tblFields.get(dataset);
+        return datasetFields != null ? datasetFields.get(field).getValue() : 0;
     }
 
     public boolean hasShard(final String path){
         return pathsToShards.containsKey(path);
+    }
+
+    public Collection<ShardInfo> getAllPaths() {
+        return pathsToShards.values();
+    }
+
+    public Set<String> getCopyOfAllPaths() {
+        final ConcurrentHashMap.KeySetView<String, Boolean> set = ConcurrentHashMap.newKeySet(pathsToShards.keySet().size());
+        set.addAll(pathsToShards.keySet());
+        return set;
     }
 
     public Collection<String> getDatasets(){
@@ -231,6 +219,17 @@ public class ShardData {
     }
 
     public Collection<ShardInfo> getShardsInTime(final String dataset, final long start, final long end) {
-        return tblShards.get(dataset).getValuesInRange(start, end);
+        IntervalTree<Long, ShardInfo> shards = tblShards.get(dataset);
+        if(shards == null) {
+            return Collections.emptyList();
+        }
+        return shards.getValuesInRange(start, end);
+    }
+
+    public int getNumDocs(final String path) {
+        if(!pathsToShards.containsKey(path)) {
+            return -1;
+        }
+        return pathsToShards.get(path).numDocs;
     }
 }

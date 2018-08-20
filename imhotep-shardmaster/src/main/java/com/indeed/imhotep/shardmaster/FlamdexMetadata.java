@@ -107,6 +107,9 @@ public class FlamdexMetadata {
         SquallArchiveReader reader = new SquallArchiveReader(hadoopFilesystem, hadoopPath);
         List<FileMetadata> fileMetadata = reader.readMetadata();
         FileMetadata acutalMetadata = getMetadataFromMetadata(fileMetadata);
+        if(acutalMetadata == null) {
+            return null;
+        }
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         reader.tryCopyToStream(acutalMetadata, out);
         final Yaml loader = new Yaml(new CustomClassLoaderConstructor(FlamdexMetadata.class, FlamdexMetadata.class.getClassLoader()));

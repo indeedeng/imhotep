@@ -40,10 +40,10 @@ public class RequestResponseServer implements Closeable {
     private final ExecutorService requestHandlerExecutor;
     private final ServerSocket serverSocket;
 
-    public RequestResponseServer(final int port, final RequestHandler requestHandler, final int numThreads) throws IOException {
+    public RequestResponseServer(final ServerSocket socket, final RequestHandler requestHandler, final int numThreads) throws IOException {
         this.requestHandler = requestHandler;
         requestHandlerExecutor = ShardMasterExecutors.newBlockingFixedThreadPool(numThreads);
-        serverSocket = new ServerSocket(port);
+        serverSocket = socket;
     }
 
     public int getActualPort() {
