@@ -22,6 +22,7 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.indeed.imhotep.ZkEndpointPersister;
 import com.indeed.imhotep.client.*;
+import com.indeed.imhotep.hadoopcommon.KerberosUtils;
 import com.indeed.imhotep.shardmaster.utils.SQLWriteManager;
 import com.indeed.imhotep.shardmasterrpc.MultiplexingRequestHandler;
 import com.indeed.imhotep.shardmasterrpc.RequestMetricStatsEmitter;
@@ -76,6 +77,9 @@ public class ShardMasterDaemon {
         lastDeleteTimeMillis = System.currentTimeMillis();
 
         LOGGER.info("Starting daemon...");
+
+        // TODO: fix for open source
+        KerberosUtils.loginFromKeytab(null, null);
 
         final ExecutorService executorService = config.createExecutorService();
         final Timer hostReloadTimer = new Timer(ShardRefresher.class.getSimpleName());
