@@ -34,8 +34,8 @@ message StatusDumpMessage {
   required uint64 used_memory = 1;
   required uint64 total_memory = 2;
   repeated SessionDumpMessage open_session = 3;
-  repeated ShardDumpMessage loaded_shard = 4;
-  optional uint32 shard_count = 5 [default = 0];
+  repeated ShardDumpMessage deleted_loaded_shard = 4;
+  optional uint32 deleted_shard_count = 5 [default = 0];
 }
 
 message SessionDumpMessage {

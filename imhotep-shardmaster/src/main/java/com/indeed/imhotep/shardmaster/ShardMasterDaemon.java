@@ -19,7 +19,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.indeed.imhotep.ZkEndpointPersister;
 import com.indeed.imhotep.client.*;
@@ -38,7 +37,6 @@ import org.apache.zookeeper.*;
 import org.joda.time.Duration;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -83,14 +81,12 @@ public class ShardMasterDaemon {
         final Timer hostReloadTimer = new Timer(ShardRefresher.class.getSimpleName());
         final ScheduledExecutorService datasetReloadExecutor = Executors.newSingleThreadScheduledExecutor();
 
+        final HostsReloader zkHostsReloader = config.createZkHostsReloader();
         final HostsReloader hostsReloader;
         if (config.hasHostsOverride()) {
-            hostsReloader = config.createStaticHostReloader();
+            hostsReloader = new StaticWithDynamicDowntimeHostsReloader(config.getStaticHosts(), zkHostsReloader);
         } else {
-            hostsReloader = new CheckpointedHostsReloader(
-                    new File(config.getHostsFile()),
-                    config.createZkHostsReloader(),
-                    config.getHostsDropThreshold());
+            hostsReloader = zkHostsReloader;
         }
 
         final ZooKeeperConnection zkConnection = config.getLeaderZkConnection();
@@ -219,9 +215,7 @@ public class ShardMasterDaemon {
         private String shardMastersZkPath;
         private String dbFile;
         private String dbParams = "MULTI_THREADED=TRUE;CACHE_SIZE=" + (1024 * 1024);
-        private String hostsFile;
-        private String hostsOverride;
-        private String disabledHosts;
+        private String hostsListStatic;
         private String shardAssigner;
         private ShardFilter shardFilter = ShardFilter.ACCEPT_ALL;
         private int servicePort = 0;
@@ -230,9 +224,7 @@ public class ShardMasterDaemon {
         private int threadPoolSize = 5;
         private int replicationFactor = 2;
         private Duration refreshInterval = Duration.standardMinutes(5);
-        private Duration stalenessThreshold = Duration.standardMinutes(15);
         private Duration hostsRefreshInterval = Duration.standardMinutes(1);
-        private double hostsDropThreshold = 0.5;
         private RequestMetricStatsEmitter statsEmitter = RequestMetricStatsEmitter.NULL_EMITTER;
         private String metadataDBURL;
         private Duration deleteInterval = Duration.standardDays(1);
@@ -287,18 +279,8 @@ public class ShardMasterDaemon {
             return this;
         }
 
-        public Config setHostsFile(final String hostsFile) {
-            this.hostsFile = hostsFile;
-            return this;
-        }
-
-        public Config setHostsOverride(final String hostsOverride) {
-            this.hostsOverride = hostsOverride;
-            return this;
-        }
-
-        public Config setDisabledHosts(final String disabledHosts) {
-            this.disabledHosts = disabledHosts;
+        public Config setHostsListStatic(final String hostsListStatic) {
+            this.hostsListStatic = hostsListStatic;
             return this;
         }
 
@@ -342,18 +324,8 @@ public class ShardMasterDaemon {
             return this;
         }
 
-        public Config setStalenessThreshold(final long stalenessThreshold) {
-            this.stalenessThreshold = Duration.millis(stalenessThreshold);
-            return this;
-        }
-
         public Config setHostsRefreshInterval(final long hostsRefreshInterval) {
             this.hostsRefreshInterval = Duration.millis(hostsRefreshInterval);
-            return this;
-        }
-
-        public Config setHostsDropThreshold(final double hostsDropThreshold) {
-            this.hostsDropThreshold = hostsDropThreshold;
             return this;
         }
 
@@ -368,7 +340,7 @@ public class ShardMasterDaemon {
         }
 
         boolean hasHostsOverride() {
-            return StringUtils.isNotBlank(hostsOverride);
+            return StringUtils.isNotBlank(hostsListStatic);
         }
 
         HostsReloader createZkHostsReloader() {
@@ -376,18 +348,9 @@ public class ShardMasterDaemon {
             return new ZkHostsReloader(zkNodes, imhotepDaemonsZkPath, false);
         }
 
-        HostsReloader createStaticHostReloader() throws IOException {
-            Preconditions.checkNotNull(hostsOverride, "Static hosts config is missing");
-            final List<Host> hostList = Lists.newArrayList(parseHostsList(hostsOverride));
-            if (StringUtils.isNotBlank(disabledHosts)) {
-                final Set<Host> disabledHostList = Sets.newHashSet(parseHostsList(disabledHosts));
-                for(int i = 0; i < hostList.size(); i++) {
-                    if(disabledHostList.contains(hostList.get(i))) {
-                        hostList.set(i, null);
-                    }
-                }
-            }
-            return new DummyHostsReloader(hostList);
+        List<Host> getStaticHosts() throws IOException {
+            Preconditions.checkNotNull(hostsListStatic, "Static hosts config is missing");
+            return Lists.newArrayList(parseHostsList(hostsListStatic));
         }
 
         private List<Host> parseHostsList(String value) {
@@ -451,13 +414,17 @@ public class ShardMasterDaemon {
             String shardAssignerToUse = shardAssigner;
             // Provide a default if not configured
             if(Strings.isNullOrEmpty(shardAssignerToUse)) {
-                shardAssignerToUse = replicationFactor == 1 ? "time" : "minhash";
+                shardAssignerToUse = (replicationFactor == 1 && !Strings.isNullOrEmpty(hostsListStatic)) ? "time" : "minhash";
             }
 
             if("time".equals(shardAssignerToUse)) {
                 if (replicationFactor != 1) {
                     throw new IllegalArgumentException("Time shard assigner only supports replication factor = 1 now. " +
                             "'minhash' shard assigner is recommended if higher replication factor is used.");
+                }
+                if (Strings.isNullOrEmpty(hostsListStatic)) {
+                    throw new IllegalArgumentException("Time shard assigner requires host list to be explicitly listed in now. " +
+                            "'minhash' shard assigner is recommended if host list is not fixed.");
                 }
                 return new TimeBasedShardAssigner();
             } else if ("minhash".equals(shardAssignerToUse)){
@@ -471,25 +438,8 @@ public class ShardMasterDaemon {
             return refreshInterval;
         }
 
-        Duration getStalenessThreshold() {
-            return stalenessThreshold;
-        }
-
-        String getHostsFile() {
-            Preconditions.checkNotNull(hostsFile, "HostsFile config is missing");
-            return hostsFile;
-        }
-
-        String getDbFile() {
-            return dbFile;
-        }
-
         Duration getHostsRefreshInterval() {
             return hostsRefreshInterval;
-        }
-
-        double getHostsDropThreshold() {
-            return hostsDropThreshold;
         }
 
         public Duration getDeleteInterval() {
@@ -524,10 +474,10 @@ public class ShardMasterDaemon {
     }
 
     public static void main(final String[] args) throws InterruptedException, IOException, KeeperException, SQLException {
+        // TODO: fix this to set correct configs
         new ShardMasterDaemon(new Config()
                 .setZkNodes(System.getProperty("imhotep.shardmaster.zookeeper.nodes"))
                 .setDbFile(System.getProperty("imhotep.shardmaster.db.file"))
-                .setHostsFile(System.getProperty("imhotep.shardmaster.hosts.file"))
                 .setServerSocket(new ServerSocket(Integer.parseInt(System.getProperty("imhotep.shardmaster.server.port"))))
         ).run();
     }
