@@ -87,7 +87,7 @@ public class ShardMasterDaemon {
 
         final HostsReloader zkHostsReloader = config.createZkHostsReloader();
         final HostsReloader hostsReloader;
-        if (config.hasHostsOverride()) {
+        if (config.hasStaticHostsList()) {
             hostsReloader = new StaticWithDynamicDowntimeHostsReloader(config.getStaticHosts(), zkHostsReloader);
         } else {
             hostsReloader = zkHostsReloader;
@@ -343,7 +343,7 @@ public class ShardMasterDaemon {
             return this;
         }
 
-        boolean hasHostsOverride() {
+        boolean hasStaticHostsList() {
             return StringUtils.isNotBlank(hostsListStatic);
         }
 
@@ -418,7 +418,7 @@ public class ShardMasterDaemon {
             String shardAssignerToUse = shardAssigner;
             // Provide a default if not configured
             if(Strings.isNullOrEmpty(shardAssignerToUse)) {
-                shardAssignerToUse = (replicationFactor == 1 && !Strings.isNullOrEmpty(hostsListStatic)) ? "time" : "minhash";
+                shardAssignerToUse = (replicationFactor == 1 && hasStaticHostsList()) ? "time" : "minhash";
             }
 
             if("time".equals(shardAssignerToUse)) {
@@ -426,7 +426,7 @@ public class ShardMasterDaemon {
                     throw new IllegalArgumentException("Time shard assigner only supports replication factor = 1 now. " +
                             "'minhash' shard assigner is recommended if higher replication factor is used.");
                 }
-                if (Strings.isNullOrEmpty(hostsListStatic)) {
+                if (!hasStaticHostsList()) {
                     throw new IllegalArgumentException("Time shard assigner requires host list to be explicitly listed in now. " +
                             "'minhash' shard assigner is recommended if host list is not fixed.");
                 }

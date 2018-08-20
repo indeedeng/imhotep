@@ -16,9 +16,10 @@ package com.indeed.imhotep.client;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.indeed.util.core.DataLoadTimer;
+import com.indeed.util.core.DataLoadingRunnable;
+import org.apache.log4j.Logger;
 
-import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -26,12 +27,14 @@ import java.util.Set;
  * Uses a static list of hosts in a consistent order but nulls out those that are down
  * based on the dynamic hosts reloader provided.
  */
-public class StaticWithDynamicDowntimeHostsReloader extends DataLoadTimer implements HostsReloader {
+public class StaticWithDynamicDowntimeHostsReloader extends DataLoadingRunnable implements HostsReloader {
+    private static final Logger log = Logger.getLogger(StaticWithDynamicDowntimeHostsReloader.class);
     private final List<Host> allHosts;
     private final HostsReloader dynamicReloader;
-    private volatile List<Host> hosts;
+    private volatile List<Host> hosts = Collections.emptyList();
 
-    public StaticWithDynamicDowntimeHostsReloader(List<Host> allHosts, HostsReloader dynamicReloader) throws IOException {
+    public StaticWithDynamicDowntimeHostsReloader(List<Host> allHosts, HostsReloader dynamicReloader) {
+        super("StaticWithDynamicDowntimeHostsReloader");
         this.allHosts = allHosts;
         this.dynamicReloader = dynamicReloader;
     }
@@ -47,23 +50,26 @@ public class StaticWithDynamicDowntimeHostsReloader extends DataLoadTimer implem
     }
 
     @Override
-    public void run() {
-        updateLastLoadCheck();
-
+    public boolean load() {
         dynamicReloader.run();
-
         if (!dynamicReloader.isLoadedDataSuccessfullyRecently()) {
+            int downHosts = 0;
             final Set<Host> upHosts = Sets.newHashSet(dynamicReloader.getHosts());
             final List<Host> newHostsWithDowntime = Lists.newArrayList(allHosts);
             for(int i = 0; i < newHostsWithDowntime.size(); i++) {
                 if(!upHosts.contains(newHostsWithDowntime.get(i))) {
                     newHostsWithDowntime.set(i, null);  // this host is down
+                    downHosts++;
                 }
             }
             hosts = newHostsWithDowntime;
-            loadComplete();
-            return;
+            if(downHosts > 0) {
+                log.warn(downHosts + " hosts are down out of " + allHosts.size() + ". " + upHosts.size() +
+                        " returned by the dynamic hosts reloader");
+            }
+            return true;
         }
-        loadFailed();
+        log.warn("Dynamic hosts reloader is not up to date, last loaded at " + dynamicReloader.isLoadedDataSuccessfullyRecently());
+        return false;
     }
 }
