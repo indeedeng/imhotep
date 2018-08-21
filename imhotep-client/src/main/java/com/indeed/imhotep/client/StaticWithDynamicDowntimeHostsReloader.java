@@ -52,7 +52,7 @@ public class StaticWithDynamicDowntimeHostsReloader extends DataLoadingRunnable 
     @Override
     public boolean load() {
         dynamicReloader.run();
-        if (!dynamicReloader.isLoadedDataSuccessfullyRecently()) {
+        if (dynamicReloader.isLoadedDataSuccessfullyRecently()) {
             int downHosts = 0;
             final Set<Host> upHosts = Sets.newHashSet(dynamicReloader.getHosts());
             final List<Host> newHostsWithDowntime = Lists.newArrayList(allHosts);
@@ -69,7 +69,7 @@ public class StaticWithDynamicDowntimeHostsReloader extends DataLoadingRunnable 
             }
             return true;
         }
-        log.warn("Dynamic hosts reloader is not up to date, last loaded at " + dynamicReloader.isLoadedDataSuccessfullyRecently());
+        log.warn("Dynamic hosts reloader is not up to date");
         return false;
     }
 }

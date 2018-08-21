@@ -95,7 +95,8 @@ public class RequestResponseServer implements Closeable {
                             try {
                                 responses = requestHandler.handleRequest(request);
                             } catch (final Throwable e) {
-                                LOGGER.error("Failed to handle request " + request, e);
+                                LOGGER.error("Failed to handle request from " + request.getNode().getHost()
+                                        + ": "+ request, e);
                                 responses = Collections.singletonList(ShardMasterResponse.newBuilder()
                                         .setResponseCode(ShardMasterResponse.ResponseCode.ERROR)
                                         .setErrorMessage(Throwables.getStackTraceAsString(e))
@@ -107,7 +108,8 @@ public class RequestResponseServer implements Closeable {
                                     ShardMasterMessageUtil.sendMessage(response, socket.getOutputStream());
                                 }
                             } catch (final IOException e) {
-                                LOGGER.error("Error while responding to request " + request, e);
+                                LOGGER.error("Error while responding to request from "
+                                        + request.getNode().getHost() + ": " + request, e);
                             }
                         } finally {
                             Closeables2.closeQuietly(socket, LOGGER);
