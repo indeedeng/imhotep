@@ -33,6 +33,8 @@ import java.sql.*;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -54,6 +56,7 @@ public class ShardRefresher {
     private final ShardData shardData;
     private Timestamp lastUpdatedTimestamp;
     private final SQLWriteManager sqlWriteManager;
+    private final AtomicInteger numDatasetsReadFromFilesystemOnCurrentRefresh;
 
 
 
@@ -70,16 +73,19 @@ public class ShardRefresher {
         this.shardData = shardData;
         this.sqlWriteManager = manager;
         this.lastUpdatedTimestamp = Timestamp.from(Instant.MIN);
+        this.numDatasetsReadFromFilesystemOnCurrentRefresh = new AtomicInteger();
     }
 
     public void refresh(final boolean readFilesystem, final boolean readSQL, final boolean delete, final boolean writeSQL) {
+        numDatasetsReadFromFilesystemOnCurrentRefresh.set(0);
+        LOGGER.info("Starting a refresh. ReadFilesystem: " + readFilesystem + " readSQL: " + readSQL + " delete: " + delete + "writeSQL: " + writeSQL);
         ScheduledExecutorService updates = Executors.newSingleThreadScheduledExecutor();
         final long startTime = System.currentTimeMillis();
         updates.scheduleAtFixedRate(() -> LOGGER.info("I have a total of: " + shardData.getAllPaths().size() + " shards read. " +
                 "There are a total of: " + shardsExecutorService.getActiveCount()  + " shard threads and " +
                 datasetsExecutorService.getActiveCount() + " dataset threads active. " +
                 "I have used: " + (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) + " bytes of memory. " +
-                "This task has been running for: " + (System.currentTimeMillis() - startTime)/60000 + " minutes."), 0, 1, TimeUnit.MINUTES);
+                "This task has been running for: " + (System.currentTimeMillis() - startTime)/60000 + " minutes. I have finished reading " + numDatasetsReadFromFilesystemOnCurrentRefresh.get() + " datasets from the file system."), 0, 1, TimeUnit.MINUTES);
         long time = -System.currentTimeMillis();
         innerRun(readFilesystem, readSQL, delete,  writeSQL);
         time += System.currentTimeMillis();
@@ -133,7 +139,10 @@ public class ShardRefresher {
 
         for (final Path dataset: datasets) {
             if (filter.accept(dataset.getName())) {
-                futures.add(new Pair<>(dataset, datasetsExecutorService.submit(() -> scanShardsInFilesystem(dataset, writeToSQL, shardsInDatastructureThatMightBeDeleted))));
+                futures.add(new Pair<>(dataset, datasetsExecutorService.submit(() -> {
+                    scanShardsInFilesystem(dataset, writeToSQL, shardsInDatastructureThatMightBeDeleted);
+                    numDatasetsReadFromFilesystemOnCurrentRefresh.getAndIncrement();
+                })));
             }
         }
 
