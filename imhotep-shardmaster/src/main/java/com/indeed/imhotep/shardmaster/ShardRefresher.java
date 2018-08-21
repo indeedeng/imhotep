@@ -76,9 +76,10 @@ public class ShardRefresher {
         ScheduledExecutorService updates = Executors.newSingleThreadScheduledExecutor();
         final long startTime = System.currentTimeMillis();
         updates.scheduleAtFixedRate(() -> LOGGER.info("I have a total of: " + shardData.getAllPaths().size() + " shards read. " +
-                "There are a total of: " + shardsExecutorService.getActiveCount()  + " threads active. " +
+                "There are a total of: " + shardsExecutorService.getActiveCount()  + " shard threads and " +
+                datasetsExecutorService.getActiveCount() + " dataset threads active. " +
                 "I have used: " + (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) + " bytes of memory. " +
-                "This task has been running for: " + (System.currentTimeMillis() - startTime) + " millis."), 0, 1, TimeUnit.MINUTES);
+                "This task has been running for: " + (System.currentTimeMillis() - startTime)/60000 + " minutes."), 0, 1, TimeUnit.MINUTES);
         long time = -System.currentTimeMillis();
         innerRun(readFilesystem, readSQL, delete,  writeSQL);
         time += System.currentTimeMillis();

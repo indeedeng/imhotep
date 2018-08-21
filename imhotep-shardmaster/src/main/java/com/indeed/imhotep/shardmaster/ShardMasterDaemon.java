@@ -85,12 +85,19 @@ public class ShardMasterDaemon {
         final Timer hostReloadTimer = new Timer(ShardRefresher.class.getSimpleName());
         final ScheduledExecutorService datasetReloadExecutor = Executors.newSingleThreadScheduledExecutor();
 
-        final HostsReloader zkHostsReloader = config.createZkHostsReloader();
         final HostsReloader hostsReloader;
         if (config.hasStaticHostsList()) {
-            hostsReloader = new StaticWithDynamicDowntimeHostsReloader(config.getStaticHosts(), zkHostsReloader);
+            if(config.hasDynamicHostsList()) {
+                final HostsReloader zkHostsReloader = config.createZkHostsReloader();
+                hostsReloader = new StaticWithDynamicDowntimeHostsReloader(config.getStaticHosts(), zkHostsReloader);
+            }
+            else {
+                hostsReloader = new DummyHostsReloader(config.getStaticHosts());
+            }
+        } else if(config.hasDynamicHostsList()) {
+                hostsReloader = config.createZkHostsReloader();
         } else {
-            hostsReloader = zkHostsReloader;
+            throw new IllegalArgumentException("At least one of the static hosts list or the zookeeper path has to be set");
         }
 
         final ZooKeeperConnection zkConnection = config.getLeaderZkConnection();
@@ -343,6 +350,10 @@ public class ShardMasterDaemon {
 
         boolean hasStaticHostsList() {
             return StringUtils.isNotBlank(hostsListStatic);
+        }
+
+        boolean hasDynamicHostsList() {
+            return StringUtils.isNotBlank(imhotepDaemonsZkPath);
         }
 
         HostsReloader createZkHostsReloader() {
