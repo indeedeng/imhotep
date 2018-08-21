@@ -14,6 +14,7 @@
 
 package com.indeed.imhotep.shardmasterrpc;
 
+import com.google.common.base.Throwables;
 import com.indeed.imhotep.protobuf.ShardMasterRequest;
 import com.indeed.imhotep.protobuf.ShardMasterResponse;
 import com.indeed.util.core.io.Closeables2;
@@ -97,7 +98,7 @@ public class RequestResponseServer implements Closeable {
                                 LOGGER.error("Failed to handle request " + request, e);
                                 responses = Collections.singletonList(ShardMasterResponse.newBuilder()
                                         .setResponseCode(ShardMasterResponse.ResponseCode.ERROR)
-                                        .setErrorMessage(e.getMessage())
+                                        .setErrorMessage(Throwables.getStackTraceAsString(e))
                                         .build());
                             }
 

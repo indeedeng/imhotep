@@ -45,7 +45,7 @@ public class RequestResponseClient implements ShardMaster {
             case OK:
                 return response;
             case ERROR:
-                throw new IOException("Received error for request " + request + ": " + response.getErrorMessage());
+                throw new IOException("Received error from " + serverHost + " for request " + request + ": " + response.getErrorMessage());
             default:
                 throw new IllegalStateException("Received unexpected response code " + response.getResponseCode());
         }
