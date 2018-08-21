@@ -81,14 +81,14 @@ public class ShardRefresher {
         numDatasetsReadFromFilesystemOnCurrentRefresh.set(0);
         totalDatasetsOnCurrentRefresh.set(0);
         numDatasetsFailedToRead.set(0);
-        LOGGER.info("Starting a refresh. ReadFilesystem: " + readFilesystem + " readSQL: " + readSQL + " delete: " + delete + "writeSQL: " + writeSQL);
+        LOGGER.info("Starting a refresh. ReadFilesystem: " + readFilesystem + " readSQL: " + readSQL + " delete: " + delete + " writeSQL: " + writeSQL);
         ScheduledExecutorService updates = Executors.newSingleThreadScheduledExecutor();
         final long startTime = System.currentTimeMillis();
         updates.scheduleAtFixedRate(() -> LOGGER.info("Updated " + numDatasetsReadFromFilesystemOnCurrentRefresh.get() +
                         "/" + totalDatasetsOnCurrentRefresh.get() + " datasets in " + (System.currentTimeMillis() - startTime)/60000 + " minutes. " +
                         "Known shards: " + shardData.getAllPaths().size() + ". \n" +
                         "Shard update threads: " + shardsExecutorService.getActiveCount()  + ". " +
-                        "Dataset update threads: " + datasetsExecutorService.getActiveCount() +
+                        "Dataset update threads: " + datasetsExecutorService.getActiveCount() + ". " +
                         "Used heap MB: " + ((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1024 / 1024)),
                 0, 1, TimeUnit.MINUTES);
         long time = -System.currentTimeMillis();
