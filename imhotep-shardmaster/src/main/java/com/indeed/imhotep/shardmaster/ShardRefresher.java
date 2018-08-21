@@ -16,6 +16,7 @@ package com.indeed.imhotep.shardmaster;
 
 import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.client.ShardTimeUtils;
+import com.indeed.imhotep.hadoopcommon.HDFSUtils;
 import com.indeed.imhotep.shardmaster.utils.SQLWriteManager;
 import com.indeed.util.core.threads.NamedThreadFactory;
 import javafx.util.Pair;
@@ -63,7 +64,8 @@ public class ShardRefresher {
                    final SQLWriteManager manager) throws IOException {
         this.datasetsDir = datasetsDir;
         this.dbConnection = dbConnection;
-        this.hadoopFileSystem = new Path(datasetsDir.toString()).getFileSystem(new Configuration());
+        final Configuration hdfsConfiguration = HDFSUtils.getOurHDFSConfiguration();
+        this.hadoopFileSystem = new Path(datasetsDir.toString()).getFileSystem(hdfsConfiguration);
         this.filter = filter;
         this.shardData = shardData;
         this.sqlWriteManager = manager;

@@ -14,6 +14,7 @@
 
 package com.indeed.imhotep.fs;
 
+import com.indeed.imhotep.hadoopcommon.HDFSUtils;
 import com.indeed.imhotep.hadoopcommon.KerberosUtils;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.hadoop.conf.Configuration;
@@ -42,8 +43,6 @@ import java.util.concurrent.TimeUnit;
 class HdfsRemoteFileStore extends RemoteFileStore {
     private static final Logger LOGGER = Logger.getLogger(HdfsRemoteFileStore.class);
     private static final String HDFS_BASE_DIR = "/var/imhotep/";
-    private static final String HDFS_SOCKET_TIMEOUT = String.valueOf(TimeUnit.SECONDS.toMillis(10));
-    private static final String HDFS_SOCKET_TIMEOUT_RETRIES = "1";
 
     private final Path hdfsShardBasePath;
     private final FileSystem fs;
@@ -59,9 +58,7 @@ class HdfsRemoteFileStore extends RemoteFileStore {
 
         KerberosUtils.loginFromKeytab(configuration);
 
-        final Configuration hdfsConfiguration = new Configuration();
-        hdfsConfiguration.set("dfs.client.socket-timeout", HDFS_SOCKET_TIMEOUT);
-        hdfsConfiguration.set("dfs.client.failover.connection.retries.on.timeouts", HDFS_SOCKET_TIMEOUT_RETRIES);
+        final Configuration hdfsConfiguration = HDFSUtils.getOurHDFSConfiguration();
         fs = FileSystem.get(hdfsConfiguration);
         LOGGER.info("Using path " + hdfsShardBasePath + " on file system: " + fs);
         fs.access(hdfsShardBasePath, FsAction.READ_EXECUTE);
