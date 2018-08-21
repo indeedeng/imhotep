@@ -82,7 +82,7 @@ public class RequestResponseServer implements Closeable {
                     request = ShardMasterMessageUtil.receiveRequest(socket.getInputStream());
                     LOGGER.info("got request: " + request);
                 } catch (final IOException e) {
-                    LOGGER.error("Error while reading request", e);
+                    LOGGER.error("Error while reading request: " + e.getMessage());
                     Closeables2.closeQuietly(socket, LOGGER);
                     continue;
                 }
