@@ -101,14 +101,14 @@ public class ShardMasterDaemon {
         ShardData shardData = new ShardData();
 
         try (Closer closer = Closer.create()) {
-            final Path dataSetsDir = Paths.get(config.shardsDir);
+            final Path shardsRootPath = Paths.get(config.shardsRootPath);
 
             LOGGER.info("Reloading all daemon hosts");
             hostsReloader.run();
 
-            final org.apache.hadoop.fs.Path tmpPath = new org.apache.hadoop.fs.Path(dataSetsDir.toString());
+            final org.apache.hadoop.fs.Path shardsRootHDFSPath = new org.apache.hadoop.fs.Path(shardsRootPath.toString());
             final ShardRefresher refresher = new ShardRefresher(
-                    tmpPath,
+                    shardsRootHDFSPath,
                     dbConnection,
                     config.shardFilter,
                     shardData,
@@ -235,7 +235,7 @@ public class ShardMasterDaemon {
         private String metadataDBUsername;
         private String metadataDBPassword;
         private boolean localMode = false;
-        private String shardsDir = "hdfs:///var/imhotep";
+        private String shardsRootPath = "hdfs:///var/imhotep";
         private ServerSocket serverSocket;
 
         public Config setLocalMode(boolean newLocalMode) {
@@ -338,8 +338,8 @@ public class ShardMasterDaemon {
             return this;
         }
 
-        public Config setShardsDir(final String shardsDir) {
-            this.shardsDir = shardsDir;
+        public Config setShardsRootPath(final String shardsRootPath) {
+            this.shardsRootPath = shardsRootPath;
             return this;
         }
 
@@ -454,8 +454,8 @@ public class ShardMasterDaemon {
             this.deleteInterval = Duration.millis(deleteIntervalMillis);
         }
 
-        public String getShardsDir() {
-            return shardsDir;
+        public String getShardsRootPath() {
+            return shardsRootPath;
         }
 
         public ZooKeeperConnection getLeaderZkConnection() throws IOException, InterruptedException, KeeperException {
