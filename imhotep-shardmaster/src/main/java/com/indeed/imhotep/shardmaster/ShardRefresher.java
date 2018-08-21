@@ -86,15 +86,18 @@ public class ShardRefresher {
         final long startTime = System.currentTimeMillis();
         updates.scheduleAtFixedRate(() -> LOGGER.info("Updated " + numDatasetsReadFromFilesystemOnCurrentRefresh.get() +
                         "/" + totalDatasetsOnCurrentRefresh.get() + " datasets in " + (System.currentTimeMillis() - startTime)/60000 + " minutes. " +
-                        "Known shards: " + shardData.getAllPaths().size() + ". " +
+                        "Known shards: " + shardData.getAllPaths().size() + ". \n" +
                         "Shard update threads: " + shardsExecutorService.getActiveCount()  + ". " +
                         "Dataset update threads: " + datasetsExecutorService.getActiveCount() +
-                        "Used heap MB: " + ((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1024 / 1024) + " We have failed to scan: " + numDatasetsFailedToRead.get() + " datasets."),
+                        "Used heap MB: " + ((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1024 / 1024)),
                 0, 1, TimeUnit.MINUTES);
         long time = -System.currentTimeMillis();
         innerRun(readFilesystem, readSQL, delete,  writeSQL);
         time += System.currentTimeMillis();
         LOGGER.info("Finished a refresh in " + new Period(time));
+        if (numDatasetsFailedToRead.get() > 0) {
+            LOGGER.error("We have failed to scan " + numDatasetsFailedToRead.get() + " datasets");
+        }
         updates.shutdownNow();
     }
 
@@ -164,23 +167,26 @@ public class ShardRefresher {
         }
 
         if(delete && numDatasetsFailedToRead.get() == 0) {
-            shardData.deleteShards(shardsInDatastructureThatMightBeDeleted);
-            if(shardsInDatastructureThatMightBeDeleted.size() > 0) {
-                LOGGER.info("Deleting in memory info for " + shardsInDatastructureThatMightBeDeleted.size() + " deleted shards");
-                shardData.deleteShards(shardsInDatastructureThatMightBeDeleted);
-            }
-
-            final List<String> deletedDatasets = shardData.deleteDatasetsWithoutShards();
-
-            if(writeToSQL) {
-                if(shardsInDatastructureThatMightBeDeleted.size() > 0) {
-                    LOGGER.info("Deleting SQL rows for " + shardsInDatastructureThatMightBeDeleted.size() + " deleted shards");
-                    deleteShardsInSQL(new ArrayList<>(shardsInDatastructureThatMightBeDeleted));
+            if(numDatasetsFailedToRead.get() > 0) {
+                if (shardsInDatastructureThatMightBeDeleted.size() > 0) {
+                    LOGGER.info("Deleting in memory info for " + shardsInDatastructureThatMightBeDeleted.size() + " deleted shards");
+                    shardData.deleteShards(shardsInDatastructureThatMightBeDeleted);
                 }
-                if(deletedDatasets.size() > 0) {
-                    LOGGER.info("Deleting SQL rows for all fields in " + deletedDatasets.size() + " deleted datasets");
-                    deleteFieldsForDatasetsInSQL(deletedDatasets);
+
+                final List<String> deletedDatasets = shardData.deleteDatasetsWithoutShards();
+
+                if (writeToSQL) {
+                    if (shardsInDatastructureThatMightBeDeleted.size() > 0) {
+                        LOGGER.info("Deleting SQL rows for " + shardsInDatastructureThatMightBeDeleted.size() + " deleted shards");
+                        deleteShardsInSQL(new ArrayList<>(shardsInDatastructureThatMightBeDeleted));
+                    }
+                    if (deletedDatasets.size() > 0) {
+                        LOGGER.info("Deleting SQL rows for all fields in " + deletedDatasets.size() + " deleted datasets");
+                        deleteFieldsForDatasetsInSQL(deletedDatasets);
+                    }
                 }
+            } else {
+                LOGGER.error("Not performing deletions as " + numDatasetsFailedToRead.get() + " datasets failed to read");
             }
         }
     }
