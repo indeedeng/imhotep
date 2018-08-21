@@ -63,7 +63,6 @@ public class MultiplexingRequestHandler implements RequestHandler {
         } catch (final Throwable e) {
             final long elapsed = stopwatch.elapsed(TimeUnit.MILLISECONDS);
             statsEmitter.processed(METRIC_ERROR, request.getRequestType(), elapsed);
-            LOGGER.error("Error while handling request " + request.getRequestType() + " from " + request.getNode().getHost() + " in " + elapsed +" ms", e);
             throw Throwables.propagate(e);
         }
     }
