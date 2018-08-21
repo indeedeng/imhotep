@@ -102,18 +102,18 @@ public class ShardRefresher {
         lastUpdatedTimestamp = Timestamp.from(Instant.now());
         if(shouldDelete){
             dbConnection.query("SELECT * FROM tblshards;", (ResultSetExtractor<Void>) rs -> {
-                shardData.updateTableShardsRowsFromSQL(rs, true);
+                shardData.updateTableShardsRowsFromSQL(rs, true, filter);
                 return null;
             });
         } else {
             dbConnection.query("SELECT * FROM tblshards WHERE addedtimestamp >= ?;", statement -> statement.setTimestamp(1, timestampToUse), (ResultSetExtractor<Void>) rs -> {
-                shardData.updateTableShardsRowsFromSQL(rs, false);
+                shardData.updateTableShardsRowsFromSQL(rs, false, filter);
                 return null;
             });
         }
 
         dbConnection.query("SELECT * FROM tblfields;", (ResultSetExtractor<ResultSet>) rs -> {
-            shardData.updateTableFieldsRowsFromSQL(rs);
+            shardData.updateTableFieldsRowsFromSQL(rs, filter);
             return null;
         });
     }

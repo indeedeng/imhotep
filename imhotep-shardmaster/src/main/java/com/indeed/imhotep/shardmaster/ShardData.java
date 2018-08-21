@@ -85,7 +85,7 @@ public class ShardData {
                 });
     }
 
-    public void updateTableShardsRowsFromSQL(final ResultSet rows, boolean shouldDelete) throws SQLException {
+    public void updateTableShardsRowsFromSQL(final ResultSet rows, boolean shouldDelete, ShardFilter filter) throws SQLException {
         final Set<String> existingPaths;
         if(shouldDelete) {
             existingPaths = getCopyOfAllPaths();
@@ -108,6 +108,9 @@ public class ShardData {
                 final ShardDir shardDir = new ShardDir(path);
                 final String dataset = shardDir.getDataset();
                 final String shardname = shardDir.getId();
+                if(!filter.accept(dataset, shardname)) {
+                    continue;
+                }
                 final ShardInfo shard = new ShardInfo(shardname, numDocs, shardDir.getVersion());
                 final Interval interval = ShardTimeUtils.parseInterval(shardname);
 
@@ -126,12 +129,15 @@ public class ShardData {
         }
     }
 
-    public void updateTableFieldsRowsFromSQL(final ResultSet rows) throws SQLException {
+    public void updateTableFieldsRowsFromSQL(final ResultSet rows, ShardFilter filter) throws SQLException {
         Map<String, Map<String, Pair<FieldType, Long>>> newTblFields = new HashMap<>();
 
         if (rows.first()) {
             do {
                 final String dataset = rows.getString("dataset");
+                if(!filter.accept(dataset)) {
+                    continue;
+                }
                 final String fieldName = rows.getString("fieldname");
                 final FieldType type = FieldType.getType(rows.getString("type"));
                 final long dateTime = rows.getLong("lastshardstarttime");

@@ -114,9 +114,7 @@ public class ShardMasterDaemon {
                     shardData,
                     sqlWriteManager
             );
-
-            boolean isLeader = isLeader(leaderElectionRoot, zkConnection);
-            refresher.refresh(isLeader || config.localMode, !config.localMode, true, isLeader);
+            refresher.refresh(config.localMode, !config.localMode, ShardFilter.ACCEPT_ALL.equals(config.shardFilter), false);
 
             hostReloadTimer.schedule(new TimerTask() {
                 @Override
@@ -126,7 +124,7 @@ public class ShardMasterDaemon {
             }, config.getHostsRefreshInterval().getMillis(), config.getHostsRefreshInterval().getMillis());
 
             datasetReloadExecutor.scheduleAtFixedRate(() -> {
-                final boolean shouldDelete = System.currentTimeMillis() - lastDeleteTimeMillis > config.getDeleteInterval().getMillis();
+                final boolean shouldDelete = ShardFilter.ACCEPT_ALL.equals(config.shardFilter) && System.currentTimeMillis() - lastDeleteTimeMillis > config.getDeleteInterval().getMillis();
                 if(shouldDelete) {
                     lastDeleteTimeMillis = System.currentTimeMillis();
                 }
