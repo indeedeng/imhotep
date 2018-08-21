@@ -15,6 +15,7 @@
 package com.indeed.imhotep.shardmasterrpc;
 
 import com.google.common.base.Throwables;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.indeed.imhotep.protobuf.ShardMasterRequest;
 import com.indeed.imhotep.protobuf.ShardMasterResponse;
 import com.indeed.util.core.io.Closeables2;
@@ -82,7 +83,11 @@ public class RequestResponseServer implements Closeable {
                     request = ShardMasterMessageUtil.receiveRequest(socket.getInputStream());
                     LOGGER.info("got request: " + request);
                 } catch (final IOException e) {
-                    LOGGER.error("Error while reading request: " + e.getMessage());
+                    if(e instanceof InvalidProtocolBufferException) {
+                        LOGGER.debug("Error while reading request: " + e.getMessage());
+                    } else {
+                        LOGGER.error("Error while reading request", e);
+                    }
                     Closeables2.closeQuietly(socket, LOGGER);
                     continue;
                 }
