@@ -80,6 +80,7 @@ public class ShardRefresher {
     public synchronized void refresh(final boolean readFilesystem, final boolean readSQL, final boolean delete, final boolean writeSQL) {
         numDatasetsReadFromFilesystemOnCurrentRefresh.set(0);
         totalDatasetsOnCurrentRefresh.set(0);
+        numDatasetsFailedToRead.set(0);
         LOGGER.info("Starting a refresh. ReadFilesystem: " + readFilesystem + " readSQL: " + readSQL + " delete: " + delete + "writeSQL: " + writeSQL);
         ScheduledExecutorService updates = Executors.newSingleThreadScheduledExecutor();
         final long startTime = System.currentTimeMillis();
