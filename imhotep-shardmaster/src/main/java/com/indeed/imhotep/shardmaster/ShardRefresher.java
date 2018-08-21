@@ -57,6 +57,7 @@ public class ShardRefresher {
     private Timestamp lastUpdatedTimestamp;
     private final SQLWriteManager sqlWriteManager;
     private final AtomicInteger numDatasetsReadFromFilesystemOnCurrentRefresh;
+    private final AtomicInteger numDatasetsFailedToRead;
 
 
 
@@ -74,10 +75,12 @@ public class ShardRefresher {
         this.sqlWriteManager = manager;
         this.lastUpdatedTimestamp = Timestamp.from(Instant.MIN);
         this.numDatasetsReadFromFilesystemOnCurrentRefresh = new AtomicInteger();
+        this.numDatasetsFailedToRead = new AtomicInteger();
     }
 
-    public void refresh(final boolean readFilesystem, final boolean readSQL, final boolean delete, final boolean writeSQL) {
+    public synchronized void refresh(final boolean readFilesystem, final boolean readSQL, final boolean delete, final boolean writeSQL) {
         numDatasetsReadFromFilesystemOnCurrentRefresh.set(0);
+        numDatasetsFailedToRead.set(0);
         LOGGER.info("Starting a refresh. ReadFilesystem: " + readFilesystem + " readSQL: " + readSQL + " delete: " + delete + "writeSQL: " + writeSQL);
         ScheduledExecutorService updates = Executors.newSingleThreadScheduledExecutor();
         final long startTime = System.currentTimeMillis();
@@ -85,7 +88,7 @@ public class ShardRefresher {
                 "There are a total of: " + shardsExecutorService.getActiveCount()  + " shard threads and " +
                 datasetsExecutorService.getActiveCount() + " dataset threads active. " +
                 "I have used: " + (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) + " bytes of memory. " +
-                "This task has been running for: " + (System.currentTimeMillis() - startTime)/60000 + " minutes. I have finished reading " + numDatasetsReadFromFilesystemOnCurrentRefresh.get() + " datasets from the file system."), 0, 1, TimeUnit.MINUTES);
+                "This task has been running for: " + (System.currentTimeMillis() - startTime)/60000 + " minutes. I have finished reading " + numDatasetsReadFromFilesystemOnCurrentRefresh.get() + " datasets from the file system. We have failed to scan: " + numDatasetsFailedToRead.get() + " datasets."), 0, 1, TimeUnit.MINUTES);
         long time = -System.currentTimeMillis();
         innerRun(readFilesystem, readSQL, delete,  writeSQL);
         time += System.currentTimeMillis();
@@ -154,7 +157,7 @@ public class ShardRefresher {
             }
         }
 
-        if(delete) {
+        if(delete && numDatasetsFailedToRead.get() == 0) {
             shardData.deleteShards(shardsInDatastructureThatMightBeDeleted);
             final List<String> deletedDatasets = shardData.deleteDatasetsWithoutShards();
 
@@ -207,6 +210,7 @@ public class ShardRefresher {
             shardDirs =  Arrays.stream(fileStatuses).map(file -> new ShardDir(file.getPath())).collect(Collectors.toList());
         } catch (IOException e) {
             LOGGER.error("Could not read shards in dataset: " + datasetPath + " returning no shards for this dataset.", e);
+            numDatasetsFailedToRead.getAndIncrement();
             shardDirs = new ArrayList<>();
         }
 

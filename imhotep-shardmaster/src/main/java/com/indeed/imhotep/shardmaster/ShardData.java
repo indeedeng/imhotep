@@ -86,18 +86,17 @@ public class ShardData {
     }
 
     public void updateTableShardsRowsFromSQL(final ResultSet rows, boolean shouldDelete, ShardFilter filter) throws SQLException {
-        final Set<String> existingPaths;
+        final Set<String> pathsThatWeMightDelete;
         if(shouldDelete) {
-            existingPaths = getCopyOfAllPaths();
+            pathsThatWeMightDelete = getCopyOfAllPaths();
         } else {
-            existingPaths = Collections.emptySet();
+            pathsThatWeMightDelete = Collections.emptySet();
         }
         if (rows.first()) {
             do {
                 final String strPath = rows.getString("path");
-                existingPaths.remove(strPath);
-
-
+                pathsThatWeMightDelete.remove(strPath);
+                
                 if(pathsToShards.containsKey(strPath)) {
                     continue;
                 }
@@ -125,7 +124,7 @@ public class ShardData {
         }
 
         if(shouldDelete) {
-            deleteShards(existingPaths);
+            deleteShards(pathsThatWeMightDelete);
         }
     }
 
