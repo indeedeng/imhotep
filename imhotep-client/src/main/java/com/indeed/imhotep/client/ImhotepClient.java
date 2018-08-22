@@ -636,7 +636,6 @@ public class ImhotepClient
             try {
                 shardMaster.refreshFieldsForDataset(dataset);
             } catch (IOException e) {
-                log.error("IOException on refresh", e);
                 throw Throwables.propagate(e);
             }
         });

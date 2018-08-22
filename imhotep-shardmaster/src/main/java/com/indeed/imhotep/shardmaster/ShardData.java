@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -170,6 +169,7 @@ public class ShardData {
 
     public List<String> deleteDatasetsWithoutShards() {
         List<String> datasets = tblFields.get().keySet().stream().filter(dataset -> (!tblShards.containsKey(dataset)) || tblShards.get(dataset).getAllValues().size() == 0).collect(Collectors.toList());
+        LOGGER.info("Deleting in memory data for empty datasets: " + Joiner.on(",").join(datasets));
         for(String dataset: datasets) {
             tblShards.remove(dataset);
             tblFields.get().remove(dataset);

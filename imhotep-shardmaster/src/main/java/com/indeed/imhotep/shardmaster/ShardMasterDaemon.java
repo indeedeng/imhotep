@@ -223,9 +223,6 @@ public class ShardMasterDaemon {
         private String zkNodes;
         private String imhotepDaemonsZkPath;
         private String shardMastersZkPath;
-        private String hostsFile;
-        private String hostsOverride;
-        private String disabledHosts;
         private String hostsListStatic;
         private String shardAssigner;
         private ShardFilter shardFilter = ShardFilter.ACCEPT_ALL;
@@ -281,21 +278,6 @@ public class ShardMasterDaemon {
 
         public Config setShardMastersZkPath(final String shardMastersZkPath) {
             this.shardMastersZkPath = shardMastersZkPath;
-            return this;
-        }
-
-        public Config setHostsFile(final String hostsFile) {
-            this.hostsFile = hostsFile;
-            return this;
-        }
-
-        public Config setHostsOverride(final String hostsOverride) {
-            this.hostsOverride = hostsOverride;
-            return this;
-        }
-
-        public Config setDisabledHosts(final String disabledHosts) {
-            this.disabledHosts = disabledHosts;
             return this;
         }
 
@@ -473,7 +455,6 @@ public class ShardMasterDaemon {
         // TODO: fix this to set correct configs
         new ShardMasterDaemon(new Config()
                 .setZkNodes(System.getProperty("imhotep.shardmaster.zookeeper.nodes"))
-                .setHostsFile(System.getProperty("imhotep.shardmaster.hosts.file"))
                 .setServerSocket(new ServerSocket(Integer.parseInt(System.getProperty("imhotep.shardmaster.server.port"))))
         ).run();
     }

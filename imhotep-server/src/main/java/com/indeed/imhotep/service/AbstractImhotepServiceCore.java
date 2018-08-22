@@ -188,7 +188,7 @@ public abstract class AbstractImhotepServiceCore
             return null;
         });
         try {
-            // do a timed get so the task doesn't refresh infinitely
+            // do a timed get so the task doesn't run infinitely
             future.get(30L, TimeUnit.MINUTES);
         } catch (final TimeoutException e) {
             future.cancel(true);

@@ -14,8 +14,8 @@
 
 package com.indeed.imhotep.shardmaster;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.indeed.flamdex.utils.FlamdexUtils;
 import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.client.ShardTimeUtils;
 import com.indeed.imhotep.hadoopcommon.HDFSUtils;
@@ -60,6 +60,7 @@ public class ShardRefresher {
     private final SQLWriteManager sqlWriteManager;
     private final AtomicInteger numDatasetsFailedToRead = new AtomicInteger();
     private final AtomicInteger numDatasetsReadFromFilesystemOnCurrentRefresh = new AtomicInteger();
+    private final AtomicInteger numDatasetsCompletedFieldsRefreshOnCurrentRefresh = new AtomicInteger();
     private final AtomicInteger totalDatasetsOnCurrentRefresh = new AtomicInteger();
     private Queue<Runnable> fieldRefreshQueue = new ArrayDeque<>();
 
@@ -82,17 +83,23 @@ public class ShardRefresher {
 
     public synchronized void refresh(final boolean readFilesystem, final boolean readSQL, final boolean delete, final boolean writeSQL, final boolean shouldRefreshFieldsForDataset) {
         numDatasetsReadFromFilesystemOnCurrentRefresh.set(0);
+        numDatasetsCompletedFieldsRefreshOnCurrentRefresh.set(0);
         totalDatasetsOnCurrentRefresh.set(0);
         numDatasetsFailedToRead.set(0);
         LOGGER.info("Starting a refresh. ReadFilesystem: " + readFilesystem + " readSQL: " + readSQL + " delete: " + delete + " writeSQL: " + writeSQL);
         ScheduledExecutorService updates = Executors.newSingleThreadScheduledExecutor();
         final long startTime = System.currentTimeMillis();
-        updates.scheduleAtFixedRate(() -> LOGGER.info("Updated " + numDatasetsReadFromFilesystemOnCurrentRefresh.get() +
-                        "/" + totalDatasetsOnCurrentRefresh.get() + " datasets in " + (System.currentTimeMillis() - startTime)/60000 + " minutes. " +
-                        "Known shards: " + shardData.getAllPaths().size() + ". \n" +
-                        "Shard update threads: " + shardsExecutorService.getActiveCount()  + ". " +
-                        "Dataset update threads: " + datasetsExecutorService.getActiveCount() + ". " +
-                        "Used heap MB: " + ((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1024 / 1024)),
+        updates.scheduleAtFixedRate(() -> {
+                    LOGGER.info("Updated " + numDatasetsReadFromFilesystemOnCurrentRefresh.get() +
+                            "/" + totalDatasetsOnCurrentRefresh.get() + " datasets in " + (System.currentTimeMillis() - startTime) / 60000 + " minutes. " +
+                            "Known shards: " + shardData.getAllPaths().size() + ". \n" +
+                            "Shard update threads: " + shardsExecutorService.getActiveCount() + ". " +
+                            "Dataset update threads: " + datasetsExecutorService.getActiveCount() + ". " +
+                            "Used heap MB: " + ((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1024 / 1024));
+                    if(numDatasetsCompletedFieldsRefreshOnCurrentRefresh.get() > 0) {
+                        LOGGER.info("Processed complete field refreshes for " + numDatasetsCompletedFieldsRefreshOnCurrentRefresh + " datasets");
+                    }
+                },
                 0, 1, TimeUnit.MINUTES);
         long time = -System.currentTimeMillis();
         innerRun(readFilesystem, readSQL, delete,  writeSQL, shouldRefreshFieldsForDataset);
@@ -105,16 +112,11 @@ public class ShardRefresher {
     }
 
     private void innerRun(final boolean readFilesystem, final boolean readSQL, final boolean delete, final boolean writeSQL, final boolean shouldRefreshFieldsForDataset) {
-        final long startDatasetRefresh = System.currentTimeMillis();
-        LOGGER.info("Running " + fieldRefreshQueue.size() + " dataset field refreshes.");
         if (shouldRefreshFieldsForDataset) {
-            while (!fieldRefreshQueue.isEmpty()) {
-                fieldRefreshQueue.remove().run();
-            }
+            performCompleteFieldsRefreshes();
         } else {
             fieldRefreshQueue = new ArrayDeque<>();
         }
-        LOGGER.info("Finished dataset field refreshes in " +  new Period(System.currentTimeMillis() - startDatasetRefresh));
         if(readSQL) {
             long startSQLRead = System.currentTimeMillis();
             loadFromSQL(delete);
@@ -127,6 +129,29 @@ public class ShardRefresher {
                 LOGGER.error("Error reading datasets", e);
             }
         }
+    }
+
+    private void performCompleteFieldsRefreshes() {
+        final long startDatasetRefresh = System.currentTimeMillis();
+        final int datasetsToRefreshFieldsCount = fieldRefreshQueue.size();
+        LOGGER.info("Running " + datasetsToRefreshFieldsCount + " complete dataset field refreshes.");
+        List<Future> datasetRefreshFieldsFutures = Lists.newArrayList();
+        while (!fieldRefreshQueue.isEmpty()) {
+            final Runnable fieldsRefreshRunnable = fieldRefreshQueue.remove();
+            datasetRefreshFieldsFutures.add(datasetsExecutorService.submit(() -> {
+                fieldsRefreshRunnable.run();
+                numDatasetsCompletedFieldsRefreshOnCurrentRefresh.getAndIncrement();
+            }));
+        }
+
+        for(final Future future: datasetRefreshFieldsFutures) {
+            try {
+                future.get();
+            } catch (Exception e) {
+                LOGGER.error("Failure during complete field list refresh for dataset", e);
+            }
+        }
+        LOGGER.info("Finished complete dataset field refreshes in " +  new Period(System.currentTimeMillis() - startDatasetRefresh));
     }
 
     private void loadFromSQL(boolean shouldDelete) {
