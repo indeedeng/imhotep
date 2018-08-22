@@ -41,7 +41,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * @author jplaisance
+ * @author kornerup
  */
 public class FlamdexMetadata {
     private int numDocs;

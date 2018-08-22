@@ -33,12 +33,14 @@ public class DatabaseShardMaster implements ShardMaster {
     private final ShardData shardData;
     private final HostsReloader reloader;
     private final ShardRefresher refresher;
+    private final String fileExtension;
 
-    public DatabaseShardMaster(final ShardAssigner assigner, final ShardData shardData, final HostsReloader reloader, final ShardRefresher refresher) {
+    public DatabaseShardMaster(final ShardAssigner assigner, final ShardData shardData, final HostsReloader reloader, final ShardRefresher refresher, String fileExtension) {
         this.assigner = assigner;
         this.shardData = shardData;
         this.reloader = reloader;
         this.refresher = refresher;
+        this.fileExtension = fileExtension;
     }
 
     @Override
@@ -62,8 +64,7 @@ public class DatabaseShardMaster implements ShardMaster {
         final List<Shard> shards = new ArrayList<>();
         final Iterable<Shard> assignment = assigner.assign(reloader.getHosts(), dataset, info);
         for(final Shard shardAndHost: assignment) {
-            // TODO: move the .sqar to wherever we determine extensions
-            final Shard shard = new Shard(shardAndHost.shardId, shardAndHost.numDocs, shardAndHost.version, shardAndHost.getServer(), ".sqar");
+            final Shard shard = new Shard(shardAndHost.shardId, shardAndHost.numDocs, shardAndHost.version, shardAndHost.getServer(), fileExtension);
             shards.add(shard);
         }
         return shards;

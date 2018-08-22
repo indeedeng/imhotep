@@ -27,6 +27,7 @@ import com.indeed.imhotep.shardmaster.utils.SQLWriteManager;
 import com.indeed.imhotep.shardmasterrpc.MultiplexingRequestHandler;
 import com.indeed.imhotep.shardmasterrpc.RequestMetricStatsEmitter;
 import com.indeed.imhotep.shardmasterrpc.RequestResponseServer;
+import com.indeed.imhotep.shardmasterrpc.ShardMaster;
 import com.indeed.imhotep.shardmasterrpc.ShardMasterExecutors;
 import com.indeed.util.zookeeper.ZooKeeperConnection;
 import org.apache.commons.dbcp.BasicDataSource;
@@ -61,10 +62,10 @@ public class ShardMasterDaemon {
 
     public ShardMasterDaemon(final Config config) {
         this.config = config;
-        startupLock.lock();
     }
 
     public void waitForStartup(final long timeout) throws TimeoutException, InterruptedException {
+        Thread.sleep(300);
         if(!startupLock.tryLock(timeout, TimeUnit.MILLISECONDS)){
             throw new TimeoutException("ImhotepDaemon failed to start within " + timeout + " ms");
         }
@@ -72,6 +73,7 @@ public class ShardMasterDaemon {
     }
 
     public void run() throws IOException, InterruptedException, KeeperException {
+        startupLock.lock();
 
         lastDeleteTimeMillis = System.currentTimeMillis();
 
@@ -141,7 +143,7 @@ public class ShardMasterDaemon {
 
             server = new RequestResponseServer(config.getServerSocket(), new MultiplexingRequestHandler(
                     config.statsEmitter,
-                    new DatabaseShardMaster(config.createAssigner(), shardData, hostsReloader, refresher),
+                    new DatabaseShardMaster(config.createAssigner(), shardData, hostsReloader, refresher, config.localMode ? "" : ".sqar"),
                     config.shardsResponseBatchSize
             ), config.serviceConcurrency);
             startupLock.unlock();
@@ -152,7 +154,10 @@ public class ShardMasterDaemon {
                 LOGGER.info("shutting down service");
                 server.close();
             }
-        } finally {
+        } catch (Exception e) {
+            LOGGER.error("Error during startup", e);
+        }
+        finally {
             startupLock.unlock();
             hostReloadTimer.cancel();
             datasetReloadExecutor.shutdown();
@@ -213,7 +218,7 @@ public class ShardMasterDaemon {
     }
 
     @VisibleForTesting
-    void shutdown() throws IOException {
+    public void shutdown() throws IOException {
         if (server != null) {
             server.close();
         }

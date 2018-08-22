@@ -49,11 +49,11 @@ public class TestImhotepGetGroupStatsIterator {
     @Rule
     public final TemporaryFolder rootDir = new TemporaryFolder();
 
-    private ImhotepDaemonClusterRunner clusterRunner;
+    private ShardMasterAndImhotepDaemonClusterRunner clusterRunner;
 
     @Before
     public void setUp() throws IOException {
-        clusterRunner = new ImhotepDaemonClusterRunner(rootDir.newFolder("shards"), rootDir.newFolder("temp"));
+        clusterRunner = new ShardMasterAndImhotepDaemonClusterRunner(rootDir.newFolder("shards"), rootDir.newFolder("temp"));
     }
 
     @After
@@ -88,7 +88,7 @@ public class TestImhotepGetGroupStatsIterator {
     }
 
     private void runTest(final int shardCount, final int docCount, final int daemonCount)
-            throws IOException, ImhotepOutOfMemoryException, TimeoutException {
+            throws IOException, ImhotepOutOfMemoryException, TimeoutException, InterruptedException {
 
         final Pair<MemoryFlamdex[], GroupMultiRemapRule> data = createTestData(shardCount, docCount);
 

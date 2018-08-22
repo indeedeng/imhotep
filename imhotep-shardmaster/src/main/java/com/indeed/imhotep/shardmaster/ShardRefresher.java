@@ -204,7 +204,7 @@ public class ShardRefresher {
             }
         }
 
-        if(delete && numDatasetsFailedToRead.get() == 0) {
+        if(delete) {
             if(numDatasetsFailedToRead.get() > 0) {
                 if (shardsInDatastructureThatMightBeDeleted.size() > 0) {
                     LOGGER.info("Deleting in memory info for " + shardsInDatastructureThatMightBeDeleted.size() + " deleted shards");

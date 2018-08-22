@@ -737,23 +737,20 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         throws ExecutionException {
         final List<Future<T>> futures = new ArrayList<>(things.length);
         for (final E thing : things) {
-            futures.add(es.submit(new Callable<T>() {
-                @Override
-                public T call() throws Exception {
-                    ImhotepTask.setup(AbstractImhotepMultiSession.this);
-                    try {
-                        if(lockCPU) {
-                            try (final Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
-                                return function.apply(thing);
-                            }
-                        }else {
+            futures.add(es.submit(() -> {
+                ImhotepTask.setup(AbstractImhotepMultiSession.this);
+                try {
+                    if(lockCPU) {
+                        try (final Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
                             return function.apply(thing);
                         }
-                    } finally {
-                        ImhotepTask.clear();
+                    }else {
+                        return function.apply(thing);
                     }
-
+                } finally {
+                    ImhotepTask.clear();
                 }
+
             }));
         }
 

@@ -106,25 +106,23 @@ public class LocalImhotepServiceCore
             this. factory = new FlamdexReaderSource() {
                 @Override
                 public FlamdexReader openReader(Path directory) throws IOException {
-                    return new CachedFlamdexReader(new MemoryReservationContext(memory), SimpleFlamdexReader.open(directory));
+                    return SimpleFlamdexReader.open(directory);
                 }
 
                 @Override
                 public FlamdexReader openReader(Path directory, int numDocs) throws IOException {
-                    return new CachedFlamdexReader(new MemoryReservationContext(memory), SimpleFlamdexReader.open(directory, numDocs));
+                    return SimpleFlamdexReader.open(directory, numDocs);
                 }
             };
         }
 
-        flamdexReaderLoadingCache = CacheBuilder.newBuilder().maximumSize(100000).expireAfterAccess(5, TimeUnit.MINUTES).removalListener((RemovalListener<Pair<Path, Integer>, SharedReference<FlamdexReader>>) notification -> {
-            Closeables2.closeQuietly(notification.getValue(), log);
-        }).build(new CacheLoader<Pair<Path, Integer>, SharedReference<FlamdexReader>>() {
+        flamdexReaderLoadingCache = CacheBuilder.newBuilder().maximumSize(100000).expireAfterAccess(config.getFlamdexReaderCacheMaxDurationMillis(), TimeUnit.MILLISECONDS).removalListener((RemovalListener<Pair<Path, Integer>, SharedReference<FlamdexReader>>) notification -> Closeables2.closeQuietly(notification.getValue(), log)).build(new CacheLoader<Pair<Path, Integer>, SharedReference<FlamdexReader>>() {
             @Override
             public SharedReference<FlamdexReader> load(Pair<Path, Integer> key) throws Exception {
                 if (key.getValue() <= 0) {
-                    return SharedReference.create(factory.openReader(key.getKey()));
+                    return SharedReference.create(new CachedFlamdexReader(new MemoryReservationContext(memory), factory.openReader(key.getKey())));
                 } else {
-                    return SharedReference.create(factory.openReader(key.getKey(), key.getValue()));
+                    return SharedReference.create(new CachedFlamdexReader(new MemoryReservationContext(memory), factory.openReader(key.getKey(), key.getValue())));
                 }
             }
         });

@@ -56,7 +56,7 @@ public class TestGetFTGSIteratorWithCachingFS {
     @Rule
     public final RemoteCachingFileSystemTestContext fsTestContext = new RemoteCachingFileSystemTestContext();
 
-    private ImhotepDaemonClusterRunner clusterRunner;
+    private ShardMasterAndImhotepDaemonClusterRunner clusterRunner;
 
     @Parameterized.Parameters
     public static List<Boolean[]> isSortedFTGS() {
@@ -71,7 +71,7 @@ public class TestGetFTGSIteratorWithCachingFS {
 
     @Before
     public void setUp() throws IOException, URISyntaxException {
-        clusterRunner = new ImhotepDaemonClusterRunner(
+        clusterRunner = new ShardMasterAndImhotepDaemonClusterRunner(
                 fsTestContext.getLocalStoreDir(),
                 fsTestContext.getTempRootDir(), ImhotepShardCreator.GZIP_ARCHIVE);
     }

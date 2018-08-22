@@ -98,111 +98,6 @@ public class TestLocalImhotepServiceCoreSharedResource {
     }
 
     @Test
-    public void testReloadCloses() throws IOException, InterruptedException {
-        final AtomicBoolean closed = new AtomicBoolean(false);
-        final AtomicBoolean created = new AtomicBoolean(false);
-        final FlamdexReaderSource factory = new FlamdexReaderSource() {
-            int i = 0;
-
-            @Override
-            public FlamdexReader openReader(final Path directory) throws IOException {
-                while (!created.compareAndSet(false, true)) {}
-
-                if (((i++) & 1) == 0) {
-                    return new MockFlamdexReader(Collections.singletonList("if1"),
-                                                 Collections.<String>emptyList(),
-                                                 Collections.singletonList("if1"), 10) {
-                        @Override
-                        public void close() throws IOException {
-                            while (!closed.compareAndSet(false, true)) {}
-                        }
-                    };
-                } else {
-                    return new MockFlamdexReader(Collections.<String>emptyList(), Collections.singletonList("sf1"), Collections.<String>emptyList(), 10) {
-                        @Override
-                        public void close() throws IOException {
-                            while (!closed.compareAndSet(false, true)) {}
-                        }
-                    };
-                }
-            }
-
-            @Override
-            public FlamdexReader openReader(Path directory, int numDocs) throws IOException {
-                return openReader(directory);
-            }
-        };
-        final LocalImhotepServiceCore service =
-                new LocalImhotepServiceCore(
-                                            optDirectory,
-                                            Long.MAX_VALUE,
-                                            factory,
-                                            new LocalImhotepServiceConfig().setUpdateShardsFrequencySeconds(1),
-                                            datasetDir);
-
-        try {
-            final long initial = System.currentTimeMillis();
-            boolean b;
-            while (!(b = created.compareAndSet(true, false)) && (System.currentTimeMillis() - initial) < TIMEOUT) {
-            }
-            assertTrue("first index took too long to be created", b);
-            final long t = System.currentTimeMillis();
-            while (!(b = closed.compareAndSet(true, false)) && (System.currentTimeMillis() - t) < TIMEOUT) {
-            }
-            assertTrue("close took too long", b);
-        } finally {
-            service.close();
-        }
-    }
-
-    @Test
-    public void testNoReloadNoClose() throws IOException {
-        final AtomicInteger createCount = new AtomicInteger(0);
-        final AtomicBoolean error = new AtomicBoolean(false);
-        final FlamdexReaderSource factory = new FlamdexReaderSource() {
-            FlamdexReader lastOpened = null;
-
-            @Override
-            public FlamdexReader openReader(final Path directory) throws IOException {
-                createCount.incrementAndGet();
-
-                lastOpened = new MockFlamdexReader(Collections.<String>emptyList(), Collections.<String>emptyList(), Collections.<String>emptyList(), 10) {
-                    @Override
-                    public void close() throws IOException {
-                        if (lastOpened != this) {
-                            error.set(true);
-                        }
-                    }
-                };
-                return lastOpened;
-            }
-
-            @Override
-            public FlamdexReader openReader(Path directory, int numDocs) throws IOException {
-                return openReader(directory);
-            }
-        };
-        final LocalImhotepServiceCore service =
-                new LocalImhotepServiceCore(
-                                            optDirectory,
-                                            Long.MAX_VALUE,
-                                            factory,
-                                            new LocalImhotepServiceConfig().setUpdateShardsFrequencySeconds(1),
-                                            datasetDir);
-        try {
-            final long t = System.currentTimeMillis();
-            boolean b = true;
-            boolean problem;
-            while (!(problem = error.get()) && (b = createCount.get() < 1) && (System.currentTimeMillis() - t) < TIMEOUT) {
-            }
-            assertFalse("creates took too long", b);
-            assertFalse("close called on a reader that it shouldn't have been", problem);
-        } finally {
-            service.close();
-        }
-    }
-
-    @Test
     public void testActiveNoClose() throws IOException, ImhotepOutOfMemoryException, InterruptedException {
         final AtomicBoolean sessionClosed = new AtomicBoolean(false);
         final AtomicBoolean sessionOpened = new AtomicBoolean(false);
@@ -238,7 +133,7 @@ public class TestLocalImhotepServiceCoreSharedResource {
                                             optDirectory,
                                             Long.MAX_VALUE,
                                             factory,
-                                            new LocalImhotepServiceConfig().setUpdateShardsFrequencySeconds(1),
+                                            new LocalImhotepServiceConfig().setFlamdexReaderCacheMaxDurationMillis(1),
                                             datasetDir);
         try {
             final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(ShardNameNumDocsPair.newBuilder().setShardName(shardName).build()), "", "", "", 0, 0, false, "", null, 0);
