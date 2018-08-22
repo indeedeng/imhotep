@@ -74,8 +74,6 @@ public class LocalImhotepServiceCore
      *            int/long arrays
      * @param config
      *            additional config parameters
-     * @param statsEmitter
-     *            allows sending stats about service activity
      * @throws IOException
      *             if something bad happens
      */
@@ -83,11 +81,11 @@ public class LocalImhotepServiceCore
                                    final long memoryCapacity,
                                    final FlamdexReaderSource flamdexReaderFactory,
                                    final LocalImhotepServiceConfig config,
-                                   final MetricStatsEmitter statsEmitter,
                                    final Path rootDir)
         throws IOException {
 
         this.rootDir = rootDir;
+        final MetricStatsEmitter statsEmitter = config.getStatsEmitter();
 
         /* check if the temp dir exists, try to create it if it does not */
         Preconditions.checkNotNull(shardTempDir, "shardTempDir is invalid");
@@ -155,22 +153,6 @@ public class LocalImhotepServiceCore
             = newFixedRateExecutor(new HeartBeatChecker(), config.getHeartBeatCheckFrequencySeconds());
 
         VarExporter.forNamespace(getClass().getSimpleName()).includeInGlobal().export(this, "");
-    }
-
-    @VisibleForTesting
-    public LocalImhotepServiceCore(@Nullable final Path shardTempDir,
-                                   final long memoryCapacity,
-                                   FlamdexReaderSource source,
-                                   final LocalImhotepServiceConfig config,
-                                   Path rootDir)
-        throws IOException {
-        this(shardTempDir,
-             memoryCapacity,
-                source,
-                config,
-             MetricStatsEmitter.NULL_EMITTER,
-                rootDir
-        );
     }
 
     private ScheduledExecutorService newFixedRateExecutor(final Runnable runnable,
