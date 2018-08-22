@@ -16,6 +16,7 @@ package com.indeed.imhotep.shardmasterrpc;
 
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Ints;
+import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.Message;
 import com.indeed.imhotep.io.Bytes;
 import com.indeed.imhotep.protobuf.ShardMasterRequest;
@@ -44,7 +45,10 @@ class ShardMasterMessageUtil {
     }
 
     static ShardMasterResponse receiveResponse(final InputStream is) throws IOException {
-        return ShardMasterResponse.parseFrom(readPayloadStream(is));
+        final CodedInputStream codedInputStream = CodedInputStream.newInstance(readPayloadStream(is));
+        // Allow for responses over 64MB for dataset metadata with full shard list RPC call
+        codedInputStream.setSizeLimit(Integer.MAX_VALUE);
+        return ShardMasterResponse.parseFrom(codedInputStream);
     }
 
     private static InputStream readPayloadStream(final InputStream is) throws IOException {
