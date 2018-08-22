@@ -53,8 +53,19 @@ class ShardMasterRequestHandler implements RequestHandler {
                 return handleShardListForTime(request);
             case GET_SHARD_LIST:
                 return handleShardList();
+            case REFRESH_FIELDS_FOR_DATASET:
+                return handleRefreshFieldsForDataet(request);
         }
         throw new IllegalArgumentException("request " + request +" does not have a valid type");
+    }
+
+    private Iterable<ShardMasterResponse> handleRefreshFieldsForDataet(ShardMasterRequest request) {
+        try {
+            shardMaster.refreshFieldsForDataset(request.getDatasetToRefresh());
+            return Collections.singletonList(ShardMasterResponse.newBuilder().setResponseCode(ShardMasterResponse.ResponseCode.OK).build());
+        } catch (IOException e) {
+            return Collections.singletonList(ShardMasterResponse.newBuilder().setResponseCode(ShardMasterResponse.ResponseCode.ERROR).build());
+        }
     }
 
     private Iterable<ShardMasterResponse> handleShardList() {

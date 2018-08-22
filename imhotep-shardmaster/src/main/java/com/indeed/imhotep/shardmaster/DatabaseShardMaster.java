@@ -19,8 +19,10 @@ import com.indeed.imhotep.client.HostsReloader;
 import com.indeed.imhotep.shardmasterrpc.ShardMaster;
 import org.apache.log4j.Logger;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 
 /**
  * @author kenh
@@ -30,11 +32,13 @@ public class DatabaseShardMaster implements ShardMaster {
     private final ShardAssigner assigner;
     private final ShardData shardData;
     private final HostsReloader reloader;
+    private final ShardRefresher refresher;
 
-    public DatabaseShardMaster(final ShardAssigner assigner, final ShardData shardData, final HostsReloader reloader) {
+    public DatabaseShardMaster(final ShardAssigner assigner, final ShardData shardData, final HostsReloader reloader, final ShardRefresher refresher) {
         this.assigner = assigner;
         this.shardData = shardData;
         this.reloader = reloader;
+        this.refresher = refresher;
     }
 
     @Override
@@ -74,5 +78,10 @@ public class DatabaseShardMaster implements ShardMaster {
             toReturn.put(dataset, shardsForDataset);
         }
         return toReturn;
+    }
+
+    @Override
+    public void refreshFieldsForDataset(String dataset) throws IOException {
+        refresher.refreshFieldsForDatasetInSQL(dataset);
     }
 }

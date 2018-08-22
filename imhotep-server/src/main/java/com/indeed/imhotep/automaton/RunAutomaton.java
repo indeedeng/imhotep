@@ -41,7 +41,7 @@ import java.net.URL;
 import java.util.Set;
 
 /**
- * Finite-state automaton with fast run operation.
+ * Finite-state automaton with fast refresh operation.
  * @author Anders M&oslash;ller &lt;<a href="mailto:amoeller@cs.au.dk">amoeller@cs.au.dk</a>&gt;
  */
 public class RunAutomaton implements Serializable {
@@ -56,7 +56,7 @@ public class RunAutomaton implements Serializable {
 	int[] classmap; // map from char number to class class
 
 	/** 
-	 * Sets alphabet table for optimal run performance. 
+	 * Sets alphabet table for optimal refresh performance.
 	 */
 	final void setAlphabet() {
 		classmap = new int[Character.MAX_VALUE - Character.MIN_VALUE + 1];
@@ -199,7 +199,7 @@ public class RunAutomaton implements Serializable {
 	 * <code>Automaton</code>. If the given automaton is not deterministic,
 	 * it is determinized first.
 	 * @param a an automaton
-	 * @param tableize if true, a transition table is created which makes the <code>run</code> 
+	 * @param tableize if true, a transition table is created which makes the <code>refresh</code>
 	 *                 method faster in return of a higher memory usage
 	 */
 	public RunAutomaton(final Automaton a, final boolean tableize) {
@@ -260,11 +260,11 @@ public class RunAutomaton implements Serializable {
 	}
 
 	/**
-	 * Returns the length of the longest accepted run of the given string
+	 * Returns the length of the longest accepted refresh of the given string
 	 * starting at the given offset.
 	 * @param s the string
-	 * @param offset offset into <code>s</code> where the run starts
-	 * @return length of the longest accepted run, -1 if no run is accepted
+	 * @param offset offset into <code>s</code> where the refresh starts
+	 * @return length of the longest accepted refresh, -1 if no refresh is accepted
 	 */
 	public int run(final String s, int offset) {
 		int p = initial;

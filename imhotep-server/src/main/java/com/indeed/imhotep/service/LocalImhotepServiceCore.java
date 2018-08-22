@@ -23,8 +23,6 @@ import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.imhotep.*;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
-import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
-import com.indeed.imhotep.fs.RemoteCachingPath;
 import com.indeed.imhotep.local.ImhotepJavaLocalSession;
 import com.indeed.imhotep.local.ImhotepLocalSession;
 import com.indeed.imhotep.local.MTImhotepLocalMultiSession;

@@ -31,4 +31,5 @@ public interface ShardMaster {
     List<DatasetInfo> getDatasetMetadata() throws IOException;
     List<Shard> getShardsInTime(String dataset, long start, long end) throws IOException;
     Map<String, Collection<ShardInfo>> getShardList() throws IOException;
+    void refreshFieldsForDataset(String dataset) throws IOException;
 }

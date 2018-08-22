@@ -22,6 +22,7 @@ import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.reader.FlamdexMetadata;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexWriter;
+import com.indeed.flamdex.utils.FlamdexUtils;
 import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
@@ -165,8 +166,9 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
                 }
             }
 
-            final Collection<String> intFields = scan(paths, ".intterms");
-            final Collection<String> stringFields = scan(paths, ".strterms");
+            final FlamdexUtils.AllFields fields = FlamdexUtils.getFieldsFromFlamdexFiles(paths);
+            final Collection<String> intFields = fields.intFields;
+            final Collection<String> stringFields = fields.strFields;
             if (config.isWriteBTreesIfNotExisting()) {
                 final Set<String> pathNames = Sets.newHashSet();
                 for (Path path : paths) {

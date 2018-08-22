@@ -115,8 +115,9 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader {
             }
         }
 
-        final Collection<String> intFields = scan(paths, ".intterms");
-        final Collection<String> stringFields = scan(paths, ".strterms");
+        final FlamdexUtils.AllFields fields = FlamdexUtils.getFieldsFromFlamdexFiles(paths);
+        final Collection<String> intFields = fields.intFields;
+        final Collection<String> stringFields = fields.strFields;
         if (config.isWriteBTreesIfNotExisting()) {
             final Set<String> pathNames = Sets.newHashSet();
             for (Path path : paths) {
@@ -138,18 +139,6 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader {
             result.buildAndWriteCardinalityCache(true);
         }
         return result;
-    }
-
-    protected static Collection<String> scan(final List<Path> paths, final String ending) throws IOException {
-        final Set<String> fields = Sets.newTreeSet();
-        for (final Path file : paths) {
-            final String name = file.getFileName().toString();
-            if (name.startsWith("fld-") && name.endsWith(ending)) {
-                fields.add(name.substring(4, name.length() - ending.length()));
-            }
-        }
-
-        return fields;
     }
 
     public MapCache getMapCache() {

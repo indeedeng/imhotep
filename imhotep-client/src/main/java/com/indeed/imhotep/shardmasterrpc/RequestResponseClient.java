@@ -122,4 +122,12 @@ public class RequestResponseClient implements ShardMaster {
 
         return toReturn;
     }
+
+    @Override
+    public void refreshFieldsForDataset(String dataset) throws IOException {
+        final ShardMasterRequest request = ShardMasterRequest.newBuilder()
+                .setRequestType(ShardMasterRequest.RequestType.REFRESH_FIELDS_FOR_DATASET)
+                .setDatasetToRefresh(dataset).build();
+        sendAndReceive(request);
+    }
 }

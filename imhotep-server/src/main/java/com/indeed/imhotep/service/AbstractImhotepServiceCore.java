@@ -15,7 +15,6 @@
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.indeed.flamdex.query.Query;
-import com.indeed.flamdex.reader.FlamdexMetadata;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupRemapRule;
@@ -189,7 +188,7 @@ public abstract class AbstractImhotepServiceCore
             return null;
         });
         try {
-            // do a timed get so the task doesn't run infinitely
+            // do a timed get so the task doesn't refresh infinitely
             future.get(30L, TimeUnit.MINUTES);
         } catch (final TimeoutException e) {
             future.cancel(true);

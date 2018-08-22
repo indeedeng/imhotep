@@ -451,6 +451,7 @@ message ShardMasterRequest {
     GET_SHARD_LIST_FOR_TIME = 2;
     GET_DATASET_METADATA = 3;
     GET_SHARD_LIST = 4;
+    REFRESH_FIELDS_FOR_DATASET = 5;
   }
 
   required RequestType request_type = 1;
@@ -460,4 +461,6 @@ message ShardMasterRequest {
   optional uint64 startTime = 3;
   optional uint64 endTime = 4;
   optional string dataset = 5;
+  // for REFRESH_FIELDS_FOR_DATASET
+  optional string dataset_to_refresh = 6;
 }

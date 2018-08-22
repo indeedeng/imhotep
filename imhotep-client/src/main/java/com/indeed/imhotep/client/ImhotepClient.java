@@ -631,6 +631,17 @@ public class ImhotepClient
         return new ArrayList<>(hostsSource.getHosts());
     }
 
+    public void resetFieldsForDataset(String dataset) {
+        hostsSource.getHosts().stream().map(RequestResponseClient::new).forEach(shardMaster -> {
+            try {
+                shardMaster.refreshFieldsForDataset(dataset);
+            } catch (IOException e) {
+                log.error("IOException on refresh", e);
+                throw Throwables.propagate(e);
+            }
+        });
+    }
+
 
     private Supplier<ShardMaster> getShardMasterSupplier() {
         return () -> {

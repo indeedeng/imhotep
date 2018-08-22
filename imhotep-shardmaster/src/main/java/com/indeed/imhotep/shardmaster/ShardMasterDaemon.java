@@ -29,8 +29,6 @@ import com.indeed.imhotep.shardmasterrpc.RequestMetricStatsEmitter;
 import com.indeed.imhotep.shardmasterrpc.RequestResponseServer;
 import com.indeed.imhotep.shardmasterrpc.ShardMasterExecutors;
 import com.indeed.util.zookeeper.ZooKeeperConnection;
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
 import org.apache.commons.dbcp.BasicDataSource;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -46,6 +44,9 @@ import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
 /**
  * @author kenh
  */
@@ -56,23 +57,21 @@ public class ShardMasterDaemon {
     private volatile RequestResponseServer server;
     private String leaderId;
     private long lastDeleteTimeMillis;
-    private boolean isStarted;
+    private Lock startupLock = new ReentrantLock();
 
     public ShardMasterDaemon(final Config config) {
         this.config = config;
+        startupLock.lock();
     }
 
-    public void waitForStartup(final long timeout) throws TimeoutException {
-        final long startTime = System.currentTimeMillis();
-        while (!isStarted && (System.currentTimeMillis() - startTime) < timeout) {}
-        if (!isStarted) {
+    public void waitForStartup(final long timeout) throws TimeoutException, InterruptedException {
+        if(!startupLock.tryLock(timeout, TimeUnit.MILLISECONDS)){
             throw new TimeoutException("ImhotepDaemon failed to start within " + timeout + " ms");
         }
+
     }
 
     public void run() throws IOException, InterruptedException, KeeperException {
-
-        isStarted = false;
 
         lastDeleteTimeMillis = System.currentTimeMillis();
 
@@ -121,7 +120,8 @@ public class ShardMasterDaemon {
                     shardData,
                     sqlWriteManager
             );
-            refresher.refresh(config.localMode, !config.localMode, ShardFilter.ACCEPT_ALL.equals(config.shardFilter), false);
+
+            refresher.refresh(config.localMode, !config.localMode, ShardFilter.ACCEPT_ALL.equals(config.shardFilter), false, isLeader(leaderElectionRoot, zkConnection));
 
             hostReloadTimer.schedule(new TimerTask() {
                 @Override
@@ -136,23 +136,24 @@ public class ShardMasterDaemon {
                     lastDeleteTimeMillis = System.currentTimeMillis();
                 }
                 final boolean leader = isLeader(leaderElectionRoot, zkConnection);
-                refresher.refresh(leader || config.localMode, !config.localMode, shouldDelete, leader);
+                refresher.refresh(leader || config.localMode, !config.localMode, shouldDelete, leader, leader);
             }, config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis(), TimeUnit.MILLISECONDS);
 
             server = new RequestResponseServer(config.getServerSocket(), new MultiplexingRequestHandler(
                     config.statsEmitter,
-                    new DatabaseShardMaster(config.createAssigner(), shardData, hostsReloader),
+                    new DatabaseShardMaster(config.createAssigner(), shardData, hostsReloader, refresher),
                     config.shardsResponseBatchSize
             ), config.serviceConcurrency);
+            startupLock.unlock();
             try (ZkEndpointPersister endpointPersister = getZKEndpointPersister()) {
                 LOGGER.info("Starting service");
-                isStarted = true;
                 server.run();
             } finally {
                 LOGGER.info("shutting down service");
                 server.close();
             }
         } finally {
+            startupLock.unlock();
             hostReloadTimer.cancel();
             datasetReloadExecutor.shutdown();
             executorService.shutdown();
@@ -222,12 +223,12 @@ public class ShardMasterDaemon {
         private String zkNodes;
         private String imhotepDaemonsZkPath;
         private String shardMastersZkPath;
-        private String dbFile;
-        private String dbParams = "MULTI_THREADED=TRUE;CACHE_SIZE=" + (1024 * 1024);
+        private String hostsFile;
+        private String hostsOverride;
+        private String disabledHosts;
         private String hostsListStatic;
         private String shardAssigner;
         private ShardFilter shardFilter = ShardFilter.ACCEPT_ALL;
-        private int servicePort = 0;
         private int serviceConcurrency = 10;
         private int shardsResponseBatchSize = 1000;
         private int threadPoolSize = 5;
@@ -242,6 +243,11 @@ public class ShardMasterDaemon {
         private boolean localMode = false;
         private String shardsRootPath = "hdfs:///var/imhotep";
         private ServerSocket serverSocket;
+
+        public Config setHostsListStatic(String hostsListStatic) {
+            this.hostsListStatic = hostsListStatic;
+            return this;
+        }
 
         public Config setLocalMode(boolean newLocalMode) {
             this.localMode = newLocalMode;
@@ -278,18 +284,18 @@ public class ShardMasterDaemon {
             return this;
         }
 
-        public Config setDbFile(final String dbFile) {
-            this.dbFile = dbFile;
+        public Config setHostsFile(final String hostsFile) {
+            this.hostsFile = hostsFile;
             return this;
         }
 
-        public Config setDbParams(final String dbParams) {
-            this.dbParams = dbParams;
+        public Config setHostsOverride(final String hostsOverride) {
+            this.hostsOverride = hostsOverride;
             return this;
         }
 
-        public Config setHostsListStatic(final String hostsListStatic) {
-            this.hostsListStatic = hostsListStatic;
+        public Config setDisabledHosts(final String disabledHosts) {
+            this.disabledHosts = disabledHosts;
             return this;
         }
 
@@ -383,29 +389,6 @@ public class ShardMasterDaemon {
             return ShardMasterExecutors.newBlockingFixedThreadPool(threadPoolSize);
         }
 
-        HikariDataSource createDataSource() {
-            final HikariConfig dbConfig = new HikariConfig();
-            // this is a bit arbitrary but we need to ensure that the pool size is large enough for the # of threads
-            dbConfig.setMaximumPoolSize(Math.max(10, threadPoolSize + serviceConcurrency + 5));
-
-            String url;
-            if (dbFile != null) {
-                url = "jdbc:h2:" + dbFile;
-            } else {
-                url = "jdbc:h2:mem:shardassignment";
-            }
-
-            if (dbParams != null) {
-                url += ";" + dbParams;
-            }
-            dbConfig.setJdbcUrl(url);
-            return new HikariDataSource(dbConfig);
-        }
-
-        int getServicePort() {
-            return servicePort;
-        }
-
         ShardFilter getShardFilter() {
             return shardFilter;
         }
@@ -490,7 +473,7 @@ public class ShardMasterDaemon {
         // TODO: fix this to set correct configs
         new ShardMasterDaemon(new Config()
                 .setZkNodes(System.getProperty("imhotep.shardmaster.zookeeper.nodes"))
-                .setDbFile(System.getProperty("imhotep.shardmaster.db.file"))
+                .setHostsFile(System.getProperty("imhotep.shardmaster.hosts.file"))
                 .setServerSocket(new ServerSocket(Integer.parseInt(System.getProperty("imhotep.shardmaster.server.port"))))
         ).run();
     }

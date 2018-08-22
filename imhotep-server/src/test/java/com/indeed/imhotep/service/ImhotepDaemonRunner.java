@@ -25,7 +25,7 @@ import java.util.concurrent.TimeoutException;
  * @author jsgroth
  */
 public class ImhotepDaemonRunner {
-    private final Path datasetDir;
+    private final Path rootShardsDir;
     private final Path tempDir;
     private final int port;
     private int actualPort;
@@ -33,9 +33,9 @@ public class ImhotepDaemonRunner {
 
     private ImhotepDaemon currentlyRunning;
 
-    public ImhotepDaemonRunner(final Path datasetDir, final Path tempDir, final int port) throws IOException,
+    public ImhotepDaemonRunner(final Path rootShardsDir, final Path tempDir, final int port) throws IOException,
                                                                                       TimeoutException {
-        this(datasetDir, tempDir, port, new FlamdexReaderSource() {
+        this(rootShardsDir, tempDir, port, new FlamdexReaderSource() {
             @Override
             public FlamdexReader openReader(final Path directory) throws IOException {
                 return new MockFlamdexReader();
@@ -49,12 +49,12 @@ public class ImhotepDaemonRunner {
         });
     }
 
-    public ImhotepDaemonRunner(final Path datasetDir,
+    public ImhotepDaemonRunner(final Path rootShardsDir,
                                final Path tempDir,
                                final int port,
                                final FlamdexReaderSource flamdexFactory) throws IOException,
                                                                         TimeoutException {
-        this.datasetDir = datasetDir;
+        this.rootShardsDir = rootShardsDir;
         this.tempDir = tempDir;
         this.port = port;
         this.flamdexFactory = flamdexFactory;        
@@ -78,7 +78,7 @@ public class ImhotepDaemonRunner {
                                                               1024L * 1024 * 1024 * 1024,
                                                               flamdexFactory,
                                                               new LocalImhotepServiceConfig(),
-                                                              datasetDir),
+                                          rootShardsDir),
                                   null, null, "localhost", port, null);
         actualPort = currentlyRunning.getPort();
 

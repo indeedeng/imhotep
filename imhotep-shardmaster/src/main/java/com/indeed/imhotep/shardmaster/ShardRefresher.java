@@ -14,6 +14,8 @@
 
 package com.indeed.imhotep.shardmaster;
 
+import com.google.common.collect.Sets;
+import com.indeed.flamdex.utils.FlamdexUtils;
 import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.client.ShardTimeUtils;
 import com.indeed.imhotep.hadoopcommon.HDFSUtils;
@@ -59,6 +61,7 @@ public class ShardRefresher {
     private final AtomicInteger numDatasetsFailedToRead = new AtomicInteger();
     private final AtomicInteger numDatasetsReadFromFilesystemOnCurrentRefresh = new AtomicInteger();
     private final AtomicInteger totalDatasetsOnCurrentRefresh = new AtomicInteger();
+    private Queue<Runnable> fieldRefreshQueue = new ArrayDeque<>();
 
 
 
@@ -77,7 +80,7 @@ public class ShardRefresher {
         this.lastUpdatedTimestamp = Timestamp.from(Instant.MIN);
     }
 
-    public synchronized void refresh(final boolean readFilesystem, final boolean readSQL, final boolean delete, final boolean writeSQL) {
+    public synchronized void refresh(final boolean readFilesystem, final boolean readSQL, final boolean delete, final boolean writeSQL, final boolean shouldRefreshFieldsForDataset) {
         numDatasetsReadFromFilesystemOnCurrentRefresh.set(0);
         totalDatasetsOnCurrentRefresh.set(0);
         numDatasetsFailedToRead.set(0);
@@ -92,7 +95,7 @@ public class ShardRefresher {
                         "Used heap MB: " + ((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1024 / 1024)),
                 0, 1, TimeUnit.MINUTES);
         long time = -System.currentTimeMillis();
-        innerRun(readFilesystem, readSQL, delete,  writeSQL);
+        innerRun(readFilesystem, readSQL, delete,  writeSQL, shouldRefreshFieldsForDataset);
         time += System.currentTimeMillis();
         LOGGER.info("Finished a refresh in " + new Period(time));
         if (numDatasetsFailedToRead.get() > 0) {
@@ -101,7 +104,17 @@ public class ShardRefresher {
         updates.shutdownNow();
     }
 
-    private void innerRun(final boolean readFilesystem, final boolean readSQL, final boolean delete, final boolean writeSQL) {
+    private void innerRun(final boolean readFilesystem, final boolean readSQL, final boolean delete, final boolean writeSQL, final boolean shouldRefreshFieldsForDataset) {
+        final long startDatasetRefresh = System.currentTimeMillis();
+        LOGGER.info("Running " + fieldRefreshQueue.size() + " dataset field refreshes.");
+        if (shouldRefreshFieldsForDataset) {
+            while (!fieldRefreshQueue.isEmpty()) {
+                fieldRefreshQueue.remove().run();
+            }
+        } else {
+            fieldRefreshQueue = new ArrayDeque<>();
+        }
+        LOGGER.info("Finished dataset field refreshes in " +  new Period(System.currentTimeMillis() - startDatasetRefresh));
         if(readSQL) {
             long startSQLRead = System.currentTimeMillis();
             loadFromSQL(delete);
@@ -369,19 +382,104 @@ public class ShardRefresher {
         sqlWriteManager.run();
     }
 
-    private void deleteShardsInSQL(final List<String> allPaths) {
+    private void deleteShardsInSQL(final List<String> deleteCandidates) {
         Runnable run = () -> dbConnection.batchUpdate("DELETE FROM tblshards WHERE path = ?;", new BatchPreparedStatementSetter() {
             @Override
             public void setValues(PreparedStatement ps, int i) throws SQLException {
-                ps.setString(1, allPaths.get(i));
+                ps.setString(1, deleteCandidates.get(i));
             }
 
             @Override
             public int getBatchSize() {
-                return allPaths.size();
+                return deleteCandidates.size();
             }
         });
         sqlWriteManager.addStatementToQueue(run);
         sqlWriteManager.run();
+    }
+
+    public void refreshFieldsForDatasetInSQL(final String dataset) throws IOException {
+        Runnable refreshTask = () -> {
+            try {
+                final AllFieldsSet allFieldsForDataset = getAllFieldsForDataset(dataset);
+                List<String> allFields = new ArrayList<>(Sets.union(allFieldsForDataset.intFields.keySet(), allFieldsForDataset.strFields.keySet()));
+                // TODO: make these calls atomic / a transaction
+                Runnable clean = () -> dbConnection.update(con -> {
+                    final PreparedStatement statement = con.prepareStatement("DELETE FROM tblfields WHERE dataset = ?");
+                    statement.setString(1, dataset);
+                    return statement;
+                });
+
+                Runnable fill = () -> dbConnection.batchUpdate("INSERT INTO tblfields (dataset, fieldname, type, lastshardstarttime) VALUES (?, ?, ?, ?)", new BatchPreparedStatementSetter() {
+                    @Override
+                    public void setValues(PreparedStatement ps, int i) throws SQLException {
+                        final String fieldName = allFields.get(i);
+                        ps.setString(1, dataset);
+                        ps.setString(2, fieldName);
+                        if (allFieldsForDataset.strFields.containsKey(fieldName) && allFieldsForDataset.intFields.containsKey(fieldName)) {
+                            ps.setString(3, "CONFLICT");
+                            ps.setLong(4, Math.max(allFieldsForDataset.intFields.get(fieldName), allFieldsForDataset.strFields.get(fieldName)));
+                        } else if (allFieldsForDataset.strFields.containsKey(fieldName)) {
+                            ps.setString(3, "STRING");
+                            ps.setLong(4, allFieldsForDataset.strFields.get(fieldName));
+                        } else {
+                            ps.setString(3, "INT");
+                            ps.setLong(4, allFieldsForDataset.intFields.get(fieldName));
+                        }
+                    }
+
+                    @Override
+                    public int getBatchSize() {
+                        return allFields.size();
+                    }
+                });
+
+                sqlWriteManager.addStatementToQueue(clean);
+                sqlWriteManager.addStatementToQueue(fill);
+                sqlWriteManager.run();
+            } catch (IOException e) {
+                LOGGER.error("Could not refresh fields for dataset: " + dataset, e);
+            }
+        };
+        fieldRefreshQueue.add(refreshTask);
+    }
+
+
+    private class AllFieldsSet {
+        Map<String, Long> strFields;
+        Map<String, Long> intFields;
+        public AllFieldsSet() {
+            strFields = new HashMap<>();
+            intFields = new HashMap<>();
+        }
+    }
+
+    private AllFieldsSet getAllFieldsForDataset(String dataset) throws IOException {
+        final AllFieldsSet toReturn = new AllFieldsSet();
+        final Path datasetPath = hadoopFileSystem.resolvePath(new Path(datasetsDir.toString() + "/" + dataset));
+        final FileStatus[] fileStatuses = hadoopFileSystem.listStatus(datasetPath);
+        List<ShardDir> shardDirs = Arrays.stream(fileStatuses).map(FileStatus::getPath).map(ShardDir::new).collect(Collectors.toList());
+        final List<Pair<ShardDir, Future<FlamdexMetadata>>> metadataFutures = getMetadataFutures(shardDirs);
+        for(Pair<ShardDir, Future<FlamdexMetadata>> p: metadataFutures) {
+            try {
+                final FlamdexMetadata metadata = p.getValue().get();
+                final long shardStartTime = ShardTimeUtils.parseStart(p.getKey().getId()).getMillis();
+                for(String field: metadata.getStringFields()) {
+                    if(toReturn.strFields.containsKey(field) && toReturn.strFields.get(field) > shardStartTime) {
+                        continue;
+                    }
+                    toReturn.strFields.put(field, shardStartTime);
+                }
+                for(String field: metadata.getIntFields()) {
+                    if(toReturn.intFields.containsKey(field) && toReturn.intFields.get(field) > shardStartTime) {
+                        continue;
+                    }
+                    toReturn.intFields.put(field, shardStartTime);
+                }
+            } catch (InterruptedException | ExecutionException e) {
+                LOGGER.error("Could not get metadata for shard " + p.getKey().getIndexDir(), e);
+            }
+        }
+        return toReturn;
     }
 }

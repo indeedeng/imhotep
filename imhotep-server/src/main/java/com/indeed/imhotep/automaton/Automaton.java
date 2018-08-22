@@ -103,7 +103,7 @@ public class Automaton implements Serializable, Cloneable {
 	State initial;
 	
 	/** If true, then this automaton is definitely deterministic 
-	 (i.e., there are no choices for any run, but a run may crash). */
+	 (i.e., there are no choices for any refresh, but a refresh may crash). */
 	boolean deterministic;
 	
 	/** Extra data associated with this automaton. */

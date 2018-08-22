@@ -14,19 +14,31 @@
 package com.indeed.imhotep.shardmaster;
 
 import com.google.common.base.Charsets;
+import com.indeed.flamdex.utils.FlamdexUtils;
+import com.indeed.imhotep.archive.ArchiveUtils;
 import com.indeed.imhotep.archive.FileMetadata;
 import com.indeed.imhotep.archive.SquallArchiveReader;
+import org.apache.commons.io.IOUtils;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocatedFileStatus;
+import org.apache.hadoop.fs.RemoteIterator;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.CustomClassLoaderConstructor;
 import org.yaml.snakeyaml.nodes.Tag;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * @author jplaisance
@@ -104,18 +116,44 @@ public class FlamdexMetadata {
         // Pass the class loader to the constructor, to avoid getting a "class FlamdexMetadata not found exception".
         // The exception happens because, on the workers, the YAML parser does not know how to create an instance of
         // FlamdexMetadata because of version mismatch caused by the presence of many jars.
-        SquallArchiveReader reader = new SquallArchiveReader(hadoopFilesystem, hadoopPath);
-        List<FileMetadata> fileMetadata = reader.readMetadata();
-        FileMetadata acutalMetadata = getMetadataFromMetadata(fileMetadata);
-        if(acutalMetadata == null) {
-            return null;
-        }
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        reader.tryCopyToStream(acutalMetadata, out);
         final Yaml loader = new Yaml(new CustomClassLoaderConstructor(FlamdexMetadata.class, FlamdexMetadata.class.getClassLoader()));
+        if(hadoopPath.getName().endsWith(".sqar")) {
+            final SquallArchiveReader reader = new SquallArchiveReader(hadoopFilesystem, hadoopPath);
+            final List<FileMetadata> fileMetadata = reader.readMetadata();
+            FileMetadata acutalMetadata = getMetadataFromMetadata(fileMetadata);
+            if (acutalMetadata == null) {
+                return null;
+            }
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            reader.tryCopyToStream(acutalMetadata, out);
 
-        final String metadata = out.toString();
-        return loader.loadAs(metadata, FlamdexMetadata.class);
+            final String metadata = out.toString();
+            final FlamdexMetadata flamdexMetadata = loader.loadAs(metadata, FlamdexMetadata.class);
+            final List<Path> files = fileMetadata.stream().map(FileMetadata::getFilename).map(Paths::get).collect(Collectors.toList());
+            setIntAndStringFields(flamdexMetadata, files);
+            return flamdexMetadata;
+        } else {
+            org.apache.hadoop.fs.Path metadataFile = hadoopFilesystem.resolvePath(new org.apache.hadoop.fs.Path(hadoopPath + "/metadata.txt"));
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            final FSDataInputStream input = hadoopFilesystem.open(metadataFile);
+            IOUtils.copy(input, out);
+            final String metadataContent = out.toString();
+            final FlamdexMetadata metadata = loader.loadAs(metadataContent, FlamdexMetadata.class);
+            final RemoteIterator<LocatedFileStatus> locatedFileStatusRemoteIterator = hadoopFilesystem.listFiles(hadoopPath, false);
+            final List<Path> paths = new ArrayList<>();
+            while (locatedFileStatusRemoteIterator.hasNext()) {
+                final LocatedFileStatus next = locatedFileStatusRemoteIterator.next();
+                paths.add(Paths.get(next.getPath().toString()));
+            }
+            setIntAndStringFields(metadata, paths);
+            return metadata;
+        }
+    }
+
+    private static void setIntAndStringFields(FlamdexMetadata flamdexMetadata, List<Path> files) throws IOException {
+        final FlamdexUtils.AllFields actualFields = FlamdexUtils.getFieldsFromFlamdexFiles(files);
+        flamdexMetadata.setIntFields(actualFields.intFields);
+        flamdexMetadata.setStringFields(actualFields.strFields);
     }
 
     private static FileMetadata getMetadataFromMetadata(List<FileMetadata> fileMetadata) {

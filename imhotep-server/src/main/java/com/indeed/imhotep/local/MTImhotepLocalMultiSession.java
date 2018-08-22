@@ -96,7 +96,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             return null;
         });
 
-        // TODO: run as a separate task maybe?
+        // TODO: refresh as a separate task maybe?
         return pool.getTotalResult();
     }
 
