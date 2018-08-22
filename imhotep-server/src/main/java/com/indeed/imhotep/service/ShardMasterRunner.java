@@ -14,24 +14,16 @@
 package com.indeed.imhotep.service;
 
 import com.google.common.base.Throwables;
-import com.indeed.flamdex.api.FlamdexReader;
-import com.indeed.flamdex.reader.MockFlamdexReader;
 import com.indeed.imhotep.client.Host;
-import com.indeed.imhotep.shardmaster.ShardData;
-import com.indeed.imhotep.shardmaster.ShardFilter;
 import com.indeed.imhotep.shardmaster.ShardMasterDaemon;
-import com.indeed.imhotep.shardmaster.ShardRefresher;
 import com.indeed.imhotep.shardmasterrpc.RequestResponseClient;
 import com.indeed.imhotep.shardmasterrpc.ShardMaster;
 import org.apache.commons.lang.StringUtils;
-import org.apache.zookeeper.KeeperException;
-
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
 
 /**
  * @author kornerup

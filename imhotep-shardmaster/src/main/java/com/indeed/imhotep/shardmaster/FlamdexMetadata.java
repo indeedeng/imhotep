@@ -14,7 +14,7 @@
 package com.indeed.imhotep.shardmaster;
 
 import com.google.common.base.Charsets;
-import com.indeed.flamdex.utils.FlamdexUtils;
+import com.indeed.flamdex.utils.ShardMetadataUtils;
 import com.indeed.imhotep.archive.ArchiveUtils;
 import com.indeed.imhotep.archive.FileMetadata;
 import com.indeed.imhotep.archive.SquallArchiveReader;
@@ -151,7 +151,7 @@ public class FlamdexMetadata {
     }
 
     private static void setIntAndStringFields(FlamdexMetadata flamdexMetadata, List<Path> files) throws IOException {
-        final FlamdexUtils.AllFields actualFields = FlamdexUtils.getFieldsFromFlamdexFiles(files);
+        final ShardMetadataUtils.AllFields actualFields = ShardMetadataUtils.getFieldsFromFlamdexFiles(files);
         flamdexMetadata.setIntFields(actualFields.intFields);
         flamdexMetadata.setStringFields(actualFields.strFields);
     }

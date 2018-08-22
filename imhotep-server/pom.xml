@@ -111,6 +111,12 @@
 
 		<dependency>
 			<groupId>com.indeed</groupId>
+			<artifactId>imhotep-shardmaster</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.indeed</groupId>
 			<artifactId>imhotep-filesystem</artifactId>
 			<type>test-jar</type>
 			<version>${project.version}</version>

@@ -32,6 +32,7 @@ import com.indeed.flamdex.fieldcache.NativeFlamdexFieldCacher;
 import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIterator;
 import com.indeed.flamdex.reader.FlamdexMetadata;
 import com.indeed.flamdex.utils.FlamdexUtils;
+import com.indeed.flamdex.utils.ShardMetadataUtils;
 import com.indeed.imhotep.RaceCache;
 
 import javax.annotation.Nonnull;
@@ -115,7 +116,7 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader {
             }
         }
 
-        final FlamdexUtils.AllFields fields = FlamdexUtils.getFieldsFromFlamdexFiles(paths);
+        final ShardMetadataUtils.AllFields fields = ShardMetadataUtils.getFieldsFromFlamdexFiles(paths);
         final Collection<String> intFields = fields.intFields;
         final Collection<String> stringFields = fields.strFields;
         if (config.isWriteBTreesIfNotExisting()) {

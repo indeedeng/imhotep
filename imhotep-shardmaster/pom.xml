@@ -149,12 +149,6 @@
 
         <dependency>
             <groupId>com.indeed</groupId>
-            <artifactId>imhotep-server</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.indeed</groupId>
             <artifactId>imhotep-filesystem</artifactId>
             <version>${project.version}</version>
         </dependency>

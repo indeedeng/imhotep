@@ -25,16 +25,7 @@ import com.indeed.imhotep.io.TestFileUtils;
 import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
 import com.indeed.imhotep.shardmaster.FlamdexFormatVersion;
 import com.indeed.imhotep.shardmaster.FlamdexMetadata;
-import com.indeed.imhotep.shardmaster.ShardRefresherTest;
 import com.indeed.imhotep.shardmasterrpc.ShardMaster;
-import org.apache.log4j.Appender;
-import org.apache.log4j.BasicConfigurator;
-import org.apache.log4j.ConsoleAppender;
-import org.apache.log4j.Layout;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.log4j.PatternLayout;
-import org.apache.log4j.varia.LevelRangeFilter;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -45,11 +36,9 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
