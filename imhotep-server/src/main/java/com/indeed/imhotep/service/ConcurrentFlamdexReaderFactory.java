@@ -20,6 +20,7 @@ import com.indeed.imhotep.MemoryReserver;
 import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
+import com.indeed.util.core.threads.NamedThreadFactory;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
@@ -29,9 +30,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -40,10 +40,13 @@ import java.util.stream.Collectors;
  */
 public class ConcurrentFlamdexReaderFactory {
     private static final Logger log = Logger.getLogger(ConcurrentFlamdexReaderFactory.class);
+    // TODO: remove after CPU locking for this is enabled
+    private static final int IO_THREAD_COUNT = 28;
 
     private final MemoryReserver memory;
     private final FlamdexReaderSource factory;
-    private final ExecutorService threadPool = Executors.newCachedThreadPool();
+    private final ThreadPoolExecutor threadPool = new BlockingThreadPoolExecutor(IO_THREAD_COUNT, IO_THREAD_COUNT,
+            new NamedThreadFactory("ConcurrentFlamdexReaderFactory", true, log));
 
 
     // TODO: re-enable flamdex reader cache after making sure it doesn't lead to leaks
@@ -128,7 +131,7 @@ public class ConcurrentFlamdexReaderFactory {
            in parallel, per IMTEPD-188. */
         try {
             final List<Future<Void>> outcomes =
-                    threadPool.invokeAll(createReaderTasks, 5, TimeUnit.MINUTES);
+                    threadPool.invokeAll(createReaderTasks, 15, TimeUnit.MINUTES);
             for (final Future<Void> outcome: outcomes) {
                 outcome.get();
             }
