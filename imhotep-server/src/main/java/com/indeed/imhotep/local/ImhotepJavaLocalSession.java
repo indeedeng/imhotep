@@ -59,7 +59,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class ImhotepJavaLocalSession extends ImhotepLocalSession {
 
-    static final Logger log = Logger.getLogger(ImhotepJavaLocalSession.class);
+    private static final Logger log = Logger.getLogger(ImhotepJavaLocalSession.class);
 
     private final String optimizedIndexesDir;
     private final File optimizationLog;

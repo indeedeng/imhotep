@@ -22,12 +22,12 @@ import java.util.Map;
 /**
  * @author jplaisance
  */
-public interface SessionManager<E> {
+public interface SessionManager {
 
     void addSession(
             String sessionId,
             MTImhotepLocalMultiSession imhotepSession,
-            E sessionState,
+            Map<ShardId, CachedFlamdexReaderReference> sessionState,
             String username,
             String clientName,
             String ipAddress,
