@@ -17,14 +17,14 @@ package com.indeed.imhotep.service;
 import com.google.common.base.Throwables;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.MemoryReserver;
-import com.indeed.util.core.Pair;
+import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -33,7 +33,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
+/**
+ * Provides parallel FlamdexReader construction using the provided FlamdexReaderSource.
+ */
 public class ConcurrentFlamdexReaderFactory {
     private static final Logger log = Logger.getLogger(ConcurrentFlamdexReaderFactory.class);
 
@@ -42,35 +46,62 @@ public class ConcurrentFlamdexReaderFactory {
     private final ExecutorService threadPool = Executors.newCachedThreadPool();
 
 
+    // TODO: re-enable flamdex reader cache after making sure it doesn't lead to leaks
     //    private final LoadingCache<Pair<Path, Integer>, SharedReference<CachedFlamdexReader>> flamdexReaderLoadingCache;
 
 
     public ConcurrentFlamdexReaderFactory(final MemoryReserver memory, final FlamdexReaderSource factory) {
         this.memory = memory;
         this.factory = factory;
+
+//        flamdexReaderLoadingCache = CacheBuilder.newBuilder().maximumSize(100000).expireAfterAccess(config.getFlamdexReaderCacheMaxDurationMillis(),
+//                TimeUnit.MILLISECONDS).removalListener((RemovalListener<Pair<Path, Integer>, SharedReference<CachedFlamdexReader>>) notification ->
+//                    Closeables2.closeQuietly(notification.getValue(), log))
+//                .build(new CacheLoader<Pair<Path, Integer>, SharedReference<CachedFlamdexReader>>() {
+//            @Override
+//            public SharedReference<CachedFlamdexReader> load(Pair<Path, Integer> key) throws Exception {
+//                return createFlamdexReader(key.getKey(), key.getValue());
+//            }
+//        });
     }
 
-    final class CreateReader implements Callable<Void> {
-        final Path path;
-        final int numDocs;
-        final Map<Path, SharedReference<CachedFlamdexReader>> result;
+    public static class CreateRequest {
+        public final Path path;
+        public final int numDocs;
+        public final String userName;
+        public final String clientName;
 
-        public CreateReader(Path path, int numDocs, Map<Path, SharedReference<CachedFlamdexReader>> result) {
+        public CreateRequest(Path path, int numDocs, String userName, String clientName) {
             this.path = path;
             this.numDocs = numDocs;
+            this.userName = userName;
+            this.clientName = clientName;
+        }
+    }
+
+    final class CreateReaderTask implements Callable<Void> {
+        final Map<Path, SharedReference<CachedFlamdexReader>> result;
+        final CreateRequest createRequest;
+
+        CreateReaderTask(CreateRequest createRequest, Map<Path, SharedReference<CachedFlamdexReader>> result) {
             this.result = result;
+            this.createRequest = createRequest;
         }
 
         public Void call() {
             final SharedReference<CachedFlamdexReader> reader;
+            ImhotepTask.setup(createRequest.userName, createRequest.clientName);
             try {
-                reader = createFlamdexReader(path, numDocs);
-            }
-            catch (final Exception ex) {
-                log.warn("unable to create reader for: " + path, ex);
+            // TODO: enable locking
+//            try (final Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
+                reader = createFlamdexReader(createRequest.path, createRequest.numDocs);
+            } catch (final Exception ex) {
+                log.warn("unable to create reader for: " + createRequest.path, ex);
                 throw Throwables.propagate(ex);
+            } finally {
+                ImhotepTask.clear();
             }
-            result.put(path, reader);
+            result.put(createRequest.path, reader);
             return null;
         }
 
@@ -83,24 +114,21 @@ public class ConcurrentFlamdexReaderFactory {
         }
     }
 
-    /** For each requested shard, return an id and a CachedFlamdexReaderReference. */
-    Map<Path, SharedReference<CachedFlamdexReader>> getFlamdexReaders(List<Pair<Path, Integer>> pathsAndNumDocs)
+    /** For each requested shard, return a path and a CachedFlamdexReader shared reference. */
+    public Map<Path, SharedReference<CachedFlamdexReader>> constructFlamdexReaders(Collection<CreateRequest> createRequests)
             throws IOException {
 
         final ConcurrentHashMap<Path, SharedReference<CachedFlamdexReader>> result = new ConcurrentHashMap<>();
-
-        final List<CreateReader> createReaders = new ArrayList<>();
-
-        for (final Pair<Path, Integer> request : pathsAndNumDocs) {
-            createReaders.add(new CreateReader(request.getFirst(), request.getSecond(), result));
-        }
+        final List<CreateReaderTask> createReaderTasks = createRequests.stream().map(
+                request -> new CreateReaderTask(request, result)
+        ).collect(Collectors.toList());
 
         /* Creating readers can actually be a bit expensive, since it can
            involve opening and reading metadata.txt files within shards. Do this
            in parallel, per IMTEPD-188. */
         try {
             final List<Future<Void>> outcomes =
-                    threadPool.invokeAll(createReaders, 5, TimeUnit.MINUTES);
+                    threadPool.invokeAll(createReaderTasks, 5, TimeUnit.MINUTES);
             for (final Future<Void> outcome: outcomes) {
                 outcome.get();
             }

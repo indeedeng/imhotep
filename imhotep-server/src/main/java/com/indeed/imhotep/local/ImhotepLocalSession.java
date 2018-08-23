@@ -185,13 +185,13 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
     }
 
-    public ImhotepLocalSession(final String sessionId, final SharedReference<FlamdexReader> flamdexReader)
+    public ImhotepLocalSession(final String sessionId, final FlamdexReader flamdexReader)
         throws ImhotepOutOfMemoryException {
         this(sessionId, flamdexReader, new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), null);
     }
 
     public ImhotepLocalSession(final String sessionId,
-                               final SharedReference<FlamdexReader> flamdexReader,
+                               final FlamdexReader flamdexReader,
                                final MemoryReservationContext memory,
                                final AtomicLong tempFileSizeBytesLeft)
         throws ImhotepOutOfMemoryException {
@@ -203,7 +203,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         this.flamdexReader = this.instrumentedFlamdexReader; // !@# remove this alias
         this.flamdexReaderRef = SharedReference.create(this.flamdexReader);
         this.memory = memory;
-        this.numDocs = flamdexReader.get().getNumDocs();
+        this.numDocs = flamdexReader.getNumDocs();
 
         // Technically, we should claim memory used by docIdToGroup as well.
         // But we know that ConstantGroupLookup uses 0 memory

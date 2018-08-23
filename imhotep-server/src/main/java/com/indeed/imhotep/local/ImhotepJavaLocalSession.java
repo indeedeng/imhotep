@@ -67,31 +67,14 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
     private FlamdexReader originalReader;
     private SharedReference<FlamdexReader> originalReaderRef;
 
-    @Deprecated
-    @VisibleForTesting
-    public ImhotepJavaLocalSession(final String sessionId, final FlamdexReader reader) throws ImhotepOutOfMemoryException {
-        this(sessionId, SharedReference.create(reader));
-    }
-
-    public ImhotepJavaLocalSession(final String sessionId, final SharedReference<FlamdexReader> flamdexReader)
+    public ImhotepJavaLocalSession(final String sessionId, final FlamdexReader flamdexReader)
         throws ImhotepOutOfMemoryException {
         this(sessionId, flamdexReader, null,
              new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), null);
     }
 
-    @Deprecated
-    @VisibleForTesting
     public ImhotepJavaLocalSession(final String sessionId,
                                    final FlamdexReader flamdexReader,
-                                   final String optimizedIndexDirectory,
-                                   final MemoryReservationContext memory,
-                                   final AtomicLong tempFileSizeBytesLeft)
-            throws ImhotepOutOfMemoryException {
-        this(sessionId, SharedReference.create(flamdexReader), optimizedIndexDirectory, memory, tempFileSizeBytesLeft);
-
-    }
-    public ImhotepJavaLocalSession(final String sessionId,
-                                   final SharedReference<FlamdexReader> flamdexReader,
                                    final String optimizedIndexDirectory,
                                    final MemoryReservationContext memory,
                                    final AtomicLong tempFileSizeBytesLeft)

@@ -20,9 +20,11 @@ import com.indeed.imhotep.archive.ArchiveUtils;
 import com.indeed.imhotep.archive.FileMetadata;
 import com.indeed.imhotep.archive.SquallArchiveReader;
 import com.indeed.imhotep.fs.sql.SqarMetaDataDao;
+import com.indeed.imhotep.scheduling.TaskScheduler;
 
 import javax.annotation.Nullable;
 import java.io.BufferedOutputStream;
+import java.io.Closeable;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -123,12 +125,15 @@ class SqarMetaDataManager {
         final RemoteFileMetadata fileMetadata = sqarMetaDataDao.getFileMetadata(shardPath, fileName);
         if (fileMetadata == null) {
             if (!sqarMetaDataDao.hasShard(shardPath)) {
-                try (InputStream metadataInputStream = fs.newInputStream(SqarMetaDataUtil.getMetadataPath(shardPath), 0, -1)) {
-                    cacheMetadata(shardPath, metadataInputStream);
-                } catch (final NoSuchFileException|FileNotFoundException e) {
-                    // when the metadata file doesn't exist, there is nothing to return
-                    return null;
-                }
+                // TODO: enable locking
+//                try (Closeable ignore = TaskScheduler.RemoteFSIOScheduler.lockSlot()) {
+                    try (InputStream metadataInputStream = fs.newInputStream(SqarMetaDataUtil.getMetadataPath(shardPath), 0, -1)) {
+                        cacheMetadata(shardPath, metadataInputStream);
+                    } catch (final NoSuchFileException | FileNotFoundException e) {
+                        // when the metadata file doesn't exist, there is nothing to return
+                        return null;
+                    }
+//                }
                 return sqarMetaDataDao.getFileMetadata(shardPath, fileName);
             }
         }

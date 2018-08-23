@@ -64,7 +64,7 @@ public interface ImhotepServiceCore {
     GroupStatsIterator handleGetGroupStats(String sessionId, int stat);
     GroupStatsIterator handleGetDistinct(String sessionId, String field, boolean isIntField);
     GroupStatsIterator handleMergeDistinctSplit(String sessionId, String field, boolean isIntField, InetSocketAddress[] nodes, int splitIndex);
-    List<String> getShardIdsForSession(String sessionId);
+    List<String> getShardsForSession(String sessionId);
     boolean sessionIsValid(String sessionId);
     void handleCloseSession(String sessionId);
     void handleCloseSession(String sessionId, Exception e);

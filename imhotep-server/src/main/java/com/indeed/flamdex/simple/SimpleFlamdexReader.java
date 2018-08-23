@@ -394,6 +394,7 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader {
     }
 
     public static final class Config {
+        // TODO: should disable as ImhotepFS is read only
         private boolean writeBTreesIfNotExisting = true;
         // Calculating cardinality is very expensive.
         // If defauld value of this is 'true' then there will huge cpu-load on shards opening.

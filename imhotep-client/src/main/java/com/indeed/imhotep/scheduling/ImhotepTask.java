@@ -18,6 +18,7 @@ import com.google.common.primitives.Longs;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -32,7 +33,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     private final long taskId;
     final String userName;
     private final String clientName;
-    private final AbstractImhotepMultiSession session;
+    @Nullable private final AbstractImhotepMultiSession session;
     private CountDownLatch waitLock = null;
     private long lastExecutionStartTime = 0;
     private long lastWaitStartTime = 0;
@@ -43,16 +44,25 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         ImhotepTask.THREAD_LOCAL_TASK.set(task);
     }
 
+    public static void setup(String userName, String clientName) {
+        final ImhotepTask task = new ImhotepTask(userName, clientName, null);
+        ImhotepTask.THREAD_LOCAL_TASK.set(task);
+    }
+
     public static void clear() {
         ImhotepTask.THREAD_LOCAL_TASK.remove();
     }
 
-    private ImhotepTask(AbstractImhotepMultiSession session) {
-        this.userName = session.getUserName();
-        this.clientName = session.getClientName();
+    private ImhotepTask(String userName, String clientName, @Nullable AbstractImhotepMultiSession session) {
+        this.userName = userName;
+        this.clientName = clientName;
         this.taskId = nextTaskId.incrementAndGet();
         creationTimestamp = System.nanoTime();
         this.session = session;
+    }
+
+    private ImhotepTask(AbstractImhotepMultiSession session) {
+        this(session.getUserName(), session.getClientName(), session);
     }
 
     synchronized void preExecInitialize(TaskScheduler newOwnerScheduler) {
@@ -69,7 +79,9 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
             throw new IllegalStateException("Tried to schedule task that is not startable " + toString());
         }
         long waitTime = System.nanoTime() - lastWaitStartTime;
-        session.schedulerWaitTimeCallback(schedulerType, waitTime);
+        if(session != null) {
+            session.schedulerWaitTimeCallback(schedulerType, waitTime);
+        }
         waitLock.countDown();
         lastExecutionStartTime = System.nanoTime();
     }
@@ -94,7 +106,9 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
             throw new IllegalStateException("Tried to finish a task that wasn't started");
         }
         long executionTime = System.nanoTime() - lastExecutionStartTime;
-        session.schedulerExecTimeCallback(schedulerType, executionTime);
+        if(session != null) {
+            session.schedulerExecTimeCallback(schedulerType, executionTime);
+        }
         lastExecutionStartTime = 0;
         ownerScheduler = null;
         return executionTime;
