@@ -17,6 +17,7 @@ import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.MemoryReservationContext;
+import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.exceptions.TooManySessionsException;
 import com.indeed.imhotep.exceptions.UserSessionCountLimitExceededException;
 import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
@@ -26,6 +27,7 @@ import com.indeed.util.core.threads.NamedThreadFactory;
 import com.indeed.util.varexport.Export;
 import org.apache.log4j.Logger;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -70,7 +72,7 @@ public final class LocalSessionManager implements SessionManager {
     public void addSession(
             final String sessionId,
             final MTImhotepLocalMultiSession imhotepSession,
-            final Map<ShardId, CachedFlamdexReaderReference> flamdexes,
+            final Map<Path, CachedFlamdexReaderReference> flamdexes,
             final String username,
             final String clientName,
             final String ipAddress,
@@ -128,7 +130,7 @@ public final class LocalSessionManager implements SessionManager {
     @Override
     public void removeAndCloseIfExists(final String sessionId, final Exception e) {
         final SharedReference<MTImhotepLocalMultiSession> imhotepSession;
-        final Map<ShardId, CachedFlamdexReaderReference> shardToFlamdexReader;
+        final Map<Path, CachedFlamdexReaderReference> shardToFlamdexReader;
         synchronized (sessionMap) {
             final Session session = sessionMap.remove(sessionId);
             if (session == null) {
@@ -184,7 +186,7 @@ public final class LocalSessionManager implements SessionManager {
 
     protected static final class Session {
         protected final SharedReference<MTImhotepLocalMultiSession> imhotepSession;
-        protected final Map<ShardId, CachedFlamdexReaderReference> shardToFlamdexReader;
+        protected final Map<Path, CachedFlamdexReaderReference> shardToFlamdexReader;
         protected final String username;
         protected final String clientName;
         protected final String ipAddress;
@@ -199,7 +201,7 @@ public final class LocalSessionManager implements SessionManager {
 
         protected Session(
                 final MTImhotepLocalMultiSession imhotepSession,
-                final Map<ShardId, CachedFlamdexReaderReference> shardToFlamdexReader,
+                final Map<Path, CachedFlamdexReaderReference> shardToFlamdexReader,
                 final String username,
                 final String clientName,
                 final String ipAddress,
@@ -251,11 +253,11 @@ public final class LocalSessionManager implements SessionManager {
         return uniqueUsernames.size();
     }
 
-    public List<String> getShardIdsForSession(final String sessionId) {
+    public List<String> getShardsForSession(final String sessionId) {
         final Session session = internalGetSession(sessionId);
         final List<String> ret = new ArrayList<>(session.shardToFlamdexReader.size());
-        for (final ShardId flamdex : session.shardToFlamdexReader.keySet()) {
-            ret.add(flamdex.getId());
+        for (final Path path : session.shardToFlamdexReader.keySet()) {
+            ret.add(path.toString());
         }
         return ret;
     }
@@ -267,8 +269,9 @@ public final class LocalSessionManager implements SessionManager {
         for (final String sessionId : clone.keySet()) {
             final Session session = clone.get(sessionId);
             final List<ImhotepStatusDump.ShardDump> openShards = new ArrayList<>();
-            for (final Map.Entry<ShardId, CachedFlamdexReaderReference> entry : session.shardToFlamdexReader.entrySet()) {
-                openShards.add(new ImhotepStatusDump.ShardDump(entry.getKey().getId(), entry.getKey().getDataset(), entry.getValue().getNumDocs(), entry.getValue().getMetricDump()));
+            for (final Map.Entry<Path, CachedFlamdexReaderReference> entry : session.shardToFlamdexReader.entrySet()) {
+                final ShardDir shard = new ShardDir(entry.getKey());
+                openShards.add(new ImhotepStatusDump.ShardDump(shard.getId(), shard.getDataset(), entry.getValue().getNumDocs(), entry.getValue().getMetricDump()));
             }
             openSessions.add(new ImhotepStatusDump.SessionDump(sessionId, session.dataset, "", session.username, session.clientName,
                     session.ipAddress, session.clientVersion, session.creationTime, openShards,

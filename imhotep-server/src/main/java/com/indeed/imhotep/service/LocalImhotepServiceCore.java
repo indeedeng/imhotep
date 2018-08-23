@@ -16,6 +16,7 @@
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
@@ -31,6 +32,7 @@ import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
 import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
 import com.indeed.imhotep.scheduling.SchedulerType;
 import com.indeed.imhotep.scheduling.TaskScheduler;
+import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.core.shell.PosixFileOperations;
@@ -66,13 +68,10 @@ public class LocalImhotepServiceCore
 
     private final ScheduledExecutorService heartBeat;
     private final Path shardTempDir;
-    private final FlamdexReaderSource factory;
-
-//    private final LoadingCache<Pair<Path, Integer>, SharedReference<CachedFlamdexReader>> flamdexReaderLoadingCache;
-
     private final Path rootDir;
 
     private final MemoryReserver memory;
+    private final ConcurrentFlamdexReaderFactory flamderReaderFactory;
 
     /**
      * @param shardTempDir
@@ -107,11 +106,11 @@ public class LocalImhotepServiceCore
         this.shardTempDir = shardTempDir;
 
         memory = new ImhotepMemoryPool(memoryCapacity);
-
+        final FlamdexReaderSource factory;
         if(flamdexReaderFactory != null) {
-            this.factory = flamdexReaderFactory;
+            factory = flamdexReaderFactory;
         } else {
-            this. factory = new FlamdexReaderSource() {
+            factory = new FlamdexReaderSource() {
                 @Override
                 public FlamdexReader openReader(Path directory) throws IOException {
                     return SimpleFlamdexReader.open(directory);
@@ -123,6 +122,7 @@ public class LocalImhotepServiceCore
                 }
             };
         }
+        this.flamderReaderFactory = new ConcurrentFlamdexReaderFactory(memory, factory);
 
 //        flamdexReaderLoadingCache = CacheBuilder.newBuilder().maximumSize(100000).expireAfterAccess(config.getFlamdexReaderCacheMaxDurationMillis(),
 //                TimeUnit.MILLISECONDS).removalListener((RemovalListener<Pair<Path, Integer>, SharedReference<CachedFlamdexReader>>) notification ->
@@ -158,14 +158,6 @@ public class LocalImhotepServiceCore
             = newFixedRateExecutor(new HeartBeatChecker(), config.getHeartBeatCheckFrequencySeconds());
 
         VarExporter.forNamespace(getClass().getSimpleName()).includeInGlobal().export(this, "");
-    }
-
-    private SharedReference<CachedFlamdexReader> createFlamdexReader(Path path, int numDocs) throws IOException {
-        if (numDocs <= 0) {
-            return SharedReference.create(new CachedFlamdexReader(new MemoryReservationContext(memory), factory.openReader(path)));
-        } else {
-            return SharedReference.create(new CachedFlamdexReader(new MemoryReservationContext(memory), factory.openReader(path, numDocs)));
-        }
     }
 
     private ScheduledExecutorService newFixedRateExecutor(final Runnable runnable,
@@ -250,8 +242,8 @@ public class LocalImhotepServiceCore
     }
 
     @Override
-    public List<String> getShardIdsForSession(final String sessionId) {
-        return getSessionManager().getShardIdsForSession(sessionId);
+    public List<String> getShardsForSession(final String sessionId) {
+        return getSessionManager().getShardsForSession(sessionId);
     }
 
     @Override
@@ -277,30 +269,34 @@ public class LocalImhotepServiceCore
         final MemoryReservationContext multiSessionMemoryContext = new MemoryReservationContext(memory);
 
         try {
-            final Map<ShardId, CachedFlamdexReaderReference> flamdexes = Maps.newHashMap();
+            final List<Pair<Path, Integer>> readerRequests = Lists.newArrayList();
+            for (ShardNameNumDocsPair aShardRequestList : shardRequestList) {
+                final ShardDir shardDir = new ShardDir(Paths.get(dataset, aShardRequestList.getShardName()));
+                final int numDocs = aShardRequestList.getNumDocs();
+                final Path path = rootDir.resolve(shardDir.getIndexDir().toString());
+                readerRequests.add(new Pair<>(path, numDocs));
+            }
+
+            final Map<Path, SharedReference<CachedFlamdexReader>> flamdexesForSessions = flamderReaderFactory.getFlamdexReaders(readerRequests);
+            final Map<Path, CachedFlamdexReaderReference> flamdexesForSessionManager = Maps.newHashMap();
             final SessionObserver observer =
                     new SessionObserver(dataset, sessionId, username, clientName, ipAddress);
-            for (int i = 0; i < shardRequestList.size(); ++i) {
-                final ShardDir shardDir = new ShardDir(Paths.get(dataset, shardRequestList.get(i).getShardName()));
-                final ShardId shardId = new ShardId(dataset, shardDir.getId(), shardDir.getVersion(), shardDir.getIndexDir());
-                final int numDocs = shardRequestList.get(i).getNumDocs();
-                final Path path = rootDir.resolve(shardDir.getIndexDir().toString());
-//                final SharedReference<CachedFlamdexReader> readerSharedReference = flamdexReaderLoadingCache.get(new Pair<>(path, numDocs))
-//                        .copy();
-                final SharedReference<CachedFlamdexReader> readerSharedReference = createFlamdexReader(path, numDocs);
-                final CachedFlamdexReaderReference reader = new CachedFlamdexReaderReference(readerSharedReference);
+            int sessionIndex = 0;
+            for (Map.Entry<Path, SharedReference<CachedFlamdexReader>> pathAndFlamdexReader : flamdexesForSessions.entrySet()) {
+                final CachedFlamdexReaderReference flamdexForSession = new CachedFlamdexReaderReference(pathAndFlamdexReader.getValue());
                 try {
-                    flamdexes.put(shardId, new CachedFlamdexReaderReference(readerSharedReference.copy()));
-                    localSessions[i] =
+                    flamdexesForSessionManager.put(pathAndFlamdexReader.getKey(), new CachedFlamdexReaderReference(pathAndFlamdexReader.getValue().copy()));
+                    localSessions[sessionIndex] =
                             new ImhotepJavaLocalSession(sessionId,
-                                    reader,
+                                    flamdexForSession,
                                     this.shardTempDir.toString(),
                                     new MemoryReservationContext(multiSessionMemoryContext),
                                     tempFileSizeBytesLeft);
-                    localSessions[i].addObserver(observer);
+                    localSessions[sessionIndex].addObserver(observer);
+                    sessionIndex++;
                 } catch (RuntimeException | ImhotepOutOfMemoryException e) {
-                    Closeables2.closeQuietly(reader, log);
-                    localSessions[i] = null;
+                    Closeables2.closeQuietly(flamdexForSession, log);
+                    localSessions[sessionIndex] = null;
                     throw e;
                 }
             }
@@ -313,7 +309,7 @@ public class LocalImhotepServiceCore
                     username,
                     clientName);
             getSessionManager().
-                    addSession(sessionId, session, flamdexes, username, clientName,
+                    addSession(sessionId, session, flamdexesForSessionManager, username, clientName,
                             ipAddress, clientVersion, dataset, sessionTimeout, multiSessionMemoryContext);
             session.addObserver(observer);
         }

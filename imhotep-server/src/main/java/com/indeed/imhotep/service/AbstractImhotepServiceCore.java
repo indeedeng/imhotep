@@ -476,7 +476,7 @@ public abstract class AbstractImhotepServiceCore
         });
     }
 
-    public abstract List<String> getShardIdsForSession(String sessionId);
+    public abstract List<String> getShardsForSession(String sessionId);
 
     public abstract String handleOpenSession(
             String dataset,
