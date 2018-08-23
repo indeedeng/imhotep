@@ -123,7 +123,7 @@ public class ShardMasterDaemon {
                     sqlWriteManager
             );
 
-            refresher.refresh(config.localMode, !config.localMode, ShardFilter.ACCEPT_ALL.equals(config.shardFilter), false, isLeader(leaderElectionRoot, zkConnection));
+            refresher.refresh(config.localMode, config.readSQL, ShardFilter.ACCEPT_ALL.equals(config.shardFilter), config.writeSQL, isLeader(leaderElectionRoot, zkConnection));
 
             hostReloadTimer.schedule(new TimerTask() {
                 @Override
@@ -138,7 +138,7 @@ public class ShardMasterDaemon {
                     lastDeleteTimeMillis = System.currentTimeMillis();
                 }
                 final boolean leader = isLeader(leaderElectionRoot, zkConnection);
-                refresher.refresh(leader || config.localMode, !config.localMode, shouldDelete, leader, leader);
+                refresher.refresh(config.readFilesystem && (leader || config.localMode), config.readSQL, shouldDelete, leader && config.writeSQL, leader);
             }, config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis(), TimeUnit.MILLISECONDS);
 
             server = new RequestResponseServer(config.getServerSocket(), new MultiplexingRequestHandler(
@@ -245,16 +245,35 @@ public class ShardMasterDaemon {
         private boolean localMode = false;
         private String shardsRootPath = "hdfs:///var/imhotep";
         private ServerSocket serverSocket;
+        private boolean readSQL = true;
+        private boolean writeSQL = true;
+        private boolean readFilesystem = true;
+
+        public Config setReadSQL(boolean readSQL) {
+            this.readSQL = readSQL;
+            return this;
+        }
+
+        public Config setWriteSQL(boolean writeSQL) {
+            this.writeSQL = writeSQL;
+            return this;
+        }
+
+        public Config setReadFilesystem(boolean readFilesystem) {
+            this.readFilesystem = readFilesystem;
+            return this;
+        }
+
+        public Config setLocalMode(boolean localMode) {
+            this.localMode = localMode;
+            return this;
+        }
 
         public Config setHostsListStatic(String hostsListStatic) {
             this.hostsListStatic = hostsListStatic;
             return this;
         }
 
-        public Config setLocalMode(boolean newLocalMode) {
-            this.localMode = newLocalMode;
-            return this;
-        }
 
         public Config setMetadataDBUsername(final String username) {
             this.metadataDBUsername = username;
@@ -381,16 +400,16 @@ public class ShardMasterDaemon {
         }
 
         JdbcTemplate getMetadataConnection() {
-            if(this.localMode) {
-                return null;
+            if(this.readSQL || this.writeSQL) {
+                BasicDataSource ds = new BasicDataSource();
+                ds.setDriverClassName("com.mysql.jdbc.Driver");
+                ds.setUrl(metadataDBURL);
+                ds.setUsername(metadataDBUsername);
+                ds.setPassword(metadataDBPassword);
+                ds.setValidationQuery("SELECT 1");
+                return new JdbcTemplate(ds);
             }
-            BasicDataSource ds = new BasicDataSource();
-            ds.setDriverClassName("com.mysql.jdbc.Driver");
-            ds.setUrl(metadataDBURL);
-            ds.setUsername(metadataDBUsername);
-            ds.setPassword(metadataDBPassword);
-            ds.setValidationQuery("SELECT 1");
-            return new JdbcTemplate(ds);
+            return null;
         }
 
         ShardAssigner createAssigner() {

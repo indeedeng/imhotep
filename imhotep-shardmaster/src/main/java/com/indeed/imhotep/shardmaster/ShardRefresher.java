@@ -112,7 +112,7 @@ public class ShardRefresher {
     }
 
     private void innerRun(final boolean readFilesystem, final boolean readSQL, final boolean delete, final boolean writeSQL, final boolean shouldRefreshFieldsForDataset) {
-        if (shouldRefreshFieldsForDataset) {
+        if (shouldRefreshFieldsForDataset && writeSQL) {
             performCompleteFieldsRefreshes();
         } else {
             fieldRefreshQueue = new ArrayDeque<>();

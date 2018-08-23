@@ -60,6 +60,8 @@ public class ShardMasterRunner {
                         .setShardsRootPath(rootShardsDir.toString())
                         .setServerSocket(socket)
                         .setLocalMode(true)
+                        .setReadSQL(false)
+                        .setWriteSQL(false)
                         .setHostsListStatic(hostsString));
 
         new Thread(() -> {

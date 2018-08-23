@@ -14,9 +14,13 @@
  package com.indeed.imhotep.client;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
 import com.google.common.primitives.Longs;
 import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.DynamicIndexSubshardDirnameUtil;
@@ -30,6 +34,7 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.shardmasterrpc.RequestResponseClient;
 import com.indeed.imhotep.shardmasterrpc.ShardMaster;
+import org.apache.hadoop.util.StringUtils;
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -40,6 +45,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -59,6 +65,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /**
  * @author jsgroth
@@ -72,6 +79,7 @@ public class ImhotepClient
     private final ImhotepClientMetadataReloader datasetMetadataReloader;
     private final Supplier<ShardMaster> shardMasterSupplier;
     private final Random random = new Random();
+    private List<Host> imhotepDaemonsOverride;
 
     private final Instrumentation.ProviderSupport instrumentation =
         new Instrumentation.ProviderSupport();
@@ -172,7 +180,9 @@ public class ImhotepClient
 
     /**
      * Returns a list of non-overlapping Imhotep shards for the specified dataset and time range.
-     * Shards in the list are sorted chronologically.
+     * Shards in the list are sorted chronologically. If imhotepDaemonsOverride is non-null, then
+     * this will assign the returned shards to those daemons using a hash of the dataset, shardId,
+     * and version.
      */
     public List<Shard> findShardsForTimeRange(final String dataset, final DateTime start, final DateTime end) {
         if(start == null || end == null) {
@@ -193,10 +203,26 @@ public class ImhotepClient
         final long startUnixtime = start.getMillis();
         final long endUnixtime = end.getMillis();
         try {
-            return shardMasterSupplier.get().getShardsInTime(dataset, startUnixtime, endUnixtime);
+            final List<Shard> shardsInTime = shardMasterSupplier.get().getShardsInTime(dataset, startUnixtime, endUnixtime);
+            if(imhotepDaemonsOverride == null) {
+                return shardsInTime;
+            }
+            return shardsInTime.stream().map(shard -> new Shard(shard.shardId, shard.numDocs, shard.version, computeOverrideHost(dataset, shard), shard.getExtension())).collect(Collectors.toList());
         } catch (IOException e) {
             throw Throwables.propagate(e);
         }
+    }
+
+    private static final ThreadLocal<HashFunction> HASH_FUNCTION = new ThreadLocal<HashFunction>() {
+        @Override
+        protected HashFunction initialValue() {
+            return Hashing.murmur3_32((int)1515546902721L);
+        }
+    };
+
+    private Host computeOverrideHost(final String dataset, final Shard shard) {
+        final int hash = HASH_FUNCTION.get().newHasher().putInt(dataset.hashCode()).putInt(shard.shardId.hashCode()).putLong(shard.version).hash().asInt();
+        return imhotepDaemonsOverride.get(hash % imhotepDaemonsOverride.size());
     }
 
     // we are truncating the shard start point as part of removeIntersectingShards so we make a wrapper for the LocatedShardInfo
@@ -651,5 +677,27 @@ public class ImhotepClient
             final int index = random.nextInt(hosts.size());
             return new RequestResponseClient(hosts.get(index));
         };
+    }
+
+    public void setImhotepDaemonsOverride(String hostsString) {
+        if(Strings.isNullOrEmpty(hostsString)) {
+            return;
+        }
+        this.imhotepDaemonsOverride = parseHostsList(hostsString);
+        imhotepDaemonsOverride.sort(Comparator.naturalOrder());
+    }
+
+
+    private List<Host> parseHostsList(String value) {
+        final List<Host> hosts = new ArrayList<>();
+        for (final String hostString : value.split(",")) {
+            try {
+                final Host host = Host.valueOf(hostString.trim());
+                hosts.add(host);
+            } catch (final IllegalArgumentException e) {
+                log.warn("Failed to parse host " + hostString + ". Ignore it.", e);
+            }
+        }
+        return hosts;
     }
 }
