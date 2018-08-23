@@ -15,6 +15,17 @@ public class IntervalTreeTest {
     final static double epsilon = Double.MIN_NORMAL;
 
     @Test
+    public void testBoundries() {
+        IntervalTree<Integer, Integer> tree = new IntervalTree<>();
+        tree.addInterval(0,2, 0);
+        tree.addInterval(2,4, 1);
+        tree.addInterval(4,6, 2);
+        Assert.assertTrue(tree.getValuesInRange(-1, 0).size() == 0);
+        Assert.assertTrue(tree.getValuesInRange(0, 2).size() == 1);
+        Assert.assertTrue(tree.getValuesInRange(6,7).size() == 0);
+    }
+
+    @Test
     public void testSimpleAddAndQuery(){
         IntervalTree<Integer, Integer> tree = new IntervalTree<>();
         tree.addInterval(0, 10, 1);

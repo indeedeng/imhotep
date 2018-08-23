@@ -241,9 +241,9 @@ public class IntervalTree<K extends Comparable<? super K>, V> {
         return toReturn;
     }
 
-    // TODO: adjust this for our use case
+    // Start is inclusive, end is exclusive
     private boolean shouldTakeThisInterval(Interval interval, K start, K end) {
-        return interval.start.compareTo(end) <= 0 && interval.end.compareTo(start) > 0;
+        return interval.start.compareTo(end) < 0 && interval.end.compareTo(start) > 0;
     }
 
     @SuppressWarnings("UnnecessaryLocalVariable")
